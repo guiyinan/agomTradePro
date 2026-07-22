@@ -4,57 +4,64 @@ Django Admin for Account Module.
 提供 Account 模块所有模型的 Admin 管理界面。
 """
 
+from typing import Any
+
 from django import forms
-from django.apps import apps as django_apps
 from django.contrib import admin
+from django.http import HttpRequest, HttpResponse
 from django.utils.html import format_html
 
-from apps.account.application.repository_provider import get_account_interface_repository
+from apps.account.application.repository_provider import (
+    AccountInterfaceRepository,
+    get_account_interface_repository,
+)
+from apps.account.models import (
+    AccountProfileModel,
+    AssetCategoryModel,
+    AssetMetadataModel,
+    CapitalFlowModel,
+    CurrencyModel,
+    DocumentationModel,
+    ExchangeRateModel,
+    InvestmentRuleModel,
+    PortfolioDailySnapshotModel,
+    PortfolioModel,
+    PositionModel,
+    StopLossConfigModel,
+    StopLossTriggerModel,
+    TakeProfitConfigModel,
+    TransactionModel,
+    UserAccessTokenModel,
+)
+from apps.config_center.models import SystemSettingsModel
+from shared.infrastructure.django_admin import TypedModelAdmin, TypedModelForm
 
-AccountProfileModel = django_apps.get_model("account", "AccountProfileModel")
-AssetCategoryModel = django_apps.get_model("account", "AssetCategoryModel")
-AssetMetadataModel = django_apps.get_model("account", "AssetMetadataModel")
-CapitalFlowModel = django_apps.get_model("account", "CapitalFlowModel")
-CurrencyModel = django_apps.get_model("account", "CurrencyModel")
-DocumentationModel = django_apps.get_model("account", "DocumentationModel")
-ExchangeRateModel = django_apps.get_model("account", "ExchangeRateModel")
-InvestmentRuleModel = django_apps.get_model("account", "InvestmentRuleModel")
-PortfolioDailySnapshotModel = django_apps.get_model("account", "PortfolioDailySnapshotModel")
-PortfolioModel = django_apps.get_model("account", "PortfolioModel")
-PositionModel = django_apps.get_model("account", "PositionModel")
-StopLossConfigModel = django_apps.get_model("account", "StopLossConfigModel")
-StopLossTriggerModel = django_apps.get_model("account", "StopLossTriggerModel")
-SystemSettingsModel = django_apps.get_model("config_center", "SystemSettingsModel")
-TakeProfitConfigModel = django_apps.get_model("account", "TakeProfitConfigModel")
-TransactionModel = django_apps.get_model("account", "TransactionModel")
-UserAccessTokenModel = django_apps.get_model("account", "UserAccessTokenModel")
 
-
-def _account_interface_repository():
+def _account_interface_repository() -> AccountInterfaceRepository:
     """Return the lightweight account interface repository."""
 
     return get_account_interface_repository()
 
 
-class SystemSettingsAdminForm(forms.ModelForm):
+class SystemSettingsAdminForm(TypedModelForm[SystemSettingsModel]):
     backup_password = forms.CharField(
         required=False,
         label="备份压缩密码",
         widget=forms.PasswordInput(render_value=False),
-        help_text="留空表示保持当前密码不变；如需清空，请先关闭备份功能后保存。"
+        help_text="留空表示保持当前密码不变；如需清空，请先关闭备份功能后保存。",
     )
     backup_smtp_password = forms.CharField(
         required=False,
         label="SMTP 密码",
         widget=forms.PasswordInput(render_value=False),
-        help_text="留空表示保持当前密码不变。"
+        help_text="留空表示保持当前密码不变。",
     )
 
     class Meta:
         model = SystemSettingsModel
         fields = "__all__"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk and self.instance.backup_password_encrypted:
             self.fields["backup_password"].help_text = (
@@ -65,20 +72,22 @@ class SystemSettingsAdminForm(forms.ModelForm):
                 "已设置 SMTP 密码。留空表示保持当前密码不变；输入新值会覆盖旧密码。"
             )
 
-    def clean(self):
-        cleaned_data = super().clean()
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean() or {}
         raw_password = (cleaned_data.get("backup_password") or "").strip()
         raw_smtp_password = (cleaned_data.get("backup_smtp_password") or "").strip()
         backup_enabled = cleaned_data.get("backup_enabled")
         has_existing_password = bool(getattr(self.instance, "backup_password_encrypted", ""))
-        has_existing_smtp_password = bool(getattr(self.instance, "backup_smtp_password_encrypted", ""))
+        has_existing_smtp_password = bool(
+            getattr(self.instance, "backup_smtp_password_encrypted", "")
+        )
         if backup_enabled and not (raw_password or has_existing_password):
             self.add_error("backup_password", "启用数据库备份邮件时必须设置备份密码。")
         if backup_enabled and not (raw_smtp_password or has_existing_smtp_password):
             self.add_error("backup_smtp_password", "启用数据库备份邮件时必须设置 SMTP 密码。")
         return cleaned_data
 
-    def save(self, commit=True):
+    def save(self, commit: bool = True) -> SystemSettingsModel:
         instance = super().save(commit=False)
         raw_password = (self.cleaned_data.get("backup_password") or "").strip()
         raw_smtp_password = (self.cleaned_data.get("backup_smtp_password") or "").strip()
@@ -93,360 +102,464 @@ class SystemSettingsAdminForm(forms.ModelForm):
 
 
 @admin.register(CurrencyModel)
-class CurrencyModelAdmin(admin.ModelAdmin):
+class CurrencyModelAdmin(TypedModelAdmin[CurrencyModel]):
     """币种管理"""
-    list_display = ['code', 'name', 'symbol', 'is_base', 'is_active', 'precision']
-    list_filter = ['is_base', 'is_active']
-    search_fields = ['code', 'name']
-    ordering = ['-is_base', 'code']
+
+    list_display = ["code", "name", "symbol", "is_base", "is_active", "precision"]
+    list_filter = ["is_base", "is_active"]
+    search_fields = ["code", "name"]
+    ordering = ["-is_base", "code"]
 
 
 @admin.register(AssetCategoryModel)
-class AssetCategoryModelAdmin(admin.ModelAdmin):
+class AssetCategoryModelAdmin(TypedModelAdmin[AssetCategoryModel]):
     """资产分类管理"""
-    list_display = ['code', 'name', 'parent', 'level', 'path', 'is_active', 'sort_order']
-    list_filter = ['level', 'is_active']
-    search_fields = ['code', 'name', 'path']
-    ordering = ['path', 'sort_order']
+
+    list_display = ["code", "name", "parent", "level", "path", "is_active", "sort_order"]
+    list_filter = ["level", "is_active"]
+    search_fields = ["code", "name", "path"]
+    ordering = ["path", "sort_order"]
 
 
 @admin.register(AccountProfileModel)
-class AccountProfileModelAdmin(admin.ModelAdmin):
+class AccountProfileModelAdmin(TypedModelAdmin[AccountProfileModel]):
     """用户账户配置管理"""
-    list_display = ['user', 'display_name', 'risk_tolerance', 'initial_capital', 'mcp_enabled', 'approval_status_badge', 'created_at']
-    list_filter = ['risk_tolerance', 'approval_status', 'mcp_enabled', 'user_agreement_accepted']
-    search_fields = ['user__username', 'display_name']
-    readonly_fields = ['created_at', 'updated_at', 'agreement_accepted_at', 'agreement_ip_address']
+
+    list_display = [
+        "user",
+        "display_name",
+        "risk_tolerance",
+        "initial_capital",
+        "mcp_enabled",
+        "approval_status_badge",
+        "created_at",
+    ]
+    list_filter = ["risk_tolerance", "approval_status", "mcp_enabled", "user_agreement_accepted"]
+    search_fields = ["user__username", "display_name"]
+    readonly_fields = ["created_at", "updated_at", "agreement_accepted_at", "agreement_ip_address"]
 
     fieldsets = (
-        ('基本信息', {
-            'fields': ('user', 'display_name', 'initial_capital', 'risk_tolerance', 'mcp_enabled')
-        }),
-        ('波动率控制', {
-            'fields': ('target_volatility', 'volatility_tolerance', 'max_volatility_reduction')
-        }),
-        ('协议确认', {
-            'fields': ('user_agreement_accepted', 'risk_warning_acknowledged',
-                      'agreement_accepted_at', 'agreement_ip_address')
-        }),
-        ('审批状态', {
-            'fields': ('approval_status', 'approved_at', 'approved_by', 'rejection_reason')
-        }),
-        ('时间戳', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        (
+            "基本信息",
+            {
+                "fields": (
+                    "user",
+                    "display_name",
+                    "initial_capital",
+                    "risk_tolerance",
+                    "mcp_enabled",
+                )
+            },
+        ),
+        (
+            "波动率控制",
+            {"fields": ("target_volatility", "volatility_tolerance", "max_volatility_reduction")},
+        ),
+        (
+            "协议确认",
+            {
+                "fields": (
+                    "user_agreement_accepted",
+                    "risk_warning_acknowledged",
+                    "agreement_accepted_at",
+                    "agreement_ip_address",
+                )
+            },
+        ),
+        (
+            "审批状态",
+            {"fields": ("approval_status", "approved_at", "approved_by", "rejection_reason")},
+        ),
+        ("时间戳", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
 
-    def approval_status_badge(self, obj):
+    @admin.display(description="审批状态")
+    def approval_status_badge(self, obj: AccountProfileModel) -> str:
         """审批状态标签"""
         colors = {
-            'pending': '#ffc107',
-            'approved': '#28a745',
-            'rejected': '#dc3545',
-            'auto_approved': '#17a2b8',
+            "pending": "#ffc107",
+            "approved": "#28a745",
+            "rejected": "#dc3545",
+            "auto_approved": "#17a2b8",
         }
-        color = colors.get(obj.approval_status, '#6c757d')
+        color = colors.get(obj.approval_status, "#6c757d")
         return format_html(
             '<span style="background-color: {}; color: white; '
             'padding: 3px 8px; border-radius: 4px;">{}</span>',
-            color, obj.get_approval_status_display()
+            color,
+            obj.get_approval_status_display(),
         )
-    approval_status_badge.short_description = '审批状态'
 
 
 @admin.register(PortfolioModel)
-class PortfolioModelAdmin(admin.ModelAdmin):
+class PortfolioModelAdmin(TypedModelAdmin[PortfolioModel]):
     """投资组合管理"""
-    list_display = ['user', 'name', 'base_currency', 'is_active',
-                    'total_value_display', 'total_pnl_pct_display', 'position_count']
-    list_filter = ['is_active', 'base_currency']
-    search_fields = ['user__username', 'name']
-    readonly_fields = ['created_at', 'updated_at']
 
-    def total_value_display(self, obj):
+    list_display = [
+        "user",
+        "name",
+        "base_currency",
+        "is_active",
+        "total_value_display",
+        "total_pnl_pct_display",
+        "position_count",
+    ]
+    list_filter = ["is_active", "base_currency"]
+    search_fields = ["user__username", "name"]
+    readonly_fields = ["created_at", "updated_at"]
+
+    @admin.display(description="总市值")
+    def total_value_display(self, obj: PortfolioModel) -> str:
         """总市值显示"""
-        return f'¥{obj.total_value:,.2f}' if obj.total_value else '¥0.00'
-    total_value_display.short_description = '总市值'
+        return f"¥{obj.total_value:,.2f}" if obj.total_value else "¥0.00"
 
-    def total_pnl_pct_display(self, obj):
+    @admin.display(description="收益率")
+    def total_pnl_pct_display(self, obj: PortfolioModel) -> str:
         """总盈亏百分比显示"""
         pct = obj.total_pnl_pct
-        color = '#28a745' if pct >= 0 else '#dc3545'
-        return format_html(
-            '<span style="color: {};">{:+.2f}%</span>',
-            color, pct
-        )
-    total_pnl_pct_display.short_description = '收益率'
+        color = "#28a745" if pct >= 0 else "#dc3545"
+        return format_html('<span style="color: {};">{:+.2f}%</span>', color, pct)
 
 
 @admin.register(PositionModel)
-class PositionModelAdmin(admin.ModelAdmin):
+class PositionModelAdmin(TypedModelAdmin[PositionModel]):
     """持仓管理"""
-    list_display = ['portfolio', 'asset_code', 'category', 'currency',
-                    'shares', 'avg_cost', 'market_value', 'unrealized_pnl_pct_display',
-                    'source', 'is_closed']
-    list_filter = ['asset_class', 'region', 'cross_border', 'source', 'is_closed']
-    search_fields = ['asset_code', 'portfolio__name']
-    readonly_fields = ['created_at', 'updated_at', 'opened_at', 'closed_at']
-    date_hierarchy = 'opened_at'
 
-    def unrealized_pnl_pct_display(self, obj):
+    list_display = [
+        "portfolio",
+        "asset_code",
+        "category",
+        "currency",
+        "shares",
+        "avg_cost",
+        "market_value",
+        "unrealized_pnl_pct_display",
+        "source",
+        "is_closed",
+    ]
+    list_filter = ["asset_class", "region", "cross_border", "source", "is_closed"]
+    search_fields = ["asset_code", "portfolio__name"]
+    readonly_fields = ["created_at", "updated_at", "opened_at", "closed_at"]
+    date_hierarchy = "opened_at"
+
+    @admin.display(description="盈亏%")
+    def unrealized_pnl_pct_display(self, obj: PositionModel) -> str:
         """盈亏百分比显示"""
         pct = obj.unrealized_pnl_pct
-        color = '#28a745' if pct >= 0 else '#dc3545'
+        color = "#28a745" if pct >= 0 else "#dc3545"
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:+.2f}%</span>',
-            color, pct
+            '<span style="color: {}; font-weight: bold;">{:+.2f}%</span>', color, pct
         )
-    unrealized_pnl_pct_display.short_description = '盈亏%'
 
 
 @admin.register(TransactionModel)
-class TransactionModelAdmin(admin.ModelAdmin):
+class TransactionModelAdmin(TypedModelAdmin[TransactionModel]):
     """交易记录管理"""
-    list_display = ['portfolio', 'action_badge', 'asset_code', 'shares',
-                    'price', 'notional', 'commission', 'traded_at']
-    list_filter = ['action', 'traded_at']
-    search_fields = ['asset_code', 'portfolio__name']
-    readonly_fields = ['created_at']
-    date_hierarchy = 'traded_at'
 
-    def action_badge(self, obj):
+    list_display = [
+        "portfolio",
+        "action_badge",
+        "asset_code",
+        "shares",
+        "price",
+        "notional",
+        "commission",
+        "traded_at",
+    ]
+    list_filter = ["action", "traded_at"]
+    search_fields = ["asset_code", "portfolio__name"]
+    readonly_fields = ["created_at"]
+    date_hierarchy = "traded_at"
+
+    @admin.display(description="方向")
+    def action_badge(self, obj: TransactionModel) -> str:
         """交易方向标签"""
-        color = '#28a745' if obj.action == 'buy' else '#dc3545'
+        color = "#28a745" if obj.action == "buy" else "#dc3545"
         return format_html(
             '<span style="background-color: {}; color: white; '
             'padding: 3px 8px; border-radius: 4px;">{}</span>',
-            color, obj.get_action_display().upper()
+            color,
+            obj.get_action_display().upper(),
         )
-    action_badge.short_description = '方向'
 
 
 @admin.register(CapitalFlowModel)
-class CapitalFlowModelAdmin(admin.ModelAdmin):
+class CapitalFlowModelAdmin(TypedModelAdmin[CapitalFlowModel]):
     """资金流水管理"""
-    list_display = ['user', 'portfolio', 'flow_type_badge', 'amount', 'flow_date']
-    list_filter = ['flow_type', 'flow_date']
-    search_fields = ['user__username']
-    readonly_fields = ['created_at']
-    date_hierarchy = 'flow_date'
 
-    def flow_type_badge(self, obj):
+    list_display = ["user", "portfolio", "flow_type_badge", "amount", "flow_date"]
+    list_filter = ["flow_type", "flow_date"]
+    search_fields = ["user__username"]
+    readonly_fields = ["created_at"]
+    date_hierarchy = "flow_date"
+
+    @admin.display(description="类型")
+    def flow_type_badge(self, obj: CapitalFlowModel) -> str:
         """流水类型标签"""
         colors = {
-            'deposit': '#28a745',
-            'withdraw': '#dc3545',
-            'dividend': '#007bff',
-            'interest': '#17a2b8',
-            'adjustment': '#ffc107',
+            "deposit": "#28a745",
+            "withdraw": "#dc3545",
+            "dividend": "#007bff",
+            "interest": "#17a2b8",
+            "adjustment": "#ffc107",
         }
-        color = colors.get(obj.flow_type, '#6c757d')
+        color = colors.get(obj.flow_type, "#6c757d")
         return format_html(
             '<span style="background-color: {}; color: white; '
             'padding: 3px 8px; border-radius: 4px;">{}</span>',
-            color, obj.get_flow_type_display()
+            color,
+            obj.get_flow_type_display(),
         )
-    flow_type_badge.short_description = '类型'
 
 
 @admin.register(AssetMetadataModel)
-class AssetMetadataModelAdmin(admin.ModelAdmin):
+class AssetMetadataModelAdmin(TypedModelAdmin[AssetMetadataModel]):
     """资产元数据管理"""
-    list_display = ['asset_code', 'name', 'asset_class', 'region',
-                    'cross_border', 'style', 'sector']
-    list_filter = ['asset_class', 'region', 'cross_border', 'style']
-    search_fields = ['asset_code', 'name', 'sector']
+
+    list_display = [
+        "asset_code",
+        "name",
+        "asset_class",
+        "region",
+        "cross_border",
+        "style",
+        "sector",
+    ]
+    list_filter = ["asset_class", "region", "cross_border", "style"]
+    search_fields = ["asset_code", "name", "sector"]
 
 
 @admin.register(StopLossConfigModel)
-class StopLossConfigModelAdmin(admin.ModelAdmin):
+class StopLossConfigModelAdmin(TypedModelAdmin[StopLossConfigModel]):
     """止损配置管理"""
-    list_display = ['position', 'stop_loss_type', 'stop_loss_pct_display',
-                    'status_badge', 'triggered_at']
-    list_filter = ['stop_loss_type', 'status']
-    readonly_fields = ['activated_at', 'triggered_at', 'highest_price_updated_at',
-                       'created_at', 'updated_at']
 
-    def stop_loss_pct_display(self, obj):
+    list_display = [
+        "position",
+        "stop_loss_type",
+        "stop_loss_pct_display",
+        "status_badge",
+        "triggered_at",
+    ]
+    list_filter = ["stop_loss_type", "status"]
+    readonly_fields = [
+        "activated_at",
+        "triggered_at",
+        "highest_price_updated_at",
+        "created_at",
+        "updated_at",
+    ]
+
+    @admin.display(description="止损幅度")
+    def stop_loss_pct_display(self, obj: StopLossConfigModel) -> str:
         """止损百分比显示"""
-        return f'{obj.stop_loss_pct:.2%}'
-    stop_loss_pct_display.short_description = '止损幅度'
+        return f"{obj.stop_loss_pct:.2%}"
 
-    def status_badge(self, obj):
+    @admin.display(description="状态")
+    def status_badge(self, obj: StopLossConfigModel) -> str:
         """状态标签"""
         colors = {
-            'active': '#28a745',
-            'triggered': '#dc3545',
-            'cancelled': '#6c757d',
-            'expired': '#ffc107',
+            "active": "#28a745",
+            "triggered": "#dc3545",
+            "cancelled": "#6c757d",
+            "expired": "#ffc107",
         }
-        color = colors.get(obj.status, '#6c757d')
+        color = colors.get(obj.status, "#6c757d")
         return format_html(
             '<span style="background-color: {}; color: white; '
             'padding: 3px 8px; border-radius: 4px;">{}</span>',
-            color, obj.get_status_display()
+            color,
+            obj.get_status_display(),
         )
-    status_badge.short_description = '状态'
 
 
 @admin.register(StopLossTriggerModel)
-class StopLossTriggerModelAdmin(admin.ModelAdmin):
+class StopLossTriggerModelAdmin(TypedModelAdmin[StopLossTriggerModel]):
     """止损触发记录管理"""
-    list_display = ['position', 'trigger_type', 'trigger_price',
-                    'trigger_time', 'pnl_pct_display']
-    list_filter = ['trigger_type']
-    readonly_fields = ['trigger_time', 'created_at']
-    date_hierarchy = 'trigger_time'
 
-    def pnl_pct_display(self, obj):
+    list_display = ["position", "trigger_type", "trigger_price", "trigger_time", "pnl_pct_display"]
+    list_filter = ["trigger_type"]
+    readonly_fields = ["trigger_time", "created_at"]
+    date_hierarchy = "trigger_time"
+
+    @admin.display(description="盈亏%")
+    def pnl_pct_display(self, obj: StopLossTriggerModel) -> str:
         """盈亏百分比显示"""
-        color = '#28a745' if obj.pnl_pct >= 0 else '#dc3545'
+        color = "#28a745" if obj.pnl_pct >= 0 else "#dc3545"
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:+.2f}%</span>',
-            color, obj.pnl_pct
+            '<span style="color: {}; font-weight: bold;">{:+.2f}%</span>', color, obj.pnl_pct
         )
-    pnl_pct_display.short_description = '盈亏%'
 
 
 @admin.register(TakeProfitConfigModel)
-class TakeProfitConfigModelAdmin(admin.ModelAdmin):
+class TakeProfitConfigModelAdmin(TypedModelAdmin[TakeProfitConfigModel]):
     """止盈配置管理"""
-    list_display = ['position', 'take_profit_pct_display', 'is_active']
-    readonly_fields = ['created_at', 'updated_at']
 
-    def take_profit_pct_display(self, obj):
+    list_display = ["position", "take_profit_pct_display", "is_active"]
+    readonly_fields = ["created_at", "updated_at"]
+
+    @admin.display(description="止盈幅度")
+    def take_profit_pct_display(self, obj: TakeProfitConfigModel) -> str:
         """止盈百分比显示"""
-        return f'+{obj.take_profit_pct:.2%}'
-    take_profit_pct_display.short_description = '止盈幅度'
+        return f"+{obj.take_profit_pct:.2%}"
 
 
 @admin.register(SystemSettingsModel)
-class SystemSettingsModelAdmin(admin.ModelAdmin):
+class SystemSettingsModelAdmin(TypedModelAdmin[SystemSettingsModel]):
     """系统配置管理（单例模式）"""
+
     form = SystemSettingsAdminForm
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """禁止手动添加（单例模式）"""
         return not _account_interface_repository().has_system_settings_singleton()
 
-    def has_delete_permission(self, request, obj=None):
+    def has_delete_permission(
+        self, request: HttpRequest, obj: SystemSettingsModel | None = None
+    ) -> bool:
         """禁止删除配置"""
         return False
 
-    list_display = ['require_user_approval', 'auto_approve_first_admin', 'default_mcp_enabled', 'market_color_convention', 'allow_token_plaintext_view', 'backup_enabled', 'backup_email', 'backup_last_sent_at']
+    list_display = [
+        "require_user_approval",
+        "auto_approve_first_admin",
+        "default_mcp_enabled",
+        "market_color_convention",
+        "allow_token_plaintext_view",
+        "backup_enabled",
+        "backup_email",
+        "backup_last_sent_at",
+    ]
 
     fieldsets = (
-        ('用户审批', {
-            'fields': (
-                'require_user_approval',
-                'auto_approve_first_admin',
-                'default_mcp_enabled',
-                'allow_token_plaintext_view',
-            )
-        }),
-        ('视觉约定', {
-            'fields': ('market_color_convention',)
-        }),
-        ('数据库备份邮件', {
-            'fields': (
-                'backup_enabled',
-                'backup_email',
-                'backup_app_base_url',
-                'backup_mail_from_email',
-                'backup_interval_days',
-                'backup_link_ttl_days',
-                'backup_password',
-                'backup_password_hint',
-                'backup_smtp_host',
-                'backup_smtp_port',
-                'backup_smtp_username',
-                'backup_smtp_password',
-                'backup_smtp_use_tls',
-                'backup_smtp_use_ssl',
-                'backup_last_sent_at',
-            )
-        }),
-        ('协议内容', {
-            'fields': ('user_agreement_content', 'risk_warning_content')
-        }),
-        ('备注', {
-            'fields': ('notes',)
-        }),
-        ('运行时市场配置', {
-            'fields': (
-                'alpha_fixed_provider',
-                'alpha_pool_mode',
-                'benchmark_code_map',
-                'asset_proxy_code_map',
-            )
-        }),
-        ('时间戳', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        (
+            "用户审批",
+            {
+                "fields": (
+                    "require_user_approval",
+                    "auto_approve_first_admin",
+                    "default_mcp_enabled",
+                    "allow_token_plaintext_view",
+                )
+            },
+        ),
+        ("视觉约定", {"fields": ("market_color_convention",)}),
+        (
+            "数据库备份邮件",
+            {
+                "fields": (
+                    "backup_enabled",
+                    "backup_email",
+                    "backup_app_base_url",
+                    "backup_mail_from_email",
+                    "backup_interval_days",
+                    "backup_link_ttl_days",
+                    "backup_password",
+                    "backup_password_hint",
+                    "backup_smtp_host",
+                    "backup_smtp_port",
+                    "backup_smtp_username",
+                    "backup_smtp_password",
+                    "backup_smtp_use_tls",
+                    "backup_smtp_use_ssl",
+                    "backup_last_sent_at",
+                )
+            },
+        ),
+        ("协议内容", {"fields": ("user_agreement_content", "risk_warning_content")}),
+        ("备注", {"fields": ("notes",)}),
+        (
+            "运行时市场配置",
+            {
+                "fields": (
+                    "alpha_fixed_provider",
+                    "alpha_pool_mode",
+                    "benchmark_code_map",
+                    "asset_proxy_code_map",
+                )
+            },
+        ),
+        ("时间戳", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
-    readonly_fields = ['created_at', 'updated_at', 'backup_last_sent_at']
+    readonly_fields = ["created_at", "updated_at", "backup_last_sent_at"]
 
-    def changelist_view(self, request, extra_context=None):
+    def changelist_view(
+        self,
+        request: HttpRequest,
+        extra_context: dict[str, Any] | None = None,
+    ) -> HttpResponse:
         """自定义列表页（单例模式）"""
         config = _account_interface_repository().get_existing_system_settings()
         if config is not None:
-            return super().change_view(
-                request,
-                str(config.pk),
-                extra_context=extra_context
-            )
+            return super().change_view(request, str(config.pk), extra_context=extra_context)
         return super().changelist_view(request, extra_context)
 
 
 @admin.register(DocumentationModel)
-class DocumentationModelAdmin(admin.ModelAdmin):
+class DocumentationModelAdmin(TypedModelAdmin[DocumentationModel]):
     """文档管理"""
-    list_display = ['title', 'slug', 'category', 'order', 'is_published', 'created_at']
-    list_filter = ['category', 'is_published']
-    search_fields = ['title', 'slug']
-    prepopulated_fields = {'slug': ('title',)}
-    readonly_fields = ['created_at', 'updated_at']
+
+    list_display = ["title", "slug", "category", "order", "is_published", "created_at"]
+    list_filter = ["category", "is_published"]
+    search_fields = ["title", "slug"]
+    prepopulated_fields = {"slug": ("title",)}
+    readonly_fields = ["created_at", "updated_at"]
 
 
 @admin.register(ExchangeRateModel)
-class ExchangeRateModelAdmin(admin.ModelAdmin):
+class ExchangeRateModelAdmin(TypedModelAdmin[ExchangeRateModel]):
     """汇率管理"""
-    list_display = ['from_currency', 'to_currency', 'rate', 'effective_date']
-    list_filter = ['from_currency', 'to_currency']
-    search_fields = ['from_currency__code', 'to_currency__code']
-    date_hierarchy = 'effective_date'
+
+    list_display = ["from_currency", "to_currency", "rate", "effective_date"]
+    list_filter = ["from_currency", "to_currency"]
+    search_fields = ["from_currency__code", "to_currency__code"]
+    date_hierarchy = "effective_date"
 
 
 @admin.register(InvestmentRuleModel)
-class InvestmentRuleModelAdmin(admin.ModelAdmin):
+class InvestmentRuleModelAdmin(TypedModelAdmin[InvestmentRuleModel]):
     """投资规则管理"""
-    list_display = ['name', 'rule_type', 'user', 'priority', 'is_active']
-    list_filter = ['rule_type', 'is_active']
-    search_fields = ['name', 'advice_template']
-    readonly_fields = ['created_at', 'updated_at']
+
+    list_display = ["name", "rule_type", "user", "priority", "is_active"]
+    list_filter = ["rule_type", "is_active"]
+    search_fields = ["name", "advice_template"]
+    readonly_fields = ["created_at", "updated_at"]
 
 
 @admin.register(PortfolioDailySnapshotModel)
-class PortfolioDailySnapshotModelAdmin(admin.ModelAdmin):
+class PortfolioDailySnapshotModelAdmin(TypedModelAdmin[PortfolioDailySnapshotModel]):
     """投资组合日快照管理"""
-    list_display = ['portfolio', 'snapshot_date', 'total_value',
-                    'cash_balance', 'invested_value', 'position_count']
-    list_filter = ['snapshot_date']
-    date_hierarchy = 'snapshot_date'
-    readonly_fields = ['created_at']
+
+    list_display = [
+        "portfolio",
+        "snapshot_date",
+        "total_value",
+        "cash_balance",
+        "invested_value",
+        "position_count",
+    ]
+    list_filter = ["snapshot_date"]
+    date_hierarchy = "snapshot_date"
+    readonly_fields = ["created_at"]
 
 
 @admin.register(UserAccessTokenModel)
-class UserAccessTokenModelAdmin(admin.ModelAdmin):
-    list_display = ['user', 'name', 'access_level', 'token_preview', 'is_active', 'created_by', 'created_at', 'last_used_at', 'revoked_at']
-    list_filter = ['access_level', 'is_active', 'created_at', 'revoked_at']
-    search_fields = ['user__username', 'name']
-    readonly_fields = ['token_preview', 'created_at', 'updated_at', 'last_used_at', 'revoked_at']
-    exclude = ['key', 'key_encrypted']
+class UserAccessTokenModelAdmin(TypedModelAdmin[UserAccessTokenModel]):
+    list_display = [
+        "user",
+        "name",
+        "access_level",
+        "token_preview",
+        "is_active",
+        "created_by",
+        "created_at",
+        "last_used_at",
+        "revoked_at",
+    ]
+    list_filter = ["access_level", "is_active", "created_at", "revoked_at"]
+    search_fields = ["user__username", "name"]
+    readonly_fields = ["token_preview", "created_at", "updated_at", "last_used_at", "revoked_at"]
+    exclude = ["key", "key_encrypted"]
 
-    def token_preview(self, obj):
+    @admin.display(description="Token预览")
+    def token_preview(self, obj: UserAccessTokenModel) -> str:
         return obj.preview
-    token_preview.short_description = 'Token预览'
-

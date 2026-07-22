@@ -652,3 +652,15 @@
 
 - Policy Admin 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7593 errors / 875 files` 收紧为 `7487 errors / 874 files`，净减少 `106 errors / 1 file`，目标文件历史债务全部归零。两批 Admin 公共根因治理累计清除 `175 errors / 2 files`。
 - Policy decorator metadata、匿名审核拒绝、真实 Admin changelist、RSS fetch 与权威源初始化回归共 `10 passed`；Django system check、Ruff、Black、diff check 通过。
+
+## 第五十批
+
+- 将 Admin 类型模式抽成共享 `TypedModelAdmin[Model]` 与 `TypedModelForm[Model]`：类型检查阶段继承 django-stubs 泛型，运行时继承普通 Django 基类并通过 `Generic` 保持可下标，不要求生产环境安装或 monkeypatch django-stubs。
+- Account 真实 Admin 入口从动态 `django_apps.get_model()` 改为 public model facade 的具体模型导入，16 个 Admin 与系统设置表单全部使用共享泛型基类；11 处动态 display metadata 迁移到 `@admin.display`，权限和 changelist 补齐 Django 请求/响应契约。
+- 删除无任何引用、不会被 Django autodiscover 的 `apps/account/infrastructure/admin.py`；该文件与 `apps/account/interface/admin.py` 重复注册同一批模型，继续补类型只会维持两套实现漂移。
+- ModelForm 的 `clean()` 明确处理 Django 允许返回 `None` 的边界，再访问备份密码字段。`AGENTS.md` 新增 Django Admin 类型规范，禁止裸 `ModelAdmin/ModelForm`、旧式动态 metadata 和重复 Admin 注册入口。
+
+## 第五十批验证结果
+
+- Account Interface Admin 与共享 Django Admin typing 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；删除重复 Admin 后，全仓基线从 `7487 errors / 874 files` 收紧为 `7381 errors / 872 files`，净减少 `106 errors / 2 files`。
+- 共享泛型运行时、Account 系统设置 Admin、用户管理与路由兼容回归共 `34 passed`；Django system check、Ruff、Black、diff check 通过。

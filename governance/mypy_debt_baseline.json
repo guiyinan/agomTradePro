@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7487,
-    "files_with_errors": 874
+    "errors": 7381,
+    "files_with_errors": 872
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -81,11 +81,6 @@
     "apps/account/infrastructure/account_read_repository.py": {
       "no-untyped-def": 1
     },
-    "apps/account/infrastructure/admin.py": {
-      "attr-defined": 17,
-      "no-untyped-def": 21,
-      "type-arg": 16
-    },
     "apps/account/infrastructure/backup_service.py": {
       "no-any-return": 2,
       "no-untyped-call": 1,
@@ -135,13 +130,6 @@
     },
     "apps/account/infrastructure/trading_config_models.py": {
       "unused-ignore": 9
-    },
-    "apps/account/interface/admin.py": {
-      "attr-defined": 11,
-      "no-untyped-call": 2,
-      "no-untyped-def": 18,
-      "type-arg": 18,
-      "union-attr": 3
     },
     "apps/account/interface/api_urls.py": {
       "unused-ignore": 1

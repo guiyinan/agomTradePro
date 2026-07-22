@@ -458,6 +458,15 @@ test_score = StockScore(
 - 测试：Domain 层覆盖率 ≥ 90%
 - 文档：所有 public 函数必须有 docstring
 
+### Django Admin 类型规范
+
+- Admin 类必须继承 `shared.infrastructure.django_admin.TypedModelAdmin[ConcreteModel]`，不得使用裸 `admin.ModelAdmin`。
+- Admin 表单必须继承 `TypedModelForm[ConcreteModel]`，不得使用裸 `forms.ModelForm`。
+- 展示列必须使用 `@admin.display(description=..., ordering=...)`；批量动作必须使用 `@admin.action(description=...)`。
+- 禁止通过 `method.short_description = ...`、`method.admin_order_field = ...` 动态挂载元数据。
+- Admin handler 必须标注 `HttpRequest`、`QuerySet[ConcreteModel]` 和精确返回类型；审核写入前必须验证用户已认证且主键非空。
+- 每个 App 只保留一个真实 Admin 注册入口；禁止在 `infrastructure/admin.py` 与 `interface/admin.py` 重复注册同一组模型。
+
 ```bash
 # 格式化
 black .
