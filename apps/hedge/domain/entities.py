@@ -62,7 +62,7 @@ class HedgePair:
     # Status
     is_active: bool = True                 # Whether this pair is active
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate hedge pair"""
         if not self.name:
             raise ValueError("Pair name cannot be empty")
@@ -107,7 +107,7 @@ class CorrelationMetric:
     alert: str | None = None            # Alert message if any
     alert_type: str | None = None       # Type of alert
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate correlation metric"""
         if not self.asset1:
             raise ValueError("asset1 cannot be empty")
@@ -158,7 +158,7 @@ class HedgePortfolio:
     rebalance_needed: bool = False          # Whether rebalance is needed
     rebalance_reason: str = ""              # Reason for rebalance
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate hedge portfolio"""
         if not self.pair_name:
             raise ValueError("Pair name cannot be empty")
@@ -195,7 +195,7 @@ class HedgeAlert:
     is_resolved: bool = False               # Whether alert has been resolved
     resolved_at: datetime | None = None  # When alert was resolved
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate hedge alert"""
         if not self.pair_name:
             raise ValueError("Pair name cannot be empty")
@@ -234,7 +234,7 @@ class HedgePerformance:
     avg_correlation: float                  # Average correlation
     correlation_stability: float            # Correlation stability (0-1)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate hedge performance"""
         if self.period_start > self.period_end:
             raise ValueError("period_start must be before period_end")

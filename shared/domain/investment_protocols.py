@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 # ---------------------------------------------------------------------------
 # Value objects returned by the protocols
@@ -65,11 +65,13 @@ class LedgerTrade:
 class InvestmentAccountRepositoryProtocol(Protocol):
     """Unified account repository."""
 
-    def get_by_id(self, account_id: int) -> dict | None: ...
+    def get_by_id(self, account_id: int) -> dict[str, Any] | None: ...
 
-    def get_by_user(self, user_id: int, account_type: str | None = None) -> list[dict]: ...
+    def get_by_user(
+        self, user_id: int, account_type: str | None = None
+    ) -> list[dict[str, Any]]: ...
 
-    def save(self, account: dict) -> int: ...
+    def save(self, account: dict[str, Any]) -> int: ...
 
 
 @runtime_checkable
@@ -98,7 +100,7 @@ class PositionLedgerRepositoryProtocol(Protocol):
         shares: float | None = None,
     ) -> LedgerPosition: ...
 
-    def save(self, position: dict) -> int: ...
+    def save(self, position: dict[str, Any]) -> int: ...
 
     def delete(self, position_id: int) -> bool: ...
 
@@ -107,7 +109,7 @@ class PositionLedgerRepositoryProtocol(Protocol):
 class TradeLedgerRepositoryProtocol(Protocol):
     """Unified trade ledger repository."""
 
-    def save(self, trade: dict) -> int: ...
+    def save(self, trade: dict[str, Any]) -> int: ...
 
     def list_by_account(self, account_id: int) -> list[LedgerTrade]: ...
 

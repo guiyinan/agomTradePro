@@ -7,6 +7,7 @@ Pure data classes using only Python standard library.
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
+from typing import Any
 
 
 class FilterType(Enum):
@@ -70,7 +71,7 @@ class FilterSeries:
     """滤波序列结果"""
     indicator_code: str  # 指标代码 (e.g., "PMI", "CPI")
     filter_type: FilterType
-    params: dict
+    params: dict[str, Any]
     results: list[FilterResult]
     calculated_at: date
 
@@ -105,7 +106,7 @@ class KalmanFilterState:
     level_slope_cov: float
     updated_at: date
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "level": self.level,
             "slope": self.slope,
@@ -116,7 +117,7 @@ class KalmanFilterState:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "KalmanFilterState":
+    def from_dict(cls, d: dict[str, Any]) -> "KalmanFilterState":
         return cls(
             level=d["level"],
             slope=d["slope"],

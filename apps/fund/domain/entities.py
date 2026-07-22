@@ -223,9 +223,9 @@ class FundAssetScore:
 
     # ========== 元信息 ==========
     score_date: date = field(default_factory=date.today)
-    context: dict | None = None                 # 评分上下文
+    context: dict[str, object] | None = None     # 评分上下文
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """初始化后处理"""
         # 映射 investment_style 到通用 style
         if not self.style and self.investment_style:
@@ -259,7 +259,7 @@ class FundAssetScore:
             "performance": self.performance_score,
         }
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             # 基本信息

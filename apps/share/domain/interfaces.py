@@ -150,25 +150,27 @@ class ShareApplicationRepositoryProtocol(Protocol):
 class ShareInterfaceRepositoryProtocol(Protocol):
     """Repository operations required by share interface services."""
 
-    def get_share_link_queryset_for_owner(self, owner_id: int):
+    def get_share_link_queryset_for_owner(self, owner_id: int) -> object:
         """Return owner-scoped share links ordered newest first."""
 
-    def get_share_link_for_owner(self, *, owner_id: int, share_link_id: int):
+    def get_share_link_for_owner(
+        self, *, owner_id: int, share_link_id: int
+    ) -> object | None:
         """Return one owner-scoped share link when available."""
 
-    def get_share_link_by_id(self, share_link_id: int):
+    def get_share_link_by_id(self, share_link_id: int) -> object | None:
         """Return one share link by id when available."""
 
-    def get_share_link_by_code(self, short_code: str):
+    def get_share_link_by_code(self, short_code: str) -> object | None:
         """Return one share link by short code when available."""
 
-    def list_share_snapshots(self, *, share_link_id: int):
+    def list_share_snapshots(self, *, share_link_id: int) -> list[object]:
         """Return snapshots for one share link."""
 
     def increment_share_link_access_count(self, *, share_link_id: int) -> None:
         """Increment one share link access counter."""
 
-    def list_owner_accounts(self, owner_id: int):
+    def list_owner_accounts(self, owner_id: int) -> list[object]:
         """Return owner accounts for share management screens."""
 
     def get_owned_account_for_snapshot(
@@ -199,10 +201,12 @@ class ShareInterfaceRepositoryProtocol(Protocol):
     def account_belongs_to_owner(self, *, owner_id: int, account_id: int) -> bool:
         """Return whether an account belongs to the given owner."""
 
-    def list_decision_requests_for_account_assets(self, *, account_id: int, asset_codes: set[str]):
+    def list_decision_requests_for_account_assets(
+        self, *, account_id: int, asset_codes: set[str]
+    ) -> list[object]:
         """Return decision requests relevant to one account and asset set."""
 
-    def get_share_disclaimer_config(self):
+    def get_share_disclaimer_config(self) -> object | None:
         """Return the singleton share disclaimer config."""
 
     def has_share_disclaimer_config(self) -> bool:
@@ -216,7 +220,7 @@ class ShareInterfaceRepositoryProtocol(Protocol):
         modal_title: str,
         modal_confirm_text: str,
         lines: list[str],
-    ):
+    ) -> object:
         """Persist the singleton share disclaimer config."""
 
     def get_owner_account_name_map(self, owner_id: int) -> dict[int, str]:

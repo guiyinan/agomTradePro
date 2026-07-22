@@ -58,7 +58,7 @@ class FactorDefinition:
     # Factor characteristics
     higher_better: bool | None = None   # Deprecated: use direction instead
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate factor definition"""
         if not self.code:
             raise ValueError("Factor code cannot be empty")
@@ -91,7 +91,7 @@ class FactorExposure:
     z_score: float                         # Standardized score (mean=0, std=1)
     normalized_score: float = 0.0          # Normalized score (0-100)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate factor exposure"""
         if not self.stock_code:
             raise ValueError("Stock code cannot be empty")
@@ -134,7 +134,7 @@ class FactorScore:
     volatility_score: float = 0.0
     liquidity_score: float = 0.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate factor score"""
         if not self.stock_code:
             raise ValueError("Stock code cannot be empty")
@@ -185,7 +185,7 @@ class FactorPortfolioConfig:
     # Status
     is_active: bool = True                 # Whether this config is active
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate portfolio configuration"""
         if not self.name:
             raise ValueError("Configuration name cannot be empty")
@@ -228,7 +228,7 @@ class FactorPortfolioHolding:
     # Factor breakdown
     factor_scores: dict[str, float] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate holding"""
         if not self.stock_code:
             raise ValueError("Stock code cannot be empty")
@@ -262,7 +262,7 @@ class FactorPerformance:
     # Turnover
     turnover_rate: float = 0.0             # Portfolio turnover rate
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate performance metrics"""
         if self.period_start > self.period_end:
             raise ValueError("period_start must be before period_end")

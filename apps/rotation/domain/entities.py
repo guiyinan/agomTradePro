@@ -48,7 +48,7 @@ class AssetClass:
     currency: str = "CNY"                  # Currency denomination
     is_active: bool = True                 # Whether this asset is available
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate asset class"""
         if not self.code:
             raise ValueError("Asset code cannot be empty")
@@ -84,7 +84,7 @@ class MomentumScore:
     ma_signal: str = "neutral"             # Moving average signal
     trend_strength: float = 0.0            # Trend strength (0-1)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate momentum score"""
         if not self.asset_code:
             raise ValueError("Asset code cannot be empty")
@@ -105,7 +105,7 @@ class RotationConfig:
     asset_universe: list[str] = field(default_factory=list)  # List of asset codes
 
     # Strategy parameters
-    params: dict = field(default_factory=dict)  # Strategy-specific parameters
+    params: dict[str, object] = field(default_factory=dict)  # Strategy-specific parameters
 
     # Portfolio construction
     rebalance_frequency: str = "monthly"   # weekly, monthly, quarterly
@@ -117,7 +117,7 @@ class RotationConfig:
     lookback_period: int = 252             # Lookback period for calculations (days)
 
     # Regime-based settings (if strategy_type == REGIME_BASED)
-    regime_allocations: dict = field(default_factory=dict)  # {regime: {asset: weight}}
+    regime_allocations: dict[str, dict[str, float]] = field(default_factory=dict)
 
     # Momentum settings (if strategy_type == MOMENTUM)
     momentum_periods: list[int] = field(default_factory=lambda: [20, 60, 120, 252])
@@ -126,7 +126,7 @@ class RotationConfig:
     # Status
     is_active: bool = True                 # Whether this config is active
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate rotation configuration"""
         if not self.name:
             raise ValueError("Configuration name cannot be empty")
@@ -167,7 +167,7 @@ class RotationSignal:
     action_required: str = "hold"          # rebalance, hold, reduce_risk
     reason: str = ""                       # Explanation of the signal
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate rotation signal"""
         if not self.config_name:
             raise ValueError("Config name cannot be empty")
@@ -202,7 +202,7 @@ class RotationPortfolio:
     # Turnover
     turnover_since_last: float = 0.0       # Turnover since last rebalance
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate rotation portfolio"""
         if not self.config_name:
             raise ValueError("Config name cannot be empty")

@@ -200,4 +200,4 @@ class RollingCorrelationCalculator:
 
         if denominator == 0:
             return 0.0
-        return numerator / denominator
+        return float(numerator / denominator)

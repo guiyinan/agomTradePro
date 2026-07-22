@@ -12,7 +12,7 @@ class DateRange:
     start: date
     end: date
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.start > self.end:
             raise ValueError("start date must be before end date")
 
@@ -26,7 +26,7 @@ class Percentage:
     """百分比值对象"""
     value: float
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not 0 <= self.value <= 100:
             raise ValueError("percentage must be between 0 and 100")
 

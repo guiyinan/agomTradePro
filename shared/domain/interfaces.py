@@ -9,7 +9,7 @@ from typing import Any, Generic, Protocol, TypeVar
 
 # Generic type variable for entities
 T = TypeVar('T')
-T_id = TypeVar('T_id')
+T_id = TypeVar("T_id", contravariant=True)
 
 
 @dataclass(frozen=True)
