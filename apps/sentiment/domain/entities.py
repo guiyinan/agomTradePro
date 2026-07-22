@@ -6,8 +6,9 @@ Domain 层不依赖任何外部框架（如 Django），只使用 Python 标准�
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 
 class SentimentCategory(Enum):
@@ -29,10 +30,10 @@ class SentimentAnalysisResult:
     confidence: float                         # 置信度 (0.0 ~ 1.0)
     category: SentimentCategory               # 情感分类
     keywords: list[str] = field(default_factory=list)  # 关键词列表
-    analyzed_at: datetime = field(default_factory=datetime.now)
+    analyzed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     error_message: str | None = None       # 错误信息（AI 调用失败时）
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据有效性"""
         # 验证评分范围
         if not -3.0 <= self.sentiment_score <= 3.0:
@@ -42,7 +43,7 @@ class SentimentAnalysisResult:
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError(f"confidence 必须在 0.0 到 1.0 之间，当前为 {self.confidence}")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "text": self.text[:100] + "..." if len(self.text) > 100 else self.text,  # 截断显示
@@ -82,10 +83,10 @@ class SentimentIndex:
     policy_events_count: int = 0             # 政策事件数量
 
     # 元信息
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据有效性"""
         # 验证评分范围
         for name, value in [
@@ -96,7 +97,7 @@ class SentimentIndex:
             if not -3.0 <= value <= 3.0:
                 raise ValueError(f"{name} 必须在 -3.0 到 +3.0 之间，当前为 {value}")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "date": self.index_date.strftime("%Y-%m-%d"),
@@ -145,9 +146,9 @@ class SentimentSource:
     url: str | None = None                 # 链接
 
     # 扩展字段
-    metadata: dict = field(default_factory=dict)  # 额外元数据
+    metadata: dict[str, Any] = field(default_factory=dict)  # 额外元数据
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据有效性"""
         if not self.source_type:
             raise ValueError("source_type 不能为空")

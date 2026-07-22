@@ -12,7 +12,7 @@ def build_sentiment_result(
     sentiment_score: float,
     confidence: float,
     keywords: list[str] | None = None,
-    analyzed_at=None,
+    analyzed_at: datetime | None = None,
     error_message: str | None = None,
 ) -> SentimentAnalysisResult:
     """Build a normalized sentiment analysis result."""

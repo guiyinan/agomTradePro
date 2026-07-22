@@ -14,6 +14,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 
 class ComparisonOperator(Enum):
@@ -59,14 +60,14 @@ class InvalidationCondition:
     duration: int | None = None      # 持续期数（可选）
     compare_with: str | None = None  # 比较对象（可选）
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证条件有效性"""
         if self.duration is not None and self.duration < 1:
             raise ValueError("duration 必须大于 0")
         if self.compare_with not in (None, "prev_value", "prev_period"):
             raise ValueError(f"不支持的 compare_with: {self.compare_with}")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式（用于存储）"""
         return {
             "indicator_code": self.indicator_code,
@@ -78,7 +79,7 @@ class InvalidationCondition:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "InvalidationCondition":
+    def from_dict(cls, d: dict[str, Any]) -> "InvalidationCondition":
         """从字典创建"""
         return cls(
             indicator_code=d["indicator_code"],
@@ -103,12 +104,12 @@ class InvalidationRule:
     conditions: list[InvalidationCondition]
     logic: LogicOperator
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证规则有效性"""
         if not self.conditions:
             raise ValueError("conditions 不能为空")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式（用于存储）"""
         return {
             "conditions": [c.to_dict() for c in self.conditions],
@@ -116,7 +117,7 @@ class InvalidationRule:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "InvalidationRule":
+    def from_dict(cls, d: dict[str, Any]) -> "InvalidationRule":
         """从字典创建（用于加载）"""
         conditions = [
             InvalidationCondition.from_dict(c)
@@ -155,7 +156,7 @@ class InvalidationCheckResult:
     """证伪检查结果"""
     is_invalidated: bool
     reason: str
-    checked_conditions: list[dict]  # 每个条件的检查详情
+    checked_conditions: list[dict[str, Any]]  # 每个条件的检查详情
     checked_at: str  # ISO 格式时间戳
 
 
@@ -201,7 +202,7 @@ def _compare(value: float, op: ComparisonOperator, threshold: float) -> bool:
 def evaluate_condition(
     condition: InvalidationCondition,
     indicator_value: IndicatorValue
-) -> tuple[bool, dict]:
+) -> tuple[bool, dict[str, Any]]:
     """评估单个条件是否满足
 
     Args:
@@ -258,7 +259,7 @@ def evaluate_condition(
 
 def _generate_invalidation_reason(
     rule: InvalidationRule,
-    checked_conditions: list[dict]
+    checked_conditions: list[dict[str, Any]]
 ) -> str:
     """生成证伪原因描述"""
     parts = []

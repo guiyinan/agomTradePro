@@ -33,7 +33,7 @@ class AssetAllocation:
     commodity: float   # 商品类（黄金ETF、商品基金）
     cash: float        # 现金类（货币基金、现金）
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证配置比例总和为1"""
         total = self.equity + self.fixed_income + self.commodity + self.cash
         if not (0.99 <= total <= 1.01):  # 允许轻微浮点误差

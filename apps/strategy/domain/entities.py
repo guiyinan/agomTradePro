@@ -59,7 +59,7 @@ class RiskControlParams:
     max_total_position_pct: float = 95.0
     stop_loss_pct: float | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据有效性"""
         if not 0 <= self.max_position_pct <= 100:
             raise ValueError(f"max_position_pct 必须在 0-100 之间: {self.max_position_pct}")
@@ -88,7 +88,7 @@ class ScriptConfig:
     allowed_modules: list[str] = field(default_factory=list)
     sandbox_config: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证脚本语言"""
         if self.script_language not in ["python"]:
             raise ValueError(f"不支持的脚本语言: {self.script_language}")
@@ -105,7 +105,7 @@ class AIConfig:
     chain_config_id: int | None = None
     ai_provider_id: int | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证参数"""
         if not 0 <= self.confidence_threshold <= 1:
             raise ValueError(f"confidence_threshold 必须在 0-1 之间: {self.confidence_threshold}")
@@ -145,7 +145,7 @@ class Strategy:
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据一致性"""
         # 验证策略类型与配置的一致性
         if self.strategy_type == StrategyType.RULE_BASED:
@@ -186,7 +186,7 @@ class RuleCondition:
     # 元数据
     created_at: datetime | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据"""
         # 验证权重范围
         if self.weight is not None:
@@ -213,7 +213,7 @@ class SignalRecommendation:
     confidence: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据"""
         if self.weight is not None:
             if not 0 <= self.weight <= 1:
@@ -239,7 +239,7 @@ class StrategyExecutionResult:
     # 上下文信息
     context: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典（用于序列化）"""
         return {
             'strategy_id': self.strategy_id,
@@ -421,7 +421,7 @@ class OrderIntent:
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据"""
         if self.qty <= 0:
             raise ValueError(f"qty 必须大于 0: {self.qty}")

@@ -152,7 +152,7 @@ class PerformanceCalculatorService:
             return None
         r = twr_pct / 100.0
         annualized = (1.0 + r) ** (365.0 / days) - 1.0
-        return annualized * 100.0
+        return float(annualized * 100.0)
 
     # ------------------------------------------------------------------
     # MWR / XIRR

@@ -4,7 +4,7 @@ Task Monitor Domain Interfaces
 定义任务监控仓储协议。
 """
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from apps.task_monitor.domain.entities import (
     CeleryHealthStatus,
@@ -124,7 +124,7 @@ class AlertChannelProtocol(Protocol):
         level: str,
         title: str,
         message: str,
-        metadata: dict | None = None
+        metadata: dict[str, Any] | None = None
     ) -> bool:
         """发送告警
 

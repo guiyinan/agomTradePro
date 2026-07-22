@@ -62,7 +62,7 @@ class FeeConfig:
     is_active: bool = True                 # 是否启用
     description: str = ""                  # 配置说明
 
-    def calculate_buy_fee(self, amount: float, is_shanghai: bool = False) -> dict:
+    def calculate_buy_fee(self, amount: float, is_shanghai: bool = False) -> dict[str, float]:
         """
         计算买入费用
 
@@ -99,7 +99,7 @@ class FeeConfig:
             'total_fee': round(total_fee, 2)
         }
 
-    def calculate_sell_fee(self, amount: float, is_shanghai: bool = False) -> dict:
+    def calculate_sell_fee(self, amount: float, is_shanghai: bool = False) -> dict[str, float]:
         """
         计算卖出费用
 

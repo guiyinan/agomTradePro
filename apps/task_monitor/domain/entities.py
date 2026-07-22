@@ -7,6 +7,7 @@ Task Monitor Domain Entities
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 
 class TaskStatus(Enum):
@@ -35,8 +36,8 @@ class TaskExecutionRecord:
     task_id: str
     task_name: str
     status: TaskStatus
-    args: tuple
-    kwargs: dict
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
     started_at: datetime | None
     finished_at: datetime | None
     result: str | None
@@ -48,7 +49,7 @@ class TaskExecutionRecord:
     queue: str | None
     worker: str | None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式"""
         return {
             "task_id": self.task_id,
@@ -106,7 +107,7 @@ class CeleryHealthStatus:
     scheduled_tasks_count: int
     last_check: datetime
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式"""
         return {
             "is_healthy": self.is_healthy,
@@ -133,7 +134,7 @@ class TaskStatistics:
     last_execution_status: TaskStatus
     last_execution_at: datetime | None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式"""
         return {
             "task_name": self.task_name,

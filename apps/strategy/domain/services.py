@@ -7,6 +7,8 @@ Domain 层服务
 - 实现纯算法和业务规则
 """
 
+from typing import Any
+
 from apps.strategy.domain.entities import (
     OrderEvent,
     OrderStatus,
@@ -561,7 +563,7 @@ class PreTradeRiskGate:
         daily_trade_count: int,
         daily_pnl_pct: float,
         avg_volume: float | None = None,
-    ) -> tuple[bool, list[str], list[str], dict]:
+    ) -> tuple[bool, list[str], list[str], dict[str, Any]]:
         """
         执行风控检查
 
@@ -585,7 +587,7 @@ class PreTradeRiskGate:
         """
         violations: list[str] = []
         warnings: list[str] = []
-        details: dict = {}
+        details: dict[str, Any] = {}
 
         # 计算新订单的名义金额
         order_notional = qty * price
