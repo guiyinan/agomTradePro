@@ -12,6 +12,7 @@ from celery.utils.log import get_task_logger
 from django.utils import timezone
 
 from ..domain.entities import (
+    EventHandler,
     EventType,
     create_event,
 )
@@ -247,14 +248,20 @@ def replay_events_async(
         replay_handler = get_replay_handler()
 
         # 解析目标处理器
-        target_handler = None
+        target_handler: EventHandler | None = None
         if target_handler_class:
             # 动态导入处理器类
             module_path, class_name = target_handler_class.rsplit(".", 1)
             from importlib import import_module
 
             module = import_module(module_path)
-            target_handler = getattr(module, class_name)()
+            candidate_handler = getattr(module, class_name)()
+            if not isinstance(candidate_handler, EventHandler):
+                raise TypeError(f"Replay handler must inherit EventHandler: {target_handler_class}")
+            target_handler = candidate_handler
+
+        if target_handler is None:
+            raise ValueError("Replay requires an explicit target_handler_class")
 
         # 执行重放
         count = replay_handler.replay_to(

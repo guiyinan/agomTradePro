@@ -457,6 +457,18 @@ class EventMetrics:
 
 
 @dataclass(frozen=True)
+class AggregateSnapshot:
+    """Versioned aggregate state used by event-sourcing restoration."""
+
+    snapshot_id: str
+    aggregate_type: str
+    aggregate_id: str
+    version: int
+    state: dict[str, Any]
+    created_at: datetime
+
+
+@dataclass(frozen=True)
 class EventSnapshot:
     """
     事件快照

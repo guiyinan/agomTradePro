@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7184,
-    "files_with_errors": 860
+    "errors": 7160,
+    "files_with_errors": 859
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -108,7 +108,6 @@
       "assignment": 3
     },
     "apps/account/infrastructure/notification_service.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 1,
       "type-arg": 2
     },
@@ -1913,7 +1912,7 @@
     },
     "apps/events/application/event_bus_initializer.py": {
       "attr-defined": 2,
-      "no-untyped-call": 7,
+      "no-untyped-call": 6,
       "no-untyped-def": 8,
       "union-attr": 6
     },
@@ -1947,12 +1946,6 @@
     },
     "apps/events/infrastructure/celery_event_bus.py": {
       "attr-defined": 2
-    },
-    "apps/events/infrastructure/event_store.py": {
-      "call-arg": 12,
-      "no-untyped-call": 2,
-      "no-untyped-def": 7,
-      "var-annotated": 1
     },
     "apps/events/infrastructure/models.py": {
       "no-untyped-def": 1

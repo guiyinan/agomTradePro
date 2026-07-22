@@ -54,3 +54,12 @@ def test_publish_batch_events_async_does_not_notify_failed_appends(monkeypatch):
     assert result["failed_count"] == 1
     assert "persistence failed" in result["errors"][0]["error"].lower()
     assert event_bus.events == []
+
+
+def test_replay_events_async_requires_an_explicit_handler(monkeypatch):
+    monkeypatch.setattr(event_tasks.replay_events_async, "max_retries", 0)
+
+    result = event_tasks.replay_events_async.run()
+
+    assert result["success"] is False
+    assert result["error"] == "Replay requires an explicit target_handler_class"

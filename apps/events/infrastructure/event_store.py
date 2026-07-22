@@ -15,9 +15,10 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from ..domain.entities import (
+    AggregateSnapshot,
     DomainEvent,
+    EventHandler,
     EventMetrics,
-    EventSnapshot,
     EventType,
 )
 
@@ -46,58 +47,28 @@ class StoredEventModel(models.Model):
     """
 
     event_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="事件唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="事件唯一标识符"
     )
 
-    event_type = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="事件类型"
-    )
+    event_type = models.CharField(max_length=64, db_index=True, help_text="事件类型")
 
-    payload = models.JSONField(
-        help_text="事件负载"
-    )
+    payload = models.JSONField(help_text="事件负载")
 
-    metadata = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="事件元数据"
-    )
+    metadata = models.JSONField(default=dict, blank=True, help_text="事件元数据")
 
     correlation_id = models.CharField(
-        max_length=64,
-        blank=True,
-        null=True,
-        db_index=True,
-        help_text="关联 ID（用于关联多个事件）"
+        max_length=64, blank=True, null=True, db_index=True, help_text="关联 ID（用于关联多个事件）"
     )
 
     causation_id = models.CharField(
-        max_length=64,
-        blank=True,
-        null=True,
-        help_text="因果 ID（用于追踪事件链）"
+        max_length=64, blank=True, null=True, help_text="因果 ID（用于追踪事件链）"
     )
 
-    occurred_at = models.DateTimeField(
-        db_index=True,
-        help_text="事件发生时间"
-    )
+    occurred_at = models.DateTimeField(db_index=True, help_text="事件发生时间")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="存储时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="存储时间")
 
-    version = models.IntegerField(
-        default=1,
-        help_text="事件版本"
-    )
+    version = models.IntegerField(default=1, help_text="事件版本")
     aggregate_type = models.CharField(max_length=64, blank=True, db_index=True)
     aggregate_id = models.CharField(max_length=64, blank=True, db_index=True)
     aggregate_version = models.PositiveIntegerField(null=True, blank=True)
@@ -122,7 +93,7 @@ class StoredEventModel(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"StoredEvent({self.event_id}, {self.event_type}, {self.occurred_at})"
 
 
@@ -142,36 +113,18 @@ class EventSnapshotModel(models.Model):
     """
 
     snapshot_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="快照唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="快照唯一标识符"
     )
 
-    aggregate_type = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="聚合根类型"
-    )
+    aggregate_type = models.CharField(max_length=64, db_index=True, help_text="聚合根类型")
 
-    aggregate_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="聚合根 ID"
-    )
+    aggregate_id = models.CharField(max_length=64, db_index=True, help_text="聚合根 ID")
 
-    version = models.IntegerField(
-        help_text="版本号"
-    )
+    version = models.IntegerField(help_text="版本号")
 
-    state = models.JSONField(
-        help_text="状态"
-    )
+    state = models.JSONField(help_text="状态")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
     class Meta:
         db_table = "event_snapshot"
@@ -183,7 +136,7 @@ class EventSnapshotModel(models.Model):
         ]
         unique_together = [["aggregate_type", "aggregate_id", "version"]]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"EventSnapshot({self.snapshot_id}, {self.aggregate_type}, v{self.version})"
 
 
@@ -203,36 +156,18 @@ class EventSubscriptionModel(models.Model):
     """
 
     subscription_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="订阅唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="订阅唯一标识符"
     )
 
-    handler_id = models.CharField(
-        max_length=128,
-        db_index=True,
-        help_text="处理器 ID"
-    )
+    handler_id = models.CharField(max_length=128, db_index=True, help_text="处理器 ID")
 
-    event_types = models.JSONField(
-        help_text="订阅的事件类型列表"
-    )
+    event_types = models.JSONField(help_text="订阅的事件类型列表")
 
-    is_active = models.BooleanField(
-        default=True,
-        help_text="是否激活"
-    )
+    is_active = models.BooleanField(default=True, help_text="是否激活")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
     class Meta:
         db_table = "event_subscription"
@@ -240,7 +175,7 @@ class EventSubscriptionModel(models.Model):
         verbose_name_plural = "事件订阅"
         ordering = ["handler_id"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"EventSubscription({self.subscription_id}, {self.handler_id})"
 
 
@@ -262,7 +197,7 @@ class DatabaseEventStore:
         >>> events = store.get_events(event_type=EventType.REGIME_CHANGED)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化事件存储"""
         self.model = StoredEventModel
 
@@ -277,9 +212,7 @@ class DatabaseEventStore:
             是否成功
         """
         try:
-            aggregate_type = str(
-                event.metadata.get("aggregate_type") or event.event_type.value
-            )
+            aggregate_type = str(event.metadata.get("aggregate_type") or event.event_type.value)
             aggregate_id = str(
                 event.metadata.get("aggregate_id")
                 or event.payload.get("request_id")
@@ -414,10 +347,8 @@ class DatabaseEventStore:
         Returns:
             领域事件列表
         """
-        models = (
-            self.model.objects
-            .filter(correlation_id=correlation_id)
-            .order_by("occurred_at", "created_at")
+        models = self.model.objects.filter(correlation_id=correlation_id).order_by(
+            "occurred_at", "created_at"
         )
 
         return [self._to_domain_event(m) for m in models]
@@ -443,7 +374,7 @@ class DatabaseEventStore:
         total = queryset.count()
 
         # 按类型分组
-        by_type = {}
+        by_type: dict[str, int] = {}
         for model in queryset:
             by_type[model.event_type] = by_type.get(model.event_type, 0) + 1
 
@@ -463,9 +394,9 @@ class DatabaseEventStore:
 
         cutoff = timezone.now() - timedelta(days=older_than_days)
         event_ids = list(
-            self.model.objects
-            .filter(occurred_at__lt=cutoff)
-            .values_list("event_id", flat=True)[:batch_size]
+            self.model.objects.filter(occurred_at__lt=cutoff).values_list("event_id", flat=True)[
+                :batch_size
+            ]
         )
 
         if not event_ids:
@@ -523,7 +454,7 @@ class SnapshotStore:
         >>> snapshot = store.get_latest_snapshot(aggregate_type, aggregate_id)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化快照存储"""
         self.model = EventSnapshotModel
 
@@ -550,15 +481,11 @@ class SnapshotStore:
 
         try:
             # 检查是否已存在
-            existing = (
-                self.model.objects
-                .filter(
-                    aggregate_type=aggregate_type,
-                    aggregate_id=aggregate_id,
-                    version=version,
-                )
-                .first()
-            )
+            existing = self.model.objects.filter(
+                aggregate_type=aggregate_type,
+                aggregate_id=aggregate_id,
+                version=version,
+            ).first()
 
             if existing:
                 # 更新
@@ -580,8 +507,7 @@ class SnapshotStore:
             model.save()
 
             logger.debug(
-                f"Snapshot saved: {snapshot_id} "
-                f"({aggregate_type}, {aggregate_id}, v{version})"
+                f"Snapshot saved: {snapshot_id} " f"({aggregate_type}, {aggregate_id}, v{version})"
             )
 
             return snapshot_id
@@ -594,7 +520,7 @@ class SnapshotStore:
         self,
         aggregate_type: str,
         aggregate_id: str,
-    ) -> EventSnapshot | None:
+    ) -> AggregateSnapshot | None:
         """
         获取最新快照
 
@@ -607,8 +533,7 @@ class SnapshotStore:
         """
         try:
             model = (
-                self.model.objects
-                .filter(
+                self.model.objects.filter(
                     aggregate_type=aggregate_type,
                     aggregate_id=aggregate_id,
                 )
@@ -617,7 +542,7 @@ class SnapshotStore:
             )
 
             if model:
-                return EventSnapshot(
+                return AggregateSnapshot(
                     snapshot_id=model.snapshot_id,
                     aggregate_type=model.aggregate_type,
                     aggregate_id=model.aggregate_id,
@@ -636,7 +561,7 @@ class SnapshotStore:
         aggregate_type: str,
         aggregate_id: str,
         version: int,
-    ) -> EventSnapshot | None:
+    ) -> AggregateSnapshot | None:
         """
         获取指定版本快照
 
@@ -655,7 +580,7 @@ class SnapshotStore:
                 version=version,
             )
 
-            return EventSnapshot(
+            return AggregateSnapshot(
                 snapshot_id=model.snapshot_id,
                 aggregate_type=model.aggregate_type,
                 aggregate_id=model.aggregate_id,
@@ -685,14 +610,10 @@ class SnapshotStore:
             删除的数量
         """
         # 获取所有快照，按版本降序
-        snapshots = (
-            self.model.objects
-            .filter(
-                aggregate_type=aggregate_type,
-                aggregate_id=aggregate_id,
-            )
-            .order_by("-version")
-        )
+        snapshots = self.model.objects.filter(
+            aggregate_type=aggregate_type,
+            aggregate_id=aggregate_id,
+        ).order_by("-version")
 
         # 保留最新的 N 个
         snapshots[:keep_latest]
@@ -704,10 +625,7 @@ class SnapshotStore:
             count += 1
 
         if count > 0:
-            logger.info(
-                f"Deleted {count} old snapshots for "
-                f"{aggregate_type}:{aggregate_id}"
-            )
+            logger.info(f"Deleted {count} old snapshots for " f"{aggregate_type}:{aggregate_id}")
 
         return count
 
@@ -721,13 +639,11 @@ class SnapshotStore:
         deleted_count = 0
         for aggregate in aggregates:
             aggregate_snapshots = list(
-                self.model.objects
-                .filter(
+                self.model.objects.filter(
                     aggregate_type=aggregate["aggregate_type"],
                     aggregate_id=aggregate["aggregate_id"],
                     created_at__lt=cutoff,
-                )
-                .order_by("-version")
+                ).order_by("-version")
             )
 
             if len(aggregate_snapshots) <= keep_latest:
@@ -757,7 +673,7 @@ class EventReplayHandler:
         >>> handler.replay_to(subscriber, since=start_date)
     """
 
-    def __init__(self, event_store: DatabaseEventStore):
+    def __init__(self, event_store: DatabaseEventStore) -> None:
         """
         初始化处理器
 
@@ -768,7 +684,7 @@ class EventReplayHandler:
 
     def replay_to(
         self,
-        subscriber,
+        subscriber: EventHandler,
         event_types: list[EventType] | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
@@ -805,10 +721,7 @@ class EventReplayHandler:
                     subscriber.handle(event)
                     count += 1
             except Exception as e:
-                logger.error(
-                    f"Error replaying event {event.event_id}: {e}",
-                    exc_info=True
-                )
+                logger.error(f"Error replaying event {event.event_id}: {e}", exc_info=True)
 
         logger.info(f"Replayed {count} events to {subscriber}")
 
@@ -830,7 +743,7 @@ class InMemoryEventStore:
     主要用于开发/测试环境初始化事件总线，避免在 URL 导入阶段依赖数据库表。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._events: list[DomainEvent] = []
 
     def append(self, event: DomainEvent) -> bool:

@@ -687,3 +687,14 @@
 
 - Beta Gate Domain、Application、Infrastructure、Serializer/Form/View 共 9 个生产文件的增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7316 errors / 869 files` 收紧为 `7184 errors / 860 files`，净减少 `132 errors / 9 files`，其中 Beta Gate 本身清除 131 项，并连带清除 Decision Rhythm 1 项未类型调用。
 - Beta Gate API edges、领域实体/服务、repository typing contract、激活一致性与 Decision Platform 集成回归共 `66 passed`；Django system check、架构增量门禁 `0 violations`、模块依赖门禁 `199 edges / 0 cycles`，Ruff、Black、diff check 通过。
+
+## 第五十三批
+
+- 按高风险 `call-arg` 与公共事件底座优先收口 Event Store：区分事件总线的“处理结果快照”与事件溯源的“聚合状态快照”，新增不可变 `AggregateSnapshot` 值对象，SnapshotStore 的 latest/exact 读取统一返回正确领域类型。
+- 修复原实现把 `snapshot_id/aggregate_type/aggregate_id/version/state/created_at` 传给完全不同的 `EventSnapshot(event/processed_at/handler_id/...)` 所导致的必现运行时 `TypeError`；新增真实数据库保存、latest/exact 读取往返测试。
+- Database/InMemory Event Store、SnapshotStore、ReplayHandler 补齐模型、指标字典、构造器和 subscriber 契约。Celery legacy replay 在没有显式 handler class 时现在安全失败；动态 handler 必须继承 `EventHandler`，不再把 `None` 或任意对象传入重放器。
+
+## 第五十三批验证结果
+
+- Event Store 与 Events Domain 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7184 errors / 860 files` 收紧为 `7160 errors / 859 files`，净减少 `24 errors / 1 file`，其中 Event Store 清除 22 项，并连带清除 Account notification 与 Event Bus initializer 各 1 项未类型调用。
+- Events task、Aggregate Snapshot 数据库往返和 Events API contract 回归共 `23 passed`；Django system check、架构增量门禁 `0 violations`、Ruff、Black、diff check 通过。
