@@ -12,9 +12,10 @@ from apps.decision_rhythm.composition import (
     make_build_decision_input_snapshot_use_case,
     make_get_decision_input_snapshot_use_case,
 )
+from apps.decision_rhythm.domain.input_snapshot import DecisionInputSnapshot
 
 
-class DecisionInputSnapshotSerializer(serializers.Serializer):
+class DecisionInputSnapshotSerializer(serializers.Serializer[dict[str, object]]):
     """Validate snapshot creation payloads."""
 
     as_of_time = serializers.DateTimeField()
@@ -36,7 +37,7 @@ class DecisionInputSnapshotSerializer(serializers.Serializer):
     schema_version = serializers.CharField(max_length=16, required=False, default="v1")
 
 
-def _serialize(snapshot):  # type: ignore[no-untyped-def]
+def _serialize(snapshot: DecisionInputSnapshot) -> dict[str, object]:
     return {
         **snapshot.canonical_payload(),
         "snapshot_id": snapshot.snapshot_id,

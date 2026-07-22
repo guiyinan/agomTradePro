@@ -34,9 +34,9 @@ class ForecastEvaluationRepository:
     ) -> ForecastEvaluation | None:
         """Append a scheduled check for a linked signal, failing closed after cutover."""
 
-        entry = ForecastLedgerEntry._default_manager.filter(signal_id=signal_id).first()
+        entry = ForecastLedgerEntry._default_manager.filter(signal_id=int(signal_id)).first()
         if entry is None:
-            if settings.SIGNAL_FORECAST_LEDGER_ENABLED:
+            if bool(getattr(settings, "SIGNAL_FORECAST_LEDGER_ENABLED", False)):
                 raise ValueError(
                     f"scoreable signal {signal_id} has no forecast ledger entry"
                 )
@@ -98,7 +98,7 @@ class ForecastEvaluationRepository:
             )
         if created and triggered:
             entry.status = "invalidated"
-            entry.save(update_fields=["status"])
+            entry.save(update_fields=["status"])  # type: ignore[no-untyped-call]
         return evaluation
 
     @transaction.atomic
@@ -151,5 +151,5 @@ class ForecastEvaluationRepository:
             evidence=evidence,
         )
         entry.status = "finalized" if hit is not None else "data_insufficient"
-        entry.save(update_fields=["status"])
+        entry.save(update_fields=["status"])  # type: ignore[no-untyped-call]
         return outcome

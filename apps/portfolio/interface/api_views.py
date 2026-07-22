@@ -13,10 +13,15 @@ from apps.portfolio.composition import (
     make_submit_approved_plan_use_case,
     make_validate_transition_plan_use_case,
 )
-from apps.portfolio.domain.entities import PortfolioSnapshot, TargetPortfolio, TargetPosition
+from apps.portfolio.domain.entities import (
+    PortfolioSnapshot,
+    TargetPortfolio,
+    TargetPosition,
+    TransitionPlan,
+)
 
 
-class BuildTransitionPlanSerializer(serializers.Serializer):
+class BuildTransitionPlanSerializer(serializers.Serializer[dict[str, object]]):
     idempotency_key = serializers.CharField(max_length=128)
     account_id = serializers.CharField(max_length=64)
     portfolio_snapshot_id = serializers.CharField(max_length=64)
@@ -34,7 +39,7 @@ class BuildTransitionPlanSerializer(serializers.Serializer):
     expires_at = serializers.DateTimeField()
 
 
-def _serialize(plan):  # type: ignore[no-untyped-def]
+def _serialize(plan: TransitionPlan) -> dict[str, object]:
     return {
         "plan_id": plan.plan_id,
         "idempotency_key": plan.idempotency_key,

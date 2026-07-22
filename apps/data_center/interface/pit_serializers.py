@@ -2,8 +2,10 @@
 
 from rest_framework import serializers
 
+from apps.data_center.domain.pit import PITDatasetManifest
 
-class BuildPITManifestSerializer(serializers.Serializer):
+
+class BuildPITManifestSerializer(serializers.Serializer[dict[str, object]]):
     """Validate manifest build requests."""
 
     as_of_time = serializers.DateTimeField()
@@ -15,7 +17,7 @@ class BuildPITManifestSerializer(serializers.Serializer):
     )
 
 
-def serialize_pit_manifest(manifest):  # type: ignore[no-untyped-def]
+def serialize_pit_manifest(manifest: PITDatasetManifest) -> dict[str, object]:
     """Convert a PIT manifest value object into JSON-safe primitives."""
 
     return {

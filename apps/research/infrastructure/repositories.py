@@ -119,7 +119,8 @@ class ResearchRegistryRepository:
             reasons.append("family_trial_count_mismatch")
         if any(item.status not in complete_statuses for item in family_trials):
             reasons.append("family_has_unfinished_trials")
-        metric_rows = []
+        metric_rows: list[MetricObservation] = []
+        p_values: list[float] = []
         for family_trial in family_trials:
             if family_trial.status in {"failed", "aborted"}:
                 continue
@@ -127,11 +128,13 @@ class ResearchRegistryRepository:
             if metric is None or metric.p_value is None:
                 reasons.append(f"missing_sharpe_evidence:{family_trial.trial_id}")
                 continue
-            metric_rows.append(metric)
-        q_values = benjamini_hochberg_q_values([metric.p_value for metric in metric_rows])
+            if metric.p_value is not None:
+                metric_rows.append(metric)
+                p_values.append(float(metric.p_value))
+        q_values = benjamini_hochberg_q_values(p_values)
         for metric, q_value in zip(metric_rows, q_values, strict=True):
             metric.q_value = q_value
-            metric.save(update_fields=["q_value"])
+            metric.save(update_fields=["q_value"])  # type: ignore[no-untyped-call]
         candidate = next((metric for metric in metric_rows if metric.trial_id == trial_id), None)
         dsr = None
         if candidate:
@@ -164,5 +167,5 @@ class ResearchRegistryRepository:
             evidence=evidence,
         )
         trial.status = "eligible_for_promotion" if decision == "approved" else "rejected"
-        trial.save(update_fields=["status"])
+        trial.save(update_fields=["status"])  # type: ignore[no-untyped-call]
         return result

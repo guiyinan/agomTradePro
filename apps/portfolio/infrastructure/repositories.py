@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from decimal import Decimal
+from typing import Any
 
 from django.conf import settings
 from django.db import transaction
@@ -44,7 +45,7 @@ class PortfolioTransitionPlanRepository:
     def save(self, plan: TransitionPlan) -> TransitionPlan:
         """Persist a plan idempotently."""
 
-        if settings.DECISION_SNAPSHOT_REQUIRED:
+        if bool(getattr(settings, "DECISION_SNAPSHOT_REQUIRED", False)):
             snapshot = get_decision_snapshot(plan.decision_snapshot_id)
             if snapshot is None:
                 raise ValueError("decision input snapshot not found")
@@ -154,7 +155,7 @@ class PortfolioTransitionPlanRepository:
         )
 
     @staticmethod
-    def _order_to_dict(order: OrderDraft) -> dict:
+    def _order_to_dict(order: OrderDraft) -> dict[str, object]:
         return {
             "asset_code": order.asset_code,
             "side": order.side,
@@ -167,7 +168,7 @@ class PortfolioTransitionPlanRepository:
         }
 
     @staticmethod
-    def _order_from_dict(item: dict) -> OrderDraft:
+    def _order_from_dict(item: dict[str, Any]) -> OrderDraft:
         return OrderDraft(
             asset_code=str(item["asset_code"]),
             side=str(item["side"]),

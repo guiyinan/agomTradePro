@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from apps.prompt.composition import make_promote_prompt_version, make_run_prompt_evaluation
 
 
-class PromptEvaluationSerializer(serializers.Serializer):
+class PromptEvaluationSerializer(serializers.Serializer[dict[str, object]]):
     version_id = serializers.CharField(max_length=64)
     dataset_id = serializers.CharField(max_length=64)
     evaluation_type = serializers.ChoiceField(choices=["offline", "online", "regression"])

@@ -92,7 +92,7 @@ class PromptEvaluationRepository:
         run.executed_cases = executed
         run.failure_summary = failures
         run.completed_at = timezone.now()
-        run.save(
+        run.save(  # type: ignore[no-untyped-call]
             update_fields=[
                 "status",
                 "actual_cost",
@@ -104,7 +104,7 @@ class PromptEvaluationRepository:
         )
         if run.status == "completed" and version.status == "candidate":
             version.status = "evaluated"
-            version.save(update_fields=["status"])
+            version.save(update_fields=["status"])  # type: ignore[no-untyped-call]
         return run
 
     @transaction.atomic
@@ -146,7 +146,7 @@ class PromptEvaluationRepository:
                 template=version.template, status="active"
             ).update(status="retired")
             version.status = "active"
-            version.save(update_fields=["status"])
+            version.save(update_fields=["status"])  # type: ignore[no-untyped-call]
             type(version.template)._default_manager.filter(pk=version.template_id).update(
                 version=version.version,
                 template_content=version.content,

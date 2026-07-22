@@ -2,27 +2,47 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.base import ModelBase
 
 
-class ImmutableModelMixin:
+class ImmutableModelMixin(models.Model):
     """Reject updates so evidence records can only be appended."""
 
-    def save(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+    class Meta:
+        abstract = True
+
+    def save(
+        self,
+        *,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
         """Insert a new row and reject mutation of an existing row."""
 
         if self.pk and type(self)._default_manager.filter(pk=self.pk).exists():
             raise ValidationError("Point-in-time evidence records are immutable.")
-        return super().save(*args, **kwargs)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
-    def delete(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+    def delete(
+        self, using: object | None = None, keep_parents: bool = False
+    ) -> tuple[int, dict[str, int]]:
         """Reject deletion of immutable evidence."""
 
         raise ValidationError("Point-in-time evidence records cannot be deleted.")
 
 
-class PITFactVersionModel(ImmutableModelMixin, models.Model):
+class PITFactVersionModel(ImmutableModelMixin):
     """Canonical bitemporal overlay for versioned research facts."""
 
     QUALITY_CHOICES = [
@@ -59,7 +79,7 @@ class PITFactVersionModel(ImmutableModelMixin, models.Model):
         ]
 
 
-class PITDatasetManifestModel(ImmutableModelMixin, models.Model):
+class PITDatasetManifestModel(ImmutableModelMixin):
     """Frozen record of fact versions selected for one research run."""
 
     SCOPE_CHOICES = [("public", "Public"), ("system", "System")]

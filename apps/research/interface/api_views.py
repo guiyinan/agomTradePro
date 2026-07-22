@@ -12,12 +12,12 @@ from apps.research.composition import (
 )
 
 
-class ExperimentSerializer(serializers.Serializer):
+class ExperimentSerializer(serializers.Serializer[dict[str, object]]):
     question = serializers.CharField()
     hypothesis = serializers.CharField()
 
 
-class TrialSerializer(serializers.Serializer):
+class TrialSerializer(serializers.Serializer[dict[str, object]]):
     experiment_id = serializers.CharField(max_length=64)
     family_id = serializers.CharField(max_length=64)
     planned_trial_count = serializers.IntegerField(min_value=1)

@@ -15,7 +15,7 @@ class DecisionInputSnapshotRepository:
         snapshot.verify()
         from django.conf import settings
 
-        if settings.DECISION_SNAPSHOT_REQUIRED:
+        if bool(getattr(settings, "DECISION_SNAPSHOT_REQUIRED", False)):
             from apps.events.infrastructure.event_store import StoredEventModel
 
             event_ids = {

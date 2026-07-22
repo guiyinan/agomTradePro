@@ -8,7 +8,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from django.db.models import F, Q, Window
+from django.db.models import F, Q, QuerySet, Window
 from django.db.models.functions import RowNumber
 
 from apps.data_center.domain.pit import (
@@ -37,7 +37,7 @@ class DjangoPITDataView:
         as_of_time: datetime,
         knowledge_scope: KnowledgeScope,
         filters: dict[str, Any],
-    ):
+    ) -> tuple[QuerySet[PITFactVersionModel], str]:
         """Build the fact-version queryset visible under the requested clock."""
 
         knowledge_scope = KnowledgeScope(knowledge_scope)
@@ -112,13 +112,13 @@ class ManifestBoundPITDataView(DjangoPITDataView):
         if not manifest.is_verified:
             raise ValueError("PIT manifest is not verified")
         selected_ids = [int(item["id"]) for item in manifest.selected_versions]
-        stored_rows = {
+        stored_rows: dict[int, Any] = {
             int(row["id"]): row
             for row in PITFactVersionModel._default_manager.filter(pk__in=selected_ids).values(
                 "id", "content_hash", "payload"
             )
         }
-        self._expected_hashes = {
+        self._expected_hashes: dict[int, dict[str, str | None]] = {
             int(item["id"]): {
                 "content_hash": item.get("content_hash"),
                 "payload_hash": item.get("payload_hash"),
