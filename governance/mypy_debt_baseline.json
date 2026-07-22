@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8038,
-    "files_with_errors": 893
+    "errors": 8035,
+    "files_with_errors": 892
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1960,11 +1960,6 @@
     },
     "apps/equity/infrastructure/models.py": {
       "no-untyped-def": 16
-    },
-    "apps/equity/infrastructure/stock_repository.py": {
-      "arg-type": 1,
-      "no-any-return": 1,
-      "no-untyped-def": 1
     },
     "apps/equity/infrastructure/valuation_repair_repositories.py": {
       "no-untyped-def": 1,

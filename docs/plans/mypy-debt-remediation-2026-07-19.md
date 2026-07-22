@@ -516,3 +516,13 @@
 
 - Data Center Quote Protocol 与 Equity Intraday repository 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8059 errors / 894 files` 收紧为 `8038 errors / 893 files`，净减少 `21 errors / 1 file`，无文件或错误码反弹。
 - Equity 分时主源、本地快照、fallback、一致性拒绝与结构回归共 `12 passed`；架构 delta 扫描 `2 files / 28 added lines / 0 violations`，Ruff、diff check 通过。
+
+## 第三十八批
+
+- 收口 Equity 组合仓储根 `DjangoStockRepository`：on-demand service 构造参数改为显式可空服务契约，数值转整数先经字符串边界，避免把任意 object 直接交给 `float()`。
+- 市场时间转换先接受原生 datetime，否则只调用可调用的 `to_pydatetime`，并验证第三方返回值确为 datetime；异常形状现在抛出 `DataValidationError`，不再从 typed 方法泄漏 Any。
+
+## 第三十八批验证结果
+
+- Equity stock repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8038 errors / 893 files` 收紧为 `8035 errors / 892 files`，净减少 `3 errors / 1 file`。
+- Equity 分时、日线与结构回归共 `16 passed`；架构 delta 扫描 `1 file / 15 added lines / 0 violations`，Ruff、diff check 通过。

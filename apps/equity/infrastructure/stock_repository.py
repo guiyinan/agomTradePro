@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from django.utils import timezone
 
 from apps.data_center.application.interface_services import make_on_demand_data_center_service
+from apps.data_center.application.on_demand import OnDemandDataCenterService
 from apps.data_center.composition import (
     get_asset_repository,
     get_financial_fact_repository,
@@ -44,7 +45,11 @@ class DjangoStockRepository(
     _INTRADAY_SNAPSHOT_MAX_STALE_DAYS = 5
     _INTRADAY_SNAPSHOT_MIN_POINTS = 3
 
-    def __init__(self, *, on_demand_service=None) -> None:
+    def __init__(
+        self,
+        *,
+        on_demand_service: OnDemandDataCenterService | None = None,
+    ) -> None:
         self._last_intraday_source: str | None = None
         self._dc_asset_repo = get_asset_repository()
         self._dc_financial_repo = get_financial_fact_repository()
@@ -70,7 +75,7 @@ class DjangoStockRepository(
         if value in (None, ""):
             return None
         try:
-            return int(float(value))
+            return int(float(str(value)))
         except (ValueError, TypeError):
             return None
 
@@ -144,12 +149,16 @@ class DjangoStockRepository(
 
     def _to_market_aware_datetime(self, value: object) -> datetime:
         """将分时数据时间转换为 Asia/Shanghai 的 timezone-aware datetime。"""
-        if hasattr(value, "to_pydatetime"):
-            dt_value = value.to_pydatetime()
-        elif isinstance(value, datetime):
+        if isinstance(value, datetime):
             dt_value = value
         else:
-            raise DataValidationError(f"无法解析分时时间: {value!r}")
+            to_pydatetime = getattr(value, "to_pydatetime", None)
+            if not callable(to_pydatetime):
+                raise DataValidationError(f"无法解析分时时间: {value!r}")
+            converted = to_pydatetime()
+            if not isinstance(converted, datetime):
+                raise DataValidationError(f"无法解析分时时间: {value!r}")
+            dt_value = converted
 
         market_tz = ZoneInfo("Asia/Shanghai")
         if timezone.is_naive(dt_value):
