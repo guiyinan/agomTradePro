@@ -6,9 +6,10 @@ import json
 import logging
 import re
 import uuid
+from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, datetime
-from typing import Any
+from datetime import UTC, date, datetime
+from typing import Any, Protocol, cast
 
 from django.urls import Resolver404, resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -19,7 +20,7 @@ from apps.ai_capability.application.repository_provider import (
     get_capability_execution_support_repository,
     get_confirmation_codec,
 )
-from apps.ai_provider.application.repository_provider import AIClientFactory
+from apps.ai_provider.application.repository_provider import get_ai_client_factory
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.prompt.application.runtime_provider import execute_builtin_tool
 from apps.regime.application.current_regime import resolve_current_regime
@@ -44,6 +45,7 @@ from ..domain.services import (
     CapabilityParameterPolicy,
     CapabilityRetrievalScorer,
     CapabilitySemanticDeduper,
+    RetrievalScore,
 )
 from . import sync_use_cases as _sync_use_cases
 from .mcp_runtime_gateway import call_sdk_mcp_tool as _call_sdk_mcp_tool
@@ -52,33 +54,107 @@ from .terminal_gateway import get_terminal_capability_gateway
 
 logger = logging.getLogger(__name__)
 
-_list_sdk_mcp_capability_manifests = _sync_use_cases._list_sdk_mcp_capability_manifests
-_list_sdk_mcp_core_tool_names = _sync_use_cases._list_sdk_mcp_core_tool_names
-_list_sdk_mcp_tools = _sync_use_cases._list_sdk_mcp_tools
+McpManifestLoader = Callable[[], list[Any]]
+McpCoreNameLoader = Callable[[], set[str]]
+McpToolLoader = Callable[..., list[Any]]
+
+
+def _read_sync_loader(name: str) -> object:
+    """Read a patchable legacy sync loader by name."""
+
+    return getattr(_sync_use_cases, name)
+
+
+def _write_sync_loader(name: str, loader: object) -> None:
+    """Replace a patchable legacy sync loader by name."""
+
+    setattr(_sync_use_cases, name, loader)
+
+
+_list_sdk_mcp_capability_manifests = cast(
+    McpManifestLoader,
+    _read_sync_loader("_list_sdk_mcp_capability_manifests"),
+)
+_list_sdk_mcp_core_tool_names = cast(
+    McpCoreNameLoader,
+    _read_sync_loader("_list_sdk_mcp_core_tool_names"),
+)
+_list_sdk_mcp_tools = cast(
+    McpToolLoader,
+    _read_sync_loader("_list_sdk_mcp_tools"),
+)
+
+
+class AIChatClientProtocol(Protocol):
+    """Narrow chat client contract consumed by capability fallback routing."""
+
+    def chat_completion(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        """Generate one non-streaming chat completion."""
+
+
+class AIClientFactoryProtocol(Protocol):
+    """Narrow provider factory contract consumed by capability routing."""
+
+    def get_client(
+        self,
+        provider_ref: str | None = None,
+        user: object | None = None,
+    ) -> AIChatClientProtocol:
+        """Return a user-scoped chat client."""
+
+
+def _create_ai_client_factory() -> AIClientFactoryProtocol:
+    """Build the default typed AI client factory."""
+
+    return cast(AIClientFactoryProtocol, get_ai_client_factory())
+
+
+AIClientFactory: Callable[[], AIClientFactoryProtocol] = _create_ai_client_factory
 
 
 class SyncCapabilitiesUseCase(_sync_use_cases.SyncCapabilitiesUseCase):
     """Compatibility wrapper for tests and callers patching the legacy module path."""
 
     def _sync_mcp_tools(self) -> list[CapabilityDefinition]:
-        original_manifest_loader = _sync_use_cases._list_sdk_mcp_capability_manifests
-        original_core_names_loader = _sync_use_cases._list_sdk_mcp_core_tool_names
-        original_tools_loader = _sync_use_cases._list_sdk_mcp_tools
+        original_manifest_loader = _read_sync_loader(
+            "_list_sdk_mcp_capability_manifests"
+        )
+        original_core_names_loader = _read_sync_loader(
+            "_list_sdk_mcp_core_tool_names"
+        )
+        original_tools_loader = _read_sync_loader("_list_sdk_mcp_tools")
         try:
-            _sync_use_cases._list_sdk_mcp_capability_manifests = _list_sdk_mcp_capability_manifests
-            _sync_use_cases._list_sdk_mcp_core_tool_names = _list_sdk_mcp_core_tool_names
-            _sync_use_cases._list_sdk_mcp_tools = _list_sdk_mcp_tools
+            _write_sync_loader(
+                "_list_sdk_mcp_capability_manifests",
+                _list_sdk_mcp_capability_manifests,
+            )
+            _write_sync_loader(
+                "_list_sdk_mcp_core_tool_names",
+                _list_sdk_mcp_core_tool_names,
+            )
+            _write_sync_loader("_list_sdk_mcp_tools", _list_sdk_mcp_tools)
             return super()._sync_mcp_tools()
         finally:
-            _sync_use_cases._list_sdk_mcp_capability_manifests = original_manifest_loader
-            _sync_use_cases._list_sdk_mcp_core_tool_names = original_core_names_loader
-            _sync_use_cases._list_sdk_mcp_tools = original_tools_loader
+            _write_sync_loader(
+                "_list_sdk_mcp_capability_manifests",
+                original_manifest_loader,
+            )
+            _write_sync_loader(
+                "_list_sdk_mcp_core_tool_names",
+                original_core_names_loader,
+            )
+            _write_sync_loader("_list_sdk_mcp_tools", original_tools_loader)
 
 
 class _CapabilityRegimeAdapter:
     """Adapter for exposing regime queries to tool registry."""
 
-    def get_current_regime(self, as_of_date=None):
+    def get_current_regime(self, as_of_date: date | None = None) -> dict[str, Any]:
         result = resolve_current_regime(as_of_date=as_of_date)
         return {
             "dominant_regime": result.dominant_regime,
@@ -90,7 +166,7 @@ class _CapabilityRegimeAdapter:
             "is_fallback": result.is_fallback,
         }
 
-    def get_regime_distribution(self, as_of_date=None):
+    def get_regime_distribution(self, as_of_date: date | None = None) -> dict[str, Any]:
         result = resolve_current_regime(as_of_date=as_of_date)
         return {
             "observed_at": result.observed_at.isoformat() if result.observed_at else None,
@@ -168,7 +244,7 @@ class CapabilityRetrievalService:
         capabilities: list[CapabilityDefinition],
         message: str,
         k: int,
-    ) -> list[Any]:
+    ) -> list[RetrievalScore]:
         return self.scorer.retrieve_top_k(capabilities, message, k=k)
 
 
@@ -423,6 +499,8 @@ class CapabilityExecutionDispatcher:
     ) -> dict[str, Any]:
         target_type = capability.execution_target.get("type", "mcp_tool")
         tool_name = capability.execution_target.get("tool_name")
+        if not isinstance(tool_name, str) or not tool_name.strip():
+            return {"reply": "Capability has no valid MCP tool name."}
         params = context.context.get("params", {}) or {}
         call_params = params
         if target_type == "mcp_capability":
@@ -877,7 +955,7 @@ class RouteMessageUseCase:
                 f"但还缺少参数: {', '.join(missing_params)}。"
             )
         else:
-            reply = (
+            reply = str(
                 execution_result.get("reply")
                 if execution_result and execution_result.get("reply")
                 else f"检测到你可能想执行 {capability.name}。建议执行 `{suggested_command}`。"
@@ -1060,7 +1138,7 @@ class RouteMessageUseCase:
             if ai_response.get("status") != "success":
                 return f"AI 调用失败: {ai_response.get('error_message', 'Unknown error')}"
 
-            return ai_response.get("content", "")
+            return str(ai_response.get("content", "") or "")
         except Exception as e:
             logger.exception("Chat execution failed")
             return f"Chat execution failed: {str(e)}"
@@ -1076,7 +1154,7 @@ class RouteMessageUseCase:
         rejected_candidates: list[str] | None = None,
     ) -> dict[str, Any]:
         """Build answer chain for debugging."""
-        steps = [
+        steps: list[dict[str, Any]] = [
             {
                 "title": "Capability Retrieval",
                 "summary": f"Retrieved {len(candidates)} candidates, top: {capability.name}",
@@ -1114,7 +1192,7 @@ class RouteMessageUseCase:
 
     def _build_chat_answer_chain(self, context: RoutingContext, reason: str = "") -> dict[str, Any]:
         """Build answer chain for chat fallback."""
-        steps = [
+        steps: list[dict[str, Any]] = [
             {
                 "title": "Capability Retrieval",
                 "summary": "No high-confidence capability match found",

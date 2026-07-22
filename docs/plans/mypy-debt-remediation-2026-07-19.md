@@ -526,3 +526,15 @@
 
 - Equity stock repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8038 errors / 893 files` 收紧为 `8035 errors / 892 files`，净减少 `3 errors / 1 file`。
 - Equity 分时、日线与结构回归共 `16 passed`；架构 delta 扫描 `1 file / 15 added lines / 0 violations`，Ruff、diff check 通过。
+
+## 第三十九批
+
+- 收口 AI Capability 路由公共用例：legacy MCP catalog loader 通过具名动态边界读取和替换，保留现有测试 patch 接缝，同时清除跨模块私有属性访问传播的 13 个 `attr-defined`。
+- Capability retrieval 使用真实 `RetrievalScore` 序列；MCP 执行前强制验证 `tool_name` 为非空字符串，避免把 `None/Any` 传入 SDK 与 builtin tool registry。
+- Chat fallback 只依赖局部 AI client/factory Protocol，并保留 typed `AIClientFactory` callable 兼容接缝；动态 response content 显式归一化为字符串。Answer-chain steps 使用异构 payload 类型，避免先按字符串字典推断后写入技术详情列表。
+- Regime adapter 补齐日期参数和 payload 返回类型，suggestion reply 在进入 `RoutingDecision` 前收窄为字符串。
+
+## 第三十九批验证结果
+
+- AI Capability use cases 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8035 errors / 892 files` 收紧为 `8013 errors / 891 files`，净减少 `22 errors / 1 file`。
+- Routing、semantic sync 与 SDK catalog 定向测试先通过 `60` 项并暴露一个兼容 patch 接缝，修复后完整 routing suite `6 passed`；架构 delta 扫描 `1 file / 119 added lines / 0 violations`，Ruff、diff check 通过。

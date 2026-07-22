@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8035,
-    "files_with_errors": 892
+    "errors": 8013,
+    "files_with_errors": 891
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -361,14 +361,6 @@
       "dict-item": 1,
       "no-any-return": 1,
       "no-untyped-call": 1
-    },
-    "apps/ai_capability/application/use_cases.py": {
-      "arg-type": 2,
-      "assignment": 3,
-      "attr-defined": 13,
-      "no-any-return": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 2
     },
     "apps/ai_capability/apps.py": {
       "no-untyped-def": 1
