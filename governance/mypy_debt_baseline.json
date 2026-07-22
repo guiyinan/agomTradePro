@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8935,
-    "files_with_errors": 936
+    "errors": 8864,
+    "files_with_errors": 933
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -895,9 +895,8 @@
     },
     "apps/audit/application/attribution_use_cases.py": {
       "assignment": 1,
-      "attr-defined": 2,
-      "no-any-return": 1,
-      "no-untyped-call": 4,
+      "attr-defined": 1,
+      "no-untyped-call": 3,
       "no-untyped-def": 2,
       "type-arg": 6,
       "var-annotated": 2
@@ -909,8 +908,7 @@
     },
     "apps/audit/application/indicator_use_cases.py": {
       "arg-type": 1,
-      "assignment": 1,
-      "attr-defined": 1
+      "assignment": 1
     },
     "apps/audit/application/interface_services.py": {
       "arg-type": 3,
@@ -920,7 +918,6 @@
       "no-untyped-def": 6
     },
     "apps/audit/application/operation_log_use_cases.py": {
-      "attr-defined": 1,
       "type-arg": 4
     },
     "apps/audit/application/repository_provider.py": {
@@ -1033,7 +1030,7 @@
     },
     "apps/backtest/application/interface_services.py": {
       "arg-type": 1,
-      "no-untyped-call": 4,
+      "no-untyped-call": 2,
       "no-untyped-def": 6
     },
     "apps/backtest/application/repository_provider.py": {
@@ -1043,16 +1040,14 @@
     "apps/backtest/application/tasks.py": {
       "arg-type": 1,
       "assignment": 2,
-      "attr-defined": 1,
       "misc": 3,
       "no-any-return": 1,
-      "no-untyped-call": 4,
+      "no-untyped-call": 3,
       "no-untyped-def": 3,
       "type-arg": 3,
       "var-annotated": 1
     },
     "apps/backtest/application/use_cases.py": {
-      "attr-defined": 1,
       "type-arg": 4,
       "var-annotated": 1
     },
@@ -1296,7 +1291,6 @@
       "arg-type": 1,
       "attr-defined": 1,
       "no-any-return": 1,
-      "no-untyped-call": 2,
       "no-untyped-def": 11,
       "type-arg": 6
     },
@@ -1305,7 +1299,7 @@
       "comparison-overlap": 1
     },
     "apps/dashboard/application/queries.py": {
-      "no-untyped-call": 3,
+      "no-untyped-call": 2,
       "no-untyped-def": 5
     },
     "apps/dashboard/application/query_services.py": {
@@ -1326,7 +1320,7 @@
       "attr-defined": 4,
       "call-overload": 1,
       "no-any-return": 1,
-      "no-untyped-call": 2,
+      "no-untyped-call": 1,
       "no-untyped-def": 8,
       "type-arg": 20,
       "union-attr": 13
@@ -1798,7 +1792,6 @@
     },
     "apps/decision_rhythm/application/tasks.py": {
       "misc": 1,
-      "no-untyped-call": 1,
       "no-untyped-def": 1
     },
     "apps/decision_rhythm/application/workspace_services.py": {
@@ -1950,7 +1943,7 @@
       "type-arg": 1
     },
     "apps/equity/application/repository_provider.py": {
-      "no-untyped-call": 5,
+      "no-untyped-call": 4,
       "no-untyped-def": 2
     },
     "apps/equity/application/sector_market_gateway.py": {
@@ -2365,7 +2358,6 @@
     },
     "apps/fund/application/use_cases.py": {
       "attr-defined": 1,
-      "no-untyped-call": 1,
       "type-arg": 1
     },
     "apps/fund/apps.py": {
@@ -2973,7 +2965,6 @@
     },
     "apps/realtime/interface/__init__.py": {
       "misc": 3,
-      "no-untyped-call": 2,
       "no-untyped-def": 1,
       "type-arg": 3
     },
@@ -3006,40 +2997,39 @@
       "misc": 1
     },
     "apps/regime/application/current_regime.py": {
-      "no-untyped-call": 4
+      "no-untyped-call": 3
     },
     "apps/regime/application/interface_services.py": {
-      "no-untyped-call": 6,
+      "no-untyped-call": 2,
       "no-untyped-def": 2
     },
     "apps/regime/application/navigator_use_cases.py": {
-      "no-untyped-call": 3,
-      "no-untyped-def": 4,
+      "no-untyped-call": 1,
+      "no-untyped-def": 2,
       "type-arg": 1
     },
     "apps/regime/application/orchestration.py": {
       "arg-type": 1,
       "misc": 5,
-      "no-untyped-call": 10,
+      "no-untyped-call": 8,
       "type-arg": 5,
       "union-attr": 2
     },
     "apps/regime/application/query_services.py": {
-      "no-untyped-call": 7
+      "no-untyped-call": 3
     },
     "apps/regime/application/repository_provider.py": {
       "attr-defined": 1,
-      "no-untyped-def": 6
+      "no-untyped-def": 5
     },
     "apps/regime/application/tasks.py": {
       "misc": 3,
-      "no-untyped-call": 2,
       "no-untyped-def": 1,
       "type-arg": 3
     },
     "apps/regime/application/use_cases.py": {
       "assignment": 4,
-      "no-untyped-call": 3,
+      "no-untyped-call": 2,
       "no-untyped-def": 5,
       "return-value": 1,
       "type-arg": 8,
@@ -3104,7 +3094,6 @@
       "no-untyped-def": 1
     },
     "apps/regime/interface/api_views.py": {
-      "no-untyped-call": 2,
       "no-untyped-def": 8
     },
     "apps/regime/interface/serializers.py": {
@@ -3955,20 +3944,10 @@
     "core/api_views.py": {
       "no-untyped-def": 2
     },
-    "core/api_views_decision_funnel.py": {
-      "assignment": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 2,
-      "type-arg": 8
-    },
     "core/application/config_center.py": {
       "no-any-return": 1,
       "no-untyped-call": 1,
       "no-untyped-def": 1
-    },
-    "core/application/decision_context.py": {
-      "no-untyped-call": 6,
-      "no-untyped-def": 3
     },
     "core/asgi.py": {
       "import-untyped": 3
@@ -4095,10 +4074,6 @@
     },
     "core/urls.py": {
       "no-untyped-def": 3
-    },
-    "core/views_decision_funnel.py": {
-      "no-untyped-call": 3,
-      "no-untyped-def": 6
     },
     "shared/apps.py": {
       "no-untyped-def": 1

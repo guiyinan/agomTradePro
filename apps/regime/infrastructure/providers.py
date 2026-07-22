@@ -2,3 +2,4 @@
 
 from .diagnostic_queries import RegimeDiagnosticRepository  # noqa: F401
 from .repositories import *  # noqa: F401,F403
+from .repositories import DjangoRegimeRepository as DjangoRegimeRepository

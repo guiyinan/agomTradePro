@@ -1085,7 +1085,7 @@ class RegimeSummaryQuery:
             from apps.regime.application.repository_provider import get_regime_repository
 
             regime_repo = get_regime_repository()
-            current_state = regime_repo.get_current_regime()
+            current_state = regime_repo.get_latest_snapshot()
 
             if current_state:
                 return RegimeSummaryData(

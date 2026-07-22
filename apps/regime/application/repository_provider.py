@@ -3,14 +3,13 @@
 from apps.regime.domain.protocols import MacroSourceConfigGatewayProtocol
 from apps.regime.infrastructure.providers import (
     DjangoNavigatorRepository,
+    DjangoRegimeRepository,
     RegimeDiagnosticRepository,
 )
 from apps.regime.infrastructure.providers import (
     get_navigator_repository as _get_navigator_repository,
 )
-from apps.regime.infrastructure.providers import (
-    get_regime_repository as _get_regime_repository,
-)
+from apps.regime.infrastructure.providers import get_regime_repository as _get_regime_repository
 
 
 def get_default_macro_repository() -> object:
@@ -48,7 +47,7 @@ def build_macro_repository_adapter(provider=None):
     return MacroRepositoryAdapter(provider)
 
 
-def get_regime_repository():
+def get_regime_repository() -> DjangoRegimeRepository:
     """返回 Regime snapshot/history repository。"""
 
     return _get_regime_repository()

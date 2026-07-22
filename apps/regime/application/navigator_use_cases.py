@@ -9,6 +9,7 @@ GetActionRecommendationUseCase: 获取联合行动建议（Regime + Pulse）
 
 import logging
 from datetime import date
+from typing import Any
 
 from apps.pulse.application.query_services import (
     list_active_navigator_asset_config_payloads,
@@ -139,9 +140,7 @@ def _build_cached_action_recommendation(
     regime_name = str(getattr(cached_action, "regime_name", "") or "Unknown")
     observed_at = getattr(cached_action, "observed_at", as_of_date)
     blocked_reason = str(getattr(cached_action, "blocked_reason", "") or "")
-    must_not_use_for_decision = bool(
-        getattr(cached_action, "must_not_use_for_decision", False)
-    )
+    must_not_use_for_decision = bool(getattr(cached_action, "must_not_use_for_decision", False))
 
     return RegimeActionRecommendation(
         asset_weights=dict(getattr(cached_action, "asset_weights", {}) or {}),
@@ -186,7 +185,7 @@ class BuildRegimeNavigatorUseCase:
     6. 组合为 RegimeNavigatorOutput
     """
 
-    def __init__(self, macro_repo=None):
+    def __init__(self, macro_repo: Any | None = None) -> None:
         self.macro_repo = macro_repo
 
     def execute(self, as_of_date: date | None = None) -> RegimeNavigatorOutput | None:
@@ -205,12 +204,14 @@ class BuildRegimeNavigatorUseCase:
 
             # 1. 基础 regime 判定
             use_case = CalculateRegimeV2UseCase(repo)
-            result = use_case.execute(CalculateRegimeV2Request(
-                as_of_date=target_date,
-                use_pit=True,
-                growth_indicator="PMI",
-                inflation_indicator="CPI",
-            ))
+            result = use_case.execute(
+                CalculateRegimeV2Request(
+                    as_of_date=target_date,
+                    use_pit=True,
+                    growth_indicator="PMI",
+                    inflation_indicator="CPI",
+                )
+            )
 
             if not result.success or not result.result:
                 logger.warning(f"Regime calculation failed: {result.error}")
@@ -310,7 +311,7 @@ class GetActionRecommendationUseCase:
     4. 返回 RegimeActionRecommendation
     """
 
-    def __init__(self, macro_repo=None):
+    def __init__(self, macro_repo: Any | None = None) -> None:
         self.macro_repo = macro_repo
 
     def execute(
@@ -391,9 +392,7 @@ class GetActionRecommendationUseCase:
                     except Exception as exc:
                         logger.warning("Failed to load diagnostic Pulse snapshot: %s", exc)
 
-                blocked_reason = (
-                    "Pulse 数据未通过 freshness/reliability 校验，联合行动建议已阻断。"
-                )
+                blocked_reason = "Pulse 数据未通过 freshness/reliability 校验，联合行动建议已阻断。"
                 if diagnostic_pulse is not None and getattr(diagnostic_pulse, "observed_at", None):
                     blocked_reason = (
                         f"Pulse 数据未通过 freshness/reliability 校验（最近快照 "
@@ -484,23 +483,27 @@ class GetRegimeNavigatorHistoryUseCase:
             last_regime = None
             for r in regimes:
                 if r.dominant_regime != last_regime:
-                    regime_transitions.append({
-                        "date": r.observed_at.isoformat(),
-                        "from_regime": last_regime,
-                        "to_regime": r.dominant_regime,
-                        "confidence": r.confidence,
-                    })
+                    regime_transitions.append(
+                        {
+                            "date": r.observed_at.isoformat(),
+                            "from_regime": last_regime,
+                            "to_regime": r.dominant_regime,
+                            "confidence": r.confidence,
+                        }
+                    )
                     last_regime = r.dominant_regime
 
             # 如果在这段时间内没有发生变化，也要在开头放一个当前状态
             if not regime_transitions and regimes.exists():
                 r = regimes.first()
-                regime_transitions.append({
-                    "date": r.observed_at.isoformat(),
-                    "from_regime": None,
-                    "to_regime": r.dominant_regime,
-                    "confidence": r.confidence,
-                })
+                regime_transitions.append(
+                    {
+                        "date": r.observed_at.isoformat(),
+                        "from_regime": None,
+                        "to_regime": r.dominant_regime,
+                        "confidence": r.confidence,
+                    }
+                )
 
             # 2. Pulse History
             pulses = repo.get_pulses_in_range(start_date, end_date)
@@ -552,5 +555,5 @@ class GetRegimeNavigatorHistoryUseCase:
                 "regime_transitions": [],
                 "pulse_history": [],
                 "action_history": [],
-                "error": str(e)
+                "error": str(e),
             }

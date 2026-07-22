@@ -288,3 +288,15 @@
 
 - Core views 与 Policy provider 联合定向 mypy：`0 errors`；全仓基线从 `9038 errors / 939 files` 收紧为 `8935 errors / 936 files`，净减少 `103 errors / 3 files`，无文件或错误码反弹。
 - Core health、decision workspace、Config Center、Policy 通知与 Policy repository 回归：`103 passed`；Django system check、Ruff 通过。
+
+## 第十九批
+
+- 收口决策漏斗主链路 `core/api_views_decision_funnel.py`、`core/views_decision_funnel.py` 与 `core/application/decision_context.py` 的 DRF serializer、HTTP 请求/响应、页面上下文和延迟仓储类型契约，清除 31 个直接历史错误。
+- Audit、Backtest 与 Regime application provider 显式公开其仓储返回类型；Regime navigator 两个构造器补齐可选 macro repository 类型，使完整类型沿 Dashboard、Regime API、任务和查询服务传播，额外消除 40 个下游历史错误。
+- DRF 声明式 `data` 字段和 drf-spectacular 未类型化装饰器各保留一行精确 ignore，不使用文件级豁免。
+- 类型传播发现 Dashboard 调用了不存在的 `DjangoRegimeRepository.get_current_regime()`；改为仓储已有的 `get_latest_snapshot()` 公共契约，并增加回归测试锁定当前 Regime 摘要读取路径。
+
+## 第十九批验证结果
+
+- 决策漏斗 3 个目标文件联合定向 mypy：`0 errors`；全仓基线从 `8935 errors / 936 files` 收紧为 `8864 errors / 933 files`，净减少 `71 errors / 3 files`，无文件或错误码反弹。
+- Decision context、六步漏斗 E2E、Dashboard Regime 摘要、Regime navigator 与 API 回归：`13 passed`；Django system check、Ruff 通过。

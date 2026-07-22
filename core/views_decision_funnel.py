@@ -6,13 +6,14 @@ rendered via HTMX.
 """
 
 from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from core.application.decision_context import DecisionContextUseCase
 
 
 @login_required
-def funnel_step1_view(request):
+def funnel_step1_view(request: HttpRequest) -> HttpResponse:
     """Step 1: 环境评估"""
     use_case = DecisionContextUseCase()
     context_data = use_case.get_step1_context()
@@ -33,7 +34,7 @@ def funnel_step1_view(request):
 
 
 @login_required
-def funnel_step2_view(request):
+def funnel_step2_view(request: HttpRequest) -> HttpResponse:
     """Step 2: 方向选择"""
     use_case = DecisionContextUseCase()
     direction_data = use_case.get_step2_direction()
@@ -52,7 +53,7 @@ def funnel_step2_view(request):
 
 
 @login_required
-def funnel_step3_view(request):
+def funnel_step3_view(request: HttpRequest) -> HttpResponse:
     """Step 3: 板块偏好"""
     use_case = DecisionContextUseCase()
     sectors_data = use_case.get_step3_sectors(
@@ -76,7 +77,7 @@ def funnel_step3_view(request):
 
 
 @login_required
-def funnel_step4_view(request):
+def funnel_step4_view(request: HttpRequest) -> HttpResponse:
     """Step 4: 推优筛选 (Unified Recommendations)"""
     # This renders the shell for the recommendations list.
     # The actual list is fetched dynamically via the unified API.
@@ -84,12 +85,12 @@ def funnel_step4_view(request):
 
 
 @login_required
-def funnel_step5_view(request):
+def funnel_step5_view(request: HttpRequest) -> HttpResponse:
     """Step 5: 交易计划"""
     return render(request, "decision/steps/plan.html")
 
 
 @login_required
-def funnel_step6_view(request):
+def funnel_step6_view(request: HttpRequest) -> HttpResponse:
     """Step 6: 审批执行。审计复盘通过独立入口访问。"""
     return render(request, "decision/steps/execute.html")

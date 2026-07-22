@@ -5,10 +5,12 @@ Orchestrates interactions between Regime, Pulse, Policy, Rotation,
 Decision_Rhythm, and Audit modules to provide seamless data for the UI pipeline.
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
 
@@ -21,6 +23,10 @@ from apps.regime.application.repository_provider import get_regime_repository
 from apps.rotation.application.integration_service import RotationIntegrationService
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from apps.audit.application.repository_provider import DjangoAuditRepository
+    from apps.backtest.application.repository_provider import DjangoBacktestRepository
 
 
 def _next_local_day_expiry(observed_at: date) -> datetime:
@@ -168,15 +174,15 @@ class DecisionStep6Response:
 class DecisionContextUseCase:
     """Orchestrates multi-module calls for the decision funnel steps."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.nav_usecase = BuildRegimeNavigatorUseCase()
         self.pulse_usecase = GetLatestPulseUseCase()
         self.action_usecase = GetActionRecommendationUseCase()
         self.rotation_service = RotationIntegrationService()
-        self.audit_repository = None
-        self.backtest_repository = None
+        self.audit_repository: DjangoAuditRepository | None = None
+        self.backtest_repository: DjangoBacktestRepository | None = None
 
-    def _get_audit_repository(self):
+    def _get_audit_repository(self) -> DjangoAuditRepository:
         """Load the audit repository lazily for Step 6 only."""
         if self.audit_repository is None:
             from apps.audit.application.repository_provider import get_audit_repository
@@ -184,7 +190,7 @@ class DecisionContextUseCase:
             self.audit_repository = get_audit_repository()
         return self.audit_repository
 
-    def _get_backtest_repository(self):
+    def _get_backtest_repository(self) -> DjangoBacktestRepository:
         """Load the backtest repository lazily for Step 6 only."""
         if self.backtest_repository is None:
             from apps.backtest.application.repository_provider import get_backtest_repository
@@ -303,7 +309,10 @@ class DecisionContextUseCase:
         recommendation_freshness = _build_freshness_payload(
             label="配置建议快照",
             observed_at=getattr(action_rec, "context_observed_at", None) or target_date,
-            source=str(getattr(action_rec, "context_source", "live_action_fallback") or "live_action_fallback"),
+            source=str(
+                getattr(action_rec, "context_source", "live_action_fallback")
+                or "live_action_fallback"
+            ),
         )
 
         return DecisionStep2Response(
@@ -353,8 +362,16 @@ class DecisionContextUseCase:
                 rotation_signal_date=rotation_payload.get("signal_date"),
                 recommendation_freshness=_build_freshness_payload(
                     label="配置建议快照",
-                    observed_at=getattr(action_rec, "context_observed_at", None) or target_date if action_rec else None,
-                    source=str(getattr(action_rec, "context_source", "missing") or "missing") if action_rec else "missing",
+                    observed_at=(
+                        getattr(action_rec, "context_observed_at", None) or target_date
+                        if action_rec
+                        else None
+                    ),
+                    source=(
+                        str(getattr(action_rec, "context_source", "missing") or "missing")
+                        if action_rec
+                        else "missing"
+                    ),
                 ),
                 rotation_freshness=_build_freshness_payload(
                     label="轮动信号快照",
@@ -415,8 +432,16 @@ class DecisionContextUseCase:
 
         recommendation_freshness = _build_freshness_payload(
             label="配置建议快照",
-            observed_at=getattr(action_rec, "context_observed_at", None) or target_date if action_rec else None,
-            source=str(getattr(action_rec, "context_source", "missing") or "missing") if action_rec else "missing",
+            observed_at=(
+                getattr(action_rec, "context_observed_at", None) or target_date
+                if action_rec
+                else None
+            ),
+            source=(
+                str(getattr(action_rec, "context_source", "missing") or "missing")
+                if action_rec
+                else "missing"
+            ),
         )
         rotation_source = str(rotation_payload.get("data_source") or "live_rotation_fallback")
         rotation_observed_at = None
@@ -479,9 +504,7 @@ class DecisionContextUseCase:
                         backtest_id=resolved_backtest_id,
                     )
 
-                report_data = audit_repository.get_attribution_report(
-                    generation_response.report_id
-                )
+                report_data = audit_repository.get_attribution_report(generation_response.report_id)
 
             if report_data is None:
                 return self._empty_audit_response(

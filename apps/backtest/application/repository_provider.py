@@ -5,7 +5,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import date
 
-from apps.backtest.infrastructure.providers import DjangoBacktestRepository
+from apps.backtest.infrastructure.providers import (
+    DjangoBacktestRepository as DjangoBacktestRepository,
+)
 
 
 def get_backtest_repository() -> DjangoBacktestRepository:

@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -13,6 +14,7 @@ from apps.account.infrastructure.repositories import (
     PositionRepository,
 )
 from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.dashboard.application.queries import RegimeSummaryQuery
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.decision_rhythm.infrastructure.models import (
@@ -84,6 +86,29 @@ def test_dashboard_homepage_uses_unified_decision_workflow_entry():
     assert 'href="/decision/workspace/"' in content
     assert "决策工作台" in content
     assert "进入新 Workflow" in content
+
+
+def test_regime_summary_uses_snapshot_repository_contract(monkeypatch):
+    """Dashboard reads the current regime through the repository's public snapshot API."""
+    snapshot = SimpleNamespace(
+        dominant_regime="Recovery",
+        observed_at=date(2026, 7, 22),
+        confidence=0.88,
+        growth_momentum_z=0.4,
+        inflation_momentum_z=-0.2,
+    )
+    repository = SimpleNamespace(get_latest_snapshot=lambda: snapshot)
+    monkeypatch.setattr(
+        "apps.regime.application.repository_provider.get_regime_repository",
+        lambda: repository,
+    )
+    monkeypatch.setattr(RegimeSummaryQuery, "_get_latest_macro_value", lambda *_: None)
+
+    result = RegimeSummaryQuery().execute()
+
+    assert result.current_regime == "Recovery"
+    assert result.regime_date == date(2026, 7, 22)
+    assert result.regime_confidence == 0.88
 
 
 @pytest.mark.django_db

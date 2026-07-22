@@ -1,14 +1,17 @@
+from typing import Any
+
 from django.http import JsonResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 
 from core.application.decision_context import DecisionContextUseCase
 
 
-class DecisionFunnelStep1EnvironmentSerializer(serializers.Serializer):
+class DecisionFunnelStep1EnvironmentSerializer(serializers.Serializer[dict[str, object]]):
     regime_name = serializers.CharField()
     pulse_composite = serializers.FloatField()
     regime_strength = serializers.CharField()
@@ -16,26 +19,26 @@ class DecisionFunnelStep1EnvironmentSerializer(serializers.Serializer):
     overall_verdict = serializers.CharField()
 
 
-class DecisionFunnelStep2DirectionSerializer(serializers.Serializer):
+class DecisionFunnelStep2DirectionSerializer(serializers.Serializer[dict[str, object]]):
     action_recommendation = serializers.DictField()
     asset_weights = serializers.DictField(child=serializers.FloatField())
     risk_budget_pct = serializers.FloatField()
 
 
-class DecisionFunnelStep3SectorRecommendationSerializer(serializers.Serializer):
+class DecisionFunnelStep3SectorRecommendationSerializer(serializers.Serializer[dict[str, object]]):
     name = serializers.CharField()
     score = serializers.FloatField()
     alignment = serializers.CharField()
     momentum = serializers.CharField()
 
 
-class DecisionFunnelStep3RotationSignalSerializer(serializers.Serializer):
+class DecisionFunnelStep3RotationSignalSerializer(serializers.Serializer[dict[str, object]]):
     sector = serializers.CharField()
     signal = serializers.CharField()
     strength = serializers.FloatField()
 
 
-class DecisionFunnelStep3SectorsSerializer(serializers.Serializer):
+class DecisionFunnelStep3SectorsSerializer(serializers.Serializer[dict[str, object]]):
     sector_recommendations = DecisionFunnelStep3SectorRecommendationSerializer(many=True)
     rotation_signals = DecisionFunnelStep3RotationSignalSerializer(many=True)
     rotation_data_source = serializers.CharField(allow_null=True, required=False)
@@ -44,7 +47,7 @@ class DecisionFunnelStep3SectorsSerializer(serializers.Serializer):
     rotation_signal_date = serializers.CharField(allow_null=True, required=False)
 
 
-class DecisionFunnelStep6AuditSerializer(serializers.Serializer):
+class DecisionFunnelStep6AuditSerializer(serializers.Serializer[dict[str, object]]):
     attribution_method = serializers.CharField()
     benchmark_return = serializers.FloatField()
     portfolio_return = serializers.FloatField()
@@ -61,19 +64,19 @@ class DecisionFunnelStep6AuditSerializer(serializers.Serializer):
     regime_actual = serializers.CharField(allow_null=True, required=False)
 
 
-class DecisionFunnelContextDataSerializer(serializers.Serializer):
+class DecisionFunnelContextDataSerializer(serializers.Serializer[dict[str, object]]):
     step1_environment = DecisionFunnelStep1EnvironmentSerializer()
     step2_direction = DecisionFunnelStep2DirectionSerializer()
     step3_sectors = DecisionFunnelStep3SectorsSerializer()
     step6_audit = DecisionFunnelStep6AuditSerializer(required=False)
 
 
-class DecisionFunnelContextResponseSerializer(serializers.Serializer):
+class DecisionFunnelContextResponseSerializer(serializers.Serializer[dict[str, object]]):
     success = serializers.BooleanField()
-    data = DecisionFunnelContextDataSerializer()
+    data = DecisionFunnelContextDataSerializer()  # type: ignore[assignment]
 
 
-@extend_schema(
+@extend_schema(  # type: ignore[misc]  # drf-spectacular decorator lacks typing
     parameters=[
         OpenApiParameter(
             name="trade_id",
@@ -94,7 +97,7 @@ class DecisionFunnelContextResponseSerializer(serializers.Serializer):
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def decision_funnel_context_api_view(request):
+def decision_funnel_context_api_view(request: Request) -> JsonResponse:
     """
     Returns the system-level decision funnel context (Steps 1, 2, 3) in JSON format.
     Steps 4 and 5 are dynamic lists and use their own endpoints.
@@ -109,7 +112,7 @@ def decision_funnel_context_api_view(request):
     backtest_id = request.GET.get("backtest_id")
     trade_id = request.GET.get("trade_id")
 
-    data = {
+    data: dict[str, Any] = {
         "step1_environment": {
             "regime_name": step1.regime_name,
             "pulse_composite": step1.pulse_composite,
@@ -164,7 +167,7 @@ def decision_funnel_context_api_view(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def decision_audit_api_view(request):
+def decision_audit_api_view(request: Request) -> JsonResponse:
     """Return Step 6 audit data as standalone JSON API."""
     trade_id = request.GET.get("trade_id")
     backtest_id = request.GET.get("backtest_id")
