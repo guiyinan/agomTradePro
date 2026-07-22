@@ -101,6 +101,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Test-Connection.ps1 -ReadP
 | 结果码 | 含义 | 处理 |
 | --- | --- | --- |
 | `QMT_CONNECTION_FAILED` | 外部 SDK 未连接到 QMT | 确认 QMT 已登录；仍失败则联系国金开通外部 XtQuant 或更换支持版本 |
+| `QMT_SERVER_NOT_ALLOWED` | QMT 日志明确拒绝启动 XtQuantServer | 当前账号或客户端没有外部 XtQuant 服务权限；联系国金开通或提供支持客户端 |
 | `QMT_ACCOUNT_SUBSCRIPTION_FAILED` | QMT 已连接但账户订阅失败 | 核对普通股票账户类型、账号绑定及函数查询权限 |
 | `XTQUANT_IMPORT_FAILED` | SDK 未正确安装 | 重新安装并核对 wheel SHA-256、Python 位数和版本 |
 | `ready: true` | 只读接口门禁通过 | 继续仿真报撤单验收，仍不得直接启用实盘 |

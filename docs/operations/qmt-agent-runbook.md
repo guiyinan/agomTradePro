@@ -29,7 +29,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\qmt_agent\scripts\install-
 - 普通端或 MiniQMT 的只读探针返回 `QMT_CONNECTION_FAILED` / `QMT_ACCOUNT_SUBSCRIPTION_FAILED` 时，联系券商确认 xtquant、函数查询和函数下单权限，并确认是否需要专用客户端。
 - 在只读探针通过以前，保持 `dry_run: true`、自动执行关闭，并禁止真实报单验收。
 
-目标机 2026-07-22 首次实测为国金证券 QMT `2.1.19.0` 普通会话：Python 3.11 与 `xtquant 250807.1.2` 隔离导入成功，普通端 `userdata` 存在，真实只读探针返回 `QMT_CONNECTION_FAILED`。下一步是向国金确认该账号的外部 XtQuant 权限和所需客户端版本，而不是修改 VPS 或降低项目 Python 版本。
+目标机 2026-07-22 实测为国金证券 QMT `2.1.19.0` 普通会话：Python 3.11 与 `xtquant 250807.1.2` 隔离导入成功，普通端 `userdata` 存在。登录后真实只读探针失败，且客户端日志明确记录 `The XtQuantServer is not allowed to start.`；探针将其归一为 `QMT_SERVER_NOT_ALLOWED`。下一步是向国金确认该账号的外部 XtQuant 权限和所需客户端版本，而不是修改 VPS 或降低项目 Python 版本。
 
 仓库提供可重复构建的 Windows ZIP 安装包，详见 [国金 QMT 本地 Agent 安装包说明](qmt-agent-local-install-package.md)。
 

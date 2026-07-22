@@ -115,24 +115,55 @@ def run_qmt_read_probe(
         report["checks"] = {
             "qmt_connected": False,
             "failure_type": type(exc).__name__,
-            "failure_code": _probe_failure_code(exc),
+            "failure_code": _probe_failure_code(exc, config.qmt_userdata_path),
         }
     return report
 
 
-def _probe_failure_code(exc: Exception) -> str:
+def _probe_failure_code(exc: Exception, qmt_userdata_path: Path) -> str:
     """Return a stable, secret-free failure stage for operator diagnostics."""
 
     message = str(exc)
     if isinstance(exc, ImportError):
         return "XTQUANT_IMPORT_FAILED"
     if message == "QMT trader connection failed":
+        if _qmt_server_start_denied(qmt_userdata_path):
+            return "QMT_SERVER_NOT_ALLOWED"
         return "QMT_CONNECTION_FAILED"
     if message == "QMT account subscription failed":
         return "QMT_ACCOUNT_SUBSCRIPTION_FAILED"
     if isinstance(exc, OSError):
         return "QMT_IO_FAILED"
     return "BROKER_READ_FAILED"
+
+
+def _qmt_server_start_denied(qmt_userdata_path: Path) -> bool:
+    """Detect the vendor's explicit XtQuantServer authorization denial safely."""
+
+    log_dir = qmt_userdata_path / "log"
+    if not log_dir.is_dir():
+        return False
+    try:
+        candidates = sorted(
+            (
+                path
+                for pattern in ("XtClient_*.log", "XtMiniQmt_*.log")
+                for path in log_dir.glob(pattern)
+                if path.is_file()
+            ),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )[:3]
+        marker = b"The XtQuantServer is not allowed to start."
+        for path in candidates:
+            with path.open("rb") as handle:
+                size = path.stat().st_size
+                handle.seek(max(0, size - 1024 * 1024))
+                if marker in handle.read():
+                    return True
+    except OSError:
+        return False
+    return False
 
 
 def _version_recorded(value: str) -> bool:

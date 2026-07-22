@@ -123,9 +123,9 @@ VPS AgomTradePro
 | 独立 Agent 兼容环境 | Python `3.11.14` + 迅投发布 `xtquant 250807.1.2` 可成功导入 |
 | SDK 供应链校验 | wheel SHA-256 与发布页记录一致；仅在隔离临时目录验证，尚未安装为常驻 Agent 环境 |
 | QMT 数据目录 | 普通端 `D:\qmt\userdata` 存在；`userdata_mini` 和 xtquant 上下行队列文件不存在 |
-| 真实只读探针 | `QMT_CONNECTION_FAILED`；未进入资产、持仓、当日委托、当日成交查询 |
+| 真实只读探针 | 登录后客户端日志明确记录 `The XtQuantServer is not allowed to start.`，归一错误码为 `QMT_SERVER_NOT_ALLOWED`；未进入资产、持仓、当日委托、当日成交查询 |
 | 交易副作用 | `submitted_order=false`、`canceled_order=false`，未调用报单和撤单方法 |
-| 当前结论 | WP0 尚未通过；登录页没有“极简模式”，应使用普通端 `userdata` 并联系国金确认外部 xtquant/函数查询/函数下单权限或专用客户端版本 |
+| 当前结论 | WP0 尚未通过；国金客户端明确拒绝启动 XtQuantServer，必须由券商开通外部 xtquant/函数查询/函数下单权限或提供专用客户端版本 |
 
 迅投官方资料说明：普通投研端连接目录可使用 `userdata`，MiniQMT 使用 `userdata_mini`。目标国金 QMT `2.1.19.0` 登录页没有“极简模式”，所以安装包必须支持普通端 `userdata`，且不得把“客户端已登录”或“独立交易”选项等同于“外部交易 API 已就绪”。
 
@@ -816,7 +816,7 @@ tests/unit/test_ai_capability/test_mcp_broker_execution_catalog.py
 
 ### WP0：目标环境探针
 
-状态：**外部验收进行中，尚未通过**。仓库已提供安装级 `--preflight` 和不报单/不撤单的 `--qmt-read-probe --evidence-file ...`；后者验证 QMT 连接以及资金、持仓、当日委托和当日成交查询，并生成不含券商账号及资金数值的 JSON 证据。2026-07-22 已在目标机完成客户端、Python 和 SDK 导入核验，但普通 QMT `userdata` 的真实只读连接返回 `QMT_CONNECTION_FAILED`；国金登录页没有“极简模式”，需向券商确认外部 XtQuant 权限或专用客户端后重试。仿真报撤单、回调与重连仍待现场验证。
+状态：**外部验收进行中，尚未通过**。仓库已提供安装级 `--preflight` 和不报单/不撤单的 `--qmt-read-probe --evidence-file ...`；后者验证 QMT 连接以及资金、持仓、当日委托和当日成交查询，并生成不含券商账号及资金数值的 JSON 证据。2026-07-22 已在目标机完成客户端、Python 和 SDK 导入核验；登录后客户端日志明确拒绝启动 XtQuantServer，探针归一为 `QMT_SERVER_NOT_ALLOWED`。需由国金开通外部 XtQuant 权限或提供专用客户端后重试。仿真报撤单、回调与重连仍待现场验证。
 
 - 输出 QMT/券商/Python 兼容性报告；
 - 完成查询、报单、撤单、回调和重连最小实验；

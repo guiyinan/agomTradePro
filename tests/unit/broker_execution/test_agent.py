@@ -384,6 +384,39 @@ def test_qmt_read_probe_reports_secret_free_failure_stage(
     assert message not in str(report)
 
 
+def test_qmt_read_probe_detects_vendor_server_authorization_denial(
+    tmp_path: Path,
+) -> None:
+    class FailingBroker(FakeQmtAdapter):
+        def connect(self) -> None:
+            raise RuntimeError("QMT trader connection failed")
+
+    userdata = tmp_path / "userdata"
+    log_dir = userdata / "log"
+    log_dir.mkdir(parents=True)
+    (log_dir / "XtClient_20260722.log").write_text(
+        "The XtQuantServer is not allowed to start.\n",
+        encoding="utf-8",
+    )
+    config = AgentConfig(
+        agent_id="agent-server-denial",
+        server_url="https://vps.example.com",
+        qmt_userdata_path=userdata,
+        broker_account_id="must-not-appear-in-report",
+        broker_account_type="STOCK",
+        system_account_id=7,
+        log_dir=tmp_path / "logs",
+        state_dir=tmp_path / "state",
+    )
+
+    report = run_qmt_read_probe(config, FailingBroker("success"))
+
+    assert report["ready"] is False
+    assert report["checks"]["failure_code"] == "QMT_SERVER_NOT_ALLOWED"
+    assert "must-not-appear-in-report" not in str(report)
+    assert "XtQuantServer" not in str(report)
+
+
 def test_real_qmt_read_probe_requires_recorded_version_matrix(tmp_path: Path) -> None:
     config = AgentConfig(
         agent_id="agent-version-probe",
