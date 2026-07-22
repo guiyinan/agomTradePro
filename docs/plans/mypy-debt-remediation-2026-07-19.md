@@ -505,3 +505,14 @@
 
 - Market Data repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8082 errors / 895 files` 收紧为 `8059 errors / 894 files`，净减少 `23 errors / 1 file`，无文件或错误码反弹。
 - Equity 日线、远端 fallback、技术 K 线与 stock context 回归共 `15 passed`；架构 delta 扫描 `1 file / 50 added lines / 0 violations`，Ruff、diff check 通过。
+
+## 第三十七批
+
+- 收口 Equity 组合仓储的分时切片：为快照 freshness 常量、最近数据源状态、数值/时间/代码 helper 和 Quote repository 补齐强类型契约，清除分时主备源、校验价格与缓存快照链路中的 15 个隐式属性错误。
+- Pandas 仅在 Infrastructure 第三方边界通过 `ModuleType` 动态加载，避免无桩类型扩散；分时源状态显式使用 `str | None`，不再把首次字符串赋值错误收窄为不可空状态。
+- 类型传播发现同一个 `_dc_quote_repo` 在 StockInfo 与 Intraday mixin 使用了两套不完整协议；现把 `get_series` 纳入 Data Center 唯一 `QuoteSnapshotRepositoryProtocol`，两个 mixin 共用领域契约，连带清除组合 repository 的 assignment 冲突。
+
+## 第三十七批验证结果
+
+- Data Center Quote Protocol 与 Equity Intraday repository 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8059 errors / 894 files` 收紧为 `8038 errors / 893 files`，净减少 `21 errors / 1 file`，无文件或错误码反弹。
+- Equity 分时主源、本地快照、fallback、一致性拒绝与结构回归共 `12 passed`；架构 delta 扫描 `2 files / 28 added lines / 0 violations`，Ruff、diff check 通过。

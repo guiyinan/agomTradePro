@@ -6,22 +6,44 @@ validation rules. Shared helpers and dependency wiring live in
 `stock_repository.py`; do not import the compatibility facade here.
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import date, datetime
 from decimal import Decimal
+from importlib import import_module
+from types import ModuleType
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
 from apps.data_center.composition import get_akshare_module
+from apps.data_center.domain.protocols import QuoteSnapshotRepositoryProtocol
 from apps.equity.domain.entities import IntradayPricePoint
 from core.exceptions import DataFetchError, DataValidationError
 
 logger = logging.getLogger(__name__)
+pd: ModuleType = import_module("pandas")
 
 
 class StockIntradayRepositoryMixin:
     """Intraday (1-minute) price points with validated source failover."""
+
+    _INTRADAY_SNAPSHOT_MAX_STALE_DAYS: int
+    _INTRADAY_SNAPSHOT_MIN_POINTS: int
+    _dc_quote_repo: QuoteSnapshotRepositoryProtocol
+    _last_intraday_source: str | None
+
+    if TYPE_CHECKING:
+
+        def _safe_decimal(self, value: object) -> Decimal | None: ...
+
+        def _safe_int(self, value: object) -> int | None: ...
+
+        def _to_akshare_symbol(self, stock_code: str) -> str: ...
+
+        def _to_market_aware_datetime(self, value: object) -> datetime: ...
 
     def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]:
         """获取单资产最新交易日的 1 分钟分时数据。"""
@@ -160,7 +182,6 @@ class StockIntradayRepositoryMixin:
     ) -> list[IntradayPricePoint]:
         try:
             ak = get_akshare_module()
-            import pandas as pd
 
             frame = ak.stock_zh_a_hist_min_em(symbol=symbol, period="1", adjust="")
         except Exception as exc:
@@ -210,7 +231,6 @@ class StockIntradayRepositoryMixin:
     ) -> list[IntradayPricePoint]:
         try:
             ak = get_akshare_module()
-            import pandas as pd
 
             frame = ak.stock_intraday_em(symbol=symbol)
         except Exception as exc:

@@ -289,6 +289,12 @@ class QuoteSnapshotRepositoryProtocol(Protocol):
     """Persistence contract for real-time / intraday quote snapshots."""
 
     def get_latest(self, asset_code: str) -> QuoteSnapshot | None: ...
+    def get_series(
+        self,
+        asset_code: str,
+        snapshot_date: date | None = None,
+        limit: int = 500,
+    ) -> list[QuoteSnapshot]: ...
     def bulk_upsert(self, quotes: list[QuoteSnapshot]) -> int: ...
 
 
