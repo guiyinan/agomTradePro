@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8819,
-    "files_with_errors": 929
+    "errors": 8734,
+    "files_with_errors": 928
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2044,14 +2044,6 @@
     "apps/equity/infrastructure/financial_source_gateway.py": {
       "no-untyped-def": 1,
       "union-attr": 10
-    },
-    "apps/equity/infrastructure/fundamentals_repository.py": {
-      "arg-type": 60,
-      "assignment": 1,
-      "attr-defined": 15,
-      "misc": 2,
-      "typeddict-item": 4,
-      "union-attr": 3
     },
     "apps/equity/infrastructure/intraday_repository.py": {
       "assignment": 1,

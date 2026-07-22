@@ -6,20 +6,28 @@ helpers and dependency wiring live in `stock_repository.py`; do not import the
 compatibility facade here.
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Mapping
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
 
 from apps.data_center.domain.entities import FinancialFact, ValuationFact
 from apps.data_center.domain.enums import FinancialPeriodType
+from apps.data_center.domain.protocols import (
+    FinancialFactRepositoryProtocol,
+    ValuationFactRepositoryProtocol,
+)
 from apps.equity.domain.entities import (
     FinancialData,
     StockInfo,
     ValuationMetrics,
 )
+from shared.numeric import safe_float
 
 from .models import (
     FinancialDataModel,
@@ -30,9 +38,22 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from apps.data_center.application.on_demand import OnDemandDataCenterService
+
 
 class StockFundamentalsRepositoryMixin:
     """Financial, valuation, and aggregated fundamental context persistence."""
+
+    _dc_financial_repo: FinancialFactRepositoryProtocol
+    _dc_valuation_repo: ValuationFactRepositoryProtocol
+    _dc_on_demand: OnDemandDataCenterService
+
+    if TYPE_CHECKING:
+
+        def _build_stock_code_candidates(self, stock_code: str) -> list[str]: ...
+
+        def _resolve_stock_name_from_data_center(self, stock_code: str) -> str: ...
 
     def get_all_stocks_with_fundamentals(
         self, as_of_date: date | None = None
@@ -107,40 +128,40 @@ class StockFundamentalsRepositoryMixin:
             .order_by("stock_code", "-trade_date")
             .values("stock_code", "trade_date", "close", "volume")
         )
-        daily_map: dict[str, dict[str, Any]] = {}
-        for row in daily_rows:
-            code = str(row["stock_code"]).upper()
+        daily_map: dict[str, Mapping[str, object]] = {}
+        for daily_row in daily_rows:
+            code = str(daily_row["stock_code"]).upper()
             if code not in daily_map:
-                daily_map[code] = row
+                daily_map[code] = daily_row
 
         context: dict[str, dict[str, Any]] = {}
         for requested_code in requested_codes:
-            row = {"name": "", "sector": "", "market": ""}
-            latest_daily: dict[str, Any] = {}
+            context_row = {"name": "", "sector": "", "market": ""}
+            latest_daily: Mapping[str, object] = {}
             for candidate in self._build_stock_code_candidates(requested_code):
                 candidate_info = info_map.get(candidate.upper())
-                if candidate_info and not any(row.values()):
-                    row = {
+                if candidate_info and not any(context_row.values()):
+                    context_row = {
                         "name": str(candidate_info.get("name") or ""),
                         "sector": str(candidate_info.get("sector") or ""),
                         "market": str(candidate_info.get("market") or ""),
                     }
                 if not latest_daily and candidate.upper() in daily_map:
                     latest_daily = daily_map[candidate.upper()]
-            if not row["name"]:
+            if not context_row["name"]:
                 data_center_name = self._resolve_stock_name_from_data_center(requested_code)
                 if data_center_name:
-                    row["name"] = data_center_name
+                    context_row["name"] = data_center_name
 
             # Dashboard / equity-screen fundamental metrics must come from the
             # canonical data-center fact tables instead of legacy equity mirrors.
             latest_financial = self._get_stock_context_financial_fact_row(requested_code)
             latest_valuation = self._get_stock_context_valuation_fact_row(requested_code)
             context[requested_code] = {
-                **row,
+                **context_row,
                 "trade_date": latest_daily.get("trade_date"),
-                "close": float(latest_daily.get("close") or 0.0),
-                "volume": float(latest_daily.get("volume") or 0.0),
+                "close": safe_float(latest_daily.get("close"), default=0.0),
+                "volume": safe_float(latest_daily.get("volume"), default=0.0),
                 "report_date": latest_financial.get("report_date"),
                 "roe": latest_financial.get("roe"),
                 "debt_ratio": latest_financial.get("debt_ratio"),
@@ -477,6 +498,9 @@ class StockFundamentalsRepositoryMixin:
             metric_map = grouped[period_end]
             if not required_metrics.issubset(metric_map.keys()):
                 continue
+            revenue_growth_fact = metric_map.get("revenue_growth")
+            net_profit_growth_fact = metric_map.get("net_profit_growth")
+            roa_fact = metric_map.get("roa")
             results.append(
                 FinancialData(
                     stock_code=stock_code,
@@ -484,20 +508,16 @@ class StockFundamentalsRepositoryMixin:
                     revenue=Decimal(str(metric_map["revenue"].value)),
                     net_profit=Decimal(str(metric_map["net_profit"].value)),
                     revenue_growth=(
-                        float(metric_map.get("revenue_growth").value)
-                        if metric_map.get("revenue_growth")
-                        else 0.0
+                        float(revenue_growth_fact.value) if revenue_growth_fact else 0.0
                     ),
                     net_profit_growth=(
-                        float(metric_map.get("net_profit_growth").value)
-                        if metric_map.get("net_profit_growth")
-                        else 0.0
+                        float(net_profit_growth_fact.value) if net_profit_growth_fact else 0.0
                     ),
                     total_assets=Decimal(str(metric_map["total_assets"].value)),
                     total_liabilities=Decimal(str(metric_map["total_liabilities"].value)),
                     equity=Decimal(str(metric_map["equity"].value)),
                     roe=float(metric_map["roe"].value),
-                    roa=float(metric_map.get("roa").value) if metric_map.get("roa") else 0.0,
+                    roa=float(roa_fact.value) if roa_fact else 0.0,
                     debt_ratio=float(metric_map["debt_ratio"].value),
                     period_end=period_end,
                     period_type=period_types.get(period_end, ""),
@@ -549,47 +569,31 @@ class StockFundamentalsRepositoryMixin:
             "3Q": FinancialPeriodType.QUARTERLY,
             "4Q": FinancialPeriodType.ANNUAL,
         }
-        common = {
-            "asset_code": financial.stock_code,
-            "period_end": financial.report_date,
-            "period_type": period_type_map[report_type],
-            "source": "equity_legacy_repo",
-            "report_date": financial.report_date,
-        }
+        period_type = period_type_map[report_type]
+
+        def build_fact(metric_code: str, value: float, unit: str) -> FinancialFact:
+            return FinancialFact(
+                asset_code=financial.stock_code,
+                period_end=financial.report_date,
+                period_type=period_type,
+                metric_code=metric_code,
+                value=value,
+                unit=unit,
+                source="equity_legacy_repo",
+                report_date=financial.report_date,
+            )
+
         return [
-            FinancialFact(
-                metric_code="revenue", value=float(financial.revenue), unit="元", **common
-            ),
-            FinancialFact(
-                metric_code="net_profit", value=float(financial.net_profit), unit="元", **common
-            ),
-            FinancialFact(
-                metric_code="revenue_growth",
-                value=float(financial.revenue_growth),
-                unit="%",
-                **common,
-            ),
-            FinancialFact(
-                metric_code="net_profit_growth",
-                value=float(financial.net_profit_growth),
-                unit="%",
-                **common,
-            ),
-            FinancialFact(
-                metric_code="total_assets", value=float(financial.total_assets), unit="元", **common
-            ),
-            FinancialFact(
-                metric_code="total_liabilities",
-                value=float(financial.total_liabilities),
-                unit="元",
-                **common,
-            ),
-            FinancialFact(metric_code="equity", value=float(financial.equity), unit="元", **common),
-            FinancialFact(metric_code="roe", value=float(financial.roe), unit="%", **common),
-            FinancialFact(metric_code="roa", value=float(financial.roa), unit="%", **common),
-            FinancialFact(
-                metric_code="debt_ratio", value=float(financial.debt_ratio), unit="%", **common
-            ),
+            build_fact("revenue", float(financial.revenue), "元"),
+            build_fact("net_profit", float(financial.net_profit), "元"),
+            build_fact("revenue_growth", float(financial.revenue_growth), "%"),
+            build_fact("net_profit_growth", float(financial.net_profit_growth), "%"),
+            build_fact("total_assets", float(financial.total_assets), "元"),
+            build_fact("total_liabilities", float(financial.total_liabilities), "元"),
+            build_fact("equity", float(financial.equity), "元"),
+            build_fact("roe", float(financial.roe), "%"),
+            build_fact("roa", float(financial.roa), "%"),
+            build_fact("debt_ratio", float(financial.debt_ratio), "%"),
         ]
 
     def _valuation_entity_to_dc_fact(self, valuation: ValuationMetrics) -> ValuationFact:
@@ -628,7 +632,7 @@ class StockFundamentalsRepositoryMixin:
 
     def get_latest_valuation_date(self) -> date | None:
         """获取最新估值日期。"""
-        latest = (
+        latest: date | None = (
             ValuationModel._default_manager.order_by("-trade_date")
             .values_list("trade_date", flat=True)
             .first()

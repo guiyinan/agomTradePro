@@ -323,3 +323,22 @@
 
 - Data Center 业务桥接定向 mypy：`0 errors`；全仓基线从 `8839 errors / 931 files` 收紧为 `8819 errors / 929 files`，净减少 `20 errors / 2 files`，无文件或错误码反弹。
 - Data Center Phase 3 provider adapter 回归：`27 passed`；Ruff 通过。
+
+## 风险与杠杆优先级重排（2026-07-22）
+
+- 在 `8819 errors` 快照上按错误码聚合：`no-untyped-def=3324`、`type-arg=1533`、`no-untyped-call=1143`，适合后续按类型桩、插件和统一签名批量治理。
+- 真实风险池优先覆盖 `arg-type=442`、`assignment=263`、`union-attr=171`、`return-value=30`，合计 `906 errors`（10.3%）；不再单纯按单文件总数排序。
+- 公共依赖杠杆按生产文件引用数衡量：Account repository provider 被 16 个文件引用、Regime 14 个、Equity 12 个；serializer 中 Strategy 被 6 个文件引用且自身有 39 项历史债务。
+- 选择下一批时优先满足“风险错误密度高 + repository/serializer/decorator 公共边界”两个条件；低风险 `no-untyped-def/import-untyped/misc` 在公共边界稳定后集中治理。
+
+## 第二十二批
+
+- 按风险与杠杆矩阵优先收口 `apps/equity/infrastructure/fundamentals_repository.py`，该文件同时是 Equity 公共 repository 切片和全仓风险错误密度最高的模块。
+- 为 mixin 显式声明 Data Center 财务/估值 repository、按需服务及宿主 helper 契约，消除组合类中 15 个被隐式依赖遮住的属性错误。
+- 将十类 `FinancialFact` 从 `dict[str, object] + **common` 改为强类型构造器，清除 60 个 `arg-type`；Optional 指标先局部绑定再取值，清除 3 个 `union-attr`。
+- QuerySet TypedDict 与页面 context 字典使用不同变量和 `Mapping` 边界，清除剩余 assignment/misc/typeddict 错误；行情数值通过 `safe_float` 归一化，不把 ORM 动态值直接交给 `float()`。
+
+## 第二十二批验证结果
+
+- Equity fundamentals repository 在定向和全量上下文均为 `0 errors`；全仓基线从 `8819 errors / 929 files` 收紧为 `8734 errors / 928 files`，净减少 `85 errors / 1 file`，无文件或错误码反弹。
+- Equity repository Data Center 映射与 Equity API 边界回归：`22 passed`；Django system check、Ruff 通过。
