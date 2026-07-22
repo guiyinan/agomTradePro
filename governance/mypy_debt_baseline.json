@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 9143,
-    "files_with_errors": 946
+    "errors": 9133,
+    "files_with_errors": 945
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3583,7 +3583,7 @@
       "attr-defined": 1,
       "misc": 15,
       "no-any-return": 6,
-      "no-untyped-call": 3,
+      "no-untyped-call": 2,
       "no-untyped-def": 9,
       "type-arg": 3,
       "type-var": 1,
@@ -4182,11 +4182,6 @@
       "no-untyped-def": 1,
       "type-arg": 1,
       "var-annotated": 1
-    },
-    "shared/infrastructure/notification_service.py": {
-      "assignment": 1,
-      "no-untyped-call": 4,
-      "no-untyped-def": 4
     },
     "shared/infrastructure/sanitization.py": {
       "no-untyped-def": 3,

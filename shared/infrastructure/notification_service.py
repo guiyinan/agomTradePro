@@ -23,7 +23,7 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from enum import Enum
-from typing import Any
+from typing import Any, Protocol
 
 from django.conf import settings
 from django.core.cache import cache
@@ -36,12 +36,32 @@ from shared.infrastructure.resilience import MaxRetriesExceeded, retry_on_error
 logger = logging.getLogger(__name__)
 
 
+class NotificationRecordProtocol(Protocol):
+    """Persisted notification shape required by the in-app channel."""
+
+    id: object
+
+
+class NotificationManagerProtocol(Protocol):
+    """Minimal model manager contract used by the in-app channel."""
+
+    def create(self, **kwargs: Any) -> NotificationRecordProtocol: ...
+
+
+class NotificationModelProtocol(Protocol):
+    """Minimal injected model contract used by the in-app channel."""
+
+    _default_manager: NotificationManagerProtocol
+
+
 # ============================================================================
 # Enums and Constants
 # ============================================================================
 
+
 class NotificationChannel(Enum):
     """通知通道类型"""
+
     EMAIL = "email"
     IN_APP = "in_app"
     ALERT = "alert"
@@ -51,6 +71,7 @@ class NotificationChannel(Enum):
 
 class NotificationPriority(Enum):
     """通知优先级"""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
@@ -59,6 +80,7 @@ class NotificationPriority(Enum):
 
 class NotificationStatus(Enum):
     """通知状态"""
+
     PENDING = "pending"
     SENDING = "sending"
     SENT = "sent"
@@ -71,9 +93,11 @@ class NotificationStatus(Enum):
 # Data Classes
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class NotificationRecipient:
     """通知接收者"""
+
     user_id: int | None = None
     email: str | None = None
     phone: str | None = None
@@ -83,6 +107,7 @@ class NotificationRecipient:
 @dataclass
 class NotificationMessage:
     """通知消息"""
+
     subject: str
     body: str
     html_body: str | None = None
@@ -95,6 +120,7 @@ class NotificationMessage:
 @dataclass
 class NotificationResult:
     """通知发送结果"""
+
     success: bool
     channel: NotificationChannel
     recipient: NotificationRecipient
@@ -108,6 +134,7 @@ class NotificationResult:
 @dataclass
 class NotificationConfig:
     """通知配置"""
+
     max_retries: int = 3
     initial_retry_delay: float = 1.0
     retry_backoff_factor: float = 2.0
@@ -122,8 +149,10 @@ class NotificationConfig:
 # Exceptions
 # ============================================================================
 
+
 class NotificationError(AgomTradeProException):
     """通知基础异常"""
+
     default_message = "通知发送失败"
     default_code = "NOTIFICATION_ERROR"
     default_status_code = 503
@@ -131,18 +160,21 @@ class NotificationError(AgomTradeProException):
 
 class EmailSendError(NotificationError):
     """邮件发送失败"""
+
     default_message = "邮件发送失败"
     default_code = "EMAIL_SEND_ERROR"
 
 
 class InAppNotificationError(NotificationError):
     """站内通知失败"""
+
     default_message = "站内通知失败"
     default_code = "IN_APP_NOTIFICATION_ERROR"
 
 
 class NotificationRateLimitExceeded(NotificationError):
     """通知频率限制"""
+
     default_message = "通知频率过高，已限流"
     default_code = "RATE_LIMIT_EXCEEDED"
     default_status_code = 429
@@ -152,6 +184,7 @@ class NotificationRateLimitExceeded(NotificationError):
 # Abstract Channel Interface
 # ============================================================================
 
+
 class NotificationChannelInterface(ABC):
     """通知通道抽象接口"""
 
@@ -160,7 +193,7 @@ class NotificationChannelInterface(ABC):
         self,
         message: NotificationMessage,
         recipient: NotificationRecipient,
-        config: NotificationConfig
+        config: NotificationConfig,
     ) -> NotificationResult:
         """
         发送通知
@@ -194,6 +227,7 @@ class NotificationChannelInterface(ABC):
 # Email Notification Channel
 # ============================================================================
 
+
 class EmailNotificationChannel(NotificationChannelInterface):
     """
     邮件通知通道
@@ -206,7 +240,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
         self,
         from_email: str | None = None,
         use_html: bool = True,
-        reply_to: list[str] | None = None
+        reply_to: list[str] | None = None,
     ):
         """
         初始化邮件通知通道
@@ -216,7 +250,10 @@ class EmailNotificationChannel(NotificationChannelInterface):
             use_html: 是否使用 HTML 格式
             reply_to: 回复邮箱列表
         """
-        self.from_email = from_email or getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com")
+        configured_from_email = from_email or getattr(
+            settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com"
+        )
+        self.from_email = str(configured_from_email or "noreply@agomtradepro.com")
         self.use_html = use_html
         self.reply_to = reply_to or []
 
@@ -265,11 +302,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
         exceptions=(smtplib.SMTPException, ConnectionError, OSError),
     )
     def _send_email(
-        self,
-        subject: str,
-        body: str,
-        recipient_email: str,
-        html_body: str | None = None
+        self, subject: str, body: str, recipient_email: str, html_body: str | None = None
     ) -> bool:
         """
         实际发送邮件（带重试装饰器）
@@ -305,8 +338,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
 
             # 发送
             with smtplib.SMTP(
-                getattr(settings, "EMAIL_HOST", "localhost"),
-                getattr(settings, "EMAIL_PORT", 25)
+                getattr(settings, "EMAIL_HOST", "localhost"), getattr(settings, "EMAIL_PORT", 25)
             ) as server:
                 if getattr(settings, "EMAIL_USE_TLS", False):
                     server.starttls()
@@ -314,7 +346,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
                 if getattr(settings, "EMAIL_HOST_USER", ""):
                     server.login(
                         getattr(settings, "EMAIL_HOST_USER", ""),
-                        getattr(settings, "EMAIL_HOST_PASSWORD", "")
+                        getattr(settings, "EMAIL_HOST_PASSWORD", ""),
                     )
 
                 server.send_message(message)
@@ -326,7 +358,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
                 from_email=self.from_email,
                 recipient_list=recipient_list,
                 fail_silently=False,
-                html_message=html_body if self.use_html else None
+                html_message=html_body if self.use_html else None,
             )
 
         return True
@@ -335,7 +367,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
         self,
         message: NotificationMessage,
         recipient: NotificationRecipient,
-        config: NotificationConfig
+        config: NotificationConfig,
     ) -> NotificationResult:
         """
         发送邮件通知
@@ -356,7 +388,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
                 channel=self.get_channel_type(),
                 recipient=recipient,
                 status=NotificationStatus.FAILED,
-                error_message=f"无效的收件人邮箱: {recipient.email}"
+                error_message=f"无效的收件人邮箱: {recipient.email}",
             )
 
         # 检查通道可用性
@@ -366,7 +398,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
                 channel=self.get_channel_type(),
                 recipient=recipient,
                 status=NotificationStatus.FAILED,
-                error_message="邮件服务不可用"
+                error_message="邮件服务不可用",
             )
 
         # 检查频率限制
@@ -377,7 +409,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
                 channel=self.get_channel_type(),
                 recipient=recipient,
                 status=NotificationStatus.FAILED,
-                error_message="邮件发送频率过高，已限流"
+                error_message="邮件发送频率过高，已限流",
             )
 
         # 构建邮件内容
@@ -406,7 +438,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
                     recipient=recipient,
                     status=NotificationStatus.SENT,
                     sent_at=timezone.now(),
-                    retry_count=retry_count
+                    retry_count=retry_count,
                 )
 
             except MaxRetriesExceeded as e:
@@ -419,23 +451,22 @@ class EmailNotificationChannel(NotificationChannelInterface):
 
                 if attempt < config.max_retries:
                     delay = min(
-                        config.initial_retry_delay * (config.retry_backoff_factor ** attempt),
-                        config.max_retry_delay
+                        config.initial_retry_delay * (config.retry_backoff_factor**attempt),
+                        config.max_retry_delay,
                     )
                     logger.warning(
                         f"邮件发送失败 (尝试 {attempt + 1}/{config.max_retries}): {e}, "
                         f"{delay:.1f}秒后重试..."
                     )
                     import time
+
                     time.sleep(delay)
 
         # 所有重试均失败
         self._failure_count += 1
         self._last_failure_time = timezone.now()
 
-        logger.error(
-            f"邮件发送失败 (已重试 {retry_count} 次): {last_error}"
-        )
+        logger.error(f"邮件发送失败 (已重试 {retry_count} 次): {last_error}")
 
         return NotificationResult(
             success=False,
@@ -443,7 +474,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
             recipient=recipient,
             status=NotificationStatus.FAILED,
             error_message=last_error,
-            retry_count=retry_count
+            retry_count=retry_count,
         )
 
     def _format_subject(self, message: NotificationMessage) -> str:
@@ -467,18 +498,22 @@ class EmailNotificationChannel(NotificationChannelInterface):
         ]
 
         if message.metadata:
-            lines.extend([
-                "",
-                "详细信息:",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "详细信息:",
+                ]
+            )
             for key, value in message.metadata.items():
                 lines.append(f"  {key}: {value}")
 
-        lines.extend([
-            "",
-            f"发送时间: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            "-" * 50,
-        ])
+        lines.extend(
+            [
+                "",
+                f"发送时间: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                "-" * 50,
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -516,7 +551,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
             html += '<div class="metadata"><h3>详细信息</h3>'
             for key, value in message.metadata.items():
                 html += f'<p><span class="label">{key}:</span> {value}</p>'
-            html += '</div>'
+            html += "</div>"
 
         html += f"""
             </div>
@@ -536,7 +571,9 @@ class EmailNotificationChannel(NotificationChannelInterface):
             "channel": "email",
             "success_count": self._success_count,
             "failure_count": self._failure_count,
-            "last_failure_time": self._last_failure_time.isoformat() if self._last_failure_time else None,
+            "last_failure_time": (
+                self._last_failure_time.isoformat() if self._last_failure_time else None
+            ),
             "is_available": self.is_available(),
         }
 
@@ -544,6 +581,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
 # ============================================================================
 # In-App Notification Channel
 # ============================================================================
+
 
 class InAppNotificationChannel(NotificationChannelInterface):
     """
@@ -553,7 +591,7 @@ class InAppNotificationChannel(NotificationChannelInterface):
     需要创建 NotificationModel 来存储通知。
     """
 
-    def __init__(self, model_class=None):
+    def __init__(self, model_class: NotificationModelProtocol | None = None) -> None:
         """
         初始化站内通知通道
 
@@ -587,7 +625,7 @@ class InAppNotificationChannel(NotificationChannelInterface):
         self,
         message: NotificationMessage,
         recipient: NotificationRecipient,
-        config: NotificationConfig
+        config: NotificationConfig,
     ) -> NotificationResult:
         """
         发送站内通知
@@ -607,22 +645,23 @@ class InAppNotificationChannel(NotificationChannelInterface):
                 channel=self.get_channel_type(),
                 recipient=recipient,
                 status=NotificationStatus.FAILED,
-                error_message=f"无效的接收者 ID: {recipient.user_id}"
+                error_message=f"无效的接收者 ID: {recipient.user_id}",
             )
 
-        # 检查通道可用性
-        if not self.is_available():
+        # 检查通道可用性，并将注入模型收窄到本次发送的局部绑定。
+        model_class = self.model_class
+        if model_class is None or not self.is_available():
             return NotificationResult(
                 success=False,
                 channel=self.get_channel_type(),
                 recipient=recipient,
                 status=NotificationStatus.FAILED,
-                error_message="站内通知服务不可用"
+                error_message="站内通知服务不可用",
             )
 
         try:
             # 创建通知记录
-            notification = self.model_class._default_manager.create(
+            notification = model_class._default_manager.create(
                 user_id=recipient.user_id,
                 title=message.subject,
                 content=message.body,
@@ -643,7 +682,7 @@ class InAppNotificationChannel(NotificationChannelInterface):
                 recipient=recipient,
                 status=NotificationStatus.SENT,
                 sent_at=timezone.now(),
-                notification_id=str(notification.id)
+                notification_id=str(notification.id),
             )
 
         except Exception as e:
@@ -655,13 +694,14 @@ class InAppNotificationChannel(NotificationChannelInterface):
                 channel=self.get_channel_type(),
                 recipient=recipient,
                 status=NotificationStatus.FAILED,
-                error_message=str(e)
+                error_message=str(e),
             )
 
 
 # ============================================================================
 # Alert Notification Channel
 # ============================================================================
+
 
 class AlertNotificationChannel(NotificationChannelInterface):
     """
@@ -670,7 +710,7 @@ class AlertNotificationChannel(NotificationChannelInterface):
     使用 alert_service 发送告警到 Slack、邮件等渠道。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化告警通知通道"""
         from shared.infrastructure.alert_service import (
             ConsoleAlertChannel,
@@ -678,20 +718,19 @@ class AlertNotificationChannel(NotificationChannelInterface):
         )
 
         # 创建告警服务
-        self.alert_service = MultiChannelAlertService([
-            ConsoleAlertChannel()  # 默认使用控制台
-        ])
+        self.alert_service = MultiChannelAlertService([ConsoleAlertChannel()])  # 默认使用控制台
 
         # 尝试添加其他通道
         self._setup_channels()
 
-    def _setup_channels(self):
+    def _setup_channels(self) -> None:
         """设置告警通道"""
         try:
             # 尝试添加 Slack
             slack_webhook = getattr(settings, "SLACK_WEBHOOK_URL", None)
             if slack_webhook:
                 from shared.infrastructure.alert_service import SlackAlertChannel
+
                 self.alert_service.add_channel(SlackAlertChannel(slack_webhook))
         except Exception as e:
             logger.warning(f"无法添加 Slack 告警通道: {e}")
@@ -711,7 +750,7 @@ class AlertNotificationChannel(NotificationChannelInterface):
         self,
         message: NotificationMessage,
         recipient: NotificationRecipient,
-        config: NotificationConfig
+        config: NotificationConfig,
     ) -> NotificationResult:
         """
         发送告警通知
@@ -741,7 +780,7 @@ class AlertNotificationChannel(NotificationChannelInterface):
             level=alert_level.value,
             title=message.subject,
             message=message.body,
-            metadata=message.metadata
+            metadata=message.metadata,
         )
 
         return NotificationResult(
@@ -749,13 +788,14 @@ class AlertNotificationChannel(NotificationChannelInterface):
             channel=self.get_channel_type(),
             recipient=recipient,
             status=NotificationStatus.SENT if success else NotificationStatus.FAILED,
-            sent_at=timezone.now() if success else None
+            sent_at=timezone.now() if success else None,
         )
 
 
 # ============================================================================
 # Unified Notification Service
 # ============================================================================
+
 
 class UnifiedNotificationService:
     """
@@ -768,7 +808,7 @@ class UnifiedNotificationService:
     def __init__(
         self,
         channels: list[NotificationChannelInterface] | None = None,
-        config: NotificationConfig | None = None
+        config: NotificationConfig | None = None,
     ):
         """
         初始化统一通知服务
@@ -789,7 +829,7 @@ class UnifiedNotificationService:
         # 失败计数器（用于告警触发）
         self._channel_failures: dict[str, int] = {}
 
-    def _setup_default_channels(self):
+    def _setup_default_channels(self) -> None:
         """设置默认通知通道"""
         # 邮件通道
         self.channels.append(EmailNotificationChannel())
@@ -806,16 +846,13 @@ class UnifiedNotificationService:
 
     def remove_channel(self, channel_type: NotificationChannel) -> None:
         """移除指定类型的通道"""
-        self.channels = [
-            ch for ch in self.channels
-            if ch.get_channel_type() != channel_type
-        ]
+        self.channels = [ch for ch in self.channels if ch.get_channel_type() != channel_type]
 
     def send(
         self,
         message: NotificationMessage | str,
         recipients: NotificationRecipient | list[NotificationRecipient],
-        channels: list[NotificationChannel] | None = None
+        channels: list[NotificationChannel] | None = None,
     ) -> list[NotificationResult]:
         """
         发送通知
@@ -830,10 +867,7 @@ class UnifiedNotificationService:
         """
         # 标准化消息
         if isinstance(message, str):
-            message = NotificationMessage(
-                subject=message,
-                body=message
-            )
+            message = NotificationMessage(subject=message, body=message)
 
         # 标准化接收者列表
         if isinstance(recipients, NotificationRecipient):
@@ -842,10 +876,7 @@ class UnifiedNotificationService:
         # 确定使用的通道
         target_channels = self.channels
         if channels:
-            target_channels = [
-                ch for ch in self.channels
-                if ch.get_channel_type() in channels
-            ]
+            target_channels = [ch for ch in self.channels if ch.get_channel_type() in channels]
 
         # 发送通知
         results = []
@@ -864,16 +895,18 @@ class UnifiedNotificationService:
                     logger.error(
                         f"发送通知失败: channel={channel.get_channel_type().value}, "
                         f"recipient={recipient.email or recipient.user_id}, error={e}",
-                        exc_info=True
+                        exc_info=True,
                     )
 
-                    results.append(NotificationResult(
-                        success=False,
-                        channel=channel.get_channel_type(),
-                        recipient=recipient,
-                        status=NotificationStatus.FAILED,
-                        error_message=str(e)
-                    ))
+                    results.append(
+                        NotificationResult(
+                            success=False,
+                            channel=channel.get_channel_type(),
+                            recipient=recipient,
+                            status=NotificationStatus.FAILED,
+                            error_message=str(e),
+                        )
+                    )
 
         return results
 
@@ -883,7 +916,7 @@ class UnifiedNotificationService:
         body: str,
         recipients: str | list[str],
         html_body: str | None = None,
-        priority: NotificationPriority = NotificationPriority.NORMAL
+        priority: NotificationPriority = NotificationPriority.NORMAL,
     ) -> list[NotificationResult]:
         """
         发送邮件通知（便捷方法）
@@ -903,24 +936,16 @@ class UnifiedNotificationService:
             recipients = [recipients]
 
         # 构建接收者列表
-        recipient_list = [
-            NotificationRecipient(email=email)
-            for email in recipients
-        ]
+        recipient_list = [NotificationRecipient(email=email) for email in recipients]
 
         # 构建消息
         message = NotificationMessage(
-            subject=subject,
-            body=body,
-            html_body=html_body,
-            priority=priority
+            subject=subject, body=body, html_body=html_body, priority=priority
         )
 
         # 发送
         return self.send(
-            message=message,
-            recipients=recipient_list,
-            channels=[NotificationChannel.EMAIL]
+            message=message, recipients=recipient_list, channels=[NotificationChannel.EMAIL]
         )
 
     def send_in_app(
@@ -929,7 +954,7 @@ class UnifiedNotificationService:
         title: str,
         content: str,
         priority: NotificationPriority = NotificationPriority.NORMAL,
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> NotificationResult:
         """
         发送站内通知（便捷方法）
@@ -945,26 +970,25 @@ class UnifiedNotificationService:
             NotificationResult: 发送结果
         """
         message = NotificationMessage(
-            subject=title,
-            body=content,
-            priority=priority,
-            metadata=metadata or {}
+            subject=title, body=content, priority=priority, metadata=metadata or {}
         )
 
         recipient = NotificationRecipient(user_id=user_id)
 
         results = self.send(
-            message=message,
-            recipients=recipient,
-            channels=[NotificationChannel.IN_APP]
+            message=message, recipients=recipient, channels=[NotificationChannel.IN_APP]
         )
 
-        return results[0] if results else NotificationResult(
-            success=False,
-            channel=NotificationChannel.IN_APP,
-            recipient=recipient,
-            status=NotificationStatus.FAILED,
-            error_message="未配置站内通知通道"
+        return (
+            results[0]
+            if results
+            else NotificationResult(
+                success=False,
+                channel=NotificationChannel.IN_APP,
+                recipient=recipient,
+                status=NotificationStatus.FAILED,
+                error_message="未配置站内通知通道",
+            )
         )
 
     def send_alert(
@@ -972,7 +996,7 @@ class UnifiedNotificationService:
         title: str,
         message: str,
         level: str = "warning",
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> NotificationResult:
         """
         发送告警通知（便捷方法）
@@ -997,30 +1021,29 @@ class UnifiedNotificationService:
         priority = priority_mapping.get(level, NotificationPriority.NORMAL)
 
         notification_message = NotificationMessage(
-            subject=title,
-            body=message,
-            priority=priority,
-            metadata=metadata or {}
+            subject=title, body=message, priority=priority, metadata=metadata or {}
         )
 
         results = self.send(
             message=notification_message,
             recipients=NotificationRecipient(),  # 告警不需要特定接收者
-            channels=[NotificationChannel.ALERT]
+            channels=[NotificationChannel.ALERT],
         )
 
-        return results[0] if results else NotificationResult(
-            success=False,
-            channel=NotificationChannel.ALERT,
-            recipient=NotificationRecipient(),
-            status=NotificationStatus.FAILED,
-            error_message="未配置告警通道"
+        return (
+            results[0]
+            if results
+            else NotificationResult(
+                success=False,
+                channel=NotificationChannel.ALERT,
+                recipient=NotificationRecipient(),
+                status=NotificationStatus.FAILED,
+                error_message="未配置告警通道",
+            )
         )
 
     def _handle_send_failure(
-        self,
-        channel: NotificationChannelInterface,
-        result: NotificationResult
+        self, channel: NotificationChannelInterface, result: NotificationResult
     ) -> None:
         """
         处理发送失败
@@ -1038,8 +1061,7 @@ class UnifiedNotificationService:
 
             if failure_count >= self.config.alert_threshold:
                 logger.critical(
-                    f"通知通道 {channel_type} 连续失败 {failure_count} 次，"
-                    f"已达到告警阈值"
+                    f"通知通道 {channel_type} 连续失败 {failure_count} 次，" f"已达到告警阈值"
                 )
 
                 # 发送告警
@@ -1052,7 +1074,7 @@ class UnifiedNotificationService:
                             "channel": channel_type,
                             "failure_count": failure_count,
                             "last_error": result.error_message,
-                        }
+                        },
                     )
 
                     # 重置计数
@@ -1100,7 +1122,7 @@ def get_notification_service() -> UnifiedNotificationService:
 def send_notification(
     message: NotificationMessage | str,
     recipients: NotificationRecipient | list[NotificationRecipient],
-    channels: list[NotificationChannel] | None = None
+    channels: list[NotificationChannel] | None = None,
 ) -> list[NotificationResult]:
     """
     发送通知（便捷函数）
@@ -1118,10 +1140,7 @@ def send_notification(
 
 
 def send_email_notification(
-    subject: str,
-    body: str,
-    recipients: str | list[str],
-    html_body: str | None = None
+    subject: str, body: str, recipients: str | list[str], html_body: str | None = None
 ) -> list[NotificationResult]:
     """
     发送邮件通知（便捷函数）
@@ -1139,11 +1158,7 @@ def send_email_notification(
     return service.send_email(subject, body, recipients, html_body)
 
 
-def send_alert_notification(
-    title: str,
-    message: str,
-    level: str = "warning"
-) -> NotificationResult:
+def send_alert_notification(title: str, message: str, level: str = "warning") -> NotificationResult:
     """
     发送告警通知（便捷函数）
 
