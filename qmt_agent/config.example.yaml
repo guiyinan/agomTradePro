@@ -1,0 +1,22 @@
+agent_id: qmt-home-01
+server_url: https://your-vps.example.com
+qmt_userdata_path: D:/qmt/userdata
+broker_account_id: "replace-with-local-qmt-account"
+broker_account_type: STOCK
+system_account_id: 1
+qmt_client_version: "replace-with-broker-qmt-version"
+xtquant_version: "replace-with-broker-xtquant-version"
+poll_interval_seconds: 2
+lease_seconds: 30
+dry_run: true
+log_dir: C:/AgomQmtAgent/logs
+state_dir: C:/AgomQmtAgent/state
+kill_switch_file: C:/AgomQmtAgent/STOP
+verify_tls: true
+enforce_trading_session: true
+trading_timezone: Asia/Shanghai
+allowed_trading_windows:
+  - "09:30-11:30"
+  - "13:00-15:00"
+price_deviation_limit_pct: 0.03
+max_position_count: 20
