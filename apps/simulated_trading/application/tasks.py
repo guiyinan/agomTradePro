@@ -8,9 +8,10 @@ Application层异步任务：
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import date
-from typing import Any
+from typing import Any, Protocol, TypeVar, cast
 
 from celery import shared_task
 from django.conf import settings
@@ -28,7 +29,6 @@ from apps.simulated_trading.application.decision_rhythm_exit_gateway import (
 )
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.repository_provider import (
-    DjangoSimulatedAccountRepository,
     get_simulated_account_repository,
     get_simulated_inspection_repository,
     get_simulated_position_repository,
@@ -41,14 +41,72 @@ from apps.simulated_trading.application.use_cases import (
 )
 from core.exceptions import DataFetchError
 from core.integration.decision_execution_links import build_decision_execution_link_recorder
+from shared.infrastructure.notification_service import NotificationConfig
 
 logger = logging.getLogger(__name__)
+
+TaskResult = TypeVar("TaskResult", covariant=True)
+DecoratedResult = TypeVar("DecoratedResult")
+
+
+class _TaskRequestProtocol(Protocol):
+    """Celery request fields used by bound tasks."""
+
+    retries: int
+
+
+class _BoundTaskProtocol(Protocol):
+    """Minimal retry surface used by bound Celery task bodies."""
+
+    request: _TaskRequestProtocol
+    max_retries: int
+
+    def retry(
+        self,
+        *,
+        exc: BaseException,
+        countdown: int,
+    ) -> BaseException:
+        """Build and raise Celery's retry exception."""
+
+        ...
+
+
+class _TypedTask(Protocol[TaskResult]):
+    """Callable Celery task exposing a typed synchronous runner."""
+
+    def __call__(self, *args: Any, **kwargs: Any) -> TaskResult: ...
+
+    def run(self, *args: Any, **kwargs: Any) -> TaskResult: ...
+
+
+def typed_shared_task(
+    *decorator_args: object,
+    **decorator_kwargs: object,
+) -> Callable[[Callable[..., DecoratedResult]], _TypedTask[DecoratedResult]]:
+    """Narrow Celery's untyped decorator while preserving task return types."""
+
+    decorator = shared_task(*decorator_args, **decorator_kwargs)
+    return cast(
+        Callable[[Callable[..., DecoratedResult]], _TypedTask[DecoratedResult]],
+        decorator,
+    )
 
 
 def execute_realtime_price_polling() -> dict[str, Any]:
     """Execute one realtime polling cycle through the owning realtime app."""
 
-    return PricePollingUseCase().execute_price_polling()
+    polling_factory = cast(Callable[[], PricePollingUseCase], PricePollingUseCase)
+    return cast(dict[str, Any], polling_factory().execute_price_polling())
+
+
+def _require_int_field(payload: dict[str, Any], field_name: str) -> int:
+    """Return a required integer identifier from a dynamic task payload."""
+
+    value = payload.get(field_name)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field_name} must be an integer")
+    return value
 
 
 # ============================================================================
@@ -56,7 +114,7 @@ def execute_realtime_price_polling() -> dict[str, Any]:
 # ============================================================================
 
 
-@shared_task(
+@typed_shared_task(
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -64,9 +122,9 @@ def execute_realtime_price_polling() -> dict[str, Any]:
     soft_time_limit=850,
 )
 def daily_auto_trading_task(
-    self,
+    self: _BoundTaskProtocol,
     trade_date: str | None = None,
-    account_ids: list | None = None,
+    account_ids: list[int] | None = None,
 ) -> dict[str, Any]:
     """
     每日自动交易任务
@@ -165,7 +223,7 @@ def daily_auto_trading_task(
         }
 
 
-@shared_task(
+@typed_shared_task(
     name="simulated.update_position_prices",
     bind=True,
     max_retries=3,
@@ -176,7 +234,10 @@ def daily_auto_trading_task(
     time_limit=900,
     soft_time_limit=850,
 )
-def update_position_prices_task(self, account_id: int | None = None) -> dict[str, Any]:
+def update_position_prices_task(
+    self: _BoundTaskProtocol,
+    account_id: int | None = None,
+) -> dict[str, Any]:
     """
     更新持仓价格任务
 
@@ -199,9 +260,10 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
 
         # 获取账户列表
         if account_id:
-            accounts = [account_repo.get_by_id(account_id)]
-            if not accounts[0]:
+            account = account_repo.get_by_id(account_id)
+            if account is None:
                 return {"success": False, "error": f"账户不存在: {account_id}"}
+            accounts = [account]
         else:
             accounts = account_repo.get_active_accounts()
 
@@ -316,7 +378,7 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
         }
 
 
-@shared_task(
+@typed_shared_task(
     name="simulated.calculate_all_performance",
     bind=True,
     max_retries=3,
@@ -327,7 +389,10 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
     time_limit=900,
     soft_time_limit=850,
 )
-def calculate_all_performance_task(self, trade_date: str | None = None) -> dict[str, Any]:
+def calculate_all_performance_task(
+    self: _BoundTaskProtocol,
+    trade_date: str | None = None,
+) -> dict[str, Any]:
     """
     全量绩效计算任务
 
@@ -346,11 +411,12 @@ def calculate_all_performance_task(self, trade_date: str | None = None) -> dict[
     logger.info(f"开始全量绩效计算: {target_date}")
 
     try:
-        calculator = PerformanceCalculator()
+        calculator_factory = cast(Callable[[], PerformanceCalculator], PerformanceCalculator)
+        calculator = calculator_factory()
         account_repo = get_simulated_account_repository()
         accounts = account_repo.get_active_accounts()
 
-        results = []
+        results: list[dict[str, Any]] = []
         for account in accounts:
             try:
                 metrics = calculator.calculate_and_update_performance(
@@ -391,7 +457,7 @@ def calculate_all_performance_task(self, trade_date: str | None = None) -> dict[
 # ============================================================================
 
 
-@shared_task(
+@typed_shared_task(
     name="simulated.cleanup_inactive_accounts",
     bind=True,
     max_retries=3,
@@ -402,7 +468,10 @@ def calculate_all_performance_task(self, trade_date: str | None = None) -> dict[
     time_limit=900,
     soft_time_limit=850,
 )
-def cleanup_inactive_accounts_task(self, inactive_days: int = 180) -> dict[str, Any]:
+def cleanup_inactive_accounts_task(
+    self: _BoundTaskProtocol,
+    inactive_days: int = 180,
+) -> dict[str, Any]:
     """
     清理不活跃账户任务
 
@@ -453,7 +522,7 @@ def cleanup_inactive_accounts_task(self, inactive_days: int = 180) -> dict[str, 
         }
 
 
-@shared_task(
+@typed_shared_task(
     name="simulated.send_performance_summary",
     bind=True,
     max_retries=3,
@@ -464,7 +533,10 @@ def cleanup_inactive_accounts_task(self, inactive_days: int = 180) -> dict[str, 
     time_limit=900,
     soft_time_limit=850,
 )
-def send_performance_summary_task(self, account_ids: list | None = None) -> dict[str, Any]:
+def send_performance_summary_task(
+    self: _BoundTaskProtocol,
+    account_ids: list[int] | None = None,
+) -> dict[str, Any]:
     """
     发送绩效摘要任务
 
@@ -497,7 +569,7 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
 
         # 生成摘要
         use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
-        summaries = []
+        summaries: list[dict[str, Any]] = []
 
         for account in accounts:
             result = use_case.execute(account.account_id)
@@ -518,7 +590,7 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
         logger.info(f"绩效摘要生成完成: {len(summaries)} 个账户")
 
         # 邮件推送绩效摘要
-        notification_results = []
+        notification_results: list[dict[str, Any]] = []
         try:
             from shared.infrastructure.notification_service import (
                 NotificationPriority,
@@ -578,7 +650,7 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
         }
 
 
-@shared_task(
+@typed_shared_task(
     name="simulated.daily_portfolio_inspection",
     bind=True,
     max_retries=3,
@@ -590,7 +662,7 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
     soft_time_limit=850,
 )
 def daily_portfolio_inspection_task(
-    self,
+    self: _BoundTaskProtocol,
     account_id: int | None = None,
     strategy_id: int | None = None,
     inspection_date: str | None = None,
@@ -631,7 +703,7 @@ def daily_portfolio_inspection_task(
             "inspection_date": target_date.isoformat(),
         }
     try:
-        account_repo = DjangoSimulatedAccountRepository()
+        account_repo = get_simulated_account_repository()
         account = account_repo.get_by_id(account_id)
         if account is None:
             logger.warning("跳过日更巡检：账户不存在 account_id=%s", account_id)
@@ -695,7 +767,8 @@ def _send_daily_inspection_email(result: dict[str, Any]) -> None:
         return
 
     inspection_repo = get_simulated_inspection_repository()
-    context = inspection_repo.get_account_notification_context(result["account_id"])
+    account_id = _require_int_field(result, "account_id")
+    context = inspection_repo.get_account_notification_context(account_id)
     if not context:
         return
 
@@ -767,8 +840,8 @@ def _send_rebalance_proposal_notification(result: dict[str, Any]) -> None:
     if not result.get("proposal_id"):
         return
 
-    account_id = result.get("account_id")
-    proposal_id = result["proposal_id"]
+    account_id = _require_int_field(result, "account_id")
+    proposal_id = _require_int_field(result, "proposal_id")
     summary = result.get("summary", {})
 
     inspection_repo = get_simulated_inspection_repository()
@@ -849,7 +922,8 @@ def _send_rebalance_proposal_notification(result: dict[str, Any]) -> None:
         logger.info("再平衡建议邮件已发送: proposal_id=%s recipients=%s", proposal_id, recipients)
 
     # 创建站内通知（如果用户存在）
-    if context.get("user_id"):
+    user_id = context.get("user_id")
+    if isinstance(user_id, int) and not isinstance(user_id, bool):
         from shared.infrastructure.notification_service import (
             InAppNotificationChannel,
             NotificationMessage,
@@ -871,12 +945,12 @@ def _send_rebalance_proposal_notification(result: dict[str, Any]) -> None:
                 tags=["rebalance", "daily_inspection"],
             )
 
-            recipient = NotificationRecipient(user_id=context["user_id"])
+            recipient = NotificationRecipient(user_id=user_id)
             result_notify = channel.send(message, recipient, NotificationConfig())
 
             if result_notify.success:
                 logger.info(
-                    "站内通知已发送: user_id=%s proposal_id=%s", context["user_id"], proposal_id
+                    "站内通知已发送: user_id=%s proposal_id=%s", user_id, proposal_id
                 )
             else:
                 logger.warning("站内通知发送失败: %s", result_notify.error_message)
@@ -888,7 +962,9 @@ def _send_rebalance_proposal_notification(result: dict[str, Any]) -> None:
     _record_notification_history(
         account_id=account_id,
         account_name=context["account_name"],
-        account_user_id=context.get("user_id"),
+        account_user_id=(
+            user_id if isinstance(user_id, int) and not isinstance(user_id, bool) else None
+        ),
         proposal=proposal,
         notification_type="rebalance_proposal",
         recipients=recipients,
@@ -925,25 +1001,12 @@ def _record_notification_history(
         logger.warning("记录通知历史失败: %s", e)
 
 
-class NotificationConfig:
-    """通知配置（用于 notification_service）"""
-
-    max_retries = 3
-    initial_retry_delay = 1.0
-    retry_backoff_factor = 2.0
-    max_retry_delay = 60.0
-    timeout_seconds = 30
-    enable_retry = True
-    enable_alert_on_failure = True
-    alert_threshold = 3
-
-
 # ============================================================================
 # 持仓证伪检查任务
 # ============================================================================
 
 
-@shared_task(
+@typed_shared_task(
     name="simulated.check_position_invalidation",
     bind=True,
     max_retries=3,
@@ -954,7 +1017,9 @@ class NotificationConfig:
     time_limit=900,
     soft_time_limit=850,
 )
-def check_position_invalidation_task(self) -> dict[str, Any]:
+def check_position_invalidation_task(
+    self: _BoundTaskProtocol,
+) -> dict[str, Any]:
     """
     持仓证伪检查任务
 
@@ -1007,7 +1072,7 @@ def check_position_invalidation_task(self) -> dict[str, Any]:
         }
 
 
-@shared_task(
+@typed_shared_task(
     name="simulated.notify_invalidated_positions",
     bind=True,
     max_retries=3,
@@ -1018,7 +1083,9 @@ def check_position_invalidation_task(self) -> dict[str, Any]:
     time_limit=900,
     soft_time_limit=850,
 )
-def notify_invalidated_positions_task(self) -> dict[str, Any]:
+def notify_invalidated_positions_task(
+    self: _BoundTaskProtocol,
+) -> dict[str, Any]:
     """
     证伪持仓通知任务
 
@@ -1048,7 +1115,7 @@ def notify_invalidated_positions_task(self) -> dict[str, Any]:
             )
 
         # 邮件推送证伪持仓通知
-        notification_results = []
+        notification_results: list[dict[str, Any]] = []
         if positions:
             try:
                 from shared.infrastructure.notification_service import (
@@ -1114,14 +1181,17 @@ def notify_invalidated_positions_task(self) -> dict[str, Any]:
 # ============================================================================
 
 
-@shared_task(
+@typed_shared_task(
     bind=True,
     max_retries=3,
     default_retry_delay=300,
     time_limit=600,
     soft_time_limit=570,
 )
-def update_all_prices_after_close(self, account_id: int | None = None) -> dict[str, Any]:
+def update_all_prices_after_close(
+    self: _BoundTaskProtocol,
+    account_id: int | None = None,
+) -> dict[str, Any]:
     """
     收盘后批量价格更新任务
 
@@ -1167,37 +1237,39 @@ def update_all_prices_after_close(self, account_id: int | None = None) -> dict[s
         }
 
 
-@shared_task(name="apps.simulated_trading.application.tasks.update_position_prices_task")
+@typed_shared_task(name="apps.simulated_trading.application.tasks.update_position_prices_task")
 def update_position_prices_task_alias(account_id: int | None = None) -> dict[str, Any]:
     """Backwards-compatible alias for beat entries using dotted task paths."""
     return update_position_prices_task.run(account_id=account_id)
 
 
-@shared_task(name="apps.simulated_trading.application.tasks.calculate_all_performance_task")
+@typed_shared_task(name="apps.simulated_trading.application.tasks.calculate_all_performance_task")
 def calculate_all_performance_task_alias(trade_date: str | None = None) -> dict[str, Any]:
     """Backwards-compatible alias for beat entries using dotted task paths."""
     return calculate_all_performance_task.run(trade_date=trade_date)
 
 
-@shared_task(name="apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task")
+@typed_shared_task(name="apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task")
 def cleanup_inactive_accounts_task_alias(inactive_days: int = 180) -> dict[str, Any]:
     """Backwards-compatible alias for beat entries using dotted task paths."""
     return cleanup_inactive_accounts_task.run(inactive_days=inactive_days)
 
 
-@shared_task(name="apps.simulated_trading.application.tasks.send_performance_summary_task")
-def send_performance_summary_task_alias(account_ids: list | None = None) -> dict[str, Any]:
+@typed_shared_task(name="apps.simulated_trading.application.tasks.send_performance_summary_task")
+def send_performance_summary_task_alias(
+    account_ids: list[int] | None = None,
+) -> dict[str, Any]:
     """Backwards-compatible alias for beat entries using dotted task paths."""
     return send_performance_summary_task.run(account_ids=account_ids)
 
 
-@shared_task(name="apps.simulated_trading.application.tasks.check_position_invalidation_task")
+@typed_shared_task(name="apps.simulated_trading.application.tasks.check_position_invalidation_task")
 def check_position_invalidation_task_alias() -> dict[str, Any]:
     """Backwards-compatible alias for beat entries using dotted task paths."""
     return check_position_invalidation_task.run()
 
 
-@shared_task(name="apps.simulated_trading.application.tasks.notify_invalidated_positions_task")
+@typed_shared_task(name="apps.simulated_trading.application.tasks.notify_invalidated_positions_task")
 def notify_invalidated_positions_task_alias() -> dict[str, Any]:
     """Backwards-compatible alias for beat entries using dotted task paths."""
     return notify_invalidated_positions_task.run()

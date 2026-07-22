@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8370,
-    "files_with_errors": 917
+    "errors": 8321,
+    "files_with_errors": 916
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3458,18 +3458,6 @@
       "arg-type": 1,
       "no-untyped-def": 2,
       "type-arg": 10
-    },
-    "apps/simulated_trading/application/tasks.py": {
-      "arg-type": 4,
-      "assignment": 1,
-      "attr-defined": 1,
-      "misc": 15,
-      "no-any-return": 6,
-      "no-untyped-call": 2,
-      "no-untyped-def": 9,
-      "type-arg": 3,
-      "type-var": 1,
-      "union-attr": 7
     },
     "apps/simulated_trading/application/unified_position_service.py": {
       "arg-type": 1,

@@ -423,3 +423,15 @@
 
 - Decision execution 定向与增量 mypy：`0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8396 errors / 918 files` 收紧为 `8370 errors / 917 files`，净减少 `26 errors / 1 file`，无文件或错误码反弹。
 - Decision execution、workflow 与结构回归：`21 passed`；架构 delta 扫描 `1 file / 149 added lines / 0 violations`；Ruff、diff check 通过。
+
+## 第三十批
+
+- 按“真实风险密度 + 公共 decorator 边界”收口 `apps/simulated_trading/application/tasks.py`：为 Celery `shared_task` 建立局部强类型适配器，统一普通任务、绑定任务、别名 `.run()` 和 retry 契约，清除装饰器向 15 个异步入口传播的未类型调用与返回值债务。
+- ORM 单账户查询先完成 `None` 分支处理，再构造账户列表；通知与再平衡 payload 的账户、提案和用户标识统一经过非 bool 整数校验，不再把动态 `Any` 或可空值直接传入交易与通知边界。
+- 实时行情轮询和绩效计算器只在动态 composition boundary 局部收窄构造器类型；日常巡检通过 repository provider 获取依赖，不新增 Application 对 concrete repository 的直接依赖。
+- 删除任务模块内与共享通知实现不一致的同名配置类，改为复用并兼容导出统一 `NotificationConfig`，避免运行时配置对象形状与通知通道契约漂移。
+
+## 第三十批验证结果
+
+- Simulated Trading tasks 定向与增量 mypy：`0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8370 errors / 917 files` 收紧为 `8321 errors / 916 files`，净减少 `49 errors / 1 file`，该文件全部十类历史错误归零且无错误码反弹。
+- Celery 注册别名、自动交易 wiring、持仓失效、通知投递和再平衡流程回归：`52 passed`；架构 delta 扫描 `1 file / 129 added lines / 0 violations`；Ruff、diff check 通过。
