@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8013,
-    "files_with_errors": 891
+    "errors": 7995,
+    "files_with_errors": 890
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2167,14 +2167,6 @@
     "apps/factor/management/commands/init_factors.py": {
       "no-untyped-call": 2,
       "no-untyped-def": 4
-    },
-    "apps/filter/application/use_cases.py": {
-      "arg-type": 2,
-      "assignment": 6,
-      "attr-defined": 3,
-      "no-untyped-call": 1,
-      "no-untyped-def": 1,
-      "type-arg": 5
     },
     "apps/filter/infrastructure/models.py": {
       "no-untyped-def": 7,

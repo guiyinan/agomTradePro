@@ -538,3 +538,14 @@
 
 - AI Capability use cases 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8035 errors / 892 files` 收紧为 `8013 errors / 891 files`，净减少 `22 errors / 1 file`。
 - Routing、semantic sync 与 SDK catalog 定向测试先通过 `60` 项并暴露一个兼容 patch 接缝，修复后完整 routing suite `6 passed`；架构 delta 扫描 `1 file / 119 added lines / 0 violations`，Ruff、diff check 通过。
+
+## 第四十批
+
+- 收口 Filter Application 编排：DTO 的列表字段统一使用 `default_factory`，不再用 `None` 违背声明类型或共享可变默认值；比较结果与序列化 payload 补齐异构字典类型。
+- Repository provider 使用显式同名导出保留 Application composition boundary；HP adapter 构造器只在局部 typed factory 收窄，避免 concrete infrastructure 的未类型构造传播。
+- Compare 用例先验证成功响应确实携带 `FilterSeries` 再序列化，修复“success=True 但 series=None”时的可空参数风险；滤波配置和输出映射补齐键值类型。
+
+## 第四十批验证结果
+
+- Filter use cases 与 provider 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8013 errors / 891 files` 收紧为 `7995 errors / 890 files`，净减少 `18 errors / 1 file`，无错误码反弹。
+- Filter API edge 回归 `8 passed`；架构 delta 扫描 `2 files / 36 added lines / 0 violations`，Ruff、diff check 通过。

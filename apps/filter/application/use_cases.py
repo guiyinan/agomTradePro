@@ -4,8 +4,10 @@ Use Cases for Filter Operations.
 Application layer orchestrating filter workflows.
 """
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import date
+from typing import Any, cast
 
 from ..domain.entities import (
     FilterResult,
@@ -37,11 +39,10 @@ class ApplyFilterResponse:
     success: bool
     series: FilterSeries | None = None
     error: str | None = None
-    warnings: list[str] = None
+    warnings: list[str] = field(default_factory=list)
 
-    def __post_init__(self):
-        if self.warnings is None:
-            self.warnings = []
+    def __post_init__(self) -> None:
+        """Normalize mutable response fields."""
 
 
 @dataclass
@@ -57,13 +58,13 @@ class GetFilterDataRequest:
 class GetFilterDataResponse:
     """获取滤波数据的响应"""
     success: bool
-    results: list[FilterResult] = None
+    results: list[FilterResult] = field(default_factory=list)
     error: str | None = None
     # 可序列化的数据
-    dates: list[str] = None
-    original_values: list[float] = None
-    filtered_values: list[float] = None
-    slopes: list[float | None] = None
+    dates: list[str] = field(default_factory=list)
+    original_values: list[float] = field(default_factory=list)
+    filtered_values: list[float] = field(default_factory=list)
+    slopes: list[float | None] = field(default_factory=list)
 
 
 @dataclass
@@ -79,8 +80,8 @@ class CompareFiltersRequest:
 class CompareFiltersResponse:
     """对比滤波器的响应"""
     success: bool
-    hp_results: dict | None = None
-    kalman_results: dict | None = None
+    hp_results: dict[str, Any] | None = None
+    kalman_results: dict[str, Any] | None = None
     error: str | None = None
 
 
@@ -94,7 +95,7 @@ class ApplyFilterUseCase:
     3. 保存结果（可选）
     """
 
-    def __init__(self, repository: DjangoFilterRepository):
+    def __init__(self, repository: DjangoFilterRepository) -> None:
         """
         Args:
             repository: DjangoFilterRepository 实例
@@ -174,10 +175,11 @@ class ApplyFilterUseCase:
         indicator_code: str,
         dates: list[date],
         values: list[float],
-        config: dict
+        config: dict[str, Any]
     ) -> FilterSeries:
         """应用 HP 滤波"""
-        adapter = HPFilterAdapter()
+        adapter_factory = cast(Callable[[], HPFilterAdapter], HPFilterAdapter)
+        adapter = adapter_factory()
         lamb = config.get('hp_lambda', 129600.0)
 
         filtered_values = adapter.filter_expanding(values, lamb)
@@ -206,7 +208,7 @@ class ApplyFilterUseCase:
         indicator_code: str,
         dates: list[date],
         values: list[float],
-        config: dict
+        config: dict[str, Any]
     ) -> FilterSeries:
         """应用 Kalman 滤波"""
         # 获取保存的状态（用于增量更新）
@@ -259,7 +261,7 @@ class ApplyFilterUseCase:
 class GetFilterDataUseCase:
     """获取滤波数据的用例"""
 
-    def __init__(self, repository: DjangoFilterRepository):
+    def __init__(self, repository: DjangoFilterRepository) -> None:
         self.repository = repository
 
     def execute(self, request: GetFilterDataRequest) -> GetFilterDataResponse:
@@ -305,7 +307,7 @@ class GetFilterDataUseCase:
 class CompareFiltersUseCase:
     """对比滤波器的用例"""
 
-    def __init__(self, apply_use_case: ApplyFilterUseCase):
+    def __init__(self, apply_use_case: ApplyFilterUseCase) -> None:
         self.apply_use_case = apply_use_case
 
     def execute(self, request: CompareFiltersRequest) -> CompareFiltersResponse:
@@ -339,10 +341,16 @@ class CompareFiltersUseCase:
                 save_results=False,
             ))
 
+            hp_series = hp_response.series if hp_response.success else None
+            kalman_series = kalman_response.series if kalman_response.success else None
             return CompareFiltersResponse(
                 success=hp_response.success and kalman_response.success,
-                hp_results=self._serialize_series(hp_response.series) if hp_response.success else None,
-                kalman_results=self._serialize_series(kalman_response.series) if kalman_response.success else None,
+                hp_results=self._serialize_series(hp_series) if hp_series is not None else None,
+                kalman_results=(
+                    self._serialize_series(kalman_series)
+                    if kalman_series is not None
+                    else None
+                ),
                 error=hp_response.error or kalman_response.error,
             )
 
@@ -352,7 +360,7 @@ class CompareFiltersUseCase:
                 error=str(e)
             )
 
-    def _serialize_series(self, series: FilterSeries) -> dict:
+    def _serialize_series(self, series: FilterSeries) -> dict[str, Any]:
         """序列化滤波序列为字典"""
         return {
             'indicator_code': series.indicator_code,

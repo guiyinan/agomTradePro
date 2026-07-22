@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from apps.filter.infrastructure.providers import (
-    DjangoFilterRepository,
-    HPFilterAdapter,  # noqa: F401
-    KalmanFilterAdapter,  # noqa: F401
+    DjangoFilterRepository as DjangoFilterRepository,
+)
+from apps.filter.infrastructure.providers import (
+    HPFilterAdapter as HPFilterAdapter,
+)
+from apps.filter.infrastructure.providers import (
+    KalmanFilterAdapter as KalmanFilterAdapter,
 )
 
 
