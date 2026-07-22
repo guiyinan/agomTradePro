@@ -6,7 +6,7 @@ import re
 from html import unescape
 from html.parser import HTMLParser
 from math import ceil
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from apps.terminal.application.tui_workbench_constants import (
@@ -106,6 +106,39 @@ class _PlainTextHTMLParser(HTMLParser):
 
 class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
     """View-model rendering helpers shared by the TUI workbench service."""
+
+    if TYPE_CHECKING:
+
+        def _int_from_path(
+            self,
+            action: dict[str, Any],
+            envelope: dict[str, Any] | None,
+            key: str,
+            *,
+            default: int,
+        ) -> int: ...
+
+        def _int_from_params(
+            self,
+            params: dict[str, Any] | None,
+            key: str,
+            *,
+            default: int,
+        ) -> int: ...
+
+        def _empty_datagrid_message(
+            self,
+            action: dict[str, Any],
+            total: int,
+        ) -> str: ...
+
+        def _empty_datagrid_guidance(
+            self,
+            action: dict[str, Any],
+            total: int,
+        ) -> list[str]: ...
+
+        def _humanize(self, value: str) -> str: ...
 
     def _resolve_asset_names(self, codes: list[str]) -> dict[str, str]:
         raise NotImplementedError

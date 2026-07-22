@@ -747,3 +747,13 @@
 - 7 个变更生产文件的增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7021 errors / 849 files` 收紧为 `6929 errors / 843 files`，净减少 `92 errors / 6 files`，并连带清除 Facade、通用 UseCase、Page View、Agent Runtime View 与 Terminal API 的未类型调用。
 - Agent Runtime 领域、审批、handoff、operator 与 API 完整联合回归 `164 passed`；Django system check、架构边界 `0 violations`、模块循环回归 `4 passed`。
 - Ruff、Black、diff check 通过；Agent Runtime repository 仅剩 2 项 Django plugin `misc` 历史债务，其余高风险、Any 返回和未类型调用债务归零。
+
+## 第五十八批
+
+- 收口 TUI workbench result-model 横向 mixin 的组合契约：通过仅在 `TYPE_CHECKING` 下可见的宿主方法声明，固定整数路径/参数读取、空表格文案与字段人性化方法；运行时类定义和 MRO 保持不变。
+- 该模式与已收口的 Catalog mixin 一致，静态检查器现在能验证最终 `TuiWorkbenchService` 的 mixin 组合要求，不需要在任一 mixin 中复制占位实现。
+
+## 第五十八批验证结果
+
+- TUI result-model 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6929 errors / 843 files` 收紧为 `6918 errors / 842 files`，净减少 `11 errors / 1 file`。
+- TUI workbench、Terminal Agent、SDK client 与 SSL redirect 固定最小回归包 `229 passed`；Black、Ruff、diff check 通过。
