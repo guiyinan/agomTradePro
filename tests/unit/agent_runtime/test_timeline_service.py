@@ -9,6 +9,7 @@ Tests verify:
 - Both AgentTask entity and task_id integer are supported
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -136,6 +137,27 @@ class TestTimelineEventWriterService:
 
         assert result is None
 
+    def test_write_event_does_not_allow_payload_to_override_request_id(self):
+        """The canonical trace ID must win over untrusted payload content."""
+
+        repository = MagicMock()
+        repository.create_event.return_value = 126
+        service = TimelineEventWriterService(timeline_repository=repository)
+
+        result = service.write_event(
+            event_type=TimelineEventType.TASK_CREATED,
+            task_id=1,
+            event_payload={"request_id": "spoofed", "data": "test"},
+            event_source=EventSource.API,
+            request_id="atr_canonical",
+        )
+
+        assert result == 126
+        assert repository.create_event.call_args.kwargs["event_payload"] == {
+            "request_id": "atr_canonical",
+            "data": "test",
+        }
+
     # ========== write_task_created_event Tests ==========
 
     @patch("apps.agent_runtime.infrastructure.models.AgentTimelineEventModel")
@@ -175,6 +197,17 @@ class TestTimelineEventWriterService:
         assert result == 201
         call_kwargs = mock_model._default_manager.create.call_args[1]
         assert call_kwargs["task_id"] == 999
+
+    def test_write_task_created_event_rejects_unpersisted_task(self, sample_task):
+        """Timeline foreign keys must never receive a missing task ID."""
+
+        repository = MagicMock()
+        service = TimelineEventWriterService(timeline_repository=repository)
+
+        with pytest.raises(ValueError, match="持久化"):
+            service.write_task_created_event(task=replace(sample_task, id=None))
+
+        repository.create_event.assert_not_called()
 
     # ========== write_state_changed_event Tests ==========
 

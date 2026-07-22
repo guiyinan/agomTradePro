@@ -8,16 +8,36 @@ FROZEN: This service implements WP-M1-03 from the implementation plan.
 """
 
 import logging
-from typing import Any
+from typing import Any, Protocol
 
 from apps.agent_runtime.application.repository_provider import get_timeline_repository
 from apps.agent_runtime.domain.entities import (
     AgentTask,
     EventSource,
+    TaskStatus,
     TimelineEventType,
 )
 
 logger = logging.getLogger(__name__)
+
+
+class TimelineRepositoryProtocol(Protocol):
+    """Persistence boundary required by the timeline writer."""
+
+    def create_event(
+        self,
+        *,
+        request_id: str,
+        task_id: int,
+        proposal_id: int | None,
+        event_type: str,
+        event_source: str,
+        step_index: int | None,
+        event_payload: dict[str, Any],
+    ) -> int:
+        """Persist an event and return its primary key."""
+
+        ...
 
 
 class TimelineEventWriterService:
@@ -33,8 +53,22 @@ class TimelineEventWriterService:
     - Additional context based on event type
     """
 
-    def __init__(self, timeline_repository: Any | None = None) -> None:
-        self.timeline_repository = timeline_repository or get_timeline_repository()
+    def __init__(
+        self, timeline_repository: TimelineRepositoryProtocol | None = None
+    ) -> None:
+        self.timeline_repository: TimelineRepositoryProtocol = (
+            timeline_repository or get_timeline_repository()
+        )
+
+    @staticmethod
+    def _resolve_task_identity(task: AgentTask | int) -> tuple[int, str]:
+        """Return a persisted task ID and its request trace ID."""
+
+        if isinstance(task, AgentTask):
+            if task.id is None:
+                raise ValueError("写入时间线前必须先持久化任务")
+            return task.id, task.request_id
+        return task, ""
 
     def write_event(
         self,
@@ -69,9 +103,9 @@ class TimelineEventWriterService:
                 event_source = EventSource(event_source)
 
             # Ensure payload has required fields
-            payload = {
-                "request_id": request_id,
+            payload: dict[str, Any] = {
                 **event_payload,
+                "request_id": request_id,
             }
 
             event_id = self.timeline_repository.create_event(
@@ -110,14 +144,9 @@ class TimelineEventWriterService:
         Returns:
             The created event ID, or None if creation failed
         """
-        if isinstance(task, AgentTask):
-            task_id = task.id
-            request_id = task.request_id
-        else:
-            task_id = task
-            request_id = ""  # Will be filled by caller if needed
+        task_id, request_id = self._resolve_task_identity(task)
 
-        payload = {
+        payload: dict[str, Any] = {
             "task_domain": task.task_domain.value if isinstance(task, AgentTask) else None,
             "task_type": task.task_type if isinstance(task, AgentTask) else None,
         }
@@ -136,8 +165,8 @@ class TimelineEventWriterService:
     def write_state_changed_event(
         self,
         task: AgentTask | int,
-        old_status: str | object,
-        new_status: str | object,
+        old_status: str | TaskStatus,
+        new_status: str | TaskStatus,
         event_source: EventSource | str = EventSource.SYSTEM,
         actor: dict[str, Any] | None = None,
         reason: str | None = None,
@@ -156,18 +185,16 @@ class TimelineEventWriterService:
         Returns:
             The created event ID, or None if creation failed
         """
-        if isinstance(task, AgentTask):
-            task_id = task.id
-            request_id = task.request_id
-        else:
-            task_id = task
-            request_id = ""
+        task_id, request_id = self._resolve_task_identity(task)
 
-        # Handle both string and enum status values
-        old_status_val = old_status.value if hasattr(old_status, 'value') else old_status
-        new_status_val = new_status.value if hasattr(new_status, 'value') else new_status
+        old_status_val = (
+            old_status.value if isinstance(old_status, TaskStatus) else old_status
+        )
+        new_status_val = (
+            new_status.value if isinstance(new_status, TaskStatus) else new_status
+        )
 
-        payload = {
+        payload: dict[str, Any] = {
             "old_status": old_status_val,
             "new_status": new_status_val,
         }
@@ -206,14 +233,9 @@ class TimelineEventWriterService:
         Returns:
             The created event ID, or None if creation failed
         """
-        if isinstance(task, AgentTask):
-            task_id = task.id
-            request_id = task.request_id
-        else:
-            task_id = task
-            request_id = ""
+        task_id, request_id = self._resolve_task_identity(task)
 
-        payload = {
+        payload: dict[str, Any] = {
             "step_key": step_key,
         }
 
@@ -252,14 +274,9 @@ class TimelineEventWriterService:
         Returns:
             The created event ID, or None if creation failed
         """
-        if isinstance(task, AgentTask):
-            task_id = task.id
-            request_id = task.request_id
-        else:
-            task_id = task
-            request_id = ""
+        task_id, request_id = self._resolve_task_identity(task)
 
-        payload = {
+        payload: dict[str, Any] = {
             "step_key": step_key,
         }
 
@@ -300,14 +317,9 @@ class TimelineEventWriterService:
         Returns:
             The created event ID, or None if creation failed
         """
-        if isinstance(task, AgentTask):
-            task_id = task.id
-            request_id = task.request_id
-        else:
-            task_id = task
-            request_id = ""
+        task_id, request_id = self._resolve_task_identity(task)
 
-        payload = {
+        payload: dict[str, Any] = {
             "step_key": step_key,
             "error_message": error_message,
         }
@@ -343,14 +355,9 @@ class TimelineEventWriterService:
         Returns:
             The created event ID, or None if creation failed
         """
-        if isinstance(task, AgentTask):
-            task_id = task.id
-            request_id = task.request_id
-        else:
-            task_id = task
-            request_id = ""
+        task_id, request_id = self._resolve_task_identity(task)
 
-        payload = {
+        payload: dict[str, Any] = {
             "reason": reason,
         }
 
@@ -384,14 +391,9 @@ class TimelineEventWriterService:
         Returns:
             The created event ID, or None if creation failed
         """
-        if isinstance(task, AgentTask):
-            task_id = task.id
-            request_id = task.request_id
-        else:
-            task_id = task
-            request_id = ""
+        task_id, request_id = self._resolve_task_identity(task)
 
-        payload = {
+        payload: dict[str, Any] = {
             "reason": reason,
         }
 
@@ -427,14 +429,9 @@ class TimelineEventWriterService:
         Returns:
             The created event ID, or None if creation failed
         """
-        if isinstance(task, AgentTask):
-            task_id = task.id
-            request_id = task.request_id
-        else:
-            task_id = task
-            request_id = ""
+        task_id, request_id = self._resolve_task_identity(task)
 
-        payload = {
+        payload: dict[str, Any] = {
             "reason": reason,
         }
 

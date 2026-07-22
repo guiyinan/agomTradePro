@@ -400,3 +400,14 @@
 
 - 6 个变更生产文件通过增量 mypy：`0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8456 errors / 923 files` 收紧为 `8412 errors / 919 files`，净减少 `44 errors / 4 files`，无文件或错误码反弹。
 - Transaction Cost、Manual Trade Sync、Stop Loss 与 DB Backup 回归：`19 passed`；架构 guardrail：`19 passed`；Django system check、Ruff 通过。
+
+## 第二十八批
+
+- 按真实风险密度收口 `apps/agent_runtime/application/services/timeline_service.py`：以最小 repository Protocol 固定事件写入参数和主键返回值，所有异构 event payload 显式使用 `dict[str, Any]` 边界，不再因首个字符串字段被错误收窄。
+- 抽取统一任务身份解析，拒绝把 `id=None` 的未持久化 `AgentTask` 写入非空 timeline 外键；状态变更入口从宽泛 `object` 收紧为 `str | TaskStatus`。
+- 修正 timeline trace 完整性：canonical `request_id` 现在最后写入 payload，调用方提供的同名键不能覆盖稳定追踪 ID；新增回归覆盖伪造 request ID 和未持久化任务两种失败场景。
+
+## 第二十八批验证结果
+
+- Timeline service 定向与增量 mypy：`0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8412 errors / 919 files` 收紧为 `8396 errors / 918 files`，净减少 `16 errors / 1 file`，无文件或错误码反弹。
+- Timeline service 回归：`22 passed`；架构 delta 扫描 `1 file / 63 added lines / 0 violations`；Ruff 通过。
