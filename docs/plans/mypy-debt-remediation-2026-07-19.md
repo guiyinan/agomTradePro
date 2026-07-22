@@ -606,3 +606,15 @@
 
 - Signal unified service 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7755 errors / 882 files` 收紧为 `7720 errors / 881 files`，净减少 `35 errors / 1 file`，其中目标文件 32 项全部归零，并连带清除 Signal Interface 的 3 项未类型调用。
 - Unified Signal 单元与 Alpha 全链路集成回归共 `24 passed`；模块依赖门禁 `199 edges / 0 cycles`，全仓架构边界违规为 `0`。完整架构审计仍报告 Realtime repository provider 的 7 条既存审计债务，与本批改动无关；Ruff、diff check 通过。
+
+## 第四十六批
+
+- 按“公共 Repository composition + Application 真实风险”收口 Decision Rhythm workspace：`repository_provider.py` 用显式同名导出和 `__all__` 固定 9 类 repository、4 类 provider factory 及查询 API，不再依赖 mypy 禁止的隐式 re-export。
+- Workspace Application 全部改走 repository factory，不再直接构造 concrete repository；审批、估值、推荐和交易计划出口使用领域实体返回契约，动态 ORM 返回只在 composition 边界局部收窄。
+- 修复冷却期 Optional 访问：先计算稳定的剩余小时数，再生成失败原因，不再依赖 `cooldown_ok=False` 间接假设对象非空。执行状态仓储显式接收 `ExecutionStatus | str`、aware datetime 和 JSON execution ref。
+- 类型传播揭示 `get_aggregated_workspace_payload` 真实返回推荐列表却声明为字典；现纠正为 `list[dict[str, Any]]`，与 Workspace API 的实际响应契约一致。
+
+## 第四十六批验证结果
+
+- Workspace service、Decision Rhythm repository provider 与 rhythm repository 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7720 errors / 881 files` 收紧为 `7677 errors / 878 files`，净减少 `43 errors / 3 files`，三文件历史债务全部归零。
+- Workspace 推荐/API、模拟持仓、交易计划和审批链回归共 `30 passed`；模块依赖门禁保持 `199 edges / 0 cycles`，Ruff、Black、diff check 通过。

@@ -9,7 +9,7 @@ Decision Rhythm Repositories
 
 import logging
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -48,7 +48,7 @@ class QuotaRepository:
         >>> quota = repo.get_quota(QuotaPeriod.WEEKLY)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化仓储"""
         self.model = DecisionQuotaModel
 
@@ -181,7 +181,7 @@ class CooldownRepository:
         >>> cooldown = repo.get_active_cooldown("000001.SH")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化仓储"""
         self.model = CooldownPeriodModel
 
@@ -294,7 +294,7 @@ class DecisionRequestRepository:
         >>> request = repo.get_by_id("request_001")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化仓储"""
         self.model = DecisionRequestModel
         self.response_model = DecisionResponseModel
@@ -528,9 +528,9 @@ class DecisionRequestRepository:
     def update_execution_status(
         self,
         request_id: str,
-        execution_status,
-        executed_at=None,
-        execution_ref=None,
+        execution_status: ExecutionStatus | str,
+        executed_at: datetime | None = None,
+        execution_ref: dict[str, Any] | None = None,
     ) -> bool:
         """
         更新决策请求的执行状态
@@ -550,8 +550,8 @@ class DecisionRequestRepository:
             # 处理执行状态
             status_value = (
                 execution_status.value
-                if hasattr(execution_status, "value")
-                else str(execution_status)
+                if isinstance(execution_status, ExecutionStatus)
+                else execution_status
             )
             model.execution_status = status_value
 

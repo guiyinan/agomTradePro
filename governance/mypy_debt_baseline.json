@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7720,
-    "files_with_errors": 881
+    "errors": 7677,
+    "files_with_errors": 878
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1644,11 +1644,6 @@
     "apps/decision_rhythm/application/management_workflows.py": {
       "no-untyped-def": 2
     },
-    "apps/decision_rhythm/application/repository_provider.py": {
-      "no-untyped-call": 2,
-      "no-untyped-def": 1,
-      "type-arg": 1
-    },
     "apps/decision_rhythm/application/submit_workflows.py": {
       "no-any-return": 3,
       "no-untyped-def": 4
@@ -1661,14 +1656,6 @@
     "apps/decision_rhythm/application/tasks.py": {
       "misc": 1,
       "no-untyped-def": 1
-    },
-    "apps/decision_rhythm/application/workspace_services.py": {
-      "attr-defined": 12,
-      "no-any-return": 1,
-      "no-untyped-call": 4,
-      "no-untyped-def": 13,
-      "return-value": 1,
-      "union-attr": 1
     },
     "apps/decision_rhythm/apps.py": {
       "no-untyped-def": 1
@@ -1712,10 +1699,6 @@
       "arg-type": 1,
       "misc": 2,
       "unused-ignore": 6
-    },
-    "apps/decision_rhythm/infrastructure/rhythm_repositories.py": {
-      "no-untyped-call": 3,
-      "no-untyped-def": 4
     },
     "apps/decision_rhythm/infrastructure/unified_repositories.py": {
       "no-untyped-def": 9
