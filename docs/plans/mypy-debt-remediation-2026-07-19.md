@@ -794,3 +794,15 @@
 - Policy repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6889 errors / 840 files` 收紧为 `6865 errors / 839 files`，净减少 `24 errors / 1 file`。
 - 目标文件的 `3 arg-type + 3 assignment + 1 return-value` 等 22 项债务全部清零，并连带清除 Policy repository provider 与 Decision Rhythm feature provider 各 1 项 `no-untyped-call`，验证了公共契约修复的跨模块杠杆。
 - Policy integration、Signal policy influence 与 RSS/Sentiment repository 回归共 `41 passed`；Ruff、Black、diff check 通过。
+
+## 第六十二批
+
+- 按高风险错误密度收口 Sentiment repository：日志 provider/model/response time/source ID 与 cache clear 文本参数改为显式可空；告警 metadata、JSON keywords 和 sector sentiment 在 ORM/JSON 边界完成类型收窄。
+- `SentimentIndex.index_date` 现在严格按领域 `datetime` 转为 ORM `date`，读取时恢复为 UTC-aware `datetime`；修复原先 `datetime.combine()` 产生 naive datetime、违反 `USE_TZ=True` 的真实时间比较风险。
+- ORM count/delete 与动态 ConfigHelper 返回在 Infrastructure 边界收窄为 `int` / `float`，provider 消费方不再接收 `Any`。
+
+## 第六十二批验证结果
+
+- Sentiment repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6865 errors / 839 files` 收紧为 `6856 errors / 838 files`，净减少 `9 errors / 1 file`。
+- 目标文件的 `7 assignment + 1 type-arg` 全部清零，并连带清除 Sentiment interface service 1 项 `arg-type`。
+- Sentiment 单元与 Decision Rhythm feature provider 回归共 `56 passed`；新增 UTC-aware index date 断言，Ruff、Black、diff check 通过。

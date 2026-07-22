@@ -2,7 +2,7 @@
 Sentiment 模块单元测试
 """
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -273,7 +273,7 @@ class TestSentimentIndexCalculator:
 
         # 权重: [1, 2, 3]
         # 计算: (1*1 + 2*2 + 3*3) / (1 + 2 + 3) = 14/6 ≈ 2.33
-        expected = (1*1 + 2*2 + 3*3) / 6
+        expected = (1 * 1 + 2 * 2 + 3 * 3) / 6
         assert abs(result - expected) < 0.01
 
 
@@ -380,19 +380,23 @@ class TestSentimentIndexRepository:
         """测试 ORM 转实体"""
 
         # 创建模拟模型
-        model = type('MockModel', (), {
-            'index_date': date(2026, 1, 1),
-            'news_sentiment': 0.5,
-            'policy_sentiment': 1.0,
-            'composite_index': 0.8,
-            'confidence_level': 0.75,
-            'data_sufficient': True,  # 添加新字段
-            'sector_sentiment': {"金融": 0.5},
-            'news_count': 10,
-            'policy_events_count': 5,
-            'created_at': datetime.now(),
-            'updated_at': datetime.now(),
-        })()
+        model = type(
+            "MockModel",
+            (),
+            {
+                "index_date": date(2026, 1, 1),
+                "news_sentiment": 0.5,
+                "policy_sentiment": 1.0,
+                "composite_index": 0.8,
+                "confidence_level": 0.75,
+                "data_sufficient": True,  # 添加新字段
+                "sector_sentiment": {"金融": 0.5},
+                "news_count": 10,
+                "policy_events_count": 5,
+                "created_at": datetime.now(UTC),
+                "updated_at": datetime.now(UTC),
+            },
+        )()
 
         repo = SentimentIndexRepository()
         entity = repo._to_entity(model)
@@ -401,6 +405,7 @@ class TestSentimentIndexRepository:
         assert entity.news_count == 10
         assert entity.sector_sentiment == {"金融": 0.5}
         assert entity.data_sufficient is True  # 验证新字段
+        assert entity.index_date.tzinfo is UTC
 
 
 class TestSentimentAnalyzer:

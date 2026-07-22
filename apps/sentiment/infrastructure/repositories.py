@@ -5,7 +5,8 @@ Sentiment 模块 - Infrastructure 层仓储实现
 """
 
 import hashlib
-from datetime import date, datetime
+from datetime import UTC, date, datetime
+from typing import Any, cast
 
 from apps.regime.infrastructure.config_helper import ConfigHelper, ConfigKeys
 from apps.sentiment.domain.entities import SentimentAnalysisResult, SentimentIndex
@@ -34,11 +35,9 @@ class SentimentIndexRepository:
         Returns:
             SentimentIndexModel ORM 模型实例
         """
-        index_date = sentiment_index.index_date
-        if hasattr(index_date, 'date'):
-            index_date = index_date.date()
+        index_date = sentiment_index.index_date.date()
 
-        model, created = SentimentIndexModel._default_manager.update_or_create(
+        model, _ = SentimentIndexModel._default_manager.update_or_create(
             index_date=index_date,
             defaults={
                 "news_sentiment": sentiment_index.news_sentiment,
@@ -49,7 +48,7 @@ class SentimentIndexRepository:
                 "sector_sentiment": sentiment_index.sector_sentiment,
                 "news_count": sentiment_index.news_count,
                 "policy_events_count": sentiment_index.policy_events_count,
-            }
+            },
         )
 
         return model
@@ -94,8 +93,7 @@ class SentimentIndexRepository:
             SentimentIndex 实体列表
         """
         models = SentimentIndexModel._default_manager.filter(
-            index_date__gte=start_date,
-            index_date__lte=end_date
+            index_date__gte=start_date, index_date__lte=end_date
         ).order_by("index_date")
 
         return [self._to_entity(model) for model in models]
@@ -135,13 +133,13 @@ class SentimentIndexRepository:
             SentimentIndex 实体
         """
         return SentimentIndex(
-            index_date=datetime.combine(model.index_date, datetime.min.time()),
+            index_date=datetime.combine(model.index_date, datetime.min.time(), tzinfo=UTC),
             news_sentiment=model.news_sentiment,
             policy_sentiment=model.policy_sentiment,
             composite_index=model.composite_index,
             confidence_level=model.confidence_level,
             data_sufficient=model.data_sufficient,
-            sector_sentiment=model.sector_sentiment,
+            sector_sentiment=cast(dict[str, float], model.sector_sentiment),
             news_count=model.news_count,
             policy_events_count=model.policy_events_count,
             created_at=model.created_at,
@@ -161,10 +159,10 @@ class SentimentAnalysisLogRepository:
         source_type: str,
         input_text: str,
         result: SentimentAnalysisResult,
-        ai_provider: str = None,
-        ai_model: str = None,
-        ai_response_time_ms: int = None,
-        source_id: str = None,
+        ai_provider: str | None = None,
+        ai_model: str | None = None,
+        ai_response_time_ms: int | None = None,
+        source_id: str | None = None,
     ) -> SentimentAnalysisLog:
         """
         记录情感分析日志
@@ -206,7 +204,11 @@ class SentimentAnalysisLogRepository:
         """
         return list(SentimentAnalysisLog._default_manager.order_by("-created_at")[:limit])
 
-    def get_logs_by_source(self, source_type: str, source_id: str = None) -> list[SentimentAnalysisLog]:
+    def get_logs_by_source(
+        self,
+        source_type: str,
+        source_id: str | None = None,
+    ) -> list[SentimentAnalysisLog]:
         """
         根据数据源获取日志
 
@@ -254,7 +256,7 @@ class SentimentCacheRepository:
                 sentiment_score=cache.sentiment_score,
                 confidence=cache.confidence,
                 category=SentimentCategory(cache.category),
-                keywords=cache.keywords,
+                keywords=cast(list[str], cache.keywords),
                 analyzed_at=cache.updated_at,
             )
         except SentimentCache.DoesNotExist:
@@ -277,10 +279,10 @@ class SentimentCacheRepository:
                 "category": result.category.value,
                 "confidence": result.confidence,
                 "keywords": result.keywords,
-            }
+            },
         )
 
-    def clear(self, text: str = None) -> int:
+    def clear(self, text: str | None = None) -> int:
         """
         清除缓存
 
@@ -296,12 +298,12 @@ class SentimentCacheRepository:
         else:
             count, _ = SentimentCache._default_manager.all().delete()
 
-        return count
+        return int(count)
 
     def count(self) -> int:
         """Return the number of cached sentiment analysis records."""
 
-        return SentimentCache._default_manager.count()
+        return int(SentimentCache._default_manager.count())
 
     @staticmethod
     def _compute_hash(text: str) -> str:
@@ -327,7 +329,7 @@ class SentimentAlertRepository:
         severity: str,
         title: str,
         message: str,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> SentimentAlertModel:
         """创建一条情绪模块告警记录。"""
         return SentimentAlertModel._default_manager.create(
@@ -343,14 +345,17 @@ class SentimentConfigRepository:
     """Infrastructure-backed config access for sentiment application services."""
 
     def get_news_weight(self, default: float) -> float:
-        return ConfigHelper.get_float(
-            ConfigKeys.SENTIMENT_NEWS_WEIGHT,
-            default,
+        return float(
+            ConfigHelper.get_float(
+                ConfigKeys.SENTIMENT_NEWS_WEIGHT,
+                default,
+            )
         )
 
     def get_policy_weight(self, default: float) -> float:
-        return ConfigHelper.get_float(
-            ConfigKeys.SENTIMENT_POLICY_WEIGHT,
-            default,
+        return float(
+            ConfigHelper.get_float(
+                ConfigKeys.SENTIMENT_POLICY_WEIGHT,
+                default,
+            )
         )
-

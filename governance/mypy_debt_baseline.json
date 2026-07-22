@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6865,
-    "files_with_errors": 839
+    "errors": 6856,
+    "files_with_errors": 838
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2827,7 +2827,6 @@
       "no-untyped-def": 8
     },
     "apps/sentiment/application/interface_services.py": {
-      "arg-type": 1,
       "attr-defined": 1,
       "no-untyped-call": 2
     },
@@ -2854,10 +2853,6 @@
     },
     "apps/sentiment/infrastructure/models.py": {
       "no-untyped-def": 4
-    },
-    "apps/sentiment/infrastructure/repositories.py": {
-      "assignment": 7,
-      "type-arg": 1
     },
     "apps/sentiment/interface/api_urls.py": {
       "no-untyped-def": 1
