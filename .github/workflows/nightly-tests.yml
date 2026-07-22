@@ -69,6 +69,19 @@ jobs:
             --cov-append \
             --cov-report=term-missing
 
+      - name: Run Critical Reliability (SQLite + Fake Agent)
+        timeout-minutes: 15
+        env:
+          PYTHONFAULTHANDLER: "1"
+        run: |
+          python -m pytest tests/critical/ -v \
+            --timeout=120 \
+            --timeout-method=thread \
+            --durations=20 \
+            --cov=apps \
+            --cov-append \
+            --cov-report=term-missing
+
       - name: Run Integration Tests (core)
         timeout-minutes: 45
         env:
@@ -224,3 +237,53 @@ jobs:
               });
               core.info('Created new nightly failure issue');
             }
+
+  critical-postgres:
+    name: Critical Reliability (PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: agomtradepro_critical
+          POSTGRES_USER: agomtradepro
+          POSTGRES_PASSWORD: critical-test-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agomtradepro -d agomtradepro_critical"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://agomtradepro:critical-test-password@127.0.0.1:5432/agomtradepro_critical
+      SECRET_KEY: nightly-critical-postgres-secret-key-12345678901234567890
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e sdk/
+
+      - name: Apply full migration graph to empty PostgreSQL database
+        run: python manage.py migrate --noinput
+
+      - name: Run PostgreSQL critical reliability and migration tests
+        env:
+          PYTHONFAULTHANDLER: "1"
+        run: |
+          python -m pytest tests/critical/ tests/migrations/test_research_integrity_migrations.py -v \
+            --timeout=180 \
+            --timeout-method=thread \
+            --durations=20

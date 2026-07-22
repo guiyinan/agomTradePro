@@ -103,6 +103,14 @@ jobs:
           echo "Check 5: API And Migration Tests"
           echo "==================================="
           pytest tests/api/ tests/migrations/ -v --tb=short
+
+      - name: Critical Reliability
+        timeout-minutes: 20
+        env:
+          PYTHONFAULTHANDLER: "1"
+        run: |
+          pytest tests/critical/ tests/migrations/test_research_integrity_migrations.py \
+            -v --tb=short --durations=20
           echo "API and migration tests: PASS"
 
       # Check 6: Critical journey tests >= 90%

@@ -295,6 +295,10 @@ jobs:
           test -f tests/guardrails/test_no_501_on_primary_paths.py || exit 1
           test -f tests/integration/signal/test_signal_workflow.py || exit 1
           test -f tests/integration/audit/test_api_endpoints.py || exit 1
+          test -f tests/critical/test_decision_and_data_safety.py || exit 1
+          test -f tests/critical/test_risk_and_order_safety.py || exit 1
+          test -f tests/critical/test_agent_and_recovery_safety.py || exit 1
+          test -f tests/migrations/test_research_integrity_migrations.py || exit 1
           echo "RTM key requirements: PASSED"
 
       - name: Install TUI browser runtime
