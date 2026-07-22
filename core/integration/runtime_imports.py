@@ -18,14 +18,14 @@ def get_celery_health_checker() -> Any:
 
 def has_active_cooldowns() -> bool:
     query_services = import_module("apps.decision_rhythm.application.query_services")
-    return query_services.has_active_cooldowns()
+    return bool(query_services.has_active_cooldowns())
 
 
 def has_decision_quotas() -> bool:
     query_services = import_module("apps.decision_rhythm.application.query_services")
-    return query_services.has_decision_quotas()
+    return bool(query_services.has_decision_quotas())
 
 
 def has_recent_decision_requests() -> bool:
     query_services = import_module("apps.decision_rhythm.application.query_services")
-    return query_services.has_recent_decision_requests()
+    return bool(query_services.has_recent_decision_requests())

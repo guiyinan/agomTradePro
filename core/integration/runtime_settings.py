@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 
 class RuntimeSettingsProvider(Protocol):
@@ -33,17 +33,17 @@ class RuntimeSettingsProvider(Protocol):
 _provider: RuntimeSettingsProvider | None = None
 
 
-def get_config_center_summary_service():
+def get_config_center_summary_service() -> RuntimeSettingsProvider:
     """Return the config-center owned runtime settings service."""
 
     from apps.config_center.application.config_summary_service import (
         get_config_center_summary_service as load_config_center_summary_service,
     )
 
-    return load_config_center_summary_service()
+    return cast(RuntimeSettingsProvider, load_config_center_summary_service())
 
 
-def get_account_config_summary_service():
+def get_account_config_summary_service() -> RuntimeSettingsProvider:
     """Backward-compatible alias for callers still patching the old bridge name."""
 
     return get_config_center_summary_service()
@@ -70,7 +70,7 @@ def configure_runtime_settings_provider(provider: RuntimeSettingsProvider) -> No
     _provider = provider
 
 
-def get_runtime_macro_index_metadata_map() -> dict[str, dict]:
+def get_runtime_macro_index_metadata_map() -> dict[str, dict[str, Any]]:
     """Return runtime macro index metadata map from the configured provider."""
 
     provider = _get_runtime_settings_source()
@@ -88,7 +88,7 @@ def get_runtime_macro_index_codes() -> list[str]:
     return provider.get_runtime_macro_index_codes()
 
 
-def get_runtime_macro_publication_lags() -> dict[str, dict]:
+def get_runtime_macro_publication_lags() -> dict[str, dict[str, Any]]:
     """Return runtime macro publication lag configuration."""
 
     provider = _get_runtime_settings_source()

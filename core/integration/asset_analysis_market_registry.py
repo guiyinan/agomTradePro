@@ -13,7 +13,7 @@ class MarketAssetRepositoryProtocol(Protocol):
     def get_assets_by_filter(
         self,
         asset_type: str,
-        filters: dict,
+        filters: dict[str, Any],
         max_count: int = 100,
     ) -> list[Any]:
         """Return assets matching the given filters."""

@@ -24,7 +24,7 @@ def get_full_version() -> str:
     return f"{__version__}-build.{__build__}"
 
 
-def get_version_info() -> dict:
+def get_version_info() -> dict[str, str]:
     """获取完整版本信息"""
     return {
         "version": __version__,
