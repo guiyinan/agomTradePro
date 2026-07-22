@@ -5,6 +5,7 @@ Alpha 事件触发的 Django Admin 配置。
 """
 
 from django.contrib import admin
+from django.http import HttpRequest
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -12,10 +13,11 @@ from apps.alpha_trigger.models import (
     AlphaCandidateModel,
     AlphaTriggerModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 @admin.register(AlphaTriggerModel)
-class AlphaTriggerAdmin(admin.ModelAdmin):
+class AlphaTriggerAdmin(TypedModelAdmin[AlphaTriggerModel]):
     """
     Alpha 触发器 Admin
     """
@@ -123,7 +125,8 @@ class AlphaTriggerAdmin(admin.ModelAdmin):
         ),
     )
 
-    def strength_display(self, obj):
+    @admin.display(description="强度")
+    def strength_display(self, obj: AlphaTriggerModel) -> str:
         """显示信号强度"""
         colors = {
             "VERY_WEAK": "#ccc",
@@ -139,9 +142,8 @@ class AlphaTriggerAdmin(admin.ModelAdmin):
             obj.get_strength_display(),
         )
 
-    strength_display.short_description = "强度"
-
-    def status_display(self, obj):
+    @admin.display(description="状态")
+    def status_display(self, obj: AlphaTriggerModel) -> str:
         """显示状态"""
         status_colors = {
             "ACTIVE": "#2ecc71",
@@ -155,9 +157,8 @@ class AlphaTriggerAdmin(admin.ModelAdmin):
             '<span style="color: {}; font-weight: bold;">{}</span>', color, obj.get_status_display()
         )
 
-    status_display.short_description = "状态"
-
-    def invalidation_conditions_display(self, obj):
+    @admin.display(description="证伪条件")
+    def invalidation_conditions_display(self, obj: AlphaTriggerModel) -> str:
         """显示证伪条件"""
         if obj.invalidation_conditions:
 
@@ -170,9 +171,9 @@ class AlphaTriggerAdmin(admin.ModelAdmin):
             return format_html("<ul>{}</ul>", "".join(f"<li>{c}</li>" for c in conditions))
         return "-"
 
-    invalidation_conditions_display.short_description = "证伪条件"
-
-    def get_readonly_fields(self, request, obj=None):
+    def get_readonly_fields(
+        self, request: HttpRequest, obj: AlphaTriggerModel | None = None
+    ) -> list[str] | tuple[str, ...]:
         """动态设置只读字段"""
         if obj:  # 编辑时
             return self.readonly_fields + ["trigger_type", "asset_code"]
@@ -180,7 +181,7 @@ class AlphaTriggerAdmin(admin.ModelAdmin):
 
 
 @admin.register(AlphaCandidateModel)
-class AlphaCandidateAdmin(admin.ModelAdmin):
+class AlphaCandidateAdmin(TypedModelAdmin[AlphaCandidateModel]):
     """
     Alpha 候选 Admin
     """
@@ -283,7 +284,8 @@ class AlphaCandidateAdmin(admin.ModelAdmin):
         ),
     )
 
-    def trigger_id_link(self, obj):
+    @admin.display(description="触发器")
+    def trigger_id_link(self, obj: AlphaCandidateModel) -> str:
         """触发器链接"""
         if obj.trigger_id:
             url = reverse(
@@ -293,9 +295,8 @@ class AlphaCandidateAdmin(admin.ModelAdmin):
             return format_html('<a href="{}">{}</a>', url, obj.trigger_id)
         return "-"
 
-    trigger_id_link.short_description = "触发器"
-
-    def strength_display(self, obj):
+    @admin.display(description="强度")
+    def strength_display(self, obj: AlphaCandidateModel) -> str:
         """显示信号强度"""
         colors = {
             "VERY_WEAK": "#ccc",
@@ -311,9 +312,8 @@ class AlphaCandidateAdmin(admin.ModelAdmin):
             obj.get_strength_display(),
         )
 
-    strength_display.short_description = "强度"
-
-    def status_display(self, obj):
+    @admin.display(description="状态")
+    def status_display(self, obj: AlphaCandidateModel) -> str:
         """显示状态"""
         status_colors = {
             "WATCH": "#f39c12",
@@ -327,9 +327,8 @@ class AlphaCandidateAdmin(admin.ModelAdmin):
             '<span style="color: {}; font-weight: bold;">{}</span>', color, obj.get_status_display()
         )
 
-    status_display.short_description = "状态"
-
-    def entry_zone_display(self, obj):
+    @admin.display(description="入场区域")
+    def entry_zone_display(self, obj: AlphaCandidateModel) -> str:
         """显示入场区域"""
         if obj.entry_zone:
             import json
@@ -339,9 +338,8 @@ class AlphaCandidateAdmin(admin.ModelAdmin):
             )
         return "-"
 
-    entry_zone_display.short_description = "入场区域"
-
-    def exit_zone_display(self, obj):
+    @admin.display(description="出场区域")
+    def exit_zone_display(self, obj: AlphaCandidateModel) -> str:
         """显示出场区域"""
         if obj.exit_zone:
             import json
@@ -351,13 +349,13 @@ class AlphaCandidateAdmin(admin.ModelAdmin):
             )
         return "-"
 
-    exit_zone_display.short_description = "出场区域"
-
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """禁止手动添加"""
         return False
 
-    def get_readonly_fields(self, request, obj=None):
+    def get_readonly_fields(
+        self, request: HttpRequest, obj: AlphaCandidateModel | None = None
+    ) -> list[str] | tuple[str, ...]:
         """动态设置只读字段"""
         if obj:  # 编辑时，允许修改状态
             readonly = list(self.readonly_fields)

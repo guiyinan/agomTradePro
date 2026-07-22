@@ -664,3 +664,14 @@
 
 - Account Interface Admin 与共享 Django Admin typing 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；删除重复 Admin 后，全仓基线从 `7487 errors / 874 files` 收紧为 `7381 errors / 872 files`，净减少 `106 errors / 2 files`。
 - 共享泛型运行时、Account 系统设置 Admin、用户管理与路由兼容回归共 `34 passed`；Django system check、Ruff、Black、diff check 通过。
+
+## 第五十一批
+
+- 将共享 `TypedModelAdmin[Model]` 推广到 Events、Alpha Trigger 与 Beta Gate 三个真实 Admin 入口；所有展示列和批量动作改用 Django 官方 `@admin.display` / `@admin.action`，并补齐具体模型、`HttpRequest`、`QuerySet[Model]`、权限 handler 与返回值契约。
+- Events 相关事件查询在构造 correlation ID 集合时显式过滤 `None`；不再依赖 ORM 的 `isnull=False` 让静态类型检查器猜测字段已收窄，repository 入口只接收真实字符串标识。
+- 新增三模块 Admin 注册与 decorator metadata 回归，锁定共享泛型基类迁移后 Django autodiscover 的真实注册关系和用户可见列标题。
+
+## 第五十一批验证结果
+
+- 三个 Admin 文件的增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7381 errors / 872 files` 收紧为 `7316 errors / 869 files`，净减少 `65 errors / 3 files`，其中 `attr-defined`、`no-untyped-def`、`type-arg` 全部归零。
+- Events task、Alpha Trigger repository、Beta Gate activation 与 Admin migration 回归共 `13 passed`；Django system check、Ruff、diff check 通过。

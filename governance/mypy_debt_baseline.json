@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7381,
-    "files_with_errors": 872
+    "errors": 7316,
+    "files_with_errors": 869
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -690,11 +690,6 @@
       "no-untyped-call": 2,
       "no-untyped-def": 4
     },
-    "apps/alpha_trigger/interface/admin.py": {
-      "attr-defined": 8,
-      "no-untyped-def": 11,
-      "type-arg": 2
-    },
     "apps/alpha_trigger/interface/serializers.py": {
       "no-untyped-def": 1,
       "type-arg": 16
@@ -1054,11 +1049,6 @@
       "no-untyped-call": 1,
       "no-untyped-def": 11,
       "type-arg": 4
-    },
-    "apps/beta_gate/interface/admin.py": {
-      "attr-defined": 7,
-      "no-untyped-def": 10,
-      "type-arg": 3
     },
     "apps/beta_gate/interface/api_urls.py": {
       "no-untyped-def": 1
@@ -2015,11 +2005,6 @@
     "apps/events/infrastructure/repositories.py": {
       "no-untyped-call": 3,
       "no-untyped-def": 4
-    },
-    "apps/events/interface/admin.py": {
-      "attr-defined": 8,
-      "no-untyped-def": 13,
-      "type-arg": 3
     },
     "apps/events/interface/api_urls.py": {
       "no-untyped-def": 1

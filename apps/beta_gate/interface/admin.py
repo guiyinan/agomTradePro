@@ -5,6 +5,7 @@ Beta Gate Django Admin Configuration
 """
 
 from django.contrib import admin
+from django.http import HttpRequest
 from django.utils.html import format_html
 
 from apps.beta_gate.models import (
@@ -12,10 +13,11 @@ from apps.beta_gate.models import (
     GateDecisionModel,
     VisibilityUniverseSnapshotModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 @admin.register(GateConfigModel)
-class GateConfigAdmin(admin.ModelAdmin):
+class GateConfigAdmin(TypedModelAdmin[GateConfigModel]):
     """
     闸门配置 Admin
     """
@@ -83,7 +85,9 @@ class GateConfigAdmin(admin.ModelAdmin):
         ),
     )
 
-    def get_readonly_fields(self, request, obj=None):
+    def get_readonly_fields(
+        self, request: HttpRequest, obj: GateConfigModel | None = None
+    ) -> list[str] | tuple[str, ...]:
         """动态设置只读字段"""
         if obj:  # 编辑时
             return self.readonly_fields + ["config_id", "version"]
@@ -91,7 +95,7 @@ class GateConfigAdmin(admin.ModelAdmin):
 
 
 @admin.register(GateDecisionModel)
-class GateDecisionAdmin(admin.ModelAdmin):
+class GateDecisionAdmin(TypedModelAdmin[GateDecisionModel]):
     """
     闸门决策 Admin
     """
@@ -157,7 +161,7 @@ class GateDecisionAdmin(admin.ModelAdmin):
 
 
 @admin.register(VisibilityUniverseSnapshotModel)
-class VisibilityUniverseSnapshotAdmin(admin.ModelAdmin):
+class VisibilityUniverseSnapshotAdmin(TypedModelAdmin[VisibilityUniverseSnapshotModel]):
     """
     可见性宇宙快照 Admin
     """
@@ -246,25 +250,23 @@ class VisibilityUniverseSnapshotAdmin(admin.ModelAdmin):
         ),
     )
 
-    def visible_categories_count(self, obj):
+    @admin.display(description="可见类别数")
+    def visible_categories_count(self, obj: VisibilityUniverseSnapshotModel) -> int:
         """可见类别数量"""
         return len(obj.visible_asset_categories)
 
-    visible_categories_count.short_description = "可见类别数"
-
-    def visible_strategies_count(self, obj):
+    @admin.display(description="可见策略数")
+    def visible_strategies_count(self, obj: VisibilityUniverseSnapshotModel) -> int:
         """可见策略数量"""
         return len(obj.visible_strategies)
 
-    visible_strategies_count.short_description = "可见策略数"
-
-    def hard_exclusions_count(self, obj):
+    @admin.display(description="硬排除数")
+    def hard_exclusions_count(self, obj: VisibilityUniverseSnapshotModel) -> int:
         """硬排除数量"""
         return len(obj.hard_exclusions)
 
-    hard_exclusions_count.short_description = "硬排除数"
-
-    def visible_asset_categories_display(self, obj):
+    @admin.display(description="可见资产类别")
+    def visible_asset_categories_display(self, obj: VisibilityUniverseSnapshotModel) -> str:
         """显示可见资产类别"""
         if obj.visible_asset_categories:
             return format_html(
@@ -272,9 +274,8 @@ class VisibilityUniverseSnapshotAdmin(admin.ModelAdmin):
             )
         return "-"
 
-    visible_asset_categories_display.short_description = "可见资产类别"
-
-    def visible_strategies_display(self, obj):
+    @admin.display(description="可见策略")
+    def visible_strategies_display(self, obj: VisibilityUniverseSnapshotModel) -> str:
         """显示可见策略"""
         if obj.visible_strategies:
             return format_html(
@@ -282,9 +283,8 @@ class VisibilityUniverseSnapshotAdmin(admin.ModelAdmin):
             )
         return "-"
 
-    visible_strategies_display.short_description = "可见策略"
-
-    def hard_exclusions_display(self, obj):
+    @admin.display(description="硬排除列表")
+    def hard_exclusions_display(self, obj: VisibilityUniverseSnapshotModel) -> str:
         """显示硬排除列表"""
         if obj.hard_exclusions:
             return format_html(
@@ -292,9 +292,8 @@ class VisibilityUniverseSnapshotAdmin(admin.ModelAdmin):
             )
         return "-"
 
-    hard_exclusions_display.short_description = "硬排除列表"
-
-    def watch_list_display(self, obj):
+    @admin.display(description="观察列表")
+    def watch_list_display(self, obj: VisibilityUniverseSnapshotModel) -> str:
         """显示观察列表"""
         if obj.watch_list:
             return format_html(
@@ -302,12 +301,14 @@ class VisibilityUniverseSnapshotAdmin(admin.ModelAdmin):
             )
         return "-"
 
-    watch_list_display.short_description = "观察列表"
-
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """禁止手动添加"""
         return False
 
-    def has_change_permission(self, request, obj=None):
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: VisibilityUniverseSnapshotModel | None = None,
+    ) -> bool:
         """禁止修改"""
         return False

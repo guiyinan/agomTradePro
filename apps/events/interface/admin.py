@@ -5,6 +5,8 @@ Events Interface Admin
 """
 
 from django.contrib import admin
+from django.db.models import QuerySet
+from django.http import HttpRequest
 from django.utils.html import format_html
 
 from apps.events.application.interface_services import (
@@ -15,9 +17,10 @@ from apps.events.event_store import (
     EventSubscriptionModel,
     StoredEventModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
-class StoredEventAdmin(admin.ModelAdmin):
+class StoredEventAdmin(TypedModelAdmin[StoredEventModel]):
     """存储事件 Admin"""
 
     list_display = [
@@ -47,7 +50,8 @@ class StoredEventAdmin(admin.ModelAdmin):
         ("时间", {"fields": ("occurred_at", "created_at")}),
     )
 
-    def payload_preview(self, obj):
+    @admin.display(description="Payload")
+    def payload_preview(self, obj: StoredEventModel) -> str:
         """显示 payload 预览"""
         import json
 
@@ -56,9 +60,8 @@ class StoredEventAdmin(admin.ModelAdmin):
             return payload_str[:50] + "..."
         return payload_str
 
-    payload_preview.short_description = "Payload"
-
-    def payload_display(self, obj):
+    @admin.display(description="Payload")
+    def payload_display(self, obj: StoredEventModel) -> str:
         """格式化显示 payload"""
         import json
 
@@ -67,9 +70,8 @@ class StoredEventAdmin(admin.ModelAdmin):
             json.dumps(obj.payload, indent=2, ensure_ascii=False),
         )
 
-    payload_display.short_description = "Payload"
-
-    def metadata_display(self, obj):
+    @admin.display(description="Metadata")
+    def metadata_display(self, obj: StoredEventModel) -> str:
         """格式化显示 metadata"""
         import json
 
@@ -80,19 +82,19 @@ class StoredEventAdmin(admin.ModelAdmin):
             json.dumps(obj.metadata, indent=2, ensure_ascii=False),
         )
 
-    metadata_display.short_description = "Metadata"
-
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """禁止手动添加事件"""
         return False
 
-    def has_change_permission(self, request, obj=None):
+    def has_change_permission(
+        self, request: HttpRequest, obj: StoredEventModel | None = None
+    ) -> bool:
         """禁止修改事件"""
         return False
 
 
 @admin.register(EventSnapshotModel)
-class EventSnapshotAdmin(admin.ModelAdmin):
+class EventSnapshotAdmin(TypedModelAdmin[EventSnapshotModel]):
     """事件快照 Admin"""
 
     list_display = [
@@ -120,7 +122,8 @@ class EventSnapshotAdmin(admin.ModelAdmin):
         ("时间", {"fields": ("created_at",)}),
     )
 
-    def state_size(self, obj):
+    @admin.display(description="大小")
+    def state_size(self, obj: EventSnapshotModel) -> str:
         """显示快照大小"""
         import json
 
@@ -132,9 +135,8 @@ class EventSnapshotAdmin(admin.ModelAdmin):
         else:
             return f"{size / (1024 * 1024):.1f} MB"
 
-    state_size.short_description = "大小"
-
-    def state_display(self, obj):
+    @admin.display(description="State")
+    def state_display(self, obj: EventSnapshotModel) -> str:
         """格式化显示 state"""
         import json
 
@@ -143,19 +145,19 @@ class EventSnapshotAdmin(admin.ModelAdmin):
             json.dumps(obj.state, indent=2, ensure_ascii=False),
         )
 
-    state_display.short_description = "State"
-
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """禁止手动添加快照"""
         return False
 
-    def has_change_permission(self, request, obj=None):
+    def has_change_permission(
+        self, request: HttpRequest, obj: EventSnapshotModel | None = None
+    ) -> bool:
         """禁止修改快照"""
         return False
 
 
 @admin.register(EventSubscriptionModel)
-class EventSubscriptionAdmin(admin.ModelAdmin):
+class EventSubscriptionAdmin(TypedModelAdmin[EventSubscriptionModel]):
     """事件订阅 Admin"""
 
     list_display = [
@@ -176,13 +178,12 @@ class EventSubscriptionAdmin(admin.ModelAdmin):
         ("元数据", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
 
-    def event_types_display(self, obj):
+    @admin.display(description="事件类型")
+    def event_types_display(self, obj: EventSubscriptionModel) -> str:
         """显示订阅的事件类型"""
         if not obj.event_types:
             return "-"
         return ", ".join(obj.event_types)
-
-    event_types_display.short_description = "事件类型"
 
 
 # ========== 自定义 Admin 操作 ==========
@@ -194,15 +195,22 @@ class StoredEventActionsAdmin(StoredEventAdmin):
 
     actions = ["view_correlation_chain", "cleanup_old_events"]
 
-    def view_correlation_chain(self, request, queryset):
+    @admin.action(description="查看关联事件链")
+    def view_correlation_chain(
+        self, request: HttpRequest, queryset: QuerySet[StoredEventModel]
+    ) -> None:
         """
         查看关联事件链
 
         显示与选中事件具有相同 correlation_id 的事件。
         """
-        correlation_ids = set(
-            queryset.filter(correlation_id__isnull=False).values_list("correlation_id", flat=True)
-        )
+        correlation_ids = {
+            correlation_id
+            for correlation_id in queryset.filter(correlation_id__isnull=False).values_list(
+                "correlation_id", flat=True
+            )
+            if correlation_id is not None
+        }
 
         if not correlation_ids:
             self.message_user(request, "选中的事件没有关联 ID")
@@ -218,9 +226,10 @@ class StoredEventActionsAdmin(StoredEventAdmin):
         # 这里可以重定向到自定义视图或直接显示
         # 简化处理：只显示消息
 
-    view_correlation_chain.short_description = "查看关联事件链"
-
-    def cleanup_old_events(self, request, queryset):
+    @admin.action(description="删除选中的事件")
+    def cleanup_old_events(
+        self, request: HttpRequest, queryset: QuerySet[StoredEventModel]
+    ) -> None:
         """
         清理旧事件
 
@@ -230,13 +239,11 @@ class StoredEventActionsAdmin(StoredEventAdmin):
         queryset.delete()
         self.message_user(request, f"已删除 {count} 个旧事件")
 
-    cleanup_old_events.short_description = "删除选中的事件"
-
 
 # ========== Admin 站点配置 ==========
 
 
-def customize_event_admin_site(admin_site):
+def customize_event_admin_site(admin_site: admin.AdminSite) -> None:
     """
     自定义事件 Admin 站点
 
