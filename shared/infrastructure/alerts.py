@@ -14,7 +14,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
 
-import requests  # type: ignore[import-untyped]
+import requests
 
 logger = logging.getLogger(__name__)
 

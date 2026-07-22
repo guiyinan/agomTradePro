@@ -11,6 +11,7 @@ from apps.data_center.infrastructure.models import (
     PriceBarModel,
     ValuationFactModel,
 )
+from apps.equity.domain.entities import EquityAssetScore
 from apps.equity.infrastructure.models import (
     FinancialDataModel,
     StockDailyModel,
@@ -18,6 +19,26 @@ from apps.equity.infrastructure.models import (
     ValuationModel,
 )
 from apps.equity.infrastructure.repositories import DjangoStockRepository
+
+
+@pytest.mark.django_db
+def test_stock_info_preserves_missing_listing_date_from_data_center() -> None:
+    """Canonical master data may legitimately omit an unknown listing date."""
+
+    AssetMasterModel.objects.create(
+        code="600025.SH",
+        name="华能澜沧江水电股份有限公司",
+        short_name="华能水电",
+        asset_type="stock",
+        exchange="SSE",
+        is_active=True,
+    )
+
+    stock_info = DjangoStockRepository().get_stock_info("600025.SH")
+
+    assert stock_info is not None
+    assert stock_info.list_date is None
+    assert EquityAssetScore.from_stock_info(stock_info).to_dict()["list_date"] is None
 
 
 @pytest.mark.django_db

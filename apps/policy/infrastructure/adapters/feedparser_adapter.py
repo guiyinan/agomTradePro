@@ -9,27 +9,40 @@ Feedparser RSS Adapter
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
+from importlib import import_module
+from time import struct_time
+from types import ModuleType
+from typing import Protocol, cast
 
+import requests
 from django.utils import timezone
 
-try:
-    import requests
-except ImportError:
-    requests = None
-
-try:
-    import feedparser
-except ImportError:
-    feedparser = None
-    raise ImportError("feedparser is required. Install it with: pip install feedparser") from None
-
-from ...domain.entities import RSSSourceConfig
-from .rss_adapter import BaseRSSAdapter, RSSFetchError, RSSItem
+from ...domain.entities import RSSItem, RSSSourceConfig
+from .rss_adapter import BaseRSSAdapter, RSSFetchError
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_USER_AGENT = "AgomTradePro-RSS-Bot/1.0"
+feedparser: ModuleType = import_module("feedparser")
+
+
+class FeedEntryProtocol(Protocol):
+    """Narrow third-party feed entry fields consumed by this adapter."""
+
+    published_parsed: struct_time | None
+    updated_parsed: struct_time | None
+
+    def get(self, key: str, default: str = "") -> object:
+        """Return one dynamically parsed feed field."""
+
+
+class ParsedFeedProtocol(Protocol):
+    """Narrow feedparser result fields consumed by this adapter."""
+
+    bozo: bool
+    bozo_exception: BaseException | None
+    entries: list[FeedEntryProtocol]
 
 
 class FeedparserAdapter(BaseRSSAdapter):
@@ -43,11 +56,6 @@ class FeedparserAdapter(BaseRSSAdapter):
     source_name = "feedparser"
 
     def fetch(self, source_config: RSSSourceConfig) -> list[RSSItem]:
-        if feedparser is None:
-            raise RSSFetchError("feedparser is not installed")
-        if requests is None:
-            raise RSSFetchError("requests is not installed")
-
         timeout = source_config.timeout_seconds
         max_retries = source_config.retry_times
 
@@ -55,7 +63,7 @@ class FeedparserAdapter(BaseRSSAdapter):
 
         content = self._fetch_with_retries(source_config.url, proxy_dict, timeout, max_retries)
 
-        feed = feedparser.parse(content)
+        feed = cast(ParsedFeedProtocol, feedparser.parse(content))
 
         if feed.bozo and feed.bozo_exception:
             logger.warning(f"Feed parsing warning for {source_config.url}: {feed.bozo_exception}")
@@ -64,7 +72,7 @@ class FeedparserAdapter(BaseRSSAdapter):
             logger.warning(f"No entries found in RSS feed: {source_config.url}")
             return []
 
-        items = []
+        items: list[RSSItem] = []
         for entry in feed.entries:
             try:
                 item = self._parse_entry(entry, source_config.name)
@@ -80,7 +88,7 @@ class FeedparserAdapter(BaseRSSAdapter):
     def _fetch_with_retries(
         self,
         url: str,
-        proxy_dict: dict | None,
+        proxy_dict: dict[str, str] | None,
         timeout: int,
         max_retries: int,
     ) -> bytes:
@@ -128,21 +136,27 @@ class FeedparserAdapter(BaseRSSAdapter):
 
         raise RSSFetchError(f"Failed to fetch RSS after {max_retries} retries: {url} - {last_exc}")
 
-    def _parse_entry(self, entry, source_name: str) -> RSSItem | None:
-        title = entry.get("title", "")
+    def _parse_entry(
+        self,
+        entry: FeedEntryProtocol,
+        source_name: str,
+    ) -> RSSItem | None:
+        title = str(entry.get("title", "") or "").strip()
         if not title:
             logger.warning("Entry missing title, skipping")
             return None
 
-        link = entry.get("link", "")
+        link = str(entry.get("link", "") or "").strip()
         if not link:
             logger.warning("Entry missing link, skipping")
             return None
 
         pub_date = self._parse_pub_date(entry)
-        description = entry.get("description", "") or entry.get("summary", "")
-        guid = entry.get("guid", "")
-        author = entry.get("author", "")
+        description = str(
+            entry.get("description", "") or entry.get("summary", "") or ""
+        )
+        guid = str(entry.get("guid", "") or "")
+        author = str(entry.get("author", "") or "")
 
         return RSSItem(
             title=title,
@@ -154,16 +168,16 @@ class FeedparserAdapter(BaseRSSAdapter):
             source=source_name,
         )
 
-    def _parse_pub_date(self, entry) -> datetime:
-        if hasattr(entry, "published_parsed") and entry.published_parsed:
+    def _parse_pub_date(self, entry: FeedEntryProtocol) -> datetime:
+        if entry.published_parsed:
             try:
-                return datetime(*entry.published_parsed[:6])
+                return datetime(*entry.published_parsed[:6], tzinfo=UTC)
             except (TypeError, ValueError):
                 pass
 
-        if hasattr(entry, "updated_parsed") and entry.updated_parsed:
+        if entry.updated_parsed:
             try:
-                return datetime(*entry.updated_parsed[:6])
+                return datetime(*entry.updated_parsed[:6], tzinfo=UTC)
             except (TypeError, ValueError):
                 pass
 

@@ -5,11 +5,21 @@ This module owns the `StockInfoRepositoryMixin` slice of
 `stock_repository.py`; do not import the compatibility facade here.
 """
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import requests
 from django.utils import timezone
 
+from apps.data_center.domain.protocols import (
+    AssetRepositoryProtocol,
+    FinancialFactRepositoryProtocol,
+    PriceBarRepositoryProtocol,
+    QuoteSnapshotRepositoryProtocol,
+    ValuationFactRepositoryProtocol,
+)
 from apps.data_center.infrastructure.models import AssetMasterModel, PriceBarModel
 from apps.equity.domain.entities import StockInfo
 
@@ -20,6 +30,26 @@ logger = logging.getLogger(__name__)
 
 class StockInfoRepositoryMixin:
     """Stock master info, display-name resolution, and universe listing."""
+
+    _EASTMONEY_QUOTE_URL: str
+    _EASTMONEY_METADATA_FIELDS: str
+    _dc_asset_repo: AssetRepositoryProtocol
+    _dc_financial_repo: FinancialFactRepositoryProtocol
+    _dc_price_bar_repo: PriceBarRepositoryProtocol
+    _dc_quote_repo: QuoteSnapshotRepositoryProtocol
+    _dc_valuation_repo: ValuationFactRepositoryProtocol
+
+    if TYPE_CHECKING:
+
+        def _build_stock_code_candidates(self, stock_code: str) -> list[str]: ...
+
+        def _infer_exchange_from_market(self, market: str) -> str: ...
+
+        def _infer_exchange_from_stock_code(self, stock_code: str) -> str: ...
+
+        def _infer_market_from_stock_code(self, stock_code: str) -> str: ...
+
+        def _to_eastmoney_secid(self, stock_code: str) -> str: ...
 
     def get_stock_info(self, stock_code: str) -> StockInfo | None:
         """

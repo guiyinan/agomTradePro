@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8131,
-    "files_with_errors": 902
+    "errors": 8082,
+    "files_with_errors": 895
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1289,9 +1289,6 @@
       "no-untyped-def": 4,
       "type-arg": 5
     },
-    "apps/dashboard/infrastructure/ai_insight_client.py": {
-      "import-untyped": 1
-    },
     "apps/dashboard/infrastructure/models.py": {
       "no-untyped-def": 7
     },
@@ -1413,15 +1410,10 @@
     "apps/data_center/infrastructure/_provider_adapter_akshare.py": {
       "arg-type": 6,
       "attr-defined": 5,
-      "import-untyped": 1,
       "no-untyped-call": 1
     },
     "apps/data_center/infrastructure/_provider_adapter_base.py": {
-      "import-untyped": 1,
       "no-any-return": 1
-    },
-    "apps/data_center/infrastructure/_provider_adapter_specialized.py": {
-      "import-untyped": 1
     },
     "apps/data_center/infrastructure/_provider_adapter_tushare.py": {
       "attr-defined": 3
@@ -1431,9 +1423,6 @@
     },
     "apps/data_center/infrastructure/alpha_price_coverage_sync.py": {
       "type-arg": 1
-    },
-    "apps/data_center/infrastructure/asset_master_backfill.py": {
-      "import-untyped": 1
     },
     "apps/data_center/infrastructure/cache_warmup_queries.py": {
       "attr-defined": 1,
@@ -1451,7 +1440,7 @@
     "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py": {
       "arg-type": 1,
       "attr-defined": 1,
-      "import-untyped": 2,
+      "import-untyped": 1,
       "no-untyped-def": 3,
       "type-arg": 2
     },
@@ -1467,8 +1456,7 @@
       "no-untyped-def": 2
     },
     "apps/data_center/infrastructure/gateways/tencent_gateway.py": {
-      "arg-type": 1,
-      "import-untyped": 1
+      "arg-type": 1
     },
     "apps/data_center/infrastructure/gateways/tushare_gateway.py": {
       "arg-type": 1,
@@ -1589,8 +1577,7 @@
       "no-untyped-call": 10
     },
     "apps/data_center/infrastructure/sse_investor_accounts.py": {
-      "attr-defined": 1,
-      "import-untyped": 1
+      "attr-defined": 1
     },
     "apps/data_center/interface/admin.py": {
       "no-untyped-def": 4,
@@ -1922,10 +1909,6 @@
     "apps/equity/apps.py": {
       "no-untyped-def": 1
     },
-    "apps/equity/domain/entities.py": {
-      "no-untyped-def": 2,
-      "type-arg": 2
-    },
     "apps/equity/domain/optimized_screener.py": {
       "assignment": 2,
       "call-arg": 1,
@@ -1988,12 +1971,6 @@
     },
     "apps/equity/infrastructure/models.py": {
       "no-untyped-def": 16
-    },
-    "apps/equity/infrastructure/stock_info_repository.py": {
-      "arg-type": 2,
-      "attr-defined": 21,
-      "import-untyped": 1,
-      "no-any-return": 3
     },
     "apps/equity/infrastructure/stock_repository.py": {
       "arg-type": 1,
@@ -2585,16 +2562,7 @@
       "no-untyped-def": 1,
       "type-arg": 7
     },
-    "apps/policy/infrastructure/adapters/feedparser_adapter.py": {
-      "attr-defined": 1,
-      "import-untyped": 2,
-      "no-any-return": 1,
-      "no-untyped-def": 2,
-      "type-arg": 1
-    },
     "apps/policy/infrastructure/adapters/news_adapter.py": {
-      "import-untyped": 1,
-      "no-any-return": 1,
       "var-annotated": 1
     },
     "apps/policy/infrastructure/adapters/rss_adapter.py": {
@@ -3693,9 +3661,6 @@
     "apps/terminal/domain/entities.py": {
       "no-untyped-def": 2,
       "type-arg": 4
-    },
-    "apps/terminal/infrastructure/http_client.py": {
-      "import-untyped": 1
     },
     "apps/terminal/infrastructure/models.py": {
       "arg-type": 1,

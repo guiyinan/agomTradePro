@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-import requests  # type: ignore[import-untyped]
+import requests
 
 logger = logging.getLogger(__name__)
 

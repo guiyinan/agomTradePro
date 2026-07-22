@@ -482,3 +482,15 @@
 
 - 7 个变更生产文件的增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8228 errors / 910 files` 收紧为 `8131 errors / 902 files`，净减少 `97 errors / 8 files`，无文件或错误码反弹。
 - Realtime repository、AKShare/Data Center provider、Polling、Interface、价格交付与模拟交易 task wiring 回归共 `32 passed`；架构 delta 扫描 `7 files / 202 added lines / 0 violations`，Django system check、Ruff 和 diff check 通过。
+
+## 第三十五批
+
+- 按风险矩阵优先收口 `apps/equity/infrastructure/stock_info_repository.py`：为组合 mixin 显式声明 Data Center 五类 repository、EastMoney 配置和宿主 helper 契约，清除 21 个隐式属性错误及其传播出的 Any 返回。
+- 修正 Equity 主数据契约：Data Center 的 canonical `AssetMaster.list_date` 与最小行情降级路径均允许上市日期未知，`StockInfo` 和 `EquityAssetScore` 现统一使用 `date | None`，序列化安全输出 `null`，不再用错误的必填类型掩盖真实缺失数据。
+- 在开发依赖真源加入 `types-requests` 并同步生成 `requirements-dev.txt`，一次消除 Dashboard、Data Center、Equity、Policy 与 Terminal 多个请求调用点的 `import-untyped`；类型桩生效后同步删除共享告警中的失效 ignore。
+- `feedparser` 无可用官方/第三方桩，改在 Policy Infrastructure 内以 `ModuleType + Protocol + cast` 建立局部动态边界；入口字段统一归一化，并把 feed 的 UTC `struct_time` 转成 timezone-aware datetime，修复原先生成 naive datetime 的运行风险。
+
+## 第三十五批验证结果
+
+- 5 个变更生产 Python 文件的增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8131 errors / 902 files` 收紧为 `8082 errors / 895 files`，净减少 `49 errors / 7 files`，无文件或错误码反弹。
+- Equity stock context/scoring/structure、Policy RSS 与共享告警回归共 `33 passed`；依赖投影检查通过，架构 delta 扫描 `6 files / 107 added lines / 0 violations`，Ruff 通过。

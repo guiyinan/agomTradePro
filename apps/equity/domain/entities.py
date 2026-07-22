@@ -27,7 +27,7 @@ class StockInfo:
     name: str
     sector: str
     market: str
-    list_date: date
+    list_date: date | None
 
 
 @dataclass(frozen=True)
@@ -231,7 +231,7 @@ class EquityAssetScore:
     stock_name: str                                # 股票名称
     sector: str                                    # 所属行业
     market: str                                    # 交易市场（SH/SZ/BJ）
-    list_date: date                                # 上市日期
+    list_date: date | None                         # 上市日期
 
     # ========== 估值指标 ==========
     pe_ratio: float | None = None               # 市盈率
@@ -280,9 +280,9 @@ class EquityAssetScore:
 
     # ========== 元信息 ==========
     score_date: date = field(default_factory=date.today)
-    context: dict | None = None                 # 评分上下文
+    context: dict[str, object] | None = None    # 评分上下文
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """初始化后处理"""
         # 1. 根据 PE 和 ROE 推断风格
         if not self.style:
@@ -314,7 +314,7 @@ class EquityAssetScore:
             "valuation": self.valuation_score,
         }
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             # 基本信息
@@ -322,7 +322,7 @@ class EquityAssetScore:
             "stock_name": self.stock_name,
             "sector": self.sector,
             "market": self.market,
-            "list_date": self.list_date.isoformat(),
+            "list_date": self.list_date.isoformat() if self.list_date else None,
 
             # 估值指标
             "pe_ratio": self.pe_ratio,
@@ -448,7 +448,7 @@ class ScoringWeightConfig:
     revenue_growth_weight: float = 0.5
     profit_growth_weight: float = 0.5
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证权重配置的合法性"""
         # 检查维度权重总和
         total_dimension_weight = (
