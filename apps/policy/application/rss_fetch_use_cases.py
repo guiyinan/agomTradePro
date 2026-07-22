@@ -23,6 +23,7 @@ from ..domain.entities import (
     RiskImpact,
     RSSSourceConfig,
 )
+from ..domain.interfaces import PolicyClassifierProtocol
 from ..domain.rules import DEFAULT_KEYWORD_RULES, get_policy_response
 from .event_use_cases import RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS, AlertServiceProtocol
 from .repository_provider import (
@@ -62,7 +63,7 @@ class FetchRSSOutput:
     errors: list[str]
     details: list[dict[str, Any]]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.errors is None:
             self.errors = []
         if self.details is None:
@@ -101,8 +102,8 @@ class FetchRSSUseCase:
         rss_repository: RSSRepository,
         policy_repository: DjangoPolicyRepository,
         alert_service: AlertServiceProtocol | None = None,
-        ai_classifier: Any | None = None,  # PolicyClassifierProtocol
-    ):
+        ai_classifier: PolicyClassifierProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -155,13 +156,14 @@ class FetchRSSUseCase:
 
         # 获取要抓取的源
         if input.source_id:
-            sources = [self.rss_repository.get_source_by_id(input.source_id)]
-            if not sources[0]:
+            source = self.rss_repository.get_source_by_id(input.source_id)
+            if source is None:
                 output.errors.append(f"RSS源 {input.source_id} 不存在")
                 return output
-            if not sources[0].is_active:
+            if not source.is_active:
                 output.errors.append(f"RSS源 {input.source_id} 已停用")
                 return output
+            sources = [source]
         else:
             sources = self.rss_repository.get_active_sources()
 
@@ -258,16 +260,21 @@ class FetchRSSUseCase:
                 risk_impact = RiskImpact.UNKNOWN
 
                 # 尝试AI分类
-                if self.ai_classifier:
+                classifier = self.ai_classifier
+                if classifier is not None:
                     try:
-                        classification_result = self.ai_classifier.classify_rss_item(item)
+                        classification_result = classifier.classify_rss_item(item)
 
                         if classification_result.success:
-                            info_category = classification_result.info_category
-                            audit_status = classification_result.audit_status
+                            info_category = (
+                                classification_result.info_category or InfoCategory.OTHER
+                            )
+                            audit_status = (
+                                classification_result.audit_status or AuditStatus.PENDING_REVIEW
+                            )
                             ai_confidence = classification_result.ai_confidence
                             structured_data = classification_result.structured_data
-                            risk_impact = classification_result.risk_impact
+                            risk_impact = classification_result.risk_impact or RiskImpact.UNKNOWN
 
                             logger.info(
                                 f"AI classified {item.title}: "
@@ -329,26 +336,41 @@ class FetchRSSUseCase:
                         if extractor:
                             extracted_content = extractor.extract(
                                 url=item.link,
-                                proxy_config=source_config.proxy_config,
+                                proxy_config=(
+                                    asdict(source_config.proxy_config)
+                                    if source_config.proxy_config is not None
+                                    else None
+                                ),
                                 timeout=source.timeout_seconds,
                             )
                             if extracted_content:
                                 description = extracted_content[:5000]
 
                                 # 如果AI提取失败但提取了内容，可以重试AI分类
-                                if classification_result and not classification_result.success:
+                                if (
+                                    classification_result
+                                    and not classification_result.success
+                                    and classifier is not None
+                                ):
                                     try:
-                                        classification_result = (
-                                            self.ai_classifier.classify_rss_item(
-                                                item, content=extracted_content
-                                            )
+                                        classification_result = classifier.classify_rss_item(
+                                            item, content=extracted_content
                                         )
                                         if classification_result.success:
-                                            info_category = classification_result.info_category
-                                            audit_status = classification_result.audit_status
+                                            info_category = (
+                                                classification_result.info_category
+                                                or InfoCategory.OTHER
+                                            )
+                                            audit_status = (
+                                                classification_result.audit_status
+                                                or AuditStatus.PENDING_REVIEW
+                                            )
                                             ai_confidence = classification_result.ai_confidence
                                             structured_data = classification_result.structured_data
-                                            risk_impact = classification_result.risk_impact
+                                            risk_impact = (
+                                                classification_result.risk_impact
+                                                or RiskImpact.UNKNOWN
+                                            )
                                     except AIServiceError as e:
                                         logger.warning(
                                             f"AI classification failed (service error): {e}"
@@ -508,7 +530,11 @@ class FetchRSSUseCase:
         )
 
         # 7. 更新源状态
-        self.rss_repository.update_source_last_fetch(source.id, fetch_status, error_msg=error_msg)
+        self.rss_repository.update_source_last_fetch(
+            source.id,
+            fetch_status,
+            error_msg=error_msg or "",
+        )
 
         return {
             "source_name": source.name,

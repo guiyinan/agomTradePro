@@ -709,3 +709,14 @@
 
 - Alpha Application service 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7160 errors / 859 files` 收紧为 `7135 errors / 858 files`，净减少 `25 errors / 1 file`，目标文件全部历史错误码归零。
 - Alpha runtime config、fallback alert、providers、interface service、monitoring 与 integration 回归共 `88 passed`；Django system check、架构增量门禁 `0 violations`、Ruff、Black、diff check 通过。
+
+## 第五十五批
+
+- 按高风险密度收口 Policy RSS ingestion：删除 `domain/rules.py` 中与 `domain/entities.py` 重复的 `PolicyLevelKeywordRule` 定义，数据库规则、默认规则和 `PolicyLevelMatcher` 统一使用单一领域类型真源。
+- 单源抓取先显式排除不存在/停用 source，再构造非空列表；AI classifier 使用正式 `PolicyClassifierProtocol`，成功结果中的 category、audit status、risk impact 仍为空时回退到明确领域默认值，内容重试前再次验证 classifier 非空。
+- Domain `ProxyConfig` 在进入 Infrastructure content extractor 时显式转换为字典；抓取状态更新把可空错误消息收窄为字符串。同步补齐规则归一化 tuple 与仓位配置字典类型，消除公共规则传播的 Any 返回。
+
+## 第五十五批验证结果
+
+- Policy RSS UseCase 与 Domain Rules 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7135 errors / 858 files` 收紧为 `7119 errors / 856 files`，净减少 `16 errors / 2 files`，并连带清除 Policy Application service 2 项参数/赋值债务。
+- RSS 两阶段落库、逻辑护栏、Policy workbench integration 与模块结构回归共 `34 passed`；Django system check、架构增量门禁 `0 violations`、Ruff、Black、diff check 通过。

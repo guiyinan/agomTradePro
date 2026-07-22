@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7135,
-    "files_with_errors": 858
+    "errors": 7119,
+    "files_with_errors": 856
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2329,15 +2329,8 @@
       "attr-defined": 1,
       "no-untyped-call": 6
     },
-    "apps/policy/application/rss_fetch_use_cases.py": {
-      "arg-type": 2,
-      "assignment": 2,
-      "no-untyped-def": 1,
-      "union-attr": 4
-    },
     "apps/policy/application/services.py": {
-      "arg-type": 1,
-      "assignment": 3,
+      "assignment": 2,
       "attr-defined": 1,
       "no-any-return": 1,
       "operator": 2,
@@ -2360,10 +2353,6 @@
     },
     "apps/policy/domain/interfaces.py": {
       "type-arg": 4
-    },
-    "apps/policy/domain/rules.py": {
-      "no-any-return": 3,
-      "type-arg": 2
     },
     "apps/policy/infrastructure/adapters/ai_policy_classifier.py": {
       "no-any-return": 3,

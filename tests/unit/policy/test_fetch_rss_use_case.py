@@ -4,7 +4,8 @@ from datetime import datetime
 import pytest
 
 from apps.policy.application.use_cases import FetchRSSUseCase
-from apps.policy.domain.entities import PolicyLevel, RSSItem
+from apps.policy.domain.entities import PolicyLevel, PolicyLevelKeywordRule, RSSItem
+from apps.policy.domain.rules import DEFAULT_KEYWORD_RULES
 from apps.policy.infrastructure.models import PolicyLog, RSSSourceConfigModel
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 
@@ -49,6 +50,11 @@ class _MatcherRaises:
 
     def match(self, _item):
         raise RuntimeError("forced matcher error")
+
+
+def test_default_and_repository_keyword_rules_share_one_domain_type() -> None:
+    assert DEFAULT_KEYWORD_RULES
+    assert all(isinstance(rule, PolicyLevelKeywordRule) for rule in DEFAULT_KEYWORD_RULES)
 
 
 @pytest.mark.django_db

@@ -14,22 +14,25 @@ from .entities import (
     GateLevel,
     IngestionConfig,
     PolicyLevel,
+    PolicyLevelKeywordRule,
     SentimentGateThresholds,
 )
 
 
 class MarketAction(Enum):
     """市场行动类型"""
+
     NORMAL_OPERATION = "normal_operation"  # 正常运行
-    INCREASE_CASH = "increase_cash"        # 提升现金权重
-    PAUSE_SIGNALS = "pause_signals"        # 暂停信号
-    FULL_HEDGING = "full_hedging"          # 全仓对冲
-    MANUAL_TAKEOVER = "manual_takeover"    # 人工接管
+    INCREASE_CASH = "increase_cash"  # 提升现金权重
+    PAUSE_SIGNALS = "pause_signals"  # 暂停信号
+    FULL_HEDGING = "full_hedging"  # 全仓对冲
+    MANUAL_TAKEOVER = "manual_takeover"  # 人工接管
 
 
 @dataclass(frozen=True)
 class PolicyResponse:
     """政策响应配置"""
+
     level: PolicyLevel
     name: str
     description: str
@@ -50,7 +53,7 @@ POLICY_RESPONSE_RULES: dict[PolicyLevel, PolicyResponse] = {
         cash_adjustment=0.0,
         signal_pause_hours=None,
         requires_manual_approval=False,
-        alert_triggered=False
+        alert_triggered=False,
     ),
     PolicyLevel.P1: PolicyResponse(
         level=PolicyLevel.P1,
@@ -60,7 +63,7 @@ POLICY_RESPONSE_RULES: dict[PolicyLevel, PolicyResponse] = {
         cash_adjustment=10.0,  # 提升现金权重 5-10%
         signal_pause_hours=None,
         requires_manual_approval=False,
-        alert_triggered=False
+        alert_triggered=False,
     ),
     PolicyLevel.P2: PolicyResponse(
         level=PolicyLevel.P2,
@@ -70,7 +73,7 @@ POLICY_RESPONSE_RULES: dict[PolicyLevel, PolicyResponse] = {
         cash_adjustment=20.0,
         signal_pause_hours=48,  # 暂停 Regime 信号 24-48 小时
         requires_manual_approval=True,
-        alert_triggered=True
+        alert_triggered=True,
     ),
     PolicyLevel.P3: PolicyResponse(
         level=PolicyLevel.P3,
@@ -80,7 +83,7 @@ POLICY_RESPONSE_RULES: dict[PolicyLevel, PolicyResponse] = {
         cash_adjustment=100.0,  # 全仓转现金
         signal_pause_hours=None,  # 人工接管，无需自动恢复
         requires_manual_approval=True,
-        alert_triggered=True
+        alert_triggered=True,
     ),
 }
 
@@ -114,10 +117,7 @@ def should_pause_trading_signals(level: PolicyLevel) -> bool:
         bool: 是否暂停
     """
     response = get_policy_response(level)
-    return response.market_action in [
-        MarketAction.PAUSE_SIGNALS,
-        MarketAction.MANUAL_TAKEOVER
-    ]
+    return response.market_action in [MarketAction.PAUSE_SIGNALS, MarketAction.MANUAL_TAKEOVER]
 
 
 def get_signal_pause_duration_hours(level: PolicyLevel) -> int | None:
@@ -192,10 +192,7 @@ def is_high_risk_level(level: PolicyLevel) -> bool:
 
 
 def validate_policy_event(
-    level: PolicyLevel,
-    title: str,
-    description: str,
-    evidence_url: str
+    level: PolicyLevel, title: str, description: str, evidence_url: str
 ) -> tuple[bool, list[str]]:
     """
     验证政策事件的有效性
@@ -238,6 +235,7 @@ def validate_policy_event(
 @dataclass(frozen=True)
 class PolicyTransition:
     """政策档位变更记录"""
+
     from_level: PolicyLevel | None
     to_level: PolicyLevel
     transition_date: str  # ISO 格式日期字符串
@@ -245,8 +243,7 @@ class PolicyTransition:
 
 
 def analyze_policy_transition(
-    from_level: PolicyLevel | None,
-    to_level: PolicyLevel
+    from_level: PolicyLevel | None, to_level: PolicyLevel
 ) -> PolicyTransition:
     """
     分析政策档位变更
@@ -269,7 +266,7 @@ def analyze_policy_transition(
         from_level=from_level,
         to_level=to_level,
         transition_date=date.today().isoformat(),
-        is_upgrade=is_upgrade
+        is_upgrade=is_upgrade,
     )
 
 
@@ -304,34 +301,18 @@ def get_recommendations_for_level(level: PolicyLevel) -> list[str]:
     return recommendations
 
 
-@dataclass(frozen=True)
-class PolicyLevelKeywordRule:
-    """政策档位关键词规则
-
-    用于从RSS条目标题中自动提取政策档位
-    """
-    level: PolicyLevel
-    keywords: list[str]  # 如 ["降息", "降准"] for P2
-    weight: int = 1  # 权重，支持多规则匹配
-    category: str | None = None  # 可选：按分类应用不同规则
-
-
 # 默认关键词规则配置（可通过数据库覆盖）
 DEFAULT_KEYWORD_RULES: list[PolicyLevelKeywordRule] = [
     PolicyLevelKeywordRule(
-        level=PolicyLevel.P3,
-        keywords=["熔断", "紧急", "救市", "危机", "恐慌"],
-        weight=1
+        level=PolicyLevel.P3, keywords=["熔断", "紧急", "救市", "危机", "恐慌"], weight=1
     ),
     PolicyLevelKeywordRule(
         level=PolicyLevel.P2,
         keywords=["降息", "降准", "加息", "加准", "刺激", "干预", "调整"],
-        weight=1
+        weight=1,
     ),
     PolicyLevelKeywordRule(
-        level=PolicyLevel.P1,
-        keywords=["酝酿", "研究", "考虑", "拟", "或将", "讨论"],
-        weight=1
+        level=PolicyLevel.P1, keywords=["酝酿", "研究", "考虑", "拟", "或将", "讨论"], weight=1
     ),
 ]
 # ============================================================
@@ -340,9 +321,7 @@ DEFAULT_KEYWORD_RULES: list[PolicyLevelKeywordRule] = [
 
 
 def calculate_gate_level(
-    heat_score: float | None,
-    sentiment_score: float | None,
-    config: SentimentGateThresholds
+    heat_score: float | None, sentiment_score: float | None, config: SentimentGateThresholds
 ) -> GateLevel:
     """
     计算热点情绪闸门等级（纯函数）
@@ -388,9 +367,7 @@ def calculate_gate_level(
 
 
 def should_auto_approve(
-    policy_level: PolicyLevel,
-    ai_confidence: float | None,
-    config: IngestionConfig
+    policy_level: PolicyLevel, ai_confidence: float | None, config: IngestionConfig
 ) -> tuple[bool, str]:
     """
     判断是否应自动生效（纯函数）
@@ -430,12 +407,17 @@ def should_auto_approve(
     min_level_value = level_order.get(config.auto_approve_min_level, 2)
 
     if policy_level_value < min_level_value:
-        return False, f"档位 {policy_level.value} 低于自动生效最低档位 {config.auto_approve_min_level.value}"
+        return (
+            False,
+            f"档位 {policy_level.value} 低于自动生效最低档位 {config.auto_approve_min_level.value}",
+        )
 
     return True, f"满足自动生效条件：档位 {policy_level.value}，置信度 {ai_confidence:.2f}"
 
 
-def normalize_sentiment_score(raw_score: float, score_range: tuple = (-3.0, 3.0)) -> float:
+def normalize_sentiment_score(
+    raw_score: float, score_range: tuple[float, float] = (-3.0, 3.0)
+) -> float:
     """
     将原始情绪评分归一化为标准范围 (-1.0 ~ +1.0)
 
@@ -457,7 +439,7 @@ def is_sla_exceeded(
     created_at: datetime,
     policy_level: PolicyLevel,
     config: IngestionConfig,
-    now: datetime | None = None
+    now: datetime | None = None,
 ) -> tuple[bool, int]:
     """
     检查是否超出 SLA（纯函数）
@@ -492,7 +474,7 @@ def is_sla_exceeded(
     return is_exceeded, max(0, exceeded_hours)
 
 
-def get_max_position_cap(gate_level: GateLevel, config: dict) -> float:
+def get_max_position_cap(gate_level: GateLevel, config: dict[str, float]) -> float:
     """
     获取闸门等级对应的最大仓位上限
 
@@ -504,9 +486,9 @@ def get_max_position_cap(gate_level: GateLevel, config: dict) -> float:
         float: 最大仓位比例 (0.0-1.0)，1.0 表示无限制
     """
     if gate_level == GateLevel.L3:
-        return config.get('max_position_cap_l3', 0.3)
+        return config.get("max_position_cap_l3", 0.3)
     elif gate_level == GateLevel.L2:
-        return config.get('max_position_cap_l2', 0.7)
+        return config.get("max_position_cap_l2", 0.7)
     else:
         return 1.0  # L0/L1 无仓位限制
 
