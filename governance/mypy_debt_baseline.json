@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7593,
-    "files_with_errors": 875
+    "errors": 7487,
+    "files_with_errors": 874
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2515,13 +2515,6 @@
       "no-untyped-call": 2,
       "no-untyped-def": 5,
       "type-arg": 3
-    },
-    "apps/policy/interface/admin.py": {
-      "attr-defined": 43,
-      "no-untyped-call": 11,
-      "no-untyped-def": 45,
-      "override": 1,
-      "type-arg": 6
     },
     "apps/policy/interface/audit_api_views.py": {
       "no-untyped-def": 4

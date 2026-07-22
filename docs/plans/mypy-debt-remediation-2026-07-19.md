@@ -641,3 +641,14 @@
 
 - Simulated Trading Admin 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7662 errors / 876 files` 收紧为 `7593 errors / 875 files`，净减少 `69 errors / 1 file`，目标文件历史债务全部归零。
 - Admin display metadata、费率展示、自定义 dashboard 路由和全项目路由兼容回归共 `29 passed`；Django system check、Ruff、Black、diff check 通过。
+
+## 第四十九批
+
+- 将已验证的 Django Admin 类型模式推广到 Policy：6 个 `ModelAdmin` 使用 `TYPE_CHECKING` 泛型基类别名绑定具体 ORM Model，43 处展示列/动作动态属性迁移到 `@admin.display` 与 `@admin.action`，保留运行时不可下标 `ModelAdmin` 的兼容性。
+- Policy Admin 的展示、批量动作、权限、changelist、queryset 和自定义 AdminSite 全部补齐 `HttpRequest`、`HttpResponse`、`QuerySet[Model]`、具体模型及 `get_app_list(app_label)` 覆盖契约；公共 `_policy_admin_service()` 显式返回 `PolicyAdminInterfaceService`。
+- 强类型传播发现审核动作可能把 `reviewer_id=None` 或 `AnonymousUser` 传入 Application/ORM。新增统一持久化管理员校验，未认证或未保存用户现在抛出 `PermissionDenied`，审核记录只接受真实 Django User。
+
+## 第四十九批验证结果
+
+- Policy Admin 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7593 errors / 875 files` 收紧为 `7487 errors / 874 files`，净减少 `106 errors / 1 file`，目标文件历史债务全部归零。两批 Admin 公共根因治理累计清除 `175 errors / 2 files`。
+- Policy decorator metadata、匿名审核拒绝、真实 Admin changelist、RSS fetch 与权威源初始化回归共 `10 passed`；Django system check、Ruff、Black、diff check 通过。
