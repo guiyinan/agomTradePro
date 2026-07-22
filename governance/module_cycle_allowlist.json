@@ -1,7 +1,7 @@
 {
   "version": "2026-07-22.v14",
   "description": "Accepted app-import dependency baseline including the broker_execution execution boundary; no bidirectional pairs or cycles are allowed.",
-  "max_app_import_edges": 198,
+  "max_app_import_edges": 199,
   "max_outbound_modules_per_app": 21,
   "max_inbound_modules_per_app": 24,
   "max_outbound_modules_by_app": {
@@ -41,7 +41,9 @@
     "share": 0,
     "signal": 8,
     "simulated_trading": 13,
-    "strategy": 6,
+    "strategy": 7,
+    "portfolio": 0,
+    "research": 0,
     "task_monitor": 1,
     "terminal": 18,
     "valuation": 3
@@ -86,7 +88,9 @@
     "strategy": 3,
     "task_monitor": 5,
     "terminal": 0,
-    "valuation": 1
+    "valuation": 1,
+    "portfolio": 1,
+    "research": 0
   },
   "allowed_bidirectional_pairs": [],
   "allowed_cycle_components": []

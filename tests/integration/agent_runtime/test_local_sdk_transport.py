@@ -22,9 +22,8 @@ from shared.infrastructure.django_sdk_transport import DjangoSdkTransport
 def test_local_sdk_transport_creates_agent_task_without_http(django_user_model):
     """The embedded SDK transport must preserve the real API contract locally."""
 
-    from agomtradepro.transport import use_request_transport
-
     from agomtradepro import AgomTradeProClient
+    from agomtradepro.transport import use_request_transport
 
     user = django_user_model.objects.create_user(username="embedded-sdk-operator")
     transport = DjangoSdkTransport(actor={"user_id": user.pk})

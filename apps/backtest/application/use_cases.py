@@ -6,23 +6,27 @@ Application layer orchestrating the workflow of backtesting operations.
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
-from datetime import date
-from typing import Any
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, time
+from typing import Any, Protocol
 
 from apps.backtest.application.audit_gateway import (
     generate_attribution_report_for_backtest,
 )
 
-from ..domain.entities import (
-    DEFAULT_PUBLICATION_LAGS,
-    BacktestConfig,
-    PITDataConfig,
-)
-from ..domain.services import BacktestEngine, PITDataProcessor
+from ..domain.entities import BacktestConfig
+from ..domain.services import BacktestEngine
 from .repository_provider import DjangoBacktestRepository
 
 logger = logging.getLogger(__name__)
+
+
+class PITDataView(Protocol):
+    """Structural boundary implemented by the data-center PIT view."""
+
+    def query(
+        self, dataset: str, as_of_time: datetime, knowledge_scope: str, filters: dict[str, Any]
+    ) -> list[Any]: ...
 
 
 @dataclass
@@ -36,6 +40,14 @@ class RunBacktestRequest:
     rebalance_frequency: str = "monthly"
     use_pit_data: bool = False
     transaction_cost_bps: float = 10.0
+    trust_status: str = "exploratory"
+    data_manifest_id: str | None = None
+    pit_coverage: dict[str, float] = field(default_factory=dict)
+    config_hash: str = ""
+    code_commit: str = ""
+    engine_version: str = "backtest-v1"
+    research_trial_id: str | None = None
+    decision_snapshot_id: str | None = None
 
 
 @dataclass
@@ -68,6 +80,8 @@ class RunBacktestUseCase:
         repository: DjangoBacktestRepository,
         get_regime_func: Callable[[date], dict | None],
         get_asset_price_func: Callable[[str, date], float | None],
+        pit_data_view: PITDataView | None = None,
+        get_decision_snapshot_func: Callable[[str], Any] | None = None,
     ):
         """
         Args:
@@ -78,6 +92,8 @@ class RunBacktestUseCase:
         self.repository = repository
         self.get_regime = get_regime_func
         self.get_price = get_asset_price_func
+        self.pit_data_view = pit_data_view
+        self.get_decision_snapshot = get_decision_snapshot_func
 
     def execute(self, request: RunBacktestRequest) -> RunBacktestResponse:
         """
@@ -102,6 +118,14 @@ class RunBacktestUseCase:
                 rebalance_frequency=request.rebalance_frequency,
                 use_pit_data=request.use_pit_data,
                 transaction_cost_bps=request.transaction_cost_bps,
+                trust_status=request.trust_status,
+                data_manifest_id=request.data_manifest_id,
+                pit_coverage=request.pit_coverage,
+                config_hash=request.config_hash,
+                code_commit=request.code_commit,
+                engine_version=request.engine_version,
+                research_trial_id=request.research_trial_id,
+                decision_snapshot_id=request.decision_snapshot_id,
             )
 
             # 2. 创建回测记录
@@ -111,18 +135,27 @@ class RunBacktestUseCase:
             # 3. 标记为运行中
             self.repository.update_status(backtest_id, "running")
 
-            # 4. 创建 PIT 处理器（如果需要）
-            pit_processor = None
-            if request.use_pit_data:
-                pit_config = PITDataConfig(publication_lags=DEFAULT_PUBLICATION_LAGS)
-                pit_processor = PITDataProcessor(pit_config.publication_lags)
+            # 4. Trusted runs fail closed unless a canonical PIT view is injected.
+            regime_reader = self.get_regime
+            price_reader = self.get_price
+            if request.trust_status == "pit_verified":
+                if self.pit_data_view is None:
+                    raise ValueError("pit_verified execution requires a canonical PITDataView")
+                if self.get_decision_snapshot is None:
+                    raise ValueError(
+                        "pit_verified execution requires a canonical decision snapshot reader"
+                    )
+                snapshot = self.get_decision_snapshot(request.decision_snapshot_id or "")
+                if snapshot is None:
+                    raise ValueError("decision input snapshot not found")
+                regime_reader, price_reader = self._build_pit_readers(self.pit_data_view)
 
             # 5. 创建并运行回测引擎
             engine = BacktestEngine(
                 config=config,
-                get_regime_func=self.get_regime,
-                get_asset_price_func=self.get_price,
-                pit_processor=pit_processor,
+                get_regime_func=regime_reader,
+                get_asset_price_func=price_reader,
+                pit_processor=None,
             )
 
             result = engine.run()
@@ -189,6 +222,33 @@ class RunBacktestUseCase:
                 warnings=warnings,
                 audit_status="skipped",  # 回测失败时审计被跳过
             )
+
+    @staticmethod
+    def _build_pit_readers(
+        pit_data_view: PITDataView,
+    ) -> tuple[Callable[[date], dict | None], Callable[[str, date], float | None]]:
+        """Adapt the canonical PIT view to the legacy engine callback contract."""
+
+        def as_of(day: date) -> datetime:
+            return datetime.combine(day, time.max, tzinfo=UTC)
+
+        def get_regime(day: date) -> dict | None:
+            rows = pit_data_view.query("regime_state", as_of(day), "public", {})
+            return dict(rows[0].payload) if rows else None
+
+        def get_price(asset_code: str, day: date) -> float | None:
+            rows = pit_data_view.query(
+                "price_bar",
+                as_of(day),
+                "public",
+                {"business_key": asset_code},
+            )
+            if not rows:
+                return None
+            value = rows[0].payload.get("close")
+            return float(value) if value is not None else None
+
+        return get_regime, get_price
 
 
 @dataclass

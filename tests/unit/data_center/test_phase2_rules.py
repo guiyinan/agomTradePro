@@ -11,15 +11,15 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
+from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.rules import (
-    deduplicate_macro_facts,
     convert_currency_value,
+    deduplicate_macro_facts,
     is_stale,
     macro_series_are_consistent,
     normalize_asset_code,
     normalize_currency_unit,
 )
-from apps.data_center.domain.entities import MacroFact
 
 # ---------------------------------------------------------------------------
 # normalize_currency_unit

@@ -11,7 +11,7 @@ _PREFIX_CODE_PATTERN = re.compile(r"(?P<exchange>SH|SZ|BJ)(?P<digits>\d{6})")
 
 def normalize_cached_stock_code(raw_code: object) -> str:
     """Return a canonical tushare-style stock code from Alpha cache payloads."""
-    if isinstance(raw_code, (list, tuple)) and raw_code:
+    if isinstance(raw_code, list | tuple) and raw_code:
         return normalize_cached_stock_code(raw_code[-1])
 
     value = str(raw_code or "").strip().upper()

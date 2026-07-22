@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_CLI_GROUP: dict[str, Any] = {
     "key": "ops",
     "label": "AI 助手",

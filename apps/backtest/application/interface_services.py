@@ -6,6 +6,10 @@ from datetime import date
 from typing import Any
 
 from apps.regime.application.repository_provider import get_regime_repository
+from core.integration.research_integrity_registry import (
+    get_decision_snapshot,
+    make_manifest_bound_pit_view,
+)
 
 from .repository_provider import create_default_price_adapter, get_backtest_repository
 from .use_cases import (
@@ -139,10 +143,22 @@ def get_backtest_equity_curve_payload(backtest_id: int) -> dict[str, Any] | None
 
 def run_backtest_payload(validated_data: dict[str, Any]):
     """Execute a backtest run from validated request data."""
+    pit_data_view = None
+    if validated_data.get("trust_status") == "pit_verified":
+        pit_data_view = make_manifest_bound_pit_view(
+            str(validated_data.get("data_manifest_id") or "")
+        )
+        validated_data["pit_coverage"] = pit_data_view.coverage
     return RunBacktestUseCase(
         get_backtest_repository(),
         _build_regime_reader(),
         _build_price_reader(),
+        pit_data_view=pit_data_view,
+        get_decision_snapshot_func=(
+            get_decision_snapshot
+            if pit_data_view is not None
+            else None
+        ),
     ).execute(RunBacktestRequest(**validated_data))
 
 

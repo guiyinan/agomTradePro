@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_CAPABILITY_ROUTER_DEBUG_MODULE: dict[str, Any] = {
     "key": "capability-router-debug",
     "label": "能力路由调试",

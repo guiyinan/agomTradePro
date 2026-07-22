@@ -10,10 +10,10 @@ from apps.terminal.infrastructure.providers import (
     get_terminal_audit_repository as _get_terminal_audit_repository,
 )
 from apps.terminal.infrastructure.providers import (
-    get_terminal_command_http_client as _get_terminal_command_http_client,
+    get_terminal_auth_user as _get_terminal_auth_user,
 )
 from apps.terminal.infrastructure.providers import (
-    get_terminal_auth_user as _get_terminal_auth_user,
+    get_terminal_command_http_client as _get_terminal_command_http_client,
 )
 from apps.terminal.infrastructure.providers import (
     get_terminal_command_repository as _get_terminal_command_repository,

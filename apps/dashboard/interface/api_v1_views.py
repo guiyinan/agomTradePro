@@ -9,7 +9,10 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.account.interface.authentication import MultiTokenAuthentication, TerminalInternalAuthentication
+from apps.account.interface.authentication import (
+    MultiTokenAuthentication,
+    TerminalInternalAuthentication,
+)
 from apps.dashboard.application.auto_advisor_outputs import (
     persist_auto_advisor_weekly_report_outputs,
 )

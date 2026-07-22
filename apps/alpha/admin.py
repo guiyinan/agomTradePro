@@ -15,16 +15,16 @@ from django.urls import path, reverse
 from django.utils import timezone
 
 from apps.alpha.application.tasks import _execute_qlib_prediction
+from apps.alpha.models import (
+    AlphaAlertModel,
+    AlphaScoreCacheModel,
+    QlibModelRegistryModel,
+)
 from apps.config_center.application.use_cases import (
     ConflictError,
     QlibAccessDeniedError,
     TriggerQlibTrainingUseCase,
     ValidationFailureError,
-)
-from apps.alpha.models import (
-    AlphaAlertModel,
-    AlphaScoreCacheModel,
-    QlibModelRegistryModel,
 )
 from core.integration.runtime_settings import get_runtime_qlib_config
 

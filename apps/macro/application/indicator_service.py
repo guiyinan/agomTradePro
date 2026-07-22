@@ -196,7 +196,7 @@ class IndicatorService:
             configured.append(alias_of)
 
         compatible_codes = metadata.get("compatible_indicator_codes") or []
-        if isinstance(compatible_codes, (list, tuple)):
+        if isinstance(compatible_codes, list | tuple):
             configured.extend(str(item) for item in compatible_codes if item)
 
         for candidate_code, candidate_metadata in metadata_map.items():

@@ -113,7 +113,7 @@ class MetricCard:
         """
         if self.format_pattern:
             try:
-                if isinstance(self.value, (int, float, Decimal)):
+                if isinstance(self.value, int | float | Decimal):
                     return self.format_pattern.format(self.value)
             except (KeyError, ValueError, TypeError):
                 pass
@@ -133,7 +133,7 @@ class MetricCard:
         Returns:
             告警级别，如果没有超过阈值则返回 None
         """
-        if not isinstance(self.value, (int, float, Decimal)):
+        if not isinstance(self.value, int | float | Decimal):
             return None
 
         value = float(self.value)

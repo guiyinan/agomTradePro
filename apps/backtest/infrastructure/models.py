@@ -41,6 +41,23 @@ class BacktestResultModel(models.Model):
     rebalance_frequency = models.CharField(max_length=20)  # monthly, quarterly, yearly
     use_pit_data = models.BooleanField(default=False)
     transaction_cost_bps = models.FloatField(default=10.0)
+    data_manifest_id = models.CharField(max_length=64, null=True, blank=True, db_index=True)
+    pit_coverage = models.JSONField(default=dict, blank=True)
+    trust_status = models.CharField(
+        max_length=24,
+        choices=[
+            ("legacy_unverified", "Legacy unverified"),
+            ("exploratory", "Exploratory"),
+            ("pit_verified", "PIT verified"),
+        ],
+        default="legacy_unverified",
+        db_index=True,
+    )
+    config_hash = models.CharField(max_length=64, blank=True)
+    code_commit = models.CharField(max_length=64, blank=True)
+    engine_version = models.CharField(max_length=64, blank=True)
+    research_trial_id = models.CharField(max_length=64, null=True, blank=True, db_index=True)
+    decision_snapshot_id = models.CharField(max_length=64, null=True, blank=True, db_index=True)
 
     # 回测结果
     final_capital = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
@@ -84,6 +101,7 @@ class BacktestResultModel(models.Model):
             models.Index(fields=['-created_at']),
             models.Index(fields=['status']),
             models.Index(fields=['start_date', 'end_date']),
+            models.Index(fields=['trust_status', '-created_at']),
         ]
 
     def __str__(self):

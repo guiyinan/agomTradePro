@@ -54,7 +54,7 @@ class FundModule(BaseModule):
 
         for fund in ranked_funds:
             total_score = fund.get("total_score")
-            if min_score is not None and isinstance(total_score, (int, float)):
+            if min_score is not None and isinstance(total_score, int | float):
                 if float(total_score) < min_score:
                     continue
 

@@ -103,7 +103,7 @@ class DjangoSdkTransport:
         query_items = list(parse_qsl(parsed.query, keep_blank_values=True))
         if params:
             for key, value in params.items():
-                if isinstance(value, (list, tuple)):
+                if isinstance(value, list | tuple):
                     query_items.extend((str(key), item) for item in value)
                 elif value is not None:
                     query_items.append((str(key), value))
@@ -182,7 +182,7 @@ class DjangoSdkTransport:
                 content = raw_content
             if isinstance(content, str):
                 content = content.encode("utf-8")
-            elif isinstance(content, (bytearray, memoryview)):
+            elif isinstance(content, bytearray | memoryview):
                 content = bytes(content)
             if not isinstance(content, bytes):
                 raise ValueError(f"Unsupported multipart content for field: {field_name}")

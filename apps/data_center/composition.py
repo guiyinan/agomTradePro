@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from apps.data_center.application.pit_use_cases import (
+    BuildPITManifestUseCase,
+    QueryPITManifestUseCase,
+)
 from apps.data_center.domain.entities import (
     DataProviderSettings,
     ProviderConfig,
@@ -12,6 +16,7 @@ from apps.data_center.infrastructure.cache_warmup_queries import (
     MacroFactCacheWarmupRepository,
 )
 from apps.data_center.infrastructure.diagnostic_queries import DataCenterDiagnosticRepository
+from apps.data_center.infrastructure.pit_repository import PITManifestRepository
 from apps.data_center.infrastructure.provider_registry import ProviderRegistry
 from apps.data_center.infrastructure.repositories import (
     AssetRepository,
@@ -228,3 +233,23 @@ def run_data_center_connection_test(*args, **kwargs):
     from apps.data_center.infrastructure.connection_tester import run_connection_test
 
     return run_connection_test(*args, **kwargs)
+
+
+def make_build_pit_manifest_use_case() -> BuildPITManifestUseCase:
+    """Compose the canonical PIT manifest writer."""
+
+    return BuildPITManifestUseCase(PITManifestRepository())
+
+
+def make_query_pit_manifest_use_case() -> QueryPITManifestUseCase:
+    """Compose the canonical PIT manifest reader."""
+
+    return QueryPITManifestUseCase(PITManifestRepository())
+
+
+def make_manifest_bound_pit_data_view(manifest_id: str):  # type: ignore[no-untyped-def]
+    """Return a verified PIT reader constrained to one immutable manifest."""
+
+    from apps.data_center.infrastructure.pit_repository import ManifestBoundPITDataView
+
+    return ManifestBoundPITDataView(manifest_id)

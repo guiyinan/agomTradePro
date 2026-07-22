@@ -4,6 +4,9 @@ Model implementations live in focused owner modules. This module remains the
 stable import and patch surface used by repositories, tests, and integrations.
 """
 
+from django.apps import apps as django_apps
+
+from .input_snapshot_models import DecisionInputSnapshotModel
 from .model_param_models import (
     DecisionModelParamAuditLogModel,
     DecisionModelParamConfigModel,
@@ -19,7 +22,6 @@ from .rhythm_models import (
     DecisionRequestModel,
     DecisionResponseModel,
 )
-from .transition_models import PortfolioTransitionPlanModel
 from .valuation_models import (
     ExecutionApprovalRequestModel,
     InvestmentRecommendationModel,
@@ -29,6 +31,7 @@ from .valuation_models import (
 __all__ = [
     "CooldownPeriodModel",
     "DecisionExecutionLinkModel",
+    "DecisionInputSnapshotModel",
     "DecisionFeatureSnapshotModel",
     "DecisionModelParamAuditLogModel",
     "DecisionModelParamConfigModel",
@@ -37,7 +40,14 @@ __all__ = [
     "DecisionResponseModel",
     "ExecutionApprovalRequestModel",
     "InvestmentRecommendationModel",
-    "PortfolioTransitionPlanModel",
     "UnifiedRecommendationModel",
     "ValuationSnapshotModel",
 ]
+
+
+def __getattr__(name: str):
+    """Resolve the portfolio-owned model for legacy repository imports."""
+
+    if name == "PortfolioTransitionPlanModel":
+        return django_apps.get_model("portfolio", "PortfolioTransitionPlanModel")
+    raise AttributeError(name)

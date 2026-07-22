@@ -124,7 +124,7 @@ def _install_qlib_pandas_compat() -> None:
                 if selector.stop is not None:
                     mask &= level_values <= selector.stop
                 return df[mask.to_numpy()]
-            if isinstance(selector, (list, tuple, set, pd.Index)):
+            if isinstance(selector, list | tuple | set | pd.Index):
                 return df[level_values.isin(list(selector))]
             return df[level_values == selector]
 
@@ -300,15 +300,15 @@ def _resolve_qlib_handler_class(feature_set_id: str | None):
 
 def _make_json_safe(value):
     """Convert pandas/numpy/date/path values into JSON-safe payloads."""
-    if value is None or isinstance(value, (str, int, float, bool)):
+    if value is None or isinstance(value, str | int | float | bool):
         return value
     if isinstance(value, Path):
         return str(value)
-    if isinstance(value, (date, datetime)):
+    if isinstance(value, date | datetime):
         return value.isoformat()
     if isinstance(value, dict):
         return {str(key): _make_json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set)):
+    if isinstance(value, list | tuple | set):
         return [_make_json_safe(item) for item in value]
     if hasattr(value, "isoformat") and not isinstance(value, str):
         try:

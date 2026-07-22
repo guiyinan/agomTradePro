@@ -63,6 +63,18 @@ if not AGOMTRADEPRO_ENCRYPTION_KEY and _SHOW_ENCRYPTION_KEY_WARNING and not _IS_
 # When disabled, the unified recommendation API returns a fallback response
 DECISION_WORKSPACE_V2_ENABLED = env.bool("DECISION_WORKSPACE_V2_ENABLED", default=True)
 
+# Research integrity cutover flags. Defaults preserve legacy read paths while
+# all new evidence is recorded; production enables each gate after shadowing.
+RESEARCH_PIT_REQUIRED_FOR_PROMOTION = env.bool(
+    "RESEARCH_PIT_REQUIRED_FOR_PROMOTION", default=False
+)
+PORTFOLIO_CANONICAL_PLANNER_ENABLED = env.bool(
+    "PORTFOLIO_CANONICAL_PLANNER_ENABLED", default=False
+)
+DECISION_SNAPSHOT_REQUIRED = env.bool("DECISION_SNAPSHOT_REQUIRED", default=False)
+PROMPT_EVAL_GATE_ENABLED = env.bool("PROMPT_EVAL_GATE_ENABLED", default=False)
+SIGNAL_FORECAST_LEDGER_ENABLED = env.bool("SIGNAL_FORECAST_LEDGER_ENABLED", default=False)
+
 # ========================================================================
 # M3: 执行升级灰度开关
 # ========================================================================
@@ -190,6 +202,8 @@ INSTALLED_APPS = [
     "apps.pulse",  # Pulse 战术层脉搏模块（新增）
     # ========== 新模块：数据中台 ==========
     "apps.data_center",  # 统一数据接入与分发中心（新增）
+    "apps.portfolio",  # canonical portfolio construction and transition planning
+    "apps.research",  # experiment registry and promotion governance
 ]
 
 MIDDLEWARE = [

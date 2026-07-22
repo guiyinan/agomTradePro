@@ -44,6 +44,14 @@ class BacktestConfig:
     rebalance_frequency: str  # "monthly", "quarterly", "yearly"
     use_pit_data: bool  # 是否使用 Point-in-Time 数据
     transaction_cost_bps: float = 10  # 交易成本（基点）
+    trust_status: str = "exploratory"
+    data_manifest_id: str | None = None
+    pit_coverage: dict[str, float] = field(default_factory=dict)
+    config_hash: str = ""
+    code_commit: str = ""
+    engine_version: str = "backtest-v1"
+    research_trial_id: str | None = None
+    decision_snapshot_id: str | None = None
 
     def __post_init__(self):
         """验证配置"""
@@ -56,6 +64,22 @@ class BacktestConfig:
         valid_frequencies = ["monthly", "quarterly", "yearly"]
         if self.rebalance_frequency not in valid_frequencies:
             raise ValueError(f"rebalance_frequency must be one of {valid_frequencies}")
+        valid_trust_statuses = {"legacy_unverified", "exploratory", "pit_verified"}
+        if self.trust_status not in valid_trust_statuses:
+            raise ValueError(f"trust_status must be one of {sorted(valid_trust_statuses)}")
+        if self.trust_status == "pit_verified":
+            if not self.use_pit_data:
+                raise ValueError("pit_verified backtests must enable PIT data")
+            if not self.data_manifest_id:
+                raise ValueError("pit_verified backtests require data_manifest_id")
+            if not self.config_hash or not self.code_commit or not self.engine_version:
+                raise ValueError(
+                    "pit_verified backtests require config, code and engine versions"
+                )
+            if not self.research_trial_id:
+                raise ValueError("pit_verified backtests require research_trial_id")
+            if not self.decision_snapshot_id:
+                raise ValueError("pit_verified backtests require decision_snapshot_id")
 
 
 @dataclass(frozen=True)
@@ -201,19 +225,6 @@ class PITDataConfig:
     def get_lag(self, indicator_code: str) -> timedelta:
         """获取指标的发布延迟"""
         return self.publication_lags.get(indicator_code, timedelta(days=0))
-
-
-# 常见的指标发布延迟（单位：天）
-DEFAULT_PUBLICATION_LAGS = {
-    # PMI 通常次月发布
-    "PMI": timedelta(days=35),
-    "CPI": timedelta(days=10),
-    "PPI": timedelta(days=15),
-    # M2 通常次月中旬发布
-    "M2": timedelta(days=15),
-    "SHIBOR": timedelta(days=1),
-    "GDP": timedelta(days=60),
-}
 
 
 @dataclass(frozen=True)

@@ -7,7 +7,6 @@ import argparse
 import re
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MCP_ROOT = REPO_ROOT / "sdk" / "agomtradepro_mcp"
 TOOLS_ROOT = MCP_ROOT / "tools"

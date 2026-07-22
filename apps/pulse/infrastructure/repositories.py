@@ -164,7 +164,7 @@ class NavigatorAssetConfigRepository:
         for config in queryset:
             asset_weight_ranges: dict[str, tuple[float, float]] = {}
             for category, bounds in (config.asset_weight_ranges or {}).items():
-                if not isinstance(bounds, (list, tuple)) or len(bounds) < 2:
+                if not isinstance(bounds, list | tuple) or len(bounds) < 2:
                     continue
                 asset_weight_ranges[str(category)] = (
                     float(bounds[0]),

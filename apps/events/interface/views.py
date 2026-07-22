@@ -400,9 +400,9 @@ class _ControlledReplayView(BaseAPIView):
             return self.error_response(
                 str(exc), "REPLAY_DISABLED", status.HTTP_503_SERVICE_UNAVAILABLE
             )
-        if isinstance(exc, (ReplayConflictError, ReplayInProgressError)):
+        if isinstance(exc, ReplayConflictError | ReplayInProgressError):
             return self.error_response(str(exc), "REPLAY_CONFLICT", status.HTTP_409_CONFLICT)
-        if isinstance(exc, (ValueError, KeyError)):
+        if isinstance(exc, ValueError | KeyError):
             return self.error_response(str(exc), "INVALID_REPLAY", status.HTTP_400_BAD_REQUEST)
         logger.exception("Controlled event replay failed")
         return self.error_response(

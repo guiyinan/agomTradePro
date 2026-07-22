@@ -24,7 +24,7 @@ ExecutionApprovalRequestModel = apps.get_model(
     "ExecutionApprovalRequestModel",
 )
 PortfolioTransitionPlanModel = apps.get_model(
-    "decision_rhythm",
+    "portfolio",
     "PortfolioTransitionPlanModel",
 )
 SimulatedAccountModel = apps.get_model("simulated_trading", "SimulatedAccountModel")

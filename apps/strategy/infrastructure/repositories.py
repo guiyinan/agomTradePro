@@ -10,6 +10,7 @@ import logging
 from datetime import datetime
 from hashlib import sha256
 
+from django.apps import apps as django_apps
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Prefetch, Q
 
@@ -42,7 +43,6 @@ from apps.strategy.domain.protocols import (
 )
 from apps.strategy.infrastructure.models import (
     AIStrategyConfigModel,
-    OrderIntentModel,
     PortfolioStrategyAssignmentModel,
     PositionManagementRuleModel,
     RuleConditionModel,
@@ -53,6 +53,12 @@ from apps.strategy.infrastructure.models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _order_intent_model():  # type: ignore[no-untyped-def]
+    """Resolve the portfolio-owned compatibility table without a module edge."""
+
+    return django_apps.get_model("portfolio", "OrderIntentModel")
 
 
 # ========================================================================
@@ -583,7 +589,8 @@ class StrategyParamRepository:
         version: int,
         change_description: str = "",
         changed_by_id: int = None,
-        set_as_active: bool = True
+        set_as_active: bool = True,
+        promotion_decision_id: str | None = None,
     ) -> StrategyParamVersionModel | None:
         """
         保存策略参数新版本
@@ -605,6 +612,12 @@ class StrategyParamRepository:
             with transaction.atomic():
                 # 验证策略存在
                 StrategyModel._default_manager.get(id=strategy_id)
+                if set_as_active and not self._promotion_is_approved(
+                    promotion_decision_id
+                ):
+                    raise ValueError(
+                        "active strategy parameters require an approved research promotion"
+                    )
 
                 # 如果设置为激活，先取消其他激活版本
                 if set_as_active:
@@ -620,7 +633,8 @@ class StrategyParamRepository:
                     params_json=params,
                     is_active=set_as_active,
                     change_description=change_description,
-                    changed_by_id=changed_by_id
+                    changed_by_id=changed_by_id,
+                    promotion_decision_id=promotion_decision_id,
                 )
 
                 logger.info(
@@ -654,6 +668,10 @@ class StrategyParamRepository:
                     strategy_id=strategy_id,
                     version=version
                 )
+                if not self._promotion_is_approved(target_version.promotion_decision_id):
+                    raise ValueError(
+                        "rollback target lacks an approved research promotion"
+                    )
 
                 # 创建新版本（复制目标版本的参数）
                 # 获取当前最大版本号
@@ -676,7 +694,8 @@ class StrategyParamRepository:
                     params_json=target_version.params_json,
                     is_active=True,
                     change_description=f"从版本 {version} 回滚",
-                    changed_by_id=target_version.changed_by_id
+                    changed_by_id=target_version.changed_by_id,
+                    promotion_decision_id=target_version.promotion_decision_id,
                 )
 
                 logger.info(
@@ -723,6 +742,14 @@ class StrategyParamRepository:
         """
         try:
             with transaction.atomic():
+                target = StrategyParamVersionModel._default_manager.get(
+                    strategy_id=strategy_id,
+                    version=version,
+                )
+                if not self._promotion_is_approved(target.promotion_decision_id):
+                    raise ValueError(
+                        "active strategy parameters require an approved research promotion"
+                    )
                 # 取消所有激活版本
                 StrategyParamVersionModel._default_manager.filter(
                     strategy_id=strategy_id,
@@ -745,6 +772,22 @@ class StrategyParamRepository:
         except Exception as e:
             logger.error(f"Failed to set active version {version} for strategy {strategy_id}: {e}")
             return False
+
+    @staticmethod
+    def _promotion_is_approved(promotion_decision_id: str | None) -> bool:
+        """Apply the research gate only after its cutover flag is enabled."""
+
+        from django.conf import settings
+
+        if not settings.RESEARCH_PIT_REQUIRED_FOR_PROMOTION:
+            return True
+        if not promotion_decision_id:
+            return False
+        from core.integration.research_integrity_registry import (
+            is_research_promotion_approved,
+        )
+
+        return is_research_promotion_approved(promotion_decision_id)
 
 
 # ========================================================================
@@ -799,7 +842,7 @@ class DjangoOrderIntentRepository(OrderIntentRepositoryProtocol):
         )
 
     @classmethod
-    def _orm_to_domain_entity(cls, orm_obj: OrderIntentModel) -> OrderIntent:
+    def _orm_to_domain_entity(cls, orm_obj) -> OrderIntent:  # type: ignore[no-untyped-def]
         decision = cls._build_decision(orm_obj.decision_json or {})
         sizing = cls._build_sizing(orm_obj.sizing_json or {})
         risk_snapshot = cls._build_risk_snapshot(orm_obj.risk_snapshot_json or {})
@@ -823,6 +866,17 @@ class DjangoOrderIntentRepository(OrderIntentRepositoryProtocol):
         )
 
     def save(self, intent: OrderIntent) -> OrderIntent:
+        from django.conf import settings
+
+        if settings.PORTFOLIO_CANONICAL_PLANNER_ENABLED:
+            logger.warning(
+                "Blocked deprecated strategy OrderIntent write",
+                extra={"intent_id": intent.intent_id},
+            )
+            raise ValueError(
+                "strategy order intents are read-only; use portfolio order drafts"
+            )
+        model = _order_intent_model()
         with transaction.atomic():
             defaults = {
                 'strategy_id': intent.strategy_id,
@@ -841,35 +895,37 @@ class DjangoOrderIntentRepository(OrderIntentRepositoryProtocol):
             if intent.created_at is not None:
                 defaults['created_at'] = intent.created_at
 
-            OrderIntentModel._default_manager.update_or_create(
+            model._default_manager.update_or_create(
                 intent_id=intent.intent_id,
                 defaults={**defaults, 'idempotency_key': intent.idempotency_key},
             )
-            orm_obj = OrderIntentModel._default_manager.get(intent_id=intent.intent_id)
+            orm_obj = model._default_manager.get(intent_id=intent.intent_id)
             return self._orm_to_domain_entity(orm_obj)
 
     def get_by_id(self, intent_id: str) -> OrderIntent | None:
+        model = _order_intent_model()
         try:
-            orm_obj = OrderIntentModel._default_manager.get(intent_id=intent_id)
+            orm_obj = model._default_manager.get(intent_id=intent_id)
             return self._orm_to_domain_entity(orm_obj)
-        except OrderIntentModel.DoesNotExist:
+        except model.DoesNotExist:
             return None
 
     def get_by_idempotency_key(self, idempotency_key: str) -> OrderIntent | None:
+        model = _order_intent_model()
         try:
-            orm_obj = OrderIntentModel._default_manager.get(idempotency_key=idempotency_key)
+            orm_obj = model._default_manager.get(idempotency_key=idempotency_key)
             return self._orm_to_domain_entity(orm_obj)
-        except OrderIntentModel.DoesNotExist:
+        except model.DoesNotExist:
             return None
 
     def update_status(self, intent_id: str, status: OrderStatus) -> bool:
-        updated = OrderIntentModel._default_manager.filter(intent_id=intent_id).update(
+        updated = _order_intent_model()._default_manager.filter(intent_id=intent_id).update(
             status=status.value
         )
         return updated > 0
 
     def get_pending_intents(self, portfolio_id: int) -> list[OrderIntent]:
-        orm_objects = OrderIntentModel._default_manager.filter(
+        orm_objects = _order_intent_model()._default_manager.filter(
             portfolio_id=portfolio_id,
             status__in=[
                 OrderStatus.DRAFT.value,

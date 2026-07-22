@@ -12,9 +12,10 @@ from celery import shared_task
 
 from apps.regime.application.repository_provider import get_regime_repository
 
-from ..domain.entities import DEFAULT_PUBLICATION_LAGS, BacktestConfig
-from ..domain.services import BacktestEngine, PITDataProcessor
+from ..domain.entities import BacktestConfig
+from ..domain.services import BacktestEngine
 from .repository_provider import DjangoBacktestRepository, create_default_price_adapter
+from .use_cases import RunBacktestUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,19 @@ def run_backtest_task(
         if not backtest:
             raise ValueError(f"Backtest {backtest_id} not found")
 
-        # 2. 创建配置
+        # 2. Resolve trusted evidence before persisting/using the config.
+        pit_view = None
+        if config_dict.get("trust_status") == "pit_verified":
+            from core.integration.research_integrity_registry import (
+                make_manifest_bound_pit_view,
+            )
+
+            pit_view = make_manifest_bound_pit_view(
+                str(config_dict.get("data_manifest_id") or "")
+            )
+            config_dict["pit_coverage"] = pit_view.coverage
+
+        # 3. 创建配置
         config = BacktestConfig(
             start_date=date.fromisoformat(config_dict["start_date"]),
             end_date=date.fromisoformat(config_dict["end_date"]),
@@ -58,12 +71,20 @@ def run_backtest_task(
             rebalance_frequency=config_dict["rebalance_frequency"],
             use_pit_data=config_dict.get("use_pit_data", False),
             transaction_cost_bps=config_dict.get("transaction_cost_bps", 10.0),
+            trust_status=config_dict.get("trust_status", "exploratory"),
+            data_manifest_id=config_dict.get("data_manifest_id"),
+            pit_coverage=dict(config_dict.get("pit_coverage") or {}),
+            config_hash=config_dict.get("config_hash", ""),
+            code_commit=config_dict.get("code_commit", ""),
+            engine_version=config_dict.get("engine_version", "backtest-v1"),
+            research_trial_id=config_dict.get("research_trial_id"),
+            decision_snapshot_id=config_dict.get("decision_snapshot_id"),
         )
 
-        # 3. 标记为运行中
+        # 4. 标记为运行中
         repository.update_status(backtest_id, "running")
 
-        # 4. 获取数据获取函数（需要在实际使用时注入）
+        # 5. 获取数据获取函数（需要在实际使用时注入）
         # 这里使用模拟数据，实际应用中需要从外部传入
         def get_regime(as_of_date: date) -> dict | None:
             """
@@ -102,23 +123,27 @@ def run_backtest_task(
             )
             return adapter.get_price(asset_class, as_of_date)
 
-        # 5. 创建 PIT 处理器（如果需要）
-        pit_processor = None
-        if config.use_pit_data:
-            pit_processor = PITDataProcessor(DEFAULT_PUBLICATION_LAGS)
+        # 6. Trusted workers use exactly the evidence frozen by the manifest.
+        if config.trust_status == "pit_verified":
+            assert pit_view is not None
+            from core.integration.research_integrity_registry import get_decision_snapshot
 
-        # 6. 创建并运行回测引擎
+            if get_decision_snapshot(config.decision_snapshot_id or "") is None:
+                raise ValueError("decision input snapshot not found")
+            get_regime, get_asset_price = RunBacktestUseCase._build_pit_readers(pit_view)
+
+        # 7. 创建并运行回测引擎
         engine = BacktestEngine(
             config=config,
             get_regime_func=get_regime,
             get_asset_price_func=get_asset_price,
-            pit_processor=pit_processor,
+            pit_processor=None,
         )
 
         result = engine.run()
         warnings.extend(result.warnings)
 
-        # 7. 保存结果
+        # 8. 保存结果
         repository.save_result(backtest_id, result)
 
         logger.info(f"Backtest {backtest_id} completed successfully via Celery")

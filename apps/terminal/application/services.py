@@ -270,7 +270,7 @@ class CommandExecutionService:
         ):
             return self._format_advisor_query_output(output)
 
-        if isinstance(output, (dict, list)):
+        if isinstance(output, dict | list):
             return json.dumps(output, indent=2, ensure_ascii=False)
         return str(output)
 

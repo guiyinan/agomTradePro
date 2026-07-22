@@ -22,7 +22,10 @@ from apps.data_center.infrastructure.macro_sources.base import (
     MacroDataPoint,
     get_publication_lags,
 )
-from apps.data_center.infrastructure.macro_sources.failover_adapter import FailoverAdapter, MultiSourceAdapter
+from apps.data_center.infrastructure.macro_sources.failover_adapter import (
+    FailoverAdapter,
+    MultiSourceAdapter,
+)
 
 
 @pytest.fixture(autouse=True)

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_SCREEN_PATCHES_COMMAND_CENTER: dict[str, dict[str, Any]] = {
     "command-center.overview": {
         "chrome_mode": "immersive",

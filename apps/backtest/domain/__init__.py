@@ -9,7 +9,6 @@ Domain Layer for Backtest Module.
 """
 
 from .entities import (
-    DEFAULT_PUBLICATION_LAGS,
     AssetClass,
     AttributionEntry,
     AttributionReport,
@@ -47,7 +46,6 @@ __all__ = [
     "AttributionEntry",
     "AttributionReport",
     "PITDataConfig",
-    "DEFAULT_PUBLICATION_LAGS",
     "DataVersion",
     "DataVersionHistory",
     # Services

@@ -54,7 +54,7 @@ def _coerce_bool(value: Any) -> bool:
         return value
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "on"}
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return bool(value)
     return False
 

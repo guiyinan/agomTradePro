@@ -19,6 +19,23 @@ class SignalConfig(AppConfig):
 
         register_asset_analysis_signal_gateway()
         register_signal_policy_gateway()
+        from core.integration.research_integrity_registry import (
+            configure_forecast_entry_provider,
+            configure_forecast_evaluation_recorder,
+        )
+
+        from .infrastructure.forecast_models import ForecastLedgerEntry
+        from .infrastructure.forecast_repositories import ForecastEvaluationRepository
+
+        configure_forecast_entry_provider(
+            lambda: ForecastLedgerEntry._default_manager.select_related("outcome")
+            .prefetch_related("evaluations")
+            .filter(outcome__isnull=False)
+        )
+        forecast_repository = ForecastEvaluationRepository()
+        configure_forecast_evaluation_recorder(
+            forecast_repository.record_evaluation_for_signal
+        )
 
         # Initialize domain config from database
         try:

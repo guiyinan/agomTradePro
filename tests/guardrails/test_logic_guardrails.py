@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 
 from apps.data_center.application.interface_services import load_macro_governance_payload
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.data_center.infrastructure.macro_sources.fetchers.common import resolve_indicator_units
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.policy.application.use_cases import FetchRSSUseCase
 from apps.policy.domain.entities import PolicyEvent, PolicyLevel, RSSItem
 from apps.policy.infrastructure.models import PolicyLog, RSSSourceConfigModel

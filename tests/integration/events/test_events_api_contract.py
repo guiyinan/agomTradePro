@@ -363,7 +363,7 @@ class TestEventsReplayAPI:
 
     @pytest.fixture(autouse=True)
     def _enable_controlled_replay(self, settings: object) -> None:
-        setattr(settings, "EVENT_REPLAY_ENABLED", True)
+        settings.EVENT_REPLAY_ENABLED = True
 
     def test_replay_endpoint_returns_json_not_501(self):
         """

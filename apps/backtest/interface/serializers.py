@@ -21,11 +21,40 @@ class BacktestConfigSerializer(serializers.Serializer):
     )
     use_pit_data = serializers.BooleanField(default=False)
     transaction_cost_bps = serializers.FloatField(min_value=0, default=10.0)
+    trust_status = serializers.ChoiceField(
+        choices=["exploratory", "pit_verified"], default="exploratory"
+    )
+    data_manifest_id = serializers.CharField(max_length=64, required=False, allow_null=True)
+    config_hash = serializers.CharField(max_length=64, required=False, allow_blank=True)
+    code_commit = serializers.CharField(max_length=64, required=False, allow_blank=True)
+    engine_version = serializers.CharField(max_length=64, required=False, default="backtest-v1")
+    research_trial_id = serializers.CharField(max_length=64, required=False, allow_null=True)
+    decision_snapshot_id = serializers.CharField(max_length=64, required=False, allow_null=True)
 
     def validate(self, data):
         """验证配置"""
         if data['start_date'] >= data['end_date']:
             raise serializers.ValidationError("start_date must be before end_date")
+        if data.get("trust_status") == "pit_verified" and not data.get("data_manifest_id"):
+            raise serializers.ValidationError(
+                {"data_manifest_id": "Required for pit_verified backtests."}
+            )
+        if data.get("trust_status") == "pit_verified":
+            missing = [
+                field
+                for field in (
+                    "config_hash",
+                    "code_commit",
+                    "engine_version",
+                    "research_trial_id",
+                    "decision_snapshot_id",
+                )
+                if not data.get(field)
+            ]
+            if missing:
+                raise serializers.ValidationError(
+                    dict.fromkeys(missing, "Required for pit_verified backtests.")
+                )
         return data
 
 
@@ -51,6 +80,14 @@ class BacktestResultSerializer(serializers.ModelSerializer):
             'rebalance_frequency',
             'use_pit_data',
             'transaction_cost_bps',
+            'data_manifest_id',
+            'pit_coverage',
+            'trust_status',
+            'config_hash',
+            'code_commit',
+            'engine_version',
+            'research_trial_id',
+            'decision_snapshot_id',
             'equity_curve',
             'regime_history',
             'trades',
@@ -110,12 +147,45 @@ class RunBacktestSerializer(serializers.Serializer):
     )
     use_pit_data = serializers.BooleanField(default=False)
     transaction_cost_bps = serializers.FloatField(min_value=0, default=10.0)
+    trust_status = serializers.ChoiceField(
+        choices=["exploratory", "pit_verified"], default="exploratory"
+    )
+    data_manifest_id = serializers.CharField(max_length=64, required=False, allow_null=True)
+    config_hash = serializers.CharField(max_length=64, required=False, allow_blank=True)
+    code_commit = serializers.CharField(max_length=64, required=False, allow_blank=True)
+    engine_version = serializers.CharField(max_length=64, required=False, default="backtest-v1")
+    research_trial_id = serializers.CharField(max_length=64, required=False, allow_null=True)
+    decision_snapshot_id = serializers.CharField(max_length=64, required=False, allow_null=True)
     run_async = serializers.BooleanField(default=False)
 
     def validate(self, data):
         """验证请求"""
         if data['start_date'] >= data['end_date']:
             raise serializers.ValidationError("start_date must be before end_date")
+        if data.get("trust_status") == "pit_verified":
+            if not data.get("use_pit_data"):
+                raise serializers.ValidationError(
+                    {"use_pit_data": "Must be true for pit_verified backtests."}
+                )
+            if not data.get("data_manifest_id"):
+                raise serializers.ValidationError(
+                    {"data_manifest_id": "Required for pit_verified backtests."}
+                )
+            missing = [
+                field
+                for field in (
+                    "config_hash",
+                    "code_commit",
+                    "engine_version",
+                    "research_trial_id",
+                    "decision_snapshot_id",
+                )
+                if not data.get(field)
+            ]
+            if missing:
+                raise serializers.ValidationError(
+                    dict.fromkeys(missing, "Required for pit_verified backtests.")
+                )
         return data
 
 

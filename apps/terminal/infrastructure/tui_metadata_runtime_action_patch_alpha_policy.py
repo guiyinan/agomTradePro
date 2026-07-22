@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_ACTION_PATCHES_ALPHA_POLICY: dict[str, dict[str, Any]] = {'alpha.scores': {'fields': [{'key': 'universe',
                               'label': '股票池',
                               'input_type': 'text',

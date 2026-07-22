@@ -27,8 +27,8 @@ import django
 
 django.setup()
 
-from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.data_center.infrastructure.macro_sources.akshare_adapter import AKShareAdapter
+from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 
 

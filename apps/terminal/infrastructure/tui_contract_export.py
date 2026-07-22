@@ -230,11 +230,11 @@ def _normalize_annotation(annotation: Any) -> tuple[str, bool, list[Any]]:
 
 
 def _json_safe_scalar(value: Any) -> Any:
-    if isinstance(value, (str, int, float, bool)) or value is None:
+    if isinstance(value, str | int | float | bool) or value is None:
         return value
     if isinstance(value, Decimal):
         return str(value)
-    if isinstance(value, (date, datetime)):
+    if isinstance(value, date | datetime):
         return value.isoformat()
     return str(value)
 

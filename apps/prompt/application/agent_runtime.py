@@ -458,7 +458,7 @@ class AgentRuntime:
                 ensure_ascii=False,
             )
         result = record.result
-        if isinstance(result, (dict, list)):
+        if isinstance(result, dict | list):
             return json.dumps(result, ensure_ascii=False, default=str)
         return str(result) if result is not None else ""
 

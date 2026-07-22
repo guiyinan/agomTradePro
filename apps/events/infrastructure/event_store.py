@@ -98,6 +98,11 @@ class StoredEventModel(models.Model):
         default=1,
         help_text="事件版本"
     )
+    aggregate_type = models.CharField(max_length=64, blank=True, db_index=True)
+    aggregate_id = models.CharField(max_length=64, blank=True, db_index=True)
+    aggregate_version = models.PositiveIntegerField(null=True, blank=True)
+    effective_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    schema_version = models.CharField(max_length=16, default="v1")
 
     class Meta:
         db_table = "stored_event"
@@ -108,6 +113,13 @@ class StoredEventModel(models.Model):
             models.Index(fields=["event_type", "-occurred_at"]),
             models.Index(fields=["correlation_id", "-occurred_at"]),
             models.Index(fields=["occurred_at"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["aggregate_type", "aggregate_id", "aggregate_version"],
+                condition=models.Q(aggregate_version__isnull=False),
+                name="stored_event_aggregate_version_uniq",
+            )
         ]
 
     def __str__(self):
@@ -265,18 +277,45 @@ class DatabaseEventStore:
             是否成功
         """
         try:
-            model = self.model(
-                event_id=event.event_id,
-                event_type=event.event_type.value,
-                payload=event.payload,
-                metadata=event.metadata,
-                correlation_id=event.metadata.get("correlation_id"),
-                causation_id=event.metadata.get("causation_id"),
-                occurred_at=event.occurred_at,
-                version=event.version,
+            aggregate_type = str(
+                event.metadata.get("aggregate_type") or event.event_type.value
             )
-
-            model.save()
+            aggregate_id = str(
+                event.metadata.get("aggregate_id")
+                or event.payload.get("request_id")
+                or event.payload.get("signal_id")
+                or event.payload.get("asset_code")
+                or event.event_id
+            )
+            with transaction.atomic():
+                aggregate_version = event.metadata.get("aggregate_version")
+                if aggregate_version is None:
+                    latest = (
+                        self.model._default_manager.select_for_update()
+                        .filter(
+                            aggregate_type=aggregate_type,
+                            aggregate_id=aggregate_id,
+                        )
+                        .order_by("-aggregate_version")
+                        .first()
+                    )
+                    aggregate_version = (latest.aggregate_version or 0) + 1 if latest else 1
+                model = self.model(
+                    event_id=event.event_id,
+                    event_type=event.event_type.value,
+                    payload=event.payload,
+                    metadata=event.metadata,
+                    correlation_id=event.metadata.get("correlation_id"),
+                    causation_id=event.metadata.get("causation_id"),
+                    occurred_at=event.occurred_at,
+                    version=event.version,
+                    aggregate_type=aggregate_type,
+                    aggregate_id=aggregate_id,
+                    aggregate_version=aggregate_version,
+                    effective_at=event.metadata.get("effective_at") or event.occurred_at,
+                    schema_version=str(event.metadata.get("schema_version") or "v1"),
+                )
+                model.save()
 
             logger.debug(f"Event stored: {event.event_id} ({event.event_type.value})")
 

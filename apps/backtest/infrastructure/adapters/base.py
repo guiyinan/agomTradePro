@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
 
+
 class AssetPriceUnavailableError(Exception):
     """资产价格不可用异常"""
     pass
@@ -30,7 +31,7 @@ class AssetPricePoint:
         """验证数据"""
         if not self.asset_class:
             raise AssetPriceValidationError("资产类别不能为空")
-        if not isinstance(self.price, (int, float)):
+        if not isinstance(self.price, int | float):
             raise AssetPriceValidationError(f"价格必须是数值类型: {type(self.price)}")
         if self.price < 0:
             raise AssetPriceValidationError(f"价格不能为负数: {self.price}")

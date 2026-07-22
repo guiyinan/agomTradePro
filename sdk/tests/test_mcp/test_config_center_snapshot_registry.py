@@ -5,9 +5,8 @@ from agomtradepro_mcp.tools.core_tools import CORE_TOOL_NAMES
 
 
 def test_config_center_snapshot_uses_formal_sdk_through_core_only_registry(monkeypatch):
-    import agomtradepro_mcp.server as server_module
-
     import agomtradepro
+    import agomtradepro_mcp.server as server_module
 
     calls = []
     snapshot = {"generated_at": "2026-07-12T00:00:00Z", "sections": [{"items": []}]}

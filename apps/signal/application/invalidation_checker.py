@@ -10,7 +10,9 @@ Application 层：编排 Domain 层业务逻辑和 Infrastructure 层数据获�
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Protocol
 
 from django.utils import timezone
@@ -29,6 +31,9 @@ from apps.signal.domain.invalidation import (
     InvalidationCheckResult,
     InvalidationRule,
     evaluate_rule,
+)
+from core.integration.research_integrity_registry import (
+    record_forecast_evaluation_for_signal,
 )
 
 logger = logging.getLogger(__name__)
@@ -102,6 +107,7 @@ class InvalidationCheckService:
         user_repository: UserRepositoryProtocol | None = None,
         notification_service: NotificationServiceProtocol | None = None,
         macro_repository: Any | None = None,
+        forecast_recorder: Callable[..., Any] | None = None,
     ):
         """初始化服务
 
@@ -117,6 +123,7 @@ class InvalidationCheckService:
         self.signal_repository = signal_repository
         self.user_repository = user_repository
         self.notification_service = notification_service
+        self.forecast_recorder = forecast_recorder
 
         # 延迟加载 macro_repository（避免循环依赖）
         if macro_repository is not None:
@@ -154,6 +161,7 @@ class InvalidationCheckService:
 
         indicator_values = self._fetch_indicator_values(entity.invalidation_rule)
         result = evaluate_rule(entity.invalidation_rule, indicator_values)
+        self._record_forecast_evaluation(str(signal_model.id), result)
 
         if result.is_invalidated:
             self._invalidate_signal(signal_model, result, current_status=entity.status.value)
@@ -184,12 +192,33 @@ class InvalidationCheckService:
 
         # 评估规则（Domain 层纯函数）
         result = evaluate_rule(signal.invalidation_rule, indicator_values)
+        self._record_forecast_evaluation(str(signal.id), result)
 
         # 如果证伪，更新信号状态
         if result.is_invalidated:
             self._invalidate_signal(signal, result)
 
         return result
+
+    def _record_forecast_evaluation(
+        self, signal_id: str, result: InvalidationCheckResult
+    ) -> None:
+        """Append every scheduled check without pretending legacy facts are PIT versions."""
+
+        if self.forecast_recorder is None:
+            return
+        checked_at = datetime.fromisoformat(result.checked_at)
+        conditions = [
+            {**condition, "triggered": bool(condition.get("is_met"))}
+            for condition in result.checked_conditions
+        ]
+        self.forecast_recorder(
+            signal_id=signal_id,
+            checked_at=checked_at,
+            data_version_ids=[],
+            conditions=conditions,
+            missing_reason="legacy_invalidation_source_has_no_pit_version_ids",
+        )
 
     def _fetch_indicator_values(self, rule: InvalidationRule) -> dict[str, IndicatorValue]:
         """获取规则中所有指标的当前值
@@ -552,7 +581,10 @@ def check_and_invalidate_signals() -> dict:
         Dict: 包含统计信息
     """
     repository = get_signal_repository()
-    service = InvalidationCheckService(signal_repository=repository)
+    service = InvalidationCheckService(
+        signal_repository=repository,
+        forecast_recorder=record_forecast_evaluation_for_signal,
+    )
 
     # 检查已批准信号
     invalidated_ids = service.check_all_approved_signals()

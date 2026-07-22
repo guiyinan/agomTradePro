@@ -16,10 +16,10 @@ django.setup()
 
 from datetime import date, timedelta
 
-from apps.macro.application.use_cases import SyncMacroDataRequest, SyncMacroDataUseCase
 from apps.data_center.infrastructure.macro_sources.akshare_adapter import AKShareAdapter
-from apps.macro.infrastructure.models import MacroIndicator
+from apps.macro.application.use_cases import SyncMacroDataRequest, SyncMacroDataUseCase
 from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
+from apps.macro.infrastructure.models import MacroIndicator
 
 
 def main():

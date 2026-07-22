@@ -10,7 +10,7 @@ import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -154,7 +154,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def _iso_now() -> str:
-    return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    return datetime.now(UTC).astimezone().isoformat(timespec="seconds")
 
 
 def _shell_line(command: tuple[str, ...]) -> str:

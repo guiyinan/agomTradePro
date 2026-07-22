@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
     "api-library.runtime": {
         "default_action_key": "operator.governance.runtime_summary",

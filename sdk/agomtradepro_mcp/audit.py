@@ -632,11 +632,11 @@ class AuditLogger:
     @classmethod
     def _normalize_for_json(cls, value: Any) -> Any:
         """将任意对象转换为 JSON 兼容结构。"""
-        if value is None or isinstance(value, (str, int, float, bool)):
+        if value is None or isinstance(value, str | int | float | bool):
             return value
         if isinstance(value, dict):
             return {str(k): cls._normalize_for_json(v) for k, v in value.items()}
-        if isinstance(value, (list, tuple, set)):
+        if isinstance(value, list | tuple | set):
             return [cls._normalize_for_json(item) for item in value]
         if hasattr(value, "model_dump") and callable(value.model_dump):
             try:

@@ -157,6 +157,7 @@ class AgentContextSnapshotModel(models.Model):
     snapshot_data = models.JSONField(default=dict, help_text="Aggregated context data")
     generated_at = models.DateTimeField(null=True, blank=True, help_text="Snapshot generation time")
     data_freshness = models.JSONField(null=True, blank=True, help_text="Data freshness metrics")
+    decision_input_snapshot_id = models.CharField(max_length=64, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -304,6 +305,13 @@ class AgentExecutionRecordModel(models.Model):
         null=True, blank=True, help_text="Execution completion time"
     )
     error_details = models.JSONField(null=True, blank=True, help_text="Error details if failed")
+    prompt_version_id = models.CharField(max_length=64, blank=True, db_index=True)
+    model_version = models.CharField(max_length=64, blank=True)
+    output_schema_version = models.CharField(max_length=64, blank=True)
+    eval_baseline_id = models.CharField(max_length=64, blank=True)
+    decision_input_snapshot_id = models.CharField(max_length=64, blank=True, db_index=True)
+    actual_tokens = models.PositiveIntegerField(default=0)
+    actual_cost = models.DecimalField(max_digits=12, decimal_places=6, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

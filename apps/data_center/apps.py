@@ -18,6 +18,32 @@ class DataCenterConfig(AppConfig):
         )
 
         configure_data_center_config_summary_repository(DjangoDataCenterConfigSummaryRepository())
+        from core.integration.research_integrity_registry import configure_pit_providers
+
+        from .infrastructure.pit_repository import (
+            ManifestBoundPITDataView,
+            PITManifestRepository,
+        )
+
+        def manifest_evidence(manifest_id: str):  # type: ignore[no-untyped-def]
+            manifest = PITManifestRepository().get(manifest_id)
+            if manifest is None:
+                return None
+            try:
+                ManifestBoundPITDataView(manifest_id)
+                verified = manifest.is_verified
+            except ValueError:
+                verified = False
+            return {
+                "manifest_id": manifest.manifest_id,
+                "verified": verified,
+                "coverage": dict(manifest.coverage),
+            }
+
+        configure_pit_providers(
+            view_factory=ManifestBoundPITDataView,
+            manifest_evidence_getter=manifest_evidence,
+        )
         # Registry is lazily initialised on first request via get_registry().
         # Do NOT query the DB here — AppConfig.ready() runs before migrations
         # complete, which would raise RuntimeWarning and break fresh setups.

@@ -208,7 +208,7 @@ def collect_sdk_route_calls() -> list[SDKRouteCall]:
         functions = [
             node
             for node in ast.walk(tree)
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
         ]
         for function in functions:
             for node in ast.walk(function):

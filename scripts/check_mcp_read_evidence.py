@@ -45,7 +45,7 @@ def _load_test_blocks(path: Path) -> list[str]:
     tree = ast.parse(text, filename=str(path))
     blocks: list[str] = []
     for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
         if not node.name.startswith("test_") or node.end_lineno is None:
             continue

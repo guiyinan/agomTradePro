@@ -64,7 +64,7 @@ def _has_meaningful_repo_payload(payload: object) -> bool:
     """Return True when a repository read produced usable data."""
     if payload is None:
         return False
-    if isinstance(payload, (list, tuple, dict, set, str, bytes)):
+    if isinstance(payload, list | tuple | dict | set | str | bytes):
         return bool(payload)
     return True
 

@@ -1,0 +1,43 @@
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+    initial = True
+    dependencies = [("decision_rhythm", "0014_execution_link_transaction_source")]
+
+    operations = [
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.CreateModel(
+                    name="PortfolioTransitionPlanModel",
+                    fields=[
+                        ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                        ("plan_id", models.CharField(db_index=True, help_text="计划唯一标识符", max_length=64, unique=True)),
+                        ("account_id", models.CharField(db_index=True, help_text="账户 ID", max_length=64)),
+                        ("source_recommendation_ids", models.JSONField(default=list, help_text="来源推荐 ID 列表")),
+                        ("current_positions_snapshot", models.JSONField(default=list, help_text="当前持仓快照")),
+                        ("target_positions_snapshot", models.JSONField(default=list, help_text="目标持仓快照")),
+                        ("orders", models.JSONField(default=list, help_text="调仓订单快照")),
+                        ("risk_contract", models.JSONField(default=dict, help_text="计划级风控契约")),
+                        ("summary", models.JSONField(default=dict, help_text="计划摘要")),
+                        ("status", models.CharField(choices=[("DRAFT", "草稿"), ("READY_FOR_APPROVAL", "可提交审批"), ("APPROVAL_PENDING", "审批中"), ("APPROVED", "已批准"), ("REJECTED", "已拒绝"), ("EXECUTED", "已执行"), ("FAILED", "执行失败"), ("CANCELLED", "已取消")], db_index=True, default="DRAFT", help_text="计划状态", max_length=32)),
+                        ("approval_request_id", models.CharField(blank=True, default="", help_text="关联审批请求 ID", max_length=64)),
+                        ("as_of", models.DateTimeField(db_index=True, help_text="计划快照时间")),
+                        ("created_at", models.DateTimeField(auto_now_add=True, help_text="创建时间")),
+                        ("updated_at", models.DateTimeField(auto_now=True, help_text="更新时间")),
+                    ],
+                    options={
+                        "db_table": "decision_portfolio_transition_plan",
+                        "ordering": ["-created_at"],
+                        "verbose_name": "账户级调仓计划",
+                        "verbose_name_plural": "账户级调仓计划",
+                        "indexes": [
+                            models.Index(fields=["account_id", "-created_at"], name="idx_plan_acc_created"),
+                            models.Index(fields=["status", "-created_at"], name="idx_plan_status_created"),
+                        ],
+                    },
+                )
+            ],
+        )
+    ]

@@ -7,6 +7,8 @@ from collections import defaultdict
 from decimal import Decimal
 from typing import Any
 
+from django.conf import settings
+
 from apps.asset_analysis.application.asset_name_service import resolve_asset_names_read_only
 from apps.equity.application.query_services import get_valuation_repair_snapshot_map
 from apps.signal.application.query_services import get_signal_invalidation_payloads
@@ -215,6 +217,15 @@ def build_transition_plan_for_account(
     persist: bool = True,
 ) -> PortfolioTransitionPlan:
     """Generate a transition plan for the selected account."""
+    if persist:
+        logger.warning(
+            "Deprecated decision_rhythm transition-plan writer invoked",
+            extra={"account_id": account_id},
+        )
+        if settings.PORTFOLIO_CANONICAL_PLANNER_ENABLED:
+            raise ValueError(
+                "legacy planner is read-only; use the portfolio transition-plan API"
+            )
     recommendation_repo = UnifiedRecommendationRepository()
     recommendations = recommendation_repo.get_plan_candidates(
         account_id=account_id,

@@ -8,7 +8,6 @@ Requires: pip install pandas
 from datetime import date
 
 import pandas as pd
-
 from agomtradepro import AgomTradeProClient
 
 # Initialize client

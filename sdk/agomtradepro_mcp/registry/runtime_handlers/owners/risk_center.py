@@ -278,7 +278,7 @@ def _internal_handler_risk_center_update_floor(
     for field_name, value in percentage_fields.items():
         if value is None:
             continue
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
+        if isinstance(value, bool) or not isinstance(value, int | float):
             raise ValueError(f"{field_name} must be a number between 0 and 1")
         normalized_value = float(value)
         if not 0 <= normalized_value <= 1:
@@ -399,7 +399,7 @@ def _internal_handler_risk_center_update_account_policy(
     for field_name, value in percentage_fields.items():
         if value is None:
             continue
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
+        if isinstance(value, bool) or not isinstance(value, int | float):
             raise ValueError(f"{field_name} must be a number between 0 and 1")
         normalized_value = float(value)
         if not 0 <= normalized_value <= 1:
@@ -557,7 +557,7 @@ def _internal_handler_risk_center_generate_daily_report(
         if value is None:
             normalized_values[field_name] = None
             continue
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
+        if isinstance(value, bool) or not isinstance(value, int | float):
             raise ValueError(f"{field_name} must be numeric")
         normalized_values[field_name] = float(value)
     for field_name in ("account_equity", "cash_balance", "total_position_value"):

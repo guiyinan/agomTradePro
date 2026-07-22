@@ -336,7 +336,7 @@ class TestHedgeRatioCalculatorBeta:
         calc = HedgeRatioCalculator(ctx)
         ratio, details = calc.calculate_hedge_ratio(pair)
 
-        assert isinstance(ratio, (int, float))
+        assert isinstance(ratio, int | float)
         assert 0 <= ratio <= 1
         assert details["method"] == "beta"
 
@@ -372,7 +372,7 @@ class TestHedgeRatioCalculatorMinVariance:
         calc = HedgeRatioCalculator(ctx)
         ratio, details = calc.calculate_hedge_ratio(pair)
 
-        assert isinstance(ratio, (int, float))
+        assert isinstance(ratio, int | float)
         assert details["method"] == "min_variance"
 
     def test_min_variance_clamped_0_to_2(self):
