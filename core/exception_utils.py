@@ -6,30 +6,30 @@ Exception Handling Utilities
 
 import functools
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Any, TypeVar
+from types import TracebackType
+from typing import Any, Literal, ParamSpec, Self, TypeVar, cast
 
 from core.exceptions import (
     AgomTradeProException,
     DataFetchError,
     ExternalServiceError,
 )
-from core.exceptions import (
-    TimeoutError as AppTimeoutError,
-)
+from core.exceptions import TimeoutError as AppTimeoutError
 from core.metrics import record_exception
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
 def handle_external_service_errors(
     service_name: str,
     default_value: Any = None,
     raise_on_error: bool = False,
-) -> Callable:
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     外部服务调用错误处理装饰器
 
@@ -49,53 +49,60 @@ def handle_external_service_errors(
         def generate_prompt(prompt: str):
             return openai.ChatCompletion.create(...)
     """
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> T:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
                 return func(*args, **kwargs)
             except AppTimeoutError as e:
                 # 已知的应用层超时
                 logger.warning(
                     f"{service_name} timeout: {e}",
-                    extra={"service": service_name, "error_type": "timeout"}
+                    extra={"service": service_name, "error_type": "timeout"},
                 )
-                record_exception(e, module=func.__module__, is_handled=True, service_name=service_name)
+                record_exception(
+                    e, module=func.__module__, is_handled=True, service_name=service_name
+                )
                 if raise_on_error:
                     raise
-                return default_value
+                return cast(T, default_value)
             except Exception as e:
                 # 检查是否是超时相关异常
                 error_str = str(e).lower()
-                is_timeout = any(keyword in error_str for keyword in ['timeout', 'timed out'])
+                is_timeout = any(keyword in error_str for keyword in ["timeout", "timed out"])
 
+                exc: Exception
                 if is_timeout:
                     logger.warning(
                         f"{service_name} operation timed out: {e}",
-                        extra={"service": service_name, "error_type": "timeout"}
+                        extra={"service": service_name, "error_type": "timeout"},
                     )
                     exc = AppTimeoutError(f"{service_name} operation timed out")
                 else:
                     logger.exception(
                         f"{service_name} error: {e}",
-                        extra={"service": service_name, "error_type": "unknown"}
+                        extra={"service": service_name, "error_type": "unknown"},
                     )
                     exc = ExternalServiceError(f"{service_name} error: {e}")
 
-                record_exception(exc, module=func.__module__, is_handled=True, service_name=service_name)
+                record_exception(
+                    exc, module=func.__module__, is_handled=True, service_name=service_name
+                )
 
                 if raise_on_error:
                     raise exc from e
-                return default_value
+                return cast(T, default_value)
 
         return wrapper
+
     return decorator
 
 
 def handle_repository_errors(
     repository_name: str,
     default_value: Any = None,
-) -> Callable:
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     数据仓储错误处理装饰器
 
@@ -110,36 +117,39 @@ def handle_repository_errors(
         def get_latest_regime(self):
             return Regime.objects.latest('observed_at')
     """
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> T:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
                 error_str = str(e).lower()
 
                 # 检查是否是"不存在"类错误
-                is_not_found = any(keyword in error_str for keyword in ['doesnotexist', 'not found'])
+                is_not_found = any(
+                    keyword in error_str for keyword in ["doesnotexist", "not found"]
+                )
 
                 if is_not_found:
                     logger.debug(
                         f"{repository_name}: resource not found",
-                        extra={"repository": repository_name}
+                        extra={"repository": repository_name},
                     )
-                    return default_value
+                    return cast(T, default_value)
 
                 # 其他错误
                 logger.exception(
-                    f"{repository_name} error: {e}",
-                    extra={"repository": repository_name}
+                    f"{repository_name} error: {e}", extra={"repository": repository_name}
                 )
                 record_exception(e, module=func.__module__, is_handled=True)
 
                 if default_value is not None:
-                    return default_value
+                    return cast(T, default_value)
                 raise DataFetchError(f"Failed to fetch from {repository_name}") from e
 
         return wrapper
+
     return decorator
 
 
@@ -147,8 +157,8 @@ def handle_repository_errors(
 def exception_context(
     operation_name: str,
     module: str,
-    reraise: type[Exception] = None,
-):
+    reraise: type[Exception] | None = None,
+) -> Iterator[None]:
     """
     异常处理上下文管理器
 
@@ -171,7 +181,7 @@ def exception_context(
     except Exception as e:
         logger.exception(
             f"{operation_name} failed: {e}",
-            extra={"operation": operation_name, "module": module}
+            extra={"operation": operation_name, "source_module": module},
         )
         record_exception(e, module=module, is_handled=True)
 
@@ -186,7 +196,7 @@ def safe_execute(
     func: Callable[..., T],
     default_value: T,
     log_error: bool = True,
-    exception_types: tuple = (Exception,),
+    exception_types: tuple[type[Exception], ...] = (Exception,),
 ) -> T:
     """
     安全执行函数，捕获所有异常并返回默认值
@@ -212,18 +222,17 @@ def safe_execute(
     except exception_types as e:
         if log_error:
             logger.error(
-                f"Safe execution failed for {func.__name__}: {e}",
-                extra={"function": func.__name__}
+                f"Safe execution failed for {func.__name__}: {e}", extra={"function": func.__name__}
             )
             record_exception(e, module=func.__module__, is_handled=True)
         return default_value
 
 
 def validate_and_execute(
-    validator: Callable,
+    validator: Callable[P, bool],
     error_message: str,
-    exception_type: type[AgomTradeProException] = None,
-):
+    exception_type: type[AgomTradeProException] | None = None,
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     验证并执行装饰器
 
@@ -243,9 +252,10 @@ def validate_and_execute(
         def process_asset(asset_code: str):
             ...
     """
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> T:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # 执行验证
             if validator(*args, **kwargs):
                 return func(*args, **kwargs)
@@ -256,6 +266,7 @@ def validate_and_execute(
             raise ValueError(error_message)
 
         return wrapper
+
     return decorator
 
 
@@ -270,17 +281,27 @@ class ExceptionRecorder:
             risky_operation()
     """
 
-    def __init__(self, operation_name: str, module: str, service_name: str = None):
+    def __init__(
+        self,
+        operation_name: str,
+        module: str,
+        service_name: str | None = None,
+    ) -> None:
         self.operation_name = operation_name
         self.module = module
         self.service_name = service_name
         self.exception_occurred = False
-        self.exception_type = None
+        self.exception_type: str | None = None
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> Literal[False]:
         if exc_type is not None:
             self.exception_occurred = True
             self.exception_type = exc_type.__name__
@@ -289,17 +310,18 @@ class ExceptionRecorder:
                 f"{self.operation_name} raised {self.exception_type}: {exc_val}",
                 extra={
                     "operation": self.operation_name,
-                    "module": self.module,
+                    "source_module": self.module,
                     "service": self.service_name,
-                }
+                },
             )
 
-            record_exception(
-                exc_val,
-                module=self.module,
-                is_handled=True,
-                service_name=self.service_name,
-            )
+            if isinstance(exc_val, Exception):
+                record_exception(
+                    exc_val,
+                    module=self.module,
+                    is_handled=True,
+                    service_name=self.service_name,
+                )
 
         # 不抑制异常
         return False
@@ -308,9 +330,9 @@ class ExceptionRecorder:
 def retry_on_exception(
     max_retries: int = 3,
     backoff_factor: float = 1.0,
-    exception_types: tuple = (ExternalServiceError,),
-    on_retry: Callable = None,
-):
+    exception_types: tuple[type[Exception], ...] = (ExternalServiceError,),
+    on_retry: Callable[[int, Exception], None] | None = None,
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     异常重试装饰器
 
@@ -327,10 +349,10 @@ def retry_on_exception(
     """
     import time
 
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> T:
-            last_exception = None
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            last_exception: Exception | None = None
 
             for attempt in range(max_retries + 1):
                 try:
@@ -339,7 +361,7 @@ def retry_on_exception(
                     last_exception = e
 
                     if attempt < max_retries:
-                        wait_time = backoff_factor * (2 ** attempt)
+                        wait_time = backoff_factor * (2**attempt)
                         logger.warning(
                             f"{func.__name__} failed (attempt {attempt + 1}/{max_retries + 1}): {e}. "
                             f"Retrying in {wait_time}s..."
@@ -350,13 +372,14 @@ def retry_on_exception(
 
                         time.sleep(wait_time)
                     else:
-                        logger.error(
-                            f"{func.__name__} failed after {max_retries} retries: {e}"
-                        )
+                        logger.error(f"{func.__name__} failed after {max_retries} retries: {e}")
                         record_exception(e, module=func.__module__, is_handled=True)
 
             # 重试次数用尽
+            if last_exception is None:
+                raise RuntimeError("Retry loop ended without a captured exception")
             raise last_exception
 
         return wrapper
+
     return decorator

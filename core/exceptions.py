@@ -7,7 +7,7 @@ Provides standardized exception classes for consistent error handling across the
 import logging
 from typing import Any
 
-from django.http import Http404  # type: ignore[import-untyped]
+from django.http import Http404
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler

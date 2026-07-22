@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 9279,
-    "files_with_errors": 951
+    "errors": 9252,
+    "files_with_errors": 949
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3998,17 +3998,6 @@
     },
     "core/encryption_readiness.py": {
       "no-untyped-call": 1
-    },
-    "core/exception_utils.py": {
-      "assignment": 5,
-      "misc": 1,
-      "no-any-return": 4,
-      "no-untyped-def": 9,
-      "truthy-function": 1,
-      "type-arg": 6
-    },
-    "core/exceptions.py": {
-      "unused-ignore": 1
     },
     "core/integration/account_ledger.py": {
       "no-untyped-call": 1,
