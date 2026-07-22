@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7662,
-    "files_with_errors": 876
+    "errors": 7593,
+    "files_with_errors": 875
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3266,11 +3266,6 @@
     },
     "apps/simulated_trading/infrastructure/price_provider.py": {
       "assignment": 3
-    },
-    "apps/simulated_trading/interface/admin.py": {
-      "attr-defined": 28,
-      "no-untyped-def": 32,
-      "type-arg": 9
     },
     "apps/simulated_trading/interface/performance_serializers.py": {
       "type-arg": 21

@@ -630,3 +630,14 @@
 
 - Signal invalidation checker 与 Domain repository interfaces 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7677 errors / 878 files` 收紧为 `7662 errors / 876 files`，净减少 `15 errors / 2 files`，两文件历史债务全部归零。
 - Signal 证伪检查、Data Center 宏观读取、legacy repository 路径和通知映射渲染回归共 `14 passed`；Ruff、Black、diff check 通过。
+
+## 第四十八批
+
+- 验证并落地 Django Admin 公共类型模式：Simulated Trading 的 9 个 `ModelAdmin` 通过 `TYPE_CHECKING` 泛型基类别名绑定具体 ORM Model，静态侧获得精确对象类型，运行时仍继承不可下标的普通 `ModelAdmin`，避免为 mypy 引入应用启动 `TypeError`。
+- 28 处旧式 `method.short_description = ...` 动态属性全部迁移到 Django 官方 `@admin.display(description=...)`；展示方法补齐具体模型参数与字符串返回，AdminSite URL、dashboard view 和只读权限 handler 补齐 Django 请求/响应与 URL pattern 契约。
+- 类型迁移同步发现费率展示字符串多输出一个 `%`，现统一为单个百分号，并以展示函数回归锁定用户可见结果。
+
+## 第四十八批验证结果
+
+- Simulated Trading Admin 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7662 errors / 876 files` 收紧为 `7593 errors / 875 files`，净减少 `69 errors / 1 file`，目标文件历史债务全部归零。
+- Admin display metadata、费率展示、自定义 dashboard 路由和全项目路由兼容回归共 `29 passed`；Django system check、Ruff、Black、diff check 通过。
