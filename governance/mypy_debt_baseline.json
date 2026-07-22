@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 9297,
-    "files_with_errors": 953
+    "errors": 9279,
+    "files_with_errors": 951
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3989,11 +3989,6 @@
     "core/asgi.py": {
       "import-untyped": 3
     },
-    "core/cache_utils.py": {
-      "no-untyped-def": 3,
-      "return": 1,
-      "type-arg": 4
-    },
     "core/celery_metrics.py": {
       "no-untyped-def": 8
     },
@@ -4124,12 +4119,6 @@
     },
     "core/templatetags/factor_tags.py": {
       "no-untyped-def": 4
-    },
-    "core/throttling.py": {
-      "misc": 1,
-      "no-untyped-call": 3,
-      "no-untyped-def": 5,
-      "unused-ignore": 1
     },
     "core/urls.py": {
       "no-untyped-def": 3

@@ -13,13 +13,10 @@ IMPORTANT: These throttles only apply to specific methods, not all requests.
 """
 
 import logging
+from typing import Any
 
+from redis.exceptions import RedisError
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
-
-try:
-    from redis.exceptions import RedisError
-except ImportError:  # pragma: no cover - redis is optional in local envs
-    RedisError = Exception  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +24,9 @@ logger = logging.getLogger(__name__)
 class _ResilientThrottleMixin:
     """Fail open when the cache-backed throttle store is unavailable."""
 
-    def allow_request(self, request, view):
+    def allow_request(self, request: Any, view: Any) -> bool:
         try:
-            return super().allow_request(request, view)
+            return bool(super().allow_request(request, view))  # type: ignore[misc]
         except (RedisError, ConnectionError, TimeoutError, OSError) as exc:
             logger.warning(
                 "Throttle cache unavailable; allowing request without rate-limit enforcement: %s",
@@ -68,7 +65,7 @@ class BacktestRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
 
     scope = "backtest"
 
-    def allow_request(self, request, view):
+    def allow_request(self, request: Any, view: Any) -> bool:
         """
         Only apply throttling to POST requests (backtest creation).
 
@@ -79,7 +76,7 @@ class BacktestRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
         if request.method != "POST":
             return True
 
-        allowed = super().allow_request(request, view)
+        allowed = bool(super().allow_request(request, view))
 
         if not allowed:
             logger.warning(
@@ -89,7 +86,7 @@ class BacktestRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
                     "scope": self.scope,
                     "method": request.method,
                     "view": view.__class__.__name__,
-                }
+                },
             )
 
         return allowed
@@ -112,7 +109,7 @@ class WriteRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
 
     scope = "write"
 
-    def allow_request(self, request, view):
+    def allow_request(self, request: Any, view: Any) -> bool:
         """
         Only apply throttling to write methods.
         """
@@ -120,7 +117,7 @@ class WriteRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
         if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
             return True
 
-        allowed = super().allow_request(request, view)
+        allowed = bool(super().allow_request(request, view))
 
         if not allowed:
             logger.warning(
@@ -130,7 +127,7 @@ class WriteRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
                     "scope": self.scope,
                     "method": request.method,
                     "view": view.__class__.__name__,
-                }
+                },
             )
 
         return allowed
@@ -151,8 +148,8 @@ class BurstRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
 
     scope = "burst"
 
-    def allow_request(self, request, view):
-        allowed = super().allow_request(request, view)
+    def allow_request(self, request: Any, view: Any) -> bool:
+        allowed = bool(super().allow_request(request, view))
 
         if not allowed:
             logger.warning(
@@ -161,20 +158,21 @@ class BurstRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
                     "user_id": request.user.id,
                     "scope": self.scope,
                     "view": view.__class__.__name__,
-                }
+                },
             )
 
         return allowed
 
 
 # Utility function to get client identifier for anonymous users
-def get_client_ip(request):
+def get_client_ip(request: Any) -> str:
     """
     Get the client IP address from the request.
 
     Handles X-Forwarded-For header for reverse proxy setups.
     """
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-    if x_forwarded_for:
+    if isinstance(x_forwarded_for, str) and x_forwarded_for:
         return x_forwarded_for.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "")
+    remote_addr = request.META.get("REMOTE_ADDR", "")
+    return str(remote_addr) if remote_addr else ""

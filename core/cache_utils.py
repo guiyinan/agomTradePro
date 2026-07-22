@@ -24,34 +24,28 @@ _CACHED_RESPONSE_MARKER = "_agomtradepro_cached_response_v1"
 # ============== Prometheus Metrics ==============
 
 cache_hits_total = Counter(
-    'api_cache_hits_total',
-    'Total number of cache hits',
-    ['endpoint', 'key_prefix']
+    "api_cache_hits_total", "Total number of cache hits", ["endpoint", "key_prefix"]
 )
 
 cache_misses_total = Counter(
-    'api_cache_misses_total',
-    'Total number of cache misses',
-    ['endpoint', 'key_prefix']
+    "api_cache_misses_total", "Total number of cache misses", ["endpoint", "key_prefix"]
 )
 
 cache_errors_total = Counter(
-    'api_cache_errors_total',
-    'Total number of cache errors',
-    ['endpoint', 'key_prefix', 'error_type']
+    "api_cache_errors_total",
+    "Total number of cache errors",
+    ["endpoint", "key_prefix", "error_type"],
 )
 
 cache_latency_seconds = Histogram(
-    'api_cache_latency_seconds',
-    'Cache operation latency',
-    ['endpoint', 'operation'],  # operation: get, set, delete
-    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+    "api_cache_latency_seconds",
+    "Cache operation latency",
+    ["endpoint", "operation"],  # operation: get, set, delete
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
 )
 
 cache_stale_total = Counter(
-    'api_cache_stale_total',
-    'Number of times cache was bypassed (skip_cache=True)',
-    ['endpoint']
+    "api_cache_stale_total", "Number of times cache was bypassed (skip_cache=True)", ["endpoint"]
 )
 
 
@@ -88,7 +82,7 @@ class CacheKeyBuilder:
             parts.append(f"user:{request.user.id}")
 
         # Include path
-        path_parts = request.path.strip('/').split('/')
+        path_parts = request.path.strip("/").split("/")
         if len(path_parts) > 1:
             parts.append(path_parts[-1])
 
@@ -96,12 +90,12 @@ class CacheKeyBuilder:
         if vary_on:
             query_values = []
             for param in sorted(vary_on):
-                value = request.GET.get(param, '')
+                value = request.GET.get(param, "")
                 if value:
                     query_values.append(f"{param}={value}")
 
             if query_values:
-                query_string = '&'.join(query_values)
+                query_string = "&".join(query_values)
                 # Hash long query strings to avoid key length issues
                 if len(query_string) > 50:
                     query_hash = hashlib.sha256(query_string.encode()).hexdigest()[:8]
@@ -110,7 +104,7 @@ class CacheKeyBuilder:
                     parts.append(f"q:{query_string}")
 
         # Build final key
-        key = ':'.join(parts)
+        key = ":".join(parts)
 
         # Ensure key doesn't exceed limits
         # Redis max key length is 512MB, but we keep it reasonable
@@ -124,8 +118,8 @@ class CacheKeyBuilder:
     def build_from_args(
         prefix: str,
         func_name: str,
-        args: tuple,
-        kwargs: dict,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
     ) -> str:
         """
         Build a cache key from function arguments.
@@ -137,9 +131,9 @@ class CacheKeyBuilder:
 
         # Add positional args
         for arg in args:
-            if hasattr(arg, 'id'):
+            if hasattr(arg, "id"):
                 key_parts.append(f"id:{arg.id}")
-            elif hasattr(arg, '__str__'):
+            elif hasattr(arg, "__str__"):
                 arg_str = str(arg)[:50]
                 key_parts.append(arg_str)
             else:
@@ -148,13 +142,13 @@ class CacheKeyBuilder:
         # Add keyword args (sorted for consistency)
         for k in sorted(kwargs.keys()):
             v = kwargs[k]
-            if hasattr(v, 'id'):
+            if hasattr(v, "id"):
                 key_parts.append(f"{k}:id:{v.id}")
             else:
                 v_str = str(v)[:50]
                 key_parts.append(f"{k}:{v_str}")
 
-        key = ':'.join(key_parts)
+        key = ":".join(key_parts)
 
         # Hash if too long
         if len(key) > 200:
@@ -189,9 +183,9 @@ class cached_api:
         ttl_seconds: int = 900,
         vary_on: list[str] | None = None,
         include_user: bool = False,
-        skip_param: str = 'force_refresh',
+        skip_param: str = "force_refresh",
         cache_empty: bool = True,
-        method: str = 'GET',
+        method: str = "GET",
     ):
         self.key_prefix = key_prefix
         self.ttl_seconds = ttl_seconds
@@ -201,7 +195,7 @@ class cached_api:
         self.cache_empty = cache_empty
         self.method = method
 
-    def __call__(self, func: Callable) -> Callable:
+    def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
         def _serialize_response_for_cache(response: Any) -> Any:
             """
             Serialize response objects for cache storage.
@@ -209,7 +203,7 @@ class cached_api:
             DRF Response objects are converted to a plain dict envelope so cache
             backends only store serializable data while preserving status/headers.
             """
-            if hasattr(response, 'data'):
+            if hasattr(response, "data"):
                 headers: dict[str, str] = {}
                 try:
                     headers = dict(response.items())
@@ -217,34 +211,34 @@ class cached_api:
                     headers = {}
                 return {
                     _CACHED_RESPONSE_MARKER: True,
-                    'kind': 'drf_response',
-                    'data': response.data,
-                    'status_code': getattr(response, 'status_code', 200),
-                    'headers': headers,
+                    "kind": "drf_response",
+                    "data": response.data,
+                    "status_code": getattr(response, "status_code", 200),
+                    "headers": headers,
                 }
             return response
 
         def _restore_cached_response(cached_value: Any) -> Any:
             """Restore cached payload back into a DRF Response when applicable."""
             if isinstance(cached_value, dict) and cached_value.get(_CACHED_RESPONSE_MARKER):
-                if cached_value.get('kind') == 'drf_response':
+                if cached_value.get("kind") == "drf_response":
                     from rest_framework.response import Response
 
                     return Response(
-                        data=cached_value.get('data'),
-                        status=cached_value.get('status_code', 200),
-                        headers=cached_value.get('headers') or None,
+                        data=cached_value.get("data"),
+                        status=cached_value.get("status_code", 200),
+                        headers=cached_value.get("headers") or None,
                     )
             return cached_value
 
         @wraps(func)
-        def wrapper(request: HttpRequest, *args, **kwargs):
+        def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
             # Only cache specified method
             if request.method != self.method:
                 return func(request, *args, **kwargs)
 
             # Check for cache bypass
-            skip_cache = request.GET.get(self.skip_param) == '1'
+            skip_cache = request.GET.get(self.skip_param) == "1"
             if skip_cache:
                 cache_stale_total.labels(endpoint=self.key_prefix).inc()
                 return func(request, *args, **kwargs)
@@ -261,18 +255,18 @@ class cached_api:
 
             # Try to get from cache
             try:
-                with cache_latency_seconds.labels(endpoint=endpoint_name, operation='get').time():
+                with cache_latency_seconds.labels(endpoint=endpoint_name, operation="get").time():
                     cached_data = cache.get(key)
 
                 if cached_data is not None:
-                    cache_hits_total.labels(endpoint=endpoint_name, key_prefix=self.key_prefix).inc()
+                    cache_hits_total.labels(
+                        endpoint=endpoint_name, key_prefix=self.key_prefix
+                    ).inc()
                     logger.debug(f"Cache hit: {key}")
                     return _restore_cached_response(cached_data)
             except Exception as e:
                 cache_errors_total.labels(
-                    endpoint=endpoint_name,
-                    key_prefix=self.key_prefix,
-                    error_type='get'
+                    endpoint=endpoint_name, key_prefix=self.key_prefix, error_type="get"
                 ).inc()
                 logger.warning(f"Cache get error for {key}: {e}")
 
@@ -281,30 +275,28 @@ class cached_api:
             response = func(request, *args, **kwargs)
 
             # Don't cache if response has errors
-            if hasattr(response, 'status_code'):
+            if hasattr(response, "status_code"):
                 if response.status_code >= 400:
                     return response
 
             # Don't cache empty responses if configured
             if not self.cache_empty:
-                if hasattr(response, 'data'):
+                if hasattr(response, "data"):
                     if not response.data:
                         return response
-                elif hasattr(response, 'content'):
+                elif hasattr(response, "content"):
                     if not response.content:
                         return response
 
             # Cache the response
             try:
-                with cache_latency_seconds.labels(endpoint=endpoint_name, operation='set').time():
+                with cache_latency_seconds.labels(endpoint=endpoint_name, operation="set").time():
                     cache_payload = _serialize_response_for_cache(response)
                     cache.set(key, cache_payload, timeout=self.ttl_seconds)
                 logger.debug(f"Cache set: {key} (TTL={self.ttl_seconds}s)")
             except Exception as e:
                 cache_errors_total.labels(
-                    endpoint=endpoint_name,
-                    key_prefix=self.key_prefix,
-                    error_type='set'
+                    endpoint=endpoint_name, key_prefix=self.key_prefix, error_type="set"
                 ).inc()
                 logger.warning(f"Cache set error for {key}: {e}")
 
@@ -333,9 +325,9 @@ class cached_function:
         self.ttl_seconds = ttl_seconds
         self.vary_on = vary_on or []
 
-    def __call__(self, func: Callable) -> Callable:
+    def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Build cache key from arguments
             key = CacheKeyBuilder.build_from_args(
                 prefix=self.prefix,
@@ -346,7 +338,7 @@ class cached_function:
 
             # Try to get from cache
             try:
-                with cache_latency_seconds.labels(endpoint=self.prefix, operation='get').time():
+                with cache_latency_seconds.labels(endpoint=self.prefix, operation="get").time():
                     cached_data = cache.get(key)
 
                 if cached_data is not None:
@@ -361,7 +353,7 @@ class cached_function:
 
             # Cache the result
             try:
-                with cache_latency_seconds.labels(endpoint=self.prefix, operation='set').time():
+                with cache_latency_seconds.labels(endpoint=self.prefix, operation="set").time():
                     cache.set(key, result, timeout=self.ttl_seconds)
             except Exception as e:
                 logger.warning(f"Cache set error for {key}: {e}")
@@ -386,11 +378,11 @@ def invalidate_pattern(pattern: str) -> int:
     """
     try:
         # Check if using Redis
-        backend = settings.CACHES.get('default', {}).get('BACKEND', '')
-        if 'redis' in backend.lower():
+        backend = settings.CACHES.get("default", {}).get("BACKEND", "")
+        if "redis" in backend.lower():
             # Use Redis SCAN to find and delete keys
             # Get Redis client
-            if hasattr(cache, '_cache'):
+            if hasattr(cache, "_cache"):
                 client = cache._cache
                 # Use SCAN for safe iteration
                 count = 0
@@ -408,6 +400,8 @@ def invalidate_pattern(pattern: str) -> int:
         logger.error(f"Cache invalidation error: {e}")
         return 0
 
+    return 0
+
 
 def get_cache_stats() -> dict[str, Any]:
     """
@@ -417,16 +411,16 @@ def get_cache_stats() -> dict[str, Any]:
         Dictionary with cache backend info and stats
     """
     stats = {
-        'backend': settings.CACHES.get('default', {}).get('BACKEND', 'unknown'),
-        'default_timeout': cache.default_timeout,
+        "backend": settings.CACHES.get("default", {}).get("BACKEND", "unknown"),
+        "default_timeout": cache.default_timeout,
     }
 
     # Add Redis-specific stats if available
     try:
-        backend = settings.CACHES.get('default', {}).get('BACKEND', '')
-        if 'redis' in backend.lower():
-            stats['type'] = 'redis'
-            stats['location'] = settings.CACHES['default'].get('LOCATION', '')
+        backend = settings.CACHES.get("default", {}).get("BACKEND", "")
+        if "redis" in backend.lower():
+            stats["type"] = "redis"
+            stats["location"] = settings.CACHES["default"].get("LOCATION", "")
     except Exception:
         pass
 
@@ -438,26 +432,22 @@ def get_cache_stats() -> dict[str, Any]:
 # TTL presets for different data types
 CACHE_TTL = {
     # Real-time data (short TTL)
-    'realtime_price': 30,          # 30 seconds
-    'realtime_health': 60,         # 1 minute
-
+    "realtime_price": 30,  # 30 seconds
+    "realtime_health": 60,  # 1 minute
     # Near real-time (medium TTL)
-    'regime_current': 300,         # 5 minutes
-    'regime_history': 900,         # 15 minutes
-    'signal_list': 300,            # 5 minutes
-    'signal_detail': 600,          # 10 minutes
-
+    "regime_current": 300,  # 5 minutes
+    "regime_history": 900,  # 15 minutes
+    "signal_list": 300,  # 5 minutes
+    "signal_detail": 600,  # 10 minutes
     # Reference data (long TTL)
-    'indicator_list': 3600,        # 1 hour
-    'asset_info': 1800,            # 30 minutes
-    'sector_list': 3600,           # 1 hour
-
+    "indicator_list": 3600,  # 1 hour
+    "asset_info": 1800,  # 30 minutes
+    "sector_list": 3600,  # 1 hour
     # Computed results (medium-long TTL)
-    'dashboard_summary': 180,      # 3 minutes
-    'allocation_advice': 600,      # 10 minutes
-    'backtest_result': 3600,       # 1 hour (results don't change)
-
+    "dashboard_summary": 180,  # 3 minutes
+    "allocation_advice": 600,  # 10 minutes
+    "backtest_result": 3600,  # 1 hour (results don't change)
     # External data (long TTL to reduce API calls)
-    'macro_series': 900,           # 15 minutes
-    'economic_calendar': 3600,     # 1 hour
+    "macro_series": 900,  # 15 minutes
+    "economic_calendar": 3600,  # 1 hour
 }
