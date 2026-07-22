@@ -90,6 +90,7 @@ class TestCorrelationMonitorCalculateCorrelation:
 
     def test_returns_none_when_asset1_missing(self):
         """Missing first asset returns None."""
+
         def no_data(code: str, d: date, n: int):
             if code == "MISSING":
                 return None
@@ -106,6 +107,7 @@ class TestCorrelationMonitorCalculateCorrelation:
 
     def test_returns_none_when_asset2_missing(self):
         """Missing second asset returns None."""
+
         def no_data(code: str, d: date, n: int):
             if code == "MISSING":
                 return None
@@ -122,6 +124,7 @@ class TestCorrelationMonitorCalculateCorrelation:
 
     def test_returns_none_when_lengths_differ(self):
         """Mismatched series lengths returns None."""
+
         def uneven(code: str, d: date, n: int):
             if code == "A":
                 return [100.0] * 50
@@ -249,10 +252,7 @@ class TestMonitorHedgePairs:
 
         # The inversely correlated prices have negative correlation,
         # which should be below max_correlation + threshold
-        high_corr_alerts = [
-            a for a in alerts
-            if a.severity == "high"
-        ]
+        high_corr_alerts = [a for a in alerts if a.severity == "high"]
         assert len(high_corr_alerts) == 0
 
     def test_uses_context_pairs_by_default(self):
@@ -307,6 +307,7 @@ class TestMonitorHedgePairs:
 
     def test_skips_pair_when_metric_is_none(self):
         """When correlation cannot be calculated, pair is skipped."""
+
         def always_none(code: str, d: date, n: int):
             return None
 
@@ -492,6 +493,7 @@ class TestHedgeRatioCalculatorEdgeCases:
 
     def test_no_price_data_returns_default(self):
         """When get_asset_prices returns None, default ratio is 0.5."""
+
         def no_data(code: str, d: date, n: int):
             return None
 
@@ -510,6 +512,7 @@ class TestHedgeRatioCalculatorEdgeCases:
 
     def test_empty_price_lists_returns_default(self):
         """Empty price lists return default ratio."""
+
         def empty_data(code: str, d: date, n: int):
             return []
 
@@ -563,6 +566,7 @@ class TestHedgePortfolioServiceUpdate:
 
     def test_returns_none_when_correlation_unavailable(self):
         """If correlation cannot be calculated, returns None."""
+
         def no_data(code: str, d: date, n: int):
             return None
 
@@ -632,17 +636,18 @@ class TestHedgePortfolioServiceCorrelationMatrix:
 class TestHedgePortfolioServiceEffectiveness:
     """Tests for HedgePortfolioService.check_hedge_effectiveness."""
 
-    def test_returns_effectiveness_dict(self):
+    def test_returns_effectiveness_result(self):
         pair = make_hedge_pair()
         ctx = _build_context(pairs=[pair])
         svc = HedgePortfolioService(ctx)
         result = svc.check_hedge_effectiveness(pair)
 
-        assert "pair_name" in result
-        assert "correlation" in result
-        assert "effectiveness" in result
-        assert "rating" in result
-        assert "recommendation" in result
+        assert result is not None
+        assert result.pair_name == pair.name
+        assert isinstance(result.correlation, float)
+        assert isinstance(result.effectiveness, float)
+        assert result.rating
+        assert result.recommendation
 
     def test_returns_error_when_correlation_unavailable(self):
         def no_data(code: str, d: date, n: int):
@@ -658,7 +663,7 @@ class TestHedgePortfolioServiceEffectiveness:
         svc = HedgePortfolioService(ctx)
         result = svc.check_hedge_effectiveness(pair)
 
-        assert "error" in result
+        assert result is None
 
     def test_rating_excellent_for_high_effectiveness(self):
         """Effectiveness >= 0.8 => rating '优秀'."""
@@ -670,8 +675,9 @@ class TestHedgePortfolioServiceEffectiveness:
         svc = HedgePortfolioService(ctx)
         result = svc.check_hedge_effectiveness(pair)
 
-        assert result["effectiveness"] >= 0.8
-        assert result["rating"] == "优秀"
+        assert result is not None
+        assert result.effectiveness >= 0.8
+        assert result.rating == "优秀"
 
     def test_recommendation_for_low_effectiveness(self):
         """Low effectiveness yields a 'change strategy' recommendation."""
@@ -686,8 +692,8 @@ class TestHedgePortfolioServiceEffectiveness:
         result = svc.check_hedge_effectiveness(pair)
 
         # Should recommend action for weak hedge
-        assert "recommendation" in result
-        assert isinstance(result["recommendation"], str)
+        assert result is not None
+        assert isinstance(result.recommendation, str)
 
     def test_trend_field_present(self):
         pair = make_hedge_pair()
@@ -695,8 +701,8 @@ class TestHedgePortfolioServiceEffectiveness:
         svc = HedgePortfolioService(ctx)
         result = svc.check_hedge_effectiveness(pair)
 
-        assert "trend" in result
-        assert result["trend"] in ("increasing", "decreasing", "stable")
+        assert result is not None
+        assert result.trend in ("increasing", "decreasing", "stable")
 
 
 # ============================================================
@@ -715,9 +721,7 @@ class TestCorrelationTrend:
         }
         ctx = _build_context(price_data=price_data)
         monitor = CorrelationMonitor(ctx)
-        trend = monitor._calculate_correlation_trend(
-            [100.0] * 30, [100.0] * 30, window_days=20
-        )
+        trend = monitor._calculate_correlation_trend([100.0] * 30, [100.0] * 30, window_days=20)
         assert trend == "stable"
 
     def test_returns_valid_trend_value(self):
@@ -748,9 +752,7 @@ class TestRollingCorrelationMA:
         prices2 = make_price_series(base_price=50.0, days=200)
         ctx = _build_context()
         monitor = CorrelationMonitor(ctx)
-        result = monitor._calculate_rolling_correlation_ma(
-            prices1, prices2, window_days=30
-        )
+        result = monitor._calculate_rolling_correlation_ma(prices1, prices2, window_days=30)
         assert isinstance(result, float)
 
 

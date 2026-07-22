@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7119,
-    "files_with_errors": 856
+    "errors": 7021,
+    "files_with_errors": 849
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2121,42 +2121,10 @@
       "no-untyped-call": 1,
       "no-untyped-def": 3
     },
-    "apps/hedge/application/integration_service.py": {
-      "attr-defined": 1
-    },
-    "apps/hedge/application/interface_services.py": {
-      "attr-defined": 2,
-      "no-untyped-call": 6,
-      "no-untyped-def": 4
-    },
-    "apps/hedge/application/repository_provider.py": {
-      "no-untyped-call": 1
-    },
-    "apps/hedge/application/use_cases.py": {
-      "arg-type": 8,
-      "no-any-return": 2,
-      "no-untyped-def": 6,
-      "type-arg": 5
-    },
     "apps/hedge/infrastructure/adapters/__init__.py": {
       "no-any-return": 1,
       "no-untyped-call": 3,
       "no-untyped-def": 3
-    },
-    "apps/hedge/infrastructure/models.py": {
-      "no-untyped-def": 9
-    },
-    "apps/hedge/infrastructure/repositories.py": {
-      "attr-defined": 8,
-      "misc": 10,
-      "no-any-return": 11,
-      "no-untyped-call": 13,
-      "no-untyped-def": 2,
-      "type-arg": 2
-    },
-    "apps/hedge/infrastructure/services.py": {
-      "no-untyped-def": 1,
-      "type-arg": 4
     },
     "apps/hedge/interface/api_urls.py": {
       "no-untyped-def": 1
@@ -2168,7 +2136,6 @@
       "no-untyped-def": 1
     },
     "apps/hedge/interface/views.py": {
-      "no-untyped-call": 3,
       "no-untyped-def": 27,
       "type-arg": 4
     },

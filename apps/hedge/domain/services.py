@@ -18,6 +18,7 @@ from apps.hedge.domain.entities import (
     CorrelationMetric,
     HedgeAlert,
     HedgeAlertType,
+    HedgeEffectiveness,
     HedgeMethod,
     HedgePair,
     HedgePortfolio,
@@ -28,11 +29,14 @@ from shared.domain.correlation import RollingCorrelationCalculator
 @dataclass
 class HedgeContext:
     """Context for hedge calculation"""
+
     calc_date: date
     hedge_pairs: list[HedgePair]
 
     # Data accessors (injected from Infrastructure layer)
-    get_asset_prices: Callable[[str, date, int], list[float] | None]  # (asset, end_date, days) -> [prices]
+    get_asset_prices: Callable[
+        [str, date, int], list[float] | None
+    ]  # (asset, end_date, days) -> [prices]
     get_asset_name: Callable[[str], str | None]  # (asset_code) -> asset_name
 
 
@@ -48,10 +52,7 @@ class CorrelationMonitor:
         self.correlation_calculator = RollingCorrelationCalculator()
 
     def calculate_correlation(
-        self,
-        asset1: str,
-        asset2: str,
-        window_days: int = 60
+        self, asset1: str, asset2: str, window_days: int = 60
     ) -> CorrelationMetric | None:
         """
         Calculate correlation metrics between two assets.
@@ -77,36 +78,25 @@ class CorrelationMonitor:
 
         # Calculate correlation using shared calculator
         correlation = self.correlation_calculator.calculate_correlation(
-            prices1_window,
-            prices2_window
+            prices1_window, prices2_window
         )
 
         # Calculate covariance
         covariance = self.correlation_calculator.calculate_covariance(
-            prices1_window,
-            prices2_window
+            prices1_window, prices2_window
         )
 
         # Calculate beta (asset1 to asset2)
-        beta = self.correlation_calculator.calculate_beta(
-            prices1_window,
-            prices2_window
-        )
+        beta = self.correlation_calculator.calculate_beta(prices1_window, prices2_window)
 
         # Calculate trend
-        correlation_trend = self._calculate_correlation_trend(
-            prices1, prices2, window_days
-        )
+        correlation_trend = self._calculate_correlation_trend(prices1, prices2, window_days)
 
         # Check for alerts
-        alert, alert_type = self._check_correlation_alert(
-            asset1, asset2, correlation
-        )
+        alert, alert_type = self._check_correlation_alert(asset1, asset2, correlation)
 
         # Calculate correlation moving average
-        correlation_ma = self._calculate_rolling_correlation_ma(
-            prices1, prices2, window_days
-        )
+        correlation_ma = self._calculate_rolling_correlation_ma(prices1, prices2, window_days)
 
         return CorrelationMetric(
             asset1=asset1,
@@ -123,9 +113,7 @@ class CorrelationMonitor:
         )
 
     def calculate_correlation_matrix(
-        self,
-        asset_codes: list[str],
-        window_days: int = 60
+        self, asset_codes: list[str], window_days: int = 60
     ) -> dict[str, dict[str, float]]:
         """
         Calculate correlation matrix for multiple assets.
@@ -143,16 +131,11 @@ class CorrelationMonitor:
                 elif asset2 not in correlation_matrix:
                     # Only calculate each pair once
                     metric = self.calculate_correlation(asset1, asset2, window_days)
-                    correlation_matrix[asset1][asset2] = (
-                        metric.correlation if metric else 0.0
-                    )
+                    correlation_matrix[asset1][asset2] = metric.correlation if metric else 0.0
 
         return correlation_matrix
 
-    def monitor_hedge_pairs(
-        self,
-        pairs: list[HedgePair] | None = None
-    ) -> list[HedgeAlert]:
+    def monitor_hedge_pairs(self, pairs: list[HedgePair] | None = None) -> list[HedgeAlert]:
         """
         Monitor all hedge pairs and generate alerts if needed.
 
@@ -169,9 +152,7 @@ class CorrelationMonitor:
 
         for pair in pairs:
             metric = self.calculate_correlation(
-                pair.long_asset,
-                pair.hedge_asset,
-                pair.correlation_window
+                pair.long_asset, pair.hedge_asset, pair.correlation_window
             )
 
             if metric is None:
@@ -179,56 +160,53 @@ class CorrelationMonitor:
 
             # Check correlation breakdown
             if metric.correlation > pair.max_correlation + pair.correlation_alert_threshold:
-                alerts.append(HedgeAlert(
-                    pair_name=pair.name,
-                    alert_date=self.context.calc_date,
-                    alert_type=HedgeAlertType.CORRELATION_BREAKDOWN,
-                    severity="high",
-                    message=f"对冲相关性失效: {metric.correlation:.2f} 超出阈值 {pair.max_correlation:.2f}",
-                    current_value=metric.correlation,
-                    threshold_value=pair.max_correlation,
-                    action_required="考虑调整对冲比例或更换对冲标的",
-                    action_priority=7,
-                ))
+                alerts.append(
+                    HedgeAlert(
+                        pair_name=pair.name,
+                        alert_date=self.context.calc_date,
+                        alert_type=HedgeAlertType.CORRELATION_BREAKDOWN,
+                        severity="high",
+                        message=f"对冲相关性失效: {metric.correlation:.2f} 超出阈值 {pair.max_correlation:.2f}",
+                        current_value=metric.correlation,
+                        threshold_value=pair.max_correlation,
+                        action_required="考虑调整对冲比例或更换对冲标的",
+                        action_priority=7,
+                    )
+                )
 
             # Check if correlation is too weak (close to zero)
             if abs(metric.correlation) < 0.1:
-                alerts.append(HedgeAlert(
-                    pair_name=pair.name,
-                    alert_date=self.context.calc_date,
-                    alert_type=HedgeAlertType.CORRELATION_BREAKDOWN,
-                    severity="medium",
-                    message=f"对冲相关性过弱: {metric.correlation:.2f}，对冲效果有限",
-                    current_value=metric.correlation,
-                    threshold_value=0.1,
-                    action_required="考虑增加对冲仓位或更换对冲标的",
-                    action_priority=5,
-                ))
+                alerts.append(
+                    HedgeAlert(
+                        pair_name=pair.name,
+                        alert_date=self.context.calc_date,
+                        alert_type=HedgeAlertType.CORRELATION_BREAKDOWN,
+                        severity="medium",
+                        message=f"对冲相关性过弱: {metric.correlation:.2f}，对冲效果有限",
+                        current_value=metric.correlation,
+                        threshold_value=0.1,
+                        action_required="考虑增加对冲仓位或更换对冲标的",
+                        action_priority=5,
+                    )
+                )
 
         return alerts
 
     def _calculate_correlation_trend(
-        self,
-        prices1: list[float],
-        prices2: list[float],
-        window_days: int
+        self, prices1: list[float], prices2: list[float], window_days: int
     ) -> str:
         """Determine if correlation is trending up, down, or stable"""
         if len(prices1) < window_days * 2:
             return "stable"
 
         # Calculate early and late period correlations
-        early_prices1 = prices1[-window_days*2:-window_days]
-        early_prices2 = prices2[-window_days*2:-window_days]
+        early_prices1 = prices1[-window_days * 2 : -window_days]
+        early_prices2 = prices2[-window_days * 2 : -window_days]
         late_prices1 = prices1[-window_days:]
         late_prices2 = prices2[-window_days:]
 
-        early_corr = self.correlation_calculator.calculate_correlation(
-            early_prices1, early_prices2
-        )
-        late_corr = self.correlation_calculator.calculate_correlation(
-            late_prices1, late_prices2
-        )
+        early_corr = self.correlation_calculator.calculate_correlation(early_prices1, early_prices2)
+        late_corr = self.correlation_calculator.calculate_correlation(late_prices1, late_prices2)
 
         diff = late_corr - early_corr
 
@@ -240,35 +218,30 @@ class CorrelationMonitor:
             return "decreasing"
 
     def _check_correlation_alert(
-        self,
-        asset1: str,
-        asset2: str,
-        correlation: float
+        self, asset1: str, asset2: str, correlation: float
     ) -> tuple[str | None, str | None]:
         """Check if correlation triggers an alert"""
         # Find the hedge pair for these assets
         for pair in self.context.hedge_pairs:
-            if (pair.long_asset == asset1 and pair.hedge_asset == asset2) or \
-               (pair.long_asset == asset2 and pair.hedge_asset == asset1):
+            if (pair.long_asset == asset1 and pair.hedge_asset == asset2) or (
+                pair.long_asset == asset2 and pair.hedge_asset == asset1
+            ):
 
                 if correlation > pair.max_correlation + pair.correlation_alert_threshold:
                     return (
                         f"相关性超出阈值: {correlation:.2f} > {pair.max_correlation:.2f}",
-                        "correlation_high"
+                        "correlation_high",
                     )
                 elif correlation < pair.min_correlation - pair.correlation_alert_threshold:
                     return (
                         f"相关性低于阈值: {correlation:.2f} < {pair.min_correlation:.2f}",
-                        "correlation_low"
+                        "correlation_low",
                     )
 
         return None, None
 
     def _calculate_rolling_correlation_ma(
-        self,
-        prices1: list[float],
-        prices2: list[float],
-        window_days: int
+        self, prices1: list[float], prices2: list[float], window_days: int
     ) -> float:
         """Calculate moving average of correlation"""
         if len(prices1) < window_days * 3:
@@ -287,8 +260,7 @@ class CorrelationMonitor:
                 window_prices2 = prices2[start:end]
                 if len(window_prices1) == len(window_prices2) and len(window_prices1) >= 20:
                     corr = self.correlation_calculator.calculate_correlation(
-                        window_prices1,
-                        window_prices2
+                        window_prices1, window_prices2
                     )
                     correlations.append(corr)
 
@@ -309,10 +281,7 @@ class HedgeRatioCalculator:
         self.context = context
         self.correlation_calculator = RollingCorrelationCalculator()
 
-    def calculate_hedge_ratio(
-        self,
-        pair: HedgePair
-    ) -> tuple[float, dict[str, object]]:
+    def calculate_hedge_ratio(self, pair: HedgePair) -> tuple[float, dict[str, object]]:
         """
         Calculate optimal hedge ratio for a hedge pair.
 
@@ -324,65 +293,44 @@ class HedgeRatioCalculator:
         """
         # Get price data
         long_prices = self.context.get_asset_prices(
-            pair.long_asset,
-            self.context.calc_date,
-            pair.correlation_window + 60
+            pair.long_asset, self.context.calc_date, pair.correlation_window + 60
         )
         hedge_prices = self.context.get_asset_prices(
-            pair.hedge_asset,
-            self.context.calc_date,
-            pair.correlation_window + 60
+            pair.hedge_asset, self.context.calc_date, pair.correlation_window + 60
         )
 
         if not long_prices or not hedge_prices:
             return 0.5, {"method": "default", "reason": "Insufficient data"}
 
         # Use recent prices
-        long_prices_window = long_prices[-pair.correlation_window:]
-        hedge_prices_window = hedge_prices[-pair.correlation_window:]
+        long_prices_window = long_prices[-pair.correlation_window :]
+        hedge_prices_window = hedge_prices[-pair.correlation_window :]
 
         if pair.hedge_method == HedgeMethod.BETA:
             return self._calculate_beta_hedge_ratio(
-                long_prices_window,
-                hedge_prices_window,
-                pair.beta_target
+                long_prices_window, hedge_prices_window, pair.beta_target
             )
 
         elif pair.hedge_method == HedgeMethod.MIN_VARIANCE:
-            return self._calculate_min_variance_hedge_ratio(
-                long_prices_window,
-                hedge_prices_window
-            )
+            return self._calculate_min_variance_hedge_ratio(long_prices_window, hedge_prices_window)
 
         elif pair.hedge_method == HedgeMethod.EQUAL_RISK:
-            return self._calculate_equal_risk_hedge_ratio(
-                long_prices_window,
-                hedge_prices_window
-            )
+            return self._calculate_equal_risk_hedge_ratio(long_prices_window, hedge_prices_window)
 
         elif pair.hedge_method == HedgeMethod.DOLLAR_NEUTRAL:
-            return self._calculate_dollar_neutral_ratio(
-                long_prices_window,
-                hedge_prices_window
-            )
+            return self._calculate_dollar_neutral_ratio(long_prices_window, hedge_prices_window)
 
         else:  # FIXED_RATIO or default
             return pair.target_hedge_weight / pair.target_long_weight, {
                 "method": "fixed",
-                "ratio": pair.target_hedge_weight / pair.target_long_weight
+                "ratio": pair.target_hedge_weight / pair.target_long_weight,
             }
 
     def _calculate_beta_hedge_ratio(
-        self,
-        long_prices: list[float],
-        hedge_prices: list[float],
-        beta_target: float | None = None
+        self, long_prices: list[float], hedge_prices: list[float], beta_target: float | None = None
     ) -> tuple[float, dict[str, object]]:
         """Calculate beta-based hedge ratio"""
-        beta = self.correlation_calculator.calculate_beta(
-            long_prices,
-            hedge_prices
-        )
+        beta = self.correlation_calculator.calculate_beta(long_prices, hedge_prices)
 
         if beta_target is not None:
             # Target a specific beta
@@ -398,9 +346,7 @@ class HedgeRatioCalculator:
         }
 
     def _calculate_min_variance_hedge_ratio(
-        self,
-        long_prices: list[float],
-        hedge_prices: list[float]
+        self, long_prices: list[float], hedge_prices: list[float]
     ) -> tuple[float, dict[str, object]]:
         """
         Calculate minimum variance hedge ratio.
@@ -445,9 +391,7 @@ class HedgeRatioCalculator:
         }
 
     def _calculate_equal_risk_hedge_ratio(
-        self,
-        long_prices: list[float],
-        hedge_prices: list[float]
+        self, long_prices: list[float], hedge_prices: list[float]
     ) -> tuple[float, dict[str, object]]:
         """
         Calculate equal risk contribution hedge ratio.
@@ -480,9 +424,7 @@ class HedgeRatioCalculator:
         }
 
     def _calculate_dollar_neutral_ratio(
-        self,
-        long_prices: list[float],
-        hedge_prices: list[float]
+        self, long_prices: list[float], hedge_prices: list[float]
     ) -> tuple[float, dict[str, object]]:
         """
         Calculate dollar neutral hedge ratio.
@@ -541,10 +483,7 @@ class HedgePortfolioService:
         self.correlation_monitor = CorrelationMonitor(context)
         self.hedge_calculator = HedgeRatioCalculator(context)
 
-    def update_hedge_portfolio(
-        self,
-        pair: HedgePair
-    ) -> HedgePortfolio | None:
+    def update_hedge_portfolio(self, pair: HedgePair) -> HedgePortfolio | None:
         """
         Update hedge portfolio state for a given pair.
 
@@ -559,9 +498,7 @@ class HedgePortfolioService:
 
         # Calculate correlation metrics
         correlation_metric = self.correlation_monitor.calculate_correlation(
-            pair.long_asset,
-            pair.hedge_asset,
-            pair.correlation_window
+            pair.long_asset, pair.hedge_asset, pair.correlation_window
         )
 
         if correlation_metric is None:
@@ -602,35 +539,24 @@ class HedgePortfolioService:
         )
 
     def get_correlation_matrix(
-        self,
-        asset_codes: list[str],
-        window_days: int = 60
+        self, asset_codes: list[str], window_days: int = 60
     ) -> dict[str, dict[str, float]]:
         """Get correlation matrix for specified assets"""
-        return self.correlation_monitor.calculate_correlation_matrix(
-            asset_codes, window_days
-        )
+        return self.correlation_monitor.calculate_correlation_matrix(asset_codes, window_days)
 
-    def check_hedge_effectiveness(
-        self,
-        pair: HedgePair
-    ) -> dict[str, object]:
+    def check_hedge_effectiveness(self, pair: HedgePair) -> HedgeEffectiveness | None:
         """
         Check effectiveness of a hedge pair.
 
         Returns:
-            Dictionary with effectiveness metrics
+            Calculated effectiveness, or ``None`` when correlation is unavailable.
         """
         metric = self.correlation_monitor.calculate_correlation(
-            pair.long_asset,
-            pair.hedge_asset,
-            pair.correlation_window
+            pair.long_asset, pair.hedge_asset, pair.correlation_window
         )
 
         if metric is None:
-            return {
-                "error": "Unable to calculate correlation"
-            }
+            return None
 
         hedge_ratio, details = self.hedge_calculator.calculate_hedge_ratio(pair)
 
@@ -646,17 +572,21 @@ class HedgePortfolioService:
         else:
             rating = "较差"
 
-        return {
-            "pair_name": pair.name,
-            "correlation": round(metric.correlation, 3),
-            "beta": round(metric.beta, 3),
-            "hedge_ratio": round(hedge_ratio, 3),
-            "hedge_method": details.get("method", "unknown"),
-            "effectiveness": round(effectiveness, 2),
-            "rating": rating,
-            "trend": metric.correlation_trend,
-            "recommendation": self._get_recommendation(effectiveness, metric.correlation, pair),
-        }
+        return HedgeEffectiveness(
+            pair_name=pair.name,
+            correlation=round(metric.correlation, 3),
+            beta=round(metric.beta, 3),
+            hedge_ratio=round(hedge_ratio, 3),
+            hedge_method=str(details.get("method", "unknown")),
+            effectiveness=round(effectiveness, 2),
+            rating=rating,
+            trend=metric.correlation_trend,
+            recommendation=self._get_recommendation(
+                effectiveness,
+                metric.correlation,
+                pair,
+            ),
+        )
 
     def _calculate_effectiveness(self, correlation: float) -> float:
         """Calculate hedge effectiveness from correlation"""
@@ -664,12 +594,7 @@ class HedgePortfolioService:
         # Perfect negative correlation (-1) = 100% effective
         return abs(correlation)
 
-    def _get_recommendation(
-        self,
-        effectiveness: float,
-        correlation: float,
-        pair: HedgePair
-    ) -> str:
+    def _get_recommendation(self, effectiveness: float, correlation: float, pair: HedgePair) -> str:
         """Get recommendation based on effectiveness"""
         if effectiveness < 0.3:
             return "对冲效果较差，建议更换对冲标的或调整策略"

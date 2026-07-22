@@ -10,7 +10,7 @@ from collections.abc import Callable
 from datetime import date, timedelta
 from typing import Any, Literal, Protocol, TypedDict, cast
 
-from apps.hedge.domain.entities import HedgeAlert
+from apps.hedge.domain.entities import HedgeAlert, HedgeEffectiveness
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.repository_provider import UnifiedSignalRepository
 from core.integration.unified_signal_registry import fetch_alpha_scores, get_factor_service
@@ -119,7 +119,7 @@ class HedgeSignalService(Protocol):
         calc_date: date | None = None,
         *,
         cache_price_reads: bool = True,
-    ) -> list[SignalPayload]: ...
+    ) -> list[HedgeEffectiveness]: ...
 
 
 # Optional imports for rotation, factor, hedge modules
@@ -220,9 +220,7 @@ class UnifiedSignalService:
             logger.error("Error collecting %s signals: %s", module_name, e)
             return [], f"{module_name.capitalize()}: {str(e)}"
 
-    def collect_all_signals(
-        self, calc_date: date | None = None
-    ) -> UnifiedSignalCollectionResult:
+    def collect_all_signals(self, calc_date: date | None = None) -> UnifiedSignalCollectionResult:
         """
         收集所有模块的信号
 
@@ -443,8 +441,8 @@ class UnifiedSignalService:
         effectiveness_results = self.hedge_service.get_all_effectiveness(calc_date) or []
 
         for result in effectiveness_results:
-            effectiveness = float(result.get("effectiveness", 0))
-            pair_name = str(result.get("pair_name", ""))
+            effectiveness = result.effectiveness
+            pair_name = result.pair_name
 
             # 低有效性告警
             if effectiveness < 0.4:
@@ -453,13 +451,13 @@ class UnifiedSignalService:
                     signal_source="hedge",
                     signal_type="alert",
                     asset_code=pair_name,
-                    reason=f"对冲有效性较低 ({effectiveness:.2%}): {result.get('recommendation', '')}",
+                    reason=(f"对冲有效性较低 ({effectiveness:.2%}): " f"{result.recommendation}"),
                     priority=7,
-                    action_required=result.get("recommendation", ""),
+                    action_required=result.recommendation,
                     extra_data={
                         "effectiveness": effectiveness,
-                        "rating": result.get("rating"),
-                        "correlation": result.get("correlation"),
+                        "rating": result.rating,
+                        "correlation": result.correlation,
                     },
                 )
                 signals.append(signal)
@@ -530,9 +528,7 @@ class UnifiedSignalService:
 
         return signals
 
-    def _get_regime_allocation(
-        self, regime_type: str
-    ) -> dict[str, AllocationRecommendation]:
+    def _get_regime_allocation(self, regime_type: str) -> dict[str, AllocationRecommendation]:
         """
         根据宏观象限获取建议配置
 
@@ -596,11 +592,7 @@ class UnifiedSignalService:
         signals = self.unified_repo.get_signals_by_date(
             signal_date=signal_date, signal_source=signal_source
         )
-        return [
-            signal
-            for signal in signals
-            if int(signal.get("priority", 0)) >= min_priority
-        ]
+        return [signal for signal in signals if int(signal.get("priority", 0)) >= min_priority]
 
     def get_signal_summary(
         self,

@@ -6,6 +6,7 @@ Provides clean separation between domain logic and data persistence.
 """
 
 from datetime import date
+from typing import TypeVar
 
 from django.db.models import QuerySet
 from django.utils import timezone
@@ -14,6 +15,7 @@ from apps.hedge.domain.entities import (
     CorrelationMetric,
     HedgeAlert,
     HedgePair,
+    HedgePerformance,
     HedgePortfolio,
 )
 from apps.hedge.infrastructure.models import (
@@ -24,8 +26,14 @@ from apps.hedge.infrastructure.models import (
     HedgePortfolioSnapshotModel,
 )
 
+DomainEntityT = TypeVar("DomainEntityT")
 
-def _attach_domain_meta(entity, model, fields: tuple[str, ...]):
+
+def _attach_domain_meta(
+    entity: DomainEntityT,
+    model: object,
+    fields: tuple[str, ...],
+) -> DomainEntityT:
     """Attach persistence metadata (e.g. id/timestamps) to frozen domain entities."""
     for field in fields:
         if hasattr(model, field):
@@ -74,8 +82,7 @@ class HedgePairRepository:
         """Get hedge pair by asset codes"""
         try:
             model = HedgePairModel._default_manager.get(
-                long_asset=long_asset,
-                hedge_asset=hedge_asset
+                long_asset=long_asset, hedge_asset=hedge_asset
             )
             return _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
         except HedgePairModel.DoesNotExist:
@@ -140,17 +147,16 @@ class CorrelationHistoryRepository:
         return CorrelationHistoryModel._default_manager.all()
 
     def get_latest(
-        self,
-        asset1: str,
-        asset2: str,
-        window_days: int = 60
+        self, asset1: str, asset2: str, window_days: int = 60
     ) -> CorrelationMetric | None:
         """Get latest correlation metric for a pair"""
-        model = CorrelationHistoryModel._default_manager.filter(
-            asset1=asset1,
-            asset2=asset2,
-            window_days=window_days
-        ).order_by('-calc_date').first()
+        model = (
+            CorrelationHistoryModel._default_manager.filter(
+                asset1=asset1, asset2=asset2, window_days=window_days
+            )
+            .order_by("-calc_date")
+            .first()
+        )
 
         if model:
             return model.to_domain()
@@ -162,20 +168,17 @@ class CorrelationHistoryRepository:
         asset2: str,
         start_date: date,
         end_date: date | None = None,
-        window_days: int = 60
+        window_days: int = 60,
     ) -> list[CorrelationMetric]:
         """Get correlation history for a date range"""
         queryset = CorrelationHistoryModel._default_manager.filter(
-            asset1=asset1,
-            asset2=asset2,
-            window_days=window_days,
-            calc_date__gte=start_date
+            asset1=asset1, asset2=asset2, window_days=window_days, calc_date__gte=start_date
         )
 
         if end_date:
             queryset = queryset.filter(calc_date__lte=end_date)
 
-        return [model.to_domain() for model in queryset.order_by('calc_date')]
+        return [model.to_domain() for model in queryset.order_by("calc_date")]
 
     def save(self, metric: CorrelationMetric) -> CorrelationMetric:
         """Save correlation metric"""
@@ -185,10 +188,10 @@ class CorrelationHistoryRepository:
             calc_date=metric.calc_date,
             window_days=metric.window_days,
             defaults={
-                'correlation': metric.correlation,
-                'covariance': metric.covariance,
-                'beta': metric.beta,
-            }
+                "correlation": metric.correlation,
+                "covariance": metric.covariance,
+                "beta": metric.beta,
+            },
         )
 
         if not created:
@@ -199,19 +202,15 @@ class CorrelationHistoryRepository:
 
         return model.to_domain()
 
-    def get_all_recent(
-        self,
-        days: int = 30,
-        window_days: int = 60
-    ) -> list[CorrelationMetric]:
+    def get_all_recent(self, days: int = 30, window_days: int = 60) -> list[CorrelationMetric]:
         """Get all recent correlation metrics"""
         from datetime import timedelta
+
         cutoff_date = date.today() - timedelta(days=days)
 
         queryset = CorrelationHistoryModel._default_manager.filter(
-            calc_date__gte=cutoff_date,
-            window_days=window_days
-        ).order_by('-calc_date')
+            calc_date__gte=cutoff_date, window_days=window_days
+        ).order_by("-calc_date")
 
         return [model.to_domain() for model in queryset]
 
@@ -221,7 +220,7 @@ class HedgePortfolioRepository:
 
     def get_queryset(self) -> QuerySet[HedgePortfolioSnapshotModel]:
         """Return the ORM queryset for portfolio snapshots."""
-        return HedgePortfolioSnapshotModel._default_manager.select_related('pair').all()
+        return HedgePortfolioSnapshotModel._default_manager.select_related("pair").all()
 
     def save_portfolio(self, portfolio: HedgePortfolio) -> HedgePortfolio:
         """Save hedge portfolio state"""
@@ -230,23 +229,23 @@ class HedgePortfolioRepository:
             raise ValueError(f"Hedge pair not found: {portfolio.pair_name}")
 
         portfolio_values = {
-            'long_weight': portfolio.long_weight,
-            'hedge_weight': portfolio.hedge_weight,
-            'hedge_ratio': portfolio.hedge_ratio,
-            'target_hedge_ratio': portfolio.target_hedge_ratio,
-            'current_correlation': portfolio.current_correlation,
-            'correlation_20d': portfolio.correlation_20d,
-            'correlation_60d': portfolio.correlation_60d,
-            'portfolio_beta': portfolio.portfolio_beta,
-            'portfolio_volatility': portfolio.portfolio_volatility,
-            'hedge_effectiveness': portfolio.hedge_effectiveness,
-            'daily_return': portfolio.daily_return,
-            'unhedged_return': portfolio.unhedged_return,
-            'hedge_return': portfolio.hedge_return,
-            'value_at_risk': portfolio.value_at_risk,
-            'max_drawdown': portfolio.max_drawdown,
-            'rebalance_needed': portfolio.rebalance_needed,
-            'rebalance_reason': portfolio.rebalance_reason,
+            "long_weight": portfolio.long_weight,
+            "hedge_weight": portfolio.hedge_weight,
+            "hedge_ratio": portfolio.hedge_ratio,
+            "target_hedge_ratio": portfolio.target_hedge_ratio,
+            "current_correlation": portfolio.current_correlation,
+            "correlation_20d": portfolio.correlation_20d,
+            "correlation_60d": portfolio.correlation_60d,
+            "portfolio_beta": portfolio.portfolio_beta,
+            "portfolio_volatility": portfolio.portfolio_volatility,
+            "hedge_effectiveness": portfolio.hedge_effectiveness,
+            "daily_return": portfolio.daily_return,
+            "unhedged_return": portfolio.unhedged_return,
+            "hedge_return": portfolio.hedge_return,
+            "value_at_risk": portfolio.value_at_risk,
+            "max_drawdown": portfolio.max_drawdown,
+            "rebalance_needed": portfolio.rebalance_needed,
+            "rebalance_reason": portfolio.rebalance_reason,
         }
 
         model, created = HedgePortfolioSnapshotModel._default_manager.get_or_create(
@@ -264,37 +263,32 @@ class HedgePortfolioRepository:
 
     def get_latest_portfolio(self, pair_name: str) -> HedgePortfolio | None:
         """Get latest portfolio state for a pair"""
-        model = HedgePortfolioSnapshotModel._default_manager.filter(
-            pair__name=pair_name
-        ).order_by('-trade_date').first()
+        model = (
+            HedgePortfolioSnapshotModel._default_manager.filter(pair__name=pair_name)
+            .order_by("-trade_date")
+            .first()
+        )
 
         if model:
             return model.to_domain()
         return None
 
     def get_portfolio_history(
-        self,
-        pair_name: str,
-        start_date: date,
-        end_date: date | None = None
+        self, pair_name: str, start_date: date, end_date: date | None = None
     ) -> list[HedgePortfolio]:
         """Get portfolio history for a date range"""
         queryset = HedgePortfolioSnapshotModel._default_manager.filter(
-            pair__name=pair_name,
-            trade_date__gte=start_date
+            pair__name=pair_name, trade_date__gte=start_date
         )
 
         if end_date:
             queryset = queryset.filter(trade_date__lte=end_date)
 
-        return [model.to_domain() for model in queryset.order_by('trade_date')]
+        return [model.to_domain() for model in queryset.order_by("trade_date")]
 
     def get_recent_snapshots(
-        self,
-        pair_name: str | None = None,
-        rebalance_needed: bool | None = None,
-        limit: int = 50
-    ) -> list[dict]:
+        self, pair_name: str | None = None, rebalance_needed: bool | None = None, limit: int = 50
+    ) -> list[dict[str, object]]:
         """
         Get recent snapshots with filtering.
         Returns dict representations for view rendering.
@@ -306,32 +300,32 @@ class HedgePortfolioRepository:
         if rebalance_needed is not None:
             queryset = queryset.filter(rebalance_needed=rebalance_needed)
 
-        snapshots = queryset.order_by('-trade_date', '-created_at')[:limit]
+        snapshots = queryset.order_by("-trade_date", "-created_at")[:limit]
 
         return [
             {
-                'id': s.id,
-                'pair_name': s.pair.name if s.pair else 'Unknown',
-                'pair_id': s.pair_id,
-                'trade_date': s.trade_date,
-                'long_weight': round(s.long_weight * 100, 2),
-                'hedge_weight': round(s.hedge_weight * 100, 2),
-                'hedge_ratio': round(s.hedge_ratio, 3),
-                'target_hedge_ratio': round(s.target_hedge_ratio, 3),
-                'current_correlation': round(s.current_correlation, 4),
-                'correlation_20d': round(s.correlation_20d, 4),
-                'correlation_60d': round(s.correlation_60d, 4),
-                'portfolio_beta': round(s.portfolio_beta, 3),
-                'portfolio_volatility': round(s.portfolio_volatility * 100, 2),
-                'hedge_effectiveness': round(s.hedge_effectiveness * 100, 1),
-                'daily_return': round(s.daily_return * 100, 3),
-                'unhedged_return': round(s.unhedged_return * 100, 3),
-                'hedge_return': round(s.hedge_return * 100, 3),
-                'value_at_risk': round(s.value_at_risk * 100, 2),
-                'max_drawdown': round(s.max_drawdown * 100, 2),
-                'rebalance_needed': s.rebalance_needed,
-                'rebalance_reason': s.rebalance_reason,
-                'created_at': s.created_at,
+                "id": s.id,
+                "pair_name": s.pair.name if s.pair else "Unknown",
+                "pair_id": s.pair_id,
+                "trade_date": s.trade_date,
+                "long_weight": round(s.long_weight * 100, 2),
+                "hedge_weight": round(s.hedge_weight * 100, 2),
+                "hedge_ratio": round(s.hedge_ratio, 3),
+                "target_hedge_ratio": round(s.target_hedge_ratio, 3),
+                "current_correlation": round(s.current_correlation, 4),
+                "correlation_20d": round(s.correlation_20d, 4),
+                "correlation_60d": round(s.correlation_60d, 4),
+                "portfolio_beta": round(s.portfolio_beta, 3),
+                "portfolio_volatility": round(s.portfolio_volatility * 100, 2),
+                "hedge_effectiveness": round(s.hedge_effectiveness * 100, 1),
+                "daily_return": round(s.daily_return * 100, 3),
+                "unhedged_return": round(s.unhedged_return * 100, 3),
+                "hedge_return": round(s.hedge_return * 100, 3),
+                "value_at_risk": round(s.value_at_risk * 100, 2),
+                "max_drawdown": round(s.max_drawdown * 100, 2),
+                "rebalance_needed": s.rebalance_needed,
+                "rebalance_reason": s.rebalance_reason,
+                "created_at": s.created_at,
             }
             for s in snapshots
         ]
@@ -343,14 +337,14 @@ class HedgePortfolioRepository:
         rebalance_needed = HedgePortfolioSnapshotModel._default_manager.filter(
             rebalance_needed=True
         ).count()
-        unique_pairs = HedgePortfolioSnapshotModel._default_manager.values(
-            'pair__name'
-        ).distinct().count()
+        unique_pairs = (
+            HedgePortfolioSnapshotModel._default_manager.values("pair__name").distinct().count()
+        )
 
         return {
-            'total_snapshots': total,
-            'rebalance_needed': rebalance_needed,
-            'unique_pairs': unique_pairs,
+            "total_snapshots": total,
+            "rebalance_needed": rebalance_needed,
+            "unique_pairs": unique_pairs,
         }
 
 
@@ -373,28 +367,28 @@ class HedgeAlertRepository:
 
         return [
             _attach_domain_meta(model.to_domain(), model, ("id", "created_at"))
-            for model in queryset.order_by('-alert_date')
+            for model in queryset.order_by("-alert_date")
         ]
 
     def get_recent_alerts(
         self,
         days: int = 7,
-        pair_name: str | None = None
+        pair_name: str | None = None,
+        is_resolved: bool | None = None,
     ) -> list[HedgeAlert]:
         """Get alerts from recent days"""
         from datetime import timedelta
+
         cutoff_date = date.today() - timedelta(days=days)
 
-        queryset = HedgeAlertModel._default_manager.filter(
-            alert_date__gte=cutoff_date
-        )
+        queryset = self.get_queryset(is_resolved=is_resolved).filter(alert_date__gte=cutoff_date)
 
         if pair_name:
             queryset = queryset.filter(pair_name=pair_name)
 
         return [
             _attach_domain_meta(model.to_domain(), model, ("id", "created_at"))
-            for model in queryset.order_by('-alert_date')
+            for model in queryset.order_by("-alert_date")
         ]
 
     def save_alert(self, alert: HedgeAlert) -> HedgeAlert:
@@ -431,55 +425,38 @@ class HedgePerformanceRepository:
 
     def save_performance(
         self,
-        pair_name: str,
-        trade_date: date,
-        returns: float,
-        volatility: float,
-        sharpe_ratio: float,
-        max_drawdown: float,
-        hedge_effectiveness: float
-    ) -> None:
+        performance: HedgePerformance,
+    ) -> HedgePerformance:
         """Save performance metrics"""
-        pair_model = HedgePairModel._default_manager.filter(name=pair_name).first()
-        if not pair_model:
-            raise ValueError(f"Hedge pair not found: {pair_name}")
-
-        HedgePerformanceModel._default_manager.update_or_create(
-            pair=pair_model,
-            trade_date=trade_date,
+        model, _created = HedgePerformanceModel._default_manager.update_or_create(
+            pair_name=performance.pair_name,
+            period_start=performance.period_start,
+            period_end=performance.period_end,
             defaults={
-                'daily_return': returns,
-                'cumulative_return': returns,  # Would be calculated differently in practice
-                'volatility': volatility,
-                'sharpe_ratio': sharpe_ratio,
-                'max_drawdown': max_drawdown,
-                'hedge_effectiveness': hedge_effectiveness,
-            }
+                "total_return": performance.total_return,
+                "annual_return": performance.annual_return,
+                "sharpe_ratio": performance.sharpe_ratio,
+                "volatility_reduction": performance.volatility_reduction,
+                "drawdown_reduction": performance.drawdown_reduction,
+                "hedge_effectiveness": performance.hedge_effectiveness,
+                "hedge_cost": performance.hedge_cost,
+                "cost_benefit_ratio": performance.cost_benefit_ratio,
+                "avg_correlation": performance.avg_correlation,
+                "correlation_stability": performance.correlation_stability,
+            },
         )
+        return model.to_domain()
 
     def get_performance_history(
-        self,
-        pair_name: str,
-        start_date: date,
-        end_date: date | None = None
-    ) -> list[dict]:
+        self, pair_name: str, start_date: date, end_date: date | None = None
+    ) -> list[HedgePerformance]:
         """Get performance history for a pair"""
         queryset = HedgePerformanceModel._default_manager.filter(
-            pair__name=pair_name,
-            trade_date__gte=start_date
+            pair_name=pair_name,
+            period_end__gte=start_date,
         )
 
         if end_date:
-            queryset = queryset.filter(trade_date__lte=end_date)
+            queryset = queryset.filter(period_start__lte=end_date)
 
-        return [
-            {
-                'trade_date': p.trade_date,
-                'daily_return': float(p.daily_return),
-                'volatility': float(p.volatility),
-                'sharpe_ratio': float(p.sharpe_ratio),
-                'max_drawdown': float(p.max_drawdown),
-                'hedge_effectiveness': float(p.hedge_effectiveness),
-            }
-            for p in queryset.order_by('trade_date')
-        ]
+        return [model.to_domain() for model in queryset.order_by("period_start")]

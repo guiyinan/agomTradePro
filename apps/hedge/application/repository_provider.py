@@ -8,7 +8,7 @@ from apps.hedge.infrastructure.providers import (
     HedgePairRepository,
     HedgePortfolioRepository,
 )
-from apps.hedge.infrastructure.services import HedgeIntegrationService
+from apps.hedge.infrastructure.services import HedgeIntegrationService as HedgeIntegrationService
 
 
 def get_hedge_pair_repository() -> HedgePairRepository:

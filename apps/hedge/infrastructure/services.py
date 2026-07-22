@@ -5,12 +5,15 @@ Integration service that coordinates data fetching, domain services,
 and persistence for hedge portfolio management.
 """
 
-from datetime import date
+import math
+from datetime import date, timedelta
 
 from apps.hedge.domain.entities import (
     CorrelationMetric,
     HedgeAlert,
+    HedgeEffectiveness,
     HedgePair,
+    HedgePerformance,
     HedgePortfolio,
 )
 from apps.hedge.domain.services import (
@@ -37,7 +40,7 @@ class HedgeIntegrationService:
     external dependencies (database, APIs).
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.pair_repo = HedgePairRepository()
         self.correlation_repo = CorrelationHistoryRepository()
         self.portfolio_repo = HedgePortfolioRepository()
@@ -231,7 +234,7 @@ class HedgeIntegrationService:
         calc_date: date | None = None,
         *,
         cache_price_reads: bool = True,
-    ) -> dict | None:
+    ) -> HedgeEffectiveness | None:
         """
         Check effectiveness of a hedge pair.
 
@@ -240,7 +243,7 @@ class HedgeIntegrationService:
             calc_date: Calculation date
 
         Returns:
-            Dictionary with effectiveness metrics
+            Calculated effectiveness, or ``None`` when it cannot be calculated.
         """
         if calc_date is None:
             calc_date = date.today()
@@ -262,12 +265,12 @@ class HedgeIntegrationService:
         calc_date: date | None = None,
         *,
         cache_price_reads: bool = True,
-    ) -> list[dict]:
+    ) -> list[HedgeEffectiveness]:
         """Get effectiveness for all active hedge pairs"""
         if calc_date is None:
             calc_date = date.today()
 
-        results = []
+        results: list[HedgeEffectiveness] = []
         pairs = self.pair_repo.get_all(active_only=True)
 
         for pair in pairs:
@@ -287,7 +290,7 @@ class HedgeIntegrationService:
 
     def calculate_hedge_ratio(
         self, pair_name: str, calc_date: date | None = None
-    ) -> tuple[float, dict] | None:
+    ) -> tuple[float, dict[str, object]] | None:
         """
         Calculate optimal hedge ratio for a pair.
 
@@ -330,7 +333,11 @@ class HedgeIntegrationService:
     # Performance Tracking
     # ========================================================================
 
-    def calculate_performance(self, pair_name: str, calc_date: date | None = None) -> dict | None:
+    def calculate_performance(
+        self,
+        pair_name: str,
+        calc_date: date | None = None,
+    ) -> HedgePerformance | None:
         """
         Calculate performance metrics for a hedge pair.
 
@@ -339,7 +346,7 @@ class HedgeIntegrationService:
             calc_date: Calculation date
 
         Returns:
-            Performance metrics
+            Persisted performance metrics, or ``None`` when input data is unavailable.
         """
         if calc_date is None:
             calc_date = date.today()
@@ -361,37 +368,61 @@ class HedgeIntegrationService:
         portfolio_returns = self._calculate_portfolio_returns(
             long_prices, hedge_prices, pair.target_long_weight, pair.target_hedge_weight
         )
+        if not portfolio_returns:
+            return None
 
-        volatility = self._calculate_volatility(portfolio_returns)
         sharpe_ratio = self._calculate_sharpe_ratio(portfolio_returns)
-        max_drawdown = self._calculate_max_drawdown(portfolio_returns)
+        total_return = math.prod(1.0 + value for value in portfolio_returns) - 1.0
+        growth_factor = 1.0 + total_return
+        annual_return = (
+            growth_factor ** (252 / len(portfolio_returns)) - 1.0 if growth_factor > 0 else -1.0
+        )
+
+        long_returns = self._calculate_returns(long_prices)
+        portfolio_volatility = self._calculate_volatility(portfolio_returns)
+        long_volatility = self._calculate_volatility(long_returns)
+        volatility_reduction = self._calculate_reduction(
+            baseline=long_volatility,
+            hedged=portfolio_volatility,
+        )
+        drawdown_reduction = self._calculate_reduction(
+            baseline=self._calculate_max_drawdown(long_returns),
+            hedged=self._calculate_max_drawdown(portfolio_returns),
+        )
 
         # Get hedge effectiveness
         effectiveness_result = self.check_hedge_effectiveness(pair_name, calc_date)
-        hedge_effectiveness = (
-            effectiveness_result.get("effectiveness", 0) if effectiveness_result else 0
+        hedge_effectiveness = effectiveness_result.effectiveness if effectiveness_result else 0.0
+
+        correlation = CorrelationMonitor(context).calculate_correlation(
+            pair.long_asset,
+            pair.hedge_asset,
+            pair.correlation_window,
+        )
+        avg_correlation = correlation.correlation if correlation else 0.0
+        correlation_stability = (
+            max(0.0, 1.0 - abs(correlation.correlation - correlation.correlation_ma))
+            if correlation
+            else 0.0
         )
 
-        # Save to database
-        self.performance_repo.save_performance(
+        performance = HedgePerformance(
             pair_name=pair_name,
-            trade_date=calc_date,
-            returns=portfolio_returns[-1] if portfolio_returns else 0,
-            volatility=volatility,
+            period_start=calc_date - timedelta(days=len(portfolio_returns)),
+            period_end=calc_date,
+            total_return=total_return,
+            annual_return=annual_return,
             sharpe_ratio=sharpe_ratio,
-            max_drawdown=max_drawdown,
+            volatility_reduction=volatility_reduction,
+            drawdown_reduction=drawdown_reduction,
             hedge_effectiveness=hedge_effectiveness,
+            hedge_cost=0.0,
+            cost_benefit_ratio=0.0,
+            avg_correlation=avg_correlation,
+            correlation_stability=correlation_stability,
         )
 
-        return {
-            "pair_name": pair_name,
-            "trade_date": calc_date,
-            "daily_return": portfolio_returns[-1] if portfolio_returns else 0,
-            "volatility": volatility,
-            "sharpe_ratio": sharpe_ratio,
-            "max_drawdown": max_drawdown,
-            "hedge_effectiveness": hedge_effectiveness,
-        }
+        return self.performance_repo.save_performance(performance)
 
     def _calculate_portfolio_returns(
         self,
@@ -404,10 +435,19 @@ class HedgeIntegrationService:
         if not long_prices or not hedge_prices or len(long_prices) < 2:
             return []
 
-        returns = []
-        for i in range(1, len(long_prices)):
-            long_ret = (long_prices[i] - long_prices[i - 1]) / long_prices[i - 1]
-            hedge_ret = (hedge_prices[i] - hedge_prices[i - 1]) / hedge_prices[i - 1]
+        returns: list[float] = []
+        periods = zip(
+            long_prices,
+            long_prices[1:],
+            hedge_prices,
+            hedge_prices[1:],
+            strict=False,
+        )
+        for long_previous, long_current, hedge_previous, hedge_current in periods:
+            if long_previous == 0 or hedge_previous == 0:
+                continue
+            long_ret = (long_current - long_previous) / long_previous
+            hedge_ret = (hedge_current - hedge_previous) / hedge_previous
 
             portfolio_ret = long_ret * long_weight + hedge_ret * hedge_weight
             returns.append(portfolio_ret)
@@ -418,8 +458,6 @@ class HedgeIntegrationService:
         """Calculate annualized volatility"""
         if not returns:
             return 0.0
-
-        import math
 
         mean_ret = sum(returns) / len(returns)
         variance = sum((r - mean_ret) ** 2 for r in returns) / len(returns)
@@ -461,6 +499,23 @@ class HedgeIntegrationService:
                 max_dd = drawdown
 
         return max_dd
+
+    def _calculate_returns(self, prices: list[float]) -> list[float]:
+        """Calculate simple returns while rejecting zero denominators."""
+
+        return [
+            (current - previous) / previous
+            for previous, current in zip(prices, prices[1:], strict=False)
+            if previous != 0
+        ]
+
+    @staticmethod
+    def _calculate_reduction(*, baseline: float, hedged: float) -> float:
+        """Return proportional risk reduction relative to an unhedged baseline."""
+
+        if baseline <= 0:
+            return 0.0
+        return (baseline - hedged) / baseline
 
     # ========================================================================
     # Configuration Management

@@ -720,3 +720,17 @@
 
 - Policy RSS UseCase 与 Domain Rules 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7135 errors / 858 files` 收紧为 `7119 errors / 856 files`，净减少 `16 errors / 2 files`，并连带清除 Policy Application service 2 项参数/赋值债务。
 - RSS 两阶段落库、逻辑护栏、Policy workbench integration 与模块结构回归共 `34 passed`；Django system check、架构增量门禁 `0 violations`、Ruff、Black、diff check 通过。
+
+## 第五十六批
+
+- 按“高风险返回契约 + 公共 Repository 杠杆”纵向收口 Hedge：`check_hedge_effectiveness()` 不再用正常/错误两种不兼容的动态字典表达结果，统一返回不可变 `HedgeEffectiveness | None`；Application、Signal 聚合与 API 序列化边界改用显式字段契约。
+- Hedge View UseCase 以消费侧 Protocol 固定 pair、correlation、snapshot 与 alert 仓储最小表面；已解决告警筛选不再固定返回空列表，而是由 repository 按 `is_resolved` 真正查询。
+- 补齐 `CorrelationHistoryModel.to_domain()`、全部 Hedge ORM 转换和字符串方法类型。未知持久化告警类型改为 `HedgeAlertType.UNKNOWN`，不再错误映射为“相关性失效”。
+- 修复 `HedgePerformanceRepository` 使用不存在的 `pair/trade_date/daily_return/volatility/max_drawdown` 字段所导致的必现 `FieldError`；Integration Service 现在构造并持久化与真实模型一致的 `HedgePerformance`，包括期间收益、风险降低、有效性和相关性指标；错位或含零前值的价格序列按共同有效区间计算，不再触发索引或除零异常。
+
+## 第五十六批验证结果
+
+- 9 个变更生产文件的增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7119 errors / 856 files` 收紧为 `7021 errors / 849 files`，净减少 `98 errors / 7 files`，并连带清除 Hedge Interface View 的 3 项未类型调用。
+- Hedge 领域、Application、API 与持久化回归共 `99 passed`；Unified Signal 契约传播回归 `4 passed`；Django system check、架构边界 `0 violations`、模块循环回归 `5 passed`，Ruff、Black、diff check 通过。
+- 完整架构审计仍报告 11 条既存 audit 债务（4 条共享 Admin import、7 条 Realtime repository provider import），与本批变更无关；普通强制边界规则保持通过。
+- Governance consistency 仍报告 2 条既存大文件债务（AI Capability use cases 与 Simulated Trading repository 超过 1200 非空行且未进入允许基线），与本批变更无关。

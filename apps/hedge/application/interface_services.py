@@ -29,6 +29,7 @@ from apps.hedge.application.use_cases import (
     ResolveHedgeAlertResponse,
     ResolveHedgeAlertUseCase,
 )
+from apps.hedge.domain.entities import HedgeEffectiveness
 
 HEDGE_METHOD_CHOICES = [
     ("beta", "Beta对冲"),
@@ -45,25 +46,43 @@ def _get_integration_service() -> HedgeIntegrationService:
     return get_hedge_integration_service()
 
 
-def get_hedge_pair_queryset():
+def _serialize_effectiveness(
+    effectiveness: HedgeEffectiveness,
+) -> dict[str, Any]:
+    """Serialize a hedge-effectiveness domain result at the interface boundary."""
+
+    return {
+        "pair_name": effectiveness.pair_name,
+        "correlation": effectiveness.correlation,
+        "beta": effectiveness.beta,
+        "hedge_ratio": effectiveness.hedge_ratio,
+        "hedge_method": effectiveness.hedge_method,
+        "effectiveness": effectiveness.effectiveness,
+        "rating": effectiveness.rating,
+        "trend": effectiveness.trend,
+        "recommendation": effectiveness.recommendation,
+    }
+
+
+def get_hedge_pair_queryset() -> Any:
     """Return the hedge pair queryset for DRF viewsets."""
 
     return get_hedge_pair_repository().get_queryset()
 
 
-def get_correlation_history_queryset():
+def get_correlation_history_queryset() -> Any:
     """Return the correlation history queryset for DRF viewsets."""
 
     return get_hedge_correlation_repository().get_queryset()
 
 
-def get_hedge_snapshot_queryset():
+def get_hedge_snapshot_queryset() -> Any:
     """Return the hedge snapshot queryset for DRF viewsets."""
 
     return get_hedge_portfolio_repository().get_queryset()
 
 
-def get_hedge_alert_queryset(*, active_only: bool = True):
+def get_hedge_alert_queryset(*, active_only: bool = True) -> Any:
     """Return the hedge alert queryset for DRF viewsets."""
 
     is_resolved = False if active_only else None
@@ -94,10 +113,13 @@ def resolve_hedge_alert(*, alert_id: int) -> ResolveHedgeAlertResponse:
 def get_hedge_effectiveness_payload(*, pair_name: str) -> dict[str, Any] | None:
     """Return hedge effectiveness payload for one pair."""
 
-    return _get_integration_service().check_hedge_effectiveness(
+    effectiveness = _get_integration_service().check_hedge_effectiveness(
         pair_name,
         cache_price_reads=False,
     )
+    if effectiveness is None:
+        return None
+    return _serialize_effectiveness(effectiveness)
 
 
 def get_correlation_matrix_payload(*, asset_codes: list[str], window_days: int) -> dict[str, Any]:
@@ -120,7 +142,7 @@ def get_all_effectiveness_payload() -> dict[str, Any]:
     results = _get_integration_service().get_all_effectiveness(cache_price_reads=False)
     return {
         "count": len(results),
-        "results": results,
+        "results": [_serialize_effectiveness(result) for result in results],
     }
 
 
@@ -151,7 +173,7 @@ def get_correlation_metric_payload(
         "correlation_trend": metric.correlation_trend,
         "correlation_ma": round(metric.correlation_ma, 4) if metric.correlation_ma else None,
         "alert": metric.alert,
-        "alert_type": metric.alert_type.value if metric.alert_type else None,
+        "alert_type": metric.alert_type,
     }
 
 
