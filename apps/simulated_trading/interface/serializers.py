@@ -5,7 +5,9 @@
 - Interface 层只做输入验证和输出格式化
 - 禁止业务逻辑
 """
+
 from decimal import Decimal
+from typing import Any
 
 from rest_framework import serializers
 
@@ -13,14 +15,11 @@ from rest_framework import serializers
 # 账户相关序列化器
 # ============================================================================
 
-class CreateAccountRequestSerializer(serializers.Serializer):
+
+class CreateAccountRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """创建统一账户请求序列化器"""
 
-    account_name = serializers.CharField(
-        required=True,
-        max_length=100,
-        help_text="账户名称"
-    )
+    account_name = serializers.CharField(required=True, max_length=100, help_text="账户名称")
     account_type = serializers.ChoiceField(
         required=False,
         choices=["real", "simulated"],
@@ -31,45 +30,31 @@ class CreateAccountRequestSerializer(serializers.Serializer):
         required=True,
         max_digits=18,
         decimal_places=2,
-        min_value=Decimal('1000.00'),
-        help_text="初始资金（元）"
+        min_value=Decimal("1000.00"),
+        help_text="初始资金（元）",
     )
     max_position_pct = serializers.FloatField(
         required=False,
         default=20.0,
         min_value=1.0,
         max_value=100.0,
-        help_text="单资产最大持仓比例（%）"
+        help_text="单资产最大持仓比例（%）",
     )
     stop_loss_pct = serializers.FloatField(
-        required=False,
-        allow_null=True,
-        min_value=0.0,
-        max_value=50.0,
-        help_text="止损比例（%）"
+        required=False, allow_null=True, min_value=0.0, max_value=50.0, help_text="止损比例（%）"
     )
     commission_rate = serializers.FloatField(
-        required=False,
-        default=0.0003,
-        min_value=0.0,
-        max_value=0.01,
-        help_text="手续费率"
+        required=False, default=0.0003, min_value=0.0, max_value=0.01, help_text="手续费率"
     )
     slippage_rate = serializers.FloatField(
-        required=False,
-        default=0.001,
-        min_value=0.0,
-        max_value=0.01,
-        help_text="滑点率"
+        required=False, default=0.001, min_value=0.0, max_value=0.01, help_text="滑点率"
     )
     fee_config_id = serializers.IntegerField(
-        required=False,
-        allow_null=True,
-        help_text="费率配置ID"
+        required=False, allow_null=True, help_text="费率配置ID"
     )
 
 
-class AccountResponseSerializer(serializers.Serializer):
+class AccountResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """账户响应序列化器"""
 
     account_id = serializers.IntegerField()
@@ -97,7 +82,7 @@ class AccountResponseSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
 
 
-class AccountListResponseSerializer(serializers.Serializer):
+class AccountListResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """账户列表响应序列化器"""
 
     success = serializers.BooleanField()
@@ -105,7 +90,7 @@ class AccountListResponseSerializer(serializers.Serializer):
     accounts = AccountResponseSerializer(many=True)
 
 
-class AccountDeleteResponseSerializer(serializers.Serializer):
+class AccountDeleteResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """删除单个账户响应序列化器"""
 
     success = serializers.BooleanField()
@@ -117,7 +102,7 @@ class AccountDeleteResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
 
 
-class AccountBatchDeleteRequestSerializer(serializers.Serializer):
+class AccountBatchDeleteRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """批量删除账户请求序列化器"""
 
     account_ids = serializers.ListField(
@@ -127,7 +112,7 @@ class AccountBatchDeleteRequestSerializer(serializers.Serializer):
     )
 
 
-class AccountBatchDeleteResponseSerializer(serializers.Serializer):
+class AccountBatchDeleteResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """批量删除账户响应序列化器"""
 
     success = serializers.BooleanField()
@@ -143,7 +128,8 @@ class AccountBatchDeleteResponseSerializer(serializers.Serializer):
 # 持仓相关序列化器
 # ============================================================================
 
-class PositionResponseSerializer(serializers.Serializer):
+
+class PositionResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """持仓响应序列化器"""
 
     position_id = serializers.IntegerField()
@@ -166,13 +152,15 @@ class PositionResponseSerializer(serializers.Serializer):
 
     # 证伪跟踪相关字段
     invalidation_description = serializers.CharField(allow_null=True, required=False)
-    invalidation_rule = serializers.JSONField(source='invalidation_rule_json', allow_null=True, required=False)
+    invalidation_rule = serializers.JSONField(
+        source="invalidation_rule_json", allow_null=True, required=False
+    )
     is_invalidated = serializers.BooleanField(required=False)
     invalidation_reason = serializers.CharField(allow_null=True, required=False)
     invalidation_checked_at = serializers.DateTimeField(allow_null=True, required=False)
 
 
-class PositionListResponseSerializer(serializers.Serializer):
+class PositionListResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """持仓列表响应序列化器"""
 
     success = serializers.BooleanField()
@@ -183,7 +171,7 @@ class PositionListResponseSerializer(serializers.Serializer):
     positions = PositionResponseSerializer(many=True)
 
 
-class ClosePositionRequestSerializer(serializers.Serializer):
+class ClosePositionRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate a canonical position-close request."""
 
     asset_code = serializers.CharField(max_length=32, allow_blank=False)
@@ -209,7 +197,7 @@ class ClosePositionRequestSerializer(serializers.Serializer):
     )
 
 
-class ResetAccountRequestSerializer(serializers.Serializer):
+class ResetAccountRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate a canonical simulated-account reset request."""
 
     new_initial_capital = serializers.DecimalField(
@@ -225,20 +213,17 @@ class ResetAccountRequestSerializer(serializers.Serializer):
 # 交易记录相关序列化器
 # ============================================================================
 
-class TradeListRequestSerializer(serializers.Serializer):
+
+class TradeListRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """交易记录列表请求序列化器"""
 
     start_date = serializers.DateField(required=False, allow_null=True)
     end_date = serializers.DateField(required=False, allow_null=True)
     asset_code = serializers.CharField(required=False, allow_null=True)
-    action = serializers.ChoiceField(
-        required=False,
-        allow_null=True,
-        choices=['buy', 'sell']
-    )
+    action = serializers.ChoiceField(required=False, allow_null=True, choices=["buy", "sell"])
 
 
-class TradeResponseSerializer(serializers.Serializer):
+class TradeResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """交易记录响应序列化器"""
 
     trade_id = serializers.IntegerField()
@@ -263,7 +248,7 @@ class TradeResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
 
 
-class TradeListResponseSerializer(serializers.Serializer):
+class TradeListResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """交易记录列表响应序列化器"""
 
     success = serializers.BooleanField()
@@ -280,7 +265,8 @@ class TradeListResponseSerializer(serializers.Serializer):
 # 绩效相关序列化器
 # ============================================================================
 
-class PerformanceResponseSerializer(serializers.Serializer):
+
+class PerformanceResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """绩效响应序列化器"""
 
     success = serializers.BooleanField()
@@ -296,7 +282,8 @@ class PerformanceResponseSerializer(serializers.Serializer):
 # 费率配置相关序列化器
 # ============================================================================
 
-class FeeConfigResponseSerializer(serializers.Serializer):
+
+class FeeConfigResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """费率配置响应序列化器"""
 
     config_id = serializers.IntegerField()
@@ -312,7 +299,7 @@ class FeeConfigResponseSerializer(serializers.Serializer):
     description = serializers.CharField(allow_null=True)
 
 
-class FeeConfigListResponseSerializer(serializers.Serializer):
+class FeeConfigListResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """费率配置列表响应序列化器"""
 
     success = serializers.BooleanField()
@@ -324,50 +311,27 @@ class FeeConfigListResponseSerializer(serializers.Serializer):
 # 手动交易相关序列化器
 # ============================================================================
 
-class ManualTradeRequestSerializer(serializers.Serializer):
+
+class ManualTradeRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """手动交易请求序列化器"""
 
-    asset_code = serializers.CharField(
-        required=True,
-        help_text="资产代码"
-    )
-    asset_name = serializers.CharField(
-        required=True,
-        help_text="资产名称"
-    )
-    asset_type = serializers.ChoiceField(
-        required=True,
-        choices=['equity', 'fund', 'bond']
-    )
-    action = serializers.ChoiceField(
-        required=True,
-        choices=['buy', 'sell']
-    )
-    quantity = serializers.IntegerField(
-        required=True,
-        min_value=1,
-        help_text="交易数量"
-    )
+    asset_code = serializers.CharField(required=True, help_text="资产代码")
+    asset_name = serializers.CharField(required=True, help_text="资产名称")
+    asset_type = serializers.ChoiceField(required=True, choices=["equity", "fund", "bond"])
+    action = serializers.ChoiceField(required=True, choices=["buy", "sell"])
+    quantity = serializers.IntegerField(required=True, min_value=1, help_text="交易数量")
     price = serializers.DecimalField(
         required=True,
         max_digits=12,
         decimal_places=4,
-        min_value=Decimal('0.01'),
-        help_text="交易价格"
+        min_value=Decimal("0.01"),
+        help_text="交易价格",
     )
-    reason = serializers.CharField(
-        required=False,
-        allow_null=True,
-        help_text="交易原因"
-    )
-    signal_id = serializers.IntegerField(
-        required=False,
-        allow_null=True,
-        help_text="关联信号ID"
-    )
+    reason = serializers.CharField(required=False, allow_null=True, help_text="交易原因")
+    signal_id = serializers.IntegerField(required=False, allow_null=True, help_text="关联信号ID")
 
 
-class ManualTradeResponseSerializer(serializers.Serializer):
+class ManualTradeResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """手动交易响应序列化器"""
 
     success = serializers.BooleanField()
@@ -380,14 +344,15 @@ class ManualTradeResponseSerializer(serializers.Serializer):
 # 净值曲线相关序列化器
 # ============================================================================
 
-class EquityCurveRequestSerializer(serializers.Serializer):
+
+class EquityCurveRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """净值曲线请求序列化器"""
 
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
 
 
-class EquityCurveDataPointSerializer(serializers.Serializer):
+class EquityCurveDataPointSerializer(serializers.Serializer[dict[str, Any]]):
     """净值曲线数据点序列化器"""
 
     date = serializers.CharField()
@@ -396,7 +361,7 @@ class EquityCurveDataPointSerializer(serializers.Serializer):
     daily_pnl = serializers.FloatField()
 
 
-class EquityCurveResponseSerializer(serializers.Serializer):
+class EquityCurveResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """净值曲线响应序列化器"""
 
     success = serializers.BooleanField()
@@ -411,36 +376,32 @@ class EquityCurveResponseSerializer(serializers.Serializer):
 # 自动交易相关序列化器
 # ============================================================================
 
-class AutoTradingRunRequestSerializer(serializers.Serializer):
+
+class AutoTradingRunRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """执行自动交易请求序列化器"""
 
     trade_date = serializers.DateField(required=False, help_text="交易日期（默认今天）")
     account_ids = serializers.ListField(
         required=False,
         child=serializers.IntegerField(),
-        help_text="指定账户ID列表（空则全部活跃账户）"
+        help_text="指定账户ID列表（空则全部活跃账户）",
     )
 
 
-class AutoTradingRunResponseSerializer(serializers.Serializer):
+class AutoTradingRunResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """执行自动交易响应序列化器"""
 
     success = serializers.BooleanField()
     trade_date = serializers.CharField()
     total_accounts = serializers.IntegerField()
-    results = serializers.DictField(
-        child=serializers.DictField(
-            child=serializers.IntegerField()
-        )
-    )
+    results = serializers.DictField(child=serializers.DictField(child=serializers.IntegerField()))
     summary = serializers.DictField(
-        child=serializers.IntegerField(),
-        help_text="汇总统计：{total_buy_count, total_sell_count}"
+        child=serializers.IntegerField(), help_text="汇总统计：{total_buy_count, total_sell_count}"
     )
     error = serializers.CharField(allow_null=True, required=False)
 
 
-class DailyInspectionRunRequestSerializer(serializers.Serializer):
+class DailyInspectionRunRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """执行日更巡检请求"""
 
     strategy_id = serializers.IntegerField(required=False, allow_null=True)
@@ -448,7 +409,7 @@ class DailyInspectionRunRequestSerializer(serializers.Serializer):
     auto_create_proposal = serializers.BooleanField(required=False, default=False)
 
 
-class DailyInspectionReportItemSerializer(serializers.Serializer):
+class DailyInspectionReportItemSerializer(serializers.Serializer[dict[str, Any]]):
     """日更巡检报告项"""
 
     report_id = serializers.IntegerField()
@@ -463,7 +424,7 @@ class DailyInspectionReportItemSerializer(serializers.Serializer):
     checks = serializers.ListField(child=serializers.DictField())
 
 
-class DailyInspectionReportListResponseSerializer(serializers.Serializer):
+class DailyInspectionReportListResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """日更巡检报告列表"""
 
     success = serializers.BooleanField()

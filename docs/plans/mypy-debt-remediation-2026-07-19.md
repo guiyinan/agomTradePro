@@ -954,3 +954,19 @@
 - Data Center 与 Decision Rhythm serializers 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6414 errors / 825 files` 收紧为 `6352 errors / 823 files`，净减少 `62 errors / 2 files`，跨文件无新增。
 - Data Center 的 `1 no-any-return + 3 no-untyped-def + 26 type-arg + 3 unused-ignore` 与 Decision Rhythm 的 `5 no-untyped-def + 24 type-arg` 全部清零。
 - 两组 serializer 契约与 API edges 回归共 `42 passed`；mypy 治理护栏 `10 passed`，架构增量门禁 `2 files / 65 added lines / 0 violations`，Ruff、Black、diff check 通过。
+
+## 第七十五批
+
+- 按 Simulated Trading 账户、持仓、交易、巡检、绩效和估值公共 API 边界联合收口两个 serializer 文件：普通请求与 read-model payload 统一声明 `dict[str, Any]` instance，绩效日期查询和基准成分列表验证器补齐具体容器签名。
+- 主 serializers 的 26 项 `type-arg` 与 performance serializers 的 21 项 `type-arg` 全部清零；两个文件的增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`。
+- 新增 serializer 契约测试，覆盖初始资金 Decimal、批量删除正整数约束、绩效日期顺序和非空基准成分。
+- 全仓债务基线从 `6352 errors / 823 files` 精确收紧为 `6305 errors / 821 files`，净减少 `47 errors / 2 files`。
+
+## 第七十五批验证结果
+
+- 新建仓库内 `agomtradepro/` Python 3.12 venv，并从 `pyproject.toml` 安装完整 `.[all]` 依赖；Django `5.2.16`、DRF `3.17.1`、Qlib `0.9.7`、LightGBM `4.7.0` 和 mypy `1.14.1` 可导入，`pip check`、Django system check、migration dry-run 与依赖投影检查通过。
+- 本地 NumPy 使用仍满足项目约束的 `2.2.6`，避免 NumPy 2.5 类型桩的 Python 3.12-only type statement 与项目 mypy `python_version = 3.11` 冲突；目标文件增量 mypy 为 `0 errors / 0 regressions`。
+- Serializer 契约与 Account Performance API 回归 `53 passed`；mypy 治理脚本单测 `6 passed`；Black 与 Ruff 通过。
+- Simulated Trading API edges 联合回归为 `58 passed / 1 failed`；失败是既存 `UnifiedPositionService` 将 `float` 数量与 `Decimal` 价格相乘，本批未修改 Application 业务逻辑。
+- Governance consistency 为 `34 passed / 1 failed`；失败来自 HEAD 已存在的两个未登记大文件：`apps/ai_capability/application/use_cases.py` 与 `apps/simulated_trading/infrastructure/repositories.py`，本批未扩大治理白名单。
+- 当前 `pyproject.toml` 锁定 mypy `1.14.1`，但已提交的全仓债务基线无法由该版本完整复现；隔离 mypy `1.17.1` 扫描仍受 11 个第三方类型环境差异影响。为避免虚假大幅降债，本批仅删除两个已定向清零的 baseline 条目，未接受环境性计数变化。
