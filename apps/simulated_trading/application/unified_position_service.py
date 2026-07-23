@@ -41,9 +41,10 @@ _COST_PLACES = Decimal("0.0001")
 _VALUE_PLACES = Decimal("0.01")
 
 
-def _to_decimal(value, places: Decimal) -> Decimal:
+def _to_decimal(value: float | int | str | Decimal, places: Decimal) -> Decimal:
     """Convert a numeric value to Decimal with the given precision."""
     return Decimal(str(value)).quantize(places, rounding=ROUND_HALF_UP)
+
 
 class UnifiedPositionService:
     """
@@ -104,7 +105,9 @@ class UnifiedPositionService:
 
         qty = _to_decimal(shares, _QUANTITY_PLACES)
         avg_cost_d = _to_decimal(price, _COST_PLACES)
-        cur_price_d = _to_decimal(current_price if current_price is not None else price, _COST_PLACES)
+        cur_price_d = _to_decimal(
+            current_price if current_price is not None else price, _COST_PLACES
+        )
         execution_time = traded_at or timezone.now()
         execution_date = execution_time.date()
 
@@ -212,7 +215,9 @@ class UnifiedPositionService:
 
         model = self._position_repo.get_position(account_id, asset_code)
         if model is None:
-            raise ValueError(f"Position not found: account_id={account_id}, asset_code={asset_code}")
+            raise ValueError(
+                f"Position not found: account_id={account_id}, asset_code={asset_code}"
+            )
 
         quantity = model.quantity
         next_avg_cost = Decimal(str(model.avg_cost))
@@ -278,12 +283,15 @@ class UnifiedPositionService:
 
         model = self._position_repo.get_position(account_id, asset_code)
         if model is None:
-            raise ValueError(f"Position not found: account_id={account_id}, asset_code={asset_code}")
+            raise ValueError(
+                f"Position not found: account_id={account_id}, asset_code={asset_code}"
+            )
 
+        position_quantity = _to_decimal(model.quantity, _QUANTITY_PLACES)
         qty_to_close = (
             _to_decimal(close_shares, _QUANTITY_PLACES)
             if close_shares is not None
-            else model.quantity
+            else position_quantity
         )
         avg_cost_d = Decimal(str(model.avg_cost))
         price_d = (
@@ -296,9 +304,7 @@ class UnifiedPositionService:
         amount = (qty_to_close * price_d).quantize(_VALUE_PLACES)
         realized_pnl = amount - (avg_cost_d * qty_to_close).quantize(_VALUE_PLACES)
         realized_pnl_pct = (
-            float((price_d - avg_cost_d) / avg_cost_d * 100)
-            if avg_cost_d > 0
-            else 0.0
+            float((price_d - avg_cost_d) / avg_cost_d * 100) if avg_cost_d > 0 else 0.0
         )
 
         sell_trade = SimulatedTrade(
@@ -324,7 +330,7 @@ class UnifiedPositionService:
             status=OrderStatus.EXECUTED,
         )
 
-        remaining = model.quantity - qty_to_close
+        remaining = position_quantity - qty_to_close
         if remaining <= 0:
             self._mutation_repo.close_position_with_sell_trade(
                 account_id=account_id,

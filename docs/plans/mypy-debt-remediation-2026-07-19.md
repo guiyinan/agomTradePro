@@ -967,6 +967,6 @@
 - 新建仓库内 `agomtradepro/` Python 3.12 venv，并从 `pyproject.toml` 安装完整 `.[all]` 依赖；Django `5.2.16`、DRF `3.17.1`、Qlib `0.9.7`、LightGBM `4.7.0` 和 mypy `1.14.1` 可导入，`pip check`、Django system check、migration dry-run 与依赖投影检查通过。
 - 本地 NumPy 使用仍满足项目约束的 `2.2.6`，避免 NumPy 2.5 类型桩的 Python 3.12-only type statement 与项目 mypy `python_version = 3.11` 冲突；目标文件增量 mypy 为 `0 errors / 0 regressions`。
 - Serializer 契约与 Account Performance API 回归 `53 passed`；mypy 治理脚本单测 `6 passed`；Black 与 Ruff 通过。
-- Simulated Trading API edges 联合回归为 `58 passed / 1 failed`；失败是既存 `UnifiedPositionService` 将 `float` 数量与 `Decimal` 价格相乘，本批未修改 Application 业务逻辑。
-- Governance consistency 为 `34 passed / 1 failed`；失败来自 HEAD 已存在的两个未登记大文件：`apps/ai_capability/application/use_cases.py` 与 `apps/simulated_trading/infrastructure/repositories.py`，本批未扩大治理白名单。
+- Simulated Trading API edges 联合回归最初为 `58 passed / 1 failed`；后续修复 `UnifiedPositionService` 默认全平仓路径的 `float × Decimal` 运算并增加回归，目标单元与 API edges 合计 `11 passed`；目标文件 mypy 再减少 `1 arg-type + 1 no-untyped-def`，全仓基线收紧到 `6303 errors / 821 files`。
+- Governance consistency 最初因两个 HEAD 已存在的未登记大文件失败；后续为 `apps/ai_capability/application/use_cases.py` 与 `apps/simulated_trading/infrastructure/repositories.py` 补齐 owner、拆分类型、目标、优先级和 review date，未放宽全仓 1200 行阈值。
 - 当前 `pyproject.toml` 锁定 mypy `1.14.1`，但已提交的全仓债务基线无法由该版本完整复现；隔离 mypy `1.17.1` 扫描仍受 11 个第三方类型环境差异影响。为避免虚假大幅降债，本批仅删除两个已定向清零的 baseline 条目，未接受环境性计数变化。

@@ -10,7 +10,7 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6305,
+    "errors": 6303,
     "files_with_errors": 821
   },
   "modules": {
@@ -2968,9 +2968,8 @@
       "type-arg": 4
     },
     "apps/simulated_trading/application/unified_position_service.py": {
-      "arg-type": 1,
       "no-any-return": 1,
-      "no-untyped-def": 7,
+      "no-untyped-def": 6,
       "type-arg": 1
     },
     "apps/simulated_trading/application/use_cases.py": {

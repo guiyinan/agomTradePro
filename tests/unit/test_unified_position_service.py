@@ -98,7 +98,9 @@ class _FakePositionMutationRepository:
         )
 
 
-def _make_service(position_repo=None, trade_repo=None, mutation_repo=None) -> UnifiedPositionService:
+def _make_service(
+    position_repo=None, trade_repo=None, mutation_repo=None
+) -> UnifiedPositionService:
     position_repo = position_repo or _FakePositionRepository()
     trade_repo = trade_repo or _FakeTradeRepository()
     return UnifiedPositionService(
@@ -284,3 +286,45 @@ def test_close_position_fully_deletes_position():
 
     assert result is None
     assert position_repo.get_position(4, "600000.SH") is None
+
+
+def test_close_position_normalizes_float_backed_domain_quantity_for_partial_close():
+    position_repo = _FakePositionRepository()
+    trade_repo = _FakeTradeRepository()
+    service = _make_service(position_repo=position_repo, trade_repo=trade_repo)
+
+    position_repo.save_position_record(
+        account_id=5,
+        asset_code="000001.SZ",
+        defaults={
+            "asset_name": "Ping An Bank",
+            "asset_type": "equity",
+            "quantity": 100.0,
+            "available_quantity": 100.0,
+            "avg_cost": 10.0,
+            "total_cost": 1000.0,
+            "current_price": 11.0,
+            "market_value": 1100.0,
+            "unrealized_pnl": 100.0,
+            "unrealized_pnl_pct": 10.0,
+            "first_buy_date": date(2026, 1, 2),
+            "last_update_date": date(2026, 1, 2),
+            "signal_id": None,
+            "entry_reason": "initial",
+            "invalidation_rule_json": None,
+            "invalidation_description": "",
+            "is_invalidated": False,
+            "invalidation_reason": "",
+            "invalidation_checked_at": None,
+        },
+    )
+
+    result = service.close_position(
+        account_id=5,
+        asset_code="000001.SZ",
+        close_shares=40,
+    )
+
+    assert result.quantity == Decimal("60.000000")
+    assert trade_repo.saved_entities[0].quantity == Decimal("40.000000")
+    assert trade_repo.saved_entities[0].amount == 440.0
