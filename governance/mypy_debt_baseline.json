@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4687,
-    "files_with_errors": 745
+    "errors": 4617,
+    "files_with_errors": 741
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1696,17 +1696,6 @@
     "apps/factor/application/dtos.py": {
       "type-arg": 1
     },
-    "apps/factor/application/interface_services.py": {
-      "no-untyped-call": 6,
-      "no-untyped-def": 3,
-      "type-arg": 6
-    },
-    "apps/factor/application/use_cases.py": {
-      "assignment": 1,
-      "no-untyped-def": 6,
-      "type-arg": 14,
-      "var-annotated": 1
-    },
     "apps/factor/infrastructure/adapters/__init__.py": {
       "assignment": 1,
       "attr-defined": 1,
@@ -1715,19 +1704,6 @@
       "no-untyped-call": 1,
       "no-untyped-def": 2,
       "var-annotated": 1
-    },
-    "apps/factor/infrastructure/models.py": {
-      "no-untyped-def": 7
-    },
-    "apps/factor/infrastructure/repositories.py": {
-      "arg-type": 2,
-      "attr-defined": 2,
-      "misc": 1,
-      "no-any-return": 2,
-      "no-untyped-call": 7,
-      "no-untyped-def": 1,
-      "return-value": 2,
-      "type-arg": 9
     },
     "apps/factor/infrastructure/services.py": {
       "attr-defined": 1,

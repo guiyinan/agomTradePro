@@ -4,12 +4,15 @@ Factor Module Infrastructure Layer - Repositories
 Data access layer for factor module.
 """
 
+from collections import Counter
 from datetime import date
+from typing import Any, Protocol, cast
 
-from django.db.models import Count, Q
+from django.db.models import Q
 
 from apps.factor.domain.entities import (
     FactorDefinition,
+    FactorExposure,
     FactorPortfolioConfig,
     FactorPortfolioHolding,
 )
@@ -19,6 +22,13 @@ from apps.factor.infrastructure.models import (
     FactorPortfolioConfigModel,
     FactorPortfolioHoldingModel,
 )
+
+
+class _PortfolioConfigViewAnnotations(Protocol):
+    """Transient attributes attached to config rows for template rendering."""
+
+    latest_trade_date: date | None
+    holdings_count: int
 
 
 class FactorDefinitionRepository:
@@ -44,10 +54,7 @@ class FactorDefinitionRepository:
 
     def get_by_category(self, category: str) -> list[FactorDefinition]:
         """Get factors by category"""
-        models = FactorDefinitionModel._default_manager.filter(
-            category=category,
-            is_active=True
-        )
+        models = FactorDefinitionModel._default_manager.filter(category=category, is_active=True)
         return [m.to_domain() for m in models]
 
     def get_model_by_id(self, factor_id: int) -> FactorDefinitionModel | None:
@@ -58,7 +65,7 @@ class FactorDefinitionRepository:
         except FactorDefinitionModel.DoesNotExist:
             return None
 
-    def create_model(self, data: dict) -> FactorDefinitionModel:
+    def create_model(self, data: dict[str, Any]) -> FactorDefinitionModel:
         """Create one factor definition ORM row."""
 
         return FactorDefinitionModel._default_manager.create(**data)
@@ -67,7 +74,7 @@ class FactorDefinitionRepository:
         self,
         *,
         factor_id: int,
-        data: dict,
+        data: dict[str, Any],
     ) -> FactorDefinitionModel | None:
         """Update one factor definition ORM row."""
 
@@ -126,28 +133,34 @@ class FactorDefinitionRepository:
             )
         return list(queryset.order_by("category", "code"))
 
-    def get_view_stats(self) -> dict:
+    def get_view_stats(self) -> dict[str, Any]:
         """Return factor definition statistics for management views."""
 
+        category_counts = Counter(
+            FactorDefinitionModel._default_manager.values_list(
+                "category",
+                flat=True,
+            )
+        )
         return {
             "total": FactorDefinitionModel._default_manager.count(),
             "active": FactorDefinitionModel._default_manager.filter(is_active=True).count(),
-            "by_category": dict(
-                FactorDefinitionModel._default_manager.values("category")
-                .annotate(count=Count("id"))
-                .values_list("category", "count")
-            ),
+            "by_category": dict(category_counts),
         }
 
-    def list_category_rows(self) -> list[dict]:
+    def list_category_rows(self) -> list[dict[str, str]]:
         """Return distinct category rows for management views."""
 
-        return list(FactorDefinitionModel._default_manager.values("category").distinct())
+        rows = FactorDefinitionModel._default_manager.values("category").distinct()
+        return [{"category": str(row["category"])} for row in rows]
 
-    def get_category_choices(self) -> dict:
+    def get_category_choices(self) -> dict[str, str]:
         """Return factor category choices."""
 
-        return dict(FactorDefinitionModel._default_manager.model._meta.get_field("category").choices)
+        choices = FactorDefinitionModel._default_manager.model._meta.get_field("category").choices
+        return {
+            str(value): str(label) for value, label in cast(list[tuple[Any, Any]], choices or [])
+        }
 
     def list_active_models(self) -> list[FactorDefinitionModel]:
         """Return active factor definition ORM rows for views."""
@@ -158,7 +171,7 @@ class FactorDefinitionRepository:
 class FactorExposureRepository:
     """Repository for FactorExposure entities"""
 
-    def save(self, exposure) -> FactorExposureModel:
+    def save(self, exposure: FactorExposure) -> FactorExposureModel:
         """Save factor exposure"""
         model = FactorExposureModel._default_manager.create(
             stock_code=exposure.stock_code,
@@ -171,27 +184,25 @@ class FactorExposureRepository:
         )
         return model
 
-    def get_latest_exposure(
-        self,
-        stock_code: str,
-        factor_code: str
-    ) -> FactorExposureModel | None:
+    def get_latest_exposure(self, stock_code: str, factor_code: str) -> FactorExposureModel | None:
         """Get latest exposure for stock-factor pair"""
-        return FactorExposureModel._default_manager.filter(
-            stock_code=stock_code,
-            factor_code=factor_code
-        ).order_by('-trade_date').first()
+        return (
+            FactorExposureModel._default_manager.filter(
+                stock_code=stock_code, factor_code=factor_code
+            )
+            .order_by("-trade_date")
+            .first()
+        )
 
     def get_exposures_by_date(
-        self,
-        trade_date: date,
-        factor_code: str
+        self, trade_date: date, factor_code: str
     ) -> list[FactorExposureModel]:
         """Get all exposures for a factor on a date"""
-        return FactorExposureModel._default_manager.filter(
-            trade_date=trade_date,
-            factor_code=factor_code
-        ).order_by('-percentile_rank')
+        return list(
+            FactorExposureModel._default_manager.filter(
+                trade_date=trade_date, factor_code=factor_code
+            ).order_by("-percentile_rank")
+        )
 
 
 class FactorPortfolioConfigRepository:
@@ -220,26 +231,26 @@ class FactorPortfolioConfigRepository:
         model, created = FactorPortfolioConfigModel._default_manager.update_or_create(
             name=config.name,
             defaults={
-                'description': config.description,
-                'factor_weights': config.factor_weights,
-                'universe': config.universe,
-                'min_market_cap': float(config.min_market_cap) if config.min_market_cap else None,
-                'max_market_cap': float(config.max_market_cap) if config.max_market_cap else None,
-                'max_pe': float(config.max_pe) if config.max_pe else None,
-                'min_pe': float(config.min_pe) if config.min_pe else None,
-                'max_pb': float(config.max_pb) if config.max_pb else None,
-                'max_debt_ratio': config.max_debt_ratio,
-                'top_n': config.top_n,
-                'rebalance_frequency': config.rebalance_frequency,
-                'weight_method': config.weight_method,
-                'max_sector_weight': config.max_sector_weight,
-                'max_single_stock_weight': config.max_single_stock_weight,
-                'is_active': config.is_active,
-            }
+                "description": config.description,
+                "factor_weights": config.factor_weights,
+                "universe": config.universe,
+                "min_market_cap": float(config.min_market_cap) if config.min_market_cap else None,
+                "max_market_cap": float(config.max_market_cap) if config.max_market_cap else None,
+                "max_pe": float(config.max_pe) if config.max_pe else None,
+                "min_pe": float(config.min_pe) if config.min_pe else None,
+                "max_pb": float(config.max_pb) if config.max_pb else None,
+                "max_debt_ratio": config.max_debt_ratio,
+                "top_n": config.top_n,
+                "rebalance_frequency": config.rebalance_frequency,
+                "weight_method": config.weight_method,
+                "max_sector_weight": config.max_sector_weight,
+                "max_single_stock_weight": config.max_single_stock_weight,
+                "is_active": config.is_active,
+            },
         )
         return model
 
-    def create_model(self, data: dict) -> FactorPortfolioConfigModel:
+    def create_model(self, data: dict[str, Any]) -> FactorPortfolioConfigModel:
         """Create one portfolio config ORM row."""
 
         return FactorPortfolioConfigModel._default_manager.create(**data)
@@ -248,7 +259,7 @@ class FactorPortfolioConfigRepository:
         self,
         *,
         config_id: int,
-        data: dict,
+        data: dict[str, Any],
     ) -> FactorPortfolioConfigModel | None:
         """Update one portfolio config ORM row."""
 
@@ -277,21 +288,20 @@ class FactorPortfolioConfigRepository:
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active)
         if search:
-            queryset = queryset.filter(
-                Q(name__icontains=search) | Q(description__icontains=search)
-            )
+            queryset = queryset.filter(Q(name__icontains=search) | Q(description__icontains=search))
         configs = list(queryset.order_by("-is_active", "-created_at"))
         for config in configs:
             latest_holding = config.holdings.order_by("-trade_date").first()
-            config.latest_trade_date = latest_holding.trade_date if latest_holding else None
-            config.holdings_count = (
+            view_config = cast(_PortfolioConfigViewAnnotations, config)
+            view_config.latest_trade_date = latest_holding.trade_date if latest_holding else None
+            view_config.holdings_count = (
                 config.holdings.filter(trade_date=latest_holding.trade_date).count()
                 if latest_holding
                 else 0
             )
         return configs
 
-    def get_view_stats(self) -> dict:
+    def get_view_stats(self) -> dict[str, int]:
         """Return portfolio config statistics for management views."""
 
         return {
@@ -336,16 +346,18 @@ class FactorPortfolioConfigRepository:
         *,
         config_id: int,
         top_n: int,
-    ) -> tuple[FactorPortfolioConfigModel | None, dict | None]:
+    ) -> tuple[FactorPortfolioConfigModel | None, dict[str, Any] | None]:
         """Return selected config and latest holdings payload for calculation view."""
 
         selected_config = self.get_model_by_id(config_id)
         if selected_config is None:
             return None, None
 
-        latest_holding = FactorPortfolioHoldingModel._default_manager.filter(
-            config=selected_config
-        ).order_by("-trade_date").first()
+        latest_holding = (
+            FactorPortfolioHoldingModel._default_manager.filter(config=selected_config)
+            .order_by("-trade_date")
+            .first()
+        )
         if latest_holding is None:
             return selected_config, None
 
@@ -353,10 +365,12 @@ class FactorPortfolioConfigRepository:
             config=selected_config,
             trade_date=latest_holding.trade_date,
         ).count()
-        holdings = list(FactorPortfolioHoldingModel._default_manager.filter(
-            config=selected_config,
-            trade_date=latest_holding.trade_date,
-        ).order_by("rank")[:top_n])
+        holdings = list(
+            FactorPortfolioHoldingModel._default_manager.filter(
+                config=selected_config,
+                trade_date=latest_holding.trade_date,
+            ).order_by("rank")[:top_n]
+        )
         self._hydrate_holding_stock_display_fields(holdings)
         return selected_config, {
             "trade_date": latest_holding.trade_date,
@@ -375,7 +389,9 @@ class FactorPortfolioConfigRepository:
         lookup_codes = [
             holding.stock_code
             for holding in holdings
-            if not holding.stock_name or holding.stock_name == holding.stock_code or not holding.sector
+            if not holding.stock_name
+            or holding.stock_name == holding.stock_code
+            or not holding.sector
         ]
         if not lookup_codes:
             return
@@ -404,10 +420,7 @@ class FactorPortfolioHoldingRepository:
     """Repository for FactorPortfolioHolding entities"""
 
     def save_holdings(
-        self,
-        config_name: str,
-        trade_date: date,
-        holdings: list[FactorPortfolioHolding]
+        self, config_name: str, trade_date: date, holdings: list[FactorPortfolioHolding]
     ) -> int:
         """Save portfolio holdings"""
         from apps.factor.infrastructure.models import FactorPortfolioConfigModel
@@ -416,8 +429,7 @@ class FactorPortfolioHoldingRepository:
 
         # Delete existing holdings for this date
         FactorPortfolioHoldingModel._default_manager.filter(
-            config=config,
-            trade_date=trade_date
+            config=config, trade_date=trade_date
         ).delete()
 
         # Create new holdings
@@ -441,7 +453,8 @@ class FactorPortfolioHoldingRepository:
 
     def get_latest_holdings(self, config_name: str) -> list[FactorPortfolioHoldingModel]:
         """Get latest holdings for a configuration"""
-        return FactorPortfolioHoldingModel._default_manager.filter(
-            config__name=config_name
-        ).order_by('-trade_date', 'rank')[:30]
-
+        return list(
+            FactorPortfolioHoldingModel._default_manager.filter(config__name=config_name).order_by(
+                "-trade_date", "rank"
+            )[:30]
+        )

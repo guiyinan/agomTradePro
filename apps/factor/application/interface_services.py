@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from datetime import date, datetime
-from typing import Any
+from typing import Any, cast
 
 from apps.factor.application.repository_provider import (
     get_factor_definition_repository,
@@ -24,9 +24,19 @@ from apps.factor.application.use_cases import (
     GetFactorDefinitionsForViewUseCase,
     GetPortfolioConfigsForViewUseCase,
     PortfolioConfigActionRequest,
+    PortfolioConfigRepository,
     PortfolioListViewRequest,
     UpdatePortfolioConfigUseCase,
 )
+
+
+def _use_case_portfolio_repository() -> PortfolioConfigRepository:
+    """Return the concrete repository through its application protocol."""
+
+    return cast(
+        PortfolioConfigRepository,
+        get_factor_portfolio_config_repository(),
+    )
 
 
 def _parse_optional_bool(value: str | None) -> bool | None:
@@ -92,7 +102,7 @@ def toggle_factor_definition_active(*, factor_id: int) -> Any | None:
     return get_factor_definition_repository().toggle_active(factor_id)
 
 
-def get_active_factor_definition_payloads() -> list[dict]:
+def get_active_factor_definition_payloads() -> list[dict[str, Any]]:
     """Return the payload used by the all-active endpoint."""
 
     return get_factor_integration_service().get_factor_definitions()
@@ -113,9 +123,7 @@ def list_portfolio_configs(*, filters: Mapping[str, Any] | None = None) -> list[
         configs = [config for config in configs if config.universe == universe]
     if rebalance_frequency:
         configs = [
-            config
-            for config in configs
-            if config.rebalance_frequency == rebalance_frequency
+            config for config in configs if config.rebalance_frequency == rebalance_frequency
         ]
     return configs
 
@@ -153,7 +161,11 @@ def set_portfolio_config_active(*, config_id: int, is_active: bool) -> Any | Non
     return get_factor_portfolio_config_repository().set_active(config_id, is_active)
 
 
-def create_factor_portfolio(*, config_name: str, trade_date_value=None) -> dict | None:
+def create_factor_portfolio(
+    *,
+    config_name: str,
+    trade_date_value: date | None = None,
+) -> dict[str, Any] | None:
     """Generate a portfolio for one configuration."""
 
     return get_factor_integration_service().create_factor_portfolio(
@@ -190,8 +202,8 @@ def explain_stock_score(
     *,
     stock_code: str,
     factor_weights: dict[str, float],
-    trade_date_value=None,
-) -> dict | None:
+    trade_date_value: date | None = None,
+) -> dict[str, Any] | None:
     """Return stock factor score explanation."""
 
     return get_factor_integration_service(
@@ -207,9 +219,9 @@ def calculate_factor_scores(
     *,
     universe: list[str],
     factor_weights: dict[str, float],
-    trade_date_value=None,
+    trade_date_value: date | None = None,
     top_n: int = 50,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Return factor scores for an explicit universe."""
 
     return get_factor_integration_service().calculate_factor_scores(
@@ -220,7 +232,11 @@ def calculate_factor_scores(
     )
 
 
-def get_top_stocks(*, factor_preferences: dict[str, str], top_n: int = 30) -> list[dict]:
+def get_top_stocks(
+    *,
+    factor_preferences: dict[str, str],
+    top_n: int = 30,
+) -> list[dict[str, Any]]:
     """Return top stocks without mutating the shared price cache."""
 
     return get_factor_integration_service(
@@ -228,7 +244,7 @@ def get_top_stocks(*, factor_preferences: dict[str, str], top_n: int = 30) -> li
     ).get_top_stocks(factor_preferences, top_n)
 
 
-def get_all_portfolio_config_payloads() -> list[dict]:
+def get_all_portfolio_config_payloads() -> list[dict[str, Any]]:
     """Return the payload used by the all-configs endpoint."""
 
     return get_factor_integration_service().get_all_configs()
@@ -269,7 +285,7 @@ def build_portfolio_list_context(query_params: Mapping[str, Any]) -> dict[str, A
 
     use_case = GetPortfolioConfigsForViewUseCase(
         get_factor_definition_repository(),
-        get_factor_portfolio_config_repository(),
+        _use_case_portfolio_repository(),
     )
     response = use_case.execute(
         PortfolioListViewRequest(
@@ -299,7 +315,7 @@ def build_factor_calculation_context(query_params: Mapping[str, Any]) -> dict[st
     config_id_int = int(config_id) if config_id else None
 
     use_case = GetFactorCalculationDataUseCase(
-        get_factor_portfolio_config_repository(),
+        _use_case_portfolio_repository(),
         get_factor_definition_repository(),
     )
     response = use_case.execute(
@@ -329,7 +345,7 @@ def create_portfolio_config_from_form(post_data: Mapping[str, Any]) -> dict[str,
     factor_weights_json = post_data.get("factor_weights", "{}")
     factor_weights = json.loads(factor_weights_json) if factor_weights_json else {}
 
-    use_case = CreatePortfolioConfigUseCase(get_factor_portfolio_config_repository())
+    use_case = CreatePortfolioConfigUseCase(_use_case_portfolio_repository())
     response = use_case.execute(
         CreatePortfolioConfigRequest(
             name=post_data.get("name", "").strip(),
@@ -339,17 +355,17 @@ def create_portfolio_config_from_form(post_data: Mapping[str, Any]) -> dict[str,
             rebalance_frequency=post_data.get("rebalance_frequency", "monthly"),
             weight_method=post_data.get("weight_method", "equal_weight"),
             factor_weights=factor_weights,
-            min_market_cap=float(post_data["min_market_cap"])
-            if post_data.get("min_market_cap")
-            else None,
-            max_market_cap=float(post_data["max_market_cap"])
-            if post_data.get("max_market_cap")
-            else None,
+            min_market_cap=(
+                float(post_data["min_market_cap"]) if post_data.get("min_market_cap") else None
+            ),
+            max_market_cap=(
+                float(post_data["max_market_cap"]) if post_data.get("max_market_cap") else None
+            ),
             max_pe=float(post_data["max_pe"]) if post_data.get("max_pe") else None,
             max_pb=float(post_data["max_pb"]) if post_data.get("max_pb") else None,
-            max_debt_ratio=float(post_data["max_debt_ratio"])
-            if post_data.get("max_debt_ratio")
-            else None,
+            max_debt_ratio=(
+                float(post_data["max_debt_ratio"]) if post_data.get("max_debt_ratio") else None
+            ),
         )
     )
 
@@ -369,7 +385,7 @@ def handle_portfolio_config_action(*, config_id: int, action_type: str) -> dict[
     """Perform activate, deactivate, or generate for one config."""
 
     use_case = UpdatePortfolioConfigUseCase(
-        get_factor_portfolio_config_repository(),
+        _use_case_portfolio_repository(),
         get_factor_integration_service(),
     )
     return use_case.execute(
@@ -403,7 +419,7 @@ def calculate_scores_for_config(*, post_data: Mapping[str, Any]) -> dict[str, An
 
     use_case = CalculateScoresUseCase(
         get_factor_integration_service(),
-        portfolio_repo=get_factor_portfolio_config_repository(),
+        portfolio_repo=_use_case_portfolio_repository(),
     )
     response = use_case.execute(
         CalculateScoresRequest(

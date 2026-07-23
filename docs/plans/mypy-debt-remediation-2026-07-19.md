@@ -1365,3 +1365,19 @@
 - 目标文件的 `2 arg-type + 38 no-untyped-def + 2 type-arg` 全部清零。
 - Factor API、页面、实体与 Domain 服务回归共 `102 passed`。
 - 全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v173`，静态测试函数计数提升至 `7187`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第一百零二批
+
+- 沿 Factor 决策链继续收口 Application Facade、UseCase、ORM Model 与 Repository，覆盖因子评分、组合配置、页面读模型、因子暴露和持仓持久化。
+- Application 新增因子定义、组合配置与集成服务 Protocol；组合配置只通过只读投影进入用例，Facade 在 composition boundary 显式组装 concrete repository，不再把 ORM 类型扩散到 Application。
+- View response DTO 的 factors、stats、choices、calculation results 和 score rows 全部具化容器元素；可空交易日、依赖注入 constructor 与 action payload 契约同步收窄。
+- ORM `to_domain` 与字符串表示补齐返回类型，并通过 postponed annotations 避免 Django App 初始化时解析前向类型。
+- Repository 的写入 payload、统计、分类 choices、暴露与持仓查询全部具化；QuerySet 在 repository 边界物化为 list，模板临时字段使用局部 Protocol 投影。
+- 类别统计改为单次读取类别值后本地计数，规避 django-stubs 无法解析动态 annotation 字段，同时保持固定一次查询。
+- 空因子选择在进入 Domain 权重校验前规范化为空结果，避免除零或“权重和不为 1”的异常；新增 Application 回归。
+
+## 第一百零二批验证结果
+
+- Factor Facade、UseCase、Model 与 Repository 在增量 regression mypy 下均为零；全仓基线从 `4687 errors / 745 files` 收紧为 `4617 errors / 741 files`，净减少 `70 errors / 4 files`，跨文件无新增。
+- Factor Application、Domain、API、页面与 Repository 相关回归共 `103 passed / 7 skipped`。
+- 隔离提交全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v174`，静态测试函数计数提升至 `7188`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Django system check、Ruff、Black 与 diff check 通过。
