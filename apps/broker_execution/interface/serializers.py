@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 
 from rest_framework import serializers
 
 
-class PreviewCommitSerializer(serializers.Serializer):
+class PreviewCommitSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate the shared preview/commit envelope."""
 
     preview_only = serializers.BooleanField(default=True)
     reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)
     idempotency_key = serializers.CharField(required=False, allow_blank=False, max_length=128)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if not attrs.get("preview_only", True) and not attrs.get("idempotency_key"):
             raise serializers.ValidationError({"idempotency_key": "Required for commit."})
         return attrs
@@ -25,7 +26,7 @@ class OrderActionSerializer(PreviewCommitSerializer):
 
     expected_version = serializers.IntegerField(min_value=0, required=False)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
         if not attrs.get("preview_only", True) and "expected_version" not in attrs:
             raise serializers.ValidationError(
@@ -42,7 +43,7 @@ class KillSwitchSerializer(PreviewCommitSerializer):
     reason = serializers.CharField(max_length=1000)
     reauth = serializers.DictField(required=False, write_only=True)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
         if (
             not attrs.get("preview_only", True)
@@ -63,9 +64,7 @@ class KillSwitchSerializer(PreviewCommitSerializer):
                     {"reauth": "Only password reauthentication is supported."}
                 )
             if not str(reauth.get("credential") or ""):
-                raise serializers.ValidationError(
-                    {"reauth": "Password credential is required."}
-                )
+                raise serializers.ValidationError({"reauth": "Password credential is required."})
         return attrs
 
 
@@ -79,14 +78,10 @@ class AdvisorDraftSerializer(PreviewCommitSerializer):
         allow_blank=False,
     )
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
-        if not attrs.get("preview_only", True) and not attrs.get(
-            "expected_plan_digest"
-        ):
-            raise serializers.ValidationError(
-                {"expected_plan_digest": "Required for commit."}
-            )
+        if not attrs.get("preview_only", True) and not attrs.get("expected_plan_digest"):
+            raise serializers.ValidationError({"expected_plan_digest": "Required for commit."})
         return attrs
 
 
@@ -117,7 +112,7 @@ class AgentBindingSerializer(PreviewCommitSerializer):
     is_active = serializers.BooleanField(default=True)
     reason = serializers.CharField(max_length=1000)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
         if attrs.get("is_active", True) and not attrs.get("broker_account_ref"):
             raise serializers.ValidationError(
@@ -136,14 +131,12 @@ class AccountAccessSerializer(PreviewCommitSerializer):
     is_active = serializers.BooleanField(default=True)
     reason = serializers.CharField(max_length=1000)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
         if attrs.get("is_active", True) and not (
             attrs.get("can_approve", False) or attrs.get("can_trade", False)
         ):
-            raise serializers.ValidationError(
-                "An active grant must allow approval or trading."
-            )
+            raise serializers.ValidationError("An active grant must allow approval or trading.")
         return attrs
 
 
@@ -205,7 +198,7 @@ class ExecutionSettingsSerializer(PreviewCommitSerializer):
     reason = serializers.CharField(max_length=1000)
 
 
-class AgentHeartbeatSerializer(serializers.Serializer):
+class AgentHeartbeatSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate Agent health payload."""
 
     contract_version = serializers.ChoiceField(choices=["1.0"])
@@ -220,7 +213,7 @@ class AgentHeartbeatSerializer(serializers.Serializer):
     message = serializers.CharField(required=False, allow_blank=True, max_length=500)
 
 
-class AgentLeaseSerializer(serializers.Serializer):
+class AgentLeaseSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate Agent lease request."""
 
     contract_version = serializers.ChoiceField(choices=["1.0"])
@@ -228,7 +221,7 @@ class AgentLeaseSerializer(serializers.Serializer):
     lease_seconds = serializers.IntegerField(min_value=10, max_value=120, default=30)
 
 
-class AgentSubmittingSerializer(serializers.Serializer):
+class AgentSubmittingSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate pre-submit acknowledgement."""
 
     contract_version = serializers.ChoiceField(choices=["1.0"])
@@ -236,7 +229,7 @@ class AgentSubmittingSerializer(serializers.Serializer):
     lease_token = serializers.CharField(max_length=256)
 
 
-class AgentFillSerializer(serializers.Serializer):
+class AgentFillSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate one immutable fill fact inside an Agent event."""
 
     broker_account_ref = serializers.CharField(required=False, max_length=128)
@@ -255,7 +248,7 @@ class AgentFillSerializer(serializers.Serializer):
     payload = serializers.DictField(required=False)
 
 
-class AgentEventSerializer(serializers.Serializer):
+class AgentEventSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate one normalized broker event."""
 
     event_id = serializers.CharField(max_length=96)
@@ -268,14 +261,18 @@ class AgentEventSerializer(serializers.Serializer):
     fill = AgentFillSerializer(required=False)
 
 
-class AgentEventsSerializer(serializers.Serializer):
+class AgentEventsSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate a bounded event batch."""
 
     contract_version = serializers.ChoiceField(choices=["1.0"])
-    events = AgentEventSerializer(many=True, allow_empty=False, max_length=200)
+    events = serializers.ListField(
+        child=AgentEventSerializer(),
+        allow_empty=False,
+        max_length=200,
+    )
 
 
-class AgentPositionSerializer(serializers.Serializer):
+class AgentPositionSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate one broker position snapshot."""
 
     asset_code = serializers.CharField(max_length=32)
@@ -288,7 +285,7 @@ class AgentPositionSerializer(serializers.Serializer):
     payload = serializers.DictField(required=False)
 
 
-class AgentSnapshotOrderSerializer(serializers.Serializer):
+class AgentSnapshotOrderSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate one broker order fact used only for reconciliation."""
 
     broker_order_id = serializers.CharField(max_length=128)
@@ -300,13 +297,13 @@ class AgentSnapshotOrderSerializer(serializers.Serializer):
         max_digits=20,
         decimal_places=4,
         min_value=0,
-        default=0,
+        default=Decimal("0"),
     )
     limit_price = serializers.DecimalField(max_digits=20, decimal_places=4, required=False)
     status = serializers.CharField(max_length=32)
 
 
-class AgentSnapshotTradeSerializer(serializers.Serializer):
+class AgentSnapshotTradeSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate one immutable broker trade fact used for reconciliation."""
 
     broker_trade_id = serializers.CharField(max_length=128)
@@ -326,7 +323,7 @@ class AgentSnapshotTradeSerializer(serializers.Serializer):
     occurred_at = serializers.DateTimeField(required=False)
 
 
-class AgentSnapshotSerializer(serializers.Serializer):
+class AgentSnapshotSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate account and position snapshots."""
 
     contract_version = serializers.ChoiceField(choices=["1.0"])
@@ -342,20 +339,31 @@ class AgentSnapshotSerializer(serializers.Serializer):
         decimal_places=2,
         min_value=0,
     )
-    positions = AgentPositionSerializer(many=True, max_length=5000)
-    orders = AgentSnapshotOrderSerializer(many=True, required=False, max_length=5000)
-    trades = AgentSnapshotTradeSerializer(many=True, required=False, max_length=5000)
+    positions = serializers.ListField(
+        child=AgentPositionSerializer(),
+        max_length=5000,
+    )
+    orders = serializers.ListField(
+        child=AgentSnapshotOrderSerializer(),
+        required=False,
+        max_length=5000,
+    )
+    trades = serializers.ListField(
+        child=AgentSnapshotTradeSerializer(),
+        required=False,
+        max_length=5000,
+    )
     payload = serializers.DictField(required=False)
 
 
-class AgentCommandsSerializer(serializers.Serializer):
+class AgentCommandsSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate command lease request."""
 
     contract_version = serializers.ChoiceField(choices=["1.0"])
     limit = serializers.IntegerField(min_value=1, max_value=50, default=20)
 
 
-class AgentCommandCompleteSerializer(serializers.Serializer):
+class AgentCommandCompleteSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate one leased command result."""
 
     contract_version = serializers.ChoiceField(choices=["1.0"])

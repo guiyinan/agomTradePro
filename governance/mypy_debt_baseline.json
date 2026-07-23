@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6678,
-    "files_with_errors": 833
+    "errors": 6550,
+    "files_with_errors": 829
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -278,12 +278,6 @@
     "apps/agent_runtime/infrastructure/terminal_agent_service.py": {
       "attr-defined": 1,
       "no-untyped-def": 2
-    },
-    "apps/agent_runtime/interface/serializers.py": {
-      "attr-defined": 4,
-      "no-any-return": 4,
-      "type-arg": 17,
-      "valid-type": 4
     },
     "apps/agent_runtime/interface/views.py": {
       "arg-type": 3,
@@ -571,12 +565,6 @@
     },
     "apps/alpha/interface/score_upload_api_views.py": {
       "no-untyped-def": 1
-    },
-    "apps/alpha/interface/serializers.py": {
-      "assignment": 3,
-      "call-arg": 2,
-      "no-untyped-def": 1,
-      "type-arg": 7
     },
     "apps/alpha/management/commands/activate_model.py": {
       "index": 1,
@@ -1016,13 +1004,6 @@
     "apps/broker_execution/interface/api_views.py": {
       "assignment": 6,
       "no-untyped-def": 26
-    },
-    "apps/broker_execution/interface/serializers.py": {
-      "arg-type": 1,
-      "call-arg": 4,
-      "no-untyped-call": 10,
-      "no-untyped-def": 11,
-      "type-arg": 13
     },
     "apps/config_center/admin.py": {
       "no-untyped-def": 7,
@@ -2443,13 +2424,6 @@
     },
     "apps/prompt/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/prompt/interface/serializers.py": {
-      "assignment": 3,
-      "no-untyped-call": 6,
-      "no-untyped-def": 16,
-      "type-arg": 19,
-      "union-attr": 3
     },
     "apps/prompt/interface/views.py": {
       "no-untyped-call": 2,

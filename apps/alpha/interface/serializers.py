@@ -7,39 +7,40 @@ Django REST Framework 序列化器定义。
 import math
 from collections.abc import Mapping
 from datetime import date
-from typing import Any
+from typing import Any, TypeAlias, cast
 
 from rest_framework import serializers
 
 from ..application.pool_resolver import get_alpha_pool_mode_choices
 from ..domain.entities import AlphaResult, StockScore
 
+SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
+
 _ALPHA_POOL_MODE_VALUES = [item["value"] for item in get_alpha_pool_mode_choices()]
 
 
-class StrictFieldsSerializer(serializers.Serializer):
+class StrictFieldsSerializer(serializers.Serializer[dict[str, Any]]):
     """Reject request fields that are not declared by the canonical contract."""
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         if isinstance(data, Mapping):
             unknown_fields = sorted(set(data) - set(self.fields))
             if unknown_fields:
                 raise serializers.ValidationError(
                     {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
                 )
-        return super().to_internal_value(data)
+        return cast(dict[str, Any], super().to_internal_value(data))
 
 
-class StockScoreSerializer(serializers.Serializer):
+class StockScoreSerializer(serializers.Serializer[StockScore]):
     """股票评分序列化器"""
 
     code = serializers.CharField(help_text="股票代码")
     score = serializers.FloatField(help_text="评分")
     rank = serializers.IntegerField(help_text="排名")
     factors = serializers.DictField(
-        child=serializers.FloatField(), help_text="因子暴露", required=False, default={}
+        child=serializers.FloatField(), help_text="因子暴露", required=False, default=dict
     )
-    source = serializers.CharField(help_text="来源")
     confidence = serializers.FloatField(help_text="置信度")
 
     # 审计字段
@@ -56,6 +57,13 @@ class StockScoreSerializer(serializers.Serializer):
     label_id = serializers.CharField(help_text="标签标识", required=False, allow_null=True)
     data_version = serializers.CharField(help_text="数据版本", required=False, allow_null=True)
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the public ``source`` field without overriding DRF state."""
+
+        fields = super().get_fields()
+        fields["source"] = serializers.CharField(help_text="来源")
+        return fields
+
     def create(self, validated_data: dict[str, Any]) -> StockScore:
         """从验证数据创建 StockScore"""
         return StockScore(**validated_data)
@@ -65,11 +73,10 @@ class StockScoreSerializer(serializers.Serializer):
         return instance.to_dict()
 
 
-class AlphaResultSerializer(serializers.Serializer):
+class AlphaResultSerializer(serializers.Serializer[AlphaResult]):
     """Alpha 结果序列化器"""
 
     success = serializers.BooleanField(help_text="是否成功")
-    source = serializers.CharField(help_text="数据来源")
     timestamp = serializers.CharField(help_text="时间戳")
     status = serializers.CharField(help_text="状态")
     error_message = serializers.CharField(help_text="错误信息", required=False, allow_null=True)
@@ -78,21 +85,28 @@ class AlphaResultSerializer(serializers.Serializer):
         help_text="数据陈旧天数", required=False, allow_null=True
     )
     stocks = StockScoreSerializer(many=True, help_text="股票评分列表")
-    metadata = serializers.DictField(help_text="额外元数据", required=False, default={})
+    metadata = serializers.DictField(help_text="额外元数据", required=False, default=dict)
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the public ``source`` field without overriding DRF state."""
+
+        fields = super().get_fields()
+        fields["source"] = serializers.CharField(help_text="数据来源")
+        return fields
 
     def create(self, validated_data: dict[str, Any]) -> AlphaResult:
         """从验证数据创建 AlphaResult"""
         stocks_data = validated_data.pop("stocks", [])
         stocks = [StockScore(**s) for s in stocks_data]
 
-        return AlphaResult(stocks=stocks, **validated_data)
+        return AlphaResult(scores=stocks, **validated_data)
 
     def to_representation(self, instance: AlphaResult) -> dict[str, Any]:
         """转换为字典表示"""
         return instance.to_dict()
 
 
-class GetStockScoresRequestSerializer(serializers.Serializer):
+class GetStockScoresRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """获取股票评分请求序列化器"""
 
     universe = serializers.CharField(
@@ -140,7 +154,7 @@ class GetStockScoresRequestSerializer(serializers.Serializer):
         return attrs
 
 
-class ProviderStatusSerializer(serializers.Serializer):
+class ProviderStatusSerializer(serializers.Serializer[dict[str, Any]]):
     """Provider 状态序列化器"""
 
     priority = serializers.IntegerField(help_text="优先级")
@@ -172,13 +186,19 @@ class UploadScoreItemSerializer(StrictFieldsSerializer):
         max_value=1.0,
         help_text="置信度",
     )
-    source = serializers.CharField(
-        required=False,
-        default="local_qlib",
-        max_length=64,
-        allow_blank=False,
-        help_text="来源标识",
-    )
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the upload ``source`` field without overriding DRF state."""
+
+        fields = super().get_fields()
+        fields["source"] = serializers.CharField(
+            required=False,
+            default="local_qlib",
+            max_length=64,
+            allow_blank=False,
+            help_text="来源标识",
+        )
+        return fields
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         numeric_values = [attrs["score"], attrs["confidence"], *attrs["factors"].values()]
@@ -209,8 +229,11 @@ class UploadScoresSerializer(StrictFieldsSerializer):
         default="user",
         help_text="写入范围：user=个人，system=全局（仅 admin）",
     )
-    scores = UploadScoreItemSerializer(
-        many=True, allow_empty=False, max_length=1000, help_text="评分列表"
+    scores = serializers.ListField(
+        child=UploadScoreItemSerializer(),
+        allow_empty=False,
+        max_length=1000,
+        help_text="评分列表",
     )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
@@ -230,7 +253,7 @@ class UploadScoresSerializer(StrictFieldsSerializer):
         return attrs
 
 
-class AlphaOpsInferenceTriggerSerializer(serializers.Serializer):
+class AlphaOpsInferenceTriggerSerializer(serializers.Serializer[dict[str, Any]]):
     """Trigger serializer for Alpha inference ops actions."""
 
     MODE_GENERAL = "general"
@@ -263,7 +286,7 @@ class AlphaOpsInferenceTriggerSerializer(serializers.Serializer):
         return attrs
 
 
-class QlibDataRefreshTriggerSerializer(serializers.Serializer):
+class QlibDataRefreshTriggerSerializer(serializers.Serializer[dict[str, Any]]):
     """Trigger serializer for Qlib runtime data refresh actions."""
 
     MODE_UNIVERSES = "universes"

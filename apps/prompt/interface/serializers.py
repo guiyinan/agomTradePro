@@ -4,8 +4,16 @@ DRF Serializers for AI Prompt Management.
 Django Rest Framework serializers for request/response validation.
 """
 
+from typing import Any, TypeAlias, cast
+
 from rest_framework import serializers
 
+from ..application.dtos import (
+    ExecuteChainResponse,
+    ExecutePromptResponse,
+    GenerateReportResponse,
+    GenerateSignalResponse,
+)
 from ..application.interface_services import (
     create_chain_config,
     create_prompt_template,
@@ -13,6 +21,17 @@ from ..application.interface_services import (
     update_chain_config,
     update_prompt_template,
 )
+from ..domain.entities import (
+    ChainConfig,
+    ChainExecutionMode,
+    ChainStep,
+    PlaceholderDef,
+    PlaceholderType,
+    PromptCategory,
+    PromptTemplate,
+)
+
+SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
 
 PROMPT_CATEGORY_CHOICES = [
     "report",
@@ -29,19 +48,25 @@ CHAIN_EXECUTION_MODE_CHOICES = [
 ]
 
 
-class PlaceholderSerializer(serializers.Serializer):
+class PlaceholderSerializer(serializers.Serializer[dict[str, Any]]):
     """占位符序列化器"""
 
     name = serializers.CharField(max_length=50)
     type = serializers.ChoiceField(choices=["simple", "structured", "function", "conditional"])
     description = serializers.CharField(allow_blank=True, required=False)
     default_value = serializers.JSONField(required=False, allow_null=True)
-    required = serializers.BooleanField(default=True)
     function_name = serializers.CharField(allow_blank=True, required=False)
     function_params = serializers.JSONField(required=False, allow_null=True)
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the API ``required`` field without overriding DRF state."""
 
-class PromptTemplateSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["required"] = serializers.BooleanField(default=True)
+        return fields
+
+
+class PromptTemplateSerializer(serializers.Serializer[Any]):
     """Prompt模板序列化器"""
 
     id = serializers.CharField(read_only=True)
@@ -63,19 +88,19 @@ class PromptTemplateSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField(read_only=True)
     last_used_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
-    def validate_temperature(self, value):
+    def validate_temperature(self, value: float) -> float:
         """验证温度参数"""
         if not (0 <= value <= 2):
             raise serializers.ValidationError("temperature必须在0.0-2.0之间")
         return value
 
-    def validate_max_tokens(self, value):
+    def validate_max_tokens(self, value: int | None) -> int | None:
         """验证最大token数"""
         if value is not None and value <= 0:
             raise serializers.ValidationError("max_tokens必须为正数")
         return value
 
-    def validate_placeholders(self, value):
+    def validate_placeholders(self, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """验证占位符格式"""
         if not isinstance(value, list):
             raise serializers.ValidationError("placeholders必须是列表格式")
@@ -88,16 +113,16 @@ class PromptTemplateSerializer(serializers.Serializer):
 
         return value
 
-    def to_representation(self, instance):
+    def to_representation(self, instance: Any) -> dict[str, Any]:
         """Normalize domain entities and ORM instances into the same payload."""
 
         data = super().to_representation(instance)
         category = getattr(instance, "category", None)
-        if hasattr(category, "value"):
+        if isinstance(category, PromptCategory):
             data["category"] = category.value
 
         placeholders = getattr(instance, "placeholders", None) or []
-        if placeholders and not isinstance(placeholders[0], dict):
+        if placeholders and isinstance(placeholders[0], PlaceholderDef):
             data["placeholders"] = [
                 {
                     "name": placeholder.name,
@@ -117,7 +142,7 @@ class PromptTemplateSerializer(serializers.Serializer):
 class PromptTemplateCreateSerializer(PromptTemplateSerializer):
     """Prompt模板创建序列化器"""
 
-    def validate_name(self, value):
+    def validate_name(self, value: str) -> str:
         """Reject names already reserved by active or inactive templates."""
 
         instance_id = getattr(self.instance, "id", None)
@@ -128,15 +153,8 @@ class PromptTemplateCreateSerializer(PromptTemplateSerializer):
             raise serializers.ValidationError("模板名称已存在")
         return value
 
-    def _build_entity(self, validated_data):
+    def _build_entity(self, validated_data: dict[str, Any]) -> PromptTemplate:
         """Build the prompt template domain entity from validated data."""
-
-        from ..domain.entities import (
-            PlaceholderDef,
-            PlaceholderType,
-            PromptCategory,
-            PromptTemplate,
-        )
 
         placeholders_data = validated_data.pop("placeholders", [])
 
@@ -168,12 +186,15 @@ class PromptTemplateCreateSerializer(PromptTemplateSerializer):
         )
         return entity
 
-    def create(self, validated_data):
+    def create(self, validated_data: dict[str, Any]) -> PromptTemplate:
         """创建模板"""
 
-        return create_prompt_template(self._build_entity(dict(validated_data)))
+        return cast(
+            PromptTemplate,
+            create_prompt_template(self._build_entity(dict(validated_data))),
+        )
 
-    def update(self, instance, validated_data):
+    def update(self, instance: Any, validated_data: dict[str, Any]) -> PromptTemplate:
         """更新模板"""
 
         merged_data = {
@@ -194,10 +215,10 @@ class PromptTemplateCreateSerializer(PromptTemplateSerializer):
         updated = update_prompt_template(int(instance.id), self._build_entity(merged_data))
         if updated is None:
             raise serializers.ValidationError("模板不存在或更新失败")
-        return updated
+        return cast(PromptTemplate, updated)
 
 
-class ChainStepSerializer(serializers.Serializer):
+class ChainStepSerializer(serializers.Serializer[dict[str, Any]]):
     """链步骤序列化器"""
 
     step_id = serializers.CharField(max_length=50)
@@ -213,7 +234,7 @@ class ChainStepSerializer(serializers.Serializer):
     )
 
 
-class ChainConfigSerializer(serializers.Serializer):
+class ChainConfigSerializer(serializers.Serializer[Any]):
     """链配置序列化器"""
 
     id = serializers.CharField(read_only=True)
@@ -227,7 +248,7 @@ class ChainConfigSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
 
-    def validate_steps(self, value):
+    def validate_steps(self, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """验证步骤配置"""
         if not isinstance(value, list):
             raise serializers.ValidationError("steps必须是列表格式")
@@ -245,18 +266,18 @@ class ChainConfigSerializer(serializers.Serializer):
 
         return value
 
-    def to_representation(self, instance):
+    def to_representation(self, instance: Any) -> dict[str, Any]:
         """Normalize domain entities and ORM instances into the same payload."""
 
         data = super().to_representation(instance)
         category = getattr(instance, "category", None)
         execution_mode = getattr(instance, "execution_mode", None)
-        if hasattr(category, "value"):
+        if isinstance(category, PromptCategory):
             data["category"] = category.value
-        if hasattr(execution_mode, "value"):
+        if isinstance(execution_mode, ChainExecutionMode):
             data["execution_mode"] = execution_mode.value
 
-        def _serialize_step(step):
+        def _serialize_step(step: ChainStep | dict[str, Any]) -> dict[str, Any]:
             if isinstance(step, dict):
                 return step
             return {
@@ -282,10 +303,8 @@ class ChainConfigSerializer(serializers.Serializer):
 class ChainConfigCreateSerializer(ChainConfigSerializer):
     """链配置创建序列化器"""
 
-    def _build_entity(self, validated_data):
+    def _build_entity(self, validated_data: dict[str, Any]) -> ChainConfig:
         """Build the chain config domain entity from validated data."""
-
-        from ..domain.entities import ChainConfig, ChainExecutionMode, ChainStep, PromptCategory
 
         steps_data = validated_data.pop("steps")
         aggregate_data = validated_data.pop("aggregate_step", None)
@@ -331,12 +350,15 @@ class ChainConfigCreateSerializer(ChainConfigSerializer):
         )
         return entity
 
-    def create(self, validated_data):
+    def create(self, validated_data: dict[str, Any]) -> ChainConfig:
         """创建链配置"""
 
-        return create_chain_config(self._build_entity(dict(validated_data)))
+        return cast(
+            ChainConfig,
+            create_chain_config(self._build_entity(dict(validated_data))),
+        )
 
-    def update(self, instance, validated_data):
+    def update(self, instance: Any, validated_data: dict[str, Any]) -> ChainConfig:
         """更新链配置"""
 
         merged_data = {
@@ -358,10 +380,10 @@ class ChainConfigCreateSerializer(ChainConfigSerializer):
         updated = update_chain_config(int(instance.id), self._build_entity(merged_data))
         if updated is None:
             raise serializers.ValidationError("链配置不存在或更新失败")
-        return updated
+        return cast(ChainConfig, updated)
 
 
-class ExecutePromptSerializer(serializers.Serializer):
+class ExecutePromptSerializer(serializers.Serializer[dict[str, Any]]):
     """执行Prompt请求序列化器"""
 
     template_id = serializers.IntegerField()
@@ -373,7 +395,7 @@ class ExecutePromptSerializer(serializers.Serializer):
     max_tokens = serializers.IntegerField(allow_null=True, required=False)
 
 
-class ExecutePromptResponseSerializer(serializers.Serializer):
+class ExecutePromptResponseSerializer(serializers.Serializer[ExecutePromptResponse]):
     """执行Prompt响应序列化器"""
 
     success = serializers.BooleanField()
@@ -390,7 +412,7 @@ class ExecutePromptResponseSerializer(serializers.Serializer):
     template_name = serializers.CharField()
 
 
-class ExecuteChainSerializer(serializers.Serializer):
+class ExecuteChainSerializer(serializers.Serializer[dict[str, Any]]):
     """执行链请求序列化器"""
 
     chain_id = serializers.IntegerField()
@@ -400,7 +422,7 @@ class ExecuteChainSerializer(serializers.Serializer):
     model = serializers.CharField(allow_blank=True, required=False)
 
 
-class ExecuteChainResponseSerializer(serializers.Serializer):
+class ExecuteChainResponseSerializer(serializers.Serializer[ExecuteChainResponse]):
     """执行链响应序列化器"""
 
     success = serializers.BooleanField()
@@ -414,7 +436,7 @@ class ExecuteChainResponseSerializer(serializers.Serializer):
     error_message = serializers.CharField(allow_blank=True, required=False)
 
 
-class GenerateReportSerializer(serializers.Serializer):
+class GenerateReportSerializer(serializers.Serializer[dict[str, Any]]):
     """生成报告请求序列化器"""
 
     as_of_date = serializers.DateField()
@@ -429,14 +451,14 @@ class GenerateReportSerializer(serializers.Serializer):
     model = serializers.CharField(allow_blank=True, required=False)
 
 
-class GenerateReportResponseSerializer(serializers.Serializer):
+class GenerateReportResponseSerializer(serializers.Serializer[GenerateReportResponse]):
     """生成报告响应序列化器"""
 
     report = serializers.CharField()
     metadata = serializers.JSONField()
 
 
-class GenerateSignalSerializer(serializers.Serializer):
+class GenerateSignalSerializer(serializers.Serializer[dict[str, Any]]):
     """生成信号请求序列化器"""
 
     asset_code = serializers.CharField(max_length=20)
@@ -445,7 +467,7 @@ class GenerateSignalSerializer(serializers.Serializer):
     provider_name = serializers.CharField(allow_blank=True, required=False)
 
 
-class GenerateSignalResponseSerializer(serializers.Serializer):
+class GenerateSignalResponseSerializer(serializers.Serializer[GenerateSignalResponse]):
     """生成信号响应序列化器"""
 
     asset_code = serializers.CharField()
@@ -457,18 +479,24 @@ class GenerateSignalResponseSerializer(serializers.Serializer):
     confidence = serializers.FloatField()
 
 
-class ChatRequestSerializer(serializers.Serializer):
+class ChatRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """聊天请求序列化器"""
 
     message = serializers.CharField()
     session_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    context = serializers.JSONField(allow_null=True, required=False)
     provider_ref = serializers.JSONField(required=False)
     provider_name = serializers.CharField(allow_blank=True, required=False)
     model = serializers.CharField(allow_blank=True, required=False)
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register request context without overriding DRF serializer state."""
 
-class ChatResponseSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["context"] = serializers.JSONField(allow_null=True, required=False)
+        return fields
+
+
+class ChatResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """聊天响应序列化器"""
 
     reply = serializers.CharField()
@@ -476,7 +504,7 @@ class ChatResponseSerializer(serializers.Serializer):
     metadata = serializers.JSONField()
 
 
-class ExecutionLogSerializer(serializers.Serializer):
+class ExecutionLogSerializer(serializers.Serializer[Any]):
     """执行日志序列化器"""
 
     id = serializers.IntegerField(read_only=True)
@@ -505,30 +533,36 @@ class ExecutionLogSerializer(serializers.Serializer):
     error_message = serializers.CharField(read_only=True, allow_blank=True)
     created_at = serializers.DateTimeField(read_only=True)
 
-    def get_template_name(self, obj) -> str | None:
+    def get_template_name(self, obj: Any) -> str | None:
         template = getattr(obj, "template", None)
         return getattr(template, "name", None)
 
-    def get_chain_name(self, obj) -> str | None:
+    def get_chain_name(self, obj: Any) -> str | None:
         chain = getattr(obj, "chain", None)
         return getattr(chain, "name", None)
 
 
-class ChatSessionSerializer(serializers.Serializer):
+class ChatSessionSerializer(serializers.Serializer[Any]):
     """聊天会话序列化器"""
 
     id = serializers.IntegerField(read_only=True)
     session_id = serializers.CharField(read_only=True)
     user_message = serializers.CharField(read_only=True)
     ai_response = serializers.CharField(read_only=True)
-    context = serializers.JSONField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register persisted context without overriding DRF serializer state."""
+
+        fields = super().get_fields()
+        fields["context"] = serializers.JSONField(read_only=True)
+        return fields
 
 
 # ==================== Agent Runtime Serializers ====================
 
 
-class AgentExecuteRequestSerializer(serializers.Serializer):
+class AgentExecuteRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """Agent Runtime 执行请求序列化器"""
 
     task_type = serializers.CharField(max_length=50)
@@ -551,7 +585,7 @@ class AgentExecuteRequestSerializer(serializers.Serializer):
     metadata = serializers.JSONField(required=False, allow_null=True)
 
 
-class ToolCallRecordSerializer(serializers.Serializer):
+class ToolCallRecordSerializer(serializers.Serializer[dict[str, Any]]):
     """工具调用记录序列化器"""
 
     tool_name = serializers.CharField()
@@ -562,7 +596,7 @@ class ToolCallRecordSerializer(serializers.Serializer):
     duration_ms = serializers.IntegerField()
 
 
-class AgentExecuteResponseSerializer(serializers.Serializer):
+class AgentExecuteResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """Agent Runtime 执行响应序列化器"""
 
     success = serializers.BooleanField()

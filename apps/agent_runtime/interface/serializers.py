@@ -28,7 +28,7 @@ AgentTaskStepModel = django_apps.get_model("agent_runtime", "AgentTaskStepModel"
 AgentTimelineEventModel = django_apps.get_model("agent_runtime", "AgentTimelineEventModel")
 
 
-class AgentTaskSerializer(serializers.ModelSerializer):
+class AgentTaskSerializer(serializers.ModelSerializer[Any]):
     """
     Serializer for AgentTaskModel - full task detail output.
 
@@ -36,9 +36,11 @@ class AgentTaskSerializer(serializers.ModelSerializer):
     """
 
     # Display values for enums
-    task_domain_display = serializers.CharField(source='get_task_domain_display', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True, allow_null=True)
+    task_domain_display = serializers.CharField(source="get_task_domain_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    created_by_username = serializers.CharField(
+        source="created_by.username", read_only=True, allow_null=True
+    )
 
     # Counters for related objects
     steps_count = serializers.SerializerMethodField()
@@ -49,51 +51,51 @@ class AgentTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentTaskModel
         fields = [
-            'id',
-            'request_id',
-            'schema_version',
-            'task_domain',
-            'task_domain_display',
-            'task_type',
-            'status',
-            'status_display',
-            'input_payload',
-            'current_step',
-            'last_error',
-            'requires_human',
-            'created_by',
-            'created_by_username',
-            'created_at',
-            'updated_at',
+            "id",
+            "request_id",
+            "schema_version",
+            "task_domain",
+            "task_domain_display",
+            "task_type",
+            "status",
+            "status_display",
+            "input_payload",
+            "current_step",
+            "last_error",
+            "requires_human",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "updated_at",
             # Related counts
-            'steps_count',
-            'proposals_count',
-            'artifacts_count',
-            'timeline_events_count',
+            "steps_count",
+            "proposals_count",
+            "artifacts_count",
+            "timeline_events_count",
         ]
         read_only_fields = [
-            'id',
-            'request_id',
-            'schema_version',
-            'created_at',
-            'updated_at',
-            'created_by',
+            "id",
+            "request_id",
+            "schema_version",
+            "created_at",
+            "updated_at",
+            "created_by",
         ]
 
-    def get_steps_count(self, obj: AgentTaskModel) -> int:
-        return obj.steps.count()
+    def get_steps_count(self, obj: Any) -> int:
+        return int(obj.steps.count())
 
-    def get_proposals_count(self, obj: AgentTaskModel) -> int:
-        return obj.proposals.count()
+    def get_proposals_count(self, obj: Any) -> int:
+        return int(obj.proposals.count())
 
-    def get_artifacts_count(self, obj: AgentTaskModel) -> int:
-        return obj.artifacts.count()
+    def get_artifacts_count(self, obj: Any) -> int:
+        return int(obj.artifacts.count())
 
-    def get_timeline_events_count(self, obj: AgentTaskModel) -> int:
-        return obj.timeline_events.count()
+    def get_timeline_events_count(self, obj: Any) -> int:
+        return int(obj.timeline_events.count())
 
 
-class AgentTaskCreateSerializer(serializers.Serializer):
+class AgentTaskCreateSerializer(serializers.Serializer[dict[str, Any]]):
     """
     Serializer for creating a new AgentTask.
 
@@ -103,17 +105,13 @@ class AgentTaskCreateSerializer(serializers.Serializer):
     task_domain = serializers.ChoiceField(
         choices=[d.value for d in TaskDomain],
         required=True,
-        help_text="Task domain: research/monitoring/decision/execution/ops"
+        help_text="Task domain: research/monitoring/decision/execution/ops",
     )
     task_type = serializers.CharField(
-        max_length=100,
-        required=True,
-        help_text="Task subtype (e.g., macro_portfolio_review)"
+        max_length=100, required=True, help_text="Task subtype (e.g., macro_portfolio_review)"
     )
     input_payload = serializers.JSONField(
-        default=dict,
-        required=False,
-        help_text="JSON input payload for the task"
+        default=dict, required=False, help_text="JSON input payload for the task"
     )
 
     def validate_task_domain(self, value: str) -> str:
@@ -131,49 +129,45 @@ class AgentTaskCreateSerializer(serializers.Serializer):
         """Validate task type with XSS sanitization."""
         value = sanitize_plain_text(value)
         if not value or len(value.strip()) < 2:
-            raise serializers.ValidationError(
-                "task_type must be at least 2 characters"
-            )
+            raise serializers.ValidationError("task_type must be at least 2 characters")
         return value
 
     def validate_input_payload(self, value: dict[str, Any]) -> dict[str, Any]:
         """Validate input payload is a dict."""
         if not isinstance(value, dict):
-            raise serializers.ValidationError(
-                "input_payload must be a JSON object"
-            )
+            raise serializers.ValidationError("input_payload must be a JSON object")
         return value
 
 
-class AgentTaskListSerializer(serializers.ModelSerializer):
+class AgentTaskListSerializer(serializers.ModelSerializer[Any]):
     """
     Serializer for task list output.
 
     Lightweight version for list views.
     """
 
-    task_domain_display = serializers.CharField(source='get_task_domain_display', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    task_domain_display = serializers.CharField(source="get_task_domain_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
         model = AgentTaskModel
         fields = [
-            'id',
-            'request_id',
-            'schema_version',
-            'task_domain',
-            'task_domain_display',
-            'task_type',
-            'status',
-            'status_display',
-            'current_step',
-            'requires_human',
-            'created_at',
-            'updated_at',
+            "id",
+            "request_id",
+            "schema_version",
+            "task_domain",
+            "task_domain_display",
+            "task_type",
+            "status",
+            "status_display",
+            "current_step",
+            "requires_human",
+            "created_at",
+            "updated_at",
         ]
 
 
-class AgentTaskUpdateSerializer(serializers.Serializer):
+class AgentTaskUpdateSerializer(serializers.Serializer[dict[str, Any]]):
     """
     Serializer for updating an existing AgentTask.
 
@@ -181,24 +175,16 @@ class AgentTaskUpdateSerializer(serializers.Serializer):
     """
 
     status = serializers.ChoiceField(
-        choices=[s.value for s in TaskStatus],
-        required=False,
-        help_text="New task status"
+        choices=[s.value for s in TaskStatus], required=False, help_text="New task status"
     )
     current_step = serializers.CharField(
-        max_length=100,
-        required=False,
-        allow_null=True,
-        help_text="Current step key"
+        max_length=100, required=False, allow_null=True, help_text="Current step key"
     )
     last_error = serializers.JSONField(
-        required=False,
-        allow_null=True,
-        help_text="Structured error payload"
+        required=False, allow_null=True, help_text="Structured error payload"
     )
     requires_human = serializers.BooleanField(
-        required=False,
-        help_text="Whether human intervention is needed"
+        required=False, help_text="Whether human intervention is needed"
     )
 
     def validate_status(self, value: str | None) -> str | None:
@@ -219,48 +205,52 @@ class AgentTaskUpdateSerializer(serializers.Serializer):
         return value
 
 
-class AgentProposalSerializer(serializers.ModelSerializer):
+class AgentProposalSerializer(serializers.ModelSerializer[Any]):
     """
     Serializer for AgentProposalModel.
     """
 
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    risk_level_display = serializers.CharField(source='get_risk_level_display', read_only=True)
-    approval_status_display = serializers.CharField(source='get_approval_status_display', read_only=True)
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True, allow_null=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    risk_level_display = serializers.CharField(source="get_risk_level_display", read_only=True)
+    approval_status_display = serializers.CharField(
+        source="get_approval_status_display", read_only=True
+    )
+    created_by_username = serializers.CharField(
+        source="created_by.username", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = AgentProposalModel
         fields = [
-            'id',
-            'request_id',
-            'schema_version',
-            'task_id',
-            'proposal_type',
-            'status',
-            'status_display',
-            'risk_level',
-            'risk_level_display',
-            'approval_required',
-            'approval_status',
-            'approval_status_display',
-            'approval_reason',
-            'proposal_payload',
-            'created_by',
-            'created_by_username',
-            'created_at',
-            'updated_at',
+            "id",
+            "request_id",
+            "schema_version",
+            "task_id",
+            "proposal_type",
+            "status",
+            "status_display",
+            "risk_level",
+            "risk_level_display",
+            "approval_required",
+            "approval_status",
+            "approval_status_display",
+            "approval_reason",
+            "proposal_payload",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = [
-            'id',
-            'request_id',
-            'schema_version',
-            'created_at',
-            'updated_at',
+            "id",
+            "request_id",
+            "schema_version",
+            "created_at",
+            "updated_at",
         ]
 
 
-class AgentProposalCreateSerializer(serializers.Serializer):
+class AgentProposalCreateSerializer(serializers.Serializer[dict[str, Any]]):
     """
     Serializer for creating a new proposal.
     """
@@ -268,9 +258,7 @@ class AgentProposalCreateSerializer(serializers.Serializer):
     task_id = serializers.IntegerField(required=False, allow_null=True)
     proposal_type = serializers.CharField(max_length=50, required=True)
     risk_level = serializers.ChoiceField(
-        choices=[r.value for r in RiskLevel],
-        default=RiskLevel.MEDIUM.value,
-        required=False
+        choices=[r.value for r in RiskLevel], default=RiskLevel.MEDIUM.value, required=False
     )
     approval_required = serializers.BooleanField(default=True, required=False)
     proposal_payload = serializers.JSONField(default=dict, required=False)
@@ -290,39 +278,39 @@ class AgentProposalCreateSerializer(serializers.Serializer):
         return value
 
 
-class AgentTimelineEventSerializer(serializers.ModelSerializer):
+class AgentTimelineEventSerializer(serializers.ModelSerializer[Any]):
     """
     Serializer for AgentTimelineEventModel.
 
     Timeline events for task audit trail.
     """
 
-    event_type_display = serializers.CharField(source='get_event_type_display', read_only=True)
-    event_source_display = serializers.CharField(source='get_event_source_display', read_only=True)
+    event_type_display = serializers.CharField(source="get_event_type_display", read_only=True)
+    event_source_display = serializers.CharField(source="get_event_source_display", read_only=True)
 
     class Meta:
         model = AgentTimelineEventModel
         fields = [
-            'id',
-            'request_id',
-            'task_id',
-            'proposal_id',
-            'event_type',
-            'event_type_display',
-            'event_source',
-            'event_source_display',
-            'step_index',
-            'event_payload',
-            'created_at',
+            "id",
+            "request_id",
+            "task_id",
+            "proposal_id",
+            "event_type",
+            "event_type_display",
+            "event_source",
+            "event_source_display",
+            "step_index",
+            "event_payload",
+            "created_at",
         ]
         read_only_fields = [
-            'id',
-            'request_id',
-            'created_at',
+            "id",
+            "request_id",
+            "created_at",
         ]
 
 
-class AgentArtifactSerializer(serializers.ModelSerializer):
+class AgentArtifactSerializer(serializers.ModelSerializer[Any]):
     """
     Serializer for AgentArtifactModel.
 
@@ -332,20 +320,20 @@ class AgentArtifactSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentArtifactModel
         fields = [
-            'id',
-            'request_id',
-            'task_id',
-            'artifact_type',
-            'artifact_name',
-            'artifact_data',
-            'file_path',
-            'content_type',
-            'created_at',
+            "id",
+            "request_id",
+            "task_id",
+            "artifact_type",
+            "artifact_name",
+            "artifact_data",
+            "file_path",
+            "content_type",
+            "created_at",
         ]
         read_only_fields = [
-            'id',
-            'request_id',
-            'created_at',
+            "id",
+            "request_id",
+            "created_at",
         ]
 
     def validate_artifact_name(self, value: str) -> str:
@@ -363,7 +351,7 @@ class AgentArtifactSerializer(serializers.ModelSerializer):
         return value
 
 
-class AgentExecutionRecordSerializer(serializers.ModelSerializer):
+class AgentExecutionRecordSerializer(serializers.ModelSerializer[Any]):
     """
     Serializer for AgentExecutionRecordModel.
 
@@ -373,52 +361,52 @@ class AgentExecutionRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentExecutionRecordModel
         fields = [
-            'id',
-            'request_id',
-            'task_id',
-            'proposal_id',
-            'execution_status',
-            'execution_output',
-            'started_at',
-            'completed_at',
-            'error_details',
-            'created_at',
+            "id",
+            "request_id",
+            "task_id",
+            "proposal_id",
+            "execution_status",
+            "execution_output",
+            "started_at",
+            "completed_at",
+            "error_details",
+            "created_at",
         ]
         read_only_fields = [
-            'id',
-            'request_id',
-            'created_at',
+            "id",
+            "request_id",
+            "created_at",
         ]
 
 
-class AgentContextSnapshotSerializer(serializers.ModelSerializer):
+class AgentContextSnapshotSerializer(serializers.ModelSerializer[Any]):
     """
     Serializer for AgentContextSnapshotModel.
     """
 
-    domain_display = serializers.CharField(source='get_domain_display', read_only=True)
+    domain_display = serializers.CharField(source="get_domain_display", read_only=True)
 
     class Meta:
         model = AgentContextSnapshotModel
         fields = [
-            'id',
-            'request_id',
-            'task_id',
-            'domain',
-            'domain_display',
-            'snapshot_data',
-            'generated_at',
-            'data_freshness',
-            'created_at',
+            "id",
+            "request_id",
+            "task_id",
+            "domain",
+            "domain_display",
+            "snapshot_data",
+            "generated_at",
+            "data_freshness",
+            "created_at",
         ]
         read_only_fields = [
-            'id',
-            'request_id',
-            'created_at',
+            "id",
+            "request_id",
+            "created_at",
         ]
 
 
-class AgentTaskStepSerializer(serializers.ModelSerializer):
+class AgentTaskStepSerializer(serializers.ModelSerializer[Any]):
     """
     Serializer for AgentTaskStepModel.
     """
@@ -426,23 +414,23 @@ class AgentTaskStepSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentTaskStepModel
         fields = [
-            'id',
-            'request_id',
-            'task_id',
-            'step_key',
-            'step_name',
-            'step_index',
-            'status',
-            'started_at',
-            'completed_at',
-            'error_message',
-            'output_data',
-            'created_at',
+            "id",
+            "request_id",
+            "task_id",
+            "step_key",
+            "step_name",
+            "step_index",
+            "status",
+            "started_at",
+            "completed_at",
+            "error_message",
+            "output_data",
+            "created_at",
         ]
         read_only_fields = [
-            'id',
-            'request_id',
-            'created_at',
+            "id",
+            "request_id",
+            "created_at",
         ]
 
     def validate_step_name(self, value: str) -> str:
@@ -453,7 +441,7 @@ class AgentTaskStepSerializer(serializers.ModelSerializer):
         return value
 
 
-class AgentHandoffSerializer(serializers.ModelSerializer):
+class AgentHandoffSerializer(serializers.ModelSerializer[Any]):
     """
     Serializer for AgentHandoffModel.
     """
@@ -461,20 +449,20 @@ class AgentHandoffSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentHandoffModel
         fields = [
-            'id',
-            'request_id',
-            'task_id',
-            'from_agent',
-            'to_agent',
-            'handoff_reason',
-            'handoff_payload',
-            'handoff_status',
-            'created_at',
+            "id",
+            "request_id",
+            "task_id",
+            "from_agent",
+            "to_agent",
+            "handoff_reason",
+            "handoff_payload",
+            "handoff_status",
+            "created_at",
         ]
         read_only_fields = [
-            'id',
-            'request_id',
-            'created_at',
+            "id",
+            "request_id",
+            "created_at",
         ]
 
     def validate_from_agent(self, value: str) -> str:
@@ -493,32 +481,32 @@ class AgentHandoffSerializer(serializers.ModelSerializer):
         return value
 
 
-class AgentGuardrailDecisionSerializer(serializers.ModelSerializer):
+class AgentGuardrailDecisionSerializer(serializers.ModelSerializer[Any]):
     """
     Serializer for AgentGuardrailDecisionModel.
     """
 
-    decision_display = serializers.CharField(source='get_decision_display', read_only=True)
+    decision_display = serializers.CharField(source="get_decision_display", read_only=True)
 
     class Meta:
         model = AgentGuardrailDecisionModel
         fields = [
-            'id',
-            'request_id',
-            'task_id',
-            'proposal_id',
-            'decision',
-            'decision_display',
-            'reason_code',
-            'message',
-            'evidence',
-            'requires_human',
-            'created_at',
+            "id",
+            "request_id",
+            "task_id",
+            "proposal_id",
+            "decision",
+            "decision_display",
+            "reason_code",
+            "message",
+            "evidence",
+            "requires_human",
+            "created_at",
         ]
         read_only_fields = [
-            'id',
-            'request_id',
-            'created_at',
+            "id",
+            "request_id",
+            "created_at",
         ]
 
     def validate_reason_code(self, value: str) -> str:
@@ -536,20 +524,16 @@ class AgentGuardrailDecisionSerializer(serializers.ModelSerializer):
         return value
 
 
-class AgentTaskListQuerySerializer(serializers.Serializer):
+class AgentTaskListQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """
     Serializer for task list query parameters.
     """
 
     status = serializers.ChoiceField(
-        choices=[s.value for s in TaskStatus],
-        required=False,
-        allow_null=True
+        choices=[s.value for s in TaskStatus], required=False, allow_null=True
     )
     task_domain = serializers.ChoiceField(
-        choices=[d.value for d in TaskDomain],
-        required=False,
-        allow_null=True
+        choices=[d.value for d in TaskDomain], required=False, allow_null=True
     )
     task_type = serializers.CharField(required=False, allow_null=True)
     requires_human = serializers.BooleanField(required=False, allow_null=True)
@@ -558,15 +542,12 @@ class AgentTaskListQuerySerializer(serializers.Serializer):
     offset = serializers.IntegerField(default=0, min_value=0)
 
 
-class TaskApprovalRequestSerializer(serializers.Serializer):
+class TaskApprovalRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """
     Serializer for task approval requests.
     """
 
-    action = serializers.ChoiceField(
-        choices=['approve', 'reject'],
-        required=True
-    )
+    action = serializers.ChoiceField(choices=["approve", "reject"], required=True)
     reason = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     def validate_reason(self, value: str | None) -> str | None:
@@ -576,16 +557,18 @@ class TaskApprovalRequestSerializer(serializers.Serializer):
         return value
 
 
-class TaskExecutionRequestSerializer(serializers.Serializer):
+class TaskExecutionRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """
     Serializer for task execution requests.
     """
 
     input_payload = serializers.JSONField(required=False, default=dict)
-    force = serializers.BooleanField(default=False, help_text="Force execution even if task is not in ready state")
+    force = serializers.BooleanField(
+        default=False, help_text="Force execution even if task is not in ready state"
+    )
 
 
-class TaskErrorResponseSerializer(serializers.Serializer):
+class TaskErrorResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """
     Serializer for task error responses.
 

@@ -854,3 +854,51 @@
 - Policy serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6728 errors / 834 files` 收紧为 `6678 errors / 833 files`，净减少 `50 errors / 1 file`，跨文件无新增。
 - 目标文件的 `4 assignment + 2 misc + 11 no-untyped-def + 33 type-arg` 全部清零。
 - Policy 字段/枚举契约、Policy API edges 与完整 Workbench API 回归共 `34 passed`；Ruff、Black、diff check 通过。
+
+## 第六十七批
+
+- 按 Prompt 模板、链执行与 Agent Runtime 公共 API 边界收口 serializers：输入和普通 JSON payload 使用字典 instance，执行响应使用真实 Application DTO，Prompt/Chain 的领域与 ORM 兼容输出边界局部使用 `Any`。
+- PromptTemplate/ChainConfig 的构建、验证、更新和领域枚举序列化补齐显式契约；Application facade 的动态返回仅在 Interface 边界收窄，不向调用方传播 `Any`。
+- Placeholder 的 `required` 与 Chat/ChatSession 的 `context` 会覆盖 DRF 基类状态属性；统一通过 `get_fields()` 注册，保持既有外部字段名、默认值、读写方向与 JSON 行为。
+
+## 第六十七批验证结果
+
+- Prompt serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6678 errors / 833 files` 收紧为 `6631 errors / 832 files`，净减少 `47 errors / 1 file`，跨文件无新增。
+- 目标文件的 `3 assignment + 6 no-untyped-call + 16 no-untyped-def + 19 type-arg + 3 union-attr` 全部清零。
+- `required/context` 字段契约与 Prompt API edges 回归共 `13 passed`；mypy 治理护栏 `10 passed`，架构增量门禁 `1 file / 89 added lines / 0 violations`，Ruff、Black、diff check 通过。
+
+## 第六十八批
+
+- 按 Agent 协议的批量输入边界收口 Broker Execution serializers：所有 preview/commit、Agent 心跳、租约、事件、快照与命令 payload 统一声明字典 instance，六个跨字段验证器补齐显式输入输出契约。
+- 事件、持仓、快照订单与成交批次改为显式 `ListField(child=...)`，保留 200/5000 条上限和嵌套校验语义，同时消除 nested serializer 构造参数不受类型桩支持的问题。
+- 快照订单的默认成交数量由整数 `0` 改为 `Decimal("0")`，使默认值与 `DecimalField` 的运行时和静态契约一致。
+
+## 第六十八批验证结果
+
+- Broker Execution serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6631 errors / 832 files` 收紧为 `6592 errors / 831 files`，净减少 `39 errors / 1 file`，跨文件无新增。
+- 目标文件的 `1 arg-type + 4 call-arg + 10 no-untyped-call + 11 no-untyped-def + 13 type-arg` 全部清零。
+- Broker 权限/API、Agent 事件批次与完整 Fake Agent 事件/快照流程回归共 `30 passed`；mypy 治理护栏 `10 passed`，当前联合改动的架构增量门禁 `2 files / 133 added lines / 0 violations`，Ruff、Black、diff check 通过。
+
+## 第六十九批
+
+- 按 Alpha 评分上传与执行结果公共 API 边界收口 serializers：请求 payload 使用字典 instance，StockScore/AlphaResult 输出与创建使用真实领域实体，StrictFields 的动态 DRF 返回在 Interface 边界显式收窄。
+- 修复 `AlphaResultSerializer.create()` 把公开字段 `stocks` 原样传给领域构造器的必现 `TypeError`；现在明确转换为领域字段 `scores`，并新增真实 `.save()` 回归。
+- 三个公开 `source` 字段通过 `get_fields()` 注册，保留评分、结果与上传 API 字段名和默认值，同时避免覆盖 DRF `Field.source`；批量评分改为显式 `ListField(child=...)` 并保持 1000 条上限。
+
+## 第六十九批验证结果
+
+- Alpha serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6592 errors / 831 files` 收紧为 `6579 errors / 830 files`，净减少 `13 errors / 1 file`，跨文件无新增。
+- 目标文件的 `3 assignment + 2 call-arg + 1 no-untyped-def + 7 type-arg` 全部清零。
+- Alpha serializer 创建/默认值、上传权限与用户隔离、Alpha API edges 回归共 `27 passed`；mypy 治理护栏 `10 passed`，当前联合改动的架构增量门禁 `3 files / 180 added lines / 0 violations`，Ruff、Black、diff check 通过。
+
+## 第七十批
+
+- 按动态 ORM registry 与 DRF 输出边界收口 Agent Runtime serializers：全部 ModelSerializer 声明显式动态 ORM instance，全部请求/查询/错误 serializer 声明字典 payload。
+- 保持 Interface 层不导入 Infrastructure 模型；运行时 `django_apps.get_model()` 返回值不再被误当作静态类型别名，四个反向关系计数在动态 ORM 边界显式收窄为整数。
+- 新增独立 serializer 契约测试，覆盖 steps、proposals、artifacts 与 timeline events 四个计数器。
+
+## 第七十批验证结果
+
+- Agent Runtime serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6579 errors / 830 files` 收紧为 `6550 errors / 829 files`，净减少 `29 errors / 1 file`，跨文件无新增。
+- 目标文件的 `4 attr-defined + 4 no-any-return + 17 type-arg + 4 valid-type` 全部清零。
+- Agent Runtime serializer、API、RBAC 与真实 repository 组装回归共 `43 passed`；mypy 治理护栏 `10 passed`，当前联合改动的架构增量门禁 `4 files / 393 added lines / 0 violations`，Ruff、Black、diff check 通过。
