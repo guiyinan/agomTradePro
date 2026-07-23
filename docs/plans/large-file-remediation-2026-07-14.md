@@ -24,6 +24,7 @@ This stage applies behavior-preserving refactoring to the initial four highest-r
 
 The remaining allowances are not refactored in this stage. Their authoritative backlog is `large_file_remediation` in the governance baseline:
 
+- AI Capability application orchestration and Simulated Trading unified-ledger persistence entered the P1 backlog on 2026-07-23 after crossing the repository-wide limit; both require responsibility-based decomposition that preserves their current facade and repository contracts.
 - P1 items must be reviewed by 2026-09-30.
 - P2 items must be reviewed by 2026-12-31.
 - A reached review date fails governance CI until the file is remediated or its metadata is deliberately revised through review.

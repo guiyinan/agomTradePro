@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-22.v159",
+  "version": "2026-07-23.v160",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 42,
-  "static_test_function_count": 6918,
+  "static_test_function_count": 7167,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -74,14 +74,34 @@
   "core_management_command_orm_access_count": 0,
   "python_file_non_empty_line_limit": 1200,
   "allowed_large_python_files": {
-    "apps/broker_execution/infrastructure/repositories.py": 2790
+    "apps/ai_capability/application/use_cases.py": 1246,
+    "apps/broker_execution/infrastructure/repositories.py": 2790,
+    "apps/simulated_trading/infrastructure/repositories.py": 1255
   },
   "large_file_remediation": {
+    "apps/ai_capability/application/use_cases.py": {
+      "owner": "ai-capability-maintainers",
+      "kind": "application-use-case-decomposition",
+      "rationale": "AI capability orchestration has crossed the repository size guard and needs focused routing, governance, and verification collaborators while preserving its public use-case facade.",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md",
+      "priority": "P1",
+      "target_non_empty_lines": 1200,
+      "review_by": "2026-08-31"
+    },
     "apps/broker_execution/infrastructure/repositories.py": {
       "owner": "broker-execution-maintainers",
       "kind": "repository-decomposition",
       "rationale": "Merged QMT execution bridge repository is above the repository size guard while the research-integrity merge keeps the existing execution boundary intact.",
       "plan_path": "docs/plans/research-integrity-and-decision-reproducibility-2026-07-21.md",
+      "priority": "P1",
+      "target_non_empty_lines": 1200,
+      "review_by": "2026-08-31"
+    },
+    "apps/simulated_trading/infrastructure/repositories.py": {
+      "owner": "simulated-trading-maintainers",
+      "kind": "repository-decomposition",
+      "rationale": "The unified ledger repository has crossed the repository size guard and needs focused account, position, trade, and valuation persistence owners while retaining compatibility imports.",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md",
       "priority": "P1",
       "target_non_empty_lines": 1200,
       "review_by": "2026-08-31"
