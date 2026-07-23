@@ -1332,3 +1332,20 @@
 - 目标文件的 `2 arg-type + 1 attr-defined + 6 dict-item + 18 no-any-return + 2 no-untyped-call + 28 no-untyped-def + 34 type-arg` 全部清零。
 - Dashboard 首页结构、Alpha 候选/历史、市场温度计、MCP、API edges、Domain 服务和偏好仓储回归共 `187 passed`。
 - 全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-23.v171`，静态测试函数计数提升至 `7185`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第一百批
+
+- 按“审计合规风险 × 用户复核入口影响面”收口 Audit 主 View 与权限边界，覆盖归因图表/摘要、指标表现、阈值验证、审计工作台、操作日志、决策链、推荐执行关联、健康检查、失败计数和 Prometheus 指标。
+- 所有 DRF handler 具化 `Request/Response`、路由参数和导出 `HttpResponse` 契约；TemplateView context 与 dispatch 具化模板字典、`HttpRequest`、可变参数和响应类型。
+- `IsAuditAdmin`、操作日志 owner-scope、内部 HMAC 和 self-or-admin 权限全部具化请求、视图、对象与布尔返回；角色字段在权限边界规范化为字符串，不再由无类型权限调用向 View 传播。
+- 审计 owner-scope 页面和 API 增加持久化用户 ID 守卫，未持久化身份 fail closed；手动交易复盘、我的操作日志、我的决策链和用户级列表不再把 `int | None` 传入 Application。
+- 归因详情只接受 URL 路由解析后的整数报告 ID；Audit Summary 将原始 query string 与规范化 `int/date` 变量分离，避免跨类型覆盖。
+- 修正 drf-spectacular 查询参数示例的 `parameter_only` 契约，并使用最小泛型 Protocol 保留装饰器方法签名。
+- 决策链 `page/page_size` 和执行关联 `limit` 增加正整数与上限校验；非法值从未捕获 `int()` 异常导致的 500 改为稳定 400，并新增 4 组 API 边界回归。
+
+## 第一百批验证结果
+
+- Audit View 与权限文件在 governed、silent propagation 和增量 regression 三种 mypy 模式下均为零；全仓基线从 `4778 errors / 748 files` 收紧为 `4729 errors / 746 files`，净减少 `49 errors / 2 files`，跨文件无新增。
+- 目标文件的 `2 arg-type + 1 assignment + 9 no-untyped-call + 37 no-untyped-def` 全部清零。
+- Audit 归因、阈值验证、权限、操作日志、决策链、执行关联、健康检查、失败计数、Domain/Application 和内部写入回归共 `335 passed`。
+- 全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v172`，静态测试函数计数提升至 `7186`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。

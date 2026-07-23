@@ -2,18 +2,26 @@
 Views for Audit API.
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Callable, Mapping
 from datetime import datetime
+from typing import Any, Protocol, TypeVar, cast
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden
+from django.http.response import HttpResponseBase
 from django.views.generic import TemplateView
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.renderers import JSONRenderer
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -63,11 +71,66 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
+ViewMethodT = TypeVar("ViewMethodT", bound=Callable[..., Any])
+
+
+class ExtendSchemaProtocol(Protocol):
+    """Typed facade for drf-spectacular's decorator factory."""
+
+    def __call__(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Callable[[ViewMethodT], ViewMethodT]: ...
+
+
+typed_extend_schema = cast(ExtendSchemaProtocol, extend_schema)
+
+
+def _optional_user_id(user: Any) -> int | None:
+    """Return a persisted numeric user ID when one is available."""
+
+    user_id = getattr(user, "pk", None)
+    if user_id in (None, ""):
+        user_id = getattr(user, "id", None)
+    try:
+        return int(str(user_id)) if user_id not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _require_user_id(user: Any) -> int:
+    """Require a persisted user identity for owner-scoped audit reads."""
+
+    user_id = _optional_user_id(user)
+    if user_id is None:
+        raise PermissionDenied("A persisted user is required for audit access.")
+    return user_id
+
+
+def _parse_positive_query_int(
+    request: Request,
+    name: str,
+    *,
+    default: int,
+    maximum: int,
+) -> int:
+    """Parse one bounded positive integer query parameter."""
+
+    raw_value = request.query_params.get(name)
+    try:
+        value = default if raw_value in (None, "") else int(str(raw_value))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a positive integer") from exc
+    if value <= 0 or value > maximum:
+        raise ValueError(f"{name} must be between 1 and {maximum}")
+    return value
+
 
 class AttributionChartDataView(APIView):
     """归因图表数据 API"""
 
-    def get(self, request, report_id):
+    def get(self, request: Request, report_id: int) -> Response:
         """获取归因报告的图表数据"""
         try:
             chart_data = get_attribution_chart_data_payload(report_id)
@@ -85,7 +148,7 @@ class AttributionChartDataView(APIView):
 class AuditSummaryView(APIView):
     """审计摘要 API"""
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="获取审计摘要",
         description="获取指定条件的审计报告摘要，支持按回测ID或日期范围查询",
         parameters=[
@@ -117,33 +180,37 @@ class AuditSummaryView(APIView):
         },
         examples=[
             OpenApiExample(
-                "按回测ID查询", value={"backtest_id": 1}, parameter_only=("backtest_id",)
+                "按回测ID查询",
+                value={"backtest_id": 1},
+                parameter_only=("backtest_id", OpenApiParameter.QUERY),
             ),
             OpenApiExample(
                 "按日期范围查询",
                 value={"start_date": "2024-01-01", "end_date": "2024-12-31"},
-                parameter_only=("start_date", "end_date"),
             ),
         ],
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """获取审计摘要"""
-        backtest_id = request.query_params.get("backtest_id")
-        start_date = request.query_params.get("start_date")
-        end_date = request.query_params.get("end_date")
+        raw_backtest_id = request.query_params.get("backtest_id")
+        raw_start_date = request.query_params.get("start_date")
+        raw_end_date = request.query_params.get("end_date")
 
-        if backtest_id:
+        backtest_id: int | None = None
+        if raw_backtest_id:
             try:
-                backtest_id = int(backtest_id)
+                backtest_id = int(raw_backtest_id)
             except ValueError:
                 return Response(
                     {"error": "backtest_id 必须是整数"}, status=status.HTTP_400_BAD_REQUEST
                 )
 
-        if start_date and end_date:
+        start_date = None
+        end_date = None
+        if raw_start_date and raw_end_date:
             try:
-                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-                end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+                start_date = datetime.strptime(raw_start_date, "%Y-%m-%d").date()
+                end_date = datetime.strptime(raw_end_date, "%Y-%m-%d").date()
             except ValueError:
                 return Response(
                     {"error": "日期格式错误，应为 YYYY-MM-DD"}, status=status.HTTP_400_BAD_REQUEST
@@ -168,7 +235,7 @@ class AuditSummaryView(APIView):
 class IndicatorPerformanceDetailView(APIView):
     """指标表现详情 API"""
 
-    def get(self, request, indicator_code):
+    def get(self, request: Request, indicator_code: str) -> Response:
         """获取单个指标的详细表现数据"""
         try:
             performance = get_indicator_performance_detail_payload(indicator_code)
@@ -189,7 +256,7 @@ class IndicatorPerformanceDetailView(APIView):
 class IndicatorPerformanceChartDataView(APIView):
     """指标表现图表数据 API"""
 
-    def get(self, request, validation_id):
+    def get(self, request: Request, validation_id: int) -> Response:
         """获取指标验证的图表数据"""
         try:
             chart_data = get_indicator_performance_chart_payload(validation_id)
@@ -207,7 +274,7 @@ class IndicatorPerformanceChartDataView(APIView):
 class ThresholdValidationDataView(APIView):
     """阈值验证数据 API"""
 
-    def get(self, request, summary_id):
+    def get(self, request: Request, summary_id: int) -> Response:
         """获取阈值验证的详细数据"""
         try:
             validation_data = get_threshold_validation_data_payload(summary_id)
@@ -228,7 +295,10 @@ class ThresholdValidationDataView(APIView):
 def _build_audit_overview_context() -> dict[str, object]:
     """Build shared overview context for audit HTML pages."""
     try:
-        return build_audit_overview_context()
+        context = build_audit_overview_context()
+        if not isinstance(context, Mapping):
+            return {}
+        return {str(key): value for key, value in context.items()}
     except Exception as e:
         logger.error(f"获取审计概览数据失败: {e}")
         return {
@@ -247,7 +317,7 @@ class AuditPageView(LoginRequiredMixin, TemplateView):
     template_name = "audit/review_page.html"
     login_url = "/account/login/"
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context.update(_build_audit_overview_context())
         return context
@@ -259,7 +329,7 @@ class AuditReviewPageView(LoginRequiredMixin, TemplateView):
     template_name = "audit/review_page.html"
     login_url = "/account/login/"
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context.update(_build_audit_overview_context())
         return context
@@ -271,9 +341,9 @@ class ManualTradeReviewPageView(LoginRequiredMixin, TemplateView):
     template_name = "audit/manual_trade_review.html"
     login_url = "/account/login/"
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context.update(build_manual_trade_review_context(self.request.user.id))
+        context.update(build_manual_trade_review_context(_require_user_id(self.request.user)))
         return context
 
 
@@ -283,7 +353,7 @@ class ReportListView(LoginRequiredMixin, TemplateView):
     template_name = "audit/report_list.html"
     login_url = "/account/login/"
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         try:
             method_filter = self.request.GET.get("method", "")
@@ -305,11 +375,13 @@ class AttributionDetailView(LoginRequiredMixin, TemplateView):
     template_name = "audit/attribution_detail.html"
     login_url = "/account/login/"
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         report_id = kwargs.get("report_id")
 
         try:
+            if not isinstance(report_id, int):
+                raise ValueError("report_id must be an integer")
             context.update(build_attribution_detail_context(report_id))
         except Exception as e:
             logger.error(f"获取归因详情失败: {e}")
@@ -324,7 +396,7 @@ class IndicatorPerformancePageView(LoginRequiredMixin, TemplateView):
     template_name = "audit/indicator_performance.html"
     login_url = "/account/login/"
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
 
         try:
@@ -345,7 +417,7 @@ class ThresholdValidationPageView(LoginRequiredMixin, TemplateView):
     template_name = "audit/threshold_validation.html"
     login_url = "/account/login/"
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
 
         try:
@@ -367,15 +439,18 @@ class OperationLogsAdminPageView(LoginRequiredMixin, TemplateView):
     template_name = "audit/operation_logs_admin.html"
     login_url = "/account/login/"
 
-    def dispatch(self, request, *args, **kwargs):
+    def dispatch(
+        self,
+        request: HttpRequest,
+        *args: Any,
+        **kwargs: Any,
+    ) -> HttpResponseBase:
         # 检查管理员权限
         if not IsAuditAdmin().has_permission(request, self):
-            from django.http import HttpResponseForbidden
-
             return HttpResponseForbidden("需要审计管理员权限")
         return super().dispatch(request, *args, **kwargs)
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["page_title"] = "操作审计日志 - 管理员"
         return context
@@ -387,10 +462,10 @@ class MyOperationLogsPageView(LoginRequiredMixin, TemplateView):
     template_name = "audit/my_operation_logs.html"
     login_url = "/account/login/"
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["page_title"] = "我的操作记录"
-        context["current_user_id"] = self.request.user.id
+        context["current_user_id"] = _require_user_id(self.request.user)
         return context
 
 
@@ -400,14 +475,17 @@ class DecisionTracesAdminPageView(LoginRequiredMixin, TemplateView):
     template_name = "audit/decision_traces_admin.html"
     login_url = "/account/login/"
 
-    def dispatch(self, request, *args, **kwargs):
+    def dispatch(
+        self,
+        request: HttpRequest,
+        *args: Any,
+        **kwargs: Any,
+    ) -> HttpResponseBase:
         if not IsAuditAdmin().has_permission(request, self):
-            from django.http import HttpResponseForbidden
-
             return HttpResponseForbidden("需要审计管理员权限")
         return super().dispatch(request, *args, **kwargs)
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["page_title"] = "MCP 决策链 - 管理员"
         return context
@@ -419,10 +497,10 @@ class MyDecisionTracesPageView(LoginRequiredMixin, TemplateView):
     template_name = "audit/my_decision_traces.html"
     login_url = "/account/login/"
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["page_title"] = "我的 MCP 决策链"
-        context["current_user_id"] = self.request.user.id
+        context["current_user_id"] = _require_user_id(self.request.user)
         return context
 
 
@@ -444,7 +522,7 @@ class OperationLogListView(APIView):
     parser_classes = [JSONParser]
     renderer_classes = [JSONRenderer]
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="查询操作日志",
         description="查询 MCP/SDK 操作审计日志。管理员可查询全量日志，普通用户仅可查询本人日志。",
         parameters=[
@@ -531,7 +609,7 @@ class OperationLogListView(APIView):
             400: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """查询操作日志列表"""
         serializer = OperationLogQuerySerializer(data=request.query_params)
         if not serializer.is_valid():
@@ -563,7 +641,7 @@ class OperationLogListView(APIView):
             page=data.get("page", 1),
             page_size=data.get("page_size", 20),
             is_admin=is_admin,
-            current_user_id=request.user.id if request.user.is_authenticated else None,
+            current_user_id=_require_user_id(request.user),
         )
 
         if not response["success"]:
@@ -589,7 +667,7 @@ class OperationLogDetailView(APIView):
     parser_classes = [JSONParser]
     renderer_classes = [JSONRenderer]
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="获取操作日志详情",
         description="获取单条操作日志的详细信息。管理员可查看所有日志，普通用户仅可查看本人日志。",
         responses={
@@ -598,12 +676,12 @@ class OperationLogDetailView(APIView):
             404: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request, log_id):
+    def get(self, request: Request, log_id: str) -> Response:
         """获取操作日志详情"""
         is_admin = IsAuditAdmin().has_permission(request, self)
         response = get_operation_log_detail_payload(
             log_id=log_id,
-            current_user_id=request.user.id if request.user.is_authenticated else None,
+            current_user_id=_require_user_id(request.user),
             is_admin=is_admin,
         )
 
@@ -632,7 +710,7 @@ class OperationLogExportView(APIView):
     # 禁用 DRF 的 ?format=... 渲染器协商，避免与导出格式参数冲突
     format_kwarg = None
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="导出操作日志",
         description="导出操作日志为 CSV 或 JSON 格式。仅管理员可用。最多导出 10000 条，时间范围最多 90 天。",
         parameters=[
@@ -670,7 +748,7 @@ class OperationLogExportView(APIView):
             403: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response | HttpResponse:
         """导出操作日志"""
         start_date = request.query_params.get("start_date")
         end_date = request.query_params.get("end_date")
@@ -700,8 +778,6 @@ class OperationLogExportView(APIView):
             )
 
         # 设置响应头
-        from django.http import HttpResponse
-
         content_type = "text/csv" if export_format == "csv" else "application/json"
         http_response = HttpResponse(response["data"], content_type=content_type)
         http_response["Content-Disposition"] = f'attachment; filename="{response["filename"]}"'
@@ -715,7 +791,7 @@ class OperationLogStatsView(APIView):
     parser_classes = [JSONParser]
     renderer_classes = [JSONRenderer]
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="获取操作统计",
         description="获取操作日志的统计数据，包括总量、错误率、平均耗时等。仅管理员可用。",
         parameters=[
@@ -746,7 +822,7 @@ class OperationLogStatsView(APIView):
             403: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """获取操作统计"""
         start_date = request.query_params.get("start_date")
         end_date = request.query_params.get("end_date")
@@ -787,7 +863,7 @@ class OperationLogIngestView(APIView):
     # 请求仍须通过内部 HMAC 或用户 Token 之一的校验。
     throttle_classes = []
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="内部写入操作日志",
         description=(
             "MCP/SDK 调用此接口写入操作日志。支持内部 HMAC 签名或用户访问 Token；"
@@ -800,7 +876,7 @@ class OperationLogIngestView(APIView):
             403: OpenApiTypes.OBJECT,
         },
     )
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         """写入操作日志"""
         serializer = OperationLogIngestSerializer(data=request.data)
         if not serializer.is_valid():
@@ -816,7 +892,9 @@ class OperationLogIngestView(APIView):
 
         response = log_operation_payload(
             request_id=data.get("request_id", ""),
-            user_id=(authenticated_user.id if authenticated_user else data.get("user_id")),
+            user_id=(
+                _optional_user_id(authenticated_user) if authenticated_user else data.get("user_id")
+            ),
             username=(
                 authenticated_user.get_username()
                 if authenticated_user
@@ -867,18 +945,34 @@ class DecisionTraceListView(APIView):
     parser_classes = [JSONParser]
     renderer_classes = [JSONRenderer]
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="查询 MCP 决策链",
         description="按 request_id 聚合 MCP/SDK 调用，展示决策链列表。",
         responses={200: DecisionTraceListSerializer},
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         is_admin = IsAuditAdmin().has_permission(request, self)
-        page = int(request.query_params.get("page", 1))
-        page_size = int(request.query_params.get("page_size", 20))
+        try:
+            page = _parse_positive_query_int(
+                request,
+                "page",
+                default=1,
+                maximum=1_000_000,
+            )
+            page_size = _parse_positive_query_int(
+                request,
+                "page_size",
+                default=20,
+                maximum=100,
+            )
+        except ValueError as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         mcp_client_id = request.query_params.get("mcp_client_id") or None
         traces, total_count = list_decision_traces_payload(
-            current_user_id=request.user.id if request.user.is_authenticated else None,
+            current_user_id=_require_user_id(request.user),
             is_admin=is_admin,
             mcp_client_id=mcp_client_id,
             page=page,
@@ -902,18 +996,18 @@ class DecisionTraceDetailView(APIView):
     parser_classes = [JSONParser]
     renderer_classes = [JSONRenderer]
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="获取 MCP 决策链详情",
         description="查看单次 request_id 下的完整 MCP 决策链与对应日志。",
         responses={200: DecisionTraceDetailSerializer},
     )
-    def get(self, request, request_id):
+    def get(self, request: Request, request_id: str) -> Response:
         is_admin = IsAuditAdmin().has_permission(request, self)
         mcp_client_id = request.query_params.get("mcp_client_id") or None
         trace = get_decision_trace_payload(
             request_id=request_id,
             mcp_client_id=mcp_client_id,
-            current_user_id=request.user.id if request.user.is_authenticated else None,
+            current_user_id=_require_user_id(request.user),
             is_admin=is_admin,
         )
         if not trace:
@@ -931,16 +1025,27 @@ class ExecutionLinkListView(APIView):
     parser_classes = [JSONParser]
     renderer_classes = [JSONRenderer]
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="查询推荐执行关联",
         description="展示统一推荐与模拟盘/账户成交之间的执行闭环关联。",
         responses={200: ExecutionLinkListSerializer},
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         is_admin = IsAuditAdmin().has_permission(request, self)
-        limit = int(request.query_params.get("limit", 50))
+        try:
+            limit = _parse_positive_query_int(
+                request,
+                "limit",
+                default=50,
+                maximum=500,
+            )
+        except ValueError as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         links = list_execution_links_payload(
-            current_user_id=request.user.id if request.user.is_authenticated else None,
+            current_user_id=_require_user_id(request.user),
             is_admin=is_admin,
             account_id=request.query_params.get("account_id") or None,
             recommendation_id=request.query_params.get("recommendation_id") or None,
@@ -958,7 +1063,7 @@ class AuditHealthCheckView(APIView):
 
     permission_classes = []  # 健康检查不需要认证
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="审计模块健康检查",
         description="检查审计日志系统的健康状态，包括失败计数器、数据库连接和表可访问性",
         responses={
@@ -966,7 +1071,7 @@ class AuditHealthCheckView(APIView):
             503: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """
         执行健康检查
 
@@ -976,18 +1081,20 @@ class AuditHealthCheckView(APIView):
         """
         from apps.audit.application.health_check import check_audit_health
 
-        warning_threshold = request.query_params.get("warning_threshold")
-        error_threshold = request.query_params.get("error_threshold")
+        raw_warning_threshold = request.query_params.get("warning_threshold")
+        raw_error_threshold = request.query_params.get("error_threshold")
 
         # 转换参数类型
-        if warning_threshold:
+        warning_threshold: int | None = None
+        if raw_warning_threshold:
             try:
-                warning_threshold = int(warning_threshold)
+                warning_threshold = int(raw_warning_threshold)
             except ValueError:
                 warning_threshold = None
-        if error_threshold:
+        error_threshold: int | None = None
+        if raw_error_threshold:
             try:
-                error_threshold = int(error_threshold)
+                error_threshold = int(raw_error_threshold)
             except ValueError:
                 error_threshold = None
 
@@ -998,7 +1105,7 @@ class AuditHealthCheckView(APIView):
         )
 
         # 根据 overall_status 设置 HTTP 状态码
-        http_status = status.HTTP_200_OK
+        http_status: int = status.HTTP_200_OK
         if report.overall_status == "ERROR":
             http_status = status.HTTP_503_SERVICE_UNAVAILABLE
         elif report.overall_status == "WARNING":
@@ -1010,7 +1117,7 @@ class AuditHealthCheckView(APIView):
 class AuditFailureCounterView(APIView):
     """审计失败计数器 API"""
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[BasePermission]:
         """GET 公开访问；POST 需要审计管理员权限"""
         if self.request.method == "POST":
             from apps.audit.interface.permissions import IsAuditAdmin
@@ -1018,18 +1125,18 @@ class AuditFailureCounterView(APIView):
             return [IsAuditAdmin()]
         return []
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="获取审计失败计数",
         description="获取审计日志写入失败的统计信息",
         responses={
             200: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """获取失败计数"""
         return Response(get_audit_failure_stats())
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="重置审计失败计数器",
         description="重置审计失败计数器（需要管理员权限）",
         responses={
@@ -1037,7 +1144,7 @@ class AuditFailureCounterView(APIView):
             403: OpenApiTypes.OBJECT,
         },
     )
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         """重置计数器"""
         reset_audit_failure_counter()
 
@@ -1051,7 +1158,7 @@ class AuditMetricsView(APIView):
 
     permission_classes = []  # 指标端点通常是公开的
 
-    @extend_schema(
+    @typed_extend_schema(
         summary="审计模块 Prometheus 指标",
         description="获取审计日志写入的 Prometheus 指标，包括成功/失败计数和延迟直方图",
         responses={
@@ -1059,7 +1166,7 @@ class AuditMetricsView(APIView):
             500: dict,
         },
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response | HttpResponse:
         """
         获取 Prometheus 格式的指标
 
@@ -1075,8 +1182,6 @@ class AuditMetricsView(APIView):
 
         else:
             # 返回 Prometheus 文本格式
-            from django.http import HttpResponse
-
             return HttpResponse(
                 export_audit_metrics_payload(),
                 content_type="text/plain; version=0.0.4; charset=utf-8",

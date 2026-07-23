@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4778,
-    "files_with_errors": 748
+    "errors": 4729,
+    "files_with_errors": 746
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -782,22 +782,12 @@
     "apps/audit/interface/openapi.py": {
       "misc": 1
     },
-    "apps/audit/interface/permissions.py": {
-      "no-untyped-call": 2,
-      "no-untyped-def": 6
-    },
     "apps/audit/interface/urls.py": {
       "no-untyped-def": 1
     },
     "apps/audit/interface/validation_api_views.py": {
       "no-untyped-call": 2,
       "no-untyped-def": 3
-    },
-    "apps/audit/interface/views.py": {
-      "arg-type": 2,
-      "assignment": 1,
-      "no-untyped-call": 7,
-      "no-untyped-def": 31
     },
     "apps/audit/management/commands/cleanup_operation_logs.py": {
       "no-untyped-def": 2
