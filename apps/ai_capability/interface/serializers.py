@@ -1,27 +1,35 @@
-"""
-AI Capability Catalog Interface Serializers.
-"""
+"""AI Capability Catalog Interface Serializers."""
+
+from typing import Any, TypeAlias
 
 from rest_framework import serializers
 
+SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
 
-class MCPAccessVerificationCheckSerializer(serializers.Serializer):
+
+class MCPAccessVerificationCheckSerializer(serializers.Serializer[dict[str, Any]]):
     """One bounded MCP access readiness check."""
 
     key = serializers.ChoiceField(choices=("token", "routing", "catalog"), read_only=True)
-    label = serializers.CharField(read_only=True)
     status = serializers.ChoiceField(choices=("ready", "unavailable"), read_only=True)
-    detail = serializers.CharField(read_only=True)
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register public detail text without overriding DRF field state."""
+
+        fields = super().get_fields()
+        fields["label"] = serializers.CharField(read_only=True)
+        fields["detail"] = serializers.CharField(read_only=True)
+        return fields
 
 
-class MCPAccessVerificationSerializer(serializers.Serializer):
+class MCPAccessVerificationSerializer(serializers.Serializer[dict[str, Any]]):
     """Read-only current-user MCP access verification payload."""
 
     state = serializers.ChoiceField(choices=("ready", "unavailable"), read_only=True)
     checks = MCPAccessVerificationCheckSerializer(many=True, read_only=True)
 
 
-class RouteRequestSerializer(serializers.Serializer):
+class RouteRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for routing request."""
 
     message = serializers.CharField(help_text="User message to route")
@@ -46,14 +54,20 @@ class RouteRequestSerializer(serializers.Serializer):
     )
     confirmation_id = serializers.CharField(required=False, allow_null=True)
     approved = serializers.BooleanField(required=False, allow_null=True)
-    context = serializers.DictField(
-        required=False,
-        default=dict,
-        help_text="Additional context",
-    )
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register request context without overriding DRF serializer state."""
+
+        fields = super().get_fields()
+        fields["context"] = serializers.DictField(
+            required=False,
+            default=dict,
+            help_text="Additional context",
+        )
+        return fields
 
 
-class CapabilitySummarySerializer(serializers.Serializer):
+class CapabilitySummarySerializer(serializers.Serializer[Any]):
     """Serializer for capability summary."""
 
     capability_key = serializers.CharField()
@@ -64,7 +78,7 @@ class CapabilitySummarySerializer(serializers.Serializer):
     requires_confirmation = serializers.BooleanField()
 
 
-class RouteResponseSerializer(serializers.Serializer):
+class RouteResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for routing response."""
 
     decision = serializers.CharField(
@@ -107,7 +121,7 @@ class RouteResponseSerializer(serializers.Serializer):
     result = serializers.JSONField(required=False, allow_null=True)
 
 
-class CapabilityDetailSerializer(serializers.Serializer):
+class CapabilityDetailSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for detailed capability."""
 
     capability_key = serializers.CharField()
@@ -138,7 +152,7 @@ class CapabilityDetailSerializer(serializers.Serializer):
     priority_weight = serializers.FloatField()
 
 
-class CapabilityPublicDetailSerializer(serializers.Serializer):
+class CapabilityPublicDetailSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for non-admin capability detail."""
 
     capability_key = serializers.CharField()
@@ -165,7 +179,7 @@ class CapabilityPublicDetailSerializer(serializers.Serializer):
     priority_weight = serializers.FloatField()
 
 
-class SyncResultSerializer(serializers.Serializer):
+class SyncResultSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for sync result."""
 
     sync_type = serializers.CharField()
@@ -178,7 +192,7 @@ class SyncResultSerializer(serializers.Serializer):
     summary = serializers.DictField()
 
 
-class CatalogStatsSerializer(serializers.Serializer):
+class CatalogStatsSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for catalog statistics."""
 
     total = serializers.IntegerField()
@@ -188,7 +202,7 @@ class CatalogStatsSerializer(serializers.Serializer):
     by_route_group = serializers.DictField()
 
 
-class McpToolSerializer(serializers.Serializer):
+class McpToolSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for MCP governance list rows."""
 
     capability_key = serializers.CharField()
@@ -206,7 +220,7 @@ class McpToolSerializer(serializers.Serializer):
     enabled_for_terminal = serializers.BooleanField()
 
 
-class McpToolListSerializer(serializers.Serializer):
+class McpToolListSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for MCP governance list payload."""
 
     total_count = serializers.IntegerField()
@@ -219,7 +233,7 @@ class McpToolListSerializer(serializers.Serializer):
     tools = McpToolSerializer(many=True)
 
 
-class McpToolStatsSerializer(serializers.Serializer):
+class McpToolStatsSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for MCP governance summary payload."""
 
     status = serializers.CharField()
@@ -238,7 +252,7 @@ class McpToolStatsSerializer(serializers.Serializer):
     latest_sync_disabled = serializers.IntegerField()
 
 
-class McpToolToggleResultSerializer(serializers.Serializer):
+class McpToolToggleResultSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for one MCP flag toggle result."""
 
     capability_key = serializers.CharField()
@@ -249,14 +263,14 @@ class McpToolToggleResultSerializer(serializers.Serializer):
     enabled_for_terminal = serializers.BooleanField()
 
 
-class McpToolSyncResultSerializer(serializers.Serializer):
+class McpToolSyncResultSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for MCP sync plus governance summary."""
 
     sync = SyncResultSerializer()
     governance = serializers.DictField()
 
 
-class WebChatRequestSerializer(serializers.Serializer):
+class WebChatRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for shared web chat request."""
 
     message = serializers.CharField(help_text="User message")
@@ -277,34 +291,52 @@ class WebChatRequestSerializer(serializers.Serializer):
     )
     confirmation_id = serializers.CharField(required=False, allow_null=True)
     approved = serializers.BooleanField(required=False, allow_null=True)
-    context = serializers.DictField(
-        required=False,
-        default=dict,
-        help_text="Additional context including history",
-    )
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register chat context without overriding DRF serializer state."""
+
+        fields = super().get_fields()
+        fields["context"] = serializers.DictField(
+            required=False,
+            default=dict,
+            help_text="Additional context including history",
+        )
+        return fields
 
 
-class SuggestedActionSerializer(serializers.Serializer):
+class SuggestedActionSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for suggested action object."""
 
     action_type = serializers.CharField(help_text="Action type: execute_capability")
     capability_key = serializers.CharField(help_text="Target capability key")
     command = serializers.CharField(help_text="Suggested command string")
     intent = serializers.CharField(help_text="Detected intent")
-    label = serializers.CharField(help_text="Display label for the action")
-    description = serializers.CharField(help_text="Action description")
     payload = serializers.DictField(help_text="Additional payload for execution")
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register public copy fields without overriding DRF field metadata."""
 
-class AnswerChainSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["label"] = serializers.CharField(help_text="Display label for the action")
+        fields["description"] = serializers.CharField(help_text="Action description")
+        return fields
+
+
+class AnswerChainSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for answer chain."""
 
-    label = serializers.CharField()
     visibility = serializers.CharField()
     steps = serializers.ListField(child=serializers.DictField())
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the public label without overriding DRF field metadata."""
 
-class WebChatMetadataSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["label"] = serializers.CharField()
+        return fields
+
+
+class WebChatMetadataSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for web chat metadata."""
 
     provider = serializers.CharField()
@@ -313,7 +345,7 @@ class WebChatMetadataSerializer(serializers.Serializer):
     answer_chain = AnswerChainSerializer(required=False, allow_null=True)
 
 
-class WebChatResponseSerializer(serializers.Serializer):
+class WebChatResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for shared web chat response."""
 
     reply = serializers.CharField(help_text="AI response text")

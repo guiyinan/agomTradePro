@@ -2,9 +2,9 @@
 DRF Serializers for Account API.
 """
 
-from typing import Any
+from typing import Any, TypeAlias
 
-from django.apps import apps as django_apps  # type: ignore[import-untyped]
+from django.apps import apps as django_apps
 from rest_framework import serializers
 
 from apps.account.application.interface_services import (
@@ -16,6 +16,8 @@ from apps.account.application.interface_services import (
     find_user_by_username,
     get_active_observer_grant,
 )
+
+SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
 
 AccountProfileModel = django_apps.get_model("account", "AccountProfileModel")
 AssetCategoryModel = django_apps.get_model("account", "AssetCategoryModel")
@@ -31,7 +33,7 @@ TransactionModel = django_apps.get_model("account", "TransactionModel")
 # ==================== Account Profile ====================
 
 
-class AccountProfileSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class AccountProfileSerializer(serializers.ModelSerializer[Any]):
     """账户配置序列化器"""
 
     user_id = serializers.IntegerField(source="user.id", read_only=True)
@@ -53,7 +55,7 @@ class AccountProfileSerializer(serializers.ModelSerializer):  # type: ignore[mis
         read_only_fields = ["rbac_role", "created_at", "updated_at"]
 
 
-class AccountProfileUpdateSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class AccountProfileUpdateSerializer(serializers.ModelSerializer[Any]):
     """账户配置更新序列化器"""
 
     class Meta:
@@ -64,7 +66,7 @@ class AccountProfileUpdateSerializer(serializers.ModelSerializer):  # type: igno
 # ==================== Portfolio ====================
 
 
-class PortfolioSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class PortfolioSerializer(serializers.ModelSerializer[Any]):
     """投资组合序列化器"""
 
     username = serializers.CharField(source="user.username", read_only=True)
@@ -101,7 +103,7 @@ class PortfolioSerializer(serializers.ModelSerializer):  # type: ignore[misc]
         read_only_fields = ["created_at", "updated_at"]
 
 
-class PortfolioCreateSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class PortfolioCreateSerializer(serializers.ModelSerializer[Any]):
     """投资组合创建序列化器"""
 
     class Meta:
@@ -112,7 +114,7 @@ class PortfolioCreateSerializer(serializers.ModelSerializer):  # type: ignore[mi
 # ==================== Position ====================
 
 
-class PositionSerializer(serializers.Serializer):  # type: ignore[misc]
+class PositionSerializer(serializers.Serializer[Any]):
     """统一账本持仓输出序列化器。"""
 
     id = serializers.IntegerField(read_only=True)
@@ -137,7 +139,6 @@ class PositionSerializer(serializers.Serializer):  # type: ignore[misc]
     market_value = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
     unrealized_pnl = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
     unrealized_pnl_pct = serializers.FloatField(read_only=True)
-    source = serializers.CharField(read_only=True, allow_blank=True)
     source_id = serializers.IntegerField(read_only=True, allow_null=True)
     is_closed = serializers.BooleanField(read_only=True)
     opened_at = serializers.DateTimeField(read_only=True, allow_null=True)
@@ -145,8 +146,15 @@ class PositionSerializer(serializers.Serializer):  # type: ignore[misc]
     created_at = serializers.DateTimeField(read_only=True, allow_null=True)
     updated_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the public source field without overriding DRF state."""
 
-class PositionCreateSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+        fields = super().get_fields()
+        fields["source"] = serializers.CharField(read_only=True, allow_blank=True)
+        return fields
+
+
+class PositionCreateSerializer(serializers.ModelSerializer[Any]):
     """持仓创建序列化器"""
 
     class Meta:
@@ -176,7 +184,7 @@ class PositionCreateSerializer(serializers.ModelSerializer):  # type: ignore[mis
         return value
 
 
-class PositionUpdateSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class PositionUpdateSerializer(serializers.ModelSerializer[Any]):
     """持仓更新序列化器 — 平仓状态只能通过 close 接口变更，不能通过 PATCH/PUT 直接修改"""
 
     class Meta:
@@ -187,7 +195,7 @@ class PositionUpdateSerializer(serializers.ModelSerializer):  # type: ignore[mis
 # ==================== Transaction ====================
 
 
-class TransactionSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class TransactionSerializer(serializers.ModelSerializer[Any]):
     """交易记录序列化器"""
 
     portfolio_name = serializers.CharField(source="portfolio.name", read_only=True)
@@ -219,7 +227,7 @@ class TransactionSerializer(serializers.ModelSerializer):  # type: ignore[misc]
         read_only_fields = ["created_at"]
 
 
-class TransactionCreateSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class TransactionCreateSerializer(serializers.ModelSerializer[Any]):
     """交易记录创建序列化器"""
 
     class Meta:
@@ -250,7 +258,7 @@ class TransactionCreateSerializer(serializers.ModelSerializer):  # type: ignore[
 # ==================== Capital Flow ====================
 
 
-class CapitalFlowSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class CapitalFlowSerializer(serializers.ModelSerializer[Any]):
     """资金流水序列化器"""
 
     portfolio_name = serializers.CharField(source="portfolio.name", read_only=True)
@@ -270,7 +278,7 @@ class CapitalFlowSerializer(serializers.ModelSerializer):  # type: ignore[misc]
         read_only_fields = ["created_at"]
 
 
-class CapitalFlowCreateSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class CapitalFlowCreateSerializer(serializers.ModelSerializer[Any]):
     """资金流水创建序列化器"""
 
     class Meta:
@@ -286,7 +294,7 @@ class CapitalFlowCreateSerializer(serializers.ModelSerializer):  # type: ignore[
 # ==================== Asset Metadata ====================
 
 
-class AssetMetadataSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class AssetMetadataSerializer(serializers.ModelSerializer[Any]):
     """资产元数据序列化器"""
 
     class Meta:
@@ -311,7 +319,7 @@ class AssetMetadataSerializer(serializers.ModelSerializer):  # type: ignore[misc
 # ==================== Statistics ====================
 
 
-class PortfolioStatisticsSerializer(serializers.Serializer):  # type: ignore[misc]
+class PortfolioStatisticsSerializer(serializers.Serializer[dict[str, Any]]):
     """投资组合统计序列化器"""
 
     total_value = serializers.DecimalField(max_digits=20, decimal_places=2)
@@ -329,14 +337,13 @@ class PortfolioStatisticsSerializer(serializers.Serializer):  # type: ignore[mis
 # ==================== Observer Grant ====================
 
 
-class ObserverGrantSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class ObserverGrantSerializer(serializers.ModelSerializer[Any]):
     """观察员授权序列化器"""
 
     owner_username = serializers.CharField(source="owner_user_id.username", read_only=True)
     observer_username = serializers.CharField(source="observer_user_id.username", read_only=True)
     scope_display = serializers.CharField(source="get_scope_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
-    is_valid = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = PortfolioObserverGrantModel
@@ -358,8 +365,15 @@ class ObserverGrantSerializer(serializers.ModelSerializer):  # type: ignore[misc
         ]
         read_only_fields = ["id", "created_at", "revoked_at", "revoked_by"]
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register validity output without overriding serializer validation state."""
 
-class ObserverGrantCreateSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+        fields = super().get_fields()
+        fields["is_valid"] = serializers.BooleanField(read_only=True)
+        return fields
+
+
+class ObserverGrantCreateSerializer(serializers.ModelSerializer[Any]):
     """观察员授权创建序列化器"""
 
     # 支持通过 observer_user_id 或 username 指定观察员
@@ -426,7 +440,7 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):  # type: ignor
         # 验证过期时间
         expires_at = attrs.get("expires_at")
         if expires_at:
-            from django.utils import timezone  # type: ignore[import-untyped]
+            from django.utils import timezone
 
             if expires_at <= timezone.now():
                 raise serializers.ValidationError({"expires_at": "过期时间必须大于当前时间"})
@@ -446,7 +460,7 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):  # type: ignor
         return grant
 
 
-class ObserverGrantUpdateSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class ObserverGrantUpdateSerializer(serializers.ModelSerializer[Any]):
     """观察员授权更新序列化器（仅支持更新过期时间）"""
 
     class Meta:
@@ -466,7 +480,7 @@ class ObserverGrantUpdateSerializer(serializers.ModelSerializer):  # type: ignor
 # ==================== Trading Cost Config ====================
 
 
-class TradingCostConfigSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class TradingCostConfigSerializer(serializers.ModelSerializer[Any]):
     """交易费率配置序列化器"""
 
     # 只读计算字段：以万为单位的佣金率（方便展示）
@@ -499,7 +513,7 @@ class TradingCostConfigSerializer(serializers.ModelSerializer):  # type: ignore[
         return float(round(obj.stamp_duty_rate * 1000, 2))
 
 
-class TradingCostConfigCreateSerializer(serializers.ModelSerializer):  # type: ignore[misc]
+class TradingCostConfigCreateSerializer(serializers.ModelSerializer[Any]):
     """交易费率配置创建/更新序列化器"""
 
     class Meta:
@@ -544,7 +558,7 @@ class TradingCostConfigCreateSerializer(serializers.ModelSerializer):  # type: i
         return value
 
 
-class TradingCostCalculationSerializer(serializers.Serializer):  # type: ignore[misc]
+class TradingCostCalculationSerializer(serializers.Serializer[dict[str, Any]]):
     """交易费率试算参数校验"""
 
     ACTION_CHOICES = ("buy", "sell")
@@ -554,7 +568,7 @@ class TradingCostCalculationSerializer(serializers.Serializer):  # type: ignore[
     is_shanghai = serializers.BooleanField(required=False, default=False)
 
 
-class MacroSizingConfigSerializer(serializers.Serializer):  # type: ignore[misc]
+class MacroSizingConfigSerializer(serializers.Serializer[dict[str, Any]]):
     """宏观仓位系数配置输出序列化器。"""
 
     id = serializers.IntegerField(allow_null=True, required=False)
@@ -575,7 +589,7 @@ class MacroSizingConfigSerializer(serializers.Serializer):  # type: ignore[misc]
     updated_at = serializers.DateTimeField(allow_null=True, required=False)
 
 
-class MacroSizingConfigUpdateSerializer(serializers.Serializer):  # type: ignore[misc]
+class MacroSizingConfigUpdateSerializer(serializers.Serializer[dict[str, Any]]):
     """宏观仓位系数配置更新序列化器。"""
 
     description = serializers.CharField(required=False, allow_blank=True)
@@ -651,14 +665,20 @@ class MacroSizingConfigUpdateSerializer(serializers.Serializer):  # type: ignore
                 raise serializers.ValidationError(f"{field_name} 缺少字段: {', '.join(missing)}")
 
 
-class MCPTokenAccessLevelChoiceSerializer(serializers.Serializer):  # type: ignore[misc]
+class MCPTokenAccessLevelChoiceSerializer(serializers.Serializer[dict[str, Any]]):
     """MCP Token access-level choice payload."""
 
     value = serializers.CharField(read_only=True)
-    label = serializers.CharField(read_only=True)
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the public label without overriding DRF field metadata."""
+
+        fields = super().get_fields()
+        fields["label"] = serializers.CharField(read_only=True)
+        return fields
 
 
-class MCPAccessTokenSerializer(serializers.Serializer):  # type: ignore[misc]
+class MCPAccessTokenSerializer(serializers.Serializer[dict[str, Any]]):
     """MCP access token summary payload."""
 
     id = serializers.IntegerField(read_only=True)
@@ -673,7 +693,7 @@ class MCPAccessTokenSerializer(serializers.Serializer):  # type: ignore[misc]
     is_recommended = serializers.BooleanField(read_only=True, required=False)
 
 
-class MCPAccessPackageSerializer(serializers.Serializer):  # type: ignore[misc]
+class MCPAccessPackageSerializer(serializers.Serializer[dict[str, Any]]):
     """Canonical copy-ready MCP access package."""
 
     token = serializers.CharField(read_only=True, allow_blank=True)
@@ -686,7 +706,7 @@ class MCPAccessPackageSerializer(serializers.Serializer):  # type: ignore[misc]
     environment_statement = serializers.CharField(read_only=True)
 
 
-class MCPAgentPromptSerializer(serializers.Serializer):  # type: ignore[misc]
+class MCPAgentPromptSerializer(serializers.Serializer[dict[str, Any]]):
     """Copy-ready agent bootstrap prompt payload."""
 
     agent_bootstrap_prompt = serializers.CharField(read_only=True)
@@ -739,7 +759,7 @@ class MCPSelfServicePayloadSerializer(MCPAgentPromptSerializer):
     token_access_level_choices = MCPTokenAccessLevelChoiceSerializer(many=True, read_only=True)
 
 
-class MCPAdminUserRowSerializer(serializers.Serializer):  # type: ignore[misc]
+class MCPAdminUserRowSerializer(serializers.Serializer[dict[str, Any]]):
     """Admin-facing MCP governance row for one user."""
 
     user_id = serializers.IntegerField(read_only=True)
@@ -754,7 +774,7 @@ class MCPAdminUserRowSerializer(serializers.Serializer):  # type: ignore[misc]
     tokens = MCPAccessTokenSerializer(many=True, read_only=True)
 
 
-class MCPAdminUsersPayloadSerializer(serializers.Serializer):  # type: ignore[misc]
+class MCPAdminUsersPayloadSerializer(serializers.Serializer[dict[str, Any]]):
     """Admin-facing MCP user governance payload."""
 
     search_query = serializers.CharField(read_only=True, allow_blank=True)
@@ -774,7 +794,7 @@ class MCPAdminUserDetailSerializer(MCPSelfServicePayloadSerializer):
     email = serializers.CharField(read_only=True, allow_blank=True)
 
 
-class MCPTokenCreateRequestSerializer(serializers.Serializer):  # type: ignore[misc]
+class MCPTokenCreateRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """Create-token request payload for self/admin MCP flows."""
 
     token_name = serializers.CharField(required=False, allow_blank=True, max_length=120)
@@ -785,14 +805,14 @@ class MCPTokenCreateRequestSerializer(serializers.Serializer):  # type: ignore[m
     )
 
 
-class MCPAdminUsersQuerySerializer(serializers.Serializer):  # type: ignore[misc]
+class MCPAdminUsersQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """Admin MCP user list query params."""
 
     q = serializers.CharField(required=False, allow_blank=True, default="")
     without_token = serializers.BooleanField(required=False, default=False)
 
 
-class MCPTokenPayloadSerializer(serializers.Serializer):  # type: ignore[misc]
+class MCPTokenPayloadSerializer(serializers.Serializer[dict[str, Any]]):
     """Newly created MCP token payload."""
 
     username = serializers.CharField(read_only=True)
@@ -803,7 +823,7 @@ class MCPTokenPayloadSerializer(serializers.Serializer):  # type: ignore[misc]
     generated_at = serializers.CharField(read_only=True)
 
 
-class MCPMutationResultSerializer(serializers.Serializer):  # type: ignore[misc]
+class MCPMutationResultSerializer(serializers.Serializer[dict[str, Any]]):
     """Generic mutation response payload for MCP governance flows."""
 
     success = serializers.BooleanField(read_only=True)

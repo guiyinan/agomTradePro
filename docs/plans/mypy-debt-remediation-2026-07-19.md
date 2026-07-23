@@ -902,3 +902,28 @@
 - Agent Runtime serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6579 errors / 830 files` 收紧为 `6550 errors / 829 files`，净减少 `29 errors / 1 file`，跨文件无新增。
 - 目标文件的 `4 attr-defined + 4 no-any-return + 17 type-arg + 4 valid-type` 全部清零。
 - Agent Runtime serializer、API、RBAC 与真实 repository 组装回归共 `43 passed`；mypy 治理护栏 `10 passed`，当前联合改动的架构增量门禁 `4 files / 393 added lines / 0 violations`，Ruff、Black、diff check 通过。
+
+## 第七十一批
+
+- 按 AI Capability routing、MCP governance 与 Web Chat 公共 API 边界收口 serializers：普通请求和 read-model payload 使用字典 instance；Capability summary 的 `many=True` 调用保持局部动态边界，避免把 DRF stub 的列表构造限制传播到调用方。
+- MCP verification 的 `label/detail`、Route/Web Chat 的 `context`、Suggested Action 的 `label/description` 与 Answer Chain 的 `label` 统一通过 `get_fields()` 注册，保持既有公开字段、默认值和读写语义，同时避免覆盖 DRF Field/Serializer 内部属性。
+- 完整传播扫描曾准确暴露 Capability list 调用方的 1 项 `arg-type`；最终通过收窄 serializer 的多实例动态边界消除，不把 API View 的既存历史债务纳入本批或新增 ignore。
+
+## 第七十一批验证结果
+
+- AI Capability serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6550 errors / 829 files` 收紧为 `6529 errors / 828 files`，净减少 `21 errors / 1 file`，跨文件无新增。
+- 目标文件受管的 `2 assignment + 19 type-arg` 全部清零；直接 strict 检查同时确认所有公开字段覆盖冲突均已消除。
+- 字段契约、AI Capability routing/API use cases 与 API edges 回归共 `27 passed`；mypy 治理护栏 `10 passed`，架构增量门禁 `1 file / 69 added lines / 0 violations`，Ruff、Black、diff check 通过。
+
+## 第七十二批
+
+- 扩大为 Account Interface 同 App 双文件收口：主 serializers 的动态 ORM ModelSerializer 使用显式 `Any` instance，普通 ledger、统计、宏观仓位与 MCP payload 使用字典 instance；classification serializers 同步补齐分类树、币种、汇率与配置统计契约。
+- 删除主 serializers 中 33 个已经失效的行级 `type: ignore`，包括 ModelSerializer、普通 Serializer 与 Django timezone/import 边界；不以新增 ignore 替代类型治理。
+- Position 的 `source`、Observer Grant 的 `is_valid` 与 MCP access-level 的 `label` 通过 `get_fields()` 注册，保留公开字段且避免覆盖 DRF 内部状态；Position 的 `many=True` 列表输出保持局部动态边界，完整传播门禁不再向 Portfolio API View 新增 `arg-type`。
+- 分类树动态反向关系在 ORM 边界具化，ExchangeRate 校验参数改用 Decimal；新增 Account serializer 字段契约测试。
+
+## 第七十二批验证结果
+
+- Account 主 serializers 与 classification serializers 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6529 errors / 828 files` 收紧为 `6453 errors / 826 files`，净减少 `76 errors / 2 files`，跨文件无新增。
+- 主文件的 `2 assignment + 31 type-arg + 33 unused-ignore` 与分类文件的 `2 no-untyped-def + 8 type-arg` 全部清零。
+- Account 字段契约、API/Profile edges、分类/汇率、观察者权限与 MCP 自助页面回归共 `71 passed`；mypy 治理护栏 `10 passed`，当前第七十一、七十二批联合架构增量门禁 `3 files / 198 added lines / 0 violations`，Ruff、Black、diff check 通过。

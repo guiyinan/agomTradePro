@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6550,
-    "files_with_errors": 829
+    "errors": 6453,
+    "files_with_errors": 826
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -145,10 +145,6 @@
       "no-untyped-def": 19,
       "type-arg": 3
     },
-    "apps/account/interface/classification_serializers.py": {
-      "no-untyped-def": 2,
-      "type-arg": 8
-    },
     "apps/account/interface/documentation_views.py": {
       "no-untyped-def": 7
     },
@@ -186,11 +182,6 @@
       "arg-type": 3,
       "type-arg": 2,
       "unused-ignore": 8
-    },
-    "apps/account/interface/serializers.py": {
-      "assignment": 2,
-      "type-arg": 31,
-      "unused-ignore": 33
     },
     "apps/account/interface/sizing_views.py": {
       "unused-ignore": 2
@@ -355,10 +346,6 @@
     },
     "apps/ai_capability/interface/semantic_governance_views.py": {
       "arg-type": 1
-    },
-    "apps/ai_capability/interface/serializers.py": {
-      "assignment": 2,
-      "type-arg": 19
     },
     "apps/ai_capability/interface/views.py": {
       "arg-type": 1,
