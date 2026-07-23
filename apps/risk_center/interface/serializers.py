@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework import serializers
 
 from apps.risk_center.domain.entities import PARAMETER_FIELDS
 
 
-class RiskParameterSerializer(serializers.Serializer):
+class RiskParameterSerializer(serializers.Serializer[dict[str, Any]]):
     max_total_position_pct = serializers.FloatField(
         required=False, allow_null=True, min_value=0, max_value=1
     )
@@ -80,21 +82,21 @@ class AccountRiskPolicyUpdateSerializer(AccountRiskPolicySerializer):
     account_id = serializers.IntegerField(required=False, min_value=1)
 
 
-class ApplyTemplateSerializer(serializers.Serializer):
+class ApplyTemplateSerializer(serializers.Serializer[dict[str, Any]]):
     template_id = serializers.IntegerField(min_value=1)
 
 
-class RiskExceptionSerializer(serializers.Serializer):
+class RiskExceptionSerializer(serializers.Serializer[dict[str, Any]]):
     id = serializers.IntegerField(read_only=True)
     account_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
-    field_name = serializers.ChoiceField(choices=PARAMETER_FIELDS)
+    field_name: Any = serializers.ChoiceField(choices=PARAMETER_FIELDS)
     allowed_value = serializers.JSONField()
     reason = serializers.CharField()
     expires_at = serializers.DateTimeField()
     is_active = serializers.BooleanField(required=False, default=True)
 
 
-class PreTradeRiskCheckSerializer(serializers.Serializer):
+class PreTradeRiskCheckSerializer(serializers.Serializer[dict[str, Any]]):
     account_id = serializers.IntegerField(min_value=1)
     symbol = serializers.CharField(max_length=64)
     side = serializers.ChoiceField(choices=("buy", "sell"))
@@ -110,7 +112,7 @@ class PreTradeRiskCheckSerializer(serializers.Serializer):
     )
 
 
-class PostInvestmentPositionSerializer(serializers.Serializer):
+class PostInvestmentPositionSerializer(serializers.Serializer[dict[str, Any]]):
     symbol = serializers.CharField(max_length=64)
     market_value = serializers.FloatField(min_value=0)
     unrealized_pnl_pct = serializers.FloatField(required=False, allow_null=True)
@@ -118,7 +120,7 @@ class PostInvestmentPositionSerializer(serializers.Serializer):
     avg_cost = serializers.FloatField(required=False, allow_null=True, min_value=0)
 
 
-class PostInvestmentRiskCheckSerializer(serializers.Serializer):
+class PostInvestmentRiskCheckSerializer(serializers.Serializer[dict[str, Any]]):
     account_id = serializers.IntegerField(min_value=1)
     account_equity = serializers.FloatField(min_value=0)
     cash_balance = serializers.FloatField(required=False, allow_null=True, min_value=0)
@@ -136,14 +138,14 @@ class RiskCenterDailyReportSerializer(PostInvestmentRiskCheckSerializer):
     report_date = serializers.DateField(required=False)
 
 
-class RiskCenterDailyReportQuerySerializer(serializers.Serializer):
+class RiskCenterDailyReportQuerySerializer(serializers.Serializer[dict[str, Any]]):
     account_id = serializers.IntegerField(required=False, min_value=1)
     report_date = serializers.DateField(required=False)
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
     limit = serializers.IntegerField(required=False, min_value=1, max_value=365, default=90)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if attrs.get("report_date") and (attrs.get("start_date") or attrs.get("end_date")):
             raise serializers.ValidationError(
                 "report_date cannot be combined with start_date or end_date."

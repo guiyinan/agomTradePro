@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4915,
-    "files_with_errors": 757
+    "errors": 4869,
+    "files_with_errors": 752
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2388,25 +2388,6 @@
     },
     "apps/research/composition.py": {
       "arg-type": 3
-    },
-    "apps/risk_center/admin.py": {
-      "type-arg": 6
-    },
-    "apps/risk_center/infrastructure/models.py": {
-      "type-arg": 1
-    },
-    "apps/risk_center/infrastructure/repositories.py": {
-      "no-any-return": 2,
-      "no-untyped-call": 4,
-      "no-untyped-def": 1
-    },
-    "apps/risk_center/interface/api_views.py": {
-      "no-untyped-def": 23
-    },
-    "apps/risk_center/interface/serializers.py": {
-      "assignment": 1,
-      "no-untyped-def": 1,
-      "type-arg": 7
     },
     "apps/rotation/application/dtos.py": {
       "type-arg": 8

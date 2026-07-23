@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from django.apps import apps as django_apps
 from django.db import transaction
+from django.db.models import Model
 from django.utils import timezone
 
 from apps.risk_center.domain.entities import (
@@ -438,8 +439,14 @@ class DjangoRiskDailyReportRepository:
 
 
 class DjangoRiskAccountRepository:
-    def _account_model(self):
-        return django_apps.get_model("simulated_trading", "SimulatedAccountModel")
+    @staticmethod
+    def _account_model() -> type[Model]:
+        """Resolve the account model without a hard cross-app import."""
+
+        return cast(
+            type[Model],
+            django_apps.get_model("simulated_trading", "SimulatedAccountModel"),
+        )
 
     def can_access_account(self, *, user: Any, account_id: int) -> bool:
         if not getattr(user, "is_authenticated", False):

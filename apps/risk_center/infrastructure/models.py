@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -24,7 +26,7 @@ class RiskParameterMixin(models.Model):
     class Meta:
         abstract = True
 
-    def to_parameter_dict(self) -> dict:
+    def to_parameter_dict(self) -> dict[str, Any]:
         return {
             "max_total_position_pct": self.max_total_position_pct,
             "max_single_position_pct": self.max_single_position_pct,

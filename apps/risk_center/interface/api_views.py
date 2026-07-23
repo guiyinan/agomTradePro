@@ -7,6 +7,7 @@ from typing import Any
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -99,7 +100,7 @@ def _error_response(exc: Exception) -> Response:
 class RiskCenterApiHomeView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         return Response(
             {
                 "module": "risk-center",
@@ -121,14 +122,14 @@ class RiskCenterApiHomeView(APIView):
 class RiskFloorView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         try:
             floor = GetRiskFloorUseCase().execute(actor=request.user)
         except RiskCenterAccessDeniedError as exc:
             return _error_response(exc)
         return Response({"success": True, "data": _serialize_model(floor)})
 
-    def put(self, request) -> Response:
+    def put(self, request: Request) -> Response:
         serializer = RiskFloorSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
@@ -144,14 +145,14 @@ class RiskFloorView(APIView):
 class RiskTemplateListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         try:
             templates = ListRiskTemplatesUseCase().execute(actor=request.user)
         except RiskCenterAccessDeniedError as exc:
             return _error_response(exc)
         return Response({"success": True, "data": [_serialize_model(item) for item in templates]})
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = RiskTemplateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -170,13 +171,13 @@ class RiskTemplateListCreateView(APIView):
 class RiskTemplateDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def put(self, request, template_id: int) -> Response:
+    def put(self, request: Request, template_id: int) -> Response:
         return self._update(request, template_id, partial=False)
 
-    def patch(self, request, template_id: int) -> Response:
+    def patch(self, request: Request, template_id: int) -> Response:
         return self._update(request, template_id, partial=True)
 
-    def get(self, request, template_id: int) -> Response:
+    def get(self, request: Request, template_id: int) -> Response:
         try:
             templates = ListRiskTemplatesUseCase().execute(actor=request.user)
         except RiskCenterAccessDeniedError as exc:
@@ -186,7 +187,7 @@ class RiskTemplateDetailView(APIView):
                 return Response({"success": True, "data": _serialize_model(template)})
         return Response({"detail": "Risk template not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    def _update(self, request, template_id: int, *, partial: bool) -> Response:
+    def _update(self, request: Request, template_id: int, *, partial: bool) -> Response:
         serializer = RiskTemplateUpdateSerializer(data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         try:
@@ -203,14 +204,14 @@ class RiskTemplateDetailView(APIView):
 class AccountRiskPolicyListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         try:
             policies = ListAccountRiskPoliciesUseCase().execute(actor=request.user)
         except RiskCenterAccessDeniedError as exc:
             return _error_response(exc)
         return Response({"success": True, "data": [_serialize_model(item) for item in policies]})
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = AccountRiskPolicySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -229,7 +230,7 @@ class AccountRiskPolicyListCreateView(APIView):
 class AccountRiskPolicyByAccountView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, account_id: int) -> Response:
+    def get(self, request: Request, account_id: int) -> Response:
         try:
             policy = GetAccountRiskPolicyUseCase().execute(
                 actor=request.user,
@@ -247,13 +248,13 @@ class AccountRiskPolicyByAccountView(APIView):
 class AccountRiskPolicyDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def put(self, request, policy_id: int) -> Response:
+    def put(self, request: Request, policy_id: int) -> Response:
         return self._update(request, policy_id, partial=False)
 
-    def patch(self, request, policy_id: int) -> Response:
+    def patch(self, request: Request, policy_id: int) -> Response:
         return self._update(request, policy_id, partial=True)
 
-    def _update(self, request, policy_id: int, *, partial: bool) -> Response:
+    def _update(self, request: Request, policy_id: int, *, partial: bool) -> Response:
         serializer = AccountRiskPolicyUpdateSerializer(data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         payload = dict(serializer.validated_data)
@@ -278,7 +279,7 @@ class AccountRiskPolicyDetailView(APIView):
 class ApplyTemplateToPolicyView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, policy_id: int) -> Response:
+    def post(self, request: Request, policy_id: int) -> Response:
         serializer = ApplyTemplateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -295,7 +296,7 @@ class ApplyTemplateToPolicyView(APIView):
 class RiskExceptionListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         account_id = request.query_params.get("account_id")
         try:
             exceptions = ListRiskExceptionsUseCase().execute(
@@ -306,7 +307,7 @@ class RiskExceptionListCreateView(APIView):
             return _error_response(exc)
         return Response({"success": True, "data": [_serialize_model(item) for item in exceptions]})
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = RiskExceptionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -325,7 +326,7 @@ class RiskExceptionListCreateView(APIView):
 class EffectiveRiskPolicyView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         account_id = request.query_params.get("account_id")
         if not account_id:
             return Response(
@@ -344,7 +345,7 @@ class EffectiveRiskPolicyView(APIView):
 class PreTradeRiskCheckView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = PreTradeRiskCheckSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payload = dict(serializer.validated_data)
@@ -390,7 +391,7 @@ class PreTradeRiskCheckView(APIView):
 class PostInvestmentRiskCheckView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = PostInvestmentRiskCheckSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payload = dict(serializer.validated_data)
@@ -446,7 +447,7 @@ class PostInvestmentRiskCheckView(APIView):
 class RiskCenterDailyReportView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         serializer = RiskCenterDailyReportQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         payload = serializer.validated_data
@@ -468,9 +469,11 @@ class RiskCenterDailyReportView(APIView):
             )
         except (RiskCenterAccessDeniedError, RiskCenterNotFoundError) as exc:
             return _error_response(exc)
-        return Response({"success": True, "data": [_serialize_daily_report(item) for item in reports]})
+        return Response(
+            {"success": True, "data": [_serialize_daily_report(item) for item in reports]}
+        )
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = RiskCenterDailyReportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payload = dict(serializer.validated_data)

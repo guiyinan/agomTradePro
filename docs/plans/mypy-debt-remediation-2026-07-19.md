@@ -1300,3 +1300,18 @@
 - 目标 View 的 `1 assignment + 1 call-arg + 34 no-untyped-def + 1 type-arg` 全部清零。
 - Simulated Trading API edges、单元、账户/绩效/通知/再平衡和集成流程回归共 `117 passed`。
 - 全仓扫描 `1853 files / 0 boundary / 0 audit violations`；governance baseline 升级为 `2026-07-23.v169`，静态测试函数计数提升至 `7183`；architecture/governance/repository guardrails `39 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第九十八批
+
+- 按“交易前置风控风险 × 系统级影响面”纵向清零 Risk Center，覆盖全局风险底线、风险模板、账户风险策略、风险例外、交易前检查、投后检查、每日风险报告和账户访问范围。
+- Risk Center Admin 全部迁移到 `TypedModelAdmin[ConcreteModel]`，移除动态 `get_model()` 形成的无类型 Admin 注册入口；模型风险参数投影具化为字符串键 JSON 边界。
+- DRF Serializer 补齐字典泛型和 validate 契约；`field_name` 与 DRF 基类内部属性同名的框架边界局部收窄为 `Any`，保留既有 API 字段名和校验行为，不用宽泛 ignore 掩盖。
+- 所有 Risk Center API handler 和内部更新入口具化 `Request/Response`、路由整数与 partial 标志；未改变认证、staff 管理权限、owner scope、异常映射或响应结构。
+- 动态账户模型解析收窄为 `type[Model]`，保留延迟解析以避免 Risk Center 对 Simulated Trading 模型的硬导入；账户存在性、用户范围和风险偏好查询恢复为可验证的 ORM 布尔/列表契约。
+
+## 第九十八批验证结果
+
+- Risk Center 5 个生产源码在 silent propagation 和增量 regression 两种 mypy 模式下均为零；全仓基线从 `4915 errors / 757 files` 收紧为 `4869 errors / 752 files`，净减少 `46 errors / 5 files`，跨文件无新增。
+- 目标文件的 `1 assignment + 2 no-any-return + 4 no-untyped-call + 25 no-untyped-def + 14 type-arg` 全部清零。
+- Risk Center 策略解析、交易前检查、页面权限和 API 契约回归共 `25 passed`。
+- 全仓扫描 `1853 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-23.v170`，静态测试函数计数保持 `7183`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
