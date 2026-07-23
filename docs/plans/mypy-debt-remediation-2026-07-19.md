@@ -1349,3 +1349,19 @@
 - 目标文件的 `2 arg-type + 1 assignment + 9 no-untyped-call + 37 no-untyped-def` 全部清零。
 - Audit 归因、阈值验证、权限、操作日志、决策链、执行关联、健康检查、失败计数、Domain/Application 和内部写入回归共 `335 passed`。
 - 全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v172`，静态测试函数计数提升至 `7186`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第一百零一批
+
+- 按“投资决策入口影响面 × 剩余错误密度”收口 Factor 用户入口，覆盖因子定义、组合配置、评分计算、股票解释、组合生成及 HTML 页面。
+- DRF ViewSet 与 Django page view 全部具化请求、响应、路由参数和内部更新方法契约；第三方 DRF 泛型仅在框架动态模型边界保留局部 `Any`。
+- 因子定义与组合配置分页输入在 DRF stub 边界显式收窄，不再由列表分页产生错误类型传播。
+- 新增共享正整数路由 ID 守卫；因子定义和组合配置的缺失、非数字、零及负数 ID 统一 fail closed 为 404，不再由 `int()` 异常形成 500。
+- HTML 组合动作缺失 action 时规范化为空字符串并交由既有 Application 校验，不再把 `str | None` 传播到强类型服务。
+- 新增 4 组因子定义/组合配置非法详情 ID API 回归。
+
+## 第一百零一批验证结果
+
+- Factor View 在增量 regression mypy 下为零；全仓基线从 `4729 errors / 746 files` 收紧为 `4687 errors / 745 files`，净减少 `42 errors / 1 file`，跨文件无新增。
+- 目标文件的 `2 arg-type + 38 no-untyped-def + 2 type-arg` 全部清零。
+- Factor API、页面、实体与 Domain 服务回归共 `102 passed`。
+- 全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v173`，静态测试函数计数提升至 `7187`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。

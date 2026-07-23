@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4729,
-    "files_with_errors": 746
+    "errors": 4687,
+    "files_with_errors": 745
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1743,11 +1743,6 @@
     },
     "apps/factor/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/factor/interface/views.py": {
-      "arg-type": 2,
-      "no-untyped-def": 38,
-      "type-arg": 2
     },
     "apps/factor/management/commands/init_factors.py": {
       "no-untyped-call": 2,

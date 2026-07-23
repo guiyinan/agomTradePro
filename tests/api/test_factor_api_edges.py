@@ -332,3 +332,22 @@ def test_factor_explain_stock_returns_500_when_service_returns_none(authenticate
 
     assert response.status_code == 500
     assert response.json()["error"] == "Failed to explain stock score"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/factor/definitions/not-a-number/",
+        "/api/factor/definitions/0/",
+        "/api/factor/configs/not-a-number/",
+        "/api/factor/configs/0/",
+    ],
+)
+def test_factor_detail_routes_reject_invalid_identifiers(
+    authenticated_client,
+    path,
+):
+    response = authenticated_client.get(path)
+
+    assert response.status_code == 404
