@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4617,
-    "files_with_errors": 741
+    "errors": 4580,
+    "files_with_errors": 734
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1691,37 +1691,6 @@
     "apps/events/interface/views.py": {
       "arg-type": 1,
       "assignment": 1,
-      "no-untyped-def": 4
-    },
-    "apps/factor/application/dtos.py": {
-      "type-arg": 1
-    },
-    "apps/factor/infrastructure/adapters/__init__.py": {
-      "assignment": 1,
-      "attr-defined": 1,
-      "misc": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 2,
-      "var-annotated": 1
-    },
-    "apps/factor/infrastructure/services.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 1,
-      "type-arg": 10
-    },
-    "apps/factor/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/factor/interface/serializers.py": {
-      "no-untyped-def": 1,
-      "type-arg": 7
-    },
-    "apps/factor/interface/urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/factor/management/commands/init_factors.py": {
-      "no-untyped-call": 2,
       "no-untyped-def": 4
     },
     "apps/filter/infrastructure/models.py": {

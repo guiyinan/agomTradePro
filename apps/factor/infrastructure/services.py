@@ -5,7 +5,9 @@ Integration services that connect domain logic with data adapters.
 """
 
 import logging
+from collections.abc import Mapping, Sequence
 from datetime import date
+from typing import Any
 
 from apps.factor.domain.entities import (
     FactorPortfolioHolding,
@@ -14,7 +16,7 @@ from apps.factor.domain.services import (
     FactorCalculationContext,
     ScoringService,
 )
-from apps.factor.infrastructure.adapters import FailoverFactorAdapter
+from apps.factor.infrastructure.adapters import FactorDataSource, FailoverFactorAdapter
 from apps.factor.infrastructure.repositories import (
     FactorDefinitionRepository,
     FactorPortfolioConfigRepository,
@@ -31,7 +33,12 @@ class FactorIntegrationService:
     Integrates domain services with repositories and data adapters.
     """
 
-    def __init__(self, factor_adapter=None, *, cache_price_results: bool = True):
+    def __init__(
+        self,
+        factor_adapter: FactorDataSource | None = None,
+        *,
+        cache_price_results: bool = True,
+    ) -> None:
         self.factor_adapter = factor_adapter or FailoverFactorAdapter(
             cache_price_results=cache_price_results,
         )
@@ -44,8 +51,8 @@ class FactorIntegrationService:
         universe: list[str],
         factor_weights: dict[str, float],
         trade_date: date | None = None,
-        top_n: int = 50
-    ) -> list[dict]:
+        top_n: int = 50,
+    ) -> list[dict[str, Any]]:
         """
         Calculate factor scores for stocks.
 
@@ -67,26 +74,25 @@ class FactorIntegrationService:
         def get_factor_value(stock_code: str, factor_code: str, calc_date: date) -> float | None:
             return self.factor_adapter.get_factor_value(stock_code, factor_code, calc_date)
 
-        def get_stock_info(stock_code: str) -> dict | None:
-            # Get stock info from equity module if available
-            try:
-                from apps.equity.infrastructure.repositories import StockInfoRepository
-                equity_repo = StockInfoRepository()
-                stock = equity_repo.get_by_code(stock_code)
-                if stock:
-                    return {
-                        'name': stock.name,
-                        'sector': stock.sector,
-                        'market_cap': stock.list_date,  # Placeholder
-                    }
-            except Exception:
-                pass
+        def get_stock_info(stock_code: str) -> dict[str, Any] | None:
+            from apps.equity.infrastructure.models import StockInfoModel
+
+            stock = StockInfoModel._default_manager.filter(
+                stock_code=stock_code,
+                is_active=True,
+            ).first()
+            if stock is not None:
+                return {
+                    "name": stock.name,
+                    "sector": stock.sector,
+                    "market_cap": None,
+                }
 
             # Fallback to basic info
             return {
-                'name': stock_code,
-                'sector': 'Unknown',
-                'market_cap': None,
+                "name": stock_code,
+                "sector": "Unknown",
+                "market_cap": None,
             }
 
         context = FactorCalculationContext(
@@ -106,27 +112,25 @@ class FactorIntegrationService:
         # Convert to dictionaries
         return [
             {
-                'stock_code': score.stock_code,
-                'stock_name': score.stock_name,
-                'composite_score': round(score.composite_score, 2),
-                'percentile_rank': round(score.percentile_rank, 4),
-                'factor_scores': {k: round(v, 2) for k, v in score.factor_scores.items()},
-                'sector': score.sector,
-                'value_score': round(score.value_score, 2),
-                'quality_score': round(score.quality_score, 2),
-                'growth_score': round(score.growth_score, 2),
-                'momentum_score': round(score.momentum_score, 2),
-                'volatility_score': round(score.volatility_score, 2),
-                'liquidity_score': round(score.liquidity_score, 2),
+                "stock_code": score.stock_code,
+                "stock_name": score.stock_name,
+                "composite_score": round(score.composite_score, 2),
+                "percentile_rank": round(score.percentile_rank, 4),
+                "factor_scores": {k: round(v, 2) for k, v in score.factor_scores.items()},
+                "sector": score.sector,
+                "value_score": round(score.value_score, 2),
+                "quality_score": round(score.quality_score, 2),
+                "growth_score": round(score.growth_score, 2),
+                "momentum_score": round(score.momentum_score, 2),
+                "volatility_score": round(score.volatility_score, 2),
+                "liquidity_score": round(score.liquidity_score, 2),
             }
             for score in scores
         ]
 
     def create_factor_portfolio(
-        self,
-        config_name: str,
-        trade_date: date | None = None
-    ) -> dict | None:
+        self, config_name: str, trade_date: date | None = None
+    ) -> dict[str, Any] | None:
         """
         Create factor portfolio based on configuration.
 
@@ -150,47 +154,41 @@ class FactorIntegrationService:
 
         # Calculate scores
         scores = self.calculate_factor_scores(
-            universe,
-            config.factor_weights,
-            trade_date,
-            config.top_n
+            universe, config.factor_weights, trade_date, config.top_n
         )
 
         if not scores:
             return None
 
         # Select top N
-        top_scores = scores[:config.top_n]
+        top_scores = scores[: config.top_n]
 
         # Calculate weights
         holdings = self._create_holdings_from_scores(
-            config_name,
-            trade_date,
-            top_scores,
-            config.weight_method
+            config_name, trade_date, top_scores, config.weight_method
         )
 
         # Save holdings
         self.holding_repo.save_holdings(config_name, trade_date, holdings)
 
         return {
-            'config_name': config_name,
-            'trade_date': trade_date.isoformat(),
-            'total_stocks': len(holdings),
-            'holdings': [
+            "config_name": config_name,
+            "trade_date": trade_date.isoformat(),
+            "total_stocks": len(holdings),
+            "holdings": [
                 {
-                    'stock_code': h.stock_code,
-                    'stock_name': h.stock_name,
-                    'weight': round(h.weight * 100, 2),
-                    'factor_score': round(h.factor_score, 2),
-                    'rank': h.rank,
-                    'sector': h.sector,
+                    "stock_code": h.stock_code,
+                    "stock_name": h.stock_name,
+                    "weight": round(h.weight * 100, 2),
+                    "factor_score": round(h.factor_score, 2),
+                    "rank": h.rank,
+                    "sector": h.sector,
                 }
                 for h in holdings
             ],
         }
 
-    def get_factor_portfolio(self, config_name: str) -> dict | None:
+    def get_factor_portfolio(self, config_name: str) -> dict[str, Any] | None:
         """
         Get latest factor portfolio for a configuration.
 
@@ -206,28 +204,25 @@ class FactorIntegrationService:
             return None
 
         return {
-            'config_name': config_name,
-            'trade_date': holdings[0].trade_date.isoformat() if holdings else '',
-            'total_stocks': len(holdings),
-            'holdings': [
+            "config_name": config_name,
+            "trade_date": holdings[0].trade_date.isoformat() if holdings else "",
+            "total_stocks": len(holdings),
+            "holdings": [
                 {
-                    'stock_code': h.stock_code,
-                    'stock_name': h.stock_name,
-                    'weight': round(h.weight * 100, 2),
-                    'factor_score': round(h.factor_score, 2),
-                    'rank': h.rank,
-                    'sector': h.sector,
+                    "stock_code": h.stock_code,
+                    "stock_name": h.stock_name,
+                    "weight": round(h.weight * 100, 2),
+                    "factor_score": round(h.factor_score, 2),
+                    "rank": h.rank,
+                    "sector": h.sector,
                 }
                 for h in holdings
             ],
         }
 
     def explain_stock_score(
-        self,
-        stock_code: str,
-        factor_weights: dict[str, float],
-        trade_date: date | None = None
-    ) -> dict | None:
+        self, stock_code: str, factor_weights: dict[str, float], trade_date: date | None = None
+    ) -> dict[str, Any] | None:
         """
         Explain factor score breakdown for a stock.
 
@@ -248,7 +243,7 @@ class FactorIntegrationService:
         def get_factor_value(stock_code: str, factor_code: str, calc_date: date) -> float | None:
             return self.factor_adapter.get_factor_value(stock_code, factor_code, calc_date)
 
-        def get_stock_info(stock_code: str) -> dict | None:
+        def get_stock_info(stock_code: str) -> dict[str, Any] | None:
             from apps.equity.infrastructure.models import StockInfoModel
 
             stock = StockInfoModel._default_manager.filter(
@@ -258,9 +253,9 @@ class FactorIntegrationService:
             if stock is None:
                 return None
             return {
-                'name': stock.name,
-                'sector': stock.sector,
-                'market_cap': None,
+                "name": stock.name,
+                "sector": stock.sector,
+                "market_cap": None,
             }
 
         context = FactorCalculationContext(
@@ -285,11 +280,11 @@ class FactorIntegrationService:
             StockInfoModel._default_manager.all().values_list("stock_code", flat=True)
         )
 
-        if universe == 'hs300':
+        if universe == "hs300":
             return all_stocks[:300] or all_stocks
-        elif universe == 'zz500':
+        elif universe == "zz500":
             return all_stocks[:500] or all_stocks
-        elif universe == 'all_a':
+        elif universe == "all_a":
             # All A-shares
             return all_stocks
         else:
@@ -300,101 +295,105 @@ class FactorIntegrationService:
         self,
         config_name: str,
         trade_date: date,
-        scores: list[dict],
-        weight_method: str
+        scores: Sequence[Mapping[str, Any]],
+        weight_method: str,
     ) -> list[FactorPortfolioHolding]:
         """Create holdings from scores"""
         n = len(scores)
-        holdings = []
+        holdings: list[FactorPortfolioHolding] = []
 
-        if weight_method == 'equal_weight':
+        if weight_method == "equal_weight":
             weight = 1.0 / n
             for i, score in enumerate(scores):
-                holdings.append(FactorPortfolioHolding(
-                    config_name=config_name,
-                    trade_date=trade_date,
-                    stock_code=score['stock_code'],
-                    stock_name=score['stock_name'],
-                    weight=weight,
-                    factor_score=score['composite_score'],
-                    rank=i + 1,
-                    sector=score['sector'],
-                    factor_scores=score['factor_scores'],
-                ))
+                holdings.append(
+                    FactorPortfolioHolding(
+                        config_name=config_name,
+                        trade_date=trade_date,
+                        stock_code=score["stock_code"],
+                        stock_name=score["stock_name"],
+                        weight=weight,
+                        factor_score=score["composite_score"],
+                        rank=i + 1,
+                        sector=score["sector"],
+                        factor_scores=score["factor_scores"],
+                    )
+                )
 
-        elif weight_method == 'factor_weighted':
-            total_score = sum(s['composite_score'] for s in scores)
+        elif weight_method == "factor_weighted":
+            total_score = sum(s["composite_score"] for s in scores)
             for i, score in enumerate(scores):
-                weight = score['composite_score'] / total_score if total_score > 0 else 1.0 / n
-                holdings.append(FactorPortfolioHolding(
-                    config_name=config_name,
-                    trade_date=trade_date,
-                    stock_code=score['stock_code'],
-                    stock_name=score['stock_name'],
-                    weight=weight,
-                    factor_score=score['composite_score'],
-                    rank=i + 1,
-                    sector=score['sector'],
-                    factor_scores=score['factor_scores'],
-                ))
+                weight = score["composite_score"] / total_score if total_score > 0 else 1.0 / n
+                holdings.append(
+                    FactorPortfolioHolding(
+                        config_name=config_name,
+                        trade_date=trade_date,
+                        stock_code=score["stock_code"],
+                        stock_name=score["stock_name"],
+                        weight=weight,
+                        factor_score=score["composite_score"],
+                        rank=i + 1,
+                        sector=score["sector"],
+                        factor_scores=score["factor_scores"],
+                    )
+                )
 
         else:  # Default to equal weight
             weight = 1.0 / n
             for i, score in enumerate(scores):
-                holdings.append(FactorPortfolioHolding(
-                    config_name=config_name,
-                    trade_date=trade_date,
-                    stock_code=score['stock_code'],
-                    stock_name=score['stock_name'],
-                    weight=weight,
-                    factor_score=score['composite_score'],
-                    rank=i + 1,
-                    sector=score['sector'],
-                    factor_scores=score['factor_scores'],
-                ))
+                holdings.append(
+                    FactorPortfolioHolding(
+                        config_name=config_name,
+                        trade_date=trade_date,
+                        stock_code=score["stock_code"],
+                        stock_name=score["stock_name"],
+                        weight=weight,
+                        factor_score=score["composite_score"],
+                        rank=i + 1,
+                        sector=score["sector"],
+                        factor_scores=score["factor_scores"],
+                    )
+                )
 
         return holdings
 
-    def get_factor_definitions(self) -> list[dict]:
+    def get_factor_definitions(self) -> list[dict[str, Any]]:
         """Get all factor definitions"""
         factors = self.factor_repo.get_active()
 
         return [
             {
-                'code': f.code,
-                'name': f.name,
-                'category': f.category.value,
-                'description': f.description,
-                'data_source': f.data_source,
-                'direction': f.direction.value,
-                'is_active': f.is_active,
+                "code": f.code,
+                "name": f.name,
+                "category": f.category.value,
+                "description": f.description,
+                "data_source": f.data_source,
+                "direction": f.direction.value,
+                "is_active": f.is_active,
             }
             for f in factors
         ]
 
-    def get_all_configs(self) -> list[dict]:
+    def get_all_configs(self) -> list[dict[str, Any]]:
         """Get all portfolio configurations"""
         configs = self.config_repo.get_all()
 
         return [
             {
-                'name': c.name,
-                'description': c.description,
-                'factor_weights': c.factor_weights,
-                'universe': c.universe,
-                'top_n': c.top_n,
-                'rebalance_frequency': c.rebalance_frequency,
-                'weight_method': c.weight_method,
-                'is_active': c.is_active,
+                "name": c.name,
+                "description": c.description,
+                "factor_weights": c.factor_weights,
+                "universe": c.universe,
+                "top_n": c.top_n,
+                "rebalance_frequency": c.rebalance_frequency,
+                "weight_method": c.weight_method,
+                "is_active": c.is_active,
             }
             for c in configs
         ]
 
     def get_top_stocks(
-        self,
-        factor_preferences: dict[str, str],
-        top_n: int = 30
-    ) -> list[dict]:
+        self, factor_preferences: dict[str, str], top_n: int = 30
+    ) -> list[dict[str, Any]]:
         """
         Get top stocks based on factor preferences.
 
@@ -407,18 +406,18 @@ class FactorIntegrationService:
             Top stocks list
         """
         # Build factor weights from preferences
-        factor_weights = {}
+        factor_weights: dict[str, float] = {}
 
         # Get all active factors
         all_factors = self.factor_repo.get_active()
 
         for factor in all_factors:
             category = factor.category.value
-            preference = factor_preferences.get(category, 'medium')
+            preference = factor_preferences.get(category, "medium")
 
-            if preference == 'high':
+            if preference == "high":
                 base_weight = 1.5
-            elif preference == 'low':
+            elif preference == "low":
                 base_weight = 0.5
             else:
                 base_weight = 1.0
@@ -431,13 +430,9 @@ class FactorIntegrationService:
             factor_weights = {k: v / total_weight for k, v in factor_weights.items()}
 
         # Get universe
-        universe = self.resolve_universe_stocks('all_a')
+        universe = self.resolve_universe_stocks("all_a")
 
         # Calculate scores
-        scores = self.calculate_factor_scores(
-            universe,
-            factor_weights,
-            top_n=top_n
-        )
+        scores = self.calculate_factor_scores(universe, factor_weights, top_n=top_n)
 
         return scores[:top_n]

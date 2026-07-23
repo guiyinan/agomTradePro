@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from rest_framework import serializers
 
 
-class FactorDefinitionSerializer(serializers.Serializer):
+class FactorDefinitionSerializer(serializers.Serializer[Any]):
     """Serializer for factor definition payloads."""
 
     id = serializers.IntegerField(read_only=True)
@@ -26,7 +28,7 @@ class FactorDefinitionSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField(read_only=True)
 
 
-class FactorExposureSerializer(serializers.Serializer):
+class FactorExposureSerializer(serializers.Serializer[Any]):
     """Serializer for factor exposure payloads."""
 
     id = serializers.IntegerField(read_only=True)
@@ -40,7 +42,7 @@ class FactorExposureSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
 
 
-class FactorPortfolioConfigSerializer(serializers.Serializer):
+class FactorPortfolioConfigSerializer(serializers.Serializer[Any]):
     """Serializer for factor portfolio configuration payloads."""
 
     id = serializers.IntegerField(read_only=True)
@@ -93,7 +95,7 @@ class FactorPortfolioConfigSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField(read_only=True)
 
 
-class FactorPortfolioHoldingSerializer(serializers.Serializer):
+class FactorPortfolioHoldingSerializer(serializers.Serializer[Any]):
     """Serializer for factor portfolio holding payloads."""
 
     id = serializers.IntegerField(read_only=True)
@@ -110,27 +112,23 @@ class FactorPortfolioHoldingSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
 
 
-class FactorPortfolioReadQuerySerializer(serializers.Serializer):
+class FactorPortfolioReadQuerySerializer(serializers.Serializer[Any]):
     """Validate the persisted factor portfolio read contract."""
 
     config_name = serializers.CharField(max_length=100, allow_blank=False)
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         """Reject query parameters outside the governed schema."""
 
         unknown_fields = sorted(set(data) - set(self.fields))
         if unknown_fields:
             raise serializers.ValidationError(
-                {
-                    "non_field_errors": [
-                        f"Unknown query parameters: {', '.join(unknown_fields)}"
-                    ]
-                }
+                {"non_field_errors": [f"Unknown query parameters: {', '.join(unknown_fields)}"]}
             )
-        return super().to_internal_value(data)
+        return cast(dict[str, Any], super().to_internal_value(data))
 
 
-class FactorScoreRequestSerializer(serializers.Serializer):
+class FactorScoreRequestSerializer(serializers.Serializer[Any]):
     """Serializer for factor score calculation requests."""
 
     trade_date = serializers.DateField(required=False)
@@ -150,7 +148,7 @@ class FactorScoreRequestSerializer(serializers.Serializer):
     top_n = serializers.IntegerField(required=False, default=50)
 
 
-class FactorScoreResponseSerializer(serializers.Serializer):
+class FactorScoreResponseSerializer(serializers.Serializer[Any]):
     """Serializer for factor score responses."""
 
     stock_code = serializers.CharField(max_length=20)

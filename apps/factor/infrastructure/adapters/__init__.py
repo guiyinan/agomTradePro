@@ -7,6 +7,7 @@ Implements failover between data sources.
 
 import logging
 from datetime import date
+from typing import Protocol
 
 from apps.account.application.config_summary_service import (
     get_account_config_summary_service,
@@ -14,6 +15,19 @@ from apps.account.application.config_summary_service import (
 from apps.data_center.infrastructure.models import FinancialFactModel, ValuationFactModel
 
 logger = logging.getLogger(__name__)
+
+
+class PriceDataService(Protocol):
+    """Price history contract required by the cached factor adapter."""
+
+    def get_prices(
+        self,
+        stock_code: str,
+        end_date: date,
+        days: int,
+        *,
+        cache_result: bool = True,
+    ) -> list[float]: ...
 
 
 def get_runtime_benchmark_code(key: str, default: str = "") -> str:
@@ -33,18 +47,22 @@ class FactorDataSource:
 class TushareFactorAdapter(FactorDataSource):
     """Tushare factor data adapter"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._connected = True
 
     def get_factor_value(self, stock_code: str, factor_code: str, trade_date: date) -> float | None:
-        return _get_factor_from_data_center(stock_code, factor_code, trade_date, source_hint="tushare")
+        return _get_factor_from_data_center(
+            stock_code, factor_code, trade_date, source_hint="tushare"
+        )
 
 
 class AkshareFactorAdapter(FactorDataSource):
     """Akshare factor data adapter (backup source)"""
 
     def get_factor_value(self, stock_code: str, factor_code: str, trade_date: date) -> float | None:
-        return _get_factor_from_data_center(stock_code, factor_code, trade_date, source_hint="akshare")
+        return _get_factor_from_data_center(
+            stock_code, factor_code, trade_date, source_hint="akshare"
+        )
 
 
 def _get_factor_from_data_center(
@@ -68,25 +86,28 @@ def _get_factor_from_data_center(
     }
 
     if factor_code in valuation_field_map:
-        qs = ValuationFactModel.objects.filter(asset_code=stock_code, val_date__lte=trade_date)
+        valuation_qs = ValuationFactModel.objects.filter(
+            asset_code=stock_code,
+            val_date__lte=trade_date,
+        )
         if source_hint:
-            qs = qs.filter(source__icontains=source_hint)
-        row = qs.order_by("-val_date").first()
-        if row is None:
+            valuation_qs = valuation_qs.filter(source__icontains=source_hint)
+        valuation_row = valuation_qs.order_by("-val_date").first()
+        if valuation_row is None:
             return None
-        value = getattr(row, valuation_field_map[factor_code], None)
+        value = getattr(valuation_row, valuation_field_map[factor_code], None)
         return float(value) if value is not None else None
 
     if factor_code in financial_metric_map:
-        qs = FinancialFactModel.objects.filter(
+        financial_qs = FinancialFactModel.objects.filter(
             asset_code=stock_code,
             metric_code=financial_metric_map[factor_code],
             period_end__lte=trade_date,
         )
         if source_hint:
-            qs = qs.filter(source__icontains=source_hint)
-        row = qs.order_by("-period_end").first()
-        return float(row.value) if row is not None else None
+            financial_qs = financial_qs.filter(source__icontains=source_hint)
+        financial_row = financial_qs.order_by("-period_end").first()
+        return float(financial_row.value) if financial_row is not None else None
 
     return None
 
@@ -94,12 +115,17 @@ def _get_factor_from_data_center(
 class CachedFactorAdapter(FactorDataSource):
     """Cached factor adapter with price-based calculations"""
 
-    def __init__(self, price_adapter=None, *, cache_price_results: bool = True):
+    def __init__(
+        self,
+        price_adapter: PriceDataService | None = None,
+        *,
+        cache_price_results: bool = True,
+    ) -> None:
         from apps.rotation.infrastructure.adapters.price_adapter import RotationPriceDataService
 
         self.price_service = price_adapter or RotationPriceDataService()
         self.cache_price_results = cache_price_results
-        self._cache = {}
+        self._cache: dict[str, float | None] = {}
 
     def get_factor_value(self, stock_code: str, factor_code: str, trade_date: date) -> float | None:
         """Get factor value, calculate from prices if needed"""
@@ -109,8 +135,14 @@ class CachedFactorAdapter(FactorDataSource):
             return self._cache[cache_key]
 
         # Calculate momentum/volatility factors from prices
-        if factor_code.startswith("momentum_") or factor_code.startswith("volatility_"):
-            return self._calculate_from_prices(stock_code, factor_code, trade_date)
+        if (
+            factor_code.startswith("momentum_")
+            or factor_code.startswith("volatility_")
+            or factor_code == "beta"
+        ):
+            value = self._calculate_from_prices(stock_code, factor_code, trade_date)
+            self._cache[cache_key] = value
+            return value
 
         # For fundamental factors, return None (will be fetched from other adapters)
         return None
@@ -246,7 +278,7 @@ class CachedFactorAdapter(FactorDataSource):
 class FailoverFactorAdapter(FactorDataSource):
     """Failover factor adapter with multiple data sources"""
 
-    def __init__(self, *, cache_price_results: bool = True):
+    def __init__(self, *, cache_price_results: bool = True) -> None:
         self.primary_adapter = TushareFactorAdapter()
         self.secondary_adapter = AkshareFactorAdapter()
         self.cached_adapter = CachedFactorAdapter(

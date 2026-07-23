@@ -1381,3 +1381,18 @@
 - Factor Facade、UseCase、Model 与 Repository 在增量 regression mypy 下均为零；全仓基线从 `4687 errors / 745 files` 收紧为 `4617 errors / 741 files`，净减少 `70 errors / 4 files`，跨文件无新增。
 - Factor Application、Domain、API、页面与 Repository 相关回归共 `103 passed / 7 skipped`。
 - 隔离提交全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v174`，静态测试函数计数提升至 `7188`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Django system check、Ruff、Black 与 diff check 通过。
+
+## 第一百零三批
+
+- 完成 Factor 模块剩余生产代码收口，覆盖计算 Integration Service、数据适配器、DRF Serializer、DTO、初始化命令与 API/page URL 装配。
+- Factor 数据适配器将估值与财务 QuerySet/row 分支彻底分离，消除 ORM 类型串线；价格服务通过 Protocol 注入，因子缓存具化并真正写入计算结果。
+- 修复 Beta 因子此前不满足 momentum/volatility 外层条件而永远无法进入 benchmark 计算分支的问题，并增加缓存复用与 Beta 可达性回归。
+- Integration Service 移除不存在的 `StockInfoRepository` 导入，统一通过 Equity ORM 边界读取股票展示信息；不再把上市日期误填入市值字段。
+- 评分、组合、因子定义和配置 payload 全部具化 JSON 容器；holding score 输入改为协变 Sequence，DRF 动态返回仅在 serializer 边界局部 cast。
+- Serializer 泛型、查询参数校验、管理命令 parser/options、APIView/Page URL 请求响应全部具化；Factor DTO holdings 补齐 JSON 元素类型。
+
+## 第一百零三批验证结果
+
+- `apps/factor` 受管生产代码 `26 source files` mypy 全部为零；全仓基线从 `4617 errors / 741 files` 收紧为 `4580 errors / 734 files`，净减少 `37 errors / 7 files`，Factor 模块生产 mypy 债务清零。
+- Factor Application/Infrastructure/Domain/API/页面回归合计 `105 passed / 7 skipped`。
+- 隔离提交全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v175`，静态测试函数计数提升至 `7190`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Django system check、Factor Ruff、Black 与 diff check 通过。

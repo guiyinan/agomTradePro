@@ -7,11 +7,13 @@ Data Transfer Objects for the factor module.
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 
 @dataclass
 class FactorCalculationRequest:
     """Request DTO for factor calculation"""
+
     trade_date: date
     universe: list[str]  # Stock universe
     factor_codes: list[str]  # Factors to calculate
@@ -20,6 +22,7 @@ class FactorCalculationRequest:
 @dataclass
 class FactorScoreResponse:
     """Response DTO for factor scores"""
+
     stock_code: str
     stock_name: str
     composite_score: float
@@ -32,6 +35,7 @@ class FactorScoreResponse:
 @dataclass
 class FactorPortfolioRequest:
     """Request DTO for creating a factor portfolio"""
+
     config_name: str
     trade_date: date
     top_n: int | None = None
@@ -40,7 +44,8 @@ class FactorPortfolioRequest:
 @dataclass
 class FactorPortfolioResponse:
     """Response DTO for factor portfolio"""
+
     config_name: str
     trade_date: date
-    holdings: list[dict]
+    holdings: list[dict[str, Any]]
     total_weight: float
