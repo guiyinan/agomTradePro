@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from importlib import import_module
@@ -11,12 +12,20 @@ from typing import Any
 
 from django.core.exceptions import ImproperlyConfigured
 
-from apps.dashboard.application.queries import DecisionPlaneData
+from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
+from apps.dashboard.application.queries import (
+    AlphaDecisionChainData,
+    AlphaDecisionChainQuery,
+    AlphaVisualizationData,
+    AlphaVisualizationQuery,
+    DecisionPlaneData,
+    DecisionPlaneQuery,
+)
 from apps.dashboard.application.repository_provider import (
     get_dashboard_overview_repository,
     get_portfolio_repository,
 )
-from apps.dashboard.application.use_cases import GetDashboardDataUseCase
+from apps.dashboard.application.use_cases import DashboardData, GetDashboardDataUseCase
 
 logger = logging.getLogger(__name__)
 _DASHBOARD_INTERFACE_PERF_WARNING_MS = 2500
@@ -32,6 +41,22 @@ RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+
+
+def _json_object(value: object) -> dict[str, Any]:
+    """Normalize a dynamic application result to a JSON object."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _json_rows(value: object) -> list[dict[str, Any]]:
+    """Normalize a dynamic application result to JSON rows."""
+
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [_json_object(item) for item in value if isinstance(item, Mapping)]
 
 
 @dataclass(frozen=True)
@@ -80,7 +105,7 @@ def _empty_decision_plane_data() -> DecisionPlaneData:
     )
 
 
-def build_dashboard_data(user_id: int):
+def build_dashboard_data(user_id: int) -> DashboardData:
     """Build dashboard DTO for API and page views."""
     use_case = GetDashboardDataUseCase()
     return use_case.execute(user_id)
@@ -89,12 +114,14 @@ def build_dashboard_data(user_id: int):
 def build_performance_chart_data(
     user_id: int,
     account_id: int | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Build performance chart data for dashboard HTMX/API views."""
     use_case = GetDashboardDataUseCase()
-    return use_case._generate_performance_chart_data(
-        user_id=user_id,
-        account_id=account_id,
+    return _json_rows(
+        use_case._generate_performance_chart_data(
+            user_id=user_id,
+            account_id=account_id,
+        )
     )
 
 
@@ -123,15 +150,17 @@ def get_dashboard_alpha_refresh_celery_health() -> dict[str, object]:
 def get_alpha_stock_scores_payload(
     *,
     top_n: int = 10,
-    user=None,
+    user: Any | None = None,
     portfolio_id: int | None = None,
     pool_mode: str | None = None,
     alpha_scope: str | None = None,
-    query_factory,
+    query_factory: Callable[[], AlphaHomepageQuery],
 ) -> dict[str, Any]:
     """Return Alpha stock items plus reliability metadata."""
     started_at = perf_counter()
     try:
+        if user is None:
+            raise ValueError("An authenticated dashboard user is required.")
         data = query_factory().execute(
             top_n=top_n,
             user=user,
@@ -190,19 +219,20 @@ def get_alpha_stock_scores_payload(
         )
 
 
-def get_portfolio_options(user_id: int) -> list[dict]:
+def get_portfolio_options(user_id: int) -> list[dict[str, Any]]:
     """Load user portfolio options for dashboard selectors."""
-    return get_portfolio_repository().get_user_portfolios(user_id)
+    return _json_rows(get_portfolio_repository().get_user_portfolios(user_id))
 
 
-def get_valuation_repair_config_summary(*, use_cache: bool = False) -> dict | None:
+def get_valuation_repair_config_summary(*, use_cache: bool = False) -> dict[str, Any] | None:
     """Load valuation-repair config summary for dashboard widgets."""
     try:
         from apps.equity.application.config import (
             get_valuation_repair_config_summary as load_summary,
         )
 
-        return load_summary(use_cache=use_cache)
+        summary = load_summary(use_cache=use_cache)
+        return _json_object(summary) if summary is not None else None
     except RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS as exc:
         logger.warning("Failed to get valuation repair config summary: %s", exc)
         return None
@@ -279,9 +309,9 @@ def get_alpha_visualization_data(
     *,
     top_n: int = 10,
     ic_days: int = 30,
-    user=None,
-    query_factory,
-):
+    user: Any | None = None,
+    query_factory: Callable[[], AlphaVisualizationQuery],
+) -> AlphaVisualizationData | None:
     """Return the aggregated Alpha visualization payload with a single query execution."""
     started_at = perf_counter()
     try:
@@ -307,11 +337,11 @@ def get_alpha_decision_chain_data(
     ic_days: int = 30,
     max_candidates: int = 5,
     max_pending: int = 10,
-    user=None,
-    alpha_visualization_data=None,
-    decision_plane_data=None,
-    query_factory,
-):
+    user: Any | None = None,
+    alpha_visualization_data: Any | None = None,
+    decision_plane_data: Any | None = None,
+    query_factory: Callable[[], AlphaDecisionChainQuery],
+) -> AlphaDecisionChainData | None:
     """Return the unified Alpha decision-chain payload."""
     try:
         query = query_factory()
@@ -336,7 +366,12 @@ def get_alpha_decision_chain_data(
         return None
 
 
-def load_alpha_factor_exposure(stock_code: str, provider: str, *, as_of_date) -> dict:
+def load_alpha_factor_exposure(
+    stock_code: str,
+    provider: str,
+    *,
+    as_of_date: date,
+) -> dict[str, Any]:
     """Load single-stock factor exposure from the Alpha provider registry."""
     try:
         from apps.alpha.application.services import AlphaService
@@ -345,7 +380,7 @@ def load_alpha_factor_exposure(stock_code: str, provider: str, *, as_of_date) ->
         provider_instance = service._registry.get_provider(provider)
         if not provider_instance:
             return {}
-        return provider_instance.get_factor_exposure(stock_code, as_of_date) or {}
+        return _json_object(provider_instance.get_factor_exposure(stock_code, as_of_date) or {})
     except RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS as exc:
         logger.warning("Failed to load factor exposure for %s: %s", stock_code, exc)
         return {}
@@ -355,7 +390,7 @@ def get_decision_plane_data(
     *,
     max_candidates: int = 5,
     max_pending: int = 10,
-    query_factory,
+    query_factory: Callable[[], DecisionPlaneQuery],
 ) -> DecisionPlaneData:
     """Return the aggregated decision-plane payload with a single query execution."""
     started_at = perf_counter()
@@ -378,23 +413,34 @@ def get_decision_plane_data(
 def load_simulated_positions_fallback(
     user_id: int,
     account_id: int | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Load simulated-account holdings for dashboard fallbacks."""
-    return get_dashboard_overview_repository().get_simulated_positions_for_dashboard(
-        user_id=user_id,
-        account_id=account_id,
+    return _json_rows(
+        get_dashboard_overview_repository().get_simulated_positions_for_dashboard(
+            user_id=user_id,
+            account_id=account_id,
+        )
     )
 
 
-def get_dashboard_accounts(user) -> list[dict]:
+def get_dashboard_accounts(user: Any) -> list[dict[str, Any]]:
     """Load investment accounts for dashboard account cards."""
     user_id = getattr(user, "id", None)
     if user_id in (None, ""):
         return []
-    return get_dashboard_overview_repository().get_dashboard_accounts(int(user_id))
+    try:
+        normalized_user_id = int(str(user_id))
+    except (TypeError, ValueError):
+        return []
+    return _json_rows(
+        get_dashboard_overview_repository().get_dashboard_accounts(normalized_user_id)
+    )
 
 
-def ensure_dashboard_positions(data, user_id: int):
+def ensure_dashboard_positions(
+    data: DashboardData,
+    user_id: int,
+) -> DashboardData:
     """Backfill positions for rendering when the portfolio snapshot is stale."""
     if data.positions or data.invested_value <= 0:
         return data

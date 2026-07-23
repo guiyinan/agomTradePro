@@ -2,10 +2,35 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, timedelta
 from typing import Any
 
 from apps.alpha_trigger.domain.entities import TriggerStatus, TriggerType
+
+
+def _json_object(value: object) -> dict[str, Any]:
+    """Normalize a dynamic cross-app mapping to a JSON object."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _optional_json_object(value: object) -> dict[str, Any] | None:
+    """Normalize an optional dynamic mapping."""
+
+    if value is None:
+        return None
+    return _json_object(value)
+
+
+def _json_rows(value: object) -> list[dict[str, Any]]:
+    """Normalize dynamic cross-app rows to JSON objects."""
+
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [_json_object(item) for item in value if isinstance(item, Mapping)]
 
 
 class DashboardApplicationGateway:
@@ -14,7 +39,14 @@ class DashboardApplicationGateway:
     def get_stock_context_map(self, codes: list[str]) -> dict[str, dict[str, Any]]:
         from apps.equity.application.query_services import get_stock_context_map
 
-        return get_stock_context_map(codes)
+        raw_context = get_stock_context_map(codes)
+        if not isinstance(raw_context, Mapping):
+            return {}
+        return {
+            str(code): _json_object(payload)
+            for code, payload in raw_context.items()
+            if isinstance(payload, Mapping)
+        }
 
     def resolve_asset(self, code: str) -> Any | None:
         from apps.data_center.application.dtos import ResolveAssetRequest
@@ -67,7 +99,14 @@ class DashboardApplicationGateway:
     ) -> dict[str, dict[str, Any]]:
         from apps.equity.application.query_services import get_valuation_repair_snapshot_map
 
-        return get_valuation_repair_snapshot_map(candidate_codes)
+        raw_snapshots = get_valuation_repair_snapshot_map(candidate_codes)
+        if not isinstance(raw_snapshots, Mapping):
+            return {}
+        return {
+            str(code): _json_object(payload)
+            for code, payload in raw_snapshots.items()
+            if isinstance(payload, Mapping)
+        }
 
     def get_policy_state(self) -> dict[str, Any]:
         from apps.policy.application.repository_provider import (
@@ -100,7 +139,14 @@ class DashboardApplicationGateway:
     def get_user_account_totals(self, user_id: int) -> dict[str, float] | None:
         from apps.simulated_trading.application.query_services import get_user_account_totals
 
-        return get_user_account_totals(user_id)
+        raw_totals = get_user_account_totals(user_id)
+        if not isinstance(raw_totals, Mapping):
+            return None
+        return {
+            str(key): float(value)
+            for key, value in raw_totals.items()
+            if isinstance(value, (int, float))
+        }
 
     def list_user_positions(
         self,
@@ -108,26 +154,28 @@ class DashboardApplicationGateway:
         user_id: int,
         account_id: int | None = None,
         include_account_meta: bool = False,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         from apps.simulated_trading.application.query_services import list_user_position_payloads
 
-        return list_user_position_payloads(
-            user_id=user_id,
-            account_id=account_id,
-            include_account_meta=include_account_meta,
+        return _json_rows(
+            list_user_position_payloads(
+                user_id=user_id,
+                account_id=account_id,
+                include_account_meta=include_account_meta,
+            )
         )
 
-    def list_dashboard_accounts(self, user_id: int) -> list[dict]:
+    def list_dashboard_accounts(self, user_id: int) -> list[dict[str, Any]]:
         from apps.simulated_trading.application.query_services import (
             list_dashboard_account_payloads,
         )
 
-        return list_dashboard_account_payloads(user_id)
+        return _json_rows(list_dashboard_account_payloads(user_id))
 
     def get_policy_environment(
         self,
         user_id: int,
-    ) -> tuple[str | None, date | None, int, list[dict]]:
+    ) -> tuple[str | None, date | None, int, list[dict[str, Any]]]:
         from apps.policy.application.repository_provider import (
             get_current_policy_repository,
             get_workbench_repository,
@@ -190,11 +238,13 @@ class DashboardApplicationGateway:
     ) -> list[Any]:
         from apps.regime.application.query_services import get_growth_series
 
-        return get_growth_series(
-            indicator_code=indicator_code,
-            end_date=end_date,
-            use_pit=use_pit,
-            full=full,
+        return list(
+            get_growth_series(
+                indicator_code=indicator_code,
+                end_date=end_date,
+                use_pit=use_pit,
+                full=full,
+            )
         )
 
     def get_inflation_series(
@@ -207,27 +257,29 @@ class DashboardApplicationGateway:
     ) -> list[Any]:
         from apps.regime.application.query_services import get_inflation_series
 
-        return get_inflation_series(
-            indicator_code=indicator_code,
-            end_date=end_date,
-            use_pit=use_pit,
-            full=full,
+        return list(
+            get_inflation_series(
+                indicator_code=indicator_code,
+                end_date=end_date,
+                use_pit=use_pit,
+                full=full,
+            )
         )
 
     def get_primary_system_ai_provider_payload(self) -> dict[str, Any] | None:
         from apps.ai_provider.application.query_services import get_primary_system_provider_payload
 
-        return get_primary_system_provider_payload()
+        return _optional_json_object(get_primary_system_provider_payload())
 
     def list_global_investment_rule_payloads(self) -> list[dict[str, Any]]:
         from apps.account.application.query_services import list_global_investment_rule_payloads
 
-        return list_global_investment_rule_payloads()
+        return _json_rows(list_global_investment_rule_payloads())
 
-    def get_portfolio_snapshot_performance_data(self, portfolio_id: int) -> list[dict]:
+    def get_portfolio_snapshot_performance_data(self, portfolio_id: int) -> list[dict[str, Any]]:
         from apps.account.application.query_services import get_portfolio_snapshot_performance_data
 
-        return get_portfolio_snapshot_performance_data(portfolio_id)
+        return _json_rows(get_portfolio_snapshot_performance_data(portfolio_id))
 
     def get_user_performance_payload(
         self,
@@ -235,29 +287,32 @@ class DashboardApplicationGateway:
         user_id: int,
         account_id: int | None,
         days: int,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         from apps.simulated_trading.application.query_services import get_user_performance_payload
 
-        return get_user_performance_payload(
-            user_id=user_id,
-            account_id=account_id,
-            days=days,
+        return _json_rows(
+            get_user_performance_payload(
+                user_id=user_id,
+                account_id=account_id,
+                days=days,
+            )
         )
 
     def get_alpha_ic_trends(self, days: int) -> list[dict[str, Any]]:
         from apps.alpha.application.query_services import get_alpha_ic_trends
 
-        return get_alpha_ic_trends(days)
+        return _json_rows(get_alpha_ic_trends(days))
 
     def get_latest_macro_indicator_value(self, indicator_code: str) -> float | None:
         from apps.data_center.application.query_services import get_latest_macro_indicator_value
 
-        return get_latest_macro_indicator_value(indicator_code)
+        value = get_latest_macro_indicator_value(indicator_code)
+        return float(value) if value is not None else None
 
     def get_position_detail_payload(self, user_id: int, asset_code: str) -> dict[str, Any] | None:
         from apps.account.application.query_services import get_position_detail_payload
 
-        return get_position_detail_payload(user_id, asset_code)
+        return _optional_json_object(get_position_detail_payload(user_id, asset_code))
 
     def list_active_signal_payloads_by_asset(
         self,
@@ -267,9 +322,11 @@ class DashboardApplicationGateway:
     ) -> list[dict[str, Any]]:
         from apps.signal.application.query_services import list_active_signal_payloads_by_asset
 
-        return list_active_signal_payloads_by_asset(
-            asset_code=asset_code,
-            limit=limit,
+        return _json_rows(
+            list_active_signal_payloads_by_asset(
+                asset_code=asset_code,
+                limit=limit,
+            )
         )
 
     def get_candidate_generation_context(self, *, limit: int) -> dict[str, Any]:
@@ -277,7 +334,7 @@ class DashboardApplicationGateway:
             get_candidate_generation_context,
         )
 
-        return get_candidate_generation_context(limit=limit)
+        return _json_object(get_candidate_generation_context(limit=limit))
 
 
 def build_dashboard_application_gateway() -> DashboardApplicationGateway:

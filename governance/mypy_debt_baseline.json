@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4869,
-    "files_with_errors": 752
+    "errors": 4778,
+    "files_with_errors": 748
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -963,15 +963,6 @@
     "apps/dashboard/application/auto_advisor_outputs.py": {
       "no-any-return": 1
     },
-    "apps/dashboard/application/integration_gateways.py": {
-      "type-arg": 5
-    },
-    "apps/dashboard/application/interface_services.py": {
-      "arg-type": 1,
-      "no-any-return": 1,
-      "no-untyped-def": 11,
-      "type-arg": 6
-    },
     "apps/dashboard/application/navigation.py": {
       "arg-type": 2,
       "comparison-overlap": 1
@@ -1013,13 +1004,6 @@
     "apps/dashboard/infrastructure/models.py": {
       "no-untyped-def": 7
     },
-    "apps/dashboard/infrastructure/repositories.py": {
-      "attr-defined": 1,
-      "dict-item": 6,
-      "no-any-return": 17,
-      "no-untyped-def": 6,
-      "type-arg": 6
-    },
     "apps/dashboard/interface/alpha_history_views.py": {
       "no-untyped-call": 5,
       "no-untyped-def": 7
@@ -1059,12 +1043,6 @@
     },
     "apps/dashboard/interface/serializers.py": {
       "type-arg": 18
-    },
-    "apps/dashboard/interface/views.py": {
-      "arg-type": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 11,
-      "type-arg": 17
     },
     "apps/dashboard/interface/workflow_views.py": {
       "no-untyped-call": 1,

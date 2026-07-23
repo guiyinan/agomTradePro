@@ -10,12 +10,16 @@ Dashboard Interface Views
 """
 
 import logging
+from collections.abc import Mapping
 from time import perf_counter
+from typing import Any
 
 from celery.result import AsyncResult
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db import DatabaseError
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
 from apps.alpha.application.ops_locks import (
@@ -55,11 +59,13 @@ from apps.dashboard.application.navigation import (
     build_decision_workspace_url as _build_decision_workspace_url,
 )
 from apps.dashboard.application.queries import (
+    DecisionPlaneData,
     get_alpha_homepage_query,
     get_alpha_visualization_query,
     get_dashboard_detail_query,
     get_decision_plane_query,
 )
+from apps.dashboard.application.use_cases import DashboardData
 from apps.dashboard.interface import (
     alpha_history_views,
     alpha_stock_views,
@@ -156,49 +162,74 @@ release_dashboard_alpha_refresh_lock = _release_dashboard_alpha_refresh_lock
 resolve_dashboard_alpha_trade_date = _resolve_dashboard_alpha_trade_date
 
 
-def _build_dashboard_data(user_id: int):
+def _json_object(value: object) -> dict[str, Any]:
+    """Normalize a dynamic template payload to a string-key mapping."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _json_rows(value: object) -> list[dict[str, Any]]:
+    """Normalize a dynamic template collection to JSON rows."""
+
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [_json_object(item) for item in value if isinstance(item, Mapping)]
+
+
+def _build_dashboard_data(user_id: int) -> DashboardData:
     """Build dashboard DTO for API and page views."""
     return dashboard_interface_services.build_dashboard_data(user_id)
 
 
-def _load_simulated_positions_fallback(user_id: int, account_id: int | None = None) -> list[dict]:
+def _load_simulated_positions_fallback(
+    user_id: int,
+    account_id: int | None = None,
+) -> list[dict[str, Any]]:
     """Read holdings directly from the current simulated-account tables.
 
     Args:
         user_id: The user whose positions to load.
         account_id: Optional account ID to filter positions by a specific account.
     """
-    return dashboard_interface_services.load_simulated_positions_fallback(
-        user_id=user_id,
-        account_id=account_id,
+    return _json_rows(
+        dashboard_interface_services.load_simulated_positions_fallback(
+            user_id=user_id,
+            account_id=account_id,
+        )
     )
 
 
-def _get_dashboard_accounts(user):
+def _get_dashboard_accounts(user: Any) -> list[dict[str, Any]]:
     """Load all user investment accounts for dashboard cards."""
-    return dashboard_interface_services.get_dashboard_accounts(user)
+    return _json_rows(dashboard_interface_services.get_dashboard_accounts(user))
 
 
-def _ensure_dashboard_positions(data, user_id: int):
+def _ensure_dashboard_positions(
+    data: DashboardData,
+    user_id: int,
+) -> DashboardData:
     """Backfill positions for page/HTMX rendering when portfolio snapshot is stale."""
     return dashboard_interface_services.ensure_dashboard_positions(data, user_id)
 
 
-def _get_dashboard_portfolio_options(user_id: int) -> list[dict]:
+def _get_dashboard_portfolio_options(user_id: int) -> list[dict[str, Any]]:
     """Load dashboard portfolio choices with a database-only fallback."""
     try:
-        return dashboard_interface_services.get_portfolio_options(user_id)
+        return _json_rows(dashboard_interface_services.get_portfolio_options(user_id))
     except DatabaseError as exc:
         logger.warning("Failed to get portfolio options: %s", exc)
         return []
 
 
-def _get_dashboard_valuation_repair_config_summary() -> dict | None:
+def _get_dashboard_valuation_repair_config_summary() -> dict[str, Any] | None:
     """Load valuation-repair config summary through the dashboard application boundary."""
-    return dashboard_interface_services.get_valuation_repair_config_summary(use_cache=False)
+    summary = dashboard_interface_services.get_valuation_repair_config_summary(use_cache=False)
+    return _json_object(summary) if summary is not None else None
 
 
-def _get_alpha_metrics_data(ic_days: int = 30):
+def _get_alpha_metrics_data(ic_days: int = 30) -> Any:
     """Load Alpha metrics through the legacy query-factory patch surface."""
 
     from apps.dashboard.interface.alpha_metrics_views import get_alpha_metrics_data
@@ -209,22 +240,20 @@ def _get_alpha_metrics_data(ic_days: int = 30):
     )
 
 
-def _get_decision_plane_data(max_candidates: int = 5, max_pending: int = 10):
+def _get_decision_plane_data(
+    max_candidates: int = 5,
+    max_pending: int = 10,
+) -> DecisionPlaneData:
     """Load decision-plane data through the legacy query-factory patch surface."""
 
-    from apps.dashboard.interface.dashboard_navigation_context import (
-        _empty_decision_plane_data,
-    )
-
-    data = dashboard_interface_services.get_decision_plane_data(
+    return dashboard_interface_services.get_decision_plane_data(
         max_candidates=max_candidates,
         max_pending=max_pending,
         query_factory=get_decision_plane_query,
     )
-    return data or _empty_decision_plane_data()
 
 
-def _resolve_existing_alpha_refresh_lock(lock_key: str):
+def _resolve_existing_alpha_refresh_lock(lock_key: str) -> Any:
     """Resolve Alpha refresh locks using the legacy AsyncResult patch surface."""
 
     return _resolve_dashboard_alpha_refresh_lock_impl(
@@ -233,28 +262,32 @@ def _resolve_existing_alpha_refresh_lock(lock_key: str):
     )
 
 
-def _build_alpha_factor_panel(*args, **kwargs) -> dict:
+def _build_alpha_factor_panel(
+    *args: Any,
+    **kwargs: Any,
+) -> dict[str, Any]:
     """Build factor context while honoring the legacy score-loader patch surface."""
 
     kwargs.setdefault("stock_scores_loader", _get_alpha_stock_scores_payload)
-    return dashboard_alpha_context._build_alpha_factor_panel(*args, **kwargs)
+    panel = dashboard_alpha_context._build_alpha_factor_panel(*args, **kwargs)
+    return _json_object(panel)
 
 
 @login_required(login_url="/account/login/")
-def dashboard_entry(request):
+def dashboard_entry(request: HttpRequest) -> HttpResponse:
     """
     Dashboard entrypoint.
 
     If Streamlit dashboard is enabled, redirect to Streamlit URL.
     Otherwise fall back to legacy Django dashboard page.
     """
-    if settings.STREAMLIT_DASHBOARD_ENABLED:
-        return redirect(settings.STREAMLIT_DASHBOARD_URL)
+    if bool(getattr(settings, "STREAMLIT_DASHBOARD_ENABLED", False)):
+        return redirect(str(getattr(settings, "STREAMLIT_DASHBOARD_URL", "/")))
     return dashboard_view(request)
 
 
 @login_required(login_url="/account/login/")
-def dashboard_view(request):
+def dashboard_view(request: HttpRequest) -> HttpResponse:
     """
     首页仪表盘视图
 
@@ -267,17 +300,20 @@ def dashboard_view(request):
     """
     request_started_at = perf_counter()
     step_durations_ms: dict[str, int] = {}
+    user_id = _get_request_user_id(request.user)
+    if user_id is None:
+        raise PermissionDenied("A persisted user is required for the dashboard.")
 
     def _track_step(step_name: str, step_started_at: float) -> None:
         step_durations_ms[step_name] = int((perf_counter() - step_started_at) * 1000)
 
     # 获取首页数据
     step_started_at = perf_counter()
-    data = _build_dashboard_data(request.user.id)
+    data = _build_dashboard_data(user_id)
     _track_step("build_dashboard_data", step_started_at)
 
     step_started_at = perf_counter()
-    data = _ensure_dashboard_positions(data, request.user.id)
+    data = _ensure_dashboard_positions(data, user_id)
     _track_step("ensure_positions", step_started_at)
 
     step_started_at = perf_counter()
@@ -285,12 +321,13 @@ def dashboard_view(request):
     _track_step("macro_components", step_started_at)
 
     # 补充用户名
-    data.username = request.user.username
-    selected_portfolio_id = request.GET.get("portfolio_id")
-    if selected_portfolio_id not in (None, ""):
+    data.username = str(getattr(request.user, "username", ""))
+    raw_portfolio_id = request.GET.get("portfolio_id")
+    selected_portfolio_id: int | None
+    if raw_portfolio_id not in (None, ""):
         try:
             selected_portfolio_id = _parse_positive_int_param(
-                selected_portfolio_id,
+                raw_portfolio_id,
                 field_name="portfolio_id",
                 default=0,
             )
@@ -299,7 +336,7 @@ def dashboard_view(request):
     else:
         selected_portfolio_id = None
     selected_alpha_pool_mode = _normalize_dashboard_alpha_pool_mode(request.GET.get("pool_mode"))
-    portfolio_options = _get_dashboard_portfolio_options(request.user.id)
+    portfolio_options = _get_dashboard_portfolio_options(user_id)
     requested_alpha_scope = request.GET.get("alpha_scope")
     selected_alpha_scope = normalize_alpha_scope(requested_alpha_scope)
     selected_exit_asset_code = str(request.GET.get("exit_asset_code") or "").strip().upper() or None
@@ -336,7 +373,7 @@ def dashboard_view(request):
     _track_step("valuation_repair_summary", step_started_at)
 
     step_started_at = perf_counter()
-    market_thermometer_payload = _load_market_thermometer_payload(request.user.id)
+    market_thermometer_payload = _load_market_thermometer_payload(user_id)
     _track_step("market_thermometer", step_started_at)
 
     step_started_at = perf_counter()
@@ -391,39 +428,39 @@ def dashboard_view(request):
 
 def _build_dashboard_page_context(
     *,
-    request,
-    data,
-    navigator,
-    pulse,
-    action,
-    portfolio_options: list[dict],
-    investment_accounts: list[dict],
+    request: HttpRequest,
+    data: DashboardData,
+    navigator: Any,
+    pulse: Any,
+    action: Any,
+    portfolio_options: list[dict[str, Any]],
+    investment_accounts: list[dict[str, Any]],
     selected_portfolio_id: int | None,
     selected_alpha_pool_mode: str,
     selected_alpha_scope: str,
-    decision_plane_data,
-    alpha_metrics_data,
-    valuation_repair_config_summary: dict | None,
+    decision_plane_data: DecisionPlaneData,
+    alpha_metrics_data: Any,
+    valuation_repair_config_summary: dict[str, Any] | None,
     selected_exit_asset_code: str | None,
     selected_exit_account_id: int | None,
-    market_thermometer_payload: dict | None,
-) -> dict:
+    market_thermometer_payload: dict[str, Any] | None,
+) -> dict[str, Any]:
     """Build the dashboard template context from already-loaded read models."""
-    raw_alpha_stock_scores: list[dict] = []
-    alpha_stock_scores: list[dict] = []
-    alpha_stock_scores_meta: dict = {}
-    alpha_actionable_candidates: list[dict] = []
-    alpha_exit_watchlist: list[dict] = []
-    alpha_exit_watch_summary: dict = {"total": 0}
-    alpha_pending_requests: list[dict] = []
-    alpha_pool = {
+    raw_alpha_stock_scores: list[dict[str, Any]] = []
+    alpha_stock_scores: list[dict[str, Any]] = []
+    alpha_stock_scores_meta: dict[str, Any] = {}
+    alpha_actionable_candidates: list[dict[str, Any]] = []
+    alpha_exit_watchlist: list[dict[str, Any]] = []
+    alpha_exit_watch_summary: dict[str, Any] = {"total": 0}
+    alpha_pending_requests: list[dict[str, Any]] = []
+    alpha_pool: dict[str, Any] = {
         "portfolio_id": selected_portfolio_id,
         "pool_mode": selected_alpha_pool_mode,
         "label": "Alpha 排名入口",
         "pool_size": 0,
     }
-    alpha_recent_runs: list[dict] = []
-    alpha_history_run_id = None
+    alpha_recent_runs: list[dict[str, Any]] = []
+    alpha_history_run_id: int | None = None
     try:
         alpha_payload = _get_alpha_stock_scores_payload(
             top_n=10,
@@ -439,11 +476,23 @@ def _build_dashboard_page_context(
     else:
         alpha_stock_scores_meta = dict(alpha_payload.get("meta") or {})
         alpha_pool.update(dict(alpha_payload.get("pool") or {}))
-        effective_alpha_portfolio_id = (
+        raw_effective_portfolio_id = (
             None
             if selected_alpha_scope == ALPHA_SCOPE_GENERAL
             else selected_portfolio_id or alpha_pool.get("portfolio_id")
         )
+        try:
+            effective_alpha_portfolio_id = (
+                _parse_positive_int_param(
+                    raw_effective_portfolio_id,
+                    field_name="portfolio_id",
+                    default=0,
+                )
+                if raw_effective_portfolio_id not in (None, "")
+                else None
+            )
+        except ValueError:
+            effective_alpha_portfolio_id = None
         raw_alpha_stock_scores = _annotate_decision_workspace_navigation(
             list(alpha_payload.get("items") or []),
             source="dashboard-alpha",
@@ -505,7 +554,7 @@ def _build_dashboard_page_context(
         view_step=5,
         primary_step=5,
     )
-    context = {
+    context: dict[str, Any] = {
         "user": request.user,
         "display_name": data.display_name,
         # 宏观环境

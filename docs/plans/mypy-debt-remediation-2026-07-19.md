@@ -1315,3 +1315,20 @@
 - 目标文件的 `1 assignment + 2 no-any-return + 4 no-untyped-call + 25 no-untyped-def + 14 type-arg` 全部清零。
 - Risk Center 策略解析、交易前检查、页面权限和 API 契约回归共 `25 passed`。
 - 全仓扫描 `1853 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-23.v170`，静态测试函数计数保持 `7183`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第九十九批
+
+- 按“用户首页影响面 × 聚合查询扇出 × 风险错误密度”收口 Dashboard 主链，覆盖跨 App Application Gateway、Interface facade、核心 Repository 与首页 View，连接账户、持仓、政策、宏观、Alpha、风险和市场温度计数据。
+- Dashboard Application Gateway 对跨 App 动态返回统一执行 Mapping/JSON rows 验证，账户汇总显式收窄为浮点映射；不再把外部 Application 的 `Any` 直接传播到 Dashboard Repository。
+- Dashboard Interface facade 补齐 DashboardData、Alpha/Decision query factory、日期、用户和 JSON payload 契约；Alpha 首页缺失认证用户时明确进入既有降级响应，不再依赖后续属性异常触发 fallback。
+- 首页 View 补齐 `HttpRequest/HttpResponse`、Dashboard DTO、DecisionPlaneData、模板 JSON 和 helper 契约；登录用户缺少持久化 ID 时 fail closed 为 403，Streamlit settings 使用可选运行时配置读取。
+- 修复 Dashboard 用户偏好方法错误归属于 `AlphaRecommendationHistoryRepository` 的结构缺陷：读取、创建、更新、卡片显隐/折叠/排序和 Domain Mapper 全部恢复到 `DashboardPreferencesRepository`，列表更新使用复制后持久化，避免原地 JSON 变更漂移。
+- Alpha portfolio ID 从页面 query/pool 动态值进入退出观察导航前统一校验为正整数；非法值降级为无 portfolio scope，不再把字符串 ID 传入强类型导航 helper。
+- 新增持久化偏好映射和偏好方法归属/卡片写入两项回归。
+
+## 第九十九批验证结果
+
+- Dashboard 4 个高扇出生产源码在 governed、silent propagation 和增量 regression 三种 mypy 模式下均为零；全仓基线从 `4869 errors / 752 files` 收紧为 `4778 errors / 748 files`，净减少 `91 errors / 4 files`，跨文件无新增。
+- 目标文件的 `2 arg-type + 1 attr-defined + 6 dict-item + 18 no-any-return + 2 no-untyped-call + 28 no-untyped-def + 34 type-arg` 全部清零。
+- Dashboard 首页结构、Alpha 候选/历史、市场温度计、MCP、API edges、Domain 服务和偏好仓储回归共 `187 passed`。
+- 全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-23.v171`，静态测试函数计数提升至 `7185`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。

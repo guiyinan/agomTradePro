@@ -12,6 +12,9 @@ from django.contrib.auth import get_user_model
 from django.db import DatabaseError
 from django.utils import timezone
 
+from apps.dashboard.application.integration_gateways import (
+    DashboardApplicationGateway,
+)
 from apps.dashboard.domain.entities import (
     AlertSeverity,
     CardType,
@@ -35,6 +38,13 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+
+def _optional_isoformat(value: object) -> str | None:
+    """Serialize date-like values at the dynamic integration boundary."""
+
+    formatter = getattr(value, "isoformat", None)
+    return str(formatter()) if callable(formatter) else None
 
 
 class AutoAdvisorReportRepository:
@@ -72,7 +82,9 @@ class AutoAdvisorReportRepository:
         )
         return self._serialize_report(report)
 
-    def update_report_audit_log(self, *, report_id: int, audit_log_id: str) -> dict[str, Any] | None:
+    def update_report_audit_log(
+        self, *, report_id: int, audit_log_id: str
+    ) -> dict[str, Any] | None:
         """Attach an audit operation log id to a persisted report."""
 
         updated = AutoAdvisorWeeklyReportModel._default_manager.filter(id=report_id).update(
@@ -97,7 +109,11 @@ class AutoAdvisorReportRepository:
     ) -> dict[str, Any]:
         """Create one stored dashboard notification/output item."""
 
-        delivered_at = timezone.now() if delivery_status == AutoAdvisorNotificationModel.STATUS_DELIVERED else None
+        delivered_at = (
+            timezone.now()
+            if delivery_status == AutoAdvisorNotificationModel.STATUS_DELIVERED
+            else None
+        )
         notification = AutoAdvisorNotificationModel._default_manager.create(
             user_id=user_id,
             account_id=account_id,
@@ -175,9 +191,9 @@ class AutoAdvisorReportRepository:
             "message": notification.message,
             "payload": notification.payload,
             "delivery_status": notification.delivery_status,
-            "delivered_at": notification.delivered_at.isoformat()
-            if notification.delivered_at
-            else None,
+            "delivered_at": (
+                notification.delivered_at.isoformat() if notification.delivered_at else None
+            ),
             "read_at": notification.read_at.isoformat() if notification.read_at else None,
             "created_at": notification.created_at.isoformat() if notification.created_at else None,
         }
@@ -186,7 +202,7 @@ class AutoAdvisorReportRepository:
 class DashboardAlphaContextRepository:
     """ORM-backed context loader for the Dashboard Alpha homepage view."""
 
-    def __init__(self, integration_gateway: Any) -> None:
+    def __init__(self, integration_gateway: DashboardApplicationGateway) -> None:
         self._integration_gateway = integration_gateway
 
     def load_stock_context(
@@ -222,7 +238,7 @@ class DashboardAlphaContextRepository:
         context: dict[str, dict[str, Any]] = {}
         for code in codes:
             latest_daily = local_context.get(code, {})
-            info = {
+            info: dict[str, Any] = {
                 "name": str(latest_daily.get("name") or ""),
                 "sector": str(latest_daily.get("sector") or ""),
                 "market": str(latest_daily.get("market") or ""),
@@ -231,7 +247,10 @@ class DashboardAlphaContextRepository:
             legacy_info = legacy_holding_context.get(code, {})
             info.update(
                 {
-                    "name": info.get("name") or master_info.get("name") or legacy_info.get("name") or "",
+                    "name": info.get("name")
+                    or master_info.get("name")
+                    or legacy_info.get("name")
+                    or "",
                     "sector": info.get("sector") or master_info.get("sector") or "",
                     "market": info.get("market") or master_info.get("market") or "",
                     "close": float(
@@ -244,24 +263,14 @@ class DashboardAlphaContextRepository:
                         or latest_daily.get("volume")
                         or 0.0
                     ),
-                    "trade_date": (
-                        latest_daily.get("trade_date").isoformat()
-                        if latest_daily.get("trade_date")
-                        else None
-                    ),
-                    "report_date": (
-                        latest_daily.get("report_date").isoformat()
-                        if latest_daily.get("report_date")
-                        else None
-                    ),
+                    "trade_date": _optional_isoformat(latest_daily.get("trade_date")),
+                    "report_date": _optional_isoformat(latest_daily.get("report_date")),
                     "roe": latest_daily.get("roe"),
                     "debt_ratio": latest_daily.get("debt_ratio"),
                     "revenue_growth": latest_daily.get("revenue_growth"),
                     "profit_growth": latest_daily.get("profit_growth"),
-                    "valuation_trade_date": (
-                        latest_daily.get("valuation_trade_date").isoformat()
-                        if latest_daily.get("valuation_trade_date")
-                        else None
+                    "valuation_trade_date": _optional_isoformat(
+                        latest_daily.get("valuation_trade_date")
                     ),
                     "pe": latest_daily.get("pe"),
                     "pb": latest_daily.get("pb"),
@@ -446,14 +455,14 @@ class DashboardAlphaContextRepository:
 class DashboardOverviewRepository:
     """ORM-backed read model for dashboard overview use cases."""
 
-    def __init__(self, integration_gateway: Any) -> None:
+    def __init__(self, integration_gateway: DashboardApplicationGateway) -> None:
         self._integration_gateway = integration_gateway
 
     def get_user_simulated_account_totals(self, user_id: int) -> dict[str, float] | None:
         """Return aggregated totals from the simulated-account system."""
         return self._integration_gateway.get_user_account_totals(user_id)
 
-    def get_simulated_positions(self, user_id: int) -> list[dict]:
+    def get_simulated_positions(self, user_id: int) -> list[dict[str, Any]]:
         """Return holdings from the simulated-account system."""
         return self._integration_gateway.list_user_positions(user_id=user_id)
 
@@ -461,7 +470,7 @@ class DashboardOverviewRepository:
         self,
         user_id: int,
         account_id: int | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Return simulated-account positions with account metadata for dashboard views."""
         return self._integration_gateway.list_user_positions(
             user_id=user_id,
@@ -469,13 +478,13 @@ class DashboardOverviewRepository:
             include_account_meta=True,
         )
 
-    def get_dashboard_accounts(self, user_id: int) -> list[dict]:
+    def get_dashboard_accounts(self, user_id: int) -> list[dict[str, Any]]:
         """Return investment account cards for the dashboard homepage."""
         return self._integration_gateway.list_dashboard_accounts(user_id)
 
     def get_policy_environment(
         self, user_id: int
-    ) -> tuple[str | None, date | None, int, list[dict]]:
+    ) -> tuple[str | None, date | None, int, list[dict[str, Any]]]:
         """Return policy environment data for the dashboard."""
         return self._integration_gateway.get_policy_environment(user_id)
 
@@ -519,7 +528,7 @@ class DashboardOverviewRepository:
         """Return active global investment rule payloads for dashboard hints."""
         return self._integration_gateway.list_global_investment_rule_payloads()
 
-    def get_portfolio_snapshot_performance_data(self, portfolio_id: int) -> list[dict]:
+    def get_portfolio_snapshot_performance_data(self, portfolio_id: int) -> list[dict[str, Any]]:
         """Return performance chart data from legacy portfolio snapshots."""
         return self._integration_gateway.get_portfolio_snapshot_performance_data(portfolio_id)
 
@@ -529,7 +538,7 @@ class DashboardOverviewRepository:
         user_id: int,
         account_id: int | None,
         days: int,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Return performance chart data from simulated-account net values."""
         return self._integration_gateway.get_user_performance_payload(
             user_id=user_id,
@@ -541,7 +550,7 @@ class DashboardOverviewRepository:
 class DashboardQueryRepository:
     """ORM-backed query helpers for dashboard application query services."""
 
-    def __init__(self, integration_gateway: Any) -> None:
+    def __init__(self, integration_gateway: DashboardApplicationGateway) -> None:
         self._integration_gateway = integration_gateway
 
     def get_alpha_ic_trends(self, days: int) -> list[dict[str, Any]]:
@@ -661,7 +670,7 @@ class DashboardConfigRepository:
         )
         return config
 
-    def update_config(self, config_id: str, **kwargs) -> DashboardConfigModel | None:
+    def update_config(self, config_id: str, **kwargs: Any) -> DashboardConfigModel | None:
         """
         更新配置
 
@@ -711,6 +720,132 @@ class DashboardPreferencesRepository:
         except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
             return None
 
+    def get_or_create_preferences(self, user_id: int) -> DashboardPreferences:
+        """Get or create a user's dashboard preferences."""
+
+        try:
+            user = User._default_manager.get(id=user_id)
+            config_model, _ = DashboardUserConfigModel._default_manager.get_or_create(
+                user=user,
+                defaults={
+                    "dashboard_config": DashboardConfigRepository().get_default_config(),
+                },
+            )
+            return self._to_domain_entity(config_model)
+        except User.DoesNotExist:
+            return DashboardPreferences(user_id=user_id, layout_id="default")
+
+    def update_preferences(self, user_id: int, **kwargs: Any) -> DashboardPreferences | None:
+        """Update a user's persisted dashboard preferences."""
+
+        try:
+            user = User._default_manager.get(id=user_id)
+            config_model = DashboardUserConfigModel._default_manager.get(user=user)
+            for key, value in kwargs.items():
+                if hasattr(config_model, key):
+                    setattr(config_model, key, value)
+            config_model.save()
+            return self._to_domain_entity(config_model)
+        except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
+            return None
+
+    def add_hidden_card(self, user_id: int, card_id: str) -> bool:
+        """Add a card to the user's hidden-card collection."""
+
+        return self._update_card_membership(
+            user_id=user_id,
+            field_name="hidden_cards",
+            card_id=card_id,
+            should_include=True,
+        )
+
+    def remove_hidden_card(self, user_id: int, card_id: str) -> bool:
+        """Remove a card from the user's hidden-card collection."""
+
+        return self._update_card_membership(
+            user_id=user_id,
+            field_name="hidden_cards",
+            card_id=card_id,
+            should_include=False,
+        )
+
+    def add_collapsed_card(self, user_id: int, card_id: str) -> bool:
+        """Add a card to the user's collapsed-card collection."""
+
+        return self._update_card_membership(
+            user_id=user_id,
+            field_name="collapsed_cards",
+            card_id=card_id,
+            should_include=True,
+        )
+
+    def remove_collapsed_card(self, user_id: int, card_id: str) -> bool:
+        """Remove a card from the user's collapsed-card collection."""
+
+        return self._update_card_membership(
+            user_id=user_id,
+            field_name="collapsed_cards",
+            card_id=card_id,
+            should_include=False,
+        )
+
+    def update_card_order(self, user_id: int, card_order: list[str]) -> bool:
+        """Replace the user's preferred dashboard card order."""
+
+        try:
+            user = User._default_manager.get(id=user_id)
+            config_model = DashboardUserConfigModel._default_manager.get(user=user)
+            config_model.card_order = list(card_order)
+            config_model.save(update_fields=["card_order", "last_updated"])
+            return True
+        except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
+            return False
+
+    @staticmethod
+    def _update_card_membership(
+        *,
+        user_id: int,
+        field_name: str,
+        card_id: str,
+        should_include: bool,
+    ) -> bool:
+        """Update one list-backed card preference."""
+
+        try:
+            user = User._default_manager.get(id=user_id)
+            config_model = DashboardUserConfigModel._default_manager.get(user=user)
+            card_ids = list(getattr(config_model, field_name) or [])
+            if should_include and card_id not in card_ids:
+                card_ids.append(card_id)
+            elif not should_include and card_id in card_ids:
+                card_ids.remove(card_id)
+            else:
+                return True
+            setattr(config_model, field_name, card_ids)
+            config_model.save(update_fields=[field_name, "last_updated"])
+            return True
+        except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
+            return False
+
+    @staticmethod
+    def _to_domain_entity(
+        model: DashboardUserConfigModel,
+    ) -> DashboardPreferences:
+        """Convert a persisted preference model to its domain entity."""
+
+        return DashboardPreferences(
+            user_id=model.user_id,
+            layout_id=(model.dashboard_config.config_id if model.dashboard_config else "default"),
+            hidden_cards=model.hidden_cards or [],
+            collapsed_cards=model.collapsed_cards or [],
+            card_order=model.card_order or [],
+            custom_card_config=model.custom_card_config or {},
+            theme=model.theme,
+            refresh_enabled=model.refresh_enabled,
+            refresh_interval=model.refresh_interval,
+            last_updated=model.last_updated,
+        )
+
 
 class AlphaRecommendationHistoryRepository:
     """Alpha 首页候选历史持久化。"""
@@ -721,15 +856,15 @@ class AlphaRecommendationHistoryRepository:
         user_id: int,
         portfolio_id: int | None,
         portfolio_name: str,
-        trade_date,
+        trade_date: date,
         scope_hash: str,
         scope_label: str,
         scope_metadata: dict[str, Any],
         model_hash: str,
         source: str,
         provider_source: str,
-        requested_trade_date,
-        effective_asof_date,
+        requested_trade_date: date | None,
+        effective_asof_date: date | None,
         uses_cached_data: bool,
         cache_reason: str,
         fallback_reason: str,
@@ -811,7 +946,7 @@ class AlphaRecommendationHistoryRepository:
         stock_code: str | None = None,
         stage: str | None = None,
         source: str | None = None,
-        trade_date=None,
+        trade_date: date | None = None,
         limit: int = 50,
     ) -> list[AlphaRecommendationRunModel]:
         queryset = AlphaRecommendationRunModel._default_manager.filter(user_id=user_id)
@@ -834,183 +969,6 @@ class AlphaRecommendationHistoryRepository:
             )
         except AlphaRecommendationRunModel.DoesNotExist:
             return None
-
-    def get_or_create_preferences(self, user_id: int) -> DashboardPreferences:
-        """
-        获取或创建用户偏好
-
-        Args:
-            user_id: 用户 ID
-
-        Returns:
-            用户偏好
-        """
-        try:
-            user = User._default_manager.get(id=user_id)
-            config_model, created = DashboardUserConfigModel._default_manager.get_or_create(
-                user=user,
-                defaults={
-                    "dashboard_config": DashboardConfigRepository().get_default_config(),
-                },
-            )
-            return self._to_domain_entity(config_model)
-        except User.DoesNotExist:
-            # 创建默认偏好
-            return DashboardPreferences(
-                user_id=user_id,
-                layout_id="default",
-            )
-
-    def update_preferences(self, user_id: int, **kwargs) -> DashboardPreferences | None:
-        """
-        更新用户偏好
-
-        Args:
-            user_id: 用户 ID
-            **kwargs: 更新字段
-
-        Returns:
-            更新后的偏好或 None
-        """
-        try:
-            user = User._default_manager.get(id=user_id)
-            config_model = DashboardUserConfigModel._default_manager.get(user=user)
-
-            for key, value in kwargs.items():
-                if hasattr(config_model, key):
-                    setattr(config_model, key, value)
-
-            config_model.save()
-            return self._to_domain_entity(config_model)
-        except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
-            return None
-
-    def add_hidden_card(self, user_id: int, card_id: str) -> bool:
-        """
-        添加隐藏卡片
-
-        Args:
-            user_id: 用户 ID
-            card_id: 卡片 ID
-
-        Returns:
-            是否成功
-        """
-        try:
-            user = User._default_manager.get(id=user_id)
-            config_model = DashboardUserConfigModel._default_manager.get(user=user)
-
-            if card_id not in config_model.hidden_cards:
-                config_model.hidden_cards.append(card_id)
-                config_model.save()
-
-            return True
-        except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
-            return False
-
-    def remove_hidden_card(self, user_id: int, card_id: str) -> bool:
-        """
-        移除隐藏卡片
-
-        Args:
-            user_id: 用户 ID
-            card_id: 卡片 ID
-
-        Returns:
-            是否成功
-        """
-        try:
-            user = User._default_manager.get(id=user_id)
-            config_model = DashboardUserConfigModel._default_manager.get(user=user)
-
-            if card_id in config_model.hidden_cards:
-                config_model.hidden_cards.remove(card_id)
-                config_model.save()
-
-            return True
-        except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
-            return False
-
-    def add_collapsed_card(self, user_id: int, card_id: str) -> bool:
-        """
-        添加折叠卡片
-
-        Args:
-            user_id: 用户 ID
-            card_id: 卡片 ID
-
-        Returns:
-            是否成功
-        """
-        try:
-            user = User._default_manager.get(id=user_id)
-            config_model = DashboardUserConfigModel._default_manager.get(user=user)
-
-            if card_id not in config_model.collapsed_cards:
-                config_model.collapsed_cards.append(card_id)
-                config_model.save()
-
-            return True
-        except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
-            return False
-
-    def remove_collapsed_card(self, user_id: int, card_id: str) -> bool:
-        """
-        移除折叠卡片
-
-        Args:
-            user_id: 用户 ID
-            card_id: 卡片 ID
-
-        Returns:
-            是否成功
-        """
-        try:
-            user = User._default_manager.get(id=user_id)
-            config_model = DashboardUserConfigModel._default_manager.get(user=user)
-
-            if card_id in config_model.collapsed_cards:
-                config_model.collapsed_cards.remove(card_id)
-                config_model.save()
-
-            return True
-        except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
-            return False
-
-    def update_card_order(self, user_id: int, card_order: list[str]) -> bool:
-        """
-        更新卡片顺序
-
-        Args:
-            user_id: 用户 ID
-            card_order: 卡片顺序
-
-        Returns:
-            是否成功
-        """
-        try:
-            user = User._default_manager.get(id=user_id)
-            config_model = DashboardUserConfigModel._default_manager.get(user=user)
-            config_model.card_order = card_order
-            config_model.save()
-            return True
-        except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
-            return False
-
-    def _to_domain_entity(self, model: DashboardUserConfigModel) -> DashboardPreferences:
-        """转换为领域实体"""
-        return DashboardPreferences(
-            user_id=model.user_id,
-            layout_id=model.dashboard_config.config_id if model.dashboard_config else "default",
-            hidden_cards=model.hidden_cards or [],
-            collapsed_cards=model.collapsed_cards or [],
-            card_order=model.card_order or [],
-            custom_card_config=model.custom_card_config or {},
-            theme=model.theme,
-            refresh_enabled=model.refresh_enabled,
-            refresh_interval=model.refresh_interval,
-            last_updated=model.last_updated,
-        )
 
 
 class DashboardCardRepository:
@@ -1063,7 +1021,11 @@ class DashboardCardRepository:
         )
 
     def create_card(
-        self, card_id: str, card_type: CardType, title: str = "", **kwargs
+        self,
+        card_id: str,
+        card_type: CardType,
+        title: str = "",
+        **kwargs: Any,
     ) -> DashboardCardModel:
         """
         创建卡片
@@ -1158,7 +1120,7 @@ class DashboardAlertRepository:
         metric: str,
         threshold: float,
         severity: AlertSeverity = AlertSeverity.WARNING,
-        **kwargs,
+        **kwargs: Any,
     ) -> DashboardAlertModel:
         """
         创建告警
