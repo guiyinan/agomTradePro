@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4580,
-    "files_with_errors": 734
+    "errors": 4512,
+    "files_with_errors": 731
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -555,13 +555,9 @@
       "no-untyped-call": 2
     },
     "apps/alpha_trigger/application/subscribers.py": {
-      "no-untyped-call": 3,
+      "no-untyped-call": 2,
       "no-untyped-def": 2,
       "type-arg": 1
-    },
-    "apps/alpha_trigger/application/use_cases.py": {
-      "assignment": 2,
-      "no-untyped-def": 8
     },
     "apps/alpha_trigger/apps.py": {
       "no-untyped-def": 1
@@ -585,18 +581,8 @@
       "no-untyped-call": 2,
       "no-untyped-def": 4
     },
-    "apps/alpha_trigger/interface/serializers.py": {
-      "no-untyped-def": 1,
-      "type-arg": 16
-    },
     "apps/alpha_trigger/interface/templatetags/alpha_trigger_filters.py": {
       "no-untyped-def": 1
-    },
-    "apps/alpha_trigger/interface/views.py": {
-      "attr-defined": 1,
-      "misc": 5,
-      "no-untyped-call": 4,
-      "no-untyped-def": 29
     },
     "apps/alpha_trigger/templatetags/alpha_trigger_filters.py": {
       "no-untyped-def": 1
@@ -958,7 +944,7 @@
       "comparison-overlap": 1
     },
     "apps/dashboard/application/queries.py": {
-      "no-untyped-call": 2,
+      "no-untyped-call": 1,
       "no-untyped-def": 5
     },
     "apps/dashboard/application/query_services.py": {

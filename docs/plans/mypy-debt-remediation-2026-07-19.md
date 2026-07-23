@@ -1396,3 +1396,19 @@
 - `apps/factor` 受管生产代码 `26 source files` mypy 全部为零；全仓基线从 `4617 errors / 741 files` 收紧为 `4580 errors / 734 files`，净减少 `37 errors / 7 files`，Factor 模块生产 mypy 债务清零。
 - Factor Application/Infrastructure/Domain/API/页面回归合计 `105 passed / 7 skipped`。
 - 隔离提交全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v175`，静态测试函数计数提升至 `7190`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Django system check、Factor Ruff、Black 与 diff check 通过。
+
+## 第一百零四批
+
+- 按“投资决策入口影响面 × 用户操作频率”收口 Alpha Trigger Interface、Serializer 与核心 UseCase，覆盖触发器/候选查询、状态更新、创建、证伪、评估、候选生成、页面与性能数据。
+- DRF ViewSet/APIView 和 Django page view 全部具化请求、响应、路由参数与 constructor；缺失 route ID 通过统一守卫转换为稳定 ValidationError，不再把 `str | None` 传入 Repository。
+- 触发器与候选统计共享 `days` 查询契约，限制为 `1..365`；非整数、零和超上限从未捕获转换异常导致的 500 改为稳定 400。
+- Enum Field 与 Serializer 补齐 DRF 四参数泛型及实例边界；many 模式保留在 DRF 动态边界，手写 representation 与 query parsing 使用精确 JSON 类型和局部 cast。
+- drf-spectacular `extend_schema` 通过泛型 Protocol 保留被装饰 handler 签名，消除全仓模式下的 untyped decorator 扩散。
+- Application 新增 Trigger/Candidate Repository 与 EventPublisher Protocol，四个 UseCase constructor、事件发布 helper 和混合类型 current_data 全部具化；Interface 不再调用无类型 Application 对象。
+- 新增触发器与候选统计非法 days 的 6 组 API 边界回归。
+
+## 第一百零四批验证结果
+
+- Alpha Trigger View、Serializer 与 UseCase 在增量 regression mypy 下均为零；全仓基线从 `4580 errors / 734 files` 收紧为 `4512 errors / 731 files`，净减少 `68 errors / 3 files`，另带动 Subscriber 与 Dashboard 查询各减少 1 条调用债务。
+- Alpha Trigger API、Domain、事件订阅与决策平台页面回归共 `76 passed`。
+- 隔离提交全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v176`，静态测试函数计数提升至 `7191`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Django system check、Ruff、Black 与 diff check 通过。

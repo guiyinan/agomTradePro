@@ -6,6 +6,9 @@ Alpha 事件触发的 API 序列化器。
 负责输入验证和输出格式化。
 """
 
+from __future__ import annotations
+
+from typing import Any, cast
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -26,7 +29,7 @@ from ..domain.entities import (
 
 
 @extend_schema_field(OpenApiTypes.STR)
-class TriggerTypeSerializer(serializers.Field):
+class TriggerTypeSerializer(serializers.Field[TriggerType, str, str, TriggerType]):
     """触发器类型序列化器"""
 
     def to_representation(self, obj: TriggerType) -> str:
@@ -40,7 +43,7 @@ class TriggerTypeSerializer(serializers.Field):
 
 
 @extend_schema_field(OpenApiTypes.STR)
-class TriggerStatusSerializer(serializers.Field):
+class TriggerStatusSerializer(serializers.Field[TriggerStatus, str, str, TriggerStatus]):
     """触发器状态序列化器"""
 
     def to_representation(self, obj: TriggerStatus) -> str:
@@ -54,7 +57,7 @@ class TriggerStatusSerializer(serializers.Field):
 
 
 @extend_schema_field(OpenApiTypes.STR)
-class SignalStrengthSerializer(serializers.Field):
+class SignalStrengthSerializer(serializers.Field[SignalStrength, str, str, SignalStrength]):
     """信号强度序列化器"""
 
     def to_representation(self, obj: SignalStrength) -> str:
@@ -68,7 +71,7 @@ class SignalStrengthSerializer(serializers.Field):
 
 
 @extend_schema_field(OpenApiTypes.STR)
-class CandidateStatusSerializer(serializers.Field):
+class CandidateStatusSerializer(serializers.Field[CandidateStatus, str, str, CandidateStatus]):
     """候选状态序列化器"""
 
     def to_representation(self, obj: CandidateStatus) -> str:
@@ -82,7 +85,7 @@ class CandidateStatusSerializer(serializers.Field):
 
 
 @extend_schema_field(OpenApiTypes.STR)
-class InvalidationTypeSerializer(serializers.Field):
+class InvalidationTypeSerializer(serializers.Field[InvalidationType, str, str, InvalidationType]):
     """证伪类型序列化器"""
 
     def to_representation(self, obj: InvalidationType) -> str:
@@ -98,42 +101,24 @@ class InvalidationTypeSerializer(serializers.Field):
 # ========== Nested Serializers ==========
 
 
-class InvalidationConditionSerializer(serializers.Serializer):
+class InvalidationConditionSerializer(serializers.Serializer[InvalidationCondition]):
     """证伪条件序列化器"""
 
-    condition_type = InvalidationTypeSerializer(
-        help_text="证伪类型"
-    )
+    condition_type = InvalidationTypeSerializer(help_text="证伪类型")
 
-    indicator_code = serializers.CharField(
-        allow_null=True,
-        required=False,
-        help_text="指标代码"
-    )
+    indicator_code = serializers.CharField(allow_null=True, required=False, help_text="指标代码")
 
-    threshold = serializers.FloatField(
-        allow_null=True,
-        required=False,
-        help_text="阈值"
-    )
+    threshold = serializers.FloatField(allow_null=True, required=False, help_text="阈值")
 
     direction = serializers.CharField(
-        allow_null=True,
-        required=False,
-        help_text="方向 (above/below)"
+        allow_null=True, required=False, help_text="方向 (above/below)"
     )
 
     time_limit_hours = serializers.IntegerField(
-        allow_null=True,
-        required=False,
-        help_text="时间限制（小时）"
+        allow_null=True, required=False, help_text="时间限制（小时）"
     )
 
-    custom_condition = serializers.DictField(
-        default=dict,
-        required=False,
-        help_text="自定义条件"
-    )
+    custom_condition = serializers.DictField(default=dict, required=False, help_text="自定义条件")
 
     def to_domain(self) -> InvalidationCondition:
         """转换为 Domain 层实体"""
@@ -150,7 +135,7 @@ class InvalidationConditionSerializer(serializers.Serializer):
 # ========== Main Serializers ==========
 
 
-class AlphaTriggerPerformanceQuerySerializer(serializers.Serializer):
+class AlphaTriggerPerformanceQuerySerializer(serializers.Serializer[Any]):
     """Validate the canonical trigger-performance query contract."""
 
     days = serializers.IntegerField(required=False, min_value=1, max_value=365, default=30)
@@ -161,146 +146,89 @@ class AlphaTriggerPerformanceQuerySerializer(serializers.Serializer):
         max_length=64,
     )
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         """Reject unknown query parameters instead of silently ignoring them."""
 
         unknown_fields = sorted(set(data) - set(self.fields))
         if unknown_fields:
             raise serializers.ValidationError(
-                {
-                    "non_field_errors": [
-                        f"Unknown query parameters: {', '.join(unknown_fields)}"
-                    ]
-                }
+                {"non_field_errors": [f"Unknown query parameters: {', '.join(unknown_fields)}"]}
             )
-        return super().to_internal_value(data)
+        return cast(dict[str, Any], super().to_internal_value(data))
 
 
-class AlphaTriggerSerializer(serializers.Serializer):
+class AlphaTriggerSerializer(serializers.Serializer[Any]):
     """
     Alpha 触发器序列化器
 
     用于触发器的创建和查询。
     """
 
-    trigger_id = serializers.CharField(
-        read_only=True,
-        help_text="触发器 ID"
-    )
+    trigger_id = serializers.CharField(read_only=True, help_text="触发器 ID")
 
-    trigger_type = TriggerTypeSerializer(
-        help_text="触发器类型"
-    )
+    trigger_type = TriggerTypeSerializer(help_text="触发器类型")
 
-    asset_code = serializers.CharField(
-        help_text="资产代码"
-    )
+    asset_code = serializers.CharField(help_text="资产代码")
 
-    asset_class = serializers.CharField(
-        help_text="资产类别"
-    )
+    asset_class = serializers.CharField(help_text="资产类别")
 
-    direction = serializers.ChoiceField(
-        choices=["LONG", "SHORT", "NEUTRAL"],
-        help_text="方向"
-    )
+    direction = serializers.ChoiceField(choices=["LONG", "SHORT", "NEUTRAL"], help_text="方向")
 
-    trigger_condition = serializers.DictField(
-        default=dict,
-        help_text="触发条件"
-    )
+    trigger_condition = serializers.DictField(default=dict, help_text="触发条件")
 
     invalidation_conditions = InvalidationConditionSerializer(
-        many=True,
-        default=list,
-        help_text="证伪条件列表"
+        many=True, default=list, help_text="证伪条件列表"
     )
 
-    strength = SignalStrengthSerializer(
-        read_only=True,
-        help_text="信号强度"
-    )
+    strength = SignalStrengthSerializer(read_only=True, help_text="信号强度")
 
-    confidence = serializers.FloatField(
-        min_value=0.0,
-        max_value=1.0,
-        help_text="置信度"
-    )
+    confidence = serializers.FloatField(min_value=0.0, max_value=1.0, help_text="置信度")
 
-    status = TriggerStatusSerializer(
-        read_only=True,
-        help_text="状态"
-    )
+    status = TriggerStatusSerializer(read_only=True, help_text="状态")
 
     thesis = serializers.CharField(
-        default="",
-        required=False,
-        allow_blank=True,
-        help_text="投资论点"
+        default="", required=False, allow_blank=True, help_text="投资论点"
     )
 
-    created_at = serializers.DateTimeField(
-        read_only=True,
-        help_text="创建时间"
-    )
+    created_at = serializers.DateTimeField(read_only=True, help_text="创建时间")
 
-    triggered_at = serializers.DateTimeField(
-        read_only=True,
-        allow_null=True,
-        help_text="触发时间"
-    )
+    triggered_at = serializers.DateTimeField(read_only=True, allow_null=True, help_text="触发时间")
 
     invalidated_at = serializers.DateTimeField(
-        read_only=True,
-        allow_null=True,
-        help_text="证伪时间"
+        read_only=True, allow_null=True, help_text="证伪时间"
     )
 
-    expires_at = serializers.DateTimeField(
-        read_only=True,
-        allow_null=True,
-        help_text="过期时间"
-    )
+    expires_at = serializers.DateTimeField(read_only=True, allow_null=True, help_text="过期时间")
 
     source_signal_id = serializers.CharField(
-        default="",
-        required=False,
-        allow_blank=True,
-        help_text="源信号 ID"
+        default="", required=False, allow_blank=True, help_text="源信号 ID"
     )
 
     related_regime = serializers.CharField(
-        default="",
-        required=False,
-        allow_blank=True,
-        help_text="相关 Regime"
+        default="", required=False, allow_blank=True, help_text="相关 Regime"
     )
 
     related_policy_level = serializers.IntegerField(
-        allow_null=True,
-        required=False,
-        help_text="相关 Policy 档位"
+        allow_null=True, required=False, help_text="相关 Policy 档位"
     )
 
-    custom_data = serializers.DictField(
-        default=dict,
-        required=False,
-        help_text="自定义数据"
-    )
+    custom_data = serializers.DictField(default=dict, required=False, help_text="自定义数据")
 
-    def to_representation(self, instance: AlphaTrigger) -> dict:
+    def to_representation(self, instance: AlphaTrigger) -> dict[str, Any]:
         """转换为表示"""
         # 转换证伪条件
         invalidation_conditions = []
         for condition in instance.invalidation_conditions:
-            invalidation_conditions.append({
-                "condition_type": condition.condition_type.value,
-                "indicator_code": condition.indicator_code,
-                "threshold": condition.threshold,
-                "direction": condition.direction,
-                "time_limit_hours": condition.time_limit_hours,
-                "custom_condition": condition.custom_condition,
-            })
+            invalidation_conditions.append(
+                {
+                    "condition_type": condition.condition_type.value,
+                    "indicator_code": condition.indicator_code,
+                    "threshold": condition.threshold,
+                    "direction": condition.direction,
+                    "time_limit_hours": condition.time_limit_hours,
+                    "custom_condition": condition.custom_condition,
+                }
+            )
 
         return {
             "trigger_id": instance.trigger_id,
@@ -316,7 +244,9 @@ class AlphaTriggerSerializer(serializers.Serializer):
             "thesis": instance.thesis,
             "created_at": instance.created_at.isoformat() if instance.created_at else None,
             "triggered_at": instance.triggered_at.isoformat() if instance.triggered_at else None,
-            "invalidated_at": instance.invalidated_at.isoformat() if instance.invalidated_at else None,
+            "invalidated_at": (
+                instance.invalidated_at.isoformat() if instance.invalidated_at else None
+            ),
             "expires_at": instance.expires_at.isoformat() if instance.expires_at else None,
             "source_signal_id": instance.source_signal_id or "",
             "related_regime": instance.related_regime or "",
@@ -325,137 +255,77 @@ class AlphaTriggerSerializer(serializers.Serializer):
         }
 
 
-class AlphaCandidateSerializer(serializers.Serializer):
+class AlphaCandidateSerializer(serializers.Serializer[Any]):
     """
     Alpha 候选序列化器
 
     用于候选的查询和更新。
     """
 
-    candidate_id = serializers.CharField(
-        read_only=True,
-        help_text="候选 ID"
-    )
+    candidate_id = serializers.CharField(read_only=True, help_text="候选 ID")
 
-    trigger_id = serializers.CharField(
-        read_only=True,
-        help_text="触发器 ID"
-    )
+    trigger_id = serializers.CharField(read_only=True, help_text="触发器 ID")
 
-    asset_code = serializers.CharField(
-        read_only=True,
-        help_text="资产代码"
-    )
+    asset_code = serializers.CharField(read_only=True, help_text="资产代码")
 
-    asset_class = serializers.CharField(
-        read_only=True,
-        help_text="资产类别"
-    )
+    asset_class = serializers.CharField(read_only=True, help_text="资产类别")
 
     direction = serializers.ChoiceField(
-        choices=["LONG", "SHORT", "NEUTRAL"],
-        read_only=True,
-        help_text="方向"
+        choices=["LONG", "SHORT", "NEUTRAL"], read_only=True, help_text="方向"
     )
 
-    strength = SignalStrengthSerializer(
-        read_only=True,
-        help_text="信号强度"
-    )
+    strength = SignalStrengthSerializer(read_only=True, help_text="信号强度")
 
-    confidence = serializers.FloatField(
-        read_only=True,
-        help_text="置信度"
-    )
+    confidence = serializers.FloatField(read_only=True, help_text="置信度")
 
-    status = CandidateStatusSerializer(
-        read_only=True,
-        help_text="状态"
-    )
+    status = CandidateStatusSerializer(read_only=True, help_text="状态")
 
-    thesis = serializers.CharField(
-        read_only=True,
-        help_text="投资论点"
-    )
+    thesis = serializers.CharField(read_only=True, help_text="投资论点")
 
-    entry_zone = serializers.DictField(
-        read_only=True,
-        help_text="入场区域"
-    )
+    entry_zone = serializers.DictField(read_only=True, help_text="入场区域")
 
-    exit_zone = serializers.DictField(
-        read_only=True,
-        help_text="出场区域"
-    )
+    exit_zone = serializers.DictField(read_only=True, help_text="出场区域")
 
-    time_horizon = serializers.IntegerField(
-        read_only=True,
-        help_text="时间窗口（天）"
-    )
+    time_horizon = serializers.IntegerField(read_only=True, help_text="时间窗口（天）")
 
     expected_return = serializers.FloatField(
-        read_only=True,
-        allow_null=True,
-        help_text="预期收益率"
+        read_only=True, allow_null=True, help_text="预期收益率"
     )
 
     risk_level = serializers.ChoiceField(
-        choices=["LOW", "MEDIUM", "HIGH", "VERY_HIGH"],
-        read_only=True,
-        help_text="风险等级"
+        choices=["LOW", "MEDIUM", "HIGH", "VERY_HIGH"], read_only=True, help_text="风险等级"
     )
 
-    created_at = serializers.DateTimeField(
-        read_only=True,
-        help_text="创建时间"
-    )
+    created_at = serializers.DateTimeField(read_only=True, help_text="创建时间")
 
-    updated_at = serializers.DateTimeField(
-        read_only=True,
-        help_text="更新时间"
-    )
+    updated_at = serializers.DateTimeField(read_only=True, help_text="更新时间")
 
     status_changed_at = serializers.DateTimeField(
-        read_only=True,
-        allow_null=True,
-        help_text="状态变更时间"
+        read_only=True, allow_null=True, help_text="状态变更时间"
     )
 
     promoted_to_signal_at = serializers.DateTimeField(
-        read_only=True,
-        allow_null=True,
-        help_text="提升为信号的时间"
+        read_only=True, allow_null=True, help_text="提升为信号的时间"
     )
 
-    custom_data = serializers.DictField(
-        read_only=True,
-        help_text="自定义数据"
-    )
+    custom_data = serializers.DictField(read_only=True, help_text="自定义数据")
 
     # 新增字段：首页主流程闭环改造
     last_decision_request_id = serializers.CharField(
-        read_only=True,
-        allow_null=True,
-        help_text="最后决策请求 ID"
+        read_only=True, allow_null=True, help_text="最后决策请求 ID"
     )
 
     last_execution_status = serializers.CharField(
-        read_only=True,
-        allow_null=True,
-        help_text="最后执行状态"
+        read_only=True, allow_null=True, help_text="最后执行状态"
     )
 
-    is_executed = serializers.BooleanField(
-        read_only=True,
-        help_text="是否已执行"
-    )
+    is_executed = serializers.BooleanField(read_only=True, help_text="是否已执行")
 
     has_decision_request = serializers.BooleanField(
-        read_only=True,
-        help_text="是否有关联的决策请求"
+        read_only=True, help_text="是否有关联的决策请求"
     )
 
-    def to_representation(self, instance: AlphaCandidate) -> dict:
+    def to_representation(self, instance: AlphaCandidate) -> dict[str, Any]:
         """转换为表示"""
         return {
             "candidate_id": instance.candidate_id,
@@ -474,8 +344,14 @@ class AlphaCandidateSerializer(serializers.Serializer):
             "risk_level": instance.risk_level,
             "created_at": instance.created_at.isoformat() if instance.created_at else None,
             "updated_at": instance.updated_at.isoformat() if instance.updated_at else None,
-            "status_changed_at": instance.status_changed_at.isoformat() if instance.status_changed_at else None,
-            "promoted_to_signal_at": instance.promoted_to_signal_at.isoformat() if instance.promoted_to_signal_at else None,
+            "status_changed_at": (
+                instance.status_changed_at.isoformat() if instance.status_changed_at else None
+            ),
+            "promoted_to_signal_at": (
+                instance.promoted_to_signal_at.isoformat()
+                if instance.promoted_to_signal_at
+                else None
+            ),
             "custom_data": getattr(instance, "custom_data", {}) or {},
             # 新增字段
             "last_decision_request_id": instance.last_decision_request_id,
@@ -488,126 +364,83 @@ class AlphaCandidateSerializer(serializers.Serializer):
 # ========== Request Serializers ==========
 
 
-class CreateTriggerRequestSerializer(serializers.Serializer):
+class CreateTriggerRequestSerializer(serializers.Serializer[Any]):
     """创建触发器请求序列化器"""
 
     trigger_type = serializers.ChoiceField(
-        choices=[tt.value for tt in TriggerType],
-        help_text="触发器类型"
+        choices=[tt.value for tt in TriggerType], help_text="触发器类型"
     )
 
-    asset_code = serializers.CharField(
-        help_text="资产代码"
-    )
+    asset_code = serializers.CharField(help_text="资产代码")
 
-    asset_class = serializers.CharField(
-        help_text="资产类别"
-    )
+    asset_class = serializers.CharField(help_text="资产类别")
 
-    direction = serializers.ChoiceField(
-        choices=["LONG", "SHORT", "NEUTRAL"],
-        help_text="方向"
-    )
+    direction = serializers.ChoiceField(choices=["LONG", "SHORT", "NEUTRAL"], help_text="方向")
 
-    trigger_condition = serializers.DictField(
-        help_text="触发条件"
-    )
+    trigger_condition = serializers.DictField(help_text="触发条件")
 
     invalidation_conditions = InvalidationConditionSerializer(
-        many=True,
-        default=list,
-        help_text="证伪条件列表"
+        many=True, default=list, help_text="证伪条件列表"
     )
 
-    confidence = serializers.FloatField(
-        min_value=0.0,
-        max_value=1.0,
-        help_text="置信度"
-    )
+    confidence = serializers.FloatField(min_value=0.0, max_value=1.0, help_text="置信度")
 
     thesis = serializers.CharField(
-        default="",
-        required=False,
-        allow_blank=True,
-        help_text="投资论点"
+        default="", required=False, allow_blank=True, help_text="投资论点"
     )
 
     expires_in_days = serializers.IntegerField(
-        allow_null=True,
-        required=False,
-        help_text="过期天数（可选）"
+        allow_null=True, required=False, help_text="过期天数（可选）"
     )
 
     related_regime = serializers.CharField(
-        default="",
-        required=False,
-        allow_blank=True,
-        help_text="相关 Regime"
+        default="", required=False, allow_blank=True, help_text="相关 Regime"
     )
 
     related_policy_level = serializers.IntegerField(
-        allow_null=True,
-        required=False,
-        help_text="相关 Policy 档位"
+        allow_null=True, required=False, help_text="相关 Policy 档位"
     )
 
     source_signal_id = serializers.CharField(
-        default="",
-        required=False,
-        allow_blank=True,
-        help_text="源信号 ID"
+        default="", required=False, allow_blank=True, help_text="源信号 ID"
     )
 
 
-class CheckInvalidationRequestSerializer(serializers.Serializer):
+class CheckInvalidationRequestSerializer(serializers.Serializer[Any]):
     """检查证伪请求序列化器"""
 
-    trigger_id = serializers.CharField(
-        help_text="触发器 ID"
-    )
+    trigger_id = serializers.CharField(help_text="触发器 ID")
 
     current_indicator_values = serializers.DictField(
-        child=serializers.FloatField(),
-        help_text="当前指标值"
+        child=serializers.FloatField(), help_text="当前指标值"
     )
 
     current_regime = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        help_text="当前 Regime"
+        required=False, allow_blank=True, help_text="当前 Regime"
     )
 
 
-class EvaluateTriggerRequestSerializer(serializers.Serializer):
+class EvaluateTriggerRequestSerializer(serializers.Serializer[Any]):
     """评估触发器请求序列化器"""
 
-    trigger_id = serializers.CharField(
-        help_text="触发器 ID"
-    )
+    trigger_id = serializers.CharField(help_text="触发器 ID")
 
-    current_data = serializers.DictField(
-        help_text="当前数据"
-    )
+    current_data = serializers.DictField(help_text="当前数据")
 
 
-class GenerateCandidateRequestSerializer(serializers.Serializer):
+class GenerateCandidateRequestSerializer(serializers.Serializer[Any]):
     """生成候选请求序列化器"""
 
-    trigger_id = serializers.CharField(
-        help_text="触发器 ID"
-    )
+    trigger_id = serializers.CharField(help_text="触发器 ID")
 
     time_window_days = serializers.IntegerField(
-        default=90,
-        required=False,
-        help_text="时间窗口天数"
+        default=90, required=False, help_text="时间窗口天数"
     )
 
 
-class UpdateCandidateStatusRequestSerializer(serializers.Serializer):
+class UpdateCandidateStatusRequestSerializer(serializers.Serializer[Any]):
     """更新候选状态请求序列化器"""
 
     status = serializers.ChoiceField(
-        choices=[cs.value for cs in CandidateStatus],
-        help_text="新状态"
+        choices=[cs.value for cs in CandidateStatus], help_text="新状态"
     )

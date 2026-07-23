@@ -155,6 +155,29 @@ def test_alpha_trigger_performance_rejects_invalid_or_unknown_query(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("endpoint", "days"),
+    [
+        ("/api/alpha-triggers/triggers/statistics/", "not-an-integer"),
+        ("/api/alpha-triggers/triggers/statistics/", "0"),
+        ("/api/alpha-triggers/triggers/statistics/", "366"),
+        ("/api/alpha-triggers/candidates/statistics/", "not-an-integer"),
+        ("/api/alpha-triggers/candidates/statistics/", "0"),
+        ("/api/alpha-triggers/candidates/statistics/", "366"),
+    ],
+)
+def test_alpha_trigger_statistics_reject_invalid_days(
+    authenticated_client,
+    endpoint,
+    days,
+):
+    response = authenticated_client.get(endpoint, {"days": days})
+
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+
+
+@pytest.mark.django_db
 def test_alpha_trigger_performance_is_pure_read_with_stable_contract(
     authenticated_client,
 ):

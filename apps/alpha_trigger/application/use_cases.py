@@ -10,7 +10,7 @@ Alpha 事件触发的用例编排层。
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Protocol
 
 from django.utils import timezone
 
@@ -33,6 +33,35 @@ from ..domain.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class AlphaTriggerRepository(Protocol):
+    """Persistence contract required by Alpha Trigger use cases."""
+
+    def save(self, trigger: AlphaTrigger) -> AlphaTrigger: ...
+
+    def get_by_id(self, trigger_id: str) -> AlphaTrigger | None: ...
+
+    def update_status(
+        self,
+        trigger_id: str,
+        status: TriggerStatus,
+        *,
+        triggered_at: datetime | None = None,
+        invalidated_at: datetime | None = None,
+    ) -> AlphaTrigger: ...
+
+
+class AlphaCandidateRepository(Protocol):
+    """Persistence contract required by candidate generation."""
+
+    def save(self, candidate: AlphaCandidate) -> AlphaCandidate: ...
+
+
+class EventPublisher(Protocol):
+    """Event publication boundary used by application orchestration."""
+
+    def publish(self, event: Any) -> None: ...
 
 
 # ========== DTOs ==========
@@ -247,7 +276,12 @@ class CreateAlphaTriggerUseCase:
         ... ))
     """
 
-    def __init__(self, trigger_repository, config=None, event_bus=None):
+    def __init__(
+        self,
+        trigger_repository: AlphaTriggerRepository,
+        config: TriggerConfig | None = None,
+        event_bus: EventPublisher | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -291,8 +325,7 @@ class CreateAlphaTriggerUseCase:
 
             # 转换证伪条件
             invalidation_conditions = [
-                InvalidationCondition.from_dict(c)
-                for c in request.invalidation_conditions
+                InvalidationCondition.from_dict(c) for c in request.invalidation_conditions
             ]
 
             # 计算过期时间
@@ -358,9 +391,10 @@ class CreateAlphaTriggerUseCase:
     def _generate_trigger_id(self) -> str:
         """生成触发器 ID"""
         import uuid
+
         return f"trigger_{uuid.uuid4().hex[:12]}"
 
-    def _publish_event(self, trigger: AlphaTrigger):
+    def _publish_event(self, trigger: AlphaTrigger) -> None:
         """发布事件"""
         if self.event_bus is None:
             return
@@ -400,7 +434,11 @@ class CheckTriggerInvalidationUseCase:
         ... ))
     """
 
-    def __init__(self, trigger_repository, event_bus=None):
+    def __init__(
+        self,
+        trigger_repository: AlphaTriggerRepository,
+        event_bus: EventPublisher | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -437,7 +475,7 @@ class CheckTriggerInvalidationUseCase:
                 )
 
             # 构建当前数据上下文
-            current_data = {
+            current_data: dict[str, Any] = {
                 **request.current_indicator_values,
             }
 
@@ -478,7 +516,11 @@ class CheckTriggerInvalidationUseCase:
                 error=str(e),
             )
 
-    def _publish_invalidation_event(self, trigger: AlphaTrigger, result: InvalidationCheckResult):
+    def _publish_invalidation_event(
+        self,
+        trigger: AlphaTrigger,
+        result: InvalidationCheckResult,
+    ) -> None:
         """发布证伪事件"""
         if self.event_bus is None:
             return
@@ -515,7 +557,12 @@ class EvaluateAlphaTriggerUseCase:
         ... ))
     """
 
-    def __init__(self, trigger_repository, config=None, event_bus=None):
+    def __init__(
+        self,
+        trigger_repository: AlphaTriggerRepository,
+        config: TriggerConfig | None = None,
+        event_bus: EventPublisher | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -577,7 +624,12 @@ class EvaluateAlphaTriggerUseCase:
                 error=str(e),
             )
 
-    def _publish_triggered_event(self, trigger: AlphaTrigger, reason: str, current_data: dict[str, Any]):
+    def _publish_triggered_event(
+        self,
+        trigger: AlphaTrigger,
+        reason: str,
+        current_data: dict[str, Any],
+    ) -> None:
         """发布触发事件"""
         if self.event_bus is None:
             return
@@ -616,7 +668,12 @@ class GenerateCandidateUseCase:
         ... ))
     """
 
-    def __init__(self, trigger_repository, candidate_repository, event_bus=None):
+    def __init__(
+        self,
+        trigger_repository: AlphaTriggerRepository,
+        candidate_repository: AlphaCandidateRepository,
+        event_bus: EventPublisher | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -681,7 +738,7 @@ class GenerateCandidateUseCase:
                 error=str(e),
             )
 
-    def _publish_event(self, candidate: AlphaCandidate):
+    def _publish_event(self, candidate: AlphaCandidate) -> None:
         """发布事件"""
         if self.event_bus is None:
             return

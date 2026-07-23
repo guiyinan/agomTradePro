@@ -6,15 +6,20 @@ Alpha 事件触发的 API 视图。
 使用 Django REST Framework 实现 RESTful API。
 """
 
-import logging
+from __future__ import annotations
 
-from django.http import HttpResponseNotFound
+import logging
+from collections.abc import Callable
+from typing import Any, Protocol, TypeVar, cast
+
+from django.http import HttpRequest, HttpResponse, HttpResponseNotFound
 from django.shortcuts import render
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -36,9 +41,9 @@ from ..application.use_cases import (
 from ..domain.entities import (
     CandidateStatus,
     SignalStrength,
+    TriggerConfig,
     TriggerType,
 )
-from ..domain.services import TriggerConfig
 from .serializers import (
     AlphaCandidateSerializer,
     AlphaTriggerPerformanceQuerySerializer,
@@ -51,6 +56,41 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+DecoratedCallable = TypeVar("DecoratedCallable", bound=Callable[..., Any])
+
+
+class ExtendSchemaProtocol(Protocol):
+    """Typed drf-spectacular decorator boundary."""
+
+    def __call__(
+        self,
+        **kwargs: Any,
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]: ...
+
+
+typed_extend_schema = cast(ExtendSchemaProtocol, extend_schema)
+
+
+def _required_route_id(value: str | None, *, label: str) -> str:
+    """Return a non-empty route identifier or raise a stable API error."""
+
+    if value is None or not value.strip():
+        raise ValidationError({label: f"{label} is required"})
+    return value.strip()
+
+
+def _parse_statistics_days(request: Request) -> int:
+    """Parse the shared statistics window contract."""
+
+    raw_days = request.query_params.get("days", "30")
+    try:
+        days = int(raw_days)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError({"days": "days must be an integer"}) from exc
+    if not 1 <= days <= 365:
+        raise ValidationError({"days": "days must be between 1 and 365"})
+    return days
 
 
 # ========== ViewSets ==========
@@ -69,13 +109,13 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
     by_regime: 按 Regime 获取触发器
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """初始化视图集"""
         super().__init__(**kwargs)
         self.trigger_repository = get_alpha_trigger_repository()
         self.candidate_repository = get_alpha_candidate_repository()
 
-    def list(self, request) -> Response:
+    def list(self, request: Request) -> Response:
         """
         获取触发器列表
 
@@ -108,14 +148,14 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def retrieve(self, request, pk=None) -> Response:
+    def retrieve(self, request: Request, pk: str | None = None) -> Response:
         """
         获取指定触发器
 
         GET /api/alpha-triggers/triggers/{trigger_id}/
         """
         try:
-            trigger = self.trigger_repository.get_by_id(pk)
+            trigger = self.trigger_repository.get_by_id(_required_route_id(pk, label="trigger_id"))
 
             if trigger is None:
                 return Response(
@@ -140,7 +180,7 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["GET"], url_path="active")
-    def active(self, request) -> Response:
+    def active(self, request: Request) -> Response:
         """
         获取活跃触发器
 
@@ -178,14 +218,20 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["GET"], url_path="by-regime/(?P<regime>[^/]+)")
-    def by_regime(self, request, regime=None) -> Response:
+    def by_regime(
+        self,
+        request: Request,
+        regime: str | None = None,
+    ) -> Response:
         """
         按 Regime 获取触发器
 
         GET /api/alpha-triggers/triggers/by-regime/{regime}/
         """
         try:
-            triggers = self.trigger_repository.get_by_regime(regime)
+            triggers = self.trigger_repository.get_by_regime(
+                _required_route_id(regime, label="regime")
+            )
 
             serializer = AlphaTriggerSerializer(triggers, many=True)
 
@@ -205,14 +251,14 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["GET"], url_path="statistics")
-    def statistics(self, request) -> Response:
+    def statistics(self, request: Request) -> Response:
         """
         获取统计信息
 
         GET /api/alpha-triggers/triggers/statistics/?days=30
         """
         try:
-            days = int(request.query_params.get("days", 30))
+            days = _parse_statistics_days(request)
 
             stats = self.trigger_repository.get_statistics(days)
 
@@ -223,6 +269,11 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
                 }
             )
 
+        except ValidationError as e:
+            return Response(
+                {"success": False, "error": e.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Failed to get statistics: {e}", exc_info=True)
             return Response(
@@ -244,12 +295,12 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
     update_status: 更新候选状态
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """初始化视图集"""
         super().__init__(**kwargs)
         self.candidate_repository = get_alpha_candidate_repository()
 
-    def list(self, request) -> Response:
+    def list(self, request: Request) -> Response:
         """
         获取候选列表
 
@@ -288,14 +339,16 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def retrieve(self, request, pk=None) -> Response:
+    def retrieve(self, request: Request, pk: str | None = None) -> Response:
         """
         获取指定候选
 
         GET /api/alpha-triggers/candidates/{candidate_id}/
         """
         try:
-            candidate = self.candidate_repository.get_by_id(pk)
+            candidate = self.candidate_repository.get_by_id(
+                _required_route_id(pk, label="candidate_id")
+            )
 
             if candidate is None:
                 return Response(
@@ -320,7 +373,7 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["GET"], url_path="actionable")
-    def actionable(self, request) -> Response:
+    def actionable(self, request: Request) -> Response:
         """
         获取可操作候选
 
@@ -356,7 +409,7 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["GET"], url_path="watch-list")
-    def watch_list(self, request) -> Response:
+    def watch_list(self, request: Request) -> Response:
         """
         获取观察列表
 
@@ -382,12 +435,16 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @extend_schema(
+    @typed_extend_schema(
         request=UpdateCandidateStatusRequestSerializer,
         responses={200: AlphaCandidateSerializer},
     )
     @action(detail=True, methods=["POST"], url_path="update-status")
-    def update_status(self, request, pk=None) -> Response:
+    def update_status(
+        self,
+        request: Request,
+        pk: str | None = None,
+    ) -> Response:
         """
         更新候选状态
 
@@ -400,7 +457,10 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
             status_value = serializer.validated_data["status"]
             new_status = CandidateStatus(status_value)
 
-            candidate = self.candidate_repository.update_status(pk, new_status)
+            candidate = self.candidate_repository.update_status(
+                _required_route_id(pk, label="candidate_id"),
+                new_status,
+            )
 
             candidate_serializer = AlphaCandidateSerializer(candidate)
 
@@ -424,14 +484,14 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["GET"], url_path="statistics")
-    def statistics(self, request) -> Response:
+    def statistics(self, request: Request) -> Response:
         """
         获取统计信息
 
         GET /api/alpha-triggers/candidates/statistics/?days=30
         """
         try:
-            days = int(request.query_params.get("days", 30))
+            days = _parse_statistics_days(request)
 
             stats = self.candidate_repository.get_statistics(days)
 
@@ -442,6 +502,11 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
                 }
             )
 
+        except ValidationError as e:
+            return Response(
+                {"success": False, "error": e.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Failed to get statistics: {e}", exc_info=True)
             return Response(
@@ -460,16 +525,16 @@ class CreateTriggerView(APIView):
     POST /api/alpha-triggers/create/
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """初始化视图"""
         super().__init__(**kwargs)
         self.trigger_repository = get_alpha_trigger_repository()
 
-    @extend_schema(
+    @typed_extend_schema(
         request=CreateTriggerRequestSerializer,
         responses={200: AlphaTriggerSerializer},
     )
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """
         创建 Alpha 触发器
 
@@ -557,16 +622,16 @@ class CheckInvalidationView(APIView):
     POST /api/alpha-triggers/check-invalidation/
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """初始化视图"""
         super().__init__(**kwargs)
         self.trigger_repository = get_alpha_trigger_repository()
 
-    @extend_schema(
+    @typed_extend_schema(
         request=CheckInvalidationRequestSerializer,
         responses={200: dict},
     )
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """
         检查触发器是否被证伪
 
@@ -631,16 +696,16 @@ class EvaluateTriggerView(APIView):
     POST /api/alpha-triggers/evaluate/
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """初始化视图"""
         super().__init__(**kwargs)
         self.trigger_repository = get_alpha_trigger_repository()
 
-    @extend_schema(
+    @typed_extend_schema(
         request=EvaluateTriggerRequestSerializer,
         responses={200: dict},
     )
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """
         评估触发器是否应该触发
 
@@ -703,17 +768,17 @@ class GenerateCandidateView(APIView):
     POST /api/alpha-triggers/generate-candidate/
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """初始化视图"""
         super().__init__(**kwargs)
         self.trigger_repository = get_alpha_trigger_repository()
         self.candidate_repository = get_alpha_candidate_repository()
 
-    @extend_schema(
+    @typed_extend_schema(
         request=GenerateCandidateRequestSerializer,
         responses={200: AlphaCandidateSerializer},
     )
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """
         从触发器生成 Alpha 候选
 
@@ -775,7 +840,7 @@ class GenerateCandidateView(APIView):
 # ========== Template Views ==========
 
 
-def alpha_trigger_list_view(request):
+def alpha_trigger_list_view(request: HttpRequest) -> HttpResponse:
     """
     Alpha 触发器列表页面
 
@@ -818,7 +883,7 @@ def alpha_trigger_list_view(request):
         return render(request, "alpha_trigger/list.html", context, status=500)
 
 
-def alpha_trigger_create_view(request):
+def alpha_trigger_create_view(request: HttpRequest) -> HttpResponse:
     """
     Alpha 触发器创建页面
 
@@ -839,7 +904,10 @@ def alpha_trigger_create_view(request):
         return render(request, "alpha_trigger/create.html", context, status=500)
 
 
-def alpha_trigger_edit_view(request, trigger_id):
+def alpha_trigger_edit_view(
+    request: HttpRequest,
+    trigger_id: str,
+) -> HttpResponse:
     """
     Alpha 触发器编辑页面
 
@@ -867,7 +935,10 @@ def alpha_trigger_edit_view(request, trigger_id):
         return render(request, "alpha_trigger/edit.html", context, status=500)
 
 
-def alpha_trigger_detail_view(request, trigger_id):
+def alpha_trigger_detail_view(
+    request: HttpRequest,
+    trigger_id: str,
+) -> HttpResponse:
     """
     Alpha 触发器详情页面
 
@@ -900,7 +971,7 @@ def alpha_trigger_detail_view(request, trigger_id):
         return render(request, "alpha_trigger/detail.html", context, status=500)
 
 
-def alpha_trigger_invalidation_builder_view(request):
+def alpha_trigger_invalidation_builder_view(request: HttpRequest) -> HttpResponse:
     """
     证伪规则可视化构建器页面
 
@@ -960,16 +1031,17 @@ def alpha_trigger_invalidation_builder_view(request):
         return render(request, "alpha_trigger/invalidation_builder.html", context, status=500)
 
 
-def alpha_candidate_detail_view(request, candidate_id):
+def alpha_candidate_detail_view(
+    request: HttpRequest,
+    candidate_id: str,
+) -> HttpResponse:
     """
     Alpha 候选详情页面
 
     显示候选的完整信息、状态历史和操作按钮。
     """
     try:
-        context = get_alpha_trigger_page_query_service().get_candidate_detail_context(
-            candidate_id
-        )
+        context = get_alpha_trigger_page_query_service().get_candidate_detail_context(candidate_id)
         if context is None:
             return HttpResponseNotFound(f"Candidate not found: {candidate_id}")
 
@@ -984,7 +1056,7 @@ def alpha_candidate_detail_view(request, candidate_id):
         return render(request, "alpha_trigger/candidate_detail.html", context, status=500)
 
 
-def alpha_trigger_performance_view(request):
+def alpha_trigger_performance_view(request: HttpRequest) -> HttpResponse:
     """
     Alpha 触发器性能追踪页面
 
@@ -1017,7 +1089,7 @@ class TriggerPerformanceAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """
         获取性能数据
 
