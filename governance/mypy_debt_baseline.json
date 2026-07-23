@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6453,
-    "files_with_errors": 826
+    "errors": 6414,
+    "files_with_errors": 825
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3145,13 +3145,6 @@
     "apps/strategy/interface/sdk_contract_actions.py": {
       "attr-defined": 5,
       "no-untyped-def": 5
-    },
-    "apps/strategy/interface/serializers.py": {
-      "assignment": 1,
-      "misc": 3,
-      "no-any-return": 1,
-      "no-untyped-def": 20,
-      "type-arg": 14
     },
     "apps/strategy/interface/strategy_api_views.py": {
       "import-untyped": 1,

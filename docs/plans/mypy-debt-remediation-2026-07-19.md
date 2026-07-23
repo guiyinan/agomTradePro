@@ -927,3 +927,16 @@
 - Account 主 serializers 与 classification serializers 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6529 errors / 828 files` 收紧为 `6453 errors / 826 files`，净减少 `76 errors / 2 files`，跨文件无新增。
 - 主文件的 `2 assignment + 31 type-arg + 33 unused-ignore` 与分类文件的 `2 no-untyped-def + 8 type-arg` 全部清零。
 - Account 字段契约、API/Profile edges、分类/汇率、观察者权限与 MCP 自助页面回归共 `71 passed`；mypy 治理护栏 `10 passed`，当前第七十一、七十二批联合架构增量门禁 `3 files / 198 added lines / 0 violations`，Ruff、Black、diff check 通过。
+
+## 第七十三批
+
+- 按 Strategy 配置、仓位规则与执行查询公共 API 边界收口 serializers：动态 registry 获取的 ORM ModelSerializer 使用显式 `Any` instance，普通请求与响应 payload 使用字典 instance，所有验证器补齐精确输入输出契约。
+- `PositionManagementEvaluateInputSerializer.context` 改由 `get_fields()` 注册，保留公开 JSON 字段名和写入语义，同时避免覆盖 DRF Serializer 的内部 context 状态。
+- OpenAPI method-field decorator 通过保留函数签名的 typed wrapper 使用；规则计数在动态 ORM 边界显式收窄为整数，严格参数 serializer 的动态返回在 Interface 边界局部收窄。
+- 新增 Strategy serializer 契约测试，覆盖仓位评估 context、未知参数拒绝、当前日期执行和规则计数。
+
+## 第七十三批验证结果
+
+- Strategy serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6453 errors / 826 files` 收紧为 `6414 errors / 825 files`，净减少 `39 errors / 1 file`，跨文件无新增。
+- 目标文件的 `1 assignment + 3 misc + 1 no-any-return + 20 no-untyped-def + 14 type-arg` 全部清零。
+- Strategy serializer 契约与 API edges 回归共 `16 passed`；mypy 治理护栏 `10 passed`，架构增量门禁 `1 file / 216 added lines / 0 violations`，Ruff、Black、diff check 通过。

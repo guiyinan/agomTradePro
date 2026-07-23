@@ -5,6 +5,11 @@ Interface层:
 - 负责输入验证和输出格式化
 - 使用DRF Serializer进行数据转换
 """
+
+from collections.abc import Callable
+from datetime import date
+from typing import Any, TypeAlias, TypeVar, cast
+
 from django.apps import apps as django_apps
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
@@ -16,8 +21,21 @@ from apps.strategy.application.position_management_service import (
     PositionRuleError,
 )
 
+SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
+SchemaDecorated = TypeVar("SchemaDecorated", bound=Callable[..., Any])
+schema_int_field = cast(
+    Callable[[SchemaDecorated], SchemaDecorated],
+    extend_schema_field(OpenApiTypes.INT),
+)
+schema_bool_field = cast(
+    Callable[[SchemaDecorated], SchemaDecorated],
+    extend_schema_field(OpenApiTypes.BOOL),
+)
+
 AIStrategyConfigModel = django_apps.get_model("strategy", "AIStrategyConfigModel")
-PortfolioStrategyAssignmentModel = django_apps.get_model("strategy", "PortfolioStrategyAssignmentModel")
+PortfolioStrategyAssignmentModel = django_apps.get_model(
+    "strategy", "PortfolioStrategyAssignmentModel"
+)
 PositionManagementRuleModel = django_apps.get_model("strategy", "PositionManagementRuleModel")
 RuleConditionModel = django_apps.get_model("strategy", "RuleConditionModel")
 ScriptConfigModel = django_apps.get_model("strategy", "ScriptConfigModel")
@@ -28,32 +46,41 @@ StrategyModel = django_apps.get_model("strategy", "StrategyModel")
 # Strategy Serializers
 # ========================================================================
 
-class StrategySerializer(serializers.ModelSerializer):
+
+class StrategySerializer(serializers.ModelSerializer[Any]):
     """策略序列化器"""
 
     class Meta:
         model = StrategyModel
         fields = [
-            'id', 'name', 'description', 'strategy_type',
-            'version', 'is_active',
-            'max_position_pct', 'max_total_position_pct', 'stop_loss_pct',
-            'created_by', 'created_at', 'updated_at'
+            "id",
+            "name",
+            "description",
+            "strategy_type",
+            "version",
+            "is_active",
+            "max_position_pct",
+            "max_total_position_pct",
+            "stop_loss_pct",
+            "created_by",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
 
-    def validate_max_position_pct(self, value):
+    def validate_max_position_pct(self, value: float) -> float:
         """验证单资产最大持仓比例"""
         if not 0 <= value <= 100:
             raise serializers.ValidationError("单资产最大持仓比例必须在 0-100 之间")
         return value
 
-    def validate_max_total_position_pct(self, value):
+    def validate_max_total_position_pct(self, value: float) -> float:
         """验证总持仓比例上限"""
         if not 0 <= value <= 100:
             raise serializers.ValidationError("总持仓比例上限必须在 0-100 之间")
         return value
 
-    def validate_stop_loss_pct(self, value):
+    def validate_stop_loss_pct(self, value: float | None) -> float | None:
         """验证止损比例"""
         if value is not None and not 0 <= value <= 100:
             raise serializers.ValidationError("止损比例必须在 0-100 之间")
@@ -69,73 +96,76 @@ class StrategyDetailSerializer(StrategySerializer):
 
     class Meta(StrategySerializer.Meta):
         fields = StrategySerializer.Meta.fields + [
-            'rules_count', 'has_script_config', 'has_ai_config'
+            "rules_count",
+            "has_script_config",
+            "has_ai_config",
         ]
 
-    @extend_schema_field(OpenApiTypes.INT)
-    def get_rules_count(self, obj) -> int:
+    @schema_int_field
+    def get_rules_count(self, obj: Any) -> int:
         """获取规则数量"""
-        return obj.rules.count()
+        return int(obj.rules.count())
 
-    @extend_schema_field(OpenApiTypes.BOOL)
-    def get_has_script_config(self, obj) -> bool:
+    @schema_bool_field
+    def get_has_script_config(self, obj: Any) -> bool:
         """是否有脚本配置"""
-        return hasattr(obj, 'script_config')
+        return hasattr(obj, "script_config")
 
-    @extend_schema_field(OpenApiTypes.BOOL)
-    def get_has_ai_config(self, obj) -> bool:
+    @schema_bool_field
+    def get_has_ai_config(self, obj: Any) -> bool:
         """是否有 AI 配置"""
-        return hasattr(obj, 'ai_config')
+        return hasattr(obj, "ai_config")
 
 
 # ========================================================================
 # Position Management Rule Serializers
 # ========================================================================
 
-class PositionManagementRuleSerializer(serializers.ModelSerializer):
+
+class PositionManagementRuleSerializer(serializers.ModelSerializer[Any]):
     """仓位管理规则序列化器"""
 
-    strategy_name = serializers.CharField(source='strategy.name', read_only=True)
+    strategy_name = serializers.CharField(source="strategy.name", read_only=True)
 
     class Meta:
         model = PositionManagementRuleModel
         fields = [
-            'id',
-            'strategy',
-            'strategy_name',
-            'name',
-            'description',
-            'is_active',
-            'price_precision',
-            'variables_schema',
-            'buy_condition_expr',
-            'sell_condition_expr',
-            'buy_price_expr',
-            'sell_price_expr',
-            'stop_loss_expr',
-            'take_profit_expr',
-            'position_size_expr',
-            'metadata',
-            'created_at',
-            'updated_at',
+            "id",
+            "strategy",
+            "strategy_name",
+            "name",
+            "description",
+            "is_active",
+            "price_precision",
+            "variables_schema",
+            "buy_condition_expr",
+            "sell_condition_expr",
+            "buy_price_expr",
+            "sell_price_expr",
+            "stop_loss_expr",
+            "take_profit_expr",
+            "position_size_expr",
+            "metadata",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ["id", "created_at", "updated_at"]
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         errors: dict[str, str] = {}
         for field in (
-            'buy_condition_expr',
-            'sell_condition_expr',
-            'buy_price_expr',
-            'sell_price_expr',
-            'stop_loss_expr',
-            'take_profit_expr',
-            'position_size_expr',
+            "buy_condition_expr",
+            "sell_condition_expr",
+            "buy_price_expr",
+            "sell_price_expr",
+            "stop_loss_expr",
+            "take_profit_expr",
+            "position_size_expr",
         ):
             expression = attrs.get(field)
             if expression is None and self.instance is not None:
                 expression = getattr(self.instance, field, "")
-            if field in ('buy_condition_expr', 'sell_condition_expr') and not expression:
+            if field in ("buy_condition_expr", "sell_condition_expr") and not expression:
                 continue
             try:
                 PositionManagementService.validate_expression(str(expression))
@@ -147,18 +177,23 @@ class PositionManagementRuleSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class PositionManagementEvaluateInputSerializer(serializers.Serializer):
+class PositionManagementEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
     """仓位管理规则评估入参"""
 
-    context = serializers.JSONField()
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register evaluation context without overriding DRF serializer state."""
 
-    def validate_context(self, value):
+        fields = super().get_fields()
+        fields["context"] = serializers.JSONField()
+        return fields
+
+    def validate_context(self, value: Any) -> dict[str, Any]:
         if not isinstance(value, dict):
             raise serializers.ValidationError("context 必须是对象")
-        return value
+        return cast(dict[str, Any], value)
 
 
-class PositionManagementEvaluateResultSerializer(serializers.Serializer):
+class PositionManagementEvaluateResultSerializer(serializers.Serializer[dict[str, Any]]):
     """仓位管理规则评估结果"""
 
     should_buy = serializers.BooleanField()
@@ -175,76 +210,93 @@ class PositionManagementEvaluateResultSerializer(serializers.Serializer):
 # Rule Condition Serializers
 # ========================================================================
 
-class RuleConditionSerializer(serializers.ModelSerializer):
+
+class RuleConditionSerializer(serializers.ModelSerializer[Any]):
     """规则条件序列化器"""
 
     class Meta:
         model = RuleConditionModel
         fields = [
-            'id', 'strategy', 'rule_name', 'rule_type',
-            'condition_json', 'action', 'weight', 'target_assets',
-            'priority', 'is_enabled', 'created_at', 'updated_at'
+            "id",
+            "strategy",
+            "rule_name",
+            "rule_type",
+            "condition_json",
+            "action",
+            "weight",
+            "target_assets",
+            "priority",
+            "is_enabled",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ["id", "created_at", "updated_at"]
 
-    def validate_weight(self, value):
+    def validate_weight(self, value: float | None) -> float | None:
         """验证权重"""
         if value is not None and not 0 <= value <= 1:
             raise serializers.ValidationError("权重必须在 0-1 之间")
         return value
 
-    def validate_condition_json(self, value):
+    def validate_condition_json(self, value: Any) -> dict[str, Any]:
         """验证条件表达式 JSON 格式"""
         if not isinstance(value, dict):
             raise serializers.ValidationError("条件表达式必须是字典类型")
 
-        if 'operator' not in value:
+        if "operator" not in value:
             raise serializers.ValidationError("条件表达式必须包含 'operator' 字段")
 
-        return value
+        return cast(dict[str, Any], value)
 
 
-class RuleConditionListSerializer(serializers.ModelSerializer):
+class RuleConditionListSerializer(serializers.ModelSerializer[Any]):
     """规则条件列表序列化器（精简版）"""
 
     class Meta:
         model = RuleConditionModel
-        fields = [
-            'id', 'rule_name', 'rule_type', 'action',
-            'weight', 'priority', 'is_enabled'
-        ]
+        fields = ["id", "rule_name", "rule_type", "action", "weight", "priority", "is_enabled"]
 
 
 # ========================================================================
 # Script Config Serializers
 # ========================================================================
 
-class ScriptConfigSerializer(serializers.ModelSerializer):
+
+class ScriptConfigSerializer(serializers.ModelSerializer[Any]):
     """脚本配置序列化器"""
 
     class Meta:
         model = ScriptConfigModel
         fields = [
-            'id', 'strategy', 'script_language', 'script_code',
-            'script_hash', 'sandbox_config', 'allowed_modules',
-            'version', 'is_active', 'created_at', 'updated_at'
+            "id",
+            "strategy",
+            "script_language",
+            "script_code",
+            "script_hash",
+            "sandbox_config",
+            "allowed_modules",
+            "version",
+            "is_active",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'script_hash', 'created_at', 'updated_at']
+        read_only_fields = ["id", "script_hash", "created_at", "updated_at"]
 
-    def create(self, validated_data):
+    def create(self, validated_data: dict[str, Any]) -> Any:
         """创建脚本配置时自动生成 script_hash"""
         import hashlib
-        script_code = validated_data['script_code']
+
+        script_code = validated_data["script_code"]
         script_hash = hashlib.sha256(script_code.encode()).hexdigest()
-        validated_data['script_hash'] = script_hash
+        validated_data["script_hash"] = script_hash
         return super().create(validated_data)
 
-    def update(self, instance, validated_data):
+    def update(self, instance: Any, validated_data: dict[str, Any]) -> Any:
         """更新脚本配置时同步刷新 script_hash。"""
         import hashlib
 
-        script_code = validated_data.get('script_code', instance.script_code)
-        validated_data['script_hash'] = hashlib.sha256(script_code.encode()).hexdigest()
+        script_code = validated_data.get("script_code", instance.script_code)
+        validated_data["script_hash"] = hashlib.sha256(script_code.encode()).hexdigest()
         return super().update(instance, validated_data)
 
 
@@ -252,31 +304,40 @@ class ScriptConfigSerializer(serializers.ModelSerializer):
 # AI Strategy Config Serializers
 # ========================================================================
 
-class AIStrategyConfigSerializer(serializers.ModelSerializer):
+
+class AIStrategyConfigSerializer(serializers.ModelSerializer[Any]):
     """AI策略配置序列化器"""
 
     class Meta:
         model = AIStrategyConfigModel
         fields = [
-            'id', 'strategy', 'prompt_template', 'chain_config', 'ai_provider',
-            'temperature', 'max_tokens', 'approval_mode', 'confidence_threshold',
-            'created_at', 'updated_at'
+            "id",
+            "strategy",
+            "prompt_template",
+            "chain_config",
+            "ai_provider",
+            "temperature",
+            "max_tokens",
+            "approval_mode",
+            "confidence_threshold",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ["id", "created_at", "updated_at"]
 
-    def validate_temperature(self, value):
+    def validate_temperature(self, value: float) -> float:
         """验证温度参数"""
         if not 0 <= value <= 2:
             raise serializers.ValidationError("温度参数必须在 0-2 之间")
         return value
 
-    def validate_confidence_threshold(self, value):
+    def validate_confidence_threshold(self, value: float) -> float:
         """验证置信度阈值"""
         if not 0 <= value <= 1:
             raise serializers.ValidationError("置信度阈值必须在 0-1 之间")
         return value
 
-    def validate_max_tokens(self, value):
+    def validate_max_tokens(self, value: int) -> int:
         """验证最大 Token 数"""
         if value <= 0:
             raise serializers.ValidationError("最大 Token 数必须大于 0")
@@ -287,30 +348,40 @@ class AIStrategyConfigSerializer(serializers.ModelSerializer):
 # Portfolio Strategy Assignment Serializers
 # ========================================================================
 
-class PortfolioStrategyAssignmentSerializer(serializers.ModelSerializer):
+
+class PortfolioStrategyAssignmentSerializer(serializers.ModelSerializer[Any]):
     """投资组合策略关联序列化器"""
 
-    strategy_name = serializers.CharField(source='strategy.name', read_only=True)
-    strategy_type = serializers.CharField(source='strategy.strategy_type', read_only=True)
-    portfolio_name = serializers.CharField(source='portfolio.account_name', read_only=True)
+    strategy_name = serializers.CharField(source="strategy.name", read_only=True)
+    strategy_type = serializers.CharField(source="strategy.strategy_type", read_only=True)
+    portfolio_name = serializers.CharField(source="portfolio.account_name", read_only=True)
 
     class Meta:
         model = PortfolioStrategyAssignmentModel
         fields = [
-            'id', 'portfolio', 'strategy', 'assigned_at', 'assigned_by',
-            'is_active', 'override_max_position_pct', 'override_stop_loss_pct',
-            'strategy_name', 'strategy_type', 'portfolio_name',
-            'created_at', 'updated_at'
+            "id",
+            "portfolio",
+            "strategy",
+            "assigned_at",
+            "assigned_by",
+            "is_active",
+            "override_max_position_pct",
+            "override_stop_loss_pct",
+            "strategy_name",
+            "strategy_type",
+            "portfolio_name",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'assigned_at', 'created_at', 'updated_at']
+        read_only_fields = ["id", "assigned_at", "created_at", "updated_at"]
 
-    def validate_override_max_position_pct(self, value):
+    def validate_override_max_position_pct(self, value: float | None) -> float | None:
         """验证覆盖的单资产最大持仓比例"""
         if value is not None and not 0 <= value <= 100:
             raise serializers.ValidationError("覆盖的单资产最大持仓比例必须在 0-100 之间")
         return value
 
-    def validate_override_stop_loss_pct(self, value):
+    def validate_override_stop_loss_pct(self, value: float | None) -> float | None:
         """验证覆盖的止损比例"""
         if value is not None and not 0 <= value <= 100:
             raise serializers.ValidationError("覆盖的止损比例必须在 0-100 之间")
@@ -320,65 +391,73 @@ class PortfolioStrategyAssignmentSerializer(serializers.ModelSerializer):
 class PortfolioStrategyAssignmentDetailSerializer(PortfolioStrategyAssignmentSerializer):
     """投资组合策略关联详情序列化器"""
 
-    strategy_detail = StrategySerializer(source='strategy', read_only=True)
+    strategy_detail = StrategySerializer(source="strategy", read_only=True)
 
     class Meta(PortfolioStrategyAssignmentSerializer.Meta):
-        fields = PortfolioStrategyAssignmentSerializer.Meta.fields + ['strategy_detail']
+        fields = PortfolioStrategyAssignmentSerializer.Meta.fields + ["strategy_detail"]
 
 
 # ========================================================================
 # Strategy Execution Log Serializers
 # ========================================================================
 
-class StrategyExecutionLogSerializer(serializers.ModelSerializer):
+
+class StrategyExecutionLogSerializer(serializers.ModelSerializer[Any]):
     """策略执行日志序列化器"""
 
-    strategy_name = serializers.CharField(source='strategy.name', read_only=True)
-    portfolio_name = serializers.CharField(source='portfolio.account_name', read_only=True)
+    strategy_name = serializers.CharField(source="strategy.name", read_only=True)
+    portfolio_name = serializers.CharField(source="portfolio.account_name", read_only=True)
 
     class Meta:
         model = StrategyExecutionLogModel
         fields = [
-            'id', 'strategy', 'portfolio', 'execution_time',
-            'execution_duration_ms', 'execution_result', 'signals_generated',
-            'error_message', 'is_success',
-            'strategy_name', 'portfolio_name'
+            "id",
+            "strategy",
+            "portfolio",
+            "execution_time",
+            "execution_duration_ms",
+            "execution_result",
+            "signals_generated",
+            "error_message",
+            "is_success",
+            "strategy_name",
+            "portfolio_name",
         ]
-        read_only_fields = ['id', 'execution_time']
+        read_only_fields = ["id", "execution_time"]
 
 
-class StrategyExecutionLogListSerializer(serializers.ModelSerializer):
+class StrategyExecutionLogListSerializer(serializers.ModelSerializer[Any]):
     """策略执行日志列表序列化器（精简版）"""
 
-    strategy_name = serializers.CharField(source='strategy.name', read_only=True)
-    portfolio_name = serializers.CharField(source='portfolio.account_name', read_only=True)
-    signals_count = serializers.IntegerField(source='signals_generated.__len__', read_only=True)
+    strategy_name = serializers.CharField(source="strategy.name", read_only=True)
+    portfolio_name = serializers.CharField(source="portfolio.account_name", read_only=True)
+    signals_count = serializers.IntegerField(source="signals_generated.__len__", read_only=True)
 
     class Meta:
         model = StrategyExecutionLogModel
         fields = [
-            'id', 'execution_time', 'execution_duration_ms',
-            'is_success', 'signals_count',
-            'strategy_name', 'portfolio_name'
+            "id",
+            "execution_time",
+            "execution_duration_ms",
+            "is_success",
+            "signals_count",
+            "strategy_name",
+            "portfolio_name",
         ]
 
 
-class StrictStrategySerializer(serializers.Serializer):
+class StrictStrategySerializer(serializers.Serializer[dict[str, Any]]):
     """Base serializer that rejects fields outside a canonical contract."""
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         """Reject unknown request or query fields."""
 
         unknown_fields = sorted(set(data) - set(self.fields))
         if unknown_fields:
             raise serializers.ValidationError(
-                {
-                    "non_field_errors": [
-                        f"Unknown parameters: {', '.join(unknown_fields)}"
-                    ]
-                }
+                {"non_field_errors": [f"Unknown parameters: {', '.join(unknown_fields)}"]}
             )
-        return super().to_internal_value(data)
+        return cast(dict[str, Any], super().to_internal_value(data))
 
 
 class StrategyExecuteRequestSerializer(StrictStrategySerializer):
@@ -387,7 +466,7 @@ class StrategyExecuteRequestSerializer(StrictStrategySerializer):
     portfolio_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     as_of_date = serializers.DateField(required=False, allow_null=True)
 
-    def validate_as_of_date(self, value):
+    def validate_as_of_date(self, value: date | None) -> date | None:
         """Reject historical execution until the executor supports point-in-time context."""
 
         if value is not None and value != timezone.localdate():
@@ -410,7 +489,7 @@ class StrategyPerformanceQuerySerializer(StrictStrategySerializer):
     start_date = serializers.DateField(required=False, allow_null=True)
     end_date = serializers.DateField(required=False, allow_null=True)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Reject inverted date windows."""
 
         if attrs.get("start_date") and attrs.get("end_date"):
@@ -438,30 +517,23 @@ class StrategyEmptyQuerySerializer(StrictStrategySerializer):
 # M3: 执行评估 API Serializers
 # ========================================================================
 
-class ExecutionEvaluateInputSerializer(serializers.Serializer):
+
+class ExecutionEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
     """执行评估输入序列化器"""
 
     symbol = serializers.CharField(help_text="资产代码")
-    side = serializers.ChoiceField(choices=['buy', 'sell'], help_text="买卖方向")
+    side = serializers.ChoiceField(choices=["buy", "sell"], help_text="买卖方向")
     portfolio_id = serializers.IntegerField(help_text="投资组合ID", required=False)
 
     current_price = serializers.FloatField(help_text="当前价格", required=False)
     signal_strength = serializers.FloatField(
-        help_text="信号强度 (0-1)",
-        default=0.6,
-        min_value=0.0,
-        max_value=1.0
+        help_text="信号强度 (0-1)", default=0.6, min_value=0.0, max_value=1.0
     )
     signal_direction = serializers.ChoiceField(
-        choices=['bullish', 'bearish', 'neutral'],
-        help_text="信号方向",
-        default='bullish'
+        choices=["bullish", "bearish", "neutral"], help_text="信号方向", default="bullish"
     )
     signal_confidence = serializers.FloatField(
-        help_text="信号置信度 (0-1)",
-        default=0.8,
-        min_value=0.0,
-        max_value=1.0
+        help_text="信号置信度 (0-1)", default=0.8, min_value=0.0, max_value=1.0
     )
     stop_loss_price = serializers.FloatField(help_text="止损价", required=False)
     atr = serializers.FloatField(help_text="ATR值", required=False)
@@ -473,30 +545,23 @@ class ExecutionEvaluateInputSerializer(serializers.Serializer):
     volatility_z = serializers.FloatField(help_text="波动率Z分数", required=False)
     avg_volume = serializers.FloatField(help_text="平均成交量", required=False)
     sizing_method = serializers.ChoiceField(
-        choices=['fixed_fraction', 'atr_risk'],
-        help_text="仓位计算方法",
-        default='fixed_fraction'
+        choices=["fixed_fraction", "atr_risk"], help_text="仓位计算方法", default="fixed_fraction"
     )
 
 
-class ExecutionEvaluateOutputSerializer(serializers.Serializer):
+class ExecutionEvaluateOutputSerializer(serializers.Serializer[dict[str, Any]]):
     """执行评估输出序列化器"""
 
     # 决策结果
     decision_action = serializers.ChoiceField(
-        choices=['allow', 'deny', 'watch'],
-        help_text="决策动作"
+        choices=["allow", "deny", "watch"], help_text="决策动作"
     )
     decision_reasons = serializers.ListField(
-        child=serializers.CharField(),
-        help_text="决策原因码列表"
+        child=serializers.CharField(), help_text="决策原因码列表"
     )
     decision_text = serializers.CharField(help_text="决策原因描述")
     decision_confidence = serializers.FloatField(help_text="决策置信度")
-    valid_until_seconds = serializers.IntegerField(
-        help_text="决策有效期（秒）",
-        allow_null=True
-    )
+    valid_until_seconds = serializers.IntegerField(help_text="决策有效期（秒）", allow_null=True)
 
     # 仓位结果
     target_notional = serializers.FloatField(help_text="目标名义金额")
