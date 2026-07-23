@@ -520,6 +520,30 @@ def test_rotation_correlation_is_pure_compute_without_price_cache_writes(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"asset_codes": "510300"},
+        {"asset_codes": [""]},
+        {"asset_codes": ["510300"] * 21},
+        {"asset_codes": ["510300"], "window_days": 0},
+        {"asset_codes": ["510300"], "window_days": True},
+    ],
+)
+def test_rotation_correlation_rejects_invalid_compute_contract(
+    authenticated_client,
+    payload,
+):
+    response = authenticated_client.post(
+        "/api/rotation/correlation/",
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
 def test_rotation_generate_signal_returns_404_when_service_returns_none(authenticated_client):
     with patch(
         "apps.rotation.application.interface_services.RotationIntegrationService.generate_rotation_signal",
@@ -533,6 +557,26 @@ def test_rotation_generate_signal_returns_404_when_service_returns_none(authenti
 
     assert response.status_code == 404
     assert "missing-config" in response.json()["error"]
+
+
+@pytest.mark.django_db
+def test_rotation_generate_signal_rejects_invalid_signal_date(authenticated_client):
+    with patch(
+        "apps.rotation.application.interface_services."
+        "RotationIntegrationService.generate_rotation_signal"
+    ) as generate_signal:
+        response = authenticated_client.post(
+            "/api/rotation/generate-signal/",
+            {
+                "config_name": "momentum",
+                "signal_date": "2026-02-30",
+            },
+            format="json",
+        )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "signal_date must use YYYY-MM-DD format"
+    generate_signal.assert_not_called()
 
 
 @pytest.mark.django_db

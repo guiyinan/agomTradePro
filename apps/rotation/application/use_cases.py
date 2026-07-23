@@ -8,6 +8,7 @@ Orchestrates domain services and infrastructure adapters.
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import Any, Protocol
 
 from apps.rotation.application.dtos import (
     AssetComparisonRequest,
@@ -33,9 +34,80 @@ from apps.rotation.domain.services import (
 )
 
 
+class MomentumScoreRow(Protocol):
+    """Read projection for a persisted momentum score."""
+
+    composite_score: float
+    rank: int
+    momentum_1m: float
+    momentum_3m: float
+    momentum_6m: float
+    trend_strength: float
+    calc_date: date
+
+
+class RotationSignalRow(Protocol):
+    """Read projection for a persisted rotation signal."""
+
+    id: int
+    signal_date: date
+    current_regime: str
+    action_required: str
+    target_allocation: dict[str, float]
+
+
+class MomentumScoreReader(Protocol):
+    """Momentum score reads required by page use cases."""
+
+    def get_latest_scores(
+        self,
+        asset_code: str,
+        limit: int = 1,
+    ) -> list[MomentumScoreRow]: ...
+
+
+class RotationSignalReader(Protocol):
+    """Rotation signal reads required by page use cases."""
+
+    def get_latest_signal(self, config_id: int) -> RotationSignalRow | None: ...
+
+
+class RotationViewService(Protocol):
+    """Integration operations required by rotation page use cases."""
+
+    momentum_repo: MomentumScoreReader
+    signal_repo: RotationSignalReader
+
+    def get_asset_master(
+        self,
+        *,
+        include_inactive: bool = False,
+    ) -> list[dict[str, Any]]: ...
+
+    def _get_current_regime(self) -> str | None: ...
+
+
+class RotationViewRepository(Protocol):
+    """Read-model operations required by rotation page use cases."""
+
+    def list_config_rows(self) -> list[dict[str, Any]]: ...
+
+    def list_recent_signal_rows(
+        self,
+        *,
+        config_filter: str,
+        regime_filter: str,
+        action_filter: str,
+        cutoff_date: date,
+    ) -> list[dict[str, Any]]: ...
+
+    def list_active_config_rows(self) -> list[dict[str, Any]]: ...
+
+
 @dataclass
 class RotationUseCaseContext:
     """Context for rotation use case execution"""
+
     calc_date: date
     asset_universe: list[str]
 
@@ -79,8 +151,7 @@ class GenerateRotationSignalUseCase:
 
         # Convert momentum ranking
         momentum_ranking = [
-            {"asset": asset, "score": score}
-            for asset, score in signal.momentum_ranking
+            {"asset": asset, "score": score} for asset, score in signal.momentum_ranking
         ]
 
         return RotationSignalResponse(
@@ -143,6 +214,7 @@ class GetCurrentRegimeUseCase:
 # View UseCases - For page views (template rendering)
 # ============================================================================
 
+
 class GetAssetsForViewUseCase:
     """
     Use case: Get data for rotation assets page.
@@ -150,7 +222,11 @@ class GetAssetsForViewUseCase:
     Returns assets, categories, and momentum scores for template rendering.
     """
 
-    def __init__(self, integration_service, view_repo=None):
+    def __init__(
+        self,
+        integration_service: RotationViewService,
+        view_repo: RotationViewRepository | None = None,
+    ) -> None:
         """
         Initialize with integration service.
 
@@ -179,10 +255,10 @@ class GetAssetsForViewUseCase:
 
         if assets:
             for asset in assets:
-                scores = self.service.momentum_repo.get_latest_scores(asset['code'], limit=1)
+                scores = self.service.momentum_repo.get_latest_scores(asset["code"], limit=1)
                 if scores:
                     score = scores[0]
-                    momentum_scores[asset['code']] = AssetMomentumScore(
+                    momentum_scores[asset["code"]] = AssetMomentumScore(
                         composite_score=round(score.composite_score, 3),
                         rank=score.rank,
                         momentum_1m=round(score.momentum_1m, 3),
@@ -195,18 +271,18 @@ class GetAssetsForViewUseCase:
                         latest_calc_date = score.calc_date
 
         # Group by category
-        categories = {
-            'equity': {'name': '股票', 'assets': []},
-            'bond': {'name': '债券', 'assets': []},
-            'commodity': {'name': '商品', 'assets': []},
-            'currency': {'name': '货币', 'assets': []},
-            'alternative': {'name': '另类', 'assets': []},
+        categories: dict[str, dict[str, Any]] = {
+            "equity": {"name": "股票", "assets": []},
+            "bond": {"name": "债券", "assets": []},
+            "commodity": {"name": "商品", "assets": []},
+            "currency": {"name": "货币", "assets": []},
+            "alternative": {"name": "另类", "assets": []},
         }
 
         for asset in assets:
-            category = asset['category']
+            category = asset["category"]
             if category in categories:
-                categories[category]['assets'].append(asset)
+                categories[category]["assets"].append(asset)
 
         return AssetsViewResponse(
             assets=assets,
@@ -228,7 +304,11 @@ class GetRotationConfigsForViewUseCase:
     Returns configs and their latest signals for template rendering.
     """
 
-    def __init__(self, integration_service, view_repo=None):
+    def __init__(
+        self,
+        integration_service: RotationViewService,
+        view_repo: RotationViewRepository | None = None,
+    ) -> None:
         """
         Initialize with integration service.
 
@@ -253,9 +333,9 @@ class GetRotationConfigsForViewUseCase:
         # Get latest signal for each config
         latest_signals = {}
         for config in configs:
-            latest_signal = self.service.signal_repo.get_latest_signal(config['id'])
+            latest_signal = self.service.signal_repo.get_latest_signal(config["id"])
             if latest_signal:
-                latest_signals[config['id']] = ConfigLatestSignal(
+                latest_signals[config["id"]] = ConfigLatestSignal(
                     signal_date=latest_signal.signal_date,
                     current_regime=latest_signal.current_regime,
                     action_required=latest_signal.action_required,
@@ -266,13 +346,13 @@ class GetRotationConfigsForViewUseCase:
             configs=configs,
             latest_signals=latest_signals,
             strategy_types=[
-                ('regime_based', '基于象限'),
-                ('momentum', '动量轮动'),
-                ('risk_parity', '风险平价'),
-                ('mean_reversion', '均值回归'),
-                ('custom', '自定义'),
+                ("regime_based", "基于象限"),
+                ("momentum", "动量轮动"),
+                ("risk_parity", "风险平价"),
+                ("mean_reversion", "均值回归"),
+                ("custom", "自定义"),
             ],
-            frequencies=['daily', 'weekly', 'monthly', 'quarterly'],
+            frequencies=["daily", "weekly", "monthly", "quarterly"],
         )
 
 
@@ -283,7 +363,11 @@ class GetRotationSignalsForViewUseCase:
     Returns signals with filters for template rendering.
     """
 
-    def __init__(self, integration_service, view_repo=None):
+    def __init__(
+        self,
+        integration_service: RotationViewService,
+        view_repo: RotationViewRepository | None = None,
+    ) -> None:
         """
         Initialize with integration service.
 
@@ -316,14 +400,14 @@ class GetRotationSignalsForViewUseCase:
         # Get latest signal for each config
         latest_by_config = {}
         for config in configs:
-            latest = self.service.signal_repo.get_latest_signal(config['id'])
+            latest = self.service.signal_repo.get_latest_signal(config["id"])
             if latest:
-                latest_by_config[config['id']] = {
-                    'id': latest.id,
-                    'signal_date': latest.signal_date,
-                    'current_regime': latest.current_regime,
-                    'action_required': latest.action_required,
-                    'target_allocation': latest.target_allocation,
+                latest_by_config[config["id"]] = {
+                    "id": latest.id,
+                    "signal_date": latest.signal_date,
+                    "current_regime": latest.current_regime,
+                    "action_required": latest.action_required,
+                    "target_allocation": latest.target_allocation,
                 }
 
         # Get current regime
@@ -338,8 +422,8 @@ class GetRotationSignalsForViewUseCase:
             configs=configs,
             latest_by_config=latest_by_config,
             current_regime=current_regime,
-            regime_choices=['Recovery', 'Overheat', 'Stagflation', 'Deflation'],
-            action_choices=['rebalance', 'hold', 'reduce', 'increase'],
+            regime_choices=["Recovery", "Overheat", "Stagflation", "Deflation"],
+            action_choices=["rebalance", "hold", "reduce", "increase"],
             filter_config=request.config_filter,
             filter_regime=request.regime_filter,
             filter_action=request.action_filter,

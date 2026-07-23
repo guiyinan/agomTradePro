@@ -6,11 +6,13 @@ Data Transfer Objects for the rotation module.
 
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
 
 @dataclass
 class RotationSignalRequest:
     """Request DTO for generating rotation signal"""
+
     config_name: str
     signal_date: date | None = None
 
@@ -18,18 +20,20 @@ class RotationSignalRequest:
 @dataclass
 class RotationSignalResponse:
     """Response DTO for rotation signal"""
+
     config_name: str
     signal_date: date
     target_allocation: dict[str, float]
     current_regime: str
     action_required: str
     reason: str
-    momentum_ranking: list[dict[str, float]]
+    momentum_ranking: list[dict[str, Any]]
 
 
 @dataclass
 class AssetComparisonRequest:
     """Request DTO for comparing assets"""
+
     asset_codes: list[str]
     lookback_days: int = 60
 
@@ -37,19 +41,22 @@ class AssetComparisonRequest:
 @dataclass
 class AssetComparisonResponse:
     """Response DTO for asset comparison"""
-    assets: dict[str, dict]
+
+    assets: dict[str, dict[str, Any]]
     comparison_date: date
 
 
 @dataclass
 class AssetsViewRequest:
     """Request DTO for assets view page"""
+
     pass
 
 
 @dataclass
 class AssetMomentumScore:
     """DTO for asset momentum score"""
+
     composite_score: float
     rank: int
     momentum_1m: float
@@ -62,8 +69,9 @@ class AssetMomentumScore:
 @dataclass
 class AssetsViewResponse:
     """Response DTO for assets view page"""
-    assets: list[dict]
-    categories: dict[str, dict]
+
+    assets: list[dict[str, Any]]
+    categories: dict[str, dict[str, Any]]
     momentum_scores: dict[str, AssetMomentumScore]
     latest_calc_date: date | None
     maintenance_notice: str = ""
@@ -72,12 +80,14 @@ class AssetsViewResponse:
 @dataclass
 class RotationConfigsViewRequest:
     """Request DTO for rotation configs view page"""
+
     pass
 
 
 @dataclass
 class ConfigLatestSignal:
     """DTO for config's latest signal"""
+
     signal_date: date
     current_regime: str
     action_required: str
@@ -87,26 +97,29 @@ class ConfigLatestSignal:
 @dataclass
 class RotationConfigsViewResponse:
     """Response DTO for rotation configs view page"""
-    configs: list[dict]
+
+    configs: list[dict[str, Any]]
     latest_signals: dict[int, ConfigLatestSignal]
-    strategy_types: list[tuple]
+    strategy_types: list[tuple[str, str]]
     frequencies: list[str]
 
 
 @dataclass
 class RotationSignalsViewRequest:
     """Request DTO for rotation signals view page"""
-    config_filter: str = ''
-    regime_filter: str = ''
-    action_filter: str = ''
+
+    config_filter: str = ""
+    regime_filter: str = ""
+    action_filter: str = ""
 
 
 @dataclass
 class RotationSignalsViewResponse:
     """Response DTO for rotation signals view page"""
-    signals: list[dict]
-    configs: list[dict]
-    latest_by_config: dict[int, dict]
+
+    signals: list[dict[str, Any]]
+    configs: list[dict[str, Any]]
+    latest_by_config: dict[int, dict[str, Any]]
     current_regime: str | None
     regime_choices: list[str]
     action_choices: list[str]

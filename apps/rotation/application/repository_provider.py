@@ -2,8 +2,29 @@
 
 from __future__ import annotations
 
-from apps.rotation.infrastructure.providers import AssetClassRepository, RotationInterfaceRepository
-from apps.rotation.infrastructure.services import RotationIntegrationService
+from datetime import date
+from typing import Any, TypedDict
+
+from apps.rotation.infrastructure.providers import (
+    AssetClassRepository as AssetClassRepository,
+)
+from apps.rotation.infrastructure.providers import (
+    RotationInterfaceRepository as RotationInterfaceRepository,
+)
+from apps.rotation.infrastructure.services import (
+    RotationIntegrationService as RotationIntegrationService,
+)
+
+
+class RotationSignalBatchResult(TypedDict):
+    """Structured result for scheduled rotation signal generation."""
+
+    signal_date: str
+    total_configs: int
+    successful: int
+    skipped: int
+    failed: int
+    signals: list[dict[str, Any]]
 
 
 def get_rotation_asset_class_repository() -> AssetClassRepository:
@@ -24,12 +45,12 @@ def get_rotation_integration_service() -> RotationIntegrationService:
     return RotationIntegrationService()
 
 
-def generate_rotation_signals(signal_date) -> dict:
+def generate_rotation_signals(signal_date: date) -> RotationSignalBatchResult:
     """Generate rotation signals through the application-facing provider."""
 
     service = get_rotation_integration_service()
     configs = service.config_repo.get_active()
-    results = {
+    results: RotationSignalBatchResult = {
         "signal_date": signal_date.isoformat(),
         "total_configs": len(configs),
         "successful": 0,

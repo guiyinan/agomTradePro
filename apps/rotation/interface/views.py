@@ -6,16 +6,19 @@ DRF ViewSets and page views for the rotation module.
 
 import csv
 import json
-from datetime import datetime
+from datetime import date, datetime
+from typing import Any
 
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
 
 from apps.rotation.application import interface_services as rotation_interface_services
 from apps.rotation.interface.serializers import (
@@ -27,54 +30,55 @@ from apps.rotation.interface.serializers import (
 )
 
 
-class AssetClassViewSet(viewsets.ModelViewSet):
+class AssetClassViewSet(viewsets.ModelViewSet[Any]):
     """ViewSet for AssetClass model"""
+
     queryset = rotation_interface_services.get_asset_queryset()
     serializer_class = AssetClassSerializer
-    filterset_fields = ['category', 'is_active']
-    search_fields = ['code', 'name', 'description']
-    ordering_fields = ['category', 'code']
-    lookup_field = 'code'
-    lookup_value_regex = r'[^/]+'
+    filterset_fields = ["category", "is_active"]
+    search_fields = ["code", "name", "description"]
+    ordering_fields = ["category", "code"]
+    lookup_field = "code"
+    lookup_value_regex = r"[^/]+"
 
     def get_permissions(self) -> list[BasePermission]:
         """Restrict global asset-catalog mutations to staff users."""
         if self.action in {
-            'create',
-            'update',
-            'partial_update',
-            'destroy',
-            'import_defaults',
-            'preview_import_defaults',
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "import_defaults",
+            "preview_import_defaults",
         }:
             return [IsAdminUser()]
         return [IsAuthenticated()]
 
-    @action(detail=False, methods=['get'])
-    def with_prices(self, request):
+    @action(detail=False, methods=["get"])
+    def with_prices(self, request: Request) -> Response:
         """Get all assets with current price information"""
         assets = rotation_interface_services.get_all_assets_with_prices()
         return Response(assets)
 
-    @action(detail=False, methods=['post'], url_path='import-defaults')
-    def import_defaults(self, request):
+    @action(detail=False, methods=["post"], url_path="import-defaults")
+    def import_defaults(self, request: Request) -> Response:
         """Import or reactivate default rotation assets."""
         return Response(rotation_interface_services.import_default_assets())
 
-    @action(detail=False, methods=['get'], url_path='import-defaults-preview')
-    def preview_import_defaults(self, request):
+    @action(detail=False, methods=["get"], url_path="import-defaults-preview")
+    def preview_import_defaults(self, request: Request) -> Response:
         """Preview default asset creation, reactivation and updates."""
         return Response(rotation_interface_services.preview_default_asset_import())
 
-    @action(detail=False, methods=['get'], url_path='export')
-    def export_assets(self, request):
+    @action(detail=False, methods=["get"], url_path="export")
+    def export_assets(self, request: Request) -> HttpResponse:
         """Export current rotation asset pool as JSON or CSV."""
-        export_format = request.query_params.get('format', 'json').lower()
+        export_format = request.query_params.get("format", "json").lower()
         fields, rows = rotation_interface_services.export_asset_rows()
 
-        if export_format == 'csv':
-            response = HttpResponse(content_type='text/csv; charset=utf-8')
-            response['Content-Disposition'] = 'attachment; filename="rotation-assets.csv"'
+        if export_format == "csv":
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = 'attachment; filename="rotation-assets.csv"'
             writer = csv.DictWriter(response, fieldnames=fields)
             writer.writeheader()
             for row in rows:
@@ -83,64 +87,82 @@ class AssetClassViewSet(viewsets.ModelViewSet):
 
         response = HttpResponse(
             json.dumps(rows, ensure_ascii=False, indent=2),
-            content_type='application/json; charset=utf-8',
+            content_type="application/json; charset=utf-8",
         )
-        response['Content-Disposition'] = 'attachment; filename="rotation-assets.json"'
+        response["Content-Disposition"] = 'attachment; filename="rotation-assets.json"'
         return response
 
-    @action(detail=True, methods=['get'], url_path='detail')
-    def asset_detail(self, request, code=None):
+    @action(detail=True, methods=["get"], url_path="detail")
+    def asset_detail(
+        self,
+        request: Request,
+        code: str | None = None,
+    ) -> Response:
         """Get detailed information about a specific asset"""
+        if not code:
+            return Response(
+                {"error": "Asset code is required"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         asset_code = code
         info = rotation_interface_services.get_asset_info(asset_code)
 
         if info:
             return Response(info)
         return Response(
-            {'error': f'Asset not found: {asset_code}'},
-            status=status.HTTP_404_NOT_FOUND
+            {"error": f"Asset not found: {asset_code}"}, status=status.HTTP_404_NOT_FOUND
         )
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(
+        self,
+        request: Request,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Response:
         """Soft delete by default; use ?hard=true for physical delete."""
         instance = self.get_object()
-        if request.query_params.get('hard', '').lower() == 'true':
+        if request.query_params.get("hard", "").lower() == "true":
             return super().destroy(request, *args, **kwargs)
 
         if not instance.is_active:
-            return Response({'status': 'already_inactive', 'code': instance.code})
+            return Response({"status": "already_inactive", "code": instance.code})
 
         instance.is_active = False
-        instance.save(update_fields=['is_active', 'updated_at'])
-        return Response({'status': 'soft_deleted', 'code': instance.code, 'is_active': False})
+        instance.save(update_fields=["is_active", "updated_at"])
+        return Response({"status": "soft_deleted", "code": instance.code, "is_active": False})
 
 
-class RotationConfigViewSet(viewsets.ModelViewSet):
+class RotationConfigViewSet(viewsets.ModelViewSet[Any]):
     """ViewSet for RotationConfig model"""
+
     queryset = rotation_interface_services.get_rotation_config_queryset()
     serializer_class = RotationConfigSerializer
-    filterset_fields = ['is_active', 'strategy_type', 'rebalance_frequency']
-    search_fields = ['name', 'description']
-    ordering = ['-is_active', '-created_at']
+    filterset_fields = ["is_active", "strategy_type", "rebalance_frequency"]
+    search_fields = ["name", "description"]
+    ordering = ["-is_active", "-created_at"]
 
-    @action(detail=True, methods=['post'])
-    def activate(self, request, pk=None):
+    @action(detail=True, methods=["post"])
+    def activate(self, request: Request, pk: str | None = None) -> Response:
         """Activate this configuration"""
         config = self.get_object()
         config.is_active = True
         config.save()
-        return Response({'status': 'activated'})
+        return Response({"status": "activated"})
 
-    @action(detail=True, methods=['post'])
-    def deactivate(self, request, pk=None):
+    @action(detail=True, methods=["post"])
+    def deactivate(self, request: Request, pk: str | None = None) -> Response:
         """Deactivate this configuration"""
         config = self.get_object()
         config.is_active = False
         config.save()
-        return Response({'status': 'deactivated'})
+        return Response({"status": "deactivated"})
 
-    @action(detail=True, methods=['post'])
-    def generate_signal(self, request, pk=None):
+    @action(detail=True, methods=["post"])
+    def generate_signal(
+        self,
+        request: Request,
+        pk: str | None = None,
+    ) -> Response:
         """Generate rotation signal for this configuration"""
         config = self.get_object()
 
@@ -149,24 +171,26 @@ class RotationConfigViewSet(viewsets.ModelViewSet):
         if signal:
             return Response(signal)
         return Response(
-            {'error': 'Failed to generate signal'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": "Failed to generate signal"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
-class RotationSignalViewSet(viewsets.ReadOnlyModelViewSet):
+class RotationSignalViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     """ViewSet for RotationSignal model"""
+
     queryset = rotation_interface_services.get_rotation_signal_queryset()
     serializer_class = RotationSignalSerializer
-    filterset_fields = ['config', 'signal_date', 'current_regime', 'action_required']
-    ordering = ['-signal_date']
+    filterset_fields = ["config", "signal_date", "current_regime", "action_required"]
+    ordering = ["-signal_date"]
 
-    @action(detail=False, methods=['get'])
-    def latest(self, request):
+    @action(detail=False, methods=["get"])
+    def latest(self, request: Request) -> Response:
         """Get the latest signal for each configuration"""
         signals = []
 
-        for latest_signal in rotation_interface_services.get_latest_signal_models_for_active_configs():
+        for (
+            latest_signal
+        ) in rotation_interface_services.get_latest_signal_models_for_active_configs():
             serializer = self.get_serializer(latest_signal)
             signals.append(serializer.data)
 
@@ -175,33 +199,36 @@ class RotationSignalViewSet(viewsets.ReadOnlyModelViewSet):
 
 class RotationActionViewSet(viewsets.ViewSet):
     """ViewSet for rotation actions (not tied to a specific model)"""
+
     permission_classes = [IsAuthenticated]
 
-    def list(self, request):
+    def list(self, request: Request) -> Response:
         """Get available rotation actions"""
-        return Response({
-            'actions': {
-                'recommendation': 'GET /rotation/api/recommendation/ - Get rotation recommendation',
-                'compare': 'POST /rotation/api/compare/ - Compare assets',
-                'correlation': 'POST /rotation/api/correlation/ - Get correlation matrix',
-                'generate_signal': 'POST /rotation/api/generate_signal/ - Generate signal for config',
+        return Response(
+            {
+                "actions": {
+                    "recommendation": "GET /rotation/api/recommendation/ - Get rotation recommendation",
+                    "compare": "POST /rotation/api/compare/ - Compare assets",
+                    "correlation": "POST /rotation/api/correlation/ - Get correlation matrix",
+                    "generate_signal": "POST /rotation/api/generate_signal/ - Generate signal for config",
+                }
             }
-        })
+        )
 
-    @action(detail=False, methods=['get'], url_path='recommendation')
-    def recommendation(self, request):
+    @action(detail=False, methods=["get"], url_path="recommendation")
+    def recommendation(self, request: Request) -> Response:
         """Get rotation recommendation based on strategy type"""
-        strategy_type = request.query_params.get('strategy', 'momentum')
+        strategy_type = request.query_params.get("strategy", "momentum")
 
         result = rotation_interface_services.get_rotation_recommendation(strategy_type)
 
         return Response(result)
 
-    @action(detail=False, methods=['post'], url_path='compare')
-    def compare_assets(self, request):
+    @action(detail=False, methods=["post"], url_path="compare")
+    def compare_assets(self, request: Request) -> Response:
         """Compare multiple assets"""
-        asset_codes = request.data.get('asset_codes', [])
-        lookback_days = request.data.get('lookback_days', 60)
+        asset_codes = request.data.get("asset_codes", [])
+        lookback_days = request.data.get("lookback_days", 60)
 
         if (
             not isinstance(asset_codes, list)
@@ -211,12 +238,11 @@ class RotationActionViewSet(viewsets.ViewSet):
         ):
             return Response(
                 {
-                    'error': (
-                        'asset_codes must be a non-empty list of at most 20 '
-                        'non-empty strings'
+                    "error": (
+                        "asset_codes must be a non-empty list of at most 20 " "non-empty strings"
                     )
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
         if (
             isinstance(lookback_days, bool)
@@ -224,152 +250,183 @@ class RotationActionViewSet(viewsets.ViewSet):
             or not 1 <= lookback_days <= 500
         ):
             return Response(
-                {'error': 'lookback_days must be an integer between 1 and 500'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "lookback_days must be an integer between 1 and 500"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         result = rotation_interface_services.compare_assets(asset_codes, lookback_days)
 
         return Response(result)
 
-    @action(detail=False, methods=['post'], url_path='correlation')
-    def correlation_matrix(self, request):
+    @action(detail=False, methods=["post"], url_path="correlation")
+    def correlation_matrix(self, request: Request) -> Response:
         """Get correlation matrix for assets"""
-        asset_codes = request.data.get('asset_codes', [])
-        window_days = request.data.get('window_days', 60)
+        asset_codes = request.data.get("asset_codes", [])
+        window_days = request.data.get("window_days", 60)
 
-        if not asset_codes:
+        if (
+            not isinstance(asset_codes, list)
+            or not asset_codes
+            or len(asset_codes) > 20
+            or any(not isinstance(code, str) or not code.strip() for code in asset_codes)
+        ):
             return Response(
-                {'error': 'asset_codes is required'},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "error": (
+                        "asset_codes must be a non-empty list of at most 20 " "non-empty strings"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if (
+            isinstance(window_days, bool)
+            or not isinstance(window_days, int)
+            or not 1 <= window_days <= 500
+        ):
+            return Response(
+                {"error": "window_days must be an integer between 1 and 500"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         result = rotation_interface_services.get_correlation_matrix(asset_codes, window_days)
 
         return Response(result)
 
-    @action(detail=False, methods=['post'], url_path='generate-signal')
-    def generate_signal_action(self, request):
+    @action(detail=False, methods=["post"], url_path="generate-signal")
+    def generate_signal_action(self, request: Request) -> Response:
         """Generate rotation signal for a configuration"""
-        config_name = request.data.get('config_name')
-        signal_date = request.data.get('signal_date')
+        config_name = request.data.get("config_name")
+        signal_date = request.data.get("signal_date")
 
-        if not config_name:
+        if not isinstance(config_name, str) or not config_name.strip():
             return Response(
-                {'error': 'config_name is required'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "config_name is required"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        signal = rotation_interface_services.generate_rotation_signal(config_name, signal_date)
+        parsed_signal_date: date | None = None
+        if signal_date is not None:
+            if not isinstance(signal_date, str):
+                return Response(
+                    {"error": "signal_date must use YYYY-MM-DD format"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                parsed_signal_date = date.fromisoformat(signal_date)
+            except ValueError:
+                return Response(
+                    {"error": "signal_date must use YYYY-MM-DD format"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        signal = rotation_interface_services.generate_rotation_signal(
+            config_name.strip(),
+            parsed_signal_date,
+        )
 
         if signal:
             return Response(signal)
         return Response(
-            {'error': f'Rotation config not found or signal generation failed: {config_name}'},
-            status=status.HTTP_404_NOT_FOUND
+            {"error": f"Rotation config not found or signal generation failed: {config_name}"},
+            status=status.HTTP_404_NOT_FOUND,
         )
 
-    @action(detail=False, methods=['post'], url_path='clear-cache')
-    def clear_cache(self, request):
+    @action(detail=False, methods=["post"], url_path="clear-cache")
+    def clear_cache(self, request: Request) -> Response:
         """Clear price data cache"""
         rotation_interface_services.clear_price_cache()
-        return Response({'status': 'cache cleared'})
+        return Response({"status": "cache cleared"})
 
 
 # ============================================================================
 # Page Views (for frontend templates)
 # ============================================================================
 
-def rotation_assets_view(request):
+
+def rotation_assets_view(request: HttpRequest) -> HttpResponse:
     """资产类别管理页面 - 显示所有资产类别、价格和动量信息"""
     return render(
         request,
-        'rotation/assets.html',
+        "rotation/assets.html",
         rotation_interface_services.build_rotation_assets_context(),
     )
 
 
-def rotation_configs_view(request):
+def rotation_configs_view(request: HttpRequest) -> HttpResponse:
     """轮动配置管理页面 - 显示和编辑策略配置"""
     return render(
         request,
-        'rotation/configs.html',
+        "rotation/configs.html",
         rotation_interface_services.build_rotation_configs_context(request.user),
     )
 
 
-def rotation_signals_view(request):
+def rotation_signals_view(request: HttpRequest) -> HttpResponse:
     """轮动信号页面 - 显示当前推荐和历史信号"""
     return render(
         request,
-        'rotation/signals.html',
+        "rotation/signals.html",
         rotation_interface_services.build_rotation_signals_context(
             {
-                'config': request.GET.get('config', ''),
-                'regime': request.GET.get('regime', ''),
-                'action': request.GET.get('action', ''),
+                "config": request.GET.get("config", ""),
+                "regime": request.GET.get("regime", ""),
+                "action": request.GET.get("action", ""),
             }
         ),
     )
 
 
-def rotation_account_config_view(request):
+def rotation_account_config_view(request: HttpRequest) -> HttpResponse:
     """账户轮动配置页面 - 每个账户独立配置风险偏好和象限配置"""
     return render(
         request,
-        'rotation/account_config.html',
+        "rotation/account_config.html",
         rotation_interface_services.build_rotation_account_config_context(request.user),
     )
 
 
 @require_http_methods(["POST"])
-def rotation_generate_signal_view(request):
+def rotation_generate_signal_view(request: HttpRequest) -> JsonResponse:
     """生成轮动信号的 API 端点"""
     try:
         data = json.loads(request.body)
-        config_name = data.get('config_name')
-        signal_date_str = data.get('signal_date')
+        config_name = data.get("config_name")
+        signal_date_str = data.get("signal_date")
 
         if not config_name:
-            return JsonResponse({
-                'success': False,
-                'error': '请指定配置名称'
-            }, status=400)
+            return JsonResponse({"success": False, "error": "请指定配置名称"}, status=400)
 
         signal_date = None
         if signal_date_str:
             try:
-                signal_date = datetime.strptime(signal_date_str, '%Y-%m-%d').date()
+                signal_date = datetime.strptime(signal_date_str, "%Y-%m-%d").date()
             except ValueError:
                 pass
 
         signal = rotation_interface_services.generate_rotation_signal(config_name, signal_date)
 
         if signal:
-            return JsonResponse({
-                'success': True,
-                'signal': signal
-            })
+            return JsonResponse({"success": True, "signal": signal})
         else:
-            return JsonResponse({
-                'success': False,
-                'error': f'生成信号失败，请检查配置名称和数据可用性: {config_name}'
-            }, status=404)
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": f"生成信号失败，请检查配置名称和数据可用性: {config_name}",
+                },
+                status=404,
+            )
 
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 # ============================================================================
 # Regime List API (dynamic, sourced from regime module — no hardcoding)
 # ============================================================================
 
-@api_view(['GET'])
+
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def get_regime_list(request):
+def get_regime_list(request: Request) -> Response:
     """
     返回系统支持的宏观象限名称列表。
 
@@ -380,6 +437,7 @@ def get_regime_list(request):
     """
     # Regime 名称由 regime 模块 RegimeProbabilities.distribution 定义
     from apps.regime.domain.entities import RegimeProbabilities
+
     dummy = RegimeProbabilities(
         growth_reflation=0.25,
         growth_disinflation=0.25,
@@ -391,8 +449,7 @@ def get_regime_list(request):
         consistency_score=1.0,
     )
     regimes = [
-        {'key': regime_name, 'label': regime_name}
-        for regime_name in dummy.distribution.keys()
+        {"key": regime_name, "label": regime_name} for regime_name in dummy.distribution.keys()
     ]
     return Response(regimes)
 
@@ -401,7 +458,8 @@ def get_regime_list(request):
 # RotationTemplateViewSet — read-only presets from DB
 # ============================================================================
 
-class RotationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
+
+class RotationTemplateViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     """
     预设模板 API。
 
@@ -411,6 +469,7 @@ class RotationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     GET /api/rotation/templates/
     GET /api/rotation/templates/{id}/
     """
+
     queryset = rotation_interface_services.get_active_template_queryset()
     serializer_class = RotationTemplateSerializer
     permission_classes = [IsAuthenticated]
@@ -420,7 +479,8 @@ class RotationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
 # PortfolioRotationConfigViewSet — per-account rotation config CRUD
 # ============================================================================
 
-class PortfolioRotationConfigViewSet(viewsets.ModelViewSet):
+
+class PortfolioRotationConfigViewSet(viewsets.ModelViewSet[Any]):
     """
     账户级轮动配置 API。
 
@@ -436,22 +496,25 @@ class PortfolioRotationConfigViewSet(viewsets.ModelViewSet):
     POST   /api/rotation/account-configs/{id}/apply-template/  — 应用预设模板
     GET    /api/rotation/account-configs/by-account/{id}/      — 按账户 ID 查询（MCP 友好）
     """
+
     serializer_class = PortfolioRotationConfigSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return rotation_interface_services.get_portfolio_rotation_config_queryset(
-            self.request.user
-        )
+    def get_queryset(self) -> Any:
+        return rotation_interface_services.get_portfolio_rotation_config_queryset(self.request.user)
 
-    def perform_create(self, serializer: PortfolioRotationConfigSerializer) -> None:
-        account = serializer.validated_data['account']
+    def perform_create(self, serializer: BaseSerializer[Any]) -> None:
+        account = serializer.validated_data["account"]
         if account.user != self.request.user:
             raise PermissionDenied("无权配置他人账户")
         serializer.save()
 
-    @action(detail=True, methods=['post'], url_path='apply-template')
-    def apply_template(self, request, pk=None):
+    @action(detail=True, methods=["post"], url_path="apply-template")
+    def apply_template(
+        self,
+        request: Request,
+        pk: str | None = None,
+    ) -> Response:
         """
         将预设模板的 regime_allocations 应用到此账户配置。
 
@@ -459,10 +522,10 @@ class PortfolioRotationConfigViewSet(viewsets.ModelViewSet):
         Body: {"template_key": "conservative"}
         """
         config = self.get_object()
-        template_key = request.data.get('template_key')
+        template_key = request.data.get("template_key")
 
         if not template_key:
-            return Response({'error': 'template_key 不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "template_key 不能为空"}, status=status.HTTP_400_BAD_REQUEST)
 
         config = rotation_interface_services.apply_template_to_portfolio_config(
             config,
@@ -470,14 +533,17 @@ class PortfolioRotationConfigViewSet(viewsets.ModelViewSet):
         )
         if config is None:
             return Response(
-                {'error': f'模板 "{template_key}" 不存在'},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": f'模板 "{template_key}" 不存在'}, status=status.HTTP_404_NOT_FOUND
             )
 
         return Response(PortfolioRotationConfigSerializer(config).data)
 
-    @action(detail=False, methods=['get'], url_path='by-account/(?P<account_id>[^/.]+)')
-    def by_account(self, request, account_id=None):
+    @action(detail=False, methods=["get"], url_path="by-account/(?P<account_id>[^/.]+)")
+    def by_account(
+        self,
+        request: Request,
+        account_id: str | None = None,
+    ) -> Response:
         """
         按账户 ID 查询该账户的轮动配置（MCP 友好接口）。
 
@@ -489,6 +555,6 @@ class PortfolioRotationConfigViewSet(viewsets.ModelViewSet):
             request.user,
         )
         if config is None:
-            return Response({'detail': '该账户尚未配置轮动'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "该账户尚未配置轮动"}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(PortfolioRotationConfigSerializer(config).data)
