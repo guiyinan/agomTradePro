@@ -215,7 +215,11 @@ class InvalidationCondition:
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
-            "condition_type": self.condition_type.value if isinstance(self.condition_type, InvalidationType) else self.condition_type,
+            "condition_type": (
+                self.condition_type.value
+                if isinstance(self.condition_type, InvalidationType)
+                else self.condition_type
+            ),
             "indicator_code": self.indicator_code,
             "threshold_value": self.threshold_value,
             "cross_direction": self.cross_direction,
@@ -379,10 +383,18 @@ class AlphaTrigger:
             strength=SignalStrength(data["strength"]),
             confidence=data["confidence"],
             created_at=datetime.fromisoformat(data["created_at"]),
-            expires_at=datetime.fromisoformat(data["expires_at"]) if data.get("expires_at") else None,
+            expires_at=(
+                datetime.fromisoformat(data["expires_at"]) if data.get("expires_at") else None
+            ),
             status=TriggerStatus(data.get("status", "active")),
-            triggered_at=datetime.fromisoformat(data["triggered_at"]) if data.get("triggered_at") else None,
-            invalidated_at=datetime.fromisoformat(data["invalidated_at"]) if data.get("invalidated_at") else None,
+            triggered_at=(
+                datetime.fromisoformat(data["triggered_at"]) if data.get("triggered_at") else None
+            ),
+            invalidated_at=(
+                datetime.fromisoformat(data["invalidated_at"])
+                if data.get("invalidated_at")
+                else None
+            ),
             source_signal_id=data.get("source_signal_id"),
             related_regime=data.get("related_regime"),
             related_policy_level=data.get("related_policy_level"),
@@ -502,9 +514,9 @@ class AlphaCandidate:
     time_window_start: date = field(default_factory=date.today)
     time_window_end: date = field(default_factory=lambda: date.today() + timedelta(days=30))
     expected_asymmetry: str = "MED"
-    status: Any = CandidateStatus.CANDIDATE
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
+    status: CandidateStatus | str = CandidateStatus.CANDIDATE
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     audit_trail: list[str] = field(default_factory=list)
     # Backward-compatible fields
     entry_zone: dict[str, Any] | None = None
@@ -528,24 +540,40 @@ class AlphaCandidate:
             self.time_window_end = self.time_window_start + timedelta(days=self.time_horizon)
 
     @property
+    def status_value(self) -> str:
+        """Return the stable string representation of the candidate status."""
+
+        if isinstance(self.status, CandidateStatus):
+            return self.status.value
+        return self.status
+
+    @property
+    def effective_time_horizon(self) -> int:
+        """Return the persisted time horizon, derived from the date window when absent."""
+
+        if self.time_horizon is not None:
+            return self.time_horizon
+        return max((self.time_window_end - self.time_window_start).days, 1)
+
+    @property
     def is_actionable(self) -> bool:
         """是否可行动"""
-        return self.status == CandidateStatus.ACTIONABLE or self.status == "ACTIONABLE"
+        return self.status_value == CandidateStatus.ACTIONABLE.value
 
     @property
     def is_watch(self) -> bool:
         """是否在观察列表"""
-        return self.status == CandidateStatus.WATCH or self.status == "WATCH"
+        return self.status_value == CandidateStatus.WATCH.value
 
     @property
     def is_dropped(self) -> bool:
         """是否已放弃"""
-        return self.status == "DROPPED"
+        return self.status_value == "DROPPED"
 
     @property
     def is_executed(self) -> bool:
         """是否已执行"""
-        return self.status == CandidateStatus.EXECUTED or self.status == "EXECUTED"
+        return self.status_value == CandidateStatus.EXECUTED.value
 
     @property
     def has_decision_request(self) -> bool:
@@ -586,8 +614,12 @@ class AlphaCandidate:
             "time_horizon": self.time_horizon,
             "expected_return": self.expected_return,
             "risk_level": self.risk_level,
-            "status_changed_at": self.status_changed_at.isoformat() if self.status_changed_at else None,
-            "promoted_to_signal_at": self.promoted_to_signal_at.isoformat() if self.promoted_to_signal_at else None,
+            "status_changed_at": (
+                self.status_changed_at.isoformat() if self.status_changed_at else None
+            ),
+            "promoted_to_signal_at": (
+                self.promoted_to_signal_at.isoformat() if self.promoted_to_signal_at else None
+            ),
             # 新增字段
             "last_decision_request_id": self.last_decision_request_id,
             "last_execution_status": self.last_execution_status,

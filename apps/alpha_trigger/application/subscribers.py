@@ -12,7 +12,7 @@ Alpha Trigger Event Subscribers.
 import logging
 from collections.abc import Callable
 
-from apps.events.domain.entities import EventType
+from apps.events.domain.entities import EventHandler, EventType
 from apps.events.domain.registry import get_event_subscriber_registry
 
 from .handlers import AlphaTriggerEventHandler
@@ -79,7 +79,7 @@ def register_subscribers() -> None:
         logger.error(f"Failed to register Alpha Trigger subscribers: {e}")
 
 
-def _create_alpha_trigger_handler():
+def _create_alpha_trigger_handler() -> EventHandler:
     """创建 Alpha 触发器处理器"""
     try:
         trigger_repository = get_alpha_trigger_repository()
@@ -93,7 +93,7 @@ def _create_alpha_trigger_handler():
         raise
 
 
-def _create_candidate_promotion_handler():
+def _create_candidate_promotion_handler() -> EventHandler:
     """创建候选晋升处理器"""
     try:
         # 延迟导入避免循环依赖
@@ -112,7 +112,7 @@ def _create_candidate_promotion_handler():
         raise
 
 
-def get_handler_factories() -> dict[EventType, Callable]:
+def get_handler_factories() -> dict[EventType, Callable[[], EventHandler]]:
     """
     获取处理器工厂
 

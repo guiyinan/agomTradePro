@@ -5,12 +5,38 @@ Alpha Trigger Event Handlers
 """
 
 import logging
+from typing import Protocol
 
 from apps.events.domain.entities import DomainEvent, EventHandler, EventType, create_event
 
-from ..domain.entities import SignalStrength, TriggerType
+from ..domain.entities import AlphaCandidate, CandidateStatus, SignalStrength, TriggerType
+from .use_cases import CreateTriggerRequest, CreateTriggerResponse
 
 logger = logging.getLogger(__name__)
+
+
+class TriggerCreator(Protocol):
+    """Trigger creation boundary required by the event handler."""
+
+    def execute(self, request: CreateTriggerRequest) -> CreateTriggerResponse: ...
+
+
+class EventPublisher(Protocol):
+    """Event publication boundary required by Alpha Trigger handlers."""
+
+    def publish(self, event: DomainEvent) -> None: ...
+
+
+class CandidateRepository(Protocol):
+    """Candidate persistence boundary required by promotion handling."""
+
+    def get_by_trigger_id(self, trigger_id: str) -> AlphaCandidate | None: ...
+
+    def update_status(
+        self,
+        candidate_id: str,
+        status: CandidateStatus,
+    ) -> AlphaCandidate: ...
 
 
 class AlphaTriggerEventHandler(EventHandler):
@@ -28,7 +54,11 @@ class AlphaTriggerEventHandler(EventHandler):
         >>> handler.can_handle(EventType.SIGNAL_CREATED)  # True
     """
 
-    def __init__(self, create_trigger_use_case=None, event_bus=None):
+    def __init__(
+        self,
+        create_trigger_use_case: TriggerCreator | None = None,
+        event_bus: EventPublisher | None = None,
+    ) -> None:
         """
         初始化处理器
 
@@ -63,13 +93,11 @@ class AlphaTriggerEventHandler(EventHandler):
         except Exception as e:
             logger.error(f"Error in AlphaTriggerEventHandler: {e}", exc_info=True)
 
-    def _handle_signal_created(self, event: DomainEvent):
+    def _handle_signal_created(self, event: DomainEvent) -> None:
         """处理信号创建事件，自动创建 Alpha 触发器"""
         if self.create_trigger_use_case is None:
             logger.warning("No create_trigger_use_case configured")
             return
-
-        from ..application.use_cases import CreateTriggerRequest
 
         signal_data = event.payload
 
@@ -96,15 +124,14 @@ class AlphaTriggerEventHandler(EventHandler):
         # 创建触发器
         response = self.create_trigger_use_case.execute(request)
 
-        if response.success:
+        if response.success and response.trigger is not None:
             logger.info(
-                f"Alpha trigger auto-created from signal: "
-                f"{response.trigger.trigger_id}"
+                f"Alpha trigger auto-created from signal: " f"{response.trigger.trigger_id}"
             )
         else:
             logger.warning(f"Failed to create trigger: {response.error}")
 
-    def _handle_signal_approved(self, event: DomainEvent):
+    def _handle_signal_approved(self, event: DomainEvent) -> None:
         """处理信号批准事件"""
         # 批准的信号可以激活对应的触发器
         signal_id = event.get_payload_value("signal_id")
@@ -112,7 +139,7 @@ class AlphaTriggerEventHandler(EventHandler):
 
         # 可以在这里触发触发器激活逻辑
 
-    def _handle_regime_changed(self, event: DomainEvent):
+    def _handle_regime_changed(self, event: DomainEvent) -> None:
         """处理 Regime 变化事件"""
         new_regime = event.get_payload_value("new_regime")
         old_regime = event.get_payload_value("old_regime")
@@ -135,7 +162,7 @@ class AlphaTriggerEventHandler(EventHandler):
             )
             self.event_bus.publish(evaluate_event)
 
-    def _handle_policy_changed(self, event: DomainEvent):
+    def _handle_policy_changed(self, event: DomainEvent) -> None:
         """处理 Policy 变化事件"""
         old_level = event.get_payload_value("old_level")
         new_level = event.get_payload_value("new_level")
@@ -176,7 +203,11 @@ class TriggerInvalidationHandler(EventHandler):
         >>> handler.can_handle(EventType.ALPHA_TRIGGER_ACTIVATED)  # True
     """
 
-    def __init__(self, check_invalidation_use_case, event_bus):
+    def __init__(
+        self,
+        check_invalidation_use_case: object,
+        event_bus: EventPublisher,
+    ) -> None:
         """
         初始化处理器
 
@@ -191,7 +222,7 @@ class TriggerInvalidationHandler(EventHandler):
         """判断是否能处理该类型的事件"""
         # 可以定时触发，或者响应特定事件
         return event_type in [
-            EventType.ALPHA_TRIGGER_TRIGGERED,
+            EventType.ALPHA_TRIGGER_FIRED,
             EventType.REGIME_CHANGED,
             EventType.POLICY_LEVEL_CHANGED,
         ]
@@ -206,7 +237,7 @@ class TriggerInvalidationHandler(EventHandler):
         except Exception as e:
             logger.error(f"Error in TriggerInvalidationHandler: {e}", exc_info=True)
 
-    def _check_all_active_triggers(self, event: DomainEvent):
+    def _check_all_active_triggers(self, event: DomainEvent) -> None:
         """检查所有活跃触发器"""
         # 获取当前环境信息
         event.get_payload_value("new_regime")
@@ -237,7 +268,11 @@ class CandidatePromotionHandler(EventHandler):
         >>> handler.can_handle(EventType.ALPHA_TRIGGER_FIRED)  # True
     """
 
-    def __init__(self, candidate_repository, event_bus):
+    def __init__(
+        self,
+        candidate_repository: CandidateRepository,
+        event_bus: EventPublisher | None,
+    ) -> None:
         """
         初始化处理器
 
@@ -261,11 +296,11 @@ class CandidatePromotionHandler(EventHandler):
 
             # 根据信号强度决定候选状态
             if strength in [SignalStrength.VERY_STRONG.value, SignalStrength.STRONG.value]:
-                new_status = "ACTIONABLE"
+                new_status = CandidateStatus.ACTIONABLE
             elif strength == SignalStrength.MODERATE.value:
-                new_status = "CANDIDATE"
+                new_status = CandidateStatus.CANDIDATE
             else:
-                new_status = "WATCH"
+                new_status = CandidateStatus.WATCH
 
             # 更新候选状态
             candidate = self.candidate_repository.get_by_trigger_id(trigger_id)
@@ -283,14 +318,12 @@ class CandidatePromotionHandler(EventHandler):
                             "candidate_id": updated.candidate_id,
                             "asset_code": updated.asset_code,
                             "old_status": candidate.status,
-                            "new_status": new_status,
+                            "new_status": new_status.value,
                         },
                     )
                     self.event_bus.publish(status_event)
 
-                logger.info(
-                    f"Candidate {updated.candidate_id} promoted to {new_status}"
-                )
+                logger.info(f"Candidate {updated.candidate_id} promoted to {new_status.value}")
 
         except Exception as e:
             logger.error(f"Error in CandidatePromotionHandler: {e}", exc_info=True)

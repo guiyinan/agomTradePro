@@ -1412,3 +1412,20 @@
 - Alpha Trigger View、Serializer 与 UseCase 在增量 regression mypy 下均为零；全仓基线从 `4580 errors / 734 files` 收紧为 `4512 errors / 731 files`，净减少 `68 errors / 3 files`，另带动 Subscriber 与 Dashboard 查询各减少 1 条调用债务。
 - Alpha Trigger API、Domain、事件订阅与决策平台页面回归共 `76 passed`。
 - 隔离提交全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v176`，静态测试函数计数提升至 `7191`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Django system check、Ruff、Black 与 diff check 通过。
+
+## 第一百零五批
+
+- 完成 Alpha Trigger 模块剩余生产代码收口，覆盖 Domain Candidate、事件 Handler/Subscriber、页面 Query Service、App 启动、ORM Model/QuerySet、Repository 与模板过滤器。
+- Candidate 状态从动态 `Any` 收窄为 `CandidateStatus | str` 兼容契约，通过 `status_value` 向持久化和序列化输出稳定字符串；缺失 `time_horizon` 时从日期窗口推导有效天数，默认创建/更新时间改为 UTC-aware。
+- ORM QuerySet 使用具体 Model 泛型，字符串表示、模型校验、Repository constructor、日期参数与统计窗口全部具化；`timezone.timedelta` 改为标准库 `timedelta`。
+- 修复候选更新先覆盖状态再比较、导致 `status_changed_at` 永不更新的问题；更新前保留旧状态，并将可空 entry/exit/risk/time horizon 规范化到 ORM 非空契约。
+- 修复 Trigger/Candidate Domain 已移除 `custom_data/metadata` 后仍动态挂载或读取属性的问题，ORM 兼容字段明确写入空 JSON，不再污染 Domain 实体。
+- 修复证伪 Handler 订阅不存在的 `ALPHA_TRIGGER_TRIGGERED` 枚举，改为系统实际发布的 `ALPHA_TRIGGER_FIRED`；候选晋升向 Repository 传递 `CandidateStatus` 而非裸字符串。
+- 决策拒绝通过候选模型现有终态 `CANCELLED` 持久化，消除访问不存在 `CandidateStatus.REJECTED` 的运行时异常；新增事件、晋升、拒绝、时间窗口和时区默认值回归。
+
+## 第一百零五批验证结果
+
+- `apps/alpha_trigger` 受管生产代码 `34 source files` mypy 全部为零；全仓基线从 `4512 errors / 731 files` 收紧为 `4447 errors / 720 files`，净减少 `65 errors / 11 files`。
+- Alpha Trigger 直接清除剩余 `58` 条债务；完整传播额外清除 Decision Rhythm Feature Provider 的 `4 no-untyped-call` 与 Event Replay 的 `3 no-untyped-call`。
+- Alpha Trigger API、Domain、事件处理、订阅、Repository 与服务回归共 `72 passed`。
+- 隔离提交全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v177`，静态测试函数计数提升至 `7196`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。

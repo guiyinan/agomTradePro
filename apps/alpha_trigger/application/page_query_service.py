@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
-from typing import Any
+from typing import Any, cast
 
 from django.utils import timezone
 
@@ -215,7 +215,8 @@ class AlphaTriggerPageQueryService:
                 get_available_indicators_for_frontend,
             )
 
-            return get_available_indicators_for_frontend(include_stats=False)[:50]
+            indicators = get_available_indicators_for_frontend(include_stats=False)[:50]
+            return cast(list[dict[str, Any]], indicators)
         except Exception:
             return []
 
@@ -288,7 +289,7 @@ class AlphaTriggerPageQueryService:
             avg_holding_days = self._average_holding_days(candidates)
             days_active = (timezone.now() - trigger.created_at).days if trigger.created_at else 0
             trigger_frequency = round(total_candidates / days_active, 2) if days_active > 0 else 0
-            performance_score = 0
+            performance_score = 0.0
             if total_candidates > 0:
                 performance_score = round(
                     conversion_rate * 0.4

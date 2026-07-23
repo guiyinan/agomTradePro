@@ -6,6 +6,8 @@ Alpha 事件触发的数据持久化模型。
 Domain 层实体映射到数据库表结构。
 """
 
+from __future__ import annotations
+
 import logging
 
 from django.core.exceptions import ValidationError
@@ -119,10 +121,7 @@ class AlphaTriggerModel(models.Model):
 
     # 字段定义
     trigger_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="触发器唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="触发器唯一标识符"
     )
 
     trigger_type = models.CharField(
@@ -130,110 +129,48 @@ class AlphaTriggerModel(models.Model):
         choices=TRIGGER_TYPE_CHOICES,
         default=MOMENTUM_SIGNAL,
         db_index=True,
-        help_text="触发器类型"
+        help_text="触发器类型",
     )
 
-    asset_code = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="资产代码"
-    )
+    asset_code = models.CharField(max_length=32, db_index=True, help_text="资产代码")
 
-    asset_class = models.CharField(
-        max_length=64,
-        help_text="资产类别"
-    )
+    asset_class = models.CharField(max_length=64, help_text="资产类别")
 
     direction = models.CharField(
-        max_length=16,
-        choices=DIRECTION_CHOICES,
-        default=LONG,
-        help_text="方向"
+        max_length=16, choices=DIRECTION_CHOICES, default=LONG, help_text="方向"
     )
 
-    trigger_condition = models.JSONField(
-        default=dict,
-        help_text="触发条件"
-    )
+    trigger_condition = models.JSONField(default=dict, help_text="触发条件")
 
-    invalidation_conditions = models.JSONField(
-        default=list,
-        help_text="证伪条件列表"
-    )
+    invalidation_conditions = models.JSONField(default=list, help_text="证伪条件列表")
 
     strength = models.CharField(
-        max_length=16,
-        choices=STRENGTH_CHOICES,
-        default=MODERATE,
-        help_text="信号强度"
+        max_length=16, choices=STRENGTH_CHOICES, default=MODERATE, help_text="信号强度"
     )
 
-    confidence = models.FloatField(
-        default=0.5,
-        help_text="置信度 (0-1)"
-    )
+    confidence = models.FloatField(default=0.5, help_text="置信度 (0-1)")
 
     status = models.CharField(
-        max_length=16,
-        choices=STATUS_CHOICES,
-        default=ACTIVE,
-        db_index=True,
-        help_text="状态"
+        max_length=16, choices=STATUS_CHOICES, default=ACTIVE, db_index=True, help_text="状态"
     )
 
-    thesis = models.TextField(
-        blank=True,
-        help_text="投资论点"
-    )
+    thesis = models.TextField(blank=True, help_text="投资论点")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="创建时间")
 
-    triggered_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="触发时间"
-    )
+    triggered_at = models.DateTimeField(null=True, blank=True, help_text="触发时间")
 
-    invalidated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="证伪时间"
-    )
+    invalidated_at = models.DateTimeField(null=True, blank=True, help_text="证伪时间")
 
-    expires_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="过期时间"
-    )
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True, help_text="过期时间")
 
-    source_signal_id = models.CharField(
-        max_length=64,
-        blank=True,
-        help_text="源信号 ID"
-    )
+    source_signal_id = models.CharField(max_length=64, blank=True, help_text="源信号 ID")
 
-    related_regime = models.CharField(
-        max_length=32,
-        blank=True,
-        help_text="相关 Regime"
-    )
+    related_regime = models.CharField(max_length=32, blank=True, help_text="相关 Regime")
 
-    related_policy_level = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text="相关 Policy 档位"
-    )
+    related_policy_level = models.IntegerField(null=True, blank=True, help_text="相关 Policy 档位")
 
-    custom_data = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="自定义数据"
-    )
+    custom_data = models.JSONField(default=dict, blank=True, help_text="自定义数据")
 
     class Meta:
         app_label = "alpha_trigger"
@@ -248,10 +185,10 @@ class AlphaTriggerModel(models.Model):
             models.Index(fields=["expires_at"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"AlphaTrigger({self.trigger_id}, {self.asset_code}, {self.status})"
 
-    def clean(self):
+    def clean(self) -> None:
         """验证模型"""
         super().clean()
 
@@ -272,8 +209,7 @@ class AlphaTriggerModel(models.Model):
         """
         # 转换证伪条件
         invalidation_conditions = [
-            InvalidationCondition.from_dict(c)
-            for c in self.invalidation_conditions
+            InvalidationCondition.from_dict(c) for c in self.invalidation_conditions
         ]
 
         trigger = AlphaTrigger(
@@ -296,11 +232,10 @@ class AlphaTriggerModel(models.Model):
             related_policy_level=self.related_policy_level,
             thesis=self.thesis,
         )
-        trigger.custom_data = self.custom_data or {}
         return trigger
 
     @classmethod
-    def from_domain(cls, trigger: AlphaTrigger) -> "AlphaTriggerModel":
+    def from_domain(cls, trigger: AlphaTrigger) -> AlphaTriggerModel:
         """
         从 Domain 层实体创建
 
@@ -311,10 +246,7 @@ class AlphaTriggerModel(models.Model):
             AlphaTriggerModel 实例
         """
         # 转换证伪条件
-        invalidation_conditions = [
-            c.to_dict()
-            for c in trigger.invalidation_conditions
-        ]
+        invalidation_conditions = [c.to_dict() for c in trigger.invalidation_conditions]
 
         return cls(
             trigger_id=trigger.trigger_id,
@@ -335,7 +267,7 @@ class AlphaTriggerModel(models.Model):
             source_signal_id=trigger.source_signal_id or "",
             related_regime=trigger.related_regime or "",
             related_policy_level=trigger.related_policy_level,
-            custom_data=getattr(trigger, "custom_data", {}) or {},
+            custom_data={},
         )
 
     @staticmethod
@@ -460,133 +392,66 @@ class AlphaCandidateModel(models.Model):
 
     # 字段定义
     candidate_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="候选唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="候选唯一标识符"
     )
 
-    trigger_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="触发器 ID"
-    )
+    trigger_id = models.CharField(max_length=64, db_index=True, help_text="触发器 ID")
 
-    asset_code = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="资产代码"
-    )
+    asset_code = models.CharField(max_length=32, db_index=True, help_text="资产代码")
 
-    asset_class = models.CharField(
-        max_length=64,
-        help_text="资产类别"
-    )
+    asset_class = models.CharField(max_length=64, help_text="资产类别")
 
     direction = models.CharField(
-        max_length=16,
-        choices=DIRECTION_CHOICES,
-        default=LONG,
-        help_text="方向"
+        max_length=16, choices=DIRECTION_CHOICES, default=LONG, help_text="方向"
     )
 
     strength = models.CharField(
-        max_length=16,
-        choices=STRENGTH_CHOICES,
-        default=MODERATE,
-        help_text="信号强度"
+        max_length=16, choices=STRENGTH_CHOICES, default=MODERATE, help_text="信号强度"
     )
 
-    confidence = models.FloatField(
-        default=0.5,
-        help_text="置信度 (0-1)"
-    )
+    confidence = models.FloatField(default=0.5, help_text="置信度 (0-1)")
 
     status = models.CharField(
         max_length=16,
         choices=CANDIDATE_STATUS_CHOICES,
         default=WATCH,
         db_index=True,
-        help_text="状态"
+        help_text="状态",
     )
 
-    thesis = models.TextField(
-        blank=True,
-        help_text="投资论点"
-    )
+    thesis = models.TextField(blank=True, help_text="投资论点")
 
-    entry_zone = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="入场区域"
-    )
+    entry_zone = models.JSONField(default=dict, blank=True, help_text="入场区域")
 
-    exit_zone = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="出场区域"
-    )
+    exit_zone = models.JSONField(default=dict, blank=True, help_text="出场区域")
 
-    time_horizon = models.IntegerField(
-        default=90,
-        help_text="时间窗口（天）"
-    )
+    time_horizon = models.IntegerField(default=90, help_text="时间窗口（天）")
 
-    expected_return = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="预期收益率"
-    )
+    expected_return = models.FloatField(null=True, blank=True, help_text="预期收益率")
 
     risk_level = models.CharField(
-        max_length=16,
-        choices=RISK_LEVEL_CHOICES,
-        default=MEDIUM,
-        help_text="风险等级"
+        max_length=16, choices=RISK_LEVEL_CHOICES, default=MEDIUM, help_text="风险等级"
     )
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
-    status_changed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="状态变更时间"
-    )
+    status_changed_at = models.DateTimeField(null=True, blank=True, help_text="状态变更时间")
 
     promoted_to_signal_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="提升为信号的时间"
+        null=True, blank=True, help_text="提升为信号的时间"
     )
 
-    custom_data = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="自定义数据"
-    )
+    custom_data = models.JSONField(default=dict, blank=True, help_text="自定义数据")
 
     # 新增字段：首页主流程闭环改造
     last_decision_request_id = models.CharField(
-        max_length=64,
-        blank=True,
-        db_index=True,
-        help_text="最后决策请求 ID"
+        max_length=64, blank=True, db_index=True, help_text="最后决策请求 ID"
     )
 
     last_execution_status = models.CharField(
-        max_length=16,
-        blank=True,
-        choices=EXECUTION_STATUS_CHOICES,
-        help_text="最后执行状态"
+        max_length=16, blank=True, choices=EXECUTION_STATUS_CHOICES, help_text="最后执行状态"
     )
 
     class Meta:
@@ -602,10 +467,10 @@ class AlphaCandidateModel(models.Model):
             models.Index(fields=["last_decision_request_id"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"AlphaCandidate({self.candidate_id}, {self.asset_code}, {self.status})"
 
-    def clean(self):
+    def clean(self) -> None:
         """验证模型"""
         super().clean()
 
@@ -654,7 +519,7 @@ class AlphaCandidateModel(models.Model):
         )
 
     @classmethod
-    def from_domain(cls, candidate: AlphaCandidate) -> "AlphaCandidateModel":
+    def from_domain(cls, candidate: AlphaCandidate) -> AlphaCandidateModel:
         """
         从 Domain 层实体创建
 
@@ -672,11 +537,11 @@ class AlphaCandidateModel(models.Model):
             direction=candidate.direction,
             strength=str(candidate.strength.value).upper(),
             confidence=candidate.confidence,
-            status=candidate.status.value,
+            status=candidate.status_value,
             thesis=candidate.thesis,
             entry_zone=candidate.entry_zone or {},
             exit_zone=candidate.exit_zone or {},
-            time_horizon=candidate.time_horizon,
+            time_horizon=candidate.effective_time_horizon,
             expected_return=candidate.expected_return,
             risk_level=candidate.risk_level or cls.MEDIUM,
             created_at=candidate.created_at,
@@ -690,64 +555,64 @@ class AlphaCandidateModel(models.Model):
         )
 
 
-class AlphaTriggerQuerySet(models.QuerySet):
+class AlphaTriggerQuerySet(models.QuerySet[AlphaTriggerModel]):
     """AlphaTrigger 查询集扩展"""
 
-    def active(self):
+    def active(self) -> AlphaTriggerQuerySet:
         """获取活跃的触发器"""
         return self.filter(status=AlphaTriggerModel.ACTIVE)
 
-    def triggered(self):
+    def triggered(self) -> AlphaTriggerQuerySet:
         """获取已触发的触发器"""
         return self.filter(status=AlphaTriggerModel.TRIGGERED)
 
-    def by_asset(self, asset_code: str):
+    def by_asset(self, asset_code: str) -> AlphaTriggerQuerySet:
         """按资产过滤"""
         return self.filter(asset_code=asset_code)
 
-    def by_type(self, trigger_type: TriggerType):
+    def by_type(self, trigger_type: TriggerType) -> AlphaTriggerQuerySet:
         """按类型过滤"""
         return self.filter(trigger_type=str(trigger_type.value).upper())
 
-    def by_regime(self, regime: str):
+    def by_regime(self, regime: str) -> AlphaTriggerQuerySet:
         """按相关 Regime 过滤"""
         return self.filter(related_regime=regime)
 
-    def not_expired(self):
+    def not_expired(self) -> AlphaTriggerQuerySet:
         """获取未过期的触发器"""
         return self.filter(
             models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=timezone.now())
         )
 
-    def need_invalidation_check(self):
+    def need_invalidation_check(self) -> AlphaTriggerQuerySet:
         """获取需要检查证伪的触发器"""
         return self.active().not_expired()
 
 
-class AlphaCandidateQuerySet(models.QuerySet):
+class AlphaCandidateQuerySet(models.QuerySet[AlphaCandidateModel]):
     """AlphaCandidate 查询集扩展"""
 
-    def actionable(self):
+    def actionable(self) -> AlphaCandidateQuerySet:
         """获取可操作的候选"""
         return self.filter(status=AlphaCandidateModel.ACTIONABLE)
 
-    def watch(self):
+    def watch(self) -> AlphaCandidateQuerySet:
         """获取观察中的候选"""
         return self.filter(status=AlphaCandidateModel.WATCH)
 
-    def candidate(self):
+    def candidate(self) -> AlphaCandidateQuerySet:
         """获取候选中的"""
         return self.filter(status=AlphaCandidateModel.CANDIDATE)
 
-    def by_asset(self, asset_code: str):
+    def by_asset(self, asset_code: str) -> AlphaCandidateQuerySet:
         """按资产过滤"""
         return self.filter(asset_code=asset_code)
 
-    def by_trigger(self, trigger_id: str):
+    def by_trigger(self, trigger_id: str) -> AlphaCandidateQuerySet:
         """按触发器过滤"""
         return self.filter(trigger_id=trigger_id)
 
-    def by_strength(self, min_strength: SignalStrength):
+    def by_strength(self, min_strength: SignalStrength) -> AlphaCandidateQuerySet:
         """按最小强度过滤"""
         strength_order = [
             AlphaCandidateModel.VERY_WEAK,

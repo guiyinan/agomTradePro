@@ -8,7 +8,7 @@ Alpha 事件触发的数据仓储实现。
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -45,7 +45,7 @@ class AlphaTriggerRepository:
         >>> trigger = repo.get_by_id("trigger_001")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化仓储"""
         self.model = AlphaTriggerModel
 
@@ -178,9 +178,9 @@ class AlphaTriggerRepository:
         Returns:
             AlphaTrigger 实体列表
         """
-        models = self.model.objects.filter(
-            trigger_type=str(trigger_type.value).upper()
-        ).order_by("-created_at")
+        models = self.model.objects.filter(trigger_type=str(trigger_type.value).upper()).order_by(
+            "-created_at"
+        )
 
         return [m.to_domain() for m in models]
 
@@ -213,8 +213,7 @@ class AlphaTriggerRepository:
         model.save()
 
         logger.info(
-            f"Alpha trigger saved: {model.trigger_id} "
-            f"({model.asset_code}, {model.status})"
+            f"Alpha trigger saved: {model.trigger_id} " f"({model.asset_code}, {model.status})"
         )
 
         return model.to_domain()
@@ -291,7 +290,7 @@ class AlphaTriggerRepository:
         Returns:
             统计信息字典
         """
-        since = timezone.now() - timezone.timedelta(days=days)
+        since = timezone.now() - timedelta(days=days)
         queryset = self.model.objects.filter(created_at__gte=since)
 
         total = queryset.count()
@@ -354,7 +353,7 @@ class AlphaCandidateRepository:
         >>> candidate = repo.get_by_id("candidate_001")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化仓储"""
         self.model = AlphaCandidateModel
 
@@ -454,10 +453,7 @@ class AlphaCandidateRepository:
         Returns:
             AlphaCandidate 实体列表
         """
-        models = (
-            self.model.objects.filter(status=self.model.WATCH)
-            .order_by("-created_at")
-        )
+        models = self.model.objects.filter(status=self.model.WATCH).order_by("-created_at")
 
         return [m.to_domain() for m in models]
 
@@ -482,7 +478,7 @@ class AlphaCandidateRepository:
         self,
         trigger_id: str,
         limit: int | None = None,
-        since=None,
+        since: datetime | None = None,
     ) -> list[Any]:
         """获取指定触发器产生的候选模型。"""
 
@@ -492,7 +488,7 @@ class AlphaCandidateRepository:
         queryset = queryset.order_by("-created_at")
         return list(queryset if limit is None else queryset[:limit])
 
-    def list_recent_models(self, since) -> list[Any]:
+    def list_recent_models(self, since: datetime) -> list[Any]:
         """获取指定时间之后的候选模型。"""
 
         return list(
@@ -525,16 +521,17 @@ class AlphaCandidateRepository:
         if existing:
             # 更新
             model = existing
-            model.status = candidate.status.value
-            model.entry_zone = candidate.entry_zone
-            model.exit_zone = candidate.exit_zone
-            model.time_horizon = candidate.time_horizon
+            previous_status = model.status
+            model.status = candidate.status_value
+            model.entry_zone = candidate.entry_zone or {}
+            model.exit_zone = candidate.exit_zone or {}
+            model.time_horizon = candidate.effective_time_horizon
             model.expected_return = candidate.expected_return
-            model.risk_level = candidate.risk_level
-            model.custom_data = getattr(candidate, "metadata", {}) or {}
+            model.risk_level = candidate.risk_level or self.model.MEDIUM
+            model.custom_data = {}
 
             # 如果状态变更，更新状态变更时间
-            if model.status != candidate.status.value:
+            if previous_status != candidate.status_value:
                 model.status_changed_at = timezone.now()
 
             # 如果提升为信号，记录时间
@@ -550,8 +547,7 @@ class AlphaCandidateRepository:
         model.save()
 
         logger.info(
-            f"Alpha candidate saved: {model.candidate_id} "
-            f"({model.asset_code}, {model.status})"
+            f"Alpha candidate saved: {model.candidate_id} " f"({model.asset_code}, {model.status})"
         )
 
         return model.to_domain()
@@ -613,8 +609,11 @@ class AlphaCandidateRepository:
     def update_status_to_rejected(self, candidate_id: str) -> bool:
         """更新候选状态为已拒绝。"""
         try:
-            self.update_status(candidate_id, CandidateStatus.REJECTED)
-            logger.info(f"AlphaCandidate.status updated to REJECTED: {candidate_id}")
+            self.update_status(candidate_id, CandidateStatus.CANCELLED)
+            logger.info(
+                "AlphaCandidate.status updated to CANCELLED after rejection: %s",
+                candidate_id,
+            )
             return True
         except ValueError:
             logger.warning(f"AlphaCandidate not found: {candidate_id}")
@@ -674,7 +673,7 @@ class AlphaCandidateRepository:
         Returns:
             统计信息字典
         """
-        since = timezone.now() - timezone.timedelta(days=days)
+        since = timezone.now() - timedelta(days=days)
         queryset = self.model.objects.filter(created_at__gte=since)
 
         total = queryset.count()
@@ -760,6 +759,7 @@ class AlphaCandidateRepository:
 
 
 # 便捷函数
+
 
 def get_trigger_repository() -> AlphaTriggerRepository:
     """获取触发器仓储实例"""

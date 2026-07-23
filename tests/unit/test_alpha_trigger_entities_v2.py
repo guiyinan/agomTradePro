@@ -106,7 +106,7 @@ class TestAlphaTrigger:
 
         # 模拟状态变更
         base_trigger_dict = base_trigger.__dict__.copy()
-        base_trigger_dict['status'] = TriggerStatus.TRIGGERED
+        base_trigger_dict["status"] = TriggerStatus.TRIGGERED
         assert TriggerStatus.TRIGGERED == TriggerStatus.TRIGGERED
 
     def test_trigger_expiration(self, base_trigger):
@@ -239,6 +239,43 @@ class TestAlphaCandidate:
 
         # 验证状态为 CANCELLED（没有 is_cancelled 属性）
         assert cancelled_candidate.status == CandidateStatus.CANCELLED.value
+
+    def test_candidate_derives_effective_time_horizon_from_window(self):
+        """Persist a concrete horizon when legacy candidates only carry date bounds."""
+
+        now = datetime.now(ZoneInfo("Asia/Shanghai"))
+        candidate = AlphaCandidate(
+            candidate_id="test_candidate_horizon",
+            trigger_id="test_trigger_001",
+            asset_code="000001.SH",
+            asset_class="a_share金融",
+            direction="LONG",
+            strength=SignalStrength.MODERATE,
+            confidence=0.6,
+            thesis="窗口兼容",
+            time_window_start=now,
+            time_window_end=now + timedelta(days=45),
+        )
+
+        assert candidate.time_horizon is None
+        assert candidate.effective_time_horizon == 45
+
+    def test_candidate_default_timestamps_are_timezone_aware(self):
+        """Domain defaults must remain safe under Django USE_TZ."""
+
+        candidate = AlphaCandidate(
+            candidate_id="test_candidate_timezone",
+            trigger_id="test_trigger_001",
+            asset_code="000001.SH",
+            asset_class="a_share金融",
+            direction="LONG",
+            strength=SignalStrength.MODERATE,
+            confidence=0.6,
+            thesis="时区默认值",
+        )
+
+        assert candidate.created_at.tzinfo is not None
+        assert candidate.updated_at.tzinfo is not None
 
 
 class TestEnums:

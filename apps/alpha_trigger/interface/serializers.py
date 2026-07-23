@@ -335,7 +335,7 @@ class AlphaCandidateSerializer(serializers.Serializer[Any]):
             "direction": instance.direction,
             "strength": instance.strength.value,
             "confidence": instance.confidence,
-            "status": instance.status.value,
+            "status": instance.status_value,
             "thesis": instance.thesis,
             "entry_zone": instance.entry_zone,
             "exit_zone": instance.exit_zone,

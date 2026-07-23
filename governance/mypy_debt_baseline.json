@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4512,
-    "files_with_errors": 731
+    "errors": 4447,
+    "files_with_errors": 720
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -543,49 +543,6 @@
       "no-untyped-call": 1,
       "no-untyped-def": 8,
       "type-arg": 7
-    },
-    "apps/alpha_trigger/application/handlers.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 8
-    },
-    "apps/alpha_trigger/application/page_query_service.py": {
-      "assignment": 1
-    },
-    "apps/alpha_trigger/application/repository_provider.py": {
-      "no-untyped-call": 2
-    },
-    "apps/alpha_trigger/application/subscribers.py": {
-      "no-untyped-call": 2,
-      "no-untyped-def": 2,
-      "type-arg": 1
-    },
-    "apps/alpha_trigger/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/alpha_trigger/checks.py": {
-      "no-untyped-call": 1
-    },
-    "apps/alpha_trigger/domain/entities.py": {
-      "no-any-return": 4
-    },
-    "apps/alpha_trigger/infrastructure/models.py": {
-      "attr-defined": 1,
-      "misc": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 17,
-      "type-arg": 2
-    },
-    "apps/alpha_trigger/infrastructure/repositories.py": {
-      "assignment": 2,
-      "attr-defined": 3,
-      "no-untyped-call": 2,
-      "no-untyped-def": 4
-    },
-    "apps/alpha_trigger/interface/templatetags/alpha_trigger_filters.py": {
-      "no-untyped-def": 1
-    },
-    "apps/alpha_trigger/templatetags/alpha_trigger_filters.py": {
-      "no-untyped-def": 1
     },
     "apps/asset_analysis/application/asset_name_service.py": {
       "attr-defined": 5
@@ -1346,7 +1303,7 @@
     },
     "apps/decision_rhythm/infrastructure/feature_providers.py": {
       "arg-type": 2,
-      "no-untyped-call": 18,
+      "no-untyped-call": 14,
       "no-untyped-def": 15,
       "override": 1,
       "union-attr": 1
@@ -2878,7 +2835,7 @@
       "no-any-return": 1
     },
     "core/integration/event_replay.py": {
-      "no-untyped-call": 6
+      "no-untyped-call": 3
     },
     "core/log_buffer.py": {
       "type-arg": 1,

@@ -1,6 +1,7 @@
 """Template filters for Alpha Trigger module."""
 
 import json
+from typing import Any
 
 from django import template
 
@@ -8,7 +9,7 @@ register = template.Library()
 
 
 @register.filter
-def pprint_json(value):
+def pprint_json(value: Any) -> str:
     """Pretty print JSON value."""
     if isinstance(value, str):
         try:

@@ -12,7 +12,7 @@ class AlphaTriggerConfig(AppConfig):
     name = "apps.alpha_trigger"
     verbose_name = "Alpha 事件触发"
 
-    def ready(self):
+    def ready(self) -> None:
         """应用启动时初始化"""
         from core.integration.alpha_candidate_registry import (
             register_alpha_candidate_repository_factory,
