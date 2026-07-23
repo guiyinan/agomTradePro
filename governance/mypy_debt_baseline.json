@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4447,
-    "files_with_errors": 720
+    "errors": 4366,
+    "files_with_errors": 714
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2240,27 +2240,6 @@
     "apps/research/composition.py": {
       "arg-type": 3
     },
-    "apps/rotation/application/dtos.py": {
-      "type-arg": 8
-    },
-    "apps/rotation/application/integration_service.py": {
-      "attr-defined": 1
-    },
-    "apps/rotation/application/interface_services.py": {
-      "attr-defined": 2,
-      "no-untyped-call": 4,
-      "no-untyped-def": 13,
-      "type-arg": 10
-    },
-    "apps/rotation/application/repository_provider.py": {
-      "no-untyped-def": 1,
-      "type-arg": 1
-    },
-    "apps/rotation/application/use_cases.py": {
-      "arg-type": 1,
-      "attr-defined": 1,
-      "no-untyped-def": 3
-    },
     "apps/rotation/apps.py": {
       "no-untyped-def": 1
     },
@@ -2283,12 +2262,6 @@
     },
     "apps/rotation/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/rotation/interface/views.py": {
-      "no-untyped-call": 5,
-      "no-untyped-def": 25,
-      "override": 1,
-      "type-arg": 5
     },
     "apps/rotation/management/commands/init_rotation.py": {
       "assignment": 1,

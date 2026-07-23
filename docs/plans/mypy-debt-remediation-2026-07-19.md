@@ -1429,3 +1429,20 @@
 - Alpha Trigger 直接清除剩余 `58` 条债务；完整传播额外清除 Decision Rhythm Feature Provider 的 `4 no-untyped-call` 与 Event Replay 的 `3 no-untyped-call`。
 - Alpha Trigger API、Domain、事件处理、订阅、Repository 与服务回归共 `72 passed`。
 - 隔离提交全仓扫描 `1854 files / 0 boundary / 0 governance violations`；governance baseline 升级为 `2026-07-24.v177`，静态测试函数计数提升至 `7196`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百零六批
+
+- 按“资产配置决策影响面 × 债务集中度”启动 Rotation 纵向收口，首批覆盖 DRF/Django View、Application Interface Service、页面 UseCase、DTO 与 Repository Provider，直接承载资产池、轮动配置、信号、推荐、比较、相关性、模板和账户级配置。
+- DRF ViewSet、action 与 HTML page view 全部具化请求、响应、路由参数和 serializer/queryset 边界；动态 ORM 对象仅保留在 Interface/Repository 交界，不向页面 UseCase 传播。
+- Application 为页面查询建立 Rotation View Repository/Integration Protocol，并对动量分数、轮动信号和页面读模型使用最小结构投影；三个页面 UseCase constructor 不再依赖无类型 concrete service。
+- DTO 的资产、配置、信号、分类和排名容器全部具化；批量信号生成内部使用 TypedDict 保证计数与 signals 列表可安全更新，同时保留跨模块既有 `dict[str, Any]` Callable 返回契约。
+- Repository Provider 的 concrete 类型改为显式重导出，保留 `RotationIntegrationService` 既有 patch/import 表面，不因类型收口破坏测试和外部调用。
+- Correlation API 与 Compare API 对齐，严格校验非空字符串资产列表、最多 20 项及 `1..500` 天窗口；Generate Signal API 将 ISO 日期解析前置，非法类型或日期稳定返回 400，不再把字符串传入 date 契约。
+- 新增相关性非法参数与无效信号日期两组 API 回归。
+
+## 第一百零六批验证结果
+
+- Rotation 五个目标文件在 governed/完整传播 mypy 下为零；全仓基线从 `4447 errors / 720 files` 收紧为 `4366 errors / 714 files`，净减少 `81 errors / 6 files`。
+- 直接清除 DTO、Interface Service、Provider、UseCase 与 View 的 `80` 条债务；完整传播额外清除 Application Integration Service 的 `1 attr-defined`。
+- Rotation API 回归 `27 passed`。
+- governance baseline 升级为 `2026-07-24.v178`，静态测试函数计数提升至 `7198`。
