@@ -45,7 +45,7 @@ def get_rotation_integration_service() -> RotationIntegrationService:
     return RotationIntegrationService()
 
 
-def generate_rotation_signals(signal_date: date) -> RotationSignalBatchResult:
+def generate_rotation_signals(signal_date: date) -> dict[str, Any]:
     """Generate rotation signals through the application-facing provider."""
 
     service = get_rotation_integration_service()
@@ -76,7 +76,7 @@ def generate_rotation_signals(signal_date: date) -> RotationSignalBatchResult:
                 }
             )
 
-    return results
+    return dict(results)
 
 
 def resolve_rotation_asset_names(codes: list[str]) -> dict[str, str]:
