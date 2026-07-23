@@ -7,7 +7,7 @@ No business logic here — only field-level validation.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from rest_framework import serializers
 
@@ -23,10 +23,10 @@ def _sanitize_provider_config_value(value: Any) -> Any:
         }
     if isinstance(value, list):
         return [_sanitize_provider_config_value(item) for item in value]
-    return value
+    return cast(object, value)
 
 
-class ProviderConfigSerializer(serializers.Serializer):
+class ProviderConfigSerializer(serializers.Serializer[Any]):
     """Input / output serializer for a provider configuration."""
 
     SOURCE_TYPE_CHOICES = [
@@ -64,7 +64,7 @@ class ProviderConfigSerializer(serializers.Serializer):
     description = serializers.CharField(allow_blank=True, default="")
 
 
-class ProviderConfigListSerializer(serializers.Serializer):
+class ProviderConfigListSerializer(serializers.Serializer[Any]):
     """Read serializer that masks sensitive credential fields."""
 
     id = serializers.IntegerField(read_only=True)
@@ -80,17 +80,18 @@ class ProviderConfigListSerializer(serializers.Serializer):
     extra_config = serializers.SerializerMethodField()
     description = serializers.CharField()
 
-    def get_has_api_key(self, obj: dict) -> bool:  # type: ignore[override]
+    def get_has_api_key(self, obj: dict[str, Any]) -> bool:
         return bool(obj.get("api_key"))
 
-    def get_has_api_secret(self, obj: dict) -> bool:  # type: ignore[override]
+    def get_has_api_secret(self, obj: dict[str, Any]) -> bool:
         return bool(obj.get("api_secret"))
 
-    def get_extra_config(self, obj: dict) -> dict:  # type: ignore[override]
-        return _sanitize_provider_config_value(obj.get("extra_config") or {})
+    def get_extra_config(self, obj: dict[str, Any]) -> dict[str, Any]:
+        sanitized = _sanitize_provider_config_value(obj.get("extra_config") or {})
+        return cast(dict[str, Any], sanitized)
 
 
-class DataProviderSettingsSerializer(serializers.Serializer):
+class DataProviderSettingsSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for global provider behaviour settings."""
 
     DEFAULT_SOURCE_CHOICES = ["akshare", "tushare", "failover"]
@@ -101,7 +102,7 @@ class DataProviderSettingsSerializer(serializers.Serializer):
     description = serializers.CharField(allow_blank=True, default="")
 
 
-class ProductionCoverageUniverseConfigSerializer(serializers.Serializer):
+class ProductionCoverageUniverseConfigSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for production coverage universe settings."""
 
     EXCHANGE_CHOICES = ["SSE", "SZSE", "BSE"]
@@ -132,7 +133,7 @@ class ProductionCoverageUniverseConfigSerializer(serializers.Serializer):
         return normalized
 
 
-class ConnectionTestResultSerializer(serializers.Serializer):
+class ConnectionTestResultSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for connection test results."""
 
     success = serializers.BooleanField()
@@ -142,7 +143,7 @@ class ConnectionTestResultSerializer(serializers.Serializer):
     tested_at = serializers.DateTimeField()
 
 
-class ProviderHealthSnapshotSerializer(serializers.Serializer):
+class ProviderHealthSnapshotSerializer(serializers.Serializer[Any]):
     """Serializer for live provider health snapshots."""
 
     provider_name = serializers.CharField()
@@ -153,7 +154,7 @@ class ProviderHealthSnapshotSerializer(serializers.Serializer):
     avg_latency_ms = serializers.FloatField(allow_null=True)
 
 
-class IndicatorCatalogSerializer(serializers.Serializer):
+class IndicatorCatalogSerializer(serializers.Serializer[Any]):
     """Serializer for macro indicator catalog CRUD."""
 
     PERIOD_TYPE_CHOICES = ["D", "W", "M", "Q", "H", "Y"]
@@ -169,7 +170,7 @@ class IndicatorCatalogSerializer(serializers.Serializer):
     default_rule = serializers.DictField(read_only=True)
 
 
-class PublisherCatalogSerializer(serializers.Serializer):
+class PublisherCatalogSerializer(serializers.Serializer[Any]):
     """Serializer for provenance publisher catalog CRUD."""
 
     PUBLISHER_CLASS_CHOICES = [
@@ -196,7 +197,7 @@ class PublisherCatalogSerializer(serializers.Serializer):
     description = serializers.CharField(allow_blank=True, default="")
 
 
-class IndicatorUnitRuleSerializer(serializers.Serializer):
+class IndicatorUnitRuleSerializer(serializers.Serializer[Any]):
     """Serializer for indicator unit-rule CRUD."""
 
     id = serializers.IntegerField(read_only=True)
@@ -212,26 +213,26 @@ class IndicatorUnitRuleSerializer(serializers.Serializer):
     description = serializers.CharField(max_length=200, allow_blank=True, default="")
 
 
-class SyncMacroRequestSerializer(serializers.Serializer):
+class SyncMacroRequestSerializer(serializers.Serializer[dict[str, Any]]):
     provider_id = serializers.IntegerField()
     indicator_code = serializers.CharField(max_length=50)
     start = serializers.DateField()
     end = serializers.DateField()
 
 
-class SyncPriceRequestSerializer(serializers.Serializer):
+class SyncPriceRequestSerializer(serializers.Serializer[dict[str, Any]]):
     provider_id = serializers.IntegerField()
     asset_code = serializers.CharField(max_length=20)
     start = serializers.DateField()
     end = serializers.DateField()
 
 
-class SyncQuoteRequestSerializer(serializers.Serializer):
+class SyncQuoteRequestSerializer(serializers.Serializer[dict[str, Any]]):
     provider_id = serializers.IntegerField()
     asset_codes = serializers.ListField(child=serializers.CharField(max_length=20))
 
 
-class DecisionReliabilityRepairRequestSerializer(serializers.Serializer):
+class DecisionReliabilityRepairRequestSerializer(serializers.Serializer[dict[str, Any]]):
     target_date = serializers.DateField(required=False, allow_null=True, default=None)
     portfolio_id = serializers.IntegerField(required=False, allow_null=True, default=None)
     asset_codes = serializers.ListField(
@@ -248,27 +249,27 @@ class DecisionReliabilityRepairRequestSerializer(serializers.Serializer):
     quote_max_age_hours = serializers.FloatField(required=False, min_value=0.1, default=4.0)
 
 
-class SyncFundNavRequestSerializer(serializers.Serializer):
+class SyncFundNavRequestSerializer(serializers.Serializer[dict[str, Any]]):
     provider_id = serializers.IntegerField()
     fund_code = serializers.CharField(max_length=20)
     start = serializers.DateField()
     end = serializers.DateField()
 
 
-class SyncFinancialRequestSerializer(serializers.Serializer):
+class SyncFinancialRequestSerializer(serializers.Serializer[dict[str, Any]]):
     provider_id = serializers.IntegerField()
     asset_code = serializers.CharField(max_length=20)
     periods = serializers.IntegerField(min_value=1, default=8)
 
 
-class SyncValuationRequestSerializer(serializers.Serializer):
+class SyncValuationRequestSerializer(serializers.Serializer[dict[str, Any]]):
     provider_id = serializers.IntegerField()
     asset_code = serializers.CharField(max_length=20)
     start = serializers.DateField()
     end = serializers.DateField()
 
 
-class SyncSectorMembershipRequestSerializer(serializers.Serializer):
+class SyncSectorMembershipRequestSerializer(serializers.Serializer[dict[str, Any]]):
     provider_id = serializers.IntegerField()
     sector_code = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
     sector_name = serializers.CharField(
@@ -276,25 +277,25 @@ class SyncSectorMembershipRequestSerializer(serializers.Serializer):
     )
     effective_date = serializers.DateField(required=False, allow_null=True, default=None)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if not attrs.get("sector_code") and not attrs.get("sector_name"):
             raise serializers.ValidationError("Either sector_code or sector_name is required.")
         return attrs
 
 
-class SyncNewsRequestSerializer(serializers.Serializer):
+class SyncNewsRequestSerializer(serializers.Serializer[dict[str, Any]]):
     provider_id = serializers.IntegerField()
     asset_code = serializers.CharField(max_length=20)
     limit = serializers.IntegerField(min_value=1, max_value=200, default=20)
 
 
-class SyncCapitalFlowRequestSerializer(serializers.Serializer):
+class SyncCapitalFlowRequestSerializer(serializers.Serializer[dict[str, Any]]):
     provider_id = serializers.IntegerField()
     asset_code = serializers.CharField(max_length=20)
     period = serializers.CharField(max_length=10, default="5d")
 
 
-class CapitalFlowQuerySerializer(serializers.Serializer):
+class CapitalFlowQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """Validate the canonical persisted capital-flow query contract."""
 
     asset_code = serializers.CharField(
@@ -311,7 +312,7 @@ class CapitalFlowQuerySerializer(serializers.Serializer):
         default=100,
     )
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         """Reject legacy or unknown query parameters."""
 
         unknown_fields = sorted(set(data) - set(self.fields))
@@ -319,9 +320,9 @@ class CapitalFlowQuerySerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"non_field_errors": [f"Unknown query parameters: {', '.join(unknown_fields)}"]}
             )
-        return super().to_internal_value(data)
+        return cast(dict[str, Any], super().to_internal_value(data))
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Require an ordered optional date range."""
 
         start = attrs.get("start")
@@ -331,7 +332,7 @@ class CapitalFlowQuerySerializer(serializers.Serializer):
         return attrs
 
 
-class MarketThermometerConfigSerializer(serializers.Serializer):
+class MarketThermometerConfigSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for market thermometer config payloads."""
 
     short_window = serializers.IntegerField(required=False, min_value=1)
@@ -351,7 +352,7 @@ class MarketThermometerConfigSerializer(serializers.Serializer):
     )
 
 
-class MarketThermometerUserOverrideSerializer(serializers.Serializer):
+class MarketThermometerUserOverrideSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for per-user market thermometer threshold overrides."""
 
     warm_threshold = serializers.FloatField(required=False, min_value=0.0, max_value=100.0)
@@ -360,7 +361,7 @@ class MarketThermometerUserOverrideSerializer(serializers.Serializer):
     extreme_threshold = serializers.FloatField(required=False, min_value=0.0, max_value=100.0)
 
 
-class MarketThermometerImportSerializer(serializers.Serializer):
+class MarketThermometerImportSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for investor-account CSV import."""
 
     csv_text = serializers.CharField(required=False, allow_blank=True)

@@ -6,6 +6,7 @@ Decision Rhythm DRF Serializers
 负责输入验证和输出格式化。
 """
 
+from typing import Any
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -25,7 +26,7 @@ from ..domain.entities import (
 
 
 @extend_schema_field(OpenApiTypes.STR)
-class DecisionPrioritySerializer(serializers.Field):
+class DecisionPrioritySerializer(serializers.Field[DecisionPriority, Any, str, Any]):
     """决策优先级序列化器"""
 
     def to_representation(self, obj: DecisionPriority) -> str:
@@ -39,7 +40,7 @@ class DecisionPrioritySerializer(serializers.Field):
 
 
 @extend_schema_field(OpenApiTypes.STR)
-class QuotaPeriodSerializer(serializers.Field):
+class QuotaPeriodSerializer(serializers.Field[QuotaPeriod, Any, str, Any]):
     """配额周期序列化器"""
 
     def to_representation(self, obj: QuotaPeriod) -> str:
@@ -53,7 +54,7 @@ class QuotaPeriodSerializer(serializers.Field):
 
 
 @extend_schema_field(OpenApiTypes.STR)
-class ExecutionTargetSerializer(serializers.Field):
+class ExecutionTargetSerializer(serializers.Field[ExecutionTarget, Any, str, Any]):
     """执行目标序列化器"""
 
     def to_representation(self, obj: ExecutionTarget) -> str:
@@ -67,7 +68,7 @@ class ExecutionTargetSerializer(serializers.Field):
 
 
 @extend_schema_field(OpenApiTypes.STR)
-class ExecutionStatusSerializer(serializers.Field):
+class ExecutionStatusSerializer(serializers.Field[ExecutionStatus, Any, str, Any]):
     """执行状态序列化器"""
 
     def to_representation(self, obj: ExecutionStatus) -> str:
@@ -83,7 +84,7 @@ class ExecutionStatusSerializer(serializers.Field):
 # ========== Main Serializers ==========
 
 
-class DecisionQuotaSerializer(serializers.Serializer):
+class DecisionQuotaSerializer(serializers.Serializer[Any]):
     """
     决策配额序列化器
 
@@ -124,7 +125,7 @@ class DecisionQuotaSerializer(serializers.Serializer):
 
     updated_at = serializers.DateTimeField(read_only=True, allow_null=True, help_text="更新时间")
 
-    def to_representation(self, instance: DecisionQuota) -> dict:
+    def to_representation(self, instance: DecisionQuota) -> dict[str, Any]:
         """转换为表示"""
         return {
             "quota_id": instance.quota_id,
@@ -145,7 +146,7 @@ class DecisionQuotaSerializer(serializers.Serializer):
         }
 
 
-class CooldownPeriodSerializer(serializers.Serializer):
+class CooldownPeriodSerializer(serializers.Serializer[Any]):
     """
     冷却期序列化器
 
@@ -186,7 +187,7 @@ class CooldownPeriodSerializer(serializers.Serializer):
         read_only=True, help_text="距离可执行的小时数"
     )
 
-    def to_representation(self, instance: CooldownPeriod) -> dict:
+    def to_representation(self, instance: CooldownPeriod) -> dict[str, Any]:
         """转换为表示"""
         return {
             "cooldown_id": instance.cooldown_id,
@@ -207,7 +208,7 @@ class CooldownPeriodSerializer(serializers.Serializer):
         }
 
 
-class DecisionRequestSerializer(serializers.Serializer):
+class DecisionRequestSerializer(serializers.Serializer[Any]):
     """
     决策请求序列化器
 
@@ -263,7 +264,7 @@ class DecisionRequestSerializer(serializers.Serializer):
 
     has_execution_target = serializers.BooleanField(read_only=True, help_text="是否有执行目标")
 
-    def to_representation(self, instance: DecisionRequest) -> dict:
+    def to_representation(self, instance: DecisionRequest) -> dict[str, Any]:
         """转换为表示"""
         return {
             "request_id": instance.request_id,
@@ -297,7 +298,7 @@ class DecisionRequestSerializer(serializers.Serializer):
 # ========== Request Serializers ==========
 
 
-class SubmitDecisionRequestRequestSerializer(serializers.Serializer):
+class SubmitDecisionRequestRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """提交决策请求序列化器"""
 
     account_id = serializers.CharField(
@@ -334,14 +335,14 @@ class SubmitDecisionRequestRequestSerializer(serializers.Serializer):
         default=QuotaPeriod.WEEKLY.value, required=False, help_text="使用的配额周期"
     )
 
-    def validate_priority(self, value):
+    def validate_priority(self, value: str) -> str:
         normalized = str(value).strip().lower()
         valid = {dp.value for dp in DecisionPriority}
         if normalized not in valid:
             raise serializers.ValidationError(f"Invalid priority: {value}")
         return normalized
 
-    def validate_quota_period(self, value):
+    def validate_quota_period(self, value: str) -> str:
         normalized = str(value).strip().lower()
         valid = {qp.value for qp in QuotaPeriod}
         if normalized not in valid:
@@ -349,7 +350,7 @@ class SubmitDecisionRequestRequestSerializer(serializers.Serializer):
         return normalized
 
 
-class SubmitBatchRequestRequestSerializer(serializers.Serializer):
+class SubmitBatchRequestRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """批量提交决策请求序列化器"""
 
     requests = SubmitDecisionRequestRequestSerializer(many=True, help_text="决策请求列表")
@@ -358,7 +359,7 @@ class SubmitBatchRequestRequestSerializer(serializers.Serializer):
         default=QuotaPeriod.WEEKLY.value, required=False, help_text="使用的配额周期"
     )
 
-    def validate_quota_period(self, value):
+    def validate_quota_period(self, value: str) -> str:
         normalized = str(value).strip().lower()
         valid = {qp.value for qp in QuotaPeriod}
         if normalized not in valid:
@@ -366,7 +367,7 @@ class SubmitBatchRequestRequestSerializer(serializers.Serializer):
         return normalized
 
 
-class ResetQuotaRequestSerializer(serializers.Serializer):
+class ResetQuotaRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """重置配额请求序列化器"""
 
     account_id = serializers.CharField(default="default", required=False, help_text="账户 ID")
@@ -379,7 +380,7 @@ class ResetQuotaRequestSerializer(serializers.Serializer):
     )
 
 
-class TrendDataQuerySerializer(serializers.Serializer):
+class TrendDataQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """趋势数据查询序列化器"""
 
     days = serializers.IntegerField(default=7, required=False, help_text="天数 (7 或 30)")
@@ -387,7 +388,7 @@ class TrendDataQuerySerializer(serializers.Serializer):
     account_id = serializers.CharField(default="default", required=False, help_text="账户 ID")
 
 
-class DecisionQuotaListQuerySerializer(serializers.Serializer):
+class DecisionQuotaListQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """配额列表查询序列化器"""
 
     period = serializers.ChoiceField(
@@ -396,7 +397,7 @@ class DecisionQuotaListQuerySerializer(serializers.Serializer):
     account_id = serializers.CharField(required=False, allow_blank=False, help_text="账户 ID")
 
 
-class DecisionQuotaByPeriodQuerySerializer(serializers.Serializer):
+class DecisionQuotaByPeriodQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """按周期查询配额的序列化器"""
 
     period = serializers.ChoiceField(
@@ -410,39 +411,39 @@ class DecisionQuotaByPeriodQuerySerializer(serializers.Serializer):
     )
 
 
-class CooldownByAssetQuerySerializer(serializers.Serializer):
+class CooldownByAssetQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """按资产查询冷却期的序列化器"""
 
     direction = serializers.CharField(required=False, allow_blank=True, help_text="方向")
 
 
-class CooldownRemainingHoursQuerySerializer(serializers.Serializer):
+class CooldownRemainingHoursQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """冷却剩余小时数查询序列化器"""
 
     asset_code = serializers.CharField(help_text="资产代码")
     direction = serializers.CharField(required=False, allow_blank=True, help_text="方向")
 
 
-class DecisionRequestListQuerySerializer(serializers.Serializer):
+class DecisionRequestListQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """决策请求列表查询序列化器"""
 
     days = serializers.IntegerField(default=30, required=False, min_value=1, help_text="查询天数")
     asset_code = serializers.CharField(required=False, allow_blank=True, help_text="资产代码")
 
 
-class DecisionRequestStatisticsQuerySerializer(serializers.Serializer):
+class DecisionRequestStatisticsQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """决策请求统计查询序列化器"""
 
     days = serializers.IntegerField(default=30, required=False, min_value=1, help_text="统计天数")
 
 
-class PrecheckDecisionRequestSerializer(serializers.Serializer):
+class PrecheckDecisionRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """预检查请求序列化器"""
 
     candidate_id = serializers.CharField(help_text="候选 ID")
 
 
-class ExecuteDecisionRequestSerializer(serializers.Serializer):
+class ExecuteDecisionRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """执行决策请求序列化器"""
 
     target = serializers.CharField(
@@ -456,9 +457,7 @@ class ExecuteDecisionRequestSerializer(serializers.Serializer):
     action = serializers.CharField(default="buy", required=False, help_text="交易动作")
     quantity = serializers.IntegerField(allow_null=True, required=False, help_text="数量")
     price = serializers.FloatField(allow_null=True, required=False, help_text="价格")
-    signal_id = serializers.IntegerField(
-        allow_null=True, required=False, help_text="来源信号 ID"
-    )
+    signal_id = serializers.IntegerField(allow_null=True, required=False, help_text="来源信号 ID")
     shares = serializers.IntegerField(allow_null=True, required=False, help_text="持仓股数")
     avg_cost = serializers.FloatField(allow_null=True, required=False, help_text="平均成本")
     current_price = serializers.FloatField(allow_null=True, required=False, help_text="当前价格")
@@ -466,7 +465,7 @@ class ExecuteDecisionRequestSerializer(serializers.Serializer):
         default="按决策请求执行", required=False, allow_blank=True, help_text="执行原因"
     )
 
-    def validate_target(self, value):
+    def validate_target(self, value: str) -> str:
         normalized = str(value).strip().upper()
         valid = {target.value for target in ExecutionTarget}
         if normalized not in valid:
@@ -474,7 +473,7 @@ class ExecuteDecisionRequestSerializer(serializers.Serializer):
         return normalized
 
 
-class CancelDecisionRequestSerializer(serializers.Serializer):
+class CancelDecisionRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """取消决策请求序列化器"""
 
     reason = serializers.CharField(
@@ -482,7 +481,7 @@ class CancelDecisionRequestSerializer(serializers.Serializer):
     )
 
 
-class UpdateQuotaConfigRequestSerializer(serializers.Serializer):
+class UpdateQuotaConfigRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """更新配额配置请求序列化器"""
 
     account_id = serializers.CharField(default="default", required=False, help_text="账户 ID")
@@ -490,7 +489,7 @@ class UpdateQuotaConfigRequestSerializer(serializers.Serializer):
     max_decisions = serializers.IntegerField(default=10, required=False, help_text="最大决策次数")
     max_executions = serializers.IntegerField(default=5, required=False, help_text="最大执行次数")
 
-    def validate_period(self, value):
+    def validate_period(self, value: str) -> str:
         normalized = str(value).strip().lower()
         valid = {qp.value for qp in QuotaPeriod}
         if normalized not in valid:

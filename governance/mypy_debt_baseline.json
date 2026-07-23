@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6414,
-    "files_with_errors": 825
+    "errors": 6352,
+    "files_with_errors": 823
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1399,12 +1399,6 @@
       "type-arg": 4,
       "var-annotated": 1
     },
-    "apps/data_center/interface/serializers.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 3,
-      "type-arg": 26,
-      "unused-ignore": 3
-    },
     "apps/data_center/management/commands/audit_macro_fact_consistency.py": {
       "arg-type": 4,
       "attr-defined": 1,
@@ -1600,10 +1594,6 @@
     },
     "apps/decision_rhythm/interface/request_api_views.py": {
       "no-untyped-def": 4
-    },
-    "apps/decision_rhythm/interface/serializers.py": {
-      "no-untyped-def": 5,
-      "type-arg": 24
     },
     "apps/decision_rhythm/interface/today_queue_api_views.py": {
       "no-untyped-def": 1

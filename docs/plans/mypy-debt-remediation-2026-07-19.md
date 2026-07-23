@@ -940,3 +940,17 @@
 - Strategy serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6453 errors / 826 files` 收紧为 `6414 errors / 825 files`，净减少 `39 errors / 1 file`，跨文件无新增。
 - 目标文件的 `1 assignment + 3 misc + 1 no-any-return + 20 no-untyped-def + 14 type-arg` 全部清零。
 - Strategy serializer 契约与 API edges 回归共 `16 passed`；mypy 治理护栏 `10 passed`，架构增量门禁 `1 file / 216 added lines / 0 violations`，Ruff、Black、diff check 通过。
+
+## 第七十四批
+
+- 扩大为 Data Center 与 Decision Rhythm 两个公共 API serializer 文件联合收口：普通请求 payload 使用字典 instance，领域实体输出保留精确方法参数，兼容 `many=True` 的列表输出在 DRF 构造边界局部使用动态 instance。
+- Data Center 的 provider 配置脱敏方法补齐递归 JSON 边界与具体字典返回类型，并删除 3 个已失效的 override ignore；Capital Flow 严格查询的动态 DRF 返回在 Interface 边界显式收窄。
+- Decision Rhythm 的四个领域枚举字段具化 DRF Field 泛型，Quota、Cooldown 与 Decision Request 输出方法声明真实领域实体；五个请求字段验证器补齐字符串输入输出。
+- 完整传播扫描曾识别 Data Center、Macro 和 Decision Rhythm 六个调用文件中的 10 个 `many=True` 列表构造类型冲突；最终通过 serializer 的局部动态 instance 契约消除，调用方无新增债务。
+- 新增两个 serializer 契约测试文件，覆盖递归密钥脱敏、Capital Flow 未知参数/日期顺序、领域枚举往返以及 priority、quota period、execution target 标准化。
+
+## 第七十四批验证结果
+
+- Data Center 与 Decision Rhythm serializers 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6414 errors / 825 files` 收紧为 `6352 errors / 823 files`，净减少 `62 errors / 2 files`，跨文件无新增。
+- Data Center 的 `1 no-any-return + 3 no-untyped-def + 26 type-arg + 3 unused-ignore` 与 Decision Rhythm 的 `5 no-untyped-def + 24 type-arg` 全部清零。
+- 两组 serializer 契约与 API edges 回归共 `42 passed`；mypy 治理护栏 `10 passed`，架构增量门禁 `2 files / 65 added lines / 0 violations`，Ruff、Black、diff check 通过。
