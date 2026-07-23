@@ -4,11 +4,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Any
+from typing import Any, Protocol
 
 from django.utils import timezone
 
-from ..domain.entities import QuotaPeriod
+from ..domain.entities import DecisionQuota, QuotaPeriod
+
+
+class QuotaManagementRepositoryProtocol(Protocol):
+    """Quota operations required by management workflows."""
+
+    def get_quota(
+        self,
+        period: QuotaPeriod,
+        account_id: str = "default",
+    ) -> DecisionQuota | None:
+        """Return one account quota."""
+
+    def reset_quota(
+        self,
+        period: QuotaPeriod,
+        account_id: str = "default",
+    ) -> bool:
+        """Reset one account quota."""
 
 
 @dataclass
@@ -32,7 +50,7 @@ class ResetQuotaByAccountResponse:
 class ResetQuotaByAccountUseCase:
     """Reset one or all quota periods for a specific account."""
 
-    def __init__(self, quota_repo):
+    def __init__(self, quota_repo: QuotaManagementRepositoryProtocol) -> None:
         self.quota_repo = quota_repo
 
     def execute(
@@ -94,7 +112,7 @@ class TrendDataResponse:
 class GetTrendDataUseCase:
     """Build trend data payloads outside the interface layer."""
 
-    def __init__(self, quota_repo):
+    def __init__(self, quota_repo: QuotaManagementRepositoryProtocol) -> None:
         self.quota_repo = quota_repo
 
     @staticmethod

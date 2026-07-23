@@ -5,6 +5,12 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from apps.strategy.application.interface_contracts import (
+    StrategyAssignmentView,
+    StrategyExecutionLogView,
+    StrategyExecutionRunnerProtocol,
+    StrategyInterfaceRepositoryProtocol,
+)
 from apps.strategy.application.repository_provider import (
     build_strategy_executor as _build_strategy_executor,
 )
@@ -17,15 +23,15 @@ from apps.strategy.application.simulated_trading_gateway import (
 )
 
 
-def _repo():
+def _repo() -> StrategyInterfaceRepositoryProtocol:
     return get_strategy_interface_repository()
 
 
-def get_strategy_queryset():
+def get_strategy_queryset() -> Any:
     return _repo().get_strategy_queryset()
 
 
-def get_strategy_queryset_for_owner(owner_profile_id: int):
+def get_strategy_queryset_for_owner(owner_profile_id: int) -> Any:
     return _repo().get_strategy_queryset_for_owner(owner_profile_id)
 
 
@@ -33,7 +39,7 @@ def get_strategy_queryset_for_access(
     *,
     owner_profile_id: int | None,
     include_all: bool = False,
-):
+) -> Any:
     """Return the strategy queryset visible to an owner or staff caller."""
 
     return _repo().get_strategy_queryset_for_access(
@@ -42,7 +48,7 @@ def get_strategy_queryset_for_access(
     )
 
 
-def build_strategy_list_context(owner_profile_id: int) -> dict:
+def build_strategy_list_context(owner_profile_id: int) -> dict[str, Any]:
     strategies = list(_repo().list_user_strategies_with_counts(owner_profile_id))
     for strategy in strategies:
         strategy.rule_summary = _repo().list_strategy_rule_summary(strategy.id)
@@ -52,11 +58,14 @@ def build_strategy_list_context(owner_profile_id: int) -> dict:
     }
 
 
-def replace_strategy_rule_conditions(strategy_id: int, validated_rules: list[dict]) -> None:
+def replace_strategy_rule_conditions(
+    strategy_id: int,
+    validated_rules: list[dict[str, Any]],
+) -> None:
     _repo().replace_rule_conditions(strategy_id, validated_rules)
 
 
-def get_strategy_script_config(strategy_id: int):
+def get_strategy_script_config(strategy_id: int) -> Any | None:
     return _repo().get_strategy_script_config(strategy_id)
 
 
@@ -64,31 +73,35 @@ def delete_strategy_script_config(strategy_id: int) -> None:
     _repo().delete_strategy_script_config(strategy_id)
 
 
-def get_strategy_ai_config(strategy_id: int):
+def get_strategy_ai_config(strategy_id: int) -> Any | None:
     return _repo().get_strategy_ai_config(strategy_id)
 
 
-def list_active_prompt_templates():
+def list_active_prompt_templates() -> list[Any]:
     return _repo().list_active_prompt_templates()
 
 
-def list_active_chain_configs():
+def list_active_chain_configs() -> list[Any]:
     return _repo().list_active_chain_configs()
 
 
-def list_active_ai_providers_for_user(user_id: int):
+def list_active_ai_providers_for_user(user_id: int) -> list[Any]:
     return _repo().list_active_ai_providers_for_user(user_id)
 
 
-def get_strategy_execution_logs_page(strategy_id: int, offset: int, limit: int):
+def get_strategy_execution_logs_page(
+    strategy_id: int,
+    offset: int,
+    limit: int,
+) -> tuple[Any, int]:
     return _repo().get_strategy_execution_logs_page(strategy_id, offset, limit)
 
 
-def get_strategy_position_rule(strategy_id: int):
+def get_strategy_position_rule(strategy_id: int) -> Any | None:
     return _repo().get_strategy_position_rule(strategy_id)
 
 
-def get_position_management_rule_queryset():
+def get_position_management_rule_queryset() -> Any:
     return _repo().get_position_management_rule_queryset()
 
 
@@ -96,7 +109,7 @@ def get_position_management_rule_queryset_for_access(
     *,
     owner_profile_id: int | None,
     include_all: bool = False,
-):
+) -> Any:
     """Return position rules visible to an owner or staff caller."""
 
     return _repo().get_position_management_rule_queryset_for_access(
@@ -105,15 +118,15 @@ def get_position_management_rule_queryset_for_access(
     )
 
 
-def get_rule_condition_queryset():
+def get_rule_condition_queryset() -> Any:
     return _repo().get_rule_condition_queryset()
 
 
-def get_script_config_queryset():
+def get_script_config_queryset() -> Any:
     return _repo().get_script_config_queryset()
 
 
-def get_ai_strategy_config_queryset():
+def get_ai_strategy_config_queryset() -> Any:
     return _repo().get_ai_strategy_config_queryset()
 
 
@@ -121,7 +134,7 @@ def get_ai_strategy_config_queryset_for_access(
     *,
     owner_profile_id: int | None,
     include_all: bool = False,
-):
+) -> Any:
     """Return AI strategy configs visible to an owner or staff caller."""
 
     return _repo().get_ai_strategy_config_queryset_for_access(
@@ -130,19 +143,26 @@ def get_ai_strategy_config_queryset_for_access(
     )
 
 
-def get_assignment_queryset():
+def get_assignment_queryset() -> Any:
     return _repo().get_assignment_queryset()
 
 
-def list_assignments_by_portfolio(portfolio_id: int):
+def list_assignments_by_portfolio(portfolio_id: int) -> Any:
     return _repo().list_assignments_by_portfolio(portfolio_id)
 
 
-def list_active_assignments_for_strategy(strategy_id: int):
+def list_active_assignments_for_strategy(
+    strategy_id: int,
+) -> list[StrategyAssignmentView]:
     return _repo().list_active_assignments_for_strategy(strategy_id)
 
 
-def bind_strategy_assignment(*, portfolio_id: int, strategy, assigned_by):
+def bind_strategy_assignment(
+    *,
+    portfolio_id: int,
+    strategy: Any,
+    assigned_by: Any,
+) -> Any:
     return _repo().bind_strategy(
         portfolio_id=portfolio_id,
         strategy=strategy,
@@ -154,31 +174,37 @@ def unbind_strategy_assignments(portfolio_id: int) -> None:
     _repo().unbind_portfolio_strategies(portfolio_id)
 
 
-def set_strategy_active(strategy_id: int, is_active: bool):
+def set_strategy_active(strategy_id: int, is_active: bool) -> Any | None:
     return _repo().set_strategy_active(strategy_id, is_active)
 
 
-def set_rule_enabled(rule_id: int, is_enabled: bool):
+def set_rule_enabled(rule_id: int, is_enabled: bool) -> Any | None:
     return _repo().set_rule_enabled(rule_id, is_enabled)
 
 
-def set_assignment_active(assignment_id: int, is_active: bool):
+def set_assignment_active(assignment_id: int, is_active: bool) -> Any | None:
     return _repo().set_assignment_active(assignment_id, is_active)
 
 
-def get_execution_log_queryset():
+def get_execution_log_queryset() -> Any:
     return _repo().get_execution_log_queryset()
 
 
-def list_execution_logs_by_strategy(strategy_id: int, limit: int = 100):
+def list_execution_logs_by_strategy(
+    strategy_id: int,
+    limit: int = 100,
+) -> list[StrategyExecutionLogView]:
     return _repo().list_execution_logs_by_strategy(strategy_id, limit=limit)
 
 
-def list_execution_logs_by_portfolio(portfolio_id: int, limit: int = 100):
+def list_execution_logs_by_portfolio(
+    portfolio_id: int,
+    limit: int = 100,
+) -> list[StrategyExecutionLogView]:
     return _repo().list_execution_logs_by_portfolio(portfolio_id, limit=limit)
 
 
-def build_strategy_executor():
+def build_strategy_executor() -> StrategyExecutionRunnerProtocol:
     return _build_strategy_executor()
 
 

@@ -78,6 +78,15 @@ class TestStrategyPageSaveFlow(TestCase):
         self.assertEqual(RuleConditionModel.objects.filter(strategy=strategy).count(), 1)
         self.assertTrue(ScriptConfigModel.objects.filter(strategy=strategy).exists())
 
+    def test_strategy_list_rejects_authenticated_user_without_profile(self) -> None:
+        """A login without a persisted owner profile must fail closed with 403."""
+
+        self.profile.delete()
+
+        response = self.client.get("/strategy/")
+
+        self.assertEqual(response.status_code, 403)
+
     def test_edit_page_updates_strategy_and_replaces_nested_config(self) -> None:
         """POSTing the edit page should update fields, bump version, and replace config."""
         strategy = StrategyModel.objects.create(
@@ -271,7 +280,9 @@ class TestStrategyPageSaveFlow(TestCase):
         self.assertTrue(response_1.json()["success"])
         self.assertTrue(response_2.json()["success"])
         self.assertEqual(
-            ScriptConfigModel.objects.filter(script_code='signals = []\nprint("shared-template")').count(),
+            ScriptConfigModel.objects.filter(
+                script_code='signals = []\nprint("shared-template")'
+            ).count(),
             2,
         )
 

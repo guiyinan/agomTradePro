@@ -1,18 +1,21 @@
 """Celery tasks for realtime price polling."""
 
 import logging
+from typing import Any
 
 from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     name="apps.realtime.application.tasks.poll_realtime_prices_task",
     time_limit=600,
     soft_time_limit=570,
 )
-def poll_realtime_prices_task(asset_codes: list[str] | None = None) -> dict:
+def poll_realtime_prices_task(
+    asset_codes: list[str] | None = None,
+) -> dict[str, Any]:
     """
     Poll realtime prices for monitored assets or fetch the latest snapshot for a subset.
 

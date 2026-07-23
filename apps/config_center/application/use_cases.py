@@ -33,31 +33,31 @@ class ValidationFailureError(ValueError):
 
 
 class GetQlibRuntimeConfigUseCase:
-    def execute(self, *, actor) -> dict[str, Any]:
+    def execute(self, *, actor: Any) -> dict[str, Any]:
         ensure_can_view_qlib_center(actor)
         return get_config_center_settings_repository().build_runtime_config_payload()
 
 
 class UpdateQlibRuntimeConfigUseCase:
-    def execute(self, *, actor, payload: dict[str, Any]) -> dict[str, Any]:
+    def execute(self, *, actor: Any, payload: dict[str, Any]) -> dict[str, Any]:
         ensure_can_manage_qlib_runtime(actor)
         return get_config_center_settings_repository().update_runtime_config(payload)
 
 
 class ListQlibTrainingProfilesUseCase:
-    def execute(self, *, actor) -> list[Any]:
+    def execute(self, *, actor: Any) -> list[Any]:
         ensure_can_view_qlib_center(actor)
         return get_qlib_training_profile_repository().list_profiles()
 
 
 class CreateOrUpdateQlibTrainingProfileUseCase:
-    def execute(self, *, actor, payload: dict[str, Any]):
+    def execute(self, *, actor: Any, payload: dict[str, Any]) -> Any:
         ensure_can_manage_qlib_training_profiles(actor)
         return get_qlib_training_profile_repository().save_profile(payload)
 
 
 class ListAlphaUniverseConfigsUseCase:
-    def execute(self, *, actor, include_inactive: bool = False) -> list[Any]:
+    def execute(self, *, actor: Any, include_inactive: bool = False) -> list[Any]:
         ensure_can_view_qlib_center(actor)
         return get_alpha_universe_config_repository().list_configs(
             include_inactive=include_inactive
@@ -65,7 +65,7 @@ class ListAlphaUniverseConfigsUseCase:
 
 
 class SaveAlphaUniverseConfigUseCase:
-    def execute(self, *, actor, payload: dict[str, Any]):
+    def execute(self, *, actor: Any, payload: dict[str, Any]) -> Any:
         ensure_can_manage_qlib_training_profiles(actor)
         config = AlphaUniverseConfig(
             universe_id=str(payload.get("universe_id") or "").strip().lower(),
@@ -80,19 +80,19 @@ class SaveAlphaUniverseConfigUseCase:
 
 
 class ResolveAlphaUniverseMembersUseCase:
-    def execute(self, *, actor, universe_id: str) -> list[str]:
+    def execute(self, *, actor: Any, universe_id: str) -> list[str]:
         ensure_can_view_qlib_center(actor)
         return get_alpha_universe_config_repository().resolve_member_codes(universe_id)
 
 
 class ListQlibTrainingRunsUseCase:
-    def execute(self, *, actor, limit: int = 50):
+    def execute(self, *, actor: Any, limit: int = 50) -> list[Any]:
         ensure_can_view_qlib_center(actor)
         return get_qlib_training_run_repository().list_runs(limit=limit)
 
 
 class GetQlibTrainingRunDetailUseCase:
-    def execute(self, *, actor, run_id: str):
+    def execute(self, *, actor: Any, run_id: str) -> Any:
         ensure_can_view_qlib_center(actor)
         return get_qlib_training_run_repository().get_run(run_id)
 
@@ -100,7 +100,7 @@ class GetQlibTrainingRunDetailUseCase:
 class TriggerQlibTrainingUseCase:
     TRAIN_TASK_NAME = "apps.alpha.application.tasks.qlib_train_model"
 
-    CODE_DEFAULTS = {
+    CODE_DEFAULTS: dict[str, Any] = {
         "default_universe": "csi300",
         "default_feature_set_id": "v1",
         "default_label_id": "return_5d",
@@ -108,7 +108,7 @@ class TriggerQlibTrainingUseCase:
         "allow_auto_activate": False,
     }
 
-    def execute(self, *, actor, payload: dict[str, Any]) -> dict[str, Any]:
+    def execute(self, *, actor: Any, payload: dict[str, Any]) -> dict[str, Any]:
         ensure_can_trigger_qlib_training(actor)
         settings_repo = get_config_center_settings_repository()
         profile_repo = get_qlib_training_profile_repository()
@@ -203,7 +203,7 @@ class TriggerQlibTrainingUseCase:
         }
 
     @staticmethod
-    def _profile_defaults(profile) -> dict[str, Any]:
+    def _profile_defaults(profile: Any) -> dict[str, Any]:
         if profile is None:
             return {}
         return {

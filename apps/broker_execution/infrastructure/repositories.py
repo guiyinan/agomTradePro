@@ -7,10 +7,10 @@ import hmac
 import secrets
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, TypeVar
 
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Min, Q, Sum
+from django.db.models import Count, F, Min, Model, Q, QuerySet, Sum
 from django.utils import timezone
 
 from apps.broker_execution.application.use_case_errors import (
@@ -49,6 +49,8 @@ from .models import (
     TradingControlModel,
 )
 
+ModelT = TypeVar("ModelT", bound=Model)
+
 
 def _decimal_text(value: Decimal | None) -> str | None:
     return str(value) if value is not None else None
@@ -58,7 +60,9 @@ class DjangoBrokerExecutionRepository:
     """ORM-backed broker execution repository with scoped reads and atomic writes."""
 
     @staticmethod
-    def _authorized_account_ids(*, user_id: int, action: str = "view"):
+    def _authorized_account_ids(
+        *, user_id: int, action: str = "view"
+    ) -> QuerySet[BrokerAccountAccessModel, int]:
         grants = BrokerAccountAccessModel._default_manager.filter(
             user_id=user_id,
             is_active=True,
@@ -129,24 +133,25 @@ class DjangoBrokerExecutionRepository:
         }
 
     @classmethod
-    def _user_scope(cls, queryset, *, user_id: int, is_admin: bool):
+    def _user_scope(
+        cls,
+        queryset: QuerySet[ModelT],
+        *,
+        user_id: int,
+        is_admin: bool,
+    ) -> QuerySet[ModelT]:
         if is_admin:
             return queryset
         if queryset.model is BrokerAgentModel:
             return queryset.filter(
                 Q(user_id=user_id)
-                | Q(
-                    account_bindings__account_id__in=cls._authorized_account_ids(
-                        user_id=user_id
-                    )
-                )
+                | Q(account_bindings__account_id__in=cls._authorized_account_ids(user_id=user_id))
             ).distinct()
         field_names = {field.name for field in queryset.model._meta.fields}
         if "account_id" not in field_names:
             return queryset.filter(user_id=user_id)
         return queryset.filter(
-            Q(user_id=user_id)
-            | Q(account_id__in=cls._authorized_account_ids(user_id=user_id))
+            Q(user_id=user_id) | Q(account_id__in=cls._authorized_account_ids(user_id=user_id))
         )
 
     def has_account_access(
@@ -172,9 +177,7 @@ class DjangoBrokerExecutionRepository:
             **(
                 {"can_approve": True}
                 if action == "approve"
-                else {"can_trade": True}
-                if action in {"cancel", "trade"}
-                else {}
+                else {"can_trade": True} if action in {"cancel", "trade"} else {}
             ),
         ).exists()
 
@@ -229,16 +232,20 @@ class DjangoBrokerExecutionRepository:
         """Return the minimal identity projection needed for access previews."""
 
         user_model = BrokerAccountAccessModel._meta.get_field("user").remote_field.model
-        user = user_model._default_manager.filter(pk=user_id).first()
-        if user is None:
+        identity = (
+            user_model._default_manager.filter(pk=user_id)
+            .values("pk", "username", "is_superuser", "account_profile__rbac_role")
+            .first()
+        )
+        if identity is None:
             return None
-        profile = getattr(user, "account_profile", None)
-        role = str(getattr(profile, "rbac_role", "read_only") or "read_only")
+        role = str(identity["account_profile__rbac_role"] or "read_only")
+        is_superuser = bool(identity["is_superuser"])
         return {
-            "user_id": user.pk,
-            "username": user.username,
-            "role": "admin" if user.is_superuser else role,
-            "is_admin": bool(user.is_superuser or role == "admin"),
+            "user_id": int(identity["pk"]),
+            "username": str(identity["username"]),
+            "role": "admin" if is_superuser else role,
+            "is_admin": is_superuser or role == "admin",
         }
 
     def list_agent_account_ids(self, *, agent_id: str) -> list[int]:
@@ -298,9 +305,7 @@ class DjangoBrokerExecutionRepository:
         )
         known_agent = credential.agent if credential is not None else None
         if known_agent is None and agent_id:
-            known_agent = (
-                BrokerAgentModel._default_manager.filter(agent_id=agent_id).first()
-            )
+            known_agent = BrokerAgentModel._default_manager.filter(agent_id=agent_id).first()
         owner_id = known_agent.user_id if known_agent is not None else None
         safe_agent_id = str(agent_id or "unknown")[:64]
         safe_credential_id = str(credential_id or "unknown")[:64]
@@ -333,10 +338,11 @@ class DjangoBrokerExecutionRepository:
                 action_availability[action] = False
             else:
                 action_availability[action] = True
+        agent = order.agent
         payload: dict[str, Any] = {
             "client_order_id": str(order.client_order_id),
             "account_id": order.account_id,
-            "agent_id": order.agent.agent_id if order.agent_id else None,
+            "agent_id": agent.agent_id if agent is not None else None,
             "asset_code": order.asset_code,
             "market": order.market,
             "side": order.side,
@@ -390,8 +396,12 @@ class DjangoBrokerExecutionRepository:
         return payload
 
     def build_overview(self, *, user_id: int, is_admin: bool) -> dict[str, Any]:
-        orders = self._user_scope(LiveOrderModel._default_manager.all(), user_id=user_id, is_admin=is_admin)
-        agents = self._user_scope(BrokerAgentModel._default_manager.all(), user_id=user_id, is_admin=is_admin)
+        orders = self._user_scope(
+            LiveOrderModel._default_manager.all(), user_id=user_id, is_admin=is_admin
+        )
+        agents = self._user_scope(
+            BrokerAgentModel._default_manager.all(), user_id=user_id, is_admin=is_admin
+        )
         reconciliations = self._user_scope(
             ReconciliationRunModel._default_manager.all(), user_id=user_id, is_admin=is_admin
         )
@@ -408,7 +418,10 @@ class DjangoBrokerExecutionRepository:
             user_id=user_id,
             is_admin=is_admin,
         )
-        order_counts = {row["status"]: row["count"] for row in orders.values("status").annotate(count=Count("id"))}
+        order_counts = {
+            row["status"]: row["count"]
+            for row in orders.values("status").annotate(count=Count("id"))
+        }
         pending_statuses = [LiveOrderStatus.WAITING_APPROVAL.value, LiveOrderStatus.READY.value]
         exception_statuses = [
             LiveOrderStatus.SUBMITTING.value,
@@ -424,7 +437,9 @@ class DjangoBrokerExecutionRepository:
         active_kill_switches = list(
             controls.filter(kill_switch_active=True).values("account_id", "reason", "changed_at")
         )
-        any_online = agents.filter(status=BrokerAgentModel.STATUS_ONLINE, qmt_connected=True, is_active=True).exists()
+        any_online = agents.filter(
+            status=BrokerAgentModel.STATUS_ONLINE, qmt_connected=True, is_active=True
+        ).exists()
         unresolved = reconciliations.exclude(status__in=["resolved", "completed"]).aggregate(
             runs=Count("id"),
             order=Sum("order_difference_count"),
@@ -459,15 +474,15 @@ class DjangoBrokerExecutionRepository:
             },
             "connections": {
                 "total": agents.filter(is_active=True).count(),
-                "online": agents.filter(status="online", qmt_connected=True, is_active=True).count(),
+                "online": agents.filter(
+                    status="online", qmt_connected=True, is_active=True
+                ).count(),
             },
             "pending_approvals": {
                 "count": int(pending["count"] or 0),
                 "estimated_amount": _decimal_text(pending["amount"] or Decimal("0")),
                 "earliest_expiry": (
-                    pending["earliest_expiry"].isoformat()
-                    if pending["earliest_expiry"]
-                    else None
+                    pending["earliest_expiry"].isoformat() if pending["earliest_expiry"] else None
                 ),
             },
             "execution_exceptions": {
@@ -506,9 +521,7 @@ class DjangoBrokerExecutionRepository:
             "generated_at": timezone.now().isoformat(),
         }
 
-    def get_account_readiness_evidence(
-        self, *, user_id: int, account_id: int
-    ) -> dict[str, Any]:
+    def get_account_readiness_evidence(self, *, user_id: int, account_id: int) -> dict[str, Any]:
         """Return fail-closed live execution evidence for one unified account."""
 
         binding = (
@@ -532,8 +545,7 @@ class DjangoBrokerExecutionRepository:
         )
         snapshot_fresh = bool(
             snapshot
-            and snapshot.captured_at
-            >= now - timedelta(seconds=binding.max_snapshot_age_seconds)
+            and snapshot.captured_at >= now - timedelta(seconds=binding.max_snapshot_age_seconds)
         )
         stopped = TradingControlModel._default_manager.filter(
             user_id=user_id,
@@ -557,7 +569,10 @@ class DjangoBrokerExecutionRepository:
         blockers = []
         if not binding.auto_execution_enabled:
             blockers.append("auto_execution_disabled")
-        if binding.agent.status != BrokerAgentModel.STATUS_ONLINE or not binding.agent.qmt_connected:
+        if (
+            binding.agent.status != BrokerAgentModel.STATUS_ONLINE
+            or not binding.agent.qmt_connected
+        ):
             blockers.append("qmt_agent_offline")
         if not snapshot_fresh:
             blockers.append("broker_snapshot_stale_or_missing")
@@ -623,58 +638,50 @@ class DjangoBrokerExecutionRepository:
 
     def list_connections(self, *, user_id: int, is_admin: bool) -> list[dict[str, Any]]:
         queryset = self._user_scope(
-            BrokerAgentModel._default_manager.prefetch_related(
-                "account_bindings", "credentials"
-            ),
+            BrokerAgentModel._default_manager.prefetch_related("account_bindings", "credentials"),
             user_id=user_id,
             is_admin=is_admin,
         )
-        authorized_accounts = set(
-            self._authorized_account_ids(user_id=user_id)
-        )
+        authorized_accounts = set(self._authorized_account_ids(user_id=user_id))
         rows: list[dict[str, Any]] = []
         for agent in queryset:
             row = {
-                    "agent_id": agent.agent_id,
-                    "user_id": agent.user_id,
-                    "display_name": agent.display_name,
-                    "status": agent.status,
-                    "qmt_connected": agent.qmt_connected,
-                    "agent_version": agent.agent_version,
-                    "last_heartbeat_at": (
-                        agent.last_heartbeat_at.isoformat() if agent.last_heartbeat_at else None
-                    ),
-                    "is_active": agent.is_active,
-                    "bindings": [
-                        {
-                            "user_id": binding.user_id,
-                            "agent_id": agent.agent_id,
-                            "account_id": binding.account_id,
-                            "broker_account_mask": binding.broker_account_mask,
-                            "account_type": binding.account_type,
-                            "auto_execution_enabled": binding.auto_execution_enabled,
-                            "max_single_order_amount": _decimal_text(
-                                binding.max_single_order_amount
-                            ),
-                            "daily_order_amount_limit": _decimal_text(
-                                binding.daily_order_amount_limit
-                            ),
-                            "max_position_count": binding.max_position_count,
-                            "max_snapshot_age_seconds": binding.max_snapshot_age_seconds,
-                            "price_deviation_limit_pct": _decimal_text(
-                                binding.price_deviation_limit_pct
-                            ),
-                            "allowed_trading_windows": binding.allowed_trading_windows or [],
-                            "enforce_trading_session": binding.enforce_trading_session,
-                            "allowed_symbols": binding.allowed_symbols or [],
-                            "is_active": binding.is_active,
-                        }
-                        for binding in agent.account_bindings.all()
-                        if is_admin
-                        or binding.user_id == user_id
-                        or binding.account_id in authorized_accounts
-                    ],
-                }
+                "agent_id": agent.agent_id,
+                "user_id": agent.user_id,
+                "display_name": agent.display_name,
+                "status": agent.status,
+                "qmt_connected": agent.qmt_connected,
+                "agent_version": agent.agent_version,
+                "last_heartbeat_at": (
+                    agent.last_heartbeat_at.isoformat() if agent.last_heartbeat_at else None
+                ),
+                "is_active": agent.is_active,
+                "bindings": [
+                    {
+                        "user_id": binding.user_id,
+                        "agent_id": agent.agent_id,
+                        "account_id": binding.account_id,
+                        "broker_account_mask": binding.broker_account_mask,
+                        "account_type": binding.account_type,
+                        "auto_execution_enabled": binding.auto_execution_enabled,
+                        "max_single_order_amount": _decimal_text(binding.max_single_order_amount),
+                        "daily_order_amount_limit": _decimal_text(binding.daily_order_amount_limit),
+                        "max_position_count": binding.max_position_count,
+                        "max_snapshot_age_seconds": binding.max_snapshot_age_seconds,
+                        "price_deviation_limit_pct": _decimal_text(
+                            binding.price_deviation_limit_pct
+                        ),
+                        "allowed_trading_windows": binding.allowed_trading_windows or [],
+                        "enforce_trading_session": binding.enforce_trading_session,
+                        "allowed_symbols": binding.allowed_symbols or [],
+                        "is_active": binding.is_active,
+                    }
+                    for binding in agent.account_bindings.all()
+                    if is_admin
+                    or binding.user_id == user_id
+                    or binding.account_id in authorized_accounts
+                ],
+            }
             if is_admin:
                 row["credentials"] = [
                     {
@@ -683,9 +690,7 @@ class DjangoBrokerExecutionRepository:
                         "allowed_account_ids": credential.allowed_account_ids or [],
                         "expires_at": credential.expires_at.isoformat(),
                         "revoked_at": (
-                            credential.revoked_at.isoformat()
-                            if credential.revoked_at
-                            else None
+                            credential.revoked_at.isoformat() if credential.revoked_at else None
                         ),
                     }
                     for credential in agent.credentials.all()
@@ -705,9 +710,7 @@ class DjangoBrokerExecutionRepository:
                 "can_approve": grant.can_approve,
                 "can_trade": grant.can_trade,
                 "is_active": grant.is_active,
-                "granted_by": (
-                    grant.granted_by.username if grant.granted_by_id else None
-                ),
+                "granted_by": (grant.granted_by.username if grant.granted_by is not None else None),
                 "updated_at": grant.updated_at.isoformat(),
             }
             for grant in BrokerAccountAccessModel._default_manager.select_related(
@@ -868,10 +871,7 @@ class DjangoBrokerExecutionRepository:
             order.status = target
             order.version += 1
             order.save()
-            if (
-                target == LiveOrderStatus.CANCEL_PENDING.value
-                and order.agent_id is not None
-            ):
+            if target == LiveOrderStatus.CANCEL_PENDING.value and order.agent_id is not None:
                 BrokerCommandModel._default_manager.create(
                     agent_id=order.agent_id,
                     command_type="cancel",
@@ -932,20 +932,19 @@ class DjangoBrokerExecutionRepository:
                 account_id=account_id,
             )
             if not target_rows:
-                raise BrokerExecutionNotFoundError(
-                    "Active broker account binding does not exist"
-                )
+                raise BrokerExecutionNotFoundError("Active broker account binding does not exist")
 
             controls: list[dict[str, Any]] = []
             for target in target_rows:
                 owner_id = int(target["user_id"])
                 target_account_id = int(target["account_id"])
-                control, _created = (
-                    TradingControlModel._default_manager.select_for_update().get_or_create(
-                        user_id=owner_id,
-                        account_id=target_account_id,
-                        defaults={"changed_by_id": user_id},
-                    )
+                (
+                    control,
+                    _created,
+                ) = TradingControlModel._default_manager.select_for_update().get_or_create(
+                    user_id=owner_id,
+                    account_id=target_account_id,
+                    defaults={"changed_by_id": user_id},
                 )
                 before = {
                     "kill_switch_active": control.kill_switch_active,
@@ -971,8 +970,7 @@ class DjangoBrokerExecutionRepository:
                     resource_type="trading_control",
                     resource_id=f"{owner_id}:{target_account_id}",
                     before=before,
-                    after=after
-                    | {"request_context": dict(request_context or {})},
+                    after=after | {"request_context": dict(request_context or {})},
                     reason=reason,
                     request_id=idempotency_key,
                 )
@@ -1020,9 +1018,7 @@ class DjangoBrokerExecutionRepository:
                 .filter(credential_id=credential_id)
                 .first()
             )
-            if credential is None or not hmac.compare_digest(
-                credential.secret_hash, secret_hash
-            ):
+            if credential is None or not hmac.compare_digest(credential.secret_hash, secret_hash):
                 raise BrokerAgentAuthenticationError("Invalid Agent credential")
             agent = credential.agent
             if agent.agent_id != agent_id or not agent.is_active:
@@ -1036,9 +1032,7 @@ class DjangoBrokerExecutionRepository:
                 {int(item) for item in (credential.allowed_account_ids or [])}
             )
             if not allowed_account_ids:
-                raise BrokerAgentAuthenticationError(
-                    "Agent credential has no account scope"
-                )
+                raise BrokerAgentAuthenticationError("Agent credential has no account scope")
             try:
                 BrokerAgentNonceModel._default_manager.create(
                     credential=credential,
@@ -1070,9 +1064,7 @@ class DjangoBrokerExecutionRepository:
         was_connected = agent.qmt_connected
         account_ids = [int(item) for item in payload.get("account_ids", [])]
         if not set(account_ids).issubset(set(allowed_account_ids)):
-            raise BrokerAgentAuthenticationError(
-                "Heartbeat exceeds the credential account scope"
-            )
+            raise BrokerAgentAuthenticationError("Heartbeat exceeds the credential account scope")
         allowed_ids = set(
             agent.account_bindings.filter(is_active=True).values_list("account_id", flat=True)
         )
@@ -1268,9 +1260,7 @@ class DjangoBrokerExecutionRepository:
             if order is None:
                 raise BrokerExecutionNotFoundError("Leased order does not exist")
             if order.account_id not in set(allowed_account_ids):
-                raise BrokerAgentAuthenticationError(
-                    "Order exceeds the credential account scope"
-                )
+                raise BrokerAgentAuthenticationError("Order exceeds the credential account scope")
             lease = getattr(order, "lease", None)
             token_hash = hashlib.sha256(lease_token.encode("utf-8")).hexdigest()
             if (
@@ -1301,9 +1291,7 @@ class DjangoBrokerExecutionRepository:
                 timezone.localtime(now), binding.allowed_trading_windows or []
             ):
                 raise BrokerExecutionConflictError("Trading session is closed")
-            if not binding.allowed_symbols or order.asset_code not in set(
-                binding.allowed_symbols
-            ):
+            if not binding.allowed_symbols or order.asset_code not in set(binding.allowed_symbols):
                 raise BrokerExecutionConflictError(
                     "Asset is no longer on the live execution allow-list"
                 )
@@ -1311,24 +1299,23 @@ class DjangoBrokerExecutionRepository:
                 binding.max_single_order_amount <= 0
                 or order.estimated_amount > binding.max_single_order_amount
             ):
-                raise BrokerExecutionConflictError(
-                    "Order exceeds the current single-order limit"
-                )
-            today_amount = (
-                LiveOrderModel._default_manager.filter(
-                    user_id=order.user_id,
-                    account_id=order.account_id,
-                    created_at__date=timezone.localdate(now),
-                )
-                .exclude(
-                    status__in=[
-                        LiveOrderStatus.RISK_REJECTED.value,
-                        LiveOrderStatus.REJECTED.value,
-                        LiveOrderStatus.EXPIRED.value,
-                    ]
-                )
-                .aggregate(total=Sum("estimated_amount"))["total"]
-                or Decimal("0")
+                raise BrokerExecutionConflictError("Order exceeds the current single-order limit")
+            today_amount = LiveOrderModel._default_manager.filter(
+                user_id=order.user_id,
+                account_id=order.account_id,
+                created_at__date=timezone.localdate(now),
+            ).exclude(
+                status__in=[
+                    LiveOrderStatus.RISK_REJECTED.value,
+                    LiveOrderStatus.REJECTED.value,
+                    LiveOrderStatus.EXPIRED.value,
+                ]
+            ).aggregate(
+                total=Sum("estimated_amount")
+            )[
+                "total"
+            ] or Decimal(
+                "0"
             )
             if (
                 binding.daily_order_amount_limit <= 0
@@ -1340,8 +1327,7 @@ class DjangoBrokerExecutionRepository:
             if not BrokerAccountSnapshotModel._default_manager.filter(
                 agent_id=agent_pk,
                 account_id=order.account_id,
-                captured_at__gte=now
-                - timedelta(seconds=binding.max_snapshot_age_seconds),
+                captured_at__gte=now - timedelta(seconds=binding.max_snapshot_age_seconds),
             ).exists():
                 raise BrokerExecutionConflictError("Broker account snapshot is stale")
             latest_snapshot = (
@@ -1364,32 +1350,21 @@ class DjangoBrokerExecutionRepository:
                         "A-share buy quantity must use 100-share lots"
                     )
                 if latest_snapshot.cash_available < order.estimated_amount:
-                    raise BrokerExecutionConflictError(
-                        "Broker available cash is insufficient"
-                    )
+                    raise BrokerExecutionConflictError("Broker available cash is insufficient")
                 held_symbols = set(
-                    latest_positions.filter(quantity__gt=0).values_list(
-                        "asset_code", flat=True
-                    )
+                    latest_positions.filter(quantity__gt=0).values_list("asset_code", flat=True)
                 )
                 if (
                     order.asset_code not in held_symbols
                     and len(held_symbols) >= binding.max_position_count
                 ):
-                    raise BrokerExecutionConflictError(
-                        "Maximum position count would be exceeded"
-                    )
+                    raise BrokerExecutionConflictError("Maximum position count would be exceeded")
             else:
-                available_quantity = (
-                    latest_positions.filter(asset_code=order.asset_code)
-                    .values_list("available_quantity", flat=True)
-                    .first()
-                    or Decimal("0")
-                )
+                available_quantity = latest_positions.filter(
+                    asset_code=order.asset_code
+                ).values_list("available_quantity", flat=True).first() or Decimal("0")
                 if available_quantity < order.quantity:
-                    raise BrokerExecutionConflictError(
-                        "Broker available position is insufficient"
-                    )
+                    raise BrokerExecutionConflictError("Broker available position is insufficient")
             current = self._order_payload(order)
             if order.approval_digest != approval_digest_for_order(current):
                 order.status = LiveOrderStatus.WAITING_APPROVAL.value
@@ -1462,7 +1437,10 @@ class DjangoBrokerExecutionRepository:
                             target = LiveOrderStatus.RECONCILIATION_REQUIRED.value
                         elif order.status != target:
                             target = LiveOrderStatus.RECONCILIATION_REQUIRED.value
-                        if order.status in {status.value for status in LiveOrderStatus} and order.status != target:
+                        if (
+                            order.status in {status.value for status in LiveOrderStatus}
+                            and order.status != target
+                        ):
                             try:
                                 validate_order_transition(order.status, target)
                             except ValueError:
@@ -1480,23 +1458,29 @@ class DjangoBrokerExecutionRepository:
                     order.broker_order_id = str(item["broker_order_id"])[:128]
                 if target and target != order.status:
                     order.status = target
-                if target in {
-                    LiveOrderStatus.SUBMITTED.value,
-                    LiveOrderStatus.PARTIALLY_FILLED.value,
-                    LiveOrderStatus.FILLED.value,
-                    LiveOrderStatus.CANCEL_PENDING.value,
-                    LiveOrderStatus.CANCELED.value,
-                } and order.submitted_at is None:
+                if (
+                    target
+                    in {
+                        LiveOrderStatus.SUBMITTED.value,
+                        LiveOrderStatus.PARTIALLY_FILLED.value,
+                        LiveOrderStatus.FILLED.value,
+                        LiveOrderStatus.CANCEL_PENDING.value,
+                        LiveOrderStatus.CANCELED.value,
+                    }
+                    and order.submitted_at is None
+                ):
                     order.submitted_at = timezone.now()
-                if target in {
-                    LiveOrderStatus.BROKER_REJECTED.value,
-                    LiveOrderStatus.FAILED.value,
-                    LiveOrderStatus.RECONCILIATION_REQUIRED.value,
-                } and order.failure_code != "BROKER_OVERFILL":
+                if (
+                    target
+                    in {
+                        LiveOrderStatus.BROKER_REJECTED.value,
+                        LiveOrderStatus.FAILED.value,
+                        LiveOrderStatus.RECONCILIATION_REQUIRED.value,
+                    }
+                    and order.failure_code != "BROKER_OVERFILL"
+                ):
                     event_payload = dict(item.get("payload") or {})
-                    order.failure_code = str(
-                        item.get("event_type") or target
-                    )[:64]
+                    order.failure_code = str(item.get("event_type") or target)[:64]
                     order.failure_message = str(
                         event_payload.get("status_msg")
                         or event_payload.get("broker_message")
@@ -1539,12 +1523,12 @@ class DjangoBrokerExecutionRepository:
                         raise BrokerExecutionConflictError(
                             "Broker trade is already attached to another order"
                         )
-                    totals = order.fills.aggregate(
-                        quantity=Sum("quantity"), amount=Sum("amount")
-                    )
+                    totals = order.fills.aggregate(quantity=Sum("quantity"), amount=Sum("amount"))
                     order.filled_quantity = totals["quantity"] or Decimal("0")
                     if order.filled_quantity:
-                        order.average_fill_price = (totals["amount"] or Decimal("0")) / order.filled_quantity
+                        order.average_fill_price = (
+                            totals["amount"] or Decimal("0")
+                        ) / order.filled_quantity
                     if order.filled_quantity > order.quantity:
                         target = LiveOrderStatus.RECONCILIATION_REQUIRED.value
                         order.status = target
@@ -1561,9 +1545,7 @@ class DjangoBrokerExecutionRepository:
                             user_id=order.user_id,
                             account_id=order.account_id,
                             code=(
-                                "P0_BROKER_OVERFILL"
-                                if is_overfill
-                                else "P0_ORDER_OUTCOME_UNKNOWN"
+                                "P0_BROKER_OVERFILL" if is_overfill else "P0_ORDER_OUTCOME_UNKNOWN"
                             ),
                             severity="P0",
                             title=(
@@ -1600,16 +1582,12 @@ class DjangoBrokerExecutionRepository:
         agent = BrokerAgentModel._default_manager.get(pk=agent_pk, is_active=True)
         account_id = int(payload.get("account_id") or 0)
         if account_id not in set(allowed_account_ids):
-            raise BrokerAgentAuthenticationError(
-                "Snapshot exceeds the credential account scope"
-            )
+            raise BrokerAgentAuthenticationError("Snapshot exceeds the credential account scope")
         if not agent.account_bindings.filter(account_id=account_id, is_active=True).exists():
             raise BrokerAgentAuthenticationError("Snapshot account is not bound to this Agent")
         captured_at = self._parse_agent_datetime(payload.get("captured_at"))
         if captured_at > timezone.now() + timedelta(minutes=5):
-            raise BrokerExecutionConflictError(
-                "Broker snapshot timestamp is too far in the future"
-            )
+            raise BrokerExecutionConflictError("Broker snapshot timestamp is too far in the future")
         with transaction.atomic():
             BrokerAccountSnapshotModel._default_manager.update_or_create(
                 agent=agent,
@@ -1659,9 +1637,7 @@ class DjangoBrokerExecutionRepository:
             commands = list(
                 BrokerCommandModel._default_manager.select_for_update()
                 .filter(agent_id=agent_pk, status="pending")
-                .filter(
-                    Q(account_id=0) | Q(account_id__in=allowed_account_ids)
-                )
+                .filter(Q(account_id=0) | Q(account_id__in=allowed_account_ids))
                 .order_by("created_at")[:limit]
             )
             for command in commands:
@@ -1698,12 +1674,8 @@ class DjangoBrokerExecutionRepository:
             )
             if command is None:
                 raise BrokerExecutionNotFoundError("Agent command does not exist")
-            if command.account_id and command.account_id not in set(
-                allowed_account_ids
-            ):
-                raise BrokerAgentAuthenticationError(
-                    "Command exceeds the credential account scope"
-                )
+            if command.account_id and command.account_id not in set(allowed_account_ids):
+                raise BrokerAgentAuthenticationError("Command exceeds the credential account scope")
             if command.status in {"completed", "failed"}:
                 return {
                     "accepted": True,
@@ -1726,9 +1698,11 @@ class DjangoBrokerExecutionRepository:
                 "result": result,
             }
             if command.command_type == "cancel" and client_order_id:
-                order = LiveOrderModel._default_manager.select_for_update().filter(
-                    client_order_id=client_order_id, agent_id=agent_pk
-                ).first()
+                order = (
+                    LiveOrderModel._default_manager.select_for_update()
+                    .filter(client_order_id=client_order_id, agent_id=agent_pk)
+                    .first()
+                )
                 if order is not None and order.status == LiveOrderStatus.CANCEL_PENDING.value:
                     audit_account_id = order.account_id
                     audit_resource_type = "live_order"
@@ -1739,9 +1713,7 @@ class DjangoBrokerExecutionRepository:
                         validate_order_transition(order.status, target)
                         order.status = target
                         order.version += 1
-                        order.save(
-                            update_fields=["status", "version", "updated_at"]
-                        )
+                        order.save(update_fields=["status", "version", "updated_at"])
                     audit_after = {
                         "status": order.status,
                         "command_status": command.status,
@@ -1786,9 +1758,13 @@ class DjangoBrokerExecutionRepository:
         account_id = int(payload["account_id"])
         agent_id = str(payload["agent_id"]).strip()
         with transaction.atomic():
-            conflicting_binding = BrokerAccountBindingModel._default_manager.filter(
-                account_id=account_id,
-            ).exclude(user_id=user_id).first()
+            conflicting_binding = (
+                BrokerAccountBindingModel._default_manager.filter(
+                    account_id=account_id,
+                )
+                .exclude(user_id=user_id)
+                .first()
+            )
             if conflicting_binding is not None:
                 raise BrokerExecutionConflictError(
                     "The system account is already bound to another owner"
@@ -1798,9 +1774,7 @@ class DjangoBrokerExecutionRepository:
                 account_id=account_id,
             ).first()
             if not bool(payload.get("is_active", True)) and existing_binding is None:
-                raise BrokerExecutionNotFoundError(
-                    "Broker account binding does not exist"
-                )
+                raise BrokerExecutionNotFoundError("Broker account binding does not exist")
             agent, _created = BrokerAgentModel._default_manager.get_or_create(
                 agent_id=agent_id,
                 defaults={
@@ -1818,19 +1792,21 @@ class DjangoBrokerExecutionRepository:
                     "broker_account_ref": str(payload.get("broker_account_ref") or ""),
                 },
             )
-            before = {} if created else {
-                "agent_id": binding.agent.agent_id,
-                "broker_account_mask": binding.broker_account_mask,
-                "account_type": binding.account_type,
-                "is_active": binding.is_active,
-            }
+            before = (
+                {}
+                if created
+                else {
+                    "agent_id": binding.agent.agent_id,
+                    "broker_account_mask": binding.broker_account_mask,
+                    "account_type": binding.account_type,
+                    "is_active": binding.is_active,
+                }
+            )
             binding.agent = agent
             if payload.get("broker_account_ref"):
                 binding.broker_account_ref = str(payload["broker_account_ref"])[:128]
             if "broker_account_mask" in payload:
-                binding.broker_account_mask = str(
-                    payload.get("broker_account_mask") or ""
-                )[:32]
+                binding.broker_account_mask = str(payload.get("broker_account_mask") or "")[:32]
             if "account_type" in payload:
                 binding.account_type = str(payload.get("account_type") or "STOCK")[:32]
             binding.is_active = bool(payload.get("is_active", True))
@@ -1893,9 +1869,7 @@ class DjangoBrokerExecutionRepository:
             is_active=True,
         ).first()
         if binding is None:
-            raise BrokerExecutionNotFoundError(
-                "Active broker account binding does not exist"
-            )
+            raise BrokerExecutionNotFoundError("Active broker account binding does not exist")
         grant = BrokerAccountAccessModel._default_manager.filter(
             user_id=target_user_id,
             account_id=account_id,
@@ -2105,9 +2079,7 @@ class DjangoBrokerExecutionRepository:
             .first()
         )
         if agent is None:
-            raise BrokerExecutionNotFoundError(
-                "Active bound Agent does not exist"
-            )
+            raise BrokerExecutionNotFoundError("Active bound Agent does not exist")
         command = BrokerCommandModel._default_manager.create(
             agent=agent,
             command_type="full_sync",
@@ -2188,9 +2160,7 @@ class DjangoBrokerExecutionRepository:
                     raise BrokerExecutionConflictError(f"{field} cannot be negative")
                 setattr(binding, field, value)
         if "price_deviation_limit_pct" in payload:
-            binding.price_deviation_limit_pct = Decimal(
-                str(payload["price_deviation_limit_pct"])
-            )
+            binding.price_deviation_limit_pct = Decimal(str(payload["price_deviation_limit_pct"]))
         for field in ("max_position_count", "max_snapshot_age_seconds"):
             if field in payload:
                 setattr(binding, field, int(payload[field]))
@@ -2200,7 +2170,11 @@ class DjangoBrokerExecutionRepository:
             binding.enforce_trading_session = bool(payload["enforce_trading_session"])
         if "allowed_symbols" in payload:
             binding.allowed_symbols = sorted(
-                {str(item).strip().upper() for item in payload["allowed_symbols"] if str(item).strip()}
+                {
+                    str(item).strip().upper()
+                    for item in payload["allowed_symbols"]
+                    if str(item).strip()
+                }
             )
         if "auto_execution_enabled" in payload:
             binding.auto_execution_enabled = bool(payload["auto_execution_enabled"])
@@ -2261,7 +2235,11 @@ class DjangoBrokerExecutionRepository:
         if replay is not None:
             return replay
         with transaction.atomic():
-            run = ReconciliationRunModel._default_manager.select_for_update().filter(pk=run_id).first()
+            run = (
+                ReconciliationRunModel._default_manager.select_for_update()
+                .filter(pk=run_id)
+                .first()
+            )
             if run is None:
                 raise BrokerExecutionNotFoundError("Reconciliation run does not exist")
             if not self.has_account_access(
@@ -2272,9 +2250,7 @@ class DjangoBrokerExecutionRepository:
             ):
                 raise BrokerExecutionPermissionError("Reconciliation account is not authorized")
             if run.status in {"resolved", "completed"}:
-                raise BrokerExecutionConflictError(
-                    "Reconciliation run is already closed"
-                )
+                raise BrokerExecutionConflictError("Reconciliation run is already closed")
             before = {"status": run.status, "summary": run.summary or {}}
             is_escalation = resolution == "escalate"
             run.status = "escalated" if is_escalation else "resolved"
@@ -2364,9 +2340,7 @@ class DjangoBrokerExecutionRepository:
         released_lease_count = OrderLeaseModel._default_manager.filter(
             released_at__isnull=True, expires_at__lte=now
         ).update(released_at=now)
-        BrokerAgentNonceModel._default_manager.filter(
-            seen_at__lt=now - timedelta(hours=1)
-        ).delete()
+        BrokerAgentNonceModel._default_manager.filter(seen_at__lt=now - timedelta(hours=1)).delete()
         return {
             "stale_agents": stale_agent_count,
             "expired_orders": expired_order_count,
@@ -2378,16 +2352,15 @@ class DjangoBrokerExecutionRepository:
     def list_reconciliation_targets(self) -> list[dict[str, int]]:
         """Return active account owners for application-level ledger projection."""
 
-        return list(
-            BrokerAccountBindingModel._default_manager.filter(is_active=True)
+        return [
+            {"user_id": row["user_id"], "account_id": row["account_id"]}
+            for row in BrokerAccountBindingModel._default_manager.filter(is_active=True)
             .values("user_id", "account_id")
             .order_by("user_id", "account_id")
-        )
+        ]
 
     @staticmethod
-    def _reconciliation_fingerprint(
-        *, snapshot_id: int, projection: dict[str, Any] | None
-    ) -> str:
+    def _reconciliation_fingerprint(*, snapshot_id: int, projection: dict[str, Any] | None) -> str:
         projection_key = {
             "cash": str((projection or {}).get("cash_available") or ""),
             "total": str((projection or {}).get("total_asset") or ""),
@@ -2458,7 +2431,9 @@ class DjangoBrokerExecutionRepository:
             if row.get("client_order_id")
         }
         server_client_ids = {str(order.client_order_id) for order in server_orders}
-        server_broker_ids = {order.broker_order_id for order in server_orders if order.broker_order_id}
+        server_broker_ids = {
+            order.broker_order_id for order in server_orders if order.broker_order_id
+        }
         for order in server_orders:
             broker_order = by_broker_id.get(order.broker_order_id) or by_client_id.get(
                 str(order.client_order_id)
@@ -2574,9 +2549,7 @@ class DjangoBrokerExecutionRepository:
             )
         }
         ledger_positions = {
-            str(row.get("asset_code") or "").upper(): Decimal(
-                str(row.get("quantity") or "0")
-            )
+            str(row.get("asset_code") or "").upper(): Decimal(str(row.get("quantity") or "0"))
             for row in projection.get("positions", [])
         }
         for symbol in sorted(set(broker_positions) | set(ledger_positions)):
@@ -2762,9 +2735,7 @@ class DjangoBrokerExecutionRepository:
             if str(item).strip()
         ]
         if not source_recommendation_ids:
-            raise BrokerExecutionConflictError(
-                "Live order requires source recommendation evidence"
-            )
+            raise BrokerExecutionConflictError("Live order requires source recommendation evidence")
         expires_at = self._parse_agent_datetime(payload["expires_at"])
         if expires_at <= timezone.now():
             raise BrokerExecutionConflictError("Live order expiry must be in the future")
@@ -2775,9 +2746,7 @@ class DjangoBrokerExecutionRepository:
             raise BrokerExecutionConflictError("Order quantity/price is invalid")
         if side == "BUY" and quantity % Decimal("100") != 0:
             raise BrokerExecutionConflictError("A-share buy quantity must use 100-share lots")
-        market_snapshot = dict(
-            (payload.get("risk_snapshot") or {}).get("market_snapshot") or {}
-        )
+        market_snapshot = dict((payload.get("risk_snapshot") or {}).get("market_snapshot") or {})
         if str(payload.get("initial_status")) != LiveOrderStatus.RISK_REJECTED.value:
             current_price = Decimal(str(market_snapshot.get("current_price") or "0"))
             if current_price <= 0 or market_snapshot.get("must_not_use_for_decision"):
@@ -2795,19 +2764,22 @@ class DjangoBrokerExecutionRepository:
                 )
         if binding.max_single_order_amount <= 0 or amount > binding.max_single_order_amount:
             raise BrokerExecutionConflictError("Order exceeds the configured single-order limit")
-        today_amount = (
-            LiveOrderModel._default_manager.filter(
-                user_id=binding.user_id,
-                account_id=binding.account_id,
-                created_at__date=timezone.localdate(),
-            ).exclude(
-                status__in=[
-                    LiveOrderStatus.RISK_REJECTED.value,
-                    LiveOrderStatus.REJECTED.value,
-                    LiveOrderStatus.EXPIRED.value,
-                ]
-            ).aggregate(total=Sum("estimated_amount"))["total"]
-            or Decimal("0")
+        today_amount = LiveOrderModel._default_manager.filter(
+            user_id=binding.user_id,
+            account_id=binding.account_id,
+            created_at__date=timezone.localdate(),
+        ).exclude(
+            status__in=[
+                LiveOrderStatus.RISK_REJECTED.value,
+                LiveOrderStatus.REJECTED.value,
+                LiveOrderStatus.EXPIRED.value,
+            ]
+        ).aggregate(
+            total=Sum("estimated_amount")
+        )[
+            "total"
+        ] or Decimal(
+            "0"
         )
         if (
             binding.daily_order_amount_limit <= 0

@@ -39,7 +39,9 @@ class QlibRuntimeConfigForm(forms.Form):
     train_queue_name = forms.CharField(max_length=64, label="训练队列")
     infer_queue_name = forms.CharField(max_length=64, label="推理队列")
     allow_auto_activate = forms.BooleanField(required=False, label="允许训练后自动激活")
-    alpha_fixed_provider = forms.CharField(required=False, max_length=20, label="固定 Alpha Provider")
+    alpha_fixed_provider = forms.CharField(
+        required=False, max_length=20, label="固定 Alpha Provider"
+    )
     alpha_pool_mode = forms.ChoiceField(
         choices=[
             ("strict_valuation", "严格估值覆盖池"),
@@ -142,7 +144,7 @@ class AlphaUniverseConfigForm(forms.Form):
         )
 
     def clean(self) -> dict[str, Any]:
-        cleaned = super().clean()
+        cleaned = super().clean() or {}
         source_type = cleaned.get("source_type")
         stock_codes = cleaned.get("stock_codes_text") or []
         filters = cleaned.get("filters_json") or {}
@@ -196,7 +198,7 @@ def _parse_json_object(raw: str, *, field_name: str) -> dict[str, Any]:
         raise forms.ValidationError(f"{field_name} JSON 解析失败: {exc}") from exc
     if not isinstance(payload, dict):
         raise forms.ValidationError(f"{field_name} 必须是 JSON object。")
-    return payload
+    return {str(key): value for key, value in payload.items()}
 
 
 def _pretty_json(payload: dict[str, Any] | None) -> str:
@@ -222,7 +224,7 @@ def _runtime_form_initial(runtime_payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _profile_form_initial(profile) -> dict[str, Any]:
+def _profile_form_initial(profile: Any) -> dict[str, Any]:
     if profile is None:
         return {
             "model_params": "{}",
@@ -250,7 +252,7 @@ def _profile_form_initial(profile) -> dict[str, Any]:
     }
 
 
-def _alpha_universe_form_initial(config=None) -> dict[str, Any]:
+def _alpha_universe_form_initial(config: Any = None) -> dict[str, Any]:
     if config is None:
         return {
             "universe_id": "all_a_share",
@@ -277,7 +279,7 @@ def _alpha_universe_form_initial(config=None) -> dict[str, Any]:
     }
 
 
-def _trigger_form_initial(runtime_payload: dict[str, Any], profile) -> dict[str, Any]:
+def _trigger_form_initial(runtime_payload: dict[str, Any], profile: Any) -> dict[str, Any]:
     initial = {
         "profile_key": "",
         "model_name": "lgb_csi300",
@@ -311,8 +313,10 @@ def _trigger_form_initial(runtime_payload: dict[str, Any], profile) -> dict[str,
     return initial
 
 
-def _resolve_selected_profile(profiles: list[Any], request: HttpRequest):
-    selected_key = str(request.GET.get("profile", "") or request.POST.get("profile_key", "")).strip()
+def _resolve_selected_profile(profiles: list[Any], request: HttpRequest) -> Any | None:
+    selected_key = str(
+        request.GET.get("profile", "") or request.POST.get("profile_key", "")
+    ).strip()
     if not selected_key:
         return None
     for profile in profiles:
@@ -321,7 +325,7 @@ def _resolve_selected_profile(profiles: list[Any], request: HttpRequest):
     return None
 
 
-def _resolve_selected_alpha_universe(configs: list[Any], request: HttpRequest):
+def _resolve_selected_alpha_universe(configs: list[Any], request: HttpRequest) -> Any | None:
     selected_key = str(
         request.GET.get("universe", "") or request.POST.get("universe_id", "")
     ).strip()
@@ -354,7 +358,7 @@ def _serialize_profiles(profiles: list[Any]) -> list[dict[str, Any]]:
     return serialized
 
 
-def _serialize_alpha_universes(*, actor, configs: list[Any]) -> list[dict[str, Any]]:
+def _serialize_alpha_universes(*, actor: Any, configs: list[Any]) -> list[dict[str, Any]]:
     serialized: list[dict[str, Any]] = []
     resolver = ResolveAlphaUniverseMembersUseCase()
     for config in configs:
@@ -381,7 +385,7 @@ def _serialize_alpha_universes(*, actor, configs: list[Any]) -> list[dict[str, A
     return serialized
 
 
-def _serialize_runs(*, actor, runs: list[Any]) -> list[dict[str, Any]]:
+def _serialize_runs(*, actor: Any, runs: list[Any]) -> list[dict[str, Any]]:
     serialized: list[dict[str, Any]] = []
     for run in runs:
         detail = GetQlibTrainingRunDetailUseCase().execute(actor=actor, run_id=str(run.run_id))
@@ -429,7 +433,9 @@ def qlib_config_center_view(request: HttpRequest) -> HttpResponse:
     alpha_universe_form = AlphaUniverseConfigForm(
         initial=_alpha_universe_form_initial(selected_alpha_universe)
     )
-    trigger_form = QlibTrainingTriggerForm(initial=_trigger_form_initial(runtime_payload, selected_profile))
+    trigger_form = QlibTrainingTriggerForm(
+        initial=_trigger_form_initial(runtime_payload, selected_profile)
+    )
 
     if request.method == "POST":
         action = str(request.POST.get("action") or "").strip()
@@ -528,7 +534,9 @@ def qlib_config_center_view(request: HttpRequest) -> HttpResponse:
                     "activate": trigger_form.cleaned_data["activate"],
                 }
                 try:
-                    result = TriggerQlibTrainingUseCase().execute(actor=request.user, payload=payload)
+                    result = TriggerQlibTrainingUseCase().execute(
+                        actor=request.user, payload=payload
+                    )
                 except QlibAccessDeniedError as exc:
                     trigger_form.add_error(None, str(exc))
                 except ConflictError as exc:
@@ -550,7 +558,9 @@ def qlib_config_center_view(request: HttpRequest) -> HttpResponse:
         "profile_form": profile_form,
         "alpha_universe_form": alpha_universe_form,
         "trigger_form": trigger_form,
-        "profiles": _serialize_profiles(ListQlibTrainingProfilesUseCase().execute(actor=request.user)),
+        "profiles": _serialize_profiles(
+            ListQlibTrainingProfilesUseCase().execute(actor=request.user)
+        ),
         "alpha_universes": _serialize_alpha_universes(
             actor=request.user,
             configs=ListAlphaUniverseConfigsUseCase().execute(

@@ -109,9 +109,7 @@ class PricePollingService:
         # 1. 获取需要监控的资产列表
         monitored_asset_codes = set(self.watchlist_provider.get_all_monitored_assets())
         if self.subscription_repository is not None:
-            monitored_asset_codes.update(
-                self.subscription_repository.list_active_asset_codes()
-            )
+            monitored_asset_codes.update(self.subscription_repository.list_active_asset_codes())
         asset_codes = sorted(monitored_asset_codes)
         total_assets = len(asset_codes)
 

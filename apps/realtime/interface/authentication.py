@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework import authentication, exceptions
 from rest_framework.permissions import SAFE_METHODS
+from rest_framework.request import Request
 
 from core.integration.account_access_registry import (
     get_active_access_token,
@@ -16,7 +19,9 @@ class RealtimeTokenAuthentication(authentication.TokenAuthentication):
 
     keyword = "Token"
 
-    def authenticate(self, request):
+    def authenticate(self, request: Request) -> tuple[Any, Any] | None:
+        """Authenticate a request and enforce write capability."""
+
         result = super().authenticate(request)
         if result is None:
             return None
@@ -28,7 +33,9 @@ class RealtimeTokenAuthentication(authentication.TokenAuthentication):
             )
         return user, token
 
-    def authenticate_credentials(self, key):
+    def authenticate_credentials(self, key: str) -> tuple[Any, Any]:
+        """Resolve and validate an active formal access token."""
+
         token = get_active_access_token(key)
         if token is None:
             raise exceptions.AuthenticationFailed("Invalid token.")

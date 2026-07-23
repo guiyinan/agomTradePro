@@ -139,9 +139,7 @@ class PriceAlertDetailView(RealtimeAuthenticatedAPIView):
     def delete(self, request: Request, alert_id: int) -> Response:
         """Delete one alert within the authenticated owner scope."""
 
-        deleted = get_realtime_alert_service().delete(
-            _authenticated_owner_id(request), alert_id
-        )
+        deleted = get_realtime_alert_service().delete(_authenticated_owner_id(request), alert_id)
         if not deleted:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -153,9 +151,7 @@ class PriceSubscriptionListCreateView(RealtimeAuthenticatedAPIView):
     def get(self, request: Request) -> Response:
         """List the authenticated owner's active subscriptions."""
 
-        results = get_realtime_subscription_service().list(
-            _authenticated_owner_id(request)
-        )
+        results = get_realtime_subscription_service().list(_authenticated_owner_id(request))
         payload = PriceSubscriptionResponseSerializer(results, many=True).data
         return Response({"results": payload, "count": len(payload)})
 
@@ -208,9 +204,7 @@ class MarketSummaryView(View):
         super().__init__(*args, **kwargs)
         self.use_case = PricePollingUseCase()
 
-    def get(
-        self, request: HttpRequest, *args: Any, **kwargs: Any
-    ) -> JsonResponse:
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> JsonResponse:
         """GET /api/realtime/market-summary/"""
         prices = self.use_case.get_latest_prices(list(self.INDEX_CODES.values()))
         prices_by_code = {item["asset_code"]: item for item in prices}
@@ -271,9 +265,7 @@ class RealtimePriceView(View):
         super().__init__(*args, **kwargs)
         self.use_case = PricePollingUseCase()
 
-    def get(
-        self, request: HttpRequest, *args: Any, **kwargs: Any
-    ) -> JsonResponse:
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> JsonResponse:
         """GET /api/realtime/prices/
 
         查询参数:
@@ -322,9 +314,7 @@ class RealtimePriceView(View):
             snapshot.setdefault("success_flag", True)
             return JsonResponse(snapshot)
 
-    def post(
-        self, request: HttpRequest, *args: Any, **kwargs: Any
-    ) -> JsonResponse:
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> JsonResponse:
         """POST /api/realtime/prices/
 
         手动触发价格轮询
@@ -419,9 +409,7 @@ class PricePollingTriggerView(View):
         super().__init__(*args, **kwargs)
         self.use_case = PricePollingUseCase()
 
-    def post(
-        self, request: HttpRequest, *args: Any, **kwargs: Any
-    ) -> JsonResponse:
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> JsonResponse:
         """POST /api/realtime/poll/
 
         触发价格轮询
@@ -441,9 +429,7 @@ class HealthCheckView(View):
     检查实时价格服务是否正常
     """
 
-    def get(
-        self, request: HttpRequest, *args: Any, **kwargs: Any
-    ) -> JsonResponse:
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> JsonResponse:
         """GET /api/realtime/health/
 
         Returns:

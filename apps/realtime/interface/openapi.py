@@ -1,15 +1,17 @@
 """OpenAPI authentication extensions for realtime APIs."""
 
+from typing import Any
+
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
 
-class RealtimeTokenAuthenticationScheme(OpenApiAuthenticationExtension):
+class RealtimeTokenAuthenticationScheme(OpenApiAuthenticationExtension):  # type: ignore[misc]
     """Give the realtime token authenticator a stable, non-colliding scheme."""
 
     target_class = "apps.realtime.interface.authentication.RealtimeTokenAuthentication"
     name = "realtimeTokenAuth"
 
-    def get_security_definition(self, auto_schema):
+    def get_security_definition(self, auto_schema: Any) -> dict[str, str]:
         """Return the formal token header definition."""
 
         return {

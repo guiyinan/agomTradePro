@@ -1,7 +1,7 @@
 {
-  "version": "2026-07-22.v14",
-  "description": "Accepted app-import dependency baseline including the broker_execution execution boundary; no bidirectional pairs or cycles are allowed.",
-  "max_app_import_edges": 199,
+  "version": "2026-07-23.v15",
+  "description": "Accepted app-import dependency baseline after removing the misplaced Realtime-to-Regime task dependency; no bidirectional pairs or cycles are allowed.",
+  "max_app_import_edges": 198,
   "max_outbound_modules_per_app": 21,
   "max_inbound_modules_per_app": 24,
   "max_outbound_modules_by_app": {
@@ -31,7 +31,7 @@
     "policy": 3,
     "prompt": 2,
     "pulse": 1,
-    "realtime": 3,
+    "realtime": 2,
     "regime": 2,
     "risk_center": 0,
     "rotation": 1,
@@ -76,7 +76,7 @@
     "prompt": 4,
     "pulse": 7,
     "realtime": 6,
-    "regime": 23,
+    "regime": 22,
     "risk_center": 4,
     "rotation": 4,
     "sector": 3,

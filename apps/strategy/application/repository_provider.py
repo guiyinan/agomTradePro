@@ -1,5 +1,17 @@
 """Providers for strategy application/interface services."""
 
+from typing import cast
+
+from apps.strategy.application.interface_contracts import (
+    StrategyExecutionRunnerProtocol,
+    StrategyInterfaceRepositoryProtocol,
+    StrategyPortfolioProviderProtocol,
+)
+from apps.strategy.domain.protocols import (
+    AssetPoolProviderProtocol,
+    PortfolioDataProviderProtocol,
+    SignalProviderProtocol,
+)
 from apps.strategy.infrastructure.providers import (
     DjangoAssetPoolProvider,
     DjangoMacroDataProvider,
@@ -13,10 +25,10 @@ from apps.strategy.infrastructure.providers import (
 )
 
 
-def get_strategy_interface_repository() -> StrategyInterfaceRepository:
+def get_strategy_interface_repository() -> StrategyInterfaceRepositoryProtocol:
     """Return the strategy interface repository."""
 
-    return StrategyInterfaceRepository()
+    return cast(StrategyInterfaceRepositoryProtocol, StrategyInterfaceRepository())
 
 
 def get_strategy_gateway_repository() -> DjangoStrategyGatewayRepository:
@@ -25,7 +37,11 @@ def get_strategy_gateway_repository() -> DjangoStrategyGatewayRepository:
     return DjangoStrategyGatewayRepository()
 
 
-def build_prompt_strategy_providers():
+def build_prompt_strategy_providers() -> tuple[
+    PortfolioDataProviderProtocol,
+    SignalProviderProtocol,
+    AssetPoolProviderProtocol,
+]:
     """Return strategy-owned providers used by prompt agent runtime."""
 
     return (
@@ -35,24 +51,27 @@ def build_prompt_strategy_providers():
     )
 
 
-def build_strategy_executor():
+def build_strategy_executor() -> StrategyExecutionRunnerProtocol:
     """Build a StrategyExecutor wired with infrastructure dependencies."""
 
     from apps.strategy.application.strategy_executor import StrategyExecutor
 
-    return StrategyExecutor(
-        strategy_repository=DjangoStrategyRepository(),
-        execution_log_repository=DjangoStrategyExecutionLogRepository(),
-        macro_provider=DjangoMacroDataProvider(),
-        regime_provider=DjangoRegimeProvider(),
-        asset_pool_provider=DjangoAssetPoolProvider(),
-        signal_provider=DjangoSignalProvider(),
-        portfolio_provider=DjangoPortfolioDataProvider(),
-        script_security_mode="relaxed",
+    return cast(
+        StrategyExecutionRunnerProtocol,
+        StrategyExecutor(
+            strategy_repository=DjangoStrategyRepository(),
+            execution_log_repository=DjangoStrategyExecutionLogRepository(),
+            macro_provider=DjangoMacroDataProvider(),
+            regime_provider=DjangoRegimeProvider(),
+            asset_pool_provider=DjangoAssetPoolProvider(),
+            signal_provider=DjangoSignalProvider(),
+            portfolio_provider=DjangoPortfolioDataProvider(),
+            script_security_mode="relaxed",
+        ),
     )
 
 
-def build_strategy_portfolio_provider() -> DjangoPortfolioDataProvider:
+def build_strategy_portfolio_provider() -> StrategyPortfolioProviderProtocol:
     """Return the strategy-owned adapter for portfolio reads."""
 
-    return DjangoPortfolioDataProvider()
+    return cast(StrategyPortfolioProviderProtocol, DjangoPortfolioDataProvider())

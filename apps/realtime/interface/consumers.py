@@ -6,8 +6,10 @@ from collections import deque
 from time import monotonic
 from typing import Any
 
-from channels.db import database_sync_to_async
-from channels.generic.websocket import AsyncJsonWebsocketConsumer
+from channels.db import database_sync_to_async  # type: ignore[import-untyped]
+from channels.generic.websocket import (  # type: ignore[import-untyped]
+    AsyncJsonWebsocketConsumer,
+)
 from django.conf import settings
 
 from apps.realtime.application.repository_provider import (
@@ -17,7 +19,7 @@ from apps.realtime.application.use_cases import SubscriptionLimitExceeded
 from apps.realtime.domain.entities import normalize_asset_code
 
 
-class RealtimePriceConsumer(AsyncJsonWebsocketConsumer):
+class RealtimePriceConsumer(AsyncJsonWebsocketConsumer):  # type: ignore[misc]
     """Manage durable asset subscriptions and realtime event delivery."""
 
     MAX_COMMAND_ASSETS = 50
@@ -27,7 +29,7 @@ class RealtimePriceConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self) -> None:
         """Accept only enabled, authenticated, origin-validated connections."""
 
-        if not settings.REALTIME_WEBSOCKET_ENABLED:
+        if not getattr(settings, "REALTIME_WEBSOCKET_ENABLED", False):
             await self.close(code=1013)
             return
         user = self.scope.get("user")
@@ -45,9 +47,7 @@ class RealtimePriceConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_add(f"user.{self.owner_id}.control", self.channel_name)
         await self.channel_layer.group_add(f"user.{self.owner_id}.alerts", self.channel_name)
         subscriptions = await self._restore_asset_groups()
-        await self.send_json(
-            {"type": "connection.ready", "subscriptions": subscriptions}
-        )
+        await self.send_json({"type": "connection.ready", "subscriptions": subscriptions})
 
     async def disconnect(self, close_code: int) -> None:
         """Leave only groups joined by this authenticated connection."""
@@ -192,9 +192,7 @@ class RealtimePriceConsumer(AsyncJsonWebsocketConsumer):
         if event.get("exclude_channel") == self.channel_name:
             return
         subscriptions = await self._restore_asset_groups()
-        await self.send_json(
-            {"type": "subscription.updated", "subscriptions": subscriptions}
-        )
+        await self.send_json({"type": "subscription.updated", "subscriptions": subscriptions})
 
     async def price_update(self, event: dict[str, Any]) -> None:
         """Forward a price update to an authorized asset group member."""

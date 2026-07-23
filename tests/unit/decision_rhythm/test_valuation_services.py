@@ -15,6 +15,7 @@ from apps.decision_rhythm.domain.entities import (
 from apps.decision_rhythm.domain.services import (
     ApprovalStatusStateMachine,
     ExecutionApprovalService,
+    RecommendationConsolidationService,
     ValuationSnapshotService,
 )
 
@@ -76,6 +77,54 @@ def test_recommendation_buy_price_validation():
     assert bad is False
 
 
+def test_recommendation_consolidation_uses_decimal_weighted_fair_value():
+    first_snapshot = create_valuation_snapshot(
+        security_code="000001.SH",
+        valuation_method=ValuationMethod.COMPOSITE.value,
+        fair_value=Decimal("10"),
+        entry_price_low=Decimal("9"),
+        entry_price_high=Decimal("11"),
+        target_price_low=Decimal("12"),
+        target_price_high=Decimal("14"),
+        stop_loss_price=Decimal("8"),
+        input_parameters={"source": "unit_test"},
+    )
+    second_snapshot = create_valuation_snapshot(
+        security_code="000001.SH",
+        valuation_method=ValuationMethod.COMPOSITE.value,
+        fair_value=Decimal("20"),
+        entry_price_low=Decimal("18"),
+        entry_price_high=Decimal("22"),
+        target_price_low=Decimal("24"),
+        target_price_high=Decimal("28"),
+        stop_loss_price=Decimal("16"),
+        input_parameters={"source": "unit_test"},
+    )
+    recommendations = [
+        create_investment_recommendation(
+            security_code="000001.SH",
+            side=RecommendationSide.BUY.value,
+            confidence=0.8,
+            valuation_snapshot=first_snapshot,
+            position_size_pct=1.0,
+        ),
+        create_investment_recommendation(
+            security_code="000001.SH",
+            side=RecommendationSide.BUY.value,
+            confidence=0.9,
+            valuation_snapshot=second_snapshot,
+            position_size_pct=3.0,
+        ),
+    ]
+
+    consolidated = RecommendationConsolidationService().consolidate(
+        recommendations,
+        account_id="acc-1",
+    )
+
+    assert consolidated[0].fair_value == Decimal("17.5")
+
+
 def test_execution_approval_service_approve_and_reject():
     recommendation = create_investment_recommendation(
         security_code="000001.SH",
@@ -95,7 +144,9 @@ def test_execution_approval_service_approve_and_reject():
 
     service = ExecutionApprovalService()
     can_approve, _ = service.can_approve(approval_request, Decimal("10.1"))
-    approved = service.approve(approval_request, reviewer_comments="ok", market_price=Decimal("10.1"))
+    approved = service.approve(
+        approval_request, reviewer_comments="ok", market_price=Decimal("10.1")
+    )
 
     assert can_approve is True
     assert approved.approval_status == ApprovalStatus.APPROVED
@@ -105,9 +156,15 @@ def test_execution_approval_service_approve_and_reject():
 
 
 def test_approval_state_machine_transitions():
-    assert ApprovalStatusStateMachine.can_transition(ApprovalStatus.PENDING, ApprovalStatus.APPROVED)
-    assert ApprovalStatusStateMachine.can_transition(ApprovalStatus.APPROVED, ApprovalStatus.EXECUTED)
-    assert not ApprovalStatusStateMachine.can_transition(ApprovalStatus.REJECTED, ApprovalStatus.APPROVED)
+    assert ApprovalStatusStateMachine.can_transition(
+        ApprovalStatus.PENDING, ApprovalStatus.APPROVED
+    )
+    assert ApprovalStatusStateMachine.can_transition(
+        ApprovalStatus.APPROVED, ApprovalStatus.EXECUTED
+    )
+    assert not ApprovalStatusStateMachine.can_transition(
+        ApprovalStatus.REJECTED, ApprovalStatus.APPROVED
+    )
 
 
 @pytest.mark.parametrize(

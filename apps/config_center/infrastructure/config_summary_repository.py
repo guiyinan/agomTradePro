@@ -22,10 +22,14 @@ class DjangoConfigCenterSummaryRepository:
             rules.setdefault(rule.indicator_code, rule)
 
         for catalog in catalogs:
-            rule = rules.get(catalog.code)
+            selected_rule = rules.get(catalog.code)
             unit = ""
-            if rule is not None:
-                unit = rule.display_unit or rule.original_unit or rule.storage_unit
+            if selected_rule is not None:
+                unit = (
+                    selected_rule.display_unit
+                    or selected_rule.original_unit
+                    or selected_rule.storage_unit
+                )
             extra = catalog.extra or {}
             metadata[catalog.code] = {
                 "name": catalog.name_cn,
@@ -92,4 +96,7 @@ class DjangoConfigCenterSummaryRepository:
         return SystemSettingsModel.get_runtime_benchmark_code(key, default)
 
     def get_runtime_asset_proxy_map(self) -> dict[str, str]:
-        return SystemSettingsModel.get_runtime_asset_proxy_map()
+        return {
+            key: str(value)
+            for key, value in SystemSettingsModel.get_runtime_asset_proxy_map().items()
+        }

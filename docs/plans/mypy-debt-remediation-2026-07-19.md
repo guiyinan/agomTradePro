@@ -1,6 +1,6 @@
 # Mypy 类型债务收口计划
 
-更新时间：2026-07-19
+更新时间：2026-07-23
 
 ## 当前证据
 
@@ -970,3 +970,333 @@
 - Simulated Trading API edges 联合回归最初为 `58 passed / 1 failed`；后续修复 `UnifiedPositionService` 默认全平仓路径的 `float × Decimal` 运算并增加回归，目标单元与 API edges 合计 `11 passed`；目标文件 mypy 再减少 `1 arg-type + 1 no-untyped-def`，全仓基线收紧到 `6303 errors / 821 files`。
 - Governance consistency 最初因两个 HEAD 已存在的未登记大文件失败；后续为 `apps/ai_capability/application/use_cases.py` 与 `apps/simulated_trading/infrastructure/repositories.py` 补齐 owner、拆分类型、目标、优先级和 review date，未放宽全仓 1200 行阈值。
 - 当前 `pyproject.toml` 锁定 mypy `1.14.1`，但已提交的全仓债务基线无法由该版本完整复现；隔离 mypy `1.17.1` 扫描仍受 11 个第三方类型环境差异影响。为避免虚假大幅降债，本批仅删除两个已定向清零的 baseline 条目，未接受环境性计数变化。
+
+## 第七十六批
+
+- 按“Strategy 公共 Application 契约 + 跨模块执行传播”纵向收口：新增 `interface_contracts`，用 Protocol 明确 Strategy interface repository、assignment、execution log、executor 与 portfolio provider 契约；ORM QuerySet 仅在 DRF 动态边界保留显式 `Any`。
+- Strategy repository provider 不再向 Application 类型面暴露具体 Infrastructure 返回类型；Infrastructure provider 的仓储 re-export 改为显式导出，模拟盘 facade 懒加载、执行适配器输入和工厂返回全部具化。
+- 修正 `StrategyExecutionGateway` 的旧协议：实际 executor 接收 `portfolio_id` 并返回 `StrategyExecutionResult`，执行时间契约恢复为 timezone-aware `datetime`；完整传播扫描同步清除 Prompt Gateway 及 7 个 Strategy Interface 调用方的无类型调用债务。
+- 收口 `UnifiedPositionService` 的 repository/mutation Protocol、容器和生命周期方法返回类型；加仓合并前统一将生产仓储返回的 float 数量量化为 Decimal，修复 `float + Decimal` 的运行时风险；构造 `SimulatedTrade` 时仅在领域实体边界转回 float。
+
+## 第七十六批验证结果
+
+- 6 个变更生产文件增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6303 errors / 821 files` 收紧为 `6199 errors / 816 files`，净减少 `104 errors / 5 files`，跨文件无新增。
+- Strategy provider/serializer/API、绑定与执行、Gateway/Executor，以及统一仓位生命周期回归共 `61 passed`；mypy 治理与仓库治理契约 `12 passed`。
+- 全仓架构扫描 `1848 files / 0 violations`；Ruff、Black 与 diff check 通过。
+
+## 第七十七批
+
+- 继续沿 Strategy 纵向主线收口核心 Infrastructure repository：Strategy、Rule Condition、Execution Log、Param Version、Order Intent、Gateway 与 Interface Repository 的 ORM→Domain、QuerySet、动态模型、容器及返回契约全部具化。
+- Strategy Interface Repository 的关联查询继续使用既有 `select_related`，并为各模型 QuerySet、分页结果、配置列表、assignment 与 execution log 明确具体泛型；不把 lazy QuerySet 冒充 list，也不在 Application/Interface 新增 Infrastructure 依赖。
+- 动态 Portfolio OrderIntent 模型保留在明确的 `Any` ORM registry 边界，仓储通过结构化协议兼容；两个 feature flag 改为安全的 `getattr` 布尔读取，保存主键、删除/更新计数和 research promotion 结果在 Infrastructure 边界收窄。
+- OrderIntent 的 Decision/Sizing/Risk Snapshot JSON→Domain 映射拆入独立 mapper，主 repository 从治理扫描的 1238 个非空行降至 1197 行，不新增大文件例外。
+- 新建 Rule Condition 现在显式要求 `strategy_id`，避免把 Domain 的可空草稿状态传入非空数据库外键；参数 JSON、Decision/Sizing/Risk Snapshot 与 Position Rule context 均使用具化字典契约。
+
+## 第七十七批验证结果
+
+- Strategy repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6199 errors / 816 files` 收紧为 `6138 errors / 815 files`，净减少 `61 errors / 1 file`，跨文件无新增。
+- OrderIntent 幂等、分页排序、策略绑定/执行与 Strategy API edges 回归共 `31 passed`。
+- 全仓架构扫描 `1848 files / 0 violations`，governance consistency `29 passed`；Ruff 与 Black 通过。
+
+## 第七十八批
+
+- 按 Data Center 宏观数据入口收口 AKShare adapter：延迟加载的 AKShare 模块、各指标 fetcher、支持指标映射、生命周期方法与公开 `fetch()` 返回值全部具化，不再向 Provider、Failover 和连接测试传播无类型调用。
+- 原始 fetcher 结果先停留在明确的 `object` 边界，再统一验证为 `list[MacroDataPoint]`；非列表或混入非领域实体的结果会抛出 `DataSourceUnavailableError`，避免第三方或自定义 fetcher 的动态值静默进入 Application。
+- 移除仅用于名义继承、但在 `follow_imports=skip` 下退化为 `Any` 的 `BaseMacroAdapter` 基类；将其数据点校验、排序与日期去重语义原样保留在 adapter 内，未改变公开构造与调用方式。
+- 新增 AKShare adapter 契约测试，参数化覆盖 `SUPPORTED_INDICATORS` 的全部路由，并覆盖非法返回类型、非法元素类型、字段校验、排序及同日去重。
+
+## 第七十八批验证结果
+
+- AKShare adapter 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6138 errors / 815 files` 收紧为 `6071 errors / 814 files`，净减少 `67 errors / 1 file`，跨文件无新增。
+- 目标文件的 `54 no-any-return + 10 no-untyped-def` 全部清零；同时清除 Provider adapter、Failover adapter 与连接测试传播的 `3 no-untyped-call`。
+- AKShare 路由/契约、既有 adapter、fetcher 韧性、财务与日期处理、Data Center provider adapter 回归共 `155 passed`。
+- 全仓架构扫描 `1849 files / 0 violations`；governance baseline 升级为 `2026-07-23.v162`，静态测试函数计数提升至 `7171`，governance consistency `35 passed`；Ruff 与 Black 通过。
+
+## 第七十九批
+
+- 按“Account portfolio API Application 边界 + Simulated Trading 组合根”纵向收口：新增 `portfolio_api_contracts`，用 Protocol 明确 Portfolio、Legacy/Unified Position、Observer Grant、迁移映射、可访问 QuerySet、读仓储、写仓储与统一持仓生命周期契约。
+- `portfolio_api_services` 不再通过无类型 helper 调用 ORM/跨 App 实现；QuerySet 仅保留 `select_related`、`filter` 与迭代所需的最小 Application 契约，Portfolio/Position 实体只暴露编排实际使用的字段，没有新增 Infrastructure import 或 ORM 访问。
+- 创建、校准、删除、全量/部分平仓、legacy bootstrap、observer access 与只读查询统一使用具化端口；`None / ""` 组合参数改为显式分支收窄，账户到 Portfolio 的映射和 observer 列表使用具体容器类型。
+- Simulated Trading gateway 使用泛型 `_require` 保留已注册 provider 的实际 Callable 类型；portfolio repository 与 unified position service 工厂改为显式跨 App Protocol，组合根在具体实现实例化处完成局部 cast，避免动态工厂返回继续向 Account API 传播 `Any`。
+
+## 第七十九批验证结果
+
+- 4 个目标生产文件增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6071 errors / 814 files` 收紧为 `6012 errors / 811 files`，净减少 `59 errors / 3 files`，跨文件无新增。
+- `portfolio_api_services` 的 `2 arg-type + 5 no-any-return + 40 no-untyped-call + 7 no-untyped-def` 全部清零；Account gateway 的 `2 no-any-return` 与 Simulated Trading composition root 的 `3 no-untyped-def` 同步清零。
+- Account portfolio/position、观察者权限、统一账本、更新/平仓、只读查询、手工成交同步、Unified Position Service 与 Simulated Trading API edges 回归共 `57 passed`。
+- 全仓架构扫描 `1850 files / 0 violations`；governance consistency、repository governance 与 Account repository structure `38 passed`；Ruff、Black 与 diff check 通过。
+
+## 第八十批
+
+- 按“Decision Rhythm Interface 依赖组装 + Submit/Quota Application 契约”纵向收口：将 `interface/dependencies.py` 中对 5 个 App Infrastructure 的动态组装迁入既有 App 级 `composition.py`，Interface 只保留稳定兼容重导出，不再直接解析或构造 Infrastructure repository。
+- composition root 为 Decision Request read/write、Quota query/management、Cooldown、Account、Candidate tracking、Unified Recommendation 与资产名称解析建立具化 Protocol；跨 App 动态加载仅停留在组合边界，并在具体实现进入 Application 前局部收窄。
+- 修复预检查构造器传入不存在的 `beta_gate_repo` 参数导致端点直接 `TypeError/500` 的运行时缺陷；当前 builder 仅注入构造器真实支持且实际执行的 Candidate、Quota 与 Cooldown 仓储。
+- 收口 Decision Quota、Management 与 Submit Workflow 的 Rhythm/Quota/Scheduler、事件发布、Request write、Recommendation write 和 Candidate tracking 契约；所有构造器、内部事件方法与返回投影具化，不把组合根错误迁移为新的 Application 债务。
+- 新增 composition/re-export 与 precheck builder 契约测试；将集成测试从容忍 `400/404/500` 收紧为候选不存在时必须返回 `200`、`candidate_valid=false` 和明确业务错误。
+
+## 第八十批验证结果
+
+- 5 个目标生产文件增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6012 errors / 811 files` 收紧为 `5931 errors / 807 files`，净减少 `81 errors / 4 files`，跨文件无新增。
+- Decision Quota 的 `1 no-any-return + 9 no-untyped-def`、Management 的 `2 no-untyped-def`、Submit Workflow 的 `3 no-any-return + 4 no-untyped-def`、Interface dependencies 的 `1 call-arg + 47 no-untyped-call + 13 no-untyped-def` 全部清零；完整传播额外清除 Workflow API View 的 `1 attr-defined`。
+- Composition、Decision Rhythm API edges、Submit/Quota workflow、Domain service、Decision execution、集成执行闭环与错误映射回归共 `90 passed`。
+- 全仓架构扫描 `1850 files / 0 violations`；governance baseline 升级为 `2026-07-23.v163`，静态测试函数计数提升至 `7173`；governance consistency、repository governance 与 Decision Rhythm 反向依赖/仓储/用例结构 `45 passed`；Ruff、Black 与 diff check 通过。
+
+## 第八十一批
+
+- 按“Regime 核心宏观输入边界 + Application 用例传播”纵向收口：Data Center 宏观事实适配器、PIT 查询、CPI 口径归一、数据源配置、同步任务 Gateway 与 Repository Provider 的动态 ORM/JSON 边界全部显式收窄。
+- `DjangoDataSourceConfig`、`DataCenterMacroRepositoryAdapter`、`DjangoMacroDataProvider` 与兼容 `MacroRepositoryAdapter` 的指标映射、缓存、日期和值序列、查询结果及生命周期方法全部具化；ORM Model/QuerySet 仅在 Infrastructure 边界保留局部 `Any`。
+- Application 新增最小 `MacroRepositoryAdapterProtocol`，明确增长/通胀序列、完整观测、精确日期、最近观测及可用日期契约；编排层不再调用 provider 私有 `_get_repository()`，统一从 composition provider 获取稳定端口。
+- Regime 高频信号、收益率曲线、冲突解决、V1 历史回算和 V2 主用例构造器全部使用结构化端口；运行时阈值配置与历史快照回退也改为最小 Protocol，响应 JSON 容器和缺失数据填充结果具化。
+- Infrastructure provider 显式重导出诊断仓储；Celery signature 返回限定在动态任务边界，避免名义 Protocol 在 `follow_imports=skip` 下退化为 `Any` 并继续传播。
+
+## 第八十一批验证结果
+
+- 4 个直接目标文件增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `5931 errors / 807 files` 收紧为 `5829 errors / 801 files`，净减少 `102 errors / 6 files`，跨文件无新增。
+- Macro provider 的 `3 assignment + 5 no-any-return + 20 no-untyped-call + 16 no-untyped-def + 12 type-arg`、Repository Provider 的 `1 attr-defined + 5 no-untyped-def`、Regime Use Cases 的 `4 assignment + 2 no-untyped-call + 5 no-untyped-def + 1 return-value + 8 type-arg + 1 var-annotated` 与 Sync Gateway 的 `1 no-untyped-def` 全部清零。
+- 完整传播额外清除 `current_regime`、`interface_services`、`navigator_use_cases`、`orchestration`、`query_services` 与 `recalculate_regime` 的 `18 no-untyped-call`；Regime/Data Center provider、guardrail、PIT selection、orchestration、V2 domain、workflow 与 API edges 回归 `54 passed`。
+- 全仓硬边界扫描 `1850 files / 0 violations`；mypy debt ceiling、Ruff、Black 与 diff check 通过。
+- 治理/架构联合测试为 `52 passed / 1 failed`：失败来自 audit 模式识别出的 11 个既存软违规（4 个 Interface Admin 引用共享 typed-admin 基类、7 个 Realtime Application provider 引用 Infrastructure repository），不属于本批改动且硬边界扫描仍为零；该高影响架构债务列为下一批优先整改对象。
+
+## 第八十二批
+
+- 优先清除第八十一批暴露的 11 个全仓架构 audit 违规：将 Realtime 的价格仓储、价格源链、watchlist、告警、订阅与 Channels notifier 具体组装从 `application/repository_provider.py` 迁入 App 根级 `composition.py`。
+- Application repository provider 保留原公开函数名的稳定重导出，Interface、Celery、轮询服务与跨 App 注册调用无需依赖具体 Infrastructure，也不破坏既有导入契约。
+- 修正 Interface audit 规则与项目 Admin 强制规范之间的冲突：仅精确放行 `shared.infrastructure.django_admin` 技术适配器，继续禁止 Interface 导入任何业务 App Infrastructure；新增规则单测证明共享 typed-admin 被允许而具体仓储仍被拦截。
+- 没有通过豁免 Realtime 或降低审计严格度掩盖真实问题；7 个 Realtime Application→Infrastructure import 已从源代码实际移除。
+
+## 第八十二批验证结果
+
+- 全仓架构扫描从 `1850 files / 0 boundary / 11 audit violations` 收口为 `1851 files / 0 boundary / 0 audit violations`，上一批遗留的架构联合测试失败已消除。
+- Realtime watchlist、HTTP views、tasks、Data Center/AKShare provider、Celery 注册、轮询、WebSocket、仓储、readiness、告警、交付链路与 API 回归 `84 passed / 1 skipped`。
+- Architecture tooling/boundaries、governance consistency 与 repository governance `54 passed`；governance baseline 升级为 `2026-07-23.v164`，静态测试函数计数提升至 `7174`。
+- Realtime composition 与兼容 provider 增量 mypy 为零；本批是架构债务收口，不虚报 mypy 数量下降，全仓债务基线保持 `5829 errors / 801 files`。
+- Ruff、Black、完整 mypy debt ceiling 与 diff check 通过。
+
+## 第八十三批
+
+- 沿第八十二批建立的 Realtime composition 边界继续纵向清零整个模块：Domain 实体 JSON 投影、价格更新服务时间契约、Celery 任务、DRF serializers、Token authentication、OpenAPI extension、WebSocket authentication/consumer 与 Infrastructure 动态边界全部具化。
+- DRF 输入 serializer 使用具体字典泛型，领域实体输出停留在明确的动态 instance 边界；`source` 公开字段通过 `get_fields()` 注册，避免覆盖 DRF `Field.source` 内部状态。
+- Channels、Celery 与 drf-spectacular 缺少完整类型元数据的位置仅使用错误码级局部 ignore；Settings feature flag 改为安全 `getattr`，AKShare 模块和 watchlist 返回在 Infrastructure 边界完成运行时校验/收窄。
+- 发现并删除 `apps/realtime/interface/__init__.py` 中误复制的整套 Regime Celery 任务；真实任务已由 `apps/regime/application/tasks.py` 提供，Realtime Interface 包入口恢复为无副作用声明，消除潜在重复任务注册和虚假 Realtime→Regime 依赖。
+
+## 第八十三批验证结果
+
+- Realtime 目标目录直接 mypy 为零；全仓基线从 `5829 errors / 801 files` 收紧为 `5795 errors / 792 files`，净减少 `34 errors / 9 files`，整个 Realtime 模块退出 mypy 债务基线。
+- 清零项包括 `7 misc + 4 import-untyped + 7 no-untyped-def + 1 no-any-return + 1 assignment + 14 type-arg`，完整传播无新增。
+- Realtime watchlist、views、tasks、provider、Celery 注册、轮询、WebSocket、仓储、readiness、告警、交付与 API 回归 `84 passed / 1 skipped`。
+- 删除错误的 Regime 任务副本后，App import edge 从 `199` 降至 `198`、Realtime outbound 从 `3` 降至 `2`、Regime inbound 从 `23` 降至 `22`；module cycle baseline 收紧为 `2026-07-23.v15`，`0 bidirectional pairs / 0 cycles / 0 stale budgets`。
+- 全仓扫描 `1851 files / 0 boundary / 0 audit violations`；architecture boundaries `4 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第八十四批
+
+- 按“AI Provider 公共管理 API + 系统模型配置入口”收口 admin provider、personal provider、usage log、当前配额与管理员批量配额六组 DRF ViewSet。
+- 所有 ViewSet 具化 DRF instance 泛型，list/retrieve/create/update/partial update/destroy、自定义 action、请求参数、路由主键、可变参数和 Response 返回契约全部显式声明。
+- Provider 列表输出不再依赖无类型 helper：`_get_provider_or_404()` 返回具体 `ProviderListItemDTO`，公开投影使用 `dict[str, Any]` JSON 边界；配额 Decimal→float 转换声明可空输入输出。
+- 动态 serializer class 选择保留在 DRF framework 边界，不向 Application 传播 `Any`；View 继续只调用既有 Application UseCase，没有新增 ORM、Infrastructure import 或业务规则。
+
+## 第八十四批验证结果
+
+- AI Provider API View 直接 mypy 为零；全仓基线从 `5795 errors / 792 files` 收紧为 `5734 errors / 791 files`，净减少 `61 errors / 1 file`，跨文件无新增。
+- 目标文件的 `26 no-untyped-call + 29 no-untyped-def + 6 type-arg` 全部清零。
+- AI Provider adapters、用户路由、加密 guardrail、配置模式、Domain service/entity 与 API edges 回归 `81 passed`。
+- 全仓扫描 `1851 files / 0 boundary / 0 audit violations`；architecture/governance/repository guardrails `39 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第八十五批
+
+- 按项目高风险链路优先级收口 Terminal/TUI 公共 API：覆盖 legacy command 410、Terminal Agent chat/SSE、MCP proposal 审批执行、审计日志、Workbench registry/catalog/bootstrap/screen/action 与 operator home/governance queue。
+- 所有 APIView/ViewSet handler 具化 DRF `Request`、路由参数、`Response` 或 `StreamingHttpResponse` 契约；SSE generator 使用 `Iterator[str]`，事件 JSON 和 Agent request payload 使用明确字典边界。
+- `_get_terminal_agent_service()` 通过 Application `TerminalAgentService` Protocol 收窄；proposal reject 与 execute 分支使用各自输出变量，修复静态类型揭示的联合分支错误，避免错误读取不存在的 execution 字段。
+- Terminal repository provider 为 TUI metadata、action executor、runtime settings 与 command HTTP client 建立最小 Protocol；Infrastructure provider 删除 wildcard re-export，改为显式工厂导出，类型收益继续传播至 services/query/interface gateway。
+
+## 第八十五批验证结果
+
+- 3 个直接目标文件 mypy 为零；全仓基线从 `5734 errors / 791 files` 收紧为 `5664 errors / 787 files`，净减少 `70 errors / 4 files`，跨文件无新增。
+- Terminal API 的 `1 assignment + 2 attr-defined + 12 no-untyped-call + 39 no-untyped-def + 1 type-arg`、Application provider 的 `1 attr-defined + 5 no-untyped-def` 与 Infrastructure provider 的 `1 no-untyped-def` 全部清零。
+- 完整传播额外清除 `ai_capability_gateway`、`interface_services`、`query_services` 与 `services` 的 `8 errors`。
+- 项目规定的 TUI Workbench、Terminal Agent、SDK client、internal SSL redirect，加上 Terminal API/operator/API edges 回归共 `254 passed`。
+- 全仓扫描 `1851 files / 0 boundary / 0 audit violations`；architecture/governance/repository guardrails `39 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第八十六批
+
+- 按“Share 公开链接 + 密码访问 + 金额脱敏安全边界”收口管理 API、匿名 API、公开页面、分享管理页面与全局免责声明配置。
+- Share visibility mixin 的 session 验证、客户端 IP、访问审计、snapshot 脱敏、公开 context 与 performance chart 全部使用具化 JSON 容器；嵌套 `first_of()` helper 明确 source/default 契约，不再向模板上下文传播无类型调用。
+- DRF ModelViewSet/ViewSet 与 Django page view 分别使用准确的 `Request/Response` 和 `HttpRequest/HttpResponse`；公开 short code、持久化 user/share ID 与表单整数都通过显式 helper 校验。
+- 修复表单边界隐患：账户 ID、编辑链接 ID、分享链接 ID 不再直接对可空输入调用 `int()`；创建密码与更新密码拆为独立变量，保持 `str | None` 语义准确。
+
+## 第八十六批验证结果
+
+- Share View 在直接和全仓传播模式下均为零；全仓基线从 `5664 errors / 787 files` 收紧为 `5600 errors / 786 files`，净减少 `64 errors / 1 file`，跨文件无新增。
+- 目标文件的 `7 arg-type + 3 no-any-return + 16 no-untyped-call + 33 no-untyped-def + 5 type-arg` 全部清零。
+- Share/Simulated Trading 依赖方向与 Share API owner scope、外部账户拒绝、公开 snapshot 金额/证据/证伪逻辑脱敏回归 `5 passed`。
+- 全仓扫描 `1851 files / 0 boundary / 0 audit violations`；architecture/governance/repository guardrails `39 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第八十七批
+
+- 按“Dashboard Alpha 首页聚合 + 决策链/退出监控导航”收口跨 Alpha、Account、Decision 与 Celery 的高扇入用户首页上下文。
+- 新增统一 JSON object/list 守卫，将 Application service、Alpha metrics/query 与可注入 loader 的动态返回在 Interface 边界验证为字符串键字典或字典列表；无效动态 payload 安全降级为空结构。
+- Alpha readiness、decision-chain overview、stock scores/meta、provider status、coverage、IC trends、factor panel 与 async refresh lock 全部使用具化容器和明确用户/loader 参数。
+- 退出监控 detail/entry/navigation 的 item、recommendation snapshot、account ID 与 asset code 完成显式规范化，避免模板与深链 URL 直接消费不明 `object`。
+
+## 第八十七批验证结果
+
+- Dashboard Alpha context 在直接和全仓传播模式下均为零；全仓基线从 `5600 errors / 786 files` 收紧为 `5547 errors / 785 files`，净减少 `53 errors / 1 file`，跨文件无新增。
+- 目标文件的 `6 arg-type + 4 call-overload + 1 misc + 2 no-any-return + 18 no-untyped-def + 20 type-arg` 全部清零；完整传播额外清除 Dashboard main views 的 `2 attr-defined`。
+- Dashboard view structure、regression guardrails、MCP tools、Alpha homepage structure、Domain services 与 API edges 回归 `89 passed`。
+- 全仓扫描 `1851 files / 0 boundary / 0 audit violations`；architecture/governance/repository guardrails `39 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第八十八批
+
+- 按“模拟盘绩效/估值公共 API + 账户/观察员权限边界”收口区间业绩、时点估值、净值时间线、基准配置和管理员历史回填。
+- 新增 Simulated Trading App 根级 `composition.py`，集中组装账户、观察者授权、日净值、统一现金流、基准、行情、交易历史、估值快照和 Capital Flow 九类具体仓储。
+- Interface 删除 `import_module()` 动态加载 Infrastructure 的绕行做法，仅依赖 Application 层九个 Repository Protocol；账户仓储动态结果在权限边界验证为字符串键字典。
+- 观察员授权显式拒绝未持久化用户 ID；drf-spectacular 缺失类型元数据仅在六个 schema decorator 使用错误码级局部 ignore。
+
+## 第八十八批验证结果
+
+- Simulated Trading composition 与 performance views 直接 mypy 为零；全仓基线从 `5547 errors / 785 files` 收紧为 `5500 errors / 784 files`，净减少 `47 errors / 1 file`，跨文件无新增。
+- 目标 View 的 `1 arg-type + 6 misc + 29 no-untyped-call + 11 no-untyped-def` 全部清零。
+- Account performance Domain/API、绩效曲线精度、账户 scope 与 Simulated Trading API edges 回归 `122 passed`。
+- 全仓扫描 `1852 files / 0 boundary / 0 audit violations`；architecture/governance/repository guardrails `39 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第八十九批
+
+- 按“Agent Runtime 任务生命周期 + 提案审批执行 + Operator 可观测面”收口核心公共 API，覆盖任务创建、列表、详情、恢复、取消、时间线、工件、移交、待人工处理、上下文快照、提案审批执行与健康检查。
+- DRF permission、ViewSet、action 与 handler 全部具化 `Request`、路由参数、可变参数和 `Response` 契约；只读任务 ViewSet 补齐框架泛型，动态 ORM 模型继续限定在 Interface composition 边界。
+- Serializer 的动态返回值在公开 JSON 边界验证为 `Mapping` 后转为字符串键字典；时间值使用可调用检查后格式化，任务 request ID 与批量主键在进入 Application query 前完成显式收窄。
+- 缺失详情主键显式进入既有 `DoesNotExist` 错误契约，避免对可空路由参数直接调用 `int()`；未改变任务 owner scope、operator 权限、状态机或审批业务规则。
+
+## 第八十九批验证结果
+
+- Agent Runtime 核心 views 在直接和全仓传播模式下均为零；全仓基线从 `5500 errors / 784 files` 收紧为 `5456 errors / 783 files`，净减少 `44 errors / 1 file`，跨文件无新增。
+- 目标文件的 `3 arg-type + 2 no-any-return + 1 no-untyped-call + 32 no-untyped-def + 1 type-arg + 4 union-attr + 1 valid-type` 全部清零。
+- Agent Runtime API、serializer、任务生命周期、RBAC 与 MCP proposal execution 回归 `64 passed`。
+- 全仓扫描 `1852 files / 0 boundary / 0 audit violations`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第九十批
+
+- 按“全局运行时配置真源 + Qlib/Alpha 训练控制面 + Token/备份下游读取”纵向清零整个 Config Center，覆盖模型、仓储、Application provider/use case、权限策略、App composition、Admin、DRF API/serializer 与配置页面。
+- Config Center Application 为系统设置、训练模板、训练运行和 Alpha Universe 四类仓储补齐完整 Protocol 签名；actor、profile、run 与 JSON payload 只在明确动态边界使用 `Any`，不向 Domain 扩散。
+- 系统配置模型补齐 singleton 读取、密码加解密、备份到期、Qlib fallback、运行时 benchmark/asset proxy/visual token 与默认配置类型；`QLIB_SETTINGS` 通过运行时 Mapping 守卫读取，不依赖未声明 settings 属性。
+- Admin 迁移到 `TypedModelAdmin[ConcreteModel]`，页面与 API 保持 staff-read / superuser-write 权限；DRF Request/Response、serializer 字典、表单 cleaned data、路由参数和动态 ORM 输出均在 Interface 边界具化。
+- 训练并发锁、PENDING/RUNNING 拒绝、Qlib 路径校验、Alpha Universe 解析和现有 API 响应契约保持不变；全仓传播同时清除 Account 管理/注册/备份/配置摘要与 Core encryption readiness 对无类型 Config Center API 的依赖。
+
+## 第九十批验证结果
+
+- Config Center 25 个生产源码直接 mypy 为零，全仓传播模式同样为零；全仓基线从 `5456 errors / 783 files` 收紧为 `5300 errors / 770 files`，净减少 `156 errors / 13 files`，跨文件无新增。
+- Config Center 自身清除 `142 errors`：`81 no-untyped-def + 22 no-untyped-call + 13 type-arg + 12 no-any-return + 7 misc + 3 union-attr + 2 arg-type + 1 assignment + 1 return-value`；完整传播额外清除 `14 no-untyped-call`。
+- Config Center 单元、API、Token 权限、只读快照、Core bridge、MCP catalog 与 Account runtime settings 回归 `67 passed`。
+- 全仓扫描 `1852 files / 0 boundary / 0 audit violations`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第九十一批
+
+- 按“账户身份入口 + Portfolio/Position owner scope + 资金与交易数据”收口 Account 页面 views 和 Portfolio API ViewSet；覆盖注册登录、个人设置、Token 自助/管理、资金流水、回测应用、波动率、管理员审批/RBAC、观察员门户、组合与持仓 CRUD。
+- Django 页面统一具化 `HttpRequest/HttpResponse`、路由整数和 token payload；DRF ViewSet 具化 `Request/Response`、泛型、serializer、路由参数和可变参数，审计客户端 IP 明确为 `str | None`。
+- 页面与 API 分别增加持久化 authenticated user ID 守卫，在进入 Application service 前把 `int | None` 收窄为 `int`；未持久化身份分别使用 Django `PermissionDenied` 和 DRF `NotAuthenticated`，不允许可空用户主键进入 owner-scope 查询。
+- Position 创建显式验证 portfolio ID 只能为整数或字符串；统一账本列表在 DRF pagination stub 边界局部收窄，不把 QuerySet 假设传播到 Application 返回的 JSON projections。
+- 类型恢复发现波动率历史接口长期读取不存在的 `VolatilityMetrics.date` 和 `rolling_volatility_30d`；现按领域实体真实契约投影 `as_of_date` 与 30 日窗口 `annualized_volatility`，并增加 API 契约回归。
+
+## 第九十一批验证结果
+
+- Account 页面 views 与 Portfolio API 在直接和全仓传播模式下均为零；全仓基线从 `5300 errors / 770 files` 收紧为 `5233 errors / 768 files`，净减少 `67 errors / 2 files`，跨文件无新增。
+- 目标文件的 `54 no-untyped-def + 5 no-untyped-call + 4 arg-type + 2 type-arg + 2 attr-defined` 全部清零。
+- Account API edges、统一账户、Portfolio/Position owner scope、观察员授权、资料/MCP/注册、管理员用户管理、认证和 TUI 跳转回归最终 `110 passed`；其中新增波动率字段契约测试 `1 passed`。
+- 全仓扫描 `1852 files / 0 boundary / 0 audit violations`；governance baseline 升级为 `2026-07-23.v165`，静态测试函数计数提升至 `7175`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第九十二批
+
+- 按“Data Center 高扇出 Application facade + 决策数据修复编排”收口 `application/interface_services.py`；该入口被 Core health、Terminal、Dashboard、Macro、Regime、Pulse、Equity、Account、Broker Execution 与 Decision Rhythm 等至少 20 条跨模块链路直接依赖。
+- 为动态注册的 Alpha scope、homepage payload 与异步任务建立最小 Protocol，明确 scope instrument/universe/hash、portfolio ID、recommendation metadata 与 task ID 契约；第三方运行时动态值只在 gateway 边界局部 `cast`。
+- Realtime price 与通用 JSON payload 在 Application 边界验证为 Mapping 后转换为字符串键字典，覆盖宏观治理、生产 coverage、市场温度计、行情同步与 skipped snapshot 返回；无效动态形状不进入消费者。
+- Provider registry 收窄到 Domain `ProviderRegistryProtocol`；连接测试 composition 的动态结果在持久化健康状态前强制验证为 `ConnectionTestResult`，避免异常基础设施对象污染 provider health。
+- Pulse/Alpha refresher 与 status reader 具化 Callable 签名；Kombu 无类型导入仅保留精确行级 `import-untyped` 例外，provider ID 在公开返回前显式转换为可空整数。
+
+## 第九十二批验证结果
+
+- Data Center interface facade 在直接和全仓传播模式下均为零；全仓基线从 `5233 errors / 768 files` 收紧为 `5200 errors / 767 files`，净减少 `33 errors / 1 file`，跨文件无新增。
+- 目标文件的 `14 no-untyped-call + 13 no-untyped-def + 4 type-arg + 1 import-untyped` 全部清零；完整传播额外清除 decision reliability repair command 的 `1 no-any-return`。
+- Data Center interface、Alpha runtime、decision readiness、market thermometer、provider connection、API、Macro facade、repair command、on-demand、Realtime/Regime provider 与 Account 行情建仓回归 `91 passed`。
+- 全仓扫描 `1852 files / 0 boundary / 0 audit violations`；architecture/governance/repository guardrails `54 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第九十三批
+
+- 按“Policy Application facade + 审批工作台 API + RSS/政策事件页面”纵向收口高影响用户入口，覆盖工作台概览、Bootstrap、事件审批/驳回/回滚、Gate 配置、人工 override、RSS 源/关键词/抓取日志/阅读器和政策事件页面。
+- Application interface service 为 Admin、Workbench、页面和 RSS API 仓储补齐构造器、参数与返回契约；动态 JSON payload 统一在边界验证为字符串键 Mapping，计数、布尔值和可空主键在公开返回前显式规范化。
+- Workbench API 使用 DRF `Request/Response`、持久化 authenticated user ID 守卫、具体 Repository factory 与 Application service 返回类型；未持久化身份统一进入 `NotAuthenticated`，不允许可空用户主键进入审批和配置写入。
+- Django 页面补齐 List/Form View handler、表单、路由、context 与 response 类型；由于当前 Django 运行类不支持泛型下标，基类保持运行时安全的原生 `ListView/FormView`，仅在基类声明处保留 `type-arg` 精确例外，实际方法签名仍全部具化。
+- 回归阶段识别并修复 `ListView[Any]` / `FormView[T]` 导致 Policy URLConf 导入时报 `TypeError` 的运行时风险；`manage.py check` 和完整 Policy HTTP 流程确认页面模块可正常加载。
+
+## 第九十三批验证结果
+
+- 三个直接目标在 governed mypy 与增量 regression 两种模式下均为零；全仓基线从 `5200 errors / 767 files` 收紧为 `5097 errors / 764 files`，净减少 `103 errors / 3 files`，跨文件无新增。
+- 目标文件的 `60 no-untyped-def + 15 no-untyped-call + 13 no-any-return + 11 type-arg` 全部清零；完整传播额外清除 `application/repository_provider.py` 的 `4 no-untyped-call`。
+- Policy 单元、工作台 API、集成契约与 API 边界回归共 `212 passed`；Django system check 为 `0 issues`。
+- 全仓扫描 `1852 files / 0 boundary / 0 audit violations`；architecture/governance/repository guardrails `54 passed`，Ruff、Black 与完整 mypy debt ceiling 通过。
+
+## 第九十四批
+
+- 按最新“风险错误数 × 用户影响面”排序收口 Strategy HTML 主流程页面；该文件在剩余债务中风险错误数最高，直接承载策略列表、创建、详情、编辑、启停，以及规则、脚本、AI 配置和仓位规则联动保存。
+- 为账户档案、策略记录、AI 配置、脚本配置和仓位规则建立页面所需的最小 Protocol；动态 `get_model()` 仅保留为运行时 Model 边界，不再被误当作类型，serializer/ORM 动态返回在访问字段前验证为已持久化策略记录。
+- 登录用户 ID 与 owner account profile 使用独立守卫；登录但缺失持久化 ID/账户档案时明确返回 403，不再通过 `request.user.account_profile.id` 直接解引用形成 500。
+- JSON 规则、脚本可保留哨兵、表单 JSON、validated rule 容器和默认配置全部具化；策略、配置与页面 helper 的参数/返回契约覆盖完整表单链路。
+- 删除策略列表端点重复的第二层 `login_required`；owner scope、事务原子性、DRF serializer 校验与现有页面响应契约保持不变。
+- 新增“登录但无账户档案必须 fail closed 为 403”集成契约，防止身份边界回退为属性异常。
+
+## 第九十四批验证结果
+
+- Strategy 页面在 governed mypy 与增量 regression 两种模式下均为零；全仓基线从 `5097 errors / 764 files` 收紧为 `5052 errors / 763 files`，净减少 `45 errors / 1 file`，跨文件无新增。
+- 目标文件的 `10 attr-defined + 1 no-any-return + 18 no-untyped-def + 4 type-arg + 6 union-attr + 6 valid-type` 全部清零。
+- Strategy 页面保存/结构、API edges、serializer/Application、执行、绑定与幂等回归共 `143 passed`。
+- 全仓扫描 `1852 files / 0 boundary / 0 audit violations`；governance baseline 升级为 `2026-07-23.v166`，静态测试函数计数提升至 `7176`。
+
+## 第九十五批
+
+- 按“决策主链风险 × 公共 API 影响面”收口 Decision Workspace 推荐与执行 API，覆盖聚合工作区、交易计划生成/详情/更新、执行预览、审批/驳回、推荐列表/动作/刷新、冲突和模型参数。
+- Recommendation API 不再从 `workspace_api_support` 间接重导入 DRF 类型、DTO 与 Application service，改为从正式 owner 模块导入；Enum filter 使用泛型 Enum 契约，请求字段、用户审计名与响应 DTO 全部具化。
+- Execution Preview 将 plan、unified、legacy 三条分支的 request ID 分离命名，消除函数级重复定义；推荐、审批、风险检查和状态机使用正式 Domain/Application 类型，不再把不同实体统一视为动态对象。
+- 所有 DRF handler 具化 `Request/Response`；请求体统一验证为字符串键 Mapping，account/recommendation/plan ID 规范化为空安全字符串，`recommendation_ids` 严格校验为非空字符串列表。
+- 修复审批状态更新返回 `None` 时仍尝试发布 approved/rejected 事件的行为：只有持久化更新成功并返回最新审批单时才发布领域事件，避免虚假候选状态同步。
+- 类型恢复发现 `RecommendationConsolidationService` 使用 `Decimal fair_value × float position_size_pct`，多建议合并会在运行时抛出 `TypeError`；现将权重和加权求和统一为 Decimal，确保公允价值结果精确且符合领域实体契约。
+- 新增非法 recommendation ID 列表、空状态更新不发布事件、Decimal 加权公允价值三项回归。
+
+## 第九十五批验证结果
+
+- 两个 API 与 Domain 估值服务在 governed、silent propagation 和增量 regression 三种 mypy 模式下均为零；全仓基线从 `5052 errors / 763 files` 收紧为 `4993 errors / 760 files`，净减少 `59 errors / 3 files`，跨文件无新增。
+- 直接清除 Recommendation API 的 `12 attr-defined + 1 no-any-return + 8 no-untyped-def`、Execution API 的 `15 attr-defined + 2 no-redef + 4 no-untyped-call + 12 no-untyped-def`，以及估值服务的 `1 arg-type + 1 no-untyped-def + 1 operator`。
+- 完整传播额外清除 `application/decision_workspace_use_cases.py` 的 `2 no-untyped-call`。
+- Decision Workspace API、错误映射、统一推荐、审批链、执行集成、决策漏斗、DTO 与估值服务回归共 `113 passed`。
+- 全仓扫描 `1852 files / 0 boundary / 0 audit violations`；governance baseline 升级为 `2026-07-23.v167`，静态测试函数计数提升至 `7179`。
+
+## 第九十六批
+
+- 按“真实订单/成交/对账链路风险 × 公共 API 影响面”收口 Broker Execution 的人机 API 与核心 Django Repository，覆盖订单目录/详情/动作、Kill Switch、Agent 连接与同步、对账、审计、账户授权、凭据、执行设置，以及机器端心跳、订单租约、回报和命令。
+- 全部 DRF handler 与机器端统一入口具化 `Request/Response`，Agent serializer 基类使用 DRF 泛型契约，保留签名认证、scope 校验和无 session cookie 的既有安全边界。
+- 仓储账户范围查询使用具体 QuerySet 泛型；动态用户模型改为单次最小字段投影，身份、角色和管理员状态在基础设施边界规范化，不向 Application 传播动态 Model。
+- 修复两个可空外键隐患：未分配 Agent 的订单不再依赖 `agent_id` 推断关联对象存在；授权管理员被删除并由 `SET_NULL` 清理后，账户授权目录不再解引用空对象。
+- 对账目标的 ORM TypedDict 投影转换为明确的 `dict[str, int]`，保持 Application 层账本投影输入稳定。
+- 新增未分配 Agent 订单目录、授权管理员删除后目录展示两项回归。
+
+## 第九十六批验证结果
+
+- Broker Execution API 与 Repository 在 silent propagation 和增量 regression 两种 mypy 模式下均为零；全仓基线从 `4993 errors / 760 files` 收紧为 `4952 errors / 758 files`，净减少 `41 errors / 2 files`，跨文件无新增。
+- 直接清除 Repository 的 `1 arg-type + 3 attr-defined + 3 no-untyped-def + 2 union-attr`，以及 API 的 `6 assignment + 26 no-untyped-def`。
+- Broker Execution API 权限与生命周期局部回归 `31 passed`；完整 Broker Execution 单元/集成回归 `67 passed`。
+- 全仓扫描 `1852 files / 0 boundary / 0 audit violations`；governance baseline 升级为 `2026-07-23.v168`，静态测试函数计数提升至 `7181`；architecture/governance/repository guardrails `39 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。
+
+## 第九十七批
+
+- 按“真实资金主流程风险 × 公共入口影响面”收口 Simulated Trading 主页面与核心 API，覆盖账户列表/创建/详情/删除、持仓、交易记录、绩效、手动交易、费率、净值曲线、自动交易和日更巡检。
+- Django 页面具化 `HttpRequest/HttpResponse` 和路由参数；DRF handler 与构造器具化 `Request/Response`、可变参数和返回契约，登录用户主键在进入账户创建/查询用例前显式收窄，未持久化身份 fail closed。
+- 为 drf-spectacular schema decorator 建立最小泛型 Protocol，使 governed skip-import 与 silent propagation 两种 mypy 模式共享同一装饰器签名，不引入 `misc` 或 `unused-ignore` 债务。
+- 买入/卖出用例使用独立变量，消除跨分支类型污染和错误调用契约；账户访问结果在 Interface 动态 ORM 边界收窄为最小持久化账户 Protocol。
+- 修复页面账户创建对非法字符串及 `NaN` 初始资金抛出 500 的问题，现安全提示并拒绝创建。
+- 修复交易列表分页口径：`total_trades` 返回完整过滤结果数，与买卖统计及总盈亏保持一致，返回数组仍受 limit 限制。
+- 修复 Simulated Trade ORM Mapper 将零已实现盈亏误转为 `None` 的问题；API 现保留数值零，手动交易响应同样使用显式可空判断。
+- 将 Simulated Trade Domain/ORM 映射从超大 Repository 拆到独立 `infrastructure/trade_mapper.py`；统一四处账户公开 JSON 投影为 `_account_payload()`，消除重复字段漂移并在不抬高治理允许值的前提下通过大型文件门禁。
+- 新增非法/非有限初始资金和交易列表分页零盈亏两组回归。
+
+## 第九十七批验证结果
+
+- Simulated Trading 主 views 与交易 Repository 在 governed、silent propagation 和增量 regression 三种 mypy 模式下均为零；全仓基线从 `4952 errors / 758 files` 收紧为 `4915 errors / 757 files`，净减少 `37 errors / 1 file`，跨文件无新增。
+- 目标 View 的 `1 assignment + 1 call-arg + 34 no-untyped-def + 1 type-arg` 全部清零。
+- Simulated Trading API edges、单元、账户/绩效/通知/再平衡和集成流程回归共 `117 passed`。
+- 全仓扫描 `1853 files / 0 boundary / 0 audit violations`；governance baseline 升级为 `2026-07-23.v169`，静态测试函数计数提升至 `7183`；architecture/governance/repository guardrails `39 passed`，完整 mypy debt ceiling、Ruff、Black 与 diff check 通过。

@@ -3,28 +3,35 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from django.db import transaction
 
+from apps.account.application.portfolio_api_contracts import (
+    PortfolioApiRepository as PortfolioApiRepositoryProtocol,
+)
+from apps.account.application.portfolio_api_contracts import (
+    UnifiedPositionService as UnifiedPositionServiceProtocol,
+)
 
-def _build_portfolio_api_repository():
+
+def _build_portfolio_api_repository() -> PortfolioApiRepositoryProtocol:
     from apps.simulated_trading.infrastructure.account_portfolio_repository import (
         PortfolioApiRepository,
     )
 
-    return PortfolioApiRepository()
+    return cast(PortfolioApiRepositoryProtocol, PortfolioApiRepository())
 
 
-def _get_unified_position_service():
+def _get_unified_position_service() -> UnifiedPositionServiceProtocol:
     from apps.simulated_trading.application.unified_position_service import (
         UnifiedPositionService,
     )
 
-    return UnifiedPositionService.default()
+    return cast(UnifiedPositionServiceProtocol, UnifiedPositionService.default())
 
 
-def _build_price_provider(cache_ttl_minutes: int):
+def _build_price_provider(cache_ttl_minutes: int) -> Any:
     from apps.simulated_trading.infrastructure.price_provider import DataCenterPriceProvider
 
     return DataCenterPriceProvider(cache_ttl_minutes=cache_ttl_minutes)
@@ -97,7 +104,7 @@ def _get_unified_account_id_for_portfolio(portfolio_id: int) -> int | None:
     )
 
 
-def _resolve_view(view_key: str) -> type:
+def _resolve_view(view_key: str) -> type[Any]:
     from apps.simulated_trading.interface import performance_views, views
 
     view_map = {
@@ -116,7 +123,7 @@ def _resolve_view(view_key: str) -> type:
         "account-benchmarks": performance_views.AccountBenchmarksAPIView,
         "account-backfill": performance_views.AccountBackfillAPIView,
     }
-    return view_map[view_key]
+    return cast(type[Any], view_map[view_key])
 
 
 def register_account_gateway() -> None:

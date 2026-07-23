@@ -3,6 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
+from apps.decision_rhythm.domain.entities import ApprovalStatus
+
 
 @pytest.mark.django_db
 def test_workspace_execution_preview_requires_plan_or_recommendation_id(authenticated_client):
@@ -26,6 +28,20 @@ def test_workspace_execution_plan_detail_returns_404_for_missing_plan(authentica
     payload = response.json()
     assert payload["success"] is False
     assert payload["error"] == "Transition plan not found"
+
+
+@pytest.mark.django_db
+def test_workspace_plan_generation_rejects_non_list_recommendation_ids(
+    authenticated_client,
+):
+    response = authenticated_client.post(
+        "/api/decision/workspace/plans/generate/",
+        {"recommendation_ids": "rec-1"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "recommendation_ids must be a list of strings"
 
 
 @pytest.mark.django_db
@@ -68,6 +84,43 @@ def test_workspace_execution_approve_returns_404_for_missing_request(authenticat
     payload = response.json()
     assert payload["success"] is False
     assert payload["error"] == "Approval request not found"
+
+
+@pytest.mark.django_db
+def test_workspace_execution_approve_skips_event_when_status_update_returns_none(
+    authenticated_client,
+):
+    approval_request = SimpleNamespace(
+        approval_status=ApprovalStatus.PENDING,
+        market_price_at_review=None,
+    )
+
+    with (
+        patch(
+            "apps.decision_rhythm.interface.workspace_execution_api_views.get_approval_request",
+            return_value=approval_request,
+        ),
+        patch(
+            "apps.decision_rhythm.interface.workspace_execution_api_views.ExecutionApprovalService.can_approve",
+            return_value=(True, "ok"),
+        ),
+        patch(
+            "apps.decision_rhythm.interface.workspace_execution_api_views.update_approval_request_status",
+            return_value=None,
+        ),
+        patch(
+            "apps.decision_rhythm.interface.workspace_execution_api_views.ExecutionApproveView._publish_decision_approved_event"
+        ) as publish_event,
+    ):
+        response = authenticated_client.post(
+            "/api/decision/execute/approve/",
+            {"approval_request_id": "req-missing-after-update"},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {"request_id": "req-missing-after-update"}
+    publish_event.assert_not_called()
 
 
 @pytest.mark.django_db

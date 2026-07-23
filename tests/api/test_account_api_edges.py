@@ -1,11 +1,14 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from apps.account.application import interface_services as account_interface_services
+from apps.account.application.volatility_use_cases import VolatilityAnalysisUseCase
+from apps.account.domain.services import VolatilityMetrics
 from apps.account.infrastructure.models import (
     AccountProfileModel,
     AssetCategoryModel,
@@ -75,6 +78,60 @@ def test_account_health_contract(authenticated_client):
     payload = response.json()
     assert payload["status"] == "healthy"
     assert payload["service"] == "account"
+
+
+@pytest.mark.django_db
+def test_account_volatility_history_uses_domain_metric_fields(
+    authenticated_client,
+    auth_user,
+    monkeypatch,
+):
+    """The chart contract must project the actual VolatilityMetrics fields."""
+
+    authenticated_client.force_login(auth_user)
+    monkeypatch.setattr(
+        account_interface_services,
+        "get_active_portfolio_for_user",
+        lambda _user_id: SimpleNamespace(id=17),
+    )
+    analysis = SimpleNamespace(
+        portfolio_id=17,
+        current_volatility_30d=0.20,
+        current_volatility_60d=0.18,
+        current_volatility_90d=0.16,
+        target_volatility=0.15,
+        adjustment_result=SimpleNamespace(
+            should_reduce=True,
+            reduction_reason="above target",
+            suggested_position_multiplier=0.75,
+        ),
+        volatility_history=[
+            VolatilityMetrics(
+                daily_volatility=0.01,
+                annualized_volatility=0.1587,
+                window_days=30,
+                as_of_date=date(2026, 7, 22),
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        VolatilityAnalysisUseCase,
+        "analyze_portfolio_volatility",
+        lambda self, *, portfolio_id, user_id: analysis,
+    )
+
+    response = authenticated_client.get("/api/account/volatility/")
+
+    assert response.status_code == 200
+    history = response.json()["data"]["history"]
+    assert history == [
+        {
+            "date": "2026-07-22",
+            "daily_volatility": 0.01,
+            "rolling_volatility_30d": 0.1587,
+            "annualized_volatility": 0.1587,
+        }
+    ]
 
 
 @pytest.mark.django_db

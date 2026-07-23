@@ -6,8 +6,11 @@ from collections.abc import Callable
 from typing import Any
 
 from rest_framework import status
+from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
 from apps.broker_execution.application.agent_auth import AuthenticateAgentRequestUseCase
@@ -84,7 +87,7 @@ def _success(data: Any, *, permissions: dict[str, bool] | None = None) -> Respon
     return Response(payload)
 
 
-def _request_context(request) -> dict[str, str]:
+def _request_context(request: Request) -> dict[str, str]:
     """Return a bounded, server-derived audit context without trusting body data."""
 
     authenticator = getattr(request, "successful_authenticator", None)
@@ -102,7 +105,7 @@ class BrokerExecutionOverviewView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         try:
             data = BrokerExecutionQueryService().overview(actor=request.user)
             return _success(data, permissions=action_permissions(request.user))
@@ -115,7 +118,7 @@ class BrokerExecutionOrderListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         try:
             account_id = request.query_params.get("account_id")
             data = BrokerExecutionQueryService().orders(
@@ -134,7 +137,7 @@ class BrokerExecutionAdvisorDraftView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = AdvisorDraftSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -143,12 +146,8 @@ class BrokerExecutionAdvisorDraftView(APIView):
                     actor=request.user,
                     account_id=serializer.validated_data["account_id"],
                     preview_only=serializer.validated_data["preview_only"],
-                    expected_plan_digest=serializer.validated_data.get(
-                        "expected_plan_digest", ""
-                    ),
-                    idempotency_key=serializer.validated_data.get(
-                        "idempotency_key"
-                    ),
+                    expected_plan_digest=serializer.validated_data.get("expected_plan_digest", ""),
+                    idempotency_key=serializer.validated_data.get("idempotency_key"),
                 )
             )
         except (
@@ -164,7 +163,7 @@ class BrokerExecutionOrderDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, client_order_id: str) -> Response:
+    def get(self, request: Request, client_order_id: str) -> Response:
         try:
             data = BrokerExecutionQueryService().order_detail(
                 actor=request.user, client_order_id=client_order_id
@@ -179,7 +178,7 @@ class BrokerExecutionOrderActionView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, client_order_id: str, action: str) -> Response:
+    def post(self, request: Request, client_order_id: str, action: str) -> Response:
         serializer = OrderActionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -208,7 +207,7 @@ class BrokerExecutionKillSwitchView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = KillSwitchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -237,7 +236,7 @@ class BrokerExecutionConnectionView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         try:
             return _success(
                 BrokerExecutionQueryService().connections(actor=request.user),
@@ -252,7 +251,7 @@ class BrokerExecutionConnectionSyncView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = ConnectionSyncSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -262,9 +261,7 @@ class BrokerExecutionConnectionSyncView(APIView):
                     agent_id=serializer.validated_data["agent_id"],
                     reason=serializer.validated_data["reason"],
                     preview_only=serializer.validated_data["preview_only"],
-                    idempotency_key=serializer.validated_data.get(
-                        "idempotency_key"
-                    ),
+                    idempotency_key=serializer.validated_data.get("idempotency_key"),
                 )
             )
         except (
@@ -281,7 +278,7 @@ class BrokerExecutionReconciliationView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         try:
             return _success(
                 BrokerExecutionQueryService().reconciliations(
@@ -298,7 +295,7 @@ class BrokerExecutionReconciliationResolveView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, run_id: int) -> Response:
+    def post(self, request: Request, run_id: int) -> Response:
         serializer = ReconciliationResolutionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -326,7 +323,7 @@ class BrokerExecutionAuditView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         try:
             return _success(
                 BrokerExecutionQueryService().audits(
@@ -343,7 +340,7 @@ class BrokerExecutionBindingView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = AgentBindingSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -373,17 +370,13 @@ class BrokerExecutionAccountAccessView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         try:
-            return _success(
-                BrokerExecutionQueryService().account_access_grants(
-                    actor=request.user
-                )
-            )
+            return _success(BrokerExecutionQueryService().account_access_grants(actor=request.user))
         except BrokerExecutionPermissionError as exc:
             return _error_response(exc)
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = AccountAccessSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -396,9 +389,7 @@ class BrokerExecutionAccountAccessView(APIView):
                         if key not in {"preview_only", "idempotency_key"}
                     },
                     preview_only=serializer.validated_data["preview_only"],
-                    idempotency_key=serializer.validated_data.get(
-                        "idempotency_key"
-                    ),
+                    idempotency_key=serializer.validated_data.get("idempotency_key"),
                 )
             )
         except (
@@ -415,7 +406,7 @@ class BrokerExecutionCredentialRotateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = CredentialRotateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -444,7 +435,7 @@ class BrokerExecutionCredentialRevokeView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, credential_id: str) -> Response:
+    def post(self, request: Request, credential_id: str) -> Response:
         serializer = CredentialRevokeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -466,7 +457,7 @@ class BrokerExecutionSettingsView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def patch(self, request, account_id: int) -> Response:
+    def patch(self, request: Request, account_id: int) -> Response:
         serializer = ExecutionSettingsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -494,14 +485,14 @@ class BrokerExecutionSettingsView(APIView):
 class AgentApiView(APIView):
     """Base for signed machine-only endpoints; no user auth or session cookies."""
 
-    authentication_classes: list[type] = []
+    authentication_classes: list[type[BaseAuthentication]] = []
     permission_classes = [AllowAny]
     required_scope = ""
-    serializer_class = AgentHeartbeatSerializer
+    serializer_class: type[Serializer[Any]] = AgentHeartbeatSerializer
 
     def handle_agent(
         self,
-        request,
+        request: Request,
         callback: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]],
     ) -> Response:
         try:
@@ -530,7 +521,7 @@ class AgentHeartbeatView(AgentApiView):
     required_scope = "agent.heartbeat.write"
     serializer_class = AgentHeartbeatSerializer
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         return self.handle_agent(
             request,
             lambda agent, data: AgentHeartbeatUseCase().execute(agent=agent, payload=data),
@@ -541,7 +532,7 @@ class AgentOrderLeaseView(AgentApiView):
     required_scope = "agent.orders.lease"
     serializer_class = AgentLeaseSerializer
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         return self.handle_agent(
             request,
             lambda agent, data: LeaseAgentOrdersUseCase().execute(
@@ -554,7 +545,7 @@ class AgentSubmittingView(AgentApiView):
     required_scope = "agent.orders.submitting_ack"
     serializer_class = AgentSubmittingSerializer
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         return self.handle_agent(
             request,
             lambda agent, data: AcknowledgeSubmittingUseCase().execute(
@@ -569,7 +560,7 @@ class AgentEventsView(AgentApiView):
     required_scope = "agent.events.write"
     serializer_class = AgentEventsSerializer
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         return self.handle_agent(
             request,
             lambda agent, data: ReportAgentEventsUseCase().execute(
@@ -582,7 +573,7 @@ class AgentSnapshotView(AgentApiView):
     required_scope = "agent.snapshots.write"
     serializer_class = AgentSnapshotSerializer
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         return self.handle_agent(
             request,
             lambda agent, data: SyncAgentSnapshotUseCase().execute(agent=agent, payload=data),
@@ -593,7 +584,7 @@ class AgentCommandsView(AgentApiView):
     required_scope = "agent.commands.lease"
     serializer_class = AgentCommandsSerializer
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         return self.handle_agent(
             request,
             lambda agent, data: LeaseAgentCommandsUseCase().execute(
@@ -606,7 +597,7 @@ class AgentCommandCompleteView(AgentApiView):
     required_scope = "agent.commands.lease"
     serializer_class = AgentCommandCompleteSerializer
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         return self.handle_agent(
             request,
             lambda agent, data: CompleteAgentCommandUseCase().execute(

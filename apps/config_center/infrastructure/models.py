@@ -9,14 +9,19 @@ from __future__ import annotations
 import base64
 import hashlib
 import uuid
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
+if TYPE_CHECKING:
+    from apps.config_center.domain.entities import AlphaUniverseConfig
 
 
 def _build_app_fernet() -> Fernet:
@@ -229,10 +234,10 @@ class SystemSettingsModel(models.Model):
         verbose_name = "系统配置"
         verbose_name_plural = "系统配置"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"系统配置 (审批:{'开启' if self.require_user_approval else '关闭'})"
 
-    def clean(self):
+    def clean(self) -> None:
         super().clean()
         if self.backup_enabled:
             if not self.backup_email:
@@ -269,7 +274,7 @@ class SystemSettingsModel(models.Model):
             raise ValidationError({"backup_link_ttl_days": "下载链接有效期必须大于等于 1 天。"})
 
     @classmethod
-    def get_settings(cls):
+    def get_settings(cls) -> SystemSettingsModel:
         settings_obj, _ = cls._default_manager.get_or_create(
             pk=1,
             defaults={
@@ -281,7 +286,7 @@ class SystemSettingsModel(models.Model):
                 "asset_proxy_code_map": cls._get_default_asset_proxy_code_map(),
             },
         )
-        update_fields = []
+        update_fields: list[str] = []
         if not settings_obj.benchmark_code_map:
             settings_obj.benchmark_code_map = cls._get_default_benchmark_code_map()
             update_fields.append("benchmark_code_map")
@@ -294,7 +299,7 @@ class SystemSettingsModel(models.Model):
         return settings_obj
 
     @classmethod
-    def get_settings_for_read(cls):
+    def get_settings_for_read(cls) -> SystemSettingsModel:
         """Return persisted settings or an unsaved default object for runtime reads."""
 
         settings_obj = cls._default_manager.filter(pk=1).first()
@@ -318,7 +323,7 @@ class SystemSettingsModel(models.Model):
     def _get_secret_fernet() -> Fernet:
         return _build_app_fernet()
 
-    def set_backup_password(self, raw_password: str):
+    def set_backup_password(self, raw_password: str) -> None:
         raw_password = (raw_password or "").strip()
         if not raw_password:
             self.backup_password_encrypted = ""
@@ -331,7 +336,7 @@ class SystemSettingsModel(models.Model):
         if not self.backup_password_encrypted:
             return ""
         try:
-            return (
+            return str(
                 self._get_secret_fernet()
                 .decrypt(self.backup_password_encrypted.encode("utf-8"))
                 .decode("utf-8")
@@ -339,7 +344,7 @@ class SystemSettingsModel(models.Model):
         except (InvalidToken, TypeError, ValueError):
             return ""
 
-    def set_backup_smtp_password(self, raw_password: str):
+    def set_backup_smtp_password(self, raw_password: str) -> None:
         raw_password = (raw_password or "").strip()
         if not raw_password:
             self.backup_smtp_password_encrypted = ""
@@ -352,7 +357,7 @@ class SystemSettingsModel(models.Model):
         if not self.backup_smtp_password_encrypted:
             return ""
         try:
-            return (
+            return str(
                 self._get_secret_fernet()
                 .decrypt(self.backup_smtp_password_encrypted.encode("utf-8"))
                 .decode("utf-8")
@@ -360,13 +365,13 @@ class SystemSettingsModel(models.Model):
         except (InvalidToken, TypeError, ValueError):
             return ""
 
-    def is_backup_due(self, now=None) -> bool:
+    def is_backup_due(self, now: datetime | None = None) -> bool:
         if not self.backup_enabled or not self.backup_email or not self.get_backup_password():
             return False
         now = now or datetime.now(UTC)
         if self.backup_last_sent_at is None:
             return True
-        return (now - self.backup_last_sent_at).days >= self.backup_interval_days
+        return bool((now - self.backup_last_sent_at).days >= self.backup_interval_days)
 
     def get_benchmark_code(self, key: str, default: str = "") -> str:
         value = (self.benchmark_code_map or {}).get(key, default)
@@ -406,7 +411,7 @@ class SystemSettingsModel(models.Model):
         return value if isinstance(value, str) else default
 
     def get_qlib_provider_uri(self) -> str:
-        default_uri = settings.QLIB_SETTINGS.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+        default_uri = self._get_qlib_setting("provider_uri", "~/.qlib/qlib_data/cn_data")
         if self.qlib_provider_uri:
             configured_path = Path(self.qlib_provider_uri).expanduser()
             if configured_path.exists():
@@ -415,15 +420,15 @@ class SystemSettingsModel(models.Model):
             if default_path.exists():
                 return str(default_path)
             return self.qlib_provider_uri
-        return default_uri
+        return str(default_uri)
 
     def get_qlib_region(self) -> str:
         if self.qlib_region:
-            return self.qlib_region
-        return settings.QLIB_SETTINGS.get("region", "CN")
+            return str(self.qlib_region)
+        return self._get_qlib_setting("region", "CN")
 
     def get_qlib_model_path(self) -> str:
-        default_path = settings.QLIB_SETTINGS.get("model_path", "/models/qlib")
+        default_path = self._get_qlib_setting("model_path", "/models/qlib")
         if self.qlib_model_path:
             configured_path = Path(self.qlib_model_path).expanduser()
             if configured_path.exists():
@@ -432,7 +437,17 @@ class SystemSettingsModel(models.Model):
             if fallback_path.exists():
                 return str(fallback_path)
             return self.qlib_model_path
-        return default_path
+        return str(default_path)
+
+    @staticmethod
+    def _get_qlib_setting(key: str, default: str) -> str:
+        """Return one string setting from the optional Qlib settings mapping."""
+
+        qlib_settings = getattr(settings, "QLIB_SETTINGS", {})
+        if not isinstance(qlib_settings, Mapping):
+            return default
+        value = qlib_settings.get(key, default)
+        return str(value) if value is not None else default
 
     def is_qlib_configured(self) -> bool:
         if not self.qlib_enabled:
@@ -470,26 +485,28 @@ class SystemSettingsModel(models.Model):
         return cls.get_settings_for_read().get_market_visual_tokens()
 
     @classmethod
-    def get_runtime_asset_proxy_map(cls) -> dict:
-        return cls.get_settings_for_read().asset_proxy_code_map or {}
+    def get_runtime_asset_proxy_map(cls) -> dict[str, Any]:
+        raw_map = cls.get_settings_for_read().asset_proxy_code_map
+        if not isinstance(raw_map, Mapping):
+            return {}
+        return {str(key): value for key, value in raw_map.items()}
 
     @classmethod
-    def get_runtime_qlib_config(cls) -> dict:
+    def get_runtime_qlib_config(cls) -> dict[str, object]:
         return cls.get_settings_for_read().get_runtime_qlib_config_payload()
 
     @classmethod
     def get_runtime_alpha_fixed_provider(cls) -> str:
-        return cls.get_settings_for_read().alpha_fixed_provider or ""
+        return str(cls.get_settings_for_read().alpha_fixed_provider or "")
 
     @classmethod
     def get_runtime_alpha_pool_mode(cls) -> str:
-        return (
-            cls.get_settings_for_read().alpha_pool_mode
-            or cls.ALPHA_POOL_MODE_STRICT_VALUATION
+        return str(
+            cls.get_settings_for_read().alpha_pool_mode or cls.ALPHA_POOL_MODE_STRICT_VALUATION
         )
 
     @staticmethod
-    def _get_default_agreement():
+    def _get_default_agreement() -> str:
         return """
 <h2>AgomTradePro 用户服务协议</h2>
 <p>欢迎使用 AgomTradePro（个人投研平台）！在使用本系统前，请仔细阅读以下条款：</p>
@@ -520,7 +537,7 @@ class SystemSettingsModel(models.Model):
 """
 
     @staticmethod
-    def _get_default_benchmark_code_map():
+    def _get_default_benchmark_code_map() -> dict[str, str]:
         return {
             "equity_default_index": "000300.SH",
             "equity_market_benchmark": "000300.SH",
@@ -528,7 +545,7 @@ class SystemSettingsModel(models.Model):
         }
 
     @staticmethod
-    def _get_default_asset_proxy_code_map():
+    def _get_default_asset_proxy_code_map() -> dict[str, str]:
         return {
             "A_SHARE_GROWTH": "000300.SH",
             "A_SHARE_VALUE": "000905.SH",
@@ -545,7 +562,7 @@ class SystemSettingsModel(models.Model):
         }
 
     @staticmethod
-    def _get_default_risk_warning():
+    def _get_default_risk_warning() -> str:
         return """
 <h2>投资风险提示书</h2>
 <p>在使用 AgomTradePro 进行投资决策前，请充分了解以下风险：</p>
@@ -621,7 +638,7 @@ class QlibTrainingProfileModel(models.Model):
         verbose_name_plural = "Qlib 训练模板"
         ordering = ["name", "profile_key"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name} ({self.profile_key})"
 
 
@@ -637,7 +654,9 @@ class AlphaUniverseConfigModel(models.Model):
         (SOURCE_DATA_CENTER_FILTER, "Data Center 条件生成"),
     ]
 
-    universe_id = models.CharField(max_length=64, unique=True, db_index=True, verbose_name="Universe ID")
+    universe_id = models.CharField(
+        max_length=64, unique=True, db_index=True, verbose_name="Universe ID"
+    )
     name = models.CharField(max_length=120, verbose_name="名称")
     source_type = models.CharField(
         max_length=32,
@@ -658,10 +677,10 @@ class AlphaUniverseConfigModel(models.Model):
         verbose_name_plural = "Alpha Universe 配置"
         ordering = ["universe_id"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.universe_id} ({self.name})"
 
-    def to_domain(self):
+    def to_domain(self) -> AlphaUniverseConfig:
         from apps.config_center.domain.entities import AlphaUniverseConfig
 
         return AlphaUniverseConfig(
@@ -715,15 +734,23 @@ class QlibTrainingRunModel(models.Model):
         related_name="qlib_training_runs",
         verbose_name="发起人",
     )
-    requested_at = models.DateTimeField(default=timezone.now, db_index=True, verbose_name="发起时间")
+    requested_at = models.DateTimeField(
+        default=timezone.now, db_index=True, verbose_name="发起时间"
+    )
     started_at = models.DateTimeField(null=True, blank=True, verbose_name="开始时间")
     finished_at = models.DateTimeField(null=True, blank=True, verbose_name="结束时间")
-    celery_task_id = models.CharField(max_length=100, blank=True, default="", verbose_name="Celery Task ID")
+    celery_task_id = models.CharField(
+        max_length=100, blank=True, default="", verbose_name="Celery Task ID"
+    )
     model_name = models.CharField(max_length=100, verbose_name="模型名称")
     model_type = models.CharField(max_length=50, verbose_name="模型类型")
     resolved_train_config = models.JSONField(default=dict, blank=True, verbose_name="最终训练配置")
-    result_model_name = models.CharField(max_length=100, blank=True, default="", verbose_name="结果模型名")
-    result_artifact_hash = models.CharField(max_length=64, blank=True, default="", verbose_name="结果 Artifact Hash")
+    result_model_name = models.CharField(
+        max_length=100, blank=True, default="", verbose_name="结果模型名"
+    )
+    result_artifact_hash = models.CharField(
+        max_length=64, blank=True, default="", verbose_name="结果 Artifact Hash"
+    )
     result_metrics = models.JSONField(default=dict, blank=True, verbose_name="结果指标")
     registry_result = models.JSONField(default=dict, blank=True, verbose_name="注册结果")
     error_message = models.TextField(blank=True, verbose_name="错误信息")
@@ -736,5 +763,5 @@ class QlibTrainingRunModel(models.Model):
         verbose_name_plural = "Qlib 训练任务"
         ordering = ["-requested_at", "-id"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.model_name} [{self.status}]"

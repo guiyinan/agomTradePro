@@ -16,20 +16,22 @@ from enum import Enum
 
 class AssetType(Enum):
     """资产类型枚举"""
-    EQUITY = "equity"           # 股票
-    FUND = "fund"               # 基金
-    INDEX = "index"             # 指数
-    BOND = "bond"               # 债券
-    FUTURES = "futures"         # 期货
-    UNKNOWN = "unknown"         # 未知类型
+
+    EQUITY = "equity"  # 股票
+    FUND = "fund"  # 基金
+    INDEX = "index"  # 指数
+    BOND = "bond"  # 债券
+    FUTURES = "futures"  # 期货
+    UNKNOWN = "unknown"  # 未知类型
 
 
 class PriceUpdateStatus(Enum):
     """价格更新状态枚举"""
-    SUCCESS = "success"         # 更新成功
-    FAILED = "failed"           # 更新失败
-    NO_CHANGE = "no_change"     # 价格无变化
-    SKIPPED = "skipped"         # 已跳过（如非交易时间）
+
+    SUCCESS = "success"  # 更新成功
+    FAILED = "failed"  # 更新失败
+    NO_CHANGE = "no_change"  # 价格无变化
+    SKIPPED = "skipped"  # 已跳过（如非交易时间）
 
 
 class AlertCondition(Enum):
@@ -133,6 +135,7 @@ class RealtimePrice:
         timestamp: 价格时间戳
         source: 数据来源（tushare/akshare等）
     """
+
     asset_code: str
     asset_type: AssetType
     price: Decimal
@@ -142,7 +145,7 @@ class RealtimePrice:
     timestamp: datetime
     source: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典格式（用于API响应）"""
         return {
             "asset_code": self.asset_code,
@@ -152,7 +155,7 @@ class RealtimePrice:
             "change_pct": float(self.change_pct) if self.change_pct is not None else None,
             "volume": self.volume,
             "timestamp": self.timestamp.isoformat(),
-            "source": self.source
+            "source": self.source,
         }
 
 
@@ -168,6 +171,7 @@ class PriceUpdate:
         timestamp: 更新时间戳
         error_message: 错误信息（如果更新失败）
     """
+
     asset_code: str
     old_price: Decimal | None
     new_price: Decimal | None
@@ -196,7 +200,7 @@ class PriceUpdate:
             return None
         return (self.new_price - self.old_price) / self.old_price * Decimal(100)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典格式（用于API响应）"""
         return {
             "asset_code": self.asset_code,
@@ -204,7 +208,7 @@ class PriceUpdate:
             "new_price": float(self.new_price) if self.new_price is not None else None,
             "status": self.status.value,
             "timestamp": self.timestamp.isoformat(),
-            "error_message": self.error_message
+            "error_message": self.error_message,
         }
 
 
@@ -219,20 +223,21 @@ class PricePollingConfig:
         retry_delay: 重试延迟（秒）
         timeout: 请求超时（秒）
     """
-    polling_interval: int = 30      # 默认30秒
-    batch_size: int = 100           # 每次批量查询100个资产
-    max_retries: int = 3            # 最多重试3次
-    retry_delay: int = 5            # 重试延迟5秒
-    timeout: int = 30               # 请求超时30秒
 
-    def to_dict(self) -> dict:
+    polling_interval: int = 30  # 默认30秒
+    batch_size: int = 100  # 每次批量查询100个资产
+    max_retries: int = 3  # 最多重试3次
+    retry_delay: int = 5  # 重试延迟5秒
+    timeout: int = 30  # 请求超时30秒
+
+    def to_dict(self) -> dict[str, object]:
         """转换为字典格式"""
         return {
             "polling_interval": self.polling_interval,
             "batch_size": self.batch_size,
             "max_retries": self.max_retries,
             "retry_delay": self.retry_delay,
-            "timeout": self.timeout
+            "timeout": self.timeout,
         }
 
 
@@ -249,6 +254,7 @@ class PriceSnapshot:
         success_count: 成功获取价格的资产数
         failed_count: 失败的资产数
     """
+
     timestamp: datetime
     prices: list[RealtimePrice]
     total_assets: int
@@ -262,7 +268,7 @@ class PriceSnapshot:
             return 0.0
         return self.success_count / self.total_assets
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典格式"""
         return {
             "timestamp": self.timestamp.isoformat(),
@@ -270,5 +276,5 @@ class PriceSnapshot:
             "total_assets": self.total_assets,
             "success_count": self.success_count,
             "failed_count": self.failed_count,
-            "success_rate": self.success_rate
+            "success_rate": self.success_rate,
         }

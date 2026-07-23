@@ -21,7 +21,7 @@ class ChannelPriceNotifier(RealtimeChannelNotifierProtocol):
     """Publish owner- and asset-sharded events through the channel layer."""
 
     def _send(self, group: str, event: dict[str, Any]) -> None:
-        if not settings.REALTIME_WEBSOCKET_ENABLED:
+        if not getattr(settings, "REALTIME_WEBSOCKET_ENABLED", False):
             return
         channel_layer = _get_channel_layer()
         if channel_layer is None:
@@ -40,9 +40,7 @@ class ChannelPriceNotifier(RealtimeChannelNotifierProtocol):
                     "asset_type": price.asset_type.value,
                     "price": str(price.price),
                     "change": str(price.change) if price.change is not None else None,
-                    "change_pct": (
-                        str(price.change_pct) if price.change_pct is not None else None
-                    ),
+                    "change_pct": (str(price.change_pct) if price.change_pct is not None else None),
                     "volume": price.volume,
                     "timestamp": price.timestamp.isoformat(),
                     "source": price.source,
@@ -65,14 +63,10 @@ class ChannelPriceNotifier(RealtimeChannelNotifierProtocol):
                     "status": alert.status.value,
                     "message": alert.message,
                     "triggered_price": (
-                        str(alert.triggered_price)
-                        if alert.triggered_price is not None
-                        else None
+                        str(alert.triggered_price) if alert.triggered_price is not None else None
                     ),
                     "triggered_at": (
-                        alert.triggered_at.isoformat()
-                        if alert.triggered_at is not None
-                        else None
+                        alert.triggered_at.isoformat() if alert.triggered_at is not None else None
                     ),
                 },
             },

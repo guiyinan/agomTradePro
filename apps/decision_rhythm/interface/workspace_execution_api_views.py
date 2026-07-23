@@ -1,25 +1,16 @@
 """Workspace execution API views."""
 
+import logging
+from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any
 
 from rest_framework import status
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .workspace_api_support import (
-    ApprovalStatus,
-    ApprovalStatusStateMachine,
-    ExecutionApprovalService,
-    _build_plan_risk_checks,
-    _build_transition_plan_for_account,
-    _create_approval_from_plan,
-    _decimal,
-    _regime_context,
-    _risk_checks,
-    _serialize_transition_plan,
-    _truthy,
-    _update_transition_plan_from_payload,
+from ..application.workspace_services import (
     build_recommendation_risk_checks,
     create_legacy_approval,
     create_unified_approval,
@@ -30,17 +21,64 @@ from .workspace_api_support import (
     get_transition_plan,
     get_unified_recommendation,
     has_pending_request,
-    logger,
     save_transition_plan,
     update_approval_request_status,
 )
+from ..domain.valuation_entities import ApprovalStatus, ExecutionApprovalRequest
+from ..domain.valuation_services import ExecutionApprovalService
+from ..domain.workflow_services import ApprovalStatusStateMachine
+from .workspace_api_support import (
+    _build_plan_risk_checks,
+    _build_transition_plan_for_account,
+    _create_approval_from_plan,
+    _decimal,
+    _regime_context,
+    _serialize_transition_plan,
+    _truthy,
+    _update_transition_plan_from_payload,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _request_payload(request: Request) -> dict[str, Any]:
+    """Normalize a DRF request body to a string-key mapping."""
+
+    raw_payload = request.data
+    if not isinstance(raw_payload, Mapping):
+        return {}
+    return {str(key): value for key, value in raw_payload.items()}
+
+
+def _optional_text(value: Any) -> str | None:
+    """Normalize an optional request field to stripped text."""
+
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
+def _string_list(value: Any, *, field_name: str) -> list[str] | None:
+    """Validate an optional list of non-empty string identifiers."""
+
+    if value in (None, ""):
+        return None
+    if not isinstance(value, list):
+        raise ValueError(f"{field_name} must be a list of strings")
+    normalized: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError(f"{field_name} must be a list of non-empty strings")
+        normalized.append(item.strip())
+    return normalized
 
 
 class AggregatedWorkspaceView(APIView):
     """GET /api/decision/workspace/aggregated/"""
 
-    def get(self, request) -> Response:
-        account_id = request.query_params.get("account_id")
+    def get(self, request: Request) -> Response:
+        account_id = _optional_text(request.query_params.get("account_id"))
         payload = get_aggregated_workspace_payload(account_id)
 
         return Response(
@@ -57,11 +95,15 @@ class AggregatedWorkspaceView(APIView):
 class TransitionPlanGenerateView(APIView):
     """POST /api/decision/workspace/plans/generate/"""
 
-    def post(self, request) -> Response:
-        account_id = (request.data or {}).get("account_id") or "default"
-        recommendation_ids = (request.data or {}).get("recommendation_ids") or None
+    def post(self, request: Request) -> Response:
+        payload = _request_payload(request)
+        account_id = _optional_text(payload.get("account_id")) or "default"
 
         try:
+            recommendation_ids = _string_list(
+                payload.get("recommendation_ids"),
+                field_name="recommendation_ids",
+            )
             plan = _build_transition_plan_for_account(
                 account_id=account_id,
                 recommendation_ids=recommendation_ids,
@@ -87,7 +129,7 @@ class TransitionPlanGenerateView(APIView):
 class TransitionPlanDetailView(APIView):
     """GET /api/decision/workspace/plans/<str:plan_id>/"""
 
-    def get(self, request, plan_id: str) -> Response:
+    def get(self, request: Request, plan_id: str) -> Response:
         plan = get_transition_plan(plan_id)
         if plan is None:
             return Response(
@@ -100,7 +142,7 @@ class TransitionPlanDetailView(APIView):
 class TransitionPlanUpdateView(APIView):
     """POST /api/decision/workspace/plans/<str:plan_id>/update/"""
 
-    def post(self, request, plan_id: str) -> Response:
+    def post(self, request: Request, plan_id: str) -> Response:
         plan = get_transition_plan(plan_id)
         if plan is None:
             return Response(
@@ -109,7 +151,10 @@ class TransitionPlanUpdateView(APIView):
             )
 
         try:
-            updated_plan = _update_transition_plan_from_payload(plan, request.data or {})
+            updated_plan = _update_transition_plan_from_payload(
+                plan,
+                _request_payload(request),
+            )
             updated_plan = save_transition_plan(updated_plan)
         except Exception as exc:
             logger.error(f"Failed to update transition plan {plan_id}: {exc}", exc_info=True)
@@ -123,12 +168,13 @@ class TransitionPlanUpdateView(APIView):
 class ExecutionPreviewView(APIView):
     """POST /api/decision/execute/preview/"""
 
-    def post(self, request) -> Response:
-        plan_id = (request.data or {}).get("plan_id")
-        recommendation_id = (request.data or {}).get("recommendation_id")
-        create_request = _truthy((request.data or {}).get("create_request"))
-        account_id = (request.data or {}).get("account_id") or "default"
-        market_price = _decimal((request.data or {}).get("market_price"))
+    def post(self, request: Request) -> Response:
+        payload = _request_payload(request)
+        plan_id = _optional_text(payload.get("plan_id"))
+        recommendation_id = _optional_text(payload.get("recommendation_id"))
+        create_request = _truthy(payload.get("create_request"))
+        account_id = _optional_text(payload.get("account_id")) or "default"
+        market_price = _decimal(payload.get("market_price"))
 
         if plan_id:
             plan = get_transition_plan(plan_id)
@@ -149,9 +195,9 @@ class ExecutionPreviewView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            request_id: str | None = None
+            plan_request_id: str | None = None
             if create_request:
-                regime_source = _regime_context()["source"]
+                regime_source = str(_regime_context()["source"])
                 try:
                     approval_request = _create_approval_from_plan(
                         plan=plan,
@@ -164,13 +210,13 @@ class ExecutionPreviewView(APIView):
                     return Response(
                         {"success": False, "error": str(exc)}, status=status.HTTP_409_CONFLICT
                     )
-                request_id = approval_request.request_id
+                plan_request_id = approval_request.request_id
 
             return Response(
                 {
                     "success": True,
                     "data": {
-                        "request_id": request_id,
+                        "request_id": plan_request_id,
                         "plan_id": plan.plan_id,
                         "recommendation_type": "plan",
                         "preview": {
@@ -196,9 +242,9 @@ class ExecutionPreviewView(APIView):
         # 优先查找 UnifiedRecommendation（M2 融合推荐）
         uni_rec = get_unified_recommendation(recommendation_id)
         if uni_rec:
-            risk_checks = self._risk_checks_from_unified(uni_rec, market_price)
-            request_id: str | None = None
-            regime_source = _regime_context()["source"]
+            risk_checks = build_recommendation_risk_checks(uni_rec, market_price)
+            unified_request_id: str | None = None
+            regime_source = str(_regime_context()["source"])
             if create_request:
                 if has_pending_request(account_id, uni_rec.security_code, uni_rec.side):
                     return Response(
@@ -209,20 +255,20 @@ class ExecutionPreviewView(APIView):
                         status=status.HTTP_409_CONFLICT,
                     )
 
-                approval_request = self._create_approval_from_unified(
-                    uni_rec=uni_rec,
+                approval_request = create_unified_approval(
+                    uni_rec,
                     account_id=account_id,
                     risk_checks=risk_checks,
                     regime_source=regime_source,
                     market_price=market_price,
                 )
-                request_id = approval_request.request_id
+                unified_request_id = approval_request.request_id
 
             return Response(
                 {
                     "success": True,
                     "data": {
-                        "request_id": request_id,
+                        "request_id": unified_request_id,
                         "recommendation_id": uni_rec.recommendation_id,
                         "recommendation_type": "unified",
                         "preview": {
@@ -259,9 +305,9 @@ class ExecutionPreviewView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        risk_checks = _risk_checks(recommendation, market_price)
-        regime_source = _regime_context()["source"]
-        request_id: str | None = None
+        risk_checks = build_recommendation_risk_checks(recommendation, market_price)
+        regime_source = str(_regime_context()["source"])
+        legacy_request_id: str | None = None
         if create_request:
             if has_pending_request(account_id, recommendation.security_code, recommendation.side):
                 return Response(
@@ -279,13 +325,13 @@ class ExecutionPreviewView(APIView):
                 regime_source=regime_source,
                 market_price=market_price,
             )
-            request_id = approval_request.request_id
+            legacy_request_id = approval_request.request_id
 
         return Response(
             {
                 "success": True,
                 "data": {
-                    "request_id": request_id,
+                    "request_id": legacy_request_id,
                     "recommendation_id": recommendation.recommendation_id,
                     "recommendation_type": "legacy",
                     "valuation_snapshot_id": recommendation.valuation_snapshot_id,
@@ -308,30 +354,15 @@ class ExecutionPreviewView(APIView):
             status=status.HTTP_201_CREATED if create_request else status.HTTP_200_OK,
         )
 
-    def _risk_checks_from_unified(self, uni_rec, market_price) -> dict[str, Any]:
-        """从 UnifiedRecommendation 构建风控检查结果"""
-        return build_recommendation_risk_checks(uni_rec, market_price)
-
-    def _create_approval_from_unified(
-        self, uni_rec, account_id, risk_checks, regime_source, market_price
-    ):
-        """从 UnifiedRecommendation 创建审批请求"""
-        return create_unified_approval(
-            uni_rec,
-            account_id=account_id,
-            risk_checks=risk_checks,
-            regime_source=regime_source,
-            market_price=market_price,
-        )
-
 
 class ExecutionApproveView(APIView):
     """POST /api/decision/execute/approve/"""
 
-    def post(self, request) -> Response:
-        request_id = (request.data or {}).get("approval_request_id")
-        reviewer_comments = (request.data or {}).get("reviewer_comments", "")
-        market_price = _decimal((request.data or {}).get("market_price"))
+    def post(self, request: Request) -> Response:
+        payload = _request_payload(request)
+        request_id = _optional_text(payload.get("approval_request_id"))
+        reviewer_comments = str(payload.get("reviewer_comments", ""))
+        market_price = _decimal(payload.get("market_price"))
 
         if not request_id:
             return Response(
@@ -361,13 +392,17 @@ class ExecutionApproveView(APIView):
         )
 
         # 发布决策批准事件（触发 Candidate 状态同步）
-        self._publish_decision_approved_event(updated)
+        if updated is not None:
+            self._publish_decision_approved_event(updated)
 
         return Response(
             {"success": True, "data": updated.to_dict() if updated else {"request_id": request_id}}
         )
 
-    def _publish_decision_approved_event(self, approval_request):
+    def _publish_decision_approved_event(
+        self,
+        approval_request: ExecutionApprovalRequest,
+    ) -> None:
         """发布决策批准事件，同步 Candidate 状态"""
         try:
             from apps.events.domain.entities import EventType, create_event
@@ -393,16 +428,21 @@ class ExecutionApproveView(APIView):
                 logger.info(
                     f"Published DECISION_APPROVED event for request {approval_request.request_id}"
                 )
-        except Exception as e:
-            logger.error(f"Failed to publish DECISION_APPROVED event: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Failed to publish DECISION_APPROVED event: %s",
+                exc,
+                exc_info=True,
+            )
 
 
 class ExecutionRejectView(APIView):
     """POST /api/decision/execute/reject/"""
 
-    def post(self, request) -> Response:
-        request_id = (request.data or {}).get("approval_request_id")
-        reviewer_comments = (request.data or {}).get("reviewer_comments", "")
+    def post(self, request: Request) -> Response:
+        payload = _request_payload(request)
+        request_id = _optional_text(payload.get("approval_request_id"))
+        reviewer_comments = str(payload.get("reviewer_comments", ""))
 
         if not request_id:
             return Response(
@@ -432,13 +472,17 @@ class ExecutionRejectView(APIView):
         )
 
         # 发布决策拒绝事件
-        self._publish_decision_rejected_event(updated)
+        if updated is not None:
+            self._publish_decision_rejected_event(updated)
 
         return Response(
             {"success": True, "data": updated.to_dict() if updated else {"request_id": request_id}}
         )
 
-    def _publish_decision_rejected_event(self, approval_request):
+    def _publish_decision_rejected_event(
+        self,
+        approval_request: ExecutionApprovalRequest,
+    ) -> None:
         """发布决策拒绝事件"""
         try:
             from apps.events.domain.entities import EventType, create_event
@@ -463,14 +507,18 @@ class ExecutionRejectView(APIView):
             logger.info(
                 f"Published DECISION_REJECTED event for request {approval_request.request_id}"
             )
-        except Exception as e:
-            logger.error(f"Failed to publish DECISION_REJECTED event: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Failed to publish DECISION_REJECTED event: %s",
+                exc,
+                exc_info=True,
+            )
 
 
 class ExecutionRequestDetailView(APIView):
     """GET /api/decision/execute/{request_id}/"""
 
-    def get(self, request, request_id: str) -> Response:
+    def get(self, request: Request, request_id: str) -> Response:
         approval_request = get_approval_request(request_id)
         if approval_request is None:
             return Response(

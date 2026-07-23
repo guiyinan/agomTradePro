@@ -8,7 +8,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional
+from typing import Any, Optional, Protocol, cast
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
@@ -27,7 +27,10 @@ from ..domain.services import (
     calculate_rolling_zscore,
 )
 from ..domain.services_v2 import RegimeCalculationResult, ThresholdConfig
-from .repository_provider import get_regime_config_repository
+from .repository_provider import (
+    MacroRepositoryAdapterProtocol,
+    get_regime_config_repository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +58,29 @@ RECOVERABLE_REGIME_USE_CASE_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+
+
+class RegimeConfigRepositoryProtocol(Protocol):
+    """Runtime threshold configuration consumed by Regime use cases."""
+
+    def get_spread_threshold_bp(self, default: float) -> float: ...
+
+    def get_us_yield_threshold(self, default: float) -> float: ...
+
+    def get_daily_persist_days(self, default: int) -> int: ...
+
+    def get_conflict_confidence_boost(self, default: float) -> float: ...
+
+
+class RegimeSnapshotRepositoryProtocol(Protocol):
+    """Snapshot lookup required by the legacy fallback path."""
+
+    def get_latest_snapshot(self, before_date: date | None = None) -> RegimeSnapshot | None: ...
+
+
+def _get_config_repository() -> RegimeConfigRepositoryProtocol:
+    """Resolve the infrastructure-backed config repository at the composition boundary."""
+    return cast(RegimeConfigRepositoryProtocol, get_regime_config_repository())
 
 
 # ==================== High-Frequency Signal Use Cases ====================
@@ -103,7 +129,7 @@ class CalculateTermSpreadUseCase:
     - Flat spread: Uncertainty or transition period
     """
 
-    def __init__(self, repository):
+    def __init__(self, repository: MacroRepositoryAdapterProtocol) -> None:
         self.repository = repository
 
     def execute(self, request: CalculateTermSpreadRequest) -> CalculateTermSpreadResponse:
@@ -212,7 +238,7 @@ class HighFrequencySignalResponse:
     signal_direction: str | None  # BULLISH, BEARISH, NEUTRAL
     signal_strength: float  # 0-1
     confidence: float  # 0-1
-    contributing_indicators: list[dict]  # Indicators that contributed to the signal
+    contributing_indicators: list[dict[str, Any]]
     warning_signals: list[str]  # Any warning signals (e.g., yield curve inversion)
     error: str | None = None
 
@@ -225,9 +251,13 @@ class HighFrequencySignalUseCase:
     for regime changes. This reduces lag from 3-6 months to 1-2 weeks.
     """
 
-    def __init__(self, repository, config_repository=None):
+    def __init__(
+        self,
+        repository: MacroRepositoryAdapterProtocol,
+        config_repository: RegimeConfigRepositoryProtocol | None = None,
+    ) -> None:
         self.repository = repository
-        self.config_repository = config_repository or get_regime_config_repository()
+        self.config_repository = config_repository or _get_config_repository()
 
     def execute(self, request: HighFrequencySignalRequest) -> HighFrequencySignalResponse:
         """
@@ -368,7 +398,7 @@ class HighFrequencySignalUseCase:
                 error=str(e),
             )
 
-    def _evaluate_term_spread(self, as_of_date: date) -> dict:
+    def _evaluate_term_spread(self, as_of_date: date) -> dict[str, Any]:
         """Evaluate term spread indicator"""
         try:
             # 重构说明 (2026-03-11): 使用注入的 repository 而非创建新实例
@@ -403,7 +433,7 @@ class HighFrequencySignalUseCase:
             logger.warning(f"Error evaluating term spread: {e}")
             return {"success": False}
 
-    def _evaluate_nhci(self, as_of_date: date, lookback_days: int) -> dict:
+    def _evaluate_nhci(self, as_of_date: date, lookback_days: int) -> dict[str, Any]:
         """Evaluate NHCI (南华商品指数) indicator"""
         try:
             # 重构说明 (2026-03-11): 使用注入的 repository 而非创建新实例
@@ -453,7 +483,7 @@ class HighFrequencySignalUseCase:
             logger.warning(f"Error evaluating NHCI: {e}")
             return {"success": False}
 
-    def _evaluate_us_bond(self, as_of_date: date) -> dict:
+    def _evaluate_us_bond(self, as_of_date: date) -> dict[str, Any]:
         """Evaluate US 10Y bond yield indicator"""
         try:
             # 重构说明 (2026-03-11): 使用注入的 repository 而非创建新实例
@@ -524,8 +554,11 @@ class ResolveSignalConflictUseCase:
     4. Default: Use monthly, lower confidence (0.5)
     """
 
-    def __init__(self, config_repository=None):
-        self.config_repository = config_repository or get_regime_config_repository()
+    def __init__(
+        self,
+        config_repository: RegimeConfigRepositoryProtocol | None = None,
+    ) -> None:
+        self.config_repository = config_repository or _get_config_repository()
 
     def execute(self, request: ResolveSignalConflictRequest) -> ResolveSignalConflictResponse:
         """
@@ -609,9 +642,9 @@ class CalculateRegimeResponse:
     warnings: list[str]
     error: str | None = None
     # 新增：详细数据
-    raw_data: dict | None = None  # 原始数据
-    intermediate_data: dict | None = None  # 中间计算值
-    history_data: list | None = None  # 历史趋势
+    raw_data: dict[str, Any] | None = None
+    intermediate_data: dict[str, Any] | None = None
+    history_data: list[Any] | None = None
 
 
 class CalculateRegimeUseCase:
@@ -635,8 +668,11 @@ class CalculateRegimeUseCase:
     MAX_FALLBACK_COUNT = 3  # 最大降级次数限制（防止无限循环）
 
     def __init__(
-        self, repository, regime_repository=None, calculator: RegimeCalculator | None = None
-    ):
+        self,
+        repository: MacroRepositoryAdapterProtocol,
+        regime_repository: RegimeSnapshotRepositoryProtocol | None = None,
+        calculator: RegimeCalculator | None = None,
+    ) -> None:
         """
         Args:
             repository: MacroRepository 实例
@@ -706,7 +742,10 @@ class CalculateRegimeUseCase:
         Returns:
             Dict: 填充后的数据 {'growth': List[float], 'inflation': List[float]}
         """
-        result = {"growth": None, "inflation": None}
+        result: dict[str, list[float] | None] = {
+            "growth": None,
+            "inflation": None,
+        }
 
         for indicator_code in missing_indicators:
             # 获取前值
@@ -923,11 +962,13 @@ class CalculateRegimeUseCase:
                 )
 
                 # 更新数据
-                if filled_data.get("growth"):
-                    growth_series = filled_data["growth"]
+                filled_growth = filled_data["growth"]
+                if filled_growth:
+                    growth_series = filled_growth
                     warnings_list.append("增长指标使用前值填充")
-                if filled_data.get("inflation"):
-                    inflation_series = filled_data["inflation"]
+                filled_inflation = filled_data["inflation"]
+                if filled_inflation:
+                    inflation_series = filled_inflation
                     warnings_list.append("通胀指标使用前值填充")
 
             # 5. 再次检查数据完整性
@@ -1163,7 +1204,7 @@ class CalculateRegimeV2Response:
     result: Optional["RegimeCalculationResult"]
     warnings: list[str]
     error: str | None = None
-    raw_data: dict | None = None
+    raw_data: dict[str, Any] | None = None
 
 
 class CalculateRegimeV2UseCase:
@@ -1178,7 +1219,7 @@ class CalculateRegimeV2UseCase:
 
     MIN_DATA_POINTS = 3  # V2 只需要最近的数据
 
-    def __init__(self, repository):
+    def __init__(self, repository: MacroRepositoryAdapterProtocol) -> None:
         self.repository = repository
 
     def _load_threshold_config(self) -> "ThresholdConfig":
@@ -1207,7 +1248,7 @@ class CalculateRegimeV2UseCase:
 
     def execute(self, request: CalculateRegimeV2Request) -> CalculateRegimeV2Response:
         """执行 Regime V2 计算"""
-        warnings_list = []
+        warnings_list: list[str] = []
 
         try:
             from ..domain.services_v2 import RegimeCalculatorV2

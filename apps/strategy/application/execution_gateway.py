@@ -21,24 +21,29 @@ Application 层网关服务， 为 simulated_trading 模块提供策略执行的
 """
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Protocol
 
+from apps.strategy.application.interface_contracts import (
+    StrategyExecutionRunnerProtocol,
+)
 from apps.strategy.application.repository_provider import (
     build_strategy_executor,
     get_strategy_gateway_repository,
 )
 
-logger = __import__('logging').getLogger(__name__)
+logger = __import__("logging").getLogger(__name__)
 
 
 # ============================================================================
 # Data Transfer Objects
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class ExecutionRequest:
     """策略执行请求"""
+
     strategy_id: int
     account_id: int
     as_of_date: date
@@ -47,6 +52,7 @@ class ExecutionRequest:
 @dataclass(frozen=True)
 class SignalInfo:
     """信号信息"""
+
     signal_id: int | None
     asset_code: str
     asset_name: str
@@ -60,15 +66,17 @@ class SignalInfo:
 @dataclass(frozen=True)
 class ExecutionResult:
     """策略执行结果"""
+
     success: bool
     signals: list[SignalInfo]
     error_message: str | None = None
-    execution_time: float | None = None
+    execution_time: datetime | None = None
 
 
 @dataclass(frozen=True)
 class InspectionSelection:
     """巡检所需的策略与仓位规则摘要。"""
+
     strategy_id: int | None
     position_rule_id: int | None
     rule_metadata: dict[str, Any]
@@ -80,56 +88,31 @@ class InspectionSelection:
 # Gateway Protocol
 # ============================================================================
 
-class StrategyExecutorProtocol(Protocol):
-    """策略执行器协议"""
-
-    def execute_strategy(
-        self,
-        strategy_id: int,
-        account_id: int,
-        as_of_date: date | None = None
-    ) -> dict[str, Any]:
-        """
-        执行策略
-
-        Args:
-            strategy_id: 策略 ID
-            account_id: 账户 ID
-            as_of_date: 分析时点
-
-        Returns:
-            执行结果字典
-        """
-        ...
-
 
 class StrategyGatewayQueryProtocol(Protocol):
     """策略只读查询协议。"""
 
-    def get_strategy_info(self, strategy_id: int) -> dict[str, Any] | None:
-        ...
+    def get_strategy_info(self, strategy_id: int) -> dict[str, Any] | None: ...
 
-    def get_active_strategy_binding(self, account_id: int) -> dict[str, Any] | None:
-        ...
+    def get_active_strategy_binding(self, account_id: int) -> dict[str, Any] | None: ...
 
     def get_inspection_selection(
         self,
         account_id: int,
         strategy_id: int | None = None,
-    ) -> InspectionSelection:
-        ...
+    ) -> InspectionSelection: ...
 
     def evaluate_position_rule(
         self,
         rule_id: int | None,
         context: dict[str, Any],
-    ) -> dict[str, Any] | None:
-        ...
+    ) -> dict[str, Any] | None: ...
 
 
 # ============================================================================
 # Gateway Implementation
 # ============================================================================
+
 
 class StrategyExecutionGateway:
     """
@@ -152,7 +135,7 @@ class StrategyExecutionGateway:
 
     def __init__(
         self,
-        executor: StrategyExecutorProtocol | None = None,
+        executor: StrategyExecutionRunnerProtocol | None = None,
         query_repository: StrategyGatewayQueryProtocol | None = None,
     ):
         """
@@ -164,7 +147,7 @@ class StrategyExecutionGateway:
         self._executor = executor
         self._query_repository = query_repository
 
-    def _get_executor(self) -> StrategyExecutorProtocol:
+    def _get_executor(self) -> StrategyExecutionRunnerProtocol:
         """
         获取策略执行器
 
@@ -183,10 +166,7 @@ class StrategyExecutionGateway:
         return self._query_repository
 
     def execute_for_account(
-        self,
-        strategy_id: int,
-        account_id: int,
-        as_of_date: date | None = None
+        self, strategy_id: int, account_id: int, as_of_date: date | None = None
     ) -> ExecutionResult:
         """
         为账户执行策略
@@ -212,22 +192,26 @@ class StrategyExecutionGateway:
                 return ExecutionResult(
                     success=False,
                     signals=[],
-                    error_message=raw_result.error_message or '策略执行失败'
+                    error_message=raw_result.error_message or "策略执行失败",
                 )
 
             # 转换信号（StrategyExecutionResult.signals -> [SignalRecommendation]）
             signals = []
             for sig in raw_result.signals:
-                signals.append(SignalInfo(
-                    signal_id=None,
-                    asset_code=sig.asset_code,
-                    asset_name=sig.asset_name,
-                    action=sig.action.value if hasattr(sig.action, 'value') else str(sig.action),
-                    quantity=sig.quantity,
-                    confidence=sig.confidence,
-                    reason=sig.reason,
-                    metadata=dict(getattr(sig, "metadata", {}) or {}),
-                ))
+                signals.append(
+                    SignalInfo(
+                        signal_id=None,
+                        asset_code=sig.asset_code,
+                        asset_name=sig.asset_name,
+                        action=(
+                            sig.action.value if hasattr(sig.action, "value") else str(sig.action)
+                        ),
+                        quantity=sig.quantity,
+                        confidence=sig.confidence,
+                        reason=sig.reason,
+                        metadata=dict(getattr(sig, "metadata", {}) or {}),
+                    )
+                )
 
             return ExecutionResult(
                 success=True,
@@ -237,11 +221,7 @@ class StrategyExecutionGateway:
 
         except Exception as e:
             logger.error(f"Strategy execution failed: {e}")
-            return ExecutionResult(
-                success=False,
-                signals=[],
-                error_message=str(e)
-            )
+            return ExecutionResult(success=False, signals=[], error_message=str(e))
 
     def get_strategy_info(self, strategy_id: int) -> dict[str, Any] | None:
         """
@@ -286,7 +266,7 @@ class StrategyExecutionGateway:
             是否活跃
         """
         info = self.get_strategy_info(strategy_id)
-        return info is not None and info.get('is_active', False)
+        return info is not None and info.get("is_active", False)
 
     def get_inspection_selection(
         self,

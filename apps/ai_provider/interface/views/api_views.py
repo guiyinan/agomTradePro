@@ -2,14 +2,19 @@
 API views for AI provider management.
 """
 
+from decimal import Decimal
+from typing import Any
+
 from django.contrib.auth import get_user_model
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
+from ...application.dtos import ProviderListItemDTO
 from ...application.use_cases import (
     BatchApplyUserFallbackQuotaUseCase,
     CheckBudgetUseCase,
@@ -37,26 +42,26 @@ from ..serializers import (
 )
 
 
-class AIProviderConfigViewSet(viewsets.GenericViewSet):
+class AIProviderConfigViewSet(viewsets.GenericViewSet[Any]):
     """Admin-only CRUD for system providers."""
 
     permission_classes = [IsAdminUser]
     serializer_class = AIProviderConfigSerializer
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
         if self.action in {"create", "update", "partial_update"}:
             return AdminProviderCreateSerializer
         return AIProviderConfigSerializer
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         items = ListProvidersUseCase().execute(scope="system")
         return Response([_provider_list_item_to_dict(item) for item in items])
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request: Request, pk: str = "") -> Response:
         item = _get_provider_or_404(pk=pk)
         return Response(_provider_list_item_to_dict(item))
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         provider = CreateProviderUseCase().execute(
@@ -67,7 +72,7 @@ class AIProviderConfigViewSet(viewsets.GenericViewSet):
         item = _get_provider_or_404(pk=provider.id)
         return Response(_provider_list_item_to_dict(item), status=status.HTTP_201_CREATED)
 
-    def update(self, request, pk=None):
+    def update(self, request: Request, pk: str = "") -> Response:
         serializer = self.get_serializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
@@ -77,7 +82,7 @@ class AIProviderConfigViewSet(viewsets.GenericViewSet):
         item = _get_provider_or_404(pk=provider.id)
         return Response(_provider_list_item_to_dict(item))
 
-    def partial_update(self, request, pk=None):
+    def partial_update(self, request: Request, pk: str = "") -> Response:
         serializer = self.get_serializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
@@ -87,7 +92,7 @@ class AIProviderConfigViewSet(viewsets.GenericViewSet):
         item = _get_provider_or_404(pk=provider.id)
         return Response(_provider_list_item_to_dict(item))
 
-    def destroy(self, request, pk=None):
+    def destroy(self, request: Request, pk: str = "") -> Response:
         try:
             DeleteProviderUseCase().execute(int(pk))
         except ValueError as exc:
@@ -95,7 +100,7 @@ class AIProviderConfigViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"], url_path="toggle_active")
-    def toggle_active(self, request, pk=None):
+    def toggle_active(self, request: Request, pk: str = "") -> Response:
         try:
             provider = ToggleProviderUseCase().execute(int(pk))
         except ValueError as exc:
@@ -104,7 +109,7 @@ class AIProviderConfigViewSet(viewsets.GenericViewSet):
         return Response(_provider_list_item_to_dict(item))
 
     @action(detail=True, methods=["post"], url_path="test-connection")
-    def test_connection(self, request, pk=None):
+    def test_connection(self, request: Request, pk: str = "") -> Response:
         try:
             result = TestProviderConnectionUseCase().execute(int(pk))
         except ValueError as exc:
@@ -114,7 +119,7 @@ class AIProviderConfigViewSet(viewsets.GenericViewSet):
         return Response(result)
 
     @action(detail=True, methods=["get"], url_path="usage_stats")
-    def usage_stats(self, request, pk=None):
+    def usage_stats(self, request: Request, pk: str = "") -> Response:
         try:
             stats = GetProviderStatsUseCase().execute(int(pk))
             budget = CheckBudgetUseCase().execute(int(pk))
@@ -135,34 +140,34 @@ class AIProviderConfigViewSet(viewsets.GenericViewSet):
         )
 
     @action(detail=False, methods=["get"], url_path="overall_stats")
-    def overall_stats(self, request):
+    def overall_stats(self, request: Request) -> Response:
         stats = GetOverallStatsUseCase().execute()
         return Response(stats.__dict__)
 
 
-class PersonalProviderViewSet(viewsets.GenericViewSet):
+class PersonalProviderViewSet(viewsets.GenericViewSet[Any]):
     """User-scoped CRUD for personal providers."""
 
     permission_classes = [IsAuthenticated]
     serializer_class = AIProviderConfigSerializer
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
         if self.action in {"create", "update", "partial_update"}:
             return PersonalProviderCreateSerializer
         return AIProviderConfigSerializer
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         items = ListProvidersUseCase().execute(
             scope="user",
             owner_user=request.user,
         )
         return Response([_provider_list_item_to_dict(item) for item in items])
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request: Request, pk: str = "") -> Response:
         item = _get_provider_or_404(pk=pk, owner_user=request.user)
         return Response(_provider_list_item_to_dict(item))
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         provider = CreateProviderUseCase().execute(
@@ -173,7 +178,7 @@ class PersonalProviderViewSet(viewsets.GenericViewSet):
         item = _get_provider_or_404(pk=provider.id, owner_user=request.user)
         return Response(_provider_list_item_to_dict(item), status=status.HTTP_201_CREATED)
 
-    def update(self, request, pk=None):
+    def update(self, request: Request, pk: str = "") -> Response:
         serializer = self.get_serializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
@@ -187,7 +192,7 @@ class PersonalProviderViewSet(viewsets.GenericViewSet):
         item = _get_provider_or_404(pk=provider.id, owner_user=request.user)
         return Response(_provider_list_item_to_dict(item))
 
-    def partial_update(self, request, pk=None):
+    def partial_update(self, request: Request, pk: str = "") -> Response:
         serializer = self.get_serializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
@@ -201,7 +206,7 @@ class PersonalProviderViewSet(viewsets.GenericViewSet):
         item = _get_provider_or_404(pk=provider.id, owner_user=request.user)
         return Response(_provider_list_item_to_dict(item))
 
-    def destroy(self, request, pk=None):
+    def destroy(self, request: Request, pk: str = "") -> Response:
         try:
             DeleteProviderUseCase().execute(int(pk), actor_user=request.user)
         except ValueError as exc:
@@ -209,7 +214,7 @@ class PersonalProviderViewSet(viewsets.GenericViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"], url_path="toggle_active")
-    def toggle_active(self, request, pk=None):
+    def toggle_active(self, request: Request, pk: str = "") -> Response:
         try:
             provider = ToggleProviderUseCase().execute(int(pk), actor_user=request.user)
         except ValueError as exc:
@@ -218,13 +223,13 @@ class PersonalProviderViewSet(viewsets.GenericViewSet):
         return Response(_provider_list_item_to_dict(item))
 
 
-class AIUsageLogViewSet(viewsets.GenericViewSet):
+class AIUsageLogViewSet(viewsets.GenericViewSet[Any]):
     """Admin-only usage log listing."""
 
     permission_classes = [IsAdminUser]
     serializer_class = AIUsageLogSerializer
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         provider_id = request.GET.get("provider")
         status_filter = request.GET.get("status")
         provider_scope = request.GET.get("provider_scope")
@@ -246,13 +251,13 @@ class AIUsageLogViewSet(viewsets.GenericViewSet):
         return Response([item.__dict__ for item in logs])
 
 
-class MyUsageLogViewSet(viewsets.GenericViewSet):
+class MyUsageLogViewSet(viewsets.GenericViewSet[Any]):
     """Authenticated user's own usage logs."""
 
     permission_classes = [IsAuthenticated]
     serializer_class = AIUsageLogSerializer
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         status_filter = request.GET.get("status")
         provider_scope = request.GET.get("provider_scope")
         logs = ListUsageLogsUseCase().execute(
@@ -264,34 +269,34 @@ class MyUsageLogViewSet(viewsets.GenericViewSet):
         return Response([item.__dict__ for item in logs])
 
 
-class UserFallbackQuotaViewSet(viewsets.GenericViewSet):
+class UserFallbackQuotaViewSet(viewsets.GenericViewSet[Any]):
     """Authenticated user's quota visibility."""
 
     permission_classes = [IsAuthenticated]
     serializer_class = UserFallbackQuotaSerializer
 
     @action(detail=False, methods=["get"], url_path="current")
-    def current(self, request):
+    def current(self, request: Request) -> Response:
         dto = GetUserFallbackQuotaUseCase().execute(user=request.user)
         return Response(dto.__dict__)
 
 
-class AdminUserFallbackQuotaViewSet(viewsets.GenericViewSet):
+class AdminUserFallbackQuotaViewSet(viewsets.GenericViewSet[Any]):
     """Admin management for user fallback quotas."""
 
     permission_classes = [IsAdminUser]
     serializer_class = UserFallbackQuotaSerializer
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         quotas = ListUserFallbackQuotasUseCase().execute()
         return Response([item.__dict__ for item in quotas])
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request: Request, pk: str = "") -> Response:
         user = get_object_or_404(get_user_model(), pk=pk)
         dto = GetUserFallbackQuotaUseCase().execute(user=user)
         return Response(dto.__dict__)
 
-    def partial_update(self, request, pk=None):
+    def partial_update(self, request: Request, pk: str = "") -> Response:
         serializer = UserFallbackQuotaUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         user = get_object_or_404(get_user_model(), pk=pk)
@@ -322,7 +327,7 @@ class AdminUserFallbackQuotaViewSet(viewsets.GenericViewSet):
         return Response(dto.__dict__)
 
     @action(detail=False, methods=["post"], url_path="batch_apply")
-    def batch_apply(self, request):
+    def batch_apply(self, request: Request) -> Response:
         serializer = BatchQuotaApplySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         result = BatchApplyUserFallbackQuotaUseCase().execute(
@@ -335,13 +340,21 @@ class AdminUserFallbackQuotaViewSet(viewsets.GenericViewSet):
         return Response(result.__dict__, status=status.HTTP_200_OK)
 
 
-def _decimal_to_float(value):
+def _decimal_to_float(value: Decimal | None) -> float | None:
+    """Convert an optional validated decimal to the use-case float contract."""
+
     if value is None:
         return None
     return float(value)
 
 
-def _get_provider_or_404(*, pk, owner_user=None):
+def _get_provider_or_404(
+    *,
+    pk: str | int,
+    owner_user: Any | None = None,
+) -> ProviderListItemDTO:
+    """Resolve a provider DTO within the requested ownership scope."""
+
     scope = "user" if owner_user is not None else "system"
     items = ListProvidersUseCase().execute(
         scope=scope,
@@ -354,7 +367,9 @@ def _get_provider_or_404(*, pk, owner_user=None):
     raise Http404(f"Provider with id {pk} not found")
 
 
-def _provider_list_item_to_dict(item):
+def _provider_list_item_to_dict(item: ProviderListItemDTO) -> dict[str, Any]:
+    """Project a provider DTO to its public API representation."""
+
     return {
         "id": item.id,
         "name": item.name,

@@ -1,12 +1,14 @@
 """Realtime interface serializers."""
 
 from decimal import Decimal
-from typing import Any
+from typing import Any, TypeAlias
 
 from rest_framework import serializers
 
+SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
 
-class StrictSerializer(serializers.Serializer):
+
+class StrictSerializer(serializers.Serializer[dict[str, Any]]):
     """Reject unknown input fields instead of silently ignoring them."""
 
     def to_internal_value(self, data: Any) -> dict[str, Any]:
@@ -17,16 +19,14 @@ class StrictSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
             )
-        return super().to_internal_value(data)
+        return dict(super().to_internal_value(data))
 
 
 class PriceAlertCreateSerializer(StrictSerializer):
     """Validate a price-alert creation command."""
 
     asset_code = serializers.CharField(min_length=1, max_length=32, trim_whitespace=True)
-    condition = serializers.ChoiceField(
-        choices=("above", "below", "cross_up", "cross_down")
-    )
+    condition = serializers.ChoiceField(choices=("above", "below", "cross_up", "cross_down"))
     threshold = serializers.DecimalField(
         max_digits=20,
         decimal_places=6,
@@ -77,7 +77,7 @@ class PriceSubscriptionCommandSerializer(StrictSerializer):
     asset_code = serializers.CharField(min_length=1, max_length=32, trim_whitespace=True)
 
 
-class PriceAlertResponseSerializer(serializers.Serializer):
+class PriceAlertResponseSerializer(serializers.Serializer[Any]):
     """Serialize a durable price alert."""
 
     id = serializers.IntegerField()
@@ -96,7 +96,7 @@ class PriceAlertResponseSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField(allow_null=True)
 
 
-class PriceSubscriptionResponseSerializer(serializers.Serializer):
+class PriceSubscriptionResponseSerializer(serializers.Serializer[Any]):
     """Serialize a durable realtime subscription."""
 
     id = serializers.IntegerField()
@@ -106,46 +106,38 @@ class PriceSubscriptionResponseSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField(allow_null=True)
 
 
-class SectorPerformanceQuerySerializer(serializers.Serializer):
+class SectorPerformanceQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """Reject parameters for the zero-input sector performance contract."""
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         """Reject unknown query parameters instead of silently ignoring them."""
 
         unknown_fields = sorted(set(data))
         if unknown_fields:
             raise serializers.ValidationError(
-                {
-                    "non_field_errors": [
-                        f"Unknown query parameters: {', '.join(unknown_fields)}"
-                    ]
-                }
+                {"non_field_errors": [f"Unknown query parameters: {', '.join(unknown_fields)}"]}
             )
-        return super().to_internal_value(data)
+        return dict(super().to_internal_value(data))
 
 
-class TopMoversQuerySerializer(serializers.Serializer):
+class TopMoversQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """Validate the persisted top-movers query."""
 
     direction = serializers.ChoiceField(choices=("up", "down"), default="up")
     limit = serializers.IntegerField(min_value=1, max_value=200, default=10)
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         """Reject unknown query parameters instead of silently ignoring them."""
 
         unknown_fields = sorted(set(data) - set(self.fields))
         if unknown_fields:
             raise serializers.ValidationError(
-                {
-                    "non_field_errors": [
-                        f"Unknown query parameters: {', '.join(unknown_fields)}"
-                    ]
-                }
+                {"non_field_errors": [f"Unknown query parameters: {', '.join(unknown_fields)}"]}
             )
-        return super().to_internal_value(data)
+        return dict(super().to_internal_value(data))
 
 
-class RealtimePriceSerializer(serializers.Serializer):
+class RealtimePriceSerializer(serializers.Serializer[Any]):
     """Realtime price response payload."""
 
     asset_code = serializers.CharField()
@@ -155,4 +147,10 @@ class RealtimePriceSerializer(serializers.Serializer):
     change_pct = serializers.DecimalField(max_digits=12, decimal_places=6, allow_null=True)
     volume = serializers.IntegerField(allow_null=True)
     timestamp = serializers.DateTimeField()
-    source = serializers.CharField()
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the public source field without overriding DRF state."""
+
+        fields = super().get_fields()
+        fields["source"] = serializers.CharField()
+        return fields

@@ -4,13 +4,13 @@
 Interface 层：输入验证 + 输出格式化，无业务逻辑、无 ORM 调用。
 所有 ORM 操作经由 infrastructure/performance_repositories.py 的仓储类完成。
 """
+
 from __future__ import annotations
 
 import dataclasses
 import logging
 from datetime import date
-from importlib import import_module
-from typing import Any
+from typing import Any, Literal
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
@@ -22,11 +22,29 @@ from rest_framework.views import APIView
 from apps.simulated_trading.application.performance_use_cases import (
     AccountRepositoryProtocol,
     BackfillUnifiedAccountHistoryUseCase,
+    BenchmarkComponentRepositoryProtocol,
     BenchmarkCRUDUseCase,
+    CapitalFlowRepositoryProtocol,
+    DailyNetValueRepositoryProtocol,
     GetAccountPerformanceReportUseCase,
     GetAccountValuationSnapshotUseCase,
     ListAccountValuationTimelineUseCase,
+    MarketDataRepositoryProtocol,
     ObserverGrantRepositoryProtocol,
+    TradeHistoryRepositoryProtocol,
+    UnifiedCashFlowRepositoryProtocol,
+    ValuationSnapshotRepositoryProtocol,
+)
+from apps.simulated_trading.composition import (
+    build_benchmark_component_repository,
+    build_capital_flow_repository,
+    build_daily_net_value_repository,
+    build_market_data_repository,
+    build_observer_grant_repository,
+    build_performance_account_repository,
+    build_trade_history_repository,
+    build_unified_cash_flow_repository,
+    build_valuation_snapshot_repository,
 )
 
 from .performance_serializers import (
@@ -45,44 +63,40 @@ logger = logging.getLogger(__name__)
 _SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 
 
-def _performance_repository_module():
-    return import_module("apps.simulated_trading.infrastructure.performance_repositories")
+def _build_account_repository() -> AccountRepositoryProtocol:
+    return build_performance_account_repository()
 
 
-def _build_account_repository():
-    return _performance_repository_module().DjangoPerformanceAccountRepository()
+def _build_observer_grant_repository() -> ObserverGrantRepositoryProtocol:
+    return build_observer_grant_repository()
 
 
-def _build_observer_grant_repository():
-    return _performance_repository_module().DjangoObserverGrantRepository()
+def _build_daily_net_value_repository() -> DailyNetValueRepositoryProtocol:
+    return build_daily_net_value_repository()
 
 
-def _build_daily_net_value_repository():
-    return _performance_repository_module().DjangoPerformanceDailyNetValueRepository()
+def _build_cash_flow_repository() -> UnifiedCashFlowRepositoryProtocol:
+    return build_unified_cash_flow_repository()
 
 
-def _build_cash_flow_repository():
-    return _performance_repository_module().DjangoUnifiedCashFlowRepository()
+def _build_benchmark_repository() -> BenchmarkComponentRepositoryProtocol:
+    return build_benchmark_component_repository()
 
 
-def _build_benchmark_repository():
-    return _performance_repository_module().DjangoBenchmarkComponentRepository()
+def _build_market_data_repository() -> MarketDataRepositoryProtocol:
+    return build_market_data_repository()
 
 
-def _build_market_data_repository():
-    return _performance_repository_module().DjangoMarketDataRepository()
+def _build_trade_history_repository() -> TradeHistoryRepositoryProtocol:
+    return build_trade_history_repository()
 
 
-def _build_trade_history_repository():
-    return _performance_repository_module().DjangoTradeHistoryRepository()
+def _build_snapshot_repository() -> ValuationSnapshotRepositoryProtocol:
+    return build_valuation_snapshot_repository()
 
 
-def _build_snapshot_repository():
-    return _performance_repository_module().DjangoValuationSnapshotRepository()
-
-
-def _build_capital_flow_repository():
-    return _performance_repository_module().DjangoCapitalFlowRepository()
+def _build_capital_flow_repository() -> CapitalFlowRepositoryProtocol:
+    return build_capital_flow_repository()
 
 
 _ACCOUNT_REPO = _build_account_repository()
@@ -99,7 +113,7 @@ def _get_account_or_403(
     account_id: int,
     account_repo: AccountRepositoryProtocol,
     observer_grant_repo: ObserverGrantRepositoryProtocol,
-):
+) -> dict[str, Any] | Literal["forbidden"] | None:
     """
     返回账户 dict；无权限返回 "forbidden"；不存在返回 None。
 
@@ -109,9 +123,12 @@ def _get_account_or_403(
     - 已持有有效 PortfolioObserverGrant 的观察员 → GET/HEAD/OPTIONS 只读访问
     - 其他 → 拒绝
     """
-    account = account_repo.get_by_id(account_id)
-    if account is None:
+    account_result: object = account_repo.get_by_id(account_id)
+    if account_result is None:
         return None
+    if not isinstance(account_result, dict):
+        raise TypeError("Account repository must return a dictionary")
+    account: dict[str, Any] = {str(key): value for key, value in account_result.items()}
 
     user = request.user
 
@@ -121,9 +138,12 @@ def _get_account_or_403(
 
     # 观察员只读
     if request.method in _SAFE_METHODS:
+        observer_user_id = request.user.pk
+        if observer_user_id is None:
+            return "forbidden"
         if observer_grant_repo.has_valid_grant(
-            owner_user_id=account["user_id"],
-            observer_user_id=user.pk,
+            owner_user_id=int(account["user_id"]),
+            observer_user_id=int(observer_user_id),
         ):
             return account
 
@@ -151,7 +171,7 @@ class AccountPerformanceReportAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
+    @extend_schema(  # type: ignore[misc]
         parameters=[
             OpenApiParameter("account_id", int, OpenApiParameter.PATH),
             OpenApiParameter("start_date", str, OpenApiParameter.QUERY, required=True),
@@ -203,7 +223,7 @@ class AccountValuationSnapshotAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
+    @extend_schema(  # type: ignore[misc]
         parameters=[
             OpenApiParameter("account_id", int, OpenApiParameter.PATH),
             OpenApiParameter("as_of_date", str, OpenApiParameter.QUERY, required=True),
@@ -249,7 +269,7 @@ class AccountValuationTimelineAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
+    @extend_schema(  # type: ignore[misc]
         parameters=[
             OpenApiParameter("account_id", int, OpenApiParameter.PATH),
             OpenApiParameter("start_date", str, OpenApiParameter.QUERY, required=False),
@@ -298,7 +318,7 @@ class AccountBenchmarksAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
+    @extend_schema(  # type: ignore[misc]
         parameters=[OpenApiParameter("account_id", int, OpenApiParameter.PATH)],
         responses={200: BenchmarkComponentResponseSerializer(many=True)},
         tags=["Account Performance"],
@@ -316,13 +336,11 @@ class AccountBenchmarksAPIView(APIView):
         if account == "forbidden":
             return Response({"error": "无权访问"}, status=status.HTTP_403_FORBIDDEN)
 
-        use_case = BenchmarkCRUDUseCase(
-            benchmark_repo=_build_benchmark_repository()
-        )
+        use_case = BenchmarkCRUDUseCase(benchmark_repo=_build_benchmark_repository())
         components = use_case.get(account_id)
         return Response([dataclasses.asdict(c) for c in components], status=status.HTTP_200_OK)
 
-    @extend_schema(
+    @extend_schema(  # type: ignore[misc]
         parameters=[OpenApiParameter("account_id", int, OpenApiParameter.PATH)],
         request=BenchmarkPutSerializer,
         responses={200: BenchmarkComponentResponseSerializer(many=True)},
@@ -345,13 +363,9 @@ class AccountBenchmarksAPIView(APIView):
         if not body_ser.is_valid():
             return Response(body_ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        use_case = BenchmarkCRUDUseCase(
-            benchmark_repo=_build_benchmark_repository()
-        )
+        use_case = BenchmarkCRUDUseCase(benchmark_repo=_build_benchmark_repository())
         try:
-            components = use_case.put(
-                account_id, body_ser.validated_data["components"]
-            )
+            components = use_case.put(account_id, body_ser.validated_data["components"])
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -372,16 +386,14 @@ class AccountBackfillAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
+    @extend_schema(  # type: ignore[misc]
         parameters=[OpenApiParameter("account_id", int, OpenApiParameter.PATH)],
         tags=["Account Performance"],
         summary="触发账户历史回填（admin only）",
     )
     def post(self, request: Request, account_id: int) -> Response:
         if not request.user.is_staff:
-            return Response(
-                {"error": "仅管理员可触发回填"}, status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({"error": "仅管理员可触发回填"}, status=status.HTTP_403_FORBIDDEN)
 
         account = _ACCOUNT_REPO.get_by_id(account_id)
         if account is None:

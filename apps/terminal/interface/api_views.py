@@ -4,7 +4,8 @@ import json
 import logging
 import time
 import uuid
-from typing import Any
+from collections.abc import Iterator
+from typing import Any, cast
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
@@ -13,6 +14,7 @@ from django.http import StreamingHttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -34,6 +36,7 @@ from apps.agent_runtime.application.terminal_agent import (
     RunTerminalAgentChatUseCase,
     StreamTerminalAgentChatUseCase,
     TerminalAgentChatRequestDTO,
+    TerminalAgentService,
 )
 from apps.agent_runtime.application.terminal_approval import (
     TERMINAL_MCP_PROPOSAL_TYPE,
@@ -79,13 +82,16 @@ def _tui_timed_response(
     return response
 
 
-def _get_terminal_agent_service():
+def _get_terminal_agent_service() -> TerminalAgentService:
     """Compose Terminal Agent with the owning AI capability facade."""
 
-    return get_terminal_agent_service(capability_gateway=CapabilityRoutingFacade())
+    return cast(
+        TerminalAgentService,
+        get_terminal_agent_service(capability_gateway=CapabilityRoutingFacade()),
+    )
 
 
-def _get_mcp_enabled(user) -> bool:
+def _get_mcp_enabled(user: Any) -> bool:
     """获取用户 MCP 启用状态"""
     profile = getattr(user, "account_profile", None)
     return getattr(profile, "mcp_enabled", False) if profile else False
@@ -103,7 +109,10 @@ def _deprecated_command_response() -> Response:
     )
 
 
-def _build_terminal_agent_request(request, data) -> TerminalAgentChatRequestDTO:
+def _build_terminal_agent_request(
+    request: Request,
+    data: dict[str, Any],
+) -> TerminalAgentChatRequestDTO:
     """Build the application DTO for terminal agent execution."""
 
     provider_ref = data.get("provider_ref", data.get("provider_name"))
@@ -123,7 +132,7 @@ def _build_terminal_agent_request(request, data) -> TerminalAgentChatRequestDTO:
     )
 
 
-def _format_sse_event(event_type: str, data: dict) -> str:
+def _format_sse_event(event_type: str, data: dict[str, Any]) -> str:
     """Encode one SSE event payload."""
 
     return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
@@ -134,46 +143,46 @@ class DeprecatedTerminalCommandViewSet(viewsets.ViewSet):
 
     permission_classes = [IsAuthenticated]
 
-    def list(self, request):
+    def list(self, request: Request) -> Response:
         return _deprecated_command_response()
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request: Request, pk: str | None = None) -> Response:
         return _deprecated_command_response()
 
-    def create(self, request):
+    def create(self, request: Request) -> Response:
         return _deprecated_command_response()
 
-    def update(self, request, pk=None):
+    def update(self, request: Request, pk: str | None = None) -> Response:
         return _deprecated_command_response()
 
-    def partial_update(self, request, pk=None):
+    def partial_update(self, request: Request, pk: str | None = None) -> Response:
         return _deprecated_command_response()
 
-    def destroy(self, request, pk=None):
+    def destroy(self, request: Request, pk: str | None = None) -> Response:
         return _deprecated_command_response()
 
     @action(detail=True, methods=["post"])
-    def execute(self, request, pk=None):
+    def execute(self, request: Request, pk: str | None = None) -> Response:
         return _deprecated_command_response()
 
     @action(detail=False, methods=["post"])
-    def execute_by_name(self, request):
+    def execute_by_name(self, request: Request) -> Response:
         return _deprecated_command_response()
 
     @action(detail=False, methods=["post"])
-    def confirm_execute(self, request):
+    def confirm_execute(self, request: Request) -> Response:
         return _deprecated_command_response()
 
     @action(detail=False, methods=["get"])
-    def available(self, request):
+    def available(self, request: Request) -> Response:
         return _deprecated_command_response()
 
     @action(detail=False, methods=["get"])
-    def capabilities(self, request):
+    def capabilities(self, request: Request) -> Response:
         return _deprecated_command_response()
 
     @action(detail=False, methods=["get"])
-    def by_category(self, request):
+    def by_category(self, request: Request) -> Response:
         return _deprecated_command_response()
 
 
@@ -182,7 +191,7 @@ class TuiWorkbenchApiRootView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """List the stable TUI runtime endpoints."""
 
         return Response(
@@ -206,7 +215,7 @@ class TerminalSessionView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         """Create a new terminal agent session id."""
 
         session_id = str(uuid.uuid4())
@@ -224,7 +233,7 @@ class TerminalChatView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         """Run one terminal agent request and return a compact JSON payload."""
 
         serializer = TerminalChatRequestSerializer(data=request.data)
@@ -264,14 +273,14 @@ class TerminalChatStreamView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request: Request) -> StreamingHttpResponse:
         """Return a text/event-stream response for one terminal agent request."""
 
         serializer = TerminalChatRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         request_dto = _build_terminal_agent_request(request, serializer.validated_data)
 
-        def _event_stream():
+        def _event_stream() -> Iterator[str]:
             use_case = StreamTerminalAgentChatUseCase(_get_terminal_agent_service())
             try:
                 for event in use_case.execute(request_dto):
@@ -301,7 +310,7 @@ class TerminalApprovalDecisionView(APIView):
 
     permission_classes = [IsStaffOrOperator]
 
-    def post(self, request, proposal_id: int):
+    def post(self, request: Request, proposal_id: int) -> Response:
         """Apply an operator decision to a Terminal MCP proposal."""
 
         serializer = TerminalApprovalDecisionSerializer(data=request.data)
@@ -323,14 +332,14 @@ class TerminalApprovalDecisionView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             if decision == "reject":
-                output = RejectProposalUseCase().execute(
+                reject_output = RejectProposalUseCase().execute(
                     proposal_id=proposal_id,
                     reason=reason,
                     actor=actor,
                 )
                 return Response(
                     {
-                        "request_id": output.request_id,
+                        "request_id": reject_output.request_id,
                         "proposal_id": proposal_id,
                         "status": "rejected",
                     }
@@ -341,7 +350,7 @@ class TerminalApprovalDecisionView(APIView):
                 reason=reason,
                 actor=actor,
             )
-            output = ExecuteProposalUseCase(
+            execution_output = ExecuteProposalUseCase(
                 approved_capability_executor=get_approved_mcp_capability_executor(),
             ).execute(
                 proposal_id=proposal_id,
@@ -350,11 +359,11 @@ class TerminalApprovalDecisionView(APIView):
             )
             return Response(
                 {
-                    "request_id": output.request_id,
+                    "request_id": execution_output.request_id,
                     "proposal_id": proposal_id,
                     "status": "executed",
-                    "execution_record_id": output.execution_record_id,
-                    "guardrail_decision": output.guardrail_decision,
+                    "execution_record_id": execution_output.execution_record_id,
+                    "guardrail_decision": execution_output.guardrail_decision,
                 }
             )
         except ObjectDoesNotExist:
@@ -387,7 +396,7 @@ class TerminalAuditView(APIView):
 
     permission_classes = [IsStaffOrAdmin]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """
         获取终端审计日志
 
@@ -424,7 +433,7 @@ class TuiWorkbenchRegistryView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """Return all modules that the standalone TUI shell can render."""
 
         return Response(
@@ -439,7 +448,7 @@ class TuiWorkbenchModuleSnapshotView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, module_key: str):
+    def get(self, request: Request, module_key: str) -> Response:
         """Return the renderable spec for one TUI module."""
 
         return Response(
@@ -454,7 +463,7 @@ class TuiWorkbenchCatalogView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """Return grouped modules, screens, and safe actions."""
 
         started_at = time.perf_counter()
@@ -471,7 +480,7 @@ class TuiWorkbenchBootstrapView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """Return the optional optimized bootstrap contract."""
 
         if not bool(getattr(settings, "TUI_OPTIMIZED_BOOTSTRAP_ENABLED", True)):
@@ -509,7 +518,7 @@ class TuiWorkbenchBootstrapView(APIView):
 
 def _tui_error_payload(
     *,
-    request: Any,
+    request: Request,
     error_code: str,
     title: str,
     detail: str,
@@ -532,7 +541,7 @@ class TuiWorkbenchScreenView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, screen_key: str):
+    def get(self, request: Request, screen_key: str) -> Response:
         """Return a screen spec with actions and layout policy."""
 
         started_at = time.perf_counter()
@@ -578,7 +587,7 @@ class TuiAgentActionSearchView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """Return compact action summaries matching one query."""
 
         serializer = TuiAgentActionSearchQuerySerializer(data=request.query_params)
@@ -598,7 +607,7 @@ class TuiAgentActionSchemaView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, action_key: str):
+    def get(self, request: Request, action_key: str) -> Response:
         """Return one visible action contract or 404."""
 
         service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
@@ -614,7 +623,7 @@ class TuiOperatorHomeView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """Return the fixed six-section home payload."""
 
         started_at = time.perf_counter()
@@ -630,7 +639,7 @@ class TuiOperatorHomeSectionView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, section_key: str):
+    def get(self, request: Request, section_key: str) -> Response:
         """Return one fixed section without rebuilding unrelated summaries."""
 
         try:
@@ -651,7 +660,7 @@ class TuiOperatorGovernanceQueueView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """Return governance rows ordered by severity and recency."""
 
         domain = str(request.query_params.get("domain") or "").strip()
@@ -668,7 +677,7 @@ class TuiWorkbenchActionRunView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, action_key: str):
+    def post(self, request: Request, action_key: str) -> Response:
         """Run a published safe action for the current user."""
 
         service = TuiWorkbenchService(

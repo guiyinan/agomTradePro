@@ -96,7 +96,7 @@ def generate_daily_regime_signal(as_of_date: str | None = None) -> dict:
 
         # 使用新的提供者接口
         provider = build_macro_data_provider()
-        macro_repo = provider._get_repository()
+        macro_repo = build_macro_repository_adapter(provider)
 
         use_case = HighFrequencySignalUseCase(macro_repo)
         request = HighFrequencySignalRequest(as_of_date=target_date, lookback_days=30)
@@ -162,7 +162,7 @@ def recalculate_regime_with_daily_signal(
 
         # 使用新的提供者接口
         provider = build_macro_data_provider()
-        macro_repo = provider._get_repository()
+        macro_repo = build_macro_repository_adapter(provider)
 
         # 1. 获取月度 regime
         monthly_result = resolve_current_regime(as_of_date=target_date, use_pit=use_pit)

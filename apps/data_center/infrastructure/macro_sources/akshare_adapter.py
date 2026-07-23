@@ -10,12 +10,13 @@ Infrastructure layer - fetches China macro data from AKShare.
 
 import logging
 from datetime import date
+from types import ModuleType
 
 from shared.infrastructure.sdk_bridge import get_akshare_module
 
 from .base import (
-    BaseMacroAdapter,
     DataSourceUnavailableError,
+    DataValidationError,
     MacroDataPoint,
 )
 from .fetchers import (
@@ -32,7 +33,7 @@ from .fetchers import (
 logger = logging.getLogger(__name__)
 
 
-class AKShareAdapter(BaseMacroAdapter):
+class AKShareAdapter:
     """
     AKShare 数据适配器
 
@@ -48,7 +49,7 @@ class AKShareAdapter(BaseMacroAdapter):
     source_name = "akshare"
 
     # 支持的指标代码映射
-    SUPPORTED_INDICATORS = {
+    SUPPORTED_INDICATORS: dict[str, str] = {
         # 基础指标
         "CN_PMI": "PMI",
         "CN_NON_MAN_PMI": "非制造业PMI",
@@ -124,33 +125,35 @@ class AKShareAdapter(BaseMacroAdapter):
         "CN_PMI_EMPLOYMENT": "PMI从业人员指数",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化 AKShare 适配器"""
-        self._ak = None
-        self._base_fetcher = None
-        self._economic_fetcher = None
-        self._trade_fetcher = None
-        self._financial_fetcher = None
-        self._other_fetcher = None
-        self._high_frequency_fetcher = None
-        self._weekly_fetcher = None
-        self._pmi_subitems_fetcher = None
+        self._ak: ModuleType | None = None
+        self._base_fetcher: BaseIndicatorFetcher | None = None
+        self._economic_fetcher: EconomicIndicatorFetcher | None = None
+        self._trade_fetcher: TradeIndicatorFetcher | None = None
+        self._financial_fetcher: FinancialIndicatorFetcher | None = None
+        self._other_fetcher: OtherIndicatorFetcher | None = None
+        self._high_frequency_fetcher: HighFrequencyIndicatorFetcher | None = None
+        self._weekly_fetcher: WeeklyIndicatorFetcher | None = None
+        self._pmi_subitems_fetcher: PMISubitemsFetcher | None = None
 
     @property
-    def ak(self):
+    def ak(self) -> ModuleType:
         """延迟初始化 akshare"""
         if self._ak is None:
             try:
                 self._ak = get_akshare_module()
                 logger.info("AKShare 初始化成功")
             except ImportError:
-                raise DataSourceUnavailableError("akshare 库未安装，请运行: pip install akshare") from None
+                raise DataSourceUnavailableError(
+                    "akshare 库未安装，请运行: pip install akshare"
+                ) from None
             except Exception as e:
                 raise DataSourceUnavailableError(f"AKShare 初始化失败: {e}") from e
         return self._ak
 
     @property
-    def base_fetcher(self):
+    def base_fetcher(self) -> BaseIndicatorFetcher:
         """基础指标获取器"""
         if self._base_fetcher is None:
             self._base_fetcher = BaseIndicatorFetcher(
@@ -159,7 +162,7 @@ class AKShareAdapter(BaseMacroAdapter):
         return self._base_fetcher
 
     @property
-    def economic_fetcher(self):
+    def economic_fetcher(self) -> EconomicIndicatorFetcher:
         """经济活动指标获取器"""
         if self._economic_fetcher is None:
             self._economic_fetcher = EconomicIndicatorFetcher(
@@ -168,7 +171,7 @@ class AKShareAdapter(BaseMacroAdapter):
         return self._economic_fetcher
 
     @property
-    def trade_fetcher(self):
+    def trade_fetcher(self) -> TradeIndicatorFetcher:
         """贸易指标获取器"""
         if self._trade_fetcher is None:
             self._trade_fetcher = TradeIndicatorFetcher(
@@ -177,7 +180,7 @@ class AKShareAdapter(BaseMacroAdapter):
         return self._trade_fetcher
 
     @property
-    def financial_fetcher(self):
+    def financial_fetcher(self) -> FinancialIndicatorFetcher:
         """金融指标获取器"""
         if self._financial_fetcher is None:
             self._financial_fetcher = FinancialIndicatorFetcher(
@@ -186,7 +189,7 @@ class AKShareAdapter(BaseMacroAdapter):
         return self._financial_fetcher
 
     @property
-    def other_fetcher(self):
+    def other_fetcher(self) -> OtherIndicatorFetcher:
         """其他指标获取器"""
         if self._other_fetcher is None:
             self._other_fetcher = OtherIndicatorFetcher(
@@ -195,7 +198,7 @@ class AKShareAdapter(BaseMacroAdapter):
         return self._other_fetcher
 
     @property
-    def high_frequency_fetcher(self):
+    def high_frequency_fetcher(self) -> HighFrequencyIndicatorFetcher:
         """高频指标获取器"""
         if self._high_frequency_fetcher is None:
             self._high_frequency_fetcher = HighFrequencyIndicatorFetcher(
@@ -204,7 +207,7 @@ class AKShareAdapter(BaseMacroAdapter):
         return self._high_frequency_fetcher
 
     @property
-    def weekly_fetcher(self):
+    def weekly_fetcher(self) -> WeeklyIndicatorFetcher:
         """周度指标获取器"""
         if self._weekly_fetcher is None:
             self._weekly_fetcher = WeeklyIndicatorFetcher(
@@ -213,7 +216,7 @@ class AKShareAdapter(BaseMacroAdapter):
         return self._weekly_fetcher
 
     @property
-    def pmi_subitems_fetcher(self):
+    def pmi_subitems_fetcher(self) -> PMISubitemsFetcher:
         """PMI分项指标获取器（手动维护数据文件）"""
         if self._pmi_subitems_fetcher is None:
             self._pmi_subitems_fetcher = PMISubitemsFetcher(
@@ -226,6 +229,17 @@ class AKShareAdapter(BaseMacroAdapter):
         return indicator_code in self.SUPPORTED_INDICATORS
 
     def fetch(self, indicator_code: str, start_date: date, end_date: date) -> list[MacroDataPoint]:
+        """Fetch and validate one routed macro series."""
+
+        raw_points = self._fetch_supported(indicator_code, start_date, end_date)
+        return self._require_macro_data_points(indicator_code, raw_points)
+
+    def _fetch_supported(
+        self,
+        indicator_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> object:
         """
         获取指定指标的数据
 
@@ -386,3 +400,49 @@ class AKShareAdapter(BaseMacroAdapter):
         except Exception as e:
             logger.error(f"获取 {indicator_code} 数据失败: {e}")
             raise DataSourceUnavailableError(f"获取数据失败: {e}") from e
+
+    @staticmethod
+    def _require_macro_data_points(
+        indicator_code: str,
+        raw_points: object,
+    ) -> list[MacroDataPoint]:
+        """Narrow one fetcher result to the canonical macro point list."""
+
+        if not isinstance(raw_points, list):
+            raise DataSourceUnavailableError(
+                f"{indicator_code} 返回类型无效: {type(raw_points).__name__}"
+            )
+
+        points: list[MacroDataPoint] = []
+        for index, item in enumerate(raw_points):
+            if not isinstance(item, MacroDataPoint):
+                raise DataSourceUnavailableError(
+                    f"{indicator_code} 第 {index} 项类型无效: {type(item).__name__}"
+                )
+            points.append(item)
+        return points
+
+    @staticmethod
+    def _validate_data_point(point: MacroDataPoint) -> None:
+        """Validate one canonical macro data point."""
+
+        if not point.code:
+            raise DataValidationError("指标代码不能为空")
+        if not isinstance(point.value, int | float):
+            raise DataValidationError(f"指标值必须是数值类型: {type(point.value)}")
+        if not isinstance(point.observed_at, date):
+            raise DataValidationError(f"观测日期必须是 date 类型: {type(point.observed_at)}")
+
+    @staticmethod
+    def _sort_and_deduplicate(
+        data_points: list[MacroDataPoint],
+    ) -> list[MacroDataPoint]:
+        """Sort by observation date and keep one point per code/date."""
+
+        sorted_points = sorted(data_points, key=lambda point: point.observed_at)
+        seen: dict[tuple[str, date], MacroDataPoint] = {}
+        for point in sorted_points:
+            key = (point.code, point.observed_at)
+            if key not in seen:
+                seen[key] = point
+        return list(seen.values())

@@ -1,6 +1,9 @@
 """Admin registrations for config center."""
 
+from typing import Any
+
 from django.contrib import admin
+from django.http import HttpRequest
 
 from apps.config_center.application.access_policies import (
     QlibAccessDeniedError,
@@ -12,13 +15,14 @@ from apps.config_center.infrastructure.models import (
     QlibTrainingProfileModel,
     QlibTrainingRunModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 class QlibPermissionAdminMixin:
     """Apply the same staff-read / superuser-write policy inside Django admin."""
 
     @staticmethod
-    def _allows_view(user) -> bool:
+    def _allows_view(user: Any) -> bool:
         try:
             ensure_can_view_qlib_center(user)
         except QlibAccessDeniedError:
@@ -26,31 +30,31 @@ class QlibPermissionAdminMixin:
         return True
 
     @staticmethod
-    def _allows_write(user) -> bool:
+    def _allows_write(user: Any) -> bool:
         try:
             ensure_can_trigger_qlib_training(user)
         except QlibAccessDeniedError:
             return False
         return True
 
-    def has_module_permission(self, request):
+    def has_module_permission(self, request: HttpRequest) -> bool:
         return self._allows_view(request.user)
 
-    def has_view_permission(self, request, obj=None):
+    def has_view_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return self._allows_view(request.user)
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         return self._allows_write(request.user)
 
-    def has_change_permission(self, request, obj=None):
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return self._allows_write(request.user)
 
-    def has_delete_permission(self, request, obj=None):
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return self._allows_write(request.user)
 
 
 @admin.register(QlibTrainingProfileModel)
-class QlibTrainingProfileAdmin(QlibPermissionAdminMixin, admin.ModelAdmin):
+class QlibTrainingProfileAdmin(QlibPermissionAdminMixin, TypedModelAdmin[QlibTrainingProfileModel]):
     list_display = (
         "profile_key",
         "name",
@@ -66,7 +70,7 @@ class QlibTrainingProfileAdmin(QlibPermissionAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(AlphaUniverseConfigModel)
-class AlphaUniverseConfigAdmin(QlibPermissionAdminMixin, admin.ModelAdmin):
+class AlphaUniverseConfigAdmin(QlibPermissionAdminMixin, TypedModelAdmin[AlphaUniverseConfigModel]):
     list_display = ("universe_id", "name", "source_type", "is_active", "updated_at")
     list_filter = ("source_type", "is_active")
     search_fields = ("universe_id", "name", "description")
@@ -74,7 +78,7 @@ class AlphaUniverseConfigAdmin(QlibPermissionAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(QlibTrainingRunModel)
-class QlibTrainingRunAdmin(QlibPermissionAdminMixin, admin.ModelAdmin):
+class QlibTrainingRunAdmin(QlibPermissionAdminMixin, TypedModelAdmin[QlibTrainingRunModel]):
     list_display = (
         "run_id",
         "model_name",

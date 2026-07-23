@@ -8,17 +8,47 @@ Infrastructure层:
 """
 
 import logging
-from typing import Any
+from typing import Any, Protocol, cast
 
 from apps.strategy.application.simulated_trading_gateway import get_simulated_trading_facade
-from apps.strategy.infrastructure.repositories import (  # noqa: F401
-    DjangoStrategyExecutionLogRepository,
-    DjangoStrategyGatewayRepository,
-    DjangoStrategyRepository,
-    StrategyInterfaceRepository,
+from apps.strategy.domain.entities import OrderIntent
+from apps.strategy.domain.protocols import ExecutionAdapterProtocol
+from apps.strategy.infrastructure.repositories import (
+    DjangoStrategyExecutionLogRepository as DjangoStrategyExecutionLogRepository,
+)
+from apps.strategy.infrastructure.repositories import (
+    DjangoStrategyGatewayRepository as DjangoStrategyGatewayRepository,
+)
+from apps.strategy.infrastructure.repositories import (
+    DjangoStrategyRepository as DjangoStrategyRepository,
+)
+from apps.strategy.infrastructure.repositories import (
+    StrategyInterfaceRepository as StrategyInterfaceRepository,
 )
 
 logger = logging.getLogger(__name__)
+
+
+class PositionSummaryView(Protocol):
+    """Position summary fields consumed by the strategy provider."""
+
+    asset_code: str
+    asset_name: str
+    quantity: Any
+    avg_cost: Any
+    current_price: Any
+    market_value: Any
+    asset_type: str
+
+
+class SimulatedTradingFacadeProtocol(Protocol):
+    """Simulated-trading operations consumed by the strategy provider."""
+
+    def get_positions(self, portfolio_id: int) -> list[PositionSummaryView]:
+        """Return positions for one portfolio."""
+
+    def get_cash(self, portfolio_id: int) -> Any:
+        """Return the available cash for one portfolio."""
 
 
 def _to_legacy_regime_code(regime_name: str) -> str:
@@ -333,14 +363,17 @@ class DjangoPortfolioDataProvider:
     - 移除对 PositionModel 和 SimulatedAccountModel 的直接导入
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # 凶迟导入 Facade 避免 circular dependency
-        self._facade = None
+        self._facade: SimulatedTradingFacadeProtocol | None = None
 
-    def _get_facade(self):
+    def _get_facade(self) -> SimulatedTradingFacadeProtocol:
         """延迟获取 Facade 实例"""
         if self._facade is None:
-            self._facade = get_simulated_trading_facade()
+            self._facade = cast(
+                SimulatedTradingFacadeProtocol,
+                get_simulated_trading_facade(),
+            )
         return self._facade
 
     def get_positions(self, portfolio_id: int) -> list[dict[str, Any]]:
@@ -410,7 +443,8 @@ class DjangoAssetNameResolver:
                 resolve_asset_names,
             )
 
-            return resolve_asset_names(list(code_set))
+            resolved_names: dict[str, str] = resolve_asset_names(list(code_set))
+            return resolved_names
         except Exception as e:
             logger.warning("Failed to resolve asset names: %s", e)
             return {}
@@ -436,7 +470,7 @@ class PaperExecutionAdapter:
         self.portfolio_id = portfolio_id
         self._orders: dict[str, dict[str, Any]] = {}
 
-    def submit_order(self, intent) -> str:
+    def submit_order(self, intent: OrderIntent) -> str:
         """
         模拟提交订单
 
@@ -574,7 +608,7 @@ class BrokerExecutionAdapter:
         self.broker_config = broker_config
         self._is_sandbox = broker_config.get("sandbox", True)
 
-    def submit_order(self, intent) -> str:
+    def submit_order(self, intent: OrderIntent) -> str:
         """
         提交订单到券商
 
@@ -640,7 +674,11 @@ class ExecutionAdapterFactory:
     """执行适配器工厂"""
 
     @staticmethod
-    def create_adapter(mode: str, portfolio_id: int, broker_config: dict[str, Any] = None):
+    def create_adapter(
+        mode: str,
+        portfolio_id: int,
+        broker_config: dict[str, Any] | None = None,
+    ) -> ExecutionAdapterProtocol:
         """
         创建执行适配器
 

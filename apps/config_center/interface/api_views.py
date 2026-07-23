@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import BasePermission, IsAdminUser
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -30,15 +33,15 @@ from apps.config_center.interface.serializers import (
 )
 
 
-class StaffReadSuperuserWriteMixin:
-    permission_classes = [IsAdminUser]
+class StaffReadSuperuserWriteMixin(APIView):
+    permission_classes: list[type[BasePermission]] = [IsAdminUser]
 
     @staticmethod
     def _permission_denied(exc: QlibAccessDeniedError) -> Response:
         return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
 
-def _serialize_profile(model) -> dict:
+def _serialize_profile(model: Any) -> dict[str, Any]:
     return {
         "id": model.id,
         "profile_key": model.profile_key,
@@ -62,8 +65,8 @@ def _serialize_profile(model) -> dict:
     }
 
 
-def _serialize_alpha_universe(model, *, member_count: int | None = None) -> dict:
-    payload = {
+def _serialize_alpha_universe(model: Any, *, member_count: int | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {
         "id": model.id,
         "universe_id": model.universe_id,
         "name": model.name,
@@ -80,7 +83,7 @@ def _serialize_alpha_universe(model, *, member_count: int | None = None) -> dict
     return payload
 
 
-def _serialize_run(model) -> dict:
+def _serialize_run(model: Any) -> dict[str, Any]:
     return {
         "run_id": str(model.run_id),
         "status": model.status,
@@ -108,15 +111,15 @@ def _serialize_run(model) -> dict:
     }
 
 
-class QlibRuntimeConfigView(StaffReadSuperuserWriteMixin, APIView):
-    def get(self, request):
+class QlibRuntimeConfigView(StaffReadSuperuserWriteMixin):
+    def get(self, request: Request) -> Response:
         try:
             payload = GetQlibRuntimeConfigUseCase().execute(actor=request.user)
         except QlibAccessDeniedError as exc:
             return self._permission_denied(exc)
         return Response({"success": True, "data": payload})
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         serializer = QlibRuntimeConfigSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
@@ -129,15 +132,15 @@ class QlibRuntimeConfigView(StaffReadSuperuserWriteMixin, APIView):
         return Response({"success": True, "data": payload})
 
 
-class QlibTrainingProfileListCreateView(StaffReadSuperuserWriteMixin, APIView):
-    def get(self, request):
+class QlibTrainingProfileListCreateView(StaffReadSuperuserWriteMixin):
+    def get(self, request: Request) -> Response:
         try:
             models = ListQlibTrainingProfilesUseCase().execute(actor=request.user)
         except QlibAccessDeniedError as exc:
             return self._permission_denied(exc)
         return Response({"success": True, "data": [_serialize_profile(item) for item in models]})
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         serializer = QlibTrainingProfileSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -150,8 +153,8 @@ class QlibTrainingProfileListCreateView(StaffReadSuperuserWriteMixin, APIView):
         return Response({"success": True, "data": _serialize_profile(model)})
 
 
-class AlphaUniverseConfigListCreateView(StaffReadSuperuserWriteMixin, APIView):
-    def get(self, request):
+class AlphaUniverseConfigListCreateView(StaffReadSuperuserWriteMixin):
+    def get(self, request: Request) -> Response:
         include_inactive = str(request.query_params.get("include_inactive", "")).lower() in {
             "1",
             "true",
@@ -168,7 +171,7 @@ class AlphaUniverseConfigListCreateView(StaffReadSuperuserWriteMixin, APIView):
             {"success": True, "data": [_serialize_alpha_universe(item) for item in models]}
         )
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         serializer = AlphaUniverseConfigSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -192,8 +195,8 @@ class AlphaUniverseConfigListCreateView(StaffReadSuperuserWriteMixin, APIView):
         )
 
 
-class AlphaUniverseMembersView(StaffReadSuperuserWriteMixin, APIView):
-    def get(self, request, universe_id: str):
+class AlphaUniverseMembersView(StaffReadSuperuserWriteMixin):
+    def get(self, request: Request, universe_id: str) -> Response:
         try:
             members = ResolveAlphaUniverseMembersUseCase().execute(
                 actor=request.user,
@@ -227,8 +230,8 @@ class AlphaUniverseMembersView(StaffReadSuperuserWriteMixin, APIView):
         )
 
 
-class QlibTrainingRunListView(StaffReadSuperuserWriteMixin, APIView):
-    def get(self, request):
+class QlibTrainingRunListView(StaffReadSuperuserWriteMixin):
+    def get(self, request: Request) -> Response:
         limit = int(request.query_params.get("limit", 50) or 50)
         try:
             models = ListQlibTrainingRunsUseCase().execute(actor=request.user, limit=limit)
@@ -237,8 +240,8 @@ class QlibTrainingRunListView(StaffReadSuperuserWriteMixin, APIView):
         return Response({"success": True, "data": [_serialize_run(item) for item in models]})
 
 
-class QlibTrainingRunDetailView(StaffReadSuperuserWriteMixin, APIView):
-    def get(self, request, run_id: str):
+class QlibTrainingRunDetailView(StaffReadSuperuserWriteMixin):
+    def get(self, request: Request, run_id: str) -> Response:
         try:
             model = GetQlibTrainingRunDetailUseCase().execute(actor=request.user, run_id=run_id)
         except QlibAccessDeniedError as exc:
@@ -248,8 +251,8 @@ class QlibTrainingRunDetailView(StaffReadSuperuserWriteMixin, APIView):
         return Response({"success": True, "data": _serialize_run(model)})
 
 
-class QlibTrainingRunTriggerView(StaffReadSuperuserWriteMixin, APIView):
-    def post(self, request):
+class QlibTrainingRunTriggerView(StaffReadSuperuserWriteMixin):
+    def post(self, request: Request) -> Response:
         serializer = QlibTrainingRunTriggerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:

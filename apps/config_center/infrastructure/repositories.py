@@ -111,9 +111,8 @@ class ConfigCenterSettingsRepository:
 
         active_model_updated_at = None
         if active_model is not None:
-            active_model_updated_at = (
-                getattr(active_model, "activated_at", None)
-                or getattr(active_model, "created_at", None)
+            active_model_updated_at = getattr(active_model, "activated_at", None) or getattr(
+                active_model, "created_at", None
             )
 
         return {
@@ -172,7 +171,9 @@ class QlibTrainingProfileRepository:
     def list_profiles(self) -> list[QlibTrainingProfileModel]:
         return list(QlibTrainingProfileModel._default_manager.order_by("name", "profile_key"))
 
-    def get_profile(self, *, profile_id: int | None = None, profile_key: str | None = None):
+    def get_profile(
+        self, *, profile_id: int | None = None, profile_key: str | None = None
+    ) -> QlibTrainingProfileModel | None:
         queryset = QlibTrainingProfileModel._default_manager
         if profile_id is not None:
             return queryset.filter(id=profile_id).first()
@@ -273,9 +274,7 @@ class AlphaUniverseConfigRepository:
             list(queryset.values_list("code", flat=True).order_by("code"))
         )
         boards = {
-            str(item).strip().lower()
-            for item in filters.get("boards", [])
-            if str(item).strip()
+            str(item).strip().lower() for item in filters.get("boards", []) if str(item).strip()
         }
         if not boards:
             return codes
@@ -324,9 +323,9 @@ class QlibTrainingRunRepository:
     def create_pending_run_if_idle(
         self,
         *,
-        settings_repo: ConfigCenterSettingsRepository,
-        profile: QlibTrainingProfileModel | None,
-        requested_by,
+        settings_repo: Any,
+        profile: Any,
+        requested_by: Any,
         model_name: str,
         model_type: str,
         resolved_train_config: dict[str, Any],
@@ -347,7 +346,7 @@ class QlibTrainingRunRepository:
         self,
         *,
         profile: QlibTrainingProfileModel | None,
-        requested_by,
+        requested_by: Any,
         model_name: str,
         model_type: str,
         resolved_train_config: dict[str, Any],

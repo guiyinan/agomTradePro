@@ -1,8 +1,13 @@
+from datetime import date
 from decimal import Decimal
 
 import pytest
 
-from apps.simulated_trading.infrastructure.models import PositionModel, SimulatedAccountModel
+from apps.simulated_trading.infrastructure.models import (
+    PositionModel,
+    SimulatedAccountModel,
+    SimulatedTradeModel,
+)
 
 
 @pytest.fixture
@@ -39,6 +44,77 @@ def test_trade_list_rejects_invalid_start_date(authenticated_client, owned_accou
     )
     assert invalid_limit.status_code == 400
     assert "limit" in invalid_limit.json()["error"]
+
+
+@pytest.mark.django_db
+def test_trade_list_keeps_total_count_and_zero_realized_pnl_with_pagination(
+    authenticated_client,
+    owned_account,
+):
+    common = {
+        "account": owned_account,
+        "asset_name": "CSI 300 ETF",
+        "asset_type": "fund",
+        "quantity": Decimal("10"),
+        "price": Decimal("4.0000"),
+        "amount": Decimal("40.00"),
+        "commission": Decimal("0.00"),
+        "slippage": Decimal("0.00"),
+        "total_cost": Decimal("40.00"),
+        "status": "executed",
+    }
+    SimulatedTradeModel.objects.create(
+        **common,
+        asset_code="510300.SH",
+        action="sell",
+        realized_pnl=Decimal("0.00"),
+        realized_pnl_pct=0.0,
+        order_date=date(2026, 7, 2),
+        execution_date=date(2026, 7, 2),
+    )
+    SimulatedTradeModel.objects.create(
+        **common,
+        asset_code="510500.SH",
+        action="buy",
+        realized_pnl=None,
+        order_date=date(2026, 7, 1),
+        execution_date=date(2026, 7, 1),
+    )
+
+    response = authenticated_client.get(
+        f"/api/simulated-trading/accounts/{owned_account.id}/trades/?limit=1"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_trades"] == 2
+    assert payload["total_buy_count"] == 1
+    assert payload["total_sell_count"] == 1
+    assert len(payload["trades"]) == 1
+    assert Decimal(payload["trades"][0]["realized_pnl"]) == Decimal("0")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("invalid_capital", ["not-a-number", "NaN"])
+def test_account_page_rejects_invalid_initial_capital_without_server_error(
+    authenticated_client,
+    owned_account,
+    invalid_capital,
+):
+    account_count_before = SimulatedAccountModel.objects.count()
+
+    response = authenticated_client.post(
+        "/simulated-trading/my-accounts/",
+        {
+            "account_name": "invalid-capital-account",
+            "account_type": "simulated",
+            "initial_capital": invalid_capital,
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.url == "/simulated-trading/my-accounts/"
+    assert SimulatedAccountModel.objects.count() == account_count_before
 
 
 @pytest.mark.django_db

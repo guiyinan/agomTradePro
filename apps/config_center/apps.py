@@ -6,7 +6,7 @@ class ConfigCenterConfig(AppConfig):
     name = "apps.config_center"
     verbose_name = "配置中心"
 
-    def ready(self):
+    def ready(self) -> None:
         from apps.config_center.application.config_summary_service import (
             configure_config_center_summary_repository,
             get_config_center_summary_service,

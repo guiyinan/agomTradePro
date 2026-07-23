@@ -57,7 +57,11 @@ class TestPrecheckAPI:
             data={"candidate_id": "test_candidate"},
             content_type="application/json",
         )
-        assert response.status_code in [200, 400, 404, 500]
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+        assert payload["result"]["candidate_id"] == "test_candidate"
+        assert payload["result"]["candidate_valid"] is False
 
     def test_precheck_candidate_not_found(self):
         """测试候选不存在"""
@@ -74,7 +78,12 @@ class TestPrecheckAPI:
             data={"candidate_id": "nonexistent_candidate"},
             content_type="application/json",
         )
-        assert response.status_code in [400, 404, 500]
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+        assert payload["result"]["candidate_id"] == "nonexistent_candidate"
+        assert payload["result"]["candidate_valid"] is False
+        assert payload["result"]["errors"] == ["候选不存在: nonexistent_candidate"]
 
 
 @pytest.mark.django_db

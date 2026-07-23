@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping, Sequence
 from datetime import date
-from typing import Any
+from typing import Any, Protocol, cast
 
 from apps.data_center.application.dtos import LatestQuoteRequest, SyncQuoteRequest
 from apps.data_center.application.on_demand import OnDemandDataCenterService
@@ -34,9 +35,12 @@ from apps.data_center.composition import (
     run_data_center_connection_test,
 )
 from apps.data_center.domain.entities import (
+    ConnectionTestResult,
     DataProviderSettings,
     ProductionCoverageUniverseConfig,
+    ProviderConfig,
 )
+from apps.data_center.domain.protocols import ProviderRegistryProtocol
 from apps.task_monitor.application.tracking import record_pending_task
 
 from .business_runtime_gateway import fetch_latest_prices as _fetch_latest_prices
@@ -89,7 +93,46 @@ from .use_cases import (
 )
 
 
-def refresh_pulse_snapshot(*, target_date: date):
+class _AlphaScopeProtocol(Protocol):
+    """Minimum Alpha scope projection consumed by repair workflows."""
+
+    instrument_codes: Sequence[str]
+    universe_id: str
+    scope_hash: str
+
+    def to_dict(self) -> dict[str, Any]: ...
+
+
+class _AlphaScopeResolutionProtocol(Protocol):
+    """Minimum result returned by the registered Alpha scope resolver."""
+
+    scope: _AlphaScopeProtocol
+    portfolio_id: int | None
+
+
+class _AlphaHomepageDataProtocol(Protocol):
+    """Minimum Dashboard Alpha payload consumed by readiness checks."""
+
+    meta: Mapping[str, Any] | None
+    actionable_candidates: Sequence[Any]
+    pool: Mapping[str, Any]
+
+
+class _AsyncTaskProtocol(Protocol):
+    """Minimum queued-task projection consumed by task tracking."""
+
+    id: str
+
+
+def _json_object(value: Any) -> dict[str, Any]:
+    """Normalize one dynamic JSON object at the registered-provider boundary."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def refresh_pulse_snapshot(*, target_date: date) -> Any:
     """Refresh the latest pulse snapshot through the owning pulse use case."""
 
     return _refresh_pulse_snapshot(target_date=target_date)
@@ -98,17 +141,25 @@ def refresh_pulse_snapshot(*, target_date: date):
 def fetch_latest_prices(asset_codes: list[str]) -> list[dict[str, Any]]:
     """Fetch latest realtime prices through the owning realtime use case."""
 
-    return _fetch_latest_prices(asset_codes)
+    rows = _fetch_latest_prices(asset_codes)
+    if not isinstance(rows, list):
+        return []
+    return [_json_object(row) for row in rows if isinstance(row, Mapping)]
 
 
-def load_alpha_homepage_data(*, user, top_n: int, portfolio_id: int, pool_mode: str):
+def load_alpha_homepage_data(
+    *, user: Any, top_n: int, portfolio_id: int, pool_mode: str
+) -> _AlphaHomepageDataProtocol:
     """Load dashboard alpha homepage data through the owning dashboard module."""
 
-    return _load_alpha_homepage_data(
-        user=user,
-        top_n=top_n,
-        portfolio_id=portfolio_id,
-        pool_mode=pool_mode,
+    return cast(
+        _AlphaHomepageDataProtocol,
+        _load_alpha_homepage_data(
+            user=user,
+            top_n=top_n,
+            portfolio_id=portfolio_id,
+            pool_mode=pool_mode,
+        ),
     )
 
 
@@ -118,24 +169,32 @@ def resolve_portfolio_alpha_scope(
     portfolio_id: int | None,
     trade_date: date,
     pool_mode: str | None = None,
-):
+) -> _AlphaScopeResolutionProtocol:
     """Resolve the portfolio-scoped alpha universe through the owning alpha module."""
 
-    return _resolve_portfolio_alpha_scope(
-        user_id=user_id,
-        portfolio_id=portfolio_id,
-        trade_date=trade_date,
-        pool_mode=pool_mode,
+    return cast(
+        _AlphaScopeResolutionProtocol,
+        _resolve_portfolio_alpha_scope(
+            user_id=user_id,
+            portfolio_id=portfolio_id,
+            trade_date=trade_date,
+            pool_mode=pool_mode,
+        ),
     )
 
 
-def queue_alpha_score_prediction(*, universe_id: str, trade_date: date, scope_payload: dict):
+def queue_alpha_score_prediction(
+    *, universe_id: str, trade_date: date, scope_payload: dict[str, Any]
+) -> _AsyncTaskProtocol:
     """Queue scoped alpha score prediction through the owning alpha task."""
 
-    return _queue_alpha_score_prediction(
-        universe_id=universe_id,
-        trade_date=trade_date,
-        scope_payload=scope_payload,
+    return cast(
+        _AsyncTaskProtocol,
+        _queue_alpha_score_prediction(
+            universe_id=universe_id,
+            trade_date=trade_date,
+            scope_payload=scope_payload,
+        ),
     )
 
 
@@ -143,8 +202,8 @@ def run_alpha_score_prediction_now(
     *,
     universe_id: str,
     trade_date: date,
-    scope_payload: dict,
-):
+    scope_payload: dict[str, Any],
+) -> Any:
     """Run scoped alpha score prediction synchronously through the owning alpha task."""
 
     return _run_alpha_score_prediction_now(
@@ -158,7 +217,7 @@ def _make_provider_repo() -> ProviderConfigRepository:
     return ProviderConfigRepository()
 
 
-def _get_provider_registry():
+def _get_provider_registry() -> ProviderRegistryProtocol:
     return get_provider_registry()
 
 
@@ -246,15 +305,18 @@ def make_run_macro_governance_action_use_case() -> RunMacroGovernanceActionUseCa
 def run_macro_governance_action(action: str) -> dict[str, Any]:
     """Execute one governance repair action and return a UI-friendly result."""
 
-    return make_run_macro_governance_action_use_case().execute(action)
+    return _json_object(make_run_macro_governance_action_use_case().execute(action))
 
 
 def make_run_provider_connection_test_use_case() -> RunProviderConnectionTestUseCase:
     """Build the provider connection test use case."""
 
     class _Tester:
-        def test(self, config):
-            return run_data_center_connection_test(config)
+        def test(self, config: ProviderConfig) -> ConnectionTestResult:
+            result = run_data_center_connection_test(config)
+            if not isinstance(result, ConnectionTestResult):
+                raise TypeError("Connection tester returned an invalid result")
+            return result
 
     return RunProviderConnectionTestUseCase(_make_provider_repo(), _Tester())
 
@@ -301,7 +363,7 @@ def save_provider_settings_payload(
 def load_production_coverage_universe_config_payload() -> dict[str, Any]:
     """Return production coverage universe settings as a response payload."""
 
-    return ProductionCoverageUniverseConfigRepository().load().to_dict()
+    return _json_object(ProductionCoverageUniverseConfigRepository().load().to_dict())
 
 
 def save_production_coverage_universe_config_payload(
@@ -329,7 +391,7 @@ def save_production_coverage_universe_config_payload(
         min_bse_count=min_bse_count,
         description=description,
     )
-    return ProductionCoverageUniverseConfigRepository().save(config).to_dict()
+    return _json_object(ProductionCoverageUniverseConfigRepository().save(config).to_dict())
 
 
 def make_resolve_asset_use_case() -> ResolveAssetUseCase:
@@ -466,9 +528,11 @@ def load_market_thermometer_payload(
 ) -> dict[str, Any]:
     """Return the latest market-thermometer payload for UI/API consumers."""
 
-    return make_calculate_market_thermometer_use_case().build_current_payload(
-        user_id=user_id,
-        use_personal_thresholds=use_personal_thresholds,
+    return _json_object(
+        make_calculate_market_thermometer_use_case().build_current_payload(
+            user_id=user_id,
+            use_personal_thresholds=use_personal_thresholds,
+        )
     )
 
 
@@ -477,18 +541,20 @@ def load_market_thermometer_override_payload(*, user_id: int) -> dict[str, Any]:
 
     config = MarketThermometerConfigRepository().load()
     override = MarketThermometerUserOverrideRepository().get_by_user_id(user_id)
-    return build_market_thermometer_override_payload(config=config, override=override)
+    return _json_object(build_market_thermometer_override_payload(config=config, override=override))
 
 
-def _build_pulse_refresher():
-    def _refresh(target_date: date):
+def _build_pulse_refresher() -> Callable[[date], Any]:
+    def _refresh(target_date: date) -> Any:
         return refresh_pulse_snapshot(target_date=target_date)
 
     return _refresh
 
 
-def _build_alpha_refresher(user):
-    def _refresh(target_date: date, portfolio_id: int | None) -> dict:
+def _build_alpha_refresher(
+    user: Any,
+) -> Callable[[date, int | None], dict[str, Any]]:
+    def _refresh(target_date: date, portfolio_id: int | None) -> dict[str, Any]:
         if portfolio_id is None:
             return {"status": "skipped", "message": "portfolio_id is required"}
 
@@ -517,7 +583,9 @@ def _build_alpha_refresher(user):
         quote_sync_result = _sync_scope_quotes(
             list(getattr(resolved.scope, "instrument_codes", ()) or ())
         )
-        from kombu.exceptions import OperationalError as KombuOperationalError
+        from kombu.exceptions import (  # type: ignore[import-untyped]
+            OperationalError as KombuOperationalError,
+        )
 
         try:
             task = queue_alpha_score_prediction(
@@ -589,7 +657,7 @@ def _sync_scope_quotes(asset_codes: list[str]) -> dict[str, Any]:
         )
     except Exception as exc:
         return {"status": "failed", "error_message": str(exc)}
-    return result.to_dict()
+    return _json_object(result.to_dict())
 
 
 def refresh_decision_quote_snapshots(
@@ -736,12 +804,13 @@ def _build_skipped_latest_market_thermometer_payload(
         skipped_payload["skip_reason"] = "latest_snapshot_after_decision_safe_date"
     elif latest_is_blocked:
         skipped_payload["skip_reason"] = "latest_snapshot_must_not_use_for_decision"
-    return skipped_payload
-    return None
+    return _json_object(skipped_payload)
 
 
-def _build_alpha_status_reader(user):
-    def _read(target_date: date, portfolio_id: int | None) -> dict:
+def _build_alpha_status_reader(
+    user: Any,
+) -> Callable[[date, int | None], dict[str, Any]]:
+    def _read(target_date: date, portfolio_id: int | None) -> dict[str, Any]:
         if portfolio_id is None:
             return {"status": "blocked", "recommendation_ready": False}
 
@@ -772,7 +841,9 @@ def _build_alpha_status_reader(user):
     return _read
 
 
-def make_decision_repair_use_case(user) -> RepairDecisionDataReliabilityUseCase:
+def make_decision_repair_use_case(
+    user: Any,
+) -> RepairDecisionDataReliabilityUseCase:
     """Build the decision reliability repair use case."""
 
     return RepairDecisionDataReliabilityUseCase(
@@ -873,7 +944,8 @@ def get_active_provider_id_by_source(source_type: str) -> int | None:
     providers = _make_provider_repo().get_active_by_type(source_type)
     if not providers:
         return None
-    return providers[0].id
+    provider_id = providers[0].id
+    return int(provider_id) if provider_id is not None else None
 
 
 def make_sync_valuation_use_case() -> SyncValuationUseCase:

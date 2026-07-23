@@ -56,7 +56,12 @@ logger = logging.getLogger(__name__)
 def get_akshare_module() -> ModuleType:
     """Load AkShare through a typed, patchable infrastructure boundary."""
 
-    return _load_akshare_module()
+    module = _load_akshare_module()
+    if not isinstance(module, ModuleType):
+        raise TypeError("AkShare loader must return a module")
+    return module
+
+
 pd = import_module("pandas")
 
 
@@ -340,9 +345,7 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
             price=Decimal(str(data["price"])),
             change=(Decimal(str(data["change"])) if data.get("change") is not None else None),
             change_pct=(
-                Decimal(str(data["change_pct"]))
-                if data.get("change_pct") is not None
-                else None
+                Decimal(str(data["change_pct"])) if data.get("change_pct") is not None else None
             ),
             volume=data.get("volume"),
             timestamp=datetime.fromisoformat(data["timestamp"]),
@@ -583,17 +586,9 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             open=float(snapshot.open) if snapshot.open is not None else None,
             high=float(snapshot.high) if snapshot.high is not None else None,
             low=float(snapshot.low) if snapshot.low is not None else None,
-            prev_close=(
-                float(snapshot.pre_close)
-                if snapshot.pre_close is not None
-                else None
-            ),
-            volume=(
-                float(snapshot.volume) if snapshot.volume is not None else None
-            ),
-            amount=(
-                float(snapshot.amount) if snapshot.amount is not None else None
-            ),
+            prev_close=(float(snapshot.pre_close) if snapshot.pre_close is not None else None),
+            volume=(float(snapshot.volume) if snapshot.volume is not None else None),
+            amount=(float(snapshot.amount) if snapshot.amount is not None else None),
             bid=None,
             ask=None,
         )
@@ -843,7 +838,7 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
             result = list_active_watchlist_asset_codes()
             if result:
                 logger.info("Loaded %d watchlist assets from asset pool", len(result))
-            return result
+            return [str(asset_code) for asset_code in result]
 
         except Exception as e:
             logger.warning("Failed to load watchlist assets: %s", e)

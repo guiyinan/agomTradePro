@@ -58,15 +58,11 @@ def test_agent_event_batch_is_bounded_to_contract_limit() -> None:
         "event_type": "TEST",
         "occurred_at": "2026-07-22T00:00:00Z",
     }
-    serializer = AgentEventsSerializer(
-        data={"contract_version": "1.0", "events": [event] * 201}
-    )
+    serializer = AgentEventsSerializer(data={"contract_version": "1.0", "events": [event] * 201})
 
     assert serializer.is_valid() is False
     assert "events" in serializer.errors
-    unsupported = AgentEventsSerializer(
-        data={"contract_version": "2.0", "events": [event]}
-    )
+    unsupported = AgentEventsSerializer(data={"contract_version": "2.0", "events": [event]})
     assert unsupported.is_valid() is False
     assert "contract_version" in unsupported.errors
     malformed_fill = AgentEventsSerializer(
@@ -89,7 +85,9 @@ def test_agent_event_batch_is_bounded_to_contract_limit() -> None:
     assert "events" in malformed_fill.errors
 
 
-def _binding(owner: User, account_id: int = 7) -> tuple[BrokerAgentModel, BrokerAccountBindingModel]:
+def _binding(
+    owner: User, account_id: int = 7
+) -> tuple[BrokerAgentModel, BrokerAccountBindingModel]:
     agent = BrokerAgentModel.objects.create(
         user=owner,
         agent_id=f"agent-{account_id}",
@@ -132,6 +130,51 @@ def test_unauthenticated_api_and_page_are_rejected() -> None:
     page = client.get("/broker-execution/")
     assert api.status_code in {401, 403}
     assert page.status_code == 302
+
+
+@pytest.mark.django_db
+def test_order_catalog_supports_an_order_not_yet_assigned_to_an_agent() -> None:
+    owner = _user("unassigned-order-owner", "owner")
+    order = LiveOrderModel.objects.create(
+        user=owner,
+        account_id=81,
+        agent=None,
+        asset_code="510300.SH",
+        side="BUY",
+        quantity=Decimal("100"),
+        limit_price=Decimal("3.90"),
+        estimated_amount=Decimal("390"),
+        risk_policy_version="risk-v1",
+        risk_snapshot={"passed": True},
+        expires_at=timezone.now() + timedelta(hours=1),
+    )
+
+    rows = DjangoBrokerExecutionRepository().list_orders(
+        user_id=owner.pk,
+        is_admin=False,
+    )
+
+    assert [row["client_order_id"] for row in rows] == [str(order.client_order_id)]
+    assert rows[0]["agent_id"] is None
+
+
+@pytest.mark.django_db
+def test_account_access_catalog_supports_a_deleted_granting_administrator() -> None:
+    administrator = _user("deleted-grant-administrator", "admin", superuser=True)
+    grantee = _user("access-grantee", "operator")
+    grant = BrokerAccountAccessModel.objects.create(
+        user=grantee,
+        account_id=82,
+        can_approve=True,
+        granted_by=administrator,
+    )
+    administrator.delete()
+    grant.refresh_from_db()
+
+    rows = DjangoBrokerExecutionRepository().list_account_access_grants(actor_id=grantee.pk)
+
+    assert len(rows) == 1
+    assert rows[0]["granted_by"] is None
 
 
 @pytest.mark.django_db
@@ -287,9 +330,10 @@ def test_account_scope_and_action_grants_are_enforced() -> None:
     outsider_client = Client()
     outsider_client.force_login(outsider)
     assert granted.get(f"/api/broker-execution/orders/{order.client_order_id}/").status_code == 200
-    assert outsider_client.get(
-        f"/api/broker-execution/orders/{order.client_order_id}/"
-    ).status_code == 404
+    assert (
+        outsider_client.get(f"/api/broker-execution/orders/{order.client_order_id}/").status_code
+        == 404
+    )
     response = granted.post(
         f"/api/broker-execution/orders/{order.client_order_id}/approve/",
         data=json.dumps({"preview_only": True, "reason": "delegated review"}),
@@ -346,12 +390,15 @@ def test_admin_manages_account_grants_only_through_preview_commit_and_audit() ->
     assert grant.can_approve is True
     assert grant.can_trade is False
     assert grant.granted_by == administrator
-    assert BrokerExecutionAuditModel.objects.filter(
-        actor=administrator,
-        user=owner,
-        action="account_access_updated",
-        account_id=77,
-    ).count() == 1
+    assert (
+        BrokerExecutionAuditModel.objects.filter(
+            actor=administrator,
+            user=owner,
+            action="account_access_updated",
+            account_id=77,
+        ).count()
+        == 1
+    )
 
     catalog = client.get(endpoint)
     assert catalog.status_code == 200
@@ -360,11 +407,14 @@ def test_admin_manages_account_grants_only_through_preview_commit_and_audit() ->
     owner_client = Client()
     owner_client.force_login(owner)
     assert owner_client.get(endpoint).status_code == 403
-    assert owner_client.post(
-        endpoint,
-        data=json.dumps(payload | {"preview_only": True}),
-        content_type="application/json",
-    ).status_code == 403
+    assert (
+        owner_client.post(
+            endpoint,
+            data=json.dumps(payload | {"preview_only": True}),
+            content_type="application/json",
+        ).status_code
+        == 403
+    )
 
 
 @pytest.mark.django_db
@@ -411,7 +461,9 @@ def test_kill_switch_is_previewed_committed_and_visible_on_overview() -> None:
     endpoint = "/api/broker-execution/kill-switch/"
     preview = client.post(
         endpoint,
-        data=json.dumps({"account_id": 0, "active": True, "reason": "incident", "preview_only": True}),
+        data=json.dumps(
+            {"account_id": 0, "active": True, "reason": "incident", "preview_only": True}
+        ),
         content_type="application/json",
     )
     assert preview.status_code == 200
@@ -466,8 +518,7 @@ def test_resume_requires_admin_password_and_audits_source_ip() -> None:
     missing = client.post(
         endpoint,
         data=json.dumps(
-            base_payload
-            | {"preview_only": False, "idempotency_key": "resume-missing"}
+            base_payload | {"preview_only": False, "idempotency_key": "resume-missing"}
         ),
         content_type="application/json",
     )
@@ -547,9 +598,9 @@ def test_admin_global_kill_switch_stops_every_active_bound_account() -> None:
             "user_id", "account_id"
         )
     ) == {(first_owner.id, 81), (second_owner.id, 82)}
-    assert BrokerExecutionAuditModel.objects.filter(
-        actor=admin, action="kill_switch_on"
-    ).count() == 2
+    assert (
+        BrokerExecutionAuditModel.objects.filter(actor=admin, action="kill_switch_on").count() == 2
+    )
 
 
 @pytest.mark.django_db
@@ -592,9 +643,7 @@ def test_trader_global_kill_switch_stops_explicitly_authorized_owner_account() -
     )
 
     assert preview.status_code == 200
-    assert preview.json()["data"]["affected_accounts"] == [
-        {"user_id": owner.id, "account_id": 83}
-    ]
+    assert preview.json()["data"]["affected_accounts"] == [{"user_id": owner.id, "account_id": 83}]
     assert commit.status_code == 200
     assert TradingControlModel.objects.get(
         user=owner,
@@ -730,9 +779,7 @@ def test_cancel_command_acceptance_waits_for_authoritative_broker_status() -> No
     assert order.status == "CANCEL_PENDING"
 
     repository = DjangoBrokerExecutionRepository()
-    command = repository.lease_agent_commands(
-        agent_pk=agent.pk, allowed_account_ids=[74], limit=1
-    )[
+    command = repository.lease_agent_commands(agent_pk=agent.pk, allowed_account_ids=[74], limit=1)[
         "commands"
     ][0]
     completed = repository.complete_agent_command(
@@ -770,10 +817,13 @@ def test_cancel_command_acceptance_waits_for_authoritative_broker_status() -> No
     )
     order.refresh_from_db()
     assert order.status == "CANCELED"
-    assert BrokerExecutionAuditModel.objects.filter(
-        action="agent_command_cancel_completed",
-        resource_id=str(order.client_order_id),
-    ).count() == 1
+    assert (
+        BrokerExecutionAuditModel.objects.filter(
+            action="agent_command_cancel_completed",
+            resource_id=str(order.client_order_id),
+        ).count()
+        == 1
+    )
 
 
 @pytest.mark.django_db
@@ -937,9 +987,9 @@ def test_broker_event_idempotency_is_scoped_to_agent() -> None:
     second_agent, _ = _binding(second_owner, account_id=92)
     first_order = _order(first_owner, first_agent, account_id=91)
     second_order = _order(second_owner, second_agent, account_id=92)
-    LiveOrderModel.objects.filter(
-        pk__in=[first_order.pk, second_order.pk]
-    ).update(status="SUBMITTING")
+    LiveOrderModel.objects.filter(pk__in=[first_order.pk, second_order.pk]).update(
+        status="SUBMITTING"
+    )
     repository = DjangoBrokerExecutionRepository()
     occurred_at = timezone.now().isoformat()
 
@@ -1141,9 +1191,7 @@ def test_admin_binding_and_credential_management_are_preview_first_and_idempoten
     assert sync_replay.json()["data"]["command_id"] == str(command.command_id)
 
     credential_id = issued.json()["data"]["credential_id"]
-    revoke_endpoint = (
-        f"/api/broker-execution/credentials/{credential_id}/revoke/"
-    )
+    revoke_endpoint = f"/api/broker-execution/credentials/{credential_id}/revoke/"
     revoke_preview = client.post(
         revoke_endpoint,
         data=json.dumps({"reason": "rotation complete", "preview_only": True}),
@@ -1162,9 +1210,9 @@ def test_admin_binding_and_credential_management_are_preview_first_and_idempoten
     )
     assert revoke_preview.status_code == 200
     assert revoke_commit.status_code == 200
-    assert BrokerAgentCredentialModel.objects.get(
-        credential_id=credential_id
-    ).revoked_at is not None
+    assert (
+        BrokerAgentCredentialModel.objects.get(credential_id=credential_id).revoked_at is not None
+    )
 
     unbind_payload = {
         "user_id": owner.id,

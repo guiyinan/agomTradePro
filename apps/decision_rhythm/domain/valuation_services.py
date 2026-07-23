@@ -116,9 +116,17 @@ class RecommendationConsolidationService:
         )  # 止损价取最高（最保守）
 
         # 公允价值取加权平均
+        decimal_weight = sum(
+            (Decimal(str(rec.position_size_pct)) for rec in recommendations),
+            Decimal("0"),
+        )
         fair_value = (
-            sum(rec.fair_value * rec.position_size_pct for rec in recommendations) / total_weight
-            if total_weight > 0
+            sum(
+                (rec.fair_value * Decimal(str(rec.position_size_pct)) for rec in recommendations),
+                Decimal("0"),
+            )
+            / decimal_weight
+            if decimal_weight > 0
             else first.fair_value
         )
 
@@ -187,7 +195,7 @@ class ExecutionApprovalService:
         >>> result = service.approve(approval_request, reviewer_comments="审批通过")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.state_machine = ApprovalStatusStateMachine()
 
     def can_approve(

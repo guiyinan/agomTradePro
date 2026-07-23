@@ -1,2 +1,1 @@
 """Realtime application package."""
-

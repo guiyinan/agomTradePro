@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from django.core.exceptions import PermissionDenied
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotAuthenticated, NotFound
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.account.application import portfolio_api_services
@@ -25,10 +26,21 @@ from .serializers import (
 )
 
 
+def _authenticated_user_id(request: Request) -> int:
+    """Return the persisted user ID guaranteed by the API permission boundary."""
+
+    user_id = getattr(request.user, "id", None)
+    if not isinstance(user_id, int):
+        raise NotAuthenticated("Authenticated user has no persisted ID")
+    return user_id
+
+
 class ObserverAuditMixin:
     """Shared audit logging helpers for observer-visible APIs."""
 
-    def _log_observer_portfolio_access_if_needed(self, request, portfolio, action: str) -> None:
+    def _log_observer_portfolio_access_if_needed(
+        self, request: Request, portfolio: Any, action: str
+    ) -> None:
         """Log portfolio-level observer access when the actor is not the owner."""
 
         if portfolio.user != request.user:
@@ -47,8 +59,8 @@ class ObserverAuditMixin:
 
     def _log_observer_position_access_if_needed(
         self,
-        request,
-        portfolio,
+        request: Request,
+        portfolio: Any,
         asset_code: str,
         action: str,
     ) -> None:
@@ -71,7 +83,7 @@ class ObserverAuditMixin:
 
     def _log_audit_action(
         self,
-        request,
+        request: Request,
         action: str,
         resource_type: str,
         resource_id: str,
@@ -85,7 +97,7 @@ class ObserverAuditMixin:
 
             log_audit_operation(
                 request_id=str(uuid.uuid4()),
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 username=request.user.username,
                 source="API",
                 operation_type="API_ACCESS",
@@ -106,33 +118,36 @@ class ObserverAuditMixin:
             logging.getLogger(__name__).error("记录审计日志失败: %s", exc, exc_info=True)
 
     @staticmethod
-    def _get_client_ip(request):
+    def _get_client_ip(request: Request) -> str | None:
         """Return the client IP address."""
 
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
         if x_forwarded_for:
-            return x_forwarded_for.split(",")[0]
-        return request.META.get("REMOTE_ADDR")
+            return str(x_forwarded_for).split(",")[0]
+        remote_addr = request.META.get("REMOTE_ADDR")
+        return str(remote_addr) if remote_addr else None
 
 
-class PortfolioViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
+class PortfolioViewSet(ObserverAuditMixin, viewsets.ModelViewSet[Any]):
     """Portfolio API endpoints."""
 
     permission_classes = [IsAuthenticated, ObserverAccessPermission]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """Return portfolios accessible to the current user."""
 
-        return portfolio_api_services.get_accessible_portfolios_queryset(self.request.user.id)
+        return portfolio_api_services.get_accessible_portfolios_queryset(
+            _authenticated_user_id(self.request)
+        )
 
-    def get_object(self):
+    def get_object(self) -> Any:
         """Resolve one portfolio while preserving 404 vs 403 semantics."""
 
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
         portfolio_id = self.kwargs[lookup_url_kwarg]
         try:
             context = portfolio_api_services.resolve_portfolio_for_user(
-                user_id=self.request.user.id,
+                user_id=_authenticated_user_id(self.request),
                 portfolio_id=portfolio_id,
             )
         except portfolio_api_services.PortfolioNotFoundError as exc:
@@ -143,19 +158,19 @@ class PortfolioViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
         self.check_object_permissions(self.request, context.portfolio)
         return context.portfolio
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
         """Select the serializer for the current action."""
 
         if self.action == "create":
             return PortfolioCreateSerializer
         return PortfolioSerializer
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: Any) -> None:
         """Attach the authenticated user on create."""
 
         serializer.save(user=self.request.user)
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Owners can update portfolios; observers receive 403."""
 
         portfolio = self.get_object()
@@ -169,7 +184,7 @@ class PortfolioViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
             )
         return super().update(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Owners can delete portfolios; observers receive 403."""
 
         portfolio = self.get_object()
@@ -184,12 +199,12 @@ class PortfolioViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=["get"])
-    def positions(self, request, pk=None):
+    def positions(self, request: Request, pk: Any = None) -> Response:
         """Return the portfolio positions payload."""
 
         try:
             context, payload = portfolio_api_services.get_portfolio_positions_payload(
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 portfolio_id=pk,
             )
         except portfolio_api_services.PortfolioNotFoundError as exc:
@@ -208,12 +223,12 @@ class PortfolioViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["get"])
-    def statistics(self, request, pk=None):
+    def statistics(self, request: Request, pk: Any = None) -> Response:
         """Return summary statistics for one accessible portfolio."""
 
         try:
             context, payload = portfolio_api_services.get_portfolio_statistics_payload(
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 portfolio_id=pk,
             )
         except portfolio_api_services.PortfolioNotFoundError as exc:
@@ -225,17 +240,17 @@ class PortfolioViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
         return Response(PortfolioStatisticsSerializer(payload).data)
 
 
-class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
+class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet[Any]):
     """Position API endpoints backed by the unified ledger."""
 
     permission_classes = [IsAuthenticated, ObserverAccessPermission]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """This viewset does not expose ORM querysets directly."""
 
         return []
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
         """Select the serializer for the current action."""
 
         if self.action == "create":
@@ -244,18 +259,24 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
             return PositionUpdateSerializer
         return PositionSerializer
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Create one position through the application service boundary."""
 
-        portfolio_id = request.data.get("portfolio")
-        if portfolio_id in (None, ""):
+        portfolio_id_raw = request.data.get("portfolio")
+        if portfolio_id_raw in (None, ""):
             return Response(
                 {"success": False, "error": "缺少 portfolio 参数"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if not isinstance(portfolio_id_raw, (int, str)):
+            return Response(
+                {"success": False, "error": "portfolio 参数格式无效"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        portfolio_id: int | str = portfolio_id_raw
         try:
             context = portfolio_api_services.resolve_portfolio_for_user(
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 portfolio_id=portfolio_id,
             )
         except portfolio_api_services.PortfolioNotFoundError as exc:
@@ -282,7 +303,7 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
 
         try:
             payload = portfolio_api_services.create_position_payload(
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 portfolio_id=portfolio_id,
                 validated_data=serializer.validated_data,
             )
@@ -294,12 +315,12 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
 
         return Response(PositionSerializer(payload).data, status=status.HTTP_201_CREATED)
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Return one accessible position."""
 
         try:
             context, payload = portfolio_api_services.get_position_payload(
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 position_id=kwargs["pk"],
             )
         except portfolio_api_services.PositionNotFoundError as exc:
@@ -315,7 +336,7 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
         )
         return Response(PositionSerializer(payload).data)
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Update one position through the application service boundary."""
 
         partial = kwargs.pop("partial", False)
@@ -324,7 +345,7 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
 
         try:
             payload = portfolio_api_services.update_position_payload(
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 position_id=kwargs["pk"],
                 validated_data=serializer.validated_data,
             )
@@ -340,18 +361,18 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
 
         return Response(PositionSerializer(payload).data)
 
-    def partial_update(self, request, *args, **kwargs):
+    def partial_update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Support PATCH updates."""
 
         kwargs["partial"] = True
         return self.update(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Delete one position through the application service boundary."""
 
         try:
             portfolio_api_services.delete_position(
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 position_id=kwargs["pk"],
             )
         except portfolio_api_services.PositionNotFoundError as exc:
@@ -366,15 +387,15 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Return unified positions across all accessible portfolios."""
 
         payload, observer_portfolios = portfolio_api_services.list_positions_payload(
-            user_id=request.user.id,
+            user_id=_authenticated_user_id(request),
             portfolio_id=request.query_params.get("portfolio_id"),
             asset_code=request.query_params.get("asset_code"),
         )
-        page = self.paginate_queryset(payload)
+        page = self.paginate_queryset(cast(Any, payload))
         positions = page if page is not None else payload
 
         for portfolio in observer_portfolios:
@@ -393,23 +414,27 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=False, methods=["get"], url_path="read-only")
-    def read_only(self, request):
+    def read_only(self, request: Request) -> Response:
         """Return position projections without synchronizing the unified ledger."""
 
         portfolio_id_raw = request.query_params.get("portfolio_id")
-        portfolio_id = int(portfolio_id_raw) if portfolio_id_raw not in (None, "") else None
+        portfolio_id = (
+            int(portfolio_id_raw)
+            if isinstance(portfolio_id_raw, str) and portfolio_id_raw
+            else None
+        )
         include_closed = request.query_params.get("include_closed", "").lower() in {
             "1",
             "true",
             "yes",
         }
         payload = portfolio_api_services.list_position_records_read_payload(
-            user_id=request.user.id,
+            user_id=_authenticated_user_id(request),
             portfolio_id=portfolio_id,
             asset_code=request.query_params.get("asset_code"),
             include_closed=include_closed,
         )
-        page = self.paginate_queryset(payload)
+        page = self.paginate_queryset(cast(Any, payload))
         positions = page if page is not None else payload
         serializer = PositionSerializer(positions, many=True)
         if page is not None:
@@ -417,7 +442,7 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
-    def close(self, request, pk=None):
+    def close(self, request: Request, pk: Any = None) -> Response:
         """Close one position through the application service boundary."""
 
         close_shares_raw = request.data.get("shares")
@@ -425,7 +450,7 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
 
         try:
             payload = portfolio_api_services.close_position_payload(
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 position_id=pk,
                 close_shares=close_shares,
             )

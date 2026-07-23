@@ -3,8 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
+from apps.account.application.portfolio_api_contracts import (
+    AccountInterfaceRepository,
+    AccountReadRepository,
+    LegacyPositionMutationRepository,
+    LegacyPositionRecord,
+    PortfolioApiRepository,
+    PortfolioQuerySet,
+    PortfolioRecord,
+    UnifiedPositionRecord,
+    UnifiedPositionService,
+)
 from apps.account.application.repository_provider import (
     get_account_interface_repository,
     get_account_position_repository,
@@ -34,26 +45,38 @@ class PositionMutationDeniedError(PermissionError):
 class PortfolioAccessContext:
     """Resolved portfolio access context for API handlers."""
 
-    portfolio: Any
+    portfolio: PortfolioRecord
     is_owner: bool
 
 
-def _portfolio_api_repo():
+def _portfolio_api_repo() -> PortfolioApiRepository:
     """Return the portfolio API repository."""
 
-    return get_portfolio_api_repository()
+    return cast(PortfolioApiRepository, get_portfolio_api_repository())
 
 
-def _interface_repo():
+def _interface_repo() -> AccountInterfaceRepository:
     """Return the account interface repository."""
 
-    return get_account_interface_repository()
+    return cast(AccountInterfaceRepository, get_account_interface_repository())
 
 
-def _position_repo():
+def _position_repo() -> LegacyPositionMutationRepository:
     """Return the legacy account position repository."""
 
-    return get_account_position_repository()
+    return cast(LegacyPositionMutationRepository, get_account_position_repository())
+
+
+def _read_repo() -> AccountReadRepository:
+    """Return the side-effect-free account read repository."""
+
+    return cast(AccountReadRepository, get_account_read_repository())
+
+
+def _position_service() -> UnifiedPositionService:
+    """Return the unified position lifecycle service."""
+
+    return get_unified_position_service()
 
 
 def _map_account_asset_type(asset_class: str) -> str:
@@ -72,7 +95,7 @@ def _map_account_asset_type(asset_class: str) -> str:
     return mapping.get(asset_class, "equity")
 
 
-def get_accessible_portfolios_queryset(user_id: int):
+def get_accessible_portfolios_queryset(user_id: int) -> PortfolioQuerySet:
     """Return the portfolios accessible to the current user."""
 
     return _interface_repo().get_accessible_portfolios_queryset(user_id)
@@ -112,7 +135,7 @@ def get_portfolio_positions_read_payload(
     """Return legacy portfolio positions without synchronizing the unified ledger."""
 
     context = resolve_portfolio_for_user(user_id=user_id, portfolio_id=portfolio_id)
-    payload = get_account_read_repository().list_open_legacy_position_payloads(context.portfolio)
+    payload = _read_repo().list_open_legacy_position_payloads(context.portfolio)
     return context, payload
 
 
@@ -135,7 +158,7 @@ def create_position_payload(
 ) -> dict[str, Any]:
     """Create one position via the unified ledger and return its response payload."""
 
-    if portfolio_id in (None, ""):
+    if portfolio_id is None or portfolio_id == "":
         raise ValueError("缺少 portfolio 参数")
 
     context = resolve_portfolio_for_user(user_id=user_id, portfolio_id=portfolio_id)
@@ -143,7 +166,7 @@ def create_position_payload(
         raise PositionMutationDeniedError("观察员无权创建持仓，只有账户拥有者可以执行此操作")
 
     account_id = _ensure_portfolio_ledger_synced(context.portfolio)
-    unified_model = get_unified_position_service().create_position(
+    unified_model = _position_service().create_position(
         account_id=account_id,
         asset_code=validated_data["asset_code"],
         shares=float(validated_data["shares"]),
@@ -203,7 +226,7 @@ def update_position_payload(
     legacy_projection = _portfolio_api_repo().get_legacy_projection_for_unified_position(
         unified_position.id
     )
-    get_unified_position_service().update_position(
+    _position_service().update_position(
         account_id=unified_position.account_id,
         asset_code=unified_position.asset_code,
         shares=float(validated_data["shares"]) if "shares" in validated_data else None,
@@ -254,17 +277,17 @@ def list_positions_payload(
     user_id: int,
     portfolio_id: int | str | None = None,
     asset_code: str | None = None,
-) -> tuple[list[dict[str, Any]], list[Any]]:
+) -> tuple[list[dict[str, Any]], list[PortfolioRecord]]:
     """Return unified position payloads for all accessible portfolios."""
 
     portfolios = get_accessible_portfolios_queryset(user_id).select_related("user", "base_currency")
-    if portfolio_id not in (None, ""):
+    if portfolio_id is not None and portfolio_id != "":
         portfolios = portfolios.filter(id=int(portfolio_id))
-    portfolios = list(portfolios)
+    portfolio_records = list(portfolios)
 
-    account_to_portfolio: dict[int, Any] = {}
-    observer_portfolios: list[Any] = []
-    for portfolio in portfolios:
+    account_to_portfolio: dict[int, PortfolioRecord] = {}
+    observer_portfolios: list[PortfolioRecord] = []
+    for portfolio in portfolio_records:
         account_to_portfolio[_ensure_portfolio_ledger_synced(portfolio)] = portfolio
         if portfolio.user_id != user_id:
             observer_portfolios.append(portfolio)
@@ -295,7 +318,7 @@ def list_position_records_read_payload(
 ) -> list[dict[str, Any]]:
     """Return position records without creating or synchronizing ledger state."""
 
-    return get_account_read_repository().list_position_payloads(
+    return _read_repo().list_position_payloads(
         user_id=user_id,
         portfolio_id=portfolio_id,
         asset_code=asset_code,
@@ -324,7 +347,7 @@ def close_position_payload(
     if legacy_projection is not None and legacy_projection.is_closed:
         raise ValueError("该持仓已平仓")
 
-    result = get_unified_position_service().close_position(
+    result = _position_service().close_position(
         account_id=unified_position.account_id,
         asset_code=unified_position.asset_code,
         close_shares=close_shares,
@@ -370,7 +393,9 @@ def close_position_payload(
     return _portfolio_api_repo().build_position_payload(unified_model, context.portfolio)
 
 
-def _validate_portfolio_access(*, user_id: int, portfolio) -> PortfolioAccessContext:
+def _validate_portfolio_access(
+    *, user_id: int, portfolio: PortfolioRecord
+) -> PortfolioAccessContext:
     """Validate whether the current user can access one portfolio."""
 
     if portfolio.user_id == user_id:
@@ -394,7 +419,7 @@ def _validate_portfolio_access(*, user_id: int, portfolio) -> PortfolioAccessCon
     raise PortfolioAccessDeniedError("无权访问此投资组合")
 
 
-def _ensure_portfolio_ledger_synced(portfolio) -> int:
+def _ensure_portfolio_ledger_synced(portfolio: PortfolioRecord) -> int:
     """Ensure the portfolio and its open legacy positions exist in the unified ledger."""
 
     account_id = _portfolio_api_repo().ensure_real_account(portfolio)
@@ -403,7 +428,9 @@ def _ensure_portfolio_ledger_synced(portfolio) -> int:
     return account_id
 
 
-def _sync_unified_position_from_legacy(legacy_position):
+def _sync_unified_position_from_legacy(
+    legacy_position: LegacyPositionRecord,
+) -> UnifiedPositionRecord:
     """Bootstrap one legacy position into the unified ledger when needed."""
 
     existing_mapping = _portfolio_api_repo().get_position_mapping_for_source(legacy_position.id)
@@ -413,7 +440,7 @@ def _sync_unified_position_from_legacy(legacy_position):
             return unified_existing
         _portfolio_api_repo().delete_position_mapping_for_source(legacy_position.id)
 
-    unified_model = get_unified_position_service().create_position(
+    unified_model = _position_service().create_position(
         account_id=_portfolio_api_repo().ensure_real_account(legacy_position.portfolio),
         asset_code=legacy_position.asset_code,
         shares=float(legacy_position.shares),
@@ -436,7 +463,7 @@ def _resolve_position_context(
     *,
     user_id: int,
     position_id: int,
-) -> tuple[Any, PortfolioAccessContext]:
+) -> tuple[UnifiedPositionRecord, PortfolioAccessContext]:
     """Resolve one position from the unified ledger or legacy projection."""
 
     unified_position = _portfolio_api_repo().get_unified_position(position_id)

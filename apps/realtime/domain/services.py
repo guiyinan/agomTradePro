@@ -1,5 +1,6 @@
 """Realtime domain services."""
 
+from datetime import datetime
 from decimal import Decimal
 
 from apps.realtime.domain.entities import PriceUpdate, PriceUpdateStatus
@@ -11,7 +12,7 @@ def build_price_update(
     asset_code: str,
     old_price: Decimal | None,
     new_price: Decimal | None,
-    timestamp,
+    timestamp: datetime,
     error_message: str | None = None,
 ) -> PriceUpdate:
     """Build a price update entity from old/new prices."""

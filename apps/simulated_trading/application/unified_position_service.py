@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, Protocol
 
 from django.utils import timezone
 
@@ -30,6 +31,7 @@ from apps.simulated_trading.application.repository_provider import (
 )
 from apps.simulated_trading.domain.entities import (
     OrderStatus,
+    Position,
     SimulatedTrade,
     TradeAction,
 )
@@ -39,6 +41,52 @@ logger = logging.getLogger(__name__)
 _QUANTITY_PLACES = Decimal("0.000001")
 _COST_PLACES = Decimal("0.0001")
 _VALUE_PLACES = Decimal("0.01")
+
+
+class PositionLifecycleRepositoryProtocol(Protocol):
+    """Position operations required by the unified lifecycle service."""
+
+    def get_by_account(self, account_id: int) -> list[Position]:
+        """Return positions for one account."""
+
+    def get_position_by_id(self, position_id: int) -> Position | None:
+        """Return one position by identifier."""
+
+    def get_position(self, account_id: int, asset_code: str) -> Position | None:
+        """Return one account position by asset code."""
+
+    def save_position_record(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        defaults: dict[str, Any],
+    ) -> Any:
+        """Persist one position record at the ORM boundary."""
+
+
+class PositionMutationRepositoryProtocol(Protocol):
+    """Atomic position mutation operations required by the service."""
+
+    def create_or_merge_position_with_buy_trade(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        position_defaults: dict[str, Any],
+        trade_payload: dict[str, Any],
+    ) -> Any:
+        """Persist a buy trade and its resulting position."""
+
+    def close_position_with_sell_trade(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        remaining_position_defaults: dict[str, Any] | None,
+        trade: SimulatedTrade,
+    ) -> None:
+        """Persist a sell trade and the remaining position state."""
 
 
 def _to_decimal(value: float | int | str | Decimal, places: Decimal) -> Decimal:
@@ -58,23 +106,29 @@ class UnifiedPositionService:
         )
     """
 
-    def __init__(self, account_repo, position_repo, trade_repo, mutation_repo=None):
+    def __init__(
+        self,
+        account_repo: object,
+        position_repo: PositionLifecycleRepositoryProtocol,
+        trade_repo: object,
+        mutation_repo: PositionMutationRepositoryProtocol | None = None,
+    ) -> None:
         self._account_repo = account_repo
         self._position_repo = position_repo
         self._trade_repo = trade_repo
-        self._mutation_repo = mutation_repo
+        self._mutation_repo = mutation_repo or get_simulated_position_mutation_repository()
 
     # ── reads ──────────────────────────────────────────────────────────────
 
-    def list_positions(self, account_id: int) -> list:
+    def list_positions(self, account_id: int) -> list[Position]:
         """Return all active positions for *account_id*."""
         return self._position_repo.get_by_account(account_id)
 
-    def get_position_by_id(self, position_id: int):
+    def get_position_by_id(self, position_id: int) -> Position | None:
         """Return a single position entity by its primary key."""
         return self._position_repo.get_position_by_id(position_id)
 
-    def get_position(self, account_id: int, asset_code: str):
+    def get_position(self, account_id: int, asset_code: str) -> Position | None:
         """Return the position for a specific asset inside an account."""
         return self._position_repo.get_position(account_id, asset_code)
 
@@ -94,7 +148,7 @@ class UnifiedPositionService:
         source_id: int | None = None,
         entry_reason: str = "",
         traded_at: datetime | None = None,
-    ):
+    ) -> Any:
         """
         Open a new position (or merge into an existing one) in the unified ledger.
 
@@ -115,9 +169,10 @@ class UnifiedPositionService:
 
         if existing:
             # Merge: blend avg_cost, add quantities
-            combined_qty = existing.quantity + qty
+            existing_quantity = _to_decimal(existing.quantity, _QUANTITY_PLACES)
+            combined_qty = existing_quantity + qty
             blended_cost = (
-                (Decimal(str(existing.avg_cost)) * existing.quantity + avg_cost_d * qty)
+                (Decimal(str(existing.avg_cost)) * existing_quantity + avg_cost_d * qty)
                 / combined_qty
             ).quantize(_COST_PLACES, rounding=ROUND_HALF_UP)
             mv2, pnl2, pnl_pct2 = recalculate_derived_fields(
@@ -202,7 +257,7 @@ class UnifiedPositionService:
         shares: float | Decimal | None = None,
         avg_cost: float | Decimal | None = None,
         current_price: float | Decimal | None = None,
-    ):
+    ) -> Position | None:
         """
         Calibrate (手工校准) a real-account position.
 
@@ -219,7 +274,7 @@ class UnifiedPositionService:
                 f"Position not found: account_id={account_id}, asset_code={asset_code}"
             )
 
-        quantity = model.quantity
+        quantity = _to_decimal(model.quantity, _QUANTITY_PLACES)
         next_avg_cost = Decimal(str(model.avg_cost))
         next_current_price = Decimal(str(model.current_price))
 
@@ -272,7 +327,7 @@ class UnifiedPositionService:
         close_price: float | Decimal | None = None,
         reason: str = "平仓",
         traded_at: datetime | None = None,
-    ):
+    ) -> Position | None:
         """
         Close (全部或部分平仓) a position and record a sell trade.
 
@@ -314,7 +369,7 @@ class UnifiedPositionService:
             asset_name=model.asset_name,
             asset_type=model.asset_type,
             action=TradeAction.SELL,
-            quantity=qty_to_close,
+            quantity=float(qty_to_close),
             price=float(price_d),
             amount=float(amount),
             order_date=execution_date,

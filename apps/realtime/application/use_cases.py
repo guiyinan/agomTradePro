@@ -32,7 +32,9 @@ class RealtimeAlertService:
     def list(self, owner_id: int) -> list[PriceAlertDTO]:
         """List alerts belonging to one owner."""
 
-        return [PriceAlertDTO.from_domain(item) for item in self.repository.list_for_owner(owner_id)]
+        return [
+            PriceAlertDTO.from_domain(item) for item in self.repository.list_for_owner(owner_id)
+        ]
 
     def get(self, owner_id: int, alert_id: int) -> PriceAlertDTO | None:
         """Get one owner-scoped alert."""
@@ -123,9 +125,7 @@ class RealtimeSubscriptionService:
         """Create, reactivate, or return an existing subscription."""
 
         canonical = normalize_asset_code(asset_code)
-        existing = {
-            item.asset_code: item for item in self.repository.list_for_owner(owner_id)
-        }
+        existing = {item.asset_code: item for item in self.repository.list_for_owner(owner_id)}
         if canonical in existing:
             return SubscriptionCommandResult(
                 PriceSubscriptionDTO.from_domain(existing[canonical]),
@@ -148,6 +148,7 @@ class RealtimeSubscriptionService:
         if removed and self.notifier is not None:
             self.notifier.subscriptions_changed(owner_id)
         return removed
+
 
 __all__ = [
     "PricePollingService",

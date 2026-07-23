@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import parse_qs
 
-from channels.auth import BaseMiddleware
-from channels.db import database_sync_to_async
+from channels.auth import BaseMiddleware  # type: ignore[import-untyped]
+from channels.db import database_sync_to_async  # type: ignore[import-untyped]
 from django.contrib.auth.models import AnonymousUser
 
 from core.integration.account_access_registry import (
@@ -50,7 +50,7 @@ def _authenticate_token(key: str) -> tuple[Any, bool] | None:
     return token.user, bool(getattr(token, "allows_write", True))
 
 
-class AuthorizationHeaderAuthMiddleware(BaseMiddleware):
+class AuthorizationHeaderAuthMiddleware(BaseMiddleware):  # type: ignore[misc]
     """Authenticate WebSockets from a formal Account Authorization header."""
 
     async def __call__(

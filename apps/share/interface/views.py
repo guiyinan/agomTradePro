@@ -7,7 +7,7 @@ from typing import Any
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import Http404
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -15,6 +15,7 @@ from django.views import View
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.share.application.interface_services import (
@@ -52,6 +53,48 @@ def _normalize_portfolio_type(value: str | None) -> str:
     return "simulated"
 
 
+def _optional_form_int(value: str | int | None) -> int | None:
+    """Parse an optional non-negative integer from a form/query value."""
+
+    normalized = str(value or "").strip()
+    return int(normalized) if normalized.isdigit() else None
+
+
+def _required_form_int(value: str | None, *, field_name: str) -> int:
+    """Parse a required integer or raise a user-facing validation error."""
+
+    parsed = _optional_form_int(value)
+    if parsed is None:
+        raise ValueError(f"{field_name} 必须是整数")
+    return parsed
+
+
+def _required_id(value: int | None, *, label: str) -> int:
+    """Require a persisted integer identifier at an application boundary."""
+
+    if value is None:
+        raise ValueError(f"{label} 尚未持久化")
+    return int(value)
+
+
+def _authenticated_user_id(user: Any) -> int:
+    """Return the persisted identity of an authenticated user."""
+
+    user_id = getattr(user, "id", None)
+    if user_id is None:
+        raise PermissionDenied("Authenticated user must be persisted")
+    return int(user_id)
+
+
+def _required_short_code(value: str | None) -> str:
+    """Require the public share route key."""
+
+    short_code = str(value or "").strip()
+    if not short_code:
+        raise Http404("分享链接不存在")
+    return short_code
+
+
 class ShareVisibilityMixin:
     """Shared helpers for public share access."""
 
@@ -63,26 +106,30 @@ class ShareVisibilityMixin:
     def _password_session_key(share_link_id: int) -> str:
         return f"share_verified_{share_link_id}"
 
-    def _is_password_verified(self, request, share_link: Any) -> bool:
+    def _is_password_verified(self, request: Any, share_link: Any) -> bool:
         return bool(request.session.get(self._password_session_key(share_link.id), False))
 
-    def _mark_password_verified(self, request, share_link: Any) -> None:
+    def _mark_password_verified(self, request: Any, share_link: Any) -> None:
         request.session[self._password_session_key(share_link.id)] = True
         request.session.modified = True
 
-    def _clear_password_verified(self, request, share_link: Any) -> None:
+    def _clear_password_verified(self, request: Any, share_link: Any) -> None:
         request.session.pop(self._password_session_key(share_link.id), None)
         request.session.modified = True
 
-    def _get_client_ip(self, request) -> str:
+    def _get_client_ip(self, request: Any) -> str:
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
         if x_forwarded_for:
-            return x_forwarded_for.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR", "")
+            return str(x_forwarded_for).split(",")[0].strip()
+        return str(request.META.get("REMOTE_ADDR", ""))
 
     def _log_access(
-        self, share_link_id: int, request, result_status: str, is_verified: bool = False
-    ):
+        self,
+        share_link_id: int,
+        request: Any,
+        result_status: str,
+        is_verified: bool = False,
+    ) -> None:
         ShareAccessUseCases().log_access(
             share_link_id=share_link_id,
             ip_address=self._get_client_ip(request),
@@ -92,7 +139,11 @@ class ShareVisibilityMixin:
             is_verified=is_verified,
         )
 
-    def _filter_snapshot_by_visibility(self, snapshot: dict, share_link: Any) -> dict:
+    def _filter_snapshot_by_visibility(
+        self,
+        snapshot: dict[str, Any],
+        share_link: Any,
+    ) -> dict[str, Any]:
         result = {
             "generated_at": snapshot["generated_at"],
             "source_range_start": snapshot.get("source_range_start"),
@@ -104,9 +155,7 @@ class ShareVisibilityMixin:
             summary = {
                 k: v
                 for k, v in summary.items()
-                if not any(
-                    money_word in k.lower() for money_word in self._MONEY_WORDS
-                )
+                if not any(money_word in k.lower() for money_word in self._MONEY_WORDS)
             }
         result["summary"] = summary
 
@@ -115,9 +164,7 @@ class ShareVisibilityMixin:
             performance = {
                 k: v
                 for k, v in performance.items()
-                if not any(
-                    money_word in k.lower() for money_word in self._MONEY_WORDS
-                )
+                if not any(money_word in k.lower() for money_word in self._MONEY_WORDS)
             }
         result["performance"] = performance
 
@@ -182,11 +229,11 @@ class ShareVisibilityMixin:
     def _build_public_context(
         self,
         share_link: Any,
-        filtered_snapshot: dict | None,
+        filtered_snapshot: dict[str, Any] | None,
         *,
         requires_password: bool = False,
         password_error: str = "",
-    ) -> dict:
+    ) -> dict[str, Any]:
         snapshot = filtered_snapshot or {}
         summary = snapshot.get("summary", {}) or {}
         performance = snapshot.get("performance", {}) or {}
@@ -194,7 +241,11 @@ class ShareVisibilityMixin:
         transactions = snapshot.get("transactions", {}) or {}
         decisions = snapshot.get("decisions", {}) or {}
 
-        def first_of(*keys, source=None, default=None):
+        def first_of(
+            *keys: str,
+            source: dict[str, Any] | None = None,
+            default: Any = None,
+        ) -> Any:
             src = source if source is not None else {}
             for key in keys:
                 if key in src and src[key] is not None:
@@ -202,7 +253,7 @@ class ShareVisibilityMixin:
             return default
 
         disclaimer_config = get_share_disclaimer_config()
-        disclaimer_lines = get_share_disclaimer_lines(summary.get("portfolio_type"))
+        disclaimer_lines = get_share_disclaimer_lines(str(summary.get("portfolio_type") or ""))
 
         return {
             "share_short_code": share_link.short_code,
@@ -266,13 +317,13 @@ class ShareVisibilityMixin:
             "disclaimer_lines": disclaimer_lines,
         }
 
-    def _build_performance_chart_payload(self, snapshot: dict, period: str) -> dict:
+    def _build_performance_chart_payload(
+        self,
+        snapshot: dict[str, Any],
+        period: str,
+    ) -> dict[str, Any]:
         performance = dict(snapshot.get("performance", {}) or {})
-        dates = list(
-            performance.get("chart_dates")
-            or performance.get("dates")
-            or []
-        )
+        dates = list(performance.get("chart_dates") or performance.get("dates") or [])
         portfolio_values = list(
             performance.get("portfolio_values")
             or performance.get("returns")
@@ -280,9 +331,7 @@ class ShareVisibilityMixin:
             or []
         )
         benchmark_values = list(
-            performance.get("benchmark_values")
-            or performance.get("benchmark_series")
-            or []
+            performance.get("benchmark_values") or performance.get("benchmark_series") or []
         )
         max_len = min(len(dates), len(portfolio_values))
         if benchmark_values:
@@ -311,9 +360,7 @@ class ShareVisibilityMixin:
             dates = [dates[index] for index in filtered_indexes]
             portfolio_values = [portfolio_values[index] for index in filtered_indexes]
             benchmark_values = (
-                [benchmark_values[index] for index in filtered_indexes]
-                if benchmark_values
-                else []
+                [benchmark_values[index] for index in filtered_indexes] if benchmark_values else []
             )
 
         return {
@@ -326,19 +373,19 @@ class ShareVisibilityMixin:
         }
 
 
-def _as_float(value) -> float | None:
+def _as_float(value: Any) -> float | None:
     if value in (None, ""):
         return None
     return float(value)
 
 
-def _as_iso_datetime(value) -> str | None:
+def _as_iso_datetime(value: Any) -> str | None:
     if not value:
         return None
-    return value.isoformat()
+    return str(value.isoformat())
 
 
-def _non_empty(*values):
+def _non_empty(*values: Any) -> Any | None:
     for value in values:
         if value not in (None, "", [], {}, ()):
             return value
@@ -367,23 +414,23 @@ def _asset_type_label(asset_type: str | None) -> str:
     return mapping.get((asset_type or "").strip().lower(), "其他")
 
 
-class ShareLinkViewSet(viewsets.ModelViewSet):
+class ShareLinkViewSet(viewsets.ModelViewSet[Any]):
     """Authenticated management API for share links."""
 
     serializer_class = ShareLinkSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return get_share_link_queryset(self.request.user.id)
+    def get_queryset(self) -> Any:
+        return get_share_link_queryset(_authenticated_user_id(self.request.user))
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         serializer = CreateShareLinkSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
         try:
             entity = ShareLinkUseCases().create_share_link(
-                owner_id=request.user.id,
+                owner_id=_authenticated_user_id(request.user),
                 account_id=data["account_id"],
                 title=data["title"],
                 subtitle=data.get("subtitle"),
@@ -403,7 +450,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
         except Exception as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        model = get_share_link_model(entity.id)
+        model = get_share_link_model(_required_id(entity.id, label="分享链接"))
         if model is None:
             return Response({"error": "创建后的分享链接不存在"}, status=status.HTTP_400_BAD_REQUEST)
         return Response(
@@ -411,7 +458,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         instance = self.get_object()
         serializer = UpdateShareLinkSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -420,7 +467,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
         try:
             entity = ShareLinkUseCases().update_share_link(
                 share_link_id=instance.id,
-                owner_id=request.user.id,
+                owner_id=_authenticated_user_id(request.user),
                 title=data.get("title"),
                 subtitle=data.get("subtitle"),
                 theme=data.get("theme"),
@@ -442,32 +489,36 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
         if not entity:
             return Response({"error": "更新失败"}, status=status.HTTP_400_BAD_REQUEST)
 
-        model = get_share_link_model(entity.id)
+        model = get_share_link_model(_required_id(entity.id, label="分享链接"))
         if model is None:
             return Response({"error": "更新后的分享链接不存在"}, status=status.HTTP_400_BAD_REQUEST)
         return Response(ShareLinkSerializer(model, context={"request": request}).data)
 
     @action(detail=True, methods=["post"])
-    def revoke(self, request, pk=None):
-        success = ShareLinkUseCases().revoke_share_link(pk, request.user.id)
+    def revoke(self, request: Request, pk: str | None = None) -> Response:
+        share_link_id = _required_form_int(pk, field_name="share_link_id")
+        success = ShareLinkUseCases().revoke_share_link(
+            share_link_id,
+            _authenticated_user_id(request.user),
+        )
         if success:
             return Response({"status": "revoked"})
         return Response({"error": "撤销失败"}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["get"])
-    def snapshots(self, request, pk=None):
+    def snapshots(self, request: Request, pk: str | None = None) -> Response:
         instance = self.get_object()
         snapshots = list_share_snapshots(instance.id)
         return Response(ShareSnapshotSerializer(snapshots, many=True).data)
 
     @action(detail=True, methods=["get"])
-    def logs(self, request, pk=None):
+    def logs(self, request: Request, pk: str | None = None) -> Response:
         instance = self.get_object()
         logs = ShareAccessUseCases().get_access_logs(instance.id, limit=100)
         return Response(logs)
 
     @action(detail=True, methods=["get"])
-    def stats(self, request, pk=None):
+    def stats(self, request: Request, pk: str | None = None) -> Response:
         instance = self.get_object()
         stats = ShareAccessUseCases().get_access_stats(instance.id)
         return Response(stats)
@@ -478,7 +529,8 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
 
     permission_classes = []
 
-    def retrieve(self, request, short_code=None):
+    def retrieve(self, request: Request, short_code: str | None = None) -> Response:
+        short_code = _required_short_code(short_code)
         entity = ShareLinkUseCases().get_share_link_by_code(short_code)
         model = get_public_share_link_model(short_code)
         if not entity or model is None:
@@ -501,7 +553,8 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
         return Response(PublicShareLinkSerializer(model).data)
 
     @action(detail=False, methods=["post"], url_path="(?P<short_code>[^/.]+)/access")
-    def access(self, request, short_code=None):
+    def access(self, request: Request, short_code: str | None = None) -> Response:
+        short_code = _required_short_code(short_code)
         entity = ShareLinkUseCases().get_share_link_by_code(short_code)
         model = get_public_share_link_model(short_code)
         if not entity or model is None:
@@ -522,7 +575,10 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
                     {"requires_password": True, "error": "请输入密码"},
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
-            if not ShareLinkUseCases().verify_password(entity.id, password):
+            if not ShareLinkUseCases().verify_password(
+                _required_id(entity.id, label="分享链接"),
+                password,
+            ):
                 self._clear_password_verified(request, model)
                 self._log_access(model.id, request, "password_invalid", is_verified=False)
                 return Response({"error": "密码错误"}, status=status.HTTP_401_UNAUTHORIZED)
@@ -537,7 +593,8 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
         return Response({"share_link": PublicShareLinkSerializer(model).data, "snapshot": snapshot})
 
     @action(detail=False, methods=["get"], url_path="(?P<short_code>[^/.]+)/snapshot")
-    def snapshot(self, request, short_code=None):
+    def snapshot(self, request: Request, short_code: str | None = None) -> Response:
+        short_code = _required_short_code(short_code)
         entity = ShareLinkUseCases().get_share_link_by_code(short_code)
         model = get_public_share_link_model(short_code)
         if not entity or model is None:
@@ -560,7 +617,8 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
         return Response(self._filter_snapshot_by_visibility(snapshot, model))
 
     @action(detail=False, methods=["get"], url_path="(?P<short_code>[^/.]+)/performance")
-    def performance(self, request, short_code=None):
+    def performance(self, request: Request, short_code: str | None = None) -> Response:
+        short_code = _required_short_code(short_code)
         entity = ShareLinkUseCases().get_share_link_by_code(short_code)
         model = get_public_share_link_model(short_code)
         if not entity or model is None:
@@ -588,7 +646,7 @@ class PublicSharePageView(ShareVisibilityMixin, View):
 
     template_name = "share/public_share.html"
 
-    def _get_share_link(self, short_code: str):
+    def _get_share_link(self, short_code: str) -> Any:
         share_link = get_public_share_link_model(short_code)
         if share_link is None:
             raise Http404("分享链接不存在")
@@ -596,7 +654,7 @@ class PublicSharePageView(ShareVisibilityMixin, View):
             raise Http404("分享链接不可访问")
         return share_link
 
-    def get(self, request, short_code: str):
+    def get(self, request: HttpRequest, short_code: str) -> HttpResponse:
         share_link = self._get_share_link(short_code)
         if share_link.requires_password() and not self._is_password_verified(request, share_link):
             context = self._build_public_context(share_link, None, requires_password=True)
@@ -616,7 +674,7 @@ class PublicSharePageView(ShareVisibilityMixin, View):
         increment_share_link_access_count(share_link_id=share_link.id)
         return render(request, self.template_name, context)
 
-    def post(self, request, short_code: str):
+    def post(self, request: HttpRequest, short_code: str) -> HttpResponse:
         share_link = self._get_share_link(short_code)
         if not share_link.requires_password():
             return redirect("share:public_share", short_code=short_code)
@@ -639,12 +697,15 @@ class PublicSharePageView(ShareVisibilityMixin, View):
 
 
 @login_required
-def share_manage_page(request, share_link_id: int | None = None):
+def share_manage_page(
+    request: HttpRequest,
+    share_link_id: int | None = None,
+) -> HttpResponse:
     """Management page for creating and reviewing share links."""
     selected_account_id_raw = request.GET.get("account_id") or request.POST.get("account_id")
-    selected_account_id = int(selected_account_id_raw) if str(selected_account_id_raw or "").isdigit() else None
+    selected_account_id = _optional_form_int(selected_account_id_raw)
     edit_share_link_id_raw = share_link_id or request.GET.get("edit")
-    edit_share_link_id = int(edit_share_link_id_raw) if str(edit_share_link_id_raw or "").isdigit() else None
+    edit_share_link_id = _optional_form_int(edit_share_link_id_raw)
 
     if request.method == "POST":
         share_link_id_raw = request.POST.get("share_link_id")
@@ -670,15 +731,15 @@ def share_manage_page(request, share_link_id: int | None = None):
         try:
             use_case = ShareLinkUseCases()
             if share_link_id_raw:
-                password_value = password if password_enabled else ""
+                update_password = password if password_enabled else ""
                 entity = use_case.update_share_link(
                     share_link_id=int(share_link_id_raw),
-                    owner_id=request.user.id,
+                    owner_id=_authenticated_user_id(request.user),
                     title=title,
                     subtitle=subtitle,
                     theme=theme,
                     share_level=share_level,
-                    password=password_value,
+                    password=update_password,
                     expires_at=expires_at,
                     max_access_count=max_access_count,
                     show_amounts=bool(request.POST.get("show_amounts")),
@@ -690,18 +751,20 @@ def share_manage_page(request, share_link_id: int | None = None):
                 )
                 if entity is None:
                     raise ValueError("分享链接不存在")
-                build_share_snapshot_from_account(share_link_id=entity.id)
+                build_share_snapshot_from_account(
+                    share_link_id=_required_id(entity.id, label="分享链接")
+                )
                 messages.success(request, "分享链接已更新")
             else:
-                password_value = password if password_enabled and password else None
+                create_password = password if password_enabled and password else None
                 entity = use_case.create_share_link(
-                    owner_id=request.user.id,
-                    account_id=int(account_id),
+                    owner_id=_authenticated_user_id(request.user),
+                    account_id=_required_form_int(account_id, field_name="account_id"),
                     title=title,
                     subtitle=subtitle,
                     theme=theme,
                     share_level=share_level,
-                    password=password_value,
+                    password=create_password,
                     expires_at=expires_at,
                     max_access_count=max_access_count,
                     show_amounts=bool(request.POST.get("show_amounts")),
@@ -711,15 +774,17 @@ def share_manage_page(request, share_link_id: int | None = None):
                     show_decision_evidence=bool(request.POST.get("show_decision_evidence")),
                     show_invalidation_logic=bool(request.POST.get("show_invalidation_logic")),
                 )
-                build_share_snapshot_from_account(share_link_id=entity.id)
+                build_share_snapshot_from_account(
+                    share_link_id=_required_id(entity.id, label="分享链接")
+                )
                 messages.success(request, "分享链接已创建")
             return redirect("share:manage")
         except Exception as exc:
             messages.error(request, f"创建分享链接失败：{exc}")
-            selected_account_id = int(account_id) if str(account_id or "").isdigit() else None
+            selected_account_id = _optional_form_int(account_id)
 
     context = build_share_manage_context(
-        owner_id=request.user.id,
+        owner_id=_authenticated_user_id(request.user),
         selected_account_id=selected_account_id,
         edit_share_link_id=edit_share_link_id,
     )
@@ -731,12 +796,15 @@ def share_manage_page(request, share_link_id: int | None = None):
 
 
 @login_required
-def revoke_share_link_page(request, share_link_id: int):
+def revoke_share_link_page(request: HttpRequest, share_link_id: int) -> HttpResponse:
     """Revoke a share link from management page."""
     if request.method != "POST":
         raise Http404()
 
-    success = ShareLinkUseCases().revoke_share_link(share_link_id, request.user.id)
+    success = ShareLinkUseCases().revoke_share_link(
+        share_link_id,
+        _authenticated_user_id(request.user),
+    )
     if success:
         messages.success(request, "分享链接已撤销")
     else:
@@ -745,12 +813,15 @@ def revoke_share_link_page(request, share_link_id: int):
 
 
 @login_required
-def refresh_share_link_page(request, share_link_id: int):
+def refresh_share_link_page(request: HttpRequest, share_link_id: int) -> HttpResponse:
     """Sync the cached share snapshot from current account data."""
     if request.method != "POST":
         raise Http404()
 
-    share_link = get_owner_share_link(request.user.id, share_link_id)
+    share_link = get_owner_share_link(
+        _authenticated_user_id(request.user),
+        share_link_id,
+    )
     if share_link is None:
         raise Http404()
     try:
@@ -762,7 +833,7 @@ def refresh_share_link_page(request, share_link_id: int):
 
 
 @login_required
-def share_disclaimer_manage_page(request):
+def share_disclaimer_manage_page(request: HttpRequest) -> HttpResponse:
     """Frontend management page for global share disclaimer config."""
     if not request.user.is_staff:
         raise PermissionDenied("只有管理员可以修改分享页风险提示配置")
@@ -780,9 +851,7 @@ def share_disclaimer_manage_page(request):
                 is_enabled=bool(request.POST.get("is_enabled")),
                 modal_enabled=bool(request.POST.get("modal_enabled")),
                 modal_title=(request.POST.get("modal_title") or "重要声明").strip() or "重要声明",
-                modal_confirm_text=(
-                    request.POST.get("modal_confirm_text") or "我已知悉"
-                ).strip()
+                modal_confirm_text=(request.POST.get("modal_confirm_text") or "我已知悉").strip()
                 or "我已知悉",
                 lines=lines,
             )

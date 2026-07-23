@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol
 from uuid import uuid4
 
 from django.utils import timezone
@@ -15,12 +15,82 @@ from apps.alpha_trigger.domain.entities import CandidateStatus
 from ..domain.entities import (
     DecisionFeatureSnapshot,
     DecisionRequest,
+    DecisionResponse,
     RecommendationStatus,
     UnifiedRecommendation,
 )
-from .use_cases import SubmitBatchRequestRequest, SubmitDecisionRequestRequest
+from .decision_quota_use_cases import (
+    SubmitBatchRequestRequest,
+    SubmitBatchRequestUseCase,
+    SubmitDecisionRequestRequest,
+    SubmitDecisionRequestUseCase,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class DecisionRequestWriteRepositoryProtocol(Protocol):
+    """Decision request operations required by submit workflows."""
+
+    def get_open_by_candidate_id(self, candidate_id: str) -> DecisionRequest | None:
+        """Return an open request for a candidate."""
+
+    def get_open_by_asset_code(self, asset_code: str) -> DecisionRequest | None:
+        """Return an open request for an asset."""
+
+    def save_request(self, request: DecisionRequest) -> DecisionRequest:
+        """Persist a decision request."""
+
+    def save_response(self, request_id: str, response: DecisionResponse) -> DecisionResponse:
+        """Persist a decision response."""
+
+
+class RecommendationRecordProtocol(Protocol):
+    """Minimal persisted recommendation projection used by submit workflows."""
+
+    recommendation_id: str
+
+
+class RecommendationWriteRepositoryProtocol(Protocol):
+    """Unified recommendation operations required by legacy submit compatibility."""
+
+    def get_active_by_key(
+        self,
+        *,
+        account_id: str,
+        security_code: str,
+        side: str,
+    ) -> RecommendationRecordProtocol | None:
+        """Return an active recommendation for the decision key."""
+
+    def append_source_candidate_ids(
+        self,
+        recommendation_id: str,
+        candidate_ids: list[str],
+    ) -> RecommendationRecordProtocol | None:
+        """Append candidate provenance to a recommendation."""
+
+    def save_feature_snapshot(self, snapshot: DecisionFeatureSnapshot) -> DecisionFeatureSnapshot:
+        """Persist a feature snapshot."""
+
+    def save(self, recommendation: UnifiedRecommendation) -> RecommendationRecordProtocol:
+        """Persist a unified recommendation."""
+
+
+class CandidateTrackingRepositoryProtocol(Protocol):
+    """Candidate status operations required after successful submit."""
+
+    def update_status(self, *, candidate_id: str, status: CandidateStatus) -> object:
+        """Update candidate status."""
+
+    def update_execution_tracking(
+        self,
+        *,
+        candidate_id: str,
+        decision_request_id: str,
+        execution_status: str,
+    ) -> object:
+        """Update candidate execution linkage."""
 
 
 @dataclass
@@ -66,11 +136,11 @@ class SubmitDecisionWorkflowUseCase:
     def __init__(
         self,
         *,
-        submit_use_case,
-        request_repo,
-        recommendation_repo,
-        candidate_repo=None,
-    ):
+        submit_use_case: SubmitDecisionRequestUseCase,
+        request_repo: DecisionRequestWriteRepositoryProtocol,
+        recommendation_repo: RecommendationWriteRepositoryProtocol,
+        candidate_repo: CandidateTrackingRepositoryProtocol | None = None,
+    ) -> None:
         self.submit_use_case = submit_use_case
         self.request_repo = request_repo
         self.recommendation_repo = recommendation_repo
@@ -92,9 +162,7 @@ class SubmitDecisionWorkflowUseCase:
                     message="该候选已有待执行请求，已复用",
                 )
 
-        open_by_asset = self.request_repo.get_open_by_asset_code(
-            request.submit_request.asset_code
-        )
+        open_by_asset = self.request_repo.get_open_by_asset_code(request.submit_request.asset_code)
         if open_by_asset:
             return SubmitDecisionWorkflowResponse(
                 success=True,
@@ -138,7 +206,7 @@ class SubmitDecisionWorkflowUseCase:
         self,
         *,
         request: SubmitDecisionWorkflowRequest,
-        decision_request,
+        decision_request: DecisionRequest,
     ) -> str | None:
         """Create or reuse a minimal unified recommendation for legacy submit flows."""
         try:
@@ -185,9 +253,7 @@ class SubmitDecisionWorkflowUseCase:
                     if request.submit_request.reason
                     else ["legacy_submit"]
                 ),
-                human_rationale=(
-                    f"Legacy submit: {request.submit_request.reason or 'N/A'}"
-                ),
+                human_rationale=(f"Legacy submit: {request.submit_request.reason or 'N/A'}"),
                 fair_value=Decimal("0"),
                 entry_price_low=Decimal("0"),
                 entry_price_high=Decimal("0"),
@@ -211,7 +277,7 @@ class SubmitDecisionWorkflowUseCase:
             )
             return None
 
-    def _compact_candidate(self, decision_request) -> None:
+    def _compact_candidate(self, decision_request: DecisionRequest) -> None:
         """Move the source candidate out of ACTIONABLE after successful submit approval."""
         if not self.candidate_repo or not decision_request.candidate_id:
             return
@@ -232,7 +298,12 @@ class SubmitDecisionWorkflowUseCase:
 class SubmitBatchWorkflowUseCase:
     """Orchestrate batch submit plus persistence outside the interface layer."""
 
-    def __init__(self, *, submit_use_case, request_repo):
+    def __init__(
+        self,
+        *,
+        submit_use_case: SubmitBatchRequestUseCase,
+        request_repo: DecisionRequestWriteRepositoryProtocol,
+    ) -> None:
         self.submit_use_case = submit_use_case
         self.request_repo = request_repo
 

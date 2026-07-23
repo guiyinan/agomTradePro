@@ -6,14 +6,17 @@ Account Interface Views
 
 import json
 import logging
+from collections.abc import Mapping
 from decimal import Decimal
+from typing import Any
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError
-from django.http import JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -31,55 +34,70 @@ from core.ui_modes import (
 logger = logging.getLogger(__name__)
 
 
-def is_admin_user(user):
+def _authenticated_user_id(request: HttpRequest) -> int:
+    """Return the persisted authenticated user ID required by account use cases."""
+
+    user_id = getattr(request.user, "id", None)
+    if not isinstance(user_id, int):
+        raise PermissionDenied("Authenticated user has no persisted ID")
+    return user_id
+
+
+def is_admin_user(user: Any) -> bool:
     """检查用户是否是管理员"""
-    return is_system_admin(user)
+    return bool(is_system_admin(user))
 
 
-def _build_token_payload(*, username: str, token_name: str, token_value: str):
-    return interface_services.build_token_payload(
+def _build_token_payload(
+    *, username: str, token_name: str, token_value: str
+) -> dict[str, str] | None:
+    payload = interface_services.build_token_payload(
         username=username,
         token_name=token_name,
         token_value=token_value,
         access_level=interface_services.TOKEN_ACCESS_LEVEL_READ_WRITE,
     )
+    if not isinstance(payload, Mapping):
+        return None
+    return {str(key): str(value) for key, value in payload.items()}
 
 
-def _get_token_name_from_request(request, default_prefix: str = "token") -> str:
+def _get_token_name_from_request(request: HttpRequest, default_prefix: str = "token") -> str:
     raw_name = (request.POST.get("token_name") or "").strip()
     if raw_name:
         return raw_name
     return f"{default_prefix}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
 
 
-def _get_token_access_level_from_request(request) -> str:
+def _get_token_access_level_from_request(request: HttpRequest) -> str:
     raw_value = request.POST.get("access_level")
-    return interface_services.normalize_token_access_level(raw_value)
+    return str(interface_services.normalize_token_access_level(raw_value))
 
 
-def _add_flash_message(request, level: str, message: str) -> None:
+def _add_flash_message(request: HttpRequest, level: str, message: str) -> None:
     """Emit a Django flash message from a service outcome."""
 
     getattr(messages, level)(request, message)
 
 
-def _get_safe_next_path(request, *, default_path: str) -> str:
+def _get_safe_next_path(request: HttpRequest, *, default_path: str) -> str:
     """Return a local redirect path from request params when valid."""
 
     candidate = (request.POST.get("next") or request.GET.get("next") or "").strip()
-    return normalize_local_path(candidate, default_path=default_path)
+    return str(normalize_local_path(candidate, default_path=default_path))
 
 
-def _redirect_with_ui_mode(path: str):
+def _redirect_with_ui_mode(path: str) -> HttpResponse:
     """Build one redirect response and persist the inferred UI mode when possible."""
 
     response = redirect(path)
-    return set_ui_mode_cookie(response, mode=infer_ui_mode_from_path(path))
+    response_with_mode = set_ui_mode_cookie(response, mode=infer_ui_mode_from_path(path))
+    return response_with_mode if isinstance(response_with_mode, HttpResponse) else response
 
 
 @require_http_methods(["GET", "POST"])
 @ensure_csrf_cookie
-def register_view(request):
+def register_view(request: HttpRequest) -> HttpResponse:
     """
     用户注册视图
 
@@ -93,7 +111,7 @@ def register_view(request):
         email = request.POST.get("email")
         password = request.POST.get("password")
         password_confirm = request.POST.get("password_confirm")
-        display_name = request.POST.get("display_name", username)
+        display_name = str(request.POST.get("display_name") or username or "")
 
         # 用户协议和风险提示确认
         user_agreement = request.POST.get("user_agreement") == "on"
@@ -207,19 +225,21 @@ def register_view(request):
     )
 
 
-def get_client_ip(request):
+def get_client_ip(request: HttpRequest) -> str | None:
     """获取客户端IP地址"""
+    ip: str | None
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
-        ip = x_forwarded_for.split(",")[0]
+        ip = str(x_forwarded_for).split(",")[0]
     else:
-        ip = request.META.get("REMOTE_ADDR")
+        remote_addr = request.META.get("REMOTE_ADDR")
+        ip = str(remote_addr) if remote_addr else None
     return ip
 
 
 @require_http_methods(["GET", "POST"])
 @ensure_csrf_cookie
-def login_view(request):
+def login_view(request: HttpRequest) -> HttpResponse:
     """
     用户登录视图
 
@@ -249,7 +269,7 @@ def login_view(request):
 
 
 @login_required
-def logout_view(request):
+def logout_view(request: HttpRequest) -> HttpResponse:
     """用户登出视图"""
     logout(request)
     messages.success(request, "您已成功登出")
@@ -257,30 +277,30 @@ def logout_view(request):
 
 
 @login_required
-def profile_view(request):
+def profile_view(request: HttpRequest) -> HttpResponse:
     """
     用户资料视图
 
     显示和编辑用户账户配置。
     """
-    context = interface_services.build_profile_context(request.user.id)
+    context = interface_services.build_profile_context(_authenticated_user_id(request))
     return render(request, "account/profile.html", context)
 
 
 @login_required
-def settings_view(request):
+def settings_view(request: HttpRequest) -> HttpResponse:
     """
     账户设置视图
 
     编辑风险偏好等配置，管理资金流水。
     """
     if request.method == "POST":
-        context = interface_services.build_settings_context(request.user.id)
+        context = interface_services.build_settings_context(_authenticated_user_id(request))
         portfolio = context["portfolio"]
         if portfolio and request.POST.get("save_trading_cost"):
             try:
                 outcome = interface_services.save_trading_cost_config(
-                    request.user.id,
+                    _authenticated_user_id(request),
                     commission_rate=request.POST.get("commission_rate", "0.00025"),
                     min_commission=request.POST.get("min_commission", "5.0"),
                     stamp_duty_rate=request.POST.get("stamp_duty_rate", "0.001"),
@@ -294,7 +314,7 @@ def settings_view(request):
                 )
         else:
             outcome = interface_services.update_account_settings(
-                request.user.id,
+                _authenticated_user_id(request),
                 display_name=request.POST.get("display_name", request.user.username),
                 risk_tolerance=request.POST.get(
                     "risk_tolerance",
@@ -306,7 +326,7 @@ def settings_view(request):
         _add_flash_message(request, outcome.level, outcome.message)
         return redirect(outcome.redirect_to or "/account/settings/")
 
-    context = interface_services.build_settings_context(request.user.id)
+    context = interface_services.build_settings_context(_authenticated_user_id(request))
     context["new_token_payload"] = request.session.pop("self_new_token_payload", None)
     context["token_access_level_choices"] = interface_services.get_token_access_level_choices()
     context["default_token_access_level"] = interface_services.TOKEN_ACCESS_LEVEL_READ_ONLY
@@ -314,11 +334,13 @@ def settings_view(request):
 
 
 @login_required
-def mcp_guide_view(request):
+def mcp_guide_view(request: HttpRequest) -> HttpResponse:
     """MCP/SDK integration guide for the current user."""
 
     base_url = request.build_absolute_uri("/").rstrip("/")
-    context = interface_services.build_mcp_guide_context(request.user.id, base_url=base_url)
+    context = interface_services.build_mcp_guide_context(
+        _authenticated_user_id(request), base_url=base_url
+    )
     context["new_token_payload"] = request.session.pop("self_new_token_payload", None)
     context["token_access_level_choices"] = interface_services.get_token_access_level_choices()
     context["default_token_access_level"] = interface_services.TOKEN_ACCESS_LEVEL_READ_ONLY
@@ -327,13 +349,13 @@ def mcp_guide_view(request):
 
 @login_required
 @require_http_methods(["POST"])
-def create_self_token_view(request):
+def create_self_token_view(request: HttpRequest) -> HttpResponse:
     """用户创建自己的 MCP/SDK Token。"""
     redirect_path = _get_safe_next_path(request, default_path="/account/settings/")
     try:
         token_name = _get_token_name_from_request(request, default_prefix="self")
         outcome = interface_services.create_self_token(
-            request.user.id,
+            _authenticated_user_id(request),
             token_name=token_name,
             access_level=_get_token_access_level_from_request(request),
         )
@@ -348,11 +370,11 @@ def create_self_token_view(request):
 
 @login_required
 @require_http_methods(["POST"])
-def revoke_self_token_view(request, token_id):
+def revoke_self_token_view(request: HttpRequest, token_id: int) -> HttpResponse:
     """用户撤销自己的 Token。"""
     redirect_path = _get_safe_next_path(request, default_path="/account/settings/")
     try:
-        outcome = interface_services.revoke_self_token(request.user.id, token_id)
+        outcome = interface_services.revoke_self_token(_authenticated_user_id(request), token_id)
         _add_flash_message(request, outcome.level, outcome.message)
     except LookupError as exc:
         messages.error(request, str(exc))
@@ -363,7 +385,7 @@ def revoke_self_token_view(request, token_id):
 
 @login_required
 @require_http_methods(["POST"])
-def capital_flow_view(request):
+def capital_flow_view(request: HttpRequest) -> HttpResponse:
     """
     资金流水视图
 
@@ -397,7 +419,7 @@ def capital_flow_view(request):
             return redirect("/account/settings/")
 
         outcome = interface_services.create_capital_flow(
-            request.user.id,
+            _authenticated_user_id(request),
             flow_type=flow_type,
             amount=amount,
             flow_date=flow_date,
@@ -412,7 +434,7 @@ def capital_flow_view(request):
 
 @login_required
 @require_http_methods(["POST"])
-def apply_backtest_results_view(request, backtest_id):
+def apply_backtest_results_view(request: HttpRequest, backtest_id: int) -> HttpResponse:
     """
     应用回测结果到实际持仓
 
@@ -423,7 +445,7 @@ def apply_backtest_results_view(request, backtest_id):
         data = json.loads(request.body) if request.body else {}
         scale_factor = float(data.get("scale_factor", 1.0))
         result = interface_services.apply_backtest_results(
-            request.user.id,
+            _authenticated_user_id(request),
             backtest_id=backtest_id,
             scale_factor=scale_factor,
         )
@@ -444,7 +466,7 @@ def apply_backtest_results_view(request, backtest_id):
 
 @login_required
 @require_http_methods(["GET"])
-def portfolio_volatility_api_view(request):
+def portfolio_volatility_api_view(request: HttpRequest) -> HttpResponse:
     """
     投资组合波动率API
 
@@ -454,7 +476,8 @@ def portfolio_volatility_api_view(request):
 
     try:
         # 获取投资组合ID（默认活跃组合）
-        portfolio = interface_services.get_active_portfolio_for_user(request.user.id)
+        user_id = _authenticated_user_id(request)
+        portfolio = interface_services.get_active_portfolio_for_user(user_id)
 
         if not portfolio:
             return JsonResponse({"success": False, "error": "暂无投资组合"}, status=404)
@@ -463,7 +486,7 @@ def portfolio_volatility_api_view(request):
         use_case = VolatilityAnalysisUseCase()
         analysis = use_case.analyze_portfolio_volatility(
             portfolio_id=portfolio.id,
-            user_id=request.user.id,
+            user_id=user_id,
         )
 
         # 转换历史数据为图表格式
@@ -471,9 +494,9 @@ def portfolio_volatility_api_view(request):
         for metric in analysis.volatility_history:
             history_data.append(
                 {
-                    "date": metric.date.strftime("%Y-%m-%d") if metric.date else None,
+                    "date": metric.as_of_date.strftime("%Y-%m-%d"),
                     "daily_volatility": metric.daily_volatility,
-                    "rolling_volatility_30d": metric.rolling_volatility_30d,
+                    "rolling_volatility_30d": metric.annualized_volatility,
                     "annualized_volatility": metric.annualized_volatility,
                 }
             )
@@ -519,7 +542,7 @@ def portfolio_volatility_api_view(request):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["GET", "POST"])
-def user_management_view(request):
+def user_management_view(request: HttpRequest) -> HttpResponse:
     """
     用户管理视图（仅管理员可用）
 
@@ -534,7 +557,7 @@ def user_management_view(request):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["GET"])
-def token_management_view(request):
+def token_management_view(request: HttpRequest) -> HttpResponse:
     """
     MCP/SDK Token 管理页面（仅管理员可用）
 
@@ -552,14 +575,14 @@ def token_management_view(request):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["POST"])
-def rotate_user_token_view(request, user_id):
+def rotate_user_token_view(request: HttpRequest, user_id: int) -> HttpResponse:
     """
     为指定用户创建新 Token（仅管理员可用）。
     """
     try:
         token_name = _get_token_name_from_request(request, default_prefix="admin")
         outcome = interface_services.rotate_user_token(
-            actor_user_id=request.user.id,
+            actor_user_id=_authenticated_user_id(request),
             target_user_id=user_id,
             token_name=token_name,
             access_level=_get_token_access_level_from_request(request),
@@ -589,7 +612,7 @@ def rotate_user_token_view(request, user_id):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["POST"])
-def revoke_user_token_view(request, user_id):
+def revoke_user_token_view(request: HttpRequest, user_id: int) -> HttpResponse:
     """
     撤销指定用户全部 Token（兼容旧入口，仅管理员可用）。
     """
@@ -618,7 +641,7 @@ def revoke_user_token_view(request, user_id):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["POST"])
-def revoke_access_token_view(request, token_id):
+def revoke_access_token_view(request: HttpRequest, token_id: int) -> HttpResponse:
     """撤销单个 Token。"""
     try:
         outcome = interface_services.revoke_access_token(token_id)
@@ -638,7 +661,7 @@ def revoke_access_token_view(request, token_id):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["POST"])
-def toggle_user_mcp_view(request, user_id):
+def toggle_user_mcp_view(request: HttpRequest, user_id: int) -> HttpResponse:
     """管理员切换用户 MCP 权限。"""
     try:
         outcome = interface_services.toggle_user_mcp(user_id)
@@ -653,13 +676,13 @@ def toggle_user_mcp_view(request, user_id):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["POST"])
-def approve_user_view(request, user_id):
+def approve_user_view(request: HttpRequest, user_id: int) -> HttpResponse:
     """
     批准用户视图（仅管理员可用）
     """
     try:
         outcome = interface_services.approve_user(
-            actor_user_id=request.user.id,
+            actor_user_id=_authenticated_user_id(request),
             target_user_id=user_id,
         )
         _add_flash_message(request, outcome.level, outcome.message)
@@ -679,13 +702,13 @@ def approve_user_view(request, user_id):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["POST"])
-def reject_user_view(request, user_id):
+def reject_user_view(request: HttpRequest, user_id: int) -> HttpResponse:
     """
     拒绝用户视图（仅管理员可用）
     """
     try:
         outcome = interface_services.reject_user(
-            actor_user_id=request.user.id,
+            actor_user_id=_authenticated_user_id(request),
             target_user_id=user_id,
             rejection_reason=request.POST.get("rejection_reason", ""),
         )
@@ -706,7 +729,7 @@ def reject_user_view(request, user_id):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["POST"])
-def set_user_role_view(request, user_id):
+def set_user_role_view(request: HttpRequest, user_id: int) -> HttpResponse:
     """
     设置用户 RBAC 角色（仅管理员可用）
     """
@@ -732,7 +755,7 @@ def set_user_role_view(request, user_id):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["POST"])
-def reset_user_status_view(request, user_id):
+def reset_user_status_view(request: HttpRequest, user_id: int) -> HttpResponse:
     """
     重置用户状态视图（仅管理员可用）
 
@@ -740,7 +763,7 @@ def reset_user_status_view(request, user_id):
     """
     try:
         outcome = interface_services.reset_user_status(
-            actor_user_id=request.user.id,
+            actor_user_id=_authenticated_user_id(request),
             target_user_id=user_id,
         )
         _add_flash_message(request, outcome.level, outcome.message)
@@ -760,7 +783,7 @@ def reset_user_status_view(request, user_id):
 @login_required
 @user_passes_test(is_admin_user)
 @require_http_methods(["GET", "POST"])
-def system_settings_view(request):
+def system_settings_view(request: HttpRequest) -> HttpResponse:
     """
     系统配置视图（仅管理员可用）
 
@@ -785,7 +808,7 @@ def system_settings_view(request):
 
 @login_required
 @require_http_methods(["GET"])
-def collaboration_view(request):
+def collaboration_view(request: HttpRequest) -> HttpResponse:
     """
     账户协作管理视图
 
@@ -793,14 +816,14 @@ def collaboration_view(request):
     """
     context = {
         "user": request.user,
-        **interface_services.build_collaboration_context(request.user.id),
+        **interface_services.build_collaboration_context(_authenticated_user_id(request)),
     }
     return render(request, "account/collaboration.html", context)
 
 
 @login_required
 @require_http_methods(["GET"])
-def observer_portal_view(request):
+def observer_portal_view(request: HttpRequest) -> HttpResponse:
     """
     观察员门户视图
 
@@ -808,7 +831,7 @@ def observer_portal_view(request):
     """
     context = {
         "user": request.user,
-        **interface_services.build_observer_portal_context(request.user.id),
+        **interface_services.build_observer_portal_context(_authenticated_user_id(request)),
     }
     return render(request, "account/observer_portal.html", context)
 

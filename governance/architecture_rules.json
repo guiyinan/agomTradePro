@@ -217,9 +217,9 @@
         "interface"
       ],
       "forbidden_import_patterns": [
-        "(^|\\.)infrastructure(?:\\.|$)"
+        "(^|\\.)infrastructure(?!\\.django_admin(?:\\.|$))(?:\\.|$)"
       ],
-      "rationale": "Interface should stay at validation and response formatting boundaries."
+      "rationale": "Interface should stay at validation and response formatting boundaries. The shared typed Django Admin base is a technical framework adapter required by the project Admin typing standard."
     },
     {
       "id": "apps_no_app_root_model_shim_imports_outside_admin",

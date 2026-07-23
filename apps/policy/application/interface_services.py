@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from .use_cases import (
@@ -12,23 +13,33 @@ from .use_cases import (
 )
 
 
+def _json_object(value: Any) -> dict[str, Any]:
+    """Normalize repository JSON payloads at the Application boundary."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
 class PolicyAdminInterfaceService:
     """Application-facing helpers for policy admin actions."""
 
-    def __init__(self, admin_repo):
+    def __init__(self, admin_repo: Any) -> None:
         self.admin_repo = admin_repo
 
     def mark_policy_logs_level(self, policy_log_ids: list[int], *, level: str) -> int:
         """Bulk update policy level for selected rows."""
 
-        return self.admin_repo.bulk_update_policy_logs(policy_log_ids, level=level)
+        return int(self.admin_repo.bulk_update_policy_logs(policy_log_ids, level=level))
 
     def approve_policy_logs(self, policy_log_ids: list[int], *, reviewer_id: int) -> int:
         """Approve pending policy logs."""
 
-        return self.admin_repo.approve_policy_logs(
-            policy_log_ids,
-            reviewer_id=reviewer_id,
+        return int(
+            self.admin_repo.approve_policy_logs(
+                policy_log_ids,
+                reviewer_id=reviewer_id,
+            )
         )
 
     def reject_policy_logs(
@@ -40,10 +51,12 @@ class PolicyAdminInterfaceService:
     ) -> int:
         """Reject pending policy logs."""
 
-        return self.admin_repo.reject_policy_logs(
-            policy_log_ids,
-            reviewer_id=reviewer_id,
-            review_notes=review_notes,
+        return int(
+            self.admin_repo.reject_policy_logs(
+                policy_log_ids,
+                reviewer_id=reviewer_id,
+                review_notes=review_notes,
+            )
         )
 
     def set_policy_list_flags(
@@ -55,32 +68,35 @@ class PolicyAdminInterfaceService:
     ) -> int:
         """Update list flags for selected policy logs."""
 
-        return self.admin_repo.bulk_update_policy_logs(
-            policy_log_ids,
-            is_whitelist=is_whitelist,
-            is_blacklist=is_blacklist,
+        return int(
+            self.admin_repo.bulk_update_policy_logs(
+                policy_log_ids,
+                is_whitelist=is_whitelist,
+                is_blacklist=is_blacklist,
+            )
         )
 
     def get_policy_log_statistics(self) -> dict[str, Any]:
         """Return aggregate policy log statistics."""
 
-        return self.admin_repo.get_policy_log_statistics()
+        return _json_object(self.admin_repo.get_policy_log_statistics())
 
     def has_rsshub_global_config(self) -> bool:
         """Return whether the RSSHub singleton exists."""
 
-        return self.admin_repo.has_rsshub_global_config()
+        return bool(self.admin_repo.has_rsshub_global_config())
 
     def get_rsshub_global_config_id(self) -> int | None:
         """Return the RSSHub singleton primary key when present."""
 
-        return self.admin_repo.get_rsshub_global_config_id()
+        config_id = self.admin_repo.get_rsshub_global_config_id()
+        return int(config_id) if config_id is not None else None
 
 
 class PolicyWorkbenchInterfaceService:
     """Application-facing helpers for policy workbench views."""
 
-    def __init__(self, *, workbench_repo, interface_repo):
+    def __init__(self, *, workbench_repo: Any, interface_repo: Any) -> None:
         self.workbench_repo = workbench_repo
         self.interface_repo = interface_repo
 
@@ -126,12 +142,12 @@ class PolicyWorkbenchInterfaceService:
     def get_workbench_bootstrap(self) -> dict[str, Any]:
         """Return the aggregate bootstrap payload."""
 
-        summary_output = GetWorkbenchSummaryUseCase(
-            workbench_repo=self.workbench_repo
-        ).execute(WorkbenchSummaryInput())
-        items_output = GetWorkbenchItemsUseCase(
-            workbench_repo=self.workbench_repo
-        ).execute(WorkbenchItemsInput(tab="all", limit=50, offset=0))
+        summary_output = GetWorkbenchSummaryUseCase(workbench_repo=self.workbench_repo).execute(
+            WorkbenchSummaryInput()
+        )
+        items_output = GetWorkbenchItemsUseCase(workbench_repo=self.workbench_repo).execute(
+            WorkbenchItemsInput(tab="all", limit=50, offset=0)
+        )
 
         return {
             "success": True,
@@ -145,38 +161,41 @@ class PolicyWorkbenchInterfaceService:
     def get_workbench_item_detail(self, event_id: int) -> dict[str, Any] | None:
         """Return one serialized workbench item detail row."""
 
-        return self.interface_repo.get_workbench_item_detail(event_id)
+        detail = self.interface_repo.get_workbench_item_detail(event_id)
+        return _json_object(detail) if detail is not None else None
 
 
 class PolicyPageInterfaceService:
     """Application-facing helpers for policy HTML page views."""
 
-    def __init__(self, page_repo):
+    def __init__(self, page_repo: Any) -> None:
         self.page_repo = page_repo
 
-    def list_rss_sources(self, *, category: str = "", is_active: str = "", search: str = ""):
+    def list_rss_sources(self, *, category: str = "", is_active: str = "", search: str = "") -> Any:
         return self.page_repo.list_rss_sources(
             category=category,
             is_active=is_active,
             search=search,
         )
 
-    def list_policy_keywords(self, *, level: str = "", is_active: str = ""):
+    def list_policy_keywords(self, *, level: str = "", is_active: str = "") -> Any:
         return self.page_repo.list_policy_keywords(
             level=level,
             is_active=is_active,
         )
 
-    def list_rss_fetch_logs(self, *, source_id: str = "", status: str = ""):
+    def list_rss_fetch_logs(self, *, source_id: str = "", status: str = "") -> Any:
         return self.page_repo.list_rss_fetch_logs(
             source_id=source_id,
             status=status,
         )
 
     def get_rss_fetch_log_summary(self, *, source_id: str = "", status: str = "") -> dict[str, Any]:
-        return self.page_repo.get_rss_fetch_log_summary(
-            source_id=source_id,
-            status=status,
+        return _json_object(
+            self.page_repo.get_rss_fetch_log_summary(
+                source_id=source_id,
+                status=status,
+            )
         )
 
     def list_rss_reader_items(
@@ -185,7 +204,7 @@ class PolicyPageInterfaceService:
         source_id: str = "",
         level: str = "",
         category: str = "",
-    ):
+    ) -> Any:
         return self.page_repo.list_rss_reader_items(
             source_id=source_id,
             level=level,
@@ -199,10 +218,12 @@ class PolicyPageInterfaceService:
         level: str = "",
         category: str = "",
     ) -> dict[str, Any]:
-        return self.page_repo.get_rss_reader_summary(
-            source_id=source_id,
-            level=level,
-            category=category,
+        return _json_object(
+            self.page_repo.get_rss_reader_summary(
+                source_id=source_id,
+                level=level,
+                category=category,
+            )
         )
 
     def list_policy_events(
@@ -211,24 +232,24 @@ class PolicyPageInterfaceService:
         level: str = "",
         start_date: str = "",
         end_date: str = "",
-    ):
+    ) -> Any:
         return self.page_repo.list_policy_events(
             level=level,
             start_date=start_date,
             end_date=end_date,
         )
 
-    def create_policy_event(self, payload: dict[str, Any]):
+    def create_policy_event(self, payload: dict[str, Any]) -> Any:
         return self.page_repo.create_policy_event(payload)
 
     def get_page_constants(self) -> dict[str, Any]:
-        return self.page_repo.get_policy_page_constants()
+        return _json_object(self.page_repo.get_policy_page_constants())
 
 
 class PolicyRssApiInterfaceService:
     """Application-facing helpers for policy RSS API views."""
 
-    def __init__(self, api_repo):
+    def __init__(self, api_repo: Any) -> None:
         self.api_repo = api_repo
 
     def list_rss_source_configs(
@@ -238,7 +259,7 @@ class PolicyRssApiInterfaceService:
         is_active: str | None = "",
         parser_type: str = "",
         search: str = "",
-    ):
+    ) -> Any:
         return self.api_repo.list_rss_source_configs(
             category=category,
             is_active=is_active,
@@ -246,17 +267,17 @@ class PolicyRssApiInterfaceService:
             search=search,
         )
 
-    def get_rss_source_config(self, source_id: int):
+    def get_rss_source_config(self, source_id: int) -> Any:
         return self.api_repo.get_rss_source_config(source_id)
 
-    def create_rss_source_config(self, payload: dict[str, Any]):
+    def create_rss_source_config(self, payload: dict[str, Any]) -> Any:
         return self.api_repo.create_rss_source_config(payload)
 
-    def update_rss_source_config(self, source_id: int, payload: dict[str, Any]):
+    def update_rss_source_config(self, source_id: int, payload: dict[str, Any]) -> Any:
         return self.api_repo.update_rss_source_config(source_id, payload)
 
     def delete_rss_source_config(self, source_id: int) -> bool:
-        return self.api_repo.delete_rss_source_config(source_id)
+        return bool(self.api_repo.delete_rss_source_config(source_id))
 
     def list_rss_fetch_logs(
         self,
@@ -264,14 +285,14 @@ class PolicyRssApiInterfaceService:
         source_name: str = "",
         source_id: str = "",
         status: str = "",
-    ):
+    ) -> Any:
         return self.api_repo.list_rss_fetch_logs(
             source_name=source_name,
             source_id=source_id,
             status=status,
         )
 
-    def get_rss_fetch_log(self, log_id: int):
+    def get_rss_fetch_log(self, log_id: int) -> Any:
         return self.api_repo.get_rss_fetch_log(log_id)
 
     def list_policy_level_keywords(
@@ -280,21 +301,21 @@ class PolicyRssApiInterfaceService:
         level: str = "",
         is_active: str | None = "",
         category: str = "",
-    ):
+    ) -> Any:
         return self.api_repo.list_policy_level_keywords(
             level=level,
             is_active=is_active,
             category=category,
         )
 
-    def get_policy_level_keyword(self, keyword_id: int):
+    def get_policy_level_keyword(self, keyword_id: int) -> Any:
         return self.api_repo.get_policy_level_keyword(keyword_id)
 
-    def create_policy_level_keyword(self, payload: dict[str, Any]):
+    def create_policy_level_keyword(self, payload: dict[str, Any]) -> Any:
         return self.api_repo.create_policy_level_keyword(payload)
 
-    def update_policy_level_keyword(self, keyword_id: int, payload: dict[str, Any]):
+    def update_policy_level_keyword(self, keyword_id: int, payload: dict[str, Any]) -> Any:
         return self.api_repo.update_policy_level_keyword(keyword_id, payload)
 
     def delete_policy_level_keyword(self, keyword_id: int) -> bool:
-        return self.api_repo.delete_policy_level_keyword(keyword_id)
+        return bool(self.api_repo.delete_policy_level_keyword(keyword_id))

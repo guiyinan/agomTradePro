@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
@@ -15,6 +15,7 @@ from ..domain.entities import (
     DecisionResponse,
     QuotaPeriod,
 )
+from ..domain.services import QuotaManager, RhythmManager
 
 if TYPE_CHECKING:
     pass
@@ -34,6 +35,20 @@ RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+
+
+class EventPublisherProtocol(Protocol):
+    """Minimal event publisher accepted by decision quota use cases."""
+
+    def publish(self, event: object) -> None:
+        """Publish one domain event."""
+
+
+class DecisionSchedulerProtocol(Protocol):
+    """Decision queue read contract used by the queue summary use case."""
+
+    def get_queue_summary(self) -> dict[str, Any]:
+        """Return the current queue summary."""
 
 
 @dataclass
@@ -222,7 +237,11 @@ class SubmitDecisionRequestUseCase:
         ... ))
     """
 
-    def __init__(self, rhythm_manager, event_bus=None):
+    def __init__(
+        self,
+        rhythm_manager: RhythmManager,
+        event_bus: EventPublisherProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -290,7 +309,7 @@ class SubmitDecisionRequestUseCase:
                 error=str(e),
             )
 
-    def _publish_event(self, decision_request: DecisionRequest, response: DecisionResponse):
+    def _publish_event(self, decision_request: DecisionRequest, response: DecisionResponse) -> None:
         """发布事件"""
         if self.event_bus is None:
             return
@@ -315,7 +334,7 @@ class SubmitDecisionRequestUseCase:
 
         self.event_bus.publish(event)
 
-    def _log_decision(self, decision_request: DecisionRequest, response: DecisionResponse):
+    def _log_decision(self, decision_request: DecisionRequest, response: DecisionResponse) -> None:
         """记录决策"""
         if response.approved:
             logger.info(
@@ -345,7 +364,11 @@ class SubmitBatchRequestUseCase:
         ... ))
     """
 
-    def __init__(self, rhythm_manager, event_bus=None):
+    def __init__(
+        self,
+        rhythm_manager: RhythmManager,
+        event_bus: EventPublisherProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -427,7 +450,11 @@ class SubmitBatchRequestUseCase:
             "approval_rate": approved / total if total > 0 else 0,
         }
 
-    def _publish_summary_event(self, responses: list[DecisionResponse], summary: dict[str, Any]):
+    def _publish_summary_event(
+        self,
+        responses: list[DecisionResponse],
+        summary: dict[str, Any],
+    ) -> None:
         """发布汇总事件"""
         if self.event_bus is None:
             return
@@ -456,7 +483,7 @@ class GetQuotaStatusUseCase:
         >>> response = use_case.execute(GetQuotaStatusRequest(QuotaPeriod.WEEKLY))
     """
 
-    def __init__(self, quota_manager):
+    def __init__(self, quota_manager: QuotaManager) -> None:
         """
         初始化用例
 
@@ -505,7 +532,7 @@ class GetRhythmSummaryUseCase:
         >>> response = use_case.execute(GetRhythmSummaryRequest())
     """
 
-    def __init__(self, rhythm_manager):
+    def __init__(self, rhythm_manager: RhythmManager) -> None:
         """
         初始化用例
 
@@ -555,7 +582,11 @@ class ResetQuotaUseCase:
         >>> response = use_case.execute(ResetQuotaRequest(QuotaPeriod.WEEKLY))
     """
 
-    def __init__(self, quota_manager, event_bus=None):
+    def __init__(
+        self,
+        quota_manager: QuotaManager,
+        event_bus: EventPublisherProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -625,7 +656,7 @@ class GetDecisionQueueUseCase:
         >>> queue_summary = use_case.execute()
     """
 
-    def __init__(self, scheduler):
+    def __init__(self, scheduler: DecisionSchedulerProtocol) -> None:
         """
         初始化用例
 

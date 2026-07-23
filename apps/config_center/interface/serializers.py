@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from rest_framework import serializers
 
 ALPHA_UNIVERSE_SOURCE_TYPES = {"manual", "csv", "data_center_filter"}
 
 
-class QlibRuntimeConfigSerializer(serializers.Serializer):
+class QlibRuntimeConfigSerializer(serializers.Serializer[dict[str, Any]]):
     configured = serializers.BooleanField(read_only=True)
     enabled = serializers.BooleanField(required=False)
     provider_uri = serializers.CharField(required=False, allow_blank=True)
@@ -30,7 +32,7 @@ class QlibRuntimeConfigSerializer(serializers.Serializer):
     )
 
 
-class QlibTrainingProfileSerializer(serializers.Serializer):
+class QlibTrainingProfileSerializer(serializers.Serializer[dict[str, Any]]):
     id = serializers.IntegerField(required=False)
     profile_key = serializers.CharField(max_length=64)
     name = serializers.CharField(max_length=120)
@@ -39,7 +41,9 @@ class QlibTrainingProfileSerializer(serializers.Serializer):
     universe = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     start_date = serializers.DateField(required=False, allow_null=True, default=None)
     end_date = serializers.DateField(required=False, allow_null=True, default=None)
-    feature_set_id = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    feature_set_id = serializers.CharField(
+        max_length=50, required=False, allow_blank=True, default=""
+    )
     label_id = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     learning_rate = serializers.FloatField(required=False, allow_null=True, default=None)
     epochs = serializers.IntegerField(required=False, allow_null=True, default=None, min_value=1)
@@ -50,7 +54,7 @@ class QlibTrainingProfileSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
-class AlphaUniverseConfigSerializer(serializers.Serializer):
+class AlphaUniverseConfigSerializer(serializers.Serializer[dict[str, Any]]):
     universe_id = serializers.RegexField(
         regex=r"^[a-z0-9][a-z0-9_\-]{1,63}$",
         max_length=64,
@@ -58,12 +62,12 @@ class AlphaUniverseConfigSerializer(serializers.Serializer):
     )
     name = serializers.CharField(max_length=120)
     source_type = serializers.ChoiceField(choices=sorted(ALPHA_UNIVERSE_SOURCE_TYPES))
-    stock_codes = serializers.JSONField(required=False, default=list)
+    stock_codes = serializers.JSONField(required=False, default=cast(Any, list))
     filters = serializers.DictField(required=False, default=dict)
     is_active = serializers.BooleanField(required=False, default=True)
     description = serializers.CharField(required=False, allow_blank=True, default="")
 
-    def validate(self, attrs: dict) -> dict:
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs["universe_id"] = str(attrs["universe_id"]).strip().lower()
         source_type = attrs.get("source_type")
         stock_codes = _parse_stock_codes(attrs.get("stock_codes") or [])
@@ -76,7 +80,7 @@ class AlphaUniverseConfigSerializer(serializers.Serializer):
         return attrs
 
 
-def _parse_stock_codes(value) -> list[str]:
+def _parse_stock_codes(value: Any) -> list[str]:
     if isinstance(value, str):
         normalized = value.replace(",", "\n").replace("，", "\n").replace(";", "\n")
         codes: list[str] = []
@@ -88,7 +92,7 @@ def _parse_stock_codes(value) -> list[str]:
     raise serializers.ValidationError({"stock_codes": "stock_codes 必须是数组或分隔字符串"})
 
 
-class QlibTrainingRunTriggerSerializer(serializers.Serializer):
+class QlibTrainingRunTriggerSerializer(serializers.Serializer[dict[str, Any]]):
     profile_key = serializers.CharField(required=False, allow_blank=True, default="")
     model_name = serializers.CharField(required=False, allow_blank=True, max_length=100)
     model_type = serializers.CharField(required=False, allow_blank=True, max_length=50)

@@ -6,6 +6,7 @@ Infrastructure层:
 - 负责Domain实体与ORM模型之间的转换
 - 封装数据库操作细节
 """
+
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
@@ -23,11 +24,9 @@ from apps.simulated_trading.application.ports import (
 from apps.simulated_trading.domain.entities import (
     AccountType,
     FeeConfig,
-    OrderStatus,
     Position,
     SimulatedAccount,
     SimulatedTrade,
-    TradeAction,
 )
 from apps.simulated_trading.infrastructure.models import (
     DailyInspectionNotificationConfigModel,
@@ -40,6 +39,8 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
+
+from .trade_mapper import SimulatedTradeMapper
 
 
 def _require_saved_id(model_id: int | None, entity_name: str) -> int:
@@ -107,7 +108,7 @@ class SimulatedAccountMapper:
             max_total_position_pct=model.max_total_position_pct,
             stop_loss_pct=model.stop_loss_pct,
             commission_rate=model.commission_rate,
-            slippage_rate=model.slippage_rate
+            slippage_rate=model.slippage_rate,
         )
 
     @staticmethod
@@ -136,7 +137,7 @@ class SimulatedAccountMapper:
             max_total_position_pct=entity.max_total_position_pct,
             stop_loss_pct=entity.stop_loss_pct,
             commission_rate=entity.commission_rate,
-            slippage_rate=entity.slippage_rate
+            slippage_rate=entity.slippage_rate,
         )
 
 
@@ -148,6 +149,7 @@ class PositionMapper:
         """ORM模型 → Domain实体"""
         # 将 JSON 字段转换为字符串
         import json
+
         invalidation_json = None
         if model.invalidation_rule_json:
             invalidation_json = json.dumps(model.invalidation_rule_json, ensure_ascii=False)
@@ -181,6 +183,7 @@ class PositionMapper:
     def to_model(entity: Position) -> PositionModel:
         """Domain实体 → ORM模型"""
         import json
+
         invalidation_json = None
         if entity.invalidation_rule_json:
             invalidation_json = json.loads(entity.invalidation_rule_json)
@@ -211,62 +214,6 @@ class PositionMapper:
         )
 
 
-class SimulatedTradeMapper:
-    """交易记录Mapper - Domain实体 ↔ ORM模型"""
-
-    @staticmethod
-    def to_entity(model: SimulatedTradeModel) -> SimulatedTrade:
-        """ORM模型 → Domain实体"""
-        return SimulatedTrade(
-            trade_id=model.id,
-            account_id=model.account_id,
-            asset_code=model.asset_code,
-            asset_name=model.asset_name,
-            asset_type=model.asset_type,
-            action=TradeAction(model.action),
-            quantity=float(model.quantity),
-            price=float(model.price),
-            amount=float(model.amount),
-            commission=float(model.commission),
-            slippage=float(model.slippage),
-            total_cost=float(model.total_cost),
-            realized_pnl=float(model.realized_pnl) if model.realized_pnl else None,
-            realized_pnl_pct=model.realized_pnl_pct,
-            reason=model.reason,
-            signal_id=model.signal_id,
-            order_date=model.order_date,
-            execution_date=model.execution_date,
-            execution_time=model.execution_time,
-            status=OrderStatus(model.status)
-        )
-
-    @staticmethod
-    def to_model(entity: SimulatedTrade) -> SimulatedTradeModel:
-        """Domain实体 → ORM模型"""
-        return SimulatedTradeModel(
-            id=entity.trade_id,
-            account_id=entity.account_id,
-            asset_code=entity.asset_code,
-            asset_name=entity.asset_name,
-            asset_type=entity.asset_type,
-            action=entity.action.value,
-            quantity=entity.quantity,
-            price=entity.price,
-            amount=entity.amount,
-            commission=entity.commission,
-            slippage=entity.slippage,
-            total_cost=entity.total_cost,
-            realized_pnl=entity.realized_pnl,
-            realized_pnl_pct=entity.realized_pnl_pct,
-            reason=entity.reason,
-            signal_id=entity.signal_id,
-            order_date=entity.order_date,
-            execution_date=entity.execution_date,
-            execution_time=entity.execution_time,
-            status=entity.status.value
-        )
-
-
 class FeeConfigMapper:
     """费率配置Mapper - Domain实体 ↔ ORM模型"""
 
@@ -286,7 +233,7 @@ class FeeConfigMapper:
             slippage_rate=model.slippage_rate,
             is_default=model.is_default,
             is_active=model.is_active,
-            description=model.description
+            description=model.description,
         )
 
     @staticmethod
@@ -305,7 +252,7 @@ class FeeConfigMapper:
             slippage_rate=entity.slippage_rate,
             is_default=entity.is_default,
             is_active=entity.is_active,
-            description=entity.description
+            description=entity.description,
         )
 
 
@@ -369,9 +316,7 @@ class DjangoSimulatedAccountRepository:
             user_id=user_id,
         ).first()
 
-    def get_by_name(
-        self, account_name: str, user_id: int | None = None
-    ) -> SimulatedAccount | None:
+    def get_by_name(self, account_name: str, user_id: int | None = None) -> SimulatedAccount | None:
         """Return an account by name, scoped to the owner when available."""
         queryset = SimulatedAccountModel._default_manager.filter(account_name=account_name)
         if user_id is not None:
@@ -382,8 +327,7 @@ class DjangoSimulatedAccountRepository:
     def get_active_accounts(self) -> list[SimulatedAccount]:
         """获取所有活跃的自动交易账户"""
         models = SimulatedAccountModel._default_manager.filter(
-            is_active=True,
-            auto_trading_enabled=True
+            is_active=True, auto_trading_enabled=True
         )
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
@@ -433,9 +377,9 @@ class DjangoSimulatedAccountRepository:
         Returns:
             用户的所有投资组合
         """
-        models = SimulatedAccountModel._default_manager.filter(
-            user_id=user_id
-        ).order_by('-created_at')
+        models = SimulatedAccountModel._default_manager.filter(user_id=user_id).order_by(
+            "-created_at"
+        )
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
     def list_account_models_for_user(self, user_id: int) -> list[Any]:
@@ -472,7 +416,9 @@ class DjangoSimulatedAccountRepository:
             SimulatedAccountModel._default_manager.filter(
                 user_id=user_id,
                 is_active=True,
-            ).select_related('rotation_config').order_by('account_type', 'account_name')
+            )
+            .select_related("rotation_config")
+            .order_by("account_type", "account_name")
         )
 
     def get_by_user_and_type(self, user_id: int, account_type: str) -> list[SimulatedAccount]:
@@ -487,9 +433,8 @@ class DjangoSimulatedAccountRepository:
             用户的指定类型的投资组合
         """
         models = SimulatedAccountModel._default_manager.filter(
-            user_id=user_id,
-            account_type=account_type
-        ).order_by('-created_at')
+            user_id=user_id, account_type=account_type
+        ).order_by("-created_at")
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
     def delete(self, account_id: int) -> bool:
@@ -522,7 +467,9 @@ class DjangoSimulatedAccountRepository:
             "account_name": account.account_name,
             "deleted_positions": PositionModel._default_manager.filter(account=account).count(),
             "deleted_trades": SimulatedTradeModel._default_manager.filter(account=account).count(),
-            "deleted_reports": DailyInspectionReportModel._default_manager.filter(account=account).count(),
+            "deleted_reports": DailyInspectionReportModel._default_manager.filter(
+                account=account
+            ).count(),
         }
         account.delete()
         return summary
@@ -679,7 +626,9 @@ class DjangoPositionRepository:
         )
         total_value = market_value + account.current_cash
         total_return = (
-            float(((total_value - account.initial_capital) / account.initial_capital) * Decimal("100"))
+            float(
+                ((total_value - account.initial_capital) / account.initial_capital) * Decimal("100")
+            )
             if account.initial_capital > 0
             else 0.0
         )
@@ -714,8 +663,7 @@ class DjangoPositionRepository:
         """
         # 检查是否已存在
         existing = PositionModel._default_manager.filter(
-            account_id=position.account_id,
-            asset_code=position.asset_code
+            account_id=position.account_id, asset_code=position.asset_code
         ).first()
 
         if existing:
@@ -744,7 +692,9 @@ class DjangoPositionRepository:
         models = PositionModel._default_manager.filter(account_id=account_id)
         return [PositionMapper.to_entity(m) for m in models]
 
-    def list_position_models_for_account(self, account_id: int, limit: int | None = None) -> list[Any]:
+    def list_position_models_for_account(
+        self, account_id: int, limit: int | None = None
+    ) -> list[Any]:
         """Return position ORM rows for template rendering."""
 
         queryset = PositionModel._default_manager.filter(account_id=account_id)
@@ -780,10 +730,7 @@ class DjangoPositionRepository:
     def get_position(self, account_id: int, asset_code: str) -> Position | None:
         """获取特定持仓"""
         try:
-            model = PositionModel._default_manager.get(
-                account_id=account_id,
-                asset_code=asset_code
-            )
+            model = PositionModel._default_manager.get(account_id=account_id, asset_code=asset_code)
             return PositionMapper.to_entity(model)
         except PositionModel.DoesNotExist:
             return None
@@ -791,8 +738,7 @@ class DjangoPositionRepository:
     def delete(self, account_id: int, asset_code: str) -> bool:
         """删除持仓"""
         deleted, _ = PositionModel._default_manager.filter(
-            account_id=account_id,
-            asset_code=asset_code
+            account_id=account_id, asset_code=asset_code
         ).delete()
         return int(deleted) > 0
 
@@ -843,16 +789,20 @@ class DjangoPositionRepository:
 
     def count_positions_with_invalidation_rules(self) -> int:
         return int(
-            PositionModel._default_manager.filter(
-                invalidation_rule_json__isnull=False
-            ).exclude(invalidation_rule_json={}).count()
+            PositionModel._default_manager.filter(invalidation_rule_json__isnull=False)
+            .exclude(invalidation_rule_json={})
+            .count()
         )
 
     def get_invalidated_position_summaries(self) -> list[dict[str, Any]]:
-        models = PositionModel._default_manager.filter(
-            is_invalidated=True,
-            quantity__gt=0,
-        ).select_related("account").order_by("-invalidation_checked_at")
+        models = (
+            PositionModel._default_manager.filter(
+                is_invalidated=True,
+                quantity__gt=0,
+            )
+            .select_related("account")
+            .order_by("-invalidation_checked_at")
+        )
         return [
             {
                 "account_id": model.account_id,
@@ -866,7 +816,8 @@ class DjangoPositionRepository:
                 "invalidation_reason": model.invalidation_reason,
                 "invalidation_checked_at": (
                     model.invalidation_checked_at.isoformat()
-                    if model.invalidation_checked_at else None
+                    if model.invalidation_checked_at
+                    else None
                 ),
             }
             for model in models
@@ -895,9 +846,9 @@ class DjangoTradeRepository:
 
     def get_by_account(self, account_id: int) -> list[SimulatedTrade]:
         """获取账户的所有交易记录"""
-        models = SimulatedTradeModel._default_manager.filter(
-            account_id=account_id
-        ).order_by('-execution_date', '-execution_time')
+        models = SimulatedTradeModel._default_manager.filter(account_id=account_id).order_by(
+            "-execution_date", "-execution_time"
+        )
         return [SimulatedTradeMapper.to_entity(m) for m in models]
 
     def count_trade_models(self) -> int:
@@ -1036,25 +987,19 @@ class DjangoPositionMutationRepository:
             )
 
     def get_by_date_range(
-        self,
-        account_id: int,
-        start_date: date,
-        end_date: date
+        self, account_id: int, start_date: date, end_date: date
     ) -> list[SimulatedTrade]:
         """获取日期范围内的交易记录"""
         models = SimulatedTradeModel._default_manager.filter(
-            account_id=account_id,
-            execution_date__gte=start_date,
-            execution_date__lte=end_date
-        ).order_by('-execution_date', '-execution_time')
+            account_id=account_id, execution_date__gte=start_date, execution_date__lte=end_date
+        ).order_by("-execution_date", "-execution_time")
         return [SimulatedTradeMapper.to_entity(m) for m in models]
 
     def get_by_asset(self, account_id: int, asset_code: str) -> list[SimulatedTrade]:
         """获取特定资产的所有交易记录"""
         models = SimulatedTradeModel._default_manager.filter(
-            account_id=account_id,
-            asset_code=asset_code
-        ).order_by('-execution_date', '-execution_time')
+            account_id=account_id, asset_code=asset_code
+        ).order_by("-execution_date", "-execution_time")
         return [SimulatedTradeMapper.to_entity(m) for m in models]
 
     def count_by_execution_date(self, account_id: int, execution_date: date) -> int:
@@ -1088,7 +1033,9 @@ class DjangoDailyNetValueRepository:
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[DailyNetValueRecord]:
-        queryset = DailyNetValueModel._default_manager.filter(account_id=account_id).order_by("record_date")
+        queryset = DailyNetValueModel._default_manager.filter(account_id=account_id).order_by(
+            "record_date"
+        )
         if start_date:
             queryset = queryset.filter(record_date__gte=start_date)
         if end_date:
@@ -1124,14 +1071,19 @@ class DjangoDailyNetValueRepository:
         account_id: int,
         current_date: date,
     ) -> PreviousDailyNetValueRecord | None:
-        row = DailyNetValueModel._default_manager.filter(
-            account_id=account_id,
-            record_date__lt=current_date,
-        ).order_by("-record_date").values(
-            "record_date",
-            "net_value",
-            "cumulative_return",
-        ).first()
+        row = (
+            DailyNetValueModel._default_manager.filter(
+                account_id=account_id,
+                record_date__lt=current_date,
+            )
+            .order_by("-record_date")
+            .values(
+                "record_date",
+                "net_value",
+                "cumulative_return",
+            )
+            .first()
+        )
         if row is None:
             return None
         return PreviousDailyNetValueRecord(
@@ -1141,10 +1093,15 @@ class DjangoDailyNetValueRepository:
         )
 
     def get_max_net_value_before(self, account_id: int, before_date: date) -> float | None:
-        record = DailyNetValueModel._default_manager.filter(
-            account_id=account_id,
-            record_date__lt=before_date,
-        ).order_by("-net_value").values("net_value").first()
+        record = (
+            DailyNetValueModel._default_manager.filter(
+                account_id=account_id,
+                record_date__lt=before_date,
+            )
+            .order_by("-net_value")
+            .values("net_value")
+            .first()
+        )
         return float(record["net_value"]) if record else None
 
 
@@ -1231,9 +1188,7 @@ class DjangoFeeConfigRepository:
         """获取默认费率配置"""
         try:
             model = FeeConfigModel._default_manager.filter(
-                asset_type__in=[asset_type, "all"],
-                is_default=True,
-                is_active=True
+                asset_type__in=[asset_type, "all"], is_default=True, is_active=True
             ).first()
             if model:
                 return FeeConfigMapper.to_entity(model)
@@ -1244,10 +1199,7 @@ class DjangoFeeConfigRepository:
     def get_all_configs(self, asset_type: str | None = None) -> list[FeeConfig]:
         """获取所有费率配置"""
         if asset_type:
-            models = FeeConfigModel._default_manager.filter(
-                asset_type=asset_type,
-                is_active=True
-            )
+            models = FeeConfigModel._default_manager.filter(asset_type=asset_type, is_active=True)
         else:
             models = FeeConfigModel._default_manager.filter(is_active=True)
         return [FeeConfigMapper.to_entity(m) for m in models]
@@ -1262,7 +1214,9 @@ class DjangoInspectionRepository:
         account = SimulatedAccountModel._default_manager.filter(id=account_id).first()
         if not account:
             return None
-        config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(account=account)
+        config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(
+            account=account
+        )
         return account, config
 
     def update_notification_config(
@@ -1296,7 +1250,9 @@ class DjangoInspectionRepository:
     ) -> list[dict[str, Any]]:
         """Return serialized daily inspection reports for API responses."""
 
-        queryset = DailyInspectionReportModel._default_manager.filter(account_id=account_id).order_by(
+        queryset = DailyInspectionReportModel._default_manager.filter(
+            account_id=account_id
+        ).order_by(
             "-inspection_date",
             "-updated_at",
         )
@@ -1361,10 +1317,16 @@ class DjangoInspectionRepository:
         self,
         account_id: int,
     ) -> dict[str, Any] | None:
-        account = SimulatedAccountModel._default_manager.filter(id=account_id).select_related("user").first()
+        account = (
+            SimulatedAccountModel._default_manager.filter(id=account_id)
+            .select_related("user")
+            .first()
+        )
         if not account:
             return None
-        config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(account=account)
+        config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(
+            account=account
+        )
         return {
             "account_id": account.id,
             "account_name": account.account_name,
@@ -1418,4 +1380,3 @@ class DjangoInspectionRepository:
                 body=body,
                 status=status,
             )
-

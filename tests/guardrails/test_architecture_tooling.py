@@ -231,9 +231,7 @@ def test_verify_architecture_domain_rule_blocks_application_and_infrastructure_i
         "description": "Domain layers must not import runtime frameworks.",
         "source_roots": ["apps"],
         "source_layers": ["domain"],
-        "forbidden_import_patterns": [
-            r"^(django|pandas|numpy|requests|akshare|tushare)(?:\.|$)"
-        ],
+        "forbidden_import_patterns": [r"^(django|pandas|numpy|requests|akshare|tushare)(?:\.|$)"],
         "forbidden_line_patterns": [
             r"importlib\.import_module\([\"'](?:django|pandas|numpy|requests|akshare|tushare)(?:\.|[\"'])"
         ],
@@ -269,12 +267,8 @@ def test_verify_architecture_domain_rule_blocks_application_and_infrastructure_i
         )
     ]
 
-    external_import_violations = module.find_import_violations(
-        external_records, [external_rule]
-    )
-    external_line_violations = module.find_line_violations(
-        external_lines, [external_rule]
-    )
+    external_import_violations = module.find_import_violations(external_records, [external_rule])
+    external_line_violations = module.find_line_violations(external_lines, [external_rule])
 
     assert len(external_import_violations) == 2
     assert len(external_line_violations) == 1
@@ -328,6 +322,45 @@ def test_verify_architecture_application_line_rule_blocks_transaction_and_get_mo
     assert violations[1]["rule_id"] == "apps_application_no_transaction_or_get_model"
 
 
+def test_verify_architecture_interface_rule_allows_only_shared_typed_admin_adapter():
+    module = _load_script_module(
+        "verify_architecture.py",
+        "test_verify_architecture_interface_typed_admin",
+    )
+    rule = {
+        "id": "apps_interface_no_infrastructure_imports",
+        "description": "Interface layers must call application services.",
+        "source_roots": ["apps"],
+        "source_layers": ["interface"],
+        "forbidden_import_patterns": [r"(^|\.)infrastructure(?!\.django_admin(?:\.|$))(?:\.|$)"],
+    }
+    records = [
+        module.ImportRecord(
+            source_path="apps/account/interface/admin.py",
+            source_root="apps",
+            source_module="account",
+            source_layer="interface",
+            import_path="shared.infrastructure.django_admin",
+            target_module=None,
+            lineno=10,
+        ),
+        module.ImportRecord(
+            source_path="apps/account/interface/views.py",
+            source_root="apps",
+            source_module="account",
+            source_layer="interface",
+            import_path="apps.account.infrastructure.repositories",
+            target_module="account",
+            lineno=20,
+        ),
+    ]
+
+    violations = module.find_import_violations(records, [rule])
+
+    assert len(violations) == 1
+    assert violations[0]["import_path"] == "apps.account.infrastructure.repositories"
+
+
 def test_verify_architecture_application_call_command_rule_respects_whitelist():
     module = _load_script_module(
         "verify_architecture.py",
@@ -364,7 +397,10 @@ def test_verify_architecture_application_call_command_rule_respects_whitelist():
 
     assert len(violations) == 1
     assert violations[0]["source_path"] == "apps/data_center/application/use_cases.py"
-    assert violations[0]["rule_id"] == "apps_application_no_call_command_except_whitelisted_entrypoints"
+    assert (
+        violations[0]["rule_id"]
+        == "apps_application_no_call_command_except_whitelisted_entrypoints"
+    )
 
 
 def test_verify_architecture_app_root_model_shim_rule_exempts_admin_only():
@@ -437,9 +473,7 @@ def test_check_module_cycles_reports_unexpected_strong_components():
 
     assert cycle_components == [["account", "backtest", "decision_rhythm"]]
     assert report["unexpected_pairs"] == []
-    assert report["unexpected_cycle_components"] == [
-        ["account", "backtest", "decision_rhythm"]
-    ]
+    assert report["unexpected_cycle_components"] == [["account", "backtest", "decision_rhythm"]]
 
 
 def test_check_module_cycles_honors_allowed_strong_components():

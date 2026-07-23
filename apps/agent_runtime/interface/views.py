@@ -8,6 +8,7 @@ See: docs/plans/ai-native/schema-contract.md
 """
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 from django.apps import apps as django_apps
@@ -16,6 +17,7 @@ from rest_framework import serializers as drf_serializers
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.agent_runtime.application.interface_services import (
@@ -86,12 +88,12 @@ AgentTimelineEventModel = django_apps.get_model("agent_runtime", "AgentTimelineE
 class IsStaffOrOperator(BasePermission):
     """Allow access only to staff users or users in the 'operator' group."""
 
-    def has_permission(self, request, view) -> bool:
+    def has_permission(self, request: Request, view: Any) -> bool:
         if not request.user or not request.user.is_authenticated:
             return False
         if request.user.is_staff:
             return True
-        return request.user.groups.filter(name="operator").exists()
+        return bool(request.user.groups.filter(name="operator").exists())
 
 
 def build_error_response(
@@ -128,7 +130,8 @@ def build_error_response(
 def generate_request_id() -> str:
     """Generate a unique request ID for error responses."""
     from apps.agent_runtime.application.use_cases import generate_request_id as gen_rid
-    return gen_rid()
+
+    return str(gen_rid())
 
 
 def _build_validation_error_response(
@@ -136,11 +139,17 @@ def _build_validation_error_response(
     exc: drf_serializers.ValidationError,
 ) -> Response:
     """Normalize DRF serializer validation errors to the frozen contract."""
+    raw_details = exc.detail if hasattr(exc, "detail") else None
+    details = (
+        {str(key): value for key, value in raw_details.items()}
+        if isinstance(raw_details, Mapping)
+        else {"errors": raw_details} if raw_details is not None else None
+    )
     return build_error_response(
         request_id=request_id,
         error_code="validation_error",
         message="Request validation failed",
-        details=exc.detail if hasattr(exc, "detail") else None,
+        details=details,
         status_code=status.HTTP_400_BAD_REQUEST,
     )
 
@@ -148,10 +157,15 @@ def _build_validation_error_response(
 def _serialize_task_like(task_obj: Any) -> dict[str, Any]:
     """Serialize either a model instance or a domain/mock task object."""
     if isinstance(task_obj, AgentTaskModel):
-        return AgentTaskSerializer(task_obj).data
+        data = AgentTaskSerializer(task_obj).data
+        return dict(data) if isinstance(data, Mapping) else {"data": data}
 
     def _enum_value(value: Any) -> Any:
         return getattr(value, "value", value)
+
+    def _iso_value(value: Any) -> Any:
+        isoformat = getattr(value, "isoformat", None)
+        return isoformat() if callable(isoformat) else value
 
     created_at = getattr(task_obj, "created_at", None)
     updated_at = getattr(task_obj, "updated_at", None)
@@ -167,8 +181,8 @@ def _serialize_task_like(task_obj: Any) -> dict[str, Any]:
         "last_error": getattr(task_obj, "last_error", None),
         "requires_human": getattr(task_obj, "requires_human", False),
         "created_by": getattr(task_obj, "created_by", None),
-        "created_at": created_at.isoformat() if hasattr(created_at, "isoformat") else created_at,
-        "updated_at": updated_at.isoformat() if hasattr(updated_at, "isoformat") else updated_at,
+        "created_at": _iso_value(created_at),
+        "updated_at": _iso_value(updated_at),
         "steps_count": 0,
         "proposals_count": 0,
         "artifacts_count": 0,
@@ -176,7 +190,7 @@ def _serialize_task_like(task_obj: Any) -> dict[str, Any]:
     }
 
 
-class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
+class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     """
     API ViewSet for AgentTask operations.
 
@@ -199,14 +213,14 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     lookup_field = "pk"
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """Return queryset with user filtering."""
         return get_task_queryset_for_actor(
             user_id=getattr(self.request.user, "id", None),
             is_staff=getattr(self.request.user, "is_staff", False),
         )
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
         """Return appropriate serializer based on action."""
         if self.action == "create":
             return AgentTaskCreateSerializer
@@ -214,7 +228,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             return AgentTaskListSerializer
         return AgentTaskSerializer
 
-    def _get_task_for_action(self, pk: Any) -> AgentTaskModel:
+    def _get_task_for_action(self, pk: Any) -> Any:
         """Fetch a task with the same ownership rules used by the queryset."""
         task_model = get_task_for_actor(
             task_id=pk,
@@ -245,11 +259,12 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
     def _lookup_task_request_id(self, pk: Any) -> str | None:
         """Best-effort request_id lookup for error responses."""
         try:
-            return get_task_request_id(task_id=int(pk))
+            request_id = get_task_request_id(task_id=int(pk))
+            return str(request_id) if request_id else None
         except Exception:
             return None
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Create a new AgentTask.
 
@@ -308,7 +323,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         List AgentTasks with filters.
 
@@ -350,7 +365,11 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         output = use_case.execute(input_dto)
 
         # Get models for serialization
-        task_ids = [t.id for t in output.tasks if getattr(t, "id", None) is not None]
+        task_ids: list[int] = []
+        for task in output.tasks:
+            task_id = getattr(task, "id", None)
+            if task_id is not None:
+                task_ids.append(int(task_id))
         task_models = get_task_models_by_ids(task_ids=task_ids)
         task_map = {t.id: t for t in task_models}
 
@@ -369,7 +388,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             }
         )
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Get a single AgentTask.
 
@@ -383,6 +402,8 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         """
         try:
             pk = kwargs.get("pk")
+            if pk is None:
+                raise AgentTaskModel.DoesNotExist
             use_case = GetTaskUseCase()
             output = use_case.execute(task_id=int(pk))
 
@@ -404,7 +425,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
     # FROZEN: update, partial_update, destroy are NOT allowed
     # All state changes must go through use cases (resume/cancel)
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Direct updates are not allowed. Use /resume or /cancel endpoints."""
         return build_error_response(
             request_id=generate_request_id(),
@@ -413,7 +434,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
-    def partial_update(self, request, *args, **kwargs):
+    def partial_update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Direct updates are not allowed. Use /resume or /cancel endpoints."""
         return build_error_response(
             request_id=generate_request_id(),
@@ -422,7 +443,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Task deletion is not allowed in M1."""
         return build_error_response(
             request_id=generate_request_id(),
@@ -432,7 +453,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
     @action(detail=True, methods=["post"])
-    def resume(self, request, pk=None):
+    def resume(self, request: Request, pk: Any = None) -> Response:
         """
         Resume a task from failed or needs_human state.
 
@@ -500,7 +521,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
     @action(detail=True, methods=["post"])
-    def cancel(self, request, pk=None):
+    def cancel(self, request: Request, pk: Any = None) -> Response:
         """
         Cancel a task.
 
@@ -569,7 +590,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
     @action(detail=True, methods=["get"])
-    def timeline(self, request, pk=None):
+    def timeline(self, request: Request, pk: Any = None) -> Response:
         """
         Get timeline events for a task.
 
@@ -595,7 +616,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
     @action(detail=True, methods=["get"])
-    def artifacts(self, request, pk=None):
+    def artifacts(self, request: Request, pk: Any = None) -> Response:
         """
         Get artifacts for a task.
 
@@ -621,7 +642,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
     @action(detail=True, methods=["post"])
-    def handoff(self, request, pk=None):
+    def handoff(self, request: Request, pk: Any = None) -> Response:
         """
         Hand a task to another agent or human.
 
@@ -656,20 +677,24 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
 
         try:
             use_case = HandoffTaskUseCase()
-            output = use_case.execute(HandoffInput(
-                task_id=int(pk),
-                to_agent=to_agent,
-                handoff_reason=handoff_reason,
-                recommended_next_action=request.data.get("recommended_next_action"),
-                open_risks=request.data.get("open_risks"),
-                actor=self._build_actor(request),
-            ))
+            output = use_case.execute(
+                HandoffInput(
+                    task_id=int(pk),
+                    to_agent=to_agent,
+                    handoff_reason=handoff_reason,
+                    recommended_next_action=request.data.get("recommended_next_action"),
+                    open_risks=request.data.get("open_risks"),
+                    actor=self._build_actor(request),
+                )
+            )
 
-            return Response({
-                "request_id": output.request_id,
-                "handoff_id": output.handoff_id,
-                "handoff_payload": output.handoff_payload,
-            })
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "handoff_id": output.handoff_id,
+                    "handoff_payload": output.handoff_payload,
+                }
+            )
 
         except AgentTaskModel.DoesNotExist:
             return build_error_response(
@@ -680,7 +705,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
     @action(detail=False, methods=["get"])
-    def needs_attention(self, request):
+    def needs_attention(self, request: Request) -> Response:
         """
         Get tasks that need human attention.
 
@@ -747,22 +772,24 @@ class ContextSnapshotViewSet(viewsets.ViewSet):
         snapshot = facade.build_snapshot()
         request_id = generate_request_id()
 
-        return Response({
-            "request_id": request_id,
-            "domain": snapshot.domain,
-            "generated_at": snapshot.generated_at,
-            "regime_summary": snapshot.regime_summary,
-            "policy_summary": snapshot.policy_summary,
-            "portfolio_summary": snapshot.portfolio_summary,
-            "active_signals_summary": snapshot.active_signals_summary,
-            "open_decisions_summary": snapshot.open_decisions_summary,
-            "risk_alerts_summary": snapshot.risk_alerts_summary,
-            "task_health_summary": snapshot.task_health_summary,
-            "data_freshness_summary": snapshot.data_freshness_summary,
-        })
+        return Response(
+            {
+                "request_id": request_id,
+                "domain": snapshot.domain,
+                "generated_at": snapshot.generated_at,
+                "regime_summary": snapshot.regime_summary,
+                "policy_summary": snapshot.policy_summary,
+                "portfolio_summary": snapshot.portfolio_summary,
+                "active_signals_summary": snapshot.active_signals_summary,
+                "open_decisions_summary": snapshot.open_decisions_summary,
+                "risk_alerts_summary": snapshot.risk_alerts_summary,
+                "task_health_summary": snapshot.task_health_summary,
+                "data_freshness_summary": snapshot.data_freshness_summary,
+            }
+        )
 
     @action(detail=False, methods=["get"], url_path="research")
-    def research(self, request):
+    def research(self, request: Request) -> Response:
         """
         GET /api/agent-runtime/context/research/
 
@@ -772,7 +799,7 @@ class ContextSnapshotViewSet(viewsets.ViewSet):
         return self._build_snapshot_response("research")
 
     @action(detail=False, methods=["get"], url_path="monitoring")
-    def monitoring(self, request):
+    def monitoring(self, request: Request) -> Response:
         """
         GET /api/agent-runtime/context/monitoring/
 
@@ -782,7 +809,7 @@ class ContextSnapshotViewSet(viewsets.ViewSet):
         return self._build_snapshot_response("monitoring")
 
     @action(detail=False, methods=["get"], url_path="decision")
-    def decision(self, request):
+    def decision(self, request: Request) -> Response:
         """
         GET /api/agent-runtime/context/decision/
 
@@ -792,7 +819,7 @@ class ContextSnapshotViewSet(viewsets.ViewSet):
         return self._build_snapshot_response("decision")
 
     @action(detail=False, methods=["get"], url_path="execution")
-    def execution(self, request):
+    def execution(self, request: Request) -> Response:
         """
         GET /api/agent-runtime/context/execution/
 
@@ -802,7 +829,7 @@ class ContextSnapshotViewSet(viewsets.ViewSet):
         return self._build_snapshot_response("execution")
 
     @action(detail=False, methods=["get"], url_path="ops")
-    def ops(self, request):
+    def ops(self, request: Request) -> Response:
         """
         GET /api/agent-runtime/context/ops/
 
@@ -830,7 +857,8 @@ class AgentProposalViewSet(viewsets.ViewSet):
     def _serialize_proposal(self, proposal_model: Any) -> dict[str, Any]:
         """Serialize a proposal model to dict."""
         if isinstance(proposal_model, AgentProposalModel):
-            return AgentProposalSerializer(proposal_model).data
+            data = AgentProposalSerializer(proposal_model).data
+            return dict(data) if isinstance(data, Mapping) else {"data": data}
 
         # Domain entity fallback
         created_at = getattr(proposal_model, "created_at", None)
@@ -848,15 +876,24 @@ class AgentProposalViewSet(viewsets.ViewSet):
             "approval_reason": getattr(proposal_model, "approval_reason", None),
             "proposal_payload": getattr(proposal_model, "proposal_payload", {}),
             "created_by": getattr(proposal_model, "created_by", None),
-            "created_at": created_at.isoformat() if hasattr(created_at, "isoformat") else created_at,
-            "updated_at": updated_at.isoformat() if hasattr(updated_at, "isoformat") else updated_at,
+            "created_at": (
+                created_at.isoformat()
+                if created_at is not None and callable(getattr(created_at, "isoformat", None))
+                else created_at
+            ),
+            "updated_at": (
+                updated_at.isoformat()
+                if updated_at is not None and callable(getattr(updated_at, "isoformat", None))
+                else updated_at
+            ),
         }
 
     def _get_proposal_data(self, proposal_entity: Any) -> dict[str, Any]:
         """Get serialized proposal data, preferring model if available."""
         model = get_proposal_model(proposal_id=proposal_entity.id)
         if model is not None:
-            return AgentProposalSerializer(model).data
+            data = AgentProposalSerializer(model).data
+            return dict(data) if isinstance(data, Mapping) else {"data": data}
         return self._serialize_proposal(proposal_entity)
 
     def _get_actor(self, request: Any) -> dict[str, Any]:
@@ -888,7 +925,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
             status_code=status.HTTP_403_FORBIDDEN,
         )
 
-    def create(self, request):
+    def create(self, request: Request) -> Response:
         """
         Create a new proposal.
 
@@ -939,7 +976,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request: Request, pk: Any = None) -> Response:
         """
         Get a single proposal.
 
@@ -964,7 +1001,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
             )
 
     @action(detail=True, methods=["post"], url_path="submit-approval")
-    def submit_approval(self, request, pk=None):
+    def submit_approval(self, request: Request, pk: Any = None) -> Response:
         """
         Submit a proposal for approval.
 
@@ -979,11 +1016,13 @@ class AgentProposalViewSet(viewsets.ViewSet):
                 actor=self._get_actor(request),
             )
 
-            return Response({
-                "request_id": output.request_id,
-                "proposal": self._get_proposal_data(output.proposal),
-                "guardrail_decision": output.guardrail_decision,
-            })
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "proposal": self._get_proposal_data(output.proposal),
+                    "guardrail_decision": output.guardrail_decision,
+                }
+            )
 
         except AgentProposalModel.DoesNotExist:
             return build_error_response(
@@ -1018,7 +1057,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
             )
 
     @action(detail=True, methods=["post"])
-    def approve(self, request, pk=None):
+    def approve(self, request: Request, pk: Any = None) -> Response:
         """
         Approve a submitted proposal.
 
@@ -1043,10 +1082,12 @@ class AgentProposalViewSet(viewsets.ViewSet):
                 actor=self._get_actor(request),
             )
 
-            return Response({
-                "request_id": output.request_id,
-                "proposal": self._get_proposal_data(output.proposal),
-            })
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "proposal": self._get_proposal_data(output.proposal),
+                }
+            )
 
         except AgentProposalModel.DoesNotExist:
             return build_error_response(
@@ -1069,7 +1110,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
             )
 
     @action(detail=True, methods=["post"])
-    def reject(self, request, pk=None):
+    def reject(self, request: Request, pk: Any = None) -> Response:
         """
         Reject a submitted proposal.
 
@@ -1094,10 +1135,12 @@ class AgentProposalViewSet(viewsets.ViewSet):
                 actor=self._get_actor(request),
             )
 
-            return Response({
-                "request_id": output.request_id,
-                "proposal": self._get_proposal_data(output.proposal),
-            })
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "proposal": self._get_proposal_data(output.proposal),
+                }
+            )
 
         except AgentProposalModel.DoesNotExist:
             return build_error_response(
@@ -1120,7 +1163,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
             )
 
     @action(detail=True, methods=["post"])
-    def execute(self, request, pk=None):
+    def execute(self, request: Request, pk: Any = None) -> Response:
         """
         Execute an approved proposal.
 
@@ -1142,12 +1185,14 @@ class AgentProposalViewSet(viewsets.ViewSet):
                 actor=self._get_actor(request),
             )
 
-            return Response({
-                "request_id": output.request_id,
-                "proposal": self._get_proposal_data(output.proposal),
-                "execution_record_id": output.execution_record_id,
-                "guardrail_decision": output.guardrail_decision,
-            })
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "proposal": self._get_proposal_data(output.proposal),
+                    "execution_record_id": output.execution_record_id,
+                    "guardrail_decision": output.guardrail_decision,
+                }
+            )
 
         except AgentProposalModel.DoesNotExist:
             return build_error_response(
@@ -1209,14 +1254,14 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
     permission_classes = [IsStaffOrOperator]
 
     @action(detail=False, methods=["get"], url_path="summary")
-    def summary(self, request):
+    def summary(self, request: Request) -> Response:
         """System-wide summary for operator dashboard."""
         payload = get_dashboard_summary_payload()
         payload["request_id"] = generate_request_id()
         return Response(payload)
 
     @action(detail=False, methods=["get"], url_path="task/(?P<task_id>[^/.]+)")
-    def task_detail(self, request, task_id=None):
+    def task_detail(self, request: Request, task_id: Any = None) -> Response:
         """Full task detail with timeline, proposals, and guardrails."""
         payload = get_dashboard_task_detail_payload(task_id=int(task_id))
         if payload is None:
@@ -1227,23 +1272,25 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
                 status_code=status.HTTP_404_NOT_FOUND,
             )
 
-        return Response({
-            "request_id": generate_request_id(),
-            "task": AgentTaskSerializer(payload["task"]).data,
-            "timeline": AgentTimelineEventSerializer(payload["timeline"], many=True).data,
-            "proposals": AgentProposalSerializer(payload["proposals"], many=True).data,
-            "guardrail_decisions": AgentGuardrailDecisionSerializer(
-                payload["guardrail_decisions"],
-                many=True,
-            ).data,
-            "execution_records": AgentExecutionRecordSerializer(
-                payload["execution_records"],
-                many=True,
-            ).data,
-        })
+        return Response(
+            {
+                "request_id": generate_request_id(),
+                "task": AgentTaskSerializer(payload["task"]).data,
+                "timeline": AgentTimelineEventSerializer(payload["timeline"], many=True).data,
+                "proposals": AgentProposalSerializer(payload["proposals"], many=True).data,
+                "guardrail_decisions": AgentGuardrailDecisionSerializer(
+                    payload["guardrail_decisions"],
+                    many=True,
+                ).data,
+                "execution_records": AgentExecutionRecordSerializer(
+                    payload["execution_records"],
+                    many=True,
+                ).data,
+            }
+        )
 
     @action(detail=False, methods=["get"], url_path="proposals")
-    def proposals(self, request):
+    def proposals(self, request: Request) -> Response:
         """Proposal list with approval status."""
         limit = min(int(request.query_params.get("limit", 50)), 200)
         offset = int(request.query_params.get("offset", 0))
@@ -1256,14 +1303,16 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
         )
         proposals = AgentProposalSerializer(proposals_qs, many=True).data
 
-        return Response({
-            "request_id": generate_request_id(),
-            "proposals": proposals,
-            "total_count": total,
-        })
+        return Response(
+            {
+                "request_id": generate_request_id(),
+                "proposals": proposals,
+                "total_count": total,
+            }
+        )
 
     @action(detail=False, methods=["get"], url_path="guardrails")
-    def guardrails(self, request):
+    def guardrails(self, request: Request) -> Response:
         """Recent guardrail decisions."""
         limit = min(int(request.query_params.get("limit", 50)), 200)
 
@@ -1272,13 +1321,15 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
             many=True,
         ).data
 
-        return Response({
-            "request_id": generate_request_id(),
-            "guardrail_decisions": decisions,
-        })
+        return Response(
+            {
+                "request_id": generate_request_id(),
+                "guardrail_decisions": decisions,
+            }
+        )
 
     @action(detail=False, methods=["get"], url_path="executions")
-    def executions(self, request):
+    def executions(self, request: Request) -> Response:
         """Recent execution outcomes."""
         limit = min(int(request.query_params.get("limit", 50)), 200)
 
@@ -1287,10 +1338,12 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
             many=True,
         ).data
 
-        return Response({
-            "request_id": generate_request_id(),
-            "execution_records": records,
-        })
+        return Response(
+            {
+                "request_id": generate_request_id(),
+                "execution_records": records,
+            }
+        )
 
 
 class AgentTaskHealthViewSet(viewsets.ViewSet):
@@ -1302,7 +1355,7 @@ class AgentTaskHealthViewSet(viewsets.ViewSet):
 
     permission_classes = []  # Public endpoint
 
-    def list(self, request):
+    def list(self, request: Request) -> Response:
         """
         Health check for Agent Runtime API.
 

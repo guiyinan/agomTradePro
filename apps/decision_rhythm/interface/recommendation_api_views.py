@@ -1,27 +1,41 @@
 """Recommendation Api Views"""
 
-from ..domain.entities import RecommendationStatus, UserDecisionAction
-from .workspace_api_support import (
-    APIView,
+import logging
+from enum import Enum
+from typing import Any, TypeVar
+
+from django.conf import settings
+from rest_framework import status
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from ..application.dtos import (
     ConflictsListDTO,
     RecommendationsListDTO,
     RefreshRecommendationsRequestDTO,
-    Response,
-    _user_action_label,
+)
+from ..application.user_action_labels import build_user_action_label
+from ..application.workspace_services import (
     get_model_params_payload,
     list_workspace_conflicts,
     list_workspace_recommendations,
-    logger,
     refresh_workspace_recommendations,
-    status,
     update_model_param_payload,
     update_workspace_recommendation_action,
 )
+from ..domain.recommendation_entities import (
+    RecommendationStatus,
+    UserDecisionAction,
+)
+
+logger = logging.getLogger(__name__)
+EnumValue = TypeVar("EnumValue", bound=Enum)
 
 
 def _normalize_enum_filter(
     raw_value: str | None,
-    enum_cls,
+    enum_cls: type[EnumValue],
     field_name: str,
 ) -> str | None:
     if raw_value in (None, ""):
@@ -29,13 +43,13 @@ def _normalize_enum_filter(
 
     candidate = str(raw_value).strip().upper()
     try:
-        return enum_cls(candidate).value
+        return str(enum_cls(candidate).value)
     except ValueError:
         allowed = ", ".join(item.value for item in enum_cls)
         raise ValueError(f"{field_name} must be one of: {allowed}") from None
 
 
-def _validate_security_codes_payload(raw_value) -> list[str] | None:
+def _validate_security_codes_payload(raw_value: Any) -> list[str] | None:
     if raw_value in (None, ""):
         return None
     if not isinstance(raw_value, list):
@@ -48,6 +62,25 @@ def _validate_security_codes_payload(raw_value) -> list[str] | None:
         normalized.append(item.strip())
     return normalized
 
+
+def _optional_text(value: Any) -> str | None:
+    """Normalize an optional request value to stripped text."""
+
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
+def _request_username(request: Request) -> str:
+    """Return the authenticated audit username or the API fallback actor."""
+
+    if not request.user.is_authenticated:
+        return "api"
+    username = getattr(request.user, "username", "")
+    return str(username or "api")
+
+
 class UnifiedRecommendationsView(APIView):
     """
     GET /api/decision/workspace/recommendations/
@@ -55,7 +88,7 @@ class UnifiedRecommendationsView(APIView):
     返回统一聚合建议列表。
     """
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """
         获取推荐列表
 
@@ -66,13 +99,15 @@ class UnifiedRecommendationsView(APIView):
             page_size: 每页大小（默认 20）
         """
         # 灰度开关检查
-        from django.conf import settings
-        if not getattr(settings, 'DECISION_WORKSPACE_V2_ENABLED', True):
-            return Response({
-                "success": False,
-                "error": "Decision Workspace V2 is disabled. Use legacy /api/decision-rhythm/submit/ endpoint.",
-                "feature_flag": "DECISION_WORKSPACE_V2_ENABLED",
-            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        if not getattr(settings, "DECISION_WORKSPACE_V2_ENABLED", True):
+            return Response(
+                {
+                    "success": False,
+                    "error": "Decision Workspace V2 is disabled. Use legacy /api/decision-rhythm/submit/ endpoint.",
+                    "feature_flag": "DECISION_WORKSPACE_V2_ENABLED",
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         account_id = request.query_params.get("account_id")
         if not account_id:
@@ -98,7 +133,11 @@ class UnifiedRecommendationsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         security_code_filter = request.query_params.get("security_code")
-        include_ignored = str(request.query_params.get("include_ignored", "")).lower() in {"1", "true", "yes"}
+        include_ignored = str(request.query_params.get("include_ignored", "")).lower() in {
+            "1",
+            "true",
+            "yes",
+        }
         recommendation_id = request.query_params.get("recommendation_id")
         try:
             page = int(request.query_params.get("page", 1))
@@ -134,17 +173,20 @@ class UnifiedRecommendationsView(APIView):
                 page_size=page_size,
             )
 
-            return Response({
-                "success": True,
-                "data": list_dto.to_dict(),
-            })
-
-        except Exception as e:
-            logger.error(f"Failed to get recommendations: {e}", exc_info=True)
             return Response(
-                {"success": False, "error": str(e)},
+                {
+                    "success": True,
+                    "data": list_dto.to_dict(),
+                }
+            )
+
+        except Exception as exc:
+            logger.error("Failed to get recommendations: %s", exc, exc_info=True)
+            return Response(
+                {"success": False, "error": str(exc)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
 
 class RecommendationUserActionView(APIView):
     """
@@ -153,17 +195,17 @@ class RecommendationUserActionView(APIView):
     为统一推荐记录用户动作状态。
     """
 
-    ACTION_MAPPING = {
+    ACTION_MAPPING: dict[str, UserDecisionAction] = {
         "watch": UserDecisionAction.WATCHING,
         "adopt": UserDecisionAction.ADOPTED,
         "ignore": UserDecisionAction.IGNORED,
         "pending": UserDecisionAction.PENDING,
     }
 
-    def post(self, request) -> Response:
-        recommendation_id = (request.data or {}).get("recommendation_id")
+    def post(self, request: Request) -> Response:
+        recommendation_id = _optional_text((request.data or {}).get("recommendation_id"))
         action = str((request.data or {}).get("action") or "").strip().lower()
-        account_id = (request.data or {}).get("account_id")
+        account_id = _optional_text((request.data or {}).get("account_id"))
         note = str((request.data or {}).get("note") or "").strip()
 
         if not recommendation_id:
@@ -198,10 +240,11 @@ class RecommendationUserActionView(APIView):
                 "success": True,
                 "data": {
                     "recommendation": dto.to_dict(),
-                    "message": f"已更新为{_user_action_label(dto.user_action)}",
+                    "message": f"已更新为{build_user_action_label(dto.user_action)}",
                 },
             }
         )
+
 
 class RefreshRecommendationsView(APIView):
     """
@@ -210,7 +253,7 @@ class RefreshRecommendationsView(APIView):
     手动触发推荐重算。
     """
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """
         触发刷新
 
@@ -220,9 +263,13 @@ class RefreshRecommendationsView(APIView):
             force: 是否强制刷新（默认 False）
             async_mode: 是否异步执行（默认 True）
         """
-        payload = dict(request.data or {})
+        payload: dict[str, Any] = {
+            str(key): value for key, value in dict(request.data or {}).items()
+        }
         try:
-            payload["security_codes"] = _validate_security_codes_payload(payload.get("security_codes"))
+            payload["security_codes"] = _validate_security_codes_payload(
+                payload.get("security_codes")
+            )
         except ValueError as exc:
             return Response(
                 {"success": False, "error": str(exc)},
@@ -235,17 +282,20 @@ class RefreshRecommendationsView(APIView):
         try:
             response_dto = refresh_workspace_recommendations(dto)
 
-            return Response({
-                "success": response_dto.status != "FAILED",
-                "data": response_dto.to_dict(),
-            })
-
-        except Exception as e:
-            logger.error(f"Failed to refresh recommendations: {e}", exc_info=True)
             return Response(
-                {"success": False, "error": str(e)},
+                {
+                    "success": response_dto.status != "FAILED",
+                    "data": response_dto.to_dict(),
+                }
+            )
+
+        except Exception as exc:
+            logger.error("Failed to refresh recommendations: %s", exc, exc_info=True)
+            return Response(
+                {"success": False, "error": str(exc)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
 
 class ConflictsView(APIView):
     """
@@ -254,7 +304,7 @@ class ConflictsView(APIView):
     返回冲突建议。
     """
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """
         获取冲突列表
 
@@ -277,17 +327,20 @@ class ConflictsView(APIView):
                 total_count=len(conflicts),
             )
 
-            return Response({
-                "success": True,
-                "data": list_dto.to_dict(),
-            })
-
-        except Exception as e:
-            logger.error(f"Failed to get conflicts: {e}", exc_info=True)
             return Response(
-                {"success": False, "error": str(e)},
+                {
+                    "success": True,
+                    "data": list_dto.to_dict(),
+                }
+            )
+
+        except Exception as exc:
+            logger.error("Failed to get conflicts: %s", exc, exc_info=True)
+            return Response(
+                {"success": False, "error": str(exc)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
 
 class ModelParamsView(APIView):
     """
@@ -296,27 +349,30 @@ class ModelParamsView(APIView):
     获取当前模型参数配置。
     """
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """
         获取参数配置
 
         Query params:
             env: 环境（默认 dev）
         """
-        env = request.query_params.get("env", "dev")
+        env = str(request.query_params.get("env", "dev"))
 
         try:
-            return Response({
-                "success": True,
-                "data": get_model_params_payload(env),
-            })
-
-        except Exception as e:
-            logger.error(f"Failed to get model params: {e}", exc_info=True)
             return Response(
-                {"success": False, "error": str(e)},
+                {
+                    "success": True,
+                    "data": get_model_params_payload(env),
+                }
+            )
+
+        except Exception as exc:
+            logger.error("Failed to get model params: %s", exc, exc_info=True)
+            return Response(
+                {"success": False, "error": str(exc)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
 
 class UpdateModelParamView(APIView):
     """
@@ -325,7 +381,7 @@ class UpdateModelParamView(APIView):
     更新模型参数。
     """
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """
         更新参数
 
@@ -336,11 +392,11 @@ class UpdateModelParamView(APIView):
             env: 环境（默认 dev）
             updated_reason: 变更原因（必填）
         """
-        param_key = request.data.get("param_key")
+        param_key = _optional_text(request.data.get("param_key"))
         param_value = request.data.get("param_value")
-        param_type = request.data.get("param_type", "float")
-        env = request.data.get("env", "dev")
-        updated_reason = request.data.get("updated_reason", "")
+        param_type = str(request.data.get("param_type", "float"))
+        env = str(request.data.get("env", "dev"))
+        updated_reason = str(request.data.get("updated_reason", ""))
 
         if not param_key or param_value is None:
             return Response(
@@ -354,18 +410,19 @@ class UpdateModelParamView(APIView):
                 param_value=str(param_value),
                 param_type=param_type,
                 env=env,
-                updated_by=request.user.username if hasattr(request, "user") and request.user.is_authenticated else "api",
+                updated_by=_request_username(request),
                 updated_reason=updated_reason,
             )
-            return Response({
-                "success": True,
-                "data": payload,
-            })
-
-        except Exception as e:
-            logger.error(f"Failed to update model param: {e}", exc_info=True)
             return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                {
+                    "success": True,
+                    "data": payload,
+                }
             )
 
+        except Exception as exc:
+            logger.error("Failed to update model param: %s", exc, exc_info=True)
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

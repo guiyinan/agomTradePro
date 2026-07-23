@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6303,
-    "files_with_errors": 821
+    "errors": 4915,
+    "files_with_errors": 757
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -21,15 +21,6 @@
       "no-any-return": 2,
       "no-untyped-def": 4,
       "union-attr": 6
-    },
-    "apps/account/application/portfolio_api_services.py": {
-      "arg-type": 2,
-      "no-any-return": 5,
-      "no-untyped-call": 40,
-      "no-untyped-def": 7
-    },
-    "apps/account/application/simulated_trading_gateway.py": {
-      "no-any-return": 2
     },
     "apps/account/application/stop_loss_use_cases.py": {
       "no-any-return": 4,
@@ -62,16 +53,12 @@
       "no-untyped-def": 1,
       "type-arg": 4
     },
-    "apps/account/infrastructure/account_interface_administration_repository.py": {
-      "no-untyped-call": 7
-    },
     "apps/account/infrastructure/account_interface_portfolio_repository.py": {
       "arg-type": 1,
       "no-untyped-def": 14
     },
     "apps/account/infrastructure/account_interface_registration_repository.py": {
       "assignment": 1,
-      "no-untyped-call": 4,
       "no-untyped-def": 6
     },
     "apps/account/infrastructure/account_profile_repository.py": {
@@ -83,7 +70,6 @@
     },
     "apps/account/infrastructure/backup_service.py": {
       "no-any-return": 2,
-      "no-untyped-call": 1,
       "no-untyped-def": 1,
       "type-arg": 2
     },
@@ -95,8 +81,7 @@
       "unused-ignore": 5
     },
     "apps/account/infrastructure/config_summary_repository.py": {
-      "assignment": 1,
-      "no-untyped-call": 1
+      "assignment": 1
     },
     "apps/account/infrastructure/documentation_models.py": {
       "unused-ignore": 2
@@ -172,12 +157,6 @@
       "no-any-return": 1,
       "no-untyped-def": 4
     },
-    "apps/account/interface/portfolio_api_views.py": {
-      "arg-type": 4,
-      "no-untyped-call": 4,
-      "no-untyped-def": 22,
-      "type-arg": 2
-    },
     "apps/account/interface/profile_api_views.py": {
       "arg-type": 3,
       "type-arg": 2,
@@ -190,11 +169,6 @@
       "arg-type": 4,
       "no-untyped-def": 8,
       "type-arg": 3
-    },
-    "apps/account/interface/views.py": {
-      "attr-defined": 2,
-      "no-untyped-call": 1,
-      "no-untyped-def": 32
     },
     "apps/account/management/commands/bootstrap_cold_start.py": {
       "assignment": 1,
@@ -269,15 +243,6 @@
     "apps/agent_runtime/infrastructure/terminal_agent_service.py": {
       "attr-defined": 1,
       "no-untyped-def": 2
-    },
-    "apps/agent_runtime/interface/views.py": {
-      "arg-type": 3,
-      "no-any-return": 2,
-      "no-untyped-call": 1,
-      "no-untyped-def": 32,
-      "type-arg": 1,
-      "union-attr": 4,
-      "valid-type": 1
     },
     "apps/ai_capability/application/facade.py": {
       "assignment": 1,
@@ -423,11 +388,6 @@
     "apps/ai_provider/interface/serializers.py": {
       "no-untyped-def": 1,
       "type-arg": 9
-    },
-    "apps/ai_provider/interface/views/api_views.py": {
-      "no-untyped-call": 26,
-      "no-untyped-def": 29,
-      "type-arg": 6
     },
     "apps/ai_provider/interface/views/page_views.py": {
       "no-untyped-def": 9
@@ -982,63 +942,6 @@
       "attr-defined": 2,
       "call-overload": 1
     },
-    "apps/broker_execution/infrastructure/repositories.py": {
-      "arg-type": 1,
-      "attr-defined": 3,
-      "no-untyped-def": 3,
-      "union-attr": 2
-    },
-    "apps/broker_execution/interface/api_views.py": {
-      "assignment": 6,
-      "no-untyped-def": 26
-    },
-    "apps/config_center/admin.py": {
-      "no-untyped-def": 7,
-      "type-arg": 3
-    },
-    "apps/config_center/application/access_policies.py": {
-      "no-untyped-def": 5
-    },
-    "apps/config_center/application/repository_provider.py": {
-      "no-untyped-def": 12
-    },
-    "apps/config_center/application/use_cases.py": {
-      "no-untyped-def": 15
-    },
-    "apps/config_center/apps.py": {
-      "arg-type": 1,
-      "no-untyped-def": 1
-    },
-    "apps/config_center/infrastructure/config_summary_repository.py": {
-      "assignment": 1,
-      "no-untyped-call": 1
-    },
-    "apps/config_center/infrastructure/models.py": {
-      "no-any-return": 10,
-      "no-untyped-call": 19,
-      "no-untyped-def": 15,
-      "type-arg": 2
-    },
-    "apps/config_center/infrastructure/repositories.py": {
-      "no-any-return": 2,
-      "no-untyped-call": 2,
-      "no-untyped-def": 3
-    },
-    "apps/config_center/interface/api_views.py": {
-      "misc": 7,
-      "no-untyped-def": 15,
-      "type-arg": 3
-    },
-    "apps/config_center/interface/serializers.py": {
-      "arg-type": 1,
-      "no-untyped-def": 1,
-      "type-arg": 5
-    },
-    "apps/config_center/interface/views.py": {
-      "no-untyped-def": 7,
-      "return-value": 1,
-      "union-attr": 3
-    },
     "apps/dashboard/application/alpha_homepage_candidates.py": {
       "arg-type": 1,
       "attr-defined": 8,
@@ -1136,14 +1039,6 @@
       "no-untyped-call": 5,
       "no-untyped-def": 12
     },
-    "apps/dashboard/interface/dashboard_alpha_context.py": {
-      "arg-type": 6,
-      "call-overload": 4,
-      "misc": 1,
-      "no-any-return": 2,
-      "no-untyped-def": 18,
-      "type-arg": 20
-    },
     "apps/dashboard/interface/dashboard_navigation_context.py": {
       "no-any-return": 8,
       "no-untyped-call": 1,
@@ -1167,7 +1062,6 @@
     },
     "apps/dashboard/interface/views.py": {
       "arg-type": 1,
-      "attr-defined": 2,
       "no-untyped-call": 2,
       "no-untyped-def": 11,
       "type-arg": 17
@@ -1186,12 +1080,6 @@
     },
     "apps/data_center/application/_market_thermometer_runtime.py": {
       "no-any-return": 2
-    },
-    "apps/data_center/application/interface_services.py": {
-      "import-untyped": 1,
-      "no-untyped-call": 14,
-      "no-untyped-def": 13,
-      "type-arg": 4
     },
     "apps/data_center/application/market_thermometer_sync.py": {
       "no-untyped-def": 3
@@ -1219,8 +1107,7 @@
       "arg-type": 1
     },
     "apps/data_center/infrastructure/_provider_adapter_akshare.py": {
-      "arg-type": 6,
-      "no-untyped-call": 1
+      "arg-type": 6
     },
     "apps/data_center/infrastructure/_provider_adapter_base.py": {
       "no-any-return": 1
@@ -1240,7 +1127,7 @@
     },
     "apps/data_center/infrastructure/connection_tester.py": {
       "no-any-return": 1,
-      "no-untyped-call": 2
+      "no-untyped-call": 1
     },
     "apps/data_center/infrastructure/diagnostic_queries.py": {
       "attr-defined": 1,
@@ -1276,10 +1163,6 @@
       "type-var": 2,
       "var-annotated": 1
     },
-    "apps/data_center/infrastructure/macro_sources/akshare_adapter.py": {
-      "no-any-return": 54,
-      "no-untyped-def": 10
-    },
     "apps/data_center/infrastructure/macro_sources/base.py": {
       "no-untyped-def": 1
     },
@@ -1287,7 +1170,6 @@
       "arg-type": 1,
       "assignment": 3,
       "misc": 2,
-      "no-untyped-call": 1,
       "var-annotated": 1
     },
     "apps/data_center/infrastructure/macro_sources/fetchers/base_fetchers.py": {
@@ -1426,7 +1308,6 @@
     },
     "apps/data_center/management/commands/repair_decision_data_reliability.py": {
       "import-untyped": 1,
-      "no-any-return": 1,
       "no-untyped-call": 2,
       "no-untyped-def": 9,
       "type-arg": 3
@@ -1471,15 +1352,10 @@
     "apps/decision_rhythm/application/decision_model_param_use_cases.py": {
       "attr-defined": 2
     },
-    "apps/decision_rhythm/application/decision_quota_use_cases.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 9
-    },
     "apps/decision_rhythm/application/decision_recommendation_use_cases.py": {
       "arg-type": 2
     },
     "apps/decision_rhythm/application/decision_workspace_use_cases.py": {
-      "no-untyped-call": 2,
       "no-untyped-def": 7
     },
     "apps/decision_rhythm/application/exit_advisors.py": {
@@ -1490,13 +1366,6 @@
       "attr-defined": 3,
       "no-untyped-call": 1,
       "no-untyped-def": 10
-    },
-    "apps/decision_rhythm/application/management_workflows.py": {
-      "no-untyped-def": 2
-    },
-    "apps/decision_rhythm/application/submit_workflows.py": {
-      "no-any-return": 3,
-      "no-untyped-def": 4
     },
     "apps/decision_rhythm/application/subscribers.py": {
       "no-untyped-call": 3,
@@ -1517,11 +1386,6 @@
       "arg-type": 4,
       "operator": 2,
       "var-annotated": 1
-    },
-    "apps/decision_rhythm/domain/valuation_services.py": {
-      "arg-type": 1,
-      "no-untyped-def": 1,
-      "operator": 1
     },
     "apps/decision_rhythm/infrastructure/consistency_snapshots.py": {
       "no-any-return": 1
@@ -1575,22 +1439,12 @@
     "apps/decision_rhythm/interface/cooldown_api_views.py": {
       "no-untyped-def": 4
     },
-    "apps/decision_rhythm/interface/dependencies.py": {
-      "call-arg": 1,
-      "no-untyped-call": 47,
-      "no-untyped-def": 13
-    },
     "apps/decision_rhythm/interface/page_views.py": {
       "no-untyped-def": 2
     },
     "apps/decision_rhythm/interface/quota_api_views.py": {
       "misc": 3,
       "no-untyped-def": 5
-    },
-    "apps/decision_rhythm/interface/recommendation_api_views.py": {
-      "attr-defined": 12,
-      "no-any-return": 1,
-      "no-untyped-def": 8
     },
     "apps/decision_rhythm/interface/request_api_views.py": {
       "no-untyped-def": 4
@@ -1604,19 +1458,12 @@
       "no-untyped-def": 4
     },
     "apps/decision_rhythm/interface/workflow_api_views.py": {
-      "attr-defined": 1,
       "misc": 4,
       "no-untyped-def": 4
     },
     "apps/decision_rhythm/interface/workspace_api_support.py": {
       "attr-defined": 1,
       "no-untyped-def": 2
-    },
-    "apps/decision_rhythm/interface/workspace_execution_api_views.py": {
-      "attr-defined": 15,
-      "no-redef": 2,
-      "no-untyped-call": 4,
-      "no-untyped-def": 12
     },
     "apps/decision_rhythm/management/commands/init_decision_model_params.py": {
       "no-untyped-def": 2
@@ -2209,13 +2056,9 @@
       "no-untyped-def": 6,
       "type-arg": 3
     },
-    "apps/policy/application/interface_services.py": {
-      "no-any-return": 13,
-      "no-untyped-def": 20
-    },
     "apps/policy/application/repository_provider.py": {
       "attr-defined": 1,
-      "no-untyped-call": 5
+      "no-untyped-call": 1
     },
     "apps/policy/application/services.py": {
       "assignment": 2,
@@ -2302,18 +2145,10 @@
       "type-arg": 3,
       "union-attr": 3
     },
-    "apps/policy/interface/page_views.py": {
-      "no-untyped-def": 22,
-      "type-arg": 11
-    },
     "apps/policy/interface/rss_api_views.py": {
       "no-untyped-call": 5,
       "no-untyped-def": 15,
       "type-arg": 3
-    },
-    "apps/policy/interface/workbench_api_views.py": {
-      "no-untyped-call": 15,
-      "no-untyped-def": 18
     },
     "apps/policy/management/commands/init_authoritative_rss_sources.py": {
       "no-untyped-def": 2
@@ -2462,80 +2297,23 @@
     "apps/pulse/management/commands/show_pulse_config.py": {
       "no-untyped-def": 1
     },
-    "apps/realtime/application/tasks.py": {
-      "misc": 1,
-      "type-arg": 1
-    },
-    "apps/realtime/domain/entities.py": {
-      "type-arg": 4
-    },
-    "apps/realtime/domain/services.py": {
-      "no-untyped-def": 1
-    },
-    "apps/realtime/interface/__init__.py": {
-      "misc": 3,
-      "no-untyped-def": 1,
-      "type-arg": 3
-    },
-    "apps/realtime/interface/authentication.py": {
-      "no-untyped-def": 2
-    },
-    "apps/realtime/interface/consumers.py": {
-      "import-untyped": 2,
-      "misc": 1
-    },
-    "apps/realtime/interface/openapi.py": {
-      "misc": 1,
-      "no-untyped-def": 1
-    },
-    "apps/realtime/interface/serializers.py": {
-      "assignment": 1,
-      "no-any-return": 1,
-      "no-untyped-def": 2,
-      "type-arg": 6
-    },
-    "apps/realtime/interface/websocket_auth.py": {
-      "import-untyped": 2,
-      "misc": 1
-    },
-    "apps/regime/application/current_regime.py": {
-      "no-untyped-call": 3
-    },
     "apps/regime/application/interface_services.py": {
-      "no-untyped-call": 2,
       "no-untyped-def": 2
     },
     "apps/regime/application/navigator_use_cases.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 2,
       "type-arg": 1
     },
     "apps/regime/application/orchestration.py": {
       "arg-type": 1,
       "misc": 5,
-      "no-untyped-call": 8,
       "type-arg": 5,
       "union-attr": 2
-    },
-    "apps/regime/application/query_services.py": {
-      "no-untyped-call": 3
-    },
-    "apps/regime/application/repository_provider.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 5
     },
     "apps/regime/application/tasks.py": {
       "misc": 3,
       "no-untyped-def": 1,
       "type-arg": 3
-    },
-    "apps/regime/application/use_cases.py": {
-      "assignment": 4,
-      "no-untyped-call": 2,
-      "no-untyped-def": 5,
-      "return-value": 1,
-      "type-arg": 8,
-      "var-annotated": 1
     },
     "apps/regime/domain/action_mapper.py": {
       "type-arg": 1
@@ -2565,16 +2343,6 @@
     },
     "apps/regime/infrastructure/fixtures/system_config.py": {
       "misc": 4
-    },
-    "apps/regime/infrastructure/macro_data_provider.py": {
-      "assignment": 3,
-      "no-any-return": 5,
-      "no-untyped-call": 20,
-      "no-untyped-def": 16,
-      "type-arg": 12
-    },
-    "apps/regime/infrastructure/macro_sync_gateway.py": {
-      "no-untyped-def": 1
     },
     "apps/regime/infrastructure/models.py": {
       "no-redef": 1,
@@ -2612,7 +2380,7 @@
       "no-untyped-def": 2
     },
     "apps/regime/management/commands/recalculate_regime.py": {
-      "no-untyped-call": 2,
+      "no-untyped-call": 1,
       "no-untyped-def": 2
     },
     "apps/regime/management/commands/set_regime_threshold.py": {
@@ -2832,13 +2600,6 @@
       "no-untyped-def": 5,
       "type-arg": 10
     },
-    "apps/share/interface/views.py": {
-      "arg-type": 7,
-      "no-any-return": 3,
-      "no-untyped-call": 16,
-      "no-untyped-def": 33,
-      "type-arg": 5
-    },
     "apps/signal/application/policy_gateway.py": {
       "no-untyped-call": 1
     },
@@ -2967,18 +2728,10 @@
       "no-untyped-def": 2,
       "type-arg": 4
     },
-    "apps/simulated_trading/application/unified_position_service.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 6,
-      "type-arg": 1
-    },
     "apps/simulated_trading/application/use_cases.py": {
       "arg-type": 5,
       "no-untyped-def": 2,
       "type-arg": 1
-    },
-    "apps/simulated_trading/infrastructure/account_gateway.py": {
-      "no-untyped-def": 3
     },
     "apps/simulated_trading/infrastructure/account_portfolio_repository.py": {
       "no-untyped-def": 20
@@ -3002,20 +2755,8 @@
     "apps/simulated_trading/infrastructure/price_provider.py": {
       "assignment": 3
     },
-    "apps/simulated_trading/interface/performance_views.py": {
-      "arg-type": 1,
-      "misc": 6,
-      "no-untyped-call": 29,
-      "no-untyped-def": 11
-    },
     "apps/simulated_trading/interface/sdk_contract_views.py": {
       "no-untyped-def": 4
-    },
-    "apps/simulated_trading/interface/views.py": {
-      "assignment": 1,
-      "call-arg": 1,
-      "no-untyped-def": 34,
-      "type-arg": 1
     },
     "apps/simulated_trading/management/commands/migrate_account_ledger.py": {
       "arg-type": 1,
@@ -3025,24 +2766,8 @@
     "apps/simulated_trading/management/commands/repair_personal_account_readiness.py": {
       "no-untyped-def": 1
     },
-    "apps/strategy/application/execution_gateway.py": {
-      "attr-defined": 4,
-      "call-arg": 1,
-      "no-untyped-call": 1
-    },
-    "apps/strategy/application/interface_services.py": {
-      "no-untyped-call": 34,
-      "no-untyped-def": 29,
-      "type-arg": 2
-    },
     "apps/strategy/application/prompt_gateway.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 1
-    },
-    "apps/strategy/application/repository_provider.py": {
-      "attr-defined": 4,
-      "no-untyped-call": 3,
-      "no-untyped-def": 2
     },
     "apps/strategy/application/rule_evaluator.py": {
       "arg-type": 2,
@@ -3075,53 +2800,27 @@
     "apps/strategy/infrastructure/models.py": {
       "no-untyped-def": 9
     },
-    "apps/strategy/infrastructure/providers.py": {
-      "assignment": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 5
-    },
-    "apps/strategy/infrastructure/repositories.py": {
-      "assignment": 1,
-      "misc": 1,
-      "no-any-return": 2,
-      "no-untyped-call": 13,
-      "no-untyped-def": 33,
-      "type-arg": 11
-    },
     "apps/strategy/interface/api_urls.py": {
       "no-untyped-def": 1
     },
     "apps/strategy/interface/assignment_api_views.py": {
       "import-untyped": 1,
-      "no-untyped-call": 1,
       "no-untyped-def": 8,
       "type-arg": 1,
       "union-attr": 1
     },
     "apps/strategy/interface/execution_log_api_views.py": {
       "import-untyped": 1,
-      "no-untyped-call": 1,
       "no-untyped-def": 4,
       "type-arg": 1
     },
     "apps/strategy/interface/execution_views.py": {
       "arg-type": 3,
-      "no-untyped-call": 1,
       "no-untyped-def": 17,
       "var-annotated": 1
     },
-    "apps/strategy/interface/page_views.py": {
-      "attr-defined": 10,
-      "no-any-return": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 18,
-      "type-arg": 4,
-      "union-attr": 6,
-      "valid-type": 6
-    },
     "apps/strategy/interface/rule_api_views.py": {
       "import-untyped": 1,
-      "no-untyped-call": 1,
       "no-untyped-def": 6,
       "type-arg": 2
     },
@@ -3131,7 +2830,6 @@
     },
     "apps/strategy/interface/strategy_api_views.py": {
       "import-untyped": 1,
-      "no-untyped-call": 1,
       "no-untyped-def": 14,
       "type-arg": 3,
       "union-attr": 1
@@ -3197,8 +2895,7 @@
       "no-untyped-def": 1
     },
     "apps/terminal/application/ai_capability_gateway.py": {
-      "no-any-return": 1,
-      "no-untyped-call": 2
+      "no-untyped-call": 1
     },
     "apps/terminal/application/chat_router.py": {
       "assignment": 4,
@@ -3210,19 +2907,11 @@
       "type-arg": 4
     },
     "apps/terminal/application/interface_services.py": {
-      "attr-defined": 1,
-      "no-untyped-call": 1
-    },
-    "apps/terminal/application/query_services.py": {
-      "no-untyped-call": 1
-    },
-    "apps/terminal/application/repository_provider.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 5
+      "attr-defined": 1
     },
     "apps/terminal/application/services.py": {
-      "attr-defined": 2,
-      "no-untyped-call": 4,
+      "attr-defined": 1,
+      "no-untyped-call": 1,
       "no-untyped-def": 4
     },
     "apps/terminal/application/tui_operator_services.py": {
@@ -3245,9 +2934,6 @@
       "arg-type": 1,
       "no-untyped-def": 1
     },
-    "apps/terminal/infrastructure/providers.py": {
-      "no-untyped-def": 1
-    },
     "apps/terminal/infrastructure/tui_contract_export.py": {
       "arg-type": 2,
       "union-attr": 3
@@ -3260,13 +2946,6 @@
     "apps/terminal/interface/admin.py": {
       "no-untyped-def": 4,
       "type-arg": 3
-    },
-    "apps/terminal/interface/api_views.py": {
-      "assignment": 1,
-      "attr-defined": 2,
-      "no-untyped-call": 12,
-      "no-untyped-def": 39,
-      "type-arg": 1
     },
     "apps/terminal/interface/permissions.py": {
       "no-any-return": 1,
@@ -3307,9 +2986,6 @@
     "core/context_processors.py": {
       "dict-item": 1,
       "no-untyped-def": 4
-    },
-    "core/encryption_readiness.py": {
-      "no-untyped-call": 1
     },
     "core/integration/account_ledger.py": {
       "no-untyped-call": 1,
