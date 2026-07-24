@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4366,
-    "files_with_errors": 714
+    "errors": 4306,
+    "files_with_errors": 707
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2240,37 +2240,6 @@
     "apps/research/composition.py": {
       "arg-type": 3
     },
-    "apps/rotation/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/rotation/infrastructure/services.py": {
-      "attr-defined": 1,
-      "dict-item": 2,
-      "no-untyped-call": 1,
-      "no-untyped-def": 4,
-      "operator": 4,
-      "return": 1,
-      "type-arg": 9
-    },
-    "apps/rotation/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/rotation/interface/serializers.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 5,
-      "type-arg": 10
-    },
-    "apps/rotation/interface/urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/rotation/management/commands/init_rotation.py": {
-      "assignment": 1,
-      "attr-defined": 1,
-      "misc": 3,
-      "no-untyped-call": 3,
-      "no-untyped-def": 5,
-      "type-arg": 2
-    },
     "apps/sector/application/market_returns_gateway.py": {
       "type-arg": 3
     },
@@ -2900,11 +2869,6 @@
     },
     "shared/infrastructure/calculators.py": {
       "import-untyped": 2
-    },
-    "shared/infrastructure/correlation.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 2,
-      "type-arg": 1
     },
     "shared/infrastructure/crypto.py": {
       "no-any-return": 4

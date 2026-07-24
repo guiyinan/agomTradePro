@@ -1446,3 +1446,19 @@
 - 直接清除 DTO、Interface Service、Provider、UseCase 与 View 的 `80` 条债务；完整传播额外清除 Application Integration Service 的 `1 attr-defined`。
 - Rotation API 回归 `27 passed`。
 - governance baseline 升级为 `2026-07-24.v178`，静态测试函数计数提升至 `7198`。
+
+## 第一百零七批
+
+- 完成 Rotation 模块剩余生产代码收口，覆盖 Integration Service、DRF Serializer、初始化命令、AppConfig、API/page URL 装配，并同步收紧共享相关性计算器。
+- Rotation 信号生成结果、批量调度计数、价格序列、数据质量与资产收益容器全部具化；Integration Service 在找不到 ORM 配置模型时仍返回已经成功计算的信号，不再因跳过持久化而隐式返回 `None`。
+- Serializer 为配置与信号建立最小记录 Protocol，所有 DRF Serializer 补齐泛型及方法契约；Regime 配置权重现在拒绝布尔值、字符串和其他非数字输入，并规范化为浮点数，避免在求和阶段触发未捕获异常。
+- 初始化命令的模板规格、parser、options、查询集合和象限配置全部具化；AppConfig 与 URL helper 补齐请求响应类型。
+- 共享相关性计算器显式收窄动态 NumPy 边界，并保证 NumPy 不可用时回退实现已经初始化；Rotation 不再因调用无类型共享构造器产生传播债务。
+- 新增“缺少 ORM 配置仍返回信号”及“拒绝非数字配置权重”两组回归。
+
+## 第一百零七批验证结果
+
+- `apps/rotation` 受管生产代码 `31 source files` 与共享相关性计算器 mypy 全部为零；全仓基线从 `4366 errors / 714 files` 收紧为 `4306 errors / 707 files`，净减少 `60 errors / 7 files`，Rotation 模块生产 mypy 债务清零。
+- Rotation 直接清除剩余 `56` 条债务，共享相关性计算器清除 `4` 条债务。
+- Rotation readiness、API 与 Domain 回归共 `113 passed`。
+- governance baseline 升级为 `2026-07-24.v179`，静态测试函数计数提升至 `7200`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
