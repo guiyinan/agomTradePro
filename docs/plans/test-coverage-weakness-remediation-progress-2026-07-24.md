@@ -172,6 +172,28 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
   - `sentiment=80.57%`（`626 / 777`），分支 `61.02%`。
 - 四个模块均建立 80% 机器阈值；Hedge 和 Sector 使用精确覆盖分子越过门槛，
   未依赖报告四舍五入。
+- T4B 第二批已完成：
+  - Task Monitor 覆盖 Celery 技术状态、规范化业务 `outcome`、重试/失败/撤销、
+    备份校验、清理任务和 Worker 心跳缺失；
+  - 修复 Task Monitor 将 `outcome=failed/partial/blocked` 误记为成功，以及
+    Broker/Backend 可达但没有 Worker 心跳时仍报告健康的两个生产缺陷；
+  - Events 覆盖失败事件保存/读取、未知事件显式映射 `UNKNOWN`、指数退避、
+    重试耗尽、批量统计和 singleton；
+  - AI Capability 覆盖目录初始化、同步、治理 dry-run/apply、JSON 输出、
+    unsafe/MCP 缺失告警及按来源决定是否治理；
+  - Factor 覆盖 CRUD/filter、组合持仓 payload、解释空态、表单数值规范化、
+    页面上下文和组合动作；
+  - Pulse 覆盖周任务成功/业务失败和完整/非法快照 serializer 契约；
+  - 新增测试整批 `44 passed`，五个目标模块相关 Unit 交叉回归
+    `829 passed`；Task Monitor 修改文件增量 mypy 与架构边界均为 0 回退。
+- T4B 第二批后的模块覆盖率：
+  - `task_monitor=80.45%`（`1,362 / 1,693`），分支 `55.37%`；
+  - `factor=80.06%`（`1,397 / 1,745`），分支 `59.20%`；
+  - `events=80.10%`（`2,053 / 2,563`），分支 `63.48%`；
+  - `ai_capability=83.89%`（`2,646 / 3,154`），分支 `63.53%`；
+  - `pulse=83.27%`（`712 / 855`），分支 `68.28%`。
+- 五个模块均建立 80% 机器阈值；当前 `apps=82.14%`
+  （`102,020 / 124,200`），分支 `64.56%`。
 - Fast suite：`3,578 passed in 31.03s`，总耗时 `45.22s`，低于 120 秒预算。
 - 固定高风险链路：`229 passed`。
 - 最终 coverage ratchet 已通过。
@@ -187,8 +209,8 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
   - `data_center=77.85%`；
   - `account=81.23%`；
   - `decision_rhythm=83.51%`。
-- T4B 第二批、T5 和最终 T6 收口尚未开始；应按原计划在后续独立批次推进，不能在本批
-  用扩大 omit 或降低阈值替代。
+- T5 和最终 T6 收口尚未开始；应按原计划在后续独立批次推进，不能用扩大 omit
+  或降低阈值替代。
 - Integration 修复后仅重跑了受影响的 24 项，完整 Integration 尚未二次全量重跑。
 - PostgreSQL、Celery worker、live/optional runtime 和 Playwright RC 尚未在本地执行。
 - AGENTS 指定的 `agomtradepro` conda 环境在本机不可用；本次证据来自
