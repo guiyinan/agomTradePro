@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4143,
-    "files_with_errors": 687
+    "errors": 4138,
+    "files_with_errors": 685
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1252,15 +1252,8 @@
       "no-untyped-call": 1,
       "no-untyped-def": 2
     },
-    "apps/decision_rhythm/application/subscribers.py": {
-      "no-untyped-def": 3,
-      "type-arg": 1
-    },
     "apps/decision_rhythm/application/tasks.py": {
       "misc": 1,
-      "no-untyped-def": 1
-    },
-    "apps/decision_rhythm/apps.py": {
       "no-untyped-def": 1
     },
     "apps/decision_rhythm/infrastructure/consistency_snapshots.py": {

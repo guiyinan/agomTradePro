@@ -1609,3 +1609,17 @@
 - Recommendation Model、Repository 与 Workspace Service mypy 清零；全仓基线从 `4156 errors / 690 files` 收紧为 `4143 errors / 687 files`，净减少 `13 errors / 3 files`。
 - 推荐持久化、审批链、调仓计划与 Workspace 风险回归共 `15 passed`。
 - governance baseline 升级为 `2026-07-24.v189`，静态测试函数计数提升至 `7220`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百一十八批
+
+- 按“审批事件状态传播影响面 × 启动完整性”收口 Decision Rhythm subscriber 与 AppConfig 注册入口。
+- 三个 handler factory 具化为 `Callable[[], EventHandler]`，移除只记录后重新抛出的宽泛异常包装；AppConfig `ready()` 补齐返回类型。
+- 修复 EventSubscriberRegistry 按 `(module_name, event_type)` 去重时，三个 `DECISION_APPROVED` handler 使用相同模块名导致互相覆盖的问题；核心、配额监控与冷却处理器改用独立订阅身份并按 `50/55/60` 优先级全部保留。
+- subscriber 注册与 AppConfig 启动不再捕获所有异常后继续运行，注册失败会阻止不完整事件链静默上线。
+- 新增审批事件保留三个 handler、factory 契约和注册失败不得静默三组回归。
+
+## 第一百一十八批验证结果
+
+- Decision Rhythm subscriber 与 AppConfig mypy 清零；全仓基线从 `4143 errors / 687 files` 收紧为 `4138 errors / 685 files`，净减少 `5 errors / 2 files`。
+- Subscriber wiring、handler、事件总线与仓储结构回归共 `37 passed`，Django system check 通过。
+- governance baseline 升级为 `2026-07-24.v190`，静态测试函数计数提升至 `7223`；完整 mypy debt ceiling、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
