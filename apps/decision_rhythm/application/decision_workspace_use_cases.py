@@ -2,16 +2,26 @@
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from decimal import Decimal
+from typing import Any, Protocol
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
 
-from apps.events.domain.entities import EventType, create_event
+from apps.events.domain.entities import DomainEvent, EventType, create_event
+from apps.valuation.domain.entities import ValuationSnapshot
 
-if TYPE_CHECKING:
-    pass
-
+from ..domain.entities import (
+    CooldownPeriod,
+    DecisionQuota,
+    ExecutionApprovalRequest,
+    InvestmentRecommendation,
+    QuotaPeriod,
+)
+from ..domain.services import (
+    ExecutionApprovalService,
+    RecommendationConsolidationService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +37,76 @@ RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+
+
+class ValuationSnapshotRepositoryProtocol(Protocol):
+    """Persistence contract for valuation snapshots."""
+
+    def save(self, snapshot: ValuationSnapshot) -> ValuationSnapshot: ...
+
+
+class RecommendationRepositoryProtocol(Protocol):
+    """Read contract for workspace recommendations."""
+
+    def get_active_by_account(
+        self,
+        account_id: str,
+        include_executed: bool = False,
+    ) -> list[InvestmentRecommendation]: ...
+
+    def get_all_active(
+        self,
+        include_executed: bool = False,
+    ) -> list[InvestmentRecommendation]: ...
+
+    def get_by_id(self, recommendation_id: str) -> InvestmentRecommendation | None: ...
+
+
+class ApprovalRepositoryProtocol(Protocol):
+    """Persistence contract for execution approval requests."""
+
+    def get_by_id(self, request_id: str) -> ExecutionApprovalRequest | None: ...
+
+    def save(
+        self,
+        approval_request: ExecutionApprovalRequest,
+    ) -> ExecutionApprovalRequest: ...
+
+
+class QuotaRepositoryProtocol(Protocol):
+    """Read contract for decision quota checks."""
+
+    def get_quota(
+        self,
+        period: QuotaPeriod,
+        account_id: str = "default",
+    ) -> DecisionQuota | None: ...
+
+
+class CooldownRepositoryProtocol(Protocol):
+    """Read contract for asset cooldown checks."""
+
+    def get_active_cooldown(
+        self,
+        asset_code: str,
+        direction: str | None = None,
+    ) -> CooldownPeriod | None: ...
+
+
+class RegimeProviderProtocol(Protocol):
+    """Minimal regime context provider used by the workspace."""
+
+    source: str
+
+    def get_current_regime(self) -> object: ...
+
+    def get_regime_confidence(self) -> object: ...
+
+
+class EventPublisherProtocol(Protocol):
+    """Event publishing contract for approval decisions."""
+
+    def publish(self, event: DomainEvent) -> None: ...
 
 
 @dataclass
@@ -65,7 +145,7 @@ class CreateValuationSnapshotResponse:
     """
 
     success: bool
-    snapshot: Any | None = None  # ValuationSnapshot
+    snapshot: ValuationSnapshot | None = None
     error: str | None = None
 
 
@@ -163,7 +243,7 @@ class ApproveExecutionResponse:
     """
 
     success: bool
-    approval_request: Any | None = None  # ExecutionApprovalRequest
+    approval_request: ExecutionApprovalRequest | None = None
     error: str | None = None
 
 
@@ -193,7 +273,7 @@ class RejectExecutionResponse:
     """
 
     success: bool
-    approval_request: Any | None = None  # ExecutionApprovalRequest
+    approval_request: ExecutionApprovalRequest | None = None
     error: str | None = None
 
 
@@ -218,7 +298,11 @@ class CreateValuationSnapshotUseCase:
         ... ))
     """
 
-    def __init__(self, valuation_snapshot_repo, valuation_service=None):
+    def __init__(
+        self,
+        valuation_snapshot_repo: ValuationSnapshotRepositoryProtocol,
+        valuation_service: object | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -240,8 +324,6 @@ class CreateValuationSnapshotUseCase:
             创建响应
         """
         try:
-            from decimal import Decimal
-
             from ..domain.entities import create_valuation_snapshot
 
             # 创建估值快照
@@ -295,10 +377,10 @@ class GetAggregatedWorkspaceUseCase:
 
     def __init__(
         self,
-        recommendation_repo,
-        consolidation_service=None,
-        regime_provider=None,
-    ):
+        recommendation_repo: RecommendationRepositoryProtocol,
+        consolidation_service: RecommendationConsolidationService | None = None,
+        regime_provider: RegimeProviderProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -322,8 +404,6 @@ class GetAggregatedWorkspaceUseCase:
             聚合工作台响应
         """
         try:
-            from ..domain.services import RecommendationConsolidationService
-
             # 获取活跃建议
             if request.account_id:
                 recommendations = self.recommendation_repo.get_active_by_account(
@@ -342,7 +422,7 @@ class GetAggregatedWorkspaceUseCase:
                 consolidation_service = RecommendationConsolidationService()
 
             # 按账户分组聚合
-            account_groups: dict[str, list[Any]] = {}
+            account_groups: dict[str, list[InvestmentRecommendation]] = {}
             for rec in recommendations:
                 # 从 recommendation 中提取账户信息
                 # 这里简化处理，实际应该从关联关系获取
@@ -351,7 +431,7 @@ class GetAggregatedWorkspaceUseCase:
                     account_groups[account_id] = []
                 account_groups[account_id].append(rec)
 
-            aggregated = []
+            aggregated: list[dict[str, Any]] = []
             for account_id, recs in account_groups.items():
                 consolidated_recs = consolidation_service.consolidate(recs, account_id)
                 for rec in consolidated_recs:
@@ -382,7 +462,11 @@ class GetAggregatedWorkspaceUseCase:
                 error=str(e),
             )
 
-    def _format_recommendation(self, rec, account_id: str) -> dict[str, Any]:
+    def _format_recommendation(
+        self,
+        rec: InvestmentRecommendation,
+        account_id: str,
+    ) -> dict[str, Any]:
         """格式化建议为 API 响应格式"""
         return {
             "aggregation_key": f"{account_id}:{rec.security_code}:{rec.side}",
@@ -435,12 +519,12 @@ class PreviewExecutionUseCase:
 
     def __init__(
         self,
-        recommendation_repo,
-        approval_repo,
-        quota_repo=None,
-        cooldown_repo=None,
-        regime_provider=None,
-    ):
+        recommendation_repo: RecommendationRepositoryProtocol,
+        approval_repo: ApprovalRepositoryProtocol,
+        quota_repo: QuotaRepositoryProtocol | None = None,
+        cooldown_repo: CooldownRepositoryProtocol | None = None,
+        regime_provider: RegimeProviderProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -468,8 +552,6 @@ class PreviewExecutionUseCase:
             预览响应
         """
         try:
-            from decimal import Decimal
-
             from ..domain.entities import create_execution_approval_request
 
             # 获取投资建议
@@ -541,11 +623,11 @@ class PreviewExecutionUseCase:
 
     def _run_risk_checks(
         self,
-        recommendation,
-        market_price,
+        recommendation: InvestmentRecommendation,
+        market_price: Decimal,
     ) -> dict[str, Any]:
         """执行风控检查"""
-        risk_checks = {}
+        risk_checks: dict[str, Any] = {}
 
         # 1. 价格验证
         if recommendation.is_buy:
@@ -571,14 +653,14 @@ class PreviewExecutionUseCase:
                 from ..domain.entities import QuotaPeriod
 
                 quota = self.quota_repo.get_quota(QuotaPeriod.WEEKLY)
-                quota_ok = quota and not quota.is_quota_exceeded
+                quota_ok = quota is not None and not quota.is_quota_exceeded
                 risk_checks["quota"] = {
                     "passed": quota_ok,
                     "remaining": quota.remaining_decisions if quota else 0,
                     "reason": "" if quota_ok else "配额已耗尽",
                 }
             except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
-                risk_checks["quota"] = {"passed": True, "reason": f"检查失败（跳过）: {e}"}
+                risk_checks["quota"] = {"passed": False, "reason": f"配额检查失败: {e}"}
         else:
             risk_checks["quota"] = {"passed": True, "reason": "未配置"}
 
@@ -586,18 +668,15 @@ class PreviewExecutionUseCase:
         if self.cooldown_repo:
             try:
                 cooldown = self.cooldown_repo.get_active_cooldown(recommendation.security_code)
-                cooldown_ok = not cooldown or cooldown.is_decision_ready
+                cooldown_ok = cooldown is None or cooldown.is_decision_ready
+                hours_remaining = cooldown.decision_ready_in_hours if cooldown else 0.0
                 risk_checks["cooldown"] = {
                     "passed": cooldown_ok,
-                    "hours_remaining": cooldown.decision_ready_in_hours if cooldown else 0,
-                    "reason": (
-                        ""
-                        if cooldown_ok
-                        else f"冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时"
-                    ),
+                    "hours_remaining": hours_remaining,
+                    "reason": ("" if cooldown_ok else f"冷却期内，剩余 {hours_remaining:.1f} 小时"),
                 }
             except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
-                risk_checks["cooldown"] = {"passed": True, "reason": f"检查失败（跳过）: {e}"}
+                risk_checks["cooldown"] = {"passed": False, "reason": f"冷却检查失败: {e}"}
         else:
             risk_checks["cooldown"] = {"passed": True, "reason": "未配置"}
 
@@ -624,7 +703,12 @@ class ApproveExecutionUseCase:
         ... ))
     """
 
-    def __init__(self, approval_repo, approval_service=None, event_bus=None):
+    def __init__(
+        self,
+        approval_repo: ApprovalRepositoryProtocol,
+        approval_service: ExecutionApprovalService | None = None,
+        event_bus: EventPublisherProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -648,10 +732,6 @@ class ApproveExecutionUseCase:
             批准响应
         """
         try:
-            from decimal import Decimal
-
-            from ..domain.services import ExecutionApprovalService
-
             # 获取审批请求
             approval_request = self.approval_repo.get_by_id(request.approval_request_id)
             if approval_request is None:
@@ -667,10 +747,12 @@ class ApproveExecutionUseCase:
                 approval_service = ExecutionApprovalService()
 
             # 市场价格
-            market_price = Decimal(str(request.market_price)) if request.market_price else None
+            market_price = (
+                Decimal(str(request.market_price)) if request.market_price is not None else None
+            )
 
             # 检查是否可以批准
-            if market_price:
+            if market_price is not None:
                 can_approve, reason = approval_service.can_approve(approval_request, market_price)
                 if not can_approve:
                     return ApproveExecutionResponse(
@@ -736,7 +818,12 @@ class RejectExecutionUseCase:
         ... ))
     """
 
-    def __init__(self, approval_repo, approval_service=None, event_bus=None):
+    def __init__(
+        self,
+        approval_repo: ApprovalRepositoryProtocol,
+        approval_service: ExecutionApprovalService | None = None,
+        event_bus: EventPublisherProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -760,8 +847,6 @@ class RejectExecutionUseCase:
             拒绝响应
         """
         try:
-            from ..domain.services import ExecutionApprovalService
-
             # 获取审批请求
             approval_request = self.approval_repo.get_by_id(request.approval_request_id)
             if approval_request is None:
