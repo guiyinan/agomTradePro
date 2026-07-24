@@ -7,13 +7,26 @@ Decision Rhythm Repositories
 这些仓储桥接 Domain 层实体和 Django ORM 模型。
 """
 
+from __future__ import annotations
+
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
 from django.utils import timezone
+
+from ..domain.model_param_entities import ModelParamAuditLog, ModelParamConfig
+from ..domain.recommendation_entities import (
+    DecisionFeatureSnapshot,
+    RecommendationStatus,
+    UnifiedRecommendation,
+    UserDecisionAction,
+)
+
+if TYPE_CHECKING:
+    from .recommendation_models import UnifiedRecommendationModel
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +38,7 @@ class UnifiedRecommendationRepository:
     管理统一推荐对象的持久化。
     """
 
-    def save(self, recommendation) -> Any:
+    def save(self, recommendation: UnifiedRecommendation) -> UnifiedRecommendation:
         """
         保存推荐
 
@@ -38,20 +51,8 @@ class UnifiedRecommendationRepository:
         from .models import DecisionFeatureSnapshotModel, UnifiedRecommendationModel
 
         # 转换 reason_codes 和其他列表字段
-        reason_codes = (
-            recommendation.reason_codes if hasattr(recommendation, "reason_codes") else []
-        )
-        source_signal_ids = (
-            recommendation.source_signal_ids if hasattr(recommendation, "source_signal_ids") else []
-        )
-        source_candidate_ids = (
-            recommendation.source_candidate_ids
-            if hasattr(recommendation, "source_candidate_ids")
-            else []
-        )
-
         snapshot_model = None
-        if getattr(recommendation, "feature_snapshot_id", ""):
+        if recommendation.feature_snapshot_id:
             snapshot_model = DecisionFeatureSnapshotModel.objects.filter(
                 snapshot_id=recommendation.feature_snapshot_id
             ).first()
@@ -73,7 +74,7 @@ class UnifiedRecommendationRepository:
                 "alpha_model_score": recommendation.alpha_model_score,
                 "composite_score": recommendation.composite_score,
                 "confidence": recommendation.confidence,
-                "reason_codes": reason_codes,
+                "reason_codes": recommendation.reason_codes,
                 "human_rationale": recommendation.human_rationale,
                 "fair_value": recommendation.fair_value,
                 "entry_price_low": recommendation.entry_price_low,
@@ -84,23 +85,22 @@ class UnifiedRecommendationRepository:
                 "position_pct": recommendation.position_pct,
                 "suggested_quantity": recommendation.suggested_quantity,
                 "max_capital": recommendation.max_capital,
-                "source_signal_ids": source_signal_ids,
-                "source_candidate_ids": source_candidate_ids,
+                "source_signal_ids": recommendation.source_signal_ids,
+                "source_candidate_ids": recommendation.source_candidate_ids,
                 "feature_snapshot": snapshot_model,
-                "status": recommendation.status.value
-                if hasattr(recommendation.status, "value")
-                else str(recommendation.status),
-                "user_action": recommendation.user_action.value
-                if hasattr(recommendation.user_action, "value")
-                else str(recommendation.user_action),
-                "user_action_note": getattr(recommendation, "user_action_note", ""),
-                "user_action_at": getattr(recommendation, "user_action_at", None),
+                "status": recommendation.status.value,
+                "user_action": recommendation.user_action.value,
+                "user_action_note": recommendation.user_action_note,
+                "user_action_at": recommendation.user_action_at,
             },
         )
 
         return self._model_to_entity(model)
 
-    def save_feature_snapshot(self, snapshot) -> Any:
+    def save_feature_snapshot(
+        self,
+        snapshot: DecisionFeatureSnapshot,
+    ) -> DecisionFeatureSnapshot:
         """
         保存特征快照
 
@@ -111,8 +111,6 @@ class UnifiedRecommendationRepository:
             保存后的实体
         """
         from .models import DecisionFeatureSnapshotModel
-
-        extra_features = snapshot.extra_features if hasattr(snapshot, "extra_features") else {}
 
         model, created = DecisionFeatureSnapshotModel.objects.update_or_create(
             snapshot_id=snapshot.snapshot_id,
@@ -128,7 +126,7 @@ class UnifiedRecommendationRepository:
                 "technical_score": snapshot.technical_score,
                 "fundamental_score": snapshot.fundamental_score,
                 "alpha_model_score": snapshot.alpha_model_score,
-                "extra_features": extra_features,
+                "extra_features": snapshot.extra_features,
             },
         )
 
@@ -138,7 +136,7 @@ class UnifiedRecommendationRepository:
         self,
         account_id: str,
         status: str | None = None,
-    ) -> list[Any]:
+    ) -> list[UnifiedRecommendation]:
         """
         按账户获取推荐
 
@@ -151,7 +149,9 @@ class UnifiedRecommendationRepository:
         """
         from .models import UnifiedRecommendationModel
 
-        query = UnifiedRecommendationModel.objects.filter(account_id=account_id)
+        query = UnifiedRecommendationModel.objects.filter(account_id=account_id).select_related(
+            "feature_snapshot"
+        )
 
         if status:
             query = query.filter(status=status)
@@ -164,7 +164,7 @@ class UnifiedRecommendationRepository:
         recommendation_id: str,
         *,
         account_id: str | None = None,
-    ) -> Any | None:
+    ) -> UnifiedRecommendation | None:
         """按 recommendation_id 获取推荐。"""
         from .models import UnifiedRecommendationModel
 
@@ -181,7 +181,7 @@ class UnifiedRecommendationRepository:
         security_code: str,
         side: str,
         exclude_conflicts: bool = True,
-    ) -> Any | None:
+    ) -> UnifiedRecommendation | None:
         """Return the latest non-conflict recommendation for an aggregation key."""
         from .models import UnifiedRecommendationModel
 
@@ -199,7 +199,7 @@ class UnifiedRecommendationRepository:
         self,
         recommendation_id: str,
         candidate_ids: list[str],
-    ) -> Any | None:
+    ) -> UnifiedRecommendation | None:
         """Append candidate ids to an existing recommendation without duplicates."""
         from .models import UnifiedRecommendationModel
 
@@ -227,7 +227,7 @@ class UnifiedRecommendationRepository:
         recommendation_ids: list[str],
         *,
         account_id: str | None = None,
-    ) -> list[Any]:
+    ) -> list[UnifiedRecommendation]:
         """按 recommendation_id 列表获取推荐。"""
         from .models import UnifiedRecommendationModel
 
@@ -251,7 +251,7 @@ class UnifiedRecommendationRepository:
         exclude_conflicts: bool = True,
         page: int = 1,
         page_size: int = 20,
-    ) -> tuple[list[Any], int]:
+    ) -> tuple[list[UnifiedRecommendation], int]:
         """按工作台筛选条件返回推荐及总数。"""
         from ..domain.entities import UserDecisionAction
         from .models import UnifiedRecommendationModel
@@ -283,7 +283,7 @@ class UnifiedRecommendationRepository:
         self,
         account_id: str,
         recommendation_ids: list[str] | None = None,
-    ) -> list[Any]:
+    ) -> list[UnifiedRecommendation]:
         """返回可生成交易计划的推荐。"""
         from ..domain.entities import RecommendationStatus, UserDecisionAction
         from .models import UnifiedRecommendationModel
@@ -301,10 +301,10 @@ class UnifiedRecommendationRepository:
         self,
         *,
         recommendation_id: str,
-        user_action,
+        user_action: UserDecisionAction,
         note: str = "",
         account_id: str | None = None,
-    ) -> Any | None:
+    ) -> UnifiedRecommendation | None:
         """更新用户动作并返回最新推荐。"""
         from .models import UnifiedRecommendationModel
 
@@ -316,7 +316,7 @@ class UnifiedRecommendationRepository:
         if model is None:
             return None
 
-        model.user_action = user_action.value if hasattr(user_action, "value") else str(user_action)
+        model.user_action = user_action.value
         model.user_action_note = note
         model.user_action_at = timezone.now()
         model.save(
@@ -330,7 +330,7 @@ class UnifiedRecommendationRepository:
         account_id: str,
         security_code: str,
         side: str,
-        traded_at,
+        traded_at: datetime,
         window_days: int = 5,
     ) -> dict[str, Any] | None:
         """Return the best recommendation match for one manual transaction."""
@@ -481,7 +481,7 @@ class UnifiedRecommendationRepository:
         ]
         return list(dict.fromkeys(candidate_ids))
 
-    def get_conflicts(self, account_id: str) -> list[Any]:
+    def get_conflicts(self, account_id: str) -> list[UnifiedRecommendation]:
         """
         获取冲突推荐
 
@@ -494,10 +494,14 @@ class UnifiedRecommendationRepository:
         from ..domain.entities import RecommendationStatus
         from .models import UnifiedRecommendationModel
 
-        models = UnifiedRecommendationModel.objects.filter(
-            account_id=account_id,
-            status=RecommendationStatus.CONFLICT.value,
-        ).order_by("-created_at")
+        models = (
+            UnifiedRecommendationModel.objects.filter(
+                account_id=account_id,
+                status=RecommendationStatus.CONFLICT.value,
+            )
+            .select_related("feature_snapshot")
+            .order_by("-created_at")
+        )
 
         return [self._model_to_entity(model) for model in models]
 
@@ -515,7 +519,10 @@ class UnifiedRecommendationRepository:
             status=RecommendationStatus.CONFLICT.value
         )
 
-    def _model_to_entity(self, model) -> Any:
+    def _model_to_entity(
+        self,
+        model: UnifiedRecommendationModel,
+    ) -> UnifiedRecommendation:
         """
         将 ORM 模型转换为实体
 
@@ -525,12 +532,6 @@ class UnifiedRecommendationRepository:
         Returns:
             实体实例
         """
-
-        from ..domain.entities import (
-            RecommendationStatus,
-            UnifiedRecommendation,
-            UserDecisionAction,
-        )
 
         # 解析状态
         try:
@@ -544,6 +545,7 @@ class UnifiedRecommendationRepository:
         except ValueError:
             user_action = UserDecisionAction.PENDING
 
+        feature_snapshot = model.feature_snapshot
         return UnifiedRecommendation(
             recommendation_id=model.recommendation_id,
             account_id=model.account_id,
@@ -573,13 +575,15 @@ class UnifiedRecommendationRepository:
             max_capital=Decimal(str(model.max_capital)),
             source_signal_ids=model.source_signal_ids or [],
             source_candidate_ids=model.source_candidate_ids or [],
-            feature_snapshot_id=getattr(model, "feature_snapshot_id", ""),
+            feature_snapshot_id=(
+                feature_snapshot.snapshot_id if feature_snapshot is not None else ""
+            ),
             status=status,
             user_action=user_action,
-            user_action_note=getattr(model, "user_action_note", ""),
-            user_action_at=getattr(model, "user_action_at", None),
-            created_at=getattr(model, "created_at", None),
-            updated_at=getattr(model, "updated_at", None),
+            user_action_note=model.user_action_note,
+            user_action_at=model.user_action_at,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
         )
 
 
@@ -590,7 +594,7 @@ class DecisionModelParamConfigRepository:
     为参数 use case 提供统一的参数读写与审计能力。
     """
 
-    def get_param(self, param_key: str, env: str):
+    def get_param(self, param_key: str, env: str) -> ModelParamConfig | None:
         from .models import DecisionModelParamConfigModel
 
         model = (
@@ -600,7 +604,7 @@ class DecisionModelParamConfigRepository:
         )
         return model.to_domain() if model else None
 
-    def get_all_params(self, env: str):
+    def get_all_params(self, env: str) -> list[ModelParamConfig]:
         from .models import DecisionModelParamConfigModel
 
         models = DecisionModelParamConfigModel.objects.filter(env=env, is_active=True).order_by(
@@ -627,7 +631,7 @@ class DecisionModelParamConfigRepository:
             for model in models
         ]
 
-    def save_param(self, config):
+    def save_param(self, config: ModelParamConfig) -> ModelParamConfig:
         from .models import DecisionModelParamConfigModel
 
         with transaction.atomic():
@@ -655,7 +659,7 @@ class DecisionModelParamConfigRepository:
 
         return model.to_domain()
 
-    def create_audit_log(self, log):
+    def create_audit_log(self, log: ModelParamAuditLog) -> ModelParamAuditLog:
         from .models import DecisionModelParamAuditLogModel
 
         model = DecisionModelParamAuditLogModel.from_domain(log)

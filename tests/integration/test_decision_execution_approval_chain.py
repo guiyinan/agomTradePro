@@ -116,6 +116,16 @@ class TestExecutionApprovalChain(TestCase):
         )
         return uni_rec
 
+    def test_repository_maps_feature_snapshot_business_id(self):
+        """Domain provenance must use snapshot_id instead of the ORM primary key."""
+
+        self._create_unified_recommendation(snapshot_id="fsn_business_id")
+
+        recommendation = self.uni_repo.get_by_recommendation_id("urec_test")
+
+        self.assertIsNotNone(recommendation)
+        self.assertEqual(recommendation.feature_snapshot_id, "fsn_business_id")
+
     def test_preview_creates_approval_request_with_unified_recommendation(self):
         """测试预览创建审批请求并关联 UnifiedRecommendation"""
         # 创建推荐
