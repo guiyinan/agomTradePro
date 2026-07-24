@@ -1958,3 +1958,19 @@
 - Equity 配置仓储、ORM models 与筛选 use case 定向/增量 mypy 清零；全仓基线从 `3756 errors / 643 files` 收紧为 `3711 errors / 641 files`，净减少 `45 errors / 2 files`。
 - Equity 配置仓储、筛选用例、评分 Domain 与估值修复配置 API 回归 `27 passed`。
 - Django migration state/plan、Django system check、架构检查通过。
+
+## 第一百四十批
+
+- 按“估值与财务数据新鲜度影响面 × Celery 任务状态真实性”收口 Equity 同步任务及兼容别名。
+- 估值同步、质量校验、同步校验扫描与财务同步入口增加正整数上限、动态数据源标识、股票代码、股票池和回看窗口校验；布尔冒充整数、空值、越界和错误容器不再进入用例。
+- 数据源只校验通用标识格式，继续由数据库配置决定可用 provider，不在任务代码中硬编码数据源名单。
+- 估值同步成功响应必须包含有效 payload 且实际写入至少一条记录；写入 0 条时任务失败关闭，不再继续执行质量校验和估值修复扫描。
+- 质量门禁只接受真实布尔值 `True`，字符串等 truthy 值不能误放行扫描。
+- 财务同步显式空股票列表不再回退为全市场同步；股票代码去重采用有界集合，批量上限固定为 5000 项。
+- 财务同步校验 `stored_count` 为非负整数；全部股票失败返回失败，部分失败显式返回 `partial_success=True`，不再统一伪报成功。
+- Celery 兼容别名补齐精确返回契约；任务通过 Application provider factory 获取仓储，不再依赖未显式导出的 concrete class。
+
+## 第一百四十批验证结果
+
+- Equity 估值/财务同步任务与兼容别名定向 mypy 清零；全仓基线从 `3711 errors / 641 files` 收紧为 `3676 errors / 639 files`，净减少 `35 errors / 2 files`。
+- 同步任务、估值同步用例、质量门禁、Celery 注册别名与调度配置回归 `18 passed`。
