@@ -462,6 +462,29 @@ def test_strategy_activation_does_not_report_success_when_update_fails(
 
 
 @pytest.mark.django_db
+def test_inactive_strategy_cannot_execute_through_sdk_action(
+    authenticated_client,
+    auth_user,
+):
+    strategy = StrategyModel.objects.create(
+        name="Inactive Execution Guard",
+        strategy_type="rule_based",
+        is_active=False,
+        created_by=auth_user.account_profile,
+    )
+
+    response = authenticated_client.post(
+        f"/api/strategy/strategies/{strategy.id}/execute/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+    assert "inactive" in response.json()["error"]
+
+
+@pytest.mark.django_db
 def test_position_rule_api_is_owner_scoped_read_only_with_staff_override(
     authenticated_client,
     auth_user,

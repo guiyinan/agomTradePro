@@ -172,6 +172,9 @@ class StrategyInterfaceRepositoryProtocol(Protocol):
     ) -> bool:
         """Return whether one caller may bind configuration to a strategy."""
 
+    def strategy_is_active(self, strategy_id: int) -> bool:
+        """Return whether the strategy exists and is enabled for execution."""
+
     def get_assignment_queryset(self) -> Any:
         """Return the ORM queryset boundary for assignments."""
 

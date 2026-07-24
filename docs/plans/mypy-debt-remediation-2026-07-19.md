@@ -2467,3 +2467,18 @@
 - Strategy aggregate API 增量 mypy 清零；全仓基线从 `2998 errors / 591 files` 收紧为 `2979 errors / 590 files`，净减少 `19 errors / 1 file`。
 - Strategy API、结构和绑定一致性回归共 `45 passed`；覆盖脚本配置 owner 隔离、Script/AI 跨账户写入、分页限界、激活失败真实性和既有执行/读模型契约。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十一批
+
+- 按“策略真实执行开关 × SDK 结果真实性”收口 Strategy SDK Contract Actions 与公共 Application facade。
+- `execute_strategy_for_assignments` 在加载 assignment 和调用 executor 前验证 strategy ID、可选 portfolio ID 与数据库 active 状态；停用或不存在的策略不能再通过 SDK 执行动作运行。
+- 每个执行器结果必须与请求的 strategy/portfolio 一致，并要求非负耗时、timezone-aware 执行时间、真实布尔成功标志和列表型 signals；错配或畸形结果不再汇总成成功响应。
+- Signal 与 Performance 读取在展开历史 JSON 前验证 signals 为对象列表；字符串、混合列表或其他损坏结构返回标准数据校验错误，不再被按字符/键计数或触发不受控异常。
+- Performance 拒绝布尔或负执行耗时，避免生成负平均时长；Position 与 Trade 读模型要求每项为对象，动态 provider 不能向 SDK 泄漏非结构化值。
+- SDK mixin 使用最小 ViewSet Protocol 与类型保持 action wrapper，Request、Response、pk 和 owner-scoped `get_object()` 补齐精确类型。
+
+## 第一百七十一批验证结果
+
+- Strategy SDK Contract Actions 增量 mypy 清零；全仓基线从 `2979 errors / 590 files` 收紧为 `2969 errors / 589 files`，净减少 `10 errors / 1 file`。
+- Strategy SDK Application、API、结构与绑定一致性回归共 `52 passed`；覆盖停用策略、执行结果 ID 错配、负耗时、损坏 signal JSON 和既有执行/读模型契约。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

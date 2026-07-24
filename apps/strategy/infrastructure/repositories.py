@@ -1271,6 +1271,14 @@ class StrategyInterfaceRepository:
             include_all=include_all,
         ).filter(pk=strategy_id).exists()
 
+    def strategy_is_active(self, strategy_id: int) -> bool:
+        """Return whether the strategy exists and is enabled for execution."""
+
+        return StrategyModel._default_manager.filter(
+            pk=strategy_id,
+            is_active=True,
+        ).exists()
+
     def get_assignment_queryset(
         self,
     ) -> QuerySet[PortfolioStrategyAssignmentModel]:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from apps.strategy.application.interface_contracts import (
@@ -21,6 +21,8 @@ from apps.strategy.application.repository_provider import (
 from apps.strategy.application.simulated_trading_gateway import (
     list_account_trade_payloads,
 )
+from apps.strategy.domain.entities import StrategyExecutionResult
+from core.exceptions import DataValidationError
 
 
 def _repo() -> StrategyInterfaceRepositoryProtocol:
@@ -171,6 +173,12 @@ def strategy_is_accessible(
     )
 
 
+def strategy_is_active(strategy_id: int) -> bool:
+    """Return whether a strategy may currently execute."""
+
+    return _repo().strategy_is_active(strategy_id)
+
+
 def get_assignment_queryset() -> Any:
     return _repo().get_assignment_queryset()
 
@@ -272,6 +280,12 @@ def execute_strategy_for_assignments(
 ) -> dict[str, Any]:
     """Execute a strategy for one assigned portfolio or all active assignments."""
 
+    _require_positive_identifier(strategy_id, "strategy_id")
+    if portfolio_id is not None:
+        _require_positive_identifier(portfolio_id, "portfolio_id")
+    if not strategy_is_active(strategy_id):
+        raise ValueError("strategy is inactive or unavailable")
+
     assignments = list_active_assignments_for_strategy(strategy_id)
     if portfolio_id is not None:
         assignments = [item for item in assignments if item.portfolio_id == portfolio_id]
@@ -281,10 +295,15 @@ def execute_strategy_for_assignments(
         raise ValueError("strategy has no active portfolio assignments")
 
     executor = build_strategy_executor()
-    results = [
-        executor.execute_strategy(strategy_id, assignment.portfolio_id)
-        for assignment in assignments
-    ]
+    results = []
+    for assignment in assignments:
+        result = executor.execute_strategy(strategy_id, assignment.portfolio_id)
+        _validate_execution_result(
+            result=result,
+            strategy_id=strategy_id,
+            portfolio_id=assignment.portfolio_id,
+        )
+        results.append(result)
     failed = [
         {
             "portfolio_id": result.portfolio_id,
@@ -316,9 +335,10 @@ def list_strategy_signal_payloads(
 ) -> list[dict[str, Any]]:
     """Flatten persisted strategy execution signals into a stable read contract."""
 
+    _require_positive_identifier(strategy_id, "strategy_id")
     payloads: list[dict[str, Any]] = []
     for log in list_execution_logs_by_strategy(strategy_id, limit=max(limit, 100)):
-        for signal in log.signals_generated or []:
+        for signal in _validated_signal_records(log):
             signal_payload = dict(signal)
             signal_payload.setdefault("status", "generated")
             if status and signal_payload["status"] != status:
@@ -340,6 +360,7 @@ def get_strategy_performance_payload(
 ) -> dict[str, Any]:
     """Summarize persisted strategy executions without inventing return metrics."""
 
+    _require_positive_identifier(strategy_id, "strategy_id")
     logs = list_execution_logs_by_strategy(strategy_id, limit=5000)
     filtered = [
         log
@@ -348,8 +369,19 @@ def get_strategy_performance_payload(
         and (end_date is None or log.execution_time.date() <= end_date)
     ]
     success_count = sum(1 for log in filtered if log.is_success)
-    signal_count = sum(len(log.signals_generated or []) for log in filtered)
-    durations = [log.execution_duration_ms for log in filtered]
+    signal_count = sum(len(_validated_signal_records(log)) for log in filtered)
+    durations = []
+    for log in filtered:
+        if (
+            isinstance(log.execution_duration_ms, bool)
+            or log.execution_duration_ms < 0
+        ):
+            raise DataValidationError(
+                message="策略执行日志包含无效耗时",
+                code="INVALID_STRATEGY_EXECUTION_LOG",
+                details={"execution_log_id": log.id},
+            )
+        durations.append(log.execution_duration_ms)
     return {
         "strategy_id": strategy_id,
         "metric_scope": "execution",
@@ -368,10 +400,17 @@ def get_strategy_performance_payload(
 def list_strategy_position_payloads(*, strategy_id: int) -> list[dict[str, Any]]:
     """Return positions for all portfolios actively assigned to a strategy."""
 
+    _require_positive_identifier(strategy_id, "strategy_id")
     provider = build_strategy_portfolio_provider()
     payloads: list[dict[str, Any]] = []
     for assignment in list_active_assignments_for_strategy(strategy_id):
         for position in provider.get_positions(assignment.portfolio_id):
+            if not isinstance(position, dict):
+                raise DataValidationError(
+                    message="策略持仓读模型必须是对象",
+                    code="INVALID_STRATEGY_POSITION_PAYLOAD",
+                    details={"portfolio_id": assignment.portfolio_id},
+                )
             payloads.append(
                 {
                     **position,
@@ -391,6 +430,7 @@ def list_strategy_trade_payloads(
 ) -> list[dict[str, Any]]:
     """Return account-ledger trades for portfolios actively assigned to a strategy."""
 
+    _require_positive_identifier(strategy_id, "strategy_id")
     payloads: list[dict[str, Any]] = []
     for assignment in list_active_assignments_for_strategy(strategy_id):
         trades = list_account_trade_payloads(
@@ -400,6 +440,12 @@ def list_strategy_trade_payloads(
             limit=limit,
         )
         for trade in trades:
+            if not isinstance(trade, dict):
+                raise DataValidationError(
+                    message="策略交易读模型必须是对象",
+                    code="INVALID_STRATEGY_TRADE_PAYLOAD",
+                    details={"portfolio_id": assignment.portfolio_id},
+                )
             payloads.append(
                 {
                     **trade,
@@ -409,3 +455,61 @@ def list_strategy_trade_payloads(
             )
     payloads.sort(key=lambda item: item.get("execution_time") or "", reverse=True)
     return payloads[:limit]
+
+
+def _require_positive_identifier(value: int, field_name: str) -> None:
+    """Reject bool and non-positive identifiers at the Application boundary."""
+
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{field_name} must be a positive integer")
+
+
+def _validate_execution_result(
+    *,
+    result: StrategyExecutionResult,
+    strategy_id: int,
+    portfolio_id: int,
+) -> None:
+    """Ensure executor output belongs to the requested strategy and portfolio."""
+
+    if result.strategy_id != strategy_id or result.portfolio_id != portfolio_id:
+        raise DataValidationError(
+            message="策略执行器返回了不匹配的执行标识",
+            code="INVALID_STRATEGY_EXECUTION_RESULT",
+            details={
+                "expected_strategy_id": strategy_id,
+                "expected_portfolio_id": portfolio_id,
+                "actual_strategy_id": result.strategy_id,
+                "actual_portfolio_id": result.portfolio_id,
+            },
+        )
+    if (
+        isinstance(result.execution_duration_ms, bool)
+        or result.execution_duration_ms < 0
+        or not isinstance(result.execution_time, datetime)
+        or result.execution_time.utcoffset() is None
+        or not isinstance(result.is_success, bool)
+        or not isinstance(result.signals, list)
+    ):
+        raise DataValidationError(
+            message="策略执行器返回了无效的执行结果",
+            code="INVALID_STRATEGY_EXECUTION_RESULT",
+            details={"strategy_id": strategy_id, "portfolio_id": portfolio_id},
+        )
+
+
+def _validated_signal_records(
+    log: StrategyExecutionLogView,
+) -> list[dict[str, Any]]:
+    """Narrow persisted dynamic signal JSON before exposing it."""
+
+    signals = log.signals_generated
+    if not isinstance(signals, list) or any(
+        not isinstance(signal, dict) for signal in signals
+    ):
+        raise DataValidationError(
+            message="策略执行日志包含无效信号数据",
+            code="INVALID_STRATEGY_EXECUTION_LOG",
+            details={"execution_log_id": log.id},
+        )
+    return signals
