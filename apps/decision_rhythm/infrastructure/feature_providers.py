@@ -7,11 +7,14 @@ Decision Rhythm Feature Providers
 Bottom-up（舆情/资金/技术/基本面/Alpha）特征获取。
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
+from shared.numeric import safe_float
 
 from ..application.use_cases import (
     CandidateProviderProtocol,
@@ -20,12 +23,43 @@ from ..application.use_cases import (
 )
 from .valuation_provider import AssetValuationProvider
 
+if TYPE_CHECKING:
+    from apps.alpha.domain.entities import AlphaResult
+    from apps.beta_gate.application.use_cases import EvaluateBetaGateUseCase
+    from apps.equity.infrastructure.repositories import DjangoStockRepository
+    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+    from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
+    from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
+
 logger = logging.getLogger(__name__)
 
-_resolve_recent_closed_trade_date = resolve_recent_closed_trade_date
+_resolve_recent_closed_trade_date: CallableTradeDateResolver = resolve_recent_closed_trade_date
 
 
-def fetch_stock_scores(*, universe_id: str, intended_trade_date: date, top_n: int = 10):
+class CallableTradeDateResolver(Protocol):
+    """Resolve the most recent closed trading date."""
+
+    def __call__(self) -> date: ...
+
+
+class AlphaScoreFetcherProtocol(Protocol):
+    """Application-owned Alpha score query callable."""
+
+    def __call__(
+        self,
+        *,
+        universe_id: str,
+        intended_trade_date: date,
+        top_n: int = 10,
+    ) -> AlphaResult: ...
+
+
+def fetch_stock_scores(
+    *,
+    universe_id: str,
+    intended_trade_date: date,
+    top_n: int = 10,
+) -> AlphaResult:
     """Return alpha stock scores through the owning alpha application service."""
 
     from apps.alpha.application.services import AlphaService
@@ -82,10 +116,10 @@ class PolicyFeatureProvider:
     从 policy 模块获取当前政策档位。
     """
 
-    def __init__(self):
-        self._policy_repository = None
+    def __init__(self) -> None:
+        self._policy_repository: DjangoPolicyRepository | None = None
 
-    def _get_policy_repository(self):
+    def _get_policy_repository(self) -> DjangoPolicyRepository:
         """延迟加载 repository"""
         if self._policy_repository is None:
             from apps.policy.infrastructure.repositories import DjangoPolicyRepository
@@ -121,10 +155,10 @@ class BetaGateFeatureProvider:
     从 beta_gate 模块检查 Beta Gate 状态。
     """
 
-    def __init__(self):
-        self._beta_gate_use_case = None
+    def __init__(self) -> None:
+        self._beta_gate_use_case: EvaluateBetaGateUseCase | None = None
 
-    def _get_beta_gate_use_case(self):
+    def _get_beta_gate_use_case(self) -> EvaluateBetaGateUseCase:
         """延迟加载 use case"""
         if self._beta_gate_use_case is None:
             from apps.beta_gate.application.use_cases import EvaluateBetaGateUseCase
@@ -157,18 +191,7 @@ class BetaGateFeatureProvider:
             from apps.beta_gate.application.use_cases import EvaluateGateRequest
             from apps.beta_gate.domain.entities import RiskProfile
 
-            # 解析 policy level
-            try:
-                from apps.policy.domain.entities import PolicyLevel
-
-                policy_enum = PolicyLevel(policy_level)
-                policy_int = policy_enum.value if hasattr(policy_enum, "value") else 0
-            except (ValueError, ImportError):
-                # 尝试从字符串解析数字
-                try:
-                    policy_int = int(policy_level.replace("LEVEL_", ""))
-                except (ValueError, AttributeError):
-                    policy_int = 0
+            policy_int = self._parse_policy_level(policy_level)
 
             use_case = self._get_beta_gate_use_case()
             request = EvaluateGateRequest(
@@ -200,6 +223,20 @@ class BetaGateFeatureProvider:
             # 默认通过，避免因检查失败而阻塞所有推荐
             return True
 
+    @staticmethod
+    def _parse_policy_level(policy_level: str) -> int:
+        """Normalize persisted ``P0``/``LEVEL_0`` policy labels to gate levels."""
+
+        normalized = policy_level.strip().upper()
+        if normalized.startswith("LEVEL_"):
+            normalized = normalized.removeprefix("LEVEL_")
+        elif normalized.startswith("P"):
+            normalized = normalized.removeprefix("P")
+        try:
+            return max(0, min(3, int(normalized)))
+        except ValueError:
+            return 0
+
 
 # ============================================================================
 # Bottom-up 特征提供者
@@ -213,10 +250,10 @@ class SentimentFeatureProvider:
     从 sentiment 模块获取舆情分数。
     """
 
-    def __init__(self):
-        self._sentiment_repository = None
+    def __init__(self) -> None:
+        self._sentiment_repository: SentimentIndexRepository | None = None
 
-    def _get_sentiment_repository(self):
+    def _get_sentiment_repository(self) -> SentimentIndexRepository:
         """延迟加载 repository"""
         if self._sentiment_repository is None:
             from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
@@ -262,10 +299,10 @@ class FlowFeatureProvider:
     从账户或行情数据获取资金流向分数。
     """
 
-    def __init__(self):
-        self._flow_repository = None
+    def __init__(self) -> None:
+        self._flow_repository: RedisRealtimePriceRepository | None = None
 
-    def _get_flow_repository(self):
+    def _get_flow_repository(self) -> RedisRealtimePriceRepository:
         """延迟加载 repository"""
         if self._flow_repository is None:
             from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
@@ -316,10 +353,10 @@ class TechnicalFeatureProvider:
     从技术分析获取技术面分数。
     """
 
-    def __init__(self):
-        self._technical_repository = None
+    def __init__(self) -> None:
+        self._technical_repository: DjangoStockRepository | None = None
 
-    def _get_technical_repository(self):
+    def _get_technical_repository(self) -> DjangoStockRepository:
         """延迟加载 repository"""
         if self._technical_repository is None:
             from apps.equity.infrastructure.repositories import DjangoStockRepository
@@ -364,10 +401,10 @@ class FundamentalFeatureProvider:
     从基本面分析获取基本面分数。
     """
 
-    def __init__(self):
-        self._fundamental_repository = None
+    def __init__(self) -> None:
+        self._fundamental_repository: DjangoStockRepository | None = None
 
-    def _get_fundamental_repository(self):
+    def _get_fundamental_repository(self) -> DjangoStockRepository:
         """延迟加载 repository"""
         if self._fundamental_repository is None:
             from apps.equity.infrastructure.repositories import DjangoStockRepository
@@ -415,10 +452,10 @@ class AlphaModelFeatureProvider:
     从 alpha 模块获取 Alpha 模型分数。
     """
 
-    def __init__(self):
-        self._alpha_service = None
+    def __init__(self) -> None:
+        self._alpha_service: AlphaScoreFetcherProtocol | None = None
 
-    def _get_alpha_service(self):
+    def _get_alpha_service(self) -> AlphaScoreFetcherProtocol | None:
         """延迟加载 service"""
         if self._alpha_service is None:
             try:
@@ -540,17 +577,33 @@ class CompositeFeatureProvider(
     def get_policy_level(self) -> str | None:
         return PolicyFeatureProvider.get_policy_level(self)
 
-    def check_beta_gate(self, security_code: str) -> bool:
-        # 先获取 regime 和 policy
+    def check_beta_gate(
+        self,
+        security_code: str,
+        regime: str = "",
+        regime_confidence: float = 0.0,
+        policy_level: str = "LEVEL_0",
+    ) -> bool:
+        """Check the gate with caller-supplied context or current feature values."""
+
         regime_data = self.get_regime() or {}
-        policy_level = self.get_policy_level() or "LEVEL_0"
+        effective_regime = regime or str(regime_data.get("regime") or "")
+        effective_confidence = regime_confidence
+        if not regime and regime_confidence == 0.0:
+            effective_confidence = safe_float(
+                regime_data.get("confidence"),
+                default=0.0,
+            )
+        effective_policy_level = policy_level
+        if policy_level == "LEVEL_0":
+            effective_policy_level = self.get_policy_level() or policy_level
 
         return BetaGateFeatureProvider.check_beta_gate(
             self,
             security_code=security_code,
-            regime=regime_data.get("regime", ""),
-            regime_confidence=regime_data.get("confidence", 0.0),
-            policy_level=policy_level,
+            regime=effective_regime,
+            regime_confidence=effective_confidence,
+            policy_level=effective_policy_level,
         )
 
     def get_sentiment_score(self, security_code: str) -> float:
@@ -666,9 +719,8 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
     @staticmethod
     def _normalize_alpha_score(raw_score: object) -> float:
         """Normalize Alpha score from [-1, 1] into [0, 1]."""
-        try:
-            score = float(raw_score)
-        except (TypeError, ValueError):
+        score = safe_float(raw_score)
+        if score is None:
             return 0.5
         normalized = (score + 1.0) / 2.0
         return max(0.0, min(1.0, normalized))
@@ -686,26 +738,26 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
                 intended_trade_date=target_trade_date,
                 top_n=self.DEFAULT_ALPHA_TOP_N,
             )
-            if not getattr(result, "success", False) or not getattr(result, "scores", None):
+            if not result.success or not result.scores:
                 return []
 
             candidates: list[dict[str, Any]] = []
             for score in result.scores:
-                security_code = str(getattr(score, "code", "") or "").strip()
+                security_code = score.code.strip()
                 if not security_code:
                     continue
-                intended_trade_date = getattr(score, "intended_trade_date", None)
+                intended_trade_date = score.intended_trade_date
                 date_suffix = (
                     intended_trade_date.isoformat()
-                    if hasattr(intended_trade_date, "isoformat")
-                    else str(intended_trade_date or target_trade_date.isoformat())
+                    if intended_trade_date is not None
+                    else target_trade_date.isoformat()
                 )
                 candidates.append(
                     {
                         "candidate_id": f"alpha_rank:{security_code}:{date_suffix}",
                         "account_id": account_id or "default",
                         "security_code": security_code,
-                        "alpha_score": self._normalize_alpha_score(getattr(score, "score", None)),
+                        "alpha_score": self._normalize_alpha_score(score.score),
                         "direction": "BUY",
                     }
                 )

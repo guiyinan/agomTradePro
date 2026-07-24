@@ -25,10 +25,32 @@ from apps.decision_rhythm.domain.entities import (
     RecommendationStatus,
     UnifiedRecommendation,
 )
+from apps.decision_rhythm.infrastructure.feature_providers import (
+    BetaGateFeatureProvider,
+)
 
 # ============================================================================
 # Mock 提供者
 # ============================================================================
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"),
+    [
+        ("P0", 0),
+        ("P2", 2),
+        ("LEVEL_3", 3),
+        ("PX", 0),
+        ("unexpected", 0),
+    ],
+)
+def test_beta_gate_policy_level_labels_are_normalized(
+    label: str,
+    expected: int,
+) -> None:
+    """Policy labels must enter the Beta Gate request as bounded integers."""
+
+    assert BetaGateFeatureProvider._parse_policy_level(label) == expected
 
 
 class MockFeatureDataProvider:
@@ -113,11 +135,13 @@ class MockCandidateProvider:
         return self._candidates
 
     def add_candidate(self, candidate_id: str, account_id: str, security_code: str):
-        self._candidates.append({
-            "candidate_id": candidate_id,
-            "account_id": account_id,
-            "security_code": security_code,
-        })
+        self._candidates.append(
+            {
+                "candidate_id": candidate_id,
+                "account_id": account_id,
+                "security_code": security_code,
+            }
+        )
 
 
 class MockRecommendationRepository:
@@ -142,7 +166,8 @@ class MockRecommendationRepository:
         status: str | None = None,
     ) -> list[UnifiedRecommendation]:
         result = [
-            r for r in self._recommendations.values()
+            r
+            for r in self._recommendations.values()
             if r.account_id == account_id and r.recommendation_id not in self._conflicts
         ]
         if status:
@@ -151,7 +176,8 @@ class MockRecommendationRepository:
 
     def get_conflicts(self, account_id: str) -> list[UnifiedRecommendation]:
         return [
-            r for r in self._recommendations.values()
+            r
+            for r in self._recommendations.values()
             if r.account_id == account_id and r.recommendation_id in self._conflicts
         ]
 
@@ -228,27 +254,35 @@ class TestGenerateUnifiedRecommendationsUseCase:
     def test_generate_single_recommendation(self, setup):
         """测试生成单个推荐"""
         # 设置数据
-        setup["feature_provider"].set_scores("000001.SZ", {
-            "sentiment": 0.75,
-            "flow": 0.70,
-            "technical": 0.80,
-            "fundamental": 0.82,
-            "alpha": 0.88,
-        })
-        setup["valuation_provider"].set_valuation("000001.SZ", {
-            "fair_value": 15.50,
-            "entry_price_low": 14.80,
-            "entry_price_high": 15.20,
-            "target_price_low": 18.00,
-            "target_price_high": 20.00,
-            "stop_loss_price": 13.50,
-        })
+        setup["feature_provider"].set_scores(
+            "000001.SZ",
+            {
+                "sentiment": 0.75,
+                "flow": 0.70,
+                "technical": 0.80,
+                "fundamental": 0.82,
+                "alpha": 0.88,
+            },
+        )
+        setup["valuation_provider"].set_valuation(
+            "000001.SZ",
+            {
+                "fair_value": 15.50,
+                "entry_price_low": 14.80,
+                "entry_price_high": 15.20,
+                "target_price_low": 18.00,
+                "target_price_high": 20.00,
+                "stop_loss_price": 13.50,
+            },
+        )
 
         # 执行
-        response = setup["use_case"].execute(GenerateRecommendationsRequest(
-            account_id="account_001",
-            security_codes=["000001.SZ"],
-        ))
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001",
+                security_codes=["000001.SZ"],
+            )
+        )
 
         # 验证
         assert response.success is True
@@ -269,10 +303,12 @@ class TestGenerateUnifiedRecommendationsUseCase:
         setup["feature_provider"].set_scores("000001.SZ", {"alpha": 0.9})
 
         # 执行
-        response = setup["use_case"].execute(GenerateRecommendationsRequest(
-            account_id="account_001",
-            security_codes=["000001.SZ"],
-        ))
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001",
+                security_codes=["000001.SZ"],
+            )
+        )
 
         # 验证：仍然展示，但标记为 blocked / HOLD
         assert response.success is True
@@ -286,19 +322,24 @@ class TestGenerateUnifiedRecommendationsUseCase:
     def test_generate_with_valuation_data(self, setup):
         """测试包含估值数据"""
         setup["feature_provider"].set_scores("000001.SZ", {"alpha": 0.85})
-        setup["valuation_provider"].set_valuation("000001.SZ", {
-            "fair_value": 20.00,
-            "entry_price_low": 19.00,
-            "entry_price_high": 19.50,
-            "target_price_low": 25.00,
-            "target_price_high": 28.00,
-            "stop_loss_price": 17.00,
-        })
+        setup["valuation_provider"].set_valuation(
+            "000001.SZ",
+            {
+                "fair_value": 20.00,
+                "entry_price_low": 19.00,
+                "entry_price_high": 19.50,
+                "target_price_low": 25.00,
+                "target_price_high": 28.00,
+                "stop_loss_price": 17.00,
+            },
+        )
 
-        response = setup["use_case"].execute(GenerateRecommendationsRequest(
-            account_id="account_001",
-            security_codes=["000001.SZ"],
-        ))
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001",
+                security_codes=["000001.SZ"],
+            )
+        )
 
         assert response.success is True
         rec = response.recommendations[0]
@@ -313,10 +354,12 @@ class TestGenerateUnifiedRecommendationsUseCase:
         setup["signal_provider"].add_signal("sig_002", "000001.SZ")
         setup["candidate_provider"].add_candidate("cand_001", "account_001", "000001.SZ")
 
-        response = setup["use_case"].execute(GenerateRecommendationsRequest(
-            account_id="account_001",
-            security_codes=["000001.SZ"],
-        ))
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001",
+                security_codes=["000001.SZ"],
+            )
+        )
 
         assert response.success is True
         rec = response.recommendations[0]
@@ -327,18 +370,23 @@ class TestGenerateUnifiedRecommendationsUseCase:
     def test_generate_determines_buy_side(self, setup):
         """测试确定 BUY 方向"""
         # 高分数应该生成 BUY
-        setup["feature_provider"].set_scores("000001.SZ", {
-            "sentiment": 0.80,
-            "flow": 0.75,
-            "technical": 0.82,
-            "fundamental": 0.85,
-            "alpha": 0.90,  # 高 Alpha
-        })
+        setup["feature_provider"].set_scores(
+            "000001.SZ",
+            {
+                "sentiment": 0.80,
+                "flow": 0.75,
+                "technical": 0.82,
+                "fundamental": 0.85,
+                "alpha": 0.90,  # 高 Alpha
+            },
+        )
 
-        response = setup["use_case"].execute(GenerateRecommendationsRequest(
-            account_id="account_001",
-            security_codes=["000001.SZ"],
-        ))
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001",
+                security_codes=["000001.SZ"],
+            )
+        )
 
         assert response.success is True
         rec = response.recommendations[0]
@@ -349,10 +397,12 @@ class TestGenerateUnifiedRecommendationsUseCase:
         """测试保存特征快照"""
         setup["feature_provider"].set_scores("000001.SZ", {"alpha": 0.85})
 
-        response = setup["use_case"].execute(GenerateRecommendationsRequest(
-            account_id="account_001",
-            security_codes=["000001.SZ"],
-        ))
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001",
+                security_codes=["000001.SZ"],
+            )
+        )
 
         assert response.success is True
         # 验证快照已保存
@@ -408,25 +458,31 @@ class TestGetUnifiedRecommendationsUseCase:
     def test_get_recommendations(self):
         """测试获取推荐列表"""
         repo = MockRecommendationRepository()
-        repo.save(UnifiedRecommendation(
-            recommendation_id="urec_001",
-            account_id="account_001",
-            security_code="000001.SZ",
-            side="BUY",
-            status=RecommendationStatus.NEW,
-        ))
-        repo.save(UnifiedRecommendation(
-            recommendation_id="urec_002",
-            account_id="account_001",
-            security_code="000002.SZ",
-            side="BUY",
-            status=RecommendationStatus.APPROVED,
-        ))
+        repo.save(
+            UnifiedRecommendation(
+                recommendation_id="urec_001",
+                account_id="account_001",
+                security_code="000001.SZ",
+                side="BUY",
+                status=RecommendationStatus.NEW,
+            )
+        )
+        repo.save(
+            UnifiedRecommendation(
+                recommendation_id="urec_002",
+                account_id="account_001",
+                security_code="000002.SZ",
+                side="BUY",
+                status=RecommendationStatus.APPROVED,
+            )
+        )
 
         use_case = GetUnifiedRecommendationsUseCase(repo)
-        response = use_case.execute(GetRecommendationsRequest(
-            account_id="account_001",
-        ))
+        response = use_case.execute(
+            GetRecommendationsRequest(
+                account_id="account_001",
+            )
+        )
 
         assert response.success is True
         assert len(response.recommendations) == 2
@@ -435,26 +491,32 @@ class TestGetUnifiedRecommendationsUseCase:
     def test_get_recommendations_by_status(self):
         """测试按状态获取推荐"""
         repo = MockRecommendationRepository()
-        repo.save(UnifiedRecommendation(
-            recommendation_id="urec_001",
-            account_id="account_001",
-            security_code="000001.SZ",
-            side="BUY",
-            status=RecommendationStatus.NEW,
-        ))
-        repo.save(UnifiedRecommendation(
-            recommendation_id="urec_002",
-            account_id="account_001",
-            security_code="000002.SZ",
-            side="BUY",
-            status=RecommendationStatus.APPROVED,
-        ))
+        repo.save(
+            UnifiedRecommendation(
+                recommendation_id="urec_001",
+                account_id="account_001",
+                security_code="000001.SZ",
+                side="BUY",
+                status=RecommendationStatus.NEW,
+            )
+        )
+        repo.save(
+            UnifiedRecommendation(
+                recommendation_id="urec_002",
+                account_id="account_001",
+                security_code="000002.SZ",
+                side="BUY",
+                status=RecommendationStatus.APPROVED,
+            )
+        )
 
         use_case = GetUnifiedRecommendationsUseCase(repo)
-        response = use_case.execute(GetRecommendationsRequest(
-            account_id="account_001",
-            status="APPROVED",
-        ))
+        response = use_case.execute(
+            GetRecommendationsRequest(
+                account_id="account_001",
+                status="APPROVED",
+            )
+        )
 
         assert response.success is True
         assert len(response.recommendations) == 1
@@ -480,18 +542,22 @@ class TestGetConflictsUseCase:
         repo.mark_as_conflict("urec_conflict")
 
         # 保存非冲突推荐
-        repo.save(UnifiedRecommendation(
-            recommendation_id="urec_normal",
-            account_id="account_001",
-            security_code="000002.SZ",
-            side="BUY",
-            status=RecommendationStatus.NEW,
-        ))
+        repo.save(
+            UnifiedRecommendation(
+                recommendation_id="urec_normal",
+                account_id="account_001",
+                security_code="000002.SZ",
+                side="BUY",
+                status=RecommendationStatus.NEW,
+            )
+        )
 
         use_case = GetConflictsUseCase(repo)
-        response = use_case.execute(GetConflictsRequest(
-            account_id="account_001",
-        ))
+        response = use_case.execute(
+            GetConflictsRequest(
+                account_id="account_001",
+            )
+        )
 
         assert response.success is True
         assert len(response.conflicts) == 1
