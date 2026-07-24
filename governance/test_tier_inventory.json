@@ -2,10 +2,10 @@
   "counts": {
     "acceptance": 2,
     "api": 51,
-    "component": 289,
+    "component": 291,
     "critical": 3,
     "e2e": 7,
-    "fast": 242,
+    "fast": 245,
     "guardrails": 18,
     "integration": 97,
     "migrations": 6,
@@ -142,6 +142,8 @@
     "tests/unit/policy/test_task_edges.py",
     "tests/unit/policy/test_tasks_notifications.py",
     "tests/unit/portfolio/test_transition_plan_rules.py",
+    "tests/unit/prompt/test_trace_logging_contracts.py",
+    "tests/unit/prompt/test_use_case_execution_contracts.py",
     "tests/unit/realtime/test_alert_domain.py",
     "tests/unit/realtime/test_price_polling_alerts.py",
     "tests/unit/regime/test_asset_eligibility.py",
@@ -164,6 +166,7 @@
     "tests/unit/strategy/test_allocation_service.py",
     "tests/unit/strategy/test_gateway_and_target_contracts.py",
     "tests/unit/strategy/test_order_state_machine.py",
+    "tests/unit/terminal/test_chat_router_contracts.py",
     "tests/unit/terminal/test_tui_contract_guardrails.py",
     "tests/unit/test_account_macro_sizing.py",
     "tests/unit/test_account_performance_domain.py",
@@ -3324,6 +3327,14 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/ai_provider/test_encrypt_api_keys_command.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/alpha/test_alpha_infrastructure_edges.py",
       "reasons": [
         "import:.infrastructure"
@@ -3589,6 +3600,14 @@
       "path": "tests/unit/core/test_test_data_connections_command.py",
       "reasons": [],
       "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/dashboard/test_t4a_serializer_contracts.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
     },
     {
       "database_dependent": false,
@@ -4538,6 +4557,18 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/prompt/test_trace_logging_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/prompt/test_use_case_execution_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/pulse/test_data_provider_guardrails.py",
       "reasons": [
         "import:.infrastructure"
@@ -4837,6 +4868,12 @@
         "import:rest_framework.test"
       ],
       "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/terminal/test_chat_router_contracts.py",
+      "reasons": [],
+      "tier": "fast"
     },
     {
       "database_dependent": false,
@@ -6250,6 +6287,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 7,
-  "unit_database_file_ratio": 0.0153,
-  "unit_file_count": 457
+  "unit_database_file_ratio": 0.0152,
+  "unit_file_count": 462
 }

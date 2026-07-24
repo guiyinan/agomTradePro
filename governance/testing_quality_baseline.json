@@ -6,9 +6,13 @@
     "default_module_minimum": 70.0,
     "core_module_minimum": 80.0,
     "module_minimums": {
+      "ai_provider": 80.0,
       "alpha": 85.0,
+      "dashboard": 80.0,
       "policy": 85.0,
-      "simulated_trading": 85.0
+      "prompt": 80.0,
+      "simulated_trading": 85.0,
+      "terminal": 80.0
     },
     "domain_module_minimum": 90.0,
     "domain_branch_minimum": 0.0,
