@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4238,
-    "files_with_errors": 702
+    "errors": 4229,
+    "files_with_errors": 701
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1305,9 +1305,6 @@
       "arg-type": 1,
       "misc": 2,
       "unused-ignore": 6
-    },
-    "apps/decision_rhythm/infrastructure/unified_repositories.py": {
-      "no-untyped-def": 9
     },
     "apps/decision_rhythm/infrastructure/valuation_adapters.py": {
       "no-any-return": 1

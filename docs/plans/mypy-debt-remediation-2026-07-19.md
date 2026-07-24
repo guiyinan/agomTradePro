@@ -1509,3 +1509,18 @@
 - 两个目标文件直接清除 `14` 条债务，完整传播额外清除 workspace API support 的 `1 attr-defined`。
 - Decision Rhythm API edges `18 passed`，证伪模板集成回归 `2 passed / 3 deselected`。
 - governance baseline 升级为 `2026-07-24.v182`，静态测试函数计数提升至 `7206`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百一十一批
+
+- 沿“统一推荐持久化影响面 × 审批链溯源正确性”收口 Decision Rhythm Unified Recommendation Repository，覆盖推荐、特征快照、用户动作、执行匹配、参数配置与审计日志。
+- Repository 所有 Domain 输入输出具化为 `UnifiedRecommendation`、`DecisionFeatureSnapshot`、`UserDecisionAction`、`ModelParamConfig` 与 `ModelParamAuditLog`，移除 Domain 实体字段上的动态 `hasattr/getattr`。
+- 推荐状态、用户动作与来源 ID 直接使用 Domain 契约持久化；Application 中因 Repository 返回具化而变成冗余的历史 cast 同步删除，完整传播不接受新增债务。
+- 修复 mapper 将 Django ForeignKey 数据库整数主键写入 Domain `feature_snapshot_id` 的溯源错误；现返回关联快照业务 `snapshot_id`。
+- 账户推荐与冲突推荐列表统一 `select_related("feature_snapshot")`，避免业务快照 ID 修复后产生 N+1 查询。
+- 新增业务快照 ID 映射回归。
+
+## 第一百一十一批验证结果
+
+- Unified Recommendation Repository mypy 清零；全仓基线从 `4238 errors / 702 files` 收紧为 `4229 errors / 701 files`，净减少 `9 errors / 1 file`，跨文件无新增。
+- 审批执行链回归 `9 passed`，推荐模型与仓储结构回归 `22 passed`。
+- governance baseline 升级为 `2026-07-24.v183`，静态测试函数计数提升至 `7207`；完整 mypy debt ceiling、改动文件 Ruff、Black 与 diff check 通过。
