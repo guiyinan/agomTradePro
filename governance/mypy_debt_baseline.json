@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2954,
-    "files_with_errors": 587
+    "errors": 2945,
+    "files_with_errors": 586
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -2025,9 +2025,6 @@
     },
     "apps/strategy/infrastructure/__init__.py": {
       "no-untyped-def": 1
-    },
-    "apps/strategy/infrastructure/models.py": {
-      "no-untyped-def": 9
     },
     "apps/strategy/interface/api_urls.py": {
       "no-untyped-def": 1

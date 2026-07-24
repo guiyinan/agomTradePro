@@ -2499,3 +2499,18 @@
 - Strategy Rule 与 Execution Log API 增量 mypy 清零；全仓基线从 `2969 errors / 589 files` 收紧为 `2954 errors / 587 files`，净减少 `15 errors / 2 files`。
 - Strategy SDK、Rule、Execution Log、结构和绑定一致性回归共 `59 passed`；覆盖跨账户规则写入/启停、双归属日志隔离、staff 覆盖、作用域参数与 signals count。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十三批
+
+- 按“策略风控参数持久化旁路 × 执行审计真实性”收口 Strategy ORM 数值不变量。
+- Strategy 的单资产上限、总仓位上限与可选止损比例增加数据库范围约束；直接 ORM 更新不能写入 0..100 之外的风险参数。
+- AI 策略的 temperature、max tokens 与 confidence threshold 增加组合约束；仓位规则价格精度、规则目标权重与组合覆盖参数同步受数据库保护。
+- Strategy Execution Log 的执行耗时必须非负；`QuerySet.update()`、bulk 或并发写入不能绕过 Application 层校验制造负耗时审计记录。
+- 新迁移 `0011_enforce_strategy_numeric_invariants` 只增加约束，不自动改写历史策略配置；若存在越界存量数据，迁移会明确失败并要求先审计处置。
+- Strategy ORM 模型的字符串表示与动态兼容导出补齐精确返回类型，清除该公共模型文件的全部 mypy 债务。
+
+## 第一百七十三批验证结果
+
+- Strategy ORM models 增量 mypy 清零；全仓基线从 `2954 errors / 587 files` 收紧为 `2945 errors / 586 files`，净减少 `9 errors / 1 file`。
+- Strategy unit、component、API 与 integration 回归共 `88 passed`；覆盖 direct ORM 越界更新拒绝、仓储生命周期、策略规则与执行日志既有路径。
+- 迁移漂移检查、改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
