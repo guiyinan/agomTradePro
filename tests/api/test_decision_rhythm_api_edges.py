@@ -339,3 +339,84 @@ def test_decision_workspace_recommendations_reject_invalid_page(
     payload = response.json()
     assert payload["success"] is False
     assert "page" in payload["error"]
+
+
+@pytest.mark.django_db
+def test_valuation_recalculate_rejects_non_object_body(authenticated_client):
+    response = authenticated_client.post(
+        "/api/valuation/recalculate/",
+        ["not", "an", "object"],
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "success": False,
+        "error": "request body must be a JSON object",
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("payload", "expected_error"),
+    [
+        (
+            {"security_code": "000001.SZ", "fair_value": "-1"},
+            "valuation prices must be positive",
+        ),
+        (
+            {
+                "security_code": "000001.SZ",
+                "fair_value": "10",
+                "valuation_method": "unknown",
+            },
+            "unsupported valuation_method",
+        ),
+        (
+            {
+                "security_code": "000001.SZ",
+                "fair_value": "10",
+                "input_parameters": "not-an-object",
+            },
+            "input_parameters must be a JSON object",
+        ),
+    ],
+)
+def test_valuation_recalculate_rejects_invalid_financial_input(
+    authenticated_client,
+    payload,
+    expected_error,
+):
+    response = authenticated_client.post(
+        "/api/valuation/recalculate/",
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == expected_error
+
+
+@pytest.mark.django_db
+def test_invalidation_ai_draft_normalizes_non_object_meta(authenticated_client):
+    ai_result = {
+        "status": "success",
+        "content": '{"logic":"AND","conditions":[],"meta":"invalid"}',
+        "provider_used": "test-provider",
+        "model": "test-model",
+    }
+
+    with patch(
+        "apps.decision_rhythm.interface.valuation_api_views.generate_chat_completion",
+        return_value=ai_result,
+    ):
+        response = authenticated_client.post(
+            "/api/decision/workspace/invalidation/ai-draft/",
+            {"security_code": "000001.SZ"},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    meta = response.json()["data"]["draft"]["meta"]
+    assert meta["security_code"] == "000001.SZ"
+    assert meta["side"] == "BUY"

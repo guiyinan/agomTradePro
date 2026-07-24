@@ -12,6 +12,17 @@ from apps.ai_provider.infrastructure.providers import (
     AIUserFallbackQuotaRepository,
 )
 
+__all__ = [
+    "AIClientFactory",
+    "build_ai_failover_helper",
+    "build_openai_compatible_adapter",
+    "get_ai_client_factory",
+    "get_ai_provider_repository",
+    "get_ai_usage_repository",
+    "get_ai_user_fallback_quota_repository",
+    "list_active_system_provider_payloads",
+]
+
 
 def get_ai_client_factory() -> AIClientFactory:
     """Return the default AI client factory."""

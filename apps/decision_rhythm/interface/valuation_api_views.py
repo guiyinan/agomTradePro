@@ -1,28 +1,55 @@
 """Valuation API views."""
 
 import json
+from collections.abc import Mapping
+from typing import Any, cast
 
 from rest_framework import status
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .workspace_api_support import (
+from apps.ai_provider.application.chat_completion import (
     AIClientFactory,
+    generate_chat_completion,
+)
+from apps.valuation.domain.entities import ValuationMethod
+
+from ..application.workspace_services import (
+    get_valuation_snapshot,
+    recalculate_valuation_snapshot,
+)
+from .workspace_api_support import (
     _build_system_invalidation_template,
     _decimal,
     _extract_json_payload,
     _pulse_context,
     _regime_context,
-    generate_chat_completion,
-    get_valuation_snapshot,
-    recalculate_valuation_snapshot,
 )
+
+
+def _request_payload(request: Request) -> Mapping[str, Any] | None:
+    """Return an object-shaped request body without leaking DRF's dynamic type."""
+
+    payload = request.data
+    if not isinstance(payload, Mapping):
+        return None
+    return cast(Mapping[str, Any], payload)
+
+
+def _object_body_error() -> Response:
+    """Return the stable error used when JSON body is not an object."""
+
+    return Response(
+        {"success": False, "error": "request body must be a JSON object"},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
 
 
 class ValuationSnapshotDetailView(APIView):
     """GET /api/valuation/snapshot/{snapshot_id}/"""
 
-    def get(self, request, snapshot_id: str) -> Response:
+    def get(self, request: Request, snapshot_id: str) -> Response:
         snapshot = get_valuation_snapshot(snapshot_id)
         if snapshot is None:
             return Response(
@@ -35,33 +62,68 @@ class ValuationSnapshotDetailView(APIView):
 class ValuationRecalculateView(APIView):
     """POST /api/valuation/recalculate/"""
 
-    def post(self, request) -> Response:
-        security_code = (request.data or {}).get("security_code")
+    def post(self, request: Request) -> Response:
+        payload = _request_payload(request)
+        if payload is None:
+            return _object_body_error()
+
+        security_code = str(payload.get("security_code") or "").strip().upper()
         if not security_code:
             return Response(
                 {"success": False, "error": "security_code is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        valuation_method = (request.data or {}).get("valuation_method", "COMPOSITE")
-        fair_value = _decimal((request.data or {}).get("fair_value"))
-        current_price = _decimal((request.data or {}).get("current_price"))
+        valuation_method = (
+            str(payload.get("valuation_method") or ValuationMethod.COMPOSITE.value).strip().upper()
+        )
+        supported_methods = {method.value for method in ValuationMethod}
+        if valuation_method not in supported_methods:
+            return Response(
+                {"success": False, "error": "unsupported valuation_method"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        fair_value = _decimal(payload.get("fair_value"))
+        current_price = _decimal(payload.get("current_price"))
         if fair_value is None and current_price is None:
             return Response(
                 {"success": False, "error": "fair_value or current_price is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        fair_value = fair_value or current_price
-        current_price = current_price or fair_value
+        if fair_value is None:
+            fair_value = current_price
+        if current_price is None:
+            current_price = fair_value
+        if fair_value is None or current_price is None:
+            return Response(
+                {"success": False, "error": "valid valuation prices are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if fair_value <= 0 or current_price <= 0:
+            return Response(
+                {"success": False, "error": "valuation prices must be positive"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        raw_input_parameters = payload.get("input_parameters")
+        if raw_input_parameters is None:
+            input_parameters: dict[str, Any] = {"source": "api_recalculate"}
+        elif isinstance(raw_input_parameters, Mapping):
+            input_parameters = {str(key): value for key, value in raw_input_parameters.items()}
+        else:
+            return Response(
+                {"success": False, "error": "input_parameters must be a JSON object"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         snapshot = recalculate_valuation_snapshot(
             security_code=security_code,
             valuation_method=valuation_method,
             fair_value=fair_value,
             current_price=current_price,
-            input_parameters=(request.data or {}).get("input_parameters")
-            or {"source": "api_recalculate"},
+            input_parameters=input_parameters,
         )
         return Response(
             {"success": True, "data": snapshot.to_dict()}, status=status.HTTP_201_CREATED
@@ -71,10 +133,14 @@ class ValuationRecalculateView(APIView):
 class InvalidationTemplateView(APIView):
     """POST /api/decision/workspace/invalidation/template/"""
 
-    def post(self, request) -> Response:
-        security_code = str((request.data or {}).get("security_code") or "").strip().upper()
-        side = str((request.data or {}).get("side") or "BUY").strip().upper()
-        rationale = str((request.data or {}).get("rationale") or "").strip()
+    def post(self, request: Request) -> Response:
+        payload = _request_payload(request)
+        if payload is None:
+            return _object_body_error()
+
+        security_code = str(payload.get("security_code") or "").strip().upper()
+        side = str(payload.get("side") or "BUY").strip().upper()
+        rationale = str(payload.get("rationale") or "").strip()
 
         if not security_code:
             return Response(
@@ -102,12 +168,25 @@ class InvalidationTemplateView(APIView):
 class InvalidationAIDraftView(APIView):
     """POST /api/decision/workspace/invalidation/ai-draft/"""
 
-    def post(self, request) -> Response:
-        security_code = str((request.data or {}).get("security_code") or "").strip().upper()
-        side = str((request.data or {}).get("side") or "BUY").strip().upper()
-        rationale = str((request.data or {}).get("rationale") or "").strip()
-        user_prompt = str((request.data or {}).get("user_prompt") or "").strip()
-        existing_rule = (request.data or {}).get("existing_rule") or {}
+    def post(self, request: Request) -> Response:
+        payload = _request_payload(request)
+        if payload is None:
+            return _object_body_error()
+
+        security_code = str(payload.get("security_code") or "").strip().upper()
+        side = str(payload.get("side") or "BUY").strip().upper()
+        rationale = str(payload.get("rationale") or "").strip()
+        user_prompt = str(payload.get("user_prompt") or "").strip()
+        raw_existing_rule = payload.get("existing_rule")
+        if raw_existing_rule is None:
+            existing_rule: dict[str, Any] = {}
+        elif isinstance(raw_existing_rule, Mapping):
+            existing_rule = {str(key): value for key, value in raw_existing_rule.items()}
+        else:
+            return Response(
+                {"success": False, "error": "existing_rule must be a JSON object"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if not security_code:
             return Response(
@@ -169,14 +248,15 @@ class InvalidationAIDraftView(APIView):
             )
 
         try:
-            draft = _extract_json_payload(ai_response.get("content", ""))
-        except Exception as exc:
+            raw_content = str(ai_response.get("content") or "")
+            draft = _extract_json_payload(raw_content)
+        except (TypeError, ValueError) as exc:
             return Response(
                 {
                     "success": False,
                     "error": f"AI 返回解析失败: {exc}",
                     "fallback_template": system_template,
-                    "raw_content": ai_response.get("content", ""),
+                    "raw_content": str(ai_response.get("content") or ""),
                 },
                 status=status.HTTP_502_BAD_GATEWAY,
             )
@@ -185,11 +265,13 @@ class InvalidationAIDraftView(APIView):
         draft.setdefault("conditions", [])
         draft.setdefault("requires_user_confirmation", False)
         draft.setdefault("description", "AI 生成的证伪草稿")
-        draft.setdefault("meta", {})
-        draft["meta"]["security_code"] = security_code
-        draft["meta"]["side"] = side
-        draft["meta"]["pulse_context"] = pulse
-        draft["meta"]["regime_context"] = regime
+        raw_meta = draft.get("meta")
+        meta = raw_meta if isinstance(raw_meta, dict) else {}
+        meta["security_code"] = security_code
+        meta["side"] = side
+        meta["pulse_context"] = pulse
+        meta["regime_context"] = regime
+        draft["meta"] = meta
 
         return Response(
             {

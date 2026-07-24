@@ -3,24 +3,43 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import Any, Protocol
 
 from apps.ai_provider.application.repository_provider import (
-    AIClientFactory,  # noqa: F401
+    AIClientFactory as AIClientFactory,
+)
+from apps.ai_provider.application.repository_provider import (
     get_ai_client_factory,
 )
 
 
+class ChatCompletionClientProtocol(Protocol):
+    """Client surface used by the application chat helper."""
+
+    def chat_completion(self, **kwargs: Any) -> dict[str, Any]: ...
+
+
+class AIClientFactoryProtocol(Protocol):
+    """Factory surface used by the application chat helper."""
+
+    def get_client(
+        self,
+        provider_ref: Any | None = None,
+        user: Any | None = None,
+    ) -> ChatCompletionClientProtocol: ...
+
+
 def _resolve_ai_client(
     *,
-    factory: Any,
+    factory: AIClientFactoryProtocol,
     provider_ref: Any | None,
     user: Any | None,
-) -> Any:
+) -> ChatCompletionClientProtocol:
     """Call `get_client` with only the parameters the injected factory accepts."""
     get_client = factory.get_client
     try:
-        parameters = inspect.signature(get_client).parameters
+        parameters: Mapping[str, inspect.Parameter] = inspect.signature(get_client).parameters
     except (TypeError, ValueError):
         parameters = {}
 
@@ -43,7 +62,7 @@ def generate_chat_completion(
     max_tokens: int = 500,
     user: Any | None = None,
     provider_ref: Any | None = None,
-    factory_builder=get_ai_client_factory,
+    factory_builder: Callable[[], AIClientFactoryProtocol] = get_ai_client_factory,
 ) -> dict[str, Any]:
     """Generate a chat completion through the configured AI provider."""
     ai_client = _resolve_ai_client(
