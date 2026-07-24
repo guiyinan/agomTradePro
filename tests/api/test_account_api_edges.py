@@ -796,6 +796,47 @@ def test_account_observer_positions_reject_invalid_uuid(authenticated_client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query",
+    [
+        {"as_observer": "2"},
+        {"status": "unknown"},
+        {"owner_id": "1"},
+    ],
+)
+def test_account_observer_list_rejects_ambiguous_scope_query(
+    authenticated_client,
+    query,
+):
+    response = authenticated_client.get("/api/account/observer-grants/", query)
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_account_observer_detail_forbids_unrelated_user(
+    authenticated_client,
+):
+    owner = get_user_model().objects.create_user(
+        username="unrelated-grant-owner",
+        password="testpass123",
+    )
+    observer = get_user_model().objects.create_user(
+        username="unrelated-grant-observer",
+        password="testpass123",
+    )
+    grant = PortfolioObserverGrantModel.objects.create(
+        owner_user_id=owner,
+        observer_user_id=observer,
+        expires_at=timezone.now() + timedelta(days=7),
+    )
+
+    response = authenticated_client.get(f"/api/account/observer-grants/{grant.id}/")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_account_transaction_create_returns_403_for_foreign_position(authenticated_client):
     other_user = get_user_model().objects.create_user(
         username="foreign_position_owner",

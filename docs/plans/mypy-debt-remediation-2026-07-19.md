@@ -2542,3 +2542,18 @@
 - Account Ledger Migration 增量 mypy 清零；全仓基线从 `2937 errors / 580 files` 收紧为 `2926 errors / 579 files`，净减少 `11 errors / 1 file`。
 - Ledger Unification Acceptance 回归共 `11 passed`；新增覆盖 0、负数、布尔和字符串 user scope，保留多组合独立迁移、非整数份额、幂等和统一平仓链路。
 - 改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十六批
+
+- 按“观察员持仓隐私 × 授权对象级访问影响面”收口 Account Observer Grant API。
+- 观察员列表只接受 `as_observer=0|1` 与 `status=active|revoked|expired`；歧义值和未知参数返回 400，不再静默退化到 owner 视角或产生不可审计空结果。
+- 授权详情、更新、撤销与持仓动作统一使用已验证的正整数用户主键比较，不再依赖动态 User 对象相等判断。
+- 无关用户访问授权详情现在稳定返回显式 403，兑现 ViewSet 的对象存在但无权限契约；owner 与 observer 的合法详情访问保持不变。
+- 创建和更新钩子要求 serializer 返回真实持久化对象；缺失实例不再继续审计或序列化伪成功响应。
+- 审计日志入口、客户端 IP、Request/Response、Serializer、QuerySet 与 DRF action wrapper 补齐精确边界类型。
+
+## 第一百七十六批验证结果
+
+- Account Observer Grant API 增量 mypy 清零；全仓基线从 `2926 errors / 579 files` 收紧为 `2908 errors / 578 files`，净减少 `18 errors / 1 file`。
+- Account API、Observer Permission 与 Observer Model 回归共 `89 passed`；新增覆盖歧义 scope 参数和无关用户详情访问，保留 owner/observer、过期、撤销和持仓权限链路。
+- 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
