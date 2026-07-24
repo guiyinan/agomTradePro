@@ -37,6 +37,8 @@ The ratchet evaluates:
 
 - `apps` repository line and branch coverage;
 - per-App line coverage;
+- optional per-App overrides from `coverage.module_minimums`, used to lock completed remediation
+  modules above the shared core/default floor;
 - Domain line and branch coverage;
 - independent line and branch totals for `apps/core/shared/sdk`;
 - missing required reports.

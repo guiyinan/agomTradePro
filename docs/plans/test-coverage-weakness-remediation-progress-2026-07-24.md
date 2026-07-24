@@ -14,7 +14,8 @@
 3. T2：启用分支采集，先建立可见基线，不用降低既有行覆盖门槛换取通过。
 4. T3A 首批：只对 `data_center/account/decision_rhythm` 的高损失半径补行为测试。
 
-`alpha/policy/simulated_trading`、生产部署修复和其他治理主线不在本批扩散。
+首批提交完成后，2026-07-25 按原计划单独推进 T3B：
+`alpha/policy/simulated_trading`。生产部署修复和其他治理主线不在 T3B 扩散。
 
 ## 分支与并行工作隔离
 
@@ -71,7 +72,7 @@ merge 或 cherry-pick。
 
 | Scope | 行覆盖率 | 分支覆盖率 | 初始 ratchet |
 |---|---:|---:|---|
-| `apps` | 80.64% | 62.91% | line 80.0 / branch 62.8 |
+| `apps` | 81.13% | 63.42% | line 80.0 / branch 62.8 |
 | `core` | 69.47% | 51.33% | line 69.4 / branch 51.3 |
 | `shared` | 69.07% | 50.29% | line 69.0 / branch 50.2 |
 | SDK/MCP | 72.16% | 52.38% | line 72.1 / branch 52.3 |
@@ -115,6 +116,21 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
 - 修复模拟交易集成 fixture 的必需 `min_commission`，相关 `24 passed`。
 - 为 Backtest 补齐 Audit gateway fail-closed 和 interface service 契约，恢复既有
   核心模块 80% 门槛。
+- T3B 已按独立批次完成：
+  - Alpha 覆盖运行时刷新、Qlib 缓存降级、空预测、组合隔离、投递锁回滚、
+    运维摘要、基本面完整性与行情/model 失败；
+  - Policy 覆盖 Celery 重试耗尽、RSS 两阶段保存、AI/关键词降级、内容提取、
+    事件身份更新/删除、告警和新闻源失败；
+  - Simulated Trading 覆盖账户所有权、组合/成交查询、持仓关闭、日检分支、
+    绩效部分失败、邮件通知和 Repository 初始化失败；
+  - 三个模块分别建立 85% 机器阈值，`scripts/check_coverage_ratchet.py`
+    支持逐模块 `module_minimums`，避免抬高尚未收口的其他核心模块门槛；
+  - T3B 新增/调整测试整批 `84 passed`，三个目标模块相关 Unit 回归
+    `248 passed, 6 warnings`。
+- T3B 后的模块覆盖率：
+  - `alpha=85.05%`（`5,133 / 6,035`），分支 `70.71%`；
+  - `policy=85.06%`（`4,373 / 5,141`），分支 `67.71%`；
+  - `simulated_trading=85.01%`（`5,018 / 5,903`），分支 `69.28%`。
 - Fast suite：`3,578 passed in 31.03s`，总耗时 `45.22s`，低于 120 秒预算。
 - 固定高风险链路：`229 passed`。
 - 最终 coverage ratchet 已通过。
@@ -130,7 +146,7 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
   - `data_center=77.85%`；
   - `account=81.23%`；
   - `decision_rhythm=83.51%`。
-- T3B、T4、T5 和最终 T6 收口尚未开始；应按原计划在后续独立批次推进，不能在本批
+- T4、T5 和最终 T6 收口尚未开始；应按原计划在后续独立批次推进，不能在本批
   用扩大 omit 或降低阈值替代。
 - Integration 修复后仅重跑了受影响的 24 项，完整 Integration 尚未二次全量重跑。
 - PostgreSQL、Celery worker、live/optional runtime 和 Playwright RC 尚未在本地执行。
