@@ -5,8 +5,8 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from django.core.exceptions import ValidationError  # type: ignore[import-untyped]
-from django.db import models  # type: ignore[import-untyped]
+from django.core.exceptions import ValidationError
+from django.db import models
 
 from ..domain.entities import (
     CooldownPeriod,
@@ -20,7 +20,7 @@ from ..domain.entities import (
 )
 
 
-class DecisionQuotaModel(models.Model):  # type: ignore[misc]
+class DecisionQuotaModel(models.Model):
     """
     决策配额 ORM 模型
 
@@ -145,7 +145,7 @@ class DecisionQuotaModel(models.Model):  # type: ignore[misc]
             DecisionQuotaModel 实例
         """
         return cls(
-            quota_id=quota.quota_id,
+            quota_id=quota.quota_id or f"quota_{uuid.uuid4().hex[:12]}",
             account_id=quota.account_id or "default",
             period=quota.period.value,
             max_decisions=quota.max_decisions,
@@ -157,7 +157,7 @@ class DecisionQuotaModel(models.Model):  # type: ignore[misc]
         )
 
 
-class CooldownPeriodModel(models.Model):  # type: ignore[misc]
+class CooldownPeriodModel(models.Model):
     """
     冷却期 ORM 模型
 
@@ -235,7 +235,7 @@ class CooldownPeriodModel(models.Model):  # type: ignore[misc]
             CooldownPeriodModel 实例
         """
         return cls(
-            cooldown_id=cooldown.cooldown_id,
+            cooldown_id=cooldown.cooldown_id or f"cooldown_{uuid.uuid4().hex[:12]}",
             asset_code=cooldown.asset_code,
             last_decision_at=cooldown.last_decision_at,
             last_execution_at=cooldown.last_execution_at,
@@ -245,7 +245,7 @@ class CooldownPeriodModel(models.Model):  # type: ignore[misc]
         )
 
 
-class DecisionRequestModel(models.Model):  # type: ignore[misc]
+class DecisionRequestModel(models.Model):
     """
     决策请求 ORM 模型
 
@@ -475,7 +475,7 @@ class DecisionRequestModel(models.Model):  # type: ignore[misc]
         )
 
 
-class DecisionResponseModel(models.Model):  # type: ignore[misc]
+class DecisionResponseModel(models.Model):
     """
     决策响应 ORM 模型
 
@@ -554,7 +554,7 @@ class DecisionResponseModel(models.Model):  # type: ignore[misc]
             DecisionResponse 实体
         """
         return DecisionResponse(
-            request_id=self.request_id,
+            request_id=request.request_id,
             approved=self.approved,
             approval_reason=self.approval_reason,
             scheduled_at=self.scheduled_at,
@@ -562,7 +562,7 @@ class DecisionResponseModel(models.Model):  # type: ignore[misc]
             rejection_reason=self.rejection_reason,
             wait_until=self.wait_until,
             alternative_suggestions=self.alternative_suggestions or [],
-            quota_status=str(self.quota_status) if self.quota_status else None,
+            quota_status=self.quota_status,
             cooldown_status=self.cooldown_status,
             responded_at=self.responded_at,
         )

@@ -265,8 +265,9 @@ class CooldownManager:
 
         if check_execution:
             # 检查执行冷却
-            if not cooldown.is_execution_ready:
-                ready_at = cooldown.last_execution_at + timedelta(
+            last_execution_at = cooldown.last_execution_at
+            if last_execution_at is not None and not cooldown.is_execution_ready:
+                ready_at = last_execution_at + timedelta(
                     hours=cooldown.min_execution_interval_hours
                 )
                 return CooldownCheckResult(
@@ -277,10 +278,9 @@ class CooldownManager:
                 )
         else:
             # 检查决策冷却
-            if not cooldown.is_decision_ready:
-                ready_at = cooldown.last_decision_at + timedelta(
-                    hours=cooldown.min_decision_interval_hours
-                )
+            last_decision_at = cooldown.last_decision_at
+            if last_decision_at is not None and not cooldown.is_decision_ready:
+                ready_at = last_decision_at + timedelta(hours=cooldown.min_decision_interval_hours)
                 return CooldownCheckResult(
                     passed=False,
                     reason=f"决策冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时",
@@ -434,7 +434,7 @@ class RhythmManager:
             reverse=True,
         )
 
-        responses = []
+        responses: list[DecisionResponse] = []
         for request in sorted_requests:
             response = self.submit_request(request, quota_period)
             responses.append(response)
@@ -510,13 +510,14 @@ class DecisionScheduler:
         if not self.queue:
             return None
 
-        # 按优先级和请求时间排序
-        self.queue.sort(
-            key=lambda r: (r.priority_level, r.requested_at.timestamp()),
-            reverse=True,
+        # 高优先级优先；同优先级保持先到先处理，避免新请求长期挤压旧请求。
+        return min(
+            self.queue,
+            key=lambda request: (
+                -request.priority_level,
+                request.requested_at.timestamp(),
+            ),
         )
-
-        return self.queue[0]
 
     def remove_request(self, request_id: str) -> bool:
         """
@@ -543,7 +544,7 @@ class DecisionScheduler:
         if not self.queue:
             return {"size": 0, "by_priority": {}}
 
-        by_priority = {}
+        by_priority: dict[str, int] = {}
         for request in self.queue:
             priority = request.priority.value
             by_priority[priority] = by_priority.get(priority, 0) + 1

@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any
+from typing import Any, NotRequired, TypedDict, Unpack
 
 
 class DecisionPriority(Enum):
@@ -157,7 +157,7 @@ class DecisionQuota:
     max_executions: int | None = None
     is_active: bool = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.max_execution_count == 0 and self.max_executions is not None:
             object.__setattr__(self, "max_execution_count", self.max_executions)
 
@@ -477,7 +477,7 @@ class DecisionRequest:
     notional: float | None = None
     status: DecisionStatus = DecisionStatus.PENDING
     created_at: datetime | None = None
-    requested_at: datetime = field(default_factory=datetime.now)
+    requested_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     expires_at: datetime | None = None
     # 新增字段：首页主流程闭环改造
     candidate_id: str | None = None
@@ -518,7 +518,7 @@ class DecisionRequest:
         """是否有执行目标"""
         return self.execution_target != ExecutionTarget.NONE
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.created_at is not None:
             object.__setattr__(self, "requested_at", self.created_at)
 
@@ -620,9 +620,9 @@ class DecisionResponse:
     rejection_reason: str | None = None
     wait_until: datetime | None = None
     alternative_suggestions: list[str] = field(default_factory=list)
-    quota_status: str | None = None
+    quota_status: dict[str, Any] | None = None
     cooldown_status: str | None = None
-    responded_at: datetime = field(default_factory=datetime.now)
+    responded_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
@@ -789,13 +789,32 @@ def create_cooldown(
     )
 
 
+class CreateRequestOptions(TypedDict):
+    """Optional fields accepted by :func:`create_request`."""
+
+    trigger_id: NotRequired[str | None]
+    expected_confidence: NotRequired[float]
+    quota_period: NotRequired[QuotaPeriod | None]
+    quantity: NotRequired[int | None]
+    notional: NotRequired[float | None]
+    status: NotRequired[DecisionStatus]
+    created_at: NotRequired[datetime | None]
+    requested_at: NotRequired[datetime]
+    expires_at: NotRequired[datetime | None]
+    candidate_id: NotRequired[str | None]
+    execution_target: NotRequired[ExecutionTarget]
+    execution_status: NotRequired[ExecutionStatus]
+    executed_at: NotRequired[datetime | None]
+    execution_ref: NotRequired[dict[str, Any] | None]
+
+
 def create_request(
     asset_code: str,
     asset_class: str,
     direction: str,
     priority: DecisionPriority,
     reason: str = "",
-    **kwargs,
+    **kwargs: Unpack[CreateRequestOptions],
 ) -> DecisionRequest:
     """
     创建决策请求的便捷函数
