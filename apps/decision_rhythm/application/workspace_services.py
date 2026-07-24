@@ -5,9 +5,10 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any
 
 from django.conf import settings
+from django.db import DatabaseError
 
 from apps.asset_analysis.application.asset_name_service import resolve_asset_names_read_only
 from apps.equity.application.query_services import get_valuation_repair_snapshot_map
@@ -58,6 +59,15 @@ from .use_cases import (
 )
 
 logger = logging.getLogger(__name__)
+
+RISK_CHECK_EXCEPTIONS = (
+    AttributeError,
+    DatabaseError,
+    LookupError,
+    RuntimeError,
+    TypeError,
+    ValueError,
+)
 
 
 def get_simulated_position_snapshots(account_id: int | str) -> list[dict[str, Any]]:
@@ -155,8 +165,8 @@ def build_recommendation_risk_checks(
             "remaining": quota.remaining_decisions if quota else 0,
             "reason": "" if quota_ok else "周配额不足",
         }
-    except Exception as exc:
-        result["quota"] = {"passed": True, "reason": f"quota check skipped: {exc}"}
+    except RISK_CHECK_EXCEPTIONS as exc:
+        result["quota"] = {"passed": False, "reason": f"配额检查失败: {exc}"}
 
     try:
         cooldown = get_cooldown_repository().get_active_cooldown(recommendation.security_code)
@@ -167,8 +177,8 @@ def build_recommendation_risk_checks(
             "hours_remaining": hours_remaining,
             "reason": "" if cooldown_ok else f"冷却期内，剩余 {hours_remaining:.1f} 小时",
         }
-    except Exception as exc:
-        result["cooldown"] = {"passed": True, "reason": f"cooldown check skipped: {exc}"}
+    except RISK_CHECK_EXCEPTIONS as exc:
+        result["cooldown"] = {"passed": False, "reason": f"冷却检查失败: {exc}"}
 
     return result
 
@@ -190,8 +200,8 @@ def build_plan_risk_checks(plan: PortfolioTransitionPlan) -> dict[str, Any]:
             "remaining": quota.remaining_decisions if quota else 0,
             "reason": "" if quota_ok else "周配额不足",
         }
-    except Exception as exc:
-        risk_checks["quota"] = {"passed": True, "reason": f"quota check skipped: {exc}"}
+    except RISK_CHECK_EXCEPTIONS as exc:
+        risk_checks["quota"] = {"passed": False, "reason": f"配额检查失败: {exc}"}
 
     cooldown_failures: list[str] = []
     cooldown_repo = get_cooldown_repository()
@@ -204,8 +214,8 @@ def build_plan_risk_checks(plan: PortfolioTransitionPlan) -> dict[str, Any]:
                 cooldown_failures.append(
                     f"{order.security_code}: 剩余 {cooldown.decision_ready_in_hours:.1f} 小时"
                 )
-        except Exception:
-            continue
+        except RISK_CHECK_EXCEPTIONS as exc:
+            cooldown_failures.append(f"{order.security_code}: 冷却检查失败 ({exc})")
 
     risk_checks["cooldown"] = {
         "passed": not cooldown_failures,
@@ -254,21 +264,18 @@ def build_transition_plan_for_account(
         signal_payloads=signal_payloads,
     )
     if persist:
-        plan = cast(PortfolioTransitionPlan, get_portfolio_transition_plan_repository().save(plan))
+        plan = get_portfolio_transition_plan_repository().save(plan)
     return plan
 
 
 def get_transition_plan(plan_id: str) -> PortfolioTransitionPlan | None:
     """Fetch a transition plan by id."""
-    return cast(
-        PortfolioTransitionPlan | None,
-        get_portfolio_transition_plan_repository().get_by_id(plan_id),
-    )
+    return get_portfolio_transition_plan_repository().get_by_id(plan_id)
 
 
 def save_transition_plan(plan: PortfolioTransitionPlan) -> PortfolioTransitionPlan:
     """Persist a transition plan."""
-    return cast(PortfolioTransitionPlan, get_portfolio_transition_plan_repository().save(plan))
+    return get_portfolio_transition_plan_repository().save(plan)
 
 
 def serialize_transition_plan_payload(plan: PortfolioTransitionPlan) -> dict[str, Any]:
@@ -326,15 +333,12 @@ def create_plan_approval(
     market_price: Decimal | None,
 ) -> ExecutionApprovalRequest:
     """Create an approval request for a transition plan."""
-    return cast(
-        ExecutionApprovalRequest,
-        get_execution_approval_request_repository().create_for_transition_plan(
-            plan,
-            account_id=account_id,
-            risk_checks=risk_checks,
-            regime_source=regime_source,
-            market_price=market_price,
-        ),
+    return get_execution_approval_request_repository().create_for_transition_plan(
+        plan,
+        account_id=account_id,
+        risk_checks=risk_checks,
+        regime_source=regime_source,
+        market_price=market_price,
     )
 
 
@@ -347,15 +351,12 @@ def create_unified_approval(
     market_price: Decimal | None,
 ) -> ExecutionApprovalRequest:
     """Create an approval request for a unified recommendation."""
-    return cast(
-        ExecutionApprovalRequest,
-        get_execution_approval_request_repository().create_for_unified_recommendation(
-            recommendation,
-            account_id=account_id,
-            risk_checks=risk_checks,
-            regime_source=regime_source,
-            market_price=market_price,
-        ),
+    return get_execution_approval_request_repository().create_for_unified_recommendation(
+        recommendation,
+        account_id=account_id,
+        risk_checks=risk_checks,
+        regime_source=regime_source,
+        market_price=market_price,
     )
 
 
@@ -375,10 +376,7 @@ def create_legacy_approval(
         regime_source=regime_source,
         market_price_at_review=market_price,
     )
-    return cast(
-        ExecutionApprovalRequest,
-        get_execution_approval_request_repository().save(approval_request),
-    )
+    return get_execution_approval_request_repository().save(approval_request)
 
 
 def has_pending_request(account_id: str, security_code: str, side: str) -> bool:
@@ -390,10 +388,7 @@ def has_pending_request(account_id: str, security_code: str, side: str) -> bool:
 
 def get_approval_request(request_id: str) -> ExecutionApprovalRequest | None:
     """Fetch an approval request by id."""
-    return cast(
-        ExecutionApprovalRequest | None,
-        get_execution_approval_request_repository().get_by_id(request_id),
-    )
+    return get_execution_approval_request_repository().get_by_id(request_id)
 
 
 def update_approval_request_status(
@@ -403,13 +398,10 @@ def update_approval_request_status(
     reviewer_comments: str | None = None,
 ) -> ExecutionApprovalRequest | None:
     """Update approval status and return the latest request."""
-    return cast(
-        ExecutionApprovalRequest | None,
-        get_execution_approval_request_repository().update_status(
-            request_id=request_id,
-            approval_status=approval_status,
-            reviewer_comments=reviewer_comments,
-        ),
+    return get_execution_approval_request_repository().update_status(
+        request_id=request_id,
+        approval_status=approval_status,
+        reviewer_comments=reviewer_comments,
     )
 
 
@@ -420,10 +412,7 @@ def get_related_candidate_ids(request_id: str) -> list[str]:
 
 def get_valuation_snapshot(snapshot_id: str) -> ValuationSnapshot | None:
     """Fetch valuation snapshot by id."""
-    return cast(
-        ValuationSnapshot | None,
-        get_valuation_snapshot_repository().get_by_id(snapshot_id),
-    )
+    return get_valuation_snapshot_repository().get_by_id(snapshot_id)
 
 
 def recalculate_valuation_snapshot(
@@ -442,7 +431,7 @@ def recalculate_valuation_snapshot(
         current_price=current_price,
         input_parameters=input_parameters,
     )
-    return cast(ValuationSnapshot, get_valuation_snapshot_repository().save(snapshot))
+    return get_valuation_snapshot_repository().save(snapshot)
 
 
 def get_aggregated_workspace_payload(account_id: str | None) -> list[dict[str, Any]]:
@@ -502,10 +491,7 @@ def get_legacy_recommendation(
     recommendation_id: str,
 ) -> InvestmentRecommendation | None:
     """Fetch a legacy investment recommendation."""
-    return cast(
-        InvestmentRecommendation | None,
-        get_investment_recommendation_repository().get_by_id(recommendation_id),
-    )
+    return get_investment_recommendation_repository().get_by_id(recommendation_id)
 
 
 def list_workspace_recommendations(
