@@ -2404,3 +2404,18 @@
 - Simulated Trading ORM models 增量 mypy 清零；全仓基线从 `3078 errors / 598 files` 收紧为 `3065 errors / 597 files`，净减少 `13 errors / 1 file`。
 - 模拟交易 Domain、费用、买卖订单、仓位、净值、任务和集成回归共 `220 passed`；覆盖非法费率、失败替换保留旧默认、原子默认切换和数据库绕过约束。
 - 迁移漂移检查通过；改动文件 Ruff、Black 与增量 mypy 通过，提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十七批
+
+- 按“账户压力测试结果可信度 × 外部行情动态数据边界”收口 Historical Stress Testing Application。
+- 压力测试持仓输入在计算前收窄为明确的 `TypedDict`：资产代码必须为非空且唯一，权重必须为正有限数；重复标的、布尔、NaN、无穷和非正权重不再进入收益聚合。
+- 历史行情的交易日与涨跌幅在第三方 DataFrame 边界逐项校验；NaN、无穷、布尔和低于 `-100%` 的不可能收益不再污染净值、波动率与 VaR。
+- VaR 置信度必须为 0 到 1 之间的有限数，收益序列必须全部有限；最大回撤拒绝负数或非有限净值曲线，避免错误风险指标被当作有效结果。
+- Position Repository 改为通过 Application provider factory 和精确 Protocol 注入，不再在用例构造器中直接实例化具体仓储。
+- 情景与结果 DTO 改为不可变 dataclass；回撤 tuple、日期集合、动态行情映射和持仓容器补齐精确类型。
+
+## 第一百六十七批验证结果
+
+- Account Historical Stress Testing 增量 mypy 清零；全仓基线从 `3065 errors / 597 files` 收紧为 `3060 errors / 596 files`，净减少 `5 errors / 1 file`。
+- Account 单元回归共 `86 passed`；覆盖非法置信度、非有限收益/净值、重复资产、非法权重、无行情与既有历史情景聚合。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

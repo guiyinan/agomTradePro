@@ -3,6 +3,7 @@
 from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -15,10 +16,10 @@ from apps.account.application.stress_testing_use_cases import (
 
 
 class _PositionRepo:
-    def __init__(self, positions: list[dict[str, object]]) -> None:
+    def __init__(self, positions: list[dict[str, Any]]) -> None:
         self.positions = positions
 
-    def list_portfolio_position_weights(self, portfolio_id: int) -> list[dict[str, object]]:
+    def list_portfolio_position_weights(self, portfolio_id: int) -> list[dict[str, Any]]:
         assert portfolio_id == 7
         return self.positions
 
@@ -105,6 +106,54 @@ def test_var_drawdown_scenarios_and_recommendation_boundaries() -> None:
     ) == ["组合在该场景下表现尚可，继续保持当前策略"]
     assert HistoricalScenarioService.get_scenario("2020_covid") is not None
     assert len(HistoricalScenarioService.get_all_scenarios()) == 3
+
+
+@pytest.mark.parametrize("confidence", [0.0, 1.0, float("nan"), float("inf")])
+def test_historical_var_rejects_invalid_confidence(confidence: float) -> None:
+    with pytest.raises(ValueError, match="置信度"):
+        VaRService.calculate_historical_var([-0.1, 0.1], confidence)
+
+
+def test_stress_testing_rejects_nonfinite_market_data_and_invalid_positions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "apps.account.application.business_provider_gateway.get_tushare_stock_adapter",
+        lambda: SimpleNamespace(
+            fetch_daily_data=lambda *args, **kwargs: pd.DataFrame(
+                [{"trade_date": pd.Timestamp("2015-06-12"), "pct_chg": float("nan")}]
+            )
+        ),
+    )
+    invalid_market_data = StressTestingUseCase(
+        _PositionRepo([{"asset_code": "000001.SZ", "weight": 1.0}])
+    )
+    with pytest.raises(ValueError, match="无法获取"):
+        invalid_market_data.run_historical_scenario_test(7, "2015_crash")
+
+    duplicate_positions = StressTestingUseCase(
+        _PositionRepo(
+            [
+                {"asset_code": "000001.SZ", "weight": 0.5},
+                {"asset_code": "000001.SZ", "weight": 0.5},
+            ]
+        )
+    )
+    with pytest.raises(ValueError, match="重复资产代码"):
+        duplicate_positions.run_historical_scenario_test(7, "2015_crash")
+
+    invalid_weight = StressTestingUseCase(
+        _PositionRepo([{"asset_code": "000001.SZ", "weight": float("inf")}])
+    )
+    with pytest.raises(ValueError, match="权重必须"):
+        invalid_weight.run_historical_scenario_test(7, "2015_crash")
+
+
+def test_risk_metrics_reject_nonfinite_series() -> None:
+    with pytest.raises(ValueError, match="收益率序列"):
+        VaRService.calculate_historical_var([float("nan")])
+    with pytest.raises(ValueError, match="净值曲线"):
+        VaRService.calculate_max_drawdown([100.0, float("inf")])
 
 
 def test_run_all_scenarios_preserves_catalog_order(

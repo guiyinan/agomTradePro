@@ -10,15 +10,10 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3065,
-    "files_with_errors": 597
+    "errors": 3060,
+    "files_with_errors": 596
   },
   "modules": {
-    "apps/account/application/stress_testing_use_cases.py": {
-      "assignment": 1,
-      "operator": 1,
-      "type-arg": 3
-    },
     "apps/account/application/tasks.py": {
       "arg-type": 1
     },
