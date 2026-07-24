@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-24.v195",
+  "version": "2026-07-24.v196",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 42,
-  "static_test_function_count": 7238,
+  "static_test_function_count": 7241,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,

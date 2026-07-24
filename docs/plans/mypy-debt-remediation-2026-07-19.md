@@ -1698,3 +1698,20 @@
 - simulated trading position invalidation checker mypy 清零；全仓基线从 `4105 errors / 680 files` 收紧为 `4096 errors / 679 files`，净减少 `9 errors / 1 file`。
 - 持仓证伪、定时任务、自动交易与 Alpha 退出闭环回归共 `19 passed`。
 - governance baseline 升级为 `2026-07-24.v195`，静态测试函数计数提升至 `7238`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百二十四批
+
+- 按“模拟账户绩效口径影响面 × 历史截面无后视偏差”收口 simulated trading performance calculator。
+- 为账户、交易历史与价格服务建立最小 Application Protocol；绩效指标和净值曲线使用 TypedDict，交易分组、持仓数量、时间范围及价格边界全部具化。
+- 修复年化收益使用账户中旧 `total_return` 缓存值的问题，现基于本次实时总资产计算出的总收益年化；账户归零时稳定返回 `-100%`，不再产生复数。
+- 夏普与胜率查询严格截止到调用方指定的 `trade_date`，历史绩效不再读取未来交易。
+- 胜率分母只统计存在已实现盈亏的平仓交易，不再把 BUY 交易计入并稀释胜率；零盈亏平仓仍保留在分母中。
+- 历史价格统一通过 `safe_float` 收窄，零值、负值、NaN 和无穷值均明确拒绝，避免污染净值和回撤。
+- 卖出后持仓数量小于等于零时清理曲线持仓，绩效更新日志使用本次持久化的新指标而非旧账户值。
+- 新增实时年化收益、历史截止日胜率和非法历史价格三组边界回归。
+
+## 第一百二十四批验证结果
+
+- simulated trading performance calculator mypy 清零，并消除 interface service 的一条传播债务；全仓基线从 `4096 errors / 679 files` 收紧为 `4079 errors / 678 files`，净减少 `17 errors / 1 file`。
+- 绩效边界、历史净值准确性与 simulated trading 集成回归共 `30 passed`。
+- governance baseline 升级为 `2026-07-24.v196`，静态测试函数计数提升至 `7241`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
