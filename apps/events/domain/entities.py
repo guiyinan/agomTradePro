@@ -106,6 +106,9 @@ class EventType(Enum):
     QUOTA_EXCEEDED = "quota_exceeded"
     """决策配额被用尽时触发"""
 
+    QUOTA_WARNING = "quota_warning"
+    """决策配额接近上限时触发"""
+
     QUOTA_RESET = "quota_reset"
     """决策配额被重置时触发"""
 

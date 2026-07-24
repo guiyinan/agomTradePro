@@ -5,12 +5,32 @@ Decision Rhythm Event Handlers
 """
 
 import logging
+from typing import Any, Protocol
 
 from apps.events.domain.entities import DomainEvent, EventHandler, EventType, create_event
 
-from ..domain.entities import QuotaPeriod
+from ..domain.entities import CooldownPeriod, QuotaPeriod
+from ..domain.services import CooldownManager, QuotaManager
 
 logger = logging.getLogger(__name__)
+
+
+class EventPublisherProtocol(Protocol):
+    """Minimal event publisher required by rhythm handlers."""
+
+    def publish(self, event: DomainEvent) -> None: ...
+
+
+class QuotaManagerProtocol(Protocol):
+    """Quota status surface required by event handlers."""
+
+    def get_quota_status(self, period: QuotaPeriod) -> dict[str, Any]: ...
+
+
+class CooldownManagerProtocol(Protocol):
+    """Cooldown lookup surface required by event handlers."""
+
+    def get_cooldown(self, asset_code: str) -> CooldownPeriod: ...
 
 
 class DecisionRhythmEventHandler(EventHandler):
@@ -29,7 +49,12 @@ class DecisionRhythmEventHandler(EventHandler):
         >>> handler.can_handle(EventType.DECISION_APPROVED)  # True
     """
 
-    def __init__(self, quota_manager=None, cooldown_manager=None, event_bus=None):
+    def __init__(
+        self,
+        quota_manager: QuotaManagerProtocol | None = None,
+        cooldown_manager: CooldownManagerProtocol | None = None,
+        event_bus: EventPublisherProtocol | None = None,
+    ) -> None:
         """
         初始化处理器
 
@@ -38,8 +63,6 @@ class DecisionRhythmEventHandler(EventHandler):
             cooldown_manager: 冷却管理器（可选）
             event_bus: 事件总线（可选）
         """
-        from ..domain.services import CooldownManager, QuotaManager
-
         self.quota_manager = quota_manager or QuotaManager()
         self.cooldown_manager = cooldown_manager or CooldownManager()
         self.event_bus = event_bus
@@ -68,7 +91,7 @@ class DecisionRhythmEventHandler(EventHandler):
         except Exception as e:
             logger.error(f"Error in DecisionRhythmEventHandler: {e}", exc_info=True)
 
-    def _handle_decision_approved(self, event: DomainEvent):
+    def _handle_decision_approved(self, event: DomainEvent) -> None:
         """处理决策批准事件"""
         asset_code = event.get_payload_value("asset_code")
         direction = event.get_payload_value("direction")
@@ -79,7 +102,7 @@ class DecisionRhythmEventHandler(EventHandler):
         # 配额已经在提交时消耗，这里主要是记录
         # 冷却期已经在提交时设置
 
-    def _handle_decision_rejected(self, event: DomainEvent):
+    def _handle_decision_rejected(self, event: DomainEvent) -> None:
         """处理决策拒绝事件"""
         asset_code = event.get_payload_value("asset_code")
         reason = event.get_payload_value("rejection_reason")
@@ -88,7 +111,7 @@ class DecisionRhythmEventHandler(EventHandler):
 
         # 拒绝的决策不消耗配额，但可能需要记录原因
 
-    def _handle_trigger_fired(self, event: DomainEvent):
+    def _handle_trigger_fired(self, event: DomainEvent) -> None:
         """处理触发器触发事件"""
         trigger_id = event.get_payload_value("trigger_id")
         asset_code = event.get_payload_value("asset_code")
@@ -99,15 +122,13 @@ class DecisionRhythmEventHandler(EventHandler):
         # 触发器触发后，可以创建决策请求
         # 这里可能需要调用 SubmitDecisionRequestUseCase
 
-    def _handle_quota_warning(self, event: DomainEvent):
+    def _handle_quota_warning(self, event: DomainEvent) -> None:
         """处理配额警告事件"""
         period = event.get_payload_value("period")
         remaining = event.get_payload_value("remaining")
         total = event.get_payload_value("total")
 
-        logger.warning(
-            f"Quota warning: {period} - {remaining}/{total} remaining"
-        )
+        logger.warning(f"Quota warning: {period} - {remaining}/{total} remaining")
 
         # 配额不足时，可能需要：
         # 1. 通知用户
@@ -135,7 +156,11 @@ class QuotaMonitorHandler(EventHandler):
 
     WARNING_THRESHOLD = 0.2  # 剩余 20% 时警告
 
-    def __init__(self, quota_manager, event_bus):
+    def __init__(
+        self,
+        quota_manager: QuotaManagerProtocol,
+        event_bus: EventPublisherProtocol | None,
+    ) -> None:
         """
         初始化处理器
 
@@ -159,14 +184,25 @@ class QuotaMonitorHandler(EventHandler):
             # 检查配额是否接近上限
             self._check_quotas()
 
-    def _check_quotas(self):
+    def _check_quotas(self) -> None:
         """检查所有配额"""
         for period in QuotaPeriod:
             status = self.quota_manager.get_quota_status(period)
-            remaining = status.get("remaining", 0)
-            total = status.get("total", 1)
+            remaining_value = status.get("remaining_decisions", 0)
+            total_value = status.get("max_decisions", 0)
+            remaining = (
+                int(remaining_value)
+                if isinstance(remaining_value, (int, float))
+                and not isinstance(remaining_value, bool)
+                else 0
+            )
+            total = (
+                int(total_value)
+                if isinstance(total_value, (int, float)) and not isinstance(total_value, bool)
+                else 0
+            )
 
-            if remaining / total < self.WARNING_THRESHOLD:
+            if total > 0 and remaining / total < self.WARNING_THRESHOLD:
                 # 发布警告事件
                 warning_event = create_event(
                     event_type=EventType.QUOTA_WARNING,
@@ -177,7 +213,8 @@ class QuotaMonitorHandler(EventHandler):
                         "usage_rate": (total - remaining) / total,
                     },
                 )
-                self.event_bus.publish(warning_event)
+                if self.event_bus is not None:
+                    self.event_bus.publish(warning_event)
 
     def get_handler_id(self) -> str:
         """获取处理器标识符"""
@@ -198,7 +235,11 @@ class CooldownEventHandler(EventHandler):
         >>> handler = CooldownEventHandler(cooldown_mgr, event_bus)
     """
 
-    def __init__(self, cooldown_manager, event_bus):
+    def __init__(
+        self,
+        cooldown_manager: CooldownManagerProtocol,
+        event_bus: EventPublisherProtocol | None,
+    ) -> None:
         """
         初始化处理器
 
@@ -227,7 +268,7 @@ class CooldownEventHandler(EventHandler):
         except Exception as e:
             logger.error(f"Error in CooldownEventHandler: {e}", exc_info=True)
 
-    def _handle_decision_approved(self, event: DomainEvent):
+    def _handle_decision_approved(self, event: DomainEvent) -> None:
         """处理决策批准事件"""
         asset_code = event.get_payload_value("asset_code")
         direction = event.get_payload_value("direction")
@@ -235,12 +276,17 @@ class CooldownEventHandler(EventHandler):
         # 记录冷却期已经在提交时设置
         logger.info(f"Cooldown period started for {asset_code} after {direction}")
 
-    def _handle_signal_triggered(self, event: DomainEvent):
+    def _handle_signal_triggered(self, event: DomainEvent) -> None:
         """处理信号触发事件"""
         asset_code = event.get_payload_value("asset_code")
+        if not isinstance(asset_code, str) or not asset_code.strip():
+            logger.warning("Ignored signal event without a valid asset code")
+            return
 
         # 检查冷却期
-        cooldown_remaining = self.cooldown_manager.get_remaining_cooldown(asset_code)
+        cooldown_remaining = self.cooldown_manager.get_cooldown(
+            asset_code,
+        ).decision_ready_in_hours
 
         if cooldown_remaining > 0:
             logger.info(
@@ -256,7 +302,8 @@ class CooldownEventHandler(EventHandler):
                     "cooldown_remaining_hours": cooldown_remaining,
                 },
             )
-            self.event_bus.publish(cooldown_event)
+            if self.event_bus is not None:
+                self.event_bus.publish(cooldown_event)
 
     def get_handler_id(self) -> str:
         """获取处理器标识符"""
