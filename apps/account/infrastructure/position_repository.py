@@ -11,9 +11,16 @@ from django.utils import timezone
 from apps.account.domain.entities import (
     Position,
 )
+from apps.account.domain.interfaces import (
+    VolatilityPositionRecord,
+    VolatilityReductionBatchResult,
+    VolatilityReductionInstruction,
+    VolatilityReductionItem,
+)
 from apps.account.infrastructure.account_profile_repository import AccountRepository
 from apps.account.infrastructure.models import (
     AssetMetadataModel,
+    PortfolioModel,
     PositionModel,
     PositionSignalLogModel,
     TransactionModel,
@@ -48,7 +55,7 @@ class PositionRepository:
         if asset_class:
             queryset = queryset.filter(asset_class=asset_class)
 
-        return PortfolioRepository()._convert_to_position_entities(queryset)
+        return PortfolioRepository()._convert_to_position_entities(list(queryset))
 
     def get_position_by_id(self, position_id: int) -> Position | None:
         """根据ID获取持仓"""
@@ -74,7 +81,10 @@ class PositionRepository:
             return None
         return PortfolioRepository()._convert_to_position_entities([model])[0]
 
-    def list_open_positions_for_adjustment(self, portfolio_id: int) -> list[dict[str, Any]]:
+    def list_open_positions_for_adjustment(
+        self,
+        portfolio_id: int,
+    ) -> list[VolatilityPositionRecord]:
         """获取用于风控调仓的活跃持仓。"""
         models = PositionModel._default_manager.filter(
             portfolio_id=portfolio_id,
@@ -82,14 +92,96 @@ class PositionRepository:
         ).only("id", "asset_code", "shares", "current_price", "avg_cost")
         return [
             {
-                "id": model.id,
+                "id": int(model.id),
                 "asset_code": model.asset_code,
-                "shares": model.shares,
-                "current_price": model.current_price,
-                "avg_cost": model.avg_cost,
+                "shares": float(model.shares),
+                "current_price": (
+                    Decimal(str(model.current_price)) if model.current_price is not None else None
+                ),
+                "avg_cost": Decimal(str(model.avg_cost)),
             }
             for model in models
         ]
+
+    def execute_volatility_reduction(
+        self,
+        *,
+        portfolio_id: int,
+        user_id: int,
+        idempotency_key: str,
+        reason: str,
+        instructions: list[VolatilityReductionInstruction],
+    ) -> VolatilityReductionBatchResult:
+        """Execute one portfolio-wide volatility reduction atomically and once."""
+
+        notes = f"volatility_adjustment:{idempotency_key}: {reason}"
+        requested_ids = {item["position_id"] for item in instructions}
+        if not instructions or len(requested_ids) != len(instructions):
+            raise ValueError("波动率调整指令为空或包含重复持仓")
+
+        with transaction.atomic():
+            try:
+                PortfolioModel._default_manager.select_for_update().get(
+                    id=portfolio_id,
+                    user_id=user_id,
+                )
+            except PortfolioModel.DoesNotExist as exc:
+                raise ValueError(f"投资组合 {portfolio_id} 不存在或无权限") from exc
+
+            completed_ids = set(
+                TransactionModel._default_manager.filter(
+                    portfolio_id=portfolio_id,
+                    position_id__in=requested_ids,
+                    action="sell",
+                    notes=notes,
+                ).values_list("position_id", flat=True)
+            )
+            if completed_ids == requested_ids:
+                return {
+                    "status": "already_executed",
+                    "reduced_positions": [],
+                }
+            if completed_ids:
+                raise ValueError("检测到不完整的历史波动率调整批次")
+
+            locked_positions = {
+                int(position.id): position
+                for position in PositionModel._default_manager.select_for_update().filter(
+                    id__in=requested_ids,
+                    portfolio_id=portfolio_id,
+                    is_closed=False,
+                )
+            }
+            if set(locked_positions) != requested_ids:
+                raise ValueError("波动率调整持仓已变化，请重新分析后执行")
+
+            reduced_positions: list[VolatilityReductionItem] = []
+            for item in instructions:
+                position = locked_positions[item["position_id"]]
+                if position.asset_code != item["asset_code"]:
+                    raise ValueError("波动率调整持仓标识不一致")
+                if item["shares"] <= 0 or item["shares"] > float(position.shares):
+                    raise ValueError("波动率调整数量已失效，请重新分析后执行")
+
+                closed = self.close_position(
+                    position_id=item["position_id"],
+                    shares=item["shares"],
+                    price=item["price"],
+                    reason=notes,
+                )
+                if closed is None:
+                    raise ValueError("波动率调整执行失败")
+                reduced_positions.append(
+                    {
+                        "asset_code": item["asset_code"],
+                        "shares_reduced": item["shares"],
+                    }
+                )
+
+        return {
+            "status": "executed",
+            "reduced_positions": reduced_positions,
+        }
 
     def list_portfolio_position_weights(self, portfolio_id: int) -> list[dict[str, Any]]:
         """获取组合中各持仓的权重。"""
@@ -306,7 +398,7 @@ class PositionRepository:
         model.market_value = Decimal(str(model.shares * float(new_price)))
 
         # 计算盈亏
-        pnl = (new_price - model.avg_cost) * model.shares
+        pnl = (new_price - model.avg_cost) * Decimal(str(model.shares))
         model.unrealized_pnl = pnl
         model.unrealized_pnl_pct = float((new_price / model.avg_cost - 1) * 100)
 
@@ -331,6 +423,8 @@ class PositionRepository:
 
         # 计算仓位（使用默认策略）
         profile = account_repo.get_by_user_id(user_id)
+        if profile is None:
+            raise ValueError(f"用户 {user_id} 账户配置不存在")
         max_notional = float(profile.initial_capital) * 0.1  # 默认10%
         shares = int(max_notional / float(price))
 
@@ -343,6 +437,8 @@ class PositionRepository:
             source="signal",
             source_id=signal_id,
         )
+        if position.id is None:
+            raise ValueError("新建持仓缺少主键")
 
         # 记录信号关联
         PositionSignalLogModel._default_manager.create(

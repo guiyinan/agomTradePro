@@ -70,7 +70,7 @@ class TestVolatilityAdjustment:
 
     def test_invalid_target_volatility(self):
         """测试：无效的目标波动率"""
-        with pytest.raises(ValueError, match="target_volatility 必须大于0"):
+        with pytest.raises(ValueError, match="target_volatility 必须是大于0"):
             VolatilityTargetService.assess_volatility_adjustment(
                 current_volatility=0.20,
                 target_volatility=0.0,
@@ -78,11 +78,33 @@ class TestVolatilityAdjustment:
 
     def test_negative_volatility_raises_error(self):
         """测试：负波动率应该抛出异常"""
-        with pytest.raises(ValueError, match="不能为负数"):
+        with pytest.raises(ValueError, match="必须是非负有限数"):
             VolatilityTargetService.assess_volatility_adjustment(
                 current_volatility=-0.05,
                 target_volatility=0.15,
             )
+
+    @pytest.mark.parametrize(
+        ("overrides", "message"),
+        [
+            ({"current_volatility": float("nan")}, "current_volatility"),
+            ({"target_volatility": float("inf")}, "target_volatility"),
+            ({"tolerance": -0.01}, "tolerance"),
+            ({"max_reduction": 1.01}, "max_reduction"),
+        ],
+    )
+    def test_nonfinite_and_out_of_range_controls_are_rejected(self, overrides, message):
+        """Invalid persisted controls must fail before an order is planned."""
+
+        values = {
+            "current_volatility": 0.2,
+            "target_volatility": 0.15,
+            "tolerance": 0.2,
+            "max_reduction": 0.5,
+        }
+        values.update(overrides)
+        with pytest.raises(ValueError, match=message):
+            VolatilityTargetService.assess_volatility_adjustment(**values)
 
 
 class TestVolatilityAdjustmentEdgeCases:

@@ -5,10 +5,11 @@ Account Domain Services
 遵循四层架构约束：只使用 Python 标准库。
 """
 
+import math
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, TypedDict
 
 from apps.account.domain.entities import (
     AssetAllocation,
@@ -678,6 +679,13 @@ class VolatilityAdjustmentResult:
     reduction_reason: str  # 降仓原因
 
 
+class VolatilitySeriesPoint(TypedDict):
+    """One dated portfolio value used by volatility calculations."""
+
+    date: date
+    total_value: float
+
+
 class VolatilityCalculator:
     """
     波动率计算服务
@@ -731,7 +739,7 @@ class VolatilityCalculator:
 
     @staticmethod
     def calculate_portfolio_volatility(
-        daily_snapshots: list[dict[str, float]],
+        daily_snapshots: list[VolatilitySeriesPoint],
         window_days: int = 30,
     ) -> list[VolatilityMetrics]:
         """
@@ -803,14 +811,18 @@ class VolatilityTargetService:
         ⚠️ Domain 层校验：宁可炸，也不要容错
         """
         # 🔒 安全校验：波动率不能为负
-        if current_volatility < 0:
+        if not math.isfinite(current_volatility) or current_volatility < 0:
             raise ValueError(
-                f"current_volatility 不能为负数，当前值: {current_volatility}。"
+                f"current_volatility 必须是非负有限数，当前值: {current_volatility}。"
                 f"这通常是上游计算错误的信号，请检查数据源。"
             )
 
-        if target_volatility <= 0:
-            raise ValueError(f"target_volatility 必须大于0，当前值: {target_volatility}")
+        if not math.isfinite(target_volatility) or target_volatility <= 0:
+            raise ValueError(f"target_volatility 必须是大于0的有限数，当前值: {target_volatility}")
+        if not math.isfinite(tolerance) or tolerance < 0:
+            raise ValueError(f"tolerance 必须是非负有限数，当前值: {tolerance}")
+        if not math.isfinite(max_reduction) or not 0 <= max_reduction <= 1:
+            raise ValueError(f"max_reduction 必须是 0 到 1 之间的有限数，当前值: {max_reduction}")
 
         volatility_ratio = current_volatility / target_volatility
 

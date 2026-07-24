@@ -7,8 +7,9 @@ Application layer should depend on these protocols, not concrete implementations
 """
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol, TypedDict
 
 from apps.account.domain.entities import (
     AccountProfile,
@@ -16,6 +17,55 @@ from apps.account.domain.entities import (
     Position,
     Transaction,
 )
+
+
+class VolatilitySettings(TypedDict):
+    """Validated volatility-control settings stored for one user."""
+
+    user_id: int
+    target_volatility: float
+    volatility_tolerance: float
+    max_volatility_reduction: float
+
+
+class VolatilitySnapshotRecord(TypedDict):
+    """One ordered portfolio value used by volatility analysis."""
+
+    snapshot_date: date
+    total_value: float
+
+
+class VolatilityPositionRecord(TypedDict):
+    """Open position fields required to build a reduction batch."""
+
+    id: int
+    asset_code: str
+    shares: float
+    current_price: Decimal | None
+    avg_cost: Decimal
+
+
+class VolatilityReductionInstruction(TypedDict):
+    """One position reduction requested by the Application layer."""
+
+    position_id: int
+    asset_code: str
+    shares: float
+    price: Decimal
+
+
+class VolatilityReductionItem(TypedDict):
+    """One successfully reduced position."""
+
+    asset_code: str
+    shares_reduced: float
+
+
+class VolatilityReductionBatchResult(TypedDict):
+    """Atomic volatility-reduction result."""
+
+    status: Literal["executed", "already_executed"]
+    reduced_positions: list[VolatilityReductionItem]
 
 
 class AccountRepositoryProtocol(Protocol):
@@ -43,6 +93,23 @@ class AccountRepositoryProtocol(Protocol):
         """
         ...
 
+    def get_volatility_settings(self, user_id: int) -> VolatilitySettings | None:
+        """Return volatility-control settings for one user."""
+
+        ...
+
+    def update_volatility_settings(
+        self,
+        user_id: int,
+        *,
+        target_volatility: float | None = None,
+        volatility_tolerance: float | None = None,
+        max_volatility_reduction: float | None = None,
+    ) -> VolatilitySettings | None:
+        """Update and return volatility-control settings."""
+
+        ...
+
 
 class PortfolioRepositoryProtocol(Protocol):
     """Portfolio repository protocol for portfolio operations."""
@@ -65,6 +132,11 @@ class PortfolioRepositoryProtocol(Protocol):
         Returns:
             List of portfolio dicts with id, user_id, name
         """
+        ...
+
+    def user_owns_portfolio(self, portfolio_id: int, user_id: int) -> bool:
+        """Return whether the portfolio belongs to the user."""
+
         ...
 
 
@@ -128,6 +200,27 @@ class PositionRepositoryProtocol(Protocol):
         position_id: int,
     ) -> dict[str, Any] | None:
         """Return the position fields required to configure exit rules."""
+
+        ...
+
+    def list_open_positions_for_adjustment(
+        self,
+        portfolio_id: int,
+    ) -> list[VolatilityPositionRecord]:
+        """Return open position rows required for volatility reduction."""
+
+        ...
+
+    def execute_volatility_reduction(
+        self,
+        *,
+        portfolio_id: int,
+        user_id: int,
+        idempotency_key: str,
+        reason: str,
+        instructions: list[VolatilityReductionInstruction],
+    ) -> VolatilityReductionBatchResult:
+        """Execute one idempotent portfolio-wide reduction atomically."""
 
         ...
 
@@ -328,7 +421,7 @@ class PortfolioSnapshotRepositoryProtocol(Protocol):
         self,
         portfolio_id: int,
         days: int = 90,
-    ) -> list[dict[str, Any]]:
+    ) -> list[VolatilitySnapshotRecord]:
         """
         Get portfolio daily snapshots for volatility calculation.
 
