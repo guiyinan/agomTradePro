@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4124,
-    "files_with_errors": 681
+    "errors": 4105,
+    "files_with_errors": 680
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2360,13 +2360,6 @@
     "apps/simulated_trading/application/asset_pool_query_service.py": {
       "assignment": 1,
       "type-arg": 2
-    },
-    "apps/simulated_trading/application/auto_trading_engine.py": {
-      "arg-type": 6,
-      "attr-defined": 2,
-      "no-any-return": 2,
-      "no-untyped-def": 3,
-      "type-arg": 6
     },
     "apps/simulated_trading/application/daily_inspection_service.py": {
       "no-untyped-def": 4,

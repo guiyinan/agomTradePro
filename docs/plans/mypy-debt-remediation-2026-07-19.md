@@ -1666,3 +1666,19 @@
 - Decision Rhythm exit advisor mypy 清零；全仓基线从 `4127 errors / 682 files` 收紧为 `4124 errors / 681 files`，净减少 `3 errors / 1 file`。
 - 退出建议与模拟交易自动退出链路回归共 `14 passed`。
 - governance baseline 升级为 `2026-07-24.v193`，静态测试函数计数提升至 `7232`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百二十二批
+
+- 按“自动交易核心执行影响面 × 错误订单防护安全性”收口 simulated trading auto trading engine。
+- 账户、持仓、交易、资产池、价格、信号、退出建议与前置风控依赖全部使用精确 Protocol；每日交易结果、候选载荷、价格区间和执行时间边界完成具化。
+- 修复减仓建议缺少数量时被当成全量清仓的问题；减仓数量缺失、为零或为负时不再执行，清仓建议仍严格按当前持仓数量处理。
+- 策略模式买卖数量必须为正数；候选证券代码缺失时在查询价格和下单前拒绝，证券代码统一大写以避免重复持仓。
+- 价格提供者返回的零值、负值、NaN 或无穷值统一视为不可交易；候选分数与价格触发带通过共享 `safe_float` 收窄。
+- 持仓与候选、持仓与退出建议均按标准化证券代码匹配，修复大小写差异导致重复买入或退出建议失配。
+- 新增缺失减仓数量、空证券代码、持仓大小写去重与非正价格四组安全回归。
+
+## 第一百二十二批验证结果
+
+- simulated trading auto trading engine mypy 清零；全仓基线从 `4124 errors / 681 files` 收紧为 `4105 errors / 680 files`，净减少 `19 errors / 1 file`。
+- 自动交易、Alpha 退出闭环、任务装配、Decision Rhythm exit advisor 与策略集成回归共 `27 passed`。
+- governance baseline 升级为 `2026-07-24.v194`，静态测试函数计数提升至 `7236`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
