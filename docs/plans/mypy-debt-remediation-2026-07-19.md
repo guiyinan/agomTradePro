@@ -2482,3 +2482,20 @@
 - Strategy SDK Contract Actions 增量 mypy 清零；全仓基线从 `2979 errors / 590 files` 收紧为 `2969 errors / 589 files`，净减少 `10 errors / 1 file`。
 - Strategy SDK Application、API、结构与绑定一致性回归共 `52 passed`；覆盖停用策略、执行结果 ID 错配、负耗时、损坏 signal JSON 和既有执行/读模型契约。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十二批
+
+- 按“策略规则可变权限 × 执行日志敏感信息隔离”收口 Strategy Rule 与 Execution Log API。
+- RuleCondition 列表、详情、筛选、更新、删除和启停统一按 strategy owner 隔离；普通用户不能再查看或修改其他账户的策略规则。
+- PositionManagementRule 与 RuleCondition 的创建、更新统一验证请求中 strategy 的访问权；直接提交其他账户 strategy ID 不能建立或改绑规则。
+- Rule enable/disable 的 Application 写入返回空值时不再回退旧对象伪报成功，统一返回 404。
+- Execution Log 列表与详情要求关联的 strategy 和 portfolio 同时属于调用者；`by_strategy`、`by_portfolio` 使用相同双归属查询，staff/superuser 才能查看全局日志。
+- 日志作用域参数改用严格 Serializer，拒绝缺失、非整数、非正 ID 与未知字段；动态字符串不能再直接进入 Repository filter。
+- 修复 `signals_count` 把 `list.__len__` 方法对象交给 IntegerField、导致正常日志列表 500 的既有错误；现在显式计算真实列表长度并拒绝畸形持久化 JSON。
+- 两类 ViewSet 的 QuerySet、Serializer、Request、Response 和 decorator 补齐精确类型。
+
+## 第一百七十二批验证结果
+
+- Strategy Rule 与 Execution Log API 增量 mypy 清零；全仓基线从 `2969 errors / 589 files` 收紧为 `2954 errors / 587 files`，净减少 `15 errors / 2 files`。
+- Strategy SDK、Rule、Execution Log、结构和绑定一致性回归共 `59 passed`；覆盖跨账户规则写入/启停、双归属日志隔离、staff 覆盖、作用域参数与 signals count。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

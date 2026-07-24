@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2969,
-    "files_with_errors": 589
+    "errors": 2954,
+    "files_with_errors": 587
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -2031,16 +2031,6 @@
     },
     "apps/strategy/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/strategy/interface/execution_log_api_views.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 4,
-      "type-arg": 1
-    },
-    "apps/strategy/interface/rule_api_views.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 6,
-      "type-arg": 2
     },
     "apps/strategy/management/commands/init_position_rules.py": {
       "no-untyped-def": 2,

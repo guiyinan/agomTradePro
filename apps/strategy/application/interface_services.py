@@ -124,6 +124,19 @@ def get_rule_condition_queryset() -> Any:
     return _repo().get_rule_condition_queryset()
 
 
+def get_rule_condition_queryset_for_access(
+    *,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+) -> Any:
+    """Return rule conditions visible to an owner or staff caller."""
+
+    return _repo().get_rule_condition_queryset_for_access(
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+    )
+
+
 def get_script_config_queryset() -> Any:
     return _repo().get_script_config_queryset()
 
@@ -254,6 +267,19 @@ def get_execution_log_queryset() -> Any:
     return _repo().get_execution_log_queryset()
 
 
+def get_execution_log_queryset_for_access(
+    *,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+) -> Any:
+    """Return execution logs visible through both linked owners."""
+
+    return _repo().get_execution_log_queryset_for_access(
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+    )
+
+
 def list_execution_logs_by_strategy(
     strategy_id: int,
     limit: int = 100,
@@ -261,11 +287,45 @@ def list_execution_logs_by_strategy(
     return _repo().list_execution_logs_by_strategy(strategy_id, limit=limit)
 
 
+def list_execution_logs_by_strategy_for_access(
+    *,
+    strategy_id: int,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+    limit: int = 100,
+) -> list[StrategyExecutionLogView]:
+    """Return owner-scoped logs for one strategy."""
+
+    return _repo().list_execution_logs_by_strategy_for_access(
+        strategy_id=strategy_id,
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+        limit=limit,
+    )
+
+
 def list_execution_logs_by_portfolio(
     portfolio_id: int,
     limit: int = 100,
 ) -> list[StrategyExecutionLogView]:
     return _repo().list_execution_logs_by_portfolio(portfolio_id, limit=limit)
+
+
+def list_execution_logs_by_portfolio_for_access(
+    *,
+    portfolio_id: int,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+    limit: int = 100,
+) -> list[StrategyExecutionLogView]:
+    """Return owner-scoped logs for one portfolio."""
+
+    return _repo().list_execution_logs_by_portfolio_for_access(
+        portfolio_id=portfolio_id,
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+        limit=limit,
+    )
 
 
 def build_strategy_executor() -> StrategyExecutionRunnerProtocol:
