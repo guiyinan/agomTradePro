@@ -4,7 +4,7 @@ Rotation Module API URL Configuration.
 Provides API-only routes for /api/rotation/.
 """
 
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
@@ -26,11 +26,13 @@ router.register(r"asset-classes", AssetClassViewSet, basename="rotation-asset-cl
 router.register(r"configs", RotationConfigViewSet, basename="rotation-config")
 router.register(r"signals", RotationSignalViewSet, basename="rotation-signal")
 router.register(r"templates", RotationTemplateViewSet, basename="rotation-template")
-router.register(r"account-configs", PortfolioRotationConfigViewSet, basename="account-rotation-config")
+router.register(
+    r"account-configs", PortfolioRotationConfigViewSet, basename="account-rotation-config"
+)
 router.register(r"", RotationActionViewSet, basename="rotation-action")
 
 
-def api_home(request):
+def api_home(request: HttpRequest) -> JsonResponse:
     return JsonResponse(
         {
             "message": "AgomTradePro Rotation Module API",

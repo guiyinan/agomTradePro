@@ -10,7 +10,7 @@ class RotationConfig(AppConfig):
     name = "apps.rotation"
     verbose_name = "资产轮动"
 
-    def ready(self):
+    def ready(self) -> None:
         """Register rotation-owned asset-analysis integrations."""
         logger = logging.getLogger(__name__)
         try:

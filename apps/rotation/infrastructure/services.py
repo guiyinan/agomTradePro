@@ -8,11 +8,13 @@ integration between Application layer and Infrastructure.
 
 import logging
 from datetime import date
-from typing import Any
+from typing import Any, TypedDict
 
 from django.utils import timezone
 
 from apps.rotation.domain.entities import (
+    RotationConfig,
+    RotationSignal,
     RotationStrategyType,
 )
 from apps.rotation.domain.services import (
@@ -23,6 +25,7 @@ from apps.rotation.domain.services import (
 from apps.rotation.infrastructure.adapters.price_adapter import (
     RotationPriceDataService,
 )
+from apps.rotation.infrastructure.models import RotationSignalModel
 from apps.rotation.infrastructure.repositories import (
     AssetClassRepository,
     MomentumScoreRepository,
@@ -31,6 +34,17 @@ from apps.rotation.infrastructure.repositories import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class RotationSignalBatchResult(TypedDict):
+    """Typed summary for scheduled signal generation."""
+
+    signal_date: str
+    total_configs: int
+    successful: int
+    skipped: int
+    failed: int
+    signals: list[dict[str, Any]]
 
 
 class RotationIntegrationService:
@@ -43,7 +57,7 @@ class RotationIntegrationService:
     def __init__(
         self,
         price_service: RotationPriceDataService | None = None,
-    ):
+    ) -> None:
         self.price_service = price_service or RotationPriceDataService()
         self.asset_repo = AssetClassRepository()
         self.config_repo = RotationConfigRepository()
@@ -52,7 +66,7 @@ class RotationIntegrationService:
 
     def generate_rotation_signal(
         self, config_name: str, signal_date: date | None = None
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """
         Generate rotation signal for a configuration.
 
@@ -93,23 +107,25 @@ class RotationIntegrationService:
             domain_service = RotationService(context)
             signal = domain_service.generate_signal(config)
 
-            # Save to database
+            signal_payload: dict[str, Any] = {
+                "config_name": signal.config_name,
+                "signal_date": signal.signal_date.isoformat(),
+                "target_allocation": signal.target_allocation,
+                "current_regime": signal.current_regime,
+                "expected_volatility": signal.expected_volatility,
+                "expected_return": signal.expected_return,
+                "action_required": signal.action_required,
+                "reason": signal.reason,
+                "momentum_ranking": signal.momentum_ranking,
+                "data_quality": self._build_signal_data_quality(signal, config),
+            }
+
+            # Save to database when the ORM configuration is available.
             config_model = self.config_repo.get_model_by_name(config_name)
             if config_model:
                 self.signal_repo.save(signal, config_model.id)
 
-                return {
-                    "config_name": signal.config_name,
-                    "signal_date": signal.signal_date.isoformat(),
-                    "target_allocation": signal.target_allocation,
-                    "current_regime": signal.current_regime,
-                    "expected_volatility": signal.expected_volatility,
-                    "expected_return": signal.expected_return,
-                    "action_required": signal.action_required,
-                    "reason": signal.reason,
-                    "momentum_ranking": signal.momentum_ranking,
-                    "data_quality": self._build_signal_data_quality(signal, config),
-                }
+            return signal_payload
 
         except ValueError as e:
             if self._is_expected_signal_generation_gap(e):
@@ -134,7 +150,11 @@ class RotationIntegrationService:
             logger.error(f"Failed to generate signal for {config_name}: {e}")
             return None
 
-    def compare_assets(self, asset_codes: list[str], lookback_days: int = 60) -> dict:
+    def compare_assets(
+        self,
+        asset_codes: list[str],
+        lookback_days: int = 60,
+    ) -> dict[str, Any]:
         """
         Compare multiple assets across multiple dimensions.
 
@@ -175,7 +195,11 @@ class RotationIntegrationService:
             "assets": comparison,
         }
 
-    def get_correlation_matrix(self, asset_codes: list[str], window_days: int = 60) -> dict:
+    def get_correlation_matrix(
+        self,
+        asset_codes: list[str],
+        window_days: int = 60,
+    ) -> dict[str, Any]:
         """
         Get correlation matrix for specified assets.
 
@@ -189,7 +213,7 @@ class RotationIntegrationService:
         from shared.infrastructure.correlation import NumPyCorrelationCalculator
 
         # Fetch price data for all assets
-        price_dict = {}
+        price_dict: dict[str, list[float]] = {}
         for asset_code in asset_codes:
             prices = self.price_service.get_prices(
                 asset_code,
@@ -230,7 +254,7 @@ class RotationIntegrationService:
         strategy_type: str = "momentum",
         *,
         prefer_persisted: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Get rotation recommendation based on strategy type.
 
@@ -358,7 +382,9 @@ class RotationIntegrationService:
         )
 
     @staticmethod
-    def _build_recommendation_from_signal_model(signal_model) -> dict:
+    def _build_recommendation_from_signal_model(
+        signal_model: RotationSignalModel,
+    ) -> dict[str, Any]:
         """Convert persisted RotationSignalModel into API-ready recommendation."""
         return {
             "config_name": signal_model.config.name if signal_model.config else "",
@@ -376,7 +402,10 @@ class RotationIntegrationService:
         }
 
     @staticmethod
-    def _build_signal_data_quality(signal, config) -> dict[str, Any]:
+    def _build_signal_data_quality(
+        signal: RotationSignal,
+        config: RotationConfig,
+    ) -> dict[str, Any]:
         """Summarize whether the generated signal is data-driven enough to trust."""
         universe_size = len(config.asset_universe or [])
         ranked_count = len(signal.momentum_ranking or [])
@@ -391,7 +420,7 @@ class RotationIntegrationService:
         coverage_ratio = coverage_count / universe_size if universe_size else 0.0
         metrics_available = signal.expected_return != 0.0 or signal.expected_volatility != 0.0
         status = "ok"
-        warnings = []
+        warnings: list[str] = []
         if universe_size and coverage_count < universe_size:
             status = "degraded"
             warnings.append("partial_price_coverage")
@@ -413,7 +442,9 @@ class RotationIntegrationService:
         }
 
     @staticmethod
-    def _build_model_signal_data_quality(signal_model) -> dict[str, Any]:
+    def _build_model_signal_data_quality(
+        signal_model: RotationSignalModel,
+    ) -> dict[str, Any]:
         """Build quality metadata for a persisted signal model."""
         config = getattr(signal_model, "config", None)
         universe = getattr(config, "asset_universe", []) or []
@@ -432,7 +463,7 @@ class RotationIntegrationService:
             float(getattr(signal_model, "expected_return", 0.0) or 0.0) != 0.0
             or float(getattr(signal_model, "expected_volatility", 0.0) or 0.0) != 0.0
         )
-        warnings = []
+        warnings: list[str] = []
         status = "ok"
         if universe and coverage_count < len(universe):
             status = "degraded"
@@ -455,7 +486,7 @@ class RotationIntegrationService:
 
     @staticmethod
     def _apply_recommendation_metadata(
-        result: dict,
+        result: dict[str, Any],
         data_source: str,
         is_stale: bool,
         strategy_type: str,
@@ -468,7 +499,8 @@ class RotationIntegrationService:
         result["strategy_type"] = strategy_type
         result["config_description"] = config_description
         result["warning_message"] = warning_message
-        quality_status = (result.get("data_quality") or {}).get("status")
+        quality = result.get("data_quality")
+        quality_status = quality.get("status") if isinstance(quality, dict) else None
         result["actionable"] = (
             data_source in {"fresh_generation", "stored_signal"}
             and (not is_stale)
@@ -485,7 +517,7 @@ class RotationIntegrationService:
         else:
             result["execution_block_reason"] = "rotation_signal_not_actionable"
 
-    def get_asset_info(self, asset_code: str) -> dict | None:
+    def get_asset_info(self, asset_code: str) -> dict[str, Any] | None:
         """
         Get information about a specific asset.
 
@@ -503,7 +535,7 @@ class RotationIntegrationService:
         # Get recent prices
         prices = self.price_service.get_prices(asset_code, timezone.localdate(), 60)
 
-        price_info = {}
+        price_info: dict[str, Any] = {}
         if prices and len(prices) > 1:
             current_price = prices[-1]
             prev_price = prices[-20] if len(prices) > 20 else prices[0]
@@ -535,11 +567,11 @@ class RotationIntegrationService:
             **price_info,
         }
 
-    def get_all_assets(self) -> list[dict]:
+    def get_all_assets(self) -> list[dict[str, Any]]:
         """Get information about all active assets."""
         assets = self.asset_repo.get_all_active()
 
-        result = []
+        result: list[dict[str, Any]] = []
         for asset in assets:
             info = self.get_asset_info(asset.code)
             if info:
@@ -547,7 +579,10 @@ class RotationIntegrationService:
 
         return result
 
-    def get_asset_master(self, include_inactive: bool = True) -> list[dict]:
+    def get_asset_master(
+        self,
+        include_inactive: bool = True,
+    ) -> list[dict[str, Any]]:
         """Get asset master data without blocking on market-data lookups."""
         assets = self.asset_repo.get_all() if include_inactive else self.asset_repo.get_all_active()
 
@@ -579,13 +614,14 @@ class RotationIntegrationService:
 
             current_state = resolve_current_regime(as_of_date=timezone.localdate())
             if current_state:
-                return current_state.dominant_regime
+                dominant_regime = current_state.dominant_regime
+                return dominant_regime if isinstance(dominant_regime, str) else None
         except Exception as e:
             logger.warning(f"Failed to get current regime: {e}")
 
         return None
 
-    def clear_price_cache(self):
+    def clear_price_cache(self) -> None:
         """Clear the price data cache."""
         self.price_service.clear_cache()
 
@@ -601,11 +637,14 @@ class RotationSignalScheduler:
         self,
         integration_service: RotationIntegrationService | None = None,
         config_repo: RotationConfigRepository | None = None,
-    ):
+    ) -> None:
         self.service = integration_service or RotationIntegrationService()
         self.config_repo = config_repo or RotationConfigRepository()
 
-    def generate_all_signals(self, signal_date: date | None = None) -> dict[str, Any]:
+    def generate_all_signals(
+        self,
+        signal_date: date | None = None,
+    ) -> RotationSignalBatchResult:
         """
         Generate signals for all active configurations.
 
@@ -619,7 +658,7 @@ class RotationSignalScheduler:
 
         configs = self.config_repo.get_active()
 
-        results = {
+        results: RotationSignalBatchResult = {
             "signal_date": signal_date.isoformat(),
             "total_configs": len(configs),
             "successful": 0,

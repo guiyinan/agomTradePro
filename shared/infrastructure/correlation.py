@@ -9,6 +9,7 @@ Domain layer interfaces: Pure Python types
 """
 
 import importlib.util
+from typing import Any
 
 from shared.domain.correlation import (
     CorrelationMatrix,
@@ -16,7 +17,7 @@ from shared.domain.correlation import (
 )
 
 
-def try_use_numpy():
+def try_use_numpy() -> bool:
     """Try to import numpy for optimized calculations"""
     return importlib.util.find_spec("numpy") is not None
 
@@ -28,21 +29,26 @@ class NumPyCorrelationCalculator:
     Falls back to pure Python if NumPy is not available.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._use_numpy = try_use_numpy()
+        self.np: Any | None = None
+        self.fallback: RollingCorrelationCalculator | None = None
         if self._use_numpy:
             import numpy as np
+
             self.np = np
         else:
             self.fallback = RollingCorrelationCalculator()
 
     def calculate_correlation_matrix(
         self,
-        price_dict: dict,
-        window: int | None = None
+        price_dict: dict[str, list[float]],
+        window: int | None = None,
     ) -> CorrelationMatrix:
         """Calculate correlation matrix using NumPy if available"""
         if not self._use_numpy:
+            if self.fallback is None:
+                raise RuntimeError("Correlation fallback is not initialized")
             return self.fallback.calculate_correlation_matrix(price_dict, window)
 
         import numpy as np
@@ -83,5 +89,5 @@ class NumPyCorrelationCalculator:
             assets=assets,
             matrix=matrix,
             calc_date="",
-            window_days=window or len(next(iter(prices.values())))
+            window_days=window or len(next(iter(prices.values()))),
         )
