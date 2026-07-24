@@ -1524,3 +1524,17 @@
 - Unified Recommendation Repository mypy 清零；全仓基线从 `4238 errors / 702 files` 收紧为 `4229 errors / 701 files`，净减少 `9 errors / 1 file`，跨文件无新增。
 - 审批执行链回归 `9 passed`，推荐模型与仓储结构回归 `22 passed`。
 - governance baseline 升级为 `2026-07-24.v183`，静态测试函数计数提升至 `7207`；完整 mypy debt ceiling、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百一十二批
+
+- 按“决策写入风险 × 配额控制影响面”收口 Decision Rhythm workflow、quota 与 command API，覆盖预检查、执行、取消、配额更新/重置/趋势、单笔/批量提交和节奏摘要。
+- 所有 APIView/ViewSet handler、路由 request ID 与 ViewSet constructor 具化 `Request/Response` 和可变参数；`OpenApiTypes` 改用 drf-spectacular 明确公开模块。
+- 在共享 API helper 建立泛型 `typed_extend_schema` 边界，保留被装饰 handler 的完整签名，消除三个文件的装饰器传播债务。
+- workflow 的未预期异常统一进入共享 internal error helper；500 响应只返回稳定业务错误消息，详细异常继续写日志，不再向客户端泄漏数据库、配置或内部实现文本。
+- 新增内部异常不泄漏回归。
+
+## 第一百一十二批验证结果
+
+- Decision Rhythm workflow/quota/command API mypy 清零；全仓基线从 `4229 errors / 701 files` 收紧为 `4207 errors / 698 files`，净减少 `22 errors / 3 files`。
+- Decision Rhythm API 与错误映射回归 `23 passed`，执行工作流回归 `21 passed`。
+- governance baseline 升级为 `2026-07-24.v184`，静态测试函数计数提升至 `7208`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
