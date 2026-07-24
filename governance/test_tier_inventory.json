@@ -5,7 +5,7 @@
     "component": 296,
     "critical": 3,
     "e2e": 7,
-    "fast": 249,
+    "fast": 250,
     "guardrails": 18,
     "integration": 97,
     "migrations": 6,
@@ -62,6 +62,7 @@
     "tests/unit/decision_rhythm/test_application_dtos.py",
     "tests/unit/decision_rhythm/test_exit_advisors.py",
     "tests/unit/decision_rhythm/test_subscriber_wiring.py",
+    "tests/unit/decision_rhythm/test_t3a_quota_workflow_and_scheduler_contracts.py",
     "tests/unit/decision_rhythm/test_valuation_services.py",
     "tests/unit/decision_rhythm/test_workspace_service_safety.py",
     "tests/unit/decision_rhythm/test_workspace_snapshot_tasks.py",
@@ -3846,6 +3847,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_t3a_quota_workflow_and_scheduler_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/decision_rhythm/test_valuation_services.py",
       "reasons": [],
       "tier": "fast"
@@ -6355,6 +6362,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 7,
-  "unit_database_file_ratio": 0.0149,
-  "unit_file_count": 471
+  "unit_database_file_ratio": 0.0148,
+  "unit_file_count": 472
 }
