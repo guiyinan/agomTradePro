@@ -25,6 +25,7 @@ from .repository_provider import (
 @dataclass
 class ApplyFilterRequest:
     """应用滤波器的请求 DTO"""
+
     indicator_code: str  # 指标代码 (e.g., "PMI", "CPI")
     filter_type: FilterType  # 滤波器类型
     start_date: date | None = None  # 开始日期
@@ -36,6 +37,7 @@ class ApplyFilterRequest:
 @dataclass
 class ApplyFilterResponse:
     """应用滤波器的响应 DTO"""
+
     success: bool
     series: FilterSeries | None = None
     error: str | None = None
@@ -48,6 +50,7 @@ class ApplyFilterResponse:
 @dataclass
 class GetFilterDataRequest:
     """获取滤波数据的请求"""
+
     indicator_code: str
     filter_type: FilterType
     start_date: date | None = None
@@ -57,6 +60,7 @@ class GetFilterDataRequest:
 @dataclass
 class GetFilterDataResponse:
     """获取滤波数据的响应"""
+
     success: bool
     results: list[FilterResult] = field(default_factory=list)
     error: str | None = None
@@ -70,6 +74,7 @@ class GetFilterDataResponse:
 @dataclass
 class CompareFiltersRequest:
     """对比滤波器的请求"""
+
     indicator_code: str
     start_date: date | None = None
     end_date: date | None = None
@@ -79,6 +84,7 @@ class CompareFiltersRequest:
 @dataclass
 class CompareFiltersResponse:
     """对比滤波器的响应"""
+
     success: bool
     hp_results: dict[str, Any] | None = None
     kalman_results: dict[str, Any] | None = None
@@ -121,66 +127,47 @@ class ApplyFilterUseCase:
                 indicator_code=request.indicator_code,
                 start_date=request.start_date,
                 end_date=request.end_date,
-                limit=request.limit
+                limit=request.limit,
             )
 
             if not data:
-                return ApplyFilterResponse(
-                    success=False,
-                    error=f"无数据: {request.indicator_code}"
-                )
+                return ApplyFilterResponse(success=False, error=f"无数据: {request.indicator_code}")
 
-            dates = [d['date'] for d in data]
-            values = [d['value'] for d in data]
+            dates = [d["date"] for d in data]
+            values = [d["value"] for d in data]
 
             # 3. 根据滤波器类型执行滤波
             if request.filter_type == FilterType.HP:
-                series = self._apply_hp_filter(
-                    request.indicator_code,
-                    dates,
-                    values,
-                    config
-                )
+                series = self._apply_hp_filter(request.indicator_code, dates, values, config)
             elif request.filter_type == FilterType.KALMAN:
                 series = self._apply_kalman_filter(
                     request.indicator_code,
                     dates,
                     values,
-                    config
+                    config,
+                    save_state=request.save_results,
                 )
             else:
                 return ApplyFilterResponse(
-                    success=False,
-                    error=f"不支持的滤波器类型: {request.filter_type}"
+                    success=False, error=f"不支持的滤波器类型: {request.filter_type}"
                 )
 
             # 4. 保存结果
             if request.save_results:
                 self.repository.save_filter_results(series)
 
-            return ApplyFilterResponse(
-                success=True,
-                series=series,
-                warnings=[]
-            )
+            return ApplyFilterResponse(success=True, series=series, warnings=[])
 
         except Exception as e:
-            return ApplyFilterResponse(
-                success=False,
-                error=str(e)
-            )
+            return ApplyFilterResponse(success=False, error=str(e))
 
     def _apply_hp_filter(
-        self,
-        indicator_code: str,
-        dates: list[date],
-        values: list[float],
-        config: dict[str, Any]
+        self, indicator_code: str, dates: list[date], values: list[float], config: dict[str, Any]
     ) -> FilterSeries:
         """应用 HP 滤波"""
         adapter_factory = cast(Callable[[], HPFilterAdapter], HPFilterAdapter)
         adapter = adapter_factory()
-        lamb = config.get('hp_lambda', 129600.0)
+        lamb = config.get("hp_lambda", 129600.0)
 
         filtered_values = adapter.filter_expanding(values, lamb)
 
@@ -198,9 +185,9 @@ class ApplyFilterUseCase:
         return FilterSeries(
             indicator_code=indicator_code,
             filter_type=FilterType.HP,
-            params={'lamb': lamb},
+            params={"lamb": lamb},
             results=results,
-            calculated_at=date.today()
+            calculated_at=date.today(),
         )
 
     def _apply_kalman_filter(
@@ -208,16 +195,18 @@ class ApplyFilterUseCase:
         indicator_code: str,
         dates: list[date],
         values: list[float],
-        config: dict[str, Any]
+        config: dict[str, Any],
+        *,
+        save_state: bool,
     ) -> FilterSeries:
         """应用 Kalman 滤波"""
         # 获取保存的状态（用于增量更新）
         saved_state = self.repository.get_latest_kalman_state(indicator_code)
 
         params = KalmanFilterParams(
-            level_variance=config.get('kalman_level_variance', 0.05),
-            slope_variance=config.get('kalman_slope_variance', 0.005),
-            observation_variance=config.get('kalman_observation_variance', 0.5),
+            level_variance=config.get("kalman_level_variance", 0.05),
+            slope_variance=config.get("kalman_slope_variance", 0.005),
+            observation_variance=config.get("kalman_observation_variance", 0.5),
         )
 
         adapter = KalmanFilterAdapter(params)
@@ -234,27 +223,27 @@ class ApplyFilterUseCase:
             for i in range(len(dates))
         ]
 
-        # 保存最终状态
-        self.repository.save_kalman_state(
-            indicator_code,
-            final_state,
-            {
-                'level_variance': params.level_variance,
-                'slope_variance': params.slope_variance,
-                'observation_variance': params.observation_variance,
-            }
-        )
+        if save_state:
+            self.repository.save_kalman_state(
+                indicator_code,
+                final_state,
+                {
+                    "level_variance": params.level_variance,
+                    "slope_variance": params.slope_variance,
+                    "observation_variance": params.observation_variance,
+                },
+            )
 
         return FilterSeries(
             indicator_code=indicator_code,
             filter_type=FilterType.KALMAN,
             params={
-                'level_variance': params.level_variance,
-                'slope_variance': params.slope_variance,
-                'observation_variance': params.observation_variance,
+                "level_variance": params.level_variance,
+                "slope_variance": params.slope_variance,
+                "observation_variance": params.observation_variance,
             },
             results=results,
-            calculated_at=date.today()
+            calculated_at=date.today(),
         )
 
 
@@ -279,13 +268,13 @@ class GetFilterDataUseCase:
                 indicator_code=request.indicator_code,
                 filter_type=request.filter_type,
                 start_date=request.start_date,
-                end_date=request.end_date
+                end_date=request.end_date,
             )
 
             if not results:
                 return GetFilterDataResponse(
                     success=False,
-                    error=f"无滤波结果: {request.indicator_code} ({request.filter_type.value})"
+                    error=f"无滤波结果: {request.indicator_code} ({request.filter_type.value})",
                 )
 
             return GetFilterDataResponse(
@@ -298,10 +287,7 @@ class GetFilterDataUseCase:
             )
 
         except Exception as e:
-            return GetFilterDataResponse(
-                success=False,
-                error=str(e)
-            )
+            return GetFilterDataResponse(success=False, error=str(e))
 
 
 class CompareFiltersUseCase:
@@ -322,24 +308,28 @@ class CompareFiltersUseCase:
         """
         try:
             # 应用 HP 滤波
-            hp_response = self.apply_use_case.execute(ApplyFilterRequest(
-                indicator_code=request.indicator_code,
-                filter_type=FilterType.HP,
-                start_date=request.start_date,
-                end_date=request.end_date,
-                limit=request.limit,
-                save_results=False,  # 不保存对比结果
-            ))
+            hp_response = self.apply_use_case.execute(
+                ApplyFilterRequest(
+                    indicator_code=request.indicator_code,
+                    filter_type=FilterType.HP,
+                    start_date=request.start_date,
+                    end_date=request.end_date,
+                    limit=request.limit,
+                    save_results=False,  # 不保存对比结果
+                )
+            )
 
             # 应用 Kalman 滤波
-            kalman_response = self.apply_use_case.execute(ApplyFilterRequest(
-                indicator_code=request.indicator_code,
-                filter_type=FilterType.KALMAN,
-                start_date=request.start_date,
-                end_date=request.end_date,
-                limit=request.limit,
-                save_results=False,
-            ))
+            kalman_response = self.apply_use_case.execute(
+                ApplyFilterRequest(
+                    indicator_code=request.indicator_code,
+                    filter_type=FilterType.KALMAN,
+                    start_date=request.start_date,
+                    end_date=request.end_date,
+                    limit=request.limit,
+                    save_results=False,
+                )
+            )
 
             hp_series = hp_response.series if hp_response.success else None
             kalman_series = kalman_response.series if kalman_response.success else None
@@ -347,27 +337,22 @@ class CompareFiltersUseCase:
                 success=hp_response.success and kalman_response.success,
                 hp_results=self._serialize_series(hp_series) if hp_series is not None else None,
                 kalman_results=(
-                    self._serialize_series(kalman_series)
-                    if kalman_series is not None
-                    else None
+                    self._serialize_series(kalman_series) if kalman_series is not None else None
                 ),
                 error=hp_response.error or kalman_response.error,
             )
 
         except Exception as e:
-            return CompareFiltersResponse(
-                success=False,
-                error=str(e)
-            )
+            return CompareFiltersResponse(success=False, error=str(e))
 
     def _serialize_series(self, series: FilterSeries) -> dict[str, Any]:
         """序列化滤波序列为字典"""
         return {
-            'indicator_code': series.indicator_code,
-            'filter_type': series.filter_type.value,
-            'params': series.params,
-            'dates': [r.date.isoformat() for r in series.results],
-            'original_values': [r.original_value for r in series.results],
-            'filtered_values': [r.filtered_value for r in series.results],
-            'slopes': [r.slope for r in series.results],
+            "indicator_code": series.indicator_code,
+            "filter_type": series.filter_type.value,
+            "params": series.params,
+            "dates": [r.date.isoformat() for r in series.results],
+            "original_values": [r.original_value for r in series.results],
+            "filtered_values": [r.filtered_value for r in series.results],
+            "slopes": [r.slope for r in series.results],
         }

@@ -69,7 +69,7 @@ def test_filter_compare_returns_500_when_use_case_fails(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_filter_apply_endpoint_defaults_save_results_and_returns_series(authenticated_client):
+def test_filter_apply_endpoint_allows_side_effect_free_calculation(authenticated_client):
     response_dto = SimpleNamespace(
         success=True,
         series=SimpleNamespace(
@@ -103,7 +103,12 @@ def test_filter_apply_endpoint_defaults_save_results_and_returns_series(authenti
     ) as mock_execute:
         response = authenticated_client.post(
             "/api/filter/",
-            {"indicator_code": "PMI", "filter_type": "HP", "limit": 120},
+            {
+                "indicator_code": "PMI",
+                "filter_type": "HP",
+                "limit": 120,
+                "save_results": False,
+            },
             format="json",
         )
 
@@ -117,7 +122,27 @@ def test_filter_apply_endpoint_defaults_save_results_and_returns_series(authenti
     request_dto = mock_execute.call_args.args[1]
     assert request_dto.indicator_code == "PMI"
     assert request_dto.limit == 120
-    assert request_dto.save_results is True
+    assert request_dto.save_results is False
+
+
+@pytest.mark.django_db
+def test_filter_apply_rejects_persistence_for_ordinary_user(authenticated_client):
+    with patch(
+        "apps.filter.interface.api_views.ApplyFilterUseCase.execute",
+        autospec=True,
+    ) as mock_execute:
+        response = authenticated_client.post(
+            "/api/filter/",
+            {"indicator_code": "PMI", "filter_type": "HP"},
+            format="json",
+        )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "success": False,
+        "error": "Administrator access is required to persist filter results.",
+    }
+    mock_execute.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -168,7 +193,9 @@ def test_filter_indicators_endpoint_success_contract(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_filter_config_patch_updates_by_indicator_code(authenticated_client):
+def test_filter_config_patch_updates_by_indicator_code(authenticated_client, auth_user):
+    auth_user.is_staff = True
+    auth_user.save(update_fields=["is_staff"])
     with patch(
         "apps.filter.interface.api_views.DjangoFilterRepository.update_filter_config",
         return_value={
@@ -205,7 +232,9 @@ def test_filter_config_patch_updates_by_indicator_code(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_filter_config_delete_returns_not_found_when_missing(authenticated_client):
+def test_filter_config_delete_returns_not_found_when_missing(authenticated_client, auth_user):
+    auth_user.is_staff = True
+    auth_user.save(update_fields=["is_staff"])
     with patch(
         "apps.filter.interface.api_views.DjangoFilterRepository.delete_filter_config",
         return_value=False,
@@ -218,3 +247,29 @@ def test_filter_config_delete_returns_not_found_when_missing(authenticated_clien
         "error": "Filter config not found: PMI",
     }
     mock_delete.assert_called_once_with("PMI")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["patch", "delete"])
+def test_filter_config_mutations_require_admin(
+    authenticated_client,
+    method,
+):
+    with (
+        patch(
+            "apps.filter.interface.api_views.DjangoFilterRepository.update_filter_config"
+        ) as mock_update,
+        patch(
+            "apps.filter.interface.api_views.DjangoFilterRepository.delete_filter_config"
+        ) as mock_delete,
+    ):
+        client_method = getattr(authenticated_client, method)
+        response = client_method(
+            "/api/filter/config/PMI/",
+            {"hp_enabled": False} if method == "patch" else None,
+            format="json",
+        )
+
+    assert response.status_code == 403
+    mock_update.assert_not_called()
+    mock_delete.assert_not_called()

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3578,
-    "files_with_errors": 635
+    "errors": 3552,
+    "files_with_errors": 634
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1419,12 +1419,6 @@
       "no-untyped-def": 1,
       "type-arg": 5,
       "type-var": 1
-    },
-    "apps/filter/interface/api_views.py": {
-      "arg-type": 2,
-      "no-untyped-call": 2,
-      "no-untyped-def": 21,
-      "type-arg": 1
     },
     "apps/filter/interface/deprecation.py": {
       "misc": 1

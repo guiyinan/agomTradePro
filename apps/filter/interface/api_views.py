@@ -4,11 +4,23 @@ DRF API Views for Filter Operations.
 REST API endpoints for filter operations.
 """
 
+from typing import Any, cast
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import (
+    AllowAny,
+    BasePermission,
+    IsAdminUser,
+    IsAuthenticated,
+)
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..application.repository_provider import (
+    DjangoFilterRepository as ApplicationFilterRepository,
+)
 from ..application.repository_provider import get_filter_repository
 from ..application.use_cases import (
     ApplyFilterRequest,
@@ -18,7 +30,7 @@ from ..application.use_cases import (
     GetFilterDataRequest,
     GetFilterDataUseCase,
 )
-from ..domain.entities import FilterType
+from ..domain.entities import FilterSeries, FilterType
 from .deprecation import FilterDeprecationHeaderMixin
 from .serializers import (
     ApplyFilterRequestSerializer,
@@ -32,19 +44,23 @@ from .serializers import (
 class DjangoFilterRepository:
     """Compatibility wrapper kept for legacy interface tests."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._repository = get_filter_repository()
 
-    def get_filter_config(self, indicator_code: str):
+    def get_filter_config(self, indicator_code: str) -> dict[str, Any]:
         return self._repository.get_filter_config(indicator_code)
 
-    def update_filter_config(self, indicator_code: str, payload: dict[str, object]):
+    def update_filter_config(
+        self,
+        indicator_code: str,
+        payload: dict[str, object],
+    ) -> dict[str, object]:
         return self._repository.update_filter_config(indicator_code, payload)
 
-    def delete_filter_config(self, indicator_code: str):
+    def delete_filter_config(self, indicator_code: str) -> bool:
         return self._repository.delete_filter_config(indicator_code)
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> Any:
         return getattr(self._repository, item)
 
 
@@ -59,14 +75,17 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
     - indicators: 获取可用指标列表
     """
 
-    def __init__(self, **kwargs):
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
+
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.repository = DjangoFilterRepository()
-        self.apply_use_case = ApplyFilterUseCase(self.repository)
-        self.get_use_case = GetFilterDataUseCase(self.repository)
+        repository = cast(ApplicationFilterRepository, self.repository)
+        self.apply_use_case = ApplyFilterUseCase(repository)
+        self.get_use_case = GetFilterDataUseCase(repository)
         self.compare_use_case = CompareFiltersUseCase(self.apply_use_case)
 
-    def list(self, request):
+    def list(self, request: Request) -> Response:
         """
         获取 Filter API 根信息
 
@@ -86,7 +105,7 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
             }
         )
 
-    def create(self, request):
+    def create(self, request: Request) -> Response:
         """
         应用滤波器
 
@@ -106,6 +125,14 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
             )
 
         data = serializer.validated_data
+        if data.get("save_results", True) and not request.user.is_staff:
+            return Response(
+                {
+                    "success": False,
+                    "error": "Administrator access is required to persist filter results.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         filter_type = FilterType.HP if data["filter_type"] == "HP" else FilterType.KALMAN
 
         req = ApplyFilterRequest(
@@ -120,6 +147,14 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
         response = self.apply_use_case.execute(req)
 
         if response.success:
+            if response.series is None:
+                return Response(
+                    {
+                        "success": False,
+                        "error": "Filter calculation returned no series.",
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
             response_data = {
                 "success": True,
                 "series": _serialize_series(response.series),
@@ -132,7 +167,7 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["POST"], url_path="get-data")
-    def get_data(self, request):
+    def get_data(self, request: Request) -> Response:
         """
         获取已保存的滤波数据
 
@@ -177,7 +212,7 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["POST"], url_path="compare")
-    def compare(self, request):
+    def compare(self, request: Request) -> Response:
         """
         对比 HP 和 Kalman 滤波
 
@@ -220,7 +255,7 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["GET"], url_path="indicators")
-    def indicators(self, request):
+    def indicators(self, request: Request) -> Response:
         """
         获取可用指标列表
 
@@ -235,7 +270,11 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
         )
 
     @action(detail=False, methods=["GET"], url_path="config/(?P<indicator_code>[^/]+)")
-    def config(self, request, indicator_code=None):
+    def config(
+        self,
+        request: Request,
+        indicator_code: str | None = None,
+    ) -> Response:
         """
         获取滤波器配置
 
@@ -260,7 +299,9 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
 class FilterHealthView(FilterDeprecationHeaderMixin, APIView):
     """滤波器健康检查"""
 
-    def get(self, request):
+    permission_classes: list[type[BasePermission]] = [AllowAny]
+
+    def get(self, request: Request) -> Response:
         return Response(
             {
                 "status": "healthy",
@@ -273,17 +314,26 @@ class FilterHealthView(FilterDeprecationHeaderMixin, APIView):
 class FilterConfigDetailView(FilterDeprecationHeaderMixin, APIView):
     """Canonical filter-config detail endpoint by indicator code."""
 
-    def __init__(self, **kwargs):
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
+
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.repository = DjangoFilterRepository()
 
-    def get(self, request, indicator_code: str):
+    def get_permissions(self) -> list[BasePermission]:
+        """Require administrators for persisted configuration mutations."""
+
+        if self.request.method in {"PATCH", "DELETE"}:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+
+    def get(self, request: Request, indicator_code: str) -> Response:
         config = self.repository.get_filter_config(indicator_code)
         config["indicator_code"] = indicator_code
         serializer = FilterConfigSerializer(config)
         return Response({"success": True, "config": serializer.data})
 
-    def patch(self, request, indicator_code: str):
+    def patch(self, request: Request, indicator_code: str) -> Response:
         serializer = UpdateFilterConfigRequestSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         if not serializer.validated_data:
@@ -295,7 +345,7 @@ class FilterConfigDetailView(FilterDeprecationHeaderMixin, APIView):
         response_serializer = FilterConfigSerializer(config)
         return Response({"success": True, "config": response_serializer.data})
 
-    def delete(self, request, indicator_code: str):
+    def delete(self, request: Request, indicator_code: str) -> Response:
         deleted = self.repository.delete_filter_config(indicator_code)
         if not deleted:
             return Response(
@@ -305,7 +355,7 @@ class FilterConfigDetailView(FilterDeprecationHeaderMixin, APIView):
         return Response({"success": True, "indicator_code": indicator_code})
 
 
-def _serialize_series(series) -> dict:
+def _serialize_series(series: FilterSeries) -> dict[str, object]:
     """序列化滤波序列"""
     return {
         "indicator_code": series.indicator_code,

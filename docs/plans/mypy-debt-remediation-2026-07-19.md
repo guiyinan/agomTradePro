@@ -2023,3 +2023,19 @@
 - AI Provider repositories 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3607 errors / 636 files` 收紧为 `3578 errors / 635 files`，净减少 `29 errors / 1 file`。
 - AI Provider 凭据、用户路由、Usage/Quota 持久化和 API 边界回归共 `40 passed`。
 - Django system check、架构检查、改动文件 Ruff 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百四十四批
+
+- 按“宏观滤波配置影响面 × API 持久化权限与预览无副作用”收口 Filter API。
+- Filter API 根信息、指标、历史结果、配置读取和纯计算统一要求登录；健康检查继续明确允许匿名探活。
+- 普通用户仅可使用 `save_results=false` 执行无副作用滤波计算，默认持久化或显式持久化请求在进入用例前返回 403；管理员继续可以写入计算结果。
+- Filter 配置 PATCH/DELETE 改为仅管理员可操作，普通登录用户保留配置读取权限。
+- Kalman 计算仅在 `save_results=true` 时持久化增量状态；Compare 和普通用户预览不再以“未保存结果”为名修改 Kalman state。
+- Apply 成功但缺少 series 时失败关闭并返回 500，不再把可空结果传入序列化边界。
+- Compatibility Repository、ViewSet、APIView、Request/Response 和序列化 helper 补齐精确类型，清除 Filter API 视图类型债务。
+
+## 第一百四十四批验证结果
+
+- Filter API views 与相关 use case 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3578 errors / 635 files` 收紧为 `3552 errors / 634 files`，净减少 `26 errors / 1 file`。
+- Filter API 权限、契约和 Kalman 状态副作用回归共 `13 passed`。
+- Django system check、架构检查、改动文件 Ruff、Black 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
