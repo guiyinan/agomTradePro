@@ -1566,3 +1566,17 @@
 - Decision Rhythm Rhythm Entity、Domain Service 与 ORM Model mypy 清零；全仓基线从 `4188 errors / 695 files` 收紧为 `4169 errors / 692 files`，净减少 `19 errors / 3 files`。
 - Decision Rhythm Domain、Scheduler、ORM mapper 与模型结构回归 `34 passed`。
 - governance baseline 升级为 `2026-07-24.v186`，静态测试函数计数提升至 `7212`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百一十五批
+
+- 按“用户决策工作台主流程 × 执行审批风控安全性”收口 Decision Workspace 用例，覆盖估值快照、聚合建议、执行预览、批准与拒绝。
+- 为估值快照、推荐、审批、配额、冷却、Regime 与事件发布建立最小 Application Protocol；五个 UseCase constructor、推荐格式化和风险检查全部具化。
+- 响应 DTO 直接使用 ValuationSnapshot 与 ExecutionApprovalRequest，账户分组、聚合结果和风险检查容器显式收窄，不再依赖无类型对象传播。
+- 配额或冷却依赖异常时改为风险检查失败，不再以“检查失败（跳过）”静默放行；显式传入零市场价格时仍进入审批校验，不再因 truthy 判断绕过价格检查。
+- 新增风险依赖异常 fail-closed 与零市场价格不得跳过校验两组回归。
+
+## 第一百一十五批验证结果
+
+- Decision Workspace UseCase mypy 清零；全仓基线从 `4169 errors / 692 files` 收紧为 `4162 errors / 691 files`，净减少 `7 errors / 1 file`。
+- Decision Workspace 安全回归、结构与工作流用例共 `18 passed`。
+- governance baseline 升级为 `2026-07-24.v187`，静态测试函数计数提升至 `7214`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
