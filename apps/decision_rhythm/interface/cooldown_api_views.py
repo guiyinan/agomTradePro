@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from ..application.query_workflows import (
@@ -27,13 +30,13 @@ from .serializers import (
 class CooldownPeriodViewSet(viewsets.ViewSet):
     """Cooldown query endpoints."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.list_use_case = build_list_active_cooldowns_use_case()
         self.get_by_asset_use_case = build_get_active_cooldown_by_asset_use_case()
         self.remaining_hours_use_case = build_get_cooldown_remaining_hours_use_case()
 
-    def list(self, request) -> Response:
+    def list(self, request: Request) -> Response:
         """GET /api/decision-rhythm/cooldowns/"""
         try:
             cooldowns = self.list_use_case.execute()
@@ -49,11 +52,18 @@ class CooldownPeriodViewSet(viewsets.ViewSet):
             return internal_error_response("Failed to list cooldowns", exc)
 
     @action(detail=False, methods=["GET"], url_path="by-asset/(?P<asset_code>[^/]+)")
-    def by_asset(self, request, asset_code=None) -> Response:
+    def by_asset(
+        self,
+        request: Request,
+        asset_code: str | None = None,
+    ) -> Response:
         """GET /api/decision-rhythm/cooldowns/by-asset/{asset_code}/"""
         try:
-            if not asset_code:
+            normalized_asset_code = str(asset_code or "").strip().upper()
+            if not normalized_asset_code:
                 return bad_request_response("asset_code is required")
+            if len(normalized_asset_code) > 32:
+                return bad_request_response("asset_code must not exceed 32 characters")
 
             serializer = CooldownByAssetQuerySerializer(data=request.query_params)
             serializer.is_valid(raise_exception=True)
@@ -61,7 +71,7 @@ class CooldownPeriodViewSet(viewsets.ViewSet):
 
             cooldown = self.get_by_asset_use_case.execute(
                 GetActiveCooldownByAssetRequest(
-                    asset_code=asset_code,
+                    asset_code=normalized_asset_code,
                     direction=data.get("direction") or None,
                 )
             )
@@ -82,7 +92,7 @@ class CooldownPeriodViewSet(viewsets.ViewSet):
             return internal_error_response("Failed to get cooldown by asset", exc)
 
     @action(detail=False, methods=["GET"], url_path="remaining-hours")
-    def remaining_hours(self, request) -> Response:
+    def remaining_hours(self, request: Request) -> Response:
         """GET /api/decision-rhythm/cooldowns/remaining-hours/"""
         try:
             serializer = CooldownRemainingHoursQuerySerializer(data=request.query_params)

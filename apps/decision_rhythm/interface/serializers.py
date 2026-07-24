@@ -420,21 +420,38 @@ class CooldownByAssetQuerySerializer(serializers.Serializer[dict[str, Any]]):
 class CooldownRemainingHoursQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """冷却剩余小时数查询序列化器"""
 
-    asset_code = serializers.CharField(help_text="资产代码")
+    asset_code = serializers.CharField(max_length=32, help_text="资产代码")
     direction = serializers.CharField(required=False, allow_blank=True, help_text="方向")
 
 
 class DecisionRequestListQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """决策请求列表查询序列化器"""
 
-    days = serializers.IntegerField(default=30, required=False, min_value=1, help_text="查询天数")
-    asset_code = serializers.CharField(required=False, allow_blank=True, help_text="资产代码")
+    days = serializers.IntegerField(
+        default=30,
+        required=False,
+        min_value=1,
+        max_value=3650,
+        help_text="查询天数",
+    )
+    asset_code = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=32,
+        help_text="资产代码",
+    )
 
 
 class DecisionRequestStatisticsQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """决策请求统计查询序列化器"""
 
-    days = serializers.IntegerField(default=30, required=False, min_value=1, help_text="统计天数")
+    days = serializers.IntegerField(
+        default=30,
+        required=False,
+        min_value=1,
+        max_value=3650,
+        help_text="统计天数",
+    )
 
 
 class PrecheckDecisionRequestSerializer(serializers.Serializer[dict[str, Any]]):

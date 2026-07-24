@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from ..application.query_workflows import (
@@ -28,13 +31,13 @@ from .serializers import (
 class DecisionRequestViewSet(viewsets.ViewSet):
     """Decision request read endpoints."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.list_use_case = build_list_decision_requests_use_case()
         self.get_request_use_case = build_get_decision_request_use_case()
         self.statistics_use_case = build_get_decision_request_statistics_use_case()
 
-    def list(self, request) -> Response:
+    def list(self, request: Request) -> Response:
         """GET /api/decision-rhythm/requests/"""
         try:
             serializer = DecisionRequestListQuerySerializer(data=request.query_params)
@@ -60,11 +63,17 @@ class DecisionRequestViewSet(viewsets.ViewSet):
         except Exception as exc:
             return internal_error_response("Failed to list requests", exc)
 
-    def retrieve(self, request, pk=None) -> Response:
+    def retrieve(self, request: Request, pk: str | None = None) -> Response:
         """GET /api/decision-rhythm/requests/{request_id}/"""
         try:
+            request_id = str(pk or "").strip()
+            if not request_id:
+                return bad_request_response("request_id is required")
+            if len(request_id) > 64:
+                return bad_request_response("request_id must not exceed 64 characters")
+
             decision_request = self.get_request_use_case.execute(
-                GetDecisionRequestRequest(request_id=pk or "")
+                GetDecisionRequestRequest(request_id=request_id)
             )
             if decision_request is None:
                 return Response(
@@ -78,7 +87,7 @@ class DecisionRequestViewSet(viewsets.ViewSet):
             return internal_error_response("Failed to retrieve request", exc)
 
     @action(detail=False, methods=["GET"], url_path="statistics")
-    def statistics(self, request) -> Response:
+    def statistics(self, request: Request) -> Response:
         """GET /api/decision-rhythm/requests/statistics/"""
         try:
             serializer = DecisionRequestStatisticsQuerySerializer(data=request.query_params)
