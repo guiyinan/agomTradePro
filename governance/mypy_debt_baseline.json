@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3318,
-    "files_with_errors": 625
+    "errors": 3286,
+    "files_with_errors": 623
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2185,21 +2185,10 @@
     "apps/strategy/interface/api_urls.py": {
       "no-untyped-def": 1
     },
-    "apps/strategy/interface/assignment_api_views.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 8,
-      "type-arg": 1,
-      "union-attr": 1
-    },
     "apps/strategy/interface/execution_log_api_views.py": {
       "import-untyped": 1,
       "no-untyped-def": 4,
       "type-arg": 1
-    },
-    "apps/strategy/interface/execution_views.py": {
-      "arg-type": 3,
-      "no-untyped-def": 17,
-      "var-annotated": 1
     },
     "apps/strategy/interface/rule_api_views.py": {
       "import-untyped": 1,

@@ -158,8 +158,25 @@ class StrategyInterfaceRepositoryProtocol(Protocol):
     def get_assignment_queryset(self) -> Any:
         """Return the ORM queryset boundary for assignments."""
 
+    def get_assignment_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> Any:
+        """Return assignments visible to one owner or a staff caller."""
+
     def list_assignments_by_portfolio(self, portfolio_id: int) -> Any:
         """Return assignments for one portfolio."""
+
+    def list_assignments_by_portfolio_for_access(
+        self,
+        *,
+        portfolio_id: int,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> Any:
+        """Return owner-scoped assignments for one portfolio."""
 
     def list_active_assignments_for_strategy(
         self,

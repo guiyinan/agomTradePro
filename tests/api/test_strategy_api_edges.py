@@ -35,6 +35,81 @@ def test_strategy_assignments_by_portfolio_requires_portfolio_id(authenticated_c
 
 
 @pytest.mark.django_db
+def test_strategy_assignments_are_owner_scoped_and_reject_cross_owner_links(
+    authenticated_client,
+    auth_user,
+):
+    other_user = get_user_model().objects.create_user(
+        username="strategy_assignment_other",
+        password="testpass123",
+    )
+    own_strategy = StrategyModel.objects.create(
+        name="Own Assignment Strategy",
+        strategy_type="rule_based",
+        version=1,
+        created_by=auth_user.account_profile,
+    )
+    other_strategy = StrategyModel.objects.create(
+        name="Other Assignment Strategy",
+        strategy_type="rule_based",
+        version=1,
+        created_by=other_user.account_profile,
+    )
+    own_account = SimulatedAccountModel.objects.create(
+        user=auth_user,
+        account_name="Own Assignment Account",
+        initial_capital=100_000,
+        current_cash=100_000,
+        total_value=100_000,
+    )
+    other_account = SimulatedAccountModel.objects.create(
+        user=other_user,
+        account_name="Other Assignment Account",
+        initial_capital=100_000,
+        current_cash=100_000,
+        total_value=100_000,
+    )
+    own_assignment = PortfolioStrategyAssignmentModel.objects.create(
+        portfolio=own_account,
+        strategy=own_strategy,
+        assigned_by=auth_user.account_profile,
+    )
+    other_assignment = PortfolioStrategyAssignmentModel.objects.create(
+        portfolio=other_account,
+        strategy=other_strategy,
+        assigned_by=other_user.account_profile,
+    )
+
+    list_response = authenticated_client.get("/api/strategy/assignments/")
+    rows = list_response.json().get("results", list_response.json())
+    hidden_portfolio = authenticated_client.get(
+        f"/api/strategy/assignments/by_portfolio/?portfolio_id={other_account.id}"
+    )
+    cross_portfolio = authenticated_client.post(
+        "/api/strategy/assignments/",
+        {"portfolio": other_account.id, "strategy": own_strategy.id},
+        format="json",
+    )
+    cross_strategy = authenticated_client.patch(
+        f"/api/strategy/assignments/{own_assignment.id}/",
+        {"strategy": other_strategy.id},
+        format="json",
+    )
+
+    assert list_response.status_code == 200
+    assert {row["id"] for row in rows} == {own_assignment.id}
+    assert hidden_portfolio.status_code == 200
+    assert hidden_portfolio.json() == []
+    assert (
+        authenticated_client.get(f"/api/strategy/assignments/{other_assignment.id}/").status_code
+        == 404
+    )
+    assert cross_portfolio.status_code == 403
+    assert cross_strategy.status_code == 403
+    assert PortfolioStrategyAssignmentModel.objects.count() == 2
+
+
+@pytest.mark.django_db
 def test_strategy_execution_evaluate_rejects_invalid_json(authenticated_client):
     response = authenticated_client.post(
         "/api/strategy/execution/evaluate/",
@@ -44,6 +119,39 @@ def test_strategy_execution_evaluate_rejects_invalid_json(authenticated_client):
 
     assert response.status_code == 400
     assert response.json()["error"] == "无效 JSON"
+
+
+@pytest.mark.django_db
+def test_strategy_execution_evaluate_rejects_nonfinite_numbers(authenticated_client):
+    response = authenticated_client.post(
+        "/api/strategy/execution/evaluate/",
+        data='{"symbol":"000001.SZ","side":"buy","account_equity":NaN}',
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "account_equity" in response.json()["errors"]
+
+
+@pytest.mark.django_db
+def test_strategy_script_preview_rejects_non_object_and_oversized_payloads(
+    authenticated_client,
+):
+    non_object = authenticated_client.post(
+        "/api/strategy/test-script/",
+        data="[]",
+        content_type="application/json",
+    )
+    oversized = authenticated_client.post(
+        "/api/strategy/test-script/",
+        data={"script_code": "x" * 50_001},
+        format="json",
+    )
+
+    assert non_object.status_code == 400
+    assert non_object.json()["error"] == "JSON 请求体必须是对象"
+    assert oversized.status_code == 400
+    assert "不能超过 50000 个字符" in oversized.json()["error"]
 
 
 @pytest.mark.django_db

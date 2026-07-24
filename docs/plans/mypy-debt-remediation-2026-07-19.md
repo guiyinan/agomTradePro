@@ -2120,3 +2120,22 @@
 - Qlib 初始化与预测运行时增量 mypy 清零，并同步减少 artifact runtime 的一个下游调用债务；隔离并行工作区改动后，全仓基线从 `3376 errors / 627 files` 收紧为 `3318 errors / 625 files`，净减少 `58 errors / 2 files`。
 - Qlib 运行契约、训练组件和集成回归共 `69 passed`；覆盖禁用失败、结果上限、非有限分数过滤、代码去重、训练和数据集适配。
 - Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百五十批
+
+- 按“策略执行资金影响面 × 投资组合归属边界”收口 Strategy 执行、评估与模拟脚本接口。
+- 页面立即执行改为调用 Application 层已有的 assignment-aware 执行服务；传入的 `portfolio_id` 必须属于该策略的活跃绑定，不能再把任意有效账户主键直接交给执行器。
+- 不指定组合时仍执行当前用户自有策略的全部活跃绑定；无活跃绑定明确返回 400，不再把零次执行伪报为成功。
+- Assignment ViewSet 的列表、详情、按组合查询、启停、创建和修改统一按“策略所有者 + 账户所有者”双重归属收口；普通用户看不到或修改不了其他用户绑定，跨用户策略/账户不能组成新绑定。
+- Assignment 创建者改为只读并始终由服务端当前账户资料写入，调用方不能伪造 `assigned_by`；staff 保留全局读取能力但不能借创建/修改接口替其他用户拼接绑定。
+- 执行请求只接受 `portfolio_id`，并严格要求正整数；JSON 数组、未知字段、超大请求体和布尔冒充整数均在进入执行链前拒绝。
+- 策略执行内部异常不再把原始异常文本返回给用户，避免数据库、路径或运行配置细节泄露；预期的绑定/输入错误继续返回可操作的 400。
+- 执行评估对价格、权益、持仓市值、止损价、ATR、成交量、日内盈亏和交易次数增加正值/非负值/有限值及合理上限校验；NaN 和无穷不能进入仓位与风险引擎。
+- 模拟脚本接口限制 JSON 请求体和脚本长度，只接受字符串脚本；测试 Strategy 的 hybrid 脚本分支恢复实际预览，脚本失败不再被吞掉后伪报成功空信号。
+- Mock provider、HttpRequest/JsonResponse、JSON payload、settings 边界和执行结果补齐精确类型，Interface 继续仅编排 Application/Domain 服务。
+
+## 第一百五十批验证结果
+
+- Strategy 执行、Assignment API 与评估 serializer 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3318 errors / 625 files` 收紧为 `3286 errors / 623 files`，净减少 `32 errors / 2 files`。
+- Strategy API 边界、执行全流程、serializer、脚本引擎、视图结构、repository 生命周期和自动交易集成回归共 `64 passed`；新增跨用户绑定拒绝、未绑定组合不落执行日志、非有限资金输入和超大脚本请求覆盖。
+- Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

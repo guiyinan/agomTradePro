@@ -8,6 +8,7 @@ Interface层:
 
 from collections.abc import Callable
 from datetime import date
+from math import isfinite
 from typing import Any, TypeAlias, TypeVar, cast
 
 from django.apps import apps as django_apps
@@ -373,7 +374,13 @@ class PortfolioStrategyAssignmentSerializer(serializers.ModelSerializer[Any]):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "assigned_at", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "assigned_at",
+            "assigned_by",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate_override_max_position_pct(self, value: float | None) -> float | None:
         """验证覆盖的单资产最大持仓比例"""
@@ -521,11 +528,19 @@ class StrategyEmptyQuerySerializer(StrictStrategySerializer):
 class ExecutionEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
     """执行评估输入序列化器"""
 
-    symbol = serializers.CharField(help_text="资产代码")
+    symbol = serializers.CharField(help_text="资产代码", max_length=32)
     side = serializers.ChoiceField(choices=["buy", "sell"], help_text="买卖方向")
-    portfolio_id = serializers.IntegerField(help_text="投资组合ID", required=False)
+    portfolio_id = serializers.IntegerField(
+        help_text="投资组合ID",
+        required=False,
+        min_value=1,
+    )
 
-    current_price = serializers.FloatField(help_text="当前价格", required=False)
+    current_price = serializers.FloatField(
+        help_text="当前价格",
+        required=False,
+        min_value=1e-12,
+    )
     signal_strength = serializers.FloatField(
         help_text="信号强度 (0-1)", default=0.6, min_value=0.0, max_value=1.0
     )
@@ -535,18 +550,81 @@ class ExecutionEvaluateInputSerializer(serializers.Serializer[dict[str, Any]]):
     signal_confidence = serializers.FloatField(
         help_text="信号置信度 (0-1)", default=0.8, min_value=0.0, max_value=1.0
     )
-    stop_loss_price = serializers.FloatField(help_text="止损价", required=False)
-    atr = serializers.FloatField(help_text="ATR值", required=False)
-    target_regime = serializers.CharField(help_text="目标Regime", required=False)
-    account_equity = serializers.FloatField(help_text="账户权益", default=100000.0)
-    current_position_value = serializers.FloatField(help_text="当前持仓市值", default=0.0)
-    daily_pnl_pct = serializers.FloatField(help_text="当日盈亏比例", default=0.0)
-    daily_trade_count = serializers.IntegerField(help_text="当日交易次数", default=0)
-    volatility_z = serializers.FloatField(help_text="波动率Z分数", required=False)
-    avg_volume = serializers.FloatField(help_text="平均成交量", required=False)
+    stop_loss_price = serializers.FloatField(
+        help_text="止损价",
+        required=False,
+        min_value=1e-12,
+    )
+    atr = serializers.FloatField(help_text="ATR值", required=False, min_value=1e-12)
+    target_regime = serializers.CharField(
+        help_text="目标Regime",
+        required=False,
+        max_length=50,
+    )
+    account_equity = serializers.FloatField(
+        help_text="账户权益",
+        default=100000.0,
+        min_value=1e-12,
+    )
+    current_position_value = serializers.FloatField(
+        help_text="当前持仓市值",
+        default=0.0,
+        min_value=0.0,
+    )
+    daily_pnl_pct = serializers.FloatField(
+        help_text="当日盈亏比例",
+        default=0.0,
+        min_value=-100.0,
+        max_value=100.0,
+    )
+    daily_trade_count = serializers.IntegerField(
+        help_text="当日交易次数",
+        default=0,
+        min_value=0,
+        max_value=100_000,
+    )
+    volatility_z = serializers.FloatField(
+        help_text="波动率Z分数",
+        required=False,
+        min_value=-100.0,
+        max_value=100.0,
+    )
+    avg_volume = serializers.FloatField(
+        help_text="平均成交量",
+        required=False,
+        min_value=0.0,
+    )
     sizing_method = serializers.ChoiceField(
         choices=["fixed_fraction", "atr_risk"], help_text="仓位计算方法", default="fixed_fraction"
     )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Reject non-finite floats before they reach sizing and risk engines."""
+
+        float_fields = {
+            "current_price",
+            "signal_strength",
+            "signal_confidence",
+            "stop_loss_price",
+            "atr",
+            "account_equity",
+            "current_position_value",
+            "daily_pnl_pct",
+            "volatility_z",
+            "avg_volume",
+        }
+        invalid_fields = [
+            field_name
+            for field_name in float_fields
+            if field_name in attrs
+            and isinstance(attrs[field_name], float)
+            and not isfinite(attrs[field_name])
+        ]
+        if invalid_fields:
+            raise serializers.ValidationError(
+                dict.fromkeys(sorted(invalid_fields), "必须是有限数值")
+            )
+        return attrs
 
 
 class ExecutionEvaluateOutputSerializer(serializers.Serializer[dict[str, Any]]):

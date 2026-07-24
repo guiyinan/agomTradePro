@@ -1254,11 +1254,43 @@ class StrategyInterfaceRepository:
         )
         return queryset
 
+    def get_assignment_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> QuerySet[PortfolioStrategyAssignmentModel]:
+        """Return assignments owned through both strategy and portfolio."""
+
+        queryset = self.get_assignment_queryset()
+        if include_all:
+            return queryset
+        if owner_profile_id is None:
+            return queryset.none()
+        return queryset.filter(
+            strategy__created_by_id=owner_profile_id,
+            portfolio__user__account_profile__id=owner_profile_id,
+        )
+
     def list_assignments_by_portfolio(
         self,
         portfolio_id: int,
     ) -> QuerySet[PortfolioStrategyAssignmentModel]:
         return self.get_assignment_queryset().filter(portfolio_id=portfolio_id)
+
+    def list_assignments_by_portfolio_for_access(
+        self,
+        *,
+        portfolio_id: int,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> QuerySet[PortfolioStrategyAssignmentModel]:
+        """Return visible assignments for one portfolio."""
+
+        return self.get_assignment_queryset_for_access(
+            owner_profile_id=owner_profile_id,
+            include_all=include_all,
+        ).filter(portfolio_id=portfolio_id)
 
     def list_active_assignments_for_strategy(
         self,

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from django.utils import timezone
 
 from apps.strategy.interface.serializers import (
+    ExecutionEvaluateInputSerializer,
     PositionManagementEvaluateInputSerializer,
     StrategyDetailSerializer,
     StrategyExecuteRequestSerializer,
@@ -32,6 +33,31 @@ def test_strategy_execute_request_accepts_current_date() -> None:
 
     assert serializer.is_valid(), serializer.errors
     assert serializer.validated_data["as_of_date"] == timezone.localdate()
+
+
+def test_execution_evaluate_rejects_nonfinite_and_nonpositive_financial_inputs() -> None:
+    nonfinite_serializer = ExecutionEvaluateInputSerializer(
+        data={
+            "symbol": "000001.SZ",
+            "side": "buy",
+            "current_price": float("nan"),
+        }
+    )
+    nonpositive_serializer = ExecutionEvaluateInputSerializer(
+        data={
+            "symbol": "000001.SZ",
+            "side": "buy",
+            "account_equity": 0,
+            "current_position_value": -1,
+        }
+    )
+
+    assert not nonfinite_serializer.is_valid()
+    assert "current_price" in nonfinite_serializer.errors
+    assert not nonpositive_serializer.is_valid()
+    assert {"account_equity", "current_position_value"} <= set(
+        nonpositive_serializer.errors
+    )
 
 
 def test_strategy_detail_rules_count_is_an_integer() -> None:

@@ -147,8 +147,36 @@ def get_assignment_queryset() -> Any:
     return _repo().get_assignment_queryset()
 
 
+def get_assignment_queryset_for_access(
+    *,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+) -> Any:
+    """Return portfolio assignments visible to one owner or staff caller."""
+
+    return _repo().get_assignment_queryset_for_access(
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+    )
+
+
 def list_assignments_by_portfolio(portfolio_id: int) -> Any:
     return _repo().list_assignments_by_portfolio(portfolio_id)
+
+
+def list_assignments_by_portfolio_for_access(
+    *,
+    portfolio_id: int,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+) -> Any:
+    """Return owner-scoped assignments for one portfolio."""
+
+    return _repo().list_assignments_by_portfolio_for_access(
+        portfolio_id=portfolio_id,
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+    )
 
 
 def list_active_assignments_for_strategy(

@@ -311,13 +311,13 @@ class TestStrategyExecuteFlow(TestCase):
         logs = StrategyExecutionLogModel.objects.filter(strategy=strategy)
         self.assertEqual(logs.count(), 3)
 
-    def test_strategy_execute_with_failed_portfolio(self):
+    def test_strategy_execute_rejects_unassigned_portfolio(self):
         """
-        测试策略执行失败的组合
+        测试策略拒绝执行未绑定组合
 
         验证：
-        - failed_rules 正确收集错误信息
-        - success 正确反映执行状态
+        - 任意有效 portfolio_id 不能绕过活跃绑定关系
+        - 未绑定组合不会生成执行日志
         """
         # 1. 创建策略
         strategy = StrategyModel.objects.create(
@@ -355,12 +355,16 @@ class TestStrategyExecuteFlow(TestCase):
         )
 
         # 3. 验证响应
-        self.assertEqual(response.status_code, 200)  # HTTP 请求成功
+        self.assertEqual(response.status_code, 400)
         response_data = json.loads(response.content)
-
-        # 策略对空账户执行，应该生成 0 信号
-        self.assertIn("failed_rules", response_data)
-        self.assertIn("generated_signals", response_data)
+        self.assertFalse(response_data["success"])
+        self.assertIn("not actively assigned", response_data["error"])
+        self.assertFalse(
+            StrategyExecutionLogModel.objects.filter(
+                strategy=strategy,
+                portfolio=empty_account,
+            ).exists()
+        )
 
     def test_strategy_execute_response_format(self):
         """
