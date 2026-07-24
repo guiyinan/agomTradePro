@@ -1593,3 +1593,19 @@
 - Decision Rhythm valuation models mypy 清零；全仓基线从 `4162 errors / 691 files` 收紧为 `4156 errors / 690 files`，净减少 `6 errors / 1 file`。
 - Workspace 安全与模型结构回归 `5 passed`。
 - governance baseline 升级为 `2026-07-24.v188`，静态测试函数计数提升至 `7215`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百一十七批
+
+- 按“推荐持久化溯源影响面 × 执行审批安全性”纵向收口 Recommendation Model、Repository 与 Workspace Service 传播链。
+- Decision Feature Snapshot、Unified Recommendation 与 Execution Link ORM 移除失效的宽泛 mypy ignore；估值快照、投资建议、调仓计划和执行审批 Repository 的 Domain 输入输出全部具化。
+- 推荐写入遇到不存在的估值快照时明确失败，不再静默保存并丢失估值溯源；推荐与审批列表统一 `select_related` 所需关联，消除序列化阶段 N+1。
+- 估值快照和待审批聚合键查询不再捕获所有异常并伪装成“无数据”，数据库与实现错误可由上层按既有异常边界处理。
+- 统一推荐无法计算出正数可执行数量时拒绝创建审批，避免绕过 ORM 的数量约束形成不可执行审批单。
+- 精确 Repository 返回类型向 Workspace Service 传播，删除 11 个历史 cast；配额、冷却依赖异常统一 fail-closed，调仓计划逐资产冷却检查失败也会阻断审批。
+- 新增缺失估值快照、推荐列表单查询、零数量审批、推荐与调仓计划风险依赖异常五组回归；同时规范化 Recommendation Repository 历史混合换行。
+
+## 第一百一十七批验证结果
+
+- Recommendation Model、Repository 与 Workspace Service mypy 清零；全仓基线从 `4156 errors / 690 files` 收紧为 `4143 errors / 687 files`，净减少 `13 errors / 3 files`。
+- 推荐持久化、审批链、调仓计划与 Workspace 风险回归共 `15 passed`。
+- governance baseline 升级为 `2026-07-24.v189`，静态测试函数计数提升至 `7220`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
