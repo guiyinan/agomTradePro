@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3048,
-    "files_with_errors": 594
+    "errors": 2998,
+    "files_with_errors": 591
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -991,15 +991,6 @@
     "apps/data_center/infrastructure/market_gateway_entities.py": {
       "type-arg": 7
     },
-    "apps/data_center/infrastructure/market_thermometer_repositories.py": {
-      "no-any-return": 6,
-      "no-untyped-call": 8
-    },
-    "apps/data_center/infrastructure/models.py": {
-      "arg-type": 6,
-      "no-untyped-def": 10,
-      "unused-ignore": 3
-    },
     "apps/data_center/infrastructure/parsers/eastmoney_capital_flow_parser.py": {
       "import-untyped": 1,
       "unused-ignore": 1
@@ -1020,10 +1011,6 @@
     "apps/data_center/infrastructure/provider_registry.py": {
       "attr-defined": 1,
       "return-value": 1
-    },
-    "apps/data_center/infrastructure/provider_state_repositories.py": {
-      "no-any-return": 7,
-      "no-untyped-call": 10
     },
     "apps/data_center/interface/admin.py": {
       "no-untyped-def": 4,

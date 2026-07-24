@@ -2435,3 +2435,19 @@
 - Unified Price Service 与 Simulated Trading Price Provider 增量 mypy 清零；全仓基线从 `3060 errors / 596 files` 收紧为 `3048 errors / 594 files`，净减少 `12 errors / 2 files`。
 - Data Center 与 Simulated Trading 单元回归共 `289 passed`；覆盖无效实时价回退、无来源价格拒绝、Domain 价格实体约束、标准错误和既有行情/订单路径。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十九批
+
+- 按“Data Center 价格事实持久化旁路 × 公共模型契约影响面”收口 Data Center ORM models。
+- Price Bar、Quote Snapshot 与 Fund NAV 的 direct ORM 保存会先验证新增价格约束；`objects.create()` 不能写入零/负价格、空资产代码或空来源。
+- 三类价格事实增加数据库 CheckConstraint；`QuerySet.update`、bulk 或并发写入不能绕过正价格、非空代码和非空来源约束。
+- 新迁移 `0040_enforce_executable_price_facts` 只增加约束，不自动删除或改写历史事实；若已有脏数据，迁移明确失败并要求先审计处置，避免静默破坏行情证据。
+- 保存钩子只执行约束验证，不对现有 float 输入执行 DecimalField 小数位校验；保持既有同步入口由数据库 DecimalField 量化的兼容行为。
+- Provider、全局数据源配置、覆盖范围、Publisher 与 Market Thermometer 模型的 `to_domain()` 补齐精确返回类型，singleton `save()` 补齐 Django 边界参数类型。
+- Market Thermometer 持久化 JSON 的数值、布尔和非负天数显式收窄；字符串 `"false"` 不再被 Python truthiness 转为 `True`，NaN/无穷和畸形整数明确失败。
+
+## 第一百六十九批验证结果
+
+- Data Center ORM models 增量 mypy 清零，并连带清除 Provider State 与 Market Thermometer Repository 下游债务；全仓基线从 `3048 errors / 594 files` 收紧为 `2998 errors / 591 files`，净减少 `50 errors / 3 files`。
+- Data Center 单元、component、API 与统一价格服务回归共 `340 passed`；覆盖 direct ORM 拒绝、数据库 update 绕过、严格 JSON 布尔和既有同步/查询路径。
+- 迁移漂移检查、改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
