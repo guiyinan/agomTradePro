@@ -2636,4 +2636,20 @@
 - Account Token Authentication、Identity Model 与 Registration Repository 增量 mypy 清零；全仓基线从 `2827 errors / 573 files` 收紧为 `2805 errors / 570 files`，净减少 `22 errors / 3 files`。
 - Token Authentication、Admin User Management 与 Account API 回归共 `70 passed`；新增覆盖哈希落库、历史明文迁移后原始 Token 认证、缺失账户配置、内部认证禁用和畸形只读 action 声明。
 - 另行确认模拟交易最低佣金来自启用的 `FeeConfig` 而非硬编码，资金校验边界回归 `7 passed`，其中使用 `7.5` 元最低佣金验证配置值会进入所需资金。
-- 迁移漂移检查、改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+- 迁移漂移检查、Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 仍被本批未修改的 `broker_execution/infrastructure/repositories.py` 大文件增长和 `strategy/infrastructure/repositories.py` 缺少大文件基线两项阻断，留待对应模块拆分/治理批次处理。
+
+## 第一百八十二批
+
+- 按“持仓隐私对象级权限 × 匿名身份失败关闭”收口 Account Observer Permission。
+- 基础权限和对象权限统一把认证主体收窄为非布尔正整数主键；匿名、未持久化或畸形用户不能进入 owner 比较和观察授权查询。
+- 对象权限不再依赖动态 User 对象相等判断，改为比较已验证的 `portfolio.user_id`；Position 仍通过所属 Portfolio 执行同一授权边界。
+- 缺失 portfolio/owner、布尔或非正 owner ID 的畸形对象统一拒绝；对象权限钩子即使被单独调用，也不依赖上层已经执行基础权限检查。
+- 可访问组合辅助查询对匿名或无效用户显式抛出 `NotAuthenticated`，不再把空 ID 传播到 Application 查询边界。
+- RBAC、Observer Request/View/Object 与查询返回边界补齐类型。
+
+## 第一百八十二批验证结果
+
+- Account Observer Permission 增量 mypy 清零；全仓基线从 `2805 errors / 570 files` 收紧为 `2800 errors / 569 files`，净减少 `5 errors / 1 file`。
+- Observer Grant Component 与 Integration 回归共 `44 passed`；新增覆盖匿名对象权限、畸形资源对象和匿名组合查询拒绝，保留 owner、observer、过期、撤销及只读访问链路。
+- Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。

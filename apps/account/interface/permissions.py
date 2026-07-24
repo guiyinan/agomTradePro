@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.permissions import SAFE_METHODS, BasePermission
+from rest_framework.request import Request
 
 from apps.account.application.interface_services import (
     get_accessible_portfolios_queryset,
@@ -14,7 +18,7 @@ from apps.account.application.rbac import user_allows
 class RBACDomainPermission(BasePermission):
     domain = "general"
 
-    def has_permission(self, request, view) -> bool:
+    def has_permission(self, request: Request, view: Any) -> bool:
         level = "read" if request.method in SAFE_METHODS else "write"
         return user_allows(request.user, level=level, domain=self.domain)
 
@@ -36,11 +40,11 @@ class ObserverAccessPermission(BasePermission):
     - 观察员：只读权限（SAFE_METHODS）
     """
 
-    def has_permission(self, request, view) -> bool:
+    def has_permission(self, request: Request, view: Any) -> bool:
         """基础权限检查：用户必须已认证"""
-        return request.user and request.user.is_authenticated
+        return _authenticated_user_id(request.user) is not None
 
-    def has_object_permission(self, request, view, obj) -> bool:
+    def has_object_permission(self, request: Request, view: Any, obj: Any) -> bool:
         """
         对象级权限检查
 
@@ -52,30 +56,47 @@ class ObserverAccessPermission(BasePermission):
         Returns:
             bool: 是否有权限访问
         """
+        user_id = _authenticated_user_id(request.user)
+        if user_id is None:
+            return False
+
         # 1. 获取关联的 PortfolioModel
-        if hasattr(obj, 'portfolio'):
-            # PositionModel
-            portfolio = obj.portfolio
-        else:
-            # PortfolioModel
-            portfolio = obj
+        portfolio = getattr(obj, "portfolio", obj)
+        owner_user_id = getattr(portfolio, "user_id", None)
+        if (
+            isinstance(owner_user_id, bool)
+            or not isinstance(owner_user_id, int)
+            or owner_user_id <= 0
+        ):
+            return False
 
         # 2. 账户拥有者：完全访问权限
-        if portfolio.user == request.user:
+        if owner_user_id == user_id:
             return True
 
         # 3. 观察员：只读权限
         if request.method in SAFE_METHODS:
             return has_active_observer_access(
-                owner_user_id=portfolio.user_id,
-                observer_user_id=request.user.id,
+                owner_user_id=owner_user_id,
+                observer_user_id=user_id,
             )
 
         # 4. 其他情况：拒绝访问
         return False
 
 
-def get_accessible_portfolios(user):
+def _authenticated_user_id(user: Any) -> int | None:
+    """Return a validated authenticated user identifier."""
+
+    if user is None or not bool(getattr(user, "is_authenticated", False)):
+        return None
+    user_id = getattr(user, "pk", None)
+    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
+        return None
+    return user_id
+
+
+def get_accessible_portfolios(user: Any) -> Any:
     """
     获取用户可访问的投资组合列表
 
@@ -89,4 +110,7 @@ def get_accessible_portfolios(user):
     Returns:
         QuerySet: 可访问的 PortfolioModel 查询集
     """
-    return get_accessible_portfolios_queryset(user.id)
+    user_id = _authenticated_user_id(user)
+    if user_id is None:
+        raise NotAuthenticated("Authentication credentials were not provided.")
+    return get_accessible_portfolios_queryset(user_id)

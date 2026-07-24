@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2805,
-    "files_with_errors": 570
+    "errors": 2800,
+    "files_with_errors": 569
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -77,10 +77,6 @@
     "apps/account/interface/performance_compat_views.py": {
       "no-any-return": 5,
       "no-untyped-def": 2
-    },
-    "apps/account/interface/permissions.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 4
     },
     "apps/account/interface/sizing_views.py": {
       "unused-ignore": 2
