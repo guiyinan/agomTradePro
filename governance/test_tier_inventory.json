@@ -2,10 +2,10 @@
   "counts": {
     "acceptance": 2,
     "api": 51,
-    "component": 291,
+    "component": 294,
     "critical": 3,
     "e2e": 7,
-    "fast": 245,
+    "fast": 246,
     "guardrails": 18,
     "integration": 97,
     "migrations": 6,
@@ -155,6 +155,7 @@
     "tests/unit/risk_center/test_trade_guard.py",
     "tests/unit/sector/test_sector_rotation.py",
     "tests/unit/sector/test_sector_use_case_regime_fallback.py",
+    "tests/unit/sentiment/test_t4b_task_contracts.py",
     "tests/unit/shared/test_position_calculations.py",
     "tests/unit/signal/test_policy_influence_service.py",
     "tests/unit/signal/test_query_service_contracts.py",
@@ -4313,6 +4314,22 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/fund/test_t4b_use_case_and_adapter_contracts.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/hedge/test_t4b_adapter_and_payload_contracts.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/infrastructure/factor/test_adapters.py",
       "reasons": [
         "import:.infrastructure"
@@ -4660,6 +4677,20 @@
     {
       "database_dependent": false,
       "path": "tests/unit/sector/test_sector_use_case_regime_fallback.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/sector/test_t4b_boundary_contracts.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/sentiment/test_t4b_task_contracts.py",
       "reasons": [],
       "tier": "fast"
     },
@@ -6287,6 +6318,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 7,
-  "unit_database_file_ratio": 0.0152,
-  "unit_file_count": 462
+  "unit_database_file_ratio": 0.015,
+  "unit_file_count": 466
 }

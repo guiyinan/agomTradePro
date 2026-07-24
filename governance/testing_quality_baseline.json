@@ -9,8 +9,12 @@
       "ai_provider": 80.0,
       "alpha": 85.0,
       "dashboard": 80.0,
+      "fund": 80.0,
+      "hedge": 80.0,
       "policy": 85.0,
       "prompt": 80.0,
+      "sector": 80.0,
+      "sentiment": 80.0,
       "simulated_trading": 85.0,
       "terminal": 80.0
     },
