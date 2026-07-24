@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3376,
-    "files_with_errors": 627
+    "errors": 3318,
+    "files_with_errors": 625
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -418,7 +418,7 @@
       "assignment": 1,
       "attr-defined": 1,
       "import-untyped": 9,
-      "no-untyped-call": 4,
+      "no-untyped-call": 3,
       "no-untyped-def": 3,
       "type-arg": 4
     },
@@ -427,23 +427,6 @@
       "import-untyped": 1,
       "no-untyped-def": 2,
       "var-annotated": 3
-    },
-    "apps/alpha/infrastructure/qlib_prediction_runtime.py": {
-      "arg-type": 1,
-      "attr-defined": 1,
-      "import-untyped": 3,
-      "no-untyped-call": 7,
-      "no-untyped-def": 6,
-      "return-value": 1,
-      "type-arg": 9
-    },
-    "apps/alpha/infrastructure/qlib_runtime_init.py": {
-      "attr-defined": 2,
-      "import-untyped": 11,
-      "no-any-return": 1,
-      "no-untyped-call": 4,
-      "no-untyped-def": 9,
-      "type-arg": 2
     },
     "apps/alpha/infrastructure/repositories.py": {
       "no-untyped-def": 3

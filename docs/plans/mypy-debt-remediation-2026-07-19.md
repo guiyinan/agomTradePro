@@ -2105,3 +2105,18 @@
 - `test_data_connections` 管理命令增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3449 errors / 628 files` 收紧为 `3376 errors / 627 files`，净减少 `73 errors / 1 file`。
 - 内部 error 聚合、空证据失败、凭据脱敏、原子证据输出、命令非零退出和 `--no-write` 回归共 `6 passed`。
 - Django system check、架构检查、改动文件 Ruff、Black 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百四十九批
+
+- 按“Alpha 评分生产链路影响面 × Qlib 运行失败真实性”收口 Qlib 初始化与预测运行时。
+- Qlib 关闭时预测改为显式失败，不再返回空列表伪装成成功但无候选股票；模型文件缺失、模型不支持 `predict()`、股票池为空和预测无有限分数均保持失败关闭。
+- `top_n` 增加 1..5000 严格整数边界，布尔值、零值和超大请求在访问 Qlib、模型文件或行情数据前拒绝。
+- 预测结果统一过滤 NaN 与正负无穷；同一股票的不同代码格式归一化后只保留最高有限分数，避免重复标的挤占排名。
+- Qlib region、交易日、股票池、handler、运行配置和 JSON-safe 转换边界补齐精确类型；动态第三方对象仅在 Qlib/Pandas/NumPy 边界使用局部收窄。
+- Pandas 兼容补丁与 Qlib 初始化标记继续保持进程内幂等，同时不再依赖未声明的函数动态属性类型。
+
+## 第一百四十九批验证结果
+
+- Qlib 初始化与预测运行时增量 mypy 清零，并同步减少 artifact runtime 的一个下游调用债务；隔离并行工作区改动后，全仓基线从 `3376 errors / 627 files` 收紧为 `3318 errors / 625 files`，净减少 `58 errors / 2 files`。
+- Qlib 运行契约、训练组件和集成回归共 `69 passed`；覆盖禁用失败、结果上限、非有限分数过滤、代码去重、训练和数据集适配。
+- Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

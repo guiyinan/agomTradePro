@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import logging
 import pickle
+from collections.abc import Callable
 from datetime import date
+from math import isfinite
+from typing import Any, TypedDict, cast
 
 from apps.alpha.domain.entities import normalize_stock_code
 from apps.alpha.infrastructure.providers import AlphaScoreCacheRepository
@@ -24,37 +27,57 @@ from apps.alpha.infrastructure.scientific_runtime import get_pandas
 logger = logging.getLogger(__name__)
 
 
-def get_alpha_score_cache_repository():
+class QlibScorePayload(TypedDict):
+    """One normalized Qlib prediction score persisted to cache."""
+
+    code: str
+    score: float
+    rank: int
+    factors: dict[str, Any]
+    source: str
+    confidence: float
+    asof_date: str
+    intended_trade_date: str
+    universe_id: str
+
+
+def get_alpha_score_cache_repository() -> AlphaScoreCacheRepository:
     """Return the concrete Alpha score cache repository."""
     return AlphaScoreCacheRepository()
 
 
 def _upsert_qlib_cache(
-    active_model,
+    active_model: Any,
     universe_id: str,
     trade_date: date,
     asof_date: date,
-    scores_data: list[dict],
+    scores_data: list[QlibScorePayload] | list[dict[str, Any]],
     status: str,
-    metrics_snapshot: dict | None = None,
-    pool_scope=None,
-):
+    metrics_snapshot: dict[str, Any] | None = None,
+    pool_scope: Any = None,
+) -> tuple[Any, bool]:
     """Persist a qlib cache row for the active model."""
     return get_alpha_score_cache_repository().upsert_qlib_cache(
         universe_id=universe_id,
         trade_date=trade_date,
         asof_date=asof_date,
         active_model=active_model,
-        scores_data=_make_json_safe(scores_data),
+        scores_data=cast(list[dict[str, Any]], _make_json_safe(scores_data)),
         status=status,
-        metrics_snapshot=_make_json_safe(metrics_snapshot),
+        metrics_snapshot=cast(
+            dict[str, Any] | None,
+            _make_json_safe(metrics_snapshot),
+        ),
         pool_scope=pool_scope,
     )
 
 
-def _normalize_reused_scores(scores_data: list[dict], top_n: int) -> list[dict]:
+def _normalize_reused_scores(
+    scores_data: list[dict[str, Any]],
+    top_n: int,
+) -> list[dict[str, Any]]:
     """Keep score payloads JSON-safe and re-rank after truncation."""
-    normalized_scores: list[dict] = []
+    normalized_scores: list[dict[str, Any]] = []
     for index, raw_score in enumerate(scores_data[:top_n], start=1):
         score_item = dict(raw_score)
         score_item["rank"] = index
@@ -64,14 +87,14 @@ def _normalize_reused_scores(scores_data: list[dict], top_n: int) -> list[dict]:
 
 
 def _reuse_latest_qlib_cache(
-    active_model,
+    active_model: Any,
     universe_id: str,
     trade_date: date,
     top_n: int,
     failure_reason: str,
-    pool_scope=None,
-    extra_metadata: dict | None = None,
-) -> dict | None:
+    pool_scope: Any = None,
+    extra_metadata: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
     """Forward-fill the latest qlib cache into today's active model slot when fresh inference fails."""
     cache_repository = get_alpha_score_cache_repository()
     latest_cache = cache_repository.get_latest_qlib_cache(
@@ -79,7 +102,7 @@ def _reuse_latest_qlib_cache(
         model_artifact_hash=active_model.artifact_hash,
         scope_hash=getattr(pool_scope, "scope_hash", None),
     )
-    reused_scores_data: list[dict] | None = None
+    reused_scores_data: list[dict[str, Any]] | None = None
     if latest_cache is None and pool_scope is not None:
         broader_cache_result = _find_broader_qlib_cache_for_scope(
             active_model=active_model,
@@ -150,11 +173,11 @@ def _reuse_latest_qlib_cache(
 
 def _find_broader_qlib_cache_for_scope(
     *,
-    active_model,
+    active_model: Any,
     trade_date: date,
     top_n: int,
-    pool_scope,
-) -> tuple[object, list[dict]] | None:
+    pool_scope: Any,
+) -> tuple[Any, list[dict[str, Any]]] | None:
     """Find a broader qlib cache row and trim it to the current scoped instrument set."""
     scope_codes = {
         normalize_stock_code(raw_code)
@@ -179,13 +202,13 @@ def _find_broader_qlib_cache_for_scope(
 
 
 def _execute_qlib_prediction(
-    active_model,
+    active_model: Any,
     universe_id: str,
     trade_date: date,
     top_n: int,
-    pool_scope=None,
-    outdated_reason_builder=None,
-) -> list[dict]:
+    pool_scope: Any = None,
+    outdated_reason_builder: Callable[[date], str | None] | None = None,
+) -> list[QlibScorePayload]:
     """
     执行 Qlib 预测
 
@@ -198,23 +221,25 @@ def _execute_qlib_prediction(
     Returns:
         评分数据列表
     """
+    if isinstance(top_n, bool) or not 1 <= top_n <= 5000:
+        raise ValueError("top_n must be between 1 and 5000")
+
     outdated_reason = (outdated_reason_builder or _build_outdated_qlib_reason)(trade_date)
     if outdated_reason:
         raise RuntimeError(outdated_reason)
 
     try:
         # 尝试导入 Qlib
-        pd = get_pandas()
-        import qlib
-        from qlib.data import D
-        from qlib.data.dataset import DatasetH
+        pd = cast(Callable[[], Any], get_pandas)()
+        import qlib  # type: ignore[import-untyped]
+        from qlib.data import D  # type: ignore[import-untyped]
+        from qlib.data.dataset import DatasetH  # type: ignore[import-untyped]
 
         # 获取 Qlib 配置（优先从数据库读取）
         qlib_config = _get_runtime_qlib_config()
 
         if not qlib_config.get("enabled"):
-            logger.warning("Qlib 未启用，跳过预测")
-            return []
+            raise RuntimeError("Qlib 未启用，无法执行实时预测")
 
         _install_qlib_pandas_compat()
 
@@ -224,7 +249,7 @@ def _execute_qlib_prediction(
         # 初始化 Qlib（仅初始化一次）
         if not hasattr(_execute_qlib_prediction, "_qlib_initialized"):
             qlib.init(provider_uri=provider_uri, region=region)
-            _execute_qlib_prediction._qlib_initialized = True
+            _execute_qlib_prediction.__dict__["_qlib_initialized"] = True
             logger.info(f"Qlib 已初始化: provider={provider_uri}, region={region}")
 
         # 加载模型
@@ -233,8 +258,10 @@ def _execute_qlib_prediction(
             logger.error(f"模型文件不存在: {model_path}")
             raise RuntimeError(f"模型文件不存在: {model_path}")
 
-        with open(model_path, "rb") as f:
+        with model_path.open("rb") as f:
             model = pickle.load(f)
+        if not callable(getattr(model, "predict", None)):
+            raise RuntimeError("Qlib 模型不支持 predict()")
 
         if pool_scope is not None and getattr(pool_scope, "instrument_codes", None):
             stock_list = _normalize_qlib_instrument_list(list(pool_scope.instrument_codes))
@@ -245,6 +272,8 @@ def _execute_qlib_prediction(
                 start_time=f"{trade_date.year - 1}-01-01",
                 end_time=trade_date.isoformat(),
             )
+        if not stock_list:
+            raise RuntimeError(f"股票池 {universe_id} 无可用成分股")
 
         handler_cls = _resolve_qlib_handler_class(getattr(active_model, "feature_set_id", None))
 
@@ -291,26 +320,34 @@ def _execute_qlib_prediction(
                 raise RuntimeError(f"不支持的预测结果类型: {type(prediction)}")
 
             # 转换为评分格式
-            scores_data = []
+            score_by_code: dict[str, QlibScorePayload] = {}
             for stock, pred_score in scores_series.items():
                 if pd.notna(pred_score):
                     normalized_code = normalize_stock_code(stock) or str(stock)
-                    scores_data.append(
-                        {
-                            "code": normalized_code,
-                            "score": float(pred_score),
-                            "rank": 0,  # 稍后计算
-                            "factors": {},
-                            "source": "qlib",
-                            "confidence": 0.8,
-                            "asof_date": trade_date.isoformat(),
-                            "intended_trade_date": trade_date.isoformat(),
-                            "universe_id": universe_id,
-                        }
+                    numeric_score = float(pred_score)
+                    if not isfinite(numeric_score):
+                        continue
+                    candidate = QlibScorePayload(
+                        code=normalized_code,
+                        score=numeric_score,
+                        rank=0,
+                        factors={},
+                        source="qlib",
+                        confidence=0.8,
+                        asof_date=trade_date.isoformat(),
+                        intended_trade_date=trade_date.isoformat(),
+                        universe_id=universe_id,
                     )
+                    existing = score_by_code.get(normalized_code)
+                    if existing is None or numeric_score > existing["score"]:
+                        score_by_code[normalized_code] = candidate
+
+            scores_data = list(score_by_code.values())
+            if not scores_data:
+                raise RuntimeError(f"预测结果不包含有限评分: {universe_id}@{trade_date}")
 
             # 按评分排序
-            scores_data.sort(key=lambda x: x["score"], reverse=True)
+            scores_data.sort(key=lambda item: item["score"], reverse=True)
 
             # 更新排名
             for i, score in enumerate(scores_data[:top_n], 1):

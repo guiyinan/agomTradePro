@@ -15,6 +15,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from apps.alpha import admin as alpha_admin
 from apps.alpha.infrastructure import qlib_artifact_runtime as artifacts
+from apps.alpha.infrastructure import qlib_prediction_runtime as prediction_runtime
 from apps.alpha.infrastructure import qlib_runtime_init as runtime
 from apps.alpha.infrastructure.adapters import qlib_adapter
 from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
@@ -245,6 +246,107 @@ def test_runtime_helpers_normalize_resolve_and_explain_failures(monkeypatch, tmp
             SimpleNamespace(instruments=lambda market: {"market": market}),
             "csi300",
         )
+
+
+@pytest.mark.parametrize("top_n", [True, 0, 5001])
+def test_qlib_prediction_rejects_invalid_top_n_before_runtime_access(top_n: int) -> None:
+    """Invalid result limits fail before optional runtime dependencies are accessed."""
+    with pytest.raises(ValueError, match="top_n must be between 1 and 5000"):
+        prediction_runtime._execute_qlib_prediction(
+            active_model=SimpleNamespace(),
+            universe_id="csi300",
+            trade_date=date(2026, 7, 24),
+            top_n=top_n,
+            outdated_reason_builder=lambda _: None,
+        )
+
+
+def test_qlib_prediction_fails_explicitly_when_runtime_is_disabled(monkeypatch) -> None:
+    """A disabled runtime must not be mistaken for a successful empty prediction."""
+    _install_fake_qlib(monkeypatch)
+    monkeypatch.setattr(
+        prediction_runtime,
+        "_get_runtime_qlib_config",
+        lambda: {"enabled": False},
+    )
+
+    with pytest.raises(RuntimeError, match="Qlib 未启用"):
+        prediction_runtime._execute_qlib_prediction(
+            active_model=SimpleNamespace(),
+            universe_id="csi300",
+            trade_date=date(2026, 7, 24),
+            top_n=10,
+            outdated_reason_builder=lambda _: None,
+        )
+
+
+def test_qlib_prediction_drops_nonfinite_scores_and_deduplicates_codes(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    """Prediction output keeps the best finite score for each normalized stock code."""
+    _install_fake_qlib(monkeypatch)
+    model_path = tmp_path / "model.pkl"
+    model_path.write_bytes(b"placeholder")
+    prediction = pd.Series(
+        [0.2, 0.8, float("inf"), float("nan")],
+        index=["000001.SZ", "SZ000001", "000002.SZ", "000003.SZ"],
+    )
+    model = SimpleNamespace(predict=lambda dataset: prediction)
+    monkeypatch.setattr(
+        prediction_runtime,
+        "_get_runtime_qlib_config",
+        lambda: {"enabled": True, "provider_uri": ".", "region": "CN"},
+    )
+    monkeypatch.setattr(prediction_runtime, "_install_qlib_pandas_compat", lambda: None)
+    monkeypatch.setattr(
+        prediction_runtime,
+        "_resolve_qlib_model_path",
+        lambda active_model, qlib_config: model_path,
+    )
+    monkeypatch.setattr(
+        prediction_runtime,
+        "_resolve_qlib_stock_list",
+        lambda data_api, universe_id, start_time, end_time: [
+            "SZ000001",
+            "SZ000002",
+            "SZ000003",
+        ],
+    )
+    monkeypatch.setattr(
+        prediction_runtime,
+        "_resolve_qlib_handler_class",
+        lambda feature_set_id: _Handler,
+    )
+    monkeypatch.setattr(prediction_runtime.pickle, "load", lambda file_handle: model)
+    if hasattr(prediction_runtime._execute_qlib_prediction, "_qlib_initialized"):
+        delattr(prediction_runtime._execute_qlib_prediction, "_qlib_initialized")
+
+    try:
+        scores = prediction_runtime._execute_qlib_prediction(
+            active_model=SimpleNamespace(feature_set_id="alpha158"),
+            universe_id="csi300",
+            trade_date=date(2026, 7, 24),
+            top_n=10,
+            outdated_reason_builder=lambda _: None,
+        )
+    finally:
+        if hasattr(prediction_runtime._execute_qlib_prediction, "_qlib_initialized"):
+            delattr(prediction_runtime._execute_qlib_prediction, "_qlib_initialized")
+
+    assert scores == [
+        {
+            "code": "000001.SZ",
+            "score": 0.8,
+            "rank": 1,
+            "factors": {},
+            "source": "qlib",
+            "confidence": 0.8,
+            "asof_date": "2026-07-24",
+            "intended_trade_date": "2026-07-24",
+            "universe_id": "csi300",
+        }
+    ]
 
 
 def test_qlib_pandas_compatibility_wrappers_preserve_selection_semantics(monkeypatch) -> None:

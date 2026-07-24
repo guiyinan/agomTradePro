@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
+from importlib import import_module
 from pathlib import Path, PureWindowsPath
-from typing import Any
+from typing import Any, TypeAlias, cast
 
 from apps.alpha.infrastructure.qlib_builder import normalize_qlib_symbol
 from apps.alpha.infrastructure.scientific_runtime import get_pandas
 from core.integration.runtime_settings import get_runtime_qlib_config as _read_runtime_qlib_config
 
+JsonScalar: TypeAlias = str | int | float | bool | None
+JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
 
-def _normalize_qlib_region(region_value):
+
+def _normalize_qlib_region(region_value: object) -> str:
     """Normalize runtime region values for qlib.init()."""
     try:
-        from qlib.constant import REG_CN, REG_US
+        from qlib.constant import REG_CN, REG_US  # type: ignore[import-untyped]
     except Exception:
         REG_CN = "cn"
         REG_US = "us"
@@ -22,20 +27,25 @@ def _normalize_qlib_region(region_value):
     value = str(region_value or "").strip()
     lowered = value.lower()
     if lowered in {"", "cn", "reg_cn", "china"}:
-        return REG_CN
+        return str(REG_CN)
     if lowered in {"us", "reg_us"}:
-        return REG_US
-    return region_value
+        return str(REG_US)
+    return value
 
 
-def _normalize_calendar_date(value) -> date | None:
+def _normalize_calendar_date(value: object) -> date | None:
     """Convert qlib calendar entries to Python dates."""
     if value is None:
         return None
-    if hasattr(value, "date"):
+    if isinstance(value, datetime):
         return value.date()
     if isinstance(value, date):
         return value
+    date_method = getattr(value, "date", None)
+    if callable(date_method):
+        converted = cast(Callable[[], object], date_method)()
+        if isinstance(converted, date):
+            return converted
     try:
         return date.fromisoformat(str(value)[:10])
     except ValueError:
@@ -72,25 +82,25 @@ def _install_qlib_pandas_compat() -> None:
     if getattr(_install_qlib_pandas_compat, "_installed", False):
         return
 
-    pd = get_pandas()
-    import qlib.data as qlib_data
-    import qlib.data.data as qlib_data_module
-    import qlib.data.dataset.processor as qlib_processor
-    import qlib.data.dataset.utils as qlib_dataset_utils
-    import qlib.utils.paral as qlib_paral
-    from qlib.config import C
+    pd = cast(Callable[[], Any], get_pandas)()
+    import qlib.data as qlib_data  # type: ignore[import-untyped]
+    import qlib.data.data as qlib_data_module  # type: ignore[import-untyped]
+    import qlib.data.dataset.processor as qlib_processor  # type: ignore[import-untyped]
+    import qlib.data.dataset.utils as qlib_dataset_utils  # type: ignore[import-untyped]
+    import qlib.utils.paral as qlib_paral  # type: ignore[import-untyped]
+    from qlib.config import C  # type: ignore[import-untyped]
 
     original_datetime_groupby_apply = qlib_paral.datetime_groupby_apply
     original_fetch_df_by_index = qlib_dataset_utils.fetch_df_by_index
 
     def safe_datetime_groupby_apply(
-        df,
-        apply_func,
-        axis=0,
-        level="datetime",
-        resample_rule="ME",
-        n_jobs=-1,
-    ):
+        df: Any,
+        apply_func: Any,
+        axis: int = 0,
+        level: str = "datetime",
+        resample_rule: str = "ME",
+        n_jobs: int = -1,
+    ) -> Any:
         try:
             return original_datetime_groupby_apply(
                 df,
@@ -107,7 +117,12 @@ def _install_qlib_pandas_compat() -> None:
                 return getattr(df.groupby(axis=axis, level=level, group_keys=False), apply_func)()
             return df.groupby(level=level, group_keys=False).apply(apply_func)
 
-    def safe_fetch_df_by_index(df, selector, level, fetch_orig=True):
+    def safe_fetch_df_by_index(
+        df: Any,
+        selector: Any,
+        level: str | None,
+        fetch_orig: bool = True,
+    ) -> Any:
         try:
             return original_fetch_df_by_index(df, selector, level, fetch_orig=fetch_orig)
         except KeyError as exc:
@@ -129,14 +144,14 @@ def _install_qlib_pandas_compat() -> None:
             return df[level_values == selector]
 
     def safe_features(
-        instruments,
-        fields,
-        start_time=None,
-        end_time=None,
-        freq="day",
-        disk_cache=None,
-        inst_processors=None,
-    ):
+        instruments: Any,
+        fields: Any,
+        start_time: Any = None,
+        end_time: Any = None,
+        freq: str = "day",
+        disk_cache: Any = None,
+        inst_processors: Any = None,
+    ) -> Any:
         return qlib_data_module.DatasetD.dataset(
             instruments,
             list(fields),
@@ -153,7 +168,7 @@ def _install_qlib_pandas_compat() -> None:
     qlib_data.D.features = safe_features
     C.kernels = 1
     C.joblib_backend = "threading"
-    _install_qlib_pandas_compat._installed = True
+    _install_qlib_pandas_compat.__dict__["_installed"] = True
 
 
 def _get_qlib_data_latest_date() -> date | None:
@@ -167,7 +182,7 @@ def _get_qlib_data_latest_date() -> date | None:
 
     if not hasattr(_get_qlib_data_latest_date, "_qlib_initialized"):
         qlib.init(provider_uri=provider_uri, region=region)
-        _get_qlib_data_latest_date._qlib_initialized = True
+        _get_qlib_data_latest_date.__dict__["_qlib_initialized"] = True
 
     calendar = D.calendar(start_time="2000-01-01", end_time="2100-12-31")
     if len(calendar) == 0:
@@ -199,7 +214,7 @@ def _build_qlib_runtime_failure_reason(exc: Exception) -> str:
     return f"读取本地 Qlib 数据状态失败: {exc}"
 
 
-def _get_runtime_qlib_config() -> dict:
+def _get_runtime_qlib_config() -> dict[str, Any]:
     """Return runtime qlib config through config-center owned application service."""
 
     return _read_runtime_qlib_config()
@@ -229,7 +244,10 @@ def _extract_model_filename(model_path: str) -> str:
     return PureWindowsPath(model_path).name or Path(model_path).name
 
 
-def _resolve_qlib_model_path(active_model, qlib_config: dict) -> Path:
+def _resolve_qlib_model_path(
+    active_model: Any,
+    qlib_config: dict[str, Any],
+) -> Path:
     """Resolve persisted model paths across local and container deployments."""
     raw_model_path = str(active_model.model_path)
     model_path = Path(raw_model_path).expanduser()
@@ -247,10 +265,10 @@ def _resolve_qlib_model_path(active_model, qlib_config: dict) -> Path:
 
 
 def _resolve_qlib_stock_list(
-    data_api,
+    data_api: Any,
     universe_id: str,
-    start_time=None,
-    end_time=None,
+    start_time: str | None = None,
+    end_time: str | None = None,
 ) -> list[str]:
     """Resolve a qlib universe config into a concrete instrument list."""
     instruments = data_api.instruments(market=universe_id)
@@ -280,25 +298,30 @@ def _resolve_qlib_stock_list(
     return normalized
 
 
-def _resolve_qlib_handler_class(feature_set_id: str | None):
+def _resolve_qlib_handler_class(feature_set_id: str | None) -> type[Any]:
     """Select the qlib data handler class that matches the model feature set."""
     try:
-        from qlib.contrib.data.handler import Alpha158, Alpha360
+        handler_module = import_module("qlib.contrib.data.handler")
+        alpha158 = cast(type[Any], vars(handler_module)["Alpha158"])
+        alpha360 = cast(type[Any], vars(handler_module)["Alpha360"])
     except ModuleNotFoundError:
 
-        class Alpha158:  # type: ignore[no-redef]
+        class Alpha158Fallback:
             """Fallback handler marker used when pyqlib is not installed."""
 
-        class Alpha360:  # type: ignore[no-redef]
+        class Alpha360Fallback:
             """Fallback handler marker used when pyqlib is not installed."""
+
+        alpha158 = Alpha158Fallback
+        alpha360 = Alpha360Fallback
 
     normalized = str(feature_set_id or "").strip().lower()
     if normalized in {"alpha158", "158", "v158"}:
-        return Alpha158
-    return Alpha360
+        return alpha158
+    return alpha360
 
 
-def _make_json_safe(value):
+def _make_json_safe(value: object) -> JsonValue:
     """Convert pandas/numpy/date/path values into JSON-safe payloads."""
     if value is None or isinstance(value, str | int | float | bool):
         return value
@@ -312,12 +335,14 @@ def _make_json_safe(value):
         return [_make_json_safe(item) for item in value]
     if hasattr(value, "isoformat") and not isinstance(value, str):
         try:
-            return value.isoformat()
+            isoformat_method = cast(Callable[[], object], cast(Any, value).isoformat)
+            return _make_json_safe(isoformat_method())
         except Exception:
             pass
     if hasattr(value, "item"):
         try:
-            return value.item()
+            item_method = cast(Callable[[], object], cast(Any, value).item)
+            return _make_json_safe(item_method())
         except Exception:
             pass
     return str(value)
