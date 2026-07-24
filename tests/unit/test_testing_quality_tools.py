@@ -60,6 +60,7 @@ def test_coverage_ratchet_reports_repository_module_and_domain_failures() -> Non
             "repository_minimum": 80,
             "default_module_minimum": 70,
             "core_module_minimum": 80,
+            "module_minimums": {"signal": 85},
             "domain_module_minimum": 90,
             "require_branch_coverage": False,
             "core_modules": ["signal"],
@@ -79,7 +80,7 @@ def test_coverage_ratchet_reports_repository_module_and_domain_failures() -> Non
     assert violations == [
         "repository 79.0% is below 80.0%",
         "module share 69.0% is below 70.0%",
-        "module signal 79.0% is below 80.0%",
+        "module signal 79.0% is below 85.0%",
         "domain signal 89.0% is below 90.0%",
     ]
 

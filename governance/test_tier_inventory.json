@@ -2,10 +2,10 @@
   "counts": {
     "acceptance": 2,
     "api": 51,
-    "component": 287,
+    "component": 289,
     "critical": 3,
     "e2e": 7,
-    "fast": 237,
+    "fast": 242,
     "guardrails": 18,
     "integration": 97,
     "migrations": 6,
@@ -29,6 +29,8 @@
     "tests/unit/account/test_trading_cost_config.py",
     "tests/unit/account/test_transaction_cost_use_cases.py",
     "tests/unit/account/test_volatility_adjustment_use_case.py",
+    "tests/unit/alpha/test_t3b_ops_contracts.py",
+    "tests/unit/alpha/test_t3b_task_failure_contracts.py",
     "tests/unit/alpha_trigger/test_page_query_service_edges.py",
     "tests/unit/alpha_trigger/test_use_cases_edges.py",
     "tests/unit/application/factor/test_use_cases.py",
@@ -135,6 +137,8 @@
     "tests/unit/policy/test_policy_use_cases.py",
     "tests/unit/policy/test_rss_fetch_application_edges.py",
     "tests/unit/policy/test_rules.py",
+    "tests/unit/policy/test_t3b_event_use_case_failures.py",
+    "tests/unit/policy/test_t3b_task_failure_contracts.py",
     "tests/unit/policy/test_task_edges.py",
     "tests/unit/policy/test_tasks_notifications.py",
     "tests/unit/portfolio/test_transition_plan_rules.py",
@@ -156,6 +160,7 @@
     "tests/unit/signal/test_task_delivery_edges.py",
     "tests/unit/signal/test_unified_service_edges.py",
     "tests/unit/simulated_trading/test_facade_and_asset_pool_safety.py",
+    "tests/unit/simulated_trading/test_t3b_interface_contracts.py",
     "tests/unit/strategy/test_allocation_service.py",
     "tests/unit/strategy/test_gateway_and_target_contracts.py",
     "tests/unit/strategy/test_order_state_machine.py",
@@ -3341,6 +3346,27 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/alpha/test_t3b_ops_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/alpha/test_t3b_provider_contracts.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/alpha/test_t3b_task_failure_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/alpha_trigger/test_handler_and_query_contracts.py",
       "reasons": [
         "import:.interface"
@@ -4460,6 +4486,18 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/policy/test_t3b_event_use_case_failures.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_t3b_task_failure_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/policy/test_task_edges.py",
       "reasons": [],
       "tier": "fast"
@@ -4727,6 +4765,20 @@
       "path": "tests/unit/simulated_trading/test_serializers.py",
       "reasons": [
         "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_t3b_interface_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_t3b_task_contracts.py",
+      "reasons": [
+        "import:.infrastructure"
       ],
       "tier": "component"
     },
@@ -6198,6 +6250,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 7,
-  "unit_database_file_ratio": 0.0156,
-  "unit_file_count": 450
+  "unit_database_file_ratio": 0.0153,
+  "unit_file_count": 457
 }

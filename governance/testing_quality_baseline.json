@@ -5,6 +5,11 @@
     "repository_branch_minimum": 62.8,
     "default_module_minimum": 70.0,
     "core_module_minimum": 80.0,
+    "module_minimums": {
+      "alpha": 85.0,
+      "policy": 85.0,
+      "simulated_trading": 85.0
+    },
     "domain_module_minimum": 90.0,
     "domain_branch_minimum": 0.0,
     "domain_branch_minimums": {

@@ -127,6 +127,9 @@ def find_violations(
     repository_minimum = float(config["repository_minimum"])
     default_module_minimum = float(config["default_module_minimum"])
     core_module_minimum = float(config["core_module_minimum"])
+    module_minimums = {
+        str(module): float(minimum) for module, minimum in config.get("module_minimums", {}).items()
+    }
     domain_module_minimum = float(config["domain_module_minimum"])
     repository_branch_minimum = float(config.get("repository_branch_minimum", 0.0))
     domain_branch_minimum = float(config.get("domain_branch_minimum", 0.0))
@@ -148,7 +151,10 @@ def find_violations(
             f"{repository.branch_percent:.1f}% is below {repository_branch_minimum:.1f}%"
         )
     for module, totals in sorted(modules.items()):
-        minimum = core_module_minimum if module in core_modules else default_module_minimum
+        minimum = module_minimums.get(
+            module,
+            core_module_minimum if module in core_modules else default_module_minimum,
+        )
         if totals.percent + 1e-9 < minimum:
             violations.append(f"module {module} {totals.percent:.1f}% is below {minimum:.1f}%")
     for module, totals in sorted(domains.items()):
