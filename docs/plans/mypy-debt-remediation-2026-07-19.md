@@ -1682,3 +1682,19 @@
 - simulated trading auto trading engine mypy 清零；全仓基线从 `4124 errors / 681 files` 收紧为 `4105 errors / 680 files`，净减少 `19 errors / 1 file`。
 - 自动交易、Alpha 退出闭环、任务装配、Decision Rhythm exit advisor 与策略集成回归共 `27 passed`。
 - governance baseline 升级为 `2026-07-24.v194`，静态测试函数计数提升至 `7236`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百二十三批
+
+- 按“持仓证伪自动退出影响面 × 状态持久化真实性”收口 simulated trading position invalidation checker。
+- 修复 Position Domain 实体中的证伪规则为 JSON 字符串、检查器却直接按字典解析的问题；历史路径会捕获 `TypeError` 后静默跳过，现改为显式 JSON 解码、对象形态收窄后再构造 Domain Rule。
+- 宏观观测与持仓持久化建立最小 Application Protocol，构造函数支持依赖注入；批量结果、已证伪持仓摘要、检查时间和仓储返回值全部具化。
+- 规则 JSON 无效与宏观指标读取失败增加可定位日志；指标缺失仍按既有安全策略不触发卖出。
+- `mark_invalidated` 返回失败时不再把持仓计入成功结果，避免调度任务虚报“已证伪”但数据库状态未落地。
+- `mark_invalidation_checked` 写入失败增加告警，证伪日志仅在状态真正持久化后输出。
+- 新增 JSON 规则真实触发与证伪状态写入失败不得虚报两组回归。
+
+## 第一百二十三批验证结果
+
+- simulated trading position invalidation checker mypy 清零；全仓基线从 `4105 errors / 680 files` 收紧为 `4096 errors / 679 files`，净减少 `9 errors / 1 file`。
+- 持仓证伪、定时任务、自动交易与 Alpha 退出闭环回归共 `19 passed`。
+- governance baseline 升级为 `2026-07-24.v195`，静态测试函数计数提升至 `7238`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
