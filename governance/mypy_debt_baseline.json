@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4138,
-    "files_with_errors": 685
+    "errors": 4130,
+    "files_with_errors": 683
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1274,14 +1274,8 @@
     "apps/decision_rhythm/interface/api_urls.py": {
       "no-untyped-def": 1
     },
-    "apps/decision_rhythm/interface/cooldown_api_views.py": {
-      "no-untyped-def": 4
-    },
     "apps/decision_rhythm/interface/page_views.py": {
       "no-untyped-def": 2
-    },
-    "apps/decision_rhythm/interface/request_api_views.py": {
-      "no-untyped-def": 4
     },
     "apps/decision_rhythm/interface/today_queue_api_views.py": {
       "no-untyped-def": 1

@@ -1623,3 +1623,17 @@
 - Decision Rhythm subscriber 与 AppConfig mypy 清零；全仓基线从 `4143 errors / 687 files` 收紧为 `4138 errors / 685 files`，净减少 `5 errors / 2 files`。
 - Subscriber wiring、handler、事件总线与仓储结构回归共 `37 passed`，Django system check 通过。
 - governance baseline 升级为 `2026-07-24.v190`，静态测试函数计数提升至 `7223`；完整 mypy debt ceiling、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百一十九批
+
+- 按“决策查询入口影响面 × 冷却状态输入安全性”收口 Decision Request 与 Cooldown 两组 DRF ViewSet，并同步强化查询 serializer。
+- ViewSet constructor、Request、route ID 与 action handler 全部具化；请求 ID 缺失或超过 64 字符时稳定返回 400，不再把空 ID传入 Application。
+- 列表与统计查询天数限制为 `1..3650`，避免超大时间窗口造成日期溢出或非必要数据库负载；资产代码限制为 32 字符。
+- 按资产冷却路径参数统一去空格并转大写，空值与超长值在进入 UseCase 前拒绝。
+- 新增请求/统计超大天数、剩余小时与路径资产代码超长四组 API 回归。
+
+## 第一百一十九批验证结果
+
+- Decision Request 与 Cooldown API mypy 清零；全仓基线从 `4138 errors / 685 files` 收紧为 `4130 errors / 683 files`，净减少 `8 errors / 2 files`。
+- Decision Rhythm API edge 与错误映射回归共 `27 passed`。
+- governance baseline 升级为 `2026-07-24.v191`，静态测试函数计数提升至 `7227`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
