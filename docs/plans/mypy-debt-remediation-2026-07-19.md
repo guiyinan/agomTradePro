@@ -2259,3 +2259,21 @@
 - Signal serializers 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3171 errors / 613 files` 收紧为 `3155 errors / 612 files`，净减少 `16 errors / 1 file`。
 - Signal serializer、API 边界、页面契约与查询服务回归共 `49 passed`；覆盖比较运算符保真、未知字段、动态资产类别、方向/Regime、文本上限、非有限阈值、400 保真与内部错误脱敏。
 - 改动文件 Ruff、Black、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和隔离 staged tree 的全仓 mypy debt ceiling。
+
+## 第一百五十八批
+
+- 按“证伪判断正确性 × 政策重评状态完整性”收口 Signal Domain parser、invalidation rules 与 Application use cases。
+- 证伪 parser 按关键字长度优先识别运算符，`<=`/`>=`、`低于等于`/`高于等于` 不再被较短的 `<`/`>`、`低于`/`高于` 抢先解释。
+- 旧证伪用例改为复用结构化 parser 与 Domain evaluator，并把请求指标别名映射到 canonical indicator code；不再拿字典第一个数值评估另一个指标的条件。
+- Invalidation threshold 和实际观测值拒绝布尔、NaN 与正负无穷，非有限数据不能触发证伪；无法解析或缺失规则明确返回未评估原因。
+- Signal 准入对未知 Regime、越界政策档位和非法置信度失败关闭，避免缺失或畸形宏观上下文被当作中性环境放行。
+- Policy 重评严格验证 policy level、current regime、confidence 与持久化 signal ID，移除用目标 Regime 冒充当前 Regime 的回退。
+- InvalidationCheckService 继续独占 `INVALIDATED` 状态写入；重评不再随后覆盖成 `REJECTED`，并在响应中分别报告 rejected 与 invalidated 数量和 ID。
+- 拒绝状态仓储写入失败、证伪检查异常和无持久化 ID 均向上失败，不再记录数量后伪报成功；重试可据此继续收口。
+- Repository、invalidation checker Protocol、DTO 容器、列表和 Domain parser 返回值补齐精确类型，并同步消除 Policy gateway 与 Signal query service 的下游调用债务。
+
+## 第一百五十八批验证结果
+
+- Signal use cases、parser 与 rules 增量 mypy 清零，并同步减少 Policy gateway 与 Signal query service 下游债务；隔离并行工作区改动后，全仓基线从 `3155 errors / 612 files` 收紧为 `3139 errors / 608 files`，净减少 `16 errors / 4 files`。
+- Signal Application、Domain、完整工作流与 Policy→Signal 重评回归共 `110 passed`；覆盖长运算符、具名指标、非有限值、无效上下文、状态不覆盖、仓储失败与检查异常传播。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和隔离 staged tree 的全仓 mypy debt ceiling。

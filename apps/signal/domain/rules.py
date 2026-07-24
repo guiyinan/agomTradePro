@@ -5,6 +5,7 @@ Domain 层纯业务逻辑，只使用 Python 标准库。
 """
 
 from dataclasses import dataclass
+from math import isfinite
 
 from apps.regime.domain.asset_eligibility import (
     Eligibility,
@@ -16,20 +17,40 @@ from apps.regime.domain.asset_eligibility import (
 
 # 证伪逻辑量化关键词
 QUANTIFIABLE_KEYWORDS = [
-    "跌破", "突破", "低于", "高于", "<", ">", "<=", ">=",
-    "低于阈值", "超过阈值", "低于", "超过", "触及",
-    "低于前值", "高于前值", "连续回落", "连续上涨",
+    "跌破",
+    "突破",
+    "低于",
+    "高于",
+    "<",
+    ">",
+    "<=",
+    ">=",
+    "低于阈值",
+    "超过阈值",
+    "低于",
+    "超过",
+    "触及",
+    "低于前值",
+    "高于前值",
+    "连续回落",
+    "连续上涨",
 ]
 
 # 必须包含的证伪模式
 INVALIDATION_PATTERNS = [
-    "跌破", "突破", "<", ">", "低于", "超过",
+    "跌破",
+    "突破",
+    "<",
+    ">",
+    "低于",
+    "超过",
 ]
 
 
 @dataclass(frozen=True)
 class ValidationResult:
     """验证结果"""
+
     is_valid: bool
     errors: list[str]
     warnings: list[str]
@@ -38,6 +59,7 @@ class ValidationResult:
 @dataclass(frozen=True)
 class RejectionRecord:
     """拒绝记录"""
+
     asset_code: str
     asset_class: str
     current_regime: str
@@ -47,9 +69,7 @@ class RejectionRecord:
 
 
 def check_eligibility(
-    asset_class: str,
-    regime: str,
-    custom_matrix: dict[str, dict[str, Eligibility]] | None = None
+    asset_class: str, regime: str, custom_matrix: dict[str, dict[str, Eligibility]] | None = None
 ) -> Eligibility:
     """
     检查资产在当前 Regime 下的适配性
@@ -88,9 +108,7 @@ def validate_invalidation_logic(logic: str) -> ValidationResult:
     # 2. 检查是否包含可量化关键词
     has_quantifiable = any(kw in logic for kw in QUANTIFIABLE_KEYWORDS)
     if not has_quantifiable:
-        errors.append(
-            "证伪逻辑必须包含可量化条件，如：'跌破 50'、'突破前值'、'PMI < 50' 等"
-        )
+        errors.append("证伪逻辑必须包含可量化条件，如：'跌破 50'、'突破前值'、'PMI < 50' 等")
 
     # 3. 检查是否包含明确的证伪模式
     has_pattern = any(p in logic for p in INVALIDATION_PATTERNS)
@@ -102,18 +120,11 @@ def validate_invalidation_logic(logic: str) -> ValidationResult:
     if any(vp in logic for vp in vague_patterns):
         warnings.append("证伪逻辑应避免模糊表述，建议使用明确的量化条件")
 
-    return ValidationResult(
-        is_valid=len(errors) == 0,
-        errors=errors,
-        warnings=warnings
-    )
+    return ValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
 def should_reject_signal(
-    asset_class: str,
-    current_regime: str,
-    policy_level: int,
-    confidence: float = 0.0
+    asset_class: str, current_regime: str, policy_level: int, confidence: float = 0.0
 ) -> tuple[bool, str | None, Eligibility | None]:
     """
     判断是否应该拒绝信号
@@ -132,6 +143,36 @@ def should_reject_signal(
         Tuple[bool, Optional[str], Optional[Eligibility]]:
             (是否拒绝, 拒绝原因, 适配性等级)
     """
+    matrix = get_eligibility_matrix()
+    known_regimes = {regime for regime_map in matrix.values() for regime in regime_map}
+    if not current_regime or current_regime not in known_regimes:
+        return (
+            True,
+            "当前 Regime 上下文无效，信号按失败关闭处理。",
+            Eligibility.HOSTILE,
+        )
+    if (
+        isinstance(policy_level, bool)
+        or not isinstance(policy_level, int)
+        or not 0 <= policy_level <= 3
+    ):
+        return (
+            True,
+            "当前政策档位上下文无效，信号按失败关闭处理。",
+            Eligibility.HOSTILE,
+        )
+    if (
+        isinstance(confidence, bool)
+        or not isinstance(confidence, (int, float))
+        or not isfinite(float(confidence))
+        or not 0 <= confidence <= 1
+    ):
+        return (
+            True,
+            "当前 Regime 置信度上下文无效，信号按失败关闭处理。",
+            Eligibility.HOSTILE,
+        )
+
     try:
         eligibility = check_eligibility(asset_class, current_regime)
     except ValueError:
@@ -150,9 +191,7 @@ def should_reject_signal(
     # 检查 2: 政策档位是否为 P3（完全退出）
     if policy_level >= 3:
         reason = (
-            f"当前政策档位为 P{policy_level}，"
-            f"系统处于完全退出状态，"
-            f"所有新信号均被拦截。"
+            f"当前政策档位为 P{policy_level}，" f"系统处于完全退出状态，" f"所有新信号均被拦截。"
         )
         return True, reason, eligibility
 
@@ -171,11 +210,7 @@ def should_reject_signal(
 
 
 def create_rejection_record(
-    asset_code: str,
-    asset_class: str,
-    current_regime: str,
-    policy_level: int,
-    confidence: float
+    asset_code: str, asset_class: str, current_regime: str, policy_level: int, confidence: float
 ) -> RejectionRecord | None:
     """
     创建拒绝记录
@@ -195,13 +230,15 @@ def create_rejection_record(
     )
 
     if should_reject:
+        if reason is None or eligibility is None:
+            raise RuntimeError("Rejected signal is missing rejection evidence")
         return RejectionRecord(
             asset_code=asset_code,
             asset_class=asset_class,
             current_regime=current_regime,
             eligibility=eligibility,
             reason=reason,
-            policy_veto=(policy_level >= 3)
+            policy_veto=(policy_level >= 3),
         )
 
     return None
@@ -232,10 +269,7 @@ def get_recommended_asset_classes(regime: str) -> list[str]:
     return recommended + neutral
 
 
-def analyze_regime_transition(
-    from_regime: str,
-    to_regime: str
-) -> list[str]:
+def analyze_regime_transition(from_regime: str, to_regime: str) -> list[str]:
     """
     分析 Regime 转换对资产的影响
 

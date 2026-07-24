@@ -14,29 +14,33 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
+from math import isfinite
 from typing import Any
 
 
 class ComparisonOperator(Enum):
     """比较操作符"""
-    LT = "lt"      # 小于
-    LTE = "lte"    # 小于等于
-    GT = "gt"      # 大于
-    GTE = "gte"    # 大于等于
-    EQ = "eq"      # 等于
+
+    LT = "lt"  # 小于
+    LTE = "lte"  # 小于等于
+    GT = "gt"  # 大于
+    GTE = "gte"  # 大于等于
+    EQ = "eq"  # 等于
 
 
 class LogicOperator(Enum):
     """逻辑操作符"""
+
     AND = "AND"
     OR = "OR"
 
 
 class IndicatorType(Enum):
     """指标类型"""
-    MACRO = "macro"       # 宏观指标（PMI、CPI等）
-    MARKET = "market"     # 市场指标（指数、利率等）
-    CUSTOM = "custom"     # 自定义指标
+
+    MACRO = "macro"  # 宏观指标（PMI、CPI等）
+    MARKET = "market"  # 市场指标（指数、利率等）
+    CUSTOM = "custom"  # 自定义指标
 
 
 @dataclass(frozen=True)
@@ -53,15 +57,22 @@ class InvalidationCondition:
         duration: 持续期数（可选，如连续2期）
         compare_with: 比较对象（可选，如 prev_value 表示与前值比较）
     """
-    indicator_code: str           # 指标代码
-    indicator_type: IndicatorType # 指标类型
+
+    indicator_code: str  # 指标代码
+    indicator_type: IndicatorType  # 指标类型
     operator: ComparisonOperator  # 比较操作符
-    threshold: float              # 阈值
-    duration: int | None = None      # 持续期数（可选）
+    threshold: float  # 阈值
+    duration: int | None = None  # 持续期数（可选）
     compare_with: str | None = None  # 比较对象（可选）
 
     def __post_init__(self) -> None:
         """验证条件有效性"""
+        if (
+            isinstance(self.threshold, bool)
+            or not isinstance(self.threshold, (int, float))
+            or not isfinite(float(self.threshold))
+        ):
+            raise ValueError("threshold 必须是有限数值")
         if self.duration is not None and self.duration < 1:
             raise ValueError("duration 必须大于 0")
         if self.compare_with not in (None, "prev_value", "prev_period"):
@@ -101,6 +112,7 @@ class InvalidationRule:
         conditions: 条件列表
         logic: 逻辑操作符（AND/OR）
     """
+
     conditions: list[InvalidationCondition]
     logic: LogicOperator
 
@@ -111,22 +123,13 @@ class InvalidationRule:
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典格式（用于存储）"""
-        return {
-            "conditions": [c.to_dict() for c in self.conditions],
-            "logic": self.logic.value
-        }
+        return {"conditions": [c.to_dict() for c in self.conditions], "logic": self.logic.value}
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "InvalidationRule":
         """从字典创建（用于加载）"""
-        conditions = [
-            InvalidationCondition.from_dict(c)
-            for c in d["conditions"]
-        ]
-        return cls(
-            conditions=conditions,
-            logic=LogicOperator(d["logic"])
-        )
+        conditions = [InvalidationCondition.from_dict(c) for c in d["conditions"]]
+        return cls(conditions=conditions, logic=LogicOperator(d["logic"]))
 
     @property
     def human_readable(self) -> str:
@@ -154,6 +157,7 @@ class InvalidationRule:
 @dataclass(frozen=True)
 class InvalidationCheckResult:
     """证伪检查结果"""
+
     is_invalidated: bool
     reason: str
     checked_conditions: list[dict[str, Any]]  # 每个条件的检查详情
@@ -166,6 +170,7 @@ class IndicatorValue:
 
     包含当前值、历史值和元数据。
     """
+
     code: str
     current_value: float | None
     history_values: list[float]
@@ -174,6 +179,7 @@ class IndicatorValue:
 
 
 # ==================== 纯函数业务逻辑 ====================
+
 
 def _compare(value: float, op: ComparisonOperator, threshold: float) -> bool:
     """执行比较操作
@@ -186,6 +192,15 @@ def _compare(value: float, op: ComparisonOperator, threshold: float) -> bool:
     Returns:
         bool: 比较结果
     """
+    if (
+        isinstance(value, bool)
+        or isinstance(threshold, bool)
+        or not isinstance(value, (int, float))
+        or not isinstance(threshold, (int, float))
+        or not isfinite(float(value))
+        or not isfinite(float(threshold))
+    ):
+        return False
     if op == ComparisonOperator.LT:
         return value < threshold
     elif op == ComparisonOperator.LTE:
@@ -200,8 +215,7 @@ def _compare(value: float, op: ComparisonOperator, threshold: float) -> bool:
 
 
 def evaluate_condition(
-    condition: InvalidationCondition,
-    indicator_value: IndicatorValue
+    condition: InvalidationCondition, indicator_value: IndicatorValue
 ) -> tuple[bool, dict[str, Any]]:
     """评估单个条件是否满足
 
@@ -214,10 +228,7 @@ def evaluate_condition(
     """
     # 检查数据可用性
     if indicator_value.current_value is None:
-        return False, {
-            "error": "指标当前值不可用",
-            "indicator_code": condition.indicator_code
-        }
+        return False, {"error": "指标当前值不可用", "indicator_code": condition.indicator_code}
 
     actual_value = indicator_value.current_value
 
@@ -239,7 +250,9 @@ def evaluate_condition(
         else:
             consecutive_count = 0
             # 检查连续N期是否都满足条件
-            for i, val in enumerate([indicator_value.current_value] + indicator_value.history_values):
+            for i, val in enumerate(
+                [indicator_value.current_value] + indicator_value.history_values
+            ):
                 if i >= condition.duration:
                     break
                 if _compare(val, condition.operator, condition.threshold):
@@ -258,8 +271,7 @@ def evaluate_condition(
 
 
 def _generate_invalidation_reason(
-    rule: InvalidationRule,
-    checked_conditions: list[dict[str, Any]]
+    rule: InvalidationRule, checked_conditions: list[dict[str, Any]]
 ) -> str:
     """生成证伪原因描述"""
     parts = []
@@ -283,8 +295,7 @@ def _generate_invalidation_reason(
 
 
 def evaluate_rule(
-    rule: InvalidationRule,
-    indicator_values: dict[str, IndicatorValue]
+    rule: InvalidationRule, indicator_values: dict[str, IndicatorValue]
 ) -> InvalidationCheckResult:
     """评估证伪规则
 
@@ -303,9 +314,7 @@ def evaluate_rule(
     for cond in rule.conditions:
         ind_value = indicator_values.get(cond.indicator_code)
         if ind_value is None:
-            is_met, detail = False, {
-                "error": f"指标 {cond.indicator_code} 数据不可用"
-            }
+            is_met, detail = False, {"error": f"指标 {cond.indicator_code} 数据不可用"}
         else:
             is_met, detail = evaluate_condition(cond, ind_value)
 
@@ -327,7 +336,7 @@ def evaluate_rule(
         is_invalidated=is_invalidated,
         reason=reason,
         checked_conditions=checked_conditions,
-        checked_at=datetime.now(UTC).isoformat()
+        checked_at=datetime.now(UTC).isoformat(),
     )
 
 

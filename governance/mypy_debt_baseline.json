@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3155,
-    "files_with_errors": 612
+    "errors": 3139,
+    "files_with_errors": 608
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2025,14 +2025,10 @@
       "no-untyped-def": 5,
       "type-arg": 10
     },
-    "apps/signal/application/policy_gateway.py": {
-      "no-untyped-call": 1
-    },
     "apps/signal/application/query_services.py": {
       "arg-type": 2,
       "attr-defined": 2,
       "no-any-return": 1,
-      "no-untyped-call": 2,
       "type-arg": 1,
       "union-attr": 2
     },
@@ -2047,21 +2043,8 @@
       "type-arg": 2,
       "var-annotated": 1
     },
-    "apps/signal/application/use_cases.py": {
-      "arg-type": 2,
-      "attr-defined": 2,
-      "no-untyped-def": 4,
-      "type-arg": 1,
-      "union-attr": 1
-    },
     "apps/signal/apps.py": {
       "no-untyped-call": 1
-    },
-    "apps/signal/domain/parser.py": {
-      "type-arg": 1
-    },
-    "apps/signal/domain/rules.py": {
-      "arg-type": 2
     },
     "apps/signal/forecast_composition.py": {
       "arg-type": 3

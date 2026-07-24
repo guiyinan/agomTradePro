@@ -9,7 +9,11 @@
 
 import re
 
-from .indicators import find_indicator_by_alias
+from .indicators import (
+    IndicatorDefinition,
+    find_indicator_by_alias,
+    get_all_indicators,
+)
 from .invalidation import (
     ComparisonOperator,
     IndicatorType,
@@ -105,17 +109,11 @@ class InvalidationLogicParser:
             warnings.extend(result.warnings or [])
 
         if not conditions:
-            return ParseResult(
-                success=False,
-                error="无法解析任何条件，请明确指定指标和阈值"
-            )
+            return ParseResult(success=False, error="无法解析任何条件，请明确指定指标和阈值")
 
         # 4. 构建规则
         try:
-            rule = InvalidationRule(
-                conditions=conditions,
-                logic=logic
-            )
+            rule = InvalidationRule(conditions=conditions, logic=logic)
             return ParseResult(success=True, rule=rule, warnings=warnings)
         except ValueError as e:
             return ParseResult(success=False, error=str(e))
@@ -176,12 +174,11 @@ class InvalidationLogicParser:
             available = [ind.name for ind in find_indicators_in_text(text)]
             if available:
                 return ParseResult(
-                    success=False,
-                    error=f"无法识别指标，您是否指的是：{', '.join(available)}？"
+                    success=False, error=f"无法识别指标，您是否指的是：{', '.join(available)}？"
                 )
             return ParseResult(
                 success=False,
-                error=f"无法识别指标: {text}。请使用明确的指标名称，如 PMI、CPI、M2 等"
+                error=f"无法识别指标: {text}。请使用明确的指标名称，如 PMI、CPI、M2 等",
             )
 
         # 2. 提取操作符
@@ -194,8 +191,7 @@ class InvalidationLogicParser:
         threshold = self._extract_threshold(text)
         if threshold is None:
             return ParseResult(
-                success=False,
-                error=f"无法提取阈值: {text}。请明确指定阈值，如 'PMI 跌破 50'"
+                success=False, error=f"无法提取阈值: {text}。请明确指定阈值，如 'PMI 跌破 50'"
             )
 
         # 4. 提取持续时间
@@ -205,9 +201,11 @@ class InvalidationLogicParser:
         try:
             condition = InvalidationCondition(
                 indicator_code=indicator.code,
-                indicator_type=IndicatorType.MACRO
-                if indicator.category.value in ("growth", "inflation", "interest")
-                else IndicatorType.MARKET,
+                indicator_type=(
+                    IndicatorType.MACRO
+                    if indicator.category.value in ("growth", "inflation", "interest")
+                    else IndicatorType.MARKET
+                ),
                 operator=op,
                 threshold=threshold,
                 duration=duration,
@@ -225,10 +223,18 @@ class InvalidationLogicParser:
         Returns:
             ComparisonOperator 或 None
         """
-        for op, keywords in self.COMPARISON_KEYWORDS.items():
-            for kw in keywords:
-                if kw in text:
-                    return op
+        candidates = sorted(
+            (
+                (keyword, operator)
+                for operator, keywords in self.COMPARISON_KEYWORDS.items()
+                for keyword in keywords
+            ),
+            key=lambda item: len(item[0]),
+            reverse=True,
+        )
+        for keyword, operator in candidates:
+            if keyword in text:
+                return operator
         return None
 
     def _extract_threshold(self, text: str) -> float | None:
@@ -246,9 +252,9 @@ class InvalidationLogicParser:
             float 或 None
         """
         patterns = [
-            r'[<>]=?\s*([+-]?\d+\.?\d*)',  # >= 50, < 3
-            r'(?:跌破|突破|超过|低于|高于)(?:到)?\s*([+-]?\d+\.?\d*)',  # 跌破50
-            r'(?:小于|大于|等于)\s*([+-]?\d+\.?\d*)',  # 小于50
+            r"[<>]=?\s*([+-]?\d+\.?\d*)",  # >= 50, < 3
+            r"(?:跌破|突破|超过|低于|高于)(?:到)?\s*([+-]?\d+\.?\d*)",  # 跌破50
+            r"(?:小于|大于|等于)\s*([+-]?\d+\.?\d*)",  # 小于50
         ]
 
         for pattern in patterns:
@@ -283,7 +289,7 @@ class InvalidationLogicParser:
         return None
 
 
-def find_indicators_in_text(text: str) -> list:
+def find_indicators_in_text(text: str) -> list[IndicatorDefinition]:
     """在文本中查找可能的指标
 
     用于提供错误提示和建议。
@@ -294,10 +300,8 @@ def find_indicators_in_text(text: str) -> list:
     Returns:
         List[IndicatorDefinition]: 可能的指标列表
     """
-    from .indicators import get_all_indicators
-
     text_lower = text.lower()
-    found = []
+    found: list[IndicatorDefinition] = []
 
     for indicator in get_all_indicators():
         # 检查别名是否在文本中
@@ -337,7 +341,7 @@ def validate_parse_input(user_input: str) -> list[str]:
         errors.append("未检测到有效的指标名称，请使用 PMI、CPI、M2 等标准指标名称")
 
     # 检查是否包含数字
-    if not re.search(r'\d+\.?\d*', user_input):
+    if not re.search(r"\d+\.?\d*", user_input):
         errors.append("未检测到阈值，请指定具体的数值，如 'PMI 跌破 50'")
 
     return errors

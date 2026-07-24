@@ -4,10 +4,25 @@ Use Cases for Investment Signal Validation.
 Application layer orchestrating the workflow of signal validation.
 """
 
-from dataclasses import dataclass
+import logging
+from dataclasses import dataclass, field
 from datetime import date
+from math import isfinite
+from typing import Protocol
+
+from apps.regime.domain.asset_eligibility import (
+    Eligibility,
+    get_eligibility_matrix,
+)
 
 from ..domain.entities import InvestmentSignal, SignalStatus
+from ..domain.indicators import find_indicator_by_alias
+from ..domain.invalidation import (
+    IndicatorValue,
+    InvalidationCheckResult,
+    evaluate_rule,
+)
+from ..domain.parser import InvalidationLogicParser
 from ..domain.rules import (
     RejectionRecord,
     ValidationResult,
@@ -15,10 +30,35 @@ from ..domain.rules import (
     validate_invalidation_logic,
 )
 
+logger = logging.getLogger(__name__)
+
+
+class ReevaluateSignalRepositoryProtocol(Protocol):
+    """Persistence operations required by signal reevaluation."""
+
+    def get_active_signals(self) -> list[InvestmentSignal]: ...
+
+    def update_signal_status(
+        self,
+        signal_id: str,
+        new_status: SignalStatus,
+        rejection_reason: str | None = None,
+    ) -> bool: ...
+
+
+class InvalidationCheckServiceProtocol(Protocol):
+    """Side-effecting invalidation check used during reevaluation."""
+
+    def check_signal_by_id(
+        self,
+        signal_id: int,
+    ) -> InvalidationCheckResult | None: ...
+
 
 @dataclass
 class ValidateSignalRequest:
     """验证投资信号的请求 DTO"""
+
     asset_code: str
     asset_class: str
     direction: str
@@ -34,6 +74,7 @@ class ValidateSignalRequest:
 @dataclass
 class ValidateSignalResponse:
     """验证投资信号的响应 DTO"""
+
     is_valid: bool
     is_approved: bool
     rejection_record: RejectionRecord | None
@@ -52,9 +93,6 @@ class ValidateSignalUseCase:
     3. 返回验证结果
     """
 
-    def __init__(self):
-        pass
-
     def execute(self, request: ValidateSignalRequest) -> ValidateSignalResponse:
         """
         执行信号验证
@@ -65,8 +103,8 @@ class ValidateSignalUseCase:
         Returns:
             ValidateSignalResponse: 验证结果
         """
-        errors = []
-        warnings = []
+        errors: list[str] = []
+        warnings: list[str] = []
 
         # 1. 验证证伪逻辑
         logic_validation = validate_invalidation_logic(request.invalidation_logic)
@@ -81,7 +119,7 @@ class ValidateSignalUseCase:
                 rejection_record=None,
                 logic_validation=logic_validation,
                 errors=errors,
-                warnings=warnings
+                warnings=warnings,
             )
 
         # 2. 检查是否应该拒绝信号
@@ -89,18 +127,20 @@ class ValidateSignalUseCase:
             asset_class=request.asset_class,
             current_regime=request.current_regime,
             policy_level=request.policy_level,
-            confidence=request.regime_confidence
+            confidence=request.regime_confidence,
         )
 
         rejection_record = None
         if should_reject:
+            if rejection_reason is None or eligibility is None:
+                raise RuntimeError("Rejected signal is missing rejection evidence")
             rejection_record = RejectionRecord(
                 asset_code=request.asset_code,
                 asset_class=request.asset_class,
                 current_regime=request.current_regime,
                 eligibility=eligibility,
                 reason=rejection_reason,
-                policy_veto=(request.policy_level >= 3)
+                policy_veto=(request.policy_level >= 3),
             )
 
         return ValidateSignalResponse(
@@ -109,13 +149,10 @@ class ValidateSignalUseCase:
             rejection_record=rejection_record,
             logic_validation=logic_validation,
             errors=errors,
-            warnings=warnings
+            warnings=warnings,
         )
 
-    def validate_and_create_signal(
-        self,
-        request: ValidateSignalRequest
-    ) -> InvestmentSignal | None:
+    def validate_and_create_signal(self, request: ValidateSignalRequest) -> InvestmentSignal | None:
         """
         验证并创建信号（如果通过）
 
@@ -140,20 +177,22 @@ class ValidateSignalUseCase:
             invalidation_threshold=request.invalidation_threshold,
             target_regime=request.target_regime,
             created_at=date.today(),
-            status=SignalStatus.APPROVED
+            status=SignalStatus.APPROVED,
         )
 
 
 @dataclass
 class CheckSignalInvalidationRequest:
     """检查信号证伪的请求 DTO"""
+
     signal: InvestmentSignal
-    current_indicator_values: dict
+    current_indicator_values: dict[str, float]
 
 
 @dataclass
 class CheckSignalInvalidationResponse:
     """检查信号证伪的响应 DTO"""
+
     is_invalidated: bool
     reason: str
 
@@ -165,13 +204,7 @@ class CheckSignalInvalidationUseCase:
     根据信号中定义的 invalidation_logic 判断当前状态是否满足证伪条件。
     """
 
-    def __init__(self):
-        pass
-
-    def execute(
-        self,
-        request: CheckSignalInvalidationRequest
-    ) -> CheckSignalInvalidationResponse:
+    def execute(self, request: CheckSignalInvalidationRequest) -> CheckSignalInvalidationResponse:
         """
         执行证伪检查
 
@@ -181,72 +214,64 @@ class CheckSignalInvalidationUseCase:
         Returns:
             CheckSignalInvalidationResponse: 检查结果
         """
-        logic = request.signal.invalidation_logic.lower()
-        values = request.current_indicator_values
+        rule = request.signal.invalidation_rule
+        if rule is None:
+            logic = (request.signal.invalidation_logic or "").strip()
+            if not logic:
+                return CheckSignalInvalidationResponse(
+                    is_invalidated=False,
+                    reason="信号没有可评估的证伪规则",
+                )
+            parse_result = InvalidationLogicParser().parse(logic)
+            if not parse_result.success and request.signal.invalidation_threshold is not None:
+                parse_result = InvalidationLogicParser().parse(
+                    f"{logic} {request.signal.invalidation_threshold}"
+                )
+            if not parse_result.success or parse_result.rule is None:
+                return CheckSignalInvalidationResponse(
+                    is_invalidated=False,
+                    reason="证伪规则无法解析",
+                )
+            rule = parse_result.rule
 
-        # 简单的规则匹配（可扩展）
-        if "跌破" in logic or "<" in logic:
-            # 检查是否跌破阈值
-            threshold = request.signal.invalidation_threshold
-            if threshold is not None:
-                # 假设主要指标是第一个值
-                main_value = list(values.values())[0] if values else None
-                if main_value is not None and main_value < threshold:
-                    return CheckSignalInvalidationResponse(
-                        is_invalidated=True,
-                        reason=f"指标值 {main_value} 跌破阈值 {threshold}"
-                    )
+        indicator_values: dict[str, IndicatorValue] = {}
+        for raw_code, raw_value in request.current_indicator_values.items():
+            if (
+                isinstance(raw_value, bool)
+                or not isinstance(raw_value, (int, float))
+                or not isfinite(float(raw_value))
+            ):
+                continue
+            indicator = find_indicator_by_alias(raw_code)
+            code = indicator.code if indicator is not None else raw_code.strip()
+            if not code:
+                continue
+            indicator_values[code] = IndicatorValue(
+                code=code,
+                current_value=float(raw_value),
+                history_values=[],
+                unit="",
+                last_updated=None,
+            )
 
-        if "突破" in logic or ">" in logic:
-            # 检查是否突破阈值
-            threshold = request.signal.invalidation_threshold
-            if threshold is not None:
-                main_value = list(values.values())[0] if values else None
-                if main_value is not None and main_value > threshold:
-                    return CheckSignalInvalidationResponse(
-                        is_invalidated=True,
-                        reason=f"指标值 {main_value} 突破阈值 {threshold}"
-                    )
-
-        # 如果没有阈值，进行简单的文本匹配
-        for key, value in values.items():
-            if key.lower() in logic:
-                # 检查是否包含数字条件
-                import re
-                numbers = re.findall(r'\d+\.?\d*', logic)
-                for num_str in numbers:
-                    try:
-                        threshold = float(num_str)
-                    except (ValueError, TypeError):
-                        continue  # 跳过无法解析的数字
-                    if "<" in logic or "低于" in logic or "跌破" in logic:
-                        if value < threshold:
-                            return CheckSignalInvalidationResponse(
-                                is_invalidated=True,
-                                reason=f"{key}={value} 低于条件 {threshold}"
-                            )
-                    if ">" in logic or "高于" in logic or "突破" in logic:
-                        if value > threshold:
-                            return CheckSignalInvalidationResponse(
-                                is_invalidated=True,
-                                reason=f"{key}={value} 高于条件 {threshold}"
-                            )
-
+        result = evaluate_rule(rule, indicator_values)
         return CheckSignalInvalidationResponse(
-            is_invalidated=False,
-            reason="未满足证伪条件"
+            is_invalidated=result.is_invalidated,
+            reason=result.reason,
         )
 
 
 @dataclass
 class GetRecommendedAssetsRequest:
     """获取推荐资产的请求 DTO"""
+
     current_regime: str
 
 
 @dataclass
 class GetRecommendedAssetsResponse:
     """获取推荐资产的响应 DTO"""
+
     recommended: list[str]
     neutral: list[str]
     hostile: list[str]
@@ -257,13 +282,7 @@ class GetRecommendedAssetsUseCase:
     获取当前 Regime 下推荐资产的用例
     """
 
-    def __init__(self):
-        pass
-
-    def execute(
-        self,
-        request: GetRecommendedAssetsRequest
-    ) -> GetRecommendedAssetsResponse:
+    def execute(self, request: GetRecommendedAssetsRequest) -> GetRecommendedAssetsResponse:
         """
         执行获取推荐资产
 
@@ -273,11 +292,9 @@ class GetRecommendedAssetsUseCase:
         Returns:
             GetRecommendedAssetsResponse: 推荐资产分类
         """
-        from ..domain.rules import Eligibility, get_eligibility_matrix
-
-        recommended = []
-        neutral = []
-        hostile = []
+        recommended: list[str] = []
+        neutral: list[str] = []
+        hostile: list[str] = []
 
         eligibility_matrix = get_eligibility_matrix()
         for asset_class, regime_map in eligibility_matrix.items():
@@ -290,15 +307,14 @@ class GetRecommendedAssetsUseCase:
                 hostile.append(asset_class)
 
         return GetRecommendedAssetsResponse(
-            recommended=recommended,
-            neutral=neutral,
-            hostile=hostile
+            recommended=recommended, neutral=neutral, hostile=hostile
         )
 
 
 @dataclass
 class ReevaluateSignalsRequest:
     """重评信号的请求 DTO"""
+
     policy_level: int
     current_regime: str | None = None
     regime_confidence: float = 0.0
@@ -307,9 +323,12 @@ class ReevaluateSignalsRequest:
 @dataclass
 class ReevaluateSignalsResponse:
     """重评信号的响应 DTO"""
+
     total_count: int
     rejected_count: int
     rejected_signal_ids: list[str]
+    invalidated_count: int = 0
+    invalidated_signal_ids: list[str] = field(default_factory=list)
 
 
 class ReevaluateSignalsUseCase:
@@ -320,7 +339,11 @@ class ReevaluateSignalsUseCase:
     同时检查信号自身的证伪条件是否满足。
     """
 
-    def __init__(self, signal_repository, invalidation_check_service=None):
+    def __init__(
+        self,
+        signal_repository: ReevaluateSignalRepositoryProtocol,
+        invalidation_check_service: InvalidationCheckServiceProtocol | None = None,
+    ) -> None:
         """
         Args:
             signal_repository: SignalRepository 实例
@@ -339,56 +362,83 @@ class ReevaluateSignalsUseCase:
         Returns:
             ReevaluateSignalsResponse: 重评结果
         """
-        import logging
-        logger = logging.getLogger(__name__)
+        current_regime = (
+            request.current_regime.strip() if isinstance(request.current_regime, str) else ""
+        )
+        if (
+            isinstance(request.policy_level, bool)
+            or not isinstance(request.policy_level, int)
+            or not 0 <= request.policy_level <= 3
+            or not current_regime
+            or isinstance(request.regime_confidence, bool)
+            or not isinstance(request.regime_confidence, (int, float))
+            or not isfinite(float(request.regime_confidence))
+            or not 0 <= request.regime_confidence <= 1
+        ):
+            raise ValueError("Signal reevaluation context is invalid")
 
         # 获取所有活跃信号
         active_signals = self.signal_repository.get_active_signals()
 
         rejected_count = 0
-        rejected_signal_ids = []
+        rejected_signal_ids: list[str] = []
+        invalidated_signal_ids: list[str] = []
 
         for signal in active_signals:
-            reject_reason = None
+            signal_id = str(signal.id or "").strip()
+            if not signal_id:
+                raise ValueError("Active signal is missing a persisted identifier")
 
             # 1. 根据新的 policy_level 重评
-            current_regime = request.current_regime or signal.target_regime
-
-            should_reject, reason, _ = should_reject_signal(
+            should_reject, reason, _eligibility = should_reject_signal(
                 asset_class=signal.asset_class,
                 current_regime=current_regime,
                 policy_level=request.policy_level,
-                confidence=request.regime_confidence
+                confidence=request.regime_confidence,
             )
 
             if should_reject:
-                reject_reason = f"Policy level change: {reason}"
-
-            # 2. 检查信号自身的证伪条件
-            if not reject_reason and self.invalidation_check_service and signal.invalidation_logic:
-                try:
-                    invalidation_result = self.invalidation_check_service.check_signal_by_id(signal.id)
-                    if invalidation_result and invalidation_result.is_invalidated:
-                        reject_reason = f"Invalidation condition met: {invalidation_result.reason}"
-                        logger.info(
-                            f"Signal {signal.id} ({signal.asset_code}) invalidated: {invalidation_result.reason}"
-                        )
-                except Exception as e:
-                    logger.warning(f"Failed to check invalidation for signal {signal.id}: {e}")
-
-            if reject_reason:
-                # 更新信号状态
-                self.signal_repository.update_signal_status(
-                    signal_id=signal.id,
+                reject_reason = f"Policy level change: {reason or 'rejected'}"
+                updated = self.signal_repository.update_signal_status(
+                    signal_id=signal_id,
                     new_status=SignalStatus.REJECTED,
-                    rejection_reason=reject_reason
+                    rejection_reason=reject_reason,
                 )
+                if not updated:
+                    raise RuntimeError(f"Failed to persist rejected signal {signal_id}")
                 rejected_count += 1
-                rejected_signal_ids.append(signal.id)
-
+                rejected_signal_ids.append(signal_id)
                 logger.info(
-                    f"Signal {signal.id} ({signal.asset_code}) rejected: {reject_reason}"
+                    "Signal %s (%s) rejected: %s",
+                    signal_id,
+                    signal.asset_code,
+                    reject_reason,
                 )
+                continue
+
+            # 2. InvalidationCheckService owns the INVALIDATED state transition.
+            if self.invalidation_check_service is not None and (
+                signal.invalidation_rule is not None or signal.invalidation_logic
+            ):
+                try:
+                    numeric_signal_id = int(signal_id)
+                except ValueError as exc:
+                    raise ValueError(
+                        "Invalidation check requires a numeric signal identifier"
+                    ) from exc
+                if numeric_signal_id <= 0:
+                    raise ValueError("Invalidation check requires a positive signal identifier")
+                invalidation_result = self.invalidation_check_service.check_signal_by_id(
+                    numeric_signal_id
+                )
+                if invalidation_result and invalidation_result.is_invalidated:
+                    invalidated_signal_ids.append(signal_id)
+                    logger.info(
+                        "Signal %s (%s) invalidated: %s",
+                        signal_id,
+                        signal.asset_code,
+                        invalidation_result.reason,
+                    )
 
         logger.info(
             f"Signal reevaluation completed: {rejected_count}/{len(active_signals)} signals rejected"
@@ -397,5 +447,7 @@ class ReevaluateSignalsUseCase:
         return ReevaluateSignalsResponse(
             total_count=len(active_signals),
             rejected_count=rejected_count,
-            rejected_signal_ids=rejected_signal_ids
+            rejected_signal_ids=rejected_signal_ids,
+            invalidated_count=len(invalidated_signal_ids),
+            invalidated_signal_ids=invalidated_signal_ids,
         )
