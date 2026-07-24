@@ -13,7 +13,7 @@ runtime.hooks = {
         return ["decision", "governance"].includes(lane) ? lane : "";
     },
     getHomeActions(context = {}) {
-        return [
+        const actions = [
             {
                 key: "operator.home.continue_decision_flow",
                 label: "继续今日决策流程",
@@ -37,6 +37,11 @@ runtime.hooks = {
                 description: "独立入口，不中断当前 TUI",
             },
         ];
+        const availableActionKeys = context.availableActionKeys;
+        if (!availableActionKeys || typeof availableActionKeys.has !== "function") {
+            return actions;
+        }
+        return actions.filter((action) => availableActionKeys.has(action.key));
     },
     runHomeAction(actionKey, context) {
         if (actionKey === "operator.home.continue_decision_flow") {

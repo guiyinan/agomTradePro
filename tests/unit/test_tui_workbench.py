@@ -282,14 +282,13 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "tui-workbench.js" in html
     assert "tui-workbench.js?v=" in html
     assert "data-module-tree" in html
+    assert f'data-user-key="{tui_user.pk}"' in html
     assert "data-workflow-strip" in html
-    assert 'id="tui-location-input"' in html
-    assert "data-current-location" in html
-    assert 'type="text"' in html
-    assert 'value="screen:boot"' in html
-    assert 'aria-label="输入 TUI screen 地址后跳转"' in html
-    assert "screen:boot" in html
+    assert 'id="tui-location-input"' not in html
+    assert "data-current-location" not in html
     assert "用户: tui_user" in html
+    assert "工作台:" in html
+    assert "DEBUG ONLY" not in html
     assert "data-theme-status" in html
     assert "STYLE: B" in html
     assert "data-theme-indicator" in html
@@ -306,6 +305,19 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "tui-theme.css" not in html
 
 
+def test_tui_workbench_page_keeps_screen_locator_for_admins(client, tui_admin_user):
+    client.force_login(tui_admin_user)
+
+    response = client.get("/tui/")
+
+    assert response.status_code == 200
+    html = response.content.decode()
+    assert 'id="tui-location-input"' in html
+    assert "data-current-location" in html
+    assert 'value="screen:boot"' in html
+    assert 'aria-label="输入 TUI screen 地址后跳转"' in html
+
+
 def test_tui_workbench_page_exposes_pc_tools_interaction_shell(client, tui_user):
     client.force_login(tui_user)
 
@@ -320,11 +332,8 @@ def test_tui_workbench_page_exposes_pc_tools_interaction_shell(client, tui_user)
     assert "<strong>F1</strong> 帮助" in html
     assert "<strong>F3</strong> 上屏" in html
     assert "<strong>F4</strong> 下屏" in html
-    assert "<strong>F7</strong> 筛选" in html
-    assert "<strong>F8</strong> 导出" in html
     assert "<strong>F6</strong> 下一项" in html
     assert "<strong>F9</strong> 任务" in html
-    assert "<strong>F10</strong> 说明" in html
     assert "<strong>Alt+A</strong>" not in html
     assert "<strong>Alt+F</strong>" not in html
     assert "<strong>Alt+X</strong>" not in html
@@ -712,12 +721,15 @@ def test_tui_catalog_shows_admin_only_mcp_center_to_admin_user(client, tui_admin
 
     assert "capability-router.mcp-center" in screens
     assert "capability-router.self-service" in screens
-    assert "capability-router.admin-access" not in screens
+    assert "capability-router.admin-access" in screens
     assert "capability-router.gateway" not in screens
     assert "capability-router.self-service" in {
         screen["key"] for screen in modules["research-tools"]["screens"]
     }
     assert "capability-router.mcp-center" in {
+        screen["key"] for screen in modules["system-governance"]["screens"]
+    }
+    assert "capability-router.admin-access" in {
         screen["key"] for screen in modules["system-governance"]["screens"]
     }
     assert screens["capability-router.mcp-center"]["default_action_key"] == (
@@ -959,7 +971,7 @@ def test_tui_catalog_shows_admin_ai_management_screens_to_admin_user(client, tui
         for screen in module["screens"]
     }
     assert "ai-ops.system-providers" in screen_keys
-    assert "ai-ops.user-quotas" not in screen_keys
+    assert "ai-ops.user-quotas" in screen_keys
 
 
 def test_tui_dashboard_screen_hides_alpha_history_detail_without_history_rows(
@@ -1476,6 +1488,11 @@ def test_tui_terminal_screen_defaults_to_interactive_chat(client, tui_user):
     payload = response.json()
     assert payload["screen"]["label"] == "AI 助手"
     assert payload["screen"]["default_action_key"] == "terminal.agent_chat"
+    assert [panel["key"] for panel in payload["screen"]["dashboard_panels"]] == [
+        "assistant-conversation",
+        "agent-attention",
+    ]
+    assert payload["screen"]["dashboard_panels"][0]["user_priority"] == "p0"
     action = next(action for action in payload["actions"] if action["key"] == "terminal.agent_chat")
     assert action["label"] == "发送 AI 请求"
     assert action["risk"] == "ai"
@@ -1639,7 +1656,7 @@ def test_tui_capability_router_screen_uses_unified_route_api(client, tui_admin_u
     assert response.status_code == 200
     payload = response.json()
     assert payload["module"]["key"] == "system-governance"
-    assert payload["screen"]["label"] == "MCP 与能力治理"
+    assert payload["screen"]["label"] == "MCP 能力治理"
     action = next(
         action
         for action in payload["actions"]
@@ -1661,6 +1678,7 @@ def test_tui_mcp_self_service_screen_exposes_status_endpoint_and_prompt_panels(c
     payload = response.json()
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["key"] for panel in panels] == [
+        "mcp-create-token",
         "mcp-access-package",
         "mcp-access-verification",
         "mcp-self-tokens",
@@ -1668,9 +1686,10 @@ def test_tui_mcp_self_service_screen_exposes_status_endpoint_and_prompt_panels(c
     actions = {action["key"]: action for action in payload["actions"]}
     assert "capability-router.verify-my-mcp-access" in actions
     assert panels[0]["user_priority"] == "p0"
-    assert panels[1]["user_priority"] == "p1"
-    assert panels[2]["user_priority"] == "p2"
-    assert [column["key"] for column in panels[2]["columns"]] == [
+    assert panels[1]["user_priority"] == "p0"
+    assert panels[2]["user_priority"] == "p1"
+    assert panels[3]["user_priority"] == "p2"
+    assert [column["key"] for column in panels[3]["columns"]] == [
         "name",
         "preview",
         "access_level_label",
@@ -1692,35 +1711,55 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
         "today-queue",
         "market-context",
         "account-signal-summary",
-        "data-task-summary",
         "portfolio-summary",
     ]
     assert [panel["target_screen"] for panel in panels] == [
         "",
         "macro-regime.overview",
         "execution.accounts",
-        "api-library.data-center",
         "execution.accounts",
     ]
     assert panels[0]["action_key"] == "decision.workspace.today_queue"
     assert panels[1]["action_key"] == "operator.home.market_context"
     assert panels[2]["action_key"] == "operator.home.account_signal_summary"
-    assert panels[3]["action_key"] == "operator.home.data_task_summary"
-    assert panels[4]["action_key"] == "dashboard.v1_summary"
+    assert panels[3]["action_key"] == "dashboard.v1_summary"
+    assert panels[3]["field_rules"] == [
+        {"label": "用户 / ID", "visible": False},
+        {"label": "用户 / 用户名", "visible": False},
+        {"label": "环境 / 置信度", "format": "percentage"},
+        {"label": "组合 / 总资产", "format": "money"},
+        {"label": "组合 / 初始资金", "format": "money"},
+        {"label": "组合 / 总收益", "format": "money"},
+        {"label": "组合 / 总收益率", "format": "percentage"},
+    ]
     assert [panel["title"] for panel in panels] == [
         "今日待办",
         "环境与脉搏",
         "账户与信号",
-        "数据与任务",
         "组合摘要",
     ]
     action_keys = {action["key"] for action in payload["actions"]}
     assert {
         "operator.home.continue_decision_flow",
-        "operator.home.enter_governance_flow",
         "operator.home.resume_last_workspace",
         "operator.home.open_cli",
     } <= action_keys
+    assert "operator.home.enter_governance_flow" not in action_keys
+    assert "operator.home.data_task_summary" not in action_keys
+
+
+def test_tui_admin_home_keeps_governance_actions_and_panels(client, tui_admin_user):
+    client.force_login(tui_admin_user)
+
+    response = client.get("/api/tui/screens/command-center.overview/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    action_keys = {action["key"] for action in payload["actions"]}
+    panel_keys = {panel["key"] for panel in payload["screen"]["dashboard_panels"]}
+    assert "operator.home.enter_governance_flow" in action_keys
+    assert "operator.home.data_task_summary" in action_keys
+    assert "data-task-summary" in panel_keys
 
 
 def test_tui_research_asset_lab_screen_returns_overview_panels(client, tui_user):
@@ -2255,6 +2294,30 @@ def test_tui_metadata_validator_adds_dashboard_panel_runtime_defaults():
     assert panel["status"] == ""
     assert panel["note"] == ""
     assert panel["layout_area"] == ""
+    assert "field_rules" not in panel
+
+
+def test_tui_metadata_validator_accepts_explicit_dashboard_field_rules():
+    payload = _metadata_payload()
+    payload["screens"][0]["dashboard_panels"] = [
+        {
+            "key": "summary",
+            "title": "Summary",
+            "kind": "detail",
+            "action_key": "sample.list",
+            "field_rules": [
+                {"label": "Internal ID", "visible": False},
+                {"label": "Confidence", "format": "percentage"},
+            ],
+        }
+    ]
+
+    panel = validate_tui_metadata(payload)["screens"][0]["dashboard_panels"][0]
+
+    assert panel["field_rules"] == [
+        {"label": "Internal ID", "visible": False},
+        {"label": "Confidence", "format": "percentage"},
+    ]
 
 
 def test_tui_metadata_validator_rejects_unknown_dashboard_target_screen():
@@ -2326,7 +2389,8 @@ def test_tui_metadata_validator_adds_user_facing_design_defaults():
     assert validated["actions"][0]["result_semantics"] == []
     assert validated["actions"][0]["fields"] == []
     assert validated["actions"][0]["task_tier"] == "primary"
-    assert validated["actions"][0]["submit_label"] == "执行查询"
+    assert validated["actions"][0]["effect"] == "read"
+    assert validated["actions"][0]["submit_label"] == "查看"
     assert validated["field_aliases"]["from_code"][:2] == [
         "from_code",
         "from_currency_code",
@@ -2365,7 +2429,8 @@ def test_tui_metadata_compact_payload_round_trips_runtime_defaults():
     assert restored_action["sensitive_level"] == "none"
     assert restored_action["executor"] == ""
     assert restored_action["task_tier"] == "primary"
-    assert restored_action["submit_label"] == "执行查询"
+    assert restored_action["effect"] == "read"
+    assert restored_action["submit_label"] == "查看"
     assert restored_action["module_key"] == "command-center"
 
 
@@ -6533,6 +6598,7 @@ def test_tui_runtime_injection_replaces_stale_mcp_screen_and_action_contracts():
     screen = next(item for item in screens if item["key"] == "capability-router.self-service")
     assert screen["dashboard_layout"] == "task_flow"
     assert [panel["key"] for panel in screen["dashboard_panels"]] == [
+        "mcp-create-token",
         "mcp-access-package",
         "mcp-access-verification",
         "mcp-self-tokens",
@@ -6724,6 +6790,8 @@ def test_tui_capability_router_self_service_screen_publishes_user_facing_semanti
 
     assert screen["user_experience"]["journey"] == "self_service"
     assert screen["dashboard_layout"] == "task_flow"
+    assert panels["mcp-create-token"]["presentation_semantic"] == "next_step"
+    assert panels["mcp-create-token"]["user_priority"] == "p0"
     assert panels["mcp-access-package"]["presentation_semantic"] == "copyable_secret"
     assert panels["mcp-access-package"]["user_priority"] == "p0"
     assert panels["mcp-access-verification"]["presentation_semantic"] == "primary_status"
@@ -6742,6 +6810,9 @@ def test_tui_capability_router_self_service_screen_publishes_user_facing_semanti
     ]
     assert actions["capability-router.create-my-mcp-token"]["task_tier"] == "operation"
     assert actions["capability-router.revoke-my-mcp-token"]["task_tier"] == "operation"
+    script = _tui_workbench_source()
+    assert 'data-secret-visible="false"' in script
+    assert ">••••••••••••</code>" in script
 
 
 @pytest.mark.django_db

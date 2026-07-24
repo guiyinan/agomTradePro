@@ -7,12 +7,12 @@ import hashlib
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
-from django.conf import settings  # type: ignore[import-untyped]
-from django.core.cache import cache  # type: ignore[import-untyped]
-from django.db import OperationalError, ProgrammingError  # type: ignore[import-untyped]
-from django.utils import timezone  # type: ignore[import-untyped]
+from django.conf import settings
+from django.core.cache import cache
+from django.db import OperationalError, ProgrammingError
+from django.utils import timezone
 
 from apps.terminal.application.tui_metadata import (
     compact_tui_metadata_payload,
@@ -21,6 +21,7 @@ from apps.terminal.application.tui_metadata import (
 
 from .models import TuiMetadataRegistryORM
 from .tui_information_architecture import (
+    TUI_IA_PATH,
     load_tui_information_architecture,
     public_screen_spec,
     screen_aliases,
@@ -35,6 +36,12 @@ from .tui_metadata_runtime_injection_registry import (
     RUNTIME_METADATA_INJECTIONS,
     RuntimeMetadataInjectionBundle,
 )
+
+
+class _PublishNoopMarker(Protocol):
+    """Runtime-only marker exposed to the publication command."""
+
+    _publish_was_noop: bool
 
 
 class PublishedTuiMetadataRepository:
@@ -131,7 +138,7 @@ class PublishedTuiMetadataRepository:
             compacted_payload=compacted,
             source_hash=source_hash,
         ):
-            previous_model._publish_was_noop = True
+            cast(_PublishNoopMarker, previous_model)._publish_was_noop = True
             self._store_runtime_cache(
                 registry_key=registry_key,
                 source_hash=source_hash,
@@ -153,27 +160,22 @@ class PublishedTuiMetadataRepository:
             registry_key=registry_key,
             status="published",
         ).update(status="archived", updated_at=now)
-        created = cast(
-            TuiMetadataRegistryORM,
-            TuiMetadataRegistryORM._default_manager.create(
-                registry_key=registry_key,
-                version=str(validated.get("version", "tui-workbench.v2")),
-                schema_version=str(validated.get("schema_version", "tui-metadata.v3")),
-                status="published",
-                review_status="approved",
-                generation_source=generation_source,
-                backend_version=backend_version,
-                payload=compacted,
-                source_hash=source_hash,
-                source_evidence_hash=source_evidence_hash,
-                changed_fields=resolved_changed_fields,
-                review_note=review_note,
-                approved_by=(
-                    approved_by if getattr(approved_by, "is_authenticated", False) else None
-                ),
-                rollback_of=rollback_of,
-                published_at=now,
-            ),
+        created = TuiMetadataRegistryORM._default_manager.create(
+            registry_key=registry_key,
+            version=str(validated.get("version", "tui-workbench.v2")),
+            schema_version=str(validated.get("schema_version", "tui-metadata.v3")),
+            status="published",
+            review_status="approved",
+            generation_source=generation_source,
+            backend_version=backend_version,
+            payload=compacted,
+            source_hash=source_hash,
+            source_evidence_hash=source_evidence_hash,
+            changed_fields=resolved_changed_fields,
+            review_note=review_note,
+            approved_by=(approved_by if getattr(approved_by, "is_authenticated", False) else None),
+            rollback_of=rollback_of,
+            published_at=now,
         )
         runtime_payload = self._normalize_runtime_payload(
             validate_tui_metadata(dict(created.payload or {}))
@@ -203,16 +205,13 @@ class PublishedTuiMetadataRepository:
         """Return the active database registry row for one TUI channel."""
 
         try:
-            return cast(
-                TuiMetadataRegistryORM | None,
-                (
-                    TuiMetadataRegistryORM._default_manager.filter(
-                        registry_key=registry_key,
-                        status="published",
-                    )
-                    .order_by("-published_at", "-updated_at")
-                    .first()
-                ),
+            return (
+                TuiMetadataRegistryORM._default_manager.filter(
+                    registry_key=registry_key,
+                    status="published",
+                )
+                .order_by("-published_at", "-updated_at")
+                .first()
             )
         except (OperationalError, ProgrammingError):
             return None
@@ -262,7 +261,7 @@ class PublishedTuiMetadataRepository:
     @staticmethod
     def _runtime_pointer_key(registry_key: str, *, published_path: Path) -> str:
         scope = PublishedTuiMetadataRepository._runtime_source_scope(published_path)
-        return f"terminal:tui:metadata-runtime:v2:{scope}:{registry_key}:active"
+        return f"terminal:tui:metadata-runtime:v4:{scope}:{registry_key}:active"
 
     @staticmethod
     def _runtime_payload_key(
@@ -272,7 +271,7 @@ class PublishedTuiMetadataRepository:
         published_path: Path,
     ) -> str:
         scope = PublishedTuiMetadataRepository._runtime_source_scope(published_path)
-        return f"terminal:tui:metadata-runtime:v2:{scope}:{registry_key}:{source_hash}"
+        return f"terminal:tui:metadata-runtime:v4:{scope}:{registry_key}:{source_hash}"
 
     def _load_runtime_cache(
         self,
@@ -341,14 +340,41 @@ class PublishedTuiMetadataRepository:
     ) -> str:
         updated_at = getattr(model, "updated_at", None)
         updated_text = updated_at.isoformat() if updated_at is not None else ""
-        return f"{model.pk}:{updated_text}:{source_hash}"
+        contract_token = PublishedTuiMetadataRepository._runtime_contract_token()
+        return f"{model.pk}:{updated_text}:{source_hash}:{contract_token}"
 
     def _file_source_token(self) -> str:
         try:
             stat = self.published_path.stat()
         except FileNotFoundError:
             return "missing"
-        return f"{stat.st_mtime_ns}:{stat.st_size}"
+        return f"{stat.st_mtime_ns}:{stat.st_size}:" f"{self._runtime_contract_token()}"
+
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def _runtime_contract_token() -> str:
+        """Fingerprint runtime metadata code so deployed caches cannot outlive its contract."""
+
+        infrastructure_dir = Path(__file__).resolve().parent
+        application_metadata_path = infrastructure_dir.parent / "application" / "tui_metadata.py"
+        contract_paths = [
+            TUI_IA_PATH,
+            application_metadata_path,
+            Path(__file__).resolve(),
+            infrastructure_dir / "tui_information_architecture.py",
+            *sorted(
+                infrastructure_dir.glob("tui_metadata_runtime_*.py"),
+                key=str,
+            ),
+        ]
+        digest = hashlib.sha256()
+        for path in contract_paths:
+            digest.update(str(path.name).encode("utf-8"))
+            try:
+                digest.update(path.read_bytes())
+            except FileNotFoundError:
+                digest.update(b"<missing>")
+        return digest.hexdigest()[:16]
 
     @staticmethod
     def _is_same_published_payload(
@@ -776,6 +802,17 @@ class PublishedTuiMetadataRepository:
                 if bundle.replace_existing and actions[existing_index] != action:
                     actions[existing_index] = dict(action)
                     injected += 1
+                elif not bundle.replace_existing:
+                    runtime_contract = {
+                        key: action[key] for key in ("audience", "effect") if key in action
+                    }
+                    merged_action = {
+                        **actions[existing_index],
+                        **runtime_contract,
+                    }
+                    if merged_action != actions[existing_index]:
+                        actions[existing_index] = merged_action
+                        injected += 1
                 continue
             if screen_key and screen_key not in screen_keys:
                 continue

@@ -48,6 +48,16 @@ class TuiWorkbenchCatalogMixin:
 
         def _requires_confirmation(self, action: dict[str, Any]) -> bool: ...
 
+        def _is_admin_user(self, user: Any | None) -> bool: ...
+
+        def _metadata(self) -> dict[str, Any]: ...
+
+        def _screen_by_key(self, metadata: dict[str, Any]) -> dict[str, dict[str, Any]]: ...
+
+        def _screen_is_available_for_user(
+            self, screen: dict[str, Any], *, user: Any | None = None
+        ) -> bool: ...
+
         def _value_at_path(self, payload: Any, path: str) -> Any: ...
 
         def _view_model_path(self, action: dict[str, Any], key: str) -> str: ...
@@ -118,7 +128,11 @@ class TuiWorkbenchCatalogMixin:
             "dashboard_layout": str(screen.get("dashboard_layout") or "adaptive_grid"),
             "default_action_key": self._screen_default_action_key(screen, actions),
             "action_count": len(actions),
-            "dashboard_panels": list(screen.get("dashboard_panels") or []),
+            "dashboard_panels": self._screen_dashboard_panels(
+                screen,
+                actions,
+                user=user,
+            ),
             "workflow": dict(screen.get("workflow") or {}),
             "user_experience": dict(screen.get("user_experience") or {}),
             "business_context": self._screen_business_context(screen, actions),
@@ -130,6 +144,34 @@ class TuiWorkbenchCatalogMixin:
             missing = ", ".join(sorted(missing_fields))
             raise RuntimeError(f"TUI screen public projection is incomplete: {missing}")
         return summary
+
+    def _screen_dashboard_panels(
+        self,
+        screen: dict[str, Any],
+        actions: list[dict[str, Any]],
+        *,
+        user: Any | None,
+    ) -> list[dict[str, Any]]:
+        """Project only panels and destinations available to the current audience."""
+
+        visible_action_keys = {str(action.get("key") or "") for action in actions}
+        screens_by_key = self._screen_by_key(self._metadata())
+        projected: list[dict[str, Any]] = []
+        for source_panel in screen.get("dashboard_panels") or []:
+            panel = dict(source_panel)
+            audience = str(panel.pop("audience", "authenticated") or "authenticated")
+            if audience == "admin" and not self._is_admin_user(user):
+                continue
+            action_key = str(panel.get("action_key") or "").strip()
+            target_screen = str(panel.get("target_screen") or "").strip()
+            target = screens_by_key.get(target_screen) if target_screen else None
+            if target is not None and not self._screen_is_available_for_user(target, user=user):
+                panel["target_screen"] = ""
+                target_screen = ""
+            if action_key and action_key not in visible_action_keys and not target_screen:
+                continue
+            projected.append(panel)
+        return projected
 
     def _screen_default_action_key(
         self, screen: dict[str, Any], actions: list[dict[str, Any]]
@@ -398,6 +440,7 @@ class TuiWorkbenchCatalogMixin:
             "description": self._operator_text(action.get("description", "")),
             "task_group": self._operator_text(action.get("task_group", "")),
             "task_tier": action.get("task_tier", "primary"),
+            "effect": action.get("effect", "read"),
             "submit_label": self._operator_text(action.get("submit_label", "执行")),
             "result_semantics": list(action.get("result_semantics") or []),
             "sequence": int(action.get("sequence", 999)),

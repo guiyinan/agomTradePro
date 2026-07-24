@@ -1303,8 +1303,8 @@ a {
 }
 
 .tui-screen-pin {
-    min-width: 22px;
-    height: 22px;
+    min-width: 36px;
+    height: 36px;
     padding: 0;
     border: 1px solid var(--tui-border-dim);
     background: transparent;

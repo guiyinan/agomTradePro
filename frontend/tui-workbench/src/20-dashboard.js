@@ -72,6 +72,18 @@
             return;
         }
         if (normalizedActionKey) {
+            const action = currentAction(normalizedActionKey);
+            if (action && String(action.effect || "read") !== "read") {
+                focusActions();
+                const form = actionFormElement(action);
+                form?.scrollIntoView({ block: "nearest" });
+                const primaryInput = form?.querySelector(
+                    "textarea, input:not([type='hidden']), select",
+                );
+                (primaryInput || form?.querySelector("button"))?.focus();
+                setStatus(`请填写“${action.label}”后继续`);
+                return;
+            }
             runAction(normalizedActionKey, null, { params: {} });
             return;
         }
@@ -194,7 +206,12 @@
     function dashboardAreaTemplate(areas, columns, expandToTwelve = false) {
         const rows = chunkDashboardAreas(areas, columns);
         return rows
-            .map((row) => `"${(expandToTwelve ? expandDashboardRow(row) : row).join(" ")}"`)
+            .map((row) => {
+                const completedRow = expandToTwelve
+                    ? expandDashboardRow(row)
+                    : completeDashboardRow(row, columns);
+                return `"${completedRow.join(" ")}"`;
+            })
             .join(" ");
     }
 
@@ -220,6 +237,15 @@
             remainder -= 1;
             return Array.from({ length: span }, () => area);
         });
+    }
+
+    function completeDashboardRow(row, columns) {
+        const completed = [...row];
+        const fallback = completed.at(-1) || "panel_1";
+        while (completed.length < columns) {
+            completed.push(fallback);
+        }
+        return completed;
     }
 
     function dashboardActionCanAutoRun(action) {
@@ -256,7 +282,7 @@
         if (!operatorSectionKey && !dashboardActionCanAutoRun(panelAction)) {
             container.innerHTML = renderDashboardPanelShell(
                 panel,
-                renderPanelPlaceholder(panel, "该面板需要填写参数或确认操作，请点击“打开”继续。"),
+                renderDashboardActionPrompt(panel, panelAction),
             );
             bindDashboardPanelOpenControls(container);
             return;
@@ -341,6 +367,25 @@
                 <summary>展开${escapeHtml(panel.title)}</summary>
                 ${content}
             </details>
+        `;
+    }
+
+    function renderDashboardActionPrompt(panel, action) {
+        if (!action) {
+            return renderPanelPlaceholder(panel, panel.empty_message || "当前任务暂不可用。");
+        }
+        const label = String(action.submit_label || action.label || "继续").trim();
+        return `
+            <div class="tui-dashboard-action-prompt">
+                <p>${escapeHtml(panel.note || action.description || "填写必要信息后继续。")}</p>
+                <button
+                    type="button"
+                    class="tui-entry-action"
+                    data-dashboard-open
+                    data-dashboard-target="${escapeHtml(dashboardTargetScreen(panel))}"
+                    data-dashboard-action="${escapeHtml(action.key)}"
+                >${escapeHtml(label)}</button>
+            </div>
         `;
     }
 
@@ -491,7 +536,9 @@
     function renderRegimePanel(viewModel) {
         const fields = fieldsToMap(viewModel.fields || []);
         const regime = pickField(fields, ["current_regime", "dominant_regime", "regime", "regime_name", "state", "name"]) || "UNKNOWN";
-        const confidence = pickField(fields, ["confidence", "regime_confidence", "confidence_pct"]) || "-";
+        const confidence = formatConfidence(
+            pickField(fields, ["confidence", "regime_confidence", "confidence_pct"]),
+        );
         const trend = pickField(fields, ["trend", "movement", "transition_target", "status"]) || "-";
         const warning = pickField(fields, ["warning", "transition_warning", "risk", "alerts"]) || "-";
         const marker = regimeMarkerSpec(regime);
@@ -511,6 +558,15 @@
                 <div>拐点预警: ${escapeHtml(warning)}</div>
             </div>
         `;
+    }
+
+    function formatConfidence(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) {
+            return displayValue(value);
+        }
+        const percentage = Math.abs(number) <= 1 ? number * 100 : number;
+        return `${percentage.toFixed(1).replace(/\.0$/, "")}%`;
     }
 
     function renderPanelDataGrid(panel, viewModel) {
@@ -533,7 +589,10 @@
                 <tbody>
                     ${rows.map((row) => `
                         <tr>
-                            ${columns.map((column) => `<td class="${cellClass(row[column.key], column.label || column.key)}">${escapeHtml(row[column.key] ?? "-")}</td>`).join("")}
+                            ${columns.map((column) => {
+                                const value = displayValue(row[column.key]);
+                                return `<td class="${cellClass(value, column.label || column.key)}">${escapeHtml(value)}</td>`;
+                            }).join("")}
                             ${rowActions.length ? `<td class="tui-row-actions-cell">${renderDashboardRowActions(panel, row)}</td>` : ""}
                         </tr>
                     `).join("")}
@@ -621,7 +680,8 @@
         if (semantics.length) {
             return renderSemanticDetailView(viewModel, semantics, { compact: true, panel });
         }
-        const fields = (viewModel.fields || []).slice(0, Number(panel.max_rows || 8));
+        const fields = applyPanelFieldRules(viewModel.fields || [], panel)
+            .slice(0, Number(panel.max_rows || 8));
         if (!fields.length) {
             const nested = (viewModel.nested || []).slice(0, Number(panel.max_rows || 8));
             if (nested.length) {
@@ -640,7 +700,8 @@
     }
 
     function renderSemanticDetailView(viewModel, semantics, options = {}) {
-        const fields = (viewModel.fields || []).slice(0, Number(options.panel?.max_rows || 12));
+        const fields = applyPanelFieldRules(viewModel.fields || [], options.panel)
+            .slice(0, Number(options.panel?.max_rows || 12));
         const nested = (viewModel.nested || []).slice(0, Number(options.panel?.max_rows || 12));
         const classes = [
             "tui-semantic-detail",
@@ -658,9 +719,15 @@
                 </div>
             `
             : "";
-        const secretFields = fields.filter((field) => fieldPresentation(field) === "secret");
-        const copyFields = fields.filter((field) => fieldPresentation(field) === "copyable");
-        const multilineFields = fields.filter((field) => fieldPresentation(field) === "multiline");
+        const secretFields = fields.filter(
+            (field) => fieldPresentation(field) === "secret" && hasDisplayValue(field.value),
+        );
+        const copyFields = fields.filter(
+            (field) => fieldPresentation(field) === "copyable" && hasDisplayValue(field.value),
+        );
+        const multilineFields = fields.filter(
+            (field) => fieldPresentation(field) === "multiline" && hasDisplayValue(field.value),
+        );
         const metaFields = fields.filter((field) => fieldPresentation(field) === "metadata");
         const fieldMarkup = [
             secretFields.length ? renderSemanticSecretFields(secretFields) : "",
@@ -680,6 +747,50 @@
         `;
     }
 
+    function hasDisplayValue(value) {
+        return value !== null
+            && value !== undefined
+            && String(value).trim() !== ""
+            && String(value).trim() !== "-";
+    }
+
+    function applyPanelFieldRules(fields, panel) {
+        const rules = Array.isArray(panel?.field_rules) ? panel.field_rules : [];
+        const byLabel = new Map(
+            rules.map((rule) => [String(rule?.label || "").trim(), rule]),
+        );
+        return (fields || []).flatMap((field) => {
+            const rule = byLabel.get(String(field?.label || "").trim());
+            if (rule?.visible === false) {
+                return [];
+            }
+            return [{
+                ...field,
+                value: formatPanelFieldValue(field?.value, rule?.format),
+            }];
+        });
+    }
+
+    function formatPanelFieldValue(value, format) {
+        const normalizedFormat = String(format || "text").trim();
+        if (normalizedFormat === "money") {
+            const number = Number(value);
+            return Number.isFinite(number)
+                ? `${number.toLocaleString("zh-CN", { maximumFractionDigits: 2 })} 元`
+                : displayValue(value);
+        }
+        if (normalizedFormat === "percentage") {
+            return formatConfidence(value);
+        }
+        if (normalizedFormat === "datetime") {
+            const timestamp = Date.parse(String(value || ""));
+            return Number.isFinite(timestamp)
+                ? new Date(timestamp).toLocaleString("zh-CN", { hour12: false })
+                : displayValue(value);
+        }
+        return displayValue(value);
+    }
+
     function renderSemanticGridFields(fields) {
         if (!fields.length) {
             return "";
@@ -688,7 +799,7 @@
             <dl class="tui-detail-grid">
                 ${fields.map((field) => `
                     <dt>${escapeHtml(field.label)}</dt>
-                    <dd>${escapeHtml(field.value)}</dd>
+                    <dd>${escapeHtml(displayValue(field.value))}</dd>
                 `).join("")}
             </dl>
         `;
@@ -713,9 +824,10 @@
                                     class="tui-copy-action"
                                     type="button"
                                     data-secret-toggle
-                                    data-secret-visible="true"
-                                    aria-label="隐藏${escapeHtml(field.label)}"
-                                >隐藏</button>
+                                    data-secret-visible="false"
+                                    data-secret-label="${escapeHtml(field.label)}"
+                                    aria-label="显示${escapeHtml(field.label)}"
+                                >显示</button>
                                 <button
                                     class="tui-copy-action"
                                     type="button"
@@ -724,7 +836,7 @@
                                 >复制</button>
                             </span>
                         </div>
-                        <code data-secret-value="${escapeHtml(field.value)}">${escapeHtml(field.value)}</code>
+                        <code data-secret-value="${escapeHtml(field.value)}">••••••••••••</code>
                     </div>
                 `).join("")}
             </div>
@@ -814,9 +926,10 @@
                     return;
                 }
                 const visible = button.dataset.secretVisible === "true";
+                const label = String(button.dataset.secretLabel || "凭证");
                 button.dataset.secretVisible = visible ? "false" : "true";
                 button.textContent = visible ? "显示" : "隐藏";
-                button.setAttribute("aria-label", visible ? "显示接入令牌" : "隐藏接入令牌");
+                button.setAttribute("aria-label", `${visible ? "显示" : "隐藏"}${label}`);
                 code.textContent = visible ? "••••••••••••" : code.dataset.secretValue;
             });
         });

@@ -175,9 +175,25 @@ ALLOWED_TUI_DASHBOARD_PANEL_KEYS = {
     "user_priority",
     "presentation_semantic",
     "columns",
+    "field_rules",
     "row_actions",
     "layout_area",
     "target_screen",
+    "audience",
+}
+ALLOWED_TUI_ACTION_EFFECTS = {
+    "read",
+    "create",
+    "update",
+    "toggle",
+    "delete",
+    "execute",
+}
+ALLOWED_TUI_DASHBOARD_FIELD_FORMATS = {
+    "text",
+    "money",
+    "percentage",
+    "datetime",
 }
 ALLOWED_TUI_SOURCE_PREFIXES = (
     "approved:",
@@ -455,6 +471,8 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         action.setdefault("task_tier", "primary")
         if not str(action.get("task_tier") or "").strip():
             action["task_tier"] = "primary"
+        action.setdefault("audience", "authenticated")
+        action.setdefault("effect", _default_action_effect(action))
         action.setdefault("submit_label", _default_action_submit_label(action))
         action.setdefault("sequence", 999)
         action["result_semantics"] = _normalize_result_semantics(action)
@@ -487,6 +505,10 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                 raise TuiMetadataValidationError(
                     f"Dashboard panel has unsupported kind: {screen['key']}.{panel['key']}"
                 )
+            if str(panel.get("audience") or "authenticated") not in ALLOWED_TUI_SCREEN_AUDIENCES:
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel has unsupported audience: " f"{screen['key']}.{panel['key']}"
+                )
             action_key = str(panel.get("action_key") or "").strip()
             if action_key and action_key not in action_keys:
                 raise TuiMetadataValidationError(
@@ -504,12 +526,44 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                     f"Dashboard panel columns must be a list: {screen['key']}.{panel['key']}"
                 )
             panel.setdefault("target_screen", "")
+            panel.setdefault("audience", "authenticated")
             for column in columns:
                 if not isinstance(column, dict):
                     raise TuiMetadataValidationError(
                         f"Dashboard panel column must be an object: {screen['key']}.{panel['key']}"
                     )
                 _require_fields(column, "dashboard panel column", ("key", "label"))
+            field_rules = panel.get("field_rules", [])
+            if not isinstance(field_rules, list):
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel field_rules must be a list: "
+                    f"{screen['key']}.{panel['key']}"
+                )
+            for rule in field_rules:
+                if not isinstance(rule, dict):
+                    raise TuiMetadataValidationError(
+                        f"Dashboard panel field rule must be an object: "
+                        f"{screen['key']}.{panel['key']}"
+                    )
+                _require_fields(rule, "dashboard panel field rule", ("label",))
+                unknown_rule_keys = set(rule) - {"label", "visible", "format"}
+                if unknown_rule_keys:
+                    names = ", ".join(sorted(unknown_rule_keys))
+                    raise TuiMetadataValidationError(
+                        f"Dashboard panel field rule has unsupported keys: "
+                        f"{screen['key']}.{panel['key']}.{names}"
+                    )
+                if "visible" in rule and not isinstance(rule["visible"], bool):
+                    raise TuiMetadataValidationError(
+                        f"Dashboard panel field rule visible must be boolean: "
+                        f"{screen['key']}.{panel['key']}"
+                    )
+                field_format = str(rule.get("format") or "text")
+                if field_format not in ALLOWED_TUI_DASHBOARD_FIELD_FORMATS:
+                    raise TuiMetadataValidationError(
+                        f"Dashboard panel field rule has unsupported format: "
+                        f"{screen['key']}.{panel['key']}.{field_format}"
+                    )
             _validate_dashboard_row_actions(
                 screen=screen,
                 panel=panel,
@@ -713,6 +767,7 @@ def compact_tui_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:
                 ("layout_area", ""),
                 ("target_screen", ""),
                 ("columns", []),
+                ("audience", "authenticated"),
             ):
                 if panel.get(key) == default:
                     panel.pop(key, None)
@@ -750,6 +805,10 @@ def compact_tui_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:
             action.pop("task_group", None)
         if action.get("task_tier") == "primary":
             action.pop("task_tier", None)
+        if action.get("audience") == "authenticated":
+            action.pop("audience", None)
+        if action.get("effect") == _default_action_effect(action):
+            action.pop("effect", None)
         if action.get("submit_label") == _default_action_submit_label(action):
             action.pop("submit_label", None)
         if action.get("sequence") == 999:
@@ -928,6 +987,10 @@ def _validate_governance_contract(action: dict[str, Any]) -> None:
         "operation",
     }:
         raise TuiMetadataValidationError(f"Action has unsupported task_tier: {action['key']}")
+    if str(action.get("audience") or "") not in ALLOWED_TUI_SCREEN_AUDIENCES:
+        raise TuiMetadataValidationError(f"Action has unsupported audience: {action['key']}")
+    if str(action.get("effect") or "") not in ALLOWED_TUI_ACTION_EFFECTS:
+        raise TuiMetadataValidationError(f"Action has unsupported effect: {action['key']}")
     if (
         not isinstance(action.get("submit_label"), str)
         or not str(action.get("submit_label") or "").strip()
@@ -973,12 +1036,33 @@ def _default_sensitive_level(action: dict[str, Any]) -> str:
 def _default_action_submit_label(action: dict[str, Any]) -> str:
     """Return a stable operator label without guessing from translated action text."""
 
+    effect = str(action.get("effect") or _default_action_effect(action)).strip().lower()
+    effect_labels = {
+        "read": "查看",
+        "create": "创建",
+        "update": "保存",
+        "toggle": "切换",
+        "delete": "删除",
+    }
+    if effect in effect_labels:
+        return effect_labels[effect]
     risk = str(action.get("risk") or "read").strip().lower()
-    if risk in {"write", "admin", "unsafe"}:
-        return "提交变更"
     if risk == "ai":
         return "启动分析"
-    return "执行查询"
+    return "执行"
+
+
+def _default_action_effect(action: dict[str, Any]) -> str:
+    """Derive a conservative effect when metadata has not declared one."""
+
+    method = str(action.get("method") or "GET").strip().upper()
+    if method == "GET":
+        return "read"
+    if method == "DELETE":
+        return "delete"
+    if method in {"PUT", "PATCH"}:
+        return "update"
+    return "execute"
 
 
 def _validate_confirmed_operation_contract(action: dict[str, Any]) -> None:

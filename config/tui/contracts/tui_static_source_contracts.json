@@ -3206,7 +3206,7 @@
       "id": "test_tui_bootstrap_only_falls_back_for_stale_resume_state:002",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "if (!loaded && isResumeAttempt)",
+      "value": "if (!loaded && (isResumeAttempt || deepLinkedScreen))",
       "legacy_tests": [
         "test_tui_bootstrap_only_falls_back_for_stale_resume_state"
       ]
@@ -3423,7 +3423,7 @@
       "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:010",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "expandToTwelve ? expandDashboardRow(row) : row",
+      "value": "completeDashboardRow(row, columns)",
       "legacy_tests": [
         "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
       ]

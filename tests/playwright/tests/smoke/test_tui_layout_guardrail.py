@@ -12,6 +12,13 @@ VIEWPORTS = (
     pytest.param(1440, 900, id="desktop-1440x900"),
     pytest.param(2048, 1080, id="desktop-2048x1080"),
 )
+ADAPTIVE_HOME_VIEWPORTS = (
+    pytest.param(981, 720, id="tablet-981x720"),
+    pytest.param(1024, 768, id="tablet-1024x768"),
+    pytest.param(1180, 820, id="compact-desktop-1180x820"),
+    pytest.param(1280, 720, id="desktop-1280x720"),
+    pytest.param(1440, 900, id="desktop-1440x900"),
+)
 
 
 def _detail_view_model(
@@ -136,7 +143,7 @@ def test_mcp_self_service_task_flow_has_no_panel_overlap(
     grid = authenticated_page.locator(".tui-dashboard-grid.is-content-flow")
     expect(grid).to_be_visible()
     panels = grid.locator(".tui-dash-panel")
-    expect(panels).to_have_count(3)
+    expect(panels).to_have_count(4)
     expect(grid.locator(".tui-loading")).to_have_count(0, timeout=10_000)
 
     rectangles = panels.evaluate_all("""elements => elements.map((element) => {
@@ -173,3 +180,45 @@ def test_mcp_self_service_task_flow_has_no_panel_overlap(
         })""")
     assert overflow["documentWidth"] <= overflow["viewportWidth"] + 1
     assert set(overflow["panelOverflow"]) == {"visible"}
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize(("width", "height"), ADAPTIVE_HOME_VIEWPORTS)
+def test_operator_home_adaptive_grid_has_no_panel_overlap(
+    authenticated_page: Page,
+    base_url: str,
+    width: int,
+    height: int,
+) -> None:
+    authenticated_page.set_viewport_size({"width": width, "height": height})
+    authenticated_page.goto(
+        f"{base_url}/tui/?screen=command-center.overview",
+        wait_until="domcontentloaded",
+    )
+
+    grid = authenticated_page.locator(".tui-dashboard-grid")
+    expect(grid).to_be_visible()
+    panels = grid.locator(".tui-dash-panel")
+    expect(panels).to_have_count(5)
+
+    rectangles = panels.evaluate_all("""elements => elements.map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                bottom: rect.bottom,
+                width: rect.width,
+                height: rect.height,
+            };
+        })""")
+
+    assert all(rectangle["width"] > 0 and rectangle["height"] > 0 for rectangle in rectangles)
+    for left, right in combinations(rectangles, 2):
+        assert not _rectangles_overlap(left, right), (left, right)
+
+    overflow = authenticated_page.evaluate("""() => ({
+            documentWidth: document.documentElement.scrollWidth,
+            viewportWidth: document.documentElement.clientWidth,
+        })""")
+    assert overflow["documentWidth"] <= overflow["viewportWidth"] + 1
