@@ -1,9 +1,16 @@
 import base64
 import gzip
+import hashlib
 import io
 import json
+import os
 import secrets
+import sqlite3
+import tempfile
 from dataclasses import dataclass
+from datetime import timedelta
+from pathlib import Path
+from typing import Any, TypedDict, cast
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -11,6 +18,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from django.conf import settings
 from django.core import management, signing
 from django.core.mail import get_connection
+from django.core.mail.backends.base import BaseEmailBackend
 from django.db import connections
 from django.urls import reverse
 from django.utils import timezone
@@ -28,6 +36,23 @@ class GeneratedBackup:
     content_type: str
 
 
+class BackupDownloadTokenPayload(TypedDict):
+    """Validated claims carried by a signed backup download link."""
+
+    settings_id: int
+    email: str
+    nonce: str
+    ts: str
+
+
+class BackupPackageDescription(TypedDict):
+    """Public metadata for the encrypted backup package."""
+
+    format: str
+    extension: str
+    magic: str
+
+
 def build_backup_download_url(token: str) -> str:
     path = reverse("admin-db-backup-download", kwargs={"token": token})
     config = SystemSettingsModel.get_settings()
@@ -41,17 +66,77 @@ def build_backup_download_url(token: str) -> str:
 
 
 def generate_download_token(config: SystemSettingsModel) -> str:
+    if (
+        isinstance(config.backup_link_ttl_days, bool)
+        or not isinstance(config.backup_link_ttl_days, int)
+        or config.backup_link_ttl_days < 1
+    ):
+        raise ValueError("Backup link TTL must be a positive integer")
+
+    issued_at = timezone.now()
+    nonce = secrets.token_urlsafe(32)
     payload = {
         "settings_id": config.pk,
         "email": config.backup_email,
-        "nonce": secrets.token_urlsafe(12),
-        "ts": timezone.now().isoformat(),
+        "nonce": nonce,
+        "ts": issued_at.isoformat(),
     }
+    config.backup_download_token_digest = hash_download_nonce(nonce)
+    config.backup_download_token_expires_at = issued_at + timedelta(
+        days=config.backup_link_ttl_days
+    )
+    config.backup_download_consumed_at = None
+    config.save(
+        update_fields=[
+            "backup_download_token_digest",
+            "backup_download_token_expires_at",
+            "backup_download_consumed_at",
+            "updated_at",
+        ]
+    )
     return signing.dumps(payload, salt=DOWNLOAD_TOKEN_SALT)
 
 
-def validate_download_token(token: str, max_age_seconds: int) -> dict:
-    return signing.loads(token, salt=DOWNLOAD_TOKEN_SALT, max_age=max_age_seconds)
+def hash_download_nonce(nonce: str) -> str:
+    """Return the irreversible persisted fingerprint for a download nonce."""
+
+    return hashlib.sha256(nonce.encode("utf-8")).hexdigest()
+
+
+def validate_download_token(
+    token: str,
+    max_age_seconds: int,
+) -> BackupDownloadTokenPayload:
+    """Verify a signed token and narrow all security-sensitive claims."""
+
+    if isinstance(max_age_seconds, bool) or max_age_seconds <= 0:
+        raise ValueError("Backup token max age must be positive")
+    raw_payload: Any = signing.loads(
+        token,
+        salt=DOWNLOAD_TOKEN_SALT,
+        max_age=max_age_seconds,
+    )
+    if not isinstance(raw_payload, dict):
+        raise ValueError("Invalid backup token payload")
+
+    settings_id = raw_payload.get("settings_id")
+    email = raw_payload.get("email")
+    nonce = raw_payload.get("nonce")
+    issued_at = raw_payload.get("ts")
+    if isinstance(settings_id, bool) or not isinstance(settings_id, int) or settings_id <= 0:
+        raise ValueError("Invalid backup token settings id")
+    if not isinstance(email, str) or not email.strip():
+        raise ValueError("Invalid backup token email")
+    if not isinstance(nonce, str) or not nonce:
+        raise ValueError("Invalid backup token nonce")
+    if not isinstance(issued_at, str) or not issued_at:
+        raise ValueError("Invalid backup token timestamp")
+    return {
+        "settings_id": settings_id,
+        "email": email,
+        "nonce": nonce,
+        "ts": issued_at,
+    }
 
 
 def generate_backup_archive(config: SystemSettingsModel) -> GeneratedBackup:
@@ -68,7 +153,7 @@ def generate_backup_archive(config: SystemSettingsModel) -> GeneratedBackup:
     )
 
 
-def describe_backup_package() -> dict:
+def describe_backup_package() -> BackupPackageDescription:
     return {
         "format": "gzip + fernet(password-derived-key)",
         "extension": ".agbk",
@@ -76,15 +161,18 @@ def describe_backup_package() -> dict:
     }
 
 
-def get_backup_email_connection(config: SystemSettingsModel):
-    return get_connection(
-        host=config.backup_smtp_host,
-        port=config.backup_smtp_port,
-        username=config.backup_smtp_username or None,
-        password=config.get_backup_smtp_password() or None,
-        use_tls=config.backup_smtp_use_tls,
-        use_ssl=config.backup_smtp_use_ssl,
-        fail_silently=False,
+def get_backup_email_connection(config: SystemSettingsModel) -> BaseEmailBackend:
+    return cast(
+        BaseEmailBackend,
+        get_connection(
+            host=config.backup_smtp_host,
+            port=config.backup_smtp_port,
+            username=config.backup_smtp_username or None,
+            password=config.get_backup_smtp_password() or None,
+            use_tls=config.backup_smtp_use_tls,
+            use_ssl=config.backup_smtp_use_ssl,
+            fail_silently=False,
+        ),
     )
 
 
@@ -92,17 +180,31 @@ def _build_raw_backup_bytes() -> bytes:
     connection_settings = connections["default"].settings_dict
     engine = connection_settings.get("ENGINE", "")
     if engine.endswith("sqlite3"):
-        db_name = connection_settings.get("NAME", "")
-        return _copy_sqlite_database_bytes(db_name)
+        return _copy_sqlite_database_bytes()
     return _dump_database_as_json_bytes()
 
 
-def _copy_sqlite_database_bytes(db_name: str) -> bytes:
-    if not db_name:
-        raise ValueError("SQLite database path is empty")
-    connections["default"].close()
-    with open(db_name, "rb") as fh:
-        return fh.read()
+def _copy_sqlite_database_bytes() -> bytes:
+    """Create a consistent SQLite snapshot without closing the live connection."""
+
+    django_connection = connections["default"]
+    django_connection.ensure_connection()
+    source = cast(sqlite3.Connection | None, django_connection.connection)
+    if source is None:
+        raise RuntimeError("SQLite database connection is unavailable")
+
+    descriptor, snapshot_name = tempfile.mkstemp(suffix=".sqlite3")
+    os.close(descriptor)
+    snapshot_path = Path(snapshot_name)
+    try:
+        destination = sqlite3.connect(snapshot_name)
+        try:
+            source.backup(destination)
+        finally:
+            destination.close()
+        return snapshot_path.read_bytes()
+    finally:
+        snapshot_path.unlink(missing_ok=True)
 
 
 def _dump_database_as_json_bytes() -> bytes:
@@ -128,5 +230,5 @@ def _encrypt_backup_bytes(content: bytes, password: str) -> bytes:
         iterations=390000,
     )
     key = base64.urlsafe_b64encode(kdf.derive(password.encode("utf-8")))
-    encrypted = Fernet(key).encrypt(content)
+    encrypted: bytes = Fernet(key).encrypt(content)
     return BACKUP_FILE_MAGIC + salt + encrypted

@@ -159,7 +159,7 @@ def describe_backup_package() -> BackupPackageDescription:
 
     from apps.account.infrastructure.backup_service import describe_backup_package as _impl
 
-    return cast(BackupPackageDescription, _impl())
+    return _impl()
 
 
 def generate_download_token(config: Any) -> str:
@@ -183,7 +183,7 @@ def get_backup_email_connection(config: Any) -> BaseEmailBackend:
 
     from apps.account.infrastructure.backup_service import get_backup_email_connection as _impl
 
-    return cast("BaseEmailBackend", _impl(config))
+    return _impl(config)
 
 
 __all__ = [

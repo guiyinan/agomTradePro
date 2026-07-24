@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2800,
-    "files_with_errors": 569
+    "errors": 2795,
+    "files_with_errors": 568
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -25,11 +25,6 @@
     },
     "apps/account/infrastructure/account_read_repository.py": {
       "no-untyped-def": 1
-    },
-    "apps/account/infrastructure/backup_service.py": {
-      "no-any-return": 2,
-      "no-untyped-def": 1,
-      "type-arg": 2
     },
     "apps/account/infrastructure/broker_import_parser.py": {
       "import-untyped": 1

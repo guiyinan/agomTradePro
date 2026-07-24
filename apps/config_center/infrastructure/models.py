@@ -140,6 +140,23 @@ class SystemSettingsModel(models.Model):
     backup_last_sent_at = models.DateTimeField(
         null=True, blank=True, verbose_name="上次备份邮件发送时间"
     )
+    backup_download_token_digest = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        verbose_name="当前备份下载令牌指纹",
+        help_text="只存储不可逆指纹，用于撤销旧链接和单次消费校验",
+    )
+    backup_download_token_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="当前备份下载令牌到期时间",
+    )
+    backup_download_consumed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="当前备份下载令牌消费时间",
+    )
 
     qlib_enabled = models.BooleanField(
         default=False, verbose_name="启用 Qlib", help_text="开启后系统将使用 Qlib 进行量化分析"

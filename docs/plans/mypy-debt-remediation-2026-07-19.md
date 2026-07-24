@@ -2653,3 +2653,19 @@
 - Account Observer Permission 增量 mypy 清零；全仓基线从 `2805 errors / 570 files` 收紧为 `2800 errors / 569 files`，净减少 `5 errors / 1 file`。
 - Observer Grant Component 与 Integration 回归共 `44 passed`；新增覆盖匿名对象权限、畸形资源对象和匿名组合查询拒绝，保留 owner、observer、过期、撤销及只读访问链路。
 - Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百八十三批
+
+- 按“数据库全量导出泄露影响面 × 无会话下载链接可重放”收口 Account Database Backup Download。
+- 备份下载令牌新增数据库持久化 SHA-256 nonce 指纹、明确到期时间和消费时间；数据库不保存可直接使用的链接 nonce。
+- 每次生成新链接都会原子替换当前指纹并清空消费状态，因此新邮件链接自动撤销旧链接；历史无持久化状态的链接升级后失败关闭。
+- 下载 Repository 在事务内锁定系统配置行，校验签名、settings ID、接收邮箱、当前指纹、持久化到期时间、启用状态和未消费状态，再原子标记已消费，阻断并发重放。
+- 令牌 payload 对正整数配置 ID、非空邮箱、nonce、时间戳和正数 TTL 显式收窄，畸形签名内容不再以动态字典传播。
+- SQLite 备份不再关闭 Django 活跃连接后直接读取数据库文件，改用 SQLite online backup API 生成一致性临时快照，并在读取后确定性清理临时文件。
+- 备份包 metadata、邮件连接、签名 payload 和加密字节边界补齐精确类型；Application Provider 移除已失效的动态 cast。
+
+## 第一百八十三批验证结果
+
+- Account Backup Service 增量 mypy 清零；全仓基线从 `2800 errors / 569 files` 收紧为 `2795 errors / 568 files`，净减少 `5 errors / 1 file`。
+- Database Backup Email 回归共 `7 passed`；新增覆盖下载后重放拒绝、新链接撤销旧链接、持久化到期拒绝，并由同一测试证明 SQLite 备份后数据库连接仍可继续处理请求。
+- 迁移漂移、Django system check、架构 delta、diff check、改动文件 Ruff 与全仓 mypy debt ceiling 通过。
