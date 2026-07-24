@@ -17,6 +17,7 @@ from apps.simulated_trading.application.use_cases import (
 )
 from apps.simulated_trading.domain.entities import (
     AccountType,
+    FeeConfig,
     Position,
     SimulatedAccount,
     TradeAction,
@@ -84,6 +85,16 @@ class StubSignalRepo:
         )
 
 
+class StaticFeeConfigRepo:
+    def get_default_config(self, asset_type: str = "all") -> FeeConfig:
+        return FeeConfig(
+            config_id=1,
+            config_name="test",
+            asset_type=asset_type,
+            is_default=True,
+        )
+
+
 class StaticSignalService:
     def get_signal_snapshot(self, signal_id: int) -> dict | None:
         return {"id": signal_id, "is_valid": True}
@@ -140,12 +151,14 @@ def _build_engine(
         account_repo=account_repo,
         position_repo=position_repo,
         trade_repo=trade_repo,
+        fee_config_repo=StaticFeeConfigRepo(),
         signal_repo=StubSignalRepo(),
     )
     sell_use_case = ExecuteSellOrderUseCase(
         account_repo=account_repo,
         position_repo=position_repo,
         trade_repo=trade_repo,
+        fee_config_repo=StaticFeeConfigRepo(),
     )
     engine = AutoTradingEngine(
         account_repo=account_repo,
@@ -286,8 +299,7 @@ def test_buy_then_sell_recommendation_exits_on_next_auto_trading_cycle():
             "executed_at": trade_repo.saved[-1].execution_time,
             "match_if_missing": False,
             "notes": (
-                "Auto exit via decision_rhythm.recommendation: "
-                "UNIFIED_RECOMMENDATION_SELL"
+                "Auto exit via decision_rhythm.recommendation: " "UNIFIED_RECOMMENDATION_SELL"
             ),
         }
     ]

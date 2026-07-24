@@ -6,16 +6,18 @@ Application层:
 - 通过依赖倒置使用Infrastructure层
 - 实现具体的业务流程
 """
+
 import logging
 from dataclasses import replace
 from datetime import date
-from typing import Protocol
+from typing import Protocol, TypedDict
 
 from django.utils import timezone
 
 from apps.simulated_trading.application.ports import SignalQueryRepositoryProtocol
 from apps.simulated_trading.domain.entities import (
     AccountType,
+    FeeConfig,
     OrderStatus,
     Position,
     SimulatedAccount,
@@ -24,17 +26,42 @@ from apps.simulated_trading.domain.entities import (
 )
 from apps.simulated_trading.domain.rules import TradingConstraintRule
 from apps.simulated_trading.domain.services import PositionCostBasisService
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
 
-def _as_float(value) -> float:
-    return float(value or 0.0)
+def _as_float(value: object) -> float:
+    result: float = safe_float(value, default=0.0)
+    return result
+
+
+class AccountPerformanceValues(TypedDict):
+    """Persisted performance values exposed with an account summary."""
+
+    total_return: float
+    annual_return: float
+    max_drawdown: float
+    sharpe_ratio: float
+    win_rate: float
+
+
+class AccountPerformanceResult(TypedDict):
+    """Account, positions, trade counts, and performance values."""
+
+    account: SimulatedAccount
+    positions: list[Position]
+    total_positions: int
+    total_trades: int
+    winning_trades: int
+    win_rate: float
+    performance: AccountPerformanceValues
 
 
 # Protocol接口定义（依赖倒置）
 class SimulatedAccountRepositoryProtocol(Protocol):
     """模拟账户Repository接口"""
+
     def save(self, account: SimulatedAccount, user_id: int | None = None) -> int: ...
     def get_by_id(self, account_id: int) -> SimulatedAccount | None: ...
     def get_by_name(
@@ -50,6 +77,7 @@ class SimulatedAccountRepositoryProtocol(Protocol):
 
 class PositionRepositoryProtocol(Protocol):
     """持仓Repository接口"""
+
     def save(self, position: Position) -> int: ...
     def get_by_account(self, account_id: int) -> list[Position]: ...
     def get_position(self, account_id: int, asset_code: str) -> Position | None: ...
@@ -58,15 +86,27 @@ class PositionRepositoryProtocol(Protocol):
 
 class TradeRepositoryProtocol(Protocol):
     """交易记录Repository接口"""
+
     def save(self, trade: SimulatedTrade) -> int: ...
     def get_by_account(self, account_id: int) -> list[SimulatedTrade]: ...
-    def get_by_date_range(self, account_id: int, start: date, end: date) -> list[SimulatedTrade]: ...
+    def get_by_date_range(
+        self,
+        account_id: int,
+        start: date,
+        end: date,
+    ) -> list[SimulatedTrade]: ...
+
+
+class FeeConfigRepositoryProtocol(Protocol):
+    """Trading fee configuration repository boundary."""
+
+    def get_default_config(self, asset_type: str = "all") -> FeeConfig | None: ...
 
 
 class CreateSimulatedAccountUseCase:
     """创建统一账户用例。"""
 
-    def __init__(self, account_repo: SimulatedAccountRepositoryProtocol):
+    def __init__(self, account_repo: SimulatedAccountRepositoryProtocol) -> None:
         self.account_repo = account_repo
 
     def execute(
@@ -121,7 +161,7 @@ class CreateSimulatedAccountUseCase:
             stop_loss_pct=stop_loss_pct,
             commission_rate=commission_rate,
             slippage_rate=slippage_rate,
-            start_date=date.today()
+            start_date=date.today(),
         )
 
         # 3. 保存到数据库
@@ -149,7 +189,7 @@ class CreateSimulatedAccountUseCase:
             stop_loss_pct=account.stop_loss_pct,
             commission_rate=account.commission_rate,
             slippage_rate=account.slippage_rate,
-            start_date=account.start_date
+            start_date=account.start_date,
         )
 
 
@@ -160,13 +200,13 @@ class GetAccountPerformanceUseCase:
         self,
         account_repo: SimulatedAccountRepositoryProtocol,
         position_repo: PositionRepositoryProtocol,
-        trade_repo: TradeRepositoryProtocol
-    ):
+        trade_repo: TradeRepositoryProtocol,
+    ) -> None:
         self.account_repo = account_repo
         self.position_repo = position_repo
         self.trade_repo = trade_repo
 
-    def execute(self, account_id: int) -> dict:
+    def execute(self, account_id: int) -> AccountPerformanceResult:
         """
         获取账户绩效
 
@@ -188,13 +228,15 @@ class GetAccountPerformanceUseCase:
         trades = self.trade_repo.get_by_account(account_id)
 
         # 4. 统计盈利交易
+        closed_trades = [trade for trade in trades if trade.realized_pnl is not None]
         winning_trades = sum(
-            1 for t in trades
-            if t.realized_pnl and t.realized_pnl > 0
+            1
+            for trade in closed_trades
+            if trade.realized_pnl is not None and trade.realized_pnl > 0
         )
 
         # 5. 计算胜率
-        win_rate = (winning_trades / len(trades) * 100) if trades else 0.0
+        win_rate = winning_trades / len(closed_trades) * 100 if closed_trades else 0.0
 
         return {
             "account": account,
@@ -208,8 +250,8 @@ class GetAccountPerformanceUseCase:
                 "annual_return": account.annual_return,
                 "max_drawdown": account.max_drawdown,
                 "sharpe_ratio": account.sharpe_ratio,
-                "win_rate": win_rate
-            }
+                "win_rate": win_rate,
+            },
         }
 
 
@@ -221,11 +263,13 @@ class ExecuteBuyOrderUseCase:
         account_repo: SimulatedAccountRepositoryProtocol,
         position_repo: PositionRepositoryProtocol,
         trade_repo: TradeRepositoryProtocol,
+        fee_config_repo: FeeConfigRepositoryProtocol,
         signal_repo: SignalQueryRepositoryProtocol | None = None,
-    ):
+    ) -> None:
         self.account_repo = account_repo
         self.position_repo = position_repo
         self.trade_repo = trade_repo
+        self.fee_config_repo = fee_config_repo
         self.signal_repo = signal_repo
 
     def execute(
@@ -237,7 +281,8 @@ class ExecuteBuyOrderUseCase:
         quantity: int,
         price: float,
         reason: str = "",
-        signal_id: int | None = None
+        signal_id: int | None = None,
+        execution_date: date | None = None,
     ) -> SimulatedTrade:
         """
         执行买入订单
@@ -260,26 +305,39 @@ class ExecuteBuyOrderUseCase:
         if not account:
             raise ValueError(f"账户不存在: {account_id}")
 
+        effective_date = execution_date or date.today()
         order_quantity = _as_float(quantity)
         existing_position = self.position_repo.get_position(account_id, asset_code)
+        if existing_position and existing_position.is_invalidated:
+            raise ValueError(f"持仓已触发证伪条件，禁止加仓: {asset_code}")
         current_position_value = (
             _as_float(existing_position.quantity) * price if existing_position else 0.0
         )
+        fee_config = self.fee_config_repo.get_default_config(asset_type)
+        if fee_config is None:
+            raise ValueError(f"未配置启用的默认交易费率: {asset_type}")
 
         # 2. 验证订单
         valid, error_msg = TradingConstraintRule.validate_buy_order(
-            account, asset_code, order_quantity, price, current_position_value
+            account,
+            asset_code,
+            order_quantity,
+            price,
+            current_position_value,
+            fee_config,
         )
         if not valid:
             raise ValueError(f"买入订单验证失败: {error_msg}")
 
         # 3. 计算费用
         amount = order_quantity * price
-        commission = amount * account.commission_rate
-        # 最低手续费5元
-        commission = max(commission, 5.0)
-        slippage = amount * account.slippage_rate
-        total_cost = amount + commission + slippage
+        fee_values = fee_config.calculate_buy_fee(
+            amount,
+            is_shanghai=asset_code.upper().endswith(".SH"),
+        )
+        commission = fee_values["commission"]
+        slippage = fee_values["slippage"]
+        total_cost = amount + fee_values["total_fee"]
         lot_avg_cost, lot_total_cost = PositionCostBasisService.calculate_lot_cost(
             quantity=order_quantity,
             price=price,
@@ -303,18 +361,15 @@ class ExecuteBuyOrderUseCase:
             total_cost=total_cost,
             reason=reason,
             signal_id=signal_id,
-            order_date=date.today(),
-            execution_date=date.today(),
+            order_date=effective_date,
+            execution_date=effective_date,
             execution_time=timezone.now(),
-            status=OrderStatus.EXECUTED
+            status=OrderStatus.EXECUTED,
         )
 
         # 5. 保存交易记录
         trade_id = self.trade_repo.save(trade)
-        trade = SimulatedTrade(
-            trade_id=trade_id,
-            **{k: v for k, v in trade.__dict__.items() if k != 'trade_id'}
-        )
+        trade = replace(trade, trade_id=trade_id)
 
         # 6. 更新或创建持仓
 
@@ -322,7 +377,9 @@ class ExecuteBuyOrderUseCase:
         invalidation_rule_json = None
         invalidation_description = ""
         if signal_id:
-            invalidation_rule_json, invalidation_description = self._get_signal_invalidation(signal_id)
+            invalidation_rule_json, invalidation_description = self._get_signal_invalidation(
+                signal_id
+            )
         invalidation_description = invalidation_description or ""
 
         if existing_position:
@@ -351,7 +408,7 @@ class ExecuteBuyOrderUseCase:
                 unrealized_pnl=(price - new_avg_cost) * new_quantity,
                 unrealized_pnl_pct=((price - new_avg_cost) / new_avg_cost) * 100,
                 first_buy_date=existing_position.first_buy_date,
-                last_update_date=date.today(),
+                last_update_date=effective_date,
                 signal_id=signal_id,
                 entry_reason=reason or existing_position.entry_reason,
                 # 保留原有的证伪条件
@@ -377,8 +434,8 @@ class ExecuteBuyOrderUseCase:
                 market_value=amount,
                 unrealized_pnl=amount - lot_total_cost,
                 unrealized_pnl_pct=((price - lot_avg_cost) / lot_avg_cost) * 100,
-                first_buy_date=date.today(),
-                last_update_date=date.today(),
+                first_buy_date=effective_date,
+                last_update_date=effective_date,
                 signal_id=signal_id,
                 entry_reason=reason,
                 # 从信号继承证伪条件
@@ -392,9 +449,12 @@ class ExecuteBuyOrderUseCase:
             account,
             current_cash=_as_float(account.current_cash) - total_cost,
             current_market_value=_as_float(account.current_market_value) + amount,
-            total_value=_as_float(account.current_cash) - total_cost + _as_float(account.current_market_value) + amount,
+            total_value=_as_float(account.current_cash)
+            - total_cost
+            + _as_float(account.current_market_value)
+            + amount,
             total_trades=account.total_trades + 1,
-            last_trade_date=date.today()
+            last_trade_date=effective_date,
         )
         self.account_repo.save(updated_account)
 
@@ -405,7 +465,7 @@ class ExecuteBuyOrderUseCase:
 
         return trade
 
-    def _get_signal_invalidation(self, signal_id: int):
+    def _get_signal_invalidation(self, signal_id: int) -> tuple[str | None, str]:
         """
         从信号获取证伪条件
 
@@ -418,8 +478,16 @@ class ExecuteBuyOrderUseCase:
         if self.signal_repo is None:
             return None, ""
         try:
-            return self.signal_repo.get_signal_invalidation_payload(signal_id)
+            payload: tuple[str | None, str] = (
+                self.signal_repo.get_signal_invalidation_payload(signal_id)
+            )
+            return payload
         except Exception:
+            logger.warning(
+                "读取交易信号证伪条件失败: signal_id=%s",
+                signal_id,
+                exc_info=True,
+            )
             return None, ""
 
 
@@ -430,11 +498,13 @@ class ExecuteSellOrderUseCase:
         self,
         account_repo: SimulatedAccountRepositoryProtocol,
         position_repo: PositionRepositoryProtocol,
-        trade_repo: TradeRepositoryProtocol
-    ):
+        trade_repo: TradeRepositoryProtocol,
+        fee_config_repo: FeeConfigRepositoryProtocol,
+    ) -> None:
         self.account_repo = account_repo
         self.position_repo = position_repo
         self.trade_repo = trade_repo
+        self.fee_config_repo = fee_config_repo
 
     def execute(
         self,
@@ -442,7 +512,8 @@ class ExecuteSellOrderUseCase:
         asset_code: str,
         quantity: int,
         price: float,
-        reason: str = ""
+        reason: str = "",
+        execution_date: date | None = None,
     ) -> SimulatedTrade:
         """
         执行卖出订单
@@ -466,23 +537,30 @@ class ExecuteSellOrderUseCase:
         if not position:
             raise ValueError(f"持仓不存在: {asset_code}")
 
+        effective_date = execution_date or date.today()
         order_quantity = _as_float(quantity)
         position_quantity = _as_float(position.quantity)
         position_avg_cost = _as_float(position.avg_cost)
+        fee_config = self.fee_config_repo.get_default_config(position.asset_type)
+        if fee_config is None:
+            raise ValueError(f"未配置启用的默认交易费率: {position.asset_type}")
 
         # 2. 验证订单
         valid, error_msg = TradingConstraintRule.validate_sell_order(
-            position, order_quantity
+            position, order_quantity, price
         )
         if not valid:
             raise ValueError(f"卖出订单验证失败: {error_msg}")
 
         # 3. 计算费用
         amount = order_quantity * price
-        commission = max(amount * account.commission_rate, 5.0)
-        stamp_duty = amount * 0.001 if position.asset_type == "equity" else 0  # 股票印花税
-        slippage = amount * account.slippage_rate
-        total_cost = commission + stamp_duty + slippage
+        fee_values = fee_config.calculate_sell_fee(
+            amount,
+            is_shanghai=asset_code.upper().endswith(".SH"),
+        )
+        commission = fee_values["commission"]
+        slippage = fee_values["slippage"]
+        total_cost = fee_values["total_fee"]
 
         # 4. 计算盈亏
         avg_cost_total = position_avg_cost * order_quantity
@@ -508,18 +586,15 @@ class ExecuteSellOrderUseCase:
             realized_pnl_pct=realized_pnl_pct,
             reason=reason,
             signal_id=position.signal_id,
-            order_date=date.today(),
-            execution_date=date.today(),
+            order_date=effective_date,
+            execution_date=effective_date,
             execution_time=timezone.now(),
-            status=OrderStatus.EXECUTED
+            status=OrderStatus.EXECUTED,
         )
 
         # 6. 保存交易记录
         trade_id = self.trade_repo.save(trade)
-        trade = SimulatedTrade(
-            trade_id=trade_id,
-            **{k: v for k, v in trade.__dict__.items() if k != 'trade_id'}
-        )
+        trade = replace(trade, trade_id=trade_id)
 
         # 7. 更新持仓
         remaining_quantity = position_quantity - order_quantity
@@ -531,7 +606,10 @@ class ExecuteSellOrderUseCase:
                 asset_name=position.asset_name,
                 asset_type=position.asset_type,
                 quantity=remaining_quantity,
-                available_quantity=remaining_quantity,
+                available_quantity=max(
+                    _as_float(position.available_quantity) - order_quantity,
+                    0.0,
+                ),
                 avg_cost=position_avg_cost,
                 total_cost=position_avg_cost * remaining_quantity,
                 current_price=price,
@@ -539,9 +617,9 @@ class ExecuteSellOrderUseCase:
                 unrealized_pnl=(price - position_avg_cost) * remaining_quantity,
                 unrealized_pnl_pct=((price - position_avg_cost) / position_avg_cost) * 100,
                 first_buy_date=position.first_buy_date,
-                last_update_date=date.today(),
+                last_update_date=effective_date,
                 signal_id=position.signal_id,
-                entry_reason=position.entry_reason
+                entry_reason=position.entry_reason,
             )
             self.position_repo.save(updated_position)
         else:
@@ -560,7 +638,7 @@ class ExecuteSellOrderUseCase:
             total_value=_as_float(account.current_cash) + net_amount + new_market_value,
             total_trades=account.total_trades + 1,
             winning_trades=account.winning_trades + (1 if realized_pnl > 0 else 0),
-            last_trade_date=date.today()
+            last_trade_date=effective_date,
         )
         self.account_repo.save(updated_account)
 
@@ -607,4 +685,3 @@ class ListAccountsUseCase:
         if account_type is not None:
             accounts = [account for account in accounts if account.account_type == account_type]
         return accounts
-

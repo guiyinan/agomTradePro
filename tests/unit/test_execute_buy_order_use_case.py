@@ -1,7 +1,7 @@
 """Tests for simulated buy execution traceability."""
 
 from apps.simulated_trading.application.use_cases import ExecuteBuyOrderUseCase
-from apps.simulated_trading.domain.entities import AccountType, SimulatedAccount
+from apps.simulated_trading.domain.entities import AccountType, FeeConfig, SimulatedAccount
 
 
 class InMemoryAccountRepo:
@@ -44,6 +44,16 @@ class StubSignalRepo:
         )
 
 
+class StaticFeeConfigRepo:
+    def get_default_config(self, asset_type: str = "all") -> FeeConfig:
+        return FeeConfig(
+            config_id=1,
+            config_name="test",
+            asset_type=asset_type,
+            is_default=True,
+        )
+
+
 def test_execute_buy_order_copies_signal_traceability_into_position():
     account_repo = InMemoryAccountRepo(
         SimulatedAccount(
@@ -63,6 +73,7 @@ def test_execute_buy_order_copies_signal_traceability_into_position():
         account_repo=account_repo,
         position_repo=position_repo,
         trade_repo=trade_repo,
+        fee_config_repo=StaticFeeConfigRepo(),
         signal_repo=StubSignalRepo(),
     )
 

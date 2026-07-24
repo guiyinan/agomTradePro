@@ -1186,15 +1186,18 @@ class DjangoFeeConfigRepository:
 
     def get_default_config(self, asset_type: str = "all") -> FeeConfig | None:
         """获取默认费率配置"""
-        try:
+        model = FeeConfigModel._default_manager.filter(
+            asset_type=asset_type,
+            is_default=True,
+            is_active=True,
+        ).first()
+        if model is None and asset_type != "all":
             model = FeeConfigModel._default_manager.filter(
-                asset_type__in=[asset_type, "all"], is_default=True, is_active=True
+                asset_type="all",
+                is_default=True,
+                is_active=True,
             ).first()
-            if model:
-                return FeeConfigMapper.to_entity(model)
-            return None
-        except FeeConfigModel.DoesNotExist:
-            return None
+        return FeeConfigMapper.to_entity(model) if model is not None else None
 
     def get_all_configs(self, asset_type: str | None = None) -> list[FeeConfig]:
         """获取所有费率配置"""

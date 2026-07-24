@@ -7,7 +7,7 @@ Domain层业务规则：
 - 纯Python实现，无外部依赖
 """
 
-from .entities import Position, SimulatedAccount
+from .entities import FeeConfig, Position, SimulatedAccount
 
 
 class PositionSizingRule:
@@ -18,7 +18,7 @@ class PositionSizingRule:
         account: SimulatedAccount,
         asset_price: float,
         asset_score: float,
-        existing_positions: list[Position]
+        existing_positions: list[Position],
     ) -> int:
         """
         计算买入数量
@@ -58,10 +58,7 @@ class PositionSizingRule:
 
     @staticmethod
     def should_sell_position(
-        position: Position,
-        signal_valid: bool,
-        regime_match: bool,
-        stop_loss_pct: float | None
+        position: Position, signal_valid: bool, regime_match: bool, stop_loss_pct: float | None
     ) -> bool:
         """
         判断是否应该卖出持仓
@@ -102,9 +99,10 @@ class TradingConstraintRule:
     def validate_buy_order(
         account: SimulatedAccount,
         asset_code: str,
-        quantity: int,
+        quantity: float,
         price: float,
-        current_position_value: float = 0.0
+        current_position_value: float = 0.0,
+        fee_config: FeeConfig | None = None,
     ) -> tuple[bool, str]:
         """
         验证买入订单
@@ -128,10 +126,18 @@ class TradingConstraintRule:
             return False, "账户未激活"
 
         # 3. 计算所需金额
+        if price <= 0:
+            return False, "买入价格必须大于0"
+
         amount = quantity * price
-        commission = amount * account.commission_rate
-        slippage = amount * account.slippage_rate
-        total_needed = amount + commission + slippage
+        if fee_config is None:
+            total_fee = amount * account.commission_rate + amount * account.slippage_rate
+        else:
+            total_fee = fee_config.calculate_buy_fee(
+                amount,
+                is_shanghai=asset_code.upper().endswith(".SH"),
+            )["total_fee"]
+        total_needed = amount + total_fee
 
         # 4. 检查现金是否足够
         if total_needed > account.current_cash:
@@ -151,7 +157,7 @@ class TradingConstraintRule:
         if new_position_value > max_single_value:
             return (
                 False,
-                f"超过最大持仓比例(上限{max_single_value:.2f},买入后{new_position_value:.2f})"
+                f"超过最大持仓比例(上限{max_single_value:.2f},买入后{new_position_value:.2f})",
             )
 
         return True, ""
@@ -159,7 +165,8 @@ class TradingConstraintRule:
     @staticmethod
     def validate_sell_order(
         position: Position,
-        quantity: int
+        quantity: float,
+        price: float | None = None,
     ) -> tuple[bool, str]:
         """
         验证卖出订单
@@ -171,15 +178,19 @@ class TradingConstraintRule:
         Returns:
             (是否通过, 失败原因)
         """
-        # 1. 检查持仓数量
+        # 1. 检查成交价格
+        if price is not None and price <= 0:
+            return False, "卖出价格必须大于0"
+
+        # 2. 检查持仓数量
         if quantity > position.available_quantity:
             return False, f"可卖数量不足(需要{quantity},可用{position.available_quantity})"
 
-        # 2. 检查是否为100的倍数
+        # 3. 检查是否为100的倍数
         if quantity % 100 != 0:
             return False, "数量必须为100的倍数"
 
-        # 3. 检查数量是否大于0
+        # 4. 检查数量是否大于0
         if quantity <= 0:
             return False, "卖出数量必须大于0"
 

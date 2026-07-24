@@ -6,6 +6,7 @@ Domain层:
 - 统一买入成本和持仓成本摊销逻辑
 - 统一账户业绩计算（TWR、MWR/XIRR、风险指标）
 """
+
 import math
 from datetime import date
 from decimal import Decimal
@@ -23,7 +24,7 @@ class PositionCostBasisService:
 
     @staticmethod
     def calculate_lot_cost(
-        quantity: int,
+        quantity: float,
         price: float,
         commission: float,
         slippage: float,
@@ -44,9 +45,9 @@ class PositionCostBasisService:
 
     @staticmethod
     def merge_position_cost(
-        existing_quantity: int,
+        existing_quantity: float,
         existing_total_cost: float,
-        added_quantity: int,
+        added_quantity: float,
         added_total_cost: float,
     ) -> tuple[float, float]:
         """
@@ -67,6 +68,7 @@ class PositionCostBasisService:
 # ============================================================================
 # 账户业绩计算服务
 # ============================================================================
+
 
 def _safe_mean(values: list[float]) -> float | None:
     """安全均值计算，空列表返回 None。"""
@@ -309,7 +311,9 @@ class PerformanceCalculatorService:
         return (annualized_return_pct - rf) / annualized_vol_pct
 
     @staticmethod
-    def calculate_sortino(annualized_return_pct: float, annualized_downside_vol_pct: float) -> float | None:
+    def calculate_sortino(
+        annualized_return_pct: float, annualized_downside_vol_pct: float
+    ) -> float | None:
         """索提诺比率。"""
         rf = PerformanceCalculatorService.RISK_FREE_RATE * 100.0
         if annualized_downside_vol_pct <= 0:

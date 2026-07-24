@@ -13,6 +13,9 @@ from django.utils import timezone
 from apps.account.application.repository_provider import get_account_position_repository
 from apps.alpha_trigger.domain.entities import AlphaCandidate, CandidateStatus
 from apps.events.domain.entities import EventType, create_event
+from apps.simulated_trading.application.repository_provider import (
+    get_simulated_fee_config_repository,
+)
 
 from ..domain.entities import (
     DecisionQuota,
@@ -606,6 +609,7 @@ class ExecuteDecisionUseCase:
                 account_repo=self.simulated_account_repo,
                 position_repo=self.position_repo,
                 trade_repo=self.trade_repo,
+                fee_config_repo=get_simulated_fee_config_repository(),
                 signal_repo=self.signal_repo,
             )
             trade = buy_use_case.execute(
@@ -623,6 +627,7 @@ class ExecuteDecisionUseCase:
                 account_repo=self.simulated_account_repo,
                 position_repo=self.position_repo,
                 trade_repo=self.trade_repo,
+                fee_config_repo=get_simulated_fee_config_repository(),
             )
             trade = sell_use_case.execute(
                 account_id=execution_input.account_id,

@@ -5,10 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from django.utils import timezone
 
+from apps.account.application.portfolio_api_contracts import (
+    PortfolioApiRepository as PortfolioApiRepositoryProtocol,
+)
 from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
 from apps.data_center.application.price_service import UnifiedPriceService
 from apps.share.application.query_services import list_share_links_for_account_owner
@@ -56,7 +59,11 @@ def get_manual_trade_portfolio_id_for_account(account_id: int) -> int | None:
 
     from apps.account.application.repository_provider import get_portfolio_api_repository
 
-    portfolio = get_portfolio_api_repository().get_portfolio_for_account(account_id)
+    portfolio_repo = cast(
+        PortfolioApiRepositoryProtocol,
+        get_portfolio_api_repository(),
+    )
+    portfolio = portfolio_repo.get_portfolio_for_account(account_id)
     if portfolio is None:
         return None
     return int(portfolio.id)
@@ -274,7 +281,7 @@ def save_inspection_notification_config(
     )
 
 
-def delete_account_with_summary(account_id: int) -> dict | None:
+def delete_account_with_summary(account_id: int) -> dict[str, Any] | None:
     """Delete one account and return cascade summary details."""
 
     return get_simulated_account_repository().delete_account_with_summary(account_id)
@@ -324,15 +331,22 @@ def build_auto_trading_engine() -> AutoTradingEngine:
     account_repo = get_simulated_account_repository()
     position_repo = get_simulated_position_repository()
     trade_repo = get_simulated_trade_repository()
+    fee_config_repo = get_simulated_fee_config_repository()
     signal_repo = get_signal_repository()
 
     buy_use_case = ExecuteBuyOrderUseCase(
         account_repo,
         position_repo,
         trade_repo,
+        fee_config_repo,
         signal_repo=signal_repo,
     )
-    sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
+    sell_use_case = ExecuteSellOrderUseCase(
+        account_repo,
+        position_repo,
+        trade_repo,
+        fee_config_repo,
+    )
     performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
     asset_pool_service = AssetPoolQueryService(
         asset_pool_repo=get_asset_pool_query_repository(),
@@ -381,7 +395,7 @@ def list_daily_inspection_report_payloads(
     account_id: int,
     limit: int,
     inspection_date: date | None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Return daily inspection reports serialized for API output."""
 
     return get_simulated_inspection_repository().list_report_payloads(

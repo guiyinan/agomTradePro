@@ -6,6 +6,7 @@ Phase 5 端到端测试：
 - 测试规则策略的完整流程
 - 测试向后兼容（无策略时使用原有逻辑）
 """
+
 import uuid
 from datetime import date, datetime
 from unittest.mock import Mock, patch
@@ -26,6 +27,7 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
 )
 from apps.simulated_trading.infrastructure.repositories import (
+    DjangoFeeConfigRepository,
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
@@ -51,16 +53,15 @@ class TestStrategyAutoTradingIntegration(TestCase):
         unique_id = str(uuid.uuid4())[:8]
 
         self.django_user = User.objects.create_user(
-            username=f'testuser_{unique_id}',
-            email=f'test_{unique_id}@example.com'
+            username=f"testuser_{unique_id}", email=f"test_{unique_id}@example.com"
         )
         # 获取信号自动创建的 AccountProfileModel
         self.test_user = AccountProfileModel.objects.get(user=self.django_user)
 
         # 创建费率配置
         self.fee_config = FeeConfigModel.objects.create(
-            config_name='标准费率',
-            asset_type='equity',
+            config_name="标准费率",
+            asset_type="equity",
             commission_rate_buy=0.0003,
             commission_rate_sell=0.0003,
             min_commission=5.0,
@@ -69,24 +70,28 @@ class TestStrategyAutoTradingIntegration(TestCase):
             min_transfer_fee=1.0,
             slippage_rate=0.001,
             is_active=True,
+            is_default=True,
         )
 
         # 初始化仓储
         self.account_repo = DjangoSimulatedAccountRepository()
         self.position_repo = DjangoPositionRepository()
         self.trade_repo = DjangoTradeRepository()
+        self.fee_config_repo = DjangoFeeConfigRepository()
 
         # 创建用例
         self.create_account_use_case = CreateSimulatedAccountUseCase(self.account_repo)
         self.buy_use_case = ExecuteBuyOrderUseCase(
             self.account_repo,
             self.position_repo,
-            self.trade_repo
+            self.trade_repo,
+            self.fee_config_repo,
         )
         self.sell_use_case = ExecuteSellOrderUseCase(
             self.account_repo,
             self.position_repo,
-            self.trade_repo
+            self.trade_repo,
+            self.fee_config_repo,
         )
 
     def test_account_without_strategy_uses_legacy_logic(self):
@@ -97,7 +102,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
         """
         # 1. 创建未绑定策略的账户
         account = self.create_account_use_case.execute(
-            account_name='未绑定策略账户',
+            account_name="未绑定策略账户",
             initial_capital=100000.00,
         )
 
@@ -105,8 +110,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
         account_model = SimulatedAccountModel.objects.get(id=account.account_id)
         self.assertFalse(
             PortfolioStrategyAssignmentModel.objects.filter(
-                portfolio=account_model,
-                is_active=True
+                portfolio=account_model, is_active=True
             ).exists()
         )
 
@@ -122,14 +126,11 @@ class TestStrategyAutoTradingIntegration(TestCase):
             sell_use_case=self.sell_use_case,
             performance_use_case=Mock(),
             price_provider=price_provider,
-            strategy_executor=None  # 未配置策略执行器
+            strategy_executor=None,  # 未配置策略执行器
         )
 
         # 3. 处理账户（应该使用原有逻辑）
-        buy_count, sell_count = engine._process_account(
-            account=account,
-            trade_date=date.today()
-        )
+        buy_count, sell_count = engine._process_account(account=account, trade_date=date.today())
 
         # 4. 验证原有逻辑正常工作
         # 由于没有买入候选，应该返回 0, 0
@@ -144,11 +145,11 @@ class TestStrategyAutoTradingIntegration(TestCase):
         """
         # 1. 创建测试策略
         strategy = StrategyModel.objects.create(
-            name='测试规则策略',
-            strategy_type='rule_based',
+            name="测试规则策略",
+            strategy_type="rule_based",
             version=1,
             is_active=True,
-            description='用于集成测试的规则策略',
+            description="用于集成测试的规则策略",
             max_position_pct=20.0,
             max_total_position_pct=95.0,
             stop_loss_pct=10.0,
@@ -158,23 +159,19 @@ class TestStrategyAutoTradingIntegration(TestCase):
         # 2. 创建规则条件（PMI > 50 时买入）
         RuleConditionModel.objects.create(
             strategy=strategy,
-            rule_name='PMI扩张买入',
-            rule_type='macro',
-            condition_json={
-                'operator': '>',
-                'indicator': 'CN_PMI_MANUFACTURING',
-                'threshold': 50
-            },
-            action='BUY',
+            rule_name="PMI扩张买入",
+            rule_type="macro",
+            condition_json={"operator": ">", "indicator": "CN_PMI_MANUFACTURING", "threshold": 50},
+            action="BUY",
             weight=0.15,
-            target_assets=['000001.SZ'],
+            target_assets=["000001.SZ"],
             priority=10,
-            is_enabled=True
+            is_enabled=True,
         )
 
         # 3. 创建绑定策略的账户
         account = self.create_account_use_case.execute(
-            account_name='绑定策略账户',
+            account_name="绑定策略账户",
             initial_capital=100000.00,
         )
 
@@ -201,21 +198,21 @@ class TestStrategyAutoTradingIntegration(TestCase):
             signals=[
                 SignalInfo(
                     signal_id=None,
-                    asset_code='000001.SZ',
-                    asset_name='平安银行',
-                    action='buy',
+                    asset_code="000001.SZ",
+                    asset_name="平安银行",
+                    action="buy",
                     quantity=1000,
                     confidence=0.85,
-                    reason='PMI扩张（PMI=50.2 > 50）',
+                    reason="PMI扩张（PMI=50.2 > 50）",
                 )
             ],
         )
         # 网关还需提供 get_active_strategy_binding (facade 调用)
         mock_gateway.get_active_strategy_binding.return_value = {
-            'strategy_id': strategy.id,
-            'name': strategy.name,
-            'strategy_type': 'rule_based',
-            'is_active': True,
+            "strategy_id": strategy.id,
+            "name": strategy.name,
+            "strategy_type": "rule_based",
+            "is_active": True,
         }
 
         # 5. 创建自动交易引擎
@@ -235,12 +232,11 @@ class TestStrategyAutoTradingIntegration(TestCase):
 
         # 6. 处理账户（Patch 网关 — 覆盖 facade + engine 两处调用）
         with patch(
-            'apps.strategy.application.execution_gateway.get_strategy_execution_gateway',
+            "apps.strategy.application.execution_gateway.get_strategy_execution_gateway",
             return_value=mock_gateway,
         ):
             buy_count, sell_count = engine._process_account(
-                account=account,
-                trade_date=date.today()
+                account=account, trade_date=date.today()
             )
 
         # 7. 验证网关被调用
@@ -253,7 +249,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
         # 9. 验证持仓
         positions = self.position_repo.get_by_account(account.account_id)
         self.assertEqual(len(positions), 1)
-        self.assertEqual(positions[0].asset_code, '000001.SZ')
+        self.assertEqual(positions[0].asset_code, "000001.SZ")
         self.assertEqual(positions[0].quantity, 1000)
 
     def test_strategy_executor_returns_sell_signal(self):
@@ -263,11 +259,11 @@ class TestStrategyAutoTradingIntegration(TestCase):
         """
         # 1. 创建测试策略
         strategy = StrategyModel.objects.create(
-            name='测试卖出策略',
-            strategy_type='rule_based',
+            name="测试卖出策略",
+            strategy_type="rule_based",
             version=1,
             is_active=True,
-            description='用于测试卖出信号的策略',
+            description="用于测试卖出信号的策略",
             max_position_pct=20.0,
             created_by=self.test_user,
         )
@@ -275,14 +271,14 @@ class TestStrategyAutoTradingIntegration(TestCase):
         # 添加规则条件（规则驱动策略必须至少有一个规则）
         RuleConditionModel.objects.create(
             strategy=strategy,
-            rule_name='PMI收缩卖出',
-            rule_type='macro',
-            condition_json={'operator': '<', 'indicator': 'CN_PMI_MANUFACTURING', 'threshold': 50},
+            rule_name="PMI收缩卖出",
+            rule_type="macro",
+            condition_json={"operator": "<", "indicator": "CN_PMI_MANUFACTURING", "threshold": 50},
         )
 
         # 2. 创建账户并绑定策略
         account = self.create_account_use_case.execute(
-            account_name='卖出测试账户',
+            account_name="卖出测试账户",
             initial_capital=100000.00,
         )
 
@@ -297,12 +293,12 @@ class TestStrategyAutoTradingIntegration(TestCase):
         # 3. 先创建一个持仓
         self.buy_use_case.execute(
             account_id=account.account_id,
-            asset_code='000001.SZ',
-            asset_name='平安银行',
-            asset_type='equity',
+            asset_code="000001.SZ",
+            asset_name="平安银行",
+            asset_type="equity",
             quantity=1000,
             price=10.00,
-            reason='初始买入'
+            reason="初始买入",
         )
 
         # 4. Mock 策略执行网关（返回卖出信号）
@@ -319,21 +315,21 @@ class TestStrategyAutoTradingIntegration(TestCase):
             signals=[
                 SignalInfo(
                     signal_id=None,
-                    asset_code='000001.SZ',
-                    asset_name='平安银行',
-                    action='sell',
+                    asset_code="000001.SZ",
+                    asset_name="平安银行",
+                    action="sell",
                     quantity=None,  # 未指定数量，应该全部卖出
                     confidence=0.75,
-                    reason='PMI收缩（PMI=49.5 < 50）',
+                    reason="PMI收缩（PMI=49.5 < 50）",
                 )
             ],
         )
         # 网关还需提供 get_active_strategy_binding (facade 调用)
         mock_gateway.get_active_strategy_binding.return_value = {
-            'strategy_id': strategy.id,
-            'name': strategy.name,
-            'strategy_type': 'rule_based',
-            'is_active': True,
+            "strategy_id": strategy.id,
+            "name": strategy.name,
+            "strategy_type": "rule_based",
+            "is_active": True,
         }
 
         # 5. 创建自动交易引擎
@@ -353,12 +349,11 @@ class TestStrategyAutoTradingIntegration(TestCase):
 
         # 6. 处理账户（Patch 网关）
         with patch(
-            'apps.strategy.application.execution_gateway.get_strategy_execution_gateway',
+            "apps.strategy.application.execution_gateway.get_strategy_execution_gateway",
             return_value=mock_gateway,
         ):
             buy_count, sell_count = engine._process_account(
-                account=account,
-                trade_date=date.today()
+                account=account, trade_date=date.today()
             )
 
         # 7. 验证卖出信号被执行
@@ -373,8 +368,8 @@ class TestStrategyAutoTradingIntegration(TestCase):
         """测试获取账户策略ID的方法"""
         # 1. 创建策略
         strategy = StrategyModel.objects.create(
-            name='测试策略',
-            strategy_type='rule_based',
+            name="测试策略",
+            strategy_type="rule_based",
             version=1,
             is_active=True,
             created_by=self.test_user,
@@ -382,13 +377,13 @@ class TestStrategyAutoTradingIntegration(TestCase):
 
         # 2. 创建未绑定策略的账户
         account1 = self.create_account_use_case.execute(
-            account_name='未绑定策略',
+            account_name="未绑定策略",
             initial_capital=100000.00,
         )
 
         # 3. 创建绑定策略的账户
         account2 = self.create_account_use_case.execute(
-            account_name='绑定策略',
+            account_name="绑定策略",
             initial_capital=100000.00,
         )
         account_model2 = SimulatedAccountModel.objects.get(id=account2.account_id)
@@ -419,11 +414,11 @@ class TestStrategyAutoTradingIntegration(TestCase):
     def test_run_daily_trading_filters_requested_accounts(self):
         """指定 account_ids 时，定时自动交易只处理目标账户。"""
         account1 = self.create_account_use_case.execute(
-            account_name='自动交易账户A',
+            account_name="自动交易账户A",
             initial_capital=100000.00,
         )
         account2 = self.create_account_use_case.execute(
-            account_name='自动交易账户B',
+            account_name="自动交易账户B",
             initial_capital=100000.00,
         )
         engine = AutoTradingEngine(
@@ -435,7 +430,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
             performance_use_case=Mock(),
         )
 
-        with patch.object(engine, '_process_account', return_value=(1, 0)) as process_account:
+        with patch.object(engine, "_process_account", return_value=(1, 0)) as process_account:
             results = engine.run_daily_trading(date.today(), account_ids=[account2.account_id])
 
         self.assertEqual(list(results.keys()), [account2.account_id])
@@ -451,15 +446,15 @@ class TestStrategyAutoTradingIntegration(TestCase):
         """
         # 1. 创建策略和账户
         strategy = StrategyModel.objects.create(
-            name='失败测试策略',
-            strategy_type='rule_based',
+            name="失败测试策略",
+            strategy_type="rule_based",
             version=1,
             is_active=True,
             created_by=self.test_user,
         )
 
         account = self.create_account_use_case.execute(
-            account_name='失败测试账户',
+            account_name="失败测试账户",
             initial_capital=100000.00,
         )
 
@@ -480,8 +475,8 @@ class TestStrategyAutoTradingIntegration(TestCase):
             execution_duration_ms=100,
             signals=[],
             is_success=False,
-            error_message='模拟策略执行失败',
-            context={}
+            error_message="模拟策略执行失败",
+            context={},
         )
         mock_strategy_executor.execute_strategy = Mock(return_value=mock_result)
 
@@ -493,14 +488,11 @@ class TestStrategyAutoTradingIntegration(TestCase):
             buy_use_case=self.buy_use_case,
             sell_use_case=self.sell_use_case,
             performance_use_case=Mock(),
-            strategy_executor=mock_strategy_executor
+            strategy_executor=mock_strategy_executor,
         )
 
         # 4. 处理账户（应该优雅处理失败）
-        buy_count, sell_count = engine._process_account(
-            account=account,
-            trade_date=date.today()
-        )
+        buy_count, sell_count = engine._process_account(account=account, trade_date=date.today())
 
         # 5. 验证没有交易发生
         self.assertEqual(buy_count, 0)
@@ -518,8 +510,7 @@ class TestPortfolioStrategyAssignment(TestCase):
         unique_id = str(uuid.uuid4())[:8]
 
         self.django_user = User.objects.create_user(
-            username=f'testuser_fk_{unique_id}',
-            email=f'test_fk_{unique_id}@example.com'
+            username=f"testuser_fk_{unique_id}", email=f"test_fk_{unique_id}@example.com"
         )
         # 获取信号自动创建的 AccountProfileModel
         self.test_user = AccountProfileModel.objects.get(user=self.django_user)
@@ -528,8 +519,8 @@ class TestPortfolioStrategyAssignment(TestCase):
         """测试 SimulatedAccount 可以通过关联表绑定 Strategy"""
         # 1. 创建策略
         strategy = StrategyModel.objects.create(
-            name='测试策略',
-            strategy_type='script_based',
+            name="测试策略",
+            strategy_type="script_based",
             version=1,
             is_active=True,
             created_by=self.test_user,
@@ -538,8 +529,8 @@ class TestPortfolioStrategyAssignment(TestCase):
         # 2. 创建账户并关联策略
         account = SimulatedAccountModel.objects.create(
             user=self.django_user,
-            account_name='测试账户',
-            account_type='simulated',
+            account_name="测试账户",
+            account_type="simulated",
             initial_capital=100000.00,
             current_cash=100000.00,
             current_market_value=0.00,
@@ -555,7 +546,7 @@ class TestPortfolioStrategyAssignment(TestCase):
 
         # 3. 验证关联
         self.assertEqual(assignment.strategy, strategy)
-        self.assertEqual(assignment.strategy.name, '测试策略')
+        self.assertEqual(assignment.strategy.name, "测试策略")
 
         # 4. 验证反向关联
         self.assertIn(assignment, strategy.portfolio_assignments.all())
@@ -564,8 +555,8 @@ class TestPortfolioStrategyAssignment(TestCase):
         """测试账户可以不绑定策略"""
         account = SimulatedAccountModel.objects.create(
             user=self.django_user,
-            account_name='无策略账户',
-            account_type='simulated',
+            account_name="无策略账户",
+            account_type="simulated",
             initial_capital=100000.00,
             current_cash=100000.00,
             current_market_value=0.00,
@@ -574,8 +565,7 @@ class TestPortfolioStrategyAssignment(TestCase):
 
         self.assertFalse(
             PortfolioStrategyAssignmentModel.objects.filter(
-                portfolio=account,
-                is_active=True
+                portfolio=account, is_active=True
             ).exists()
         )
 
@@ -583,8 +573,8 @@ class TestPortfolioStrategyAssignment(TestCase):
         """测试策略删除时关联关系被级联删除"""
         # 1. 创建策略
         strategy = StrategyModel.objects.create(
-            name='待删除策略',
-            strategy_type='ai_driven',
+            name="待删除策略",
+            strategy_type="ai_driven",
             version=1,
             is_active=True,
             created_by=self.test_user,
@@ -593,8 +583,8 @@ class TestPortfolioStrategyAssignment(TestCase):
         # 2. 创建账户并关联策略
         account = SimulatedAccountModel.objects.create(
             user=self.django_user,
-            account_name='测试账户',
-            account_type='simulated',
+            account_name="测试账户",
+            account_type="simulated",
             initial_capital=100000.00,
             current_cash=100000.00,
             current_market_value=0.00,
@@ -608,17 +598,11 @@ class TestPortfolioStrategyAssignment(TestCase):
         )
 
         account_id = account.id
-        self.assertTrue(
-            PortfolioStrategyAssignmentModel.objects.filter(id=assignment.id).exists()
-        )
+        self.assertTrue(PortfolioStrategyAssignmentModel.objects.filter(id=assignment.id).exists())
 
         # 3. 删除策略
         strategy.delete()
 
         # 4. 验证关联被删除，账户仍存在
-        self.assertFalse(
-            PortfolioStrategyAssignmentModel.objects.filter(id=assignment.id).exists()
-        )
-        self.assertTrue(
-            SimulatedAccountModel.objects.filter(id=account_id).exists()
-        )
+        self.assertFalse(PortfolioStrategyAssignmentModel.objects.filter(id=assignment.id).exists())
+        self.assertTrue(SimulatedAccountModel.objects.filter(id=account_id).exists())

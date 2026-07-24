@@ -356,6 +356,7 @@ class AutoTradingEngine:
                             quantity=sell_quantity,
                             price=price,
                             reason=f"策略信号: {signal.reason}",
+                            execution_date=trade_date,
                         )
                         self._record_execution_link(
                             trade_id=trade.trade_id,
@@ -432,6 +433,7 @@ class AutoTradingEngine:
                             price=price,
                             reason=f"策略信号: {signal.reason}",
                             signal_id=signal.signal_id,
+                            execution_date=trade_date,
                         )
                         self._record_execution_link(
                             trade_id=trade.trade_id,
@@ -513,6 +515,7 @@ class AutoTradingEngine:
                         quantity=quantity,
                         price=price,
                         reason=self._get_sell_reason(position, exit_advice),
+                        execution_date=trade_date,
                     )
                     self._record_execution_link(
                         trade_id=trade.trade_id,
@@ -857,6 +860,7 @@ class AutoTradingEngine:
             price=price,
             reason="自动交易引擎买入",
             signal_id=signal_id,
+            execution_date=trade_date,
         )
 
         logger.info(f"    ✓ 买入: {asset_name} x{quantity} @ {price:.2f}")

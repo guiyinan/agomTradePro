@@ -30,6 +30,7 @@ from apps.simulated_trading.application.decision_rhythm_exit_gateway import (
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
+    get_simulated_fee_config_repository,
     get_simulated_inspection_repository,
     get_simulated_position_repository,
     get_simulated_trade_repository,
@@ -152,12 +153,22 @@ def daily_auto_trading_task(
         account_repo = get_simulated_account_repository()
         position_repo = get_simulated_position_repository()
         trade_repo = get_simulated_trade_repository()
+        fee_config_repo = get_simulated_fee_config_repository()
         signal_repo = get_signal_repository()
 
         buy_use_case = ExecuteBuyOrderUseCase(
-            account_repo, position_repo, trade_repo, signal_repo=signal_repo
+            account_repo,
+            position_repo,
+            trade_repo,
+            fee_config_repo,
+            signal_repo=signal_repo,
         )
-        sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
+        sell_use_case = ExecuteSellOrderUseCase(
+            account_repo,
+            position_repo,
+            trade_repo,
+            fee_config_repo,
+        )
         performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
 
         price_provider = UnifiedPriceService()
@@ -949,9 +960,7 @@ def _send_rebalance_proposal_notification(result: dict[str, Any]) -> None:
             result_notify = channel.send(message, recipient, NotificationConfig())
 
             if result_notify.success:
-                logger.info(
-                    "站内通知已发送: user_id=%s proposal_id=%s", user_id, proposal_id
-                )
+                logger.info("站内通知已发送: user_id=%s proposal_id=%s", user_id, proposal_id)
             else:
                 logger.warning("站内通知发送失败: %s", result_notify.error_message)
 
@@ -1269,7 +1278,9 @@ def check_position_invalidation_task_alias() -> dict[str, Any]:
     return check_position_invalidation_task.run()
 
 
-@typed_shared_task(name="apps.simulated_trading.application.tasks.notify_invalidated_positions_task")
+@typed_shared_task(
+    name="apps.simulated_trading.application.tasks.notify_invalidated_positions_task"
+)
 def notify_invalidated_positions_task_alias() -> dict[str, Any]:
     """Backwards-compatible alias for beat entries using dotted task paths."""
     return notify_invalidated_positions_task.run()

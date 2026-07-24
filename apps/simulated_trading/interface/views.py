@@ -948,6 +948,7 @@ class ManualTradeAPIView(APIView):
                     self.account_repo,
                     self.position_repo,
                     self.trade_repo,
+                    simulated_interface_services.get_fee_config_repository(),
                     signal_repo=signal_repo,
                 )
                 trade = buy_use_case.execute(
@@ -964,7 +965,10 @@ class ManualTradeAPIView(APIView):
 
             else:  # sell
                 sell_use_case = ExecuteSellOrderUseCase(
-                    self.account_repo, self.position_repo, self.trade_repo
+                    self.account_repo,
+                    self.position_repo,
+                    self.trade_repo,
+                    simulated_interface_services.get_fee_config_repository(),
                 )
                 trade = sell_use_case.execute(
                     account_id=account_id,
