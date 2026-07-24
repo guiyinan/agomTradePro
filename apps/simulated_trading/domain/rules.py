@@ -101,8 +101,8 @@ class TradingConstraintRule:
         asset_code: str,
         quantity: float,
         price: float,
-        current_position_value: float = 0.0,
-        fee_config: FeeConfig | None = None,
+        current_position_value: float,
+        fee_config: FeeConfig,
     ) -> tuple[bool, str]:
         """
         验证买入订单
@@ -130,13 +130,10 @@ class TradingConstraintRule:
             return False, "买入价格必须大于0"
 
         amount = quantity * price
-        if fee_config is None:
-            total_fee = amount * account.commission_rate + amount * account.slippage_rate
-        else:
-            total_fee = fee_config.calculate_buy_fee(
-                amount,
-                is_shanghai=asset_code.upper().endswith(".SH"),
-            )["total_fee"]
+        total_fee = fee_config.calculate_buy_fee(
+            amount,
+            is_shanghai=asset_code.upper().endswith(".SH"),
+        )["total_fee"]
         total_needed = amount + total_fee
 
         # 4. 检查现金是否足够

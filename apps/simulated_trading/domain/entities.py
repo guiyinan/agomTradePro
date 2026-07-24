@@ -6,6 +6,7 @@
 - Domain层纯净：只使用Python标准库
 - 所有金融逻辑在此层定义
 """
+
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
@@ -13,22 +14,25 @@ from enum import Enum
 
 class AccountType(Enum):
     """账户类型"""
-    REAL = "real"           # 真实账户(未来扩展)
-    SIMULATED = "simulated" # 模拟账户
+
+    REAL = "real"  # 真实账户(未来扩展)
+    SIMULATED = "simulated"  # 模拟账户
 
 
 class TradeAction(Enum):
     """交易动作"""
+
     BUY = "buy"
     SELL = "sell"
 
 
 class OrderStatus(Enum):
     """订单状态"""
-    PENDING = "pending"     # 待执行
-    EXECUTED = "executed"   # 已执行
-    CANCELLED = "cancelled" # 已取消
-    FAILED = "failed"       # 执行失败
+
+    PENDING = "pending"  # 待执行
+    EXECUTED = "executed"  # 已执行
+    CANCELLED = "cancelled"  # 已取消
+    FAILED = "failed"  # 执行失败
 
 
 @dataclass(frozen=True)
@@ -38,29 +42,30 @@ class FeeConfig:
 
     支持按资产类型分别配置费率，遵循中国A股市场规则
     """
+
     config_id: int
-    config_name: str                    # 配置名称(如"标准费率"、"VIP费率")
-    asset_type: str                     # 资产类型(equity/fund/bond/all)
+    config_name: str  # 配置名称(如"标准费率"、"VIP费率")
+    asset_type: str  # 资产类型(equity/fund/bond/all)
+    min_commission: float  # 最低手续费(元,由费率配置显式提供)
 
     # 手续费(双向)
-    commission_rate_buy: float = 0.0003    # 买入手续费率(默认0.03%)
-    commission_rate_sell: float = 0.0003   # 卖出手续费率(默认0.03%)
-    min_commission: float = 5.0            # 最低手续费(元,不足按此收取)
+    commission_rate_buy: float = 0.0003  # 买入手续费率(默认0.03%)
+    commission_rate_sell: float = 0.0003  # 卖出手续费率(默认0.03%)
 
     # 印花税(仅卖出,A股特有)
-    stamp_duty_rate: float = 0.001         # 印花税率(卖出,默认0.1%)
+    stamp_duty_rate: float = 0.001  # 印花税率(卖出,默认0.1%)
 
     # 过户费(双向,仅上海市场股票)
-    transfer_fee_rate: float = 0.00002     # 过户费率(默认0.002%)
-    min_transfer_fee: float = 0.0          # 最低过户费(元)
+    transfer_fee_rate: float = 0.00002  # 过户费率(默认0.002%)
+    min_transfer_fee: float = 0.0  # 最低过户费(元)
 
     # 滑点(模拟市场冲击)
-    slippage_rate: float = 0.001           # 滑点率(默认0.1%)
+    slippage_rate: float = 0.001  # 滑点率(默认0.1%)
 
     # 其他配置
-    is_default: bool = False               # 是否为默认配置
-    is_active: bool = True                 # 是否启用
-    description: str = ""                  # 配置说明
+    is_default: bool = False  # 是否为默认配置
+    is_active: bool = True  # 是否启用
+    description: str = ""  # 配置说明
 
     def calculate_buy_fee(self, amount: float, is_shanghai: bool = False) -> dict[str, float]:
         """
@@ -92,11 +97,11 @@ class FeeConfig:
         total_fee = commission + transfer_fee + slippage
 
         return {
-            'commission': round(commission, 2),
-            'transfer_fee': round(transfer_fee, 2),
-            'stamp_duty': 0.0,  # 买入无印花税
-            'slippage': round(slippage, 2),
-            'total_fee': round(total_fee, 2)
+            "commission": round(commission, 2),
+            "transfer_fee": round(transfer_fee, 2),
+            "stamp_duty": 0.0,  # 买入无印花税
+            "slippage": round(slippage, 2),
+            "total_fee": round(total_fee, 2),
         }
 
     def calculate_sell_fee(self, amount: float, is_shanghai: bool = False) -> dict[str, float]:
@@ -135,37 +140,38 @@ class FeeConfig:
         total_fee = commission + stamp_duty + transfer_fee + slippage
 
         return {
-            'commission': round(commission, 2),
-            'stamp_duty': round(stamp_duty, 2),
-            'transfer_fee': round(transfer_fee, 2),
-            'slippage': round(slippage, 2),
-            'total_fee': round(total_fee, 2)
+            "commission": round(commission, 2),
+            "stamp_duty": round(stamp_duty, 2),
+            "transfer_fee": round(transfer_fee, 2),
+            "slippage": round(slippage, 2),
+            "total_fee": round(total_fee, 2),
         }
 
 
 @dataclass(frozen=True)
 class SimulatedAccount:
     """模拟账户实体"""
+
     account_id: int
     account_name: str
     account_type: AccountType
 
     # 资金信息
-    initial_capital: float          # 初始资金(元)
-    current_cash: float             # 当前现金(元)
-    current_market_value: float     # 当前持仓市值(元)
-    total_value: float              # 总资产 = 现金 + 持仓市值
+    initial_capital: float  # 初始资金(元)
+    current_cash: float  # 当前现金(元)
+    current_market_value: float  # 当前持仓市值(元)
+    total_value: float  # 总资产 = 现金 + 持仓市值
 
     # 绩效指标
-    total_return: float = 0.0       # 总收益率(%)
-    annual_return: float = 0.0      # 年化收益率(%)
-    max_drawdown: float = 0.0       # 最大回撤(%)
-    sharpe_ratio: float = 0.0       # 夏普比率
-    win_rate: float = 0.0           # 胜率(%)
+    total_return: float = 0.0  # 总收益率(%)
+    annual_return: float = 0.0  # 年化收益率(%)
+    max_drawdown: float = 0.0  # 最大回撤(%)
+    sharpe_ratio: float = 0.0  # 夏普比率
+    win_rate: float = 0.0  # 胜率(%)
 
     # 交易统计
-    total_trades: int = 0           # 总交易次数
-    winning_trades: int = 0         # 盈利交易次数
+    total_trades: int = 0  # 总交易次数
+    winning_trades: int = 0  # 盈利交易次数
 
     # 时间信息
     start_date: date = field(default_factory=date.today)
@@ -174,13 +180,13 @@ class SimulatedAccount:
 
     # 策略配置
     auto_trading_enabled: bool = True  # 是否启用自动交易
-    max_position_pct: float = 20.0     # 单个资产最大持仓比例(%)
+    max_position_pct: float = 20.0  # 单个资产最大持仓比例(%)
     max_total_position_pct: float = 95.0  # 总持仓比例上限(%)
     stop_loss_pct: float | None = None  # 止损比例(%)
 
     # 费用配置
-    commission_rate: float = 0.0003    # 手续费率(0.03%)
-    slippage_rate: float = 0.001       # 滑点率(0.1%)
+    commission_rate: float = 0.0003  # 手续费率(0.03%)
+    slippage_rate: float = 0.001  # 滑点率(0.1%)
 
     def available_cash_for_buy(self) -> float:
         """可用于买入的现金"""
@@ -197,26 +203,27 @@ class Position:
 
     包含基本的持仓信息和证伪条件跟踪。
     """
+
     account_id: int
     asset_code: str
     asset_name: str
     asset_type: str  # equity/fund/bond
 
     # 持仓数量 (Decimal 支持非整数股份)
-    quantity: float             # 持仓数量(股/份)
-    available_quantity: float   # 可卖数量(T+1)
+    quantity: float  # 持仓数量(股/份)
+    available_quantity: float  # 可卖数量(T+1)
 
     # 成本信息
-    avg_cost: float             # 平均成本(元)
-    total_cost: float           # 总成本 = quantity * avg_cost
+    avg_cost: float  # 平均成本(元)
+    total_cost: float  # 总成本 = quantity * avg_cost
 
     # 当前信息
-    current_price: float        # 当前价格(元)
-    market_value: float         # 市值 = quantity * current_price
+    current_price: float  # 当前价格(元)
+    market_value: float  # 市值 = quantity * current_price
 
     # 盈亏信息
-    unrealized_pnl: float       # 浮动盈亏(元)
-    unrealized_pnl_pct: float   # 浮动盈亏率(%)
+    unrealized_pnl: float  # 浮动盈亏(元)
+    unrealized_pnl_pct: float  # 浮动盈亏率(%)
 
     # 时间信息
     first_buy_date: date
@@ -228,12 +235,12 @@ class Position:
 
     # ==================== 证伪条件跟踪 ====================
     # 从信号继承的证伪条件（副本，即使信号被删除也不影响）
-    invalidation_rule_json: str | None = None      # JSON 格式的证伪规则
-    invalidation_description: str | None = None    # 人类可读的证伪描述
+    invalidation_rule_json: str | None = None  # JSON 格式的证伪规则
+    invalidation_description: str | None = None  # 人类可读的证伪描述
 
     # 证伪状态
-    is_invalidated: bool = False                     # 是否已被证伪
-    invalidation_reason: str | None = None         # 证伪原因
+    is_invalidated: bool = False  # 是否已被证伪
+    invalidation_reason: str | None = None  # 证伪原因
     invalidation_checked_at: datetime | None = None  # 最后检查时间
     # =====================================================
 
@@ -251,6 +258,7 @@ class Position:
 @dataclass
 class SimulatedTrade:
     """模拟交易记录"""
+
     trade_id: int
     account_id: int
 
@@ -260,27 +268,27 @@ class SimulatedTrade:
     asset_type: str
 
     # 交易信息
-    action: TradeAction         # BUY/SELL
-    quantity: float             # 交易数量
-    price: float                # 成交价格(元)
-    amount: float               # 成交金额(元)
+    action: TradeAction  # BUY/SELL
+    quantity: float  # 交易数量
+    price: float  # 成交价格(元)
+    amount: float  # 成交金额(元)
 
     # 时间信息(必须字段,无默认值)
-    order_date: date            # 订单日期
-    execution_date: date        # 执行日期
-    execution_time: datetime    # 执行时间
+    order_date: date  # 订单日期
+    execution_date: date  # 执行日期
+    execution_time: datetime  # 执行时间
 
     # 费用(有默认值)
-    commission: float = 0.0     # 手续费(元)
-    slippage: float = 0.0       # 滑点损失(元)
-    total_cost: float = 0.0     # 总成本 = amount + commission + slippage
+    commission: float = 0.0  # 手续费(元)
+    slippage: float = 0.0  # 滑点损失(元)
+    total_cost: float = 0.0  # 总成本 = amount + commission + slippage
 
     # 盈亏(仅SELL时有)
-    realized_pnl: float | None = None      # 已实现盈亏(元)
+    realized_pnl: float | None = None  # 已实现盈亏(元)
     realized_pnl_pct: float | None = None  # 已实现盈亏率(%)
 
     # 交易原因
-    reason: str = ""            # 交易原因(如"信号触发"、"信号失效")
+    reason: str = ""  # 交易原因(如"信号触发"、"信号失效")
     signal_id: int | None = None
 
     # 状态
@@ -291,14 +299,16 @@ class SimulatedTrade:
 # 账户业绩与估值 Domain Entities
 # ============================================================================
 
+
 class CashFlowType(Enum):
     """统一账户外部现金流类型"""
+
     INITIAL_CAPITAL = "initial_capital"  # 初始入金
-    DEPOSIT = "deposit"                  # 追加入金
-    WITHDRAWAL = "withdrawal"            # 取款出金
-    DIVIDEND = "dividend"               # 股息/分红
-    INTEREST = "interest"               # 利息
-    ADJUSTMENT = "adjustment"           # 手工调整
+    DEPOSIT = "deposit"  # 追加入金
+    WITHDRAWAL = "withdrawal"  # 取款出金
+    DIVIDEND = "dividend"  # 股息/分红
+    INTEREST = "interest"  # 利息
+    ADJUSTMENT = "adjustment"  # 手工调整
 
 
 @dataclass(frozen=True)
@@ -309,10 +319,11 @@ class BenchmarkComponent:
     一个账户可配置多个基准成分（加权组合基准），
     权重之和必须大于 0 并由应用层归一化到 1。
     """
+
     account_id: int
-    benchmark_code: str      # 指数代码，如 "000300.SH"
-    weight: float            # 权重（归一化后，如 0.6）
-    display_name: str        # 显示名称，如 "沪深300"
+    benchmark_code: str  # 指数代码，如 "000300.SH"
+    weight: float  # 权重（归一化后，如 0.6）
+    display_name: str  # 显示名称，如 "沪深300"
     sort_order: int = 0
     is_active: bool = True
 
@@ -325,13 +336,14 @@ class UnifiedAccountCashFlow:
     真实盘从 CapitalFlowModel 回填并持续镜像；
     模拟盘默认写入一笔 initial_capital 初始入金。
     """
+
     flow_id: int
     account_id: int
     flow_type: CashFlowType
-    amount: float            # 正数=入金，负数=出金
+    amount: float  # 正数=入金，负数=出金
     flow_date: date
-    source_app: str          # 来源 app，如 "account" 或 "simulated_trading"
-    source_id: str = ""      # 来源记录 ID（如 CapitalFlowModel.id）
+    source_app: str  # 来源 app，如 "account" 或 "simulated_trading"
+    source_id: str = ""  # 来源记录 ID（如 CapitalFlowModel.id）
     notes: str = ""
 
 
@@ -342,6 +354,7 @@ class ValuationRow:
 
     表示某日持仓中一只资产的估值快照。
     """
+
     asset_code: str
     asset_name: str
     asset_type: str
@@ -349,7 +362,7 @@ class ValuationRow:
     avg_cost: float
     close_price: float
     market_value: float
-    weight: float            # 占总仓位市值的比例
+    weight: float  # 占总仓位市值的比例
     unrealized_pnl: float
     unrealized_pnl_pct: float
 
@@ -357,6 +370,7 @@ class ValuationRow:
 @dataclass(frozen=True)
 class AccountValuationSummary:
     """账户整体估值摘要"""
+
     total_value: float
     cash: float
     market_value: float
@@ -367,6 +381,7 @@ class AccountValuationSummary:
 @dataclass(frozen=True)
 class CoverageInfo:
     """数据覆盖范围说明"""
+
     data_start: date | None
     data_end: date | None
     warnings: list[str]
@@ -379,6 +394,7 @@ class ValuationSnapshot:
 
     对应 GET /accounts/{id}/valuation-snapshot/?as_of_date=...
     """
+
     as_of_date: date
     account_summary: AccountValuationSummary
     rows: list[ValuationRow]
@@ -392,18 +408,20 @@ class ValuationTimelinePoint:
 
     对应 valuation-timeline 响应中的 points 数组元素。
     """
+
     date: date
     cash: float
     market_value: float
     total_value: float
-    net_value: float          # 单位净值（以初始净值=1 为基准）
-    twr_cumulative: float     # 链式 TWR 累计收益（%）
-    drawdown: float           # 当前回撤（%，正数表示回撤幅度）
+    net_value: float  # 单位净值（以初始净值=1 为基准）
+    twr_cumulative: float  # 链式 TWR 累计收益（%）
+    drawdown: float  # 当前回撤（%，正数表示回撤幅度）
 
 
 @dataclass(frozen=True)
 class PerformancePeriod:
     """业绩报告统计区间"""
+
     start_date: date
     end_date: date
     days: int
@@ -412,8 +430,9 @@ class PerformancePeriod:
 @dataclass(frozen=True)
 class PerformanceReturns:
     """收益指标"""
-    twr: float | None             # 时间加权收益率（%）
-    mwr: float | None             # 资金加权收益率/XIRR（%）
+
+    twr: float | None  # 时间加权收益率（%）
+    mwr: float | None  # 资金加权收益率/XIRR（%）
     annualized_twr: float | None  # 年化 TWR（%）
     annualized_mwr: float | None  # 年化 MWR（%）
 
@@ -421,14 +440,16 @@ class PerformanceReturns:
 @dataclass(frozen=True)
 class PerformanceRisk:
     """风险指标"""
-    volatility: float | None           # 年化波动率（%）
+
+    volatility: float | None  # 年化波动率（%）
     downside_volatility: float | None  # 下行波动率（%）
-    max_drawdown: float | None         # 最大回撤（%）
+    max_drawdown: float | None  # 最大回撤（%）
 
 
 @dataclass(frozen=True)
 class PerformanceRatios:
     """风险调整后收益比率"""
+
     sharpe: float | None
     sortino: float | None
     calmar: float | None
@@ -438,19 +459,21 @@ class PerformanceRatios:
 @dataclass(frozen=True)
 class BenchmarkStats:
     """相对基准指标"""
-    benchmark_return: float | None   # 基准收益率（%）
-    excess_return: float | None      # 超额收益（%）
+
+    benchmark_return: float | None  # 基准收益率（%）
+    excess_return: float | None  # 超额收益（%）
     beta: float | None
     alpha: float | None
-    tracking_error: float | None     # 跟踪误差（%）
+    tracking_error: float | None  # 跟踪误差（%）
     information_ratio: float | None  # 信息比率
 
 
 @dataclass(frozen=True)
 class TradeStats:
     """交易统计（基于已闭合交易）"""
-    win_rate: float | None      # 胜率（%）
-    profit_factor: float | None # 盈利因子
+
+    win_rate: float | None  # 胜率（%）
+    profit_factor: float | None  # 盈利因子
     total_closed_trades: int
 
 
@@ -461,6 +484,7 @@ class PerformanceReport:
 
     对应 GET /accounts/{id}/performance-report/?start_date=...&end_date=...
     """
+
     period: PerformancePeriod
     returns: PerformanceReturns
     risk: PerformanceRisk

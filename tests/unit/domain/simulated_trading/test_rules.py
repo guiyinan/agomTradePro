@@ -3,10 +3,33 @@
 
 测试PositionSizingRule和TradingConstraintRule
 """
+
 from datetime import date
 
-from apps.simulated_trading.domain.entities import AccountType, Position, SimulatedAccount
+from apps.simulated_trading.domain.entities import (
+    AccountType,
+    FeeConfig,
+    Position,
+    SimulatedAccount,
+)
 from apps.simulated_trading.domain.rules import PositionSizingRule, TradingConstraintRule
+
+
+def _fee_config(*, minimum: float = 5.0) -> FeeConfig:
+    """Build an explicit fee configuration for order validation."""
+
+    return FeeConfig(
+        config_id=1,
+        config_name="测试费率",
+        asset_type="equity",
+        min_commission=minimum,
+        commission_rate_buy=0.0003,
+        commission_rate_sell=0.0003,
+        stamp_duty_rate=0.001,
+        transfer_fee_rate=0.00002,
+        min_transfer_fee=0.0,
+        slippage_rate=0.001,
+    )
 
 
 class TestPositionSizingRule:
@@ -23,15 +46,12 @@ class TestPositionSizingRule:
             current_market_value=0.0,
             total_value=100000.0,
             max_position_pct=20.0,
-            max_total_position_pct=95.0
+            max_total_position_pct=95.0,
         )
 
         # 高评分资产(90分)
         quantity = PositionSizingRule.calculate_buy_quantity(
-            account=account,
-            asset_price=10.0,
-            asset_score=90.0,
-            existing_positions=[]
+            account=account, asset_price=10.0, asset_score=90.0, existing_positions=[]
         )
 
         # 预期: 100000 * 0.2 * 0.9 / 10 = 1800, 向下取整到100的倍数 = 1800
@@ -48,15 +68,12 @@ class TestPositionSizingRule:
             current_market_value=0.0,
             total_value=100000.0,
             max_position_pct=20.0,
-            max_total_position_pct=95.0
+            max_total_position_pct=95.0,
         )
 
         # 低评分资产(65分)
         quantity = PositionSizingRule.calculate_buy_quantity(
-            account=account,
-            asset_price=10.0,
-            asset_score=65.0,
-            existing_positions=[]
+            account=account, asset_price=10.0, asset_score=65.0, existing_positions=[]
         )
 
         # 预期: 100000 * 0.2 * 0.65 / 10 = 1300, 取整到100的倍数 = 1300
@@ -72,15 +89,12 @@ class TestPositionSizingRule:
             current_cash=10000.0,
             current_market_value=0.0,
             total_value=10000.0,
-            max_position_pct=20.0
+            max_position_pct=20.0,
         )
 
         # 高价资产(500元一股),评分80
         quantity = PositionSizingRule.calculate_buy_quantity(
-            account=account,
-            asset_price=500.0,
-            asset_score=80.0,
-            existing_positions=[]
+            account=account, asset_price=500.0, asset_score=80.0, existing_positions=[]
         )
 
         # 预期: 10000 * 0.2 * 0.8 / 500 = 3.2, 取整到100的倍数 = 0
@@ -102,14 +116,11 @@ class TestPositionSizingRule:
             unrealized_pnl=2000.0,
             unrealized_pnl_pct=20.0,
             first_buy_date=date.today(),
-            last_update_date=date.today()
+            last_update_date=date.today(),
         )
 
         should_sell = PositionSizingRule.should_sell_position(
-            position=position,
-            signal_valid=False,  # 信号失效
-            regime_match=True,
-            stop_loss_pct=None
+            position=position, signal_valid=False, regime_match=True, stop_loss_pct=None  # 信号失效
         )
 
         assert should_sell is True
@@ -130,14 +141,14 @@ class TestPositionSizingRule:
             unrealized_pnl=2000.0,
             unrealized_pnl_pct=20.0,
             first_buy_date=date.today(),
-            last_update_date=date.today()
+            last_update_date=date.today(),
         )
 
         should_sell = PositionSizingRule.should_sell_position(
             position=position,
             signal_valid=True,
             regime_match=False,  # Regime不匹配
-            stop_loss_pct=None
+            stop_loss_pct=None,
         )
 
         assert should_sell is True
@@ -158,14 +169,11 @@ class TestPositionSizingRule:
             unrealized_pnl=-1500.0,
             unrealized_pnl_pct=-15.0,
             first_buy_date=date.today(),
-            last_update_date=date.today()
+            last_update_date=date.today(),
         )
 
         should_sell = PositionSizingRule.should_sell_position(
-            position=position,
-            signal_valid=True,
-            regime_match=True,
-            stop_loss_pct=10.0  # 10%止损
+            position=position, signal_valid=True, regime_match=True, stop_loss_pct=10.0  # 10%止损
         )
 
         # 浮亏15%,超过10%止损线,应该卖出
@@ -187,14 +195,11 @@ class TestPositionSizingRule:
             unrealized_pnl=2000.0,
             unrealized_pnl_pct=20.0,
             first_buy_date=date.today(),
-            last_update_date=date.today()
+            last_update_date=date.today(),
         )
 
         should_sell = PositionSizingRule.should_sell_position(
-            position=position,
-            signal_valid=True,
-            regime_match=True,
-            stop_loss_pct=10.0
+            position=position, signal_valid=True, regime_match=True, stop_loss_pct=10.0
         )
 
         assert should_sell is False
@@ -216,14 +221,16 @@ class TestTradingConstraintRule:
             auto_trading_enabled=True,
             is_active=True,
             commission_rate=0.0003,
-            slippage_rate=0.001
+            slippage_rate=0.001,
         )
 
         valid, reason = TradingConstraintRule.validate_buy_order(
             account=account,
             asset_code="000001.SZ",
             quantity=1000,
-            price=10.0
+            price=10.0,
+            current_position_value=0.0,
+            fee_config=_fee_config(),
         )
 
         assert valid is True
@@ -240,14 +247,16 @@ class TestTradingConstraintRule:
             current_market_value=0.0,
             total_value=100000.0,
             auto_trading_enabled=False,  # 自动交易未启用
-            is_active=True
+            is_active=True,
         )
 
         valid, reason = TradingConstraintRule.validate_buy_order(
             account=account,
             asset_code="000001.SZ",
             quantity=1000,
-            price=10.0
+            price=10.0,
+            current_position_value=0.0,
+            fee_config=_fee_config(),
         )
 
         assert valid is False
@@ -266,14 +275,16 @@ class TestTradingConstraintRule:
             auto_trading_enabled=True,
             is_active=True,
             commission_rate=0.0003,
-            slippage_rate=0.001
+            slippage_rate=0.001,
         )
 
         valid, reason = TradingConstraintRule.validate_buy_order(
             account=account,
             asset_code="000001.SZ",
             quantity=1000,
-            price=10.0  # 需要10015元,但只有5000元
+            price=10.0,  # 需要10015元,但只有5000元
+            current_position_value=0.0,
+            fee_config=_fee_config(),
         )
 
         assert valid is False
@@ -290,14 +301,16 @@ class TestTradingConstraintRule:
             current_market_value=0.0,
             total_value=100000.0,
             auto_trading_enabled=True,
-            is_active=True
+            is_active=True,
         )
 
         valid, reason = TradingConstraintRule.validate_buy_order(
             account=account,
             asset_code="000001.SZ",
             quantity=150,  # 不是100的倍数
-            price=10.0
+            price=10.0,
+            current_position_value=0.0,
+            fee_config=_fee_config(),
         )
 
         assert valid is False
@@ -319,13 +332,10 @@ class TestTradingConstraintRule:
             unrealized_pnl=2000.0,
             unrealized_pnl_pct=20.0,
             first_buy_date=date.today(),
-            last_update_date=date.today()
+            last_update_date=date.today(),
         )
 
-        valid, reason = TradingConstraintRule.validate_sell_order(
-            position=position,
-            quantity=500
-        )
+        valid, reason = TradingConstraintRule.validate_sell_order(position=position, quantity=500)
 
         assert valid is True
         assert reason == ""
@@ -346,12 +356,11 @@ class TestTradingConstraintRule:
             unrealized_pnl=2000.0,
             unrealized_pnl_pct=20.0,
             first_buy_date=date.today(),
-            last_update_date=date.today()
+            last_update_date=date.today(),
         )
 
         valid, reason = TradingConstraintRule.validate_sell_order(
-            position=position,
-            quantity=1000  # 想卖1000,但只有500可卖
+            position=position, quantity=1000  # 想卖1000,但只有500可卖
         )
 
         assert valid is False

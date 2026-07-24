@@ -11,6 +11,7 @@ Infrastructure层:
 - 支持多个模拟仓（simulated）
 - 通过 user 外键关联用户
 """
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -32,7 +33,7 @@ class SimulatedAccountModel(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='investment_accounts',
+        related_name="investment_accounts",
         verbose_name="用户",
         db_index=True,
         null=True,
@@ -48,13 +49,15 @@ class SimulatedAccountModel(models.Model):
             ("simulated", "模拟仓"),
         ],
         default="simulated",
-        db_index=True
+        db_index=True,
     )
 
     # 资金信息
     initial_capital = models.DecimalField("初始资金(元)", max_digits=15, decimal_places=2)
     current_cash = models.DecimalField("当前现金(元)", max_digits=15, decimal_places=2)
-    current_market_value = models.DecimalField("当前持仓市值(元)", max_digits=15, decimal_places=2, default=0)
+    current_market_value = models.DecimalField(
+        "当前持仓市值(元)", max_digits=15, decimal_places=2, default=0
+    )
     total_value = models.DecimalField("总资产(元)", max_digits=15, decimal_places=2)
 
     # 绩效指标
@@ -125,19 +128,13 @@ class PositionModel(models.Model):
         SimulatedAccountModel,
         on_delete=models.CASCADE,
         related_name="positions",
-        verbose_name="所属账户"
+        verbose_name="所属账户",
     )
 
     asset_code = models.CharField("资产代码", max_length=20, db_index=True)
     asset_name = models.CharField("资产名称", max_length=100)
     asset_type = models.CharField(
-        "资产类型",
-        max_length=20,
-        choices=[
-            ("equity", "股票"),
-            ("fund", "基金"),
-            ("bond", "债券")
-        ]
+        "资产类型", max_length=20, choices=[("equity", "股票"), ("fund", "基金"), ("bond", "债券")]
     )
 
     # 持仓数量 (DecimalField 支持非整数股份，兼容旧账本浮点 shares)
@@ -167,34 +164,19 @@ class PositionModel(models.Model):
     # ==================== 证伪条件跟踪 ====================
     # 从信号继承的证伪条件（副本，即使信号被删除也不影响）
     invalidation_rule_json = models.JSONField(
-        "证伪规则",
-        null=True,
-        blank=True,
-        help_text="从信号继承的结构化证伪规则"
+        "证伪规则", null=True, blank=True, help_text="从信号继承的结构化证伪规则"
     )
     invalidation_description = models.TextField(
-        "证伪描述",
-        blank=True,
-        help_text="人类可读的证伪条件描述"
+        "证伪描述", blank=True, help_text="人类可读的证伪条件描述"
     )
 
     # 证伪状态
     is_invalidated = models.BooleanField(
-        "是否已证伪",
-        default=False,
-        db_index=True,
-        help_text="证伪条件已满足，建议平仓"
+        "是否已证伪", default=False, db_index=True, help_text="证伪条件已满足，建议平仓"
     )
-    invalidation_reason = models.TextField(
-        "证伪原因",
-        blank=True,
-        help_text="证伪原因说明"
-    )
+    invalidation_reason = models.TextField("证伪原因", blank=True, help_text="证伪原因说明")
     invalidation_checked_at = models.DateTimeField(
-        "最后检查时间",
-        null=True,
-        blank=True,
-        help_text="最后一次检查证伪条件的时间"
+        "最后检查时间", null=True, blank=True, help_text="最后一次检查证伪条件的时间"
     )
     # =====================================================
 
@@ -226,7 +208,7 @@ class SimulatedTradeModel(models.Model):
         SimulatedAccountModel,
         on_delete=models.CASCADE,
         related_name="trades",
-        verbose_name="所属账户"
+        verbose_name="所属账户",
     )
 
     # 资产信息
@@ -236,9 +218,7 @@ class SimulatedTradeModel(models.Model):
 
     # 交易信息
     action = models.CharField(
-        "交易动作",
-        max_length=10,
-        choices=[("buy", "买入"), ("sell", "卖出")]
+        "交易动作", max_length=10, choices=[("buy", "买入"), ("sell", "卖出")]
     )
     quantity = models.DecimalField("交易数量", max_digits=20, decimal_places=6)
     price = models.DecimalField("成交价格(元)", max_digits=10, decimal_places=4)
@@ -250,7 +230,9 @@ class SimulatedTradeModel(models.Model):
     total_cost = models.DecimalField("总成本(元)", max_digits=15, decimal_places=2)
 
     # 盈亏(仅SELL时有)
-    realized_pnl = models.DecimalField("已实现盈亏(元)", max_digits=15, decimal_places=2, null=True, blank=True)
+    realized_pnl = models.DecimalField(
+        "已实现盈亏(元)", max_digits=15, decimal_places=2, null=True, blank=True
+    )
     realized_pnl_pct = models.FloatField("已实现盈亏率(%)", null=True, blank=True)
 
     # 交易原因
@@ -270,9 +252,9 @@ class SimulatedTradeModel(models.Model):
             ("pending", "待执行"),
             ("executed", "已执行"),
             ("cancelled", "已取消"),
-            ("failed", "执行失败")
+            ("failed", "执行失败"),
         ],
-        default="pending"
+        default="pending",
     )
 
     # 元数据
@@ -304,22 +286,19 @@ class FeeConfigModel(models.Model):
     asset_type = models.CharField(
         "资产类型",
         max_length=20,
-        choices=[
-            ("all", "通用"),
-            ("equity", "股票"),
-            ("fund", "基金"),
-            ("bond", "债券")
-        ],
-        default="all"
+        choices=[("all", "通用"), ("equity", "股票"), ("fund", "基金"), ("bond", "债券")],
+        default="all",
     )
 
     # 手续费(双向)
     commission_rate_buy = models.FloatField("买入手续费率", default=0.0003, help_text="默认0.03%")
     commission_rate_sell = models.FloatField("卖出手续费率", default=0.0003, help_text="默认0.03%")
-    min_commission = models.FloatField("最低手续费(元)", default=5.0, help_text="不足按此收取")
+    min_commission = models.FloatField("最低手续费(元)", help_text="不足按此收取")
 
     # 印花税(仅卖出,A股特有)
-    stamp_duty_rate = models.FloatField("印花税率(卖出)", default=0.001, help_text="默认0.1%,仅股票")
+    stamp_duty_rate = models.FloatField(
+        "印花税率(卖出)", default=0.001, help_text="默认0.1%,仅股票"
+    )
 
     # 过户费(双向,仅上海市场股票)
     transfer_fee_rate = models.FloatField("过户费率", default=0.00002, help_text="默认0.002%")
@@ -355,8 +334,7 @@ class FeeConfigModel(models.Model):
         if self.is_default:
             # 将其他默认配置设为非默认
             FeeConfigModel._default_manager.filter(
-                asset_type=self.asset_type,
-                is_default=True
+                asset_type=self.asset_type, is_default=True
             ).exclude(id=self.id).update(is_default=False)
         super().save(*args, **kwargs)
 
@@ -402,7 +380,9 @@ class DailyInspectionReportModel(models.Model):
     policy_gear = models.CharField("政策档位", max_length=8, blank=True, default="")
     total_value = models.DecimalField("账户总资产", max_digits=15, decimal_places=2, default=0)
     current_cash = models.DecimalField("账户现金", max_digits=15, decimal_places=2, default=0)
-    current_market_value = models.DecimalField("持仓市值", max_digits=15, decimal_places=2, default=0)
+    current_market_value = models.DecimalField(
+        "持仓市值", max_digits=15, decimal_places=2, default=0
+    )
     checks = models.JSONField("巡检明细", default=list, blank=True)
     summary = models.JSONField("巡检汇总", default=dict, blank=True)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
@@ -472,11 +452,17 @@ class DailyNetValueModel(models.Model):
     )
 
     record_date = models.DateField("记录日期", db_index=True)
-    net_value = models.DecimalField("净值", max_digits=15, decimal_places=4, help_text="账户总资产（元）")
+    net_value = models.DecimalField(
+        "净值", max_digits=15, decimal_places=4, help_text="账户总资产（元）"
+    )
     cash = models.DecimalField("现金", max_digits=15, decimal_places=2, help_text="可用现金（元）")
-    market_value = models.DecimalField("持仓市值", max_digits=15, decimal_places=2, help_text="持仓市值（元）")
+    market_value = models.DecimalField(
+        "持仓市值", max_digits=15, decimal_places=2, help_text="持仓市值（元）"
+    )
     daily_return = models.FloatField("日收益率(%)", default=0.0, help_text="相对于前一日的收益率")
-    cumulative_return = models.FloatField("累计收益率(%)", default=0.0, help_text="相对于初始资金的收益率")
+    cumulative_return = models.FloatField(
+        "累计收益率(%)", default=0.0, help_text="相对于初始资金的收益率"
+    )
     drawdown = models.FloatField("回撤(%)", default=0.0, help_text="相对于历史最高点的回撤")
 
     # 统计信息
@@ -1074,10 +1060,16 @@ class UnifiedAccountCashFlowModel(models.Model):
         verbose_name="所属账户",
         db_index=True,
     )
-    flow_type = models.CharField("现金流类型", max_length=20, choices=FLOW_TYPE_CHOICES, db_index=True)
-    amount = models.DecimalField("金额（元）", max_digits=15, decimal_places=2, help_text="正数=入金，负数=出金")
+    flow_type = models.CharField(
+        "现金流类型", max_length=20, choices=FLOW_TYPE_CHOICES, db_index=True
+    )
+    amount = models.DecimalField(
+        "金额（元）", max_digits=15, decimal_places=2, help_text="正数=入金，负数=出金"
+    )
     flow_date = models.DateField("发生日期", db_index=True)
-    source_app = models.CharField("来源应用", max_length=50, help_text="account 或 simulated_trading")
+    source_app = models.CharField(
+        "来源应用", max_length=50, help_text="account 或 simulated_trading"
+    )
     source_id = models.CharField("来源记录ID", max_length=50, blank=True, default="")
     notes = models.CharField("备注", max_length=500, blank=True, default="")
 
@@ -1134,7 +1126,9 @@ class AccountPositionValuationSnapshotModel(models.Model):
     close_price = models.DecimalField("收盘价（元）", max_digits=10, decimal_places=4, default=0)
     market_value = models.DecimalField("市值（元）", max_digits=15, decimal_places=2)
     weight = models.FloatField("仓位占比（市值/总市值）", default=0.0)
-    unrealized_pnl = models.DecimalField("浮动盈亏（元）", max_digits=15, decimal_places=2, default=0)
+    unrealized_pnl = models.DecimalField(
+        "浮动盈亏（元）", max_digits=15, decimal_places=2, default=0
+    )
     unrealized_pnl_pct = models.FloatField("浮动盈亏率（%）", default=0.0)
 
     created_at = models.DateTimeField("创建时间", auto_now_add=True)

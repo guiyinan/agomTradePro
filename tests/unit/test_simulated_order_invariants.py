@@ -1,6 +1,7 @@
 """Invariant coverage for simulated buy and sell execution."""
 
 from datetime import date
+from inspect import Parameter, signature
 
 import pytest
 
@@ -15,6 +16,7 @@ from apps.simulated_trading.domain.entities import (
     SimulatedAccount,
     SimulatedTrade,
 )
+from apps.simulated_trading.infrastructure.models import FeeConfigModel
 
 
 class AccountRepo:
@@ -127,6 +129,14 @@ def _position(*, invalidated: bool = False) -> Position:
         last_update_date=date(2026, 7, 1),
         is_invalidated=invalidated,
     )
+
+
+def test_minimum_commission_has_no_runtime_or_orm_default() -> None:
+    domain_parameter = signature(FeeConfig).parameters["min_commission"]
+    model_field = FeeConfigModel._meta.get_field("min_commission")
+
+    assert domain_parameter.default is Parameter.empty
+    assert model_field.has_default() is False
 
 
 def test_buy_uses_configured_minimum_commission_in_cash_validation() -> None:

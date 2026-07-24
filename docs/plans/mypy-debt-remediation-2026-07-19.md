@@ -1893,3 +1893,18 @@
 - broker execution agent auth 与 machine use cases mypy 清零；全仓基线从 `3831 errors / 650 files` 收紧为 `3823 errors / 648 files`，净减少 `8 errors / 2 files`。
 - Agent 认证/API 回归 `39 passed`，关键恢复与 fake-agent 流程回归 `14 passed`。
 - 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百三十六批
+
+- 按“买入资金真实性 × 交易费用配置唯一真源”收口模拟交易最低手续费校验。
+- 买入用例在资金校验前读取按资产类型生效的数据库费率配置，并以配置中的佣金、过户费和滑点计算完整所需现金；缺少生效配置时失败关闭。
+- Domain 买入约束不再允许省略 `FeeConfig` 后回退到账户级费率，关闭绕过最低手续费和其他交易费用的调用旁路。
+- `FeeConfig.min_commission` 与 ORM 新建字段取消 `5.0` 运行时默认值，Repository 创建费率配置时要求显式提供最低手续费；已有数据库值不变。
+- 新增迁移 `0019_require_explicit_min_commission`，确保后续通过 ORM/Admin 新建费率配置时必须明确填写最低手续费。
+- 新增非 5 元最低手续费资金不足回归，以及 Domain/ORM 均无最低手续费默认值的契约回归。
+
+## 第一百三十六批验证结果
+
+- 模拟交易订单、Domain 规则与买入信号追踪回归 `21 passed`。
+- 全仓 mypy debt ceiling 保持 `3823 errors / 648 files`，本批未新增类型债务。
+- Django migration state、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
