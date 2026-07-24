@@ -10,17 +10,12 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3858,
-    "files_with_errors": 653
+    "errors": 3846,
+    "files_with_errors": 652
   },
   "modules": {
     "apps/account/application/interface_services.py": {
       "unused-ignore": 1
-    },
-    "apps/account/application/manual_trade_sync.py": {
-      "no-any-return": 2,
-      "no-untyped-def": 4,
-      "union-attr": 6
     },
     "apps/account/application/stress_testing_use_cases.py": {
       "assignment": 1,

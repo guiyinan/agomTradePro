@@ -1828,3 +1828,17 @@
 - account volatility use cases、Domain services/interfaces 与 position repository mypy 清零；全仓基线从 `3869 errors / 654 files` 收紧为 `3858 errors / 653 files`，净减少 `11 errors / 1 file`。
 - 波动率领域服务、调整用例、真实 Repository、周期任务和账户 API 回归共 `49 passed`。
 - 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百三十二批
+
+- 按“手工券商成交导入影响面 × 跨账本一致性”收口 manual trade import 用例与持久化事务边界。
+- 每条导入记录在 Infrastructure 提供的原子上下文内串行锁定所属组合，统一持仓变更、旧账本投影、成交记录和建议匹配任一步失败时整行回滚。
+- 重复成交键检查移入组合锁和事务内部，关闭并发任务同时通过预检后重复变更持仓的窗口。
+- Application 动态 parser、账本兼容桥接和推荐匹配返回值在边界显式标注、收窄，不再把兼容构造器的动态类型传播到业务编排。
+- 新增成交记录写入失败回归，验证统一持仓、旧持仓和成交记录均不残留部分成功状态。
+
+## 第一百三十二批验证结果
+
+- account manual trade sync mypy 清零；全仓基线从 `3858 errors / 653 files` 收紧为 `3846 errors / 652 files`，净减少 `12 errors / 1 file`。
+- 手工成交导入、重复导入、建议匹配和失败回滚回归共 `6 passed`。
+- 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
