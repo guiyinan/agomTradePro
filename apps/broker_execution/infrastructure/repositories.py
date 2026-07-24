@@ -934,6 +934,26 @@ class DjangoBrokerExecutionRepository:
             if not target_rows:
                 raise BrokerExecutionNotFoundError("Active broker account binding does not exist")
 
+            target_account_ids = sorted({int(target["account_id"]) for target in target_rows})
+            locked_account_ids = set(
+                BrokerAccountBindingModel._default_manager.select_for_update()
+                .filter(account_id__in=target_account_ids, is_active=True)
+                .order_by("account_id")
+                .values_list("account_id", flat=True)
+            )
+            if locked_account_ids != set(target_account_ids):
+                raise BrokerExecutionConflictError(
+                    "Broker account bindings changed before the kill switch was applied"
+                )
+            replay = self._replay_or_conflict(
+                user_id=user_id,
+                action=action,
+                idempotency_key=idempotency_key,
+                request_digest=request_digest,
+            )
+            if replay is not None:
+                return replay
+
             controls: list[dict[str, Any]] = []
             for target in target_rows:
                 owner_id = int(target["user_id"])
@@ -2747,6 +2767,7 @@ class DjangoBrokerExecutionRepository:
         if side == "BUY" and quantity % Decimal("100") != 0:
             raise BrokerExecutionConflictError("A-share buy quantity must use 100-share lots")
         market_snapshot = dict((payload.get("risk_snapshot") or {}).get("market_snapshot") or {})
+        deviation = Decimal("0")
         if str(payload.get("initial_status")) != LiveOrderStatus.RISK_REJECTED.value:
             current_price = Decimal(str(market_snapshot.get("current_price") or "0"))
             if current_price <= 0 or market_snapshot.get("must_not_use_for_decision"):
@@ -2764,35 +2785,77 @@ class DjangoBrokerExecutionRepository:
                 )
         if binding.max_single_order_amount <= 0 or amount > binding.max_single_order_amount:
             raise BrokerExecutionConflictError("Order exceeds the configured single-order limit")
-        today_amount = LiveOrderModel._default_manager.filter(
-            user_id=binding.user_id,
-            account_id=binding.account_id,
-            created_at__date=timezone.localdate(),
-        ).exclude(
-            status__in=[
-                LiveOrderStatus.RISK_REJECTED.value,
-                LiveOrderStatus.REJECTED.value,
-                LiveOrderStatus.EXPIRED.value,
-            ]
-        ).aggregate(
-            total=Sum("estimated_amount")
-        )[
-            "total"
-        ] or Decimal(
-            "0"
-        )
-        if (
-            binding.daily_order_amount_limit <= 0
-            or today_amount + amount > binding.daily_order_amount_limit
-        ):
-            raise BrokerExecutionConflictError("Order exceeds the configured daily limit")
-        if TradingControlModel._default_manager.filter(
-            user_id=binding.user_id,
-            account_id__in=[0, binding.account_id],
-            kill_switch_active=True,
-        ).exists():
-            raise BrokerExecutionConflictError("Trading is stopped")
         with transaction.atomic():
+            binding = (
+                BrokerAccountBindingModel._default_manager.select_for_update()
+                .select_related("agent")
+                .filter(pk=binding.pk, is_active=True, agent__is_active=True)
+                .first()
+            )
+            if binding is None:
+                raise BrokerExecutionConflictError(
+                    "The active QMT Agent binding changed before order creation"
+                )
+            replay = self._replay_or_conflict(
+                user_id=user_id,
+                action=action,
+                idempotency_key=idempotency_key,
+                request_digest=request_digest,
+            )
+            if replay is not None:
+                return replay
+            if not is_admin and not self.has_account_access(
+                user_id=user_id,
+                is_admin=False,
+                account_id=binding.account_id,
+                action="trade",
+            ):
+                raise BrokerExecutionPermissionError("Account access changed before order creation")
+            if not binding.allowed_symbols or symbol not in set(binding.allowed_symbols):
+                raise BrokerExecutionConflictError("Asset is not on the live execution allow-list")
+            if binding.max_single_order_amount <= 0 or amount > binding.max_single_order_amount:
+                raise BrokerExecutionConflictError(
+                    "Order exceeds the configured single-order limit"
+                )
+            if str(payload.get("initial_status")) != LiveOrderStatus.RISK_REJECTED.value:
+                if binding.price_deviation_limit_pct <= 0:
+                    raise BrokerExecutionConflictError(
+                        "A positive price-deviation limit must be configured"
+                    )
+                if deviation > binding.price_deviation_limit_pct:
+                    raise BrokerExecutionConflictError(
+                        "Order price exceeds the configured market-price deviation"
+                    )
+
+            today_amount = LiveOrderModel._default_manager.filter(
+                user_id=binding.user_id,
+                account_id=binding.account_id,
+                created_at__date=timezone.localdate(),
+            ).exclude(
+                status__in=[
+                    LiveOrderStatus.RISK_REJECTED.value,
+                    LiveOrderStatus.REJECTED.value,
+                    LiveOrderStatus.EXPIRED.value,
+                ]
+            ).aggregate(
+                total=Sum("estimated_amount")
+            )[
+                "total"
+            ] or Decimal(
+                "0"
+            )
+            if (
+                binding.daily_order_amount_limit <= 0
+                or today_amount + amount > binding.daily_order_amount_limit
+            ):
+                raise BrokerExecutionConflictError("Order exceeds the configured daily limit")
+            if TradingControlModel._default_manager.filter(
+                user_id=binding.user_id,
+                account_id__in=[0, binding.account_id],
+                kill_switch_active=True,
+            ).exists():
+                raise BrokerExecutionConflictError("Trading is stopped")
+
             final_status = str(
                 payload.get("initial_status") or LiveOrderStatus.WAITING_APPROVAL.value
             )

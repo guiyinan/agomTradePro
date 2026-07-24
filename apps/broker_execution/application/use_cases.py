@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import asdict, is_dataclass
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
-from typing import Any
+from decimal import Decimal, InvalidOperation
+from typing import Any, Protocol, cast
 
 from ..domain.rules import InvalidOrderTransitionError, target_status_for_order_action
 from .authorization import require_action
+from .ports import BrokerExecutionRepositoryProtocol
 from .query_services import BrokerExecutionQueryService
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import BrokerExecutionValidationError
@@ -27,16 +29,57 @@ def _request_digest(payload: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _finite_float(
+    value: object,
+    *,
+    field_name: str,
+    positive: bool = False,
+) -> float:
+    """Parse a finite numeric boundary value or fail closed."""
+
+    try:
+        numeric = float(cast(Any, value))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise BrokerExecutionValidationError(f"{field_name} must be numeric") from exc
+    if not math.isfinite(numeric) or (numeric <= 0 if positive else numeric < 0):
+        qualifier = "positive finite" if positive else "non-negative finite"
+        raise BrokerExecutionValidationError(f"{field_name} must be a {qualifier} number")
+    return numeric
+
+
+class AccountProjectionProviderProtocol(Protocol):
+    """Load the server-side account projection used for pre-trade checks."""
+
+    def __call__(
+        self,
+        *,
+        user_id: int,
+        account_id: int,
+    ) -> dict[str, Any] | None: ...
+
+
+class RiskEvaluatorProtocol(Protocol):
+    """Evaluate one normalized order against server-side risk policy."""
+
+    def execute(self, **kwargs: Any) -> object: ...
+
+
+class LatestQuoteProviderProtocol(Protocol):
+    """Return a server-side market quote for one symbol."""
+
+    def __call__(self, asset_code: str) -> dict[str, Any] | None: ...
+
+
 class CreateLiveOrderFromExecutionPlanUseCase:
     """Create an idempotent order only from a passed, persisted plan projection."""
 
     def __init__(
         self,
-        repository=None,
+        repository: BrokerExecutionRepositoryProtocol | None = None,
         *,
-        account_projection_provider=None,
-        risk_evaluator=None,
-        latest_quote_provider=None,
+        account_projection_provider: AccountProjectionProviderProtocol | None = None,
+        risk_evaluator: RiskEvaluatorProtocol | None = None,
+        latest_quote_provider: LatestQuoteProviderProtocol | None = None,
     ) -> None:
         self.repository = repository or get_broker_execution_repository()
         if account_projection_provider is None:
@@ -50,7 +93,12 @@ class CreateLiveOrderFromExecutionPlanUseCase:
                 EvaluatePreTradeRiskUseCase,
             )
 
-            risk_evaluator = EvaluatePreTradeRiskUseCase()
+            self.risk_evaluator = cast(
+                RiskEvaluatorProtocol,
+                EvaluatePreTradeRiskUseCase(),
+            )
+        else:
+            self.risk_evaluator = risk_evaluator
         if latest_quote_provider is None:
             from apps.data_center.application.dtos import LatestQuoteRequest
             from apps.data_center.application.interface_services import (
@@ -64,7 +112,6 @@ class CreateLiveOrderFromExecutionPlanUseCase:
                 return response.to_dict() if response else None
 
         self.account_projection_provider = account_projection_provider
-        self.risk_evaluator = risk_evaluator
         self.latest_quote_provider = latest_quote_provider
 
     def execute(
@@ -91,6 +138,9 @@ class CreateLiveOrderFromExecutionPlanUseCase:
             raise BrokerExecutionValidationError(f"Execution plan missing fields: {missing}")
         if not plan.get("source_recommendation_ids"):
             raise BrokerExecutionValidationError("A source recommendation is required")
+        normalized_idempotency_key = str(idempotency_key or "").strip()
+        if not normalized_idempotency_key:
+            raise BrokerExecutionValidationError("idempotency_key is required")
         account_id = int(plan["account_id"])
         if not self.repository.has_account_access(
             user_id=user_id,
@@ -108,13 +158,9 @@ class CreateLiveOrderFromExecutionPlanUseCase:
             raise BrokerExecutionPermissionError("Account access is not authorized")
         normalized = dict(plan)
         normalized["account_id"] = account_id
-        account_owner_id = self.repository.get_bound_account_owner_id(
-            account_id=account_id
-        )
+        account_owner_id = self.repository.get_bound_account_owner_id(account_id=account_id)
         if account_owner_id is None:
-            raise BrokerExecutionValidationError(
-                "The live account has no active QMT binding"
-            )
+            raise BrokerExecutionValidationError("The live account has no active QMT binding")
         projection = self.account_projection_provider(
             user_id=account_owner_id,
             account_id=account_id,
@@ -124,7 +170,52 @@ class CreateLiveOrderFromExecutionPlanUseCase:
         if projection.get("account_type") != "real" or not projection.get("is_active"):
             raise BrokerExecutionValidationError("Live execution requires an active real account")
         symbol = str(plan["asset_code"]).strip().upper()
-        symbol_position = next(
+        if not symbol:
+            raise BrokerExecutionValidationError("asset_code is required")
+        side = str(plan["side"]).strip().upper()
+        if side not in {"BUY", "SELL"}:
+            raise BrokerExecutionValidationError("Order side must be BUY or SELL")
+        try:
+            quantity_decimal = Decimal(str(plan["quantity"]))
+            limit_price_decimal = Decimal(str(plan["limit_price"]))
+        except (InvalidOperation, ValueError) as exc:
+            raise BrokerExecutionValidationError(
+                "Order quantity and limit price must be numeric"
+            ) from exc
+        if (
+            not quantity_decimal.is_finite()
+            or not limit_price_decimal.is_finite()
+            or quantity_decimal <= 0
+            or limit_price_decimal <= 0
+        ):
+            raise BrokerExecutionValidationError(
+                "Order quantity and limit price must be positive finite numbers"
+            )
+        quantity = _finite_float(
+            quantity_decimal,
+            field_name="quantity",
+            positive=True,
+        )
+        limit_price = _finite_float(
+            limit_price_decimal,
+            field_name="limit_price",
+            positive=True,
+        )
+        account_equity = _finite_float(
+            projection.get("total_asset"),
+            field_name="account total_asset",
+            positive=True,
+        )
+        total_position_value = _finite_float(
+            projection.get("total_position_value") or 0,
+            field_name="account total_position_value",
+        )
+        cash_balance = _finite_float(
+            projection.get("cash_available") or 0,
+            field_name="account cash_available",
+        )
+
+        symbol_position: dict[str, Any] = next(
             (
                 row
                 for row in projection.get("positions", [])
@@ -132,29 +223,53 @@ class CreateLiveOrderFromExecutionPlanUseCase:
             ),
             {},
         )
+        current_symbol_position_value = _finite_float(
+            symbol_position.get("market_value") or 0,
+            field_name="symbol market_value",
+        )
         risk_result = self.risk_evaluator.execute(
             account_id=account_id,
             symbol=symbol,
-            side=str(plan["side"]),
-            quantity=float(plan["quantity"]),
-            price=float(plan["limit_price"]),
-            account_equity=float(projection.get("total_asset") or 0),
-            total_position_value=float(projection.get("total_position_value") or 0),
-            cash_balance=float(projection.get("cash_available") or 0),
-            current_symbol_position_value=float(symbol_position.get("market_value") or 0),
+            side=side,
+            quantity=quantity,
+            price=limit_price,
+            account_equity=account_equity,
+            total_position_value=total_position_value,
+            cash_balance=cash_balance,
+            current_symbol_position_value=current_symbol_position_value,
         )
-        risk_snapshot = asdict(risk_result) if is_dataclass(risk_result) else dict(risk_result)
+        risk_snapshot = (
+            asdict(cast(Any, risk_result))
+            if is_dataclass(risk_result) and not isinstance(risk_result, type)
+            else dict(cast(dict[str, Any], risk_result))
+        )
         risk_snapshot.setdefault("violations", [])
+        if not isinstance(risk_snapshot["violations"], list):
+            raise BrokerExecutionValidationError(
+                "Risk evaluator returned an invalid violations payload"
+            )
         quote = self.latest_quote_provider(symbol)
         if not quote:
             risk_snapshot["violations"].append("latest market quote is unavailable")
         elif quote.get("must_not_use_for_decision") or quote.get("is_stale"):
             risk_snapshot["violations"].append("latest market quote is stale")
-        elif float(quote.get("current_price") or 0) <= 0:
-            risk_snapshot["violations"].append("latest market price must be positive")
-        risk_snapshot["passed"] = not risk_snapshot["violations"]
+        else:
+            try:
+                quote_price = float(cast(Any, quote.get("current_price")))
+            except (TypeError, ValueError, OverflowError):
+                quote_price = float("nan")
+            if not math.isfinite(quote_price) or quote_price <= 0:
+                risk_snapshot["violations"].append(
+                    "latest market price must be positive and finite"
+                )
+        risk_snapshot["passed"] = (
+            bool(risk_snapshot.get("passed")) and not risk_snapshot["violations"]
+        )
         risk_snapshot["market_snapshot"] = quote or {}
         normalized["asset_code"] = symbol
+        normalized["side"] = side
+        normalized["quantity"] = str(quantity_decimal)
+        normalized["limit_price"] = str(limit_price_decimal)
         normalized["risk_snapshot"] = risk_snapshot
         normalized["initial_status"] = (
             "WAITING_APPROVAL" if risk_snapshot.get("passed") else "RISK_REJECTED"
@@ -168,7 +283,7 @@ class CreateLiveOrderFromExecutionPlanUseCase:
             user_id=user_id,
             is_admin=is_admin,
             payload=normalized,
-            idempotency_key=str(idempotency_key),
+            idempotency_key=normalized_idempotency_key,
             request_digest=_request_digest(normalized),
         )
 
@@ -176,7 +291,7 @@ class CreateLiveOrderFromExecutionPlanUseCase:
 class CreateLiveOrdersFromAdvisorExecutionPlanUseCase:
     """Convert the auto-advisor's read-only plan into governed approval drafts."""
 
-    def __init__(self, order_creator=None) -> None:
+    def __init__(self, order_creator: Any | None = None) -> None:
         self.order_creator = order_creator or CreateLiveOrderFromExecutionPlanUseCase()
 
     def execute(
@@ -196,13 +311,17 @@ class CreateLiveOrdersFromAdvisorExecutionPlanUseCase:
         created: list[dict[str, Any]] = []
         for item in execution_plan.get("orders") or []:
             side = str(item.get("side") or "").upper()
-            normalized_side = "BUY" if side in {"BUY", "ADD"} else "SELL" if side in {"REDUCE", "EXIT"} else ""
+            normalized_side = (
+                "BUY" if side in {"BUY", "ADD"} else "SELL" if side in {"REDUCE", "EXIT"} else ""
+            )
             if not normalized_side:
                 continue
             price = item.get("estimated_price")
             if price in (None, ""):
                 price_band = item.get("price_band") or {}
-                price = price_band.get("high") if normalized_side == "BUY" else price_band.get("low")
+                price = (
+                    price_band.get("high") if normalized_side == "BUY" else price_band.get("low")
+                )
             if price in (None, ""):
                 raise BrokerExecutionValidationError("Advisor order has no executable limit price")
             valid_until = item.get("valid_until")
@@ -273,7 +392,12 @@ def _advisor_plan_digest(execution_plan: dict[str, Any]) -> str:
 class PreviewOrCreateAdvisorLiveOrdersUseCase:
     """Generate the current server-side advisor sheet and create governed drafts."""
 
-    def __init__(self, *, sheet_provider=None, order_creator=None) -> None:
+    def __init__(
+        self,
+        *,
+        sheet_provider: Any | None = None,
+        order_creator: Any | None = None,
+    ) -> None:
         if sheet_provider is None:
             from apps.decision_rhythm.application.advisor_services import (
                 AdvisorAccessError,
@@ -355,7 +479,10 @@ class PreviewOrMutateOrderUseCase:
         "cancel": "cancel",
     }
 
-    def __init__(self, repository=None) -> None:
+    def __init__(
+        self,
+        repository: BrokerExecutionRepositoryProtocol | None = None,
+    ) -> None:
         self.repository = repository or get_broker_execution_repository()
 
     def execute(
@@ -402,9 +529,7 @@ class PreviewOrMutateOrderUseCase:
             raise BrokerExecutionPermissionError("Account access is not authorized")
         normalized_reason = str(reason or "").strip()
         try:
-            target_status = target_status_for_order_action(
-                str(order["status"]), normalized_action
-            )
+            target_status = target_status_for_order_action(str(order["status"]), normalized_action)
         except InvalidOrderTransitionError as exc:
             if preview_only:
                 from .use_case_errors import BrokerExecutionConflictError
@@ -465,7 +590,10 @@ class PreviewOrMutateOrderUseCase:
 class PreviewOrSetKillSwitchUseCase:
     """Preview and commit account-scoped trading stop or resume."""
 
-    def __init__(self, repository=None) -> None:
+    def __init__(
+        self,
+        repository: BrokerExecutionRepositoryProtocol | None = None,
+    ) -> None:
         self.repository = repository or get_broker_execution_repository()
 
     def execute(
@@ -565,7 +693,11 @@ class PreviewOrSetKillSwitchUseCase:
                 raise BrokerExecutionPermissionError(
                     "Password reauthentication is required to resume live trading"
                 )
-        payload = {"account_id": int(account_id), "active": bool(active), "reason": normalized_reason}
+        payload = {
+            "account_id": int(account_id),
+            "active": bool(active),
+            "reason": normalized_reason,
+        }
         return self.repository.set_kill_switch(
             user_id=user_id,
             is_admin=is_admin,
