@@ -2139,3 +2139,20 @@
 - Strategy 执行、Assignment API 与评估 serializer 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3318 errors / 625 files` 收紧为 `3286 errors / 623 files`，净减少 `32 errors / 2 files`。
 - Strategy API 边界、执行全流程、serializer、脚本引擎、视图结构、repository 生命周期和自动交易集成回归共 `64 passed`；新增跨用户绑定拒绝、未绑定组合不落执行日志、非有限资金输入和超大脚本请求覆盖。
 - Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百五十一批
+
+- 按“用户脚本执行可用性影响面 × 策略运行资源边界”收口 Strategy Script Engine。
+- 未知 `security_mode` 改为失败关闭，不再把拼写错误或未注册模式静默解释为权限最宽的 `relaxed`。
+- 脚本引擎统一限制源码最多 50000 字符、AST 最多 2000 节点、单个 `range` 最多 10000 项、单次最多输出 1000 条信号；接口预检与核心引擎共享同一源码长度真源。
+- 禁止 `while`、函数/异步函数、类和 lambda，关闭无限循环与递归在当前进程内长期占用 worker 的直接路径；受控 `range` 在实际迭代前验证整数和规模。
+- `itertools` 与 `random` 从允许模块中移除，避免无界迭代器及不可复现随机分支进入策略脚本；多 import 语句逐个检查，不再只验证第一个模块。
+- Script API 对指标代码、资产池 limit、信号代码/动作/权重/置信度/原因增加类型、长度、有限值和范围校验；provider 返回的有效信号与持仓最多向脚本暴露 1000 项。
+- RestrictedPython 编译结果必须收窄为真实 `CodeType`，旧版结果仅接受有效嵌套 code；异常返回对象不能直接进入 `exec`。
+- Provider callback、safe globals/builtins、动态 import、编译结果、本地变量和信号 payload 补齐精确类型，第三方 Any 仅保留在 RestrictedPython 动态边界。
+
+## 第一百五十一批验证结果
+
+- Strategy Script Engine 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3286 errors / 623 files` 收紧为 `3268 errors / 622 files`，净减少 `18 errors / 1 file`。
+- Strategy API、执行全流程、script engine、serializer、视图结构、repository 生命周期和自动交易集成回归共 `71 passed`；新增未知模式、无限循环、递归、超大 range、源码、AST、资产池、非有限信号与输出数量覆盖。
+- Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

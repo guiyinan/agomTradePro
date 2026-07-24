@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3286,
-    "files_with_errors": 623
+    "errors": 3268,
+    "files_with_errors": 622
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2159,14 +2159,6 @@
       "no-untyped-def": 2,
       "return-value": 1,
       "type-arg": 1
-    },
-    "apps/strategy/application/script_engine.py": {
-      "arg-type": 2,
-      "assignment": 1,
-      "import-untyped": 3,
-      "no-any-return": 7,
-      "no-untyped-def": 4,
-      "var-annotated": 1
     },
     "apps/strategy/application/strategy_executor.py": {
       "assignment": 4,

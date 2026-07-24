@@ -7,6 +7,7 @@
 - ScriptBasedStrategyExecutor 端到端测试
 - 安全模式验证（strict/standard/relaxed）
 """
+
 from unittest.mock import Mock
 
 import pytest
@@ -31,50 +32,57 @@ from apps.strategy.domain.entities import (
 # 安全配置测试
 # ========================================================================
 
+
 class TestSecurityConfig:
     """安全配置测试"""
 
     def test_relaxed_mode_allowed_modules(self):
         """测试宽松模式允许的模块"""
         modules = SecurityConfig.get_allowed_modules(SecurityMode.RELAXED)
-        assert 'pandas' in modules
-        assert 'numpy' in modules
-        assert 'math' in modules
-        assert 'datetime' in modules
+        assert "pandas" in modules
+        assert "numpy" in modules
+        assert "math" in modules
+        assert "datetime" in modules
 
     def test_standard_mode_allowed_modules(self):
         """测试标准模式允许的模块"""
         modules = SecurityConfig.get_allowed_modules(SecurityMode.STANDARD)
-        assert 'pandas' not in modules
-        assert 'numpy' not in modules
-        assert 'math' in modules
-        assert 'statistics' in modules
+        assert "pandas" not in modules
+        assert "numpy" not in modules
+        assert "math" in modules
+        assert "statistics" in modules
 
     def test_strict_mode_allowed_modules(self):
         """测试严格模式允许的模块"""
         modules = SecurityConfig.get_allowed_modules(SecurityMode.STRICT)
-        assert 'pandas' not in modules
-        assert 'statistics' not in modules
-        assert 'math' in modules
-        assert 'datetime' in modules
+        assert "pandas" not in modules
+        assert "statistics" not in modules
+        assert "math" in modules
+        assert "datetime" in modules
 
     def test_forbidden_modules(self):
         """测试禁止的模块"""
-        assert not SecurityConfig.is_module_allowed('os', SecurityMode.RELAXED)
-        assert not SecurityConfig.is_module_allowed('sys', SecurityMode.RELAXED)
-        assert not SecurityConfig.is_module_allowed('subprocess', SecurityMode.RELAXED)
-        assert not SecurityConfig.is_module_allowed('eval', SecurityMode.RELAXED)
+        assert not SecurityConfig.is_module_allowed("os", SecurityMode.RELAXED)
+        assert not SecurityConfig.is_module_allowed("sys", SecurityMode.RELAXED)
+        assert not SecurityConfig.is_module_allowed("subprocess", SecurityMode.RELAXED)
+        assert not SecurityConfig.is_module_allowed("eval", SecurityMode.RELAXED)
 
     def test_restricted_modules_in_relaxed_mode(self):
         """测试宽松模式下仍禁止某些模块"""
         # 即使在宽松模式，这些模块也是禁止的
-        assert not SecurityConfig.is_module_allowed('os', SecurityMode.RELAXED)
-        assert not SecurityConfig.is_module_allowed('subprocess', SecurityMode.RELAXED)
+        assert not SecurityConfig.is_module_allowed("os", SecurityMode.RELAXED)
+        assert not SecurityConfig.is_module_allowed("subprocess", SecurityMode.RELAXED)
+
+    def test_unknown_security_mode_fails_closed(self):
+        """未知安全模式不得静默降级到 relaxed。"""
+        with pytest.raises(ValueError, match="Unknown script security mode"):
+            SecurityConfig.get_allowed_modules("relaxe")
 
 
 # ========================================================================
 # 脚本 API 测试
 # ========================================================================
+
 
 class TestScriptAPI:
     """脚本 API 测试"""
@@ -83,90 +91,106 @@ class TestScriptAPI:
     def mock_providers(self):
         """创建 Mock 提供者"""
         return {
-            'macro_provider': Mock(),
-            'regime_provider': Mock(),
-            'asset_pool_provider': Mock(),
-            'signal_provider': Mock(),
-            'portfolio_provider': Mock()
+            "macro_provider": Mock(),
+            "regime_provider": Mock(),
+            "asset_pool_provider": Mock(),
+            "signal_provider": Mock(),
+            "portfolio_provider": Mock(),
         }
 
     @pytest.fixture
     def script_api(self, mock_providers):
         """创建脚本 API"""
         # 配置 Mock 返回值
-        mock_providers['macro_provider'].get_indicator.return_value = 50.5
-        mock_providers['macro_provider'].get_all_indicators.return_value = {'CN_PMI': 50.5}
-        mock_providers['regime_provider'].get_current_regime.return_value = {
-            'dominant_regime': 'HG',
-            'confidence': 0.85
+        mock_providers["macro_provider"].get_indicator.return_value = 50.5
+        mock_providers["macro_provider"].get_all_indicators.return_value = {"CN_PMI": 50.5}
+        mock_providers["regime_provider"].get_current_regime.return_value = {
+            "dominant_regime": "HG",
+            "confidence": 0.85,
         }
-        mock_providers['asset_pool_provider'].get_investable_assets.return_value = [
-            {'asset_code': '000001.SH', 'total_score': 75}
+        mock_providers["asset_pool_provider"].get_investable_assets.return_value = [
+            {"asset_code": "000001.SH", "total_score": 75}
         ]
-        mock_providers['signal_provider'].get_valid_signals.return_value = []
-        mock_providers['portfolio_provider'].get_positions.return_value = []
-        mock_providers['portfolio_provider'].get_cash.return_value = 100000.0
+        mock_providers["signal_provider"].get_valid_signals.return_value = []
+        mock_providers["portfolio_provider"].get_positions.return_value = []
+        mock_providers["portfolio_provider"].get_cash.return_value = 100000.0
 
         return ScriptAPI(**mock_providers, portfolio_id=1)
 
     def test_get_macro_indicator(self, script_api, mock_providers):
         """测试获取宏观指标"""
-        result = script_api.get_macro_indicator('CN_PMI')
+        result = script_api.get_macro_indicator("CN_PMI")
         assert result == 50.5
-        mock_providers['macro_provider'].get_indicator.assert_called_once_with('CN_PMI')
+        mock_providers["macro_provider"].get_indicator.assert_called_once_with("CN_PMI")
 
     def test_get_all_macro_indicators(self, script_api, mock_providers):
         """测试获取所有宏观指标"""
         result = script_api.get_all_macro_indicators()
-        assert result == {'CN_PMI': 50.5}
-        mock_providers['macro_provider'].get_all_indicators.assert_called_once()
+        assert result == {"CN_PMI": 50.5}
+        mock_providers["macro_provider"].get_all_indicators.assert_called_once()
 
     def test_get_regime(self, script_api, mock_providers):
         """测试获取 Regime"""
         result = script_api.get_regime()
-        assert result['dominant_regime'] == 'HG'
-        mock_providers['regime_provider'].get_current_regime.assert_called_once()
+        assert result["dominant_regime"] == "HG"
+        mock_providers["regime_provider"].get_current_regime.assert_called_once()
 
     def test_get_asset_pool(self, script_api, mock_providers):
         """测试获取资产池"""
         result = script_api.get_asset_pool(min_score=70, limit=10)
         assert len(result) == 1
-        assert result[0]['asset_code'] == '000001.SH'
-        mock_providers['asset_pool_provider'].get_investable_assets.assert_called_once_with(
+        assert result[0]["asset_code"] == "000001.SH"
+        mock_providers["asset_pool_provider"].get_investable_assets.assert_called_once_with(
             min_score=70, limit=10
         )
+
+    def test_script_api_rejects_unbounded_pool_and_nonfinite_signal_values(
+        self,
+        script_api,
+    ):
+        """脚本 API 在访问 provider 或产出信号前校验资源与数值边界。"""
+        with pytest.raises(ValueError, match="limit must be between 1 and 500"):
+            script_api.get_asset_pool(limit=501)
+        with pytest.raises(ValueError, match="confidence must be a finite number"):
+            script_api.calculate_signal(
+                asset_code="000001.SZ",
+                asset_name="平安银行",
+                action="buy",
+                confidence=float("nan"),
+            )
 
     def test_calculate_signal(self, script_api):
         """测试生成信号"""
         result = script_api.calculate_signal(
-            asset_code='000001.SH',
-            asset_name='上证指数',
-            action='buy',
+            asset_code="000001.SH",
+            asset_name="上证指数",
+            action="buy",
             weight=0.3,
-            reason='PMI 扩张',
-            confidence=0.8
+            reason="PMI 扩张",
+            confidence=0.8,
         )
 
-        assert result['asset_code'] == '000001.SH'
-        assert result['action'] == 'buy'
-        assert result['weight'] == 0.3
-        assert result['confidence'] == 0.8
+        assert result["asset_code"] == "000001.SH"
+        assert result["action"] == "buy"
+        assert result["weight"] == 0.3
+        assert result["confidence"] == 0.8
 
     def test_get_portfolio_positions(self, script_api, mock_providers):
         """测试获取持仓"""
         script_api.get_portfolio_positions()
-        mock_providers['portfolio_provider'].get_positions.assert_called_once_with(1)
+        mock_providers["portfolio_provider"].get_positions.assert_called_once_with(1)
 
     def test_get_portfolio_cash(self, script_api, mock_providers):
         """测试获取现金"""
         result = script_api.get_portfolio_cash()
         assert result == 100000.0
-        mock_providers['portfolio_provider'].get_cash.assert_called_once_with(1)
+        mock_providers["portfolio_provider"].get_cash.assert_called_once_with(1)
 
 
 # ========================================================================
 # 脚本执行环境测试（沙箱）
 # ========================================================================
+
 
 class TestScriptExecutionEnvironment:
     """脚本执行环境测试"""
@@ -175,23 +199,23 @@ class TestScriptExecutionEnvironment:
     def mock_providers(self):
         """创建 Mock 提供者"""
         providers = {
-            'macro_provider': Mock(),
-            'regime_provider': Mock(),
-            'asset_pool_provider': Mock(),
-            'signal_provider': Mock(),
-            'portfolio_provider': Mock()
+            "macro_provider": Mock(),
+            "regime_provider": Mock(),
+            "asset_pool_provider": Mock(),
+            "signal_provider": Mock(),
+            "portfolio_provider": Mock(),
         }
 
         # 配置默认返回值
-        providers['macro_provider'].get_indicator.return_value = 50.5
-        providers['macro_provider'].get_all_indicators.return_value = {'CN_PMI': 50.5}
-        providers['regime_provider'].get_current_regime.return_value = {'dominant_regime': 'HG'}
-        providers['asset_pool_provider'].get_investable_assets.return_value = [
-            {'asset_code': '000001.SH', 'asset_name': '上证指数', 'total_score': 75}
+        providers["macro_provider"].get_indicator.return_value = 50.5
+        providers["macro_provider"].get_all_indicators.return_value = {"CN_PMI": 50.5}
+        providers["regime_provider"].get_current_regime.return_value = {"dominant_regime": "HG"}
+        providers["asset_pool_provider"].get_investable_assets.return_value = [
+            {"asset_code": "000001.SH", "asset_name": "上证指数", "total_score": 75}
         ]
-        providers['signal_provider'].get_valid_signals.return_value = []
-        providers['portfolio_provider'].get_positions.return_value = []
-        providers['portfolio_provider'].get_cash.return_value = 100000.0
+        providers["signal_provider"].get_valid_signals.return_value = []
+        providers["portfolio_provider"].get_positions.return_value = []
+        providers["portfolio_provider"].get_cash.return_value = 100000.0
 
         return providers
 
@@ -221,8 +245,8 @@ signals.append(calculate_signal(
         result = execution_env.execute(script_code, script_api)
 
         assert len(result) == 1
-        assert result[0]['asset_code'] == '000001.SH'
-        assert result[0]['action'] == 'buy'
+        assert result[0]["asset_code"] == "000001.SH"
+        assert result[0]["action"] == "buy"
 
     def test_execute_script_with_data_access(self, execution_env, script_api):
         """测试执行访问数据的脚本"""
@@ -243,7 +267,7 @@ if pmi and pmi > 50:
         result = execution_env.execute(script_code, script_api)
 
         assert len(result) == 1
-        assert 'PMI 50.5 扩张' in result[0]['reason']
+        assert "PMI 50.5 扩张" in result[0]["reason"]
 
     def test_execute_script_with_asset_pool(self, execution_env, script_api):
         """测试执行使用资产池的脚本"""
@@ -265,7 +289,7 @@ for asset in assets:
         result = execution_env.execute(script_code, script_api)
 
         assert len(result) == 1
-        assert result[0]['asset_code'] == '000001.SH'
+        assert result[0]["asset_code"] == "000001.SH"
 
     def test_script_with_allowed_modules(self, execution_env, script_api):
         """测试使用允许的模块"""
@@ -333,26 +357,26 @@ signals.append(calculate_signal('000001.SH', 'test', 'buy'))
 """
         # 重新创建 script_api
         mock_providers = {
-            'macro_provider': Mock(),
-            'regime_provider': Mock(),
-            'asset_pool_provider': Mock(),
-            'signal_provider': Mock(),
-            'portfolio_provider': Mock()
+            "macro_provider": Mock(),
+            "regime_provider": Mock(),
+            "asset_pool_provider": Mock(),
+            "signal_provider": Mock(),
+            "portfolio_provider": Mock(),
         }
         for provider in mock_providers.values():
-            if hasattr(provider, 'get_indicator'):
+            if hasattr(provider, "get_indicator"):
                 provider.get_indicator.return_value = 50.5
-            if hasattr(provider, 'get_all_indicators'):
+            if hasattr(provider, "get_all_indicators"):
                 provider.get_all_indicators.return_value = {}
-            if hasattr(provider, 'get_current_regime'):
+            if hasattr(provider, "get_current_regime"):
                 provider.get_current_regime.return_value = {}
-            if hasattr(provider, 'get_investable_assets'):
+            if hasattr(provider, "get_investable_assets"):
                 provider.get_investable_assets.return_value = []
-            if hasattr(provider, 'get_valid_signals'):
+            if hasattr(provider, "get_valid_signals"):
                 provider.get_valid_signals.return_value = []
-            if hasattr(provider, 'get_positions'):
+            if hasattr(provider, "get_positions"):
                 provider.get_positions.return_value = []
-            if hasattr(provider, 'get_cash'):
+            if hasattr(provider, "get_cash"):
                 provider.get_cash.return_value = 0.0
 
         script_api = ScriptAPI(**mock_providers, portfolio_id=1)
@@ -360,10 +384,60 @@ signals.append(calculate_signal('000001.SH', 'test', 'buy'))
         with pytest.raises(ValueError, match="not allowed"):
             execution_env.execute(script_code, script_api)
 
+    @pytest.mark.parametrize(
+        ("script_code", "error_pattern"),
+        [
+            ("while True:\n    pass", "While is not allowed"),
+            ("def recurse():\n    return recurse()", "FunctionDef is not allowed"),
+            ("for i in range(10001):\n    pass", "range cannot contain more than 10000"),
+        ],
+    )
+    def test_script_resource_guards_reject_unbounded_programs(
+        self,
+        execution_env,
+        script_api,
+        script_code,
+        error_pattern,
+    ):
+        """脚本长度、递归结构和循环次数必须在执行前或受控内置函数处拒绝。"""
+        with pytest.raises((ValueError, SyntaxError), match=error_pattern):
+            execution_env.execute(script_code, script_api)
+
+    def test_script_rejects_oversized_source(
+        self,
+        execution_env,
+        script_api,
+    ):
+        """脚本源码长度在 AST 解析前受限。"""
+        with pytest.raises(ValueError, match="Script cannot exceed 50000 characters"):
+            execution_env.execute("x = 1\n" * 50_001, script_api)
+
+    def test_script_rejects_excessive_ast_and_signal_output(
+        self,
+        execution_env,
+        script_api,
+    ):
+        """AST 复杂度和信号输出数量均有独立上限。"""
+        excessive_ast = "\n".join(f"value_{index} = {index}" for index in range(700))
+        with pytest.raises(ValueError, match="AST nodes"):
+            execution_env.execute(excessive_ast, script_api)
+
+        excessive_signals = """
+for index in range(1001):
+    signals.append(calculate_signal(
+        asset_code='000001.SZ',
+        asset_name='平安银行',
+        action='buy',
+    ))
+"""
+        with pytest.raises(ValueError, match="more than 1000 signals"):
+            execution_env.execute(excessive_signals, script_api)
+
 
 # ========================================================================
 # 脚本驱动策略执行器测试
 # ========================================================================
+
 
 class TestScriptBasedStrategyExecutor:
     """脚本驱动策略执行器测试"""
@@ -372,42 +446,36 @@ class TestScriptBasedStrategyExecutor:
     def mock_providers(self):
         """创建 Mock 提供者"""
         providers = {
-            'macro_provider': Mock(),
-            'regime_provider': Mock(),
-            'asset_pool_provider': Mock(),
-            'signal_provider': Mock(),
-            'portfolio_provider': Mock()
+            "macro_provider": Mock(),
+            "regime_provider": Mock(),
+            "asset_pool_provider": Mock(),
+            "signal_provider": Mock(),
+            "portfolio_provider": Mock(),
         }
 
         # 配置默认返回值
-        providers['macro_provider'].get_indicator.return_value = 50.5
-        providers['macro_provider'].get_all_indicators.return_value = {'CN_PMI': 50.5}
-        providers['regime_provider'].get_current_regime.return_value = {'dominant_regime': 'HG'}
-        providers['asset_pool_provider'].get_investable_assets.return_value = [
-            {'asset_code': '000001.SH', 'asset_name': '上证指数', 'total_score': 75}
+        providers["macro_provider"].get_indicator.return_value = 50.5
+        providers["macro_provider"].get_all_indicators.return_value = {"CN_PMI": 50.5}
+        providers["regime_provider"].get_current_regime.return_value = {"dominant_regime": "HG"}
+        providers["asset_pool_provider"].get_investable_assets.return_value = [
+            {"asset_code": "000001.SH", "asset_name": "上证指数", "total_score": 75}
         ]
-        providers['signal_provider'].get_valid_signals.return_value = []
-        providers['portfolio_provider'].get_positions.return_value = []
-        providers['portfolio_provider'].get_cash.return_value = 100000.0
+        providers["signal_provider"].get_valid_signals.return_value = []
+        providers["portfolio_provider"].get_positions.return_value = []
+        providers["portfolio_provider"].get_cash.return_value = 100000.0
 
         return providers
 
     @pytest.fixture
     def executor(self, mock_providers):
         """创建脚本执行器"""
-        return ScriptBasedStrategyExecutor(
-            security_mode=SecurityMode.RELAXED,
-            **mock_providers
-        )
+        return ScriptBasedStrategyExecutor(security_mode=SecurityMode.RELAXED, **mock_providers)
 
     @pytest.fixture
     def script_strategy(self):
         """创建脚本策略"""
         risk_params = RiskControlParams()
-        config = StrategyConfig(
-            strategy_type=StrategyType.SCRIPT_BASED,
-            risk_params=risk_params
-        )
+        config = StrategyConfig(strategy_type=StrategyType.SCRIPT_BASED, risk_params=risk_params)
 
         script_config = ScriptConfig(
             script_code="""
@@ -427,9 +495,9 @@ if pmi and pmi > 50 and regime['dominant_regime'] == 'HG':
                 reason=f'PMI {pmi} 扩张，{regime["dominant_regime"]} Regime'
             ))
 """,
-            script_language='python',
-            allowed_modules=['math', 'datetime'],
-            sandbox_config={}
+            script_language="python",
+            allowed_modules=["math", "datetime"],
+            sandbox_config={},
         )
 
         return Strategy(
@@ -441,7 +509,7 @@ if pmi and pmi > 50 and regime['dominant_regime'] == 'HG':
             created_by_id=1,
             config=config,
             risk_params=risk_params,
-            script_config=script_config
+            script_config=script_config,
         )
 
     def test_execute_script_strategy(self, executor, script_strategy):
@@ -453,6 +521,7 @@ if pmi and pmi > 50 and regime['dominant_regime'] == 'HG':
 
     def test_execute_strategy_without_script_config(self, executor):
         """测试没有脚本配置的策略"""
+
         # 创建一个临时策略对象（绕过 __post_init__ 验证）
         # 直接设置属性而不是通过构造函数
         class MockStrategy:
@@ -469,20 +538,17 @@ if pmi and pmi > 50 and regime['dominant_regime'] == 'HG':
     def test_execute_strategy_with_script_error(self, executor, mock_providers):
         """测试脚本执行错误"""
         # 配置 mock 抛出异常
-        mock_providers['macro_provider'].get_indicator.side_effect = Exception("API Error")
+        mock_providers["macro_provider"].get_indicator.side_effect = Exception("API Error")
 
         risk_params = RiskControlParams()
-        config = StrategyConfig(
-            strategy_type=StrategyType.SCRIPT_BASED,
-            risk_params=risk_params
-        )
+        config = StrategyConfig(strategy_type=StrategyType.SCRIPT_BASED, risk_params=risk_params)
 
         script_config = ScriptConfig(
             script_code="""
 pmi = get_macro_indicator('CN_PMI')
 signals.append(calculate_signal('000001.SH', 'test', 'buy'))
 """,
-            script_language='python'
+            script_language="python",
         )
 
         strategy = Strategy(
@@ -494,7 +560,7 @@ signals.append(calculate_signal('000001.SH', 'test', 'buy'))
             created_by_id=1,
             config=config,
             risk_params=risk_params,
-            script_config=script_config
+            script_config=script_config,
         )
 
         # 脚本执行应该失败，但不会崩溃

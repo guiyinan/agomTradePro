@@ -23,6 +23,7 @@ from apps.strategy.application.interface_services import (
     get_strategy_queryset_for_owner,
 )
 from apps.strategy.application.script_engine import (
+    MAX_SCRIPT_CODE_LENGTH,
     ScriptAPI,
     ScriptExecutionEnvironment,
     SecurityMode,
@@ -42,7 +43,6 @@ logger = logging.getLogger(__name__)
 StrategyModel = django_apps.get_model("strategy", "StrategyModel")
 
 _MAX_JSON_BODY_BYTES = 100_000
-_MAX_SCRIPT_CODE_LENGTH = 50_000
 
 
 class _MockMacroProvider:
@@ -331,8 +331,8 @@ def test_script(request: HttpRequest) -> JsonResponse:
         script_code = data.get("script_code")
         if not isinstance(script_code, str) or not script_code.strip():
             raise ValueError("脚本代码不能为空")
-        if len(script_code) > _MAX_SCRIPT_CODE_LENGTH:
-            raise ValueError(f"脚本代码不能超过 {_MAX_SCRIPT_CODE_LENGTH} 个字符")
+        if len(script_code) > MAX_SCRIPT_CODE_LENGTH:
+            raise ValueError(f"脚本代码不能超过 {MAX_SCRIPT_CODE_LENGTH} 个字符")
 
         started_at = time.perf_counter()
         signals = ScriptExecutionEnvironment(security_mode=SecurityMode.RELAXED).execute(
@@ -390,7 +390,7 @@ def test_strategy(request: HttpRequest, strategy_id: int) -> JsonResponse:
         signals: list[dict[str, Any]] = []
         if strategy.strategy_type in {"script_based", "hybrid"} and strategy.script_config:
             script_code = strategy.script_config.script_code
-            if not isinstance(script_code, str) or len(script_code) > _MAX_SCRIPT_CODE_LENGTH:
+            if not isinstance(script_code, str) or len(script_code) > MAX_SCRIPT_CODE_LENGTH:
                 raise ValueError("策略脚本无效或过长")
             signals = ScriptExecutionEnvironment(security_mode=SecurityMode.RELAXED).execute(
                 script_code=script_code,

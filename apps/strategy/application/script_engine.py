@@ -9,11 +9,14 @@
 
 import ast
 import logging
-from typing import Any
+from collections.abc import Callable
+from math import isfinite
+from types import CodeType
+from typing import Any, TypeVar, cast
 
-from RestrictedPython import compile_restricted
-from RestrictedPython.Eval import default_guarded_getattr
-from RestrictedPython.Guards import (
+from RestrictedPython import compile_restricted  # type: ignore[import-untyped]
+from RestrictedPython.Eval import default_guarded_getattr  # type: ignore[import-untyped]
+from RestrictedPython.Guards import (  # type: ignore[import-untyped]
     full_write_guard,
     guarded_iter_unpack_sequence,
     guarded_unpack_sequence,
@@ -28,8 +31,15 @@ from apps.strategy.domain.protocols import (
     SignalProviderProtocol,
 )
 
+ProviderResult = TypeVar("ProviderResult")
 
-def safe_dict_getattr(obj, attr):
+MAX_SCRIPT_CODE_LENGTH = 50_000
+MAX_SCRIPT_AST_NODES = 2_000
+MAX_SCRIPT_RANGE_ITEMS = 10_000
+MAX_SCRIPT_SIGNALS = 1_000
+
+
+def safe_dict_getattr(obj: object, attr: str) -> Any:
     """
     安全的字典属性访问
 
@@ -41,6 +51,20 @@ def safe_dict_getattr(obj, attr):
         except (KeyError, TypeError):
             raise AttributeError(f"'dict' object has no attribute '{attr}'") from None
     return default_guarded_getattr(obj, attr)
+
+
+def safe_range(*args: int) -> range:
+    """Return a range capped to the sandbox iteration budget."""
+
+    if not 1 <= len(args) <= 3:
+        raise ValueError("range expects between 1 and 3 integer arguments")
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in args):
+        raise ValueError("range arguments must be integers")
+    result = range(*args)
+    if len(result) > MAX_SCRIPT_RANGE_ITEMS:
+        raise ValueError(f"range cannot contain more than {MAX_SCRIPT_RANGE_ITEMS} items")
+    return result
+
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +89,11 @@ class SecurityConfig:
         "math",
         "datetime",
         "statistics",
-        "itertools",
         "pandas",
         "numpy",
         "collections",
         "fractions",
         "decimal",
-        "random",
         "typing",
     }
 
@@ -80,16 +102,19 @@ class SecurityConfig:
         "math",
         "datetime",
         "statistics",
-        "itertools",
         "collections",
         "fractions",
         "decimal",
-        "random",
         "typing",
     }
 
     # 严格模式配置
     STRICT_ALLOWED_MODULES: set[str] = {"math", "datetime"}
+    VALID_MODES: set[str] = {
+        SecurityMode.STRICT,
+        SecurityMode.STANDARD,
+        SecurityMode.RELAXED,
+    }
 
     # 始终禁止的模块（危险操作）
     FORBIDDEN_MODULES: set[str] = {
@@ -136,12 +161,13 @@ class SecurityConfig:
         Returns:
             允许的模块集合
         """
+        if security_mode not in cls.VALID_MODES:
+            raise ValueError(f"Unknown script security mode: {security_mode}")
         if security_mode == SecurityMode.STRICT:
             return cls.STRICT_ALLOWED_MODULES.copy()
-        elif security_mode == SecurityMode.STANDARD:
+        if security_mode == SecurityMode.STANDARD:
             return cls.STANDARD_ALLOWED_MODULES.copy()
-        else:  # RELAXED
-            return cls.RELAXED_ALLOWED_MODULES.copy()
+        return cls.RELAXED_ALLOWED_MODULES.copy()
 
     @classmethod
     def is_module_allowed(cls, module_name: str, security_mode: str = SecurityMode.RELAXED) -> bool:
@@ -205,11 +231,11 @@ class ScriptAPI:
 
     def _call_provider_safely(
         self,
-        callback,
+        callback: Callable[[], ProviderResult],
         *,
         context: str,
-        fallback,
-    ):
+        fallback: ProviderResult,
+    ) -> ProviderResult:
         """
         Provider 调用边界。
 
@@ -237,11 +263,14 @@ class ScriptAPI:
         >>> if pmi and pmi > 50:
         ...     print('PMI 扩张')
         """
-        return self._call_provider_safely(
+        if not isinstance(indicator_code, str) or not 1 <= len(indicator_code.strip()) <= 100:
+            raise ValueError("indicator_code must be a non-empty string up to 100 characters")
+        result: float | None = self._call_provider_safely(
             lambda: self.macro_provider.get_indicator(indicator_code),
             context=f"get macro indicator {indicator_code}",
             fallback=None,
         )
+        return result
 
     def get_all_macro_indicators(self) -> dict[str, float]:
         """
@@ -303,6 +332,14 @@ class ScriptAPI:
         >>> for asset in assets:
         ...     print(f"{asset['asset_code']}: {asset['total_score']}")
         """
+        if (
+            isinstance(min_score, bool)
+            or not isinstance(min_score, int | float)
+            or not isfinite(float(min_score))
+        ):
+            raise ValueError("min_score must be a finite number")
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 500:
+            raise ValueError("limit must be between 1 and 500")
         return self._call_provider_safely(
             lambda: self.asset_pool_provider.get_investable_assets(
                 min_score=min_score,
@@ -328,11 +365,12 @@ class ScriptAPI:
         >>> signals = get_valid_signals()
         >>> long_signals = [s for s in signals if s['direction'] == 'LONG']
         """
-        return self._call_provider_safely(
+        signals: list[dict[str, Any]] = self._call_provider_safely(
             self.signal_provider.get_valid_signals,
             context="get valid signals",
             fallback=[],
         )
+        return signals[:MAX_SCRIPT_SIGNALS]
 
     def get_portfolio_positions(self) -> list[dict[str, Any]]:
         """
@@ -350,11 +388,12 @@ class ScriptAPI:
         >>> positions = get_portfolio_positions()
         >>> total_value = sum(p['market_value'] for p in positions)
         """
-        return self._call_provider_safely(
+        positions: list[dict[str, Any]] = self._call_provider_safely(
             lambda: self.portfolio_provider.get_positions(self.portfolio_id),
             context="get portfolio positions",
             fallback=[],
         )
+        return positions[:MAX_SCRIPT_SIGNALS]
 
     def get_portfolio_cash(self) -> float:
         """
@@ -406,14 +445,39 @@ class ScriptAPI:
         ...     confidence=0.8
         ... )
         """
+        normalized_code = asset_code.strip() if isinstance(asset_code, str) else ""
+        normalized_name = asset_name.strip() if isinstance(asset_name, str) else ""
+        normalized_action = action.strip().lower() if isinstance(action, str) else ""
+        if not 1 <= len(normalized_code) <= 32:
+            raise ValueError("asset_code must be between 1 and 32 characters")
+        if len(normalized_name) > 200:
+            raise ValueError("asset_name cannot exceed 200 characters")
+        if normalized_action not in {item.value for item in ActionType}:
+            raise ValueError("action must be buy, sell, or hold")
+        if weight is not None and (
+            isinstance(weight, bool)
+            or not isinstance(weight, int | float)
+            or not isfinite(float(weight))
+            or not 0 <= float(weight) <= 1
+        ):
+            raise ValueError("weight must be a finite number between 0 and 1")
+        if (
+            isinstance(confidence, bool)
+            or not isinstance(confidence, int | float)
+            or not isfinite(float(confidence))
+            or not 0 <= float(confidence) <= 1
+        ):
+            raise ValueError("confidence must be a finite number between 0 and 1")
+        if not isinstance(reason, str) or len(reason) > 2_000:
+            raise ValueError("reason cannot exceed 2000 characters")
         return {
-            "asset_code": asset_code,
-            "asset_name": asset_name,
-            "action": action,
-            "weight": weight,
+            "asset_code": normalized_code,
+            "asset_name": normalized_name,
+            "action": normalized_action,
+            "weight": float(weight) if weight is not None else None,
             "quantity": None,
             "reason": reason,
-            "confidence": confidence,
+            "confidence": float(confidence),
             "metadata": {"source": "script_strategy"},
         }
 
@@ -455,46 +519,46 @@ class ScriptExecutionEnvironment:
             安全的全局变量字典
         """
         # 基础内置函数（安全版本）
-        safe_builtins_dict = {
-            "__builtins__": {
-                "_getattr_": safe_dict_getattr,  # 使用自定义的安全字典访问
-                "_write_": full_write_guard,
-                "_getiter_": iter,
-                "_getitem_": safe_dict_getattr,  # 用于字典访问
-                "_iter_unpack_sequence_": guarded_iter_unpack_sequence,
-                "_unpack_sequence_": guarded_unpack_sequence,
-                # 允许的基本函数
-                "len": len,
-                "range": range,
-                "enumerate": enumerate,
-                "zip": zip,
-                "map": map,
-                "filter": filter,
-                "abs": abs,
-                "min": min,
-                "max": max,
-                "sum": sum,
-                "sorted": sorted,
-                "any": any,
-                "all": all,
-                "print": print,  # 仅用于调试
-                "bool": bool,
-                "int": int,
-                "float": float,
-                "str": str,
-                "list": list,
-                "dict": dict,
-                "tuple": tuple,
-                "set": set,
-                "frozenset": frozenset,
-            }
+        safe_builtins: dict[str, Any] = {
+            "_getattr_": safe_dict_getattr,
+            "_write_": full_write_guard,
+            "_getiter_": iter,
+            "_getitem_": safe_dict_getattr,
+            "_iter_unpack_sequence_": guarded_iter_unpack_sequence,
+            "_unpack_sequence_": guarded_unpack_sequence,
+            "len": len,
+            "range": safe_range,
+            "enumerate": enumerate,
+            "zip": zip,
+            "map": map,
+            "filter": filter,
+            "abs": abs,
+            "min": min,
+            "max": max,
+            "sum": sum,
+            "sorted": sorted,
+            "any": any,
+            "all": all,
+            "print": print,
+            "bool": bool,
+            "int": int,
+            "float": float,
+            "str": str,
+            "list": list,
+            "dict": dict,
+            "tuple": tuple,
+            "set": set,
+            "frozenset": frozenset,
         }
 
-        # 添加允许的模块
-        safe_globals_dict = safe_builtins_dict.copy()
-
         # 安全的 __import__ 函数（只允许白名单中的模块）
-        def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+        def safe_import(
+            name: str,
+            globals: dict[str, Any] | None = None,
+            locals: dict[str, Any] | None = None,
+            fromlist: tuple[str, ...] = (),
+            level: int = 0,
+        ) -> Any:
             """安全的导入函数"""
             # 获取根模块名
             module_name = name.split(".")[0] if name else None
@@ -507,7 +571,8 @@ class ScriptExecutionEnvironment:
             # 使用原始的 __import__
             return __import__(name, globals, locals, fromlist, level)
 
-        safe_globals_dict["__builtins__"]["__import__"] = safe_import
+        safe_builtins["__import__"] = safe_import
+        safe_globals_dict: dict[str, Any] = {"__builtins__": safe_builtins}
 
         for module_name in self.allowed_modules:
             try:
@@ -517,7 +582,7 @@ class ScriptExecutionEnvironment:
                 logger.warning(f"Failed to import allowed module: {module_name}")
 
         # 添加脚本 API
-        api_methods = {
+        api_methods: dict[str, Any] = {
             "get_macro_indicator": script_api.get_macro_indicator,
             "get_all_macro_indicators": script_api.get_all_macro_indicators,
             "get_regime": script_api.get_regime,
@@ -532,7 +597,7 @@ class ScriptExecutionEnvironment:
 
         return safe_globals_dict
 
-    def _compile_script(self, script_code: str, script_name: str = "<script>") -> object:
+    def _compile_script(self, script_code: str, script_name: str = "<script>") -> CodeType:
         """
         编译脚本代码
 
@@ -554,20 +619,21 @@ class ScriptExecutionEnvironment:
 
             # 检查返回结果
             # 如果是 code 对象，直接返回
-            if isinstance(code, type(compile("", "", "exec"))):
+            if isinstance(code, CodeType):
                 return code
 
             # 如果是带有 errors 属性的对象（旧版本兼容）
-            if hasattr(code, "errors") and code.errors:
-                error_msg = "\n".join(code.errors)
+            dynamic_code = cast(Any, code)
+            if getattr(dynamic_code, "errors", None):
+                error_msg = "\n".join(str(error) for error in dynamic_code.errors)
                 logger.error(f"Script compilation errors:\n{error_msg}")
                 raise ValueError(f"Script compilation failed:\n{error_msg}")
 
             # 如果有 code 属性
-            if hasattr(code, "code"):
-                return code.code
-
-            return code
+            nested_code = getattr(dynamic_code, "code", None)
+            if isinstance(nested_code, CodeType):
+                return nested_code
+            raise ValueError("RestrictedPython did not return executable code")
 
         except SyntaxError as e:
             logger.error(f"Script syntax error: {e}")
@@ -588,29 +654,38 @@ class ScriptExecutionEnvironment:
         Raises:
             ValueError: 如果脚本包含不安全的操作
         """
-        try:
-            tree = ast.parse(script_code)
+        if len(script_code) > MAX_SCRIPT_CODE_LENGTH:
+            raise ValueError(f"Script cannot exceed {MAX_SCRIPT_CODE_LENGTH} characters")
+        tree = ast.parse(script_code)
+        nodes = list(ast.walk(tree))
+        if len(nodes) > MAX_SCRIPT_AST_NODES:
+            raise ValueError(f"Script cannot exceed {MAX_SCRIPT_AST_NODES} AST nodes")
 
-            for node in ast.walk(tree):
-                # 检查导入语句
-                if isinstance(node, ast.Import | ast.ImportFrom):
-                    module_name = None
-                    if isinstance(node, ast.Import):
-                        module_name = node.names[0].name.split(".")[0]
-                    elif isinstance(node, ast.ImportFrom):
-                        module_name = node.module.split(".")[0] if node.module else None
-
-                    if module_name and not SecurityConfig.is_module_allowed(
-                        module_name, self.security_mode
+        forbidden_nodes = (
+            ast.While,
+            ast.FunctionDef,
+            ast.AsyncFunctionDef,
+            ast.ClassDef,
+            ast.Lambda,
+        )
+        for node in nodes:
+            if isinstance(node, forbidden_nodes):
+                raise ValueError(f"{type(node).__name__} is not allowed in strategy scripts")
+            if isinstance(node, ast.Import | ast.ImportFrom):
+                if isinstance(node, ast.Import):
+                    module_names = [alias.name.split(".")[0] for alias in node.names]
+                else:
+                    module_names = [node.module.split(".")[0]] if node.module else []
+                for module_name in module_names:
+                    if not SecurityConfig.is_module_allowed(
+                        module_name,
+                        self.security_mode,
                     ):
                         raise ValueError(
-                            f"Module '{module_name}' is not allowed in {self.security_mode} mode. "
-                            f"Allowed modules: {self.allowed_modules}"
+                            f"Module '{module_name}' is not allowed in "
+                            f"{self.security_mode} mode. "
+                            f"Allowed modules: {sorted(self.allowed_modules)}"
                         )
-
-        except SyntaxError:
-            # 语法错误会在编译阶段捕获
-            pass
 
     def execute(
         self, script_code: str, script_api: ScriptAPI, script_name: str = "<script>"
@@ -637,24 +712,29 @@ class ScriptExecutionEnvironment:
 
         # 3. 准备安全的执行环境
         safe_globals = self._prepare_safe_globals(script_api)
-        safe_locals = {"signals": []}  # 用于存储脚本生成的信号
+        safe_locals: dict[str, Any] = {"signals": []}
 
         # 4. 执行脚本
         try:
             exec(code, safe_globals, safe_locals)
 
             # 5. 获取脚本生成的信号
-            signals = safe_locals.get("signals", [])
+            raw_signals = safe_locals.get("signals", [])
 
             # 验证信号格式
-            if not isinstance(signals, list):
+            if not isinstance(raw_signals, list):
                 raise ValueError("Script must return a 'signals' list")
+            if len(raw_signals) > MAX_SCRIPT_SIGNALS:
+                raise ValueError(f"Script cannot generate more than {MAX_SCRIPT_SIGNALS} signals")
 
-            for signal in signals:
-                if not isinstance(signal, dict):
+            signals: list[dict[str, Any]] = []
+            for raw_signal in raw_signals:
+                if not isinstance(raw_signal, dict):
                     raise ValueError("Each signal must be a dictionary")
+                signal = cast(dict[str, Any], raw_signal)
                 if "asset_code" not in signal or "action" not in signal:
                     raise ValueError("Each signal must have 'asset_code' and 'action' fields")
+                signals.append(dict(signal))
 
             return signals
 
