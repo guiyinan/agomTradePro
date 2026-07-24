@@ -12,7 +12,7 @@ Decision Rhythm Event Subscribers.
 import logging
 from collections.abc import Callable
 
-from apps.events.domain.entities import EventType
+from apps.events.domain.entities import EventHandler, EventType
 from apps.events.domain.registry import get_event_subscriber_registry
 
 logger = logging.getLogger(__name__)
@@ -24,119 +24,103 @@ def register_subscribers() -> None:
 
     在 Django app ready() 时自动调用此方法。
     """
-    try:
-        registry = get_event_subscriber_registry()
+    registry = get_event_subscriber_registry()
 
-        # 注册决策节奏主处理器 - 响应决策和触发器事件
-        registry.register(
-            module_name="decision_rhythm",
-            event_type=EventType.DECISION_APPROVED,
-            handler_factory=_create_decision_rhythm_handler,
-            priority=60,
-            description="Update quota and cooldown on decision approval"
-        )
+    # 注册决策节奏主处理器 - 响应决策和触发器事件
+    registry.register(
+        module_name="decision_rhythm.core",
+        event_type=EventType.DECISION_APPROVED,
+        handler_factory=_create_decision_rhythm_handler,
+        priority=60,
+        description="Update quota and cooldown on decision approval",
+    )
 
-        registry.register(
-            module_name="decision_rhythm",
-            event_type=EventType.DECISION_REJECTED,
-            handler_factory=_create_decision_rhythm_handler,
-            priority=60,
-            description="Handle decision rejection"
-        )
+    registry.register(
+        module_name="decision_rhythm.core",
+        event_type=EventType.DECISION_REJECTED,
+        handler_factory=_create_decision_rhythm_handler,
+        priority=60,
+        description="Handle decision rejection",
+    )
 
-        registry.register(
-            module_name="decision_rhythm",
-            event_type=EventType.ALPHA_TRIGGER_FIRED,
-            handler_factory=_create_decision_rhythm_handler,
-            priority=60,
-            description="Update rhythm on trigger fired"
-        )
+    registry.register(
+        module_name="decision_rhythm.core",
+        event_type=EventType.ALPHA_TRIGGER_FIRED,
+        handler_factory=_create_decision_rhythm_handler,
+        priority=60,
+        description="Update rhythm on trigger fired",
+    )
 
-        # 注册配额监控处理器
-        registry.register(
-            module_name="decision_rhythm",
-            event_type=EventType.DECISION_APPROVED,
-            handler_factory=_create_quota_monitor_handler,
-            priority=50,
-            description="Monitor quota usage and emit warnings"
-        )
+    # 注册配额监控处理器
+    registry.register(
+        module_name="decision_rhythm.quota_monitor",
+        event_type=EventType.DECISION_APPROVED,
+        handler_factory=_create_quota_monitor_handler,
+        priority=50,
+        description="Monitor quota usage and emit warnings",
+    )
 
-        # 注册冷却期处理器
-        registry.register(
-            module_name="decision_rhythm",
-            event_type=EventType.DECISION_APPROVED,
-            handler_factory=_create_cooldown_handler,
-            priority=55,
-            description="Manage asset cooldown periods"
-        )
+    # 注册冷却期处理器
+    registry.register(
+        module_name="decision_rhythm.cooldown",
+        event_type=EventType.DECISION_APPROVED,
+        handler_factory=_create_cooldown_handler,
+        priority=55,
+        description="Manage asset cooldown periods",
+    )
 
-        registry.register(
-            module_name="decision_rhythm",
-            event_type=EventType.SIGNAL_TRIGGERED,
-            handler_factory=_create_cooldown_handler,
-            priority=55,
-            description="Check cooldown on signal trigger"
-        )
+    registry.register(
+        module_name="decision_rhythm.cooldown",
+        event_type=EventType.SIGNAL_TRIGGERED,
+        handler_factory=_create_cooldown_handler,
+        priority=55,
+        description="Check cooldown on signal trigger",
+    )
 
-        logger.debug("Decision Rhythm subscribers registered successfully")
-
-    except Exception as e:
-        logger.error(f"Failed to register Decision Rhythm subscribers: {e}")
+    logger.debug("Decision Rhythm subscribers registered successfully")
 
 
-def _create_decision_rhythm_handler():
+def _create_decision_rhythm_handler() -> EventHandler:
     """创建决策节奏处理器"""
-    try:
-        # 延迟导入避免循环依赖
-        from apps.decision_rhythm.application.handlers import DecisionRhythmEventHandler
+    # 延迟导入避免循环依赖
+    from apps.decision_rhythm.application.handlers import DecisionRhythmEventHandler
 
-        return DecisionRhythmEventHandler(
-            quota_manager=None,  # 使用默认
-            cooldown_manager=None,  # 使用默认
-            event_bus=None  # 将被注入
-        )
-    except Exception as e:
-        logger.error(f"Failed to create DecisionRhythmEventHandler: {e}")
-        raise
+    return DecisionRhythmEventHandler(
+        quota_manager=None,  # 使用默认
+        cooldown_manager=None,  # 使用默认
+        event_bus=None,  # 将被注入
+    )
 
 
-def _create_quota_monitor_handler():
+def _create_quota_monitor_handler() -> EventHandler:
     """创建配额监控处理器"""
-    try:
-        # 延迟导入避免循环依赖
-        from apps.decision_rhythm.application.handlers import QuotaMonitorHandler
-        from apps.decision_rhythm.domain.services import QuotaManager
+    # 延迟导入避免循环依赖
+    from apps.decision_rhythm.application.handlers import QuotaMonitorHandler
+    from apps.decision_rhythm.domain.services import QuotaManager
 
-        quota_manager = QuotaManager()
+    quota_manager = QuotaManager()
 
-        return QuotaMonitorHandler(
-            quota_manager=quota_manager,
-            event_bus=None  # 将被注入
-        )
-    except Exception as e:
-        logger.error(f"Failed to create QuotaMonitorHandler: {e}")
-        raise
+    return QuotaMonitorHandler(
+        quota_manager=quota_manager,
+        event_bus=None,  # 将被注入
+    )
 
 
-def _create_cooldown_handler():
+def _create_cooldown_handler() -> EventHandler:
     """创建冷却期处理器"""
-    try:
-        # 延迟导入避免循环依赖
-        from apps.decision_rhythm.application.handlers import CooldownEventHandler
-        from apps.decision_rhythm.domain.services import CooldownManager
+    # 延迟导入避免循环依赖
+    from apps.decision_rhythm.application.handlers import CooldownEventHandler
+    from apps.decision_rhythm.domain.services import CooldownManager
 
-        cooldown_manager = CooldownManager()
+    cooldown_manager = CooldownManager()
 
-        return CooldownEventHandler(
-            cooldown_manager=cooldown_manager,
-            event_bus=None  # 将被注入
-        )
-    except Exception as e:
-        logger.error(f"Failed to create CooldownEventHandler: {e}")
-        raise
+    return CooldownEventHandler(
+        cooldown_manager=cooldown_manager,
+        event_bus=None,  # 将被注入
+    )
 
 
-def get_handler_factories() -> dict[EventType, Callable]:
+def get_handler_factories() -> dict[EventType, Callable[[], EventHandler]]:
     """
     获取处理器工厂
 
