@@ -91,6 +91,7 @@ class StaticFeeConfigRepo:
             config_id=1,
             config_name="test",
             asset_type=asset_type,
+            min_commission=0.0,
             is_default=True,
         )
 

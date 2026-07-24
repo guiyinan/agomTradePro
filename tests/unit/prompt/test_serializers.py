@@ -20,12 +20,11 @@ def test_placeholder_required_remains_an_external_boolean_field() -> None:
 def test_chat_request_context_remains_writable() -> None:
     """Accept structured chat context under the established API field name."""
 
-    serializer = ChatRequestSerializer(
-        data={"message": "hello", "context": {"history": [{"role": "user"}]}}
-    )
+    context = {"history": [{"role": "user", "content": "prior question"}]}
+    serializer = ChatRequestSerializer(data={"message": "hello", "context": context})
 
     assert serializer.is_valid(), serializer.errors
-    assert serializer.validated_data["context"] == {"history": [{"role": "user"}]}
+    assert serializer.validated_data["context"] == context
 
 
 def test_chat_session_context_remains_read_only_output() -> None:

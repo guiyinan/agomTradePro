@@ -9,6 +9,23 @@ import pytest
 from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
 
 
+@pytest.fixture(autouse=True)
+def _isolate_dispatcher_boundaries(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep provider workflow tests authorized and offline by default."""
+    import agomtradepro_mcp.server as server_module
+
+    monkeypatch.setattr(
+        server_module.CORE_DISPATCHER,
+        "_role_provider",
+        lambda: "staff",
+    )
+    monkeypatch.setattr(
+        server_module.CORE_DISPATCHER,
+        "_audit_logger",
+        SimpleNamespace(log_governed_capability_event=lambda **_kwargs: "test-audit-log"),
+    )
+
+
 def test_data_center_provider_connection_test_requires_preview_confirmation_and_audit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -43,10 +43,15 @@ from apps.simulated_trading.infrastructure.repositories import (
 from core.exceptions import DataFetchError
 
 
-def _create_default_fee_config(config_name: str) -> None:
+def _create_default_fee_config(
+    config_name: str,
+    *,
+    min_commission: float = 0.0,
+) -> None:
     FeeConfigModel.objects.create(
         config_name=config_name,
         asset_type="all",
+        min_commission=min_commission,
         is_default=True,
     )
 
@@ -301,6 +306,7 @@ class TestPositionSizing(TestCase):
         FeeConfigModel.objects.create(
             config_name="仓位测试默认费率",
             asset_type="equity",
+            min_commission=0.0,
             is_default=True,
         )
 
@@ -549,7 +555,10 @@ class TestStopLoss(TestCase):
 
     def setUp(self):
         """设置测试环境"""
-        _create_default_fee_config("止损测试默认费率")
+        _create_default_fee_config(
+            "止损测试默认费率",
+            min_commission=5.0,
+        )
         self.account_repo = DjangoSimulatedAccountRepository()
         self.position_repo = DjangoPositionRepository()
         self.trade_repo = DjangoTradeRepository()

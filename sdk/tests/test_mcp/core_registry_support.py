@@ -2,32 +2,36 @@
 """Phase-1 tests for MCP core registry and unified tools."""
 
 import asyncio
-
 from datetime import date
-
 from types import SimpleNamespace
 
 import pytest
 
 from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
-
 from agomtradepro_mcp.registry.manifest import (
     CapabilityManifest,
     CapabilityManifestValidationError,
 )
-
 from agomtradepro_mcp.tools.core_tools import CORE_TOOL_NAMES
 
 
 @pytest.fixture(autouse=True)
-def _isolate_core_dispatcher_role(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Give owner contract tests an explicit staff role for each test case."""
+def _isolate_core_dispatcher_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+    core_only_mcp_server,
+) -> None:
+    """Give core contracts deterministic staff authorization and local audit I/O."""
     import agomtradepro_mcp.server as server_module
 
     monkeypatch.setattr(
         server_module.CORE_DISPATCHER,
         "_role_provider",
         lambda: "staff",
+    )
+    monkeypatch.setattr(
+        server_module.CORE_DISPATCHER,
+        "_audit_logger",
+        SimpleNamespace(log_governed_capability_event=lambda **_kwargs: "test-audit-log"),
     )
 
 
