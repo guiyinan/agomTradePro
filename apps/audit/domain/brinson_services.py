@@ -5,7 +5,8 @@ Only uses Python standard library (no pandas/numpy).
 """
 
 import logging
-from datetime import date, timedelta
+from calendar import monthrange
+from datetime import date
 
 from .entities import BrinsonAttributionResult
 
@@ -22,6 +23,8 @@ def calculate_brinson_attribution(
     portfolio_weights: dict[str, dict[date, float]],
     benchmark_weights: dict[str, dict[date, float]],
     evaluation_period: tuple[date, date],
+    *,
+    _include_period_breakdown: bool = True,
 ) -> BrinsonAttributionResult:
     """
     计算 Brinson 归因
@@ -146,13 +149,17 @@ def calculate_brinson_attribution(
     attribution_sum = allocation_effect + selection_effect + interaction_effect
 
     # 6. 生成分时段分解（按月）
-    period_breakdown = _generate_brinson_period_breakdown(
-        portfolio_returns,
-        benchmark_returns,
-        portfolio_weights,
-        benchmark_weights,
-        start_date,
-        end_date,
+    period_breakdown = (
+        _generate_brinson_period_breakdown(
+            portfolio_returns,
+            benchmark_returns,
+            portfolio_weights,
+            benchmark_weights,
+            start_date,
+            end_date,
+        )
+        if _include_period_breakdown
+        else []
     )
 
     return BrinsonAttributionResult(
@@ -228,9 +235,9 @@ def _generate_brinson_period_breakdown(
     benchmark_weights: dict[str, dict[date, float]],
     start_date: date,
     end_date: date,
-) -> list[dict]:
+) -> list[dict[str, str | date | float]]:
     """生成分时段的 Brinson 分解"""
-    period_breakdown = []
+    period_breakdown: list[dict[str, str | date | float]] = []
 
     # 简化：按月分解
     current_date = start_date
@@ -238,7 +245,11 @@ def _generate_brinson_period_breakdown(
 
     while current_date < end_date:
         # 计算该月的结束日期
-        month_end = date(current_date.year, current_date.month + 1, 1) - timedelta(days=1)
+        month_end = date(
+            current_date.year,
+            current_date.month,
+            monthrange(current_date.year, current_date.month)[1],
+        )
         period_end = min(month_end, end_date)
 
         # 计算该期间的 Brinson 分解
@@ -249,6 +260,7 @@ def _generate_brinson_period_breakdown(
                 portfolio_weights=portfolio_weights,
                 benchmark_weights=benchmark_weights,
                 evaluation_period=(current_date, period_end),
+                _include_period_breakdown=False,
             )
 
             period_breakdown.append(

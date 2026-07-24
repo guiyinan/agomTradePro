@@ -1,0 +1,1 @@
+"""Pulse component tests."""

@@ -291,6 +291,51 @@ def test_dashboard_alpha_decision_chain_rejects_invalid_top_n(client, auth_user)
 
 
 @pytest.mark.django_db
+def test_dashboard_alpha_decision_chain_serializes_interface_mapping(
+    client,
+    auth_user,
+    monkeypatch,
+):
+    client.force_login(auth_user)
+    monkeypatch.setattr(
+        "apps.dashboard.interface.views._get_alpha_decision_chain_data",
+        lambda **kwargs: {
+            "overview": {
+                "generated_at": "2026-07-24T00:00:00Z",
+                "warnings": ["empty_pool"],
+                "workflow": {"stage": "screen"},
+            },
+            "top_stocks": [{"code": "000001.SZ"}],
+            "actionable_candidates": [],
+            "pending_requests": [],
+        },
+    )
+
+    response = client.get("/api/dashboard/v1/alpha-decision-chain/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == {
+        "success": True,
+        "summary": {
+            "generated_at": "2026-07-24T00:00:00Z",
+            "warnings": ["empty_pool"],
+            "workflow": {"stage": "screen"},
+        },
+        "top_stocks": [{"code": "000001.SZ"}],
+        "actionable_candidates": [],
+        "pending_requests": [],
+        "alpha_provider_status": {},
+        "coverage_metrics": {},
+        "ic_trends": [],
+        "workflow": {"stage": "screen"},
+        "decision_readiness": {},
+        "warnings": ["empty_pool"],
+        "generated_at": "2026-07-24T00:00:00Z",
+    }
+
+
+@pytest.mark.django_db
 def test_dashboard_alpha_ic_trends_rejects_non_positive_days(client, auth_user):
     client.force_login(auth_user)
 

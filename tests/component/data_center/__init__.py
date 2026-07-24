@@ -1,0 +1,1 @@
+"""Data Center component tests."""

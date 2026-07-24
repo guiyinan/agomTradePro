@@ -96,6 +96,11 @@ jobs:
           pytest apps/*/tests -v --tb=short
           echo "App-local module tests: PASS"
 
+      - name: Run Component Tests
+        run: |
+          pytest tests/component/ -v --tb=short
+          echo "Component tests: PASS"
+
       # Check 5: API and migration tests
       - name: Run API And Migration Tests
         run: |

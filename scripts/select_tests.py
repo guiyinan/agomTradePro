@@ -11,6 +11,7 @@
 """
 
 import argparse
+import fnmatch
 import glob
 import json
 import os
@@ -24,6 +25,18 @@ APP_LOCAL_TEST_DIRS = sorted(
     for path in (PROJECT_ROOT / "apps").glob("*/tests")
     if path.is_dir()
 )
+TEST_ID_MIGRATION_PATH = PROJECT_ROOT / "governance" / "test_id_migrations_2026-07-24.json"
+
+
+def _load_test_id_migrations() -> dict[str, str]:
+    """Load historical test-path migrations used by targeted selection."""
+    if not TEST_ID_MIGRATION_PATH.is_file():
+        return {}
+    payload = json.loads(TEST_ID_MIGRATION_PATH.read_text(encoding="utf-8"))
+    return {str(item["old_path"]): str(item["new_path"]) for item in payload.get("mappings", [])}
+
+
+TEST_ID_MIGRATIONS = _load_test_id_migrations()
 
 
 # 模块到测试的映射表
@@ -330,6 +343,7 @@ CORE_GUARDRAIL_TESTS = [
 # 全量测试路径（当无法确定范围或检测到广泛变更时使用）
 FULL_TEST_SUITES = [
     "tests/api/",
+    "tests/component/",
     "tests/critical/",
     "tests/migrations/",
     "tests/unit/",
@@ -339,6 +353,7 @@ FULL_TEST_SUITES = [
 
 LOGIC_GUARDRAILS_ALLOWED_PREFIXES = (
     "tests/api/",
+    "tests/component/",
     "tests/critical/",
     "tests/guardrails/",
     "tests/migrations/",
@@ -365,6 +380,21 @@ def get_app_local_tests(module: str) -> list[str]:
     if not app_tests_dir.exists():
         return []
     return [f"{app_tests_dir.relative_to(PROJECT_ROOT).as_posix()}/"]
+
+
+def _expand_test_target(pattern: str) -> set[str]:
+    """Expand a current target plus any migrated historical path it matches."""
+    targets: set[str] = set()
+    if glob.has_magic(pattern):
+        targets.update(match.replace("\\", "/") for match in glob.glob(pattern, recursive=True))
+        targets.update(
+            destination
+            for source, destination in TEST_ID_MIGRATIONS.items()
+            if fnmatch.fnmatch(source, pattern)
+        )
+    else:
+        targets.add(TEST_ID_MIGRATIONS.get(pattern, pattern))
+    return targets
 
 
 def get_changed_files(base: str, head: str) -> list[str]:
@@ -473,15 +503,13 @@ def select_tests(
     # 根据模块映射选择测试
     for module in modules:
         tests.update(get_app_local_tests(module))
+        component_module_dir = PROJECT_ROOT / "tests" / "component" / module
+        if component_module_dir.is_dir():
+            tests.add(f"tests/component/{module}/")
         if module in MODULE_TEST_MAP:
             module_tests = MODULE_TEST_MAP[module]
             for test_pattern in module_tests:
-                # 展开通配符
-                if glob.has_magic(test_pattern):
-                    for match in glob.glob(test_pattern, recursive=True):
-                        tests.add(match.replace("\\", "/"))
-                else:
-                    tests.add(test_pattern)
+                tests.update(_expand_test_target(test_pattern))
 
     # 过滤掉不存在的测试路径
     existing_tests = [t for t in tests if os.path.exists(t)]

@@ -1,0 +1,1 @@
+"""Regime component tests."""

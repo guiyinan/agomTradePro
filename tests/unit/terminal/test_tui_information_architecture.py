@@ -54,12 +54,14 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
     assert (
         sum(len(screen.get("runtime_sources", [])) for screen in registry["published_screens"])
         + sum(len(screen["sources"]) for screen in registry["runtime_screens"])
-        == 11
+        == 13
     )
     assert aliases["macro-regime.pulse"] == "macro-regime.overview"
     assert aliases["command-center.auto-advisor"] == "command-center.decision-flow"
     assert aliases["risk-center.overview"] == "macro-regime.strategy"
     assert aliases["realtime-monitor.alerts"] == "execution.audit"
+    assert aliases["broker-execution.overview"] == "execution.accounts"
+    assert aliases["broker-execution.audit"] == "execution.audit"
     assert aliases["ai-ops.user-quotas"] == "ai-ops.system-providers"
     assert aliases["capability-router.gateway"] == "capability-router.mcp-center"
     assert aliases["capability-router.admin-access"] == "capability-router.mcp-center"

@@ -16,6 +16,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  fast-tdd:
+    name: No-database TDD suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SECRET_KEY: ci-fast-tdd-secret-key-123456789012345678901234567890
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e sdk/
+
+      - name: Verify test-tier inventory
+        run: python scripts/test_tier_inventory.py --check
+
+      - name: Run fast suite without creating a test database
+        run: python scripts/run_fast_tests.py
+
   detect-tests:
     name: Detect test scope
     runs-on: ubuntu-latest

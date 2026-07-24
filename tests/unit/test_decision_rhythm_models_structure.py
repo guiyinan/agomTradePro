@@ -13,12 +13,13 @@ from apps.decision_rhythm.infrastructure import models
 REPO_ROOT = Path(__file__).resolve().parents[2]
 AGGREGATOR_MODULE = "apps.decision_rhythm.infrastructure.models"
 OWNER_MODULES = (
+    "apps.decision_rhythm.infrastructure.input_snapshot_models",
     "apps.decision_rhythm.infrastructure.rhythm_models",
     "apps.decision_rhythm.infrastructure.valuation_models",
-    "apps.decision_rhythm.infrastructure.transition_models",
     "apps.decision_rhythm.infrastructure.recommendation_models",
     "apps.decision_rhythm.infrastructure.model_param_models",
 )
+SUPPORT_MODULES = ("apps.decision_rhythm.infrastructure.transition_models",)
 
 
 def _imports_module(source: str, module_name: str) -> bool:
@@ -45,12 +46,16 @@ def test_decision_model_legacy_exports_resolve_to_owner_modules() -> None:
             assert apps.get_model("decision_rhythm", export_name) is exported_model
 
     assert owner_exports == set(models.__all__)
+    assert models.PortfolioTransitionPlanModel is apps.get_model(
+        "portfolio", "PortfolioTransitionPlanModel"
+    )
 
 
 def test_decision_model_modules_stay_bounded_and_one_way() -> None:
     """Prevent model owners from regrowing or importing the aggregator."""
     budgets = {
         AGGREGATOR_MODULE: 100,
+        "apps.decision_rhythm.infrastructure.input_snapshot_models": 100,
         "apps.decision_rhythm.infrastructure.rhythm_models": 750,
         "apps.decision_rhythm.infrastructure.valuation_models": 850,
         "apps.decision_rhythm.infrastructure.transition_models": 200,
@@ -68,3 +73,5 @@ def test_decision_model_modules_stay_bounded_and_one_way() -> None:
             assert not _imports_module(
                 source, AGGREGATOR_MODULE
             ), f"{relative_path} must not import the compatibility aggregator"
+
+    assert set(SUPPORT_MODULES).issubset(budgets)

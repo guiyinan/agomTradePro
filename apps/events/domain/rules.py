@@ -202,10 +202,7 @@ class EventDeduplicationRule(Rule):
             清理的数量
         """
         cutoff = datetime.now(UTC) - timedelta(seconds=older_than)
-        to_remove = [
-            sig for sig, ts in self._seen_events.items()
-            if ts < cutoff
-        ]
+        to_remove = [sig for sig, ts in self._seen_events.items() if ts < cutoff]
 
         for sig in to_remove:
             del self._seen_events[sig]
@@ -291,7 +288,7 @@ class EventAgeRule(Rule):
             return False
 
         age = (datetime.now(UTC) - event.occurred_at).total_seconds()
-        return age > self.max_age_seconds
+        return bool(age > self.max_age_seconds)
 
 
 @dataclass(frozen=True)
@@ -355,10 +352,10 @@ class EventRuleEngine:
         >>> result = engine.evaluate(event)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化规则引擎"""
         self._rules: list[Rule] = []
-        self._rule_names: dict[Rule, str] = {}
+        self._rule_names: dict[int, str] = {}
 
     def add_rule(self, rule: Rule, name: str | None = None) -> None:
         """
@@ -369,7 +366,7 @@ class EventRuleEngine:
             name: 规则名称
         """
         self._rules.append(rule)
-        self._rule_names[rule] = name or rule.__class__.__name__
+        self._rule_names[id(rule)] = name or rule.__class__.__name__
 
     def remove_rule(self, rule: Rule) -> None:
         """
@@ -380,7 +377,7 @@ class EventRuleEngine:
         """
         if rule in self._rules:
             self._rules.remove(rule)
-            self._rule_names.pop(rule, None)
+            self._rule_names.pop(id(rule), None)
 
     def should_process(self, event: DomainEvent) -> tuple[bool, list[str]]:
         """
@@ -402,26 +399,26 @@ class EventRuleEngine:
                 # 根据规则类型判断结果的含义
                 if isinstance(rule, EventFilterRule):
                     if not result:
-                        rejection_reasons.append(f"过滤规则: {self._rule_names[rule]}")
+                        rejection_reasons.append(f"过滤规则: {self._rule_names[id(rule)]}")
 
                 elif isinstance(rule, EventDeduplicationRule):
                     if result:
-                        rejection_reasons.append(f"重复事件: {self._rule_names[rule]}")
+                        rejection_reasons.append(f"重复事件: {self._rule_names[id(rule)]}")
 
                 elif isinstance(rule, EventThrottleRule):
                     if result:
-                        rejection_reasons.append(f"事件节流: {self._rule_names[rule]}")
+                        rejection_reasons.append(f"事件节流: {self._rule_names[id(rule)]}")
 
                 elif isinstance(rule, EventAgeRule):
                     if result:
-                        rejection_reasons.append(f"事件过期: {self._rule_names[rule]}")
+                        rejection_reasons.append(f"事件过期: {self._rule_names[id(rule)]}")
 
                 elif isinstance(rule, EventValidationRule):
                     if not result:
-                        rejection_reasons.append(f"事件无效: {self._rule_names[rule]}")
+                        rejection_reasons.append(f"事件无效: {self._rule_names[id(rule)]}")
 
             except Exception as e:
-                rejection_reasons.append(f"规则执行错误: {self._rule_names[rule]} - {str(e)}")
+                rejection_reasons.append(f"规则执行错误: {self._rule_names[id(rule)]} - {str(e)}")
 
         should_process = len(rejection_reasons) == 0
         return should_process, rejection_reasons
@@ -457,19 +454,19 @@ def create_default_rule_engine() -> EventRuleEngine:
     engine.add_rule(EventAgeRule(max_age_seconds=3600), "时效性检查")
 
     # 添加事件验证规则
-    engine.add_rule(EventValidationRule(
-        require_correlation_id=False,
-        require_causation_id=False,
-    ), "有效性验证")
+    engine.add_rule(
+        EventValidationRule(
+            require_correlation_id=False,
+            require_causation_id=False,
+        ),
+        "有效性验证",
+    )
 
     # 添加事件去重规则（60秒窗口）
     engine.add_rule(EventDeduplicationRule(dedup_window=60), "去重检查")
 
     # 添加事件节流规则（每分钟最多100个同类型事件）
-    engine.add_rule(EventThrottleRule(
-        max_events_per_window=100,
-        window_seconds=60
-    ), "频率限制")
+    engine.add_rule(EventThrottleRule(max_events_per_window=100, window_seconds=60), "频率限制")
 
     return engine
 
@@ -487,18 +484,18 @@ def create_strict_rule_engine() -> EventRuleEngine:
     engine.add_rule(EventAgeRule(max_age_seconds=1800), "严格时效性检查")
 
     # 添加事件验证规则（需要关联ID）
-    engine.add_rule(EventValidationRule(
-        require_correlation_id=True,
-        require_causation_id=False,
-    ), "严格有效性验证")
+    engine.add_rule(
+        EventValidationRule(
+            require_correlation_id=True,
+            require_causation_id=False,
+        ),
+        "严格有效性验证",
+    )
 
     # 添加事件去重规则（300秒窗口）
     engine.add_rule(EventDeduplicationRule(dedup_window=300), "严格去重检查")
 
     # 添加事件节流规则（每分钟最多50个同类型事件）
-    engine.add_rule(EventThrottleRule(
-        max_events_per_window=50,
-        window_seconds=60
-    ), "严格频率限制")
+    engine.add_rule(EventThrottleRule(max_events_per_window=50, window_seconds=60), "严格频率限制")
 
     return engine

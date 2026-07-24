@@ -210,7 +210,7 @@ async function compareVersions() {
     try {
         showToast('正在对比版本...', 'info');
 
-        const res = await fetch(`{% url 'beta_gate:api_version_compare' %}?version1=${encodeURIComponent(versionA)}&version2=${encodeURIComponent(versionB)}`);
+        const res = await fetch(`{% url 'api_beta_gate:version-compare' %}?version1=${encodeURIComponent(versionA)}&version2=${encodeURIComponent(versionB)}`);
         const data = await res.json();
 
         if (data.success) {
@@ -415,7 +415,7 @@ async function rollbackTo(configId) {
     try {
         showToast('正在回滚配置...', 'info');
 
-        const res = await fetch(`{% url 'beta_gate:api_rollback' 'PLACEHOLDER' %}`.replace('PLACEHOLDER', configId), {
+        const res = await fetch(`{% url 'api_beta_gate:rollback' 'PLACEHOLDER' %}`.replace('PLACEHOLDER', configId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });

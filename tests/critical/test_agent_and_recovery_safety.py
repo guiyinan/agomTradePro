@@ -6,6 +6,12 @@ from pathlib import Path
 
 import pytest
 
+from tests.component.broker_execution.test_risk_and_reconciliation import (
+    test_escalated_reconciliation_remains_a_resume_blocker as _assert_resume_blocker,
+)
+from tests.component.broker_execution.test_risk_and_reconciliation import (
+    test_four_dimension_reconciliation_is_idempotent_and_auto_stops_on_p0 as _assert_p0_auto_stop,
+)
 from tests.integration.broker_execution.test_fake_agent_flow import (
     test_fake_agent_approval_lease_submit_fill_flow_is_idempotent as _assert_fake_agent_flow,
 )
@@ -14,12 +20,6 @@ from tests.unit.broker_execution.test_agent import (
 )
 from tests.unit.broker_execution.test_agent import (
     test_unknown_broker_outcome_requires_reconciliation as _assert_unknown_outcome,
-)
-from tests.unit.broker_execution.test_risk_and_reconciliation import (
-    test_escalated_reconciliation_remains_a_resume_blocker as _assert_resume_blocker,
-)
-from tests.unit.broker_execution.test_risk_and_reconciliation import (
-    test_four_dimension_reconciliation_is_idempotent_and_auto_stops_on_p0 as _assert_p0_auto_stop,
 )
 
 

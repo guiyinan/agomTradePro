@@ -39,7 +39,7 @@ class DjangoPromptRepository:
     提供Prompt模板的增删改查操作。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._model = PromptTemplateORM
 
     def get_active_template_queryset(self) -> Any:
@@ -134,9 +134,7 @@ class DjangoPromptRepository:
         from django.conf import settings
 
         if settings.PROMPT_EVAL_GATE_ENABLED and template.is_active:
-            raise ValueError(
-                "active prompts must be created through immutable version evaluation"
-            )
+            raise ValueError("active prompts must be created through immutable version evaluation")
         # 转换为ORM格式
         placeholders_data = [
             {
@@ -184,9 +182,7 @@ class DjangoPromptRepository:
         from django.conf import settings
 
         if settings.PROMPT_EVAL_GATE_ENABLED and (orm_obj.is_active or template.is_active):
-            raise ValueError(
-                "active prompts are immutable; create and evaluate a PromptVersion"
-            )
+            raise ValueError("active prompts are immutable; create and evaluate a PromptVersion")
 
         # 转换占位符
         placeholders_data = [
@@ -216,7 +212,7 @@ class DjangoPromptRepository:
 
         return self._orm_to_entity(orm_obj)
 
-    def update_last_used(self, template_id: int):
+    def update_last_used(self, template_id: int) -> None:
         """更新最后使用时间
 
         Args:
@@ -271,7 +267,7 @@ class DjangoChainRepository:
     提供链配置的增删改查操作。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._model = ChainConfigORM
 
     def get_active_chain_queryset(self) -> Any:
@@ -484,7 +480,7 @@ class DjangoExecutionLogRepository:
     提供执行日志的记录和查询。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._model = PromptExecutionLogORM
 
     def get_filtered_queryset(
@@ -499,9 +495,9 @@ class DjangoExecutionLogRepository:
 
         queryset = self._model._default_manager.all()
         if template_id:
-            queryset = queryset.filter(template_id=template_id)
+            queryset = queryset.filter(template_id=int(template_id))
         if chain_id:
-            queryset = queryset.filter(chain_id=chain_id)
+            queryset = queryset.filter(chain_id=int(chain_id))
         if execution_id:
             queryset = queryset.filter(execution_id=execution_id)
         if status_filter:

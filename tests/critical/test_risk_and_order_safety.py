@@ -17,24 +17,24 @@ from apps.broker_execution.infrastructure.models import BrokerAccountSnapshotMod
 from apps.broker_execution.infrastructure.repositories import (
     DjangoBrokerExecutionRepository,
 )
-from tests.unit.broker_execution.test_api_and_permissions import (
+from tests.component.broker_execution.test_api_and_permissions import (
     _binding,
     _order,
     _user,
 )
-from tests.unit.broker_execution.test_api_and_permissions import (
+from tests.component.broker_execution.test_api_and_permissions import (
     test_admin_global_kill_switch_stops_every_active_bound_account as _assert_global_stop,
 )
-from tests.unit.broker_execution.test_api_and_permissions import (
+from tests.component.broker_execution.test_api_and_permissions import (
     test_kill_switch_blocks_approval_but_still_allows_rejection as _assert_stop_semantics,
 )
-from tests.unit.broker_execution.test_api_and_permissions import (
+from tests.component.broker_execution.test_api_and_permissions import (
     test_owner_can_preview_commit_and_replay_approval as _assert_approval_idempotency,
 )
-from tests.unit.broker_execution.test_api_and_permissions import (
+from tests.component.broker_execution.test_api_and_permissions import (
     test_submit_ack_rechecks_limits_and_allow_list_after_approval as _assert_final_submit_recheck,
 )
-from tests.unit.broker_execution.test_risk_and_reconciliation import (
+from tests.component.broker_execution.test_risk_and_reconciliation import (
     test_live_order_creation_fails_closed_on_server_risk_rejection as _assert_server_risk_rejection,
 )
 

@@ -152,7 +152,7 @@ async function runTest() {
     resultsSummary.innerHTML = '';
 
     try {
-        const res = await fetch("{% url 'beta_gate:api_test' %}", {
+        const res = await fetch("{% url 'api_beta_gate:test' %}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

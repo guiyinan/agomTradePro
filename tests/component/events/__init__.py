@@ -1,0 +1,1 @@
+"""Events component tests."""

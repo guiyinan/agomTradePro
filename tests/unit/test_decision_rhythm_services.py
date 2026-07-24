@@ -69,6 +69,65 @@ class TestQuotaManager:
         assert after.used_decisions == before.used_decisions + 1
         assert manager.quotas[QuotaPeriod.WEEKLY].used_decisions == before.used_decisions + 1
 
+    def test_critical_request_bypasses_exhausted_quota(self) -> None:
+        manager = QuotaManager()
+        quota = manager.quotas[QuotaPeriod.WEEKLY]
+        manager.quotas[QuotaPeriod.WEEKLY] = DecisionQuota(
+            **{
+                **quota.__dict__,
+                "used_decisions": quota.max_decisions,
+                "used_executions": quota.max_execution_count,
+            }
+        )
+
+        result = manager.check_quota(
+            _mk_request(DecisionPriority.CRITICAL),
+            QuotaPeriod.WEEKLY,
+        )
+
+        assert result.passed is True
+        assert result.available_at is None
+
+    def test_execution_quota_blocks_non_info_request(self) -> None:
+        manager = QuotaManager()
+        quota = manager.quotas[QuotaPeriod.WEEKLY]
+        manager.quotas[QuotaPeriod.WEEKLY] = DecisionQuota(
+            **{
+                **quota.__dict__,
+                "used_executions": quota.max_execution_count,
+            }
+        )
+
+        result = manager.check_quota(
+            _mk_request(DecisionPriority.HIGH),
+            QuotaPeriod.WEEKLY,
+        )
+
+        assert result.passed is False
+        assert "执行配额" in result.reason
+
+    def test_info_consumption_only_uses_decision_quota(self) -> None:
+        manager = QuotaManager()
+        before = manager.quotas[QuotaPeriod.DAILY]
+
+        after = manager.consume_quota(
+            _mk_request(DecisionPriority.INFO),
+            QuotaPeriod.DAILY,
+        )
+
+        assert after.used_decisions == before.used_decisions + 1
+        assert after.used_executions == before.used_executions
+
+    def test_reset_and_status_helpers_publish_all_periods(self) -> None:
+        manager = QuotaManager()
+        manager.consume_quota(_mk_request(), QuotaPeriod.DAILY)
+
+        manager.reset_all_quotas()
+        statuses = manager.get_all_quota_statuses()
+
+        assert statuses.keys() == {"daily", "weekly", "monthly"}
+        assert statuses["daily"]["used_decisions"] == 0
+
 
 class TestCooldownManager:
     def test_check_cooldown_blocked(self):
@@ -94,6 +153,39 @@ class TestCooldownManager:
         result = manager.check_cooldown(req)
         assert result.passed is True
 
+    def test_execution_cooldown_and_critical_bypass(self) -> None:
+        manager = CooldownManager()
+        req = _mk_request(DecisionPriority.HIGH)
+        manager.cooldowns[req.asset_code] = CooldownPeriod(
+            asset_code=req.asset_code,
+            last_execution_at=datetime.now(UTC) - timedelta(hours=1),
+            min_execution_interval_hours=24,
+        )
+
+        blocked = manager.check_cooldown(req, check_execution=True)
+        bypassed = manager.check_cooldown(
+            _mk_request(DecisionPriority.CRITICAL),
+            check_execution=True,
+        )
+
+        assert blocked.passed is False
+        assert blocked.ready_at is not None
+        assert bypassed.passed is True
+
+    def test_update_and_clear_cooldown_state(self) -> None:
+        manager = CooldownManager()
+
+        decision = manager.update_decision_time("000001.SH")
+        execution = manager.update_execution_time("000001.SH")
+        assert decision.last_decision_at is not None
+        assert execution.last_execution_at is not None
+
+        manager.clear_cooldown("000001.SH")
+        assert manager.cooldowns == {}
+        manager.update_decision_time("000002.SH")
+        manager.clear_all_cooldowns()
+        assert manager.cooldowns == {}
+
 
 class TestDecisionScheduler:
     def test_get_next_by_priority(self):
@@ -111,6 +203,21 @@ class TestDecisionScheduler:
         assert nxt is not None
         assert nxt.request_id == "critical"
 
+    def test_queue_limit_remove_and_summary(self) -> None:
+        scheduler = DecisionScheduler(max_queue_size=1)
+        request = _mk_request(DecisionPriority.LOW)
+
+        assert scheduler.get_next() is None
+        assert scheduler.add_request(request) is True
+        assert scheduler.add_request(_mk_request(DecisionPriority.HIGH)) is False
+        assert scheduler.get_queue_summary() == {
+            "size": 1,
+            "by_priority": {"low": 1},
+        }
+        assert scheduler.remove_request("missing") is False
+        assert scheduler.remove_request(request.request_id) is True
+        assert scheduler.get_queue_summary() == {"size": 0, "by_priority": {}}
+
 
 class TestRhythmManager:
     def test_submit_request_returns_response(self):
@@ -118,6 +225,38 @@ class TestRhythmManager:
         req = _mk_request(DecisionPriority.HIGH)
         resp = manager.submit_request(req, quota_period=QuotaPeriod.WEEKLY)
         assert isinstance(resp, DecisionResponse)
+
+    def test_submit_request_reports_cooldown_rejection(self) -> None:
+        manager = RhythmManager()
+        request = _mk_request(DecisionPriority.HIGH)
+        manager.cooldown_manager.cooldowns[request.asset_code] = CooldownPeriod(
+            asset_code=request.asset_code,
+            last_decision_at=datetime.now(UTC),
+            min_decision_interval_hours=24,
+        )
+
+        response = manager.submit_request(request)
+
+        assert response.approved is False
+        assert response.approval_reason == "冷却期内"
+        assert response.wait_until is not None
+
+    def test_submit_batch_orders_by_priority_and_summary_is_serializable(self) -> None:
+        manager = RhythmManager()
+        low = DecisionRequest(**{**_mk_request(DecisionPriority.LOW).__dict__, "request_id": "low"})
+        critical = DecisionRequest(
+            **{
+                **_mk_request(DecisionPriority.CRITICAL).__dict__,
+                "request_id": "critical",
+            }
+        )
+
+        responses = manager.submit_batch([low, critical])
+        summary = manager.get_summary()
+
+        assert [response.request_id for response in responses] == ["critical", "low"]
+        assert summary["cooldown_count"] == 1
+        assert set(summary) == {"quota_statuses", "cooldown_count", "config"}
 
 
 class TestEntitiesAndEnums:

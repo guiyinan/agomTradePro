@@ -301,7 +301,7 @@ class UnifiedRecommendationRepository:
         self,
         *,
         recommendation_id: str,
-        user_action: UserDecisionAction,
+        user_action: UserDecisionAction | str,
         note: str = "",
         account_id: str | None = None,
     ) -> UnifiedRecommendation | None:
@@ -316,7 +316,12 @@ class UnifiedRecommendationRepository:
         if model is None:
             return None
 
-        model.user_action = user_action.value
+        normalized_action = (
+            user_action
+            if isinstance(user_action, UserDecisionAction)
+            else UserDecisionAction(user_action)
+        )
+        model.user_action = normalized_action.value
         model.user_action_note = note
         model.user_action_at = timezone.now()
         model.save(

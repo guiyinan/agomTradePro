@@ -169,11 +169,12 @@ class TestSelectTests(unittest.TestCase):
         self.assertIn("tests/api/test_audit_api_edges.py", tests)
 
     def test_select_tests_with_data_center_changes_include_api_and_unit_tests(self):
-        """data_center 变更必须带上 API、集成和单元测试。"""
+        """data_center 变更必须带上 API、集成、单元和 Component 测试。"""
         tests = select_tests_func({"data_center"}, ["apps/data_center/interface/api_views.py"])
         self.assertIn("tests/api/test_data_center_route_cleanup.py", tests)
         self.assertIn("tests/integration/data_center/", tests)
         self.assertIn("tests/unit/data_center/", tests)
+        self.assertIn("tests/component/data_center/", tests)
 
     def test_select_tests_with_dashboard_changes_include_api_tests(self):
         """dashboard 变更必须带上 API 测试。"""
@@ -251,7 +252,7 @@ class TestSelectTests(unittest.TestCase):
             profile="logic_guardrails",
         )
         self.assertIn("tests/api/test_alpha_api_edges.py", tests)
-        self.assertIn("tests/unit/test_alpha_providers.py", tests)
+        self.assertIn("tests/component/test_alpha_providers.py", tests)
         self.assertNotIn("tests/e2e/test_alpha_dashboard_e2e.py", tests)
         self.assertNotIn("tests/integration/test_alpha_stress.py", tests)
 
@@ -359,6 +360,7 @@ class TestSelectTests(unittest.TestCase):
         """全量回退策略必须覆盖 app-local tests。"""
         self.assertIn("tests/api/", FULL_TEST_SUITES)
         self.assertIn("tests/migrations/", FULL_TEST_SUITES)
+        self.assertIn("tests/component/", FULL_TEST_SUITES)
         self.assertIn("tests/unit/", FULL_TEST_SUITES)
         self.assertIn("tests/critical/", FULL_TEST_SUITES)
         self.assertIn("apps/dashboard/tests/", FULL_TEST_SUITES)

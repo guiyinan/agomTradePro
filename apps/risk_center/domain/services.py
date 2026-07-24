@@ -71,7 +71,7 @@ class RiskPolicyResolver:
             template_key=template.key,
             risk_profile=(
                 account_policy.risk_profile
-                if account_policy and account_policy.risk_profile
+                if (account_policy and account_policy.is_active and account_policy.risk_profile)
                 else template.risk_profile
             ),
             sources=sources,

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any, Protocol, cast
 
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.account.interface.authentication import (
@@ -26,21 +28,47 @@ from apps.dashboard.application.query_services import (
 from core.cache_utils import CACHE_TTL, cached_api
 
 
-def _dashboard_views():
+class _DashboardViewsProtocol(Protocol):
+    """Typed boundary for the legacy dashboard view helpers."""
+
+    def _build_dashboard_data(self, user_id: object) -> Any: ...
+
+    def _parse_positive_int_param(
+        self,
+        value: object,
+        *,
+        field_name: str,
+        default: int,
+    ) -> int: ...
+
+    def _get_alpha_decision_chain_data(
+        self,
+        *,
+        top_n: int,
+        ic_days: int,
+        max_candidates: int,
+        max_pending: int,
+        user: object,
+    ) -> dict[str, Any]: ...
+
+
+def _dashboard_views() -> _DashboardViewsProtocol:
     from apps.dashboard.interface import views as dashboard_views
 
-    return dashboard_views
+    return cast(_DashboardViewsProtocol, dashboard_views)
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
+@authentication_classes(
+    [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
 @cached_api(
     key_prefix="dashboard_summary",
     ttl_seconds=CACHE_TTL["dashboard_summary"],
     include_user=True,
 )
-def dashboard_summary_v1(request):
+def dashboard_summary_v1(request: Request) -> Response:
     """Summary endpoint for Streamlit dashboard."""
 
     dashboard_views = _dashboard_views()
@@ -71,9 +99,11 @@ def dashboard_summary_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
+@authentication_classes(
+    [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
-def auto_advisor_console(request):
+def auto_advisor_console(request: Request) -> Response:
     """Homepage auto-advisor console payload."""
 
     account_id = str(request.GET.get("account_id") or "").strip()
@@ -96,9 +126,11 @@ def auto_advisor_console(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
+@authentication_classes(
+    [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
-def auto_advisor_query(request):
+def auto_advisor_query(request: Request) -> Response:
     """Deterministic personal auto-advisor Q&A payload."""
 
     account_id = str(request.GET.get("account_id") or "").strip()
@@ -129,16 +161,18 @@ def auto_advisor_query(request):
     return Response({"success": True, "data": payload})
 
 
-def _request_param(request, key: str) -> object:
+def _request_param(request: Request, key: str) -> object:
     if request.method == "POST":
         return request.data.get(key)
     return request.GET.get(key)
 
 
 @api_view(["GET", "POST"])
-@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
+@authentication_classes(
+    [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
-def auto_advisor_weekly_report(request):
+def auto_advisor_weekly_report(request: Request) -> Response:
     """Personal weekly auto-advisor report payload.
 
     GET is read-only and returns a generated report payload.
@@ -189,9 +223,11 @@ def auto_advisor_weekly_report(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
+@authentication_classes(
+    [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
-def auto_advisor_weekly_report_history(request):
+def auto_advisor_weekly_report_history(request: Request) -> Response:
     """Persisted personal weekly auto-advisor report history."""
 
     account_id = str(request.GET.get("account_id") or "").strip() or None
@@ -211,9 +247,11 @@ def auto_advisor_weekly_report_history(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
+@authentication_classes(
+    [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
-def auto_advisor_notifications(request):
+def auto_advisor_notifications(request: Request) -> Response:
     """Stored auto-advisor notification/output items."""
 
     account_id = str(request.GET.get("account_id") or "").strip() or None
@@ -233,14 +271,16 @@ def auto_advisor_notifications(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
+@authentication_classes(
+    [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
 @cached_api(
     key_prefix="regime_quadrant",
     ttl_seconds=CACHE_TTL["regime_current"],
     include_user=False,
 )
-def regime_quadrant_v1(request):
+def regime_quadrant_v1(request: Request) -> Response:
     """Regime quadrant data for Streamlit visualization."""
 
     dashboard_views = _dashboard_views()
@@ -262,9 +302,11 @@ def regime_quadrant_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
+@authentication_classes(
+    [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
-def equity_curve_v1(request):
+def equity_curve_v1(request: Request) -> Response:
     """Equity curve data for Streamlit."""
 
     dashboard_views = _dashboard_views()
@@ -292,7 +334,9 @@ def equity_curve_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
+@authentication_classes(
+    [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
 @cached_api(
     key_prefix="signal_status",
@@ -300,7 +344,7 @@ def equity_curve_v1(request):
     vary_on=["limit"],
     include_user=True,
 )
-def signal_status_v1(request):
+def signal_status_v1(request: Request) -> Response:
     """Signal status and recent signal list for Streamlit."""
 
     try:
@@ -321,9 +365,11 @@ def signal_status_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
+@authentication_classes(
+    [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
-def alpha_decision_chain_v1(request):
+def alpha_decision_chain_v1(request: Request) -> Response:
     """Unified Alpha ranking -> actionable -> pending chain for dashboard/MCP/SDK."""
 
     dashboard_views = _dashboard_views()
@@ -359,19 +405,20 @@ def alpha_decision_chain_v1(request):
             status=503,
         )
 
+    overview = dict(chain_data.get("overview") or {})
     return Response(
         {
             "success": True,
-            "summary": chain_data.overview,
-            "top_stocks": chain_data.top_stocks,
-            "actionable_candidates": chain_data.actionable_candidates,
-            "pending_requests": chain_data.pending_requests,
-            "alpha_provider_status": chain_data.overview.get("alpha_provider_status", {}),
-            "coverage_metrics": chain_data.overview.get("coverage_metrics", {}),
-            "ic_trends": chain_data.overview.get("ic_trends", []),
-            "workflow": chain_data.overview.get("workflow", {}),
-            "decision_readiness": chain_data.overview.get("decision_readiness", {}),
-            "warnings": chain_data.overview.get("warnings", []),
-            "generated_at": chain_data.overview.get("generated_at"),
+            "summary": overview,
+            "top_stocks": list(chain_data.get("top_stocks") or []),
+            "actionable_candidates": list(chain_data.get("actionable_candidates") or []),
+            "pending_requests": list(chain_data.get("pending_requests") or []),
+            "alpha_provider_status": overview.get("alpha_provider_status", {}),
+            "coverage_metrics": overview.get("coverage_metrics", {}),
+            "ic_trends": overview.get("ic_trends", []),
+            "workflow": overview.get("workflow", {}),
+            "decision_readiness": overview.get("decision_readiness", {}),
+            "warnings": overview.get("warnings", []),
+            "generated_at": overview.get("generated_at"),
         }
     )

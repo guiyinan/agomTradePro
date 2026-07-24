@@ -1,7 +1,7 @@
 # 分层测试与 TDD 反馈环提升计划
 
 > **文档日期**: 2026-07-24
-> **状态**: 执行中；T0 红灯修复已完成
+> **状态**: 已完成（T0-T5，2026-07-24）
 > **适用对象**: 开发负责人 / 测试负责人 / 模块维护人
 > **范围**: Python/Django Unit、API 契约、Integration、Django E2E、Playwright/UAT 与 CI 门禁
 > **目标**: 在不以测试数量替代质量的前提下，恢复全绿基线、缩短 TDD 反馈环，并按风险提升 Domain、应用边界和关键用户旅程的有效覆盖
@@ -213,8 +213,49 @@ Playwright 必须通过 `scripts/run_live_server_pytest.py` 管理 live server�
 | 批次 | 状态 | 结果 |
 |---|---|---|
 | T0 定向修复 | 完成 | 相关 3 文件 `10 passed`；全量 Unit `5920 passed / 4 skipped` |
-| T1 快速反馈环 | 待开始 | — |
-| T2 Domain 90% | 待开始 | — |
-| T3 边界契约 | 待开始 | — |
-| T4 关键旅程 | 待开始 | — |
-| T5 CI ratchet | 待开始 | — |
+| T1 快速反馈环 | 完成 | 158 个数据库型 Unit 文件迁入 `tests/component/`；旧 ID 映射已落盘；Unit DB 文件占比 `1.36%`；fast suite `3500 passed / 40.06s`，未创建测试数据库 |
+| T2 Domain 90% | 完成 | 覆盖率 ratchet 验证所有 42 个业务模块 Domain 均 ≥90%，最低值仍高于门限 |
+| T3 边界契约 | 完成 | Unit `5169 passed`、Component `1707 passed / 4 skipped`、API+Migration `565 passed`、Integration `958 passed / 13 deselected`、App-local `288 passed`；补齐成功、失败、权限、边界和副作用契约 |
+| T4 关键旅程 | 完成 | Django E2E `97 passed`；Chromium smoke `33 passed`；Chromium UAT `74 passed`，均无 skip/failure/error |
+| T5 CI ratchet | 完成 | 仓库并集覆盖率 `80.1%`；核心模块 ≥80%、其余模块 ≥70%、Domain ≥90%；PR/Nightly/RC 已接入统一配置与报告；guardrail+critical `165 passed` |
+
+## 10. 完成证据（2026-07-24）
+
+### 10.1 机器真源与 CI
+
+- 覆盖率唯一口径：`.coveragerc`。
+- 测试质量门限：`governance/testing_quality_baseline.json`。
+- 分层清单：`governance/test_tier_inventory.json`。
+- 旧测试 ID 到新位置映射：`governance/test_id_migrations_2026-07-24.json`。
+- 覆盖率门禁：`scripts/check_coverage_ratchet.py`。
+- fast suite：`scripts/run_fast_tests.py`，由 `tests/support/fast_suite_guard.py` 阻止数据库初始化。
+- PR、Nightly、RC 工作流统一使用上述真源，不再各自维护覆盖率 omit 或门限。
+
+### 10.2 最终验收结果
+
+| 验收项 | 结果 |
+|---|---:|
+| 仓库行覆盖率 | `80.1%` |
+| Unit DB 文件占比 | `6 / 440 = 1.36%` |
+| fast suite | `3500 passed / 40.06s` |
+| Unit | `5169 passed / 7 warnings` |
+| Component | `1707 passed / 4 skipped` |
+| API + Migration | `565 passed` |
+| Integration（排除 live/optional/diagnostic） | `958 passed / 13 deselected` |
+| Django E2E | `97 passed` |
+| App-local | `288 passed` |
+| Playwright smoke | `33 passed` |
+| Playwright UAT | `74 passed` |
+| Guardrail + Critical | `165 passed` |
+| TUI workbench / Terminal service / SDK client / SSL redirect | `194 / 11 / 22 / 2 passed` |
+| 增量 mypy | `14 source files / 0 regressions` |
+| 全仓 mypy 债务上限 | `3916 errors / 658 files`，只降不升 |
+
+覆盖率报告保存在 `reports/quality/coverage-final.xml`；浏览器 JUnit、server log 和 pytest log 保存在 `reports/quality/local-smoke*` 与 `reports/quality/local-uat*`。
+
+### 10.3 已知非阻断项与回滚点
+
+- Component 的 4 个既有 skip 与 Integration 的 13 个 marker deselection 未由本计划新增；没有新增 skip/xfail 隐藏回归。
+- 本地 SQLite 运行仍会出现少量既有 Django/第三方弃用与资源警告；本批未发现由警告导致的失败或数据污染。
+- 覆盖率 XML 在删除不可达的 `apps/macro/interface/views.py` 后使用 `--ignore-errors` 跳过旧 coverage data 中的已删除路径；门禁读取的当前生产文件口径仍为 `80.1%`。
+- 回滚按主线执行：CI/ratchet 回滚三个 workflow 与治理脚本；测试迁移按 `test_id_migrations_2026-07-24.json` 反向恢复；业务缺陷修复按对应模块独立回滚，禁止整体回退覆盖率和依赖预算基线。

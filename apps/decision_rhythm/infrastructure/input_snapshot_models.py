@@ -3,6 +3,8 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
+__all__ = ["DecisionInputSnapshotModel"]
+
 
 class DecisionInputSnapshotModel(models.Model):
     """Append-only decision evidence package."""
@@ -38,4 +40,3 @@ class DecisionInputSnapshotModel(models.Model):
 
     def delete(self, *args, **kwargs):  # type: ignore[no-untyped-def]
         raise ValidationError("DecisionInputSnapshot cannot be deleted.")
-

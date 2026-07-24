@@ -55,6 +55,22 @@ jobs:
             --cov-report=term-missing \
             --cov-report=html:htmlcov-unit
 
+      - name: Verify test-tier inventory
+        run: python scripts/test_tier_inventory.py --check
+
+      - name: Run Component Tests
+        timeout-minutes: 25
+        env:
+          PYTHONFAULTHANDLER: "1"
+        run: |
+          python -m pytest tests/component/ -q \
+            --timeout=300 \
+            --timeout-method=thread \
+            --durations=20 \
+            --cov=apps \
+            --cov-append \
+            --cov-report=term-missing
+
       - name: Run API And Migration Tests
         timeout-minutes: 20
         env:
@@ -115,6 +131,12 @@ jobs:
             --cov=apps \
             --cov-append \
             --cov-report=xml:coverage-guardrail.xml
+
+      - name: Build combined coverage report and enforce ratchet
+        run: |
+          python -m coverage xml -o coverage-combined.xml
+          python -m coverage report
+          python scripts/check_coverage_ratchet.py coverage-combined.xml
 
       - name: Generate Architecture Audit Report
         run: |

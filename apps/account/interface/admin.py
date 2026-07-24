@@ -24,6 +24,7 @@ from apps.account.models import (
     DocumentationModel,
     ExchangeRateModel,
     InvestmentRuleModel,
+    MacroSizingConfigModel,
     PortfolioDailySnapshotModel,
     PortfolioModel,
     PositionModel,
@@ -523,6 +524,22 @@ class InvestmentRuleModelAdmin(TypedModelAdmin[InvestmentRuleModel]):
     list_filter = ["rule_type", "is_active"]
     search_fields = ["name", "advice_template"]
     readonly_fields = ["created_at", "updated_at"]
+
+
+@admin.register(MacroSizingConfigModel)
+class MacroSizingConfigModelAdmin(TypedModelAdmin[MacroSizingConfigModel]):
+    """宏观仓位系数配置管理。"""
+
+    list_display = ["version", "is_active", "warning_factor", "description", "created_at"]
+    list_filter = ["is_active", "version", "created_at"]
+    readonly_fields = [
+        "regime_tiers_json",
+        "pulse_tiers_json",
+        "drawdown_tiers_json",
+        "created_at",
+        "updated_at",
+    ]
+    ordering = ["-version"]
 
 
 @admin.register(PortfolioDailySnapshotModel)

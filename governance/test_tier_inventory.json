@@ -1,0 +1,6091 @@
+{
+  "counts": {
+    "acceptance": 2,
+    "api": 51,
+    "component": 281,
+    "critical": 3,
+    "e2e": 7,
+    "fast": 232,
+    "guardrails": 18,
+    "integration": 96,
+    "migrations": 6,
+    "performance": 1,
+    "playwright": 6,
+    "test_all_pages.py": 1,
+    "test_capital_market_data.py": 1,
+    "test_data_connections.py": 1,
+    "test_data_simple.py": 1,
+    "test_full_project.py": 1,
+    "test_improved_adapters.py": 1,
+    "test_improved_adapters_ascii.py": 1,
+    "uat": 3,
+    "unit": 94
+  },
+  "fast_files": [
+    "tests/unit/account/test_periodic_task_edges.py",
+    "tests/unit/account/test_position_use_cases_edges.py",
+    "tests/unit/account/test_stop_loss_use_cases.py",
+    "tests/unit/account/test_stress_testing_use_cases.py",
+    "tests/unit/account/test_trading_cost_config.py",
+    "tests/unit/account/test_transaction_cost_use_cases.py",
+    "tests/unit/alpha_trigger/test_page_query_service_edges.py",
+    "tests/unit/alpha_trigger/test_use_cases_edges.py",
+    "tests/unit/application/factor/test_use_cases.py",
+    "tests/unit/application/strategy/test_ai_strategy_executor.py",
+    "tests/unit/application/strategy/test_position_management_service.py",
+    "tests/unit/application/strategy/test_rule_evaluator.py",
+    "tests/unit/application/strategy/test_script_engine.py",
+    "tests/unit/application/strategy/test_strategy_executor.py",
+    "tests/unit/asset_analysis/test_interface_services.py",
+    "tests/unit/audit/test_indicator_weight_adjustment_edges.py",
+    "tests/unit/backtest/test_report_generator.py",
+    "tests/unit/beta_gate/test_event_handler_edges.py",
+    "tests/unit/broker_execution/test_domain.py",
+    "tests/unit/core/test_config_center.py",
+    "tests/unit/core/test_decision_context.py",
+    "tests/unit/data_center/test_decision_data_readiness.py",
+    "tests/unit/data_center/test_domain_entities.py",
+    "tests/unit/data_center/test_macro_fact_governance.py",
+    "tests/unit/data_center/test_market_thermometer_tasks.py",
+    "tests/unit/data_center/test_phase2_rules.py",
+    "tests/unit/data_center/test_use_cases.py",
+    "tests/unit/decision_rhythm/test_advisor_sheet_intents.py",
+    "tests/unit/decision_rhythm/test_alpha_workspace_consistency.py",
+    "tests/unit/decision_rhythm/test_application_dtos.py",
+    "tests/unit/decision_rhythm/test_exit_advisors.py",
+    "tests/unit/decision_rhythm/test_subscriber_wiring.py",
+    "tests/unit/decision_rhythm/test_valuation_services.py",
+    "tests/unit/decision_rhythm/test_workspace_service_safety.py",
+    "tests/unit/decision_rhythm/test_workspace_snapshot_tasks.py",
+    "tests/unit/domain/audit/test_attribution_services.py",
+    "tests/unit/domain/audit/test_entities.py",
+    "tests/unit/domain/audit/test_performance_analyzer.py",
+    "tests/unit/domain/audit/test_threshold_validator.py",
+    "tests/unit/domain/simulated_trading/test_entities.py",
+    "tests/unit/domain/simulated_trading/test_rules.py",
+    "tests/unit/domain/simulated_trading/test_services.py",
+    "tests/unit/domain/strategy/test_entities.py",
+    "tests/unit/domain/test_ai_provider_entities.py",
+    "tests/unit/domain/test_ai_provider_services.py",
+    "tests/unit/domain/test_alpha_domain_edges.py",
+    "tests/unit/domain/test_alpha_trigger_domain_edges.py",
+    "tests/unit/domain/test_asset_analysis_domain_edges.py",
+    "tests/unit/domain/test_audit_brinson_edges.py",
+    "tests/unit/domain/test_backtest_domain_edges.py",
+    "tests/unit/domain/test_backtest_services.py",
+    "tests/unit/domain/test_beta_gate_domain_edges.py",
+    "tests/unit/domain/test_dashboard_rules.py",
+    "tests/unit/domain/test_dashboard_services.py",
+    "tests/unit/domain/test_decision_rhythm_domain_edges.py",
+    "tests/unit/domain/test_equity_comprehensive_valuation_edges.py",
+    "tests/unit/domain/test_equity_optimized_screener.py",
+    "tests/unit/domain/test_equity_services.py",
+    "tests/unit/domain/test_equity_technical_services.py",
+    "tests/unit/domain/test_events_rules.py",
+    "tests/unit/domain/test_events_services.py",
+    "tests/unit/domain/test_factor_entities.py",
+    "tests/unit/domain/test_factor_services.py",
+    "tests/unit/domain/test_filter_services.py",
+    "tests/unit/domain/test_fund_services.py",
+    "tests/unit/domain/test_hedge_entities.py",
+    "tests/unit/domain/test_hedge_services.py",
+    "tests/unit/domain/test_invalidation.py",
+    "tests/unit/domain/test_macro_entities.py",
+    "tests/unit/domain/test_policy_rules.py",
+    "tests/unit/domain/test_portfolio_domain_edges.py",
+    "tests/unit/domain/test_prompt_function_registry.py",
+    "tests/unit/domain/test_prompt_rules.py",
+    "tests/unit/domain/test_prompt_services.py",
+    "tests/unit/domain/test_realtime_domain_edges.py",
+    "tests/unit/domain/test_regime_comprehensive.py",
+    "tests/unit/domain/test_regime_services.py",
+    "tests/unit/domain/test_regime_services_v2.py",
+    "tests/unit/domain/test_risk_center_domain_edges.py",
+    "tests/unit/domain/test_rotation_entities.py",
+    "tests/unit/domain/test_rotation_services.py",
+    "tests/unit/domain/test_sector_services.py",
+    "tests/unit/domain/test_sentiment_and_share_domain_edges.py",
+    "tests/unit/domain/test_sentiment_entities.py",
+    "tests/unit/domain/test_signal_rules.py",
+    "tests/unit/domain/test_small_domain_edges.py",
+    "tests/unit/domain/test_strategy_domain_services_edges.py",
+    "tests/unit/domain/test_valuation_domain_edges.py",
+    "tests/unit/equity/test_market_sessions.py",
+    "tests/unit/equity/test_runtime_benchmark_config.py",
+    "tests/unit/equity/test_stock_screener.py",
+    "tests/unit/equity/test_use_cases.py",
+    "tests/unit/equity/test_valuation_analyzer.py",
+    "tests/unit/equity/test_valuation_quality_gate.py",
+    "tests/unit/equity/test_valuation_repair_tracker.py",
+    "tests/unit/equity/test_valuation_sync.py",
+    "tests/unit/equity/test_valuation_sync_tasks.py",
+    "tests/unit/events/test_replay_domain.py",
+    "tests/unit/events/test_replay_registry.py",
+    "tests/unit/events/test_replay_service.py",
+    "tests/unit/macro/test_data_management.py",
+    "tests/unit/macro/test_indicator_service.py",
+    "tests/unit/macro/test_macro_use_cases.py",
+    "tests/unit/policy/test_hedging_use_cases.py",
+    "tests/unit/policy/test_policy_tasks.py",
+    "tests/unit/policy/test_policy_use_cases.py",
+    "tests/unit/policy/test_rss_fetch_application_edges.py",
+    "tests/unit/policy/test_rules.py",
+    "tests/unit/policy/test_task_edges.py",
+    "tests/unit/policy/test_tasks_notifications.py",
+    "tests/unit/portfolio/test_transition_plan_rules.py",
+    "tests/unit/realtime/test_alert_domain.py",
+    "tests/unit/realtime/test_price_polling_alerts.py",
+    "tests/unit/regime/test_asset_eligibility.py",
+    "tests/unit/regime/test_navigator_use_cases.py",
+    "tests/unit/regime/test_orchestration_edges.py",
+    "tests/unit/regime/test_task_contract_edges.py",
+    "tests/unit/research/test_research_statistics.py",
+    "tests/unit/risk_center/test_policy_resolver.py",
+    "tests/unit/risk_center/test_trade_guard.py",
+    "tests/unit/sector/test_sector_rotation.py",
+    "tests/unit/sector/test_sector_use_case_regime_fallback.py",
+    "tests/unit/shared/test_position_calculations.py",
+    "tests/unit/signal/test_policy_influence_service.py",
+    "tests/unit/signal/test_query_service_contracts.py",
+    "tests/unit/signal/test_query_services.py",
+    "tests/unit/signal/test_task_delivery_edges.py",
+    "tests/unit/signal/test_unified_service_edges.py",
+    "tests/unit/strategy/test_allocation_service.py",
+    "tests/unit/strategy/test_gateway_and_target_contracts.py",
+    "tests/unit/strategy/test_order_state_machine.py",
+    "tests/unit/terminal/test_tui_contract_guardrails.py",
+    "tests/unit/test_account_macro_sizing.py",
+    "tests/unit/test_account_performance_domain.py",
+    "tests/unit/test_account_performance_use_cases.py",
+    "tests/unit/test_account_position_helpers.py",
+    "tests/unit/test_advisor_services_structure.py",
+    "tests/unit/test_agent_runtime_application.py",
+    "tests/unit/test_agent_runtime_domain.py",
+    "tests/unit/test_agent_runtime_m2_facades.py",
+    "tests/unit/test_agent_runtime_m3_guardrails.py",
+    "tests/unit/test_agent_runtime_m4_failure.py",
+    "tests/unit/test_agent_runtime_m4_regression.py",
+    "tests/unit/test_ai_capability/test_capability_sync_semantic_overrides.py",
+    "tests/unit/test_ai_capability/test_data_center_provider_connection_catalog.py",
+    "tests/unit/test_ai_capability/test_entities.py",
+    "tests/unit/test_ai_capability/test_mcp_alpha_score_upload_catalog.py",
+    "tests/unit/test_ai_capability/test_mcp_audit_threshold_catalog.py",
+    "tests/unit/test_ai_capability/test_mcp_backtest_equity_curve_catalog.py",
+    "tests/unit/test_ai_capability/test_mcp_catalog_projection.py",
+    "tests/unit/test_ai_capability/test_mcp_config_center_snapshot_catalog.py",
+    "tests/unit/test_ai_capability/test_mcp_dashboard_allocation_catalog.py",
+    "tests/unit/test_ai_capability/test_mcp_dashboard_equity_curve_catalog.py",
+    "tests/unit/test_ai_capability/test_mcp_dashboard_positions_catalog.py",
+    "tests/unit/test_ai_capability/test_mcp_hedge_effectiveness_catalog.py",
+    "tests/unit/test_ai_capability/test_mcp_regime_action_catalog.py",
+    "tests/unit/test_ai_capability/test_remaining_workflow_catalog.py",
+    "tests/unit/test_ai_capability/test_result_enrichment.py",
+    "tests/unit/test_ai_capability/test_sdk_alignment_read_catalog.py",
+    "tests/unit/test_ai_capability/test_semantic_governance_domain.py",
+    "tests/unit/test_ai_capability/test_semantic_governance_service.py",
+    "tests/unit/test_ai_capability/test_services.py",
+    "tests/unit/test_ai_capability/test_terminal_gateway.py",
+    "tests/unit/test_ai_capability_query_services.py",
+    "tests/unit/test_alpha_candidate_execution_tracking.py",
+    "tests/unit/test_alpha_exit_loop_end_to_end.py",
+    "tests/unit/test_alpha_service_typing_contracts.py",
+    "tests/unit/test_alpha_trigger_entities.py",
+    "tests/unit/test_alpha_trigger_entities_v2.py",
+    "tests/unit/test_alpha_trigger_services.py",
+    "tests/unit/test_alpha_trigger_subscriber_wiring.py",
+    "tests/unit/test_asset_analysis.py",
+    "tests/unit/test_audit_domain.py",
+    "tests/unit/test_auto_advisor_decision_sheet.py",
+    "tests/unit/test_auto_trading_engine.py",
+    "tests/unit/test_auto_trading_task_wiring.py",
+    "tests/unit/test_backtest_use_cases.py",
+    "tests/unit/test_beta_gate_entities.py",
+    "tests/unit/test_beta_gate_services.py",
+    "tests/unit/test_check_mcp_catalog_dedup.py",
+    "tests/unit/test_confidence_model.py",
+    "tests/unit/test_currency_conversion.py",
+    "tests/unit/test_daily_inspection_service.py",
+    "tests/unit/test_dashboard_alpha_homepage_structure.py",
+    "tests/unit/test_data_center_on_demand.py",
+    "tests/unit/test_data_center_query_services.py",
+    "tests/unit/test_data_center_use_cases_structure.py",
+    "tests/unit/test_decision_execution_workflow.py",
+    "tests/unit/test_decision_rhythm_entities_structure.py",
+    "tests/unit/test_decision_rhythm_handlers.py",
+    "tests/unit/test_decision_rhythm_services.py",
+    "tests/unit/test_decision_rhythm_use_cases_structure.py",
+    "tests/unit/test_decision_rhythm_workflow_use_cases.py",
+    "tests/unit/test_equity_scoring.py",
+    "tests/unit/test_events_tasks.py",
+    "tests/unit/test_execute_buy_order_use_case.py",
+    "tests/unit/test_execute_decision_use_case.py",
+    "tests/unit/test_high_frequency_indicators.py",
+    "tests/unit/test_model_param_services.py",
+    "tests/unit/test_personal_account_readiness_repair.py",
+    "tests/unit/test_personal_readiness_daily_task.py",
+    "tests/unit/test_personal_readiness_status_command.py",
+    "tests/unit/test_policy_rules.py",
+    "tests/unit/test_policy_use_cases_structure.py",
+    "tests/unit/test_position_invalidation_checker.py",
+    "tests/unit/test_position_invalidation_tasks.py",
+    "tests/unit/test_pulse_dimension.py",
+    "tests/unit/test_pulse_entities.py",
+    "tests/unit/test_pulse_services.py",
+    "tests/unit/test_pulse_transition.py",
+    "tests/unit/test_readiness_monitor_service.py",
+    "tests/unit/test_realtime_tasks.py",
+    "tests/unit/test_regime_action_mapper.py",
+    "tests/unit/test_regime_asset_mapping.py",
+    "tests/unit/test_regime_movement.py",
+    "tests/unit/test_regime_watch_indicators.py",
+    "tests/unit/test_scoring_weights_config.py",
+    "tests/unit/test_setup_wizard_domain.py",
+    "tests/unit/test_signal_invalidation_checker.py",
+    "tests/unit/test_simulated_order_invariants.py",
+    "tests/unit/test_simulated_performance_calculator.py",
+    "tests/unit/test_simulated_position_helpers.py",
+    "tests/unit/test_stop_loss.py",
+    "tests/unit/test_terminal_query_services.py",
+    "tests/unit/test_transition_plan_domain.py",
+    "tests/unit/test_tui_operator_services.py",
+    "tests/unit/test_unified_price_service.py",
+    "tests/unit/test_unified_recommendation_dtos.py",
+    "tests/unit/test_unified_signal_service.py",
+    "tests/unit/test_volatility_control.py",
+    "tests/unit/valuation/test_asset_valuation_service.py",
+    "tests/unit/valuation/test_owner_contract.py"
+  ],
+  "files": [
+    {
+      "database_dependent": false,
+      "path": "tests/acceptance/test_mcp_server.py",
+      "reasons": [
+        "path:acceptance"
+      ],
+      "tier": "acceptance"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/acceptance/test_sdk_connection.py",
+      "reasons": [
+        "path:acceptance"
+      ],
+      "tier": "acceptance"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_account_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_account_profile_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_advertised_api_roots.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_agent_runtime_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_ai_capability_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_ai_provider_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_alpha_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_alpha_ops_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_alpha_trigger_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_api_root_contract_matrix.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_asset_analysis_pool_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_audit_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_backtest_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_beta_gate_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_config_center_alpha_universe_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_dashboard_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_data_center_route_cleanup.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_data_center_universe_config_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_decision_rhythm_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_equity_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_event_replay_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_events_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_factor_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_filter_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_fund_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_hedge_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_policy_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_policy_workbench_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_prompt_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_pulse_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_realtime_alerts_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_realtime_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_realtime_subscriptions_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_regime_action_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_regime_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_regime_navigator_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_research_integrity_contracts.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_rotation_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_sector_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_semantic_governance_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_sentiment_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_share_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_signal_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_simulated_trading_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_strategy_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_task_monitor_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_terminal_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_valuation_repair_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_workbench_api.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_workspace_execution_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/api/test_workspace_recommendations_api_edges.py",
+      "reasons": [
+        "path:api"
+      ],
+      "tier": "api"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_account_risk_periodic_tasks.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_alpha_pool_mode_runtime.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_auth_page_templates.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_authentication.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_db_backup_email.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_macro_sizing_import_contract.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_manual_trade_sync.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_notification_service.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_system_settings_admin.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_system_settings_runtime_config.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_tui_entry_redirects.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/account/test_user_signals.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/agent_runtime/test_timeline_service.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/alpha/test_model_management_command_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/alpha_trigger/test_repository_lifecycle_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/application/test_hedge_interface_services.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/application/test_invalidation_checker.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/application/test_use_cases.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/broker_execution/test_api_and_permissions.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/broker_execution/test_risk_and_reconciliation.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/broker_execution/test_tui_metadata.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/config_center/test_alpha_admin_permissions.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/config_center/test_training_use_cases.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/config_center/test_views.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/core/test_encryption_readiness_command.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_etf_size_flow_unit_migration.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_governance_console.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_interface_services.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_investor_account_unit_migration.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_macro_fact_consistency_command.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_macro_indicator_governance_command.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_phase2_seed.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_pit_research_integrity.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/data_center/test_repositories.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/decision_rhythm/test_decision_input_snapshot.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/domain/test_prompt_init_command_consistency.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/events/test_replay_run_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/infrastructure/test_audit_macro_fact_selection.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/infrastructure/test_repositories.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/macro/test_data_center_fact_crud_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/macro/test_macro_auto_sync_tasks.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/macro/test_macro_data_page_view.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/policy/test_fetch_rss_use_case.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/policy/test_init_authoritative_rss_sources.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/policy/test_policy_repository_lifecycle_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/prompt/test_prompt_evaluation_gate.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/pulse/test_pulse_use_cases.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/realtime/test_realtime_readiness.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/realtime/test_realtime_repositories.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/regime/test_config_threshold_regression.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/regime/test_macro_data_provider_guardrails.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/research/test_promotion_gate.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/shared/infrastructure/test_htmx_decorators.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/shared/infrastructure/test_htmx_views.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/signal/test_forecast_ledger.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/signal/test_repository_crud_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/strategy/test_order_intent_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/strategy/test_strategy_repository_lifecycle_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_account_admin_user_management.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_agent_mcp_review_regressions.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_agent_runtime.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_agent_runtime_m4_dashboard.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_agent_runtime_m4_handoff.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_capability/test_api_and_use_cases_api.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_capability/test_api_and_use_cases_catalog.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_capability/test_api_and_use_cases_owner_prompt.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_capability/test_api_and_use_cases_owner_regime.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_capability/test_api_and_use_cases_routing.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_capability/test_api_and_use_cases_use_cases.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_capability/test_capability_gateway_semantic_governance.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_capability/test_catalog_governance.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_capability/test_semantic_governance_models.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_capability/test_semantic_governance_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_provider_config_modes.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_provider_encryption_guardrails.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_ai_provider_user_routing.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_alpha_pool_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_alpha_price_coverage_sync.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_alpha_providers.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_alpha_trigger_repository_regression.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_alpha_upload.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_alpha_workspace_consistency_snapshots.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_application_dto_catalog_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_asset_name_resolver.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_audit_permissions.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_auto_advisor_dashboard_console.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_auto_advisor_outputs.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_auto_advisor_ui_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_auto_advisor_weekly_task.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_backtest_data_center_adapter.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_beta_gate_activation_consistency.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_beta_gate_repository_typing_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_cache_utils.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_context_snapshot_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_core_favicon.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_core_security.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_core_user_page_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_dashboard_regression_guardrails.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_data_center_asset_master_backfill.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_data_center_coverage_command.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_decision_execution_handlers.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_decision_today_queue.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_django_sdk_transport.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_dos_limits.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_equity_config_loader.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_equity_market_adapter.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_equity_repository_daily.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_equity_repository_data_center.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_event_snapshot_store_contract.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_fault_injection.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_feature_providers.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_financial_configuration_commands.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_fund_repository_data_center.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_health_checks.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_init_decision_model_params.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_logging_alerting.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_macro_periodic_tasks.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_mcp_tools_page.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_mock_fallback_remediation.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_no_legacy_route_compatibility.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_normalize_macro_fact_units_command.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_observer_grant_model.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_observer_grant_permissions.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_paginated_queryset_ordering.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_policy_admin_typing.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_position_invalidation_data_center.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_price_polling_service.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_prompt_macro_data_center.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_pulse_config_command.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_pulse_data_provider.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_pulse_use_cases.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_pulse_weights.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_qlib_builder.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_qlib_training.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_realtime_data_center_provider.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_realtime_views.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_recalculate_regime_command.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_regime_activation_consistency.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_regime_api_contract.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_regime_data_center_macro_provider.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_regime_interface_views.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_regime_orchestration.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_repair_decision_data_reliability_command.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_rotation_integration_service.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_rotation_interface_services.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_route_name_compatibility.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_runtime_degradation_logging.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_scheduler_initialization.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_sentiment_views.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_setup_wizard_encryption_setup.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_signal_query_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_signal_tasks.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_static_read_api_contracts.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_structured_logging.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_task_monitor.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_template_rendering.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_terminal_api.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_terminal_governance.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_transition_plan_repository.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_tui_adapters.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_tui_agent_action_bridge.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_tui_internal_action_executor.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_tui_operator_api.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_tui_runtime_optimization.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_tui_ui_mode.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_unified_position_service.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_unified_recommendation_models.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/component/test_workspace_recommendation_actions.py",
+      "reasons": [
+        "path:component"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/critical/test_agent_and_recovery_safety.py",
+      "reasons": [
+        "path:critical"
+      ],
+      "tier": "critical"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/critical/test_decision_and_data_safety.py",
+      "reasons": [
+        "path:critical"
+      ],
+      "tier": "critical"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/critical/test_risk_and_order_safety.py",
+      "reasons": [
+        "path:critical"
+      ],
+      "tier": "critical"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/e2e/test_alpha_dashboard_e2e.py",
+      "reasons": [
+        "path:e2e"
+      ],
+      "tier": "e2e"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/e2e/test_audit_admin_console.py",
+      "reasons": [
+        "path:e2e"
+      ],
+      "tier": "e2e"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/e2e/test_dashboard_equity_navigation.py",
+      "reasons": [
+        "path:e2e"
+      ],
+      "tier": "e2e"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/e2e/test_decision_workspace.py",
+      "reasons": [
+        "path:e2e"
+      ],
+      "tier": "e2e"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/e2e/test_my_operation_logs.py",
+      "reasons": [
+        "path:e2e"
+      ],
+      "tier": "e2e"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/e2e/test_navigation_404.py",
+      "reasons": [
+        "path:e2e"
+      ],
+      "tier": "e2e"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/e2e/test_observer_grant_e2e.py",
+      "reasons": [
+        "path:e2e"
+      ],
+      "tier": "e2e"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_advisor_sheet_api.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_alpha_workspace_consistency_guardrail.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_api_contract_minimal.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_architecture_boundaries.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_architecture_tooling.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_consistency_write_guardrails.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_decimal_json_guardrail.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_decision_rhythm_api_error_mapping.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_dependency_source_of_truth.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_governance_consistency.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_logic_guardrails.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_no_501_on_primary_paths.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_pyqlib_source_guardrail.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_repository_governance_contracts.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_runtime_mock_guardrails.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_sdk_route_contracts.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_security_hardening_guardrails.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/guardrails/test_unified_recommendation_api.py",
+      "reasons": [
+        "path:guardrails"
+      ],
+      "tier": "guardrails"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_account_readonly_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_broker_trade_import_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_ledger_unification_acceptance.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_macro_sizing_config_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_mcp_guide_view.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_observer_permission.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_position_price_from_data_center.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_position_update_close_contract.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_profile_view.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_registration_consistency.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_stop_loss_execution_contract.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/account/test_trading_cost_config_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/agent_runtime/test_api_rbac.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/agent_runtime/test_local_sdk_transport.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/agent_runtime/test_operator_pages.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/agent_runtime/test_task_lifecycle.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/alpha/test_alpha_score_upload_governance.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/asset_analysis/test_multidim_screen_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/audit/test_api_endpoints.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/audit/test_attribution_actual_regime.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/audit/test_audit_attribution_report_governance.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/audit/test_audit_threshold_config_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/audit/test_audit_validation_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/audit/test_full_attribution_workflow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/backtest/test_backtest_execution.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/backtest/test_metrics_completeness.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/broker_execution/test_fake_agent_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/config_center/test_config_center_snapshot_readonly.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/data_center/test_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/data_center/test_market_thermometer_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/data_center/test_provider_connection_governance.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/decision_platform/test_ops_modernized_flows.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/decision_platform/test_workflow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/events/test_events_api_contract.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/macro/test_data_sync.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/macro/test_datasource_config_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/policy/test_policy_api_contract.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/policy/test_policy_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/policy/test_policy_workbench_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/regime/test_regime_workflow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/risk_center/test_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/risk_center/test_pages.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/signal/test_signal_workflow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/simulated_trading/test_account_api_scope.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/simulated_trading/test_account_create_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/simulated_trading/test_account_delete_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/simulated_trading/test_daily_net_value_service.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/simulated_trading/test_notification_delivery.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/simulated_trading/test_performance_curve_accuracy.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/simulated_trading/test_rebalance_proposal_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/strategy/test_execution_orchestrator_idempotency.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/strategy/test_strategy_binding_consistency.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/strategy/test_strategy_execute_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/strategy/test_strategy_page_save_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_account_performance_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_alpha_full_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_alpha_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_alpha_monitoring.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_alpha_stress.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_audit_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_audit_internal_ingest.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_backtesting_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_complete_investment_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_config_center_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_config_center_token_permissions.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_data_pipeline_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_decision_execution_approval_chain.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_decision_execution_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_decision_funnel_e2e.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_equity_asset_analysis.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_equity_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_factor_calculate_page.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_factor_definition_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_factor_portfolio_config_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_failover_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_fund_asset_analysis.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_fund_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_new_modules.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_observer_grant_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_portfolio_observer_access.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_prometheus_metrics.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_qlib_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_realtime_monitoring_flow.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_realtime_price_delivery.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_realtime_websocket.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_regime_pulse_e2e.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_sector_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_setup_wizard_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_setup_wizard_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_simulated_trading_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_sizing_context_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_strategy_auto_trading_integration.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_transition_plan_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_unified_account_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_valuation_repair_config_api.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/integration/test_workbench_use_cases.py",
+      "reasons": [
+        "path:integration"
+      ],
+      "tier": "integration"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/migrations/test_agent_runtime_migrations.py",
+      "reasons": [
+        "path:migrations"
+      ],
+      "tier": "migrations"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/migrations/test_ai_capability_semantic_governance_migration.py",
+      "reasons": [
+        "path:migrations"
+      ],
+      "tier": "migrations"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/migrations/test_event_replay_run_migration.py",
+      "reasons": [
+        "path:migrations"
+      ],
+      "tier": "migrations"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/migrations/test_macro_fact_governance_closure_migration.py",
+      "reasons": [
+        "path:migrations"
+      ],
+      "tier": "migrations"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/migrations/test_realtime_alert_subscription_migration.py",
+      "reasons": [
+        "path:migrations"
+      ],
+      "tier": "migrations"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/migrations/test_research_integrity_migrations.py",
+      "reasons": [
+        "path:migrations"
+      ],
+      "tier": "migrations"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/performance/test_api_latency.py",
+      "reasons": [
+        "path:performance"
+      ],
+      "tier": "performance"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/playwright/config/test_config.py",
+      "reasons": [
+        "path:playwright"
+      ],
+      "tier": "playwright"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/playwright/tests/smoke/test_broker_execution.py",
+      "reasons": [
+        "path:playwright"
+      ],
+      "tier": "playwright"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/playwright/tests/smoke/test_critical_paths.py",
+      "reasons": [
+        "path:playwright"
+      ],
+      "tier": "playwright"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/playwright/tests/smoke/test_tui_layout_guardrail.py",
+      "reasons": [
+        "path:playwright"
+      ],
+      "tier": "playwright"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/playwright/tests/uat/test_comprehensive_regression.py",
+      "reasons": [
+        "path:playwright"
+      ],
+      "tier": "playwright"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/playwright/tests/uat/test_user_journeys.py",
+      "reasons": [
+        "path:playwright"
+      ],
+      "tier": "playwright"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/test_all_pages.py",
+      "reasons": [
+        "path:test_all_pages.py"
+      ],
+      "tier": "test_all_pages.py"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/test_capital_market_data.py",
+      "reasons": [
+        "path:test_capital_market_data.py"
+      ],
+      "tier": "test_capital_market_data.py"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/test_data_connections.py",
+      "reasons": [
+        "path:test_data_connections.py"
+      ],
+      "tier": "test_data_connections.py"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/test_data_simple.py",
+      "reasons": [
+        "path:test_data_simple.py"
+      ],
+      "tier": "test_data_simple.py"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/test_full_project.py",
+      "reasons": [
+        "path:test_full_project.py"
+      ],
+      "tier": "test_full_project.py"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/test_improved_adapters.py",
+      "reasons": [
+        "path:test_improved_adapters.py"
+      ],
+      "tier": "test_improved_adapters.py"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/test_improved_adapters_ascii.py",
+      "reasons": [
+        "path:test_improved_adapters_ascii.py"
+      ],
+      "tier": "test_improved_adapters_ascii.py"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/uat/test_api_naming_compliance.py",
+      "reasons": [
+        "path:uat"
+      ],
+      "tier": "uat"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/uat/test_independent_uat.py",
+      "reasons": [
+        "path:uat"
+      ],
+      "tier": "uat"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/uat/test_route_baseline_consistency.py",
+      "reasons": [
+        "path:uat"
+      ],
+      "tier": "uat"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/account/test_account_repository_structure.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/account/test_initialization_command_edges.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/account/test_market_price_service.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/account/test_periodic_task_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/account/test_position_use_cases_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/account/test_serializers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/account/test_stop_loss_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/account/test_stress_testing_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/account/test_trading_cost_config.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/account/test_transaction_cost_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/agent_runtime/test_serializers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/alpha/test_alpha_infrastructure_edges.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/alpha/test_management_command_edges.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/alpha/test_qlib_runtime_contracts.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/alpha_trigger/test_handler_and_query_contracts.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/alpha_trigger/test_page_query_service_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/alpha_trigger/test_use_cases_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/application/audit/test_use_cases.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/application/factor/test_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/application/strategy/test_ai_strategy_executor.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/application/strategy/test_position_management_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/application/strategy/test_rule_evaluator.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/application/strategy/test_script_engine.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/application/strategy/test_strategy_executor.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/asset_analysis/test_interface_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/asset_analysis/test_market_registry.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/audit/test_high_frequency_validator_edges.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/audit/test_indicator_weight_adjustment_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/audit/test_serializer_contracts.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/backtest/test_report_generator.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/beta_gate/test_event_handler_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/broker_execution/test_agent.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/broker_execution/test_agent_package.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/broker_execution/test_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/ci/test_check_mypy_debt_ceiling.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/ci/test_check_mypy_regression.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/ci/test_select_tests.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/core/test_account_ledger.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.models"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/core/test_alpha_cache.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/core/test_config_center.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/core/test_decision_context.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/core/test_decision_execution_links.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/core/test_exception_utils.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/core/test_logging_utils.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/core/test_price_history.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/core/test_runtime_settings.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_alpha_runtime_helpers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_decision_data_readiness.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_domain_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_gateway_asset_classification.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_macro_fact_governance.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_macro_fact_selection.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_market_gateway_entities.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_market_gateways.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_market_parsers.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_market_thermometer.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_market_thermometer_tasks.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_phase2_rules.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_phase3_provider_adapters.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_phase3_sync_use_cases.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_provider_abstraction_structure.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_serializers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_source_registry.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_tencent_gateway.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/data_center/test_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_advisor_sheet_intents.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_alpha_workspace_consistency.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_application_dtos.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_composition.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_exit_advisors.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/unit/decision_rhythm/test_recommendation_persistence.py",
+      "reasons": [
+        "fixture:django_assert_num_queries",
+        "import:.infrastructure",
+        "import:.models",
+        "marker:django_db",
+        "orm:.objects"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_rhythm_domain_services.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.models"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_serializers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_subscriber_wiring.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_valuation_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_workspace_service_safety.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_workspace_snapshot_tasks.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/decision_rhythm/test_workspace_use_cases.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.models"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/audit/test_attribution_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/audit/test_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/audit/test_performance_analyzer.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/audit/test_threshold_validator.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/simulated_trading/test_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/simulated_trading/test_rules.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/simulated_trading/test_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/strategy/test_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_ai_provider_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_ai_provider_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_alpha_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_alpha_trigger_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_asset_analysis_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_audit_brinson_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_backtest_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_backtest_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_beta_gate_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_dashboard_rules.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_dashboard_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_decision_rhythm_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_equity_comprehensive_valuation_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_equity_optimized_screener.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_equity_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_equity_technical_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_events_rules.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_events_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_factor_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_factor_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_filter_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_fund_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_hedge_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_hedge_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_invalidation.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_macro_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_policy_rules.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_portfolio_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_prompt_function_registry.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_prompt_rules.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_prompt_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_realtime_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_regime_comprehensive.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_regime_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_regime_services_v2.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_risk_center_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_rotation_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_rotation_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_sector_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_sentiment_and_share_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_sentiment_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_signal_rules.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_small_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_strategy_domain_services_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/domain/test_valuation_domain_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_financial_source_gateway.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_management_command_contracts.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_market_data_repository_adapter.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_market_sessions.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_runtime_benchmark_config.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_serializer_contracts.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_setup_equity_valuation_sync.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_stock_screener.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_valuation_analyzer.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_valuation_quality_gate.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_valuation_repair_tracker.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_valuation_sync.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/equity/test_valuation_sync_tasks.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/events/test_replay_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/events/test_replay_registry.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/events/test_replay_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/fund/test_fund_adapter_contracts.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/fund/test_prepare_research_command_contracts.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/infrastructure/factor/test_adapters.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/infrastructure/test_adapters.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_akshare_adapter.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_application_and_exchange_rate_edges.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_data_management.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_datasource_connection_tester.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_fetcher_resilience.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_indicator_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_interface_services.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_macro_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_query_and_view_helper_contracts.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_sync_macro_command.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/macro/test_tushare_adapter.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_adapter_edges.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_admin_presentation_contracts.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_content_and_event_contracts.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_feedparser_adapter.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_hedging_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_notification_service.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/unit/policy/test_page_view_contracts.py",
+      "reasons": [
+        "import:.interface",
+        "import:django.test"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_policy_tasks.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_policy_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_rss_api_view_edges.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_rss_fetch_application_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_rules.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_serializer_contracts.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_task_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/policy/test_tasks_notifications.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/portfolio/test_transition_plan_rules.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/prompt/test_init_command_contracts.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/prompt/test_interface_services.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/prompt/test_serializers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/pulse/test_data_provider_guardrails.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/pulse/test_management_command_contracts.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/realtime/test_alert_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/realtime/test_price_polling_alerts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/realtime/test_websocket_auth.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/regime/test_asset_eligibility.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/regime/test_navigator_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/regime/test_orchestration_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/regime/test_task_contract_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/research/test_research_statistics.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/risk_center/test_policy_resolver.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/risk_center/test_trade_guard.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/sector/test_akshare_sector_adapter.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/sector/test_sector_rotation.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/sector/test_sector_use_case_regime_fallback.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/setup_wizard/test_bootstrap_command_contracts.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/shared/infrastructure/test_alert_service.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/shared/infrastructure/test_alerts.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/shared/infrastructure/test_cache_service.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/shared/infrastructure/test_crypto.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/shared/infrastructure/test_metrics.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/shared/infrastructure/test_resilience.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/shared/test_numeric.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/shared/test_position_calculations.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/unit/signal/test_interface_view_contracts.py",
+      "reasons": [
+        "import:.interface",
+        "import:django.test",
+        "import:rest_framework.test"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/signal/test_policy_influence_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/signal/test_query_service_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/signal/test_query_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/signal/test_task_delivery_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/signal/test_unified_service_edges.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_interface_services.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_position_invalidation_checker_edges.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/simulated_trading/test_serializers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/strategy/test_allocation_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/strategy/test_external_providers.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/strategy/test_gateway_and_target_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/strategy/test_order_state_machine.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/strategy/test_provider_edges.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/strategy/test_serializers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/task_monitor/test_backup_command_contracts.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/unit/task_monitor/test_legacy_api_view_edges.py",
+      "reasons": [
+        "import:rest_framework.test"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/terminal/test_export_tui_django_contracts_command.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/terminal/test_tui_contract_guardrails.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/terminal/test_tui_information_architecture.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_account_business_reverse_dependencies.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_account_macro_sizing.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_account_models_structure.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_account_performance_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_account_performance_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_account_position_helpers.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_advisor_services_structure.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_agent_runtime_application.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_agent_runtime_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_agent_runtime_m2_facades.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_agent_runtime_m2_mcp.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_agent_runtime_m2_sdk.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_agent_runtime_m3_guardrails.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_agent_runtime_m3_mcp.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_agent_runtime_m3_sdk.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_agent_runtime_m4_failure.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_agent_runtime_m4_regression.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_api_and_use_cases.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_api_and_use_cases_owner_realtime.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_api_and_use_cases_owner_sector.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_api_and_use_cases_owner_signal.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_capability_sync_semantic_overrides.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_data_center_provider_connection_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_alpha_score_upload_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_audit_threshold_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_backtest_equity_curve_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_broker_execution_catalog.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_catalog_projection.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_config_center_snapshot_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_dashboard_allocation_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_dashboard_equity_curve_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_dashboard_positions_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_hedge_effectiveness_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_mcp_regime_action_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_remaining_workflow_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_result_enrichment.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_sdk_alignment_read_catalog.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_semantic_governance_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_semantic_governance_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_serializers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability/test_terminal_gateway.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability_query_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_capability_terminal_dependency.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_failover_helper.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_ai_provider_adapters.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_cache_code_parser.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_candidate_execution_tracking.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_comparability.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_exit_loop_end_to_end.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_interface_services.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_serializers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_service_typing_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_task_runtime_structure.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_trigger_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_trigger_entities_v2.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_trigger_handlers.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_trigger_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_alpha_trigger_subscriber_wiring.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_architecture_guard_regressions.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_asset_analysis.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_asset_analysis_signal_dependency.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_audit_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_audit_failure_counter.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.models"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_audit_health_check.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_audit_structure.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_auto_advisor_decision_sheet.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_auto_trading_engine.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_auto_trading_task_wiring.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_backtest_adapter_base.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_backtest_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_backup_vps_postgres.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_beta_gate_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_beta_gate_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_build_qlib_data_command.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_celery_beat_windows_command.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_celery_logging_settings.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_celery_task_registration_aliases.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_celery_worker_windows_command.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_check_mcp_catalog_dedup.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_check_mcp_manifest_schema.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_check_mcp_no_raw_tools.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_check_mcp_read_evidence.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_check_mcp_tool_budget.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_check_mcp_tui_action_coverage.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_check_mcp_write_audit.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_check_mcp_write_confirmation.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_check_mcp_write_evidence.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_check_mcp_write_preview.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_confidence_model.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_currency_conversion.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_cycle_feedback_edges.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_daily_inspection_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_dashboard_alpha_homepage_structure.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_dashboard_market_thermometer.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_dashboard_mcp_tools.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_dashboard_view_structure.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_data_center_architecture_guard.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_data_center_on_demand.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_data_center_price_code_resolution.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_data_center_query_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_data_center_repositories_structure.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_data_center_reverse_dependencies.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_data_center_use_cases_structure.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_decision_execution_workflow.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_decision_rhythm_entities_structure.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_decision_rhythm_handlers.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_decision_rhythm_models_structure.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_decision_rhythm_repositories_structure.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_decision_rhythm_reverse_dependencies.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_decision_rhythm_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_decision_rhythm_use_cases_structure.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_decision_rhythm_workflow_use_cases.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_decision_workspace_account_binding_guardrails.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_deploy_vps_verify.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_development_log_file_paths.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_django_admin_typing.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.models"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_docker_pyqlib_install.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_docs_route_alignment.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_equity_adapters.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_equity_repository_intraday.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_equity_scoring.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_equity_structure.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_event_provider_ready_order.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_event_repository_providers.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_events_alpha_trigger_dependency.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_events_tasks.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_exceptions.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_execute_buy_order_use_case.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_execute_decision_use_case.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_financial_fetchers.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_frontend_fetch_guardrails.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_generate_mcp_tool_inventory.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_high_frequency_indicators.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/unit/test_internal_ssl_redirect.py",
+      "reasons": [
+        "import:django.test"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_large_file_split_contracts.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_macro_fetcher_dates.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_manual_trade_sync_helpers.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_mcp_proposal_execution.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_mcp_runtime_dependency.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_model_param_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_openapi_authentication_extensions.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_personal_account_readiness_repair.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_personal_readiness_checkpoint_simulation.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_personal_readiness_daily_command.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_personal_readiness_daily_task.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_personal_readiness_evidence_command.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_personal_readiness_evidence_inspection.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_personal_readiness_evidence_repair_command.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_personal_readiness_status_command.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_personal_readiness_window_validation.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_playwright_runtime_compatibility.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_policy_repositories_export_contract.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_policy_rules.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_policy_use_cases_structure.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_position_invalidation_checker.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_position_invalidation_tasks.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_production_settings.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_prompt_strategy_dependency.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_pulse_dimension.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_pulse_entities.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_pulse_regime_dependency.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_pulse_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_pulse_transition.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_query_profiler.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_readiness_evidence_contract.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_readiness_monitor_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_realtime_akshare_provider.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_realtime_celery_registration.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_realtime_tasks.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_realtime_watchlist_provider.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_regime_action_mapper.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_regime_asset_mapping.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_regime_movement.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_regime_watch_indicators.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_remaining_leaf_dependency_cycles.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_remote_build_deploy_vps.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_rotation_readiness_degradation.py",
+      "reasons": [
+        "import:.infrastructure",
+        "import:.interface",
+        "import:.models"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_sanitization.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_scoring_weights_config.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_secrets_registry.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_sector_equity_dependency.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_select_quality_targets.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_sentiment.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_setup_wizard_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_share_simulated_trading_dependency.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_shared_htmx.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_signal_invalidation_checker.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_simulated_order_invariants.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_simulated_performance_calculator.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_simulated_position_helpers.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_simulated_trading_admin_typing.py",
+      "reasons": [
+        "import:.interface",
+        "import:.models"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_stop_loss.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_strategy_views_structure.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_terminal_agent_service.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_terminal_query_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_testing_quality_tools.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_throttling.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_transition_plan_domain.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_tui_metadata_compiler.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_tui_operator_services.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_tui_static_contracts.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": true,
+      "path": "tests/unit/test_tui_workbench.py",
+      "reasons": [
+        "fixture:client",
+        "fixture:db",
+        "import:.infrastructure",
+        "import:.models",
+        "marker:django_db",
+        "orm:.objects"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_typed_admin_module_migrations.py",
+      "reasons": [
+        "import:.interface",
+        "import:.models"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_unified_account_frontend_bindings.py",
+      "reasons": [],
+      "tier": "unit"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_unified_price_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_unified_recommendation_dtos.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_unified_recommendation_use_cases.py",
+      "reasons": [
+        "import:.infrastructure"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_unified_signal_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/test_volatility_control.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/valuation/test_asset_valuation_service.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/valuation/test_owner_contract.py",
+      "reasons": [],
+      "tier": "fast"
+    }
+  ],
+  "schema_version": 1,
+  "unit_database_file_count": 6,
+  "unit_database_file_ratio": 0.0137,
+  "unit_file_count": 439
+}

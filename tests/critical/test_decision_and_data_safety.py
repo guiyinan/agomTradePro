@@ -9,17 +9,17 @@ import pytest
 from apps.decision_rhythm.application.input_snapshot_use_cases import (
     BuildDecisionInputSnapshotUseCase,
 )
-from tests.unit.data_center.test_pit_research_integrity import (
+from tests.component.data_center.test_pit_research_integrity import (
     test_manifest_bound_view_ignores_versions_added_after_freeze as _assert_manifest_freeze,
 )
-from tests.unit.data_center.test_pit_research_integrity import (
+from tests.component.data_center.test_pit_research_integrity import (
     test_manifest_bound_view_rejects_payload_tampering_after_freeze as _assert_tamper_detection,
 )
-from tests.unit.decision_rhythm.test_decision_input_snapshot import (
+from tests.component.decision_rhythm.test_decision_input_snapshot import (
     InMemorySnapshotRepository,
     _request,
 )
-from tests.unit.decision_rhythm.test_decision_input_snapshot import (
+from tests.component.decision_rhythm.test_decision_input_snapshot import (
     test_snapshot_cutover_requires_real_events_and_verified_manifest as _assert_cutover_evidence,
 )
 

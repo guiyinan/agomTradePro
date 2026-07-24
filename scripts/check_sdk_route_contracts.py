@@ -70,6 +70,8 @@ def _sample_formatted_value(node: ast.FormattedValue) -> str:
     expression = ast.unparse(node.value).lower()
     if "domain" in expression:
         return "research"
+    if "client_order_id" in expression:
+        return "00000000-0000-0000-0000-000000000001"
     if any(token in expression for token in ("id", "limit", "version", "pk")):
         return "1"
     if any(token in expression for token in ("code", "asset", "stock", "symbol")):
@@ -138,9 +140,7 @@ def _transport_method(node: ast.Call) -> tuple[str | None, bool]:
     is_direct_client_call = _is_direct_client_call(node)
     if is_direct_client_call:
         return DIRECT_HTTP_CALLS.get(node.func.attr), True
-    is_base_module_call = (
-        isinstance(node.func.value, ast.Name) and node.func.value.id == "self"
-    )
+    is_base_module_call = isinstance(node.func.value, ast.Name) and node.func.value.id == "self"
     if not is_base_module_call:
         return None, False
     return HTTP_CALLS.get(node.func.attr), False
@@ -225,9 +225,7 @@ def collect_sdk_route_calls() -> list[SDKRouteCall]:
                         is_direct_client_call=is_direct_client_call,
                     )
                     if route is None:
-                        unvalidated.append(
-                            f"{module_file}:{node.lineno} {method} {suffix!r}"
-                        )
+                        unvalidated.append(f"{module_file}:{node.lineno} {method} {suffix!r}")
                         continue
                     calls.append(
                         SDKRouteCall(
@@ -308,8 +306,7 @@ def collect_sdk_route_calls() -> list[SDKRouteCall]:
 
     if unvalidated:
         raise ValueError(
-            "SDK route collection found unvalidated transport paths:\n- "
-            + "\n- ".join(unvalidated)
+            "SDK route collection found unvalidated transport paths:\n- " + "\n- ".join(unvalidated)
         )
     return calls
 

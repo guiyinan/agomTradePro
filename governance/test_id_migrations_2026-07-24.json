@@ -1,0 +1,638 @@
+{
+  "mappings": [
+    {
+      "new_path": "tests/component/account/test_account_risk_periodic_tasks.py",
+      "old_path": "tests/unit/account/test_account_risk_periodic_tasks.py"
+    },
+    {
+      "new_path": "tests/component/account/test_alpha_pool_mode_runtime.py",
+      "old_path": "tests/unit/account/test_alpha_pool_mode_runtime.py"
+    },
+    {
+      "new_path": "tests/component/account/test_auth_page_templates.py",
+      "old_path": "tests/unit/account/test_auth_page_templates.py"
+    },
+    {
+      "new_path": "tests/component/account/test_authentication.py",
+      "old_path": "tests/unit/account/test_authentication.py"
+    },
+    {
+      "new_path": "tests/component/account/test_db_backup_email.py",
+      "old_path": "tests/unit/account/test_db_backup_email.py"
+    },
+    {
+      "new_path": "tests/component/account/test_macro_sizing_import_contract.py",
+      "old_path": "tests/unit/account/test_macro_sizing_import_contract.py"
+    },
+    {
+      "new_path": "tests/component/account/test_manual_trade_sync.py",
+      "old_path": "tests/unit/account/test_manual_trade_sync.py"
+    },
+    {
+      "new_path": "tests/component/account/test_notification_service.py",
+      "old_path": "tests/unit/account/test_notification_service.py"
+    },
+    {
+      "new_path": "tests/component/account/test_system_settings_admin.py",
+      "old_path": "tests/unit/account/test_system_settings_admin.py"
+    },
+    {
+      "new_path": "tests/component/account/test_system_settings_runtime_config.py",
+      "old_path": "tests/unit/account/test_system_settings_runtime_config.py"
+    },
+    {
+      "new_path": "tests/component/account/test_tui_entry_redirects.py",
+      "old_path": "tests/unit/account/test_tui_entry_redirects.py"
+    },
+    {
+      "new_path": "tests/component/account/test_user_signals.py",
+      "old_path": "tests/unit/account/test_user_signals.py"
+    },
+    {
+      "new_path": "tests/component/agent_runtime/test_timeline_service.py",
+      "old_path": "tests/unit/agent_runtime/test_timeline_service.py"
+    },
+    {
+      "new_path": "tests/component/application/test_hedge_interface_services.py",
+      "old_path": "tests/unit/application/test_hedge_interface_services.py"
+    },
+    {
+      "new_path": "tests/component/application/test_invalidation_checker.py",
+      "old_path": "tests/unit/application/test_invalidation_checker.py"
+    },
+    {
+      "new_path": "tests/component/application/test_use_cases.py",
+      "old_path": "tests/unit/application/test_use_cases.py"
+    },
+    {
+      "new_path": "tests/component/broker_execution/test_api_and_permissions.py",
+      "old_path": "tests/unit/broker_execution/test_api_and_permissions.py"
+    },
+    {
+      "new_path": "tests/component/broker_execution/test_risk_and_reconciliation.py",
+      "old_path": "tests/unit/broker_execution/test_risk_and_reconciliation.py"
+    },
+    {
+      "new_path": "tests/component/broker_execution/test_tui_metadata.py",
+      "old_path": "tests/unit/broker_execution/test_tui_metadata.py"
+    },
+    {
+      "new_path": "tests/component/config_center/test_alpha_admin_permissions.py",
+      "old_path": "tests/unit/config_center/test_alpha_admin_permissions.py"
+    },
+    {
+      "new_path": "tests/component/config_center/test_training_use_cases.py",
+      "old_path": "tests/unit/config_center/test_training_use_cases.py"
+    },
+    {
+      "new_path": "tests/component/config_center/test_views.py",
+      "old_path": "tests/unit/config_center/test_views.py"
+    },
+    {
+      "new_path": "tests/component/core/test_encryption_readiness_command.py",
+      "old_path": "tests/unit/core/test_encryption_readiness_command.py"
+    },
+    {
+      "new_path": "tests/component/data_center/test_etf_size_flow_unit_migration.py",
+      "old_path": "tests/unit/data_center/test_etf_size_flow_unit_migration.py"
+    },
+    {
+      "new_path": "tests/component/data_center/test_governance_console.py",
+      "old_path": "tests/unit/data_center/test_governance_console.py"
+    },
+    {
+      "new_path": "tests/component/data_center/test_interface_services.py",
+      "old_path": "tests/unit/data_center/test_interface_services.py"
+    },
+    {
+      "new_path": "tests/component/data_center/test_investor_account_unit_migration.py",
+      "old_path": "tests/unit/data_center/test_investor_account_unit_migration.py"
+    },
+    {
+      "new_path": "tests/component/data_center/test_macro_fact_consistency_command.py",
+      "old_path": "tests/unit/data_center/test_macro_fact_consistency_command.py"
+    },
+    {
+      "new_path": "tests/component/data_center/test_macro_indicator_governance_command.py",
+      "old_path": "tests/unit/data_center/test_macro_indicator_governance_command.py"
+    },
+    {
+      "new_path": "tests/component/data_center/test_phase2_seed.py",
+      "old_path": "tests/unit/data_center/test_phase2_seed.py"
+    },
+    {
+      "new_path": "tests/component/data_center/test_pit_research_integrity.py",
+      "old_path": "tests/unit/data_center/test_pit_research_integrity.py"
+    },
+    {
+      "new_path": "tests/component/data_center/test_repositories.py",
+      "old_path": "tests/unit/data_center/test_repositories.py"
+    },
+    {
+      "new_path": "tests/component/decision_rhythm/test_decision_input_snapshot.py",
+      "old_path": "tests/unit/decision_rhythm/test_decision_input_snapshot.py"
+    },
+    {
+      "new_path": "tests/component/domain/test_prompt_init_command_consistency.py",
+      "old_path": "tests/unit/domain/test_prompt_init_command_consistency.py"
+    },
+    {
+      "new_path": "tests/component/events/test_replay_run_repository.py",
+      "old_path": "tests/unit/events/test_replay_run_repository.py"
+    },
+    {
+      "new_path": "tests/component/infrastructure/test_audit_macro_fact_selection.py",
+      "old_path": "tests/unit/infrastructure/test_audit_macro_fact_selection.py"
+    },
+    {
+      "new_path": "tests/component/infrastructure/test_repositories.py",
+      "old_path": "tests/unit/infrastructure/test_repositories.py"
+    },
+    {
+      "new_path": "tests/component/macro/test_macro_auto_sync_tasks.py",
+      "old_path": "tests/unit/macro/test_macro_auto_sync_tasks.py"
+    },
+    {
+      "new_path": "tests/component/macro/test_macro_data_page_view.py",
+      "old_path": "tests/unit/macro/test_macro_data_page_view.py"
+    },
+    {
+      "new_path": "tests/component/policy/test_fetch_rss_use_case.py",
+      "old_path": "tests/unit/policy/test_fetch_rss_use_case.py"
+    },
+    {
+      "new_path": "tests/component/policy/test_init_authoritative_rss_sources.py",
+      "old_path": "tests/unit/policy/test_init_authoritative_rss_sources.py"
+    },
+    {
+      "new_path": "tests/component/prompt/test_prompt_evaluation_gate.py",
+      "old_path": "tests/unit/prompt/test_prompt_evaluation_gate.py"
+    },
+    {
+      "new_path": "tests/component/pulse/test_pulse_use_cases.py",
+      "old_path": "tests/unit/pulse/test_pulse_use_cases.py"
+    },
+    {
+      "new_path": "tests/component/realtime/test_realtime_readiness.py",
+      "old_path": "tests/unit/realtime/test_realtime_readiness.py"
+    },
+    {
+      "new_path": "tests/component/realtime/test_realtime_repositories.py",
+      "old_path": "tests/unit/realtime/test_realtime_repositories.py"
+    },
+    {
+      "new_path": "tests/component/regime/test_config_threshold_regression.py",
+      "old_path": "tests/unit/regime/test_config_threshold_regression.py"
+    },
+    {
+      "new_path": "tests/component/regime/test_macro_data_provider_guardrails.py",
+      "old_path": "tests/unit/regime/test_macro_data_provider_guardrails.py"
+    },
+    {
+      "new_path": "tests/component/research/test_promotion_gate.py",
+      "old_path": "tests/unit/research/test_promotion_gate.py"
+    },
+    {
+      "new_path": "tests/component/shared/infrastructure/test_htmx_decorators.py",
+      "old_path": "tests/unit/shared/infrastructure/test_htmx_decorators.py"
+    },
+    {
+      "new_path": "tests/component/shared/infrastructure/test_htmx_views.py",
+      "old_path": "tests/unit/shared/infrastructure/test_htmx_views.py"
+    },
+    {
+      "new_path": "tests/component/signal/test_forecast_ledger.py",
+      "old_path": "tests/unit/signal/test_forecast_ledger.py"
+    },
+    {
+      "new_path": "tests/component/strategy/test_order_intent_repository.py",
+      "old_path": "tests/unit/strategy/test_order_intent_repository.py"
+    },
+    {
+      "new_path": "tests/component/test_account_admin_user_management.py",
+      "old_path": "tests/unit/test_account_admin_user_management.py"
+    },
+    {
+      "new_path": "tests/component/test_agent_mcp_review_regressions.py",
+      "old_path": "tests/unit/test_agent_mcp_review_regressions.py"
+    },
+    {
+      "new_path": "tests/component/test_agent_runtime.py",
+      "old_path": "tests/unit/test_agent_runtime.py"
+    },
+    {
+      "new_path": "tests/component/test_agent_runtime_m4_dashboard.py",
+      "old_path": "tests/unit/test_agent_runtime_m4_dashboard.py"
+    },
+    {
+      "new_path": "tests/component/test_agent_runtime_m4_handoff.py",
+      "old_path": "tests/unit/test_agent_runtime_m4_handoff.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_capability/test_api_and_use_cases_api.py",
+      "old_path": "tests/unit/test_ai_capability/test_api_and_use_cases_api.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_capability/test_api_and_use_cases_catalog.py",
+      "old_path": "tests/unit/test_ai_capability/test_api_and_use_cases_catalog.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_capability/test_api_and_use_cases_owner_prompt.py",
+      "old_path": "tests/unit/test_ai_capability/test_api_and_use_cases_owner_prompt.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_capability/test_api_and_use_cases_owner_regime.py",
+      "old_path": "tests/unit/test_ai_capability/test_api_and_use_cases_owner_regime.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_capability/test_api_and_use_cases_routing.py",
+      "old_path": "tests/unit/test_ai_capability/test_api_and_use_cases_routing.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_capability/test_api_and_use_cases_use_cases.py",
+      "old_path": "tests/unit/test_ai_capability/test_api_and_use_cases_use_cases.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_capability/test_capability_gateway_semantic_governance.py",
+      "old_path": "tests/unit/test_ai_capability/test_capability_gateway_semantic_governance.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_capability/test_catalog_governance.py",
+      "old_path": "tests/unit/test_ai_capability/test_catalog_governance.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_capability/test_semantic_governance_models.py",
+      "old_path": "tests/unit/test_ai_capability/test_semantic_governance_models.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_capability/test_semantic_governance_repository.py",
+      "old_path": "tests/unit/test_ai_capability/test_semantic_governance_repository.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_provider_config_modes.py",
+      "old_path": "tests/unit/test_ai_provider_config_modes.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_provider_encryption_guardrails.py",
+      "old_path": "tests/unit/test_ai_provider_encryption_guardrails.py"
+    },
+    {
+      "new_path": "tests/component/test_ai_provider_user_routing.py",
+      "old_path": "tests/unit/test_ai_provider_user_routing.py"
+    },
+    {
+      "new_path": "tests/component/test_alpha_pool_repository.py",
+      "old_path": "tests/unit/test_alpha_pool_repository.py"
+    },
+    {
+      "new_path": "tests/component/test_alpha_price_coverage_sync.py",
+      "old_path": "tests/unit/test_alpha_price_coverage_sync.py"
+    },
+    {
+      "new_path": "tests/component/test_alpha_providers.py",
+      "old_path": "tests/unit/test_alpha_providers.py"
+    },
+    {
+      "new_path": "tests/component/test_alpha_trigger_repository_regression.py",
+      "old_path": "tests/unit/test_alpha_trigger_repository_regression.py"
+    },
+    {
+      "new_path": "tests/component/test_alpha_upload.py",
+      "old_path": "tests/unit/test_alpha_upload.py"
+    },
+    {
+      "new_path": "tests/component/test_alpha_workspace_consistency_snapshots.py",
+      "old_path": "tests/unit/test_alpha_workspace_consistency_snapshots.py"
+    },
+    {
+      "new_path": "tests/component/test_asset_name_resolver.py",
+      "old_path": "tests/unit/test_asset_name_resolver.py"
+    },
+    {
+      "new_path": "tests/component/test_audit_permissions.py",
+      "old_path": "tests/unit/test_audit_permissions.py"
+    },
+    {
+      "new_path": "tests/component/test_auto_advisor_dashboard_console.py",
+      "old_path": "tests/unit/test_auto_advisor_dashboard_console.py"
+    },
+    {
+      "new_path": "tests/component/test_auto_advisor_outputs.py",
+      "old_path": "tests/unit/test_auto_advisor_outputs.py"
+    },
+    {
+      "new_path": "tests/component/test_auto_advisor_ui_contracts.py",
+      "old_path": "tests/unit/test_auto_advisor_ui_contracts.py"
+    },
+    {
+      "new_path": "tests/component/test_auto_advisor_weekly_task.py",
+      "old_path": "tests/unit/test_auto_advisor_weekly_task.py"
+    },
+    {
+      "new_path": "tests/component/test_backtest_data_center_adapter.py",
+      "old_path": "tests/unit/test_backtest_data_center_adapter.py"
+    },
+    {
+      "new_path": "tests/component/test_beta_gate_activation_consistency.py",
+      "old_path": "tests/unit/test_beta_gate_activation_consistency.py"
+    },
+    {
+      "new_path": "tests/component/test_beta_gate_repository_typing_contracts.py",
+      "old_path": "tests/unit/test_beta_gate_repository_typing_contracts.py"
+    },
+    {
+      "new_path": "tests/component/test_cache_utils.py",
+      "old_path": "tests/unit/test_cache_utils.py"
+    },
+    {
+      "new_path": "tests/component/test_context_snapshot_repository.py",
+      "old_path": "tests/unit/test_context_snapshot_repository.py"
+    },
+    {
+      "new_path": "tests/component/test_core_favicon.py",
+      "old_path": "tests/unit/test_core_favicon.py"
+    },
+    {
+      "new_path": "tests/component/test_core_security.py",
+      "old_path": "tests/unit/test_core_security.py"
+    },
+    {
+      "new_path": "tests/component/test_dashboard_regression_guardrails.py",
+      "old_path": "tests/unit/test_dashboard_regression_guardrails.py"
+    },
+    {
+      "new_path": "tests/component/test_data_center_asset_master_backfill.py",
+      "old_path": "tests/unit/test_data_center_asset_master_backfill.py"
+    },
+    {
+      "new_path": "tests/component/test_data_center_coverage_command.py",
+      "old_path": "tests/unit/test_data_center_coverage_command.py"
+    },
+    {
+      "new_path": "tests/component/test_decision_execution_handlers.py",
+      "old_path": "tests/unit/test_decision_execution_handlers.py"
+    },
+    {
+      "new_path": "tests/component/test_decision_today_queue.py",
+      "old_path": "tests/unit/test_decision_today_queue.py"
+    },
+    {
+      "new_path": "tests/component/test_django_sdk_transport.py",
+      "old_path": "tests/unit/test_django_sdk_transport.py"
+    },
+    {
+      "new_path": "tests/component/test_dos_limits.py",
+      "old_path": "tests/unit/test_dos_limits.py"
+    },
+    {
+      "new_path": "tests/component/test_equity_config_loader.py",
+      "old_path": "tests/unit/test_equity_config_loader.py"
+    },
+    {
+      "new_path": "tests/component/test_equity_market_adapter.py",
+      "old_path": "tests/unit/test_equity_market_adapter.py"
+    },
+    {
+      "new_path": "tests/component/test_equity_repository_daily.py",
+      "old_path": "tests/unit/test_equity_repository_daily.py"
+    },
+    {
+      "new_path": "tests/component/test_equity_repository_data_center.py",
+      "old_path": "tests/unit/test_equity_repository_data_center.py"
+    },
+    {
+      "new_path": "tests/component/test_event_snapshot_store_contract.py",
+      "old_path": "tests/unit/test_event_snapshot_store_contract.py"
+    },
+    {
+      "new_path": "tests/component/test_fault_injection.py",
+      "old_path": "tests/unit/test_fault_injection.py"
+    },
+    {
+      "new_path": "tests/component/test_feature_providers.py",
+      "old_path": "tests/unit/test_feature_providers.py"
+    },
+    {
+      "new_path": "tests/component/test_fund_repository_data_center.py",
+      "old_path": "tests/unit/test_fund_repository_data_center.py"
+    },
+    {
+      "new_path": "tests/component/test_health_checks.py",
+      "old_path": "tests/unit/test_health_checks.py"
+    },
+    {
+      "new_path": "tests/component/test_init_decision_model_params.py",
+      "old_path": "tests/unit/test_init_decision_model_params.py"
+    },
+    {
+      "new_path": "tests/component/test_logging_alerting.py",
+      "old_path": "tests/unit/test_logging_alerting.py"
+    },
+    {
+      "new_path": "tests/component/test_macro_periodic_tasks.py",
+      "old_path": "tests/unit/test_macro_periodic_tasks.py"
+    },
+    {
+      "new_path": "tests/component/test_mcp_tools_page.py",
+      "old_path": "tests/unit/test_mcp_tools_page.py"
+    },
+    {
+      "new_path": "tests/component/test_mock_fallback_remediation.py",
+      "old_path": "tests/unit/test_mock_fallback_remediation.py"
+    },
+    {
+      "new_path": "tests/component/test_no_legacy_route_compatibility.py",
+      "old_path": "tests/unit/test_no_legacy_route_compatibility.py"
+    },
+    {
+      "new_path": "tests/component/test_normalize_macro_fact_units_command.py",
+      "old_path": "tests/unit/test_normalize_macro_fact_units_command.py"
+    },
+    {
+      "new_path": "tests/component/test_observer_grant_model.py",
+      "old_path": "tests/unit/test_observer_grant_model.py"
+    },
+    {
+      "new_path": "tests/component/test_observer_grant_permissions.py",
+      "old_path": "tests/unit/test_observer_grant_permissions.py"
+    },
+    {
+      "new_path": "tests/component/test_paginated_queryset_ordering.py",
+      "old_path": "tests/unit/test_paginated_queryset_ordering.py"
+    },
+    {
+      "new_path": "tests/component/test_policy_admin_typing.py",
+      "old_path": "tests/unit/test_policy_admin_typing.py"
+    },
+    {
+      "new_path": "tests/component/test_position_invalidation_data_center.py",
+      "old_path": "tests/unit/test_position_invalidation_data_center.py"
+    },
+    {
+      "new_path": "tests/component/test_price_polling_service.py",
+      "old_path": "tests/unit/test_price_polling_service.py"
+    },
+    {
+      "new_path": "tests/component/test_prompt_macro_data_center.py",
+      "old_path": "tests/unit/test_prompt_macro_data_center.py"
+    },
+    {
+      "new_path": "tests/component/test_pulse_config_command.py",
+      "old_path": "tests/unit/test_pulse_config_command.py"
+    },
+    {
+      "new_path": "tests/component/test_pulse_data_provider.py",
+      "old_path": "tests/unit/test_pulse_data_provider.py"
+    },
+    {
+      "new_path": "tests/component/test_pulse_use_cases.py",
+      "old_path": "tests/unit/test_pulse_use_cases.py"
+    },
+    {
+      "new_path": "tests/component/test_pulse_weights.py",
+      "old_path": "tests/unit/test_pulse_weights.py"
+    },
+    {
+      "new_path": "tests/component/test_qlib_builder.py",
+      "old_path": "tests/unit/test_qlib_builder.py"
+    },
+    {
+      "new_path": "tests/component/test_qlib_training.py",
+      "old_path": "tests/unit/test_qlib_training.py"
+    },
+    {
+      "new_path": "tests/component/test_realtime_data_center_provider.py",
+      "old_path": "tests/unit/test_realtime_data_center_provider.py"
+    },
+    {
+      "new_path": "tests/component/test_realtime_views.py",
+      "old_path": "tests/unit/test_realtime_views.py"
+    },
+    {
+      "new_path": "tests/component/test_recalculate_regime_command.py",
+      "old_path": "tests/unit/test_recalculate_regime_command.py"
+    },
+    {
+      "new_path": "tests/component/test_regime_activation_consistency.py",
+      "old_path": "tests/unit/test_regime_activation_consistency.py"
+    },
+    {
+      "new_path": "tests/component/test_regime_api_contract.py",
+      "old_path": "tests/unit/test_regime_api_contract.py"
+    },
+    {
+      "new_path": "tests/component/test_regime_data_center_macro_provider.py",
+      "old_path": "tests/unit/test_regime_data_center_macro_provider.py"
+    },
+    {
+      "new_path": "tests/component/test_regime_interface_views.py",
+      "old_path": "tests/unit/test_regime_interface_views.py"
+    },
+    {
+      "new_path": "tests/component/test_regime_orchestration.py",
+      "old_path": "tests/unit/test_regime_orchestration.py"
+    },
+    {
+      "new_path": "tests/component/test_repair_decision_data_reliability_command.py",
+      "old_path": "tests/unit/test_repair_decision_data_reliability_command.py"
+    },
+    {
+      "new_path": "tests/component/test_rotation_integration_service.py",
+      "old_path": "tests/unit/test_rotation_integration_service.py"
+    },
+    {
+      "new_path": "tests/component/test_rotation_interface_services.py",
+      "old_path": "tests/unit/test_rotation_interface_services.py"
+    },
+    {
+      "new_path": "tests/component/test_route_name_compatibility.py",
+      "old_path": "tests/unit/test_route_name_compatibility.py"
+    },
+    {
+      "new_path": "tests/component/test_runtime_degradation_logging.py",
+      "old_path": "tests/unit/test_runtime_degradation_logging.py"
+    },
+    {
+      "new_path": "tests/component/test_scheduler_initialization.py",
+      "old_path": "tests/unit/test_scheduler_initialization.py"
+    },
+    {
+      "new_path": "tests/component/test_sentiment_views.py",
+      "old_path": "tests/unit/test_sentiment_views.py"
+    },
+    {
+      "new_path": "tests/component/test_setup_wizard_encryption_setup.py",
+      "old_path": "tests/unit/test_setup_wizard_encryption_setup.py"
+    },
+    {
+      "new_path": "tests/component/test_signal_query_repository.py",
+      "old_path": "tests/unit/test_signal_query_repository.py"
+    },
+    {
+      "new_path": "tests/component/test_signal_tasks.py",
+      "old_path": "tests/unit/test_signal_tasks.py"
+    },
+    {
+      "new_path": "tests/component/test_structured_logging.py",
+      "old_path": "tests/unit/test_structured_logging.py"
+    },
+    {
+      "new_path": "tests/component/test_task_monitor.py",
+      "old_path": "tests/unit/test_task_monitor.py"
+    },
+    {
+      "new_path": "tests/component/test_template_rendering.py",
+      "old_path": "tests/unit/test_template_rendering.py"
+    },
+    {
+      "new_path": "tests/component/test_terminal_api.py",
+      "old_path": "tests/unit/test_terminal_api.py"
+    },
+    {
+      "new_path": "tests/component/test_terminal_governance.py",
+      "old_path": "tests/unit/test_terminal_governance.py"
+    },
+    {
+      "new_path": "tests/component/test_transition_plan_repository.py",
+      "old_path": "tests/unit/test_transition_plan_repository.py"
+    },
+    {
+      "new_path": "tests/component/test_tui_adapters.py",
+      "old_path": "tests/unit/test_tui_adapters.py"
+    },
+    {
+      "new_path": "tests/component/test_tui_agent_action_bridge.py",
+      "old_path": "tests/unit/test_tui_agent_action_bridge.py"
+    },
+    {
+      "new_path": "tests/component/test_tui_internal_action_executor.py",
+      "old_path": "tests/unit/test_tui_internal_action_executor.py"
+    },
+    {
+      "new_path": "tests/component/test_tui_operator_api.py",
+      "old_path": "tests/unit/test_tui_operator_api.py"
+    },
+    {
+      "new_path": "tests/component/test_tui_runtime_optimization.py",
+      "old_path": "tests/unit/test_tui_runtime_optimization.py"
+    },
+    {
+      "new_path": "tests/component/test_tui_ui_mode.py",
+      "old_path": "tests/unit/test_tui_ui_mode.py"
+    },
+    {
+      "new_path": "tests/component/test_unified_position_service.py",
+      "old_path": "tests/unit/test_unified_position_service.py"
+    },
+    {
+      "new_path": "tests/component/test_unified_recommendation_models.py",
+      "old_path": "tests/unit/test_unified_recommendation_models.py"
+    },
+    {
+      "new_path": "tests/component/test_workspace_recommendation_actions.py",
+      "old_path": "tests/unit/test_workspace_recommendation_actions.py"
+    }
+  ],
+  "reason": "Database/HTTP boundary tests moved from Unit to Component tier",
+  "schema_version": 1
+}

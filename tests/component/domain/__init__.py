@@ -1,0 +1,1 @@
+"""Domain-adjacent component tests."""

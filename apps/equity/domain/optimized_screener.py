@@ -32,13 +32,13 @@ class OptimizedStockScreener(StockScreener):
         """
         super().__init__()
         self.enable_cache = enable_cache
-        self._cache = {}  # 简单的内存缓存
+        self._cache: dict[str, object] = {}  # 简单的内存缓存
 
     def screen(
         self,
         all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]],
         rule: StockScreeningRule,
-        batch_size: int = 1000
+        batch_size: int = 1000,
     ) -> list[str]:
         """
         优化的筛选方法
@@ -53,24 +53,25 @@ class OptimizedStockScreener(StockScreener):
         """
         # 1. 预筛选（快速过滤）
         pre_filtered = self._pre_filter(all_stocks, rule)
+        market_metrics = self._collect_market_metrics(all_stocks)
 
         # 2. 批量筛选和评分
         matched_stocks = []
         for i in range(0, len(pre_filtered), batch_size):
-            batch = pre_filtered[i:i + batch_size]
-            batch_results = self._screen_batch(batch, rule)
+            batch = pre_filtered[i : i + batch_size]
+            batch_results = self._screen_batch(batch, rule, market_metrics)
             matched_stocks.extend(batch_results)
 
         # 3. 排序
         matched_stocks.sort(key=lambda x: x[1], reverse=True)
 
         # 4. 返回前 max_count 个
-        return [code for code, score in matched_stocks[:rule.max_count]]
+        return [code for code, score in matched_stocks[: rule.max_count]]
 
     def _pre_filter(
         self,
         all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]],
-        rule: StockScreeningRule
+        rule: StockScreeningRule,
     ) -> list[tuple[StockInfo, FinancialData, ValuationMetrics]]:
         """
         预筛选：快速过滤明显不符合的股票
@@ -116,7 +117,8 @@ class OptimizedStockScreener(StockScreener):
     def _screen_batch(
         self,
         batch: list[tuple[StockInfo, FinancialData, ValuationMetrics]],
-        rule: StockScreeningRule
+        rule: StockScreeningRule,
+        market_metrics: dict[str, list[float]],
     ) -> list[tuple[str, float]]:
         """
         批量筛选
@@ -128,7 +130,12 @@ class OptimizedStockScreener(StockScreener):
         for stock_info, financial, valuation in batch:
             # 完整规则检查
             if self._matches_rule(stock_info, financial, valuation, rule):
-                score = self._calculate_score(financial, valuation, rule)
+                score = self._calculate_score(
+                    financial,
+                    valuation,
+                    rule,
+                    market_metrics,
+                )
                 results.append((stock_info.stock_code, score))
 
         return results
@@ -185,15 +192,15 @@ class IncrementalScreeningEngine:
         import json
 
         rule_dict = {
-            'min_roe': rule.min_roe,
-            'min_revenue_growth': rule.min_revenue_growth,
-            'min_profit_growth': rule.min_profit_growth,
-            'max_debt_ratio': rule.max_debt_ratio,
-            'max_pe': rule.max_pe,
-            'max_pb': rule.max_pb,
-            'min_market_cap': str(rule.min_market_cap),
-            'sector_preference': sorted(rule.sector_preference) if rule.sector_preference else [],
-            'max_count': rule.max_count
+            "min_roe": rule.min_roe,
+            "min_revenue_growth": rule.min_revenue_growth,
+            "min_profit_growth": rule.min_profit_growth,
+            "max_debt_ratio": rule.max_debt_ratio,
+            "max_pe": rule.max_pe,
+            "max_pb": rule.max_pb,
+            "min_market_cap": str(rule.min_market_cap),
+            "sector_preference": sorted(rule.sector_preference) if rule.sector_preference else [],
+            "max_count": rule.max_count,
         }
 
         rule_str = json.dumps(rule_dict, sort_keys=True)
@@ -208,7 +215,7 @@ class IncrementalScreeningEngine:
         all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]],
         rule: StockScreeningRule,
         current_date: date,
-        changed_stocks: set[str] = None
+        changed_stocks: set[str] | None = None,
     ) -> list[str]:
         """
         增量筛选
@@ -271,11 +278,7 @@ class ScreeningCacheManager:
     def __init__(self) -> None:
         self._cache: dict[str, tuple[list[str], date]] = {}
 
-    def get(
-        self,
-        rule_key: str,
-        cache_date: date
-    ) -> list[str] | None:
+    def get(self, rule_key: str, cache_date: date) -> list[str] | None:
         """
         获取缓存
 
@@ -293,12 +296,7 @@ class ScreeningCacheManager:
 
         return None
 
-    def set(
-        self,
-        rule_key: str,
-        cache_date: date,
-        result: list[str]
-    ) -> None:
+    def set(self, rule_key: str, cache_date: date, result: list[str]) -> None:
         """
         设置缓存
 
@@ -309,7 +307,7 @@ class ScreeningCacheManager:
         """
         self._cache[rule_key] = (result, cache_date)
 
-    def invalidate(self, rule_key: str = None) -> None:
+    def invalidate(self, rule_key: str | None = None) -> None:
         """
         失效缓存
 
@@ -335,11 +333,11 @@ class ScreeningCacheManager:
         import json
 
         rule_dict = {
-            'min_roe': rule.min_roe,
-            'max_pe': rule.max_pe,
-            'max_pb': rule.max_pb,
-            'sector_preference': sorted(rule.sector_preference) if rule.sector_preference else [],
-            'max_count': rule.max_count
+            "min_roe": rule.min_roe,
+            "max_pe": rule.max_pe,
+            "max_pb": rule.max_pb,
+            "sector_preference": sorted(rule.sector_preference) if rule.sector_preference else [],
+            "max_count": rule.max_count,
         }
 
         rule_str = json.dumps(rule_dict, sort_keys=True)
@@ -349,7 +347,7 @@ class ScreeningCacheManager:
 @lru_cache(maxsize=128)
 def cached_sector_filter(
     stock_code: str,
-    allowed_sectors: tuple,
+    allowed_sectors: tuple[str, ...],
     stock_sector: str | None = None,
 ) -> bool:
     """

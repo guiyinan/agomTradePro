@@ -18,6 +18,11 @@ def test_config_center_snapshot_uses_formal_sdk_through_core_only_registry(monke
         "AgomTradeProClient",
         lambda: SimpleNamespace(config_center=module),
     )
+    monkeypatch.setattr(
+        server_module.CORE_DISPATCHER,
+        "_role_provider",
+        lambda: "staff",
+    )
 
     manifest = CapabilityRegistryLoader().build_registry()["config_center.read.snapshot"]
     assert manifest.required_roles == ("staff",)

@@ -46,6 +46,11 @@ def test_audit_threshold_update_previews_before_staff_only_commit(
         "_audit_logger",
         SimpleNamespace(log_governed_capability_event=_log_governed_capability_event),
     )
+    monkeypatch.setattr(
+        server_module.CORE_DISPATCHER,
+        "_role_provider",
+        lambda: "staff",
+    )
     manifest = CapabilityRegistryLoader().build_registry()["audit.update.threshold_levels"]
     assert manifest.required_roles == ("staff",)
     assert manifest.idempotency == "required"

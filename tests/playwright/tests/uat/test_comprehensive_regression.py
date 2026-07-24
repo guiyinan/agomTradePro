@@ -59,7 +59,9 @@ AUTHENTICATED_SURFACES = [
     pytest.param(config.fund_dashboard_url, "/fund/", id="fund-dashboard"),
     pytest.param(config.asset_analysis_screen_url, "/asset-analysis/", id="asset-analysis"),
     pytest.param(config.backtest_create_url, "/backtest/", id="backtest"),
-    pytest.param(config.simulated_trading_dashboard_url, "/simulated-trading/", id="simulated-trading"),
+    pytest.param(
+        config.simulated_trading_dashboard_url, "/simulated-trading/", id="simulated-trading"
+    ),
     pytest.param(config.audit_reports_url, "/audit/", id="audit"),
     pytest.param(config.filter_manage_url, "/filter/", id="filter"),
     pytest.param(config.sector_analysis_url, "/rotation/assets/", id="sector"),
@@ -130,22 +132,24 @@ def _assert_non_error_shell(page: Page, expected_path_fragment: str | None = Non
     assert "Traceback" not in body_text
 
     if expected_path_fragment:
-        assert expected_path_fragment in page.url, (
-            f"Expected path fragment {expected_path_fragment!r}, got {page.url!r}"
-        )
+        assert (
+            expected_path_fragment in page.url
+        ), f"Expected path fragment {expected_path_fragment!r}, got {page.url!r}"
 
 
 def _assert_login_redirect(page: Page, path: str) -> None:
     """Assert a protected route redirects unauthenticated users to a login page."""
     _goto(page, path)
     current_url = page.url.lower()
-    assert "login" in current_url or "/account/" in current_url, (
-        f"Expected auth redirect for {path}, got {page.url}"
-    )
+    assert (
+        "login" in current_url or "/account/" in current_url
+    ), f"Expected auth redirect for {path}, got {page.url}"
     _assert_non_error_shell(page, "/login/")
 
 
-def _assert_surface_contract(page: Page, path: str, expected_path_fragment: str | None = None) -> None:
+def _assert_surface_contract(
+    page: Page, path: str, expected_path_fragment: str | None = None
+) -> None:
     """Assert a known page-specific contract when available, else fall back to shell checks."""
     contract = SURFACE_CONTRACTS.get(path)
     if contract is not None:
@@ -246,7 +250,9 @@ def _collect_internal_paths(page: Page, limit: int = 5) -> list[str]:
     return paths
 
 
-def _assert_paths_are_navigable(page: Page, paths: list[str], allow_login_redirect: bool = False) -> None:
+def _assert_paths_are_navigable(
+    page: Page, paths: list[str], allow_login_redirect: bool = False
+) -> None:
     """Assert each discovered path can be opened without landing on an error shell."""
     assert paths, "Expected at least one internal link to validate"
 
@@ -261,6 +267,7 @@ def _assert_paths_are_navigable(page: Page, paths: list[str], allow_login_redire
 
 def _run_db_operation(django_db_blocker, operation):
     """Run ORM setup/cleanup in a worker thread and close SQLite connections deterministically."""
+
     def _wrapped():
         with django_db_blocker.unblock():
             from django.db import close_old_connections, connections
@@ -278,6 +285,7 @@ def _run_db_operation(django_db_blocker, operation):
 
 def _cleanup_signal(asset_code: str, django_db_blocker) -> None:
     """Delete a created signal by unique asset code."""
+
     def _delete() -> None:
         from apps.signal.infrastructure.models import InvestmentSignalModel
 
@@ -288,6 +296,7 @@ def _cleanup_signal(asset_code: str, django_db_blocker) -> None:
 
 def _seed_signal(asset_code: str, django_db_blocker, *, status: str = "pending") -> None:
     """Create a deterministic signal owned by the Playwright admin user."""
+
     def _create() -> None:
         from django.contrib.auth import get_user_model
 
@@ -316,6 +325,7 @@ def _seed_signal(asset_code: str, django_db_blocker, *, status: str = "pending")
 
 def _cleanup_account(account_name: str, django_db_blocker) -> None:
     """Delete a created investment account by its unique test name."""
+
     def _delete() -> None:
         from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
@@ -326,6 +336,7 @@ def _cleanup_account(account_name: str, django_db_blocker) -> None:
 
 def _seed_account(account_name: str, django_db_blocker, *, account_type: str = "simulated") -> int:
     """Create a deterministic investment account for the Playwright admin user."""
+
     def _create() -> int:
         from django.contrib.auth import get_user_model
 
@@ -366,7 +377,9 @@ class TestComprehensiveSurfaceAvailability:
     """High-level user-visible surfaces remain reachable in the browser."""
 
     @pytest.mark.parametrize(("path", "expected_path_fragment"), PUBLIC_SURFACES)
-    def test_public_surfaces_load(self, page: Page, path: str, expected_path_fragment: str | None) -> None:
+    def test_public_surfaces_load(
+        self, page: Page, path: str, expected_path_fragment: str | None
+    ) -> None:
         """Public entry surfaces should load without rendering an error shell."""
         response = _goto(page, path)
         _assert_http_success(response, path)
@@ -439,7 +452,9 @@ class TestAdminNavigationRegression:
 class TestComprehensiveBusinessWorkflowShells:
     """Second-phase UAT checks for actionable workflows on core business pages."""
 
-    def test_signal_page_exposes_creation_and_review_controls(self, authenticated_page: Page) -> None:
+    def test_signal_page_exposes_creation_and_review_controls(
+        self, authenticated_page: Page
+    ) -> None:
         """Signal management should expose AI assistance, creation fields, and review context."""
         response = _goto(authenticated_page, config.signal_manage_url)
         _assert_http_success(response, config.signal_manage_url)
@@ -458,7 +473,9 @@ class TestComprehensiveBusinessWorkflowShells:
             or authenticated_page.locator(".empty-state").count() == 1
         ), "Signal page should show either existing signals or an empty state"
 
-    def test_policy_workbench_exposes_filters_tabs_and_batch_actions(self, authenticated_page: Page) -> None:
+    def test_policy_workbench_exposes_filters_tabs_and_batch_actions(
+        self, authenticated_page: Page
+    ) -> None:
         """Policy workbench should expose the core operator controls for triage."""
         response = _goto(authenticated_page, config.policy_manage_url)
         _assert_http_success(response, config.policy_manage_url)
@@ -477,7 +494,9 @@ class TestComprehensiveBusinessWorkflowShells:
         assert authenticated_page.locator('button:has-text("批量拒绝")').count() == 1
         assert authenticated_page.locator(".quick-actions button").count() >= 2
 
-    def test_backtest_page_supports_form_preparation_before_submission(self, authenticated_page: Page) -> None:
+    def test_backtest_page_supports_form_preparation_before_submission(
+        self, authenticated_page: Page
+    ) -> None:
         """Backtest page should prefill dates and expose the core run configuration form."""
         response = _goto(authenticated_page, config.backtest_create_url)
         _assert_http_success(response, config.backtest_create_url)
@@ -503,7 +522,9 @@ class TestComprehensiveBusinessWorkflowShells:
         assert authenticated_page.locator("#use_pit_data").count() == 1
         assert authenticated_page.locator("#submit-btn").is_enabled()
 
-    def test_simulated_accounts_page_supports_account_creation_shell(self, authenticated_page: Page) -> None:
+    def test_simulated_accounts_page_supports_account_creation_shell(
+        self, authenticated_page: Page
+    ) -> None:
         """Account management should expose creation modal controls and portfolio operations."""
         response = _goto(authenticated_page, config.simulated_trading_positions_url)
         _assert_http_success(response, config.simulated_trading_positions_url)
@@ -523,10 +544,12 @@ class TestComprehensiveBusinessWorkflowShells:
 
         assert (
             authenticated_page.locator(".account-card").count() > 0
-            or authenticated_page.locator('text=您还没有创建任何账户').count() == 1
+            or authenticated_page.locator("text=您还没有创建任何账户").count() == 1
         ), "Account page should show cards or a clear empty state"
 
-    def test_decision_workspace_exposes_stepper_and_account_context(self, authenticated_page: Page) -> None:
+    def test_decision_workspace_exposes_stepper_and_account_context(
+        self, authenticated_page: Page
+    ) -> None:
         """Decision workspace should expose account context and the six-step funnel structure."""
         response = _goto(authenticated_page, "/decision/workspace/")
         _assert_http_success(response, "/decision/workspace/")
@@ -564,7 +587,9 @@ class TestComprehensiveBusinessWorkflowShells:
         authenticated_page.wait_for_timeout(150)
         assert authenticated_page.locator(".config-card:visible").count() > 0
 
-    def test_terminal_shell_updates_input_counter_and_mode_selector(self, authenticated_page: Page) -> None:
+    def test_terminal_shell_updates_input_counter_and_mode_selector(
+        self, authenticated_page: Page
+    ) -> None:
         """Terminal UI should expose input, mode selection, and reactive character counting."""
         response = _goto(authenticated_page, "/terminal/")
         _assert_http_success(response, "/terminal/")
@@ -594,16 +619,23 @@ class TestComprehensiveBusinessWorkflowShells:
 class TestComprehensiveInteractiveFlows:
     """Third-phase UAT coverage with visible state changes from real interactions."""
 
-    def test_signal_creation_round_trip_adds_a_card(self, authenticated_page: Page, django_db_blocker) -> None:
+    def test_signal_creation_round_trip_adds_a_card(
+        self, authenticated_page: Page, django_db_blocker
+    ) -> None:
         """Creating a signal through the browser should reload and show the new asset code."""
-        asset_code = f"UATSIG{uuid4().hex[:8].upper()}"
+        # ``UATSIG*`` is deliberately hidden from production-facing lists.
+        # Use a unique visible code so this round trip exercises the rendered card,
+        # then remove it in ``finally`` below.
+        asset_code = f"UATCRT{uuid4().hex[:8].upper()}"
 
         try:
             response = _goto(authenticated_page, config.signal_manage_url)
             _assert_http_success(response, config.signal_manage_url)
             _assert_signal_contract(authenticated_page)
 
-            asset_class_value = authenticated_page.locator('select[name="asset_class"] option[value]').evaluate_all(
+            asset_class_value = authenticated_page.locator(
+                'select[name="asset_class"] option[value]'
+            ).evaluate_all(
                 """options => {
                     const valid = options
                         .map(option => option.value)
@@ -611,7 +643,9 @@ class TestComprehensiveInteractiveFlows:
                     return valid[0] || null;
                 }"""
             )
-            indicator_value = authenticated_page.locator('#indicatorSelect option[value]').evaluate_all(
+            indicator_value = authenticated_page.locator(
+                "#indicatorSelect option[value]"
+            ).evaluate_all(
                 """options => {
                     const valid = options
                         .map(option => option.value)
@@ -621,11 +655,15 @@ class TestComprehensiveInteractiveFlows:
             )
 
             if not asset_class_value or not indicator_value:
-                pytest.skip("Signal form lacks selectable asset classes or indicators in current seed data")
+                pytest.skip(
+                    "Signal form lacks selectable asset classes or indicators in current seed data"
+                )
 
             authenticated_page.fill('input[name="asset_code"]', asset_code)
             authenticated_page.select_option('select[name="asset_class"]', asset_class_value)
-            authenticated_page.fill('input[name="logic_desc"]', f"Phase 3 UAT signal for {asset_code}")
+            authenticated_page.fill(
+                'input[name="logic_desc"]', f"Phase 3 UAT signal for {asset_code}"
+            )
             authenticated_page.select_option("#indicatorSelect", indicator_value)
             authenticated_page.fill("#thresholdInput", "1")
             authenticated_page.click('button:has-text("添加条件")')
@@ -674,14 +712,12 @@ class TestComprehensiveInteractiveFlows:
         _assert_http_success(response, config.backtest_create_url)
         _assert_backtest_contract(authenticated_page)
 
-        authenticated_page.evaluate(
-            """() => {
+        authenticated_page.evaluate("""() => {
                 window.__uatLastAlert = null;
                 window.alert = (message) => {
                     window.__uatLastAlert = message;
                 };
-            }"""
-        )
+            }""")
         authenticated_page.fill("#name", "Phase 3 Invalid Date Backtest")
         authenticated_page.fill("#start_date", "2025-01-10")
         authenticated_page.fill("#end_date", "2025-01-01")
@@ -692,7 +728,9 @@ class TestComprehensiveInteractiveFlows:
         assert alert_message is not None
         assert "起始日期必须早于结束日期" in alert_message
 
-    def test_terminal_status_command_renders_readiness_output(self, authenticated_page: Page) -> None:
+    def test_terminal_status_command_renders_readiness_output(
+        self, authenticated_page: Page
+    ) -> None:
         """Quick status command should append readiness output into the terminal transcript."""
         response = _goto(authenticated_page, "/terminal/")
         _assert_http_success(response, "/terminal/")
@@ -702,7 +740,9 @@ class TestComprehensiveInteractiveFlows:
         initial_text = output.inner_text(timeout=5000)
 
         authenticated_page.click('.quick-cmd-btn[data-cmd="status"]')
-        authenticated_page.locator("#terminal-output").locator("text=System Readiness").wait_for(timeout=15000)
+        authenticated_page.locator("#terminal-output").locator("text=System Readiness").wait_for(
+            timeout=15000
+        )
 
         updated_text = output.inner_text(timeout=5000)
         assert "System Readiness" in updated_text
@@ -716,7 +756,9 @@ class TestComprehensiveInteractiveFlows:
 class TestComprehensiveActionRegression:
     """Fourth-phase UAT checks for list actions and cross-page transitions."""
 
-    def test_pending_signal_can_be_approved_from_the_card(self, authenticated_page: Page, django_db_blocker) -> None:
+    def test_pending_signal_can_be_approved_from_the_card(
+        self, authenticated_page: Page, django_db_blocker
+    ) -> None:
         """Approving a seeded pending signal should reload the page and update its status badge."""
         asset_code = f"UATAPP{uuid4().hex[:8].upper()}"
         _seed_signal(asset_code, django_db_blocker, status="pending")
@@ -732,12 +774,16 @@ class TestComprehensiveActionRegression:
             with authenticated_page.expect_navigation(wait_until="networkidle"):
                 card.locator(".action-btn.approve").click()
 
-            updated_card = authenticated_page.locator(f'.signal-card:has-text("{asset_code}")').first
-            assert updated_card.locator('text=已通过').count() >= 1
+            updated_card = authenticated_page.locator(
+                f'.signal-card:has-text("{asset_code}")'
+            ).first
+            assert updated_card.locator("text=已通过").count() >= 1
         finally:
             _cleanup_signal(asset_code, django_db_blocker)
 
-    def test_pending_signal_can_be_rejected_from_the_card(self, authenticated_page: Page, django_db_blocker) -> None:
+    def test_pending_signal_can_be_rejected_from_the_card(
+        self, authenticated_page: Page, django_db_blocker
+    ) -> None:
         """Rejecting a seeded pending signal should prompt for a reason and show rejected state."""
         asset_code = f"UATREJ{uuid4().hex[:8].upper()}"
         _seed_signal(asset_code, django_db_blocker, status="pending")
@@ -747,11 +793,9 @@ class TestComprehensiveActionRegression:
             _assert_http_success(response, config.signal_manage_url)
             _assert_signal_contract(authenticated_page)
 
-            authenticated_page.evaluate(
-                """() => {
+            authenticated_page.evaluate("""() => {
                     window.uiPrompt = async () => 'Phase4 rejection reason';
-                }"""
-            )
+                }""")
 
             card = authenticated_page.locator(f'.signal-card:has-text("{asset_code}")').first
             assert card.count() == 1
@@ -759,12 +803,16 @@ class TestComprehensiveActionRegression:
             with authenticated_page.expect_navigation(wait_until="networkidle"):
                 card.locator(".action-btn.reject").click()
 
-            updated_card = authenticated_page.locator(f'.signal-card:has-text("{asset_code}")').first
-            assert updated_card.locator('text=已拒绝').count() >= 1
+            updated_card = authenticated_page.locator(
+                f'.signal-card:has-text("{asset_code}")'
+            ).first
+            assert updated_card.locator("text=已拒绝").count() >= 1
         finally:
             _cleanup_signal(asset_code, django_db_blocker)
 
-    def test_seeded_accounts_support_batch_delete_flow(self, authenticated_page: Page, django_db_blocker) -> None:
+    def test_seeded_accounts_support_batch_delete_flow(
+        self, authenticated_page: Page, django_db_blocker
+    ) -> None:
         """Selecting two seeded accounts should enable batch delete and remove both cards."""
         account_names = [f"UAT-Batch-{uuid4().hex[:6]}-A", f"UAT-Batch-{uuid4().hex[:6]}-B"]
         for name in account_names:
@@ -775,14 +823,14 @@ class TestComprehensiveActionRegression:
             _assert_http_success(response, config.simulated_trading_positions_url)
             _assert_simulated_accounts_contract(authenticated_page)
 
-            authenticated_page.evaluate(
-                """() => {
+            authenticated_page.evaluate("""() => {
                     window.uiConfirm = async () => true;
-                }"""
-            )
+                }""")
 
             for name in account_names:
-                authenticated_page.locator(f'.account-select-input[data-account-name="{name}"]').check()
+                authenticated_page.locator(
+                    f'.account-select-input[data-account-name="{name}"]'
+                ).check()
 
             assert "已选择 2 个" in authenticated_page.locator("#selectedAccountCount").inner_text()
             assert authenticated_page.locator("#bulkDeleteBtn").is_enabled()
@@ -791,32 +839,36 @@ class TestComprehensiveActionRegression:
             authenticated_page.wait_for_timeout(1400)
 
             for name in account_names:
-                assert authenticated_page.locator(f'text={name}').count() == 0
+                assert authenticated_page.locator(f"text={name}").count() == 0
         finally:
             for name in account_names:
                 _cleanup_account(name, django_db_blocker)
 
-    def test_ops_center_frontend_card_link_opens_a_usable_page(self, authenticated_page: Page) -> None:
+    def test_ops_center_frontend_card_link_opens_a_usable_page(
+        self, authenticated_page: Page
+    ) -> None:
         """The ops center should expose at least one frontend entry link that opens cleanly."""
         response = _goto(authenticated_page, "/settings/")
         _assert_http_success(response, "/settings/")
         _assert_ops_center_contract(authenticated_page)
 
-        frontend_href = authenticated_page.evaluate(
-            """() => {
+        frontend_href = authenticated_page.evaluate("""() => {
                 const link = document.querySelector('.config-card a.btn.btn-primary[href]');
                 return link ? link.getAttribute('href') : null;
-            }"""
-        )
+            }""")
         if not frontend_href:
-            pytest.skip("Settings center has no visible frontend entry card in current fixture data")
+            pytest.skip(
+                "Settings center has no visible frontend entry card in current fixture data"
+            )
 
         target_path = urlparse(urljoin(config.base_url, frontend_href)).path
         response = _goto(authenticated_page, target_path)
         _assert_http_success(response, target_path)
         _assert_surface_contract(authenticated_page, target_path)
 
-    def test_decision_workspace_account_switch_refreshes_snapshot(self, authenticated_page: Page, django_db_blocker) -> None:
+    def test_decision_workspace_account_switch_refreshes_snapshot(
+        self, authenticated_page: Page, django_db_blocker
+    ) -> None:
         """Switching to a seeded account should refresh account summary and status text."""
         account_name = f"UAT-Workspace-{uuid4().hex[:8]}"
         account_id = _seed_account(account_name, django_db_blocker)
@@ -856,7 +908,12 @@ class TestComprehensiveActionRegression:
                 timeout=15000,
             )
             assert "模拟账户" in authenticated_page.locator("#workspace-account-meta").inner_text()
-            assert authenticated_page.locator("#workspace-account-status").inner_text() in {"运行中", "已停用"}
-            assert "100,000" in authenticated_page.locator("#workspace-total-value").inner_text().replace(".00", "")
+            assert authenticated_page.locator("#workspace-account-status").inner_text() in {
+                "运行中",
+                "已停用",
+            }
+            assert "100,000" in authenticated_page.locator(
+                "#workspace-total-value"
+            ).inner_text().replace(".00", "")
         finally:
             _cleanup_account(account_name, django_db_blocker)

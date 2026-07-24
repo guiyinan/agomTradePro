@@ -89,7 +89,10 @@ class DashboardCardVisibilityRule(Rule):
             if not context.get("has_beta_gate", False):
                 return False
 
-        if "requires_decision_rhythm" in self.conditions and self.conditions["requires_decision_rhythm"]:
+        if (
+            "requires_decision_rhythm" in self.conditions
+            and self.conditions["requires_decision_rhythm"]
+        ):
             if not context.get("has_decision_rhythm", False):
                 return False
 
@@ -212,15 +215,15 @@ class MetricThresholdRule(Rule):
 
     def _compare(self, value: float, threshold: float) -> bool:
         """根据操作符比较"""
-        ops = {
-            "gt": lambda a, b: a > b,
-            "lt": lambda a, b: a < b,
-            "gte": lambda a, b: a >= b,
-            "lte": lambda a, b: a <= b,
-            "eq": lambda a, b: a == b,
-        }
-        op_func = ops.get(self.operator, lambda a, b: a >= b)
-        return op_func(value, threshold)
+        if self.operator == "gt":
+            return value > threshold
+        if self.operator == "lt":
+            return value < threshold
+        if self.operator == "lte":
+            return value <= threshold
+        if self.operator == "eq":
+            return value == threshold
+        return value >= threshold
 
     def get_severity(self, context: dict[str, Any]) -> AlertSeverity | None:
         """
@@ -310,10 +313,10 @@ class RefreshIntervalRule(Rule):
         Returns:
             是否合理
         """
-        interval = context.get("interval", 60)
+        raw_interval = context.get("interval", 60)
 
         try:
-            interval = int(interval)
+            interval = int(raw_interval)
         except (TypeError, ValueError):
             return False
 
@@ -333,7 +336,7 @@ class DataSourceAvailabilityRule(Rule):
     """
 
     data_source: str
-    required_fields: list[str] = None
+    required_fields: list[str] | None = None
 
     def evaluate(self, context: dict[str, Any]) -> bool:
         """
@@ -354,10 +357,11 @@ class DataSourceAvailabilityRule(Rule):
         # 检查必需字段
         if self.required_fields:
             data = available_data[self.data_source]
-            if isinstance(data, dict):
-                for field in self.required_fields:
-                    if field not in data or data[field] is None:
-                        return False
+            if not isinstance(data, dict):
+                return False
+            for field in self.required_fields:
+                if field not in data or data[field] is None:
+                    return False
 
         return True
 
@@ -375,7 +379,7 @@ class RuleEngine:
         >>> results = engine.evaluate_all(context)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化规则引擎"""
         self._rules: list[Rule] = []
 

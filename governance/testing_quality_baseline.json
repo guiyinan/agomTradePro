@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "coverage": {
+    "repository_minimum": 80.0,
+    "default_module_minimum": 70.0,
+    "core_module_minimum": 80.0,
+    "domain_module_minimum": 90.0,
+    "core_modules": [
+      "account",
+      "alpha",
+      "alpha_trigger",
+      "audit",
+      "backtest",
+      "beta_gate",
+      "broker_execution",
+      "decision_rhythm",
+      "macro",
+      "policy",
+      "portfolio",
+      "regime",
+      "research",
+      "risk_center",
+      "signal",
+      "simulated_trading",
+      "strategy",
+      "valuation"
+    ]
+  },
+  "fast_suite": {
+    "maximum_seconds": 120,
+    "maximum_database_file_ratio": 0.15
+  }
+}

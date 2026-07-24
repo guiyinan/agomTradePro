@@ -8,28 +8,32 @@ Content Extractor - 从HTML页面提取文章正文
 
 import logging
 import re
-from typing import Protocol
+from importlib import import_module
+from typing import Any, Protocol
 
 try:
-    import httpx
+    httpx: Any = import_module("httpx")
 except ImportError:
     httpx = None
 
 try:
-    from bs4 import BeautifulSoup
+    BeautifulSoup: Any = import_module("bs4").BeautifulSoup
 except ImportError:
     BeautifulSoup = None
 
 try:
-    from readability_lxml import Document
+    Document: Any = import_module("readability_lxml").Document
 except ImportError:
     Document = None
 
 logger = logging.getLogger(__name__)
 
+ProxyConfig = dict[str, object]
+
 
 class ContentExtractorError(Exception):
     """内容提取异常"""
+
     pass
 
 
@@ -38,7 +42,12 @@ class ContentExtractorProtocol(Protocol):
 
     source_name: str
 
-    def extract(self, url: str, proxy_config: dict | None = None, timeout: int = 30) -> str:
+    def extract(
+        self,
+        url: str,
+        proxy_config: ProxyConfig | None = None,
+        timeout: int = 30,
+    ) -> str:
         """
         从URL提取文章正文
 
@@ -61,7 +70,12 @@ class BaseContentExtractor:
 
     source_name: str = "base"
 
-    def extract(self, url: str, proxy_config: dict | None = None, timeout: int = 30) -> str:
+    def extract(
+        self,
+        url: str,
+        proxy_config: ProxyConfig | None = None,
+        timeout: int = 30,
+    ) -> str:
         """默认实现：子类必须覆盖"""
         raise NotImplementedError
 
@@ -75,13 +89,13 @@ class BaseContentExtractor:
         Returns:
             str: 清理后的文本
         """
-        # 移除多余的空白
-        text = re.sub(r'\s+', ' ', text)
         # 移除特殊字符
-        text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f-\x9f]', '', text)
+        text = re.sub(r"[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f-\x9f]", "", text)
+        # 移除控制字符后再次归一化空白，避免留下双空格
+        text = re.sub(r"\s+", " ", text)
         return text.strip()
 
-    def _build_proxies(self, proxy_config: dict | None) -> str | None:
+    def _build_proxies(self, proxy_config: ProxyConfig | None) -> str | None:
         """
         构建代理URL
 
@@ -95,7 +109,7 @@ class BaseContentExtractor:
             return None
 
         proxy_url = f"{proxy_config.get('proxy_type', 'http')}://"
-        if proxy_config.get('username') and proxy_config.get('password'):
+        if proxy_config.get("username") and proxy_config.get("password"):
             proxy_url += f"{proxy_config['username']}:{proxy_config['password']}@"
         proxy_url += f"{proxy_config['host']}:{proxy_config['port']}"
 
@@ -118,7 +132,12 @@ class ReadabilityExtractor(BaseContentExtractor):
 
     source_name = "readability"
 
-    def extract(self, url: str, proxy_config: dict | None = None, timeout: int = 30) -> str:
+    def extract(
+        self,
+        url: str,
+        proxy_config: ProxyConfig | None = None,
+        timeout: int = 30,
+    ) -> str:
         """
         使用readability-lxml提取内容
 
@@ -140,10 +159,13 @@ class ReadabilityExtractor(BaseContentExtractor):
 
         try:
             # 获取HTML
-            with httpx.Client(proxies=proxies, timeout=timeout, follow_redirects=True) as client:
-                response = client.get(url, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                })
+            with httpx.Client(proxy=proxies, timeout=timeout, follow_redirects=True) as client:
+                response = client.get(
+                    url,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    },
+                )
                 response.raise_for_status()
                 html = response.text
 
@@ -152,18 +174,18 @@ class ReadabilityExtractor(BaseContentExtractor):
             content_html = doc.summary()
 
             # 转换为纯文本
-            if BeautifulSoup:
-                soup = BeautifulSoup(content_html, 'html.parser')
-                text = soup.get_text(separator='\n')
+            if BeautifulSoup is not None:
+                soup = BeautifulSoup(content_html, "html.parser")
+                text = soup.get_text(separator="\n")
             else:
                 # 降级：简单移除HTML标签
-                text = re.sub(r'<[^>]+>', '\n', content_html)
+                text = re.sub(r"<[^>]+>", "\n", content_html)
 
             # 清理文本
-            text = self._clean_text(text)
+            cleaned_text = self._clean_text(str(text))
 
-            logger.debug(f"Extracted {len(text)} characters from {url}")
-            return text
+            logger.debug(f"Extracted {len(cleaned_text)} characters from {url}")
+            return cleaned_text
 
         except httpx.HTTPError as e:
             raise ContentExtractorError(f"HTTP error: {e}") from e
@@ -190,37 +212,53 @@ class BeautifulSoupExtractor(BaseContentExtractor):
     # 常见的正文内容选择器（按优先级）
     CONTENT_SELECTORS = [
         # 通用选择器
-        'article',
+        "article",
         '[role="article"]',
-        '.article-content',
-        '.post-content',
-        '.entry-content',
-        '.content',
-        '.main-content',
-        '#content',
-        '#article',
+        ".article-content",
+        ".post-content",
+        ".entry-content",
+        ".content",
+        ".main-content",
+        "#content",
+        "#article",
         # 中文网站常见
-        '.article-body',
-        '.article-body p',
-        '.artical-content',
-        '.article_detail',
-        '#article_content',
-        '#artibody',
+        ".article-body",
+        ".article-body p",
+        ".artical-content",
+        ".article_detail",
+        "#article_content",
+        "#artibody",
         # 政府网站
-        '.content p',
-        '.text p',
-        '.article p',
+        ".content p",
+        ".text p",
+        ".article p",
     ]
 
     # 需要移除的元素
     REMOVE_ELEMENTS = [
-        'script', 'style', 'nav', 'header', 'footer',
-        'aside', '.advertisement', '.ads', '.sidebar',
-        '.related', '.comments', '.share', '.social',
-        'iframe', 'noscript'
+        "script",
+        "style",
+        "nav",
+        "header",
+        "footer",
+        "aside",
+        ".advertisement",
+        ".ads",
+        ".sidebar",
+        ".related",
+        ".comments",
+        ".share",
+        ".social",
+        "iframe",
+        "noscript",
     ]
 
-    def extract(self, url: str, proxy_config: dict | None = None, timeout: int = 30) -> str:
+    def extract(
+        self,
+        url: str,
+        proxy_config: ProxyConfig | None = None,
+        timeout: int = 30,
+    ) -> str:
         """
         使用BeautifulSoup4提取内容
 
@@ -242,18 +280,21 @@ class BeautifulSoupExtractor(BaseContentExtractor):
 
         try:
             # 获取HTML
-            with httpx.Client(proxies=proxies, timeout=timeout, follow_redirects=True) as client:
-                response = client.get(url, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                })
+            with httpx.Client(proxy=proxies, timeout=timeout, follow_redirects=True) as client:
+                response = client.get(
+                    url,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    },
+                )
                 response.raise_for_status()
                 html = response.text
 
             # 解析HTML
-            soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(html, "html.parser")
 
             # 移除不需要的元素
-            for element in soup.select(', '.join(self.REMOVE_ELEMENTS)):
+            for element in soup.select(", ".join(self.REMOVE_ELEMENTS)):
                 element.decompose()
 
             # 尝试各种选择器
@@ -261,25 +302,25 @@ class BeautifulSoupExtractor(BaseContentExtractor):
             for selector in self.CONTENT_SELECTORS:
                 element = soup.select_one(selector)
                 if element:
-                    content = element.get_text(separator='\n')
+                    content = element.get_text(separator="\n")
                     # 检查内容质量
                     if len(content) > 200:  # 至少200字符
                         break
 
             # 如果没有找到合适的内容，尝试使用meta description
             if not content or len(content) < 200:
-                meta_desc = soup.find('meta', attrs={'name': 'description'})
-                if meta_desc and meta_desc.get('content'):
-                    content = meta_desc['content']
+                meta_desc = soup.find("meta", attrs={"name": "description"})
+                if meta_desc and meta_desc.get("content"):
+                    content = meta_desc["content"]
 
             if not content:
                 raise ContentExtractorError("Could not extract content from page")
 
             # 清理文本
-            content = self._clean_text(content)
+            cleaned_content = self._clean_text(str(content))
 
-            logger.debug(f"Extracted {len(content)} characters from {url}")
-            return content
+            logger.debug(f"Extracted {len(cleaned_content)} characters from {url}")
+            return cleaned_content
 
         except httpx.HTTPError as e:
             raise ContentExtractorError(f"HTTP error: {e}") from e
@@ -290,8 +331,8 @@ class BeautifulSoupExtractor(BaseContentExtractor):
         self,
         url: str,
         selector: str,
-        proxy_config: dict | None = None,
-        timeout: int = 30
+        proxy_config: ProxyConfig | None = None,
+        timeout: int = 30,
     ) -> str:
         """
         使用自定义选择器提取内容
@@ -311,23 +352,26 @@ class BeautifulSoupExtractor(BaseContentExtractor):
         proxies = self._build_proxies(proxy_config)
 
         try:
-            with httpx.Client(proxies=proxies, timeout=timeout, follow_redirects=True) as client:
-                response = client.get(url, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                })
+            with httpx.Client(proxy=proxies, timeout=timeout, follow_redirects=True) as client:
+                response = client.get(
+                    url,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    },
+                )
                 response.raise_for_status()
                 html = response.text
 
-            soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(html, "html.parser")
             element = soup.select_one(selector)
 
             if not element:
                 raise ContentExtractorError(f"Element not found: {selector}")
 
-            content = element.get_text(separator='\n')
-            content = self._clean_text(content)
+            content = element.get_text(separator="\n")
+            cleaned_content = self._clean_text(str(content))
 
-            return content
+            return cleaned_content
 
         except httpx.HTTPError as e:
             raise ContentExtractorError(f"HTTP error: {e}") from e
@@ -344,11 +388,16 @@ class HybridContentExtractor(BaseContentExtractor):
 
     source_name = "hybrid"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.readability_extractor = ReadabilityExtractor()
         self.bs4_extractor = BeautifulSoupExtractor()
 
-    def extract(self, url: str, proxy_config: dict | None = None, timeout: int = 30) -> str:
+    def extract(
+        self,
+        url: str,
+        proxy_config: ProxyConfig | None = None,
+        timeout: int = 30,
+    ) -> str:
         """
         混合提取：先尝试readability，失败时使用BeautifulSoup4
 
@@ -364,7 +413,9 @@ class HybridContentExtractor(BaseContentExtractor):
         try:
             return self.readability_extractor.extract(url, proxy_config, timeout)
         except ContentExtractorError as e:
-            logger.warning(f"Readability extraction failed for {url}, falling back to BeautifulSoup4: {e}")
+            logger.warning(
+                f"Readability extraction failed for {url}, falling back to BeautifulSoup4: {e}"
+            )
 
         # 降级到BeautifulSoup4
         try:
@@ -374,7 +425,7 @@ class HybridContentExtractor(BaseContentExtractor):
 
 
 # 工厂函数
-def create_content_extractor(extractor_type: str = 'hybrid') -> BaseContentExtractor:
+def create_content_extractor(extractor_type: str = "hybrid") -> BaseContentExtractor:
     """
     创建内容提取器
 
@@ -387,15 +438,17 @@ def create_content_extractor(extractor_type: str = 'hybrid') -> BaseContentExtra
     Raises:
         ValueError: 不支持的提取器类型
     """
-    extractors = {
-        'readability': ReadabilityExtractor,
-        'beautifulsoup': BeautifulSoupExtractor,
-        'bs4': BeautifulSoupExtractor,
-        'hybrid': HybridContentExtractor,
+    extractors: dict[str, type[BaseContentExtractor]] = {
+        "readability": ReadabilityExtractor,
+        "beautifulsoup": BeautifulSoupExtractor,
+        "bs4": BeautifulSoupExtractor,
+        "hybrid": HybridContentExtractor,
     }
 
     extractor_class = extractors.get(extractor_type.lower())
     if not extractor_class:
-        raise ValueError(f"Unsupported extractor type: {extractor_type}. Supported: {list(extractors.keys())}")
+        raise ValueError(
+            f"Unsupported extractor type: {extractor_type}. Supported: {list(extractors.keys())}"
+        )
 
     return extractor_class()

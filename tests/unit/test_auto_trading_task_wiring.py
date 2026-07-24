@@ -8,6 +8,7 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
     account_repo = object()
     position_repo = object()
     trade_repo = object()
+    fee_config_repo = object()
     signal_repo = object()
     asset_pool_repo = object()
     buy_use_case = object()
@@ -32,6 +33,10 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
         patch(
             "apps.simulated_trading.application.tasks.get_simulated_trade_repository",
             return_value=trade_repo,
+        ),
+        patch(
+            "apps.simulated_trading.application.tasks.get_simulated_fee_config_repository",
+            return_value=fee_config_repo,
         ),
         patch(
             "apps.simulated_trading.application.tasks.get_signal_repository",
@@ -82,9 +87,15 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
         account_repo,
         position_repo,
         trade_repo,
+        fee_config_repo,
         signal_repo=signal_repo,
     )
-    sell_use_case_cls.assert_called_once_with(account_repo, position_repo, trade_repo)
+    sell_use_case_cls.assert_called_once_with(
+        account_repo,
+        position_repo,
+        trade_repo,
+        fee_config_repo,
+    )
     performance_use_case_cls.assert_called_once_with(account_repo, position_repo, trade_repo)
     price_provider_cls.assert_called_once_with()
     asset_pool_service_cls.assert_called_once_with(

@@ -49,6 +49,11 @@ def test_alpha_score_import_previews_before_staff_only_idempotent_commit(
             or "audit-alpha-1"
         ),
     )
+    monkeypatch.setattr(
+        server_module.CORE_DISPATCHER,
+        "_role_provider",
+        lambda: "staff",
+    )
     manifest = CapabilityRegistryLoader().build_registry()["alpha.import.score_cache"]
     assert manifest.required_roles == ("staff",)
     assert manifest.idempotency == "required"

@@ -1,0 +1,245 @@
+"""Deterministic Policy adapter and AI-classification contracts."""
+
+from __future__ import annotations
+
+import json
+import time
+from datetime import UTC, date, datetime
+from types import SimpleNamespace
+
+import pytest
+
+from apps.policy.domain.entities import (
+    AuditStatus,
+    PolicyLevel,
+    RSSItem,
+    RSSSourceConfig,
+)
+from apps.policy.infrastructure.adapters import feedparser_adapter
+from apps.policy.infrastructure.adapters.ai_policy_classifier import AIPolicyClassifier
+from apps.policy.infrastructure.adapters.content_extractor import (
+    BaseContentExtractor,
+    ContentExtractorError,
+    HybridContentExtractor,
+    create_content_extractor,
+)
+from apps.policy.infrastructure.adapters.news_adapter import (
+    NewsPolicyAdapter,
+    NewsSourceConfig,
+)
+from apps.policy.infrastructure.adapters.rss_adapter import RSSFetchError
+
+
+def test_content_extractor_cleans_builds_proxy_falls_back_and_validates_factory() -> None:
+    """Extractor utilities normalize text and preserve the declared fallback order."""
+    base = BaseContentExtractor()
+    assert base._clean_text(" A\n\tB\x00 ") == "A B"
+    assert base._build_proxies(None) is None
+    assert base._build_proxies({"host": "localhost", "port": 8080}) == "http://localhost:8080"
+    assert (
+        base._build_proxies(
+            {
+                "proxy_type": "https",
+                "host": "proxy",
+                "port": 443,
+                "username": "u",
+                "password": "p",
+            }
+        )
+        == "https://u:p@proxy:443"
+    )
+    with pytest.raises(NotImplementedError):
+        base.extract("https://example.test")
+
+    hybrid = HybridContentExtractor()
+    hybrid.readability_extractor = SimpleNamespace(
+        extract=lambda *args: (_ for _ in ()).throw(ContentExtractorError("unavailable"))
+    )
+    hybrid.bs4_extractor = SimpleNamespace(extract=lambda *args: "fallback body")
+    assert hybrid.extract("https://example.test") == "fallback body"
+    hybrid.bs4_extractor = SimpleNamespace(
+        extract=lambda *args: (_ for _ in ()).throw(ContentExtractorError("unavailable"))
+    )
+    with pytest.raises(ContentExtractorError, match="All extraction methods"):
+        hybrid.extract("https://example.test")
+
+    assert create_content_extractor("bs4").source_name == "beautifulsoup"
+    assert create_content_extractor("hybrid").source_name == "hybrid"
+    with pytest.raises(ValueError, match="Unsupported extractor"):
+        create_content_extractor("unknown")
+
+
+def test_news_adapter_availability_classification_date_parsing_and_fetch(monkeypatch) -> None:
+    """News adapter maps deterministic items to the highest applicable policy level."""
+    adapter = NewsPolicyAdapter(NewsSourceConfig("fake", "https://news.test"))
+    adapter.session = SimpleNamespace(get=lambda *args, **kwargs: SimpleNamespace(status_code=200))
+    assert adapter.is_available() is True
+    assert adapter.get_source_name() == "fake"
+    assert adapter._classify_policy_level("紧急救市并降息") == PolicyLevel.P3
+    assert adapter._classify_policy_level("央行降准") == PolicyLevel.P2
+    assert adapter._classify_policy_level("研究政策预期") == PolicyLevel.P1
+    assert adapter._classify_policy_level("普通新闻") == PolicyLevel.P0
+    assert adapter._parse_date("2026/07/24") == date(2026, 7, 24)
+    assert adapter._parse_date("2026年07月24日") == date(2026, 7, 24)
+    assert adapter._parse_date("bad") is None
+    assert adapter._parse_date("") is None
+    assert adapter._parse_news_to_event({"title": "missing date"}) is None
+
+    monkeypatch.setattr(
+        adapter,
+        "_search_policy_news",
+        lambda start, end: [
+            {
+                "title": "央行降准",
+                "content": "财政刺激" * 60,
+                "url": "https://evidence.test",
+                "pub_date": "2026-07-24",
+            },
+            {"title": "bad", "pub_date": "invalid"},
+        ],
+    )
+    events = adapter.fetch_policy_events()
+    assert len(events) == 1
+    assert events[0].level == PolicyLevel.P2
+    assert events[0].description.endswith("...")
+
+    adapter.session = SimpleNamespace(
+        get=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("offline"))
+    )
+    assert adapter.is_available() is False
+
+
+def _rss_item() -> RSSItem:
+    return RSSItem(
+        title="央行宣布降准",
+        link="https://policy.test/item",
+        pub_date=datetime(2026, 7, 24, tzinfo=UTC),
+        description="支持实体经济",
+    )
+
+
+def test_ai_classifier_success_thresholds_failures_and_response_parsing(monkeypatch) -> None:
+    """AI classification maps confidence to audit status and fails closed on bad enums."""
+    payload = {
+        "info_category": "macro",
+        "confidence": 0.8,
+        "risk_impact": "medium_risk",
+        "policy_level": "P2",
+        "structured_data": {
+            "policy_subject": "央行",
+            "affected_sectors": ["银行"],
+            "summary": "降准",
+        },
+    }
+    helper = SimpleNamespace(
+        chat_completion_with_failover=lambda **kwargs: {
+            "status": "success",
+            "content": json.dumps(payload),
+            "model": "fake-model",
+            "provider_used": "",
+            "total_tokens": 10,
+        }
+    )
+    classifier = AIPolicyClassifier(helper)
+    monkeypatch.setattr(
+        type(classifier),
+        "auto_approve_threshold",
+        property(lambda self: 0.75),
+    )
+    monkeypatch.setattr(
+        type(classifier),
+        "auto_reject_threshold",
+        property(lambda self: 0.3),
+    )
+    approved = classifier.classify_rss_item(_rss_item(), "完整政策正文")
+    assert approved.success is True
+    assert approved.audit_status == AuditStatus.AUTO_APPROVED
+    assert approved.policy_level == PolicyLevel.P2
+    assert approved.structured_data is not None
+    assert approved.structured_data.policy_subject == "央行"
+
+    helper.chat_completion_with_failover = lambda **kwargs: {
+        "status": "error",
+        "error_message": "timeout",
+        "model": "fake-model",
+    }
+    failed = classifier.classify_rss_item(_rss_item())
+    assert failed.success is False and "timeout" in (failed.error_message or "")
+
+    assert classifier._parse_ai_response('```json\n{"confidence": 0.5}\n```') == {"confidence": 0.5}
+    assert classifier._parse_ai_response('prefix {"confidence": 0.4} suffix') == {"confidence": 0.4}
+    assert classifier._parse_ai_response("not-json")["info_category"] == "other"
+    assert len(classifier.batch_classify([(_rss_item(), None)])) == 1
+
+
+class _FeedEntry(dict[str, object]):
+    published_parsed: time.struct_time | None
+    updated_parsed: time.struct_time | None
+
+    def __init__(self, payload: dict[str, object], published: time.struct_time | None) -> None:
+        super().__init__(payload)
+        self.published_parsed = published
+        self.updated_parsed = None
+
+
+def test_feedparser_adapter_fetches_parses_skips_and_retries(monkeypatch) -> None:
+    """Feed parsing keeps valid items, skips malformed entries, and bounds retries."""
+    adapter = feedparser_adapter.FeedparserAdapter()
+    config = RSSSourceConfig(
+        name="central-bank",
+        url="https://rss.test/feed",
+        category="central_bank",
+        is_active=True,
+        fetch_interval_hours=1,
+        extract_content=False,
+        timeout_seconds=5,
+        retry_times=2,
+    )
+    response = SimpleNamespace(
+        content=b"<rss/>",
+        raise_for_status=lambda: None,
+    )
+    monkeypatch.setattr(feedparser_adapter.requests, "get", lambda *args, **kwargs: response)
+    published = time.gmtime(1_721_779_200)
+    valid = _FeedEntry(
+        {
+            "title": "央行政策",
+            "link": "https://policy.test/item",
+            "description": "支持实体经济",
+            "guid": "guid-1",
+            "author": "PBOC",
+        },
+        published,
+    )
+    missing_title = _FeedEntry({"link": "https://policy.test/bad"}, published)
+    monkeypatch.setattr(
+        feedparser_adapter.feedparser,
+        "parse",
+        lambda content: SimpleNamespace(
+            bozo=True,
+            bozo_exception=ValueError("minor warning"),
+            entries=[valid, missing_title],
+        ),
+    )
+    items = adapter.fetch(config)
+    assert len(items) == 1
+    assert items[0].guid == "guid-1"
+    assert items[0].pub_date.tzinfo is not None
+
+    attempts: list[int] = []
+
+    def _timeout(*args: object, **kwargs: object) -> object:
+        attempts.append(1)
+        raise feedparser_adapter.requests.Timeout("slow")
+
+    monkeypatch.setattr(feedparser_adapter.requests, "get", _timeout)
+    monkeypatch.setattr(time, "sleep", lambda seconds: None)
+    with pytest.raises(RSSFetchError, match="2 retries"):
+        adapter._fetch_with_retries(config.url, None, 1, 2)
+    assert len(attempts) == 2
+
+    no_date = _FeedEntry(
+        {"title": "Fallback date", "link": "https://policy.test/fallback"},
+        None,
+    )
+    assert adapter._parse_pub_date(no_date).tzinfo is not None

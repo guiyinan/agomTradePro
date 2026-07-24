@@ -2,7 +2,7 @@
 
 > 用途：把"需求完成"与"测试证据"强绑定，支持验收与发布决策。
 >
-> 最近更新：2026-07-22
+> 最近更新：2026-07-24
 
 ## 1. 使用说明
 
@@ -44,6 +44,10 @@
 | R-REL-AGENT-001 | 断线、未知报单结果、重复事件和 P0 对账差异保守处理 | P0 | Integration | `tests/critical/test_agent_and_recovery_safety.py` | Fake Agent 回放与恢复状态核验 | PR+Nightly+RC | Codex | 2026-07-22 | **Passed** | - |
 | R-REL-MIG-001 | 研究完整性迁移保留历史数据、约束、外键和关键索引 | P0 | Migration | `tests/migrations/test_research_integrity_migrations.py` | PostgreSQL Nightly 空库迁移证据 | Nightly+RC | Codex | 2026-07-22 | **SQLite Passed；PostgreSQL Pending** | 等待 Nightly |
 | R-REL-QMT-001 | 真实 QMT 启用前 preflight 与只读探针通过且不报单/不撤单 | P0 | Manual+PostDeploy | `docs/operations/qmt-agent-runbook.md` | 目标机只读探针证据 | PreRelease | Operator | 2026-07-22 | **InProgress: QMT_SERVER_NOT_ALLOWED** | 券商外部 XtQuant 权限未开通，实盘禁用 |
+| R-TST-LAYER-001 | Unit 不初始化数据库，数据库型测试进入 Component/Integration | P0 | Guardrail+Unit | `tests/unit/test_testing_quality_tools.py`、`scripts/test_tier_inventory.py`、`tests/support/fast_suite_guard.py` | 抽查迁移映射与测试目录 | PR+Nightly | Codex | 2026-07-24 | **Passed：1.37% DB file ratio** | - |
+| R-TST-FAST-001 | 纯 Domain/Application 快速反馈环 ≤120 秒 | P0 | Unit | `scripts/run_fast_tests.py` | 核对无测试数据库初始化输出 | PR | Codex | 2026-07-24 | **Passed：3500 / 40.06s** | - |
+| R-TST-COV-001 | 仓库 ≥80%、核心模块 ≥80%、其余模块 ≥70%、Domain ≥90% | P0 | Coverage+Guardrail | `scripts/check_coverage_ratchet.py` | 审阅模块与 Domain 报告 | PR+Nightly+RC | Codex | 2026-07-24 | **Passed：repository 80.1%** | - |
+| R-TST-BROWSER-001 | Chromium 关键旅程必须真实执行且保存日志/JUnit/截图 | P0 | E2E+UAT | `tests/playwright/tests/smoke/`、`tests/playwright/tests/uat/` | 抽查关键可见状态与错误恢复 | Nightly+RC | Codex | 2026-07-24 | **Passed：33 smoke + 74 UAT** | - |
 
 ## 3. 发布验收汇总
 
@@ -80,6 +84,14 @@
 | 产品负责人 |  |  |  |
 
 ## 6. 修复记录
+
+### 2026-07-24 分层测试质量门禁收口
+
+- T1-T5 全部完成，机器真源、fast suite、测试 ID 迁移映射和 CI ratchet 已落地。
+- 158 个 DB 测试迁入 `tests/component/`，Unit DB 文件占比从约 30% 降到 `1.37%`。
+- 仓库覆盖率从 `73.3%` 提升至 `80.1%`；所有 Domain 达到 90% 门限。
+- Django E2E `97 passed`；Playwright smoke/UAT 分别 `33 / 74 passed`，没有跳过、失败或错误。
+- Guardrail + Critical `165 passed`；完成证据和回滚点见测试改进计划第 10 节。
 
 ### 2026-07-22 关键可靠性门禁收口
 

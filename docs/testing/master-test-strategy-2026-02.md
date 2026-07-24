@@ -2,7 +2,7 @@
 
 > 目标：让系统“可演示”升级为“可验收、可发布、可回滚”。
 >
-> 最近更新：2026-07-22
+> 最近更新：2026-07-24
 
 ## 1. 范围与原则
 
@@ -20,11 +20,11 @@
 
 2. L1 单元层  
 - 内容：Domain 规则、算法、边界值、容错分支。  
-- 资产：`tests/unit/`。
+- 资产：`tests/unit/`；禁止 ORM、Django client、transaction 和测试数据库。
 
 3. L2 组件层  
 - 内容：use_case + repository + serializer/view 契约。  
-- 资产：`tests/unit/application/`、`tests/unit/infrastructure/`。
+- 资产：`tests/component/`；需要 ORM、Django client、transaction 或 migration 的测试必须归入本层或更高层。
 
 4. L3 集成层  
 - 内容：模块内/模块间流程（policy/regime/backtest/audit/decision_platform）。  
@@ -199,6 +199,18 @@ P2（持续优化）：
 3. 每次发布的测试证据包：日志、报告、截图、缺陷清单。
 
 ## 9. 测试执行记录
+
+### 2026-07-24 分层测试与 TDD 反馈环收口
+
+1. 建立 `.coveragerc`、`governance/testing_quality_baseline.json`、`governance/test_tier_inventory.json` 和测试 ID 迁移映射四个机器真源。
+2. 将 158 个数据库型测试从 `tests/unit/` 迁到 `tests/component/`，Unit DB 文件占比降至 `1.37%`。
+3. fast suite 由清单驱动并显式阻止数据库初始化；本地 `3500 passed / 40.06s`，门限 120 秒。
+4. 覆盖率 ratchet 达到仓库 `80.1%`、所有业务模块 ≥70%、金融核心/执行/风控模块 ≥80%、全部 Domain ≥90%。
+5. Playwright 通过统一 live-server runner 验收：smoke `33 passed`、UAT `74 passed`，无跳过、失败或错误。
+6. 分层中央回归：Unit `5169 passed`、Component `1707 passed / 4 skipped`、API+Migration `565 passed`、Integration `958 passed / 13 deselected`、Django E2E `97 passed`、App-local `288 passed`。
+7. Guardrail + Critical `165 passed`；固定 TUI/Terminal/SDK/SSL 回归分别为 `194 / 11 / 22 / 2 passed`。
+
+详细证据、已知非阻断项和回滚点见 `docs/plans/testing-improvement-plan-2026-07-24.md`。
 
 ### 2026-07-22 关键可靠性测试收口
 
