@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3915,
-    "files_with_errors": 657
+    "errors": 3869,
+    "files_with_errors": 654
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -22,20 +22,9 @@
       "no-untyped-def": 4,
       "union-attr": 6
     },
-    "apps/account/application/stop_loss_use_cases.py": {
-      "no-any-return": 4,
-      "no-untyped-call": 3,
-      "no-untyped-def": 6
-    },
     "apps/account/application/stress_testing_use_cases.py": {
       "assignment": 1,
       "operator": 1,
-      "type-arg": 3
-    },
-    "apps/account/application/tasks.py": {
-      "assignment": 6,
-      "misc": 4,
-      "no-untyped-def": 15,
       "type-arg": 3
     },
     "apps/account/application/use_cases.py": {
@@ -48,10 +37,6 @@
     },
     "apps/account/apps.py": {
       "no-untyped-def": 1
-    },
-    "apps/account/domain/interfaces.py": {
-      "no-untyped-def": 1,
-      "type-arg": 4
     },
     "apps/account/infrastructure/account_interface_portfolio_repository.py": {
       "arg-type": 1,

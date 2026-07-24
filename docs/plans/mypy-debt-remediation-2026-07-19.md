@@ -1795,3 +1795,19 @@
 - 合入期间并行测试治理提交先把统一全仓基线收紧至 `3916 errors / 658 files`；最终集成复核再移除资产池服务的一条陈旧记录，统一基线收紧为 `3915 errors / 657 files`。
 - Facade、资产池和 strategy provider 读服务回归共 `6 passed`。
 - 增量 mypy、隔离与集成 mypy debt ceiling、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百三十批
+
+- 按“账户自动风控执行影响面 × 重试幂等性”收口账户止损、止盈、波动率 Celery 任务、止盈用例和相关 Repository Protocol。
+- 组合止损止盈任务增加可序列化阶段检查点；止损阶段成功而止盈阶段失败时，Celery 重试只执行未完成的止盈阶段，不再重复运行已成功止损。
+- 分批止盈执行改为在事务内锁定止盈配置和关联持仓，通过预期档位比较避免并发重复成交；每次成交后消费已触发档位，最后一档完成时自动停用配置。
+- 已平仓持仓、已停用配置或档位已被其他任务推进时不再重复卖出，也不虚报本次触发成功。
+- 止盈用例返回全部已检查结果，未触发持仓也进入检查计数，修复任务的 `checked_count` 长期等同于触发数的问题。
+- Celery 动态边界、账户风控输出、通知 helper 与 Domain Repository Protocol 完成具化，保留的 Celery decorator ignore 精确限定为第三方 `misc` 边界。
+- 新增组合任务断点重试、分批档位消费、未触发计数和真实 ORM 连续三档止盈回归。
+
+## 第一百三十批验证结果
+
+- account risk tasks、stop-loss/take-profit use cases 与 Domain interfaces mypy 清零；全仓基线从 `3915 errors / 657 files` 收紧为 `3869 errors / 654 files`，净减少 `46 errors / 3 files`。
+- 账户周期任务、止损止盈用例与真实 Repository 执行回归共 `13 passed`。
+- 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
