@@ -8,6 +8,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any, TypeVar
+from uuid import UUID
 
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Min, Model, Q, QuerySet, Sum
@@ -298,10 +299,16 @@ class DjangoBrokerExecutionRepository:
     ) -> None:
         """Persist machine authentication failures without credential material."""
 
+        try:
+            normalized_credential_id = str(UUID(str(credential_id)))
+        except (ValueError, AttributeError):
+            normalized_credential_id = ""
         credential = (
             BrokerAgentCredentialModel._default_manager.select_related("agent")
-            .filter(credential_id=credential_id)
+            .filter(credential_id=normalized_credential_id)
             .first()
+            if normalized_credential_id
+            else None
         )
         known_agent = credential.agent if credential is not None else None
         if known_agent is None and agent_id:

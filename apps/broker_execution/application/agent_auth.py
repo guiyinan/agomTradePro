@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import re
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import UUID
 
+from .ports import BrokerExecutionRepositoryProtocol
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import BrokerAgentAuthenticationError
 
@@ -27,7 +30,10 @@ def build_agent_signature(
 class AuthenticateAgentRequestUseCase:
     """Validate Agent token, scope, freshness, signature, and replay nonce."""
 
-    def __init__(self, repository=None) -> None:
+    def __init__(
+        self,
+        repository: BrokerExecutionRepositoryProtocol | None = None,
+    ) -> None:
         self.repository = repository or get_broker_execution_repository()
 
     def execute(
@@ -91,6 +97,24 @@ class AuthenticateAgentRequestUseCase:
         signature = str(headers.get("X-Signature") or "").strip().lower()
         if not all((credential_id, secret, agent_id, request_id, sent_at, nonce, signature)):
             raise BrokerAgentAuthenticationError("Incomplete Agent authentication headers")
+        try:
+            credential_id = str(UUID(credential_id))
+        except (ValueError, AttributeError) as exc:
+            raise BrokerAgentAuthenticationError("Malformed Agent credential") from exc
+        if not 16 <= len(secret) <= 128:
+            raise BrokerAgentAuthenticationError("Malformed Agent credential")
+        if re.fullmatch(r"[A-Za-z0-9._-]{3,64}", agent_id) is None:
+            raise BrokerAgentAuthenticationError("Invalid Agent identity")
+        if not 1 <= len(request_id) <= 128:
+            raise BrokerAgentAuthenticationError("Invalid Agent request id")
+        if not 1 <= len(nonce) <= 256:
+            raise BrokerAgentAuthenticationError("Invalid Agent nonce")
+        if re.fullmatch(r"[0-9a-f]{64}", signature) is None:
+            raise BrokerAgentAuthenticationError("Invalid Agent request signature")
+        if len(sent_at) > 64:
+            raise BrokerAgentAuthenticationError("Invalid Agent timestamp")
+        if not required_scope or len(required_scope) > 128:
+            raise BrokerAgentAuthenticationError("Invalid Agent credential scope")
         try:
             parsed_sent_at = datetime.fromisoformat(sent_at.replace("Z", "+00:00"))
         except ValueError as exc:
