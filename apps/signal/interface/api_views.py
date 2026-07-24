@@ -4,8 +4,12 @@ DRF API Views for Signal Management.
 提供 RESTful API 接口用于投资信号管理。
 """
 
-from rest_framework import status, viewsets
+from typing import Any
+
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, BasePermission, IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -30,7 +34,7 @@ from .serializers import (
 )
 
 
-class SignalViewSet(viewsets.GenericViewSet):
+class SignalViewSet(viewsets.GenericViewSet[Any]):
     """
     Signal API ViewSet
 
@@ -46,8 +50,24 @@ class SignalViewSet(viewsets.GenericViewSet):
     """
 
     serializer_class = InvestmentSignalSerializer
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
 
-    def get_serializer_class(self):
+    def get_permissions(self) -> list[BasePermission]:
+        """Restrict actionable signal mutations to administrators."""
+
+        if self.action in {
+            "approve",
+            "create",
+            "destroy",
+            "invalidate",
+            "partial_update",
+            "reject",
+            "update",
+        }:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self) -> type[serializers.BaseSerializer[Any]]:
         """根据操作选择 serializer"""
         if self.action == "create":
             return InvestmentSignalCreateSerializer
@@ -55,14 +75,21 @@ class SignalViewSet(viewsets.GenericViewSet):
             return InvestmentSignalUpdateSerializer
         return InvestmentSignalSerializer
 
-    def _build_list_response(self, request, *, status_override: str | None = None):
+    def _build_list_response(
+        self,
+        request: Request,
+        *,
+        status_override: str | None = None,
+    ) -> Response:
         """Return a filtered signal list response."""
 
         query_serializer = SignalListQuerySerializer(data=request.query_params)
         query_serializer.is_valid(raise_exception=True)
         data = query_serializer.validated_data
         signals = list_investment_signal_payloads(
-            status_filter=status_override if status_override is not None else data.get("status") or "",
+            status_filter=(
+                status_override if status_override is not None else data.get("status") or ""
+            ),
             asset_class=data.get("asset_class") or "",
             direction=data.get("direction") or "",
             search=data.get("search") or "",
@@ -71,17 +98,17 @@ class SignalViewSet(viewsets.GenericViewSet):
         )
         return Response(InvestmentSignalSerializer(signals, many=True).data)
 
-    def list(self, request):
+    def list(self, request: Request) -> Response:
         """List signals via application query services."""
         return self._build_list_response(request)
 
     @action(detail=False, methods=["get"])
-    def active(self, request):
+    def active(self, request: Request) -> Response:
         """Return approved signals for backward-compatible clients."""
 
         return self._build_list_response(request, status_override="approved")
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request: Request, pk: str | None = None) -> Response:
         """Retrieve one signal payload."""
 
         signal = get_investment_signal_payload(str(pk))
@@ -89,7 +116,7 @@ class SignalViewSet(viewsets.GenericViewSet):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(InvestmentSignalSerializer(signal).data)
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """创建信号后统一返回标准输出结构。"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -99,7 +126,7 @@ class SignalViewSet(viewsets.GenericViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    def update(self, request, pk=None):
+    def update(self, request: Request, pk: str | None = None) -> Response:
         """Update one signal via application query services."""
 
         serializer = self.get_serializer(data=request.data)
@@ -115,12 +142,12 @@ class SignalViewSet(viewsets.GenericViewSet):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(InvestmentSignalSerializer(signal).data)
 
-    def partial_update(self, request, pk=None):
+    def partial_update(self, request: Request, pk: str | None = None) -> Response:
         """Treat PATCH as the same partial-field update path."""
 
         return self.update(request, pk=pk)
 
-    def destroy(self, request, pk=None):
+    def destroy(self, request: Request, pk: str | None = None) -> Response:
         """Delete one signal via application query services."""
 
         from apps.signal.application.query_services import delete_investment_signal_record
@@ -130,8 +157,8 @@ class SignalViewSet(viewsets.GenericViewSet):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=['post'])
-    def validate(self, request, pk=None):
+    @action(detail=True, methods=["post"])
+    def validate(self, request: Request, pk: str | None = None) -> Response:
         """
         验证信号准入状态
 
@@ -145,13 +172,12 @@ class SignalViewSet(viewsets.GenericViewSet):
             return Response(response_serializer.data)
 
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-    @action(detail=True, methods=['post'])
-    def approve(self, request, pk=None):
+    @action(detail=True, methods=["post"])
+    def approve(self, request: Request, pk: str | None = None) -> Response:
         """审批信号。"""
         signal = update_investment_signal_status(
             signal_id=str(pk),
@@ -162,34 +188,44 @@ class SignalViewSet(viewsets.GenericViewSet):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(InvestmentSignalSerializer(signal).data)
 
-    @action(detail=True, methods=['post'])
-    def reject(self, request, pk=None):
+    @action(detail=True, methods=["post"])
+    def reject(self, request: Request, pk: str | None = None) -> Response:
         """拒绝信号。"""
-        reason = request.data.get('reason', '手动拒绝')
+        reason = request.data.get("reason", "手动拒绝")
+        if not isinstance(reason, str) or not reason.strip() or len(reason) > 1000:
+            return Response(
+                {"reason": ["reason must be a non-empty string up to 1000 characters"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         signal = update_investment_signal_status(
             signal_id=str(pk),
             status="rejected",
-            rejection_reason=reason,
+            rejection_reason=reason.strip(),
         )
         if signal is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(InvestmentSignalSerializer(signal).data)
 
-    @action(detail=True, methods=['post'])
-    def invalidate(self, request, pk=None):
+    @action(detail=True, methods=["post"])
+    def invalidate(self, request: Request, pk: str | None = None) -> Response:
         """证伪信号。"""
-        reason = request.data.get('reason', '手动证伪')
+        reason = request.data.get("reason", "手动证伪")
+        if not isinstance(reason, str) or not reason.strip() or len(reason) > 1000:
+            return Response(
+                {"reason": ["reason must be a non-empty string up to 1000 characters"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         signal = update_investment_signal_status(
             signal_id=str(pk),
             status="invalidated",
-            rejection_reason=reason,
+            rejection_reason=reason.strip(),
         )
         if signal is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(InvestmentSignalSerializer(signal).data)
 
-    @action(detail=False, methods=['post'])
-    def check_eligibility(self, request):
+    @action(detail=False, methods=["post"])
+    def check_eligibility(self, request: Request) -> Response:
         """
         检查信号准入（不创建信号）
 
@@ -208,49 +244,45 @@ class SignalViewSet(viewsets.GenericViewSet):
                 result = validate_signal_eligibility_payload(request_serializer.validated_data)
             except LookupError as exc:
                 return Response(
-                    {'success': False, 'error': str(exc)},
+                    {"success": False, "error": str(exc)},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
             return Response(result)
 
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-    @action(detail=False, methods=['get'])
-    def stats(self, request):
+    @action(detail=False, methods=["get"])
+    def stats(self, request: Request) -> Response:
         """
         获取信号统计信息
 
         GET /api/signal/stats/
         """
         try:
-            return Response({
-                'success': True,
-                'stats': get_signal_stats_payload()
-            })
+            return Response({"success": True, "stats": get_signal_stats_payload()})
 
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class SignalHealthView(APIView):
     """Signal 服务健康检查"""
 
-    def get(self, request):
+    permission_classes: list[type[BasePermission]] = [AllowAny]
+
+    def get(self, request: Request) -> Response:
         """检查 Signal 服务健康状态"""
         try:
             return Response(get_signal_health_payload(), status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({
-                'status': 'unhealthy',
-                'service': 'signal',
-                'error': str(e)
-            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
+            return Response(
+                {"status": "unhealthy", "service": "signal", "error": str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )

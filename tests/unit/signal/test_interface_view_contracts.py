@@ -12,13 +12,26 @@ from apps.signal.domain.rules import Eligibility
 from apps.signal.interface import views
 
 
+class _StaffRequestFactory(RequestFactory):
+    """Attach an authenticated staff principal to direct view requests."""
+
+    def request(self, **request):
+        result = super().request(**request)
+        result.user = SimpleNamespace(
+            is_authenticated=True,
+            is_active=True,
+            is_staff=True,
+        )
+        return result
+
+
 def _json(response) -> dict[str, object]:
     return json.loads(response.content)
 
 
 def test_page_helpers_and_signal_status_actions(monkeypatch) -> None:
     """Page filters and status actions delegate without owning persistence logic."""
-    request = RequestFactory().get(
+    request = _StaffRequestFactory().get(
         "/signals",
         {"status": "pending", "asset_class": "equity", "direction": "LONG", "search": "A"},
     )
@@ -44,7 +57,7 @@ def test_page_helpers_and_signal_status_actions(monkeypatch) -> None:
         "update_investment_signal_status",
         lambda **kwargs: {"asset_code": "000001.SZ"} if kwargs["signal_id"] == "1" else None,
     )
-    factory = RequestFactory()
+    factory = _StaffRequestFactory()
     assert _json(views.approve_signal_view(factory.post("/", {"signal_id": "1"})))["success"]
     assert views.approve_signal_view(factory.post("/", {"signal_id": "missing"})).status_code == 404
     assert (
@@ -61,7 +74,7 @@ def test_page_helpers_and_signal_status_actions(monkeypatch) -> None:
     monkeypatch.setattr(
         views,
         "delete_investment_signal_record",
-        lambda signal_id: "000001.SZ" if signal_id == 1 else None,
+        lambda signal_id: "000001.SZ" if signal_id == "1" else None,
     )
     assert _json(views.delete_signal_view(factory.delete("/"), 1))["success"]
     assert views.delete_signal_view(factory.delete("/"), 2).status_code == 404
@@ -69,7 +82,7 @@ def test_page_helpers_and_signal_status_actions(monkeypatch) -> None:
 
 def test_create_signal_validation_and_success_contract(monkeypatch) -> None:
     """Signal creation validates JSON, performs admission, and returns the persisted id."""
-    factory = RequestFactory()
+    factory = _StaffRequestFactory()
     assert views.create_signal_view(factory.get("/")).status_code == 302
     missing = views.create_signal_view(factory.post("/", {"asset_code": "000001.SZ"}))
     assert _json(missing)["success"] is False
@@ -153,7 +166,7 @@ def test_create_signal_validation_and_success_contract(monkeypatch) -> None:
 
 def test_invalidation_eligibility_ai_and_indicator_endpoints(monkeypatch) -> None:
     """Auxiliary endpoints preserve their success and failure response shapes."""
-    factory = RequestFactory()
+    factory = _StaffRequestFactory()
 
     class _CheckService:
         def check_signal(self, signal_id):
@@ -254,11 +267,18 @@ def test_unified_signal_viewset_actions(monkeypatch) -> None:
 
     def _request(method: str, path: str = "/", data=None):
         request = getattr(factory, method)(path, data, format="json" if method == "post" else None)
-        force_authenticate(request, user=SimpleNamespace(is_authenticated=True, pk=1))
+        force_authenticate(
+            request,
+            user=SimpleNamespace(is_authenticated=True, is_staff=True, pk=1),
+        )
         return request
 
-    listed = views.UnifiedSignalViewSet.as_view({"get": "list"})(
+    invalid_list = views.UnifiedSignalViewSet.as_view({"get": "list"})(
         _request("get", "/?date=invalid&source=alpha&min_priority=2")
+    )
+    assert invalid_list.status_code == 400
+    listed = views.UnifiedSignalViewSet.as_view({"get": "list"})(
+        _request("get", "/?date=2026-07-24&source=alpha&min_priority=2")
     )
     assert listed.data["count"] == 1
     invalid = views.UnifiedSignalViewSet.as_view({"post": "collect"})(

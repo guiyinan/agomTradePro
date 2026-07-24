@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3493,
-    "files_with_errors": 630
+    "errors": 3449,
+    "files_with_errors": 628
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2133,11 +2133,6 @@
     "apps/signal/interface/admin.py": {
       "type-arg": 1
     },
-    "apps/signal/interface/api_views.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 17,
-      "type-arg": 1
-    },
     "apps/signal/interface/forecast_api_views.py": {
       "assignment": 1,
       "type-arg": 3
@@ -2151,13 +2146,6 @@
     },
     "apps/signal/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/signal/interface/views.py": {
-      "attr-defined": 2,
-      "no-untyped-call": 2,
-      "no-untyped-def": 19,
-      "type-arg": 1,
-      "var-annotated": 1
     },
     "apps/simulated_trading/infrastructure/models.py": {
       "no-untyped-def": 11,

@@ -35,7 +35,10 @@ def test_signal_retrieve_returns_success_contract(authenticated_client, sample_s
 
 
 @pytest.mark.django_db
-def test_signal_approve_updates_status(authenticated_client, sample_signal):
+def test_signal_approve_updates_status(authenticated_client, auth_user, sample_signal):
+    auth_user.is_staff = True
+    auth_user.save(update_fields=["is_staff"])
+
     response = authenticated_client.post(
         f"/api/signal/{sample_signal.id}/approve/", {}, format="json"
     )
@@ -47,7 +50,14 @@ def test_signal_approve_updates_status(authenticated_client, sample_signal):
 
 
 @pytest.mark.django_db
-def test_signal_invalidate_sets_timestamp_and_reason(authenticated_client, sample_signal):
+def test_signal_invalidate_sets_timestamp_and_reason(
+    authenticated_client,
+    auth_user,
+    sample_signal,
+):
+    auth_user.is_staff = True
+    auth_user.save(update_fields=["is_staff"])
+
     response = authenticated_client.post(
         f"/api/signal/{sample_signal.id}/invalidate/",
         {"reason": "regime changed"},
@@ -59,6 +69,51 @@ def test_signal_invalidate_sets_timestamp_and_reason(authenticated_client, sampl
     assert sample_signal.status == "invalidated"
     assert sample_signal.rejection_reason == "regime changed"
     assert sample_signal.invalidated_at is not None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("action", ["approve", "reject", "invalidate"])
+def test_signal_status_mutations_require_staff(
+    authenticated_client,
+    sample_signal,
+    action,
+):
+    response = authenticated_client.post(
+        f"/api/signal/{sample_signal.id}/{action}/",
+        {"reason": "unauthorized"},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    sample_signal.refresh_from_db()
+    assert sample_signal.status == "pending"
+
+
+@pytest.mark.django_db
+def test_unified_signal_collection_requires_staff(authenticated_client):
+    with patch(
+        "apps.signal.application.unified_service.UnifiedSignalService.collect_all_signals"
+    ) as mock_collect:
+        response = authenticated_client.post(
+            "/api/signal/unified/collect/",
+            {},
+            format="json",
+        )
+
+    assert response.status_code == 403
+    mock_collect.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_signal_page_status_mutation_requires_staff(authenticated_client, sample_signal):
+    response = authenticated_client.post(
+        "/signal/approve/",
+        {"signal_id": str(sample_signal.id)},
+    )
+
+    assert response.status_code == 302
+    sample_signal.refresh_from_db()
+    assert sample_signal.status == "pending"
 
 
 @pytest.mark.django_db

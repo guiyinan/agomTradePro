@@ -2072,3 +2072,19 @@
 - Prompt views 与 serializers 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3518 errors / 631 files` 收紧为 `3493 errors / 630 files`，净减少 `25 errors / 1 file`。
 - Prompt 模板、Chain 权限、执行日志、Chat 历史、Agent 资源边界和 provider/model 契约回归共 `21 passed`。
 - Django system check、架构检查、改动文件 Ruff、Black 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百四十七批
+
+- 按“投资信号可执行性影响面 × 状态变更权限”收口 Signal HTML 与 DRF interfaces。
+- HTML 信号管理页、准入信息、指标目录和 AI 证伪解析要求登录；创建、审批、拒绝、证伪、删除、单条证伪检查和批量检查统一要求 staff。
+- DRF Signal 创建、全量/部分更新、删除、审批、拒绝和证伪统一要求管理员；普通登录用户保留列表、详情、统计、准入检查和只读验证。
+- Unified Signal collect 与 executed 状态写入改为仅管理员可操作；列表、摘要、待执行与资产查询继续要求登录。
+- Unified 日期、优先级和回看窗口改为严格 ISO 日期、1..100 priority 与 1..3650 天边界，非法值返回 400，不再静默回退到今天或无限扩展查询。
+- HTML 状态写入口拒绝空 signal ID；DRF 拒绝/证伪原因必须为 1..1000 字符字符串，容器、空值和超长文本不能进入持久化。
+- Signal ViewSet、页面 handler、Request/Response、权限与动态兼容构造边界补齐精确类型。
+
+## 第一百四十七批验证结果
+
+- Signal HTML views 与 DRF API views 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3493 errors / 630 files` 收紧为 `3449 errors / 628 files`，净减少 `44 errors / 2 files`。
+- Signal 页面委托、状态权限、准入、Unified 查询/采集/执行和 API 契约回归共 `19 passed`。
+- Django system check、架构检查、改动文件 Ruff、Black 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
