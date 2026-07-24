@@ -28,6 +28,17 @@ def authenticated_client(api_client, auth_user):
 
 
 @pytest.fixture
+def staff_client(api_client, db):
+    staff_user = get_user_model().objects.create_user(
+        username="hedge_admin",
+        password="testpass123",
+        is_staff=True,
+    )
+    api_client.force_authenticate(user=staff_user)
+    return api_client
+
+
+@pytest.fixture
 def hedge_pair(db):
     return HedgePairModel.objects.create(
         name="股债对冲",
@@ -285,3 +296,107 @@ def test_actions_calculate_correlation_returns_metric_payload(authenticated_clie
     assert payload["beta"] == 0.7421
     assert payload["alert_type"] == "correlation_breakdown"
     mock_calc.assert_called_once_with(asset1="510300", asset2="511260", window_days=45)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        (
+            "/api/hedge/pairs/",
+            {
+                "name": "unauthorized pair",
+                "long_asset": "510300",
+                "hedge_asset": "511260",
+                "hedge_method": "beta",
+            },
+        ),
+        ("/api/hedge/snapshots/update_all/", {}),
+        ("/api/hedge/alerts/monitor/", {}),
+    ],
+)
+def test_regular_user_cannot_mutate_hedge_state(
+    authenticated_client,
+    path,
+    payload,
+):
+    response = authenticated_client.post(path, payload, format="json")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_staff_can_run_hedge_monitor(staff_client):
+    with patch(
+        "apps.hedge.interface.views.interface_services.monitor_hedge_pairs_payload",
+        return_value={"generated_alerts": 2, "alerts": []},
+    ) as monitor:
+        response = staff_client.post("/api/hedge/alerts/monitor/", {}, format="json")
+
+    assert response.status_code == 200
+    assert response.json()["generated_alerts"] == 2
+    monitor.assert_called_once_with()
+
+
+@pytest.mark.django_db
+def test_correlation_matrix_rejects_unbounded_asset_list_before_service(
+    authenticated_client,
+):
+    with patch(
+        "apps.hedge.interface.views.interface_services.get_correlation_matrix_payload"
+    ) as matrix:
+        response = authenticated_client.post(
+            "/api/hedge/actions/get_correlation_matrix/",
+            {
+                "asset_codes": [f"ASSET{index}" for index in range(51)],
+                "window_days": 60,
+            },
+            format="json",
+        )
+
+    assert response.status_code == 400
+    matrix.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_pairwise_correlation_rejects_same_asset_and_oversized_window(
+    authenticated_client,
+):
+    with patch(
+        "apps.hedge.interface.views.interface_services.get_correlation_metric_payload"
+    ) as calculate:
+        same_asset = authenticated_client.post(
+            "/api/hedge/actions/calculate_correlation/",
+            {"asset1": "510300", "asset2": "510300", "window_days": 60},
+            format="json",
+        )
+        oversized = authenticated_client.post(
+            "/api/hedge/actions/calculate_correlation/",
+            {"asset1": "510300", "asset2": "511260", "window_days": 5001},
+            format="json",
+        )
+
+    assert same_asset.status_code == 400
+    assert oversized.status_code == 400
+    calculate.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_active_alerts_reject_invalid_days_instead_of_silent_default(
+    authenticated_client,
+):
+    with patch("apps.hedge.interface.views.interface_services.get_recent_alerts_payload") as alerts:
+        response = authenticated_client.get("/api/hedge/alerts/active/?days=0")
+
+    assert response.status_code == 400
+    alerts.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_hedge_html_write_endpoint_requires_staff(client, auth_user):
+    client.force_login(auth_user)
+
+    response = client.post("/hedge/portfolios/update/")
+
+    assert response.status_code == 302
+    assert "/admin/login/" in response["Location"]

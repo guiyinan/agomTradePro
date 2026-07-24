@@ -4,6 +4,8 @@ Hedge Module Interface Layer - Serializers
 DRF Serializers for the hedge module API.
 """
 
+from typing import Any
+
 from rest_framework import serializers
 
 from shared.model_loading import resolve_model
@@ -35,96 +37,206 @@ HedgePortfolioSnapshotModel = resolve_model(
 )
 
 
-class HedgePairSerializer(serializers.ModelSerializer):
+class HedgePairSerializer(serializers.ModelSerializer[Any]):
     """Serializer for HedgePair"""
 
     class Meta:
         model = HedgePairModel
         fields = [
-            'id', 'name', 'long_asset', 'hedge_asset', 'hedge_method',
-            'target_long_weight', 'target_hedge_weight',
-            'rebalance_trigger', 'correlation_window',
-            'min_correlation', 'max_correlation', 'correlation_alert_threshold',
-            'max_hedge_cost', 'beta_target', 'is_active',
-            'created_at', 'updated_at',
+            "id",
+            "name",
+            "long_asset",
+            "hedge_asset",
+            "hedge_method",
+            "target_long_weight",
+            "target_hedge_weight",
+            "rebalance_trigger",
+            "correlation_window",
+            "min_correlation",
+            "max_correlation",
+            "correlation_alert_threshold",
+            "max_hedge_cost",
+            "beta_target",
+            "is_active",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
-class CorrelationHistorySerializer(serializers.ModelSerializer):
+class CorrelationHistorySerializer(serializers.ModelSerializer[Any]):
     """Serializer for CorrelationHistory"""
 
     class Meta:
         model = CorrelationHistoryModel
         fields = [
-            'id', 'asset1', 'asset2', 'calc_date', 'window_days',
-            'correlation', 'covariance', 'beta',
-            'p_value', 'standard_error',
-            'correlation_trend', 'correlation_ma',
-            'alert', 'alert_type', 'created_at',
+            "id",
+            "asset1",
+            "asset2",
+            "calc_date",
+            "window_days",
+            "correlation",
+            "covariance",
+            "beta",
+            "p_value",
+            "standard_error",
+            "correlation_trend",
+            "correlation_ma",
+            "alert",
+            "alert_type",
+            "created_at",
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ["id", "created_at"]
 
 
-class HedgePortfolioSnapshotSerializer(serializers.ModelSerializer):
+class HedgePortfolioSnapshotSerializer(serializers.ModelSerializer[Any]):
     """Serializer for HedgePortfolioSnapshot"""
-    pair_name = serializers.CharField(source='pair.name', read_only=True)
+
+    pair_name = serializers.CharField(source="pair.name", read_only=True)
 
     class Meta:
         model = HedgePortfolioSnapshotModel
         fields = [
-            'id', 'pair', 'pair_name', 'trade_date',
-            'long_weight', 'hedge_weight',
-            'hedge_ratio', 'target_hedge_ratio',
-            'current_correlation', 'correlation_20d', 'correlation_60d',
-            'portfolio_beta', 'portfolio_volatility', 'hedge_effectiveness',
-            'daily_return', 'unhedged_return', 'hedge_return',
-            'value_at_risk', 'max_drawdown',
-            'rebalance_needed', 'rebalance_reason',
-            'created_at',
+            "id",
+            "pair",
+            "pair_name",
+            "trade_date",
+            "long_weight",
+            "hedge_weight",
+            "hedge_ratio",
+            "target_hedge_ratio",
+            "current_correlation",
+            "correlation_20d",
+            "correlation_60d",
+            "portfolio_beta",
+            "portfolio_volatility",
+            "hedge_effectiveness",
+            "daily_return",
+            "unhedged_return",
+            "hedge_return",
+            "value_at_risk",
+            "max_drawdown",
+            "rebalance_needed",
+            "rebalance_reason",
+            "created_at",
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ["id", "created_at"]
 
 
-class HedgeAlertSerializer(serializers.ModelSerializer):
+class HedgeAlertSerializer(serializers.ModelSerializer[Any]):
     """Serializer for HedgeAlert"""
 
     class Meta:
         model = HedgeAlertModel
         fields = [
-            'id', 'pair_name', 'alert_date', 'alert_type',
-            'severity', 'message', 'current_value', 'threshold_value',
-            'action_required', 'action_priority',
-            'is_resolved', 'resolved_at', 'created_at',
+            "id",
+            "pair_name",
+            "alert_date",
+            "alert_type",
+            "severity",
+            "message",
+            "current_value",
+            "threshold_value",
+            "action_required",
+            "action_priority",
+            "is_resolved",
+            "resolved_at",
+            "created_at",
         ]
-        read_only_fields = ['id', 'created_at', 'resolved_at']
+        read_only_fields = ["id", "created_at", "resolved_at"]
 
 
-class HedgePerformanceSerializer(serializers.ModelSerializer):
+class HedgePerformanceSerializer(serializers.ModelSerializer[Any]):
     """Serializer for HedgePerformance"""
 
     class Meta:
         model = HedgePerformanceModel
         fields = [
-            'id', 'pair_name', 'period_start', 'period_end',
-            'total_return', 'annual_return', 'sharpe_ratio',
-            'volatility_reduction', 'drawdown_reduction', 'hedge_effectiveness',
-            'hedge_cost', 'cost_benefit_ratio',
-            'avg_correlation', 'correlation_stability',
-            'created_at',
+            "id",
+            "pair_name",
+            "period_start",
+            "period_end",
+            "total_return",
+            "annual_return",
+            "sharpe_ratio",
+            "volatility_reduction",
+            "drawdown_reduction",
+            "hedge_effectiveness",
+            "hedge_cost",
+            "cost_benefit_ratio",
+            "avg_correlation",
+            "correlation_stability",
+            "created_at",
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ["id", "created_at"]
 
 
-class HedgeEffectivenessRequestSerializer(serializers.Serializer):
+class HedgeEffectivenessRequestSerializer(serializers.Serializer[dict[str, object]]):
     """Serializer for hedge effectiveness request"""
+
     lookback_days = serializers.IntegerField(default=60, required=False)
 
 
-class CorrelationMatrixRequestSerializer(serializers.Serializer):
+class CorrelationMatrixRequestSerializer(serializers.Serializer[dict[str, object]]):
     """Serializer for correlation matrix request"""
+
     asset_codes = serializers.ListField(
-        child=serializers.CharField(max_length=20),
+        child=serializers.CharField(max_length=20, allow_blank=False, trim_whitespace=True),
         required=True,
+        min_length=2,
+        max_length=50,
     )
-    window_days = serializers.IntegerField(default=60, required=False)
+    window_days = serializers.IntegerField(
+        default=60,
+        required=False,
+        min_value=2,
+        max_value=5000,
+    )
+
+    def validate_asset_codes(self, value: list[str]) -> list[str]:
+        """Require at least two distinct assets while preserving input order."""
+
+        normalized = list(dict.fromkeys(code.strip().upper() for code in value))
+        if len(normalized) < 2:
+            raise serializers.ValidationError("至少需要两个不同的资产代码")
+        return normalized
+
+
+class CorrelationCalculationRequestSerializer(serializers.Serializer[dict[str, object]]):
+    """Validate one pairwise correlation calculation request."""
+
+    asset1 = serializers.CharField(max_length=20, allow_blank=False, trim_whitespace=True)
+    asset2 = serializers.CharField(max_length=20, allow_blank=False, trim_whitespace=True)
+    window_days = serializers.IntegerField(
+        default=60,
+        required=False,
+        min_value=2,
+        max_value=5000,
+    )
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        """Normalize asset codes and reject self-correlation requests."""
+
+        asset1 = str(attrs["asset1"]).strip().upper()
+        asset2 = str(attrs["asset2"]).strip().upper()
+        if asset1 == asset2:
+            raise serializers.ValidationError("asset1 和 asset2 必须不同")
+        attrs["asset1"] = asset1
+        attrs["asset2"] = asset2
+        return attrs
+
+
+class HedgeRatioRequestSerializer(serializers.Serializer[dict[str, object]]):
+    """Validate a hedge-ratio calculation request."""
+
+    pair_name = serializers.CharField(
+        max_length=100,
+        allow_blank=False,
+        trim_whitespace=True,
+    )
+
+
+class RecentAlertsRequestSerializer(serializers.Serializer[dict[str, object]]):
+    """Validate the recent-alert lookback query."""
+
+    days = serializers.IntegerField(default=7, min_value=1, max_value=3650)

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3645,
-    "files_with_errors": 638
+    "errors": 3607,
+    "files_with_errors": 636
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1526,15 +1526,8 @@
     "apps/hedge/interface/api_urls.py": {
       "no-untyped-def": 1
     },
-    "apps/hedge/interface/serializers.py": {
-      "type-arg": 7
-    },
     "apps/hedge/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/hedge/interface/views.py": {
-      "no-untyped-def": 27,
-      "type-arg": 4
     },
     "apps/hedge/management/commands/init_hedge.py": {
       "no-untyped-call": 1,

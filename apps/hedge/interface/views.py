@@ -1,37 +1,61 @@
 """Hedge module interface views."""
 
-from django.http import JsonResponse
+from typing import Any, cast
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.hedge.application import interface_services
 from apps.hedge.interface.serializers import (
+    CorrelationCalculationRequestSerializer,
     CorrelationHistorySerializer,
     CorrelationMatrixRequestSerializer,
     HedgeAlertSerializer,
     HedgePairSerializer,
     HedgePortfolioSnapshotSerializer,
+    HedgeRatioRequestSerializer,
+    RecentAlertsRequestSerializer,
 )
 
 
-class HedgePairViewSet(viewsets.ModelViewSet):
+class HedgePairViewSet(viewsets.ModelViewSet[Any]):
     """ViewSet for HedgePair model"""
 
     serializer_class = HedgePairSerializer
     filterset_fields = ["is_active", "hedge_method"]
     search_fields = ["name", "long_asset", "hedge_asset"]
     ordering = ["-is_active", "name"]
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """Return the hedge pair queryset."""
         return interface_services.get_hedge_pair_queryset()
 
+    def get_permissions(self) -> list[Any]:
+        """Restrict configuration mutations to administrators."""
+
+        if self.action in {
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "activate",
+            "deactivate",
+        }:
+            return [IsAdminUser()]
+        return list(super().get_permissions())
+
     @action(detail=True, methods=["post"])
-    def activate(self, request, pk=None):
+    def activate(self, request: Request, pk: str | None = None) -> Response:
         """Activate this hedge pair"""
         pair = self.get_object()
         response = interface_services.activate_hedge_pair(pair_id=pair.id)
@@ -40,7 +64,7 @@ class HedgePairViewSet(viewsets.ModelViewSet):
         return Response({"status": "activated"})
 
     @action(detail=True, methods=["post"])
-    def deactivate(self, request, pk=None):
+    def deactivate(self, request: Request, pk: str | None = None) -> Response:
         """Deactivate this hedge pair"""
         pair = self.get_object()
         response = interface_services.deactivate_hedge_pair(pair_id=pair.id)
@@ -49,7 +73,11 @@ class HedgePairViewSet(viewsets.ModelViewSet):
         return Response({"status": "deactivated"})
 
     @action(detail=True, methods=["post"])
-    def check_effectiveness(self, request, pk=None):
+    def check_effectiveness(
+        self,
+        request: Request,
+        pk: str | None = None,
+    ) -> Response:
         """Check hedge effectiveness for this pair"""
         pair = self.get_object()
         result = interface_services.get_hedge_effectiveness_payload(pair_name=pair.name)
@@ -63,48 +91,51 @@ class HedgePairViewSet(viewsets.ModelViewSet):
         return Response(result)
 
     @action(detail=False, methods=["post"])
-    def correlation_matrix(self, request):
+    def correlation_matrix(self, request: Request) -> Response:
         """Get correlation matrix for specified assets"""
         serializer = CorrelationMatrixRequestSerializer(data=request.data)
-        if serializer.is_valid():
-            asset_codes = serializer.validated_data.get("asset_codes", [])
-            window_days = serializer.validated_data.get("window_days", 60)
-            return Response(
-                interface_services.get_correlation_matrix_payload(
-                    asset_codes=asset_codes,
-                    window_days=window_days,
-                )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        asset_codes = cast(list[str], serializer.validated_data["asset_codes"])
+        window_days = cast(int, serializer.validated_data["window_days"])
+        return Response(
+            interface_services.get_correlation_matrix_payload(
+                asset_codes=asset_codes,
+                window_days=window_days,
             )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        )
 
     @action(detail=False, methods=["get"])
-    def all_effectiveness(self, request):
+    def all_effectiveness(self, request: Request) -> Response:
         """Get effectiveness for all active hedge pairs"""
         return Response(interface_services.get_all_effectiveness_payload())
 
 
-class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     """ViewSet for CorrelationHistory model"""
 
     serializer_class = CorrelationHistorySerializer
     filterset_fields = ["asset1", "asset2", "calc_date", "window_days"]
     ordering = ["-calc_date"]
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """Return the correlation history queryset."""
         return interface_services.get_correlation_history_queryset()
 
     @action(detail=False, methods=["post"])
-    def calculate(self, request):
+    def calculate(self, request: Request) -> Response:
         """Calculate correlation for a pair of assets"""
-        asset1 = request.data.get("asset1")
-        asset2 = request.data.get("asset2")
-        window_days = request.data.get("window_days", 60)
-
-        if not asset1 or not asset2:
+        if not request.data.get("asset1") or not request.data.get("asset2"):
             return Response(
-                {"error": "asset1 and asset2 are required"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "asset1 and asset2 are required"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+        serializer = CorrelationCalculationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        asset1 = cast(str, serializer.validated_data["asset1"])
+        asset2 = cast(str, serializer.validated_data["asset2"])
+        window_days = cast(int, serializer.validated_data["window_days"])
 
         metric = interface_services.get_correlation_metric_payload(
             asset1=asset1,
@@ -121,43 +152,47 @@ class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(metric)
 
 
-class HedgePortfolioSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
+class HedgePortfolioSnapshotViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     """ViewSet for HedgePortfolioSnapshot model"""
 
     serializer_class = HedgePortfolioSnapshotSerializer
     filterset_fields = ["pair", "trade_date", "rebalance_needed"]
     ordering = ["-trade_date"]
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """Return the hedge snapshot queryset."""
         return interface_services.get_hedge_snapshot_queryset()
 
     @action(detail=False, methods=["get"])
-    def latest(self, request):
+    def latest(self, request: Request) -> Response:
         """Get the latest snapshot for each hedge pair"""
         return Response(interface_services.get_latest_snapshots_payload())
 
-    @action(detail=False, methods=["post"])
-    def update_all(self, request):
+    @action(detail=False, methods=["post"], permission_classes=[IsAdminUser])
+    def update_all(self, request: Request) -> Response:
         """Update all hedge portfolios"""
         return Response(interface_services.update_all_portfolios_payload())
 
 
-class HedgeAlertViewSet(viewsets.ReadOnlyModelViewSet):
+class HedgeAlertViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     """ViewSet for HedgeAlert model"""
 
     serializer_class = HedgeAlertSerializer
     filterset_fields = ["pair_name", "alert_date", "alert_type", "severity", "is_resolved"]
     ordering = ["-alert_date", "-action_priority"]
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """Return the hedge alert queryset."""
         return interface_services.get_hedge_alert_queryset()
 
-    @action(detail=True, methods=["post"])
-    def resolve(self, request, pk=None):
+    @action(detail=True, methods=["post"], permission_classes=[IsAdminUser])
+    def resolve(self, request: Request, pk: str | None = None) -> Response:
         """Mark alert as resolved"""
-        response = interface_services.resolve_hedge_alert(alert_id=pk)
+        alert = self.get_object()
+        alert_id = int(alert.pk)
+        response = interface_services.resolve_hedge_alert(alert_id=alert_id)
 
         if not response.success:
             return Response({"error": response.message}, status=status.HTTP_404_NOT_FOUND)
@@ -165,23 +200,23 @@ class HedgeAlertViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(
             {
                 "status": "resolved",
-                "alert_id": pk,
+                "alert_id": alert_id,
             }
         )
 
     @action(detail=False, methods=["get"])
-    def active(self, request):
+    def active(self, request: Request) -> Response:
         """Get all active alerts"""
-        days = request.query_params.get("days", 7)
-        try:
-            days = int(days)
-        except ValueError:
-            days = 7
+        serializer = RecentAlertsRequestSerializer(
+            data={"days": request.query_params.get("days", 7)}
+        )
+        serializer.is_valid(raise_exception=True)
+        days = cast(int, serializer.validated_data["days"])
 
         return Response(interface_services.get_recent_alerts_payload(days=days))
 
-    @action(detail=False, methods=["post"])
-    def monitor(self, request):
+    @action(detail=False, methods=["post"], permission_classes=[IsAdminUser])
+    def monitor(self, request: Request) -> Response:
         """Run hedge pair monitoring and generate alerts"""
         return Response(interface_services.monitor_hedge_pairs_payload())
 
@@ -189,7 +224,9 @@ class HedgeAlertViewSet(viewsets.ReadOnlyModelViewSet):
 class HedgeActionViewSet(viewsets.ViewSet):
     """ViewSet for hedge-related actions"""
 
-    def list(self, request):
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request: Request) -> Response:
         """List available hedge actions"""
         return Response(
             {
@@ -214,16 +251,18 @@ class HedgeActionViewSet(viewsets.ViewSet):
         )
 
     @action(detail=False, methods=["post"])
-    def calculate_correlation(self, request):
+    def calculate_correlation(self, request: Request) -> Response:
         """Calculate correlation between two assets"""
-        asset1 = request.data.get("asset1")
-        asset2 = request.data.get("asset2")
-        window_days = request.data.get("window_days", 60)
-
-        if not asset1 or not asset2:
+        if not request.data.get("asset1") or not request.data.get("asset2"):
             return Response(
-                {"error": "asset1 and asset2 are required"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "asset1 and asset2 are required"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+        serializer = CorrelationCalculationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        asset1 = cast(str, serializer.validated_data["asset1"])
+        asset2 = cast(str, serializer.validated_data["asset2"])
+        window_days = cast(int, serializer.validated_data["window_days"])
 
         metric = interface_services.get_correlation_metric_payload(
             asset1=asset1,
@@ -240,12 +279,16 @@ class HedgeActionViewSet(viewsets.ViewSet):
         return Response(metric)
 
     @action(detail=False, methods=["post"])
-    def check_hedge_ratio(self, request):
+    def check_hedge_ratio(self, request: Request) -> Response:
         """Calculate hedge ratio for a pair"""
-        pair_name = request.data.get("pair_name")
-
-        if not pair_name:
-            return Response({"error": "pair_name is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not request.data.get("pair_name"):
+            return Response(
+                {"error": "pair_name is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = HedgeRatioRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        pair_name = cast(str, serializer.validated_data["pair_name"])
 
         result = interface_services.get_hedge_ratio_payload(pair_name=pair_name)
 
@@ -257,15 +300,17 @@ class HedgeActionViewSet(viewsets.ViewSet):
         return Response(result)
 
     @action(detail=False, methods=["post"])
-    def get_correlation_matrix(self, request):
+    def get_correlation_matrix(self, request: Request) -> Response:
         """Get correlation matrix for multiple assets"""
-        asset_codes = request.data.get("asset_codes", [])
-        window_days = request.data.get("window_days", 60)
-
-        if not asset_codes:
+        if not request.data.get("asset_codes"):
             return Response(
-                {"error": "asset_codes is required"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "asset_codes is required"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+        serializer = CorrelationMatrixRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        asset_codes = cast(list[str], serializer.validated_data["asset_codes"])
+        window_days = cast(int, serializer.validated_data["window_days"])
 
         return Response(
             interface_services.get_correlation_matrix_payload(
@@ -281,7 +326,8 @@ class HedgeActionViewSet(viewsets.ViewSet):
 
 
 @ensure_csrf_cookie
-def hedge_pairs_view(request):
+@login_required
+def hedge_pairs_view(request: HttpRequest) -> HttpResponse:
     """
     Hedge pairs configuration page.
     Uses UseCase to access data through Application layer.
@@ -317,7 +363,8 @@ def hedge_pairs_view(request):
 
 
 @ensure_csrf_cookie
-def hedge_snapshots_view(request):
+@login_required
+def hedge_snapshots_view(request: HttpRequest) -> HttpResponse:
     """
     Hedge snapshots status page.
     Uses UseCase to access data through Application layer.
@@ -345,7 +392,8 @@ def hedge_snapshots_view(request):
 
 
 @ensure_csrf_cookie
-def hedge_alerts_view(request):
+@login_required
+def hedge_alerts_view(request: HttpRequest) -> HttpResponse:
     """
     Hedge alerts page.
     Uses UseCase to access data through Application layer.
@@ -381,7 +429,8 @@ def hedge_alerts_view(request):
 
 
 @require_http_methods(["POST"])
-def activate_pair_view(request, pair_id):
+@staff_member_required
+def activate_pair_view(request: HttpRequest, pair_id: int) -> JsonResponse:
     """
     Activate a hedge pair.
     Uses UseCase to access data through Application layer.
@@ -395,7 +444,8 @@ def activate_pair_view(request, pair_id):
 
 
 @require_http_methods(["POST"])
-def deactivate_pair_view(request, pair_id):
+@staff_member_required
+def deactivate_pair_view(request: HttpRequest, pair_id: int) -> JsonResponse:
     """
     Deactivate a hedge pair.
     Uses UseCase to access data through Application layer.
@@ -409,7 +459,8 @@ def deactivate_pair_view(request, pair_id):
 
 
 @require_http_methods(["POST"])
-def update_portfolios_view(request):
+@staff_member_required
+def update_portfolios_view(request: HttpRequest) -> JsonResponse:
     """Update all hedge portfolios"""
     payload = interface_services.update_all_portfolios_payload()
     return JsonResponse(
@@ -422,7 +473,8 @@ def update_portfolios_view(request):
 
 
 @require_http_methods(["POST"])
-def run_monitoring_view(request):
+@staff_member_required
+def run_monitoring_view(request: HttpRequest) -> JsonResponse:
     """Run hedge pair monitoring"""
     payload = interface_services.monitor_hedge_pairs_payload()
 
@@ -435,7 +487,8 @@ def run_monitoring_view(request):
 
 
 @require_http_methods(["POST"])
-def resolve_alert_view(request, alert_id):
+@staff_member_required
+def resolve_alert_view(request: HttpRequest, alert_id: int) -> JsonResponse:
     """
     Mark an alert as resolved.
     Uses UseCase to access data through Application layer.

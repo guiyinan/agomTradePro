@@ -1989,3 +1989,20 @@
 
 - Policy Celery tasks 定向 mypy 清零；全仓基线从 `3676 errors / 639 files` 收紧为 `3645 errors / 638 files`，净减少 `31 errors / 1 file`。
 - 政策状态、转档通知、清理、审核分配、SLA、闸门刷新与 Signal 重评回归 `29 passed`。
+
+## 第一百四十二批
+
+- 按“对冲风险配置影响面 × API 写权限与计算资源边界”收口 Hedge DRF views 和 serializers。
+- Hedge Pair 创建、修改、删除、启停，以及组合全量更新、监控执行和告警解决改为仅管理员可操作；普通已登录用户仍可读取目录、快照、告警和执行纯计算。
+- Hedge HTML 页面要求登录，启停对冲对、更新组合、执行监控和解决告警等写入口要求 staff，关闭仅靠 CSRF 但允许匿名/普通用户操作的权限缺口。
+- 相关性矩阵限制为 2..50 个不同资产、2..5000 天窗口；资产代码去空格、转大写并保持首次出现顺序，重复资产不能伪装成有效矩阵输入。
+- 两资产相关性计算拒绝相同资产、空代码和超大窗口；近期告警查询限制为 1..3650 天，不再把非法 days 静默回退为 7 天。
+- 对冲比率 pair name 增加长度与空值校验；原有缺参错误文本继续保持兼容。
+- 告警解决通过路由对象取得并转换真实整数主键，不再把 `str | None` 直接传入 Application。
+- Hedge ViewSet、页面 handler 与 Serializer 补齐 DRF Request/Response、HttpRequest/HttpResponse、泛型和 payload 边界类型。
+
+## 第一百四十二批验证结果
+
+- Hedge views 与 serializers 定向 mypy 清零；隔离并行工作区改动后，全仓基线从 `3645 errors / 638 files` 收紧为 `3607 errors / 636 files`，净减少 `38 errors / 2 files`。
+- Hedge API 权限、相关性输入、快照/告警契约与路由兼容回归 `44 passed`。
+- Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
