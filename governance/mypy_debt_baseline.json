@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4127,
-    "files_with_errors": 682
+    "errors": 4124,
+    "files_with_errors": 681
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1243,10 +1243,6 @@
     },
     "apps/decision_rhythm/application/decision_recommendation_use_cases.py": {
       "arg-type": 2
-    },
-    "apps/decision_rhythm/application/exit_advisors.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 2
     },
     "apps/decision_rhythm/application/tasks.py": {
       "misc": 1,

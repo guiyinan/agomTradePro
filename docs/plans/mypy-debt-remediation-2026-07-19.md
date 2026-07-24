@@ -1651,3 +1651,18 @@
 - Advisor Sheet intent 构造 mypy 清零；全仓基线从 `4130 errors / 683 files` 收紧为 `4127 errors / 682 files`，净减少 `3 errors / 1 file`。
 - Advisor Sheet intent、核心、结构与 API 回归共 `33 passed`。
 - governance baseline 升级为 `2026-07-24.v192`，静态测试函数计数提升至 `7230`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百二十一批
+
+- 按“模拟交易退出链路影响面 × 持仓退出建议匹配正确性”收口 Decision Rhythm exit advisor。
+- 为统一推荐与调仓计划仓储建立最小 Application Protocol，构造函数、仓储返回值和数值解析边界全部具化。
+- 持仓、统一推荐和调仓计划中的证券代码统一去空格并转大写，修复大小写不一致导致 SELL/EXIT 建议静默失配的问题。
+- 推荐源与调仓计划源按明确的可恢复异常独立降级，单一来源故障时仍保留另一来源的退出建议。
+- 推荐价格通过共享 `safe_float` 收窄，Domain 实体字段改为直接类型访问，不再依赖宽泛动态属性读取。
+- 新增推荐代码大小写匹配与推荐源故障时调仓计划继续生效两组回归。
+
+## 第一百二十一批验证结果
+
+- Decision Rhythm exit advisor mypy 清零；全仓基线从 `4127 errors / 682 files` 收紧为 `4124 errors / 681 files`，净减少 `3 errors / 1 file`。
+- 退出建议与模拟交易自动退出链路回归共 `14 passed`。
+- governance baseline 升级为 `2026-07-24.v193`，静态测试函数计数提升至 `7232`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
