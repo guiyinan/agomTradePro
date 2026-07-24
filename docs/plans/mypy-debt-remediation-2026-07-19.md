@@ -1791,6 +1791,7 @@
 
 ## 第一百二十九批验证结果
 
-- simulated trading Facade 与 asset pool query service mypy 清零；全仓基线从 `4021 errors / 671 files` 收紧为 `4015 errors / 669 files`，净减少 `6 errors / 2 files`。
+- simulated trading Facade 与 asset pool query service mypy 清零；隔离口径从 `4021 errors / 671 files` 收紧为 `4015 errors / 669 files`，净减少 `6 errors / 2 files`。
+- 合入期间并行测试治理提交已把统一全仓基线进一步收紧至 `3916 errors / 658 files`；集成时保留该更低基线，未用隔离分支的旧口径覆盖。
 - Facade、资产池和 strategy provider 读服务回归共 `6 passed`。
-- 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过；主工作树并行测试治理批次仍在更新 governance baseline，本批继续不覆盖该未提交真源。
+- 增量 mypy、隔离与集成 mypy debt ceiling、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。

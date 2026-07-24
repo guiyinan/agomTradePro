@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4015,
-    "files_with_errors": 669
+    "errors": 3916,
+    "files_with_errors": 658
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -665,9 +665,6 @@
       "type-arg": 7,
       "var-annotated": 2
     },
-    "apps/audit/domain/brinson_services.py": {
-      "type-arg": 1
-    },
     "apps/audit/domain/entities.py": {
       "type-arg": 4
     },
@@ -911,15 +908,8 @@
     "apps/dashboard/domain/entities.py": {
       "type-arg": 1
     },
-    "apps/dashboard/domain/rules.py": {
-      "assignment": 1,
-      "no-any-return": 2,
-      "no-untyped-call": 1,
-      "no-untyped-def": 1
-    },
     "apps/dashboard/domain/services.py": {
       "assignment": 1,
-      "no-untyped-call": 1,
       "var-annotated": 1
     },
     "apps/dashboard/infrastructure/admin.py": {
@@ -944,10 +934,6 @@
     },
     "apps/dashboard/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/dashboard/interface/api_v1_views.py": {
-      "no-untyped-call": 5,
-      "no-untyped-def": 12
     },
     "apps/dashboard/interface/dashboard_navigation_context.py": {
       "no-any-return": 8,
@@ -1343,12 +1329,6 @@
     "apps/equity/apps.py": {
       "no-untyped-def": 1
     },
-    "apps/equity/domain/optimized_screener.py": {
-      "assignment": 2,
-      "call-arg": 1,
-      "type-arg": 1,
-      "var-annotated": 1
-    },
     "apps/equity/domain/ports.py": {
       "type-arg": 2,
       "valid-type": 1
@@ -1499,11 +1479,6 @@
     "apps/events/domain/registry.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 2
-    },
-    "apps/events/domain/rules.py": {
-      "no-any-return": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 1
     },
     "apps/events/domain/services.py": {
       "no-untyped-def": 2,
@@ -1706,22 +1681,11 @@
     "apps/macro/interface/urls.py": {
       "no-untyped-def": 1
     },
-    "apps/macro/interface/views/config_api.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 6
-    },
-    "apps/macro/interface/views/fetch_api.py": {
-      "no-untyped-call": 11,
-      "no-untyped-def": 7
-    },
     "apps/macro/interface/views/helpers.py": {
       "no-untyped-def": 3
     },
     "apps/macro/interface/views/page_views.py": {
       "unused-ignore": 2
-    },
-    "apps/macro/interface/views/table_api.py": {
-      "arg-type": 1
     },
     "apps/macro/management/commands/migrate_usd_data.py": {
       "attr-defined": 1,
@@ -1835,13 +1799,6 @@
       "no-untyped-call": 4,
       "no-untyped-def": 4
     },
-    "apps/policy/infrastructure/adapters/content_extractor.py": {
-      "import-not-found": 1,
-      "no-any-return": 3,
-      "no-untyped-call": 1,
-      "no-untyped-def": 1,
-      "type-arg": 7
-    },
     "apps/policy/infrastructure/adapters/news_adapter.py": {
       "var-annotated": 1
     },
@@ -1922,7 +1879,7 @@
       "no-untyped-call": 1
     },
     "apps/prompt/application/repository_provider.py": {
-      "no-untyped-call": 5
+      "no-untyped-call": 2
     },
     "apps/prompt/application/runtime_provider.py": {
       "no-untyped-call": 2
@@ -1943,7 +1900,6 @@
     },
     "apps/prompt/infrastructure/__init__.py": {
       "assignment": 2,
-      "no-untyped-call": 2,
       "no-untyped-def": 6,
       "type-arg": 16
     },
@@ -1973,13 +1929,8 @@
     "apps/prompt/infrastructure/models.py": {
       "no-untyped-def": 5
     },
-    "apps/prompt/infrastructure/repositories.py": {
-      "misc": 2,
-      "no-untyped-def": 4
-    },
     "apps/prompt/interface/__init__.py": {
       "attr-defined": 8,
-      "no-untyped-call": 1,
       "no-untyped-def": 1,
       "type-arg": 2
     },
@@ -1990,11 +1941,6 @@
       "no-untyped-call": 2,
       "no-untyped-def": 20,
       "type-arg": 3
-    },
-    "apps/prompt/management/commands/init_prompt_templates.py": {
-      "no-untyped-call": 4,
-      "no-untyped-def": 4,
-      "type-arg": 2
     },
     "apps/pulse/application/query_services.py": {
       "no-untyped-call": 1
@@ -2350,16 +2296,13 @@
     },
     "apps/signal/interface/views.py": {
       "attr-defined": 2,
-      "import-not-found": 1,
       "no-untyped-call": 2,
       "no-untyped-def": 19,
       "type-arg": 1,
       "var-annotated": 1
     },
-    "apps/simulated_trading/infrastructure/legacy_price_provider.py": {
-      "assignment": 2,
-      "no-untyped-call": 1,
-      "no-untyped-def": 2
+    "apps/simulated_trading/application/asset_pool_query_service.py": {
+      "assignment": 1
     },
     "apps/simulated_trading/infrastructure/models.py": {
       "no-untyped-def": 11,
