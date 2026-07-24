@@ -77,8 +77,7 @@ class TransactionCostEstimationUseCase:
     def __init__(
         self,
         asset_meta_repo: AssetMetadataLookupProtocol | None = None,
-        transaction_cost_config_repo: TransactionCostConfigRepositoryProtocol
-        | None = None,
+        transaction_cost_config_repo: TransactionCostConfigRepositoryProtocol | None = None,
     ) -> None:
         self.asset_meta_repo = asset_meta_repo or get_asset_metadata_repository()
         self.transaction_cost_config_repo = (
@@ -116,8 +115,7 @@ class TransactionCostEstimationUseCase:
         warning_message = ""
         if exceeds_threshold:
             warning_message = (
-                f"⚠️ 交易成本过高：{cost_detail.cost_ratio:.2%} "
-                f"（超过阈值 {threshold:.2%}）"
+                f"⚠️ 交易成本过高：{cost_detail.cost_ratio:.2%} " f"（超过阈值 {threshold:.2%}）"
             )
             if notional < Decimal("1000"):
                 warning_message += "，建议：小额交易可考虑合并以降低成本"
@@ -150,19 +148,13 @@ class TransactionCostEstimationUseCase:
             return "US_STOCK"
         return "CN_A_SHARE"
 
-    def _get_cost_config(
-        self, market: str, asset_class: str
-    ) -> TransactionCostConfigRecord:
-        """Return an explicit configuration or the complete default."""
+    def _get_cost_config(self, market: str, asset_class: str) -> TransactionCostConfigRecord:
+        """Return the active explicit configuration or fail closed."""
 
-        configured = self.transaction_cost_config_repo.get_cost_config(
-            market, asset_class
-        )
-        if configured is not None:
-            return configured
-        return self.transaction_cost_config_repo.get_default_cost_config(
-            market, asset_class
-        )
+        configured = self.transaction_cost_config_repo.get_cost_config(market, asset_class)
+        if configured is None:
+            raise ValueError(f"未配置启用的交易成本费率: {market}/{asset_class}")
+        return configured
 
     @staticmethod
     def _calculate_total_cost(
@@ -172,9 +164,7 @@ class TransactionCostEstimationUseCase:
     ) -> _TransactionCostBreakdown:
         """Calculate a strongly typed cost breakdown from normalized config."""
 
-        commission = max(
-            notional * config["commission_rate"], config["min_commission"]
-        )
+        commission = max(notional * config["commission_rate"], config["min_commission"])
         slippage = notional * config["slippage_rate"]
         stamp_duty = ZERO if is_buy else notional * config["stamp_duty_rate"]
         transfer_fee = notional * config["transfer_fee_rate"]
@@ -193,9 +183,7 @@ class TransactionCostEstimationUseCase:
 class RecordTransactionCostUseCase:
     """Record actual transaction costs after execution."""
 
-    def __init__(
-        self, transaction_repo: TransactionCostRepositoryProtocol | None = None
-    ) -> None:
+    def __init__(self, transaction_repo: TransactionCostRepositoryProtocol | None = None) -> None:
         self.transaction_repo = transaction_repo or get_transaction_cost_repository()
 
     def record_actual_cost(
@@ -223,9 +211,7 @@ class RecordTransactionCostUseCase:
 class TransactionCostAnalysisUseCase:
     """Analyze historical actual and estimated transaction costs."""
 
-    def __init__(
-        self, transaction_repo: TransactionCostRepositoryProtocol | None = None
-    ) -> None:
+    def __init__(self, transaction_repo: TransactionCostRepositoryProtocol | None = None) -> None:
         self.transaction_repo = transaction_repo or get_transaction_cost_repository()
 
     def analyze_user_transaction_costs(
@@ -245,9 +231,7 @@ class TransactionCostAnalysisUseCase:
         if not transactions:
             return self._empty_analysis()
 
-        total_traded_value = sum(
-            (transaction["notional"] for transaction in transactions), ZERO
-        )
+        total_traded_value = sum((transaction["notional"] for transaction in transactions), ZERO)
         total_actual_cost = sum(
             (self._actual_cost(transaction) for transaction in transactions), ZERO
         )
@@ -262,9 +246,7 @@ class TransactionCostAnalysisUseCase:
 
         cost_variance = total_actual_cost - total_estimated_cost
         cost_variance_pct = (
-            float(cost_variance / total_estimated_cost)
-            if total_estimated_cost > ZERO
-            else 0.0
+            float(cost_variance / total_estimated_cost) if total_estimated_cost > ZERO else 0.0
         )
 
         accurate_count = sum(
@@ -274,22 +256,16 @@ class TransactionCostAnalysisUseCase:
             and abs(transaction["cost_variance_pct"]) < 0.2
         )
         estimation_accuracy = (
-            accurate_count / len(estimated_transactions)
-            if estimated_transactions
-            else 0.0
+            accurate_count / len(estimated_transactions) if estimated_transactions else 0.0
         )
 
         positive_notional_transactions = [
-            transaction
-            for transaction in transactions
-            if transaction["notional"] > ZERO
+            transaction for transaction in transactions if transaction["notional"] > ZERO
         ]
         avg_cost_ratio = (
             sum(
                 (
-                    float(
-                        self._actual_cost(transaction) / transaction["notional"]
-                    )
+                    float(self._actual_cost(transaction) / transaction["notional"])
                     for transaction in positive_notional_transactions
                 ),
                 0.0,
@@ -301,9 +277,7 @@ class TransactionCostAnalysisUseCase:
 
         high_cost_transactions: list[HighCostTransaction] = []
         for transaction in positive_notional_transactions:
-            cost_ratio = float(
-                self._actual_cost(transaction) / transaction["notional"]
-            )
+            cost_ratio = float(self._actual_cost(transaction) / transaction["notional"])
             if cost_ratio > 0.01:
                 high_cost_transactions.append(
                     {

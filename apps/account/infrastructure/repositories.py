@@ -846,24 +846,6 @@ class TransactionCostConfigRepository:
         except TransactionCostConfigModel.DoesNotExist:
             return None
 
-    def get_default_cost_config(self, market: str, asset_class: str) -> TransactionCostConfigRecord:
-        """
-        Get default cost configuration.
-
-        Returns:
-            Dict with default values
-        """
-        return {
-            "market": market,
-            "asset_class": asset_class,
-            "commission_rate": Decimal("0.0003"),
-            "slippage_rate": Decimal("0.0002"),
-            "stamp_duty_rate": Decimal("0.001"),
-            "transfer_fee_rate": Decimal("0.00001"),
-            "min_commission": Decimal("5.00"),
-            "cost_warning_threshold": 0.005,
-        }
-
 
 class SystemSettingsRepository:
     """系统设置仓储。"""

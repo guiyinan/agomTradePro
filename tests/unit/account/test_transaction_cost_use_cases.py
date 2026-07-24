@@ -27,9 +27,12 @@ class _AssetMetadataRepository:
 
 
 class _TransactionCostConfigRepository:
-    def get_cost_config(
-        self, market: str, asset_class: str
-    ) -> dict[str, object] | None:
+    def __init__(self, *, configured: bool = True) -> None:
+        self.configured = configured
+
+    def get_cost_config(self, market: str, asset_class: str) -> dict[str, object] | None:
+        if not self.configured:
+            return None
         return {
             "market": market,
             "asset_class": asset_class,
@@ -40,11 +43,6 @@ class _TransactionCostConfigRepository:
             "min_commission": Decimal("5"),
             "cost_warning_threshold": 0.005,
         }
-
-    def get_default_cost_config(
-        self, market: str, asset_class: str
-    ) -> dict[str, object]:
-        raise AssertionError("specific test configuration should be used")
 
 
 class _TransactionRepository:
@@ -147,6 +145,22 @@ def test_estimate_transaction_cost_rejects_unknown_action() -> None:
             shares=100,
             price=Decimal("10"),
             action="hold",
+            user_id=7,
+        )
+
+
+def test_estimate_transaction_cost_rejects_missing_fee_configuration() -> None:
+    use_case = TransactionCostEstimationUseCase(
+        asset_meta_repo=_AssetMetadataRepository(),
+        transaction_cost_config_repo=_TransactionCostConfigRepository(configured=False),
+    )
+
+    with pytest.raises(ValueError, match="未配置启用的交易成本费率: CN_A_SHARE/equity"):
+        use_case.estimate_transaction_cost(
+            asset_code="000001.SZ",
+            shares=100,
+            price=Decimal("10"),
+            action="buy",
             user_id=7,
         )
 

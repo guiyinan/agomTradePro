@@ -3,15 +3,22 @@
 
 测试 Domain 层 TradingCostConfig 实体的费用计算逻辑。
 """
+
+from inspect import Parameter, signature
+
 import pytest
 
 from apps.account.domain.entities import TradingCostConfig
+from apps.account.infrastructure.models import (
+    TradingCostConfigModel,
+    TransactionCostConfigModel,
+)
 
 
 @pytest.fixture
 def default_config():
     """默认费率配置（万2.5佣金、千1印花税）"""
-    return TradingCostConfig(id=1, portfolio_id=1)
+    return TradingCostConfig(id=1, portfolio_id=1, min_commission=5.0)
 
 
 @pytest.fixture
@@ -25,6 +32,14 @@ def vip_config():
         stamp_duty_rate=0.001,
         transfer_fee_rate=0.00002,
     )
+
+
+def test_minimum_commission_has_no_domain_or_orm_default():
+    domain_parameter = signature(TradingCostConfig).parameters["min_commission"]
+
+    assert domain_parameter.default is Parameter.empty
+    assert TradingCostConfigModel._meta.get_field("min_commission").has_default() is False
+    assert TransactionCostConfigModel._meta.get_field("min_commission").has_default() is False
 
 
 class TestTradingCostConfigBuyCost:

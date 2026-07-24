@@ -423,10 +423,10 @@ class TradingCostConfig:
 
     id: int | None
     portfolio_id: int
+    min_commission: float  # 最低佣金（元，由交易费率配置显式提供）
 
     # 佣金（双向）
     commission_rate: float = 0.00025  # 佣金率（默认万2.5）
-    min_commission: float = 5.0  # 最低佣金（元）
 
     # 印花税（仅卖出，A股特有）
     stamp_duty_rate: float = 0.001  # 印花税率（默认千1）

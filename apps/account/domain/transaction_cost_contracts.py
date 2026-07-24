@@ -72,19 +72,10 @@ class AssetMetadataLookupProtocol(Protocol):
 
 
 class TransactionCostConfigRepositoryProtocol(Protocol):
-    """Read explicit or default transaction-cost configuration."""
+    """Read explicit transaction-cost configuration."""
 
-    def get_cost_config(
-        self, market: str, asset_class: str
-    ) -> TransactionCostConfigRecord | None:
+    def get_cost_config(self, market: str, asset_class: str) -> TransactionCostConfigRecord | None:
         """Return the active configuration for a market and asset class."""
-
-        ...
-
-    def get_default_cost_config(
-        self, market: str, asset_class: str
-    ) -> TransactionCostConfigRecord:
-        """Return a complete default configuration."""
 
         ...
 

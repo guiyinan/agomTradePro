@@ -92,6 +92,25 @@ class TestTradingCostConfigApi:
 
 @pytest.mark.django_db
 class TestTradingCostConfigSettingsView:
+    def test_settings_view_requires_explicit_minimum_commission(self, trading_cost_setup):
+        client = Client()
+        client.force_login(trading_cost_setup["owner"])
+
+        response = client.post(
+            "/account/settings/",
+            {
+                "save_trading_cost": "1",
+                "commission_rate": "0.0001",
+                "stamp_duty_rate": "0.001",
+                "transfer_fee_rate": "0.00002",
+            },
+        )
+
+        assert response.status_code == 302
+        trading_cost_setup["config"].refresh_from_db()
+        assert trading_cost_setup["config"].commission_rate == 0.00025
+        assert trading_cost_setup["config"].min_commission == 5.0
+
     def test_settings_view_rejects_invalid_trading_cost(self, trading_cost_setup):
         client = Client()
         client.force_login(trading_cost_setup["owner"])
@@ -114,4 +133,3 @@ class TestTradingCostConfigSettingsView:
 
         trading_cost_setup["config"].refresh_from_db()
         assert trading_cost_setup["config"].commission_rate == 0.00025
-

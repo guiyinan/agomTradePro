@@ -10,13 +10,10 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3129,
-    "files_with_errors": 607
+    "errors": 3119,
+    "files_with_errors": 605
   },
   "modules": {
-    "apps/account/application/interface_services.py": {
-      "unused-ignore": 1
-    },
     "apps/account/application/stress_testing_use_cases.py": {
       "assignment": 1,
       "operator": 1,
@@ -83,9 +80,6 @@
     },
     "apps/account/infrastructure/signals.py": {
       "no-untyped-def": 1
-    },
-    "apps/account/infrastructure/trading_config_models.py": {
-      "unused-ignore": 9
     },
     "apps/account/interface/api_urls.py": {
       "unused-ignore": 1

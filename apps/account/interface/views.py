@@ -302,7 +302,7 @@ def settings_view(request: HttpRequest) -> HttpResponse:
                 outcome = interface_services.save_trading_cost_config(
                     _authenticated_user_id(request),
                     commission_rate=request.POST.get("commission_rate", "0.00025"),
-                    min_commission=request.POST.get("min_commission", "5.0"),
+                    min_commission=request.POST.get("min_commission", ""),
                     stamp_duty_rate=request.POST.get("stamp_duty_rate", "0.001"),
                     transfer_fee_rate=request.POST.get("transfer_fee_rate", "0.00002"),
                 )

@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Any
 from urllib.parse import urlparse
 
-from django.utils import timezone  # type: ignore[import-untyped]
+from django.utils import timezone
 
 from apps.account.application.rbac import ROLE_CHOICES
 from apps.account.application.repository_provider import (
@@ -565,6 +565,9 @@ def save_trading_cost_config(
 ) -> FlashOutcome:
     """Persist trading cost settings for the user's active portfolio."""
 
+    if not min_commission.strip():
+        raise ValueError("最低佣金必须显式填写")
+
     context = build_settings_context(user_id)
     portfolio = context["portfolio"]
     if portfolio is None:
@@ -577,7 +580,7 @@ def save_trading_cost_config(
     _interface_repo().save_trading_cost_config(
         portfolio_id=portfolio.id,
         commission_rate=float(commission_rate or 0.00025),
-        min_commission=float(min_commission or 5.0),
+        min_commission=float(min_commission),
         stamp_duty_rate=float(stamp_duty_rate or 0.001),
         transfer_fee_rate=float(transfer_fee_rate or 0.00002),
     )

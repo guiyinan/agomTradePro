@@ -443,15 +443,6 @@ class TransactionCostConfigRepositoryProtocol(Protocol):
         """
         ...
 
-    def get_default_cost_config(self, market: str, asset_class: str) -> dict[str, Any]:
-        """
-        Get default cost configuration.
-
-        Returns:
-            Dict with default values
-        """
-        ...
-
 
 # =============================================================================
 # Market Data Protocol - 行情数据服务协议

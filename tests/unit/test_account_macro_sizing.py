@@ -472,7 +472,11 @@ class TestAccountDomainEntities:
         assert time_based.calculate_stop_price(100, 95, 120) == 0.0
 
     def test_trading_cost_and_take_profit_config_helpers(self):
-        trading_cost = TradingCostConfig(id=1, portfolio_id=1)
+        trading_cost = TradingCostConfig(
+            id=1,
+            portfolio_id=1,
+            min_commission=5.0,
+        )
 
         buy = trading_cost.calculate_buy_cost(amount=10000, is_shanghai=True)
         sell = trading_cost.calculate_sell_cost(amount=10000, is_shanghai=True)

@@ -116,8 +116,9 @@
                     <input type="number" id="min_commission" name="min_commission"
                            class="form-control"
                            step="0.01" min="0"
-                           value="{{ trading_cost_config.min_commission|default:'5.0' }}"
-                           placeholder="5.0">
+                           value="{{ trading_cost_config.min_commission|default_if_none:'' }}"
+                           placeholder="请按券商费率填写"
+                           required>
                     <small class="form-hint">单笔佣金不足此金额按此收取</small>
                 </div>
 

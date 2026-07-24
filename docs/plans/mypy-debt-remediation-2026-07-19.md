@@ -2294,3 +2294,20 @@
 - Signal tasks 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3139 errors / 608 files` 收紧为 `3129 errors / 607 files`，净减少 `10 errors / 1 file`。
 - Signal task、通知和真实 ORM 每日摘要回归共 `69 passed`；覆盖结果不一致、非法 ID/天数、通知失败、HTML 转义、单字符串收件人和原有证伪任务契约。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和隔离 staged tree 的全仓 mypy debt ceiling。
+
+## 第一百六十批
+
+- 按“买入资金真实性 × 最低佣金配置唯一真源”补强 Account 与 Simulated Trading 交易费用边界。
+- 模拟交易买入继续从按资产类型启用的数据库 `FeeConfig` 读取最低佣金，并使用同一份完整费用结果执行资金校验和实际扣款；缺少生效配置时失败关闭。
+- Account `TradingCostConfig` Domain 实体及组合费率、市场费率两类 ORM 模型取消最低佣金运行时默认值；新建配置必须显式提供，不再把 `5.0` 当作代码规则。
+- 账户设置页面把最低佣金改为必填；HTTP 输入和 Application 保存服务均不再为空值补 `5.0`，缺失输入不会覆盖已有配置。
+- 交易成本估算移除 Repository 中整套硬编码默认费率；找不到对应市场/资产类别的启用配置时明确拒绝估算，避免用隐式 5 元产生可执行错觉。
+- 组合费率与市场/资产类别费率均注册到类型安全的 Django Admin，运维人员可显式维护运行时配置，不需要通过代码常量恢复功能。
+- 新增迁移 `0033_require_explicit_minimum_commission`：保留已有数据库费率值，只收紧新建契约；同时在历史 shared 迁移删除旧表后按当前显式字段契约恢复 `transaction_cost_config` 表，并对已有表安全跳过。
+- 新增非 5 元模拟买入资金边界、Domain/ORM 无默认值、页面缺失最低佣金不写入、成本估算缺配置拒绝等回归。
+
+## 第一百六十批验证结果
+
+- Account 相关改动文件增量 mypy 清零，并清除两个文件的遗留 `unused-ignore`；全仓基线从 `3129 errors / 607 files` 收紧为 `3119 errors / 605 files`，净减少 `10 errors / 2 files`。
+- Account 成本估算、费率 Domain、账户辅助服务、组合费率 API/页面、Admin 注册和模拟交易订单约束回归共 `90 passed`；新建测试数据库完整迁移通过。
+- Django system check、迁移漂移检查、架构 delta、改动文件 Ruff、Black 与全仓 mypy debt ceiling 通过。
