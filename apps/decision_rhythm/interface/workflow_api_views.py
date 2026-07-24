@@ -2,9 +2,9 @@
 
 import logging
 
-from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -15,7 +15,11 @@ from ..application.use_cases import (
     UpdateQuotaConfigRequest,
 )
 from ..domain.entities import ExecutionTarget, QuotaPeriod
-from .api_response_utils import bad_request_response, internal_error_response
+from .api_response_utils import (
+    bad_request_response,
+    internal_error_response,
+    typed_extend_schema,
+)
 from .dependencies import (
     build_cancel_decision_request_use_case,
     build_execute_decision_dependencies,
@@ -39,11 +43,11 @@ class PrecheckDecisionView(APIView):
     POST /api/decision-workflow/precheck/
     """
 
-    @extend_schema(
+    @typed_extend_schema(
         request=PrecheckDecisionRequestSerializer,
         responses={200: dict},
     )
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """
         执行决策预检查
 
@@ -91,11 +95,7 @@ class PrecheckDecisionView(APIView):
         except DRFValidationError as e:
             return bad_request_response(e.detail)
         except Exception as e:
-            logger.error(f"Precheck failed: {e}", exc_info=True)
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return internal_error_response("Precheck failed", e)
 
 
 class ExecuteDecisionRequestView(APIView):
@@ -105,11 +105,11 @@ class ExecuteDecisionRequestView(APIView):
     POST /api/decision-rhythm/requests/{request_id}/execute/
     """
 
-    @extend_schema(
+    @typed_extend_schema(
         request=ExecuteDecisionRequestSerializer,
         responses={200: dict},
     )
-    def post(self, request, request_id) -> Response:
+    def post(self, request: Request, request_id: str) -> Response:
         """
         执行决策请求
 
@@ -190,11 +190,7 @@ class ExecuteDecisionRequestView(APIView):
         except DRFValidationError as e:
             return bad_request_response(e.detail)
         except Exception as e:
-            logger.error(f"Execute decision failed: {e}", exc_info=True)
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return internal_error_response("Execute decision failed", e)
 
 
 class CancelDecisionRequestView(APIView):
@@ -204,11 +200,11 @@ class CancelDecisionRequestView(APIView):
     POST /api/decision-rhythm/requests/{request_id}/cancel/
     """
 
-    @extend_schema(
+    @typed_extend_schema(
         request=CancelDecisionRequestSerializer,
         responses={200: dict},
     )
-    def post(self, request, request_id) -> Response:
+    def post(self, request: Request, request_id: str) -> Response:
         """
         取消决策请求
 
@@ -250,11 +246,7 @@ class CancelDecisionRequestView(APIView):
         except DRFValidationError as e:
             return bad_request_response(e.detail)
         except Exception as e:
-            logger.error(f"Cancel decision failed: {e}", exc_info=True)
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return internal_error_response("Cancel decision failed", e)
 
 
 class UpdateQuotaConfigView(APIView):
@@ -264,11 +256,11 @@ class UpdateQuotaConfigView(APIView):
     POST /api/decision-rhythm/quota/update/
     """
 
-    @extend_schema(
+    @typed_extend_schema(
         request=UpdateQuotaConfigRequestSerializer,
         responses={200: dict},
     )
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """
         更新配额配置
 

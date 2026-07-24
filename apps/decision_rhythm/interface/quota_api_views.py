@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from typing import Any
+
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAdminUser
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -16,7 +20,11 @@ from ..application.query_workflows import (
     ListDecisionQuotasRequest,
 )
 from ..domain.entities import QuotaPeriod
-from .api_response_utils import bad_request_response, internal_error_response
+from .api_response_utils import (
+    bad_request_response,
+    internal_error_response,
+    typed_extend_schema,
+)
 from .dependencies import (
     build_get_decision_quota_by_period_use_case,
     build_get_trend_data_use_case,
@@ -35,12 +43,12 @@ from .serializers import (
 class DecisionQuotaViewSet(viewsets.ViewSet):
     """Decision quota read endpoints."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.list_use_case = build_list_decision_quotas_use_case()
         self.get_by_period_use_case = build_get_decision_quota_by_period_use_case()
 
-    def list(self, request) -> Response:
+    def list(self, request: Request) -> Response:
         """GET /api/decision-rhythm/quotas/"""
         try:
             serializer = DecisionQuotaListQuerySerializer(data=request.query_params)
@@ -68,7 +76,7 @@ class DecisionQuotaViewSet(viewsets.ViewSet):
         except Exception as exc:
             return internal_error_response("Failed to list quotas", exc)
 
-    @extend_schema(
+    @typed_extend_schema(
         parameters=[
             OpenApiParameter(
                 name="period",
@@ -80,7 +88,7 @@ class DecisionQuotaViewSet(viewsets.ViewSet):
         responses={200: DecisionQuotaSerializer},
     )
     @action(detail=False, methods=["GET"], url_path="by-period")
-    def by_period(self, request) -> Response:
+    def by_period(self, request: Request) -> Response:
         """GET /api/decision-rhythm/quotas/by-period/"""
         try:
             serializer = DecisionQuotaByPeriodQuerySerializer(data=request.query_params)
@@ -112,8 +120,8 @@ class ResetQuotaView(APIView):
 
     permission_classes = [IsAdminUser]
 
-    @extend_schema(request=ResetQuotaRequestSerializer, responses={200: dict})
-    def post(self, request) -> Response:
+    @typed_extend_schema(request=ResetQuotaRequestSerializer, responses={200: dict})
+    def post(self, request: Request) -> Response:
         """Reset one or all quotas for the selected account."""
         try:
             serializer = ResetQuotaRequestSerializer(data=request.data)
@@ -152,7 +160,7 @@ class ResetQuotaView(APIView):
 class TrendDataView(APIView):
     """GET /api/decision-rhythm/trend-data/"""
 
-    @extend_schema(
+    @typed_extend_schema(
         parameters=[
             OpenApiParameter(
                 name="days",
@@ -163,7 +171,7 @@ class TrendDataView(APIView):
         ],
         responses={200: dict},
     )
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """Return quota usage trend data."""
         try:
             serializer = TrendDataQuerySerializer(data=request.query_params)

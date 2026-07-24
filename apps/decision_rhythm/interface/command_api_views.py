@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -20,7 +20,11 @@ from ..application.use_cases import (
     SubmitDecisionRequestRequest,
 )
 from ..domain.entities import DecisionPriority, QuotaPeriod
-from .api_response_utils import bad_request_response, internal_error_response
+from .api_response_utils import (
+    bad_request_response,
+    internal_error_response,
+    typed_extend_schema,
+)
 from .dependencies import (
     build_get_rhythm_summary_use_case,
     build_submit_batch_workflow_use_case,
@@ -58,11 +62,11 @@ def build_submit_request(
 class SubmitDecisionRequestView(APIView):
     """POST /api/decision-rhythm/submit/"""
 
-    @extend_schema(
+    @typed_extend_schema(
         request=SubmitDecisionRequestRequestSerializer,
         responses={200: DecisionRequestSerializer},
     )
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """Submit a single decision request."""
         try:
             serializer = SubmitDecisionRequestRequestSerializer(data=request.data)
@@ -106,8 +110,11 @@ class SubmitDecisionRequestView(APIView):
 class SubmitBatchRequestView(APIView):
     """POST /api/decision-rhythm/submit-batch/"""
 
-    @extend_schema(request=SubmitBatchRequestRequestSerializer, responses={200: dict})
-    def post(self, request) -> Response:
+    @typed_extend_schema(
+        request=SubmitBatchRequestRequestSerializer,
+        responses={200: dict},
+    )
+    def post(self, request: Request) -> Response:
         """Submit a batch of decision requests."""
         try:
             serializer = SubmitBatchRequestRequestSerializer(data=request.data)
@@ -156,8 +163,8 @@ class SubmitBatchRequestView(APIView):
 class GetRhythmSummaryView(APIView):
     """GET /api/decision-rhythm/summary/"""
 
-    @extend_schema(responses={200: dict})
-    def get(self, request) -> Response:
+    @typed_extend_schema(responses={200: dict})
+    def get(self, request: Request) -> Response:
         """Return rhythm summary."""
         try:
             use_case = build_get_rhythm_summary_use_case()

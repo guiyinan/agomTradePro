@@ -158,6 +158,29 @@ def test_decision_rhythm_summary_success_contract(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_decision_rhythm_internal_error_does_not_leak_exception(
+    authenticated_client,
+):
+    use_case = SimpleNamespace(
+        execute=lambda request: (_ for _ in ()).throw(
+            RuntimeError("database password leaked"),
+        )
+    )
+
+    with patch(
+        "apps.decision_rhythm.interface.command_api_views.build_get_rhythm_summary_use_case",
+        return_value=use_case,
+    ):
+        response = authenticated_client.get("/api/decision-rhythm/summary/")
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "success": False,
+        "error": "Failed to get rhythm summary",
+    }
+
+
+@pytest.mark.django_db
 def test_decision_rhythm_submit_rejects_invalid_quota_period(authenticated_client):
     response = authenticated_client.post(
         "/api/decision-rhythm/submit/",
