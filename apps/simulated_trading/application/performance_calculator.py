@@ -12,17 +12,80 @@ from collections import defaultdict
 from dataclasses import replace
 from datetime import date
 from statistics import mean, pstdev
+from typing import Protocol, TypedDict
 
 from apps.data_center.application.price_service import UnifiedPriceService
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
-    get_simulated_position_repository,
     get_simulated_trade_repository,
 )
-from apps.simulated_trading.domain.entities import SimulatedAccount, TradeAction
+from apps.simulated_trading.domain.entities import (
+    SimulatedAccount,
+    SimulatedTrade,
+    TradeAction,
+)
 from core.exceptions import DataFetchError
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
+
+
+class PerformanceAccountRepositoryProtocol(Protocol):
+    """Account persistence required by performance calculations."""
+
+    def get_by_id(self, account_id: int) -> SimulatedAccount | None:
+        """Return one simulated account."""
+        ...
+
+    def save(self, account: SimulatedAccount, user_id: int | None = None) -> int:
+        """Persist one simulated account."""
+        ...
+
+
+class PerformanceTradeRepositoryProtocol(Protocol):
+    """Trade history required by performance calculations."""
+
+    def get_by_date_range(
+        self,
+        account_id: int,
+        start: date,
+        end: date,
+    ) -> list[SimulatedTrade]:
+        """Return trades executed inside an inclusive date range."""
+        ...
+
+
+class HistoricalPriceProviderProtocol(Protocol):
+    """Historical prices required by equity-curve valuation."""
+
+    def get_price(self, asset_code: str, trade_date: date) -> float | None:
+        """Return a nullable historical price."""
+        ...
+
+    def require_price(self, asset_code: str, trade_date: date) -> float:
+        """Return a historical price or raise when unavailable."""
+        ...
+
+
+class PerformanceMetrics(TypedDict):
+    """Persisted performance metrics for one account."""
+
+    total_return: float
+    annual_return: float
+    max_drawdown: float
+    sharpe_ratio: float
+    win_rate: float
+    winning_trades: int
+
+
+class EquityCurvePoint(TypedDict):
+    """One point in an account equity curve."""
+
+    date: str
+    net_value: float
+    cash: float
+    market_value: float
+    drawdown_pct: float
 
 
 class PerformanceCalculator:
@@ -37,11 +100,19 @@ class PerformanceCalculator:
     - 胜率
     """
 
-    def __init__(self):
-        self.account_repo = get_simulated_account_repository()
-        self.trade_repo = get_simulated_trade_repository()
-        self.position_repo = get_simulated_position_repository()
-        self.price_provider = UnifiedPriceService()
+    def __init__(
+        self,
+        account_repo: PerformanceAccountRepositoryProtocol | None = None,
+        trade_repo: PerformanceTradeRepositoryProtocol | None = None,
+        price_provider: HistoricalPriceProviderProtocol | None = None,
+    ) -> None:
+        self.account_repo = (
+            account_repo if account_repo is not None else get_simulated_account_repository()
+        )
+        self.trade_repo = trade_repo if trade_repo is not None else get_simulated_trade_repository()
+        self.price_provider = (
+            price_provider if price_provider is not None else UnifiedPriceService()
+        )
 
     def _require_market_price(self, asset_code: str, trade_date: date) -> float:
         """
@@ -54,33 +125,25 @@ class PerformanceCalculator:
         loudly when no market price exists.
         """
         provider_overrides = vars(self.price_provider)
-        get_price = getattr(self.price_provider, "get_price", None)
-        require_price = getattr(self.price_provider, "require_price", None)
+        if "require_price" in provider_overrides:
+            raw_price: object = self.price_provider.require_price(asset_code, trade_date)
+        elif "get_price" in provider_overrides:
+            raw_price = self.price_provider.get_price(asset_code, trade_date)
+        else:
+            raw_price = self.price_provider.require_price(asset_code, trade_date)
 
-        if "require_price" in provider_overrides and callable(require_price):
-            return require_price(asset_code, trade_date)
-
-        if "get_price" in provider_overrides and callable(get_price):
-            price = get_price(asset_code, trade_date)
-            if price is not None:
-                return price
-
-        if callable(require_price):
-            return require_price(asset_code, trade_date)
-
-        if callable(get_price):
-            price = get_price(asset_code, trade_date)
-            if price is not None:
-                return price
+        price: float | None = safe_float(raw_price)
+        if price is not None and price > 0:
+            return price
 
         raise DataFetchError(
-            message=f"无法获取 {asset_code} 在 {trade_date} 的历史价格",
+            message=f"无法获取 {asset_code} 在 {trade_date} 的有效历史价格",
             code="PRICE_UNAVAILABLE",
         )
 
     def calculate_and_update_performance(
         self, account_id: int, trade_date: date
-    ) -> dict[str, float]:
+    ) -> PerformanceMetrics | dict[str, float]:
         """
         计算并更新账户绩效
 
@@ -113,36 +176,35 @@ class PerformanceCalculator:
         self.account_repo.save(updated_account)
 
         logger.info(
-            f"更新账户绩效: {account.account_name} - "
-            f"总收益率: {account.total_return:.2f}%, "
-            f"最大回撤: {account.max_drawdown:.2f}%, "
-            f"夏普比率: {account.sharpe_ratio:.2f}"
+            "更新账户绩效: %s - 总收益率: %.2f%%, 最大回撤: %.2f%%, 夏普比率: %.2f",
+            updated_account.account_name,
+            updated_account.total_return,
+            updated_account.max_drawdown,
+            updated_account.sharpe_ratio,
         )
 
         return metrics
 
-    def _calculate_metrics(self, account: SimulatedAccount, trade_date: date) -> dict[str, float]:
+    def _calculate_metrics(
+        self,
+        account: SimulatedAccount,
+        trade_date: date,
+    ) -> PerformanceMetrics:
         """计算绩效指标"""
-        metrics = {}
-
-        # 1. 总收益率
-        metrics["total_return"] = self._calculate_total_return(account)
-
-        # 2. 年化收益率
-        metrics["annual_return"] = self._calculate_annual_return(account, trade_date)
-
-        # 3. 最大回撤
-        metrics["max_drawdown"] = self._calculate_max_drawdown(account)
-
-        # 4. 夏普比率
-        metrics["sharpe_ratio"] = self._calculate_sharpe_ratio(account)
-
-        # 5. 胜率和盈利交易数
-        win_rate, winning_trades = self._calculate_win_rate(account)
-        metrics["win_rate"] = win_rate
-        metrics["winning_trades"] = winning_trades
-
-        return metrics
+        total_return = self._calculate_total_return(account)
+        win_rate, winning_trades = self._calculate_win_rate(account, trade_date)
+        return PerformanceMetrics(
+            total_return=total_return,
+            annual_return=self._calculate_annual_return(
+                account,
+                trade_date,
+                total_return=total_return,
+            ),
+            max_drawdown=self._calculate_max_drawdown(account, trade_date),
+            sharpe_ratio=self._calculate_sharpe_ratio(account, trade_date),
+            win_rate=win_rate,
+            winning_trades=winning_trades,
+        )
 
     def _calculate_total_return(self, account: SimulatedAccount) -> float:
         """
@@ -151,10 +213,18 @@ class PerformanceCalculator:
         total_return = (total_value - initial_capital) / initial_capital * 100
         """
         if account.initial_capital > 0:
-            return ((account.total_value - account.initial_capital) / account.initial_capital) * 100
+            return float(
+                ((account.total_value - account.initial_capital) / account.initial_capital) * 100
+            )
         return 0.0
 
-    def _calculate_annual_return(self, account: SimulatedAccount, trade_date: date) -> float:
+    def _calculate_annual_return(
+        self,
+        account: SimulatedAccount,
+        trade_date: date,
+        *,
+        total_return: float | None = None,
+    ) -> float:
         """
         计算年化收益率
 
@@ -167,12 +237,21 @@ class PerformanceCalculator:
         if days <= 0:
             return 0.0
 
-        total_return = account.total_return / 100.0  # 转为小数
-        annual_return = ((1 + total_return) ** (365.0 / days) - 1) * 100
+        effective_total_return = (
+            total_return if total_return is not None else self._calculate_total_return(account)
+        )
+        growth_factor = 1.0 + effective_total_return / 100.0
+        if growth_factor <= 0:
+            return -100.0
+        annual_return = (growth_factor ** (365.0 / days) - 1.0) * 100.0
 
-        return annual_return
+        return float(annual_return)
 
-    def _calculate_max_drawdown(self, account: SimulatedAccount) -> float:
+    def _calculate_max_drawdown(
+        self,
+        account: SimulatedAccount,
+        end_date: date | None = None,
+    ) -> float:
         """
         计算最大回撤
 
@@ -183,7 +262,7 @@ class PerformanceCalculator:
         """
         try:
             # 构建完整的净值曲线
-            equity_curve = self._build_equity_curve(account)
+            equity_curve = self._build_equity_curve(account, end_date)
 
             if len(equity_curve) < 2:
                 return 0.0
@@ -207,7 +286,11 @@ class PerformanceCalculator:
             logger.error(f"计算最大回撤失败: {e}")
             return 0.0
 
-    def _calculate_sharpe_ratio(self, account: SimulatedAccount) -> float:
+    def _calculate_sharpe_ratio(
+        self,
+        account: SimulatedAccount,
+        end_date: date | None = None,
+    ) -> float:
         """
         计算夏普比率
 
@@ -215,25 +298,30 @@ class PerformanceCalculator:
         """
         try:
             # 获取交易历史
+            calculation_date = end_date if end_date is not None else date.today()
             trades = self.trade_repo.get_by_date_range(
-                account.account_id, account.start_date, date.today()
+                account.account_id,
+                account.start_date,
+                calculation_date,
             )
 
             if len(trades) < 2:
                 return 0.0
 
             # 计算每笔交易的收益率序列
-            returns = []
+            returns: list[float] = []
             for trade in trades:
                 if trade.realized_pnl_pct is not None:
-                    returns.append(trade.realized_pnl_pct)
+                    parsed_return = safe_float(trade.realized_pnl_pct)
+                    if parsed_return is not None:
+                        returns.append(parsed_return)
 
             if len(returns) < 2:
                 return 0.0
 
             # 年化收益率
-            mean_return = mean(returns)
-            std_return = pstdev(returns)
+            mean_return = float(mean(returns))
+            std_return = float(pstdev(returns))
 
             if std_return == 0:
                 return 0.0
@@ -241,15 +329,19 @@ class PerformanceCalculator:
             # 假设无风险利率为3%
 
             # 简化计算：使用交易收益率的均值/标准差
-            sharpe = mean_return / std_return if std_return > 0 else 0
+            sharpe = mean_return / std_return if std_return > 0 else 0.0
 
-            return sharpe
+            return float(sharpe)
 
         except Exception as e:
             logger.error(f"计算夏普比率失败: {e}")
             return 0.0
 
-    def _calculate_win_rate(self, account: SimulatedAccount) -> tuple:
+    def _calculate_win_rate(
+        self,
+        account: SimulatedAccount,
+        end_date: date | None = None,
+    ) -> tuple[float, int]:
         """
         计算胜率
 
@@ -259,25 +351,37 @@ class PerformanceCalculator:
             (win_rate, winning_trades)
         """
         try:
+            calculation_date = end_date if end_date is not None else date.today()
             trades = self.trade_repo.get_by_date_range(
-                account.account_id, account.start_date, date.today()
+                account.account_id,
+                account.start_date,
+                calculation_date,
             )
 
-            if not trades:
+            closed_trades = [trade for trade in trades if trade.realized_pnl is not None]
+            if not closed_trades:
                 return 0.0, 0
 
             # 统计盈利交易
-            winning_trades = sum(1 for t in trades if t.realized_pnl and t.realized_pnl > 0)
+            winning_trades = sum(
+                1
+                for trade in closed_trades
+                if trade.realized_pnl is not None and trade.realized_pnl > 0
+            )
 
-            win_rate = (winning_trades / len(trades)) * 100
+            win_rate = (winning_trades / len(closed_trades)) * 100.0
 
-            return win_rate, winning_trades
+            return float(win_rate), winning_trades
 
         except Exception as e:
             logger.error(f"计算胜率失败: {e}")
             return 0.0, 0
 
-    def _build_equity_curve(self, account: SimulatedAccount, end_date: date = None) -> list[dict]:
+    def _build_equity_curve(
+        self,
+        account: SimulatedAccount,
+        end_date: date | None = None,
+    ) -> list[EquityCurvePoint]:
         """
         构建完整的净值曲线（内部方法）
 
@@ -312,14 +416,14 @@ class PerformanceCalculator:
             ]
 
         # 按日期分组交易
-        trades_by_date: dict[date, list] = defaultdict(list)
+        trades_by_date: dict[date, list[SimulatedTrade]] = defaultdict(list)
         for trade in trades:
             trades_by_date[trade.execution_date].append(trade)
 
         # 按时间顺序遍历每个交易日
-        curve_data = []
-        cash = account.initial_capital
-        positions = {}  # {asset_code: quantity}
+        curve_data: list[EquityCurvePoint] = []
+        cash = float(account.initial_capital)
+        positions: dict[str, float] = {}
 
         # 获取所有交易日期（去重并排序）
         trade_dates = sorted(trades_by_date.keys())
@@ -339,14 +443,14 @@ class PerformanceCalculator:
                     positions[trade.asset_code] = (
                         positions.get(trade.asset_code, 0) - trade.quantity
                     )
-                    if positions[trade.asset_code] == 0:
+                    if positions[trade.asset_code] <= 0:
                         del positions[trade.asset_code]
 
             # 获取当日持仓的市值
             market_value = 0.0
             for asset_code, quantity in positions.items():
-                price = float(self._require_market_price(asset_code, trade_date))
-                market_value += price * float(quantity)
+                price = self._require_market_price(asset_code, trade_date)
+                market_value += price * quantity
 
             # 计算净值
             net_value = cash + market_value
@@ -372,7 +476,12 @@ class PerformanceCalculator:
 
         return curve_data
 
-    def get_equity_curve(self, account_id: int, start_date: date, end_date: date) -> list[dict]:
+    def get_equity_curve(
+        self,
+        account_id: int,
+        start_date: date,
+        end_date: date,
+    ) -> list[EquityCurvePoint]:
         """
         获取净值曲线数据
 
