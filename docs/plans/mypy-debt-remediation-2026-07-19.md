@@ -1477,3 +1477,19 @@
 - Decision Rhythm Feature Provider mypy 清零；全仓基线从 `4306 errors / 707 files` 收紧为 `4273 errors / 706 files`，净减少 `33 errors / 1 file`，跨文件无新增。
 - Feature Provider 与统一推荐用例回归共 `49 passed`。
 - governance baseline 升级为 `2026-07-24.v180`，静态测试函数计数提升至 `7201`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百零九批
+
+- 沿统一推荐事件链继续收口 Decision Rhythm handlers，覆盖决策批准/拒绝、Alpha 触发、配额监控与信号冷却处理。
+- 为配额管理、冷却管理与事件发布建立最小 Application Protocol；三个 handler constructor、内部分发方法与配额检查全部具化，并允许 composition root 暂未注入 event bus 时安全跳过发布。
+- 补齐事件系统已被 handler 引用但此前不存在的 `QUOTA_WARNING` 类型，避免订阅或告警路径运行时访问不存在枚举。
+- 修复配额监控读取不存在的 `remaining/total` 字段而使用默认 `0/1`、导致正常配额也被误判为告警的问题；现对齐 Domain 的 `remaining_decisions/max_decisions`，并防止零配额除法。
+- 修复信号冷却处理调用不存在 `CooldownManager.get_remaining_cooldown()` 的问题；现通过实际 `get_cooldown().decision_ready_in_hours` 契约判断，并拒绝缺失资产代码的事件。
+- 新增配额告警和信号冷却两组行为回归。
+
+## 第一百零九批验证结果
+
+- Decision Rhythm handlers mypy 清零；全仓基线从 `4273 errors / 706 files` 收紧为 `4253 errors / 704 files`，净减少 `20 errors / 2 files`。
+- handlers 直接清除 `14` 条债务，完整传播额外清除 subscribers 与 core event replay 各 `3 no-untyped-call`。
+- handlers 与统一推荐相关回归共 `18 passed`。
+- governance baseline 升级为 `2026-07-24.v181`，静态测试函数计数提升至 `7203`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。

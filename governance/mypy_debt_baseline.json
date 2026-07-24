@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4273,
-    "files_with_errors": 706
+    "errors": 4253,
+    "files_with_errors": 704
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1273,13 +1273,7 @@
       "no-untyped-call": 1,
       "no-untyped-def": 2
     },
-    "apps/decision_rhythm/application/handlers.py": {
-      "attr-defined": 3,
-      "no-untyped-call": 1,
-      "no-untyped-def": 10
-    },
     "apps/decision_rhythm/application/subscribers.py": {
-      "no-untyped-call": 3,
       "no-untyped-def": 3,
       "type-arg": 1
     },
@@ -2768,9 +2762,6 @@
     },
     "core/integration/decision_recommendations.py": {
       "no-any-return": 1
-    },
-    "core/integration/event_replay.py": {
-      "no-untyped-call": 3
     },
     "core/log_buffer.py": {
       "type-arg": 1,
