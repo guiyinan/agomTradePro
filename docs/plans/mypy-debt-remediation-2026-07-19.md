@@ -2088,3 +2088,20 @@
 - Signal HTML views 与 DRF API views 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3493 errors / 630 files` 收紧为 `3449 errors / 628 files`，净减少 `44 errors / 2 files`。
 - Signal 页面委托、状态权限、准入、Unified 查询/采集/执行和 API 契约回归共 `19 passed`。
 - Django system check、架构检查、改动文件 Ruff、Black 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百四十八批
+
+- 按“生产数据连接验收影响面 × 运维命令退出状态真实性”收口 `test_data_connections` 管理命令。
+- 每个测试组执行后同时检查方法返回值与新增诊断记录；只要内部记录任意 error，即使测试方法误返回 True，整组仍判定失败。
+- 测试组未生成任何诊断记录时不再计为通过，而是记录 Runner error，关闭空实现、提前返回或漏记证据造成的“空通过”。
+- PMI 同步返回 `success=false` 改为 error，不再降级成 warning 后让命令整体成功；Regime 计算等内部异常同样由统一结果聚合识别。
+- 命令在任一测试组失败时抛出 `CommandError`，为 CI、readiness 和自动化调用提供真实非零退出码。
+- 新增 `--output` 与 `--no-write` 控制；JSON 证据包含 `overall_success`，通过同目录临时文件原子替换，避免中断后留下半写入报告。
+- 异常详情落盘前脱敏 token、API key、secret 和 password 值，降低诊断报告进入仓库或交接材料时泄露凭据的风险。
+- Diagnostic status/result、stdout、测试函数、CLI options 和所有命令方法补齐精确类型，并使用 `UTC` 生成时区感知时间。
+
+## 第一百四十八批验证结果
+
+- `test_data_connections` 管理命令增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3449 errors / 628 files` 收紧为 `3376 errors / 627 files`，净减少 `73 errors / 1 file`。
+- 内部 error 聚合、空证据失败、凭据脱敏、原子证据输出、命令非零退出和 `--no-write` 回归共 `6 passed`。
+- Django system check、架构检查、改动文件 Ruff、Black 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

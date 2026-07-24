@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3449,
-    "files_with_errors": 628
+    "errors": 3376,
+    "files_with_errors": 627
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2420,11 +2420,6 @@
     },
     "core/management/commands/init_production.py": {
       "no-untyped-def": 2
-    },
-    "core/management/commands/test_data_connections.py": {
-      "attr-defined": 3,
-      "no-untyped-call": 57,
-      "no-untyped-def": 13
     },
     "core/management/commands/warmup_cache.py": {
       "no-untyped-call": 3,
