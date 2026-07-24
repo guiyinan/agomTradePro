@@ -1493,3 +1493,19 @@
 - handlers 直接清除 `14` 条债务，完整传播额外清除 subscribers 与 core event replay 各 `3 no-untyped-call`。
 - handlers 与统一推荐相关回归共 `18 passed`。
 - governance baseline 升级为 `2026-07-24.v181`，静态测试函数计数提升至 `7203`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百一十批
+
+- 按“估值决策入口影响面 × AI 证伪草稿安全性”收口 Decision Rhythm 估值快照、重新计算、系统证伪模板与 AI 草稿 API，并同步具化跨 Prompt/Terminal/Decision Rhythm 共用的 AI chat helper。
+- DRF handler 全部具化 `Request/Response`；请求体统一要求 JSON object，security code 与 valuation method 规范化，估值方法限制为 Domain 支持集合。
+- 估值重新计算拒绝零值、负值、非法数字及非对象 `input_parameters`，不再把可空 Decimal 或任意动态容器传入 Application。
+- AI 草稿的 existing rule 必须为对象；AI content 在解析前规范化为字符串，解析异常只捕获明确类型，AI 返回非对象 meta 时重建审计 metadata，避免成功响应路径触发 500。
+- AI chat helper 为 client/factory 建立 Protocol，动态 signature 参数具化，Repository Provider 通过 `__all__` 明确公开 composition factory，保留既有 `AIClientFactory` patch/import 契约。
+- 新增非对象请求体、非正估值、未知方法、错误 input parameters 与异常 AI meta 回归。
+
+## 第一百一十批验证结果
+
+- Decision Rhythm 估值 API 与 AI chat helper mypy 清零；全仓基线从 `4253 errors / 704 files` 收紧为 `4238 errors / 702 files`，净减少 `15 errors / 2 files`。
+- 两个目标文件直接清除 `14` 条债务，完整传播额外清除 workspace API support 的 `1 attr-defined`。
+- Decision Rhythm API edges `18 passed`，证伪模板集成回归 `2 passed / 3 deselected`。
+- governance baseline 升级为 `2026-07-24.v182`，静态测试函数计数提升至 `7206`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。

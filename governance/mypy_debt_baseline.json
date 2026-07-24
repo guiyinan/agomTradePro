@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4253,
-    "files_with_errors": 704
+    "errors": 4238,
+    "files_with_errors": 702
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -332,12 +332,6 @@
     "apps/ai_capability/management/commands/sync_ai_capability_catalog.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 2
-    },
-    "apps/ai_provider/application/chat_completion.py": {
-      "assignment": 1,
-      "attr-defined": 1,
-      "no-any-return": 1,
-      "no-untyped-def": 1
     },
     "apps/ai_provider/application/interface_services.py": {
       "no-untyped-def": 1
@@ -1350,17 +1344,11 @@
     "apps/decision_rhythm/interface/today_queue_api_views.py": {
       "no-untyped-def": 1
     },
-    "apps/decision_rhythm/interface/valuation_api_views.py": {
-      "arg-type": 2,
-      "attr-defined": 4,
-      "no-untyped-def": 4
-    },
     "apps/decision_rhythm/interface/workflow_api_views.py": {
       "misc": 4,
       "no-untyped-def": 4
     },
     "apps/decision_rhythm/interface/workspace_api_support.py": {
-      "attr-defined": 1,
       "no-untyped-def": 2
     },
     "apps/decision_rhythm/management/commands/init_decision_model_params.py": {
