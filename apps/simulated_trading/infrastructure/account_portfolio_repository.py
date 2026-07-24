@@ -1,16 +1,21 @@
 """Simulated Trading owner of the legacy Account portfolio bridge."""
 
+from __future__ import annotations
+
 import logging
+from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import QuerySet, Sum
 from django.utils import timezone
 
 from apps.account.infrastructure.models import (
+    AssetCategoryModel,
     AssetMetadataModel,
     CapitalFlowModel,
+    CurrencyModel,
     PortfolioModel,
     PortfolioObserverGrantModel,
     PositionModel,
@@ -18,11 +23,19 @@ from apps.account.infrastructure.models import (
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from apps.simulated_trading.infrastructure.models import (
+        LedgerMigrationMapModel,
+    )
+    from apps.simulated_trading.infrastructure.models import (
+        PositionModel as UnifiedPositionModel,
+    )
+
 
 class PortfolioApiRepository:
     """Persistence helpers for the account portfolio/position API boundary."""
 
-    def get_portfolio_with_owner(self, portfolio_id: int):
+    def get_portfolio_with_owner(self, portfolio_id: int) -> PortfolioModel | None:
         """Return one portfolio with owner/base currency loaded when available."""
 
         return (
@@ -31,7 +44,12 @@ class PortfolioApiRepository:
             .first()
         )
 
-    def get_active_observer_grant(self, *, owner_user_id: int, observer_user_id: int):
+    def get_active_observer_grant(
+        self,
+        *,
+        owner_user_id: int,
+        observer_user_id: int,
+    ) -> PortfolioObserverGrantModel | None:
         """Return one active observer grant when available."""
 
         return (
@@ -44,7 +62,12 @@ class PortfolioApiRepository:
             .first()
         )
 
-    def get_inactive_observer_grant(self, *, owner_user_id: int, observer_user_id: int):
+    def get_inactive_observer_grant(
+        self,
+        *,
+        owner_user_id: int,
+        observer_user_id: int,
+    ) -> PortfolioObserverGrantModel | None:
         """Return one non-active observer grant when available."""
 
         return (
@@ -57,7 +80,7 @@ class PortfolioApiRepository:
             .first()
         )
 
-    def ensure_real_account(self, portfolio) -> int:
+    def ensure_real_account(self, portfolio: PortfolioModel) -> int:
         """Return the unified real account id mapped to one portfolio."""
 
         from apps.simulated_trading.infrastructure.models import (
@@ -65,38 +88,47 @@ class PortfolioApiRepository:
             SimulatedAccountModel,
         )
 
-        try:
-            mapping = LedgerMigrationMapModel._default_manager.get(
-                source_app="account",
-                source_table="portfolio",
-                source_id=portfolio.id,
-            )
-            return mapping.target_id
-        except LedgerMigrationMapModel.DoesNotExist:
-            pass
-
         with transaction.atomic():
+            locked_portfolio = PortfolioModel._default_manager.select_for_update().get(
+                pk=portfolio.pk
+            )
+            mapping = (
+                LedgerMigrationMapModel._default_manager.select_for_update()
+                .filter(
+                    source_app="account",
+                    source_table="portfolio",
+                    source_id=locked_portfolio.id,
+                )
+                .first()
+            )
+            if mapping is not None and SimulatedAccountModel._default_manager.filter(
+                pk=mapping.target_id
+            ).exists():
+                return int(mapping.target_id)
+
             real_account = SimulatedAccountModel._default_manager.create(
-                user=portfolio.user,
-                account_name=portfolio.name,
+                user=locked_portfolio.user,
+                account_name=locked_portfolio.name,
                 account_type="real",
                 initial_capital=0,
                 current_cash=0,
                 current_market_value=0,
                 total_value=0,
-                is_active=portfolio.is_active,
+                is_active=locked_portfolio.is_active,
                 auto_trading_enabled=False,
             )
-            LedgerMigrationMapModel._default_manager.create(
+            LedgerMigrationMapModel._default_manager.update_or_create(
                 source_app="account",
                 source_table="portfolio",
-                source_id=portfolio.id,
-                target_table="simulated_account",
-                target_id=real_account.id,
+                source_id=locked_portfolio.id,
+                defaults={
+                    "target_table": "simulated_account",
+                    "target_id": real_account.pk,
+                },
             )
-        return real_account.id
+        return int(real_account.pk)
 
-    def get_portfolio_for_account(self, account_id: int):
+    def get_portfolio_for_account(self, account_id: int) -> PortfolioModel | None:
         """Return the portfolio mapped to one unified real account."""
 
         from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
@@ -115,16 +147,20 @@ class PortfolioApiRepository:
             return None
         return self.get_portfolio_with_owner(mapping.source_id)
 
-    def list_open_legacy_positions(self, portfolio):
+    def list_open_legacy_positions(
+        self,
+        portfolio: PortfolioModel,
+    ) -> QuerySet[PositionModel]:
         """Return open legacy positions for one portfolio."""
 
-        return (
+        queryset: QuerySet[PositionModel] = (
             portfolio.positions.filter(is_closed=False)
             .select_related("category", "currency", "portfolio", "portfolio__user")
             .order_by("id")
         )
+        return queryset
 
-    def get_legacy_position_by_id(self, position_id: int):
+    def get_legacy_position_by_id(self, position_id: int) -> PositionModel | None:
         """Return one legacy position projection with related fields loaded."""
 
         return (
@@ -133,7 +169,10 @@ class PortfolioApiRepository:
             .first()
         )
 
-    def get_legacy_projection_for_unified_position(self, unified_position_id: int):
+    def get_legacy_projection_for_unified_position(
+        self,
+        unified_position_id: int,
+    ) -> PositionModel | None:
         """Return the legacy projection mapped to one unified position."""
 
         from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
@@ -152,7 +191,10 @@ class PortfolioApiRepository:
             return None
         return self.get_legacy_position_by_id(mapping.source_id)
 
-    def get_position_mapping_for_source(self, source_id: int):
+    def get_position_mapping_for_source(
+        self,
+        source_id: int,
+    ) -> LedgerMigrationMapModel | None:
         """Return one legacy-to-unified position mapping for a source id."""
 
         from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
@@ -218,7 +260,7 @@ class PortfolioApiRepository:
             target_id=target_id,
         ).delete()
 
-    def get_unified_position(self, position_id: int):
+    def get_unified_position(self, position_id: int) -> UnifiedPositionModel | None:
         """Return one unified position with account loaded when available."""
 
         from apps.simulated_trading.infrastructure.models import (
@@ -231,7 +273,12 @@ class PortfolioApiRepository:
             .first()
         )
 
-    def get_unified_position_for_account_asset(self, *, account_id: int, asset_code: str):
+    def get_unified_position_for_account_asset(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+    ) -> UnifiedPositionModel | None:
         """Return one unified position by account and asset code when available."""
 
         from apps.simulated_trading.infrastructure.models import (
@@ -244,7 +291,12 @@ class PortfolioApiRepository:
             .first()
         )
 
-    def list_unified_positions(self, *, account_ids: list[int], asset_code: str | None = None):
+    def list_unified_positions(
+        self,
+        *,
+        account_ids: list[int],
+        asset_code: str | None = None,
+    ) -> QuerySet[UnifiedPositionModel]:
         """Return unified positions for the provided account ids."""
 
         from apps.simulated_trading.infrastructure.models import (
@@ -258,7 +310,8 @@ class PortfolioApiRepository:
         )
         if asset_code:
             queryset = queryset.filter(asset_code=asset_code)
-        return queryset
+        typed_queryset: QuerySet[UnifiedPositionModel] = queryset
+        return typed_queryset
 
     def delete_unified_position(self, position_id: int) -> None:
         """Delete one unified position by id."""
@@ -269,7 +322,7 @@ class PortfolioApiRepository:
 
         UnifiedPositionModel._default_manager.filter(pk=position_id).delete()
 
-    def delete_legacy_projection(self, legacy_projection) -> None:
+    def delete_legacy_projection(self, legacy_projection: PositionModel) -> None:
         """Delete one legacy position projection."""
 
         legacy_projection.delete()
@@ -277,17 +330,17 @@ class PortfolioApiRepository:
     def upsert_legacy_projection_from_unified(
         self,
         *,
-        unified_position,
-        portfolio,
+        unified_position: UnifiedPositionModel,
+        portfolio: PortfolioModel,
         asset_class: str,
         region: str,
         cross_border: str,
-        category=None,
-        currency=None,
+        category: AssetCategoryModel | None = None,
+        currency: CurrencyModel | None = None,
         source: str = "manual",
         source_id: int | None = None,
         close_projection: bool = False,
-    ):
+    ) -> PositionModel | None:
         """Mirror one unified position into the legacy projection table."""
 
         legacy_projection = self.get_legacy_projection_for_unified_position(unified_position.id)
@@ -350,7 +403,12 @@ class PortfolioApiRepository:
             .first()
         )
 
-    def mark_legacy_projection_closed_for_unified(self, *, target_id: int, closed_at=None):
+    def mark_legacy_projection_closed_for_unified(
+        self,
+        *,
+        target_id: int,
+        closed_at: datetime | None = None,
+    ) -> PositionModel | None:
         """Mark the legacy account.position projection closed for a unified position."""
 
         legacy_projection = self.get_legacy_projection_for_unified_position(target_id)
@@ -375,7 +433,11 @@ class PortfolioApiRepository:
         )
         return legacy_projection
 
-    def build_position_payload(self, unified_position, portfolio=None) -> dict[str, Any]:
+    def build_position_payload(
+        self,
+        unified_position: UnifiedPositionModel,
+        portfolio: PortfolioModel | None = None,
+    ) -> dict[str, Any]:
         """Build the position response payload for one unified position."""
 
         legacy_projection = self.get_legacy_projection_for_unified_position(unified_position.id)
@@ -449,9 +511,9 @@ class PortfolioApiRepository:
     def build_closed_position_payload(
         self,
         *,
-        unified_position,
-        portfolio,
-        legacy_projection,
+        unified_position: UnifiedPositionModel,
+        portfolio: PortfolioModel,
+        legacy_projection: PositionModel | None,
     ) -> dict[str, Any]:
         """Build the closed-position response payload after a full close."""
 
@@ -519,7 +581,7 @@ class PortfolioApiRepository:
             "updated_at": getattr(legacy_projection, "updated_at", None),
         }
 
-    def build_portfolio_statistics(self, portfolio) -> dict[str, Any]:
+    def build_portfolio_statistics(self, portfolio: PortfolioModel) -> dict[str, Any]:
         """Build summary statistics for one portfolio."""
 
         positions = list(

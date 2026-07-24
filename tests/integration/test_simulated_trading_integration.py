@@ -12,8 +12,10 @@ from datetime import date
 from unittest.mock import Mock, patch
 
 import pytest
+from django.contrib.auth.models import User
 from django.test import TestCase
 
+from apps.account.infrastructure.models import PortfolioModel
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.tasks import update_position_prices_task
 from apps.simulated_trading.application.use_cases import (
@@ -23,9 +25,14 @@ from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
     ListAccountsUseCase,
 )
+from apps.simulated_trading.infrastructure.account_portfolio_repository import (
+    PortfolioApiRepository,
+)
 from apps.simulated_trading.infrastructure.models import (
     FeeConfigModel,
+    LedgerMigrationMapModel,
     PositionModel,
+    SimulatedAccountModel,
 )
 from apps.simulated_trading.infrastructure.repositories import (
     DjangoFeeConfigRepository,
@@ -738,3 +745,42 @@ class TestPriceUpdateTask(TestCase):
         self.assertEqual(result["error_count"], 0)
         self.assertEqual(result["warnings"][0]["asset_code"], "510300.SH")
         self.assertEqual(result["warnings"][0]["fallback"], "cached_position_price")
+
+
+@pytest.mark.django_db
+class TestAccountPortfolioBridge(TestCase):
+    """统一实盘账户映射的幂等与自修复契约。"""
+
+    def test_ensure_real_account_repairs_dangling_mapping_idempotently(self):
+        user = User.objects.create_user(username="portfolio-bridge-owner")
+        portfolio = PortfolioModel.objects.create(user=user, name="实盘组合")
+        mapping = LedgerMigrationMapModel.objects.create(
+            source_app="account",
+            source_table="portfolio",
+            source_id=portfolio.id,
+            target_table="simulated_account",
+            target_id=999_999,
+        )
+        repository = PortfolioApiRepository()
+
+        account_id = repository.ensure_real_account(portfolio)
+        repeated_account_id = repository.ensure_real_account(portfolio)
+
+        mapping.refresh_from_db()
+        self.assertEqual(repeated_account_id, account_id)
+        self.assertEqual(mapping.target_id, account_id)
+        self.assertTrue(
+            SimulatedAccountModel.objects.filter(
+                pk=account_id,
+                account_type="real",
+                user=user,
+            ).exists()
+        )
+        self.assertEqual(
+            SimulatedAccountModel.objects.filter(
+                account_type="real",
+                user=user,
+                account_name=portfolio.name,
+            ).count(),
+            1,
+        )
