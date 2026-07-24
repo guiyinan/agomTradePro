@@ -2557,3 +2557,17 @@
 - Account Observer Grant API 增量 mypy 清零；全仓基线从 `2926 errors / 579 files` 收紧为 `2908 errors / 578 files`，净减少 `18 errors / 1 file`。
 - Account API、Observer Permission 与 Observer Model 回归共 `89 passed`；新增覆盖歧义 scope 参数和无关用户详情访问，保留 owner/observer、过期、撤销和持仓权限链路。
 - 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百七十七批
+
+- 按“MCP Token 副作用入口 × 外部代理访问影响面”收口 Account MCP Self-Service 与 Admin Governance API。
+- 当前用户身份在读取状态、创建 Token 和撤销 Token 前统一收窄为正整数 user ID；缺失或畸形认证主体不能进入 Application 服务。
+- Self-Service token revoke 与 Admin 用户详情、Token 创建、批量撤销、单 Token 撤销、能力开关统一拒绝 0 或非正路径 ID，非法主键在任何轮换/撤销副作用前返回 400。
+- 新 Token 的 copy-ready Agent Prompt 接受只读 Mapping，并显式收窄 base URL；动态 payload 不能再把非字符串值传播到接入 Prompt。
+- 所有 MCP API Request/Response 与辅助函数补齐精确类型，`Any` 不再从 DRF request 或 URL 参数扩散到 Token 治理服务。
+
+## 第一百七十七批验证结果
+
+- Account MCP API 增量 mypy 清零；全仓基线从 `2908 errors / 578 files` 收紧为 `2888 errors / 577 files`，净减少 `20 errors / 1 file`。
+- Account API 回归共 `48 passed`；新增覆盖 Self-Service 与五类 Admin MCP 非正路径 ID，保留 Token 创建、Prompt 生成、管理员列表和既有账户 API 契约。
+- 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。

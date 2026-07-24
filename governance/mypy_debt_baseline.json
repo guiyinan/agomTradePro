@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2908,
-    "files_with_errors": 578
+    "errors": 2888,
+    "files_with_errors": 577
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -93,11 +93,6 @@
     },
     "apps/account/interface/documentation_views.py": {
       "no-untyped-def": 7
-    },
-    "apps/account/interface/mcp_api_views.py": {
-      "arg-type": 3,
-      "no-any-return": 1,
-      "no-untyped-def": 16
     },
     "apps/account/interface/openapi.py": {
       "misc": 1,

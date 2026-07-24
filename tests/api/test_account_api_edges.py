@@ -458,6 +458,42 @@ def test_account_admin_create_mcp_token_returns_prompt(
 
 
 @pytest.mark.django_db
+def test_account_mcp_self_revoke_rejects_nonpositive_token_id(
+    authenticated_client,
+):
+    response = authenticated_client.post("/api/account/mcp/tokens/0/revoke/")
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        ("get", "/api/account/admin/mcp/users/0/", None),
+        (
+            "post",
+            "/api/account/admin/mcp/users/0/tokens/",
+            {"token_name": "invalid-target", "access_level": "read_only"},
+        ),
+        ("post", "/api/account/admin/mcp/users/0/tokens/revoke/", None),
+        ("post", "/api/account/admin/mcp/tokens/0/revoke/", None),
+        ("post", "/api/account/admin/mcp/users/0/toggle/", None),
+    ],
+)
+def test_account_admin_mcp_mutations_reject_nonpositive_path_ids(
+    admin_authenticated_client,
+    method,
+    path,
+    payload,
+):
+    request_method = getattr(admin_authenticated_client, method)
+    response = request_method(path, payload or {}, format="json")
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
 def test_account_user_search_short_query_returns_empty(authenticated_client):
     response = authenticated_client.get("/api/account/users/search/?q=a")
 
