@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Any
+from typing import Any, Protocol
 
 from apps.ai_capability.application.repository_provider import (
     build_api_capability_collector,
@@ -21,6 +21,16 @@ from apps.ai_capability.domain.entities import (
     RouteGroup,
     SourceType,
 )
+from apps.ai_capability.domain.interfaces import CapabilityRepositoryProtocol
+
+
+class CapabilityGovernanceRepositoryProtocol(CapabilityRepositoryProtocol, Protocol):
+    """Persistence contract required by catalog governance."""
+
+    def delete_by_keys(self, capability_keys: list[str]) -> int:
+        """Delete stale capability rows by key."""
+
+        ...
 
 
 @dataclass(frozen=True)
@@ -81,7 +91,10 @@ class CapabilityCatalogGovernanceService:
         "run_decision_replay_backtest",
     }
 
-    def __init__(self, capability_repo=None):
+    def __init__(
+        self,
+        capability_repo: CapabilityGovernanceRepositoryProtocol | None = None,
+    ) -> None:
         self.capability_repo = capability_repo or get_capability_repository()
 
     def execute(
@@ -167,7 +180,11 @@ class CapabilityCatalogGovernanceService:
         return {
             SourceType.API.value: {cap.capability_key for cap in api_capabilities},
             SourceType.MCP_TOOL.value: {
-                *(f"mcp_tool.{tool.name}" for tool in mcp_tools if tool.name not in core_tool_names),
+                *(
+                    f"mcp_tool.{tool.name}"
+                    for tool in mcp_tools
+                    if tool.name not in core_tool_names
+                ),
                 *(f"mcp_tool.{cap.capability_key}" for cap in core_capabilities),
             },
         }

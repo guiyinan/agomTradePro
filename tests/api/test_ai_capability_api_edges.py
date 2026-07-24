@@ -31,6 +31,33 @@ def test_ai_capability_sync_requires_staff(api_client, regular_user):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("payload", "error"),
+    [
+        ({"sync_type": "unknown"}, "sync_type must be 'full' or 'incremental'"),
+        ({"source": "unknown"}, "Unsupported capability source"),
+        ({"source": ["api"]}, "Unsupported capability source"),
+    ],
+)
+def test_ai_capability_sync_rejects_invalid_scope_before_execution(
+    api_client,
+    staff_user,
+    payload,
+    error,
+):
+    api_client.force_authenticate(user=staff_user)
+
+    with patch(
+        "apps.ai_capability.interface.api_views.SyncCapabilitiesUseCase.execute"
+    ) as mock_execute:
+        response = api_client.post("/api/ai-capability/sync/", payload, format="json")
+
+    assert response.status_code == 400
+    assert response.json() == {"error": error}
+    mock_execute.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_ai_capability_stats_contract(api_client, regular_user):
     api_client.force_authenticate(user=regular_user)
 
@@ -174,6 +201,45 @@ def test_ai_capability_list_filters_by_category(api_client, regular_user):
     payload = response.json()
     assert "api.get.api.macro.test" in {item["capability_key"] for item in payload}
     assert all(item["category"] == "macro" for item in payload)
+
+
+@pytest.mark.django_db
+def test_ai_capability_list_rejects_ambiguous_enabled_only(api_client, regular_user):
+    api_client.force_authenticate(user=regular_user)
+
+    with patch(
+        "apps.ai_capability.interface.api_views.list_capability_summary_payloads"
+    ) as mock_list:
+        response = api_client.get(
+            "/api/ai-capability/capabilities/",
+            {"enabled_only": "sometimes"},
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {"error": "enabled_only must be 'true' or 'false'"}
+    mock_list.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("limit", ["invalid", "0", "301"])
+def test_ai_capability_mcp_catalog_rejects_invalid_limit(
+    api_client,
+    staff_user,
+    limit,
+):
+    api_client.force_authenticate(user=staff_user)
+
+    with patch(
+        "apps.ai_capability.interface.api_views.get_mcp_tools_catalog_payload"
+    ) as mock_catalog:
+        response = api_client.get(
+            "/api/ai-capability/mcp-tools/",
+            {"limit": limit},
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {"error": "limit must be an integer between 1 and 300"}
+    mock_catalog.assert_not_called()
 
 
 @pytest.mark.django_db

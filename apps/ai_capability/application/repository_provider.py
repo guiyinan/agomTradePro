@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Protocol
+
+from apps.ai_capability.domain.entities import CapabilityDefinition
 from apps.ai_capability.infrastructure.confirmation_tokens import DjangoConfirmationCodec
 from apps.ai_capability.infrastructure.providers import (
     DjangoCapabilityRepository,
@@ -9,6 +12,15 @@ from apps.ai_capability.infrastructure.providers import (
     DjangoSyncLogRepository,
     get_capability_execution_support_repository,
 )
+
+
+class ApiCapabilityCollectorProtocol(Protocol):
+    """Read contract exposed by the API capability collector factory."""
+
+    def collect(self) -> list[CapabilityDefinition]:
+        """Collect normalized internal API capabilities."""
+
+        ...
 
 
 def get_capability_repository() -> DjangoCapabilityRepository:
@@ -29,7 +41,7 @@ def get_capability_sync_log_repository() -> DjangoSyncLogRepository:
     return DjangoSyncLogRepository()
 
 
-def build_api_capability_collector():
+def build_api_capability_collector() -> ApiCapabilityCollectorProtocol:
     """Build the internal API capability collector lazily."""
 
     from apps.ai_capability.infrastructure.collectors.api_collector import (

@@ -2039,3 +2039,20 @@
 - Filter API views 与相关 use case 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3578 errors / 635 files` 收紧为 `3552 errors / 634 files`，净减少 `26 errors / 1 file`。
 - Filter API 权限、契约和 Kalman 状态副作用回归共 `13 passed`。
 - Django system check、架构检查、改动文件 Ruff、Black 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百四十五批
+
+- 按“全局 AI 能力路由影响面 × MCP 治理输入边界”收口 AI Capability API。
+- 能力目录 `enabled_only` 只接受明确的 `true/false`，不再把任意字符串静默解释为包含禁用能力。
+- 管理员同步入口只接受 `full/incremental` 和已注册的 builtin、terminal command、MCP tool、API 来源；错误类型、未知来源在进入同步用例前返回 400，避免伪成功同步日志。
+- MCP 工具目录 limit 改为严格 1..300 整数边界，非法、零值或超上限不再静默回退或截断。
+- Web 显式执行 action 只接受非空字符串 capability key，容器或其他 truthy 动态值不能进入能力执行链。
+- API handler、Request/Response、路由 payload 和 Capability ViewSet 补齐精确类型；仅提供自定义 list 的重复 ReadOnlyModelViewSet 改为 ViewSet，避免伪 ORM queryset 契约。
+- Catalog governance 增加 Repository 与 API collector Protocol，composition factory 显式返回采集契约，并同步清除下游同步、管理命令和界面调用债务。
+
+## 第一百四十五批验证结果
+
+- AI Capability API、governance service 与 repository provider 增量 mypy 清零；下游调用同步受益。隔离并行工作区改动后，全仓基线从 `3552 errors / 634 files` 收紧为 `3518 errors / 631 files`，净减少 `34 errors / 3 files`。
+- AI Capability 权限、同步范围、目录参数、路由上下文与搜索回归 `17 passed`。
+- MCP 相关固定最小回归包：TUI workbench、Terminal agent service、SDK client、内部 SSL redirect 共 `229 passed`。
+- Django system check、架构检查、改动文件 Ruff、Black 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

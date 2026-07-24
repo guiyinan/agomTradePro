@@ -3,10 +3,12 @@ AI Capability Catalog Interface API Views.
 """
 
 import logging
+from typing import Any
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from ..application.dtos import RouteRequestDTO
@@ -41,7 +43,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-def _get_mcp_enabled(user) -> bool:
+def _get_mcp_enabled(user: object) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
     profile = getattr(user, "account_profile", None)
@@ -52,7 +54,7 @@ def _get_mcp_enabled(user) -> bool:
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def api_root(request):
+def api_root(request: Request) -> Response:
     """Return AI capability API endpoint directory."""
     return Response(
         {
@@ -73,7 +75,7 @@ def api_root(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def route_message(request):
+def route_message(request: Request) -> Response:
     """
     Route a message through the capability catalog.
 
@@ -139,7 +141,7 @@ def route_message(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def web_chat(request):
+def web_chat(request: Request) -> Response:
     """
     Shared web chat API for homepage and AgomChatWidget.
 
@@ -258,28 +260,35 @@ def web_chat(request):
         )
 
 
-def _extract_execute_action(context: dict) -> dict | None:
+def _extract_execute_action(context: dict[str, Any]) -> dict[str, str] | None:
     """Normalize explicit action execution requests from web clients."""
     action = context.get("execute_action")
     if isinstance(action, dict) and action.get("action_type") == "execute_capability":
         capability_key = action.get("capability_key")
-        if capability_key:
+        if isinstance(capability_key, str) and capability_key.strip():
             return {
                 "action_type": "execute_capability",
-                "capability_key": capability_key,
+                "capability_key": capability_key.strip(),
             }
 
     capability_key = context.get("execute_capability")
     action_type = context.get("action_type")
-    if action_type == "execute_capability" and capability_key:
+    if (
+        action_type == "execute_capability"
+        and isinstance(capability_key, str)
+        and capability_key.strip()
+    ):
         return {
             "action_type": "execute_capability",
-            "capability_key": capability_key,
+            "capability_key": capability_key.strip(),
         }
     return None
 
 
-def _build_web_chat_response(routed: dict, user_is_admin: bool) -> dict:
+def _build_web_chat_response(
+    routed: dict[str, Any],
+    user_is_admin: bool,
+) -> dict[str, Any]:
     """Build web chat response from routing result."""
     answer_chain = routed.get("answer_chain", {})
     if answer_chain and not user_is_admin:
@@ -317,7 +326,7 @@ def _build_web_chat_response(routed: dict, user_is_admin: bool) -> dict:
     }
 
 
-def _mask_answer_chain(answer_chain: dict) -> dict:
+def _mask_answer_chain(answer_chain: dict[str, Any]) -> dict[str, Any]:
     """Mask technical details in answer chain for non-admin users."""
     masked_steps = []
     for step in answer_chain.get("steps", []):
@@ -337,7 +346,7 @@ def _mask_answer_chain(answer_chain: dict) -> dict:
 
 def _get_capability_label(capability_key: str) -> str:
     """Get human-readable label for a capability."""
-    labels = {
+    labels: dict[str, str] = {
         "builtin.system_status": "执行系统状态检查",
         "builtin.market_regime": "查看市场 Regime",
     }
@@ -346,7 +355,7 @@ def _get_capability_label(capability_key: str) -> str:
 
 def _get_capability_description(capability_key: str) -> str:
     """Get description for a capability."""
-    descriptions = {
+    descriptions: dict[str, str] = {
         "builtin.system_status": "读取当前系统健康状态并返回摘要",
         "builtin.market_regime": "获取当前市场 Regime 状态和 Policy 档位",
     }
@@ -355,7 +364,7 @@ def _get_capability_description(capability_key: str) -> str:
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def list_capabilities(request):
+def list_capabilities(request: Request) -> Response:
     """
     List capabilities in the catalog.
 
@@ -370,7 +379,13 @@ def list_capabilities(request):
     route_group = request.query_params.get("route_group")
     category = request.query_params.get("category")
     q = (request.query_params.get("q") or "").strip()
-    enabled_only = request.query_params.get("enabled_only", "true").lower() == "true"
+    enabled_only_param = request.query_params.get("enabled_only", "true").lower()
+    if enabled_only_param not in {"true", "false"}:
+        return Response(
+            {"error": "enabled_only must be 'true' or 'false'"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    enabled_only = enabled_only_param == "true"
 
     try:
         query = search_capability_summary_payloads if q else list_capability_summary_payloads
@@ -393,7 +408,7 @@ def list_capabilities(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def get_capability(request, capability_key):
+def get_capability(request: Request, capability_key: str) -> Response:
     """
     Get a specific capability by key.
 
@@ -426,7 +441,7 @@ def get_capability(request, capability_key):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def sync_capabilities(request):
+def sync_capabilities(request: Request) -> Response:
     """
     Sync capabilities from all sources.
 
@@ -442,6 +457,25 @@ def sync_capabilities(request):
 
     sync_type = request.data.get("sync_type", "full")
     source = request.data.get("source")
+    if not isinstance(sync_type, str) or sync_type not in {"full", "incremental"}:
+        return Response(
+            {"error": "sync_type must be 'full' or 'incremental'"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if source is not None and (
+        not isinstance(source, str)
+        or source
+        not in {
+            "builtin",
+            "terminal_command",
+            "mcp_tool",
+            "api",
+        }
+    ):
+        return Response(
+            {"error": "Unsupported capability source"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     use_case = SyncCapabilitiesUseCase()
 
@@ -459,7 +493,7 @@ def sync_capabilities(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def catalog_stats(request):
+def catalog_stats(request: Request) -> Response:
     """
     Get catalog statistics.
 
@@ -479,7 +513,7 @@ def catalog_stats(request):
         )
 
 
-def _admin_forbidden_response():
+def _admin_forbidden_response() -> Response:
     return Response(
         {"error": "Admin privileges required"},
         status=status.HTTP_403_FORBIDDEN,
@@ -488,7 +522,7 @@ def _admin_forbidden_response():
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def list_mcp_tools(request):
+def list_mcp_tools(request: Request) -> Response:
     """List MCP capability governance rows for TUI and admin surfaces."""
 
     if not request.user.is_staff:
@@ -500,13 +534,21 @@ def list_mcp_tools(request):
     try:
         limit = int(request.query_params.get("limit") or 80)
     except (TypeError, ValueError):
-        limit = 80
+        return Response(
+            {"error": "limit must be an integer between 1 and 300"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not 1 <= limit <= 300:
+        return Response(
+            {"error": "limit must be an integer between 1 and 300"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     payload = get_mcp_tools_catalog_payload(
         search_query=q,
         module_filter=module_filter,
         status_filter=status_filter,
-        limit=max(1, min(limit, 300)),
+        limit=limit,
     )
     serializer = McpToolListSerializer(payload)
     return Response(serializer.data)
@@ -514,7 +556,7 @@ def list_mcp_tools(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def mcp_tools_stats(request):
+def mcp_tools_stats(request: Request) -> Response:
     """Return MCP capability governance summary for TUI and admin surfaces."""
 
     if not request.user.is_staff:
@@ -526,7 +568,7 @@ def mcp_tools_stats(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def sync_mcp_tools(request):
+def sync_mcp_tools(request: Request) -> Response:
     """Sync MCP tools and apply governance in one admin action."""
 
     if not request.user.is_staff:
@@ -552,7 +594,7 @@ def sync_mcp_tools(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def toggle_mcp_tool(request, capability_key: str, flag: str):
+def toggle_mcp_tool(request: Request, capability_key: str, flag: str) -> Response:
     """Toggle one MCP governance flag for a synced tool."""
 
     if not request.user.is_staff:
@@ -589,13 +631,13 @@ def toggle_mcp_tool(request, capability_key: str, flag: str):
         )
 
 
-class CapabilityViewSet(viewsets.ReadOnlyModelViewSet):
+class CapabilityViewSet(viewsets.ViewSet):
     """ViewSet for capabilities."""
 
     serializer_class = CapabilitySummarySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> list[dict[str, Any]]:
         source_type = self.request.query_params.get("source_type")
         route_group = self.request.query_params.get("route_group")
         category = self.request.query_params.get("category")
@@ -608,7 +650,7 @@ class CapabilityViewSet(viewsets.ReadOnlyModelViewSet):
             enabled_only=enabled_only,
         )
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = CapabilitySummarySerializer(queryset, many=True)
         return Response(serializer.data)
