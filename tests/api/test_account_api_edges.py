@@ -12,12 +12,14 @@ from apps.account.domain.services import VolatilityMetrics
 from apps.account.infrastructure.models import (
     AccountProfileModel,
     AssetCategoryModel,
+    CapitalFlowModel,
     CurrencyModel,
     ExchangeRateModel,
     PortfolioModel,
     PortfolioObserverGrantModel,
     PositionModel,
     SystemSettingsModel,
+    TransactionModel,
     UserAccessTokenModel,
 )
 
@@ -863,3 +865,212 @@ def test_account_capital_flow_create_returns_404_for_foreign_portfolio(authentic
     )
 
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_account_transaction_create_returns_403_for_foreign_portfolio_without_position(
+    authenticated_client,
+):
+    """省略可选持仓时也必须验证组合归属。"""
+    other_user = get_user_model().objects.create_user(
+        username="foreign_transaction_portfolio_owner",
+        password="testpass123",
+    )
+    portfolio = PortfolioModel.objects.create(
+        user=other_user,
+        name="Foreign Transaction Portfolio",
+    )
+
+    response = authenticated_client.post(
+        "/api/account/transactions/",
+        {
+            "portfolio": portfolio.id,
+            "action": "buy",
+            "asset_code": "600000.SH",
+            "shares": 10,
+            "price": "9.5000",
+            "commission": "1.00",
+            "traded_at": timezone.now().isoformat(),
+        },
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert not TransactionModel.objects.filter(portfolio=portfolio).exists()
+
+
+@pytest.mark.django_db
+def test_account_transaction_create_rejects_position_asset_mismatch(
+    authenticated_client,
+    auth_user,
+):
+    portfolio = PortfolioModel.objects.create(user=auth_user, name="Owned Portfolio")
+    position = PositionModel.objects.create(
+        portfolio=portfolio,
+        asset_code="600000.SH",
+        asset_class="equity",
+        region="CN",
+        cross_border="domestic",
+        shares=200,
+        avg_cost=Decimal("9.0000"),
+        current_price=Decimal("9.5000"),
+        market_value=Decimal("1900.00"),
+        unrealized_pnl=Decimal("100.00"),
+        unrealized_pnl_pct=5.0,
+    )
+
+    response = authenticated_client.post(
+        "/api/account/transactions/",
+        {
+            "portfolio": portfolio.id,
+            "position": position.id,
+            "action": "buy",
+            "asset_code": "000001.SZ",
+            "shares": 10,
+            "price": "9.5000",
+            "commission": "1.00",
+            "traded_at": timezone.now().isoformat(),
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert not TransactionModel.objects.filter(portfolio=portfolio).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("shares", "NaN"),
+        ("commission", "-0.01"),
+        ("traded_at", (timezone.now() + timedelta(days=1)).isoformat()),
+    ],
+)
+def test_account_transaction_create_rejects_invalid_financial_values(
+    authenticated_client,
+    auth_user,
+    field,
+    value,
+):
+    portfolio = PortfolioModel.objects.create(user=auth_user, name=f"Invalid {field}")
+    payload = {
+        "portfolio": portfolio.id,
+        "action": "buy",
+        "asset_code": "600000.SH",
+        "shares": 10,
+        "price": "9.5000",
+        "commission": "1.00",
+        "traded_at": timezone.now().isoformat(),
+    }
+    payload[field] = value
+
+    response = authenticated_client.post(
+        "/api/account/transactions/",
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert not TransactionModel.objects.filter(portfolio=portfolio).exists()
+
+
+@pytest.mark.django_db
+def test_account_transaction_records_are_append_only(authenticated_client, auth_user):
+    portfolio = PortfolioModel.objects.create(user=auth_user, name="Append Only")
+    transaction = TransactionModel.objects.create(
+        portfolio=portfolio,
+        action="buy",
+        asset_code="600000.SH",
+        shares=10,
+        price=Decimal("9.5000"),
+        notional=Decimal("95.00"),
+        traded_at=timezone.now(),
+    )
+
+    patch_response = authenticated_client.patch(
+        f"/api/account/transactions/{transaction.id}/",
+        {"notes": "rewritten"},
+        format="json",
+    )
+    delete_response = authenticated_client.delete(f"/api/account/transactions/{transaction.id}/")
+
+    assert patch_response.status_code == 405
+    assert delete_response.status_code == 405
+    transaction.refresh_from_db()
+    assert transaction.notes == ""
+
+
+@pytest.mark.django_db
+def test_account_transaction_create_uses_decimal_notional(
+    authenticated_client,
+    auth_user,
+):
+    portfolio = PortfolioModel.objects.create(user=auth_user, name="Decimal Notional")
+
+    response = authenticated_client.post(
+        "/api/account/transactions/",
+        {
+            "portfolio": portfolio.id,
+            "action": "buy",
+            "asset_code": "600000.SH",
+            "shares": 0.1,
+            "price": "0.1000",
+            "commission": "0.00",
+            "traded_at": timezone.now().isoformat(),
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    transaction = TransactionModel.objects.get(portfolio=portfolio)
+    assert transaction.notional == Decimal("0.01")
+
+
+@pytest.mark.django_db
+def test_account_capital_flow_update_is_not_allowed(authenticated_client, auth_user):
+    portfolio = PortfolioModel.objects.create(user=auth_user, name="Flow Ledger")
+    flow = CapitalFlowModel.objects.create(
+        user=auth_user,
+        portfolio=portfolio,
+        flow_type="deposit",
+        amount=Decimal("1000.00"),
+        flow_date=date(2026, 4, 2),
+    )
+
+    response = authenticated_client.patch(
+        f"/api/account/capital-flows/{flow.id}/",
+        {"amount": "1.00"},
+        format="json",
+    )
+
+    assert response.status_code == 405
+    flow.refresh_from_db()
+    assert flow.amount == Decimal("1000.00")
+
+
+@pytest.mark.django_db
+def test_account_capital_flow_create_and_delete_remain_supported(
+    authenticated_client,
+    auth_user,
+):
+    portfolio = PortfolioModel.objects.create(user=auth_user, name="Flow Lifecycle")
+
+    create_response = authenticated_client.post(
+        "/api/account/capital-flows/",
+        {
+            "portfolio": portfolio.id,
+            "flow_type": "deposit",
+            "amount": "1000.00",
+            "flow_date": "2026-04-02",
+            "notes": "initial capital",
+        },
+        format="json",
+    )
+
+    assert create_response.status_code == 201
+    flow = CapitalFlowModel.objects.get(portfolio=portfolio)
+    assert flow.user == auth_user
+    delete_response = authenticated_client.delete(f"/api/account/capital-flows/{flow.id}/")
+    assert delete_response.status_code == 204
+    assert not CapitalFlowModel.objects.filter(id=flow.id).exists()

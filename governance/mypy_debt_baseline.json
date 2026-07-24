@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3212,
-    "files_with_errors": 617
+    "errors": 3197,
+    "files_with_errors": 616
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -136,11 +136,6 @@
     },
     "apps/account/interface/sizing_views.py": {
       "unused-ignore": 2
-    },
-    "apps/account/interface/transaction_api_views.py": {
-      "arg-type": 4,
-      "no-untyped-def": 8,
-      "type-arg": 3
     },
     "apps/account/management/commands/bootstrap_cold_start.py": {
       "assignment": 1,

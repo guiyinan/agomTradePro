@@ -2190,3 +2190,21 @@
 - Alpha Provider Base 与 Cache Provider 增量 mypy 清零，并同步消除 Simple/ETF/Qlib 装饰器下游债务；隔离并行工作区改动后，全仓基线从 `3252 errors / 620 files` 收紧为 `3212 errors / 617 files`，净减少 `40 errors / 3 files`。
 - Alpha Cache、代码归一化、Simple/ETF/Qlib Provider、任务、服务与集成回归共 `115 passed`；覆盖未来缓存、未来行内时间、非法结果上限、跨期 scope、非有限评分和重复代码。
 - Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百五十四批
+
+- 按“账户资金流水影响面 × 跨组合写入与账本完整性”收口 Transaction、Capital Flow 与券商成交导入接口。
+- 创建交易统一验证 portfolio 属于当前用户；省略可选 position 时不能再向他人组合写入交易记录。
+- 关联 position 必须同时属于目标组合、属于当前用户且资产代码一致，避免把一个持仓的成交挂到另一组合或另一资产。
+- Transaction API 改为追加型账本，仅保留创建、列表和详情；未声明的 PUT/PATCH/DELETE 不再开放，历史成交不能被原地改写或删除。
+- Capital Flow API 禁用 PUT/PATCH，继续保留创建、列表、详情和契约已声明的删除；创建 serializer 显式接收正整数 portfolio ID 并由服务端解析归属。
+- 交易数量拒绝 NaN/无穷、布尔、零负值和超大值；价格、手续费和资金流水金额必须为有效 Decimal，未来交易时间拒绝；成交金额使用 Decimal 并按分四舍五入，不再经过二进制浮点。
+- 券商文件只接受 CSV/XLSX/XLS、最大 10 MiB、组合 ID 必须为正整数；单次最多 5000 行，畸形 parser payload 失败关闭。
+- 券商成交导入行内部异常只写服务端日志，API 返回稳定通用错误，不再泄露数据库或账本异常文本。
+- ViewSet、Request/Response、Serializer、上传文件与认证用户 ID 边界补齐精确类型。
+
+## 第一百五十四批验证结果
+
+- Account Transaction API 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3212 errors / 617 files` 收紧为 `3197 errors / 616 files`，净减少 `15 errors / 1 file`。
+- Account API 边界、手工成交同步与券商成交导入集成回归共 `51 passed`；覆盖跨组合无持仓写入、资产错配、非有限金额、账本不可改写、资金流水创建/删除、文件类型/大小与行数上限。
+- Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

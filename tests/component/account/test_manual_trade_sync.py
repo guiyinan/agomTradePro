@@ -102,7 +102,7 @@ def test_transaction_failure_rolls_back_position_side_effects(
     account_id = PortfolioApiRepository().ensure_real_account(portfolio)
     assert result.imported_rows == 0
     assert result.error_rows == 1
-    assert "ledger unavailable" in result.errors[0]["error"]
+    assert result.errors[0]["error"] == "交易导入失败"
     assert (
         PortfolioApiRepository().get_unified_position_for_account_asset(
             account_id=account_id,
@@ -183,6 +183,26 @@ def test_preview_reports_row_errors(owner_portfolio):
     assert result.valid_rows == 0
     assert result.error_rows == 1
     assert "action must be buy or sell" in result.errors[0]["error"]
+
+
+@pytest.mark.django_db
+def test_preview_rejects_unbounded_parser_rows(owner_portfolio):
+    user, portfolio = owner_portfolio
+
+    class OversizedParser:
+        def parse(self, *, content: bytes, filename: str):
+            return [{} for _ in range(5001)]
+
+    use_case = ManualTradeImportUseCase(parser=OversizedParser())
+
+    with pytest.raises(ValueError, match="cannot exceed 5000 rows"):
+        use_case.preview(
+            user_id=user.id,
+            portfolio_id=portfolio.id,
+            broker_name="demo",
+            filename="large.csv",
+            content=b"ignored",
+        )
 
 
 @pytest.mark.django_db

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -21,6 +22,9 @@ from core.integration.decision_execution_links import build_manual_trade_executi
 REQUIRED_COLUMNS = {"traded_at", "action", "asset_code", "shares", "price"}
 OPTIONAL_COLUMNS = {"commission", "stamp_duty", "transfer_fee", "external_trade_id", "notes"}
 ACTION_TO_SIDE = {"buy": "BUY", "sell": "SELL"}
+MAX_BROKER_TRADE_IMPORT_ROWS = 5000
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -183,7 +187,7 @@ class ManualTradeImportUseCase:
         if portfolio is None:
             raise LookupError(f"Portfolio {portfolio_id} does not exist or is not owned by user")
 
-        raw_rows = self.parser.parse(content=content, filename=filename)
+        raw_rows = self._parse_bounded_rows(content=content, filename=filename)
         normalized_rows, errors = self._normalize_rows(
             raw_rows,
             broker_name=broker_name,
@@ -219,7 +223,7 @@ class ManualTradeImportUseCase:
             raise LookupError(f"Portfolio {portfolio_id} does not exist or is not owned by user")
 
         file_hash = hashlib.sha256(content).hexdigest()
-        raw_rows = self.parser.parse(content=content, filename=filename)
+        raw_rows = self._parse_bounded_rows(content=content, filename=filename)
         normalized_rows, errors = self._normalize_rows(
             raw_rows,
             broker_name=broker_name,
@@ -287,8 +291,17 @@ class ManualTradeImportUseCase:
                         "match": match_payload,
                     }
                 )
-            except Exception as exc:  # pragma: no cover - surfaced as row-level import error
-                errors.append({"row_number": row.row_number, "error": str(exc)})
+            except Exception:  # pragma: no cover - surfaced as row-level import error
+                logger.exception(
+                    "Broker trade import row failed",
+                    extra={"row_number": row.row_number},
+                )
+                errors.append(
+                    {
+                        "row_number": row.row_number,
+                        "error": "交易导入失败",
+                    }
+                )
 
         batch = self.sync_repo.update_import_batch_result(
             batch,
@@ -308,6 +321,22 @@ class ManualTradeImportUseCase:
             skipped_rows=skipped_rows,
             batch_id=batch.id,
         )
+
+    def _parse_bounded_rows(
+        self,
+        *,
+        content: bytes,
+        filename: str,
+    ) -> list[dict[str, Any]]:
+        """Parse a broker file and reject unbounded or malformed row payloads."""
+        raw_rows = self.parser.parse(content=content, filename=filename)
+        if not isinstance(raw_rows, list) or not all(isinstance(row, dict) for row in raw_rows):
+            raise TypeError("Broker parser returned an invalid row payload")
+        if len(raw_rows) > MAX_BROKER_TRADE_IMPORT_ROWS:
+            raise ValueError(
+                f"Broker trade import cannot exceed {MAX_BROKER_TRADE_IMPORT_ROWS} rows"
+            )
+        return cast(list[dict[str, Any]], raw_rows)
 
     def _apply_position_change(
         self,

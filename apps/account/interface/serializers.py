@@ -2,9 +2,13 @@
 DRF Serializers for Account API.
 """
 
+import math
+from datetime import timedelta
+from decimal import Decimal
 from typing import Any, TypeAlias
 
 from django.apps import apps as django_apps
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.account.application.interface_services import (
@@ -245,13 +249,27 @@ class TransactionCreateSerializer(serializers.ModelSerializer[Any]):
         ]
 
     def validate_shares(self, value: Any) -> Any:
-        if value <= 0:
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise serializers.ValidationError("交易数量格式无效")
+        if not math.isfinite(float(value)) or value <= 0:
             raise serializers.ValidationError("交易数量必须大于0")
+        if value > 1_000_000_000_000:
+            raise serializers.ValidationError("交易数量超出允许范围")
         return value
 
     def validate_price(self, value: Any) -> Any:
-        if value <= 0:
+        if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
             raise serializers.ValidationError("交易价格必须大于0")
+        return value
+
+    def validate_commission(self, value: Any) -> Any:
+        if not isinstance(value, Decimal) or not value.is_finite() or value < 0:
+            raise serializers.ValidationError("手续费必须为非负有限金额")
+        return value
+
+    def validate_traded_at(self, value: Any) -> Any:
+        if value > timezone.now() + timedelta(minutes=5):
+            raise serializers.ValidationError("交易时间不能晚于当前时间")
         return value
 
 
@@ -281,12 +299,14 @@ class CapitalFlowSerializer(serializers.ModelSerializer[Any]):
 class CapitalFlowCreateSerializer(serializers.ModelSerializer[Any]):
     """资金流水创建序列化器"""
 
+    portfolio = serializers.IntegerField(min_value=1, write_only=True)
+
     class Meta:
         model = CapitalFlowModel
-        fields = ["flow_type", "amount", "flow_date", "notes"]
+        fields = ["portfolio", "flow_type", "amount", "flow_date", "notes"]
 
     def validate_amount(self, value: Any) -> Any:
-        if value <= 0:
+        if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
             raise serializers.ValidationError("金额必须大于0")
         return value
 

@@ -1,9 +1,20 @@
 """Account transaction and capital flow API views."""
 
-from rest_framework import serializers, status, viewsets
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from dataclasses import asdict
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, cast
+
+from django.core.files.uploadedfile import UploadedFile
+from rest_framework import mixins, serializers, status, viewsets
+from rest_framework.exceptions import (
+    NotAuthenticated,
+    NotFound,
+    PermissionDenied,
+    ValidationError,
+)
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -22,8 +33,26 @@ from .serializers import (
     TransactionSerializer,
 )
 
+MAX_BROKER_IMPORT_FILE_BYTES = 10 * 1024 * 1024
+ALLOWED_BROKER_IMPORT_SUFFIXES = {".csv", ".xlsx", ".xls"}
+MAX_TRANSACTION_NOTIONAL = Decimal("999999999999999999.99")
+NOTIONAL_QUANTUM = Decimal("0.01")
 
-class TransactionViewSet(viewsets.ModelViewSet):
+
+def _authenticated_user_id(request: Request) -> int:
+    """Return the persisted user ID guaranteed by the permission boundary."""
+    user_id = getattr(request.user, "id", None)
+    if isinstance(user_id, bool) or not isinstance(user_id, int):
+        raise NotAuthenticated("Authenticated user has no persisted ID")
+    return user_id
+
+
+class TransactionViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet[Any],
+):
     """
     交易记录 API ViewSet
 
@@ -35,39 +64,74 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsAuthenticated, TradingPermission]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """只返回当前用户投资组合的交易"""
-        return get_user_transaction_queryset(self.request.user.id)
+        return get_user_transaction_queryset(_authenticated_user_id(self.request))
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type[serializers.BaseSerializer[Any]]:
         """根据操作选择 serializer"""
         if self.action == "create":
-            return TransactionCreateSerializer
-        return TransactionSerializer
+            return cast(
+                type[serializers.BaseSerializer[Any]],
+                TransactionCreateSerializer,
+            )
+        return cast(type[serializers.BaseSerializer[Any]], TransactionSerializer)
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: serializers.BaseSerializer[Any]) -> None:
         """创建时验证持仓归属"""
+        user_id = _authenticated_user_id(self.request)
         portfolio = serializer.validated_data.get("portfolio")
         position = serializer.validated_data.get("position")
-        if position and position.portfolio.user != self.request.user:
+        portfolio_id = getattr(portfolio, "id", None)
+        if isinstance(portfolio_id, bool) or not isinstance(portfolio_id, int):
+            raise PermissionDenied("无权为此投资组合创建交易记录")
+        if position and getattr(position.portfolio, "user_id", None) != user_id:
             raise PermissionDenied("无权为此持仓创建交易记录")
-        if position and portfolio and position.portfolio_id != portfolio.id:
+        if get_user_portfolio(user_id=user_id, portfolio_id=portfolio_id) is None:
+            raise PermissionDenied("无权为此投资组合创建交易记录")
+        if position and getattr(position, "portfolio_id", None) != portfolio_id:
             raise ValidationError({"position": "持仓不属于该投资组合"})
+        asset_code = serializer.validated_data.get("asset_code")
+        if position and getattr(position, "asset_code", None) != asset_code:
+            raise ValidationError({"asset_code": "资产代码与关联持仓不一致"})
 
         # 计算成交金额
         shares = serializer.validated_data["shares"]
         price = serializer.validated_data["price"]
-        notional = shares * float(price)
+        notional = (Decimal(str(shares)) * price).quantize(
+            NOTIONAL_QUANTUM,
+            rounding=ROUND_HALF_UP,
+        )
+        if not notional.is_finite() or notional > MAX_TRANSACTION_NOTIONAL:
+            raise ValidationError({"non_field_errors": "成交金额超出允许范围"})
 
         serializer.save(notional=notional)
 
 
-class BrokerTradeImportSerializer(serializers.Serializer):
+class BrokerTradeImportSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate manual broker trade import requests."""
 
-    portfolio_id = serializers.IntegerField()
-    broker_name = serializers.CharField(required=False, allow_blank=True, default="manual")
+    portfolio_id = serializers.IntegerField(min_value=1)
+    broker_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="manual",
+        max_length=64,
+        trim_whitespace=True,
+    )
     file = serializers.FileField()
+
+    def validate_file(self, value: UploadedFile) -> UploadedFile:
+        """Reject unsupported or unbounded broker files before reading them."""
+        raw_filename = value.name
+        if not isinstance(raw_filename, str) or not raw_filename:
+            raise serializers.ValidationError("导入文件名无效")
+        filename = raw_filename.lower()
+        if not any(filename.endswith(suffix) for suffix in ALLOWED_BROKER_IMPORT_SUFFIXES):
+            raise serializers.ValidationError("仅支持 CSV、XLSX 或 XLS 文件")
+        if value.size is None or value.size > MAX_BROKER_IMPORT_FILE_BYTES:
+            raise serializers.ValidationError("导入文件不能超过 10 MiB")
+        return value
 
 
 class BrokerTradeImportPreviewView(APIView):
@@ -76,21 +140,26 @@ class BrokerTradeImportPreviewView(APIView):
     permission_classes = [IsAuthenticated, TradingPermission]
     parser_classes = [MultiPartParser, FormParser]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         serializer = BrokerTradeImportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        uploaded_file = serializer.validated_data["file"]
+        uploaded_file = cast(UploadedFile, serializer.validated_data["file"])
+        filename = uploaded_file.name
+        if not isinstance(filename, str):
+            raise ValidationError("导入文件名无效")
         try:
             result = ManualTradeImportUseCase().preview(
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 portfolio_id=serializer.validated_data["portfolio_id"],
                 broker_name=serializer.validated_data.get("broker_name") or "manual",
-                filename=uploaded_file.name,
+                filename=filename,
                 content=uploaded_file.read(),
             )
         except LookupError as exc:
             raise PermissionDenied("无权导入该投资组合的券商成交") from exc
-        return Response(result.__dict__, status=status.HTTP_200_OK)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("导入文件格式或内容无效") from exc
+        return Response(asdict(result), status=status.HTTP_200_OK)
 
 
 class BrokerTradeImportConfirmView(APIView):
@@ -99,24 +168,35 @@ class BrokerTradeImportConfirmView(APIView):
     permission_classes = [IsAuthenticated, TradingPermission]
     parser_classes = [MultiPartParser, FormParser]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         serializer = BrokerTradeImportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        uploaded_file = serializer.validated_data["file"]
+        uploaded_file = cast(UploadedFile, serializer.validated_data["file"])
+        filename = uploaded_file.name
+        if not isinstance(filename, str):
+            raise ValidationError("导入文件名无效")
         try:
             result = ManualTradeImportUseCase().confirm(
-                user_id=request.user.id,
+                user_id=_authenticated_user_id(request),
                 portfolio_id=serializer.validated_data["portfolio_id"],
                 broker_name=serializer.validated_data.get("broker_name") or "manual",
-                filename=uploaded_file.name,
+                filename=filename,
                 content=uploaded_file.read(),
             )
         except LookupError as exc:
             raise PermissionDenied("无权导入该投资组合的券商成交") from exc
-        return Response(result.__dict__, status=status.HTTP_201_CREATED)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("导入文件格式或内容无效") from exc
+        return Response(asdict(result), status=status.HTTP_201_CREATED)
 
 
-class CapitalFlowViewSet(viewsets.ModelViewSet):
+class CapitalFlowViewSet(
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet[Any],
+):
     """
     资金流水 API ViewSet
 
@@ -129,22 +209,27 @@ class CapitalFlowViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsAuthenticated, TradingPermission]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """只返回当前用户投资组合的资金流水"""
-        return get_user_capital_flow_queryset(self.request.user.id)
+        return get_user_capital_flow_queryset(_authenticated_user_id(self.request))
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type[serializers.BaseSerializer[Any]]:
         """根据操作选择 serializer"""
         if self.action == "create":
-            return CapitalFlowCreateSerializer
-        return CapitalFlowSerializer
+            return cast(
+                type[serializers.BaseSerializer[Any]],
+                CapitalFlowCreateSerializer,
+            )
+        return cast(type[serializers.BaseSerializer[Any]], CapitalFlowSerializer)
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: serializers.BaseSerializer[Any]) -> None:
         """创建时验证投资组合归属"""
-        portfolio_value = serializer.validated_data.get("portfolio")
-        portfolio_id = getattr(portfolio_value, "id", None) or self.request.data.get("portfolio")
+        portfolio_id = serializer.validated_data.get("portfolio")
+        if isinstance(portfolio_id, bool) or not isinstance(portfolio_id, int):
+            raise ValidationError({"portfolio": "投资组合 ID 格式无效"})
+        user_id = _authenticated_user_id(self.request)
         portfolio = get_user_portfolio(
-            user_id=self.request.user.id,
+            user_id=user_id,
             portfolio_id=portfolio_id,
         )
         if portfolio is None:

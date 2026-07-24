@@ -215,3 +215,37 @@ def test_broker_trade_import_rejects_cross_user_and_observer(path: str):
 
     assert BrokerTradeImportBatchModel.objects.count() == 0
     assert TransactionModel.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("filename", "content", "expected_message"),
+    [
+        ("trades.exe", b"not a trade file", "仅支持"),
+        ("trades.csv", b"x" * (10 * 1024 * 1024 + 1), "10 MiB"),
+    ],
+    ids=["unsupported-extension", "oversized-file"],
+)
+def test_broker_trade_import_rejects_unsupported_or_oversized_files(
+    filename: str,
+    content: bytes,
+    expected_message: str,
+):
+    owner = _create_user(f"invalid_file_{len(content)}")
+    portfolio = PortfolioModel.objects.create(user=owner, name="Invalid Import")
+    client = APIClient()
+    client.force_authenticate(owner)
+    upload = SimpleUploadedFile(filename, content)
+
+    response = client.post(
+        "/api/account/broker-trades/preview/",
+        {
+            "portfolio_id": portfolio.id,
+            "broker_name": "demo",
+            "file": upload,
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 400
+    assert expected_message in str(response.data)
