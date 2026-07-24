@@ -93,9 +93,7 @@ class TransactionRepository:
             )
         return transactions
 
-    def get_transaction_cost_record(
-        self, transaction_id: int
-    ) -> TransactionCostRecord | None:
+    def get_transaction_cost_record(self, transaction_id: int) -> TransactionCostRecord | None:
         """获取交易成本分析所需的交易明细。"""
         try:
             model = TransactionModel._default_manager.get(id=transaction_id)
@@ -187,9 +185,7 @@ class ManualTradeSyncRepository:
     """Persistence operations for manual broker trade imports."""
 
     def get_owned_portfolio(self, *, user_id: int, portfolio_id: int) -> PortfolioModel | None:
-        return PortfolioModel._default_manager.filter(
-            id=portfolio_id, user_id=user_id
-        ).first()
+        return PortfolioModel._default_manager.filter(id=portfolio_id, user_id=user_id).first()
 
     def broker_trade_key_exists(self, broker_trade_key: str) -> bool:
         return bool(
@@ -712,6 +708,60 @@ class TakeProfitRepository:
         except TakeProfitConfigModel.DoesNotExist:
             return False
 
+    def execute_take_profit_tranche(
+        self,
+        *,
+        config_id: int,
+        position_id: int,
+        expected_partial_levels: list[float] | None,
+        remaining_partial_levels: list[float],
+        shares: float | None,
+        price: Decimal,
+        reason: str,
+        deactivate: bool,
+    ) -> bool:
+        """Atomically close one tranche and advance its take-profit configuration."""
+
+        with transaction.atomic():
+            config = (
+                TakeProfitConfigModel._default_manager.select_for_update()
+                .select_related("position")
+                .filter(
+                    id=config_id,
+                    position_id=position_id,
+                    is_active=True,
+                    position__is_closed=False,
+                )
+                .first()
+            )
+            if config is None:
+                return False
+
+            persisted_levels = [float(level) for level in (config.partial_profit_levels or [])]
+            expected_levels = [float(level) for level in (expected_partial_levels or [])]
+            if persisted_levels != expected_levels:
+                return False
+
+            closed_position = PositionRepository().close_position(
+                position_id=position_id,
+                shares=shares,
+                price=price,
+                reason=reason,
+            )
+            if closed_position is None:
+                return False
+
+            config.partial_profit_levels = remaining_partial_levels
+            config.is_active = not deactivate
+            config.save(
+                update_fields=[
+                    "partial_profit_levels",
+                    "is_active",
+                    "updated_at",
+                ]
+            )
+            return True
+
 
 class PortfolioSnapshotRepository:
     """投资组合快照仓储"""
@@ -760,9 +810,7 @@ class PortfolioSnapshotRepository:
 class TransactionCostConfigRepository:
     """交易成本配置仓储"""
 
-    def get_cost_config(
-        self, market: str, asset_class: str
-    ) -> TransactionCostConfigRecord | None:
+    def get_cost_config(self, market: str, asset_class: str) -> TransactionCostConfigRecord | None:
         """
         Get transaction cost configuration for market and asset class.
 
@@ -789,9 +837,7 @@ class TransactionCostConfigRepository:
         except TransactionCostConfigModel.DoesNotExist:
             return None
 
-    def get_default_cost_config(
-        self, market: str, asset_class: str
-    ) -> TransactionCostConfigRecord:
+    def get_default_cost_config(self, market: str, asset_class: str) -> TransactionCostConfigRecord:
         """
         Get default cost configuration.
 
@@ -816,9 +862,7 @@ class SystemSettingsRepository:
     def get_settings(self) -> SystemSettingsModel:
         """返回系统设置模型实例。"""
 
-        get_settings = cast(
-            Callable[[], SystemSettingsModel], SystemSettingsModel.get_settings
-        )
+        get_settings = cast(Callable[[], SystemSettingsModel], SystemSettingsModel.get_settings)
         return get_settings()
 
     def get_runtime_asset_proxy_code(self, asset_class: str, default: str = "") -> str:

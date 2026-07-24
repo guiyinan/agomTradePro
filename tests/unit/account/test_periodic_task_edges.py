@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from apps.account.application import tasks
 
 
@@ -53,6 +55,64 @@ def test_stop_loss_take_profit_and_combined_tasks_report_counts(monkeypatch) -> 
     assert combined["stop_loss_triggered"] == 1
     assert combined["take_profit_triggered"] == 1
     assert ("stop", 1) in notifications and ("take", 1) in notifications
+
+
+def test_combined_task_retry_skips_already_completed_stop_loss_stage(
+    monkeypatch,
+) -> None:
+    """A take-profit retry must not execute the successful stop-loss stage twice."""
+    stop_calls = 0
+    take_calls = 0
+    captured_retry: dict[str, object] = {}
+
+    def _run_stop_loss(user_id=None):
+        nonlocal stop_calls
+        stop_calls += 1
+        return [_result()]
+
+    def _run_take_profit(user_id=None):
+        nonlocal take_calls
+        take_calls += 1
+        if take_calls == 1:
+            raise RuntimeError("take-profit source unavailable")
+        return [_result(partial_level="L1")]
+
+    def _retry(**kwargs):
+        captured_retry.update(kwargs)
+        raise RuntimeError("retry scheduled")
+
+    monkeypatch.setattr(
+        tasks,
+        "AutoStopLossUseCase",
+        lambda: SimpleNamespace(check_and_execute_stop_loss=_run_stop_loss),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "AutoTakeProfitUseCase",
+        lambda: SimpleNamespace(check_and_execute_take_profit=_run_take_profit),
+    )
+    monkeypatch.setattr(tasks, "_send_stop_loss_notifications", lambda *args: None)
+    monkeypatch.setattr(tasks, "_send_take_profit_notifications", lambda *args: None)
+    monkeypatch.setattr(tasks.check_stop_loss_and_take_profit_task, "retry", _retry)
+
+    with pytest.raises(RuntimeError, match="retry scheduled"):
+        tasks.check_stop_loss_and_take_profit_task.run(user_id=1)
+
+    retry_kwargs = captured_retry["kwargs"]
+    assert isinstance(retry_kwargs, dict)
+    checkpoint = retry_kwargs["checkpoint"]
+    assert checkpoint == {
+        "stop_loss_checked": 1,
+        "stop_loss_triggered": 1,
+    }
+
+    result = tasks.check_stop_loss_and_take_profit_task.run(
+        user_id=1,
+        checkpoint=checkpoint,
+    )
+    assert result["status"] == "success"
+    assert stop_calls == 1
+    assert take_calls == 2
 
 
 def test_notification_helpers_send_only_when_owner_email_exists(monkeypatch) -> None:

@@ -4,6 +4,9 @@ Account Application - Celery Tasks
 定时任务：自动止损止盈检查、波动率控制。
 """
 
+from __future__ import annotations
+
+from typing import Any, TypedDict
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
@@ -25,9 +28,12 @@ from apps.account.application.repository_provider import (
 from apps.account.application.stop_loss_use_cases import (
     AutoStopLossUseCase,
     AutoTakeProfitUseCase,
+    StopLossCheckOutput,
+    TakeProfitCheckOutput,
 )
 from apps.account.application.volatility_use_cases import (
     VolatilityAdjustmentUseCase,
+    VolatilityAnalysisOutput,
     VolatilityAnalysisUseCase,
 )
 from core.exceptions import BusinessLogicError, DataFetchError
@@ -40,14 +46,23 @@ position_repo = PositionRepository()
 portfolio_repo = PortfolioRepository()
 
 
-@shared_task(
+class CombinedRiskCheckCheckpoint(TypedDict, total=False):
+    """Completed stage counts carried across Celery retries."""
+
+    stop_loss_checked: int
+    stop_loss_triggered: int
+    take_profit_checked: int
+    take_profit_triggered: int
+
+
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=2,
     default_retry_delay=300,
     time_limit=300,
     soft_time_limit=270,
 )
-def send_database_backup_email_task(self):
+def send_database_backup_email_task(self: Any) -> dict[str, str]:
     """按系统配置定期发送数据库全量备份下载链接。"""
     try:
         config = system_settings_repo.get_settings()
@@ -81,7 +96,8 @@ def send_database_backup_email_task(self):
         email = EmailMessage(
             subject=subject,
             body=message,
-            from_email=config.backup_mail_from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
+            from_email=config.backup_mail_from_email
+            or getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com"),
             to=[config.backup_email],
             connection=get_backup_email_connection(config),
         )
@@ -96,14 +112,17 @@ def send_database_backup_email_task(self):
         raise self.retry(exc=exc) from exc
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=300,  # 5分钟后重试
     time_limit=600,
     soft_time_limit=570,
 )
-def check_stop_loss_task(self, user_id: int = None):
+def check_stop_loss_task(
+    self: Any,
+    user_id: int | None = None,
+) -> dict[str, object]:
     """
     定时检查止损任务
 
@@ -127,9 +146,9 @@ def check_stop_loss_task(self, user_id: int = None):
                 _send_stop_loss_notifications(triggered_results, user_id)
 
         return {
-            'status': 'success',
-            'checked_count': len(results),
-            'triggered_count': len([r for r in results if r.should_close]),
+            "status": "success",
+            "checked_count": len(results),
+            "triggered_count": len([r for r in results if r.should_close]),
         }
 
     except (DataFetchError, DatabaseError) as exc:
@@ -146,9 +165,9 @@ def check_stop_loss_task(self, user_id: int = None):
         logger.error(f"止损检查任务失败（业务逻辑）: {exc}")
         record_exception(exc, module="account", is_handled=True)
         return {
-            'status': 'error',
-            'error': str(exc),
-            'error_type': 'business_logic'
+            "status": "error",
+            "error": str(exc),
+            "error_type": "business_logic",
         }
     except Exception as exc:
         # Unexpected error
@@ -157,14 +176,17 @@ def check_stop_loss_task(self, user_id: int = None):
         raise self.retry(exc=exc) from exc
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=300,
     time_limit=600,
     soft_time_limit=570,
 )
-def check_take_profit_task(self, user_id: int = None):
+def check_take_profit_task(
+    self: Any,
+    user_id: int | None = None,
+) -> dict[str, object]:
     """
     定时检查止盈任务
 
@@ -184,9 +206,9 @@ def check_take_profit_task(self, user_id: int = None):
                 _send_take_profit_notifications(triggered_results, user_id)
 
         return {
-            'status': 'success',
-            'checked_count': len(results),
-            'triggered_count': len([r for r in results if r.should_close]),
+            "status": "success",
+            "checked_count": len(results),
+            "triggered_count": len([r for r in results if r.should_close]),
         }
 
     except Exception as exc:
@@ -194,14 +216,18 @@ def check_take_profit_task(self, user_id: int = None):
         raise self.retry(exc=exc) from exc
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=300,
     time_limit=600,
     soft_time_limit=570,
 )
-def check_stop_loss_and_take_profit_task(self, user_id: int = None):
+def check_stop_loss_and_take_profit_task(
+    self: Any,
+    user_id: int | None = None,
+    checkpoint: CombinedRiskCheckCheckpoint | None = None,
+) -> dict[str, object]:
     """
     同时检查止损和止盈任务
 
@@ -210,47 +236,62 @@ def check_stop_loss_and_take_profit_task(self, user_id: int = None):
     Args:
         user_id: 用户ID，None表示检查所有用户
     """
-    try:
-        # 检查止损
-        stop_loss_use_case = AutoStopLossUseCase()
-        stop_loss_results = stop_loss_use_case.check_and_execute_stop_loss(user_id=user_id)
+    stage_counts: CombinedRiskCheckCheckpoint = {}
+    if checkpoint:
+        stage_counts.update(checkpoint)
 
-        # 检查止盈
-        take_profit_use_case = AutoTakeProfitUseCase()
-        take_profit_results = take_profit_use_case.check_and_execute_take_profit(user_id=user_id)
+    if "stop_loss_checked" not in stage_counts:
+        try:
+            stop_loss_results = AutoStopLossUseCase().check_and_execute_stop_loss(user_id=user_id)
+            triggered_stop_losses = [result for result in stop_loss_results if result.should_close]
+            stage_counts["stop_loss_checked"] = len(stop_loss_results)
+            stage_counts["stop_loss_triggered"] = len(triggered_stop_losses)
+            if triggered_stop_losses:
+                _send_stop_loss_notifications(triggered_stop_losses, user_id)
+        except Exception as exc:
+            logger.exception("组合风控任务止损阶段失败: %s", exc)
+            raise self.retry(
+                exc=exc,
+                kwargs={"user_id": user_id, "checkpoint": stage_counts},
+            ) from exc
 
-        total_triggered = (
-            len([r for r in stop_loss_results if r.should_close]) +
-            len([r for r in take_profit_results if r.should_close])
-        )
-
-        logger.info(f"止损止盈检查完成，触发 {total_triggered} 个")
-
-        # 发送通知
-        if total_triggered > 0:
-            _send_stop_loss_notifications(
-                [r for r in stop_loss_results if r.should_close],
-                user_id
+    if "take_profit_checked" not in stage_counts:
+        try:
+            take_profit_results = AutoTakeProfitUseCase().check_and_execute_take_profit(
+                user_id=user_id
             )
-            _send_take_profit_notifications(
-                [r for r in take_profit_results if r.should_close],
-                user_id
-            )
+            triggered_take_profits = [
+                result for result in take_profit_results if result.should_close
+            ]
+            stage_counts["take_profit_checked"] = len(take_profit_results)
+            stage_counts["take_profit_triggered"] = len(triggered_take_profits)
+            if triggered_take_profits:
+                _send_take_profit_notifications(triggered_take_profits, user_id)
+        except Exception as exc:
+            logger.exception("组合风控任务止盈阶段失败: %s", exc)
+            raise self.retry(
+                exc=exc,
+                kwargs={"user_id": user_id, "checkpoint": stage_counts},
+            ) from exc
 
-        return {
-            'status': 'success',
-            'stop_loss_checked': len(stop_loss_results),
-            'stop_loss_triggered': len([r for r in stop_loss_results if r.should_close]),
-            'take_profit_checked': len(take_profit_results),
-            'take_profit_triggered': len([r for r in take_profit_results if r.should_close]),
-        }
+    total_triggered = stage_counts.get("stop_loss_triggered", 0) + stage_counts.get(
+        "take_profit_triggered", 0
+    )
+    logger.info("止损止盈检查完成，触发 %s 个", total_triggered)
 
-    except Exception as exc:
-        logger.error(f"止损止盈检查任务失败: {exc}")
-        raise self.retry(exc=exc) from exc
+    return {
+        "status": "success",
+        "stop_loss_checked": stage_counts.get("stop_loss_checked", 0),
+        "stop_loss_triggered": stage_counts.get("stop_loss_triggered", 0),
+        "take_profit_checked": stage_counts.get("take_profit_checked", 0),
+        "take_profit_triggered": stage_counts.get("take_profit_triggered", 0),
+    }
 
 
-def _send_stop_loss_notifications(results: list, user_id: int = None):
+def _send_stop_loss_notifications(
+    results: list[StopLossCheckOutput],
+    user_id: int | None = None,
+) -> None:
     """
     发送止损触发通知
 
@@ -281,7 +322,11 @@ def _send_stop_loss_notifications(results: list, user_id: int = None):
                 send_mail(
                     subject=subject,
                     message=message,
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
+                    from_email=getattr(
+                        settings,
+                        "DEFAULT_FROM_EMAIL",
+                        "noreply@agomtradepro.com",
+                    ),
                     recipient_list=[user_email],
                     fail_silently=True,
                 )
@@ -291,7 +336,10 @@ def _send_stop_loss_notifications(results: list, user_id: int = None):
             logger.error(f"发送止损通知失败: {e}")
 
 
-def _send_take_profit_notifications(results: list, user_id: int = None):
+def _send_take_profit_notifications(
+    results: list[TakeProfitCheckOutput],
+    user_id: int | None = None,
+) -> None:
     """
     发送止盈触发通知
 
@@ -322,7 +370,11 @@ def _send_take_profit_notifications(results: list, user_id: int = None):
                 send_mail(
                     subject=subject,
                     message=message,
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
+                    from_email=getattr(
+                        settings,
+                        "DEFAULT_FROM_EMAIL",
+                        "noreply@agomtradepro.com",
+                    ),
                     recipient_list=[user_email],
                     fail_silently=True,
                 )
@@ -362,14 +414,18 @@ def _send_take_profit_notifications(results: list, user_id: int = None):
 # 波动率控制任务
 # ============================================================
 
-@shared_task(
+
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=300,
     time_limit=600,
     soft_time_limit=570,
 )
-def check_volatility_and_adjust_task(self, user_id: int = None):
+def check_volatility_and_adjust_task(
+    self: Any,
+    user_id: int | None = None,
+) -> dict[str, object]:
     """
     检查波动率并自动调整仓位
 
@@ -404,7 +460,7 @@ def check_volatility_and_adjust_task(self, user_id: int = None):
                         user_id=portfolio["user_id"],
                     )
 
-                    if result['status'] == 'executed':
+                    if result["status"] == "executed":
                         adjusted_count += 1
                         _send_volatility_adjustment_notification(
                             portfolio_id=portfolio["id"],
@@ -413,8 +469,7 @@ def check_volatility_and_adjust_task(self, user_id: int = None):
                             result=result,
                         )
                     logger.info(
-                        f"投资组合 {portfolio['id']} 波动率调整完成: "
-                        f"{result['status']}"
+                        f"投资组合 {portfolio['id']} 波动率调整完成: " f"{result['status']}"
                     )
 
                 # 发送警告（如果波动率接近上限）
@@ -436,10 +491,10 @@ def check_volatility_and_adjust_task(self, user_id: int = None):
         )
 
         return {
-            'status': 'success',
-            'checked_count': len(portfolios),
-            'adjusted_count': adjusted_count,
-            'warning_count': warning_count,
+            "status": "success",
+            "checked_count": len(portfolios),
+            "adjusted_count": adjusted_count,
+            "warning_count": warning_count,
         }
 
     except Exception as exc:
@@ -450,9 +505,9 @@ def check_volatility_and_adjust_task(self, user_id: int = None):
 def _send_volatility_adjustment_notification(
     portfolio_id: int,
     user_id: int,
-    analysis,
-    result: dict,
-):
+    analysis: VolatilityAnalysisOutput,
+    result: dict[str, Any],
+) -> None:
     """
     发送波动率调整通知
 
@@ -491,7 +546,11 @@ def _send_volatility_adjustment_notification(
             send_mail(
                 subject=subject,
                 message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
+                from_email=getattr(
+                    settings,
+                    "DEFAULT_FROM_EMAIL",
+                    "noreply@agomtradepro.com",
+                ),
                 recipient_list=[user_email],
                 fail_silently=True,
             )
@@ -504,8 +563,8 @@ def _send_volatility_adjustment_notification(
 def _send_volatility_warning_notification(
     portfolio_id: int,
     user_id: int,
-    analysis,
-):
+    analysis: VolatilityAnalysisOutput,
+) -> None:
     """
     发送波动率警告通知
 
@@ -542,7 +601,11 @@ def _send_volatility_warning_notification(
             send_mail(
                 subject=subject,
                 message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
+                from_email=getattr(
+                    settings,
+                    "DEFAULT_FROM_EMAIL",
+                    "noreply@agomtradepro.com",
+                ),
                 recipient_list=[user_email],
                 fail_silently=True,
             )
@@ -571,5 +634,3 @@ def _send_volatility_warning_notification(
 #         },
 #     },
 # }
-
-

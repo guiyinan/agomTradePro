@@ -75,6 +75,7 @@ class _FakeTakeProfitRepository:
         self.active_configs = active_configs or []
         self.created_configs: list[dict] = []
         self.updated_configs: list[dict] = []
+        self.executed_tranches: list[dict] = []
 
     def get_active_take_profit_configs(self, user_id: int | None = None) -> list[dict]:
         return self.active_configs
@@ -89,6 +90,10 @@ class _FakeTakeProfitRepository:
 
     def update_take_profit_config(self, config_id: int, is_active: bool | None = None) -> bool:
         self.updated_configs.append({"config_id": config_id, "is_active": is_active})
+        return True
+
+    def execute_take_profit_tranche(self, **kwargs) -> bool:
+        self.executed_tranches.append(kwargs)
         return True
 
 
@@ -108,6 +113,10 @@ class _FakeNotificationService:
         self.notifications.append(notification_data)
         return True
 
+    def notify_take_profit_triggered(self, notification_data) -> bool:
+        self.notifications.append(notification_data)
+        return True
+
 
 class _FakeRiskPolicyProvider:
     def __init__(self, parameters: dict):
@@ -115,10 +124,6 @@ class _FakeRiskPolicyProvider:
 
     def get_effective_parameters(self, account_id: int) -> dict:
         return self.parameters
-
-    def notify_take_profit_triggered(self, notification_data) -> bool:
-        self.notifications.append(notification_data)
-        return True
 
 
 def test_create_stop_loss_config_use_case_uses_repositories():
@@ -327,3 +332,107 @@ def test_auto_take_profit_uses_risk_center_take_profit_pct(monkeypatch):
     ).check_and_execute_take_profit(user_id=9)
 
     assert captured["take_profit_pct"] == 0.25
+
+
+def test_auto_take_profit_consumes_each_partial_level_once(monkeypatch):
+    take_profit_repo = _FakeTakeProfitRepository(
+        active_configs=[
+            {
+                "id": 17,
+                "position_id": 3,
+                "take_profit_pct": 0.4,
+                "partial_profit_levels": [0.1, 0.2, 0.3],
+                "is_active": True,
+                "position": {
+                    "id": 3,
+                    "asset_code": "510300.SH",
+                    "shares": 300.0,
+                    "avg_cost": Decimal("100"),
+                    "current_price": Decimal("130"),
+                    "opened_at": datetime(2026, 1, 1, tzinfo=UTC),
+                    "portfolio_id": 2,
+                    "user_id": 9,
+                    "user_email": "user@example.com",
+                },
+            }
+        ]
+    )
+    notification_service = _FakeNotificationService()
+    monkeypatch.setattr(
+        "apps.account.application.stop_loss_use_cases.TakeProfitService.check_take_profit",
+        lambda **kwargs: TakeProfitCheckResult(
+            should_trigger=True,
+            trigger_reason="first tranche",
+            take_profit_price=110.0,
+            current_price=130.0,
+            unrealized_pnl_pct=0.3,
+            partial_level=1,
+        ),
+    )
+
+    results = AutoTakeProfitUseCase(
+        market_data_service=_FakeMarketDataService(price="130"),
+        notification_service=notification_service,
+        take_profit_repo=take_profit_repo,
+        position_repo=_FakePositionRepository(),
+    ).check_and_execute_take_profit(user_id=9)
+
+    assert results[0].should_close is True
+    assert take_profit_repo.executed_tranches == [
+        {
+            "config_id": 17,
+            "position_id": 3,
+            "expected_partial_levels": [0.1, 0.2, 0.3],
+            "remaining_partial_levels": [0.2, 0.3],
+            "shares": 100.0,
+            "price": Decimal("130.0"),
+            "reason": "止盈触发: first tranche",
+            "deactivate": False,
+        }
+    ]
+    assert len(notification_service.notifications) == 1
+
+
+def test_auto_take_profit_reports_checked_non_triggered_positions(monkeypatch):
+    take_profit_repo = _FakeTakeProfitRepository(
+        active_configs=[
+            {
+                "id": 17,
+                "position_id": 3,
+                "take_profit_pct": 0.4,
+                "partial_profit_levels": None,
+                "is_active": True,
+                "position": {
+                    "id": 3,
+                    "asset_code": "510300.SH",
+                    "shares": 200.0,
+                    "avg_cost": Decimal("100"),
+                    "current_price": Decimal("105"),
+                    "opened_at": datetime(2026, 1, 1, tzinfo=UTC),
+                    "portfolio_id": 2,
+                    "user_id": 9,
+                    "user_email": "user@example.com",
+                },
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        "apps.account.application.stop_loss_use_cases.TakeProfitService.check_take_profit",
+        lambda **kwargs: TakeProfitCheckResult(
+            should_trigger=False,
+            trigger_reason="not triggered",
+            take_profit_price=140.0,
+            current_price=105.0,
+            unrealized_pnl_pct=0.05,
+        ),
+    )
+
+    results = AutoTakeProfitUseCase(
+        market_data_service=_FakeMarketDataService(price="105"),
+        take_profit_repo=take_profit_repo,
+        position_repo=_FakePositionRepository(),
+    ).check_and_execute_take_profit(user_id=9)
+
+    assert len(results) == 1
+    assert results[0].should_close is False
+    assert take_profit_repo.executed_tranches == []

@@ -6,10 +6,10 @@ Account Application - Stop Loss Use Cases
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol, cast
 
 from apps.account.application.repository_provider import (
     PositionRepository,
@@ -20,8 +20,11 @@ from apps.account.application.repository_provider import (
 )
 from apps.account.domain.interfaces import (
     MarketDataPort,
+    PositionRepositoryProtocol,
     StopLossNotificationData,
     StopLossNotificationPort,
+    StopLossRepositoryProtocol,
+    TakeProfitRepositoryProtocol,
 )
 from apps.account.domain.services import (
     StopLossCheckResult,
@@ -33,6 +36,12 @@ from apps.account.domain.services import (
 logger = logging.getLogger(__name__)
 
 
+class RiskPolicyProviderProtocol(Protocol):
+    """Risk-policy lookup required by stop-loss and take-profit checks."""
+
+    def get_effective_parameters(self, account_id: int) -> dict[str, Any]: ...
+
+
 class _RiskCenterPolicyProvider:
     """Read effective risk parameters without coupling account to risk-center ORM."""
 
@@ -42,13 +51,16 @@ class _RiskCenterPolicyProvider:
         )
 
         payload = ResolveEffectiveRiskPolicyForAccountUseCase().execute(account_id=account_id)
-        return payload.get("parameters", {})
+        parameters: object = payload.get("parameters", {})
+        if not isinstance(parameters, dict):
+            return {}
+        return {str(key): value for key, value in parameters.items()}
 
 
-def MarketPriceService():
+def MarketPriceService() -> MarketDataPort:
     """Backward-compatible market price service factory for legacy tests/callers."""
 
-    return build_market_price_service()
+    return cast(MarketDataPort, build_market_price_service())
 
 
 @dataclass
@@ -89,10 +101,10 @@ class AutoStopLossUseCase:
         self,
         market_data_service: MarketDataPort | None = None,
         notification_service: StopLossNotificationPort | None = None,
-        stop_loss_repo: StopLossRepository | None = None,
-        position_repo: PositionRepository | None = None,
-        risk_policy_provider: Any | None = None,
-    ):
+        stop_loss_repo: StopLossRepositoryProtocol | None = None,
+        position_repo: PositionRepositoryProtocol | None = None,
+        risk_policy_provider: RiskPolicyProviderProtocol | None = None,
+    ) -> None:
         """
         初始化自动止损用例
 
@@ -121,7 +133,7 @@ class AutoStopLossUseCase:
         # 获取所有激活的止损配置
         active_configs = self.stop_loss_repo.get_active_stop_loss_configs(user_id=user_id)
 
-        results = []
+        results: list[StopLossCheckOutput] = []
 
         for config in active_configs:
             result = self._check_single_position(config)
@@ -244,7 +256,11 @@ class AutoStopLossUseCase:
             logger.error(f"获取资产 {asset_code} 价格失败: {e}")
             return None
 
-    def _execute_stop_loss(self, config: dict[str, Any], check_result: StopLossCheckOutput):
+    def _execute_stop_loss(
+        self,
+        config: dict[str, Any],
+        check_result: StopLossCheckOutput,
+    ) -> None:
         """
         执行止损平仓
 
@@ -293,7 +309,7 @@ class AutoStopLossUseCase:
         position: dict[str, Any],
         config: dict[str, Any],
         check_result: StopLossCheckOutput,
-    ):
+    ) -> None:
         """
         发送止损触发通知
 
@@ -346,10 +362,10 @@ class AutoTakeProfitUseCase:
         self,
         market_data_service: MarketDataPort | None = None,
         notification_service: StopLossNotificationPort | None = None,
-        take_profit_repo: TakeProfitRepository | None = None,
-        position_repo: PositionRepository | None = None,
-        risk_policy_provider: Any | None = None,
-    ):
+        take_profit_repo: TakeProfitRepositoryProtocol | None = None,
+        position_repo: PositionRepositoryProtocol | None = None,
+        risk_policy_provider: RiskPolicyProviderProtocol | None = None,
+    ) -> None:
         """
         初始化自动止盈用例
 
@@ -380,14 +396,15 @@ class AutoTakeProfitUseCase:
         # 获取所有激活的止盈配置
         active_configs = self.take_profit_repo.get_active_take_profit_configs(user_id=user_id)
 
-        results = []
+        results: list[TakeProfitCheckOutput] = []
 
         for config in active_configs:
             result = self._check_single_position(config)
-            if result and result.should_close:
-                results.append(result)
-                # 执行止盈
-                self._execute_take_profit(config, result)
+            if result is None:
+                continue
+            if result.should_close and not self._execute_take_profit(config, result):
+                result = replace(result, should_close=False)
+            results.append(result)
 
         return results
 
@@ -470,7 +487,11 @@ class AutoTakeProfitUseCase:
             logger.error(f"获取资产 {asset_code} 价格失败: {e}")
             return None
 
-    def _execute_take_profit(self, config: dict[str, Any], check_result: TakeProfitCheckOutput):
+    def _execute_take_profit(
+        self,
+        config: dict[str, Any],
+        check_result: TakeProfitCheckOutput,
+    ) -> bool:
         """
         执行止盈平仓
 
@@ -480,26 +501,43 @@ class AutoTakeProfitUseCase:
         """
         position = config["position"]
         current_price = Decimal(str(check_result.current_price))
+        partial_levels = [float(level) for level in (config["partial_profit_levels"] or [])]
 
         # 如果是分批止盈，计算平仓数量
-        if check_result.partial_level and config["partial_profit_levels"]:
-            # 简化处理：每批平仓 1/3
-            sell_shares = position["shares"] / len(config["partial_profit_levels"])
+        if check_result.partial_level and partial_levels:
+            level_index = check_result.partial_level - 1
+            if level_index < 0 or level_index >= len(partial_levels):
+                logger.error(
+                    "止盈档位越界: config=%s, partial_level=%s",
+                    config["id"],
+                    check_result.partial_level,
+                )
+                return False
+            sell_shares = float(position["shares"]) / len(partial_levels)
+            remaining_partial_levels = partial_levels[level_index + 1 :]
+            deactivate = not remaining_partial_levels
         else:
             # 全部止盈
             sell_shares = None
+            remaining_partial_levels = []
+            deactivate = True
 
-        # 执行平仓
-        self.position_repo.close_position(
+        executed = self.take_profit_repo.execute_take_profit_tranche(
+            config_id=int(config["id"]),
             position_id=position["id"],
+            expected_partial_levels=partial_levels,
+            remaining_partial_levels=remaining_partial_levels,
             shares=sell_shares,
             price=current_price,
             reason=f"止盈触发: {check_result.check_result.trigger_reason}",
+            deactivate=deactivate,
         )
-
-        # 如果全部止盈，禁用配置
-        if sell_shares is None:
-            self.take_profit_repo.update_take_profit_config(config["id"], is_active=False)
+        if not executed:
+            logger.info(
+                "止盈档位已由其他任务处理或配置已失效: config=%s",
+                config["id"],
+            )
+            return False
 
         # 发送通知
         self._send_take_profit_notification(
@@ -508,6 +546,7 @@ class AutoTakeProfitUseCase:
             check_result=check_result,
             sell_shares=sell_shares,
         )
+        return True
 
     def _send_take_profit_notification(
         self,
@@ -515,7 +554,7 @@ class AutoTakeProfitUseCase:
         config: dict[str, Any],
         check_result: TakeProfitCheckOutput,
         sell_shares: float | None,
-    ):
+    ) -> None:
         """
         发送止盈触发通知
 
@@ -565,9 +604,9 @@ class CreateStopLossConfigUseCase:
 
     def __init__(
         self,
-        position_repo: PositionRepository | None = None,
-        stop_loss_repo: StopLossRepository | None = None,
-    ):
+        position_repo: PositionRepositoryProtocol | None = None,
+        stop_loss_repo: StopLossRepositoryProtocol | None = None,
+    ) -> None:
         self.position_repo = position_repo or PositionRepository()
         self.stop_loss_repo = stop_loss_repo or StopLossRepository()
 
@@ -621,9 +660,9 @@ class CreateTakeProfitConfigUseCase:
 
     def __init__(
         self,
-        position_repo: PositionRepository | None = None,
-        take_profit_repo: TakeProfitRepository | None = None,
-    ):
+        position_repo: PositionRepositoryProtocol | None = None,
+        take_profit_repo: TakeProfitRepositoryProtocol | None = None,
+    ) -> None:
         self.position_repo = position_repo or PositionRepository()
         self.take_profit_repo = take_profit_repo or TakeProfitRepository()
 
@@ -677,7 +716,7 @@ class _MarketDataAdapter(MarketDataPort):
     满足新的协议接口要求。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._service = MarketPriceService()
 
     def get_current_price(self, asset_code: str) -> Decimal | None:

@@ -33,9 +33,7 @@ class AccountRepositoryProtocol(Protocol):
         """Get or create default portfolio, returns portfolio_id."""
         ...
 
-    def get_account_profile_with_volatility_config(
-        self, user_id: int
-    ) -> dict[str, Any] | None:
+    def get_account_profile_with_volatility_config(self, user_id: int) -> dict[str, Any] | None:
         """
         Get account profile with volatility configuration.
 
@@ -49,7 +47,7 @@ class AccountRepositoryProtocol(Protocol):
 class PortfolioRepositoryProtocol(Protocol):
     """Portfolio repository protocol for portfolio operations."""
 
-    def get_user_portfolios(self, user_id: int) -> list[dict]:
+    def get_user_portfolios(self, user_id: int) -> list[dict[str, Any]]:
         """Get all portfolios for a user."""
         ...
 
@@ -57,7 +55,7 @@ class PortfolioRepositoryProtocol(Protocol):
         """Get portfolio snapshot with positions."""
         ...
 
-    def get_active_portfolios(self, user_id: int | None = None) -> list[dict]:
+    def get_active_portfolios(self, user_id: int | None = None) -> list[dict[str, Any]]:
         """
         Get active portfolios.
 
@@ -108,9 +106,7 @@ class PositionRepositoryProtocol(Protocol):
         """Close position (full or partial)."""
         ...
 
-    def update_position_price(
-        self, position_id: int, new_price: Decimal
-    ) -> Position | None:
+    def update_position_price(self, position_id: int, new_price: Decimal) -> Position | None:
         """Update position current price and recalculate P&L."""
         ...
 
@@ -118,15 +114,21 @@ class PositionRepositoryProtocol(Protocol):
         """Get all active positions for a portfolio."""
         ...
 
-    def get_position_with_user_email(
-        self, position_id: int
-    ) -> dict[str, Any] | None:
+    def get_position_with_user_email(self, position_id: int) -> dict[str, Any] | None:
         """
         Get position with user email for notifications.
 
         Returns:
             Dict with position info and user_email, or None
         """
+        ...
+
+    def get_position_stop_management_context(
+        self,
+        position_id: int,
+    ) -> dict[str, Any] | None:
+        """Return the position fields required to configure exit rules."""
+
         ...
 
 
@@ -186,8 +188,8 @@ class AssetMetadataRepositoryProtocol(Protocol):
         name: str,
         asset_class: str = "equity",
         region: str = "CN",
-        **kwargs
-    ) -> dict:
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         """Get or create asset metadata."""
         ...
 
@@ -205,7 +207,7 @@ class AssetMetadataRepositoryProtocol(Protocol):
         query: str,
         asset_class: str | None = None,
         region: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Search assets."""
         ...
 
@@ -213,9 +215,7 @@ class AssetMetadataRepositoryProtocol(Protocol):
 class StopLossRepositoryProtocol(Protocol):
     """Stop loss repository protocol for stop loss configuration operations."""
 
-    def get_active_stop_loss_configs(
-        self, user_id: int | None = None
-    ) -> list[dict[str, Any]]:
+    def get_active_stop_loss_configs(self, user_id: int | None = None) -> list[dict[str, Any]]:
         """
         Get all active stop loss configurations.
 
@@ -227,9 +227,7 @@ class StopLossRepositoryProtocol(Protocol):
         """
         ...
 
-    def get_stop_loss_config_by_position(
-        self, position_id: int
-    ) -> dict[str, Any] | None:
+    def get_stop_loss_config_by_position(self, position_id: int) -> dict[str, Any] | None:
         """Get stop loss config for a position."""
         ...
 
@@ -273,9 +271,7 @@ class StopLossRepositoryProtocol(Protocol):
 class TakeProfitRepositoryProtocol(Protocol):
     """Take profit repository protocol for take profit configuration operations."""
 
-    def get_active_take_profit_configs(
-        self, user_id: int | None = None
-    ) -> list[dict[str, Any]]:
+    def get_active_take_profit_configs(self, user_id: int | None = None) -> list[dict[str, Any]]:
         """
         Get all active take profit configurations.
 
@@ -287,9 +283,7 @@ class TakeProfitRepositoryProtocol(Protocol):
         """
         ...
 
-    def get_take_profit_config_by_position(
-        self, position_id: int
-    ) -> dict[str, Any] | None:
+    def get_take_profit_config_by_position(self, position_id: int) -> dict[str, Any] | None:
         """Get take profit config for a position."""
         ...
 
@@ -308,6 +302,22 @@ class TakeProfitRepositoryProtocol(Protocol):
         is_active: bool | None = None,
     ) -> bool:
         """Update take profit configuration."""
+        ...
+
+    def execute_take_profit_tranche(
+        self,
+        *,
+        config_id: int,
+        position_id: int,
+        expected_partial_levels: list[float] | None,
+        remaining_partial_levels: list[float],
+        shares: float | None,
+        price: Decimal,
+        reason: str,
+        deactivate: bool,
+    ) -> bool:
+        """Atomically close one tranche and advance its take-profit configuration."""
+
         ...
 
 
@@ -331,9 +341,7 @@ class PortfolioSnapshotRepositoryProtocol(Protocol):
 class TransactionCostConfigRepositoryProtocol(Protocol):
     """Transaction cost configuration repository protocol."""
 
-    def get_cost_config(
-        self, market: str, asset_class: str
-    ) -> dict[str, Any] | None:
+    def get_cost_config(self, market: str, asset_class: str) -> dict[str, Any] | None:
         """
         Get transaction cost configuration for market and asset class.
 
@@ -355,6 +363,7 @@ class TransactionCostConfigRepositoryProtocol(Protocol):
 # =============================================================================
 # Market Data Protocol - 行情数据服务协议
 # =============================================================================
+
 
 class MarketDataPort(Protocol):
     """
@@ -402,9 +411,11 @@ class MarketDataPort(Protocol):
 # Notification Protocol - 通知服务协议
 # =============================================================================
 
+
 @dataclass
 class StopLossNotificationData:
     """Data for stop loss notification."""
+
     user_id: int
     user_email: str
     position_id: int
