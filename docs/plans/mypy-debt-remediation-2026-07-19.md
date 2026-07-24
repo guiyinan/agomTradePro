@@ -2006,3 +2006,20 @@
 - Hedge views 与 serializers 定向 mypy 清零；隔离并行工作区改动后，全仓基线从 `3645 errors / 638 files` 收紧为 `3607 errors / 636 files`，净减少 `38 errors / 2 files`。
 - Hedge API 权限、相关性输入、快照/告警契约与路由兼容回归 `44 passed`。
 - Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百四十三批
+
+- 按“AI 凭据与配额影响面 × 持久化失败关闭”收口 AI Provider repositories。
+- 非标准密文、损坏密文和当前环境无法解密的凭据统一失败关闭，不再把加密字段内容当作明文 API Key 使用；已有无前缀但可正常解密的历史密文继续兼容。
+- Provider 创建与更新增加可写字段白名单，禁止调用方直接注入 `api_key_encrypted`；user scope 必须绑定 owner，切换 scope 时在事务内锁定并基于最新记录复核。
+- Usage 日志拒绝空模型、负数/布尔 token、负延迟、非有限或负成本、非法状态与非法 provider scope；总 token 不得小于 prompt 与 completion 之和。
+- Usage 日志写入与 provider `last_used_at` 更新进入同一事务，任一步失败均不留下部分成功状态。
+- 用户 fallback 日/月配额拒绝负数、NaN 和无穷值；批量应用在单事务中完成，避免部分用户已更新而后续用户失败。
+- 近期日志 limit 限制为 1..1000，避免无界 ORM 查询。
+- Repository 用户参数与实际默认 Django `User` 模型对齐，日期聚合别名显式化，清除 ORM 查询类型债务。
+
+## 第一百四十三批验证结果
+
+- AI Provider repositories 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3607 errors / 636 files` 收紧为 `3578 errors / 635 files`，净减少 `29 errors / 1 file`。
+- AI Provider 凭据、用户路由、Usage/Quota 持久化和 API 边界回归共 `40 passed`。
+- Django system check、架构检查、改动文件 Ruff 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

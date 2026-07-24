@@ -6,11 +6,14 @@ import hashlib
 import logging
 from datetime import date, timedelta
 from decimal import Decimal
+from math import isfinite
 from typing import Any
 
 from cryptography.fernet import InvalidToken
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, Count, Q, Sum
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.db.models import Avg, Count, Q, QuerySet, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
@@ -20,6 +23,42 @@ from .models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
 
 logger = logging.getLogger(__name__)
 _UNUSABLE_ENCRYPTED_KEY_FINGERPRINTS: set[str] = set()
+_PROVIDER_MUTABLE_FIELDS = {
+    "api_key",
+    "api_mode",
+    "base_url",
+    "daily_budget_limit",
+    "default_model",
+    "description",
+    "extra_config",
+    "fallback_enabled",
+    "is_active",
+    "monthly_budget_limit",
+    "name",
+    "owner_user",
+    "priority",
+    "provider_type",
+    "scope",
+}
+_USAGE_STATUSES = {"success", "error", "timeout", "rate_limited"}
+_PROVIDER_SCOPES = {"system_global", "system_fallback", "personal"}
+
+
+def _validate_nonnegative_limit(
+    value: float | Decimal | None,
+    *,
+    field_name: str,
+) -> Decimal | None:
+    """Normalize one finite nonnegative monetary limit."""
+
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a nonnegative number")
+    normalized = Decimal(str(value))
+    if not normalized.is_finite() or normalized < 0:
+        raise ValueError(f"{field_name} must be a finite nonnegative number")
+    return normalized
 
 
 class AIProviderRepository:
@@ -48,7 +87,7 @@ class AIProviderRepository:
     def _encrypt_api_key(self, api_key: str) -> str:
         if not api_key:
             return ""
-        return self._crypto_service.encrypt(api_key)
+        return str(self._crypto_service.encrypt(api_key))
 
     def _try_encrypt_api_key(self, api_key: str) -> str | None:
         """Best-effort encryption for legacy plaintext migration."""
@@ -66,7 +105,18 @@ class AIProviderRepository:
         if not encrypted_key:
             return ""
         try:
-            return self._crypto_service.decrypt(encrypted_key, suppress_warning=True)
+            decrypted = str(
+                self._crypto_service.decrypt(
+                    encrypted_key,
+                    suppress_warning=True,
+                )
+            )
+            if (
+                not encrypted_key.startswith(FieldEncryptionService.PREFIX)
+                and decrypted == encrypted_key
+            ):
+                return ""
+            return decrypted
         except (InvalidToken, ValueError):
             fingerprint = hashlib.sha1(
                 encrypted_key.encode("utf-8"),
@@ -79,9 +129,8 @@ class AIProviderRepository:
                 _UNUSABLE_ENCRYPTED_KEY_FINGERPRINTS.add(fingerprint)
             return ""
         except Exception:
-            if encrypted_key.startswith(FieldEncryptionService.PREFIX):
-                return ""
-            return encrypted_key
+            logger.exception("Unable to decrypt AI provider credential")
+            return ""
 
     def get_api_key(self, provider: AIProviderConfig) -> str:
         """Get decrypted API key from provider."""
@@ -95,16 +144,19 @@ class AIProviderRepository:
         """Return whether the provider has usable credentials in this environment."""
         return bool(self.get_api_key(provider))
 
-    def _base_queryset(self):
-        return AIProviderConfig._default_manager.select_related("owner_user")
+    def _base_queryset(self) -> QuerySet[AIProviderConfig]:
+        queryset: QuerySet[AIProviderConfig] = AIProviderConfig._default_manager.select_related(
+            "owner_user"
+        )
+        return queryset
 
     def _build_queryset(
         self,
         *,
         scope: str | None = None,
-        owner_user=None,
+        owner_user: User | None = None,
         include_inactive: bool = True,
-    ):
+    ) -> QuerySet[AIProviderConfig]:
         queryset = self._base_queryset()
         if scope is not None:
             queryset = queryset.filter(scope=scope)
@@ -147,7 +199,11 @@ class AIProviderRepository:
             if self.has_usable_api_key(provider)
         ]
 
-    def get_user_providers(self, user, include_inactive: bool = True) -> list[AIProviderConfig]:
+    def get_user_providers(
+        self,
+        user: User | None,
+        include_inactive: bool = True,
+    ) -> list[AIProviderConfig]:
         """Return user-owned providers."""
         if user is None:
             return []
@@ -159,11 +215,17 @@ class AIProviderRepository:
             )
         )
 
-    def get_active_user_providers(self, user) -> list[AIProviderConfig]:
+    def get_active_user_providers(
+        self,
+        user: User | None,
+    ) -> list[AIProviderConfig]:
         """Return active providers owned by a user."""
         return self.get_user_providers(user, include_inactive=False)
 
-    def get_active_configured_user_providers(self, user) -> list[AIProviderConfig]:
+    def get_active_configured_user_providers(
+        self,
+        user: User | None,
+    ) -> list[AIProviderConfig]:
         """Return active user providers with usable credentials."""
         return [
             provider
@@ -171,13 +233,21 @@ class AIProviderRepository:
             if self.has_usable_api_key(provider)
         ]
 
-    def get_by_id(self, pk: int, user=None) -> AIProviderConfig | None:
+    def get_by_id(
+        self,
+        pk: int,
+        user: User | None = None,
+    ) -> AIProviderConfig | None:
         """Get provider by id, optionally enforcing user visibility."""
         try:
             provider = self._base_queryset().get(pk=pk)
         except AIProviderConfig.DoesNotExist:
             return None
-        if provider.scope == "user" and user is not None and provider.owner_user_id != user.id:
+        if (
+            provider.scope == "user"
+            and user is not None
+            and provider.owner_user_id != getattr(user, "pk", None)
+        ):
             return None
         return provider
 
@@ -186,7 +256,7 @@ class AIProviderRepository:
         name: str,
         *,
         scope: str | None = None,
-        owner_user=None,
+        owner_user: User | None = None,
     ) -> AIProviderConfig | None:
         """Get provider by name with optional scope filter."""
         queryset = self._base_queryset()
@@ -212,7 +282,7 @@ class AIProviderRepository:
         *,
         name: str,
         scope: str,
-        owner_user=None,
+        owner_user: User | None = None,
         exclude_pk: int | None = None,
     ) -> bool:
         """Check name uniqueness within the relevant scope."""
@@ -223,9 +293,13 @@ class AIProviderRepository:
             queryset = queryset.filter(owner_user__isnull=True)
         if exclude_pk is not None:
             queryset = queryset.exclude(pk=exclude_pk)
-        return queryset.exists()
+        return bool(queryset.exists())
 
-    def get_provider_for_reference(self, provider_ref, user=None) -> AIProviderConfig | None:
+    def get_provider_for_reference(
+        self,
+        provider_ref: int | str | None,
+        user: User | None = None,
+    ) -> AIProviderConfig | None:
         """Resolve provider reference for a user-aware request."""
         if provider_ref in (None, ""):
             return None
@@ -244,56 +318,78 @@ class AIProviderRepository:
             return None
         if provider.scope == "user" and user is None:
             return None
-        if provider.scope == "user" and user is not None and provider.owner_user_id != user.id:
+        if (
+            provider.scope == "user"
+            and user is not None
+            and provider.owner_user_id != getattr(user, "pk", None)
+        ):
             return None
         return provider
 
-    def create(self, **kwargs) -> AIProviderConfig:
+    def create(self, **kwargs: Any) -> AIProviderConfig:
         """Create provider and encrypt API key."""
+        unknown_fields = set(kwargs) - _PROVIDER_MUTABLE_FIELDS
+        if unknown_fields:
+            raise ValueError(f"Unsupported provider fields: {sorted(unknown_fields)}")
         scope = kwargs.get("scope", "system")
         owner_user = kwargs.get("owner_user")
+        if scope not in {"system", "user"}:
+            raise ValueError("scope must be 'system' or 'user'")
         if scope == "system":
             kwargs["owner_user"] = None
         elif owner_user is None:
             raise ValueError("owner_user is required for user-scope providers")
 
         api_key = kwargs.pop("api_key", "")
+        if not isinstance(api_key, str):
+            raise ValueError("api_key must be a string")
         kwargs["api_key_encrypted"] = self._encrypt_api_key(api_key)
         kwargs["api_key"] = ""
         return AIProviderConfig._default_manager.create(**kwargs)
 
-    def update(self, pk: int, **kwargs) -> bool:
+    def update(self, pk: int, **kwargs: Any) -> bool:
         """Update provider with optional encrypted API key handling."""
-        try:
-            provider = AIProviderConfig._default_manager.get(pk=pk)
-        except AIProviderConfig.DoesNotExist:
-            return False
+        unknown_fields = set(kwargs) - _PROVIDER_MUTABLE_FIELDS
+        if unknown_fields:
+            raise ValueError(f"Unsupported provider fields: {sorted(unknown_fields)}")
 
-        if "scope" in kwargs and kwargs["scope"] == "system":
-            kwargs["owner_user"] = None
+        with transaction.atomic():
+            try:
+                provider = AIProviderConfig._default_manager.select_for_update().get(pk=pk)
+            except AIProviderConfig.DoesNotExist:
+                return False
 
-        if "api_key" in kwargs:
-            api_key = kwargs.pop("api_key")
-            if api_key:
-                kwargs["api_key_encrypted"] = self._encrypt_api_key(api_key)
-                kwargs["api_key"] = ""
-            else:
-                kwargs.pop("api_key_encrypted", None)
-                if provider.api_key and not provider.api_key_encrypted:
+            final_scope = kwargs.get("scope", provider.scope)
+            final_owner = kwargs.get("owner_user", provider.owner_user)
+            if final_scope not in {"system", "user"}:
+                raise ValueError("scope must be 'system' or 'user'")
+            if final_scope == "system":
+                kwargs["owner_user"] = None
+            elif final_owner is None:
+                raise ValueError("owner_user is required for user-scope providers")
+
+            if "api_key" in kwargs:
+                api_key = kwargs.pop("api_key")
+                if not isinstance(api_key, str):
+                    raise ValueError("api_key must be a string")
+                if api_key:
+                    kwargs["api_key_encrypted"] = self._encrypt_api_key(api_key)
+                    kwargs["api_key"] = ""
+                elif provider.api_key and not provider.api_key_encrypted:
                     encrypted_key = self._try_encrypt_api_key(provider.api_key)
                     if encrypted_key:
                         kwargs["api_key_encrypted"] = encrypted_key
                         kwargs["api_key"] = ""
-        elif provider.api_key and not provider.api_key_encrypted:
-            encrypted_key = self._try_encrypt_api_key(provider.api_key)
-            if encrypted_key:
-                kwargs["api_key_encrypted"] = encrypted_key
-                kwargs["api_key"] = ""
+            elif provider.api_key and not provider.api_key_encrypted:
+                encrypted_key = self._try_encrypt_api_key(provider.api_key)
+                if encrypted_key:
+                    kwargs["api_key_encrypted"] = encrypted_key
+                    kwargs["api_key"] = ""
 
-        for key, value in kwargs.items():
-            setattr(provider, key, value)
-        provider.save()
-        return True
+            for key, value in kwargs.items():
+                setattr(provider, key, value)
+            provider.save()
+            return True
 
     def delete(self, pk: int) -> bool:
         """Delete provider by id."""
@@ -331,44 +427,62 @@ class AIUsageRepository:
         request_type: str = "chat",
         error_message: str = "",
         request_metadata: dict[str, Any] | None = None,
-        user=None,
+        user: User | None = None,
         provider_scope: str = "system_global",
         quota_charged: bool = False,
     ) -> AIUsageLog:
         """Persist one AI usage log entry."""
-        log = AIUsageLog._default_manager.create(
-            provider=provider,
-            user=user,
-            provider_scope=provider_scope,
-            quota_charged=quota_charged,
-            model=model,
-            request_type=request_type,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-            estimated_cost=Decimal(str(estimated_cost)),
-            response_time_ms=response_time_ms,
-            status=status,
-            error_message=error_message,
-            request_metadata=request_metadata or {},
-        )
-        provider.last_used_at = timezone.now()
-        provider.save(update_fields=["last_used_at"])
-        return log
+        if not model.strip():
+            raise ValueError("model is required")
+        for field_name, value in (
+            ("prompt_tokens", prompt_tokens),
+            ("completion_tokens", completion_tokens),
+            ("total_tokens", total_tokens),
+            ("response_time_ms", response_time_ms),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{field_name} must be a nonnegative integer")
+        if total_tokens < prompt_tokens + completion_tokens:
+            raise ValueError("total_tokens cannot be less than prompt_tokens + completion_tokens")
+        if isinstance(estimated_cost, bool) or not isfinite(estimated_cost) or estimated_cost < 0:
+            raise ValueError("estimated_cost must be a finite nonnegative number")
+        if status not in _USAGE_STATUSES:
+            raise ValueError(f"Unsupported usage status: {status}")
+        if provider_scope not in _PROVIDER_SCOPES:
+            raise ValueError(f"Unsupported provider_scope: {provider_scope}")
+
+        with transaction.atomic():
+            log = AIUsageLog._default_manager.create(
+                provider=provider,
+                user=user,
+                provider_scope=provider_scope,
+                quota_charged=quota_charged,
+                model=model.strip(),
+                request_type=request_type,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                estimated_cost=Decimal(str(estimated_cost)),
+                response_time_ms=response_time_ms,
+                status=status,
+                error_message=error_message,
+                request_metadata=request_metadata or {},
+            )
+            provider.last_used_at = timezone.now()
+            provider.save(update_fields=["last_used_at"])
+            return log
 
     def get_daily_usage(self, provider_id: int, target_date: date) -> dict[str, Any]:
         """Aggregate provider usage for a date."""
-        result = (
-            AIUsageLog._default_manager.filter(
-                provider_id=provider_id,
-                created_at__date=target_date,
-            ).aggregate(
-                total_requests=Count("id"),
-                success_requests=Count("id", filter=Q(status="success")),
-                total_tokens=Sum("total_tokens"),
-                total_cost=Sum("estimated_cost"),
-                avg_response_time_ms=Avg("response_time_ms"),
-            )
+        result = AIUsageLog._default_manager.filter(
+            provider_id=provider_id,
+            created_at__date=target_date,
+        ).aggregate(
+            total_requests=Count("id"),
+            success_requests=Count("id", filter=Q(status="success")),
+            total_tokens=Sum("total_tokens"),
+            total_cost=Sum("estimated_cost"),
+            avg_response_time_ms=Avg("response_time_ms"),
         )
         return {
             "total_requests": result["total_requests"] or 0,
@@ -380,18 +494,16 @@ class AIUsageRepository:
 
     def get_monthly_usage(self, provider_id: int, year: int, month: int) -> dict[str, Any]:
         """Aggregate provider usage for a month."""
-        result = (
-            AIUsageLog._default_manager.filter(
-                provider_id=provider_id,
-                created_at__year=year,
-                created_at__month=month,
-            ).aggregate(
-                total_requests=Count("id"),
-                success_requests=Count("id", filter=Q(status="success")),
-                total_tokens=Sum("total_tokens"),
-                total_cost=Sum("estimated_cost"),
-                avg_response_time_ms=Avg("response_time_ms"),
-            )
+        result = AIUsageLog._default_manager.filter(
+            provider_id=provider_id,
+            created_at__year=year,
+            created_at__month=month,
+        ).aggregate(
+            total_requests=Count("id"),
+            success_requests=Count("id", filter=Q(status="success")),
+            total_tokens=Sum("total_tokens"),
+            total_cost=Sum("estimated_cost"),
+            avg_response_time_ms=Avg("response_time_ms"),
         )
         return {
             "total_requests": result["total_requests"] or 0,
@@ -412,7 +524,9 @@ class AIUsageRepository:
         daily_usage = self.get_daily_usage(provider_id, today)
         monthly_usage = self.get_monthly_usage(provider_id, today.year, today.month)
         daily_exceeded = daily_limit is not None and daily_usage["total_cost"] >= daily_limit
-        monthly_exceeded = monthly_limit is not None and monthly_usage["total_cost"] >= monthly_limit
+        monthly_exceeded = (
+            monthly_limit is not None and monthly_usage["total_cost"] >= monthly_limit
+        )
         return {
             "daily": {
                 "spent": daily_usage["total_cost"],
@@ -426,7 +540,11 @@ class AIUsageRepository:
             },
         }
 
-    def get_user_fallback_daily_spend(self, user, target_date: date) -> float:
+    def get_user_fallback_daily_spend(
+        self,
+        user: User,
+        target_date: date,
+    ) -> float:
         """Get user's system-fallback spend for a given day."""
         result = AIUsageLog._default_manager.filter(
             user=user,
@@ -437,7 +555,12 @@ class AIUsageRepository:
         ).aggregate(total_cost=Sum("estimated_cost"))
         return float(result["total_cost"] or Decimal("0"))
 
-    def get_user_fallback_monthly_spend(self, user, year: int, month: int) -> float:
+    def get_user_fallback_monthly_spend(
+        self,
+        user: User,
+        year: int,
+        month: int,
+    ) -> float:
         """Get user's system-fallback spend for a given month."""
         result = AIUsageLog._default_manager.filter(
             user=user,
@@ -451,7 +574,7 @@ class AIUsageRepository:
 
     def check_user_fallback_limits(
         self,
-        user,
+        user: User,
         daily_limit: float | None,
         monthly_limit: float | None,
     ) -> dict[str, Any]:
@@ -477,10 +600,12 @@ class AIUsageRepository:
         provider_id: int | None = None,
         limit: int = 100,
         status: str | None = None,
-        user=None,
+        user: User | None = None,
         provider_scope: str | None = None,
     ) -> list[AIUsageLog]:
         """Fetch recent logs with optional provider/user filters."""
+        if isinstance(limit, bool) or not 1 <= limit <= 1000:
+            raise ValueError("limit must be between 1 and 1000")
         queryset = AIUsageLog._default_manager.select_related("provider", "user")
         if provider_id:
             queryset = queryset.filter(provider_id=provider_id)
@@ -501,18 +626,17 @@ class AIUsageRepository:
                 created_at__date__gte=start_date,
                 status="success",
             )
-            .annotate(date=TruncDate("created_at"))
-            .values("date")
+            .values(usage_date=TruncDate("created_at"))
             .annotate(
                 requests=Count("id"),
                 tokens=Sum("total_tokens"),
                 cost=Sum("estimated_cost"),
             )
-            .order_by("date")
+            .order_by("usage_date")
         )
         return [
             {
-                "date": item["date"].strftime("%Y-%m-%d"),
+                "date": item["usage_date"].strftime("%Y-%m-%d"),
                 "requests": item["requests"],
                 "tokens": item["tokens"] or 0,
                 "cost": float(item["cost"] or 0),
@@ -556,7 +680,10 @@ class AIUserFallbackQuotaRepository:
     def __init__(self, usage_repo: AIUsageRepository | None = None) -> None:
         self._usage_repo = usage_repo or AIUsageRepository()
 
-    def get_for_user(self, user) -> AIUserFallbackQuota | None:
+    def get_for_user(
+        self,
+        user: User | None,
+    ) -> AIUserFallbackQuota | None:
         """Get one user's fallback quota."""
         if user is None:
             return None
@@ -565,7 +692,7 @@ class AIUserFallbackQuotaRepository:
         except AIUserFallbackQuota.DoesNotExist:
             return None
 
-    def list_active_users(self) -> list[Any]:
+    def list_active_users(self) -> list[User]:
         """Return active auth users ordered by primary key."""
 
         user_model = get_user_model()
@@ -574,31 +701,44 @@ class AIUserFallbackQuotaRepository:
             users = users.filter(is_active=True)
         return list(users)
 
-    def get_with_usage(self, user) -> tuple[AIUserFallbackQuota | None, float, float]:
+    def get_with_usage(
+        self,
+        user: User,
+    ) -> tuple[AIUserFallbackQuota | None, float, float]:
         """Return quota with today's and this month's usage."""
         quota = self.get_for_user(user)
         if quota is None:
             return None, 0.0, 0.0
         today = date.today()
         daily_spent = self._usage_repo.get_user_fallback_daily_spend(user, today)
-        monthly_spent = self._usage_repo.get_user_fallback_monthly_spend(user, today.year, today.month)
+        monthly_spent = self._usage_repo.get_user_fallback_monthly_spend(
+            user, today.year, today.month
+        )
         return quota, daily_spent, monthly_spent
 
     def upsert_for_user(
         self,
         *,
-        user,
+        user: User,
         daily_limit: float | Decimal | None,
         monthly_limit: float | Decimal | None,
         is_active: bool = True,
         admin_note: str = "",
     ) -> tuple[AIUserFallbackQuota, bool]:
         """Create or update one user's quota."""
+        normalized_daily = _validate_nonnegative_limit(
+            daily_limit,
+            field_name="daily_limit",
+        )
+        normalized_monthly = _validate_nonnegative_limit(
+            monthly_limit,
+            field_name="monthly_limit",
+        )
         quota, created = AIUserFallbackQuota._default_manager.update_or_create(
             user=user,
             defaults={
-                "daily_limit": daily_limit,
-                "monthly_limit": monthly_limit,
+                "daily_limit": normalized_daily,
+                "monthly_limit": normalized_monthly,
                 "is_active": is_active,
                 "admin_note": admin_note,
             },
@@ -615,6 +755,14 @@ class AIUserFallbackQuotaRepository:
         admin_note: str = "",
     ) -> dict[str, int]:
         """Apply the same quota to all active users."""
+        normalized_daily = _validate_nonnegative_limit(
+            daily_limit,
+            field_name="daily_limit",
+        )
+        normalized_monthly = _validate_nonnegative_limit(
+            monthly_limit,
+            field_name="monthly_limit",
+        )
         users = self.list_active_users()
 
         created_count = 0
@@ -622,23 +770,24 @@ class AIUserFallbackQuotaRepository:
         skipped_count = 0
         processed_users = 0
 
-        for user in users:
-            processed_users += 1
-            existing = self.get_for_user(user)
-            if existing is not None and not overwrite_existing:
-                skipped_count += 1
-                continue
-            _, created = self.upsert_for_user(
-                user=user,
-                daily_limit=daily_limit,
-                monthly_limit=monthly_limit,
-                is_active=is_active,
-                admin_note=admin_note,
-            )
-            if created:
-                created_count += 1
-            else:
-                updated_count += 1
+        with transaction.atomic():
+            for user in users:
+                processed_users += 1
+                existing = self.get_for_user(user)
+                if existing is not None and not overwrite_existing:
+                    skipped_count += 1
+                    continue
+                _, created = self.upsert_for_user(
+                    user=user,
+                    daily_limit=normalized_daily,
+                    monthly_limit=normalized_monthly,
+                    is_active=is_active,
+                    admin_note=admin_note,
+                )
+                if created:
+                    created_count += 1
+                else:
+                    updated_count += 1
 
         return {
             "processed_users": processed_users,

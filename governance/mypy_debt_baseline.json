@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3607,
-    "files_with_errors": 636
+    "errors": 3578,
+    "files_with_errors": 635
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -332,12 +332,6 @@
     },
     "apps/ai_provider/infrastructure/models.py": {
       "no-untyped-def": 3
-    },
-    "apps/ai_provider/infrastructure/repositories.py": {
-      "misc": 1,
-      "no-any-return": 3,
-      "no-untyped-call": 5,
-      "no-untyped-def": 20
     },
     "apps/ai_provider/interface/admin.py": {
       "attr-defined": 1,
