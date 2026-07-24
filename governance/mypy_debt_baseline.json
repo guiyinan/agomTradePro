@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4188,
-    "files_with_errors": 695
+    "errors": 4169,
+    "files_with_errors": 692
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1266,14 +1266,6 @@
     "apps/decision_rhythm/apps.py": {
       "no-untyped-def": 1
     },
-    "apps/decision_rhythm/domain/rhythm_entities.py": {
-      "no-untyped-def": 3
-    },
-    "apps/decision_rhythm/domain/rhythm_services.py": {
-      "arg-type": 4,
-      "operator": 2,
-      "var-annotated": 1
-    },
     "apps/decision_rhythm/infrastructure/consistency_snapshots.py": {
       "no-any-return": 1
     },
@@ -1288,11 +1280,6 @@
     },
     "apps/decision_rhythm/infrastructure/recommendation_repositories.py": {
       "no-untyped-def": 6
-    },
-    "apps/decision_rhythm/infrastructure/rhythm_models.py": {
-      "arg-type": 1,
-      "misc": 2,
-      "unused-ignore": 6
     },
     "apps/decision_rhythm/infrastructure/valuation_adapters.py": {
       "no-any-return": 1

@@ -1551,3 +1551,18 @@
 - Advisor Sheet 三个目标文件 mypy 清零；全仓基线从 `4207 errors / 698 files` 收紧为 `4188 errors / 695 files`，净减少 `19 errors / 3 files`。
 - Advisor Sheet 核心与结构回归 `26 passed`，API guardrail `4 passed`。
 - governance baseline 升级为 `2026-07-24.v185`，静态测试函数计数保持 `7208`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百一十四批
+
+- 按“决策调度公平性 × 配额与冷却核心规则影响面”收口 Decision Rhythm 的 Rhythm Entity、Domain Service 与 ORM Model。
+- 冷却检查先显式收窄最后决策/执行时间，杜绝可空时间参与运算；批量响应和队列优先级统计容器全部具化。
+- 修复同优先级请求按最新时间优先、导致旧请求可能长期饥饿的问题，调度器现按“高优先级优先、同优先级 FIFO”选择。
+- 配额状态继续以结构化 JSON 快照贯穿 Domain 与 ORM，不再压成字符串；响应 mapper 使用 Domain request 业务 ID，不再误把数据库外键整数暴露为 request ID。
+- ORM 工厂为缺少业务 ID 的配额和冷却实体生成非空稳定前缀 ID，避免把 `None` 写入非空字段；请求与响应默认时间改为 UTC-aware。
+- `create_request` 的动态可选字段改为 `TypedDict + Unpack` 契约，四个 ORM Model 移除过时的宽泛 mypy ignore。
+
+## 第一百一十四批验证结果
+
+- Decision Rhythm Rhythm Entity、Domain Service 与 ORM Model mypy 清零；全仓基线从 `4188 errors / 695 files` 收紧为 `4169 errors / 692 files`，净减少 `19 errors / 3 files`。
+- Decision Rhythm Domain、Scheduler、ORM mapper 与模型结构回归 `34 passed`。
+- governance baseline 升级为 `2026-07-24.v186`，静态测试函数计数提升至 `7212`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
