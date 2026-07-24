@@ -1778,3 +1778,19 @@
 - daily inspection service mypy 清零；全仓基线从 `4026 errors / 672 files` 收紧为 `4021 errors / 671 files`，净减少 `5 errors / 1 file`。
 - 日检服务与再平衡建议集成回归共 `25 passed`。
 - 增量 mypy、Django system check、架构检查、改动文件 Ruff 与 diff check 通过；主工作树并行测试治理批次仍在更新 governance baseline，本批继续不覆盖该未提交真源。
+
+## 第一百二十九批
+
+- 按“模拟交易读模型影响面 × 自动交易候选真实性”收口 simulated trading Facade 与资产池查询服务。
+- Facade 使用最小 Application Protocol，不再从 provider 模块隐式导入 Infrastructure 实现类型；账户与持仓读依赖完成具化。
+- 持仓仓储故障不再被伪装为空仓或“不存在”，避免上层在数据源故障时据此重复买入；账户概览改为基于当前持仓重算市值与总资产，不再混用可能滞后的账户缓存市值。
+- 基金等资产的小数份额不再被强制转换为整数，避免策略读模型丢失真实持仓数量；零初始资金不再被静默替换为一百万元。
+- 资产池类型、资产代码与数量上限完成输入规范化；无效分数和非正 limit 不再进入仓储查询，单次候选查询上限收紧为 500。
+- 修复信号仓储实际返回 `id`、服务却读取 `signal_id` 导致候选增强失败的问题；同资产多个倒序信号只保留第一条最新信号，不再被旧信号覆盖。
+- 资产池与信号按标准化证券代码连接，增强结果使用副本，不再原位污染仓储返回字典。
+
+## 第一百二十九批验证结果
+
+- simulated trading Facade 与 asset pool query service mypy 清零；全仓基线从 `4021 errors / 671 files` 收紧为 `4015 errors / 669 files`，净减少 `6 errors / 2 files`。
+- Facade、资产池和 strategy provider 读服务回归共 `6 passed`。
+- 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过；主工作树并行测试治理批次仍在更新 governance baseline，本批继续不覆盖该未提交真源。
