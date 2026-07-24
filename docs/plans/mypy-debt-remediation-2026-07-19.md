@@ -2419,3 +2419,19 @@
 - Account Historical Stress Testing 增量 mypy 清零；全仓基线从 `3065 errors / 597 files` 收紧为 `3060 errors / 596 files`，净减少 `5 errors / 1 file`。
 - Account 单元回归共 `86 passed`；覆盖非法置信度、非有限收益/净值、重复资产、非法权重、无行情与既有历史情景聚合。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十八批
+
+- 按“统一价格真实性 × 下单与估值公共上游影响面”收口 Data Center Unified Price Service 与 Simulated Trading Price Provider。
+- 实时价、历史收盘价、最近收盘价和基金净值统一要求为正有限数；零、负数、布尔、NaN 与无穷不能进入 `PriceLookupResult` 或下游订单、净值和资金计算。
+- 实时来源返回非法价格时继续尝试有效最近收盘价；所有来源均非法时返回 unavailable，`require_*` 入口抛出标准 `PRICE_UNAVAILABLE`，不再把畸形数值伪装成可执行价格。
+- 价格结果要求非空 requested/normalized code、可审计数据来源、合法日期和受控 freshness；空来源记录不能进入业务模块。
+- Data Center 的 `PriceBar.close`、`QuoteSnapshot.current_price` 与 `FundNavFact.nav` Domain 实体同步要求正有限数，阻断新畸形事实进入标准化存储。
+- AKShare 基金净值 fallback 同时校验价格和日期；非法日期或数值按无可用数据处理，不再在转换后产生不受控异常或错误结果。
+- Unified Price Service 通过 Domain Repository Protocol 与 composition factory 组装仓储；价格、基金净值 payload、repository helper 返回值和模拟盘可空日期补齐精确类型。
+
+## 第一百六十八批验证结果
+
+- Unified Price Service 与 Simulated Trading Price Provider 增量 mypy 清零；全仓基线从 `3060 errors / 596 files` 收紧为 `3048 errors / 594 files`，净减少 `12 errors / 2 files`。
+- Data Center 与 Simulated Trading 单元回归共 `289 passed`；覆盖无效实时价回退、无来源价格拒绝、Domain 价格实体约束、标准错误和既有行情/订单路径。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

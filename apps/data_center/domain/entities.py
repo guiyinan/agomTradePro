@@ -7,6 +7,7 @@ No Django, pandas, or external library imports allowed here.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any
@@ -395,8 +396,12 @@ class PriceBar:
     def __post_init__(self) -> None:
         if not self.asset_code:
             raise ValueError("PriceBar.asset_code cannot be empty")
-        if self.close < 0:
-            raise ValueError(f"PriceBar.close cannot be negative: {self.close}")
+        if (
+            isinstance(self.close, bool)
+            or not math.isfinite(self.close)
+            or self.close <= 0
+        ):
+            raise ValueError(f"PriceBar.close must be positive and finite: {self.close}")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -436,9 +441,14 @@ class QuoteSnapshot:
     def __post_init__(self) -> None:
         if not self.asset_code:
             raise ValueError("QuoteSnapshot.asset_code cannot be empty")
-        if self.current_price < 0:
+        if (
+            isinstance(self.current_price, bool)
+            or not math.isfinite(self.current_price)
+            or self.current_price <= 0
+        ):
             raise ValueError(
-                f"QuoteSnapshot.current_price cannot be negative: {self.current_price}"
+                "QuoteSnapshot.current_price must be positive and finite: "
+                f"{self.current_price}"
             )
 
     def to_dict(self) -> dict[str, Any]:
@@ -475,6 +485,12 @@ class FundNavFact:
     def __post_init__(self) -> None:
         if not self.fund_code:
             raise ValueError("FundNavFact.fund_code cannot be empty")
+        if (
+            isinstance(self.nav, bool)
+            or not math.isfinite(self.nav)
+            or self.nav <= 0
+        ):
+            raise ValueError(f"FundNavFact.nav must be positive and finite: {self.nav}")
 
     def to_dict(self) -> dict[str, Any]:
         return {

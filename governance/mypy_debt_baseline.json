@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3060,
-    "files_with_errors": 596
+    "errors": 3048,
+    "files_with_errors": 594
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -850,10 +850,6 @@
     "apps/data_center/application/on_demand.py": {
       "no-any-return": 1,
       "no-untyped-def": 1
-    },
-    "apps/data_center/application/price_service.py": {
-      "arg-type": 6,
-      "no-untyped-def": 3
     },
     "apps/data_center/application/reliability_use_cases.py": {
       "no-untyped-def": 1
@@ -2022,9 +2018,6 @@
     },
     "apps/signal/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/simulated_trading/infrastructure/price_provider.py": {
-      "assignment": 3
     },
     "apps/simulated_trading/interface/sdk_contract_views.py": {
       "no-untyped-def": 4
