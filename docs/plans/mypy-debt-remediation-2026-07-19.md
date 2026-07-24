@@ -1763,3 +1763,18 @@
 - performance UseCase、performance Repository 与 account ledger bridge mypy 清零；全仓基线从 `4048 errors / 675 files` 收紧为 `4026 errors / 672 files`，净减少 `22 errors / 3 files`。
 - 绩效 UseCase、Domain 与账户绩效 API 回归共 `103 passed`。
 - 完整 mypy debt ceiling、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过；主工作树并行测试治理批次仍在更新 governance baseline，本批继续不覆盖该未提交真源。
+
+## 第一百二十八批
+
+- 按“每日检查调仓建议影响面 × 不可执行数量安全性”收口 simulated trading daily inspection service。
+- 账户、持仓与辅助方法输入输出完成具化，动态仓储返回值在 Application 边界显式收窄。
+- 目标资产代码统一去空格并转大写，修复持仓代码大小写不同导致同一资产同时生成卖出与重复买入建议的问题。
+- 目标权重仅接受有限且位于 `0..1` 的数值，NaN、无穷值、负权重与超配权重不再进入调仓计算；负漂移阈值统一收紧为零。
+- 持仓价格缺失或非正时不再用 `0.01` 伪价格放大建议数量；建议保留金额口径并明确标记数量不可用，新增目标资产同样不再把金额误当作数量。
+- 新增资产代码规范化、无效目标权重与缺价数量三类回归。
+
+## 第一百二十八批验证结果
+
+- daily inspection service mypy 清零；全仓基线从 `4026 errors / 672 files` 收紧为 `4021 errors / 671 files`，净减少 `5 errors / 1 file`。
+- 日检服务与再平衡建议集成回归共 `25 passed`。
+- 增量 mypy、Django system check、架构检查、改动文件 Ruff 与 diff check 通过；主工作树并行测试治理批次仍在更新 governance baseline，本批继续不覆盖该未提交真源。
