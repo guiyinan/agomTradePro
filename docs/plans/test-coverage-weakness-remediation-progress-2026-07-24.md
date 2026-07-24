@@ -15,6 +15,7 @@
 4. T3A 首批：只对 `data_center/account/decision_rhythm` 的高损失半径补行为测试。
 5. T3B：`alpha/policy/simulated_trading` 的模型、政策、交易失败边界。
 6. T4A：`prompt/terminal/dashboard/ai_provider` 的用户入口、敏感信息和错误恢复。
+7. T4B 第一批：`fund/hedge/sector/sentiment` 的数据源降级、任务结果和空态。
 
 生产部署修复和其他治理主线不在 T3B/T4A 扩散。
 
@@ -73,9 +74,9 @@ merge 或 cherry-pick。
 
 | Scope | 行覆盖率 | 分支覆盖率 | 初始 ratchet |
 |---|---:|---:|---|
-| `apps` | 81.57% | 63.87% | line 80.0 / branch 62.8 |
+| `apps` | 81.84% | 64.20% | line 80.0 / branch 62.8 |
 | `core` | 69.47% | 51.33% | line 69.4 / branch 51.3 |
-| `shared` | 69.07% | 50.29% | line 69.0 / branch 50.2 |
+| `shared` | 69.25% | 50.29% | line 69.0 / branch 50.2 |
 | SDK/MCP | 72.16% | 52.38% | line 72.1 / branch 52.3 |
 
 架构层当前值：
@@ -83,8 +84,8 @@ merge 或 cherry-pick。
 | 层 | 行覆盖率 | 分支覆盖率 | 未覆盖行 |
 |---|---:|---:|---:|
 | Domain | 94.83% | 85.16% | 857 |
-| Application | 81.98% | 63.29% | 7,266 |
-| Infrastructure | 76.61% | 56.67% | 8,927 |
+| Application | 82.38% | 63.65% | 7,108 |
+| Infrastructure | 77.07% | 57.29% | 8,750 |
 | Interface | 80.79% | 57.57% | 4,339 |
 | Management Commands | 75.96% | 65.82% | 1,194 |
 
@@ -153,6 +154,24 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
   - `ai_provider=80.81%`（`1,554 / 1,923`），分支 `58.03%`。
 - 四个 T4A 模块均建立 80% 机器阈值；代表性零覆盖生产文件已变为
   `dashboard serializers=100%`、`terminal chat_router=99.16%`。
+- T4B 第一批已完成：
+  - Fund 覆盖显式/持久化 Regime、筛选空态、风格/业绩数据不足、保存失败、
+    data-center NAV 优先和 AKShare/Tushare failover；
+  - Hedge 覆盖代码标准化、持久化价格、缓存/实时回退、全源耗尽、singleton，
+    以及效果、相关性、组合、告警和比例 payload 的空态；
+  - Sector 覆盖两个 Celery 任务的业务失败和异常、Tushare 兼容字段、
+    成分股空态/代码规范化、股票板块映射去重及 Repository 写入失败；
+  - Sentiment 覆盖政策/新闻逐项隔离、已存新闻评分、空文本、批量部分失败、
+    事件不存在和 freshness 的 missing/current/stale/error；
+  - 新增测试整批 `42 passed`，相关 Unit 交叉回归
+    `408 passed, 1 CacheKeyWarning`；未修改生产代码。
+- T4B 第一批后的模块覆盖率：
+  - `fund=80.34%`（`1,291 / 1,607`），分支 `54.59%`；
+  - `hedge=80.09%`（`1,356 / 1,693`），分支 `60.77%`；
+  - `sector=80.55%`（`642 / 797`），分支 `65.38%`；
+  - `sentiment=80.57%`（`626 / 777`），分支 `61.02%`。
+- 四个模块均建立 80% 机器阈值；Hedge 和 Sector 使用精确覆盖分子越过门槛，
+  未依赖报告四舍五入。
 - Fast suite：`3,578 passed in 31.03s`，总耗时 `45.22s`，低于 120 秒预算。
 - 固定高风险链路：`229 passed`。
 - 最终 coverage ratchet 已通过。
@@ -168,7 +187,7 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
   - `data_center=77.85%`；
   - `account=81.23%`；
   - `decision_rhythm=83.51%`。
-- T4B、T5 和最终 T6 收口尚未开始；应按原计划在后续独立批次推进，不能在本批
+- T4B 第二批、T5 和最终 T6 收口尚未开始；应按原计划在后续独立批次推进，不能在本批
   用扩大 omit 或降低阈值替代。
 - Integration 修复后仅重跑了受影响的 24 项，完整 Integration 尚未二次全量重跑。
 - PostgreSQL、Celery worker、live/optional runtime 和 Playwright RC 尚未在本地执行。
