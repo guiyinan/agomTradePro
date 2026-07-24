@@ -14,8 +14,10 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_inspection_repository,
     get_simulated_position_repository,
 )
+from apps.simulated_trading.domain.entities import Position, SimulatedAccount
 from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
 from apps.strategy.domain.allocation_matrix import get_allocation_target
+from shared.numeric import safe_float
 
 
 @dataclass(frozen=True)
@@ -130,7 +132,7 @@ class DailyInspectionService:
     @classmethod
     def _build_checks(
         cls,
-        account,
+        account: SimulatedAccount,
         selection: InspectionSelection,
         macro_regime: str,
         policy_gear: str,
@@ -145,14 +147,22 @@ class DailyInspectionService:
         metadata = selection.rule_metadata or {}
         rebalance_cfg = cls._dict_value(metadata.get("rebalance"))
         allocation_cfg = cls._dict_value(metadata.get("allocation"))
-        target_weights = cls._dict_value(rebalance_cfg.get("target_weights"))
-        drift_threshold = cls._float_value(
-            rebalance_cfg.get("drift_threshold"),
-            cls.DEFAULT_DRIFT_THRESHOLD,
+        target_weights = cls._normalize_target_weights(
+            cls._dict_value(rebalance_cfg.get("target_weights"))
         )
-        class_drift_threshold = cls._float_value(
-            allocation_cfg.get("class_drift_threshold"),
-            cls.DEFAULT_DRIFT_THRESHOLD,
+        drift_threshold = max(
+            0.0,
+            cls._float_value(
+                rebalance_cfg.get("drift_threshold"),
+                cls.DEFAULT_DRIFT_THRESHOLD,
+            ),
+        )
+        class_drift_threshold = max(
+            0.0,
+            cls._float_value(
+                allocation_cfg.get("class_drift_threshold"),
+                cls.DEFAULT_DRIFT_THRESHOLD,
+            ),
         )
         risk_profile = str(allocation_cfg.get("risk_profile") or cls.DEFAULT_RISK_PROFILE)
         asset_class_overrides = cls._dict_value(allocation_cfg.get("asset_class_overrides"))
@@ -173,13 +183,14 @@ class DailyInspectionService:
 
         seen_asset_codes: set[str] = set()
         for pos in positions:
-            seen_asset_codes.add(pos.asset_code)
+            normalized_asset_code = pos.asset_code.strip().upper()
+            seen_asset_codes.add(normalized_asset_code)
             current_price = float(pos.current_price)
             market_value = float(pos.market_value)
             weight = (market_value / total_value) if total_value > 0 else 0.0
             has_asset_target = bool(target_weights)
             target_weight = (
-                cls._float_value(target_weights.get(pos.asset_code), 0.0)
+                cls._float_value(target_weights.get(normalized_asset_code), 0.0)
                 if has_asset_target
                 else None
             )
@@ -187,11 +198,11 @@ class DailyInspectionService:
             rebalance_action = "hold"
             if target_weight is not None and abs(drift) > drift_threshold:
                 rebalance_action = "sell" if drift > 0 else "buy"
-            rebalance_qty_suggest = (
-                int(((target_weight - weight) * total_value) / max(current_price, 0.01))
-                if target_weight is not None
-                else 0
-            )
+            rebalance_qty_suggest = 0
+            if target_weight is not None and current_price > 0:
+                rebalance_qty_suggest = int(
+                    ((target_weight - weight) * total_value) / current_price
+                )
             suggested_amount = (
                 abs((target_weight - weight) * total_value) if target_weight is not None else 0.0
             )
@@ -222,6 +233,7 @@ class DailyInspectionService:
                     "suggested_amount": round(suggested_amount, 2),
                     "drift_threshold": drift_threshold,
                     "rule_eval": rule_eval,
+                    "quantity_available": current_price > 0,
                 }
             )
 
@@ -239,16 +251,17 @@ class DailyInspectionService:
                     "asset_name": asset_code,
                     "asset_class": "",
                     "quantity": 0,
-                    "current_price": 1.0,
+                    "current_price": 0.0,
                     "market_value": 0.0,
                     "weight": 0.0,
                     "target_weight": round(target_weight, 6),
                     "drift": round(-target_weight, 6),
                     "rebalance_action": "buy" if target_weight > drift_threshold else "hold",
-                    "rebalance_qty_suggest": int(suggested_amount),
+                    "rebalance_qty_suggest": 0,
                     "suggested_amount": round(suggested_amount, 2),
                     "drift_threshold": drift_threshold,
                     "rule_eval": None,
+                    "quantity_available": False,
                 }
             )
         return checks
@@ -256,8 +269,8 @@ class DailyInspectionService:
     @classmethod
     def _build_asset_class_checks(
         cls,
-        account,
-        positions: list,
+        account: SimulatedAccount,
+        positions: list[Position],
         total_value: float,
         macro_regime: str,
         policy_gear: str,
@@ -357,7 +370,7 @@ class DailyInspectionService:
     @classmethod
     def _build_summary(
         cls,
-        account,
+        account: SimulatedAccount,
         checks: list[dict[str, Any]],
     ) -> dict[str, Any]:
         rebalance_required = [c for c in checks if c["rebalance_action"] != "hold"]
@@ -398,13 +411,29 @@ class DailyInspectionService:
 
     @classmethod
     def _float_value(cls, value: Any, default: float) -> float:
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return default
+        parsed: float = safe_float(value, default=default)
+        return parsed
 
     @classmethod
-    def _resolve_asset_class(cls, position, overrides: dict[str, Any]) -> str:
+    def _normalize_target_weights(
+        cls,
+        raw_weights: dict[str, Any],
+    ) -> dict[str, float]:
+        normalized: dict[str, float] = {}
+        for raw_asset_code, raw_weight in raw_weights.items():
+            asset_code = str(raw_asset_code).strip().upper()
+            weight = safe_float(raw_weight)
+            if not asset_code or weight is None or not 0.0 <= weight <= 1.0:
+                continue
+            normalized[asset_code] = weight
+        return normalized
+
+    @classmethod
+    def _resolve_asset_class(
+        cls,
+        position: Position,
+        overrides: dict[str, Any],
+    ) -> str:
         override = overrides.get(position.asset_code)
         if override:
             normalized = cls._normalize_asset_class(str(override))
@@ -546,7 +575,7 @@ class DailyInspectionService:
 
     @staticmethod
     def _latest_regime() -> str:
-        return resolve_current_regime().dominant_regime
+        return str(resolve_current_regime().dominant_regime)
 
     @staticmethod
     def _latest_policy_gear() -> str:
@@ -679,7 +708,7 @@ class DailyInspectionService:
         priority = cls._determine_priority(summary)
 
         # 创建再平衡建议
-        proposal = cls.inspection_repo.create_rebalance_proposal(
+        proposal: dict[str, Any] = cls.inspection_repo.create_rebalance_proposal(
             {
                 "account_id": account_id,
                 "inspection_report_id": inspection_result.get("report_id"),
