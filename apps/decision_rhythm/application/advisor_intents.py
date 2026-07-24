@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable
+from dataclasses import replace
 from decimal import ROUND_FLOOR, Decimal
 from typing import Any
 
@@ -253,45 +255,26 @@ def _data_asof_for_asset(data_health: dict[str, Any], asset_code: str) -> dict[s
 
 
 def _replace_intent(intent: AdvisorOrderIntent, **changes: Any) -> AdvisorOrderIntent:
-    data = {
-        "order_intent_id": intent.order_intent_id,
-        "account_id": intent.account_id,
-        "asset_code": intent.asset_code,
-        "asset_name": intent.asset_name,
-        "side": intent.side,
-        "current_quantity": intent.current_quantity,
-        "target_quantity": intent.target_quantity,
-        "delta_quantity": intent.delta_quantity,
-        "estimated_price": intent.estimated_price,
-        "estimated_amount": intent.estimated_amount,
-        "current_weight": intent.current_weight,
-        "target_weight": intent.target_weight,
-        "priority": intent.priority,
-        "price_band": intent.price_band,
-        "reason": intent.reason,
+    copied_changes: dict[str, Any] = {
+        "price_band": dict(intent.price_band),
         "risk_notes": list(intent.risk_notes),
-        "invalidation_rule": intent.invalidation_rule,
-        "execution_hint": intent.execution_hint,
-        "source_recommendation_id": intent.source_recommendation_id,
-        "blocking_status": intent.blocking_status,
         "source_recommendation_ids": list(intent.source_recommendation_ids),
         "conflict_resolution": dict(intent.conflict_resolution),
-        "risk_gate_status": intent.risk_gate_status,
         "risk_gate": dict(intent.risk_gate),
         "data_asof": dict(intent.data_asof),
         "decision_card": dict(intent.decision_card),
         "tracking": dict(intent.tracking),
         "confirmation": dict(intent.confirmation),
     }
-    data.update(changes)
-    return AdvisorOrderIntent(**data)
+    copied_changes.update(changes)
+    return replace(intent, **copied_changes)
 
 
 def _unique_asset_codes(values: list[str]) -> list[str]:
     return _dedupe_preserve_order([str(value or "").strip().upper() for value in values if value])
 
 
-def _dedupe_preserve_order(values: list[str]) -> list[str]:
+def _dedupe_preserve_order(values: Iterable[str]) -> list[str]:
     seen: set[str] = set()
     result: list[str] = []
     for value in values:

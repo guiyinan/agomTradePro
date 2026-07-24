@@ -6,6 +6,12 @@ from typing import Any
 
 from apps.decision_rhythm.application.advisor_contracts import (
     AdvisorOrderIntent,
+    AttributionContextProviderProtocol,
+    DataHealthProviderProtocol,
+    ExposureProviderProtocol,
+    RecommendationPerformanceProviderProtocol,
+    RecommendationTrackingProviderProtocol,
+    RiskGateProviderProtocol,
 )
 from apps.decision_rhythm.application.advisor_execution import (
     _normalize_exposure_map,
@@ -27,6 +33,13 @@ from apps.decision_rhythm.application.advisor_performance import (
 
 class AdvisorSheetContextMixin:
     """Load risk, health, exposure, tracking, and attribution context."""
+
+    risk_gate_provider: RiskGateProviderProtocol
+    data_health_provider: DataHealthProviderProtocol
+    exposure_provider: ExposureProviderProtocol
+    tracking_provider: RecommendationTrackingProviderProtocol
+    performance_provider: RecommendationPerformanceProviderProtocol
+    attribution_context_provider: AttributionContextProviderProtocol
 
     def _get_risk_policy_context(self, *, account_id: str) -> dict[str, Any]:
         try:

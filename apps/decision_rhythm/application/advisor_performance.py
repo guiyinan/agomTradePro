@@ -182,9 +182,8 @@ def _recommendation_tracking_payload(
     lookup_error: str,
     attribution_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    user_action = str(getattr(recommendation, "user_action", "") or "UNKNOWN")
-    if hasattr(getattr(recommendation, "user_action", None), "value"):
-        user_action = str(recommendation.user_action.value)
+    raw_user_action = getattr(recommendation, "user_action", None)
+    user_action = str(getattr(raw_user_action, "value", raw_user_action) or "UNKNOWN")
     enriched_performance = _performance_with_deep_attribution(
         performance=performance,
         recommendation=recommendation,
@@ -422,12 +421,13 @@ def _combined_order_performance(recommendation_rows: list[dict[str, Any]]) -> di
 
 
 def _performance_error_attribution(windows: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    available = [
-        (key, _optional_decimal(payload.get("directional_return")))
-        for key, payload in windows.items()
-        if payload.get("status") == "AVAILABLE"
-    ]
-    available = [(key, value) for key, value in available if value is not None]
+    available: list[tuple[str, Decimal]] = []
+    for key, payload in windows.items():
+        if payload.get("status") != "AVAILABLE":
+            continue
+        directional_return = _optional_decimal(payload.get("directional_return"))
+        if directional_return is not None:
+            available.append((key, directional_return))
     if not available:
         return {
             "status": "PENDING",
