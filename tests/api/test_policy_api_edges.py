@@ -62,7 +62,7 @@ def test_policy_workbench_fetch_rejects_invalid_source_id(staff_client):
 
 @pytest.mark.django_db
 def test_policy_rss_trigger_fetch_records_pending_task_immediately(
-    authenticated_client,
+    staff_client,
     monkeypatch,
     settings,
 ):
@@ -87,7 +87,7 @@ def test_policy_rss_trigger_fetch_records_pending_task_immediately(
 
     monkeypatch.setattr("apps.policy.application.tasks.fetch_rss_sources", FakeDelayWrapper)
 
-    response = authenticated_client.post(
+    response = staff_client.post(
         f"/api/policy/rss/sources/{source.id}/trigger_fetch/",
         {},
         format="json",
@@ -107,7 +107,7 @@ def test_policy_rss_trigger_fetch_records_pending_task_immediately(
 
 @pytest.mark.django_db
 def test_policy_rss_fetch_all_records_pending_task_immediately(
-    authenticated_client,
+    staff_client,
     monkeypatch,
     settings,
 ):
@@ -124,7 +124,7 @@ def test_policy_rss_fetch_all_records_pending_task_immediately(
 
     monkeypatch.setattr("apps.policy.application.tasks.fetch_rss_sources", FakeDelayWrapper)
 
-    response = authenticated_client.post(
+    response = staff_client.post(
         "/api/policy/rss/sources/fetch_all/",
         {},
         format="json",
@@ -140,3 +140,49 @@ def test_policy_rss_fetch_all_records_pending_task_immediately(
     assert record.status == TaskStatus.PENDING
     assert record.task_name == "apps.policy.application.tasks.fetch_rss_sources"
     assert record.kwargs == {"source_id": None}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("get", "/api/policy/rss/sources/"),
+        ("get", "/api/policy/rss/logs/"),
+        ("get", "/api/policy/rss/keywords/"),
+        ("post", "/api/policy/rss/sources/fetch_all/"),
+    ],
+)
+def test_policy_rss_management_requires_staff(
+    authenticated_client,
+    method,
+    path,
+):
+    response = getattr(authenticated_client, method)(path, {}, format="json")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_policy_rss_source_access_key_is_write_only(staff_client):
+    response = staff_client.post(
+        "/api/policy/rss/sources/",
+        {
+            "name": "Secret Feed",
+            "url": "https://example.com/feed.xml",
+            "category": "other",
+            "is_active": True,
+            "fetch_interval_hours": 6,
+            "rsshub_enabled": True,
+            "rsshub_use_global_config": False,
+            "rsshub_custom_base_url": "https://rsshub.example.com",
+            "rsshub_custom_access_key": "top-secret-key",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert "rsshub_custom_access_key" not in payload
+    detail = staff_client.get(f"/api/policy/rss/sources/{payload['id']}/")
+    assert detail.status_code == 200
+    assert "rsshub_custom_access_key" not in detail.json()

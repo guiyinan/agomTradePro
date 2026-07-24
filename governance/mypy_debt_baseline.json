@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3197,
-    "files_with_errors": 616
+    "errors": 3174,
+    "files_with_errors": 615
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1673,11 +1673,6 @@
       "no-untyped-def": 5,
       "type-arg": 3,
       "union-attr": 3
-    },
-    "apps/policy/interface/rss_api_views.py": {
-      "no-untyped-call": 5,
-      "no-untyped-def": 15,
-      "type-arg": 3
     },
     "apps/policy/management/commands/init_authoritative_rss_sources.py": {
       "no-untyped-def": 2

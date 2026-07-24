@@ -2208,3 +2208,21 @@
 - Account Transaction API 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3212 errors / 617 files` 收紧为 `3197 errors / 616 files`，净减少 `15 errors / 1 file`。
 - Account API 边界、手工成交同步与券商成交导入集成回归共 `51 passed`；覆盖跨组合无持仓写入、资产错配、非有限金额、账本不可改写、资金流水创建/删除、文件类型/大小与行数上限。
 - Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百五十五批
+
+- 按“外部网络抓取影响面 × 政策配置与凭据边界”收口 Policy RSS API。
+- RSS source 配置、抓取日志、政策关键词 CRUD、单源触发和全量抓取统一要求 staff；普通登录用户不能修改外部 URL/代理、读取抓取诊断或触发网络任务。
+- RSSHub custom access key 改为 write-only，创建和详情响应均不再回显密钥；已有 proxy password 继续保持 write-only。
+- 手动抓取不再记录可能含认证信息的 Celery broker URL，日志只记录 eager 模式与无敏感信息的任务 ID。
+- 同步抓取、Celery 调度和顶层触发异常不再把数据库、网络、broker 或运行配置原文返回客户端，详细堆栈仅保留在服务端日志。
+- 单源不存在继续保持 404，不再被宽泛异常捕获改写成 500。
+- 任务入队后监控登记失败不再把已成功投递的任务伪报为调度失败，避免调用方重试产生重复抓取。
+- Fetch-all source ID 严格要求正整数；空值仍明确表示抓取全部启用源。
+- Generic ViewSet、Request/Response、serializer class、对象查询与任务 ID 补齐精确类型。
+
+## 第一百五十五批验证结果
+
+- Policy RSS API 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3197 errors / 616 files` 收紧为 `3174 errors / 615 files`，净减少 `23 errors / 1 file`。
+- Policy 单元、serializer、RSS 抓取用例与 API 权限/调度回归共 `131 passed`；覆盖 staff 门禁、密钥不回显、404 保真、同步/异步错误脱敏与任务追踪。
+- Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

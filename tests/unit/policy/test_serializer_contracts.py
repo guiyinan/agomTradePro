@@ -6,6 +6,7 @@ from apps.policy.interface.serializers import (
     PolicyLevelField,
     RSSFetchLogSerializer,
     RSSFetchOutputSerializer,
+    RSSSourceConfigSerializer,
     WorkbenchFetchOutputSerializer,
     WorkbenchSummarySerializer,
 )
@@ -27,6 +28,7 @@ def test_reserved_policy_fields_remain_registered_under_public_names() -> None:
     assert "source" in RSSFetchLogSerializer().fields
     assert "errors" in RSSFetchOutputSerializer().fields
     assert "errors" in WorkbenchFetchOutputSerializer().fields
+    assert RSSSourceConfigSerializer().fields["rsshub_custom_access_key"].write_only is True
 
 
 def test_policy_error_fields_remain_in_serialized_payloads() -> None:

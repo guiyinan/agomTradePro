@@ -279,6 +279,7 @@ class RSSSourceConfigSerializer(serializers.Serializer[Any]):
         max_length=200,
         allow_blank=True,
         required=False,
+        write_only=True,
     )
     rsshub_format = serializers.ChoiceField(
         choices=RSSHUB_FORMAT_CHOICES,
@@ -366,7 +367,11 @@ class RSSFetchOutputSerializer(serializers.Serializer[dict[str, Any]]):
 class RSSTriggerSerializer(serializers.Serializer[dict[str, Any]]):
     """RSS触发抓取序列化器"""
 
-    source_id = serializers.IntegerField(required=False, allow_null=True)
+    source_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+    )
     force_refetch = serializers.BooleanField(required=False, default=False)
 
 

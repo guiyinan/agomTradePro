@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from rest_framework.exceptions import NotFound
+from rest_framework.permissions import IsAdminUser
 
 from apps.policy.interface import rss_api_views
 
@@ -63,8 +64,10 @@ def test_rss_source_log_and_keyword_lookup_boundaries(monkeypatch) -> None:
     assert sources.get_serializer_class() is rss_api_views.RSSSourceConfigCreateSerializer
     sources.action = "list"
     assert sources.get_serializer_class() is rss_api_views.RSSSourceConfigSerializer
+    assert sources.permission_classes == [IsAdminUser]
 
     logs = rss_api_views.RSSFetchLogViewSet()
+    assert logs.permission_classes == [IsAdminUser]
     _bind(logs, {"source__name": "NBS", "source": "7", "status": "success"}, 9)
     assert logs.get_queryset()[0]["source_name"] == "NBS"
     assert logs.get_object().id == 9
@@ -73,6 +76,7 @@ def test_rss_source_log_and_keyword_lookup_boundaries(monkeypatch) -> None:
         logs.get_object()
 
     keywords = rss_api_views.PolicyLevelKeywordViewSet()
+    assert keywords.permission_classes == [IsAdminUser]
     _bind(keywords, {"level": "P1", "is_active": "1", "category": "growth"}, 11)
     assert keywords.get_queryset()[0]["category"] == "growth"
     assert keywords.get_object().id == 11
@@ -108,7 +112,7 @@ def test_rss_trigger_fetch_synchronous_success_and_failure(monkeypatch) -> None:
     monkeypatch.setattr(tasks, "fetch_rss_sources", _fail)
     failed = view.trigger_fetch(request, pk=7)
     assert failed.status_code == 500
-    assert "feed unavailable" in failed.data["error"]
+    assert failed.data["error"] == "抓取失败，请查看服务端日志"
 
     monkeypatch.setattr(settings, "CELERY_TASK_ALWAYS_EAGER", False)
 
@@ -141,4 +145,17 @@ def test_rss_trigger_fetch_synchronous_success_and_failure(monkeypatch) -> None:
     monkeypatch.setattr(tasks, "fetch_rss_sources", _BrokenTask())
     unavailable = view.trigger_fetch(request, pk=7)
     assert unavailable.status_code == 503
-    assert "broker offline" in unavailable.data["error"]
+    assert unavailable.data["error"] == "RSS 抓取任务调度失败，请检查任务服务状态"
+
+
+def test_rss_trigger_fetch_preserves_not_found() -> None:
+    """Missing RSS sources must remain 404 instead of becoming generic 500."""
+    view = rss_api_views.RSSSourceConfigViewSet()
+
+    def _missing():
+        raise NotFound("RSS source not found.")
+
+    view.get_object = _missing
+
+    with pytest.raises(NotFound):
+        view.trigger_fetch(SimpleNamespace(data={}), pk="999")
