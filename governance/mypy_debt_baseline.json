@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3085,
-    "files_with_errors": 600
+    "errors": 3078,
+    "files_with_errors": 598
   },
   "modules": {
     "apps/account/application/stress_testing_use_cases.py": {
@@ -2018,15 +2018,6 @@
       "no-any-return": 1,
       "no-untyped-def": 5,
       "type-arg": 10
-    },
-    "apps/signal/apps.py": {
-      "no-untyped-call": 1
-    },
-    "apps/signal/infrastructure/config_init.py": {
-      "attr-defined": 2,
-      "no-untyped-call": 1,
-      "no-untyped-def": 2,
-      "var-annotated": 1
     },
     "apps/signal/infrastructure/diagnostic_queries.py": {
       "misc": 1

@@ -33,15 +33,9 @@ class SignalConfig(AppConfig):
             .filter(outcome__isnull=False)
         )
         forecast_repository = ForecastEvaluationRepository()
-        configure_forecast_evaluation_recorder(
-            forecast_repository.record_evaluation_for_signal
-        )
+        configure_forecast_evaluation_recorder(forecast_repository.record_evaluation_for_signal)
 
-        # Initialize domain config from database
-        try:
-            from apps.signal.infrastructure.config_init import initialize_domain_config
+        # Register the lazy database-backed Domain configuration provider.
+        from apps.signal.infrastructure.config_init import initialize_domain_config
 
-            initialize_domain_config()
-        except Exception:
-            # Development or database not migrated, ignore
-            pass
+        initialize_domain_config()

@@ -2373,3 +2373,18 @@
 - Signal 核心 ORM models 增量 mypy 清零；全仓基线从 `3094 errors / 601 files` 收紧为 `3085 errors / 600 files`，净减少 `9 errors / 1 file`。
 - Signal 单元、核心 model、repository、task、query、API 与 forecast 回归共 `143 passed`；覆盖 direct ORM 非法规则/状态/数值、Domain round-trip 和损坏持久化 JSON。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十五批
+
+- 按“Signal 全局准入配置影响面 × 启动初始化真实性”收口 eligibility matrix provider。
+- 修复初始化调用不存在的 `signal_rules.set_eligibility_matrix_provider` 且被 `AppConfig.ready()` 静默吞掉的问题；provider 现在注册到实际拥有矩阵真源的 Regime Domain 模块。
+- AppConfig 启动只注册惰性数据库 provider，不访问尚未迁移的表，因此移除宽泛异常吞噬；初始化编程错误不再静默导致数据库配置永久失效。
+- 数据库 loader 明确验证 model 可用性、资产类别、四种 Regime、Eligibility 枚举和重复组合；畸形行使整次 provider 加载失败并由 Domain 回退完整默认矩阵，不生成部分错误矩阵。
+- 无任何 active 配置时 loader 明确失败，Domain 使用完整默认矩阵；空数据库不再返回空矩阵并让所有资产类别变成未知。
+- `refresh_domain_config` 移除不存在于所有 Django cache backend 的 `delete_pattern` 调用；当前 eligibility provider 无该缓存键，刷新只需重新注册惰性 provider。
+
+## 第一百六十五批验证结果
+
+- Signal config init 与 AppConfig 增量 mypy 清零；全仓基线从 `3085 errors / 600 files` 收紧为 `3078 errors / 598 files`，净减少 `7 errors / 2 files`。
+- Signal 配置初始化专用回归 `6 passed`，完整 Signal 单元、model、repository、task、API 与 forecast 回归共 `149 passed`；覆盖有效注入、畸形行、空库回退和跨 cache backend 刷新。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
