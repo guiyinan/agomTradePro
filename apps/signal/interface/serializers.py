@@ -1,13 +1,86 @@
 """DRF serializers for the signal API."""
 
+from __future__ import annotations
+
+import re
+from collections.abc import Callable, Mapping
+from math import isfinite
+from typing import Any, TypeVar, cast
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.regime.domain.asset_eligibility import get_eligibility_matrix
+from apps.regime.domain.services_v2 import RegimeType
+from apps.signal.domain.entities import SignalStatus
 from shared.sanitization import sanitize_plain_text
 
+SchemaDecorated = TypeVar("SchemaDecorated", bound=Callable[..., Any])
+schema_string_field = cast(
+    Callable[[SchemaDecorated], SchemaDecorated],
+    extend_schema_field(OpenApiTypes.STR),
+)
 
-class InvestmentSignalSerializer(serializers.Serializer):
+_ASSET_CODE_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9._:-]{0,19}$")
+_DIRECTION_CHOICES = ("LONG", "SHORT", "NEUTRAL")
+_REGIME_CHOICES = tuple(item.value for item in RegimeType)
+_STATUS_CHOICES = tuple(item.value for item in SignalStatus)
+_MAX_LOGIC_LENGTH = 5000
+_MAX_INVALIDATION_LENGTH = 2000
+
+
+class StrictFieldsSerializer(serializers.Serializer[dict[str, Any]]):
+    """Reject fields outside a signal request's published contract."""
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Validate request keys before normal DRF field conversion."""
+
+        if isinstance(data, Mapping):
+            unknown_fields = sorted(str(field_name) for field_name in set(data) - set(self.fields))
+            if unknown_fields:
+                raise serializers.ValidationError(
+                    {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
+                )
+        return cast(dict[str, Any], super().to_internal_value(data))
+
+
+def _validate_asset_code(value: str) -> str:
+    """Normalize and validate one bounded asset identifier."""
+
+    normalized = value.strip().upper()
+    if not _ASSET_CODE_PATTERN.fullmatch(normalized):
+        raise serializers.ValidationError("资产代码格式无效")
+    return normalized
+
+
+def _validate_asset_class(value: str) -> str:
+    """Require an asset class published by the eligibility registry."""
+
+    normalized = value.strip()
+    if normalized not in get_eligibility_matrix():
+        raise serializers.ValidationError("未知资产类别")
+    return normalized
+
+
+def _sanitize_logic_text(
+    value: str,
+    *,
+    field_label: str,
+    minimum_length: int,
+    maximum_length: int,
+) -> str:
+    """Sanitize bounded logic text while preserving comparison operators."""
+
+    normalized = sanitize_plain_text(value).replace("&lt;", "<").replace("&gt;", ">")
+    if not minimum_length <= len(normalized) <= maximum_length:
+        raise serializers.ValidationError(
+            f"{field_label}长度必须为 {minimum_length} 到 {maximum_length} 个字符"
+        )
+    return normalized
+
+
+class InvestmentSignalSerializer(serializers.Serializer[dict[str, Any]]):
     """Read serializer for investment signal payloads."""
 
     id = serializers.IntegerField(read_only=True)
@@ -27,45 +100,74 @@ class InvestmentSignalSerializer(serializers.Serializer):
     backtest_performance_score = serializers.FloatField(read_only=True, allow_null=True)
     avg_backtest_return = serializers.FloatField(read_only=True, allow_null=True)
 
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_human_readable_invalidation(self, obj) -> str:
+    @schema_string_field
+    def get_human_readable_invalidation(self, obj: Any) -> str:
         """Return the human-readable invalidation description."""
 
-        if isinstance(obj, dict):
-            return (
-                obj.get("human_readable_invalidation")
-                or obj.get("invalidation_description")
-                or ""
-            )
-        if hasattr(obj, "get_human_readable_rules"):
-            return obj.get_human_readable_rules()
-        return getattr(obj, "invalidation_description", "") or ""
+        if isinstance(obj, Mapping):
+            value = obj.get("human_readable_invalidation") or obj.get("invalidation_description")
+            return value if isinstance(value, str) else ""
+        formatter = getattr(obj, "get_human_readable_rules", None)
+        if callable(formatter):
+            value = formatter()
+            return value if isinstance(value, str) else ""
+        value = getattr(obj, "invalidation_description", "")
+        return value if isinstance(value, str) else ""
 
 
-class InvestmentSignalCreateSerializer(serializers.Serializer):
+class InvestmentSignalCreateSerializer(StrictFieldsSerializer):
     """Write serializer for creating investment signals."""
 
-    asset_code = serializers.CharField()
-    asset_class = serializers.CharField()
-    direction = serializers.CharField()
-    logic_desc = serializers.CharField()
+    asset_code = serializers.CharField(min_length=1, max_length=20)
+    asset_class = serializers.CharField(min_length=1, max_length=50)
+    direction = serializers.ChoiceField(choices=_DIRECTION_CHOICES)
+    logic_desc = serializers.CharField(
+        min_length=5,
+        max_length=_MAX_LOGIC_LENGTH,
+    )
     invalidation_logic = serializers.CharField(
         write_only=True,
         required=True,
+        min_length=5,
+        max_length=_MAX_INVALIDATION_LENGTH,
         help_text="自然语言描述的证伪逻辑，如 'PMI 跌破 50' 或 'CPI > 3 且 M2 < 10'",
     )
-    target_regime = serializers.CharField()
+    target_regime = serializers.ChoiceField(choices=_REGIME_CHOICES)
 
-    def validate_invalidation_logic(self, value):
+    def validate_asset_code(self, value: str) -> str:
+        """Normalize and validate the asset identifier."""
+
+        return _validate_asset_code(value)
+
+    def validate_asset_class(self, value: str) -> str:
+        """Validate the asset class against the runtime eligibility registry."""
+
+        return _validate_asset_class(value)
+
+    def validate_invalidation_logic(self, value: str) -> str:
         """Validate and sanitize invalidation logic."""
 
-        value = sanitize_plain_text(value)
-        if not value or len(value.strip()) < 5:
-            raise serializers.ValidationError("证伪逻辑至少需要 5 个字符")
+        value = _sanitize_logic_text(
+            value,
+            field_label="证伪逻辑",
+            minimum_length=5,
+            maximum_length=_MAX_INVALIDATION_LENGTH,
+        )
 
         quantifiable_keywords = [
-            "跌破", "突破", "小于", "大于", "低于", "高于",
-            "<", ">", "<=", ">=", "涨幅", "跌幅", "%",
+            "跌破",
+            "突破",
+            "小于",
+            "大于",
+            "低于",
+            "高于",
+            "<",
+            ">",
+            "<=",
+            ">=",
+            "涨幅",
+            "跌幅",
+            "%",
         ]
         has_keyword = any(kw in value for kw in quantifiable_keywords)
         if not has_keyword:
@@ -75,12 +177,17 @@ class InvestmentSignalCreateSerializer(serializers.Serializer):
 
         return value
 
-    def validate_logic_desc(self, value):
+    def validate_logic_desc(self, value: str) -> str:
         """Validate and sanitize logic description."""
 
-        return sanitize_plain_text(value)
+        return _sanitize_logic_text(
+            value,
+            field_label="信号逻辑",
+            minimum_length=5,
+            maximum_length=_MAX_LOGIC_LENGTH,
+        )
 
-    def create(self, validated_data):
+    def create(self, validated_data: dict[str, Any]) -> dict[str, Any]:
         """Create a signal via application query services."""
 
         from apps.signal.application.query_services import create_investment_signal_payload
@@ -88,43 +195,94 @@ class InvestmentSignalCreateSerializer(serializers.Serializer):
         try:
             return create_investment_signal_payload(**validated_data)
         except ValueError as exc:
-            raise serializers.ValidationError(
-                {"invalidation_logic": str(exc)}
-            ) from exc
+            raise serializers.ValidationError({"invalidation_logic": str(exc)}) from exc
 
 
-class InvestmentSignalUpdateSerializer(serializers.Serializer):
+class InvestmentSignalUpdateSerializer(StrictFieldsSerializer):
     """Write serializer for updating investment signals."""
 
-    asset_code = serializers.CharField(required=False)
-    asset_class = serializers.CharField(required=False)
-    direction = serializers.CharField(required=False)
-    logic_desc = serializers.CharField(required=False)
-    invalidation_logic = serializers.CharField(required=False)
-    target_regime = serializers.CharField(required=False)
+    asset_code = serializers.CharField(required=False, min_length=1, max_length=20)
+    asset_class = serializers.CharField(required=False, min_length=1, max_length=50)
+    direction = serializers.ChoiceField(
+        choices=_DIRECTION_CHOICES,
+        required=False,
+    )
+    logic_desc = serializers.CharField(
+        required=False,
+        min_length=5,
+        max_length=_MAX_LOGIC_LENGTH,
+    )
+    invalidation_logic = serializers.CharField(
+        required=False,
+        min_length=5,
+        max_length=_MAX_INVALIDATION_LENGTH,
+    )
+    target_regime = serializers.ChoiceField(
+        choices=_REGIME_CHOICES,
+        required=False,
+    )
 
-    def validate_invalidation_logic(self, value):
+    def validate_asset_code(self, value: str) -> str:
+        """Normalize and validate the asset identifier."""
+
+        return _validate_asset_code(value)
+
+    def validate_asset_class(self, value: str) -> str:
+        """Validate the asset class against the runtime eligibility registry."""
+
+        return _validate_asset_class(value)
+
+    def validate_invalidation_logic(self, value: str) -> str:
         """Reuse create-time invalidation validation."""
 
         return InvestmentSignalCreateSerializer().validate_invalidation_logic(value)
 
-    def validate_logic_desc(self, value):
+    def validate_logic_desc(self, value: str) -> str:
         """Reuse create-time logic sanitization."""
 
-        return sanitize_plain_text(value)
+        return _sanitize_logic_text(
+            value,
+            field_label="信号逻辑",
+            minimum_length=5,
+            maximum_length=_MAX_LOGIC_LENGTH,
+        )
 
 
-class InvestmentSignalValidateRequestSerializer(serializers.Serializer):
+class InvestmentSignalValidateRequestSerializer(StrictFieldsSerializer):
     """Serializer for signal validation request"""
 
-    signal_id = serializers.IntegerField(required=False)
-    asset_code = serializers.CharField(required=False)
-    logic_desc = serializers.CharField(required=False)
-    invalidation_logic = serializers.CharField(required=False)
+    signal_id = serializers.IntegerField(required=False, min_value=1)
+    asset_code = serializers.CharField(
+        required=True,
+        min_length=1,
+        max_length=20,
+    )
+    logic_desc = serializers.CharField(
+        required=False,
+        min_length=5,
+        max_length=_MAX_LOGIC_LENGTH,
+    )
+    invalidation_logic = serializers.CharField(
+        required=False,
+        min_length=5,
+        max_length=_MAX_INVALIDATION_LENGTH,
+    )
     invalidation_threshold = serializers.FloatField(required=False)
 
+    def validate_asset_code(self, value: str) -> str:
+        """Normalize and validate the asset identifier."""
 
-class InvestmentSignalValidateResponseSerializer(serializers.Serializer):
+        return _validate_asset_code(value)
+
+    def validate_invalidation_threshold(self, value: float) -> float:
+        """Reject non-finite thresholds."""
+
+        if not isfinite(value):
+            raise serializers.ValidationError("证伪阈值必须是有限数值")
+        return value
+
+
+class InvestmentSignalValidateResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for signal validation response"""
 
     success = serializers.BooleanField()
@@ -134,18 +292,39 @@ class InvestmentSignalValidateResponseSerializer(serializers.Serializer):
     warnings = serializers.ListField(child=serializers.CharField(), allow_empty=True)
 
 
-class SignalListQuerySerializer(serializers.Serializer):
+class SignalListQuerySerializer(StrictFieldsSerializer):
     """Serializer for signal list query parameters"""
 
-    status = serializers.CharField(required=False, allow_null=True)
-    asset_class = serializers.CharField(required=False, allow_null=True)
-    direction = serializers.CharField(required=False, allow_null=True)
-    search = serializers.CharField(required=False, allow_null=True)
+    status = serializers.ChoiceField(
+        choices=_STATUS_CHOICES,
+        required=False,
+        allow_null=True,
+    )
+    asset_class = serializers.CharField(
+        required=False,
+        allow_null=True,
+        max_length=50,
+    )
+    direction = serializers.ChoiceField(
+        choices=_DIRECTION_CHOICES,
+        required=False,
+        allow_null=True,
+    )
+    search = serializers.CharField(
+        required=False,
+        allow_null=True,
+        max_length=200,
+    )
     include_test = serializers.BooleanField(required=False, default=False)
     limit = serializers.IntegerField(default=50, min_value=1, max_value=500)
 
+    def validate_asset_class(self, value: str | None) -> str | None:
+        """Validate an optional asset-class filter."""
 
-class UnifiedSignalSerializer(serializers.Serializer):
+        return _validate_asset_class(value) if value is not None else None
+
+
+class UnifiedSignalSerializer(serializers.Serializer[dict[str, Any]]):
     """Read serializer for unified signal payloads."""
 
     id = serializers.IntegerField(read_only=True)

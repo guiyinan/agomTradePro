@@ -2242,3 +2242,20 @@
 - Broker Execution tasks 与 Query Service 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3174 errors / 615 files` 收紧为 `3171 errors / 613 files`，净减少 `3 errors / 2 files`。
 - Broker Execution 应用边界、Agent 安全、API 权限和风险对账回归共 `68 passed`；覆盖监控异常隔离、畸形告警、非法对账目标、查询上限、过滤规范化与 UUID 边界。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和隔离 staged tree 的全仓 mypy debt ceiling。
+
+## 第一百五十七批
+
+- 按“投资信号写入影响面 × 证伪表达式正确性”收口 Signal serializers 与 API 错误边界。
+- 证伪逻辑清洗在移除标签和控制字符后恢复真实 `<`/`>` 比较运算符，`PMI < 50` 不再以 `PMI &lt; 50` 进入解析器并产生错误规则。
+- 创建、更新和准入检查的资产代码统一去空白、转大写并限制为安全的 1..20 字符标识；资产类别必须来自运行时 eligibility registry，方向与目标 Regime 使用 Domain 真源选择。
+- 信号逻辑限制为 5..5000 字符，证伪逻辑限制为 5..2000 字符；创建与更新继续要求量化证伪关键字，超长或清洗后过短文本不能进入 parser 或数据库。
+- 创建、更新、准入与列表 serializer 拒绝未知字段；调用方不能通过被静默忽略的 status、user ID 或拼写错误参数误判写入结果。
+- 准入请求必须提供资产代码，signal ID 必须为正整数，证伪阈值拒绝 NaN 与正负无穷；列表状态、方向、搜索长度和 limit 使用严格边界。
+- serializer validation error 恢复 DRF 标准 400 流程，不再被宽泛异常捕获改写为 500；验证、准入和统计的意外异常仅写服务端日志，响应不再泄露数据库或运行时原文。
+- Serializer generic、schema decorator、动态读取对象、validated payload 和 API many serializer 边界补齐精确类型。
+
+## 第一百五十七批验证结果
+
+- Signal serializers 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3171 errors / 613 files` 收紧为 `3155 errors / 612 files`，净减少 `16 errors / 1 file`。
+- Signal serializer、API 边界、页面契约与查询服务回归共 `49 passed`；覆盖比较运算符保真、未知字段、动态资产类别、方向/Regime、文本上限、非有限阈值、400 保真与内部错误脱敏。
+- 改动文件 Ruff、Black、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和隔离 staged tree 的全仓 mypy debt ceiling。

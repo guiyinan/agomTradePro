@@ -4,7 +4,8 @@ DRF API Views for Signal Management.
 提供 RESTful API 接口用于投资信号管理。
 """
 
-from typing import Any
+import logging
+from typing import Any, cast
 
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
@@ -32,6 +33,8 @@ from .serializers import (
     InvestmentSignalValidateResponseSerializer,
     SignalListQuerySerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SignalViewSet(viewsets.GenericViewSet[Any]):
@@ -96,7 +99,7 @@ class SignalViewSet(viewsets.GenericViewSet[Any]):
             include_test=data.get("include_test", False),
             limit=data.get("limit", 50),
         )
-        return Response(InvestmentSignalSerializer(signals, many=True).data)
+        return Response(InvestmentSignalSerializer(cast(Any, signals), many=True).data)
 
     def list(self, request: Request) -> Response:
         """List signals via application query services."""
@@ -171,9 +174,11 @@ class SignalViewSet(viewsets.GenericViewSet[Any]):
             response_serializer = InvestmentSignalValidateResponseSerializer(result)
             return Response(response_serializer.data)
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Signal validation failed")
             return Response(
-                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"success": False, "error": "Signal validation failed"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     @action(detail=True, methods=["post"])
@@ -237,23 +242,22 @@ class SignalViewSet(viewsets.GenericViewSet[Any]):
             "invalidation_threshold": 49.5
         }
         """
+        request_serializer = InvestmentSignalValidateRequestSerializer(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
         try:
-            request_serializer = InvestmentSignalValidateRequestSerializer(data=request.data)
-            request_serializer.is_valid(raise_exception=True)
-            try:
-                result = validate_signal_eligibility_payload(request_serializer.validated_data)
-            except LookupError as exc:
-                return Response(
-                    {"success": False, "error": str(exc)},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            return Response(result)
-
-        except Exception as e:
+            result = validate_signal_eligibility_payload(request_serializer.validated_data)
+        except LookupError as exc:
             return Response(
-                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+        except Exception:
+            logger.exception("Signal eligibility check failed")
+            return Response(
+                {"success": False, "error": "Signal eligibility check failed"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return Response(result)
 
     @action(detail=False, methods=["get"])
     def stats(self, request: Request) -> Response:
@@ -265,9 +269,11 @@ class SignalViewSet(viewsets.GenericViewSet[Any]):
         try:
             return Response({"success": True, "stats": get_signal_stats_payload()})
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Signal statistics query failed")
             return Response(
-                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"success": False, "error": "Signal statistics query failed"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 

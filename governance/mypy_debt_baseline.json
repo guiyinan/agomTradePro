@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3171,
-    "files_with_errors": 613
+    "errors": 3155,
+    "files_with_errors": 612
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2085,13 +2085,6 @@
     "apps/signal/interface/forecast_api_views.py": {
       "assignment": 1,
       "type-arg": 3
-    },
-    "apps/signal/interface/serializers.py": {
-      "misc": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 6,
-      "type-arg": 7
     },
     "apps/signal/interface/urls.py": {
       "no-untyped-def": 1

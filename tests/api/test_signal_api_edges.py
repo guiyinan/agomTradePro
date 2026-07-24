@@ -135,6 +135,39 @@ def test_signal_check_eligibility_returns_400_when_regime_missing(authenticated_
 
 
 @pytest.mark.django_db
+def test_signal_check_eligibility_validation_errors_remain_400(
+    authenticated_client,
+):
+    response = authenticated_client.post(
+        "/api/signal/check_eligibility/",
+        {"signal_id": 1, "unexpected": "ignored-before"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "non_field_errors" in response.json()["details"]
+
+
+@pytest.mark.django_db
+def test_signal_check_eligibility_hides_internal_failures(
+    authenticated_client,
+):
+    with patch(
+        "apps.signal.interface.api_views.validate_signal_eligibility_payload",
+        side_effect=RuntimeError("database password leaked"),
+    ):
+        response = authenticated_client.post(
+            "/api/signal/check_eligibility/",
+            {"asset_code": "510300.SH"},
+            format="json",
+        )
+
+    assert response.status_code == 500
+    assert response.json()["error"] == "Signal eligibility check failed"
+    assert "password" not in response.content.decode().lower()
+
+
+@pytest.mark.django_db
 def test_signal_check_eligibility_returns_success_contract(authenticated_client):
     current_regime = CurrentRegimeResult(
         dominant_regime="Recovery",
