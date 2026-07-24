@@ -5,11 +5,17 @@ Django Rest Framework views for API endpoints.
 """
 
 import logging
+import time
+import uuid
+from typing import Any
 
+from django.contrib.admin.views.decorators import staff_member_required
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -56,13 +62,13 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-class PromptTemplateViewSet(viewsets.ModelViewSet):
+class PromptTemplateViewSet(viewsets.ModelViewSet[Any]):
     """Prompt模板管理ViewSet"""
 
     serializer_class = PromptTemplateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """Return the interface-safe prompt template queryset."""
 
         include_inactive = (
@@ -75,20 +81,20 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
             include_inactive=include_inactive,
         )
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[BasePermission]:
         """Restrict prompt-template mutations to staff users."""
 
         if self.action in {"create", "update", "partial_update", "destroy"}:
             return [IsAdminUser()]
-        return super().get_permissions()
+        return [IsAuthenticated()]
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type[serializers.BaseSerializer[Any]]:
         """根据操作选择序列化器"""
         if self.action in ["create", "update", "partial_update"]:
             return PromptTemplateCreateSerializer
         return PromptTemplateSerializer
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """创建模板后返回稳定的 JSON 结构。"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -125,7 +131,7 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["post"])
-    def execute(self, request, pk=None):
+    def execute(self, request: Request, pk: str | None = None) -> Response:
         """执行模板"""
         self.get_object()
         serializer = ExecutePromptSerializer(data=request.data)
@@ -144,7 +150,7 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"])
-    def categories(self, request):
+    def categories(self, request: Request) -> Response:
         """获取所有分类"""
         categories = [
             {"value": "report", "label": "Report Analysis"},
@@ -155,24 +161,32 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
         return Response(categories)
 
 
-class ChainConfigViewSet(viewsets.ModelViewSet):
+class ChainConfigViewSet(viewsets.ModelViewSet[Any]):
     """链配置管理ViewSet"""
 
     serializer_class = ChainConfigSerializer
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """Return the interface-safe chain config queryset."""
 
         return get_chain_config_queryset()
 
-    def get_serializer_class(self):
+    def get_permissions(self) -> list[BasePermission]:
+        """Restrict chain configuration mutations to administrators."""
+
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self) -> type[serializers.BaseSerializer[Any]]:
         """根据操作选择序列化器"""
-        if self.action in ["create", "update"]:
+        if self.action in ["create", "update", "partial_update"]:
             return ChainConfigCreateSerializer
         return ChainConfigSerializer
 
     @action(detail=True, methods=["post"])
-    def execute(self, request, pk=None):
+    def execute(self, request: Request, pk: str | None = None) -> Response:
         """执行链"""
         self.get_object()
         serializer = ExecuteChainSerializer(data=request.data)
@@ -191,7 +205,7 @@ class ChainConfigViewSet(viewsets.ModelViewSet):
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"])
-    def execution_modes(self, request):
+    def execution_modes(self, request: Request) -> Response:
         """获取所有执行模式"""
         modes = [
             {"value": "serial", "label": "Serial"},
@@ -205,7 +219,9 @@ class ChainConfigViewSet(viewsets.ModelViewSet):
 class ReportGenerationView(APIView):
     """报告生成视图"""
 
-    def post(self, request):
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
         """生成投资分析报告"""
         serializer = GenerateReportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -226,7 +242,9 @@ class ReportGenerationView(APIView):
 class SignalGenerationView(APIView):
     """信号生成视图"""
 
-    def post(self, request):
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
         """生成投资信号"""
         serializer = GenerateSignalSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -247,7 +265,9 @@ class SignalGenerationView(APIView):
 class ChatView(APIView):
     """聊天视图 - 通过 ai_provider application 服务统一执行。"""
 
-    def post(self, request):
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
         """聊天提问"""
         serializer = ChatRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -262,10 +282,8 @@ class ChatView(APIView):
         context = serializer.validated_data.get("context", {})
 
         # 构建消息
-        messages = context.get("history", [])
+        messages = list(context.get("history", []))
         messages.append({"role": "user", "content": message})
-
-        import time
 
         start_time = time.time()
 
@@ -302,9 +320,8 @@ class ChatView(APIView):
         response_serializer = ChatResponseSerializer(response_data)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    def _generate_session_id(self):
+    def _generate_session_id(self) -> str:
         """生成会话ID"""
-        import uuid
 
         return str(uuid.uuid4())
 
@@ -312,7 +329,9 @@ class ChatView(APIView):
 class ChatProvidersView(APIView):
     """获取可用的AI提供商列表"""
 
-    def get(self, request):
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
         """获取所有活跃的AI提供商"""
         providers_data = list_active_provider_summaries()
 
@@ -327,7 +346,9 @@ class ChatProvidersView(APIView):
 class ChatModelsView(APIView):
     """获取指定提供商的可用模型列表 - 从 ai_provider 模块读取"""
 
-    def get(self, request):
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
         """获取模型列表"""
         provider_name = request.query_params.get("provider", "")
         return Response({"models": list_supported_models(provider_name)})
@@ -336,7 +357,9 @@ class ChatModelsView(APIView):
 class AgentExecuteView(APIView):
     """Agent Runtime 统一执行入口"""
 
-    def post(self, request):
+    permission_classes: list[type[BasePermission]] = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
         """执行 Agent 任务"""
         from ..domain.agent_entities import AgentExecutionRequest
         from .serializers import AgentExecuteRequestSerializer, AgentExecuteResponseSerializer
@@ -416,12 +439,13 @@ class AgentExecuteView(APIView):
             )
 
 
-class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
+class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     """执行日志ViewSet（只读）"""
 
     serializer_class = ExecutionLogSerializer
+    permission_classes: list[type[BasePermission]] = [IsAdminUser]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """获取查询集"""
         template_id = self.request.query_params.get("template_id")
         chain_id = self.request.query_params.get("chain_id")
@@ -435,9 +459,20 @@ class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
     @action(detail=False, methods=["get"])
-    def recent(self, request):
+    def recent(self, request: Request) -> Response:
         """获取最近的日志"""
-        limit = int(request.query_params.get("limit", 50))
+        try:
+            limit = int(request.query_params.get("limit", 50))
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "limit must be an integer between 1 and 200"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not 1 <= limit <= 200:
+            return Response(
+                {"error": "limit must be an integer between 1 and 200"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         logs = self.get_queryset()[:limit]
         serializer = self.get_serializer(logs, many=True)
         return Response(serializer.data)
@@ -446,6 +481,7 @@ class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 # ==================== 页面视图 ====================
 
 
-def prompt_manage_view(request):
+@staff_member_required
+def prompt_manage_view(request: HttpRequest) -> HttpResponse:
     """Prompt 模板管理页面"""
     return render(request, "prompt/manage.html")

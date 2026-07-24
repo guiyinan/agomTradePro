@@ -2056,3 +2056,19 @@
 - AI Capability 权限、同步范围、目录参数、路由上下文与搜索回归 `17 passed`。
 - MCP 相关固定最小回归包：TUI workbench、Terminal agent service、SDK client、内部 SSL redirect 共 `229 passed`。
 - Django system check、架构检查、改动文件 Ruff、Black 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百四十六批
+
+- 按“全局 Prompt/Chain 行为影响面 × AI 执行日志敏感性”收口 Prompt interface。
+- Chain 配置创建、全量/部分更新和删除改为仅管理员可操作；普通登录用户仍可读取与执行已审核 Chain。
+- Execution Log 包含渲染 Prompt、占位符、AI 输出和错误上下文，统一收紧为仅管理员可读取；recent limit 严格限制为 1..200，非法值返回 400。
+- Prompt 管理 HTML 页面增加 staff 门禁，普通登录用户不能绕过 API 权限直接进入管理面。
+- Chat 历史限制为最多 50 条、单条最多 20000 字符，仅允许 user/assistant 角色；调用方不能通过 history 注入 system 消息覆盖治理 Prompt，且视图复制历史后再追加当前消息。
+- Chat/Agent session、输入、模型、system prompt、token、temperature、轮次、context scope 和 tool name 数量增加有界校验，防止无界请求进入 AI 与工具执行链。
+- Prompt/Chain ViewSet、APIView、Request/Response、权限和页面 handler 补齐精确类型，所有执行类 API 显式声明登录权限。
+
+## 第一百四十六批验证结果
+
+- Prompt views 与 serializers 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3518 errors / 631 files` 收紧为 `3493 errors / 630 files`，净减少 `25 errors / 1 file`。
+- Prompt 模板、Chain 权限、执行日志、Chat 历史、Agent 资源边界和 provider/model 契约回归共 `21 passed`。
+- Django system check、架构检查、改动文件 Ruff、Black 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

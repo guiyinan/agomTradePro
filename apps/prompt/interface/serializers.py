@@ -81,7 +81,12 @@ class PromptTemplateSerializer(serializers.Serializer[Any]):
     )
     placeholders = PlaceholderSerializer(many=True, required=False)
     temperature = serializers.FloatField(required=False, default=0.7)
-    max_tokens = serializers.IntegerField(required=False, allow_null=True)
+    max_tokens = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+        max_value=200_000,
+    )
     description = serializers.CharField(allow_blank=True, required=False, default="")
     is_active = serializers.BooleanField(required=False, default=True)
     created_at = serializers.DateTimeField(read_only=True)
@@ -392,7 +397,12 @@ class ExecutePromptSerializer(serializers.Serializer[dict[str, Any]]):
     provider_name = serializers.CharField(allow_blank=True, required=False)
     model = serializers.CharField(allow_blank=True, required=False)
     temperature = serializers.FloatField(allow_null=True, required=False)
-    max_tokens = serializers.IntegerField(allow_null=True, required=False)
+    max_tokens = serializers.IntegerField(
+        allow_null=True,
+        required=False,
+        min_value=1,
+        max_value=200_000,
+    )
 
 
 class ExecutePromptResponseSerializer(serializers.Serializer[ExecutePromptResponse]):
@@ -482,8 +492,13 @@ class GenerateSignalResponseSerializer(serializers.Serializer[GenerateSignalResp
 class ChatRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """聊天请求序列化器"""
 
-    message = serializers.CharField()
-    session_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    message = serializers.CharField(max_length=20_000)
+    session_id = serializers.CharField(
+        max_length=128,
+        allow_blank=True,
+        allow_null=True,
+        required=False,
+    )
     provider_ref = serializers.JSONField(required=False)
     provider_name = serializers.CharField(allow_blank=True, required=False)
     model = serializers.CharField(allow_blank=True, required=False)
@@ -494,6 +509,33 @@ class ChatRequestSerializer(serializers.Serializer[dict[str, Any]]):
         fields = super().get_fields()
         fields["context"] = serializers.JSONField(allow_null=True, required=False)
         return fields
+
+    def validate_context(self, value: Any) -> dict[str, Any]:
+        """Validate and bound caller-supplied chat history."""
+
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("context must be an object")
+        history = value.get("history", [])
+        if not isinstance(history, list):
+            raise serializers.ValidationError("context.history must be a list")
+        if len(history) > 50:
+            raise serializers.ValidationError("context.history cannot exceed 50 messages")
+        normalized_history: list[dict[str, str]] = []
+        for item in history:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError("each history message must be an object")
+            role = item.get("role")
+            content = item.get("content")
+            if role not in {"user", "assistant"}:
+                raise serializers.ValidationError("history message role is invalid")
+            if not isinstance(content, str) or not content or len(content) > 20_000:
+                raise serializers.ValidationError("history message content is invalid")
+            normalized_history.append({"role": role, "content": content})
+        normalized = dict(value)
+        normalized["history"] = normalized_history
+        return normalized
 
 
 class ChatResponseSerializer(serializers.Serializer[dict[str, Any]]):
@@ -566,22 +608,57 @@ class AgentExecuteRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """Agent Runtime 执行请求序列化器"""
 
     task_type = serializers.CharField(max_length=50)
-    user_input = serializers.CharField()
+    user_input = serializers.CharField(max_length=50_000)
     provider_ref = serializers.JSONField(required=False, allow_null=True)
-    model = serializers.CharField(allow_blank=True, required=False, allow_null=True)
-    temperature = serializers.FloatField(required=False, allow_null=True)
-    max_tokens = serializers.IntegerField(required=False, allow_null=True)
+    model = serializers.CharField(
+        max_length=128,
+        allow_blank=True,
+        required=False,
+        allow_null=True,
+    )
+    temperature = serializers.FloatField(
+        min_value=0.0,
+        max_value=2.0,
+        required=False,
+        allow_null=True,
+    )
+    max_tokens = serializers.IntegerField(
+        min_value=1,
+        max_value=200_000,
+        required=False,
+        allow_null=True,
+    )
     context_scope = serializers.ListField(
-        child=serializers.CharField(), required=False, allow_null=True
+        child=serializers.CharField(max_length=100),
+        max_length=20,
+        required=False,
+        allow_null=True,
     )
     context_params = serializers.JSONField(required=False, allow_null=True)
     tool_names = serializers.ListField(
-        child=serializers.CharField(), required=False, allow_null=True
+        child=serializers.CharField(max_length=100),
+        max_length=100,
+        required=False,
+        allow_null=True,
     )
     response_schema = serializers.JSONField(required=False, allow_null=True)
-    max_rounds = serializers.IntegerField(default=4, required=False)
-    session_id = serializers.CharField(allow_blank=True, required=False, allow_null=True)
-    system_prompt = serializers.CharField(required=False, allow_null=True)
+    max_rounds = serializers.IntegerField(
+        min_value=1,
+        max_value=20,
+        default=4,
+        required=False,
+    )
+    session_id = serializers.CharField(
+        max_length=128,
+        allow_blank=True,
+        required=False,
+        allow_null=True,
+    )
+    system_prompt = serializers.CharField(
+        max_length=50_000,
+        required=False,
+        allow_null=True,
+    )
     metadata = serializers.JSONField(required=False, allow_null=True)
 
 

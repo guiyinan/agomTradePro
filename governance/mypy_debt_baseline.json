@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3518,
-    "files_with_errors": 631
+    "errors": 3493,
+    "files_with_errors": 630
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1799,11 +1799,6 @@
     },
     "apps/prompt/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/prompt/interface/views.py": {
-      "no-untyped-call": 2,
-      "no-untyped-def": 20,
-      "type-arg": 3
     },
     "apps/pulse/application/query_services.py": {
       "no-untyped-call": 1
