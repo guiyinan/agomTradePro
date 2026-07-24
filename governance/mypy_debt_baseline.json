@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4079,
-    "files_with_errors": 678
+    "errors": 4068,
+    "files_with_errors": 676
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2369,18 +2369,9 @@
       "arg-type": 1,
       "attr-defined": 2
     },
-    "apps/simulated_trading/application/interface_services.py": {
-      "attr-defined": 1,
-      "type-arg": 2
-    },
     "apps/simulated_trading/application/performance_use_cases.py": {
       "assignment": 1,
       "operator": 1
-    },
-    "apps/simulated_trading/application/use_cases.py": {
-      "arg-type": 5,
-      "no-untyped-def": 2,
-      "type-arg": 1
     },
     "apps/simulated_trading/infrastructure/account_portfolio_repository.py": {
       "no-untyped-def": 20

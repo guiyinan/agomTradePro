@@ -1715,3 +1715,20 @@
 - simulated trading performance calculator mypy 清零，并消除 interface service 的一条传播债务；全仓基线从 `4096 errors / 679 files` 收紧为 `4079 errors / 678 files`，净减少 `17 errors / 1 file`。
 - 绩效边界、历史净值准确性与 simulated trading 集成回归共 `30 passed`。
 - governance baseline 升级为 `2026-07-24.v196`，静态测试函数计数提升至 `7241`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百二十五批
+
+- 按“模拟交易资金安全影响面 × 费用配置唯一真源”收口买卖下单 UseCase、Domain Rule 与默认费率 Repository。
+- 买卖费用统一从按资产类型启用的默认 `FeeConfig` 读取，最低佣金、印花税、过户费和滑点不再由下单用例硬编码；缺少有效默认配置时明确拒单。
+- 资产专用默认费率优先于 `all` 通用配置，未命中专用配置时才回退通用配置，避免通用配置因默认排序抢占专用费率。
+- 买入资金校验与实际扣款使用同一份费用计算结果，修复最低佣金未进入资金校验、验证通过后现金变负的风险。
+- 买卖价格必须为正数；已证伪持仓禁止继续加仓；部分卖出只扣减原可卖数量，不再把 T+1 冻结数量错误释放。
+- 自动交易显式传递业务交易日，历史重跑不再以机器当天日期落账；交易 ID 更新改用 dataclass `replace`，信号证伪读取失败增加可定位日志。
+- 账户绩效胜率分母同步收紧为已平仓交易，零盈亏平仓仍计入分母；持仓成本服务数量类型与 Domain 实体保持一致。
+- 新增配置最低佣金资金边界、缺配置拒单、非正价格、冻结数量、历史交易日、证伪加仓和专用费率优先级回归。
+
+## 第一百二十五批验证结果
+
+- simulated trading order use cases 与 interface service mypy 清零；全仓基线从 `4079 errors / 678 files` 收紧为 `4068 errors / 676 files`，净减少 `11 errors / 2 files`。
+- 模拟交易下单、绩效、策略、净值与 Decision Rhythm 执行回归共 `62 passed`，持仓成本领域服务 `2 passed`。
+- 完整 mypy debt ceiling、governance consistency、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过；主工作树并行测试治理批次正在更新 governance baseline，本批不覆盖该未提交真源。
