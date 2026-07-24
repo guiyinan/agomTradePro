@@ -4,6 +4,7 @@ from pathlib import Path
 
 from scripts.check_coverage_ratchet import (
     CoverageTotals,
+    find_scope_violations,
     find_violations,
     parse_coverage_xml,
 )
@@ -60,6 +61,7 @@ def test_coverage_ratchet_reports_repository_module_and_domain_failures() -> Non
             "default_module_minimum": 70,
             "core_module_minimum": 80,
             "domain_module_minimum": 90,
+            "require_branch_coverage": False,
             "core_modules": ["signal"],
         }
     }
@@ -89,10 +91,14 @@ def test_coverage_parser_accepts_source_relative_and_repository_paths(
     report = tmp_path / "coverage.xml"
     report.write_text(
         """<?xml version="1.0"?>
-<coverage lines-valid="3" lines-covered="2">
+<coverage lines-valid="3" lines-covered="2"
+          branches-valid="2" branches-covered="1">
   <packages><package><classes>
     <class filename="alpha/domain/entities.py">
-      <lines><line number="1" hits="1"/><line number="2" hits="0"/></lines>
+      <lines>
+        <line number="1" hits="1" branch="true" condition-coverage="50% (1/2)"/>
+        <line number="2" hits="0"/>
+      </lines>
     </class>
     <class filename="apps/beta_gate/domain/services.py">
       <lines><line number="1" hits="1"/></lines>
@@ -108,12 +114,106 @@ def test_coverage_parser_accepts_source_relative_and_repository_paths(
 
     repository, modules, domains = parse_coverage_xml(report)
 
-    assert repository == CoverageTotals(covered=2, valid=3)
+    assert repository == CoverageTotals(
+        covered=2,
+        valid=3,
+        branches_covered=1,
+        branches_valid=2,
+    )
     assert modules == {
-        "alpha": CoverageTotals(covered=1, valid=2),
+        "alpha": CoverageTotals(
+            covered=1,
+            valid=2,
+            branches_covered=1,
+            branches_valid=2,
+        ),
         "beta_gate": CoverageTotals(covered=1, valid=2),
     }
     assert domains == {
-        "alpha": CoverageTotals(covered=1, valid=2),
+        "alpha": CoverageTotals(
+            covered=1,
+            valid=2,
+            branches_covered=1,
+            branches_valid=2,
+        ),
         "beta_gate": CoverageTotals(covered=1, valid=1),
     }
+
+
+def test_scope_ratchet_requires_reports_and_branch_measurement() -> None:
+    """Every configured source scope must publish a branch-aware report."""
+    baseline = {
+        "coverage": {
+            "require_branch_coverage": True,
+            "required_scopes": ["apps", "core", "shared", "sdk"],
+            "scope_minimums": {
+                "apps": {"line": 80, "branch": 70},
+                "core": {"line": 75, "branch": 60},
+            },
+        }
+    }
+
+    violations = find_scope_violations(
+        {
+            "apps": CoverageTotals(covered=79, valid=100),
+            "core": CoverageTotals(
+                covered=80,
+                valid=100,
+                branches_covered=0,
+                branches_valid=0,
+            ),
+        },
+        baseline,
+    )
+
+    assert violations == [
+        "scope shared report is missing",
+        "scope sdk report is missing",
+        "scope apps line 79.0% is below 80.0%",
+        "scope apps branch coverage was not collected",
+        "scope core branch coverage was not collected",
+    ]
+
+
+def test_domain_branch_ratchet_supports_module_specific_floors() -> None:
+    """Initial branch ratchets can rise per high-risk Domain without hiding others."""
+    baseline = {
+        "coverage": {
+            "repository_minimum": 0,
+            "default_module_minimum": 0,
+            "core_module_minimum": 0,
+            "domain_module_minimum": 0,
+            "repository_branch_minimum": 0,
+            "domain_branch_minimum": 0,
+            "domain_branch_minimums": {"account": 80},
+            "require_branch_coverage": True,
+            "core_modules": [],
+        }
+    }
+
+    violations = find_violations(
+        CoverageTotals(
+            covered=1,
+            valid=1,
+            branches_covered=1,
+            branches_valid=2,
+        ),
+        {},
+        {
+            "account": CoverageTotals(
+                covered=1,
+                valid=1,
+                branches_covered=3,
+                branches_valid=4,
+            ),
+            "data_center": CoverageTotals(
+                covered=1,
+                valid=1,
+                branches_covered=1,
+                branches_valid=2,
+            ),
+        },
+        baseline,
+    )
+
+    assert violations == ["domain branch account 75.0% is below 80.0%"]

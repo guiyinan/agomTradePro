@@ -22,6 +22,12 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -33,6 +39,7 @@ jobs:
           fi
           pip install -e sdk/
           python -m playwright install chromium
+          npm ci
 
       - name: Prepare database
         run: python manage.py migrate --noinput
@@ -40,17 +47,23 @@ jobs:
       - name: Enforce full-production mypy debt ceiling
         run: python scripts/check_mypy_debt_ceiling.py
 
+      - name: Run frontend Node contract tests
+        run: |
+          mkdir -p reports/quality
+          npm run test:tui-js:ci
+
       - name: Run Unit Tests (full)
         timeout-minutes: 25
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
-          python -m pytest tests/unit/ -q \
+          python -m pytest tests/unit/ -q -ra \
             -o faulthandler_timeout=600 \
             --timeout=300 \
             --timeout-method=thread \
             --durations=20 \
-            --cov=apps \
+            --cov \
+            --cov-config=.coveragerc \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
             --cov-report=html:htmlcov-unit
@@ -63,11 +76,12 @@ jobs:
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
-          python -m pytest tests/component/ -q \
+          python -m pytest tests/component/ -q -ra \
             --timeout=300 \
             --timeout-method=thread \
             --durations=20 \
-            --cov=apps \
+            --cov \
+            --cov-config=.coveragerc \
             --cov-append \
             --cov-report=term-missing
 
@@ -76,12 +90,13 @@ jobs:
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
-          python -m pytest tests/api/ tests/migrations/ -v \
+          python -m pytest tests/api/ tests/migrations/ -v -ra \
             -o faulthandler_timeout=180 \
             --timeout=120 \
             --timeout-method=thread \
             --durations=20 \
-            --cov=apps \
+            --cov \
+            --cov-config=.coveragerc \
             --cov-append \
             --cov-report=term-missing
 
@@ -90,11 +105,12 @@ jobs:
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
-          python -m pytest tests/critical/ -v \
+          python -m pytest tests/critical/ -v -ra \
             --timeout=120 \
             --timeout-method=thread \
             --durations=20 \
-            --cov=apps \
+            --cov \
+            --cov-config=.coveragerc \
             --cov-append \
             --cov-report=term-missing
 
@@ -103,13 +119,14 @@ jobs:
         env:
           PYTHONFAULTHANDLER: "1"
         run: |
-          python -m pytest tests/integration/ -v \
+          python -m pytest tests/integration/ -v -ra \
             -m "not live_required and not optional_runtime and not diagnostic" \
             -o faulthandler_timeout=900 \
             --timeout=600 \
             --timeout-method=thread \
             --durations=30 \
-            --cov=apps \
+            --cov \
+            --cov-config=.coveragerc \
             --cov-append \
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing
@@ -117,8 +134,34 @@ jobs:
       - name: Run App-Local Module Tests
         timeout-minutes: 25
         run: |
-          python -m pytest apps/*/tests -v \
-            --cov=apps \
+          python -m pytest apps/*/tests -v -ra \
+            --cov \
+            --cov-config=.coveragerc \
+            --cov-append \
+            --cov-report=term-missing
+
+      - name: Run SDK and MCP contract tests
+        timeout-minutes: 25
+        run: |
+          python -m pytest sdk/tests/ -v -ra \
+            -n auto \
+            --dist=load \
+            --timeout=180 \
+            --timeout-method=thread \
+            --cov \
+            --cov-config=.coveragerc \
+            --cov-append \
+            --cov-report=term-missing
+
+      - name: Run Django E2E tests
+        timeout-minutes: 20
+        run: |
+          python -m pytest tests/e2e/ -v -ra \
+            -m "not live_required and not optional_runtime and not diagnostic" \
+            --timeout=180 \
+            --timeout-method=thread \
+            --cov \
+            --cov-config=.coveragerc \
             --cov-append \
             --cov-report=term-missing
 
@@ -127,16 +170,16 @@ jobs:
         # on a cold shared runner when coverage from earlier suites is appended.
         timeout-minutes: 30
         run: |
-          python -m pytest tests/guardrails/ -v \
-            --cov=apps \
+          python -m pytest tests/guardrails/ -v -ra \
+            --cov \
+            --cov-config=.coveragerc \
             --cov-append \
             --cov-report=xml:coverage-guardrail.xml
 
-      - name: Build combined coverage report and enforce ratchet
+      - name: Build final coverage report and enforce ratchet
         run: |
-          python -m coverage xml -o coverage-combined.xml
           python -m coverage report
-          python scripts/check_coverage_ratchet.py coverage-combined.xml
+          python scripts/generate_coverage_reports.py --check
 
       - name: Generate Architecture Audit Report
         run: |
@@ -193,6 +236,10 @@ jobs:
           path: |
             coverage-*.xml
             htmlcov-*/
+            reports/quality/coverage-*.xml
+            reports/quality/coverage-*.json
+            reports/quality/coverage-manifest.json
+            reports/quality/frontend-node-tests.xml
 
       - name: Upload Quality Report
         uses: actions/upload-artifact@v6
