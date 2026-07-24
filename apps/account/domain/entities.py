@@ -585,12 +585,47 @@ class TakeProfitConfig:
 # ============================================================
 
 
+def _require_finite_range(
+    value: float,
+    *,
+    field_name: str,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> None:
+    """Require a real finite number within optional inclusive bounds."""
+
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+    ):
+        raise ValueError(f"{field_name} 必须是有限数")
+    if minimum is not None and value < minimum:
+        raise ValueError(f"{field_name} 不能小于 {minimum}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"{field_name} 不能大于 {maximum}")
+
+
 @dataclass(frozen=True)
 class RegimeTier:
     """Regime 置信度档位配置（单档）"""
 
     min_confidence: float
     factor: float
+
+    def __post_init__(self) -> None:
+        _require_finite_range(
+            self.min_confidence,
+            field_name="min_confidence",
+            minimum=0,
+            maximum=1,
+        )
+        _require_finite_range(
+            self.factor,
+            field_name="factor",
+            minimum=0,
+            maximum=1,
+        )
 
 
 @dataclass(frozen=True)
@@ -601,6 +636,18 @@ class PulseTier:
     max_composite: float
     factor: float
 
+    def __post_init__(self) -> None:
+        _require_finite_range(self.min_composite, field_name="min_composite")
+        _require_finite_range(self.max_composite, field_name="max_composite")
+        if self.min_composite > self.max_composite:
+            raise ValueError("min_composite 不能大于 max_composite")
+        _require_finite_range(
+            self.factor,
+            field_name="factor",
+            minimum=0,
+            maximum=1,
+        )
+
 
 @dataclass(frozen=True)
 class DrawdownTier:
@@ -608,6 +655,20 @@ class DrawdownTier:
 
     min_drawdown: float
     factor: float
+
+    def __post_init__(self) -> None:
+        _require_finite_range(
+            self.min_drawdown,
+            field_name="min_drawdown",
+            minimum=0,
+            maximum=1,
+        )
+        _require_finite_range(
+            self.factor,
+            field_name="factor",
+            minimum=0,
+            maximum=1,
+        )
 
 
 @dataclass(frozen=True)
@@ -617,6 +678,18 @@ class MarketTemperatureTier:
     band: str
     factor: float
     block_new_position: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.band.strip():
+            raise ValueError("band 不能为空")
+        _require_finite_range(
+            self.factor,
+            field_name="factor",
+            minimum=0,
+            maximum=1,
+        )
+        if not isinstance(self.block_new_position, bool):
+            raise ValueError("block_new_position 必须是布尔值")
 
 
 @dataclass(frozen=True)
@@ -650,6 +723,35 @@ class MacroSizingConfig:
         ]
     )
     version: int = 1
+
+    def __post_init__(self) -> None:
+        """Validate the complete database-driven sizing configuration."""
+
+        if not self.regime_tiers:
+            raise ValueError("regime_tiers 不能为空")
+        if not self.pulse_tiers:
+            raise ValueError("pulse_tiers 不能为空")
+        if not self.drawdown_tiers:
+            raise ValueError("drawdown_tiers 不能为空")
+        if not self.market_temperature_tiers:
+            raise ValueError("market_temperature_tiers 不能为空")
+        _require_finite_range(
+            self.warning_factor,
+            field_name="warning_factor",
+            minimum=0,
+            maximum=1,
+        )
+        if (
+            isinstance(self.version, bool)
+            or not isinstance(self.version, int)
+            or self.version <= 0
+        ):
+            raise ValueError("version 必须是正整数")
+        normalized_bands = [
+            tier.band.strip().lower() for tier in self.market_temperature_tiers
+        ]
+        if len(normalized_bands) != len(set(normalized_bands)):
+            raise ValueError("market_temperature_tiers 的 band 不能重复")
 
     def get_regime_factor(self, confidence: float) -> float:
         """查找 confidence 对应的系数，无匹配档位时返回最小档的 factor。"""

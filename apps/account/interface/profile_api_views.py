@@ -1,11 +1,15 @@
 """Account profile and reference data API views."""
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
-from rest_framework import status, viewsets
+from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
 from rest_framework.views import APIView
 
 from apps.account.application import interface_services
@@ -22,8 +26,23 @@ from .serializers import (
     TradingCostConfigSerializer,
 )
 
+ViewMethod = TypeVar("ViewMethod", bound=Callable[..., Any])
+typed_action = cast(
+    Callable[..., Callable[[ViewMethod], ViewMethod]],
+    action,
+)
 
-class AccountProfileView(APIView):  # type: ignore[misc]
+
+def _request_user_id(request: Request) -> int:
+    """Return a valid authenticated user id."""
+
+    user_id = getattr(request.user, "id", None)
+    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
+        raise PermissionDenied("用户身份无效")
+    return user_id
+
+
+class AccountProfileView(APIView):
     """
     账户配置 API
 
@@ -33,27 +52,36 @@ class AccountProfileView(APIView):  # type: ignore[misc]
 
     permission_classes = [IsAuthenticated, GeneralPermission]
 
-    def get(self, request: Any) -> Any:
+    def get(self, request: Request) -> Response:
         """获取当前用户的账户配置"""
-        profile = interface_services.get_api_profile(request.user.id)
+        profile = interface_services.get_api_profile(_request_user_id(request))
         serializer = AccountProfileSerializer(profile)
         return Response(serializer.data)
 
-    def put(self, request: Any) -> Any:
+    def put(self, request: Request) -> Response:
         """更新当前用户的账户配置"""
-        serializer = AccountProfileUpdateSerializer(data=request.data, partial=True)
-
-        if serializer.is_valid():
-            profile = interface_services.update_api_profile(
-                request.user.id,
-                profile_data=serializer.validated_data,
-                email=request.data.get("email"),
+        unknown_fields = set(request.data) - {
+            "display_name",
+            "risk_tolerance",
+            "email",
+        }
+        if unknown_fields:
+            raise ValidationError(
+                {"detail": f"不支持的字段: {', '.join(sorted(unknown_fields))}"}
             )
-            return Response(AccountProfileUpdateSerializer(profile).data)
-        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = AccountProfileUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        profile_data = dict(serializer.validated_data)
+        email = profile_data.pop("email", None)
+        profile = interface_services.update_api_profile(
+            _request_user_id(request),
+            profile_data=profile_data,
+            email=email,
+        )
+        return Response(AccountProfileUpdateSerializer(profile).data)
 
 
-class MacroSizingConfigView(APIView):  # type: ignore[misc]
+class MacroSizingConfigView(APIView):
     """
     宏观仓位系数配置 API
 
@@ -62,33 +90,39 @@ class MacroSizingConfigView(APIView):  # type: ignore[misc]
     - PUT /api/account/macro-sizing-config/ - 创建新的生效版本
     """
 
-    def get_permissions(self) -> list[Any]:
+    def get_permissions(self) -> list[BasePermission]:
         if self.request.method == "GET":
             return [IsAuthenticated(), GeneralPermission()]
         return [IsAuthenticated(), IsAdminUser()]
 
-    def get(self, request: Any) -> Any:
+    def get(self, request: Request) -> Response:
         payload = interface_services.get_macro_sizing_config_payload()
         return Response(MacroSizingConfigSerializer(payload).data)
 
-    def put(self, request: Any) -> Any:
+    def put(self, request: Request) -> Response:
         serializer = MacroSizingConfigUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        payload = interface_services.save_macro_sizing_config_payload(
-            validated_data=serializer.validated_data
-        )
+        try:
+            payload = interface_services.save_macro_sizing_config_payload(
+                validated_data=serializer.validated_data
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
         return Response(MacroSizingConfigSerializer(payload).data)
 
-    def patch(self, request: Any) -> Any:
+    def patch(self, request: Request) -> Response:
         serializer = MacroSizingConfigUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        payload = interface_services.save_macro_sizing_config_payload(
-            validated_data=serializer.validated_data
-        )
+        try:
+            payload = interface_services.save_macro_sizing_config_payload(
+                validated_data=serializer.validated_data
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
         return Response(MacroSizingConfigSerializer(payload).data)
 
 
-class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):  # type: ignore[misc]
+class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     """
     资产元数据 API ViewSet (只读)
 
@@ -105,12 +139,16 @@ class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):  # type: ignore[misc]
 
         return interface_services.get_asset_metadata_queryset()
 
-    @action(  # type: ignore[misc]
+    @typed_action(
         detail=False,
         methods=["get"],
         url_path="by-class/(?P<asset_class>[^/]+)",
     )
-    def by_class(self, request: Any, asset_class: str | None = None) -> Any:
+    def by_class(
+        self,
+        request: Request,
+        asset_class: str | None = None,
+    ) -> Response:
         """
         按资产类别查询
 
@@ -121,17 +159,19 @@ class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):  # type: ignore[misc]
         return Response({"success": True, "count": assets.count(), "data": serializer.data})
 
 
-class AccountHealthView(APIView):  # type: ignore[misc]
+class AccountHealthView(APIView):
     """Account 服务健康检查"""
 
     permission_classes = [IsAuthenticated, GeneralPermission]
 
-    def get(self, request: Any) -> Any:
+    def get(self, request: Request) -> Response:
         """检查 Account 服务健康状态"""
-        return Response(interface_services.get_account_health_payload(request.user.id))
+        return Response(
+            interface_services.get_account_health_payload(_request_user_id(request))
+        )
 
 
-class UserSearchView(APIView):  # type: ignore[misc]
+class UserSearchView(APIView):
     """
     用户搜索 API
 
@@ -142,30 +182,37 @@ class UserSearchView(APIView):  # type: ignore[misc]
 
     permission_classes = [IsAuthenticated, GeneralPermission]
 
-    def get(self, request: Any) -> Any:
+    def get(self, request: Request) -> Response:
         """
         搜索用户
 
         支持按用户名或显示名称搜索
         排除当前用户和已授权的用户
         """
-        query = request.GET.get("q", "").strip()
+        unknown_params = set(request.query_params) - {"q"}
+        if unknown_params:
+            raise ValidationError(
+                {"detail": f"不支持的查询参数: {', '.join(sorted(unknown_params))}"}
+            )
+        query = request.query_params.get("q", "").strip()
 
         if not query or len(query) < 2:
             return Response({"success": True, "results": []})
+        if len(query) > 100:
+            raise ValidationError({"q": "搜索词不能超过 100 个字符"})
 
         return Response(
             {
                 "success": True,
                 "results": interface_services.search_observer_candidates(
-                    owner_user_id=request.user.id,
+                    owner_user_id=_request_user_id(request),
                     query=query,
                 ),
             }
         )
 
 
-class TradingCostConfigViewSet(viewsets.ModelViewSet):  # type: ignore[misc]
+class TradingCostConfigViewSet(viewsets.ModelViewSet[Any]):
     """
     交易费率配置 API ViewSet
 
@@ -182,22 +229,23 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):  # type: ignore[misc]
 
     def get_queryset(self) -> Any:
         """只返回当前用户投资组合的费率配置"""
-        return interface_services.get_trading_cost_config_queryset(self.request.user.id)
+        return interface_services.get_trading_cost_config_queryset(
+            _request_user_id(self.request)
+        )
 
-    def get_serializer_class(self) -> Any:
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
         if self.action in ["create", "update", "partial_update"]:
             return TradingCostConfigCreateSerializer
         return TradingCostConfigSerializer
 
-    def perform_create(self, serializer: Any) -> None:
+    def perform_create(self, serializer: BaseSerializer[Any]) -> None:
         """创建时验证投资组合归属"""
         portfolio = serializer.validated_data["portfolio"]
-        if portfolio.user != self.request.user:
-            from rest_framework.exceptions import PermissionDenied
-
+        user_id = _request_user_id(self.request)
+        if portfolio.user_id != user_id:
             raise PermissionDenied("无权为此投资组合配置费率")
         serializer.instance = interface_services.save_api_trading_cost_config(
-            actor_user_id=self.request.user.id,
+            actor_user_id=user_id,
             portfolio_id=portfolio.id,
             validated_data={
                 "commission_rate": serializer.validated_data["commission_rate"],
@@ -208,37 +256,39 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):  # type: ignore[misc]
             },
         )
 
-    def perform_update(self, serializer: Any) -> None:
+    def perform_update(self, serializer: BaseSerializer[Any]) -> None:
         """更新时禁止越权修改配置归属"""
-        portfolio = serializer.validated_data.get("portfolio", serializer.instance.portfolio)
-        if portfolio.user != self.request.user:
-            from rest_framework.exceptions import PermissionDenied
-
+        instance = serializer.instance
+        if instance is None:
+            raise RuntimeError("交易费用配置更新缺少持久化对象")
+        portfolio = serializer.validated_data.get("portfolio", instance.portfolio)
+        user_id = _request_user_id(self.request)
+        if portfolio.user_id != user_id:
             raise PermissionDenied("无权修改此投资组合的费率")
         serializer.instance = interface_services.save_api_trading_cost_config(
-            actor_user_id=self.request.user.id,
+            actor_user_id=user_id,
             portfolio_id=portfolio.id,
             validated_data={
                 "commission_rate": serializer.validated_data.get(
-                    "commission_rate", serializer.instance.commission_rate
+                    "commission_rate", instance.commission_rate
                 ),
                 "min_commission": serializer.validated_data.get(
-                    "min_commission", serializer.instance.min_commission
+                    "min_commission", instance.min_commission
                 ),
                 "stamp_duty_rate": serializer.validated_data.get(
-                    "stamp_duty_rate", serializer.instance.stamp_duty_rate
+                    "stamp_duty_rate", instance.stamp_duty_rate
                 ),
                 "transfer_fee_rate": serializer.validated_data.get(
-                    "transfer_fee_rate", serializer.instance.transfer_fee_rate
+                    "transfer_fee_rate", instance.transfer_fee_rate
                 ),
                 "is_active": serializer.validated_data.get(
-                    "is_active", serializer.instance.is_active
+                    "is_active", instance.is_active
                 ),
             },
         )
 
-    @action(detail=True, methods=["post"])  # type: ignore[misc]
-    def calculate(self, request: Any, pk: Any = None) -> Any:
+    @typed_action(detail=True, methods=["post"])
+    def calculate(self, request: Request, pk: str | None = None) -> Response:
         """
         计算交易费用
 
@@ -265,9 +315,10 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):  # type: ignore[misc]
         else:
             cost = config.calculate_buy_cost(amount, is_shanghai)
 
-        cost["action"] = action_type
-        cost["amount"] = amount
-        cost["is_shanghai"] = is_shanghai
-        cost["cost_ratio"] = round(cost["total"] / amount * 100, 4) if amount > 0 else 0
+        response_data: dict[str, Any] = dict(cost)
+        response_data["action"] = action_type
+        response_data["amount"] = amount
+        response_data["is_shanghai"] = is_shanghai
+        response_data["cost_ratio"] = round(cost["total"] / amount * 100, 4)
 
-        return Response({"success": True, "data": cost})
+        return Response({"success": True, "data": response_data})

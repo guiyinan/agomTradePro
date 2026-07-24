@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 from django.test import Client
 
 from apps.account.infrastructure.models import MacroSizingConfigModel
@@ -7,6 +8,7 @@ from apps.account.infrastructure.models import MacroSizingConfigModel
 
 @pytest.fixture
 def macro_sizing_config(db):
+    MacroSizingConfigModel.objects.filter(is_active=True).update(is_active=False)
     return MacroSizingConfigModel.objects.create(
         regime_tiers_json=[
             {"min_confidence": 0.6, "factor": 1.0},
@@ -104,3 +106,67 @@ def test_macro_sizing_config_patch_creates_new_active_version(staff_client, macr
     assert latest.is_active is True
     assert MacroSizingConfigModel.objects.filter(version=1, is_active=False).exists()
     assert latest.market_temperature_extreme_factor == 0.35
+
+
+@pytest.mark.django_db
+def test_macro_sizing_config_database_rejects_second_active_version(
+    macro_sizing_config,
+):
+    with pytest.raises(IntegrityError), transaction.atomic():
+        MacroSizingConfigModel.objects.create(
+            regime_tiers_json=macro_sizing_config.regime_tiers_json,
+            pulse_tiers_json=macro_sizing_config.pulse_tiers_json,
+            warning_factor=macro_sizing_config.warning_factor,
+            drawdown_tiers_json=macro_sizing_config.drawdown_tiers_json,
+            market_temperature_cold_factor=1.0,
+            market_temperature_warm_factor=1.0,
+            market_temperature_hot_factor=0.9,
+            market_temperature_overheat_factor=0.75,
+            market_temperature_extreme_factor=0.35,
+            block_new_position_on_extreme=True,
+            version=2,
+            is_active=True,
+            description="duplicate active",
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"warning_factor": float("nan")},
+        {
+            "regime_tiers_json": [
+                {"min_confidence": 0.6, "factor": "invalid"},
+            ]
+        },
+        {
+            "pulse_tiers_json": [
+                {
+                    "min_composite": 1,
+                    "max_composite": 0,
+                    "factor": 0.5,
+                },
+            ]
+        },
+        {
+            "drawdown_tiers_json": [
+                {"min_drawdown": 0.1, "factor": 1.5},
+            ]
+        },
+    ],
+)
+def test_macro_sizing_config_rejects_malformed_factors(
+    staff_client,
+    macro_sizing_config,
+    payload,
+):
+    response = staff_client.patch(
+        "/api/account/macro-sizing-config/",
+        data=payload,
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert MacroSizingConfigModel.objects.filter(is_active=True).count() == 1
+    assert MacroSizingConfigModel.objects.get(is_active=True).version == 1

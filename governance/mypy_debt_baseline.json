@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2840,
-    "files_with_errors": 574
+    "errors": 2827,
+    "files_with_errors": 573
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -93,11 +93,6 @@
     "apps/account/interface/permissions.py": {
       "no-any-return": 1,
       "no-untyped-def": 4
-    },
-    "apps/account/interface/profile_api_views.py": {
-      "arg-type": 3,
-      "type-arg": 2,
-      "unused-ignore": 8
     },
     "apps/account/interface/sizing_views.py": {
       "unused-ignore": 2

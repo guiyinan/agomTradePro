@@ -78,3 +78,41 @@ def test_account_profile_put_updates_profile_and_email() -> None:
     assert user.email == "after@example.com"
     assert profile.display_name == "After Name"
     assert profile.risk_tolerance == "aggressive"
+
+
+@pytest.mark.django_db
+def test_account_profile_put_rejects_invalid_email_and_unknown_fields() -> None:
+    user = get_user_model().objects.create_user(
+        username="profile_strict_user",
+        password="testpass123",
+        email="before@example.com",
+    )
+    AccountProfileModel.objects.update_or_create(
+        user=user,
+        defaults={
+            "display_name": "Strict User",
+            "initial_capital": Decimal("1000000.00"),
+            "risk_tolerance": "moderate",
+            "approval_status": "approved",
+            "user_agreement_accepted": True,
+            "risk_warning_acknowledged": True,
+        },
+    )
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    invalid_email = client.put(
+        "/api/account/profile/",
+        {"email": "not-an-email"},
+        format="json",
+    )
+    unknown_field = client.put(
+        "/api/account/profile/",
+        {"rbac_role": "admin"},
+        format="json",
+    )
+
+    assert invalid_email.status_code == 400
+    assert unknown_field.status_code == 400
+    user.refresh_from_db()
+    assert user.email == "before@example.com"

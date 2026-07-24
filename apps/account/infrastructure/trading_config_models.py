@@ -383,6 +383,13 @@ class MacroSizingConfigModel(models.Model):
         ordering = ["-version"]
         verbose_name = "宏观仓位系数配置"
         verbose_name_plural = "宏观仓位系数配置"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["is_active"],
+                condition=models.Q(is_active=True),
+                name="account_one_active_macro_sizing",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"MacroSizingConfig v{self.version} (active={self.is_active})"

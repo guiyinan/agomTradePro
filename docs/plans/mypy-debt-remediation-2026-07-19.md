@@ -2603,3 +2603,19 @@
 - Account Portfolio Interface Repository 增量 mypy 清零；全仓基线从 `2855 errors / 575 files` 收紧为 `2840 errors / 574 files`，净减少 `15 errors / 1 file`。
 - Trading Cost Domain、API 与 Account Macro Sizing 回归共 `92 passed`；覆盖非有限费率、最低手续费、非法成交金额、归属保护和既有买卖费用计算。
 - 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百八十批
+
+- 按“账户身份字段校验 × 宏观仓位配置唯一真源”收口 Account Profile 与 Macro Sizing API。
+- 修复 Profile API 从原始 request payload 读取 email、绕过 Serializer 的问题；email 现在经过正式格式校验，未知字段明确返回 400，不能借 Profile 更新提交未声明权限字段。
+- Regime、Pulse、Drawdown 与 Market Temperature tier Domain 值对象新增有限数、范围、区间顺序、布尔和非空 band 不变量。
+- Macro Sizing Config 要求所有档位集合非空、warning factor 为 0..1 有限数、version 为正整数、市场温度 band 不重复。
+- Macro Sizing Serializer 验证嵌套 tier 的对象结构、数值类型、有限性、factor 范围和 Pulse 区间顺序；Repository 在切换 active 版本前构造完整 Domain 配置复核。
+- 持久化模型增加全表最多一个 active Macro Sizing Config 的条件唯一约束；数据迁移保留最新版 active，并将旧 active 版本转为 inactive，消除排序碰巧选中配置的歧义。
+- Profile、Macro Sizing、Asset Metadata、Health、User Search 与 Trading Cost ViewSet 的 Request/Response、权限、Serializer 和 action wrapper 补齐精确类型。
+
+## 第一百八十批验证结果
+
+- Account Profile API 增量 mypy 清零；全仓基线从 `2840 errors / 574 files` 收紧为 `2827 errors / 573 files`，净减少 `13 errors / 1 file`。
+- Profile、Macro Sizing、Trading Cost 与 Account Macro Domain 回归共 `87 passed`；覆盖无效 email、未知 Profile 字段、非有限/越界档位、倒置 Pulse 区间和第二个 active 配置数据库拒绝。
+- 迁移漂移检查、改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
