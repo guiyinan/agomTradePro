@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4207,
-    "files_with_errors": 698
+    "errors": 4188,
+    "files_with_errors": 695
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1237,18 +1237,6 @@
     },
     "apps/decision_rhythm/application/advisor_contracts.py": {
       "attr-defined": 1
-    },
-    "apps/decision_rhythm/application/advisor_intents.py": {
-      "arg-type": 6
-    },
-    "apps/decision_rhythm/application/advisor_performance.py": {
-      "arg-type": 1,
-      "operator": 3,
-      "union-attr": 1
-    },
-    "apps/decision_rhythm/application/advisor_sheet_context.py": {
-      "attr-defined": 6,
-      "no-any-return": 2
     },
     "apps/decision_rhythm/application/advisor_sheet_intents.py": {
       "attr-defined": 2,

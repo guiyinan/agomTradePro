@@ -1538,3 +1538,16 @@
 - Decision Rhythm workflow/quota/command API mypy 清零；全仓基线从 `4229 errors / 701 files` 收紧为 `4207 errors / 698 files`，净减少 `22 errors / 3 files`。
 - Decision Rhythm API 与错误映射回归 `23 passed`，执行工作流回归 `21 passed`。
 - governance baseline 升级为 `2026-07-24.v184`，静态测试函数计数提升至 `7208`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百一十三批
+
+- 按“Advisor Sheet 用户决策展示影响面 × 推荐绩效归因正确性”收口 advisor sheet context、intent 与 performance 服务。
+- Context mixin 显式声明风险闸门、数据健康、敞口、推荐跟踪、推荐绩效和归因上下文六类 Provider Protocol 属性，消除运行时注入依赖的隐式成员。
+- Intent 替换改用 `dataclasses.replace`，并继续防御性复制价格带、风险提示、来源推荐、冲突处置、风险闸门、数据时点、决策卡、跟踪和确认等嵌套可变字段。
+- 去重 helper 接受 `Iterable[str]`，安全覆盖生成器调用；绩效用户动作与可用窗口在计算前显式收窄，避免可空推荐及 Decimal 运算传播。
+
+## 第一百一十三批验证结果
+
+- Advisor Sheet 三个目标文件 mypy 清零；全仓基线从 `4207 errors / 698 files` 收紧为 `4188 errors / 695 files`，净减少 `19 errors / 3 files`。
+- Advisor Sheet 核心与结构回归 `26 passed`，API guardrail `4 passed`。
+- governance baseline 升级为 `2026-07-24.v185`，静态测试函数计数保持 `7208`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
