@@ -4,12 +4,15 @@
 实现 application/performance_use_cases.py 中定义的所有 Protocol 接口。
 严格遵守四层架构：Infrastructure 层可使用 Django ORM 和外部库。
 """
+
 from __future__ import annotations
 
 import logging
 from datetime import date
 from typing import Any
 
+from apps.data_center.domain.entities import PriceBar
+from core.exceptions import DataFetchError
 from core.integration.account_ledger import (
     get_capital_flow_model,
     get_portfolio_observer_grant_model,
@@ -54,7 +57,7 @@ class DjangoObserverGrantRepository:
             )
         except PortfolioObserverGrantModel.DoesNotExist:
             return False
-        return grant.is_valid()
+        return bool(grant.is_valid())
 
 
 class DjangoBenchmarkComponentRepository:
@@ -142,9 +145,7 @@ class DjangoUnifiedCashFlowRepository:
             },
         )
 
-    def mirror_from_capital_flow(
-        self, account_id: int, capital_flow_dict: dict[str, Any]
-    ) -> None:
+    def mirror_from_capital_flow(self, account_id: int, capital_flow_dict: dict[str, Any]) -> None:
         from apps.simulated_trading.infrastructure.models import UnifiedAccountCashFlowModel
 
         source_id = str(capital_flow_dict.get("id", ""))
@@ -155,9 +156,10 @@ class DjangoUnifiedCashFlowRepository:
             "interest": "interest",
             "adjustment": "adjustment",
         }
-        flow_type = flow_type_map.get(
-            capital_flow_dict.get("flow_type", ""), "adjustment"
-        )
+        flow_type = flow_type_map.get(capital_flow_dict.get("flow_type", ""), "adjustment")
+        flow_date = capital_flow_dict.get("flow_date")
+        if not isinstance(flow_date, date):
+            raise ValueError("capital flow requires a valid flow_date")
         UnifiedAccountCashFlowModel.objects.update_or_create(
             account_id=account_id,
             source_app="account",
@@ -165,7 +167,7 @@ class DjangoUnifiedCashFlowRepository:
             defaults={
                 "flow_type": flow_type,
                 "amount": float(capital_flow_dict.get("amount", 0)),
-                "flow_date": capital_flow_dict.get("flow_date"),
+                "flow_date": flow_date,
                 "notes": capital_flow_dict.get("notes", ""),
             },
         )
@@ -208,16 +210,12 @@ class DjangoPerformanceDailyNetValueRepository:
             for obj in qs
         ]
 
-    def get_record_for_date(
-        self, account_id: int, record_date: date
-    ) -> dict[str, Any] | None:
+    def get_record_for_date(self, account_id: int, record_date: date) -> dict[str, Any] | None:
         """返回某日净值记录（用于历史时点现金获取）。无则返回 None。"""
         from apps.simulated_trading.infrastructure.models import DailyNetValueModel
 
         try:
-            obj = DailyNetValueModel.objects.get(
-                account_id=account_id, record_date=record_date
-            )
+            obj = DailyNetValueModel.objects.get(account_id=account_id, record_date=record_date)
         except DailyNetValueModel.DoesNotExist:
             return None
         return {
@@ -310,7 +308,9 @@ class DjangoTradeHistoryRepository:
             qs = qs.filter(execution_date__gte=start_date)
         if end_date:
             qs = qs.filter(execution_date__lte=end_date)
-        return [{"realized_pnl": float(obj.realized_pnl)} for obj in qs]
+        return [
+            {"realized_pnl": float(obj.realized_pnl)} for obj in qs if obj.realized_pnl is not None
+        ]
 
 
 class DjangoMarketDataRepository:
@@ -327,28 +327,24 @@ class DjangoMarketDataRepository:
             from apps.data_center.application.price_service import UnifiedPriceService
 
             svc = UnifiedPriceService()
-            return svc.get_price(asset_code=asset_code, trade_date=trade_date)
-        except Exception:
-            logger.warning(
-                "获取收盘价失败: %s @ %s", asset_code, trade_date, exc_info=True
+            price: float | None = svc.get_price(
+                asset_code=asset_code,
+                trade_date=trade_date,
             )
+            return price
+        except DataFetchError:
+            logger.warning("获取收盘价失败: %s @ %s", asset_code, trade_date, exc_info=True)
             return None
 
     def _fetch_index_bars(
         self, index_code: str, start_date: date, end_date: date
-    ) -> list:
+    ) -> list[PriceBar]:
         """优先通过 data_center 拉取指数历史价格柱（按日期升序）。"""
-        try:
-            from apps.data_center.infrastructure.repositories import PriceBarRepository
+        from apps.data_center.infrastructure.repositories import PriceBarRepository
 
-            repo = PriceBarRepository()
-            bars = repo.get_bars(index_code, start=start_date, end=end_date, limit=5000)
-            return sorted(bars, key=lambda b: b.bar_date)
-        except Exception:
-            logger.warning(
-                "获取指数行情失败: %s %s~%s", index_code, start_date, end_date, exc_info=True
-            )
-            return []
+        repo = PriceBarRepository()
+        bars = repo.get_bars(index_code, start=start_date, end=end_date, limit=5000)
+        return sorted(bars, key=lambda bar: bar.bar_date)
 
     def get_index_daily_returns(
         self,
@@ -365,7 +361,7 @@ class DjangoMarketDataRepository:
             curr_close = float(bars[i].close)
             if prev_close > 0:
                 r = (curr_close - prev_close) / prev_close
-                result.append((getattr(bars[i], "trade_date", bars[i].bar_date), r))
+                result.append((bars[i].bar_date, r))
         return result
 
     def get_index_cumulative_return(
@@ -392,9 +388,7 @@ class DjangoCapitalFlowRepository:
     再从 CapitalFlowModel 读取现金流记录。
     """
 
-    def list_for_account_via_ledger(
-        self, account_id: int
-    ) -> list[dict[str, Any]]:
+    def list_for_account_via_ledger(self, account_id: int) -> list[dict[str, Any]]:
         """
         查找该统一账户对应的全部 CapitalFlowModel 记录。
 
@@ -413,24 +407,15 @@ class DjangoCapitalFlowRepository:
         if not portfolio_ids:
             return []
 
-        try:
-            CapitalFlowModel = get_capital_flow_model()
-
-            qs = CapitalFlowModel.objects.filter(
-                portfolio_id__in=portfolio_ids
-            ).order_by("flow_date")
-            return [
-                {
-                    "id": obj.pk,
-                    "flow_type": obj.flow_type,
-                    "amount": float(obj.amount),
-                    "flow_date": obj.flow_date,
-                    "notes": obj.notes or "",
-                }
-                for obj in qs
-            ]
-        except Exception:
-            logger.warning(
-                "读取 CapitalFlowModel 失败 (account_id=%d)", account_id, exc_info=True
-            )
-            return []
+        CapitalFlowModel = get_capital_flow_model()
+        qs = CapitalFlowModel.objects.filter(portfolio_id__in=portfolio_ids).order_by("flow_date")
+        return [
+            {
+                "id": obj.pk,
+                "flow_type": obj.flow_type,
+                "amount": float(obj.amount),
+                "flow_date": obj.flow_date,
+                "notes": obj.notes or "",
+            }
+            for obj in qs
+        ]

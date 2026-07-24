@@ -6,6 +6,7 @@ Application 层：
 - 不直接导入 ORM Model
 - 调用 Domain 层服务完成金融计算
 """
+
 from __future__ import annotations
 
 import logging
@@ -107,9 +108,7 @@ class DailyNetValueRepositoryProtocol(Protocol):
         """按日期升序返回净值记录 dicts。"""
         ...
 
-    def get_record_for_date(
-        self, account_id: int, record_date: date
-    ) -> dict[str, Any] | None:
+    def get_record_for_date(self, account_id: int, record_date: date) -> dict[str, Any] | None:
         """返回某日净值记录（用于历史时点现金获取）。无则返回 None。"""
         ...
 
@@ -143,9 +142,7 @@ class MarketDataRepositoryProtocol(Protocol):
 class CapitalFlowRepositoryProtocol(Protocol):
     """账本现金流仓储接口（真实账户 backfill 专用）。"""
 
-    def list_for_account_via_ledger(
-        self, account_id: int
-    ) -> list[dict[str, Any]]:
+    def list_for_account_via_ledger(self, account_id: int) -> list[dict[str, Any]]:
         """通过 LedgerMigrationMapModel 返回该账户对应的全部 CapitalFlowModel 记录。"""
         ...
 
@@ -210,6 +207,9 @@ class GetAccountPerformanceReportUseCase:
 
         未能可靠计算的指标返回 None，不伪造数据。
         """
+        if start_date > end_date:
+            raise ValueError("start_date must not be after end_date")
+
         warnings: list[str] = []
 
         account = self._account_repo.get_by_id(account_id)
@@ -238,7 +238,9 @@ class GetAccountPerformanceReportUseCase:
         if len(daily_values) >= 2:
             twr_pct = PerformanceCalculatorService.calculate_twr(daily_values, daily_cashflows)
             if twr_pct is not None and days > 0:
-                annualized_twr = PerformanceCalculatorService.calculate_annualized_twr(twr_pct, days)
+                annualized_twr = PerformanceCalculatorService.calculate_annualized_twr(
+                    twr_pct, days
+                )
         else:
             warnings.append("日净值数据不足（少于 2 个交易日），无法计算 TWR")
 
@@ -268,7 +270,9 @@ class GetAccountPerformanceReportUseCase:
         )
 
         # 6. 日收益率序列 → 风险指标
-        daily_returns = PerformanceCalculatorService.build_daily_returns(daily_values, daily_cashflows)
+        daily_returns = PerformanceCalculatorService.build_daily_returns(
+            daily_values, daily_cashflows
+        )
         volatility = PerformanceCalculatorService.calculate_volatility(daily_returns)
         downside_vol = PerformanceCalculatorService.calculate_downside_volatility(daily_returns)
         max_dd = PerformanceCalculatorService.calculate_max_drawdown(daily_values)
@@ -296,40 +300,45 @@ class GetAccountPerformanceReportUseCase:
         benchmark_stats: BenchmarkStats | None = None
         bm_components = self._bm_repo.list_active(account_id)
         if bm_components:
-            component_returns: list[tuple[float, float]] = []
+            component_series: list[tuple[str, float, float, dict[date, float]]] = []
             bm_daily_returns_combined: list[float] = []
-            bm_return_missing = False
+            aligned_portfolio_returns: list[float] = []
 
-            # 获取每个成分的区间收益和日收益
-            all_component_daily: list[list[float]] = []
             for comp in bm_components:
-                bm_code = comp["benchmark_code"]
+                bm_code = str(comp["benchmark_code"])
                 weight = float(comp["weight"])
                 cum_ret = self._md_repo.get_index_cumulative_return(bm_code, start_date, end_date)
                 if cum_ret is None:
-                    warnings.append(f"基准 {bm_code} 在区间内无行情数据，已跳过")
-                    bm_return_missing = True
+                    warnings.append(f"基准 {bm_code} 在区间内无行情数据，组合基准指标返回 null")
                     continue
-                component_returns.append((weight, cum_ret))
 
-                # 获取日收益用于 Beta/Alpha/TE/IR 计算
                 idx_daily = self._md_repo.get_index_daily_returns(bm_code, start_date, end_date)
-                all_component_daily.append([r for _, r in idx_daily])
+                component_series.append((bm_code, weight, cum_ret, dict(idx_daily)))
 
             bm_return: float | None = None
-            if component_returns:
-                bm_return = PerformanceCalculatorService.calculate_weighted_benchmark_return(component_returns)
+            if len(component_series) == len(bm_components):
+                bm_return = PerformanceCalculatorService.calculate_weighted_benchmark_return(
+                    [(weight, cumulative) for _, weight, cumulative, _ in component_series]
+                )
 
-            # 加权合并基准日收益（简单按权重插值）
-            if all_component_daily and not bm_return_missing:
-                min_len = min(len(s) for s in all_component_daily)
-                weights = [float(c["weight"]) for c in bm_components if c["benchmark_code"] in
-                           [comp["benchmark_code"] for comp, _ in zip(bm_components, component_returns, strict=False)]]
-                if min_len > 0 and weights:
-                    bm_daily_returns_combined = [
-                        sum(all_component_daily[i][j] * weights[i] for i in range(len(weights)))
-                        for j in range(min_len)
-                    ]
+                portfolio_return_dates = [record_date for record_date, _ in daily_values[1:]]
+                if len(portfolio_return_dates) == len(daily_returns):
+                    portfolio_returns_by_date = dict(
+                        zip(portfolio_return_dates, daily_returns, strict=True)
+                    )
+                    common_dates = set(portfolio_returns_by_date)
+                    for _, _, _, component_daily in component_series:
+                        common_dates.intersection_update(component_daily)
+                    for common_date in sorted(common_dates):
+                        aligned_portfolio_returns.append(portfolio_returns_by_date[common_date])
+                        bm_daily_returns_combined.append(
+                            sum(
+                                weight * component_daily[common_date]
+                                for _, weight, _, component_daily in component_series
+                            )
+                        )
+                    if not common_dates:
+                        warnings.append("账户与组合基准没有共同交易日，Beta/Alpha/TE/IR 返回 null")
 
             excess_return: float | None = None
             if twr_pct is not None and bm_return is not None:
@@ -340,18 +349,24 @@ class GetAccountPerformanceReportUseCase:
             tracking_error: float | None = None
             information_ratio: float | None = None
 
-            if daily_returns and bm_daily_returns_combined and ann_ret is not None:
-                ann_bm = PerformanceCalculatorService.calculate_annualized_twr(
-                    bm_return or 0.0, days
-                ) if bm_return is not None else None
+            if aligned_portfolio_returns and bm_daily_returns_combined and ann_ret is not None:
+                ann_bm = (
+                    PerformanceCalculatorService.calculate_annualized_twr(bm_return or 0.0, days)
+                    if bm_return is not None
+                    else None
+                )
                 if ann_bm is not None:
                     beta, alpha = PerformanceCalculatorService.calculate_beta_alpha(
-                        daily_returns, bm_daily_returns_combined, ann_ret, ann_bm
+                        aligned_portfolio_returns,
+                        bm_daily_returns_combined,
+                        ann_ret,
+                        ann_bm,
                     )
                     if beta is not None:
                         treynor = PerformanceCalculatorService.calculate_treynor(ann_ret, beta)
                 tracking_error = PerformanceCalculatorService.calculate_tracking_error(
-                    daily_returns, bm_daily_returns_combined
+                    aligned_portfolio_returns,
+                    bm_daily_returns_combined,
                 )
                 if tracking_error and excess_return is not None:
                     information_ratio = PerformanceCalculatorService.calculate_information_ratio(
@@ -373,8 +388,12 @@ class GetAccountPerformanceReportUseCase:
 
         # 9. 交易统计
         closed_trades = self._trade_repo.list_closed_trades(account_id, start_date, end_date)
-        realized_pnls = [float(t["realized_pnl"]) for t in closed_trades if t.get("realized_pnl") is not None]
-        win_rate, profit_factor = PerformanceCalculatorService.calculate_win_rate_profit_factor(realized_pnls)
+        realized_pnls = [
+            float(t["realized_pnl"]) for t in closed_trades if t.get("realized_pnl") is not None
+        ]
+        win_rate, profit_factor = PerformanceCalculatorService.calculate_win_rate_profit_factor(
+            realized_pnls
+        )
         if not realized_pnls:
             warnings.append("区间内无已闭合交易，win_rate 与 profit_factor 返回 null")
 
@@ -471,7 +490,7 @@ class GetAccountValuationSnapshotUseCase:
         # 优先使用 as_of_date 当日的历史现金；无记录时降级为当前现金并警告
         dnv_record = self._dnv_repo.get_record_for_date(account_id, as_of_date)
         if dnv_record is not None:
-            cash = dnv_record["cash"]
+            cash = float(dnv_record["cash"])
         else:
             cash = float(account.get("current_cash", 0))
             warnings.append(
@@ -560,9 +579,9 @@ class ListAccountValuationTimelineUseCase:
 
             # 增量 TWR
             if prev_total_value is not None and prev_total_value > 0:
-                cf = cf_map.get(d, 0.0)
-                sub_r = (total_value - prev_total_value - cf) / prev_total_value
-                cumulative_twr *= (1.0 + sub_r)
+                daily_cash_flow = cf_map.get(d, 0.0)
+                sub_r = (total_value - prev_total_value - daily_cash_flow) / prev_total_value
+                cumulative_twr *= 1.0 + sub_r
 
             twr_cumulative_pct = (cumulative_twr - 1.0) * 100.0
 
