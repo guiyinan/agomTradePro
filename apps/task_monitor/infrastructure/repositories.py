@@ -15,10 +15,10 @@ from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID
 
-from django.core.management import call_command  # type: ignore[import-untyped]
-from django.core.serializers.json import DjangoJSONEncoder  # type: ignore[import-untyped]
-from django.db.models import Avg, Count  # type: ignore[import-untyped]
-from django.utils import timezone  # type: ignore[import-untyped]
+from django.core.management import call_command
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import Avg, Count
+from django.utils import timezone
 from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
 
 from apps.task_monitor.domain.entities import (
@@ -229,7 +229,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
     def _has_fresh_database_backup(now: Any) -> bool:
         """Only permit weekly VACUUM after a recent persistent backup."""
 
-        from django.conf import settings  # type: ignore[import-untyped]
+        from django.conf import settings
 
         backup_dir = Path(settings.BASE_DIR) / "backups" / "database"
         cutoff = now.timestamp() - (26 * 3600)
@@ -241,7 +241,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
     @staticmethod
     def _optimize_sqlite_storage(*, allow_vacuum: bool) -> None:
         """Run lightweight optimization and vacuum only with meaningful free space."""
-        from django.db import connection  # type: ignore[import-untyped]
+        from django.db import connection
 
         if connection.vendor != "sqlite":
             return
@@ -355,6 +355,9 @@ class CeleryHealthChecker(CeleryHealthCheckerProtocol):
             try:
                 inspect = self.celery_app.control.inspect(timeout=2.0)
                 active_workers = list(inspect.active().keys()) if inspect.active() else []
+                if not active_workers:
+                    logger.warning("No active Celery worker heartbeat detected")
+                    is_healthy = False
 
                 # 获取任务统计
                 active_tasks = inspect.active()
