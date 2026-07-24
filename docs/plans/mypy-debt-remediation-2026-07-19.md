@@ -1876,3 +1876,20 @@
 - broker execution management use cases mypy 清零；全仓基线从 `3839 errors / 651 files` 收紧为 `3831 errors / 650 files`，净减少 `8 errors / 1 file`。
 - broker execution 管理 API、权限、凭据、Agent 恢复和 fake-agent 全流程回归共 `41 passed`。
 - 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百三十五批
+
+- 按“机器凭据认证影响面 × Agent 请求失败关闭”收口 broker execution Agent authentication 与 machine-only use cases。
+- Agent credential ID 在进入 Django UUIDField 查询前必须解析为规范 UUID；格式错误但自行签名正确的 token 不再抛 ORM ValidationError/500，而是稳定返回认证失败。
+- Agent ID、request ID、nonce、timestamp、signature、secret 和 required scope 增加长度、格式与完整性约束，避免超长 header 在 nonce/audit 落库时触发数据库错误。
+- 认证失败审计对非法 UUID 不再执行 UUIDField 查询，仍可记录脱敏 credential、Agent、来源 IP 和有界 failure code。
+- Agent 上下文统一收窄并校验正整数 agent/account scope；空 scope、负账户或非法 Agent 主键不得进入 Repository。
+- 订单/命令租约参数由静默 clamp 改为显式拒绝，事件批次必须为 1..200；提交确认和命令完成要求非空标识与真实 bool，不再把字符串 `"false"` 解释为成功。
+- Agent machine use cases 全部依赖 BrokerExecution Repository Protocol，移除动态返回与隐式可空构造参数。
+- 新增签名正确但 credential UUID 非法、Agent scope 越界、静默 limit clamp、字符串成功标志和空事件批次回归。
+
+## 第一百三十五批验证结果
+
+- broker execution agent auth 与 machine use cases mypy 清零；全仓基线从 `3831 errors / 650 files` 收紧为 `3823 errors / 648 files`，净减少 `8 errors / 2 files`。
+- Agent 认证/API 回归 `39 passed`，关键恢复与 fake-agent 流程回归 `14 passed`。
+- 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3831,
-    "files_with_errors": 650
+    "errors": 3823,
+    "files_with_errors": 648
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -811,12 +811,6 @@
     "apps/broker_execution/admin.py": {
       "no-untyped-def": 3,
       "type-arg": 1
-    },
-    "apps/broker_execution/application/agent_auth.py": {
-      "no-untyped-def": 1
-    },
-    "apps/broker_execution/application/agent_use_cases.py": {
-      "no-untyped-def": 7
     },
     "apps/broker_execution/application/query_services.py": {
       "no-untyped-def": 1
