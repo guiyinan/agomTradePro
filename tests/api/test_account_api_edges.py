@@ -524,6 +524,27 @@ def test_account_portfolio_allocation_returns_404_for_missing_portfolio(authenti
 @pytest.mark.django_db
 def test_account_portfolio_allocation_category_contract(authenticated_client, auth_user):
     portfolio = PortfolioModel.objects.create(user=auth_user, name="API Portfolio", is_active=True)
+    category = AssetCategoryModel.objects.create(
+        code="allocation_equity",
+        name="权益",
+        level=1,
+        path="权益",
+        is_active=True,
+    )
+    PositionModel.objects.create(
+        portfolio=portfolio,
+        asset_code="510300.SH",
+        asset_class="equity",
+        region="CN",
+        cross_border="domestic",
+        shares=10,
+        avg_cost=Decimal("4.0000"),
+        current_price=Decimal("4.2000"),
+        market_value=Decimal("42.00"),
+        unrealized_pnl=Decimal("2.00"),
+        unrealized_pnl_pct=5.0,
+        category=category,
+    )
 
     response = authenticated_client.get(f"/api/account/portfolios/{portfolio.id}/allocation/")
 
@@ -531,6 +552,52 @@ def test_account_portfolio_allocation_category_contract(authenticated_client, au
     payload = response.json()
     assert payload["success"] is True
     assert payload["dimension"] == "category"
+    assert payload["data"] == [
+        {
+            "category_path": "权益",
+            "amount": "42.00",
+            "percentage": 100.0,
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_account_category_admin_writes_materialized_tree_fields(
+    admin_authenticated_client,
+):
+    root_response = admin_authenticated_client.post(
+        "/api/account/categories/",
+        {"code": "api_root", "name": "基金"},
+        format="json",
+    )
+    assert root_response.status_code == 201
+    root = AssetCategoryModel.objects.get(code="api_root")
+    assert (root.level, root.path) == (1, "基金")
+
+    child_response = admin_authenticated_client.post(
+        "/api/account/categories/",
+        {"code": "api_child", "name": "债券基金", "parent": root.id},
+        format="json",
+    )
+    assert child_response.status_code == 201
+    child = AssetCategoryModel.objects.get(code="api_child")
+    assert (child.level, child.path) == (2, "基金/债券基金")
+
+    rename_response = admin_authenticated_client.patch(
+        f"/api/account/categories/{root.id}/",
+        {"name": "公募基金"},
+        format="json",
+    )
+    assert rename_response.status_code == 200
+    child.refresh_from_db()
+    assert child.path == "公募基金/债券基金"
+
+    cycle_response = admin_authenticated_client.patch(
+        f"/api/account/categories/{root.id}/",
+        {"parent": child.id},
+        format="json",
+    )
+    assert cycle_response.status_code == 400
 
 
 @pytest.mark.django_db
@@ -613,13 +680,60 @@ def test_account_exchange_rate_latest_contract(authenticated_client):
         effective_date=date(2026, 4, 1),
     )
 
-    response = authenticated_client.get("/api/account/exchange-rates/latest/USD/CNY/")
+    response = authenticated_client.get("/api/account/exchange-rates/latest/usd/cny/")
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["from_currency_code"] == "USD"
     assert payload["to_currency_code"] == "CNY"
     assert Decimal(str(payload["rate"])) == Decimal("7.123400")
+
+
+@pytest.mark.django_db
+def test_account_exchange_rate_admin_rejects_invalid_currency_pair(
+    admin_authenticated_client,
+):
+    usd = CurrencyModel.objects.create(
+        code="USD",
+        name="美元",
+        symbol="$",
+        is_base=True,
+        is_active=True,
+        precision=2,
+    )
+    inactive = CurrencyModel.objects.create(
+        code="ZZZ",
+        name="停用币种",
+        symbol="Z",
+        is_base=False,
+        is_active=False,
+        precision=2,
+    )
+
+    same_pair = admin_authenticated_client.post(
+        "/api/account/exchange-rates/",
+        {
+            "from_currency": usd.id,
+            "to_currency": usd.id,
+            "rate": "1.000000",
+            "effective_date": "2026-04-01",
+        },
+        format="json",
+    )
+    inactive_pair = admin_authenticated_client.post(
+        "/api/account/exchange-rates/",
+        {
+            "from_currency": usd.id,
+            "to_currency": inactive.id,
+            "rate": "1.000000",
+            "effective_date": "2026-04-01",
+        },
+        format="json",
+    )
+
+    assert same_pair.status_code == 400
+    assert inactive_pair.status_code == 400
+    assert not ExchangeRateModel.objects.exists()
 
 
 @pytest.mark.django_db
@@ -664,6 +778,23 @@ def test_account_exchange_rate_convert_contract(authenticated_client):
     assert Decimal(str(payload["converted_amount"])) == Decimal("712.340000")
     assert Decimal(str(payload["rate_used"])) == Decimal("7.123400")
     assert payload["rate_date"] == "2026-04-01"
+
+
+@pytest.mark.django_db
+def test_account_exchange_rate_convert_rejects_unregistered_identity_pair(
+    authenticated_client,
+):
+    response = authenticated_client.post(
+        "/api/account/exchange-rates/convert/",
+        {
+            "amount": "100.00",
+            "from_currency": "ghost",
+            "to_currency": "ghost",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
 
 
 @pytest.mark.django_db
@@ -721,6 +852,79 @@ def test_account_portfolio_allocation_currency_contract(authenticated_client, au
     assert payload["dimension"] == "currency"
     assert payload["base_currency"] == "CNY"
     assert payload["data"][0]["currency_code"] == "USD"
+
+
+@pytest.mark.django_db
+def test_account_currency_allocation_rejects_missing_fx_rate(
+    authenticated_client,
+    auth_user,
+):
+    usd = CurrencyModel.objects.create(
+        code="USD",
+        name="美元",
+        symbol="$",
+        is_base=False,
+        is_active=True,
+        precision=2,
+    )
+    cny = CurrencyModel.objects.create(
+        code="CNY",
+        name="人民币",
+        symbol="¥",
+        is_base=True,
+        is_active=True,
+        precision=2,
+    )
+    portfolio = PortfolioModel.objects.create(
+        user=auth_user,
+        name="Missing FX Portfolio",
+        is_active=True,
+        base_currency=cny,
+    )
+    PositionModel.objects.create(
+        portfolio=portfolio,
+        asset_code="SPY",
+        asset_class="equity",
+        region="US",
+        cross_border="cross_border",
+        shares=1,
+        avg_cost=Decimal("500.0000"),
+        current_price=Decimal("520.0000"),
+        market_value=Decimal("520.00"),
+        unrealized_pnl=Decimal("20.00"),
+        unrealized_pnl_pct=4.0,
+        currency=usd,
+    )
+
+    response = authenticated_client.get(
+        f"/api/account/portfolios/{portfolio.id}/allocation/?dimension=currency"
+    )
+
+    assert response.status_code == 400
+    assert "No exchange rate found" in response.json()["error"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query",
+    ["?dimension=sector", "?dimension=category&unexpected=1"],
+)
+def test_account_allocation_rejects_ambiguous_dimension(
+    authenticated_client,
+    auth_user,
+    query,
+):
+    portfolio = PortfolioModel.objects.create(
+        user=auth_user,
+        name="Strict Allocation Portfolio",
+        is_active=True,
+    )
+
+    response = authenticated_client.get(
+        f"/api/account/portfolios/{portfolio.id}/allocation/{query}"
+    )
+
+    assert response.status_code == 400
 
 
 @pytest.mark.django_db

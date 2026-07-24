@@ -2571,3 +2571,19 @@
 - Account MCP API 增量 mypy 清零；全仓基线从 `2908 errors / 578 files` 收紧为 `2888 errors / 577 files`，净减少 `20 errors / 1 file`。
 - Account API 回归共 `48 passed`；新增覆盖 Self-Service 与五类 Admin MCP 非正路径 ID，保留 Token 创建、Prompt 生成、管理员列表和既有账户 API 契约。
 - 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百七十八批
+
+- 按“资产分类物化树 × 多币种估值真实性”收口 Account Classification、Exchange Rate 与 Portfolio Allocation API。
+- Asset Category API 创建节点时由 Repository 统一生成 `level/path`；父节点重命名或移动在事务内级联刷新全部后代物化路径。
+- 分类更新拒绝把节点移动到自身或后代下，阻断循环树；Application 返回的结构错误转为明确 400，不再形成 500 或损坏分类层级。
+- 修复 Category Allocation Serializer 要求不存在 `currency_code`、导致非空分类配置响应失败的问题；真实持仓分类现在可正常序列化。
+- Currency Allocation 缺失 FX rate 时不再把外币金额静默按 1:1 当作基准币金额，改为明确失败，避免组合总值和配置比例被系统性高估或低估。
+- 同币种转换也必须验证币种已注册且启用；汇率写入拒绝相同币种对和停用币种，最新汇率路径统一规范化货币代码。
+- Portfolio allocation 只接受 `category|currency` 维度和已声明查询参数；分类、汇率 ViewSet 与 DRF 动态边界补齐精确类型。
+
+## 第一百七十八批验证结果
+
+- Account Classification API 与 Classification Repository 增量 mypy 清零；全仓基线从 `2888 errors / 577 files` 收紧为 `2855 errors / 575 files`，净减少 `33 errors / 2 files`。
+- Account API 回归共 `54 passed`；覆盖分类树创建、父节点重命名级联、循环拒绝、非空分类序列化、缺失汇率失败、非法币种对和严格配置维度。
+- 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。

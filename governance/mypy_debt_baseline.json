@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2888,
-    "files_with_errors": 577
+    "errors": 2855,
+    "files_with_errors": 575
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -30,10 +30,6 @@
     "apps/account/infrastructure/account_interface_registration_repository.py": {
       "assignment": 1,
       "no-untyped-def": 6
-    },
-    "apps/account/infrastructure/account_profile_repository.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 10
     },
     "apps/account/infrastructure/account_read_repository.py": {
       "no-untyped-def": 1
@@ -86,10 +82,6 @@
     },
     "apps/account/interface/backup_views.py": {
       "no-untyped-def": 2
-    },
-    "apps/account/interface/classification_api_views.py": {
-      "no-untyped-def": 19,
-      "type-arg": 3
     },
     "apps/account/interface/documentation_views.py": {
       "no-untyped-def": 7

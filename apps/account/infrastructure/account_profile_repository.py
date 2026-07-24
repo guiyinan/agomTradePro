@@ -1,10 +1,12 @@
 """Account profile and account-classification repository owners."""
 
 import logging
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
 from django.contrib.auth.models import User
+from django.db import transaction
 
 from apps.account.application.simulated_trading_gateway import (
     list_investment_account_payloads,
@@ -151,7 +153,7 @@ class AccountClassificationRepository:
 
         return self.list_active_asset_categories().filter(level=1, parent__isnull=True)
 
-    def list_child_asset_categories(self, category_id: int):
+    def list_child_asset_categories(self, category_id: int) -> Any:
         """Return active child categories for one parent."""
 
         return (
@@ -163,16 +165,59 @@ class AccountClassificationRepository:
     def create_asset_category(self, **validated_data: Any) -> Any:
         """Create one asset category."""
 
+        parent = validated_data.get("parent")
+        name = str(validated_data["name"]).strip()
+        validated_data["name"] = name
+        validated_data["level"] = parent.level + 1 if parent is not None else 1
+        validated_data["path"] = f"{parent.path}/{name}" if parent is not None else name
         return AssetCategoryModel._default_manager.create(**validated_data)
 
-    def update_asset_category(self, *, category_id: int, **validated_data):
+    def update_asset_category(
+        self,
+        *,
+        category_id: int,
+        **validated_data: Any,
+    ) -> Any:
         """Update one asset category and return the refreshed model."""
 
-        model = AssetCategoryModel._default_manager.get(id=category_id)
-        for field, value in validated_data.items():
-            setattr(model, field, value)
-        model.save()
+        with transaction.atomic():
+            model = AssetCategoryModel._default_manager.select_for_update().get(id=category_id)
+            parent = validated_data.get("parent", model.parent)
+            if self._category_parent_would_cycle(category=model, parent=parent):
+                raise ValueError("资产分类不能移动到自身或其后代节点下")
+            for field, value in validated_data.items():
+                setattr(model, field, value)
+            model.name = str(model.name).strip()
+            model.level = parent.level + 1 if parent is not None else 1
+            model.path = f"{parent.path}/{model.name}" if parent is not None else model.name
+            model.save()
+            self._refresh_category_descendants(model)
         return model
+
+    @staticmethod
+    def _category_parent_would_cycle(*, category: Any, parent: Any | None) -> bool:
+        """Return whether assigning parent would create a category cycle."""
+
+        seen: set[int] = set()
+        current = parent
+        while current is not None:
+            current_id = int(current.id)
+            if current_id == int(category.id) or current_id in seen:
+                return True
+            seen.add(current_id)
+            current = current.parent
+        return False
+
+    def _refresh_category_descendants(self, parent: Any) -> None:
+        """Refresh materialized level/path values after a parent rename or move."""
+
+        for child in AssetCategoryModel._default_manager.select_for_update().filter(
+            parent_id=parent.id
+        ):
+            child.level = parent.level + 1
+            child.path = f"{parent.path}/{child.name}"
+            child.save(update_fields=["level", "path", "updated_at"])
+            self._refresh_category_descendants(child)
 
     def delete_asset_category(self, *, category_id: int) -> None:
         """Delete one asset category."""
@@ -192,6 +237,14 @@ class AccountClassificationRepository:
             or self.list_active_currencies().filter(code="CNY").first()
         )
 
+    def active_currency_codes_exist(self, codes: set[str]) -> bool:
+        """Return whether every requested currency code is active and registered."""
+
+        return bool(
+            self.list_active_currencies().filter(code__in=codes).values("code").distinct().count()
+            == len(codes)
+        )
+
     def list_exchange_rates(self) -> Any:
         """Return exchange rates with currency relations loaded."""
 
@@ -206,7 +259,12 @@ class AccountClassificationRepository:
 
         return ExchangeRateModel._default_manager.create(**validated_data)
 
-    def update_exchange_rate(self, *, exchange_rate_id: int, **validated_data):
+    def update_exchange_rate(
+        self,
+        *,
+        exchange_rate_id: int,
+        **validated_data: Any,
+    ) -> Any:
         """Update one exchange rate and return the refreshed model."""
 
         model = ExchangeRateModel._default_manager.get(id=exchange_rate_id)
@@ -220,7 +278,7 @@ class AccountClassificationRepository:
 
         ExchangeRateModel._default_manager.filter(id=exchange_rate_id).delete()
 
-    def get_latest_exchange_rate(self, *, from_code: str, to_code: str):
+    def get_latest_exchange_rate(self, *, from_code: str, to_code: str) -> Any:
         """Return the latest exchange rate for one currency pair."""
 
         return (
@@ -232,7 +290,13 @@ class AccountClassificationRepository:
             .first()
         )
 
-    def get_exchange_rate_for_conversion(self, *, from_code: str, to_code: str, date_value=None):
+    def get_exchange_rate_for_conversion(
+        self,
+        *,
+        from_code: str,
+        to_code: str,
+        date_value: date | None = None,
+    ) -> Any:
         """Return the effective exchange rate used for conversion."""
 
         queryset = self.list_exchange_rates().filter(
@@ -244,7 +308,12 @@ class AccountClassificationRepository:
         return queryset.first()
 
     def convert_amount(
-        self, *, amount: Decimal, from_code: str, to_code: str, date_value=None
+        self,
+        *,
+        amount: Decimal,
+        from_code: str,
+        to_code: str,
+        date_value: date | None = None,
     ) -> Decimal:
         """Convert one amount between currencies."""
 
@@ -258,9 +327,9 @@ class AccountClassificationRepository:
         )
         if rate_model is None:
             raise ValueError(f"No exchange rate found for {from_code} -> {to_code}")
-        return rate_model.convert(amount)
+        return Decimal(str(rate_model.convert(amount)))
 
-    def get_portfolio_for_user(self, *, portfolio_id: int, user_id: int):
+    def get_portfolio_for_user(self, *, portfolio_id: int, user_id: int) -> Any:
         """Return one portfolio owned by the given user."""
 
         return (

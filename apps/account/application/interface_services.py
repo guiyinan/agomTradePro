@@ -724,6 +724,9 @@ def convert_currency_amount(
     """Convert one amount and return the rate metadata used."""
 
     repository = _classification_repo()
+    requested_codes = {from_currency, to_currency}
+    if not repository.active_currency_codes_exist(requested_codes):
+        raise ValueError("Currency must be active and registered")
     if from_currency == to_currency:
         return {
             "converted_amount": amount,
@@ -779,14 +782,11 @@ def get_portfolio_allocation_payload(
                 },
             )
             bucket["amount"] += amount
-            try:
-                amount_base = repository.convert_amount(
-                    amount=amount,
-                    from_code=currency_code,
-                    to_code=base_currency_code,
-                )
-            except ValueError:
-                amount_base = amount
+            amount_base = repository.convert_amount(
+                amount=amount,
+                from_code=currency_code,
+                to_code=base_currency_code,
+            )
             bucket["amount_base"] += amount_base
             total_value_base += amount_base
 
