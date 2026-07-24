@@ -492,12 +492,9 @@ def get_unified_recommendation(
     account_id: str | None = None,
 ) -> UnifiedRecommendation | None:
     """Fetch a unified recommendation."""
-    return cast(
-        UnifiedRecommendation | None,
-        get_unified_recommendation_repository().get_by_recommendation_id(
-            recommendation_id,
-            account_id=account_id,
-        ),
+    return get_unified_recommendation_repository().get_by_recommendation_id(
+        recommendation_id,
+        account_id=account_id,
     )
 
 
