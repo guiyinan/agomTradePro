@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2998,
-    "files_with_errors": 591
+    "errors": 2979,
+    "files_with_errors": 590
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -2045,12 +2045,6 @@
     "apps/strategy/interface/sdk_contract_actions.py": {
       "attr-defined": 5,
       "no-untyped-def": 5
-    },
-    "apps/strategy/interface/strategy_api_views.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 14,
-      "type-arg": 3,
-      "union-attr": 1
     },
     "apps/strategy/management/commands/init_position_rules.py": {
       "no-untyped-def": 2,

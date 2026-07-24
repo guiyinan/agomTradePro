@@ -516,6 +516,18 @@ class StrategyHistoryQuerySerializer(StrategyPerformanceQuerySerializer):
     )
 
 
+class StrategyExecutionLogQuerySerializer(StrictStrategySerializer):
+    """Validate bounded execution-log pagination."""
+
+    offset = serializers.IntegerField(required=False, default=0, min_value=0)
+    limit = serializers.IntegerField(
+        required=False,
+        default=20,
+        min_value=1,
+        max_value=200,
+    )
+
+
 class StrategyEmptyQuerySerializer(StrictStrategySerializer):
     """Validate a zero-input strategy read contract."""
 

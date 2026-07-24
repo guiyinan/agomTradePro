@@ -2451,3 +2451,19 @@
 - Data Center ORM models 增量 mypy 清零，并连带清除 Provider State 与 Market Thermometer Repository 下游债务；全仓基线从 `3048 errors / 594 files` 收紧为 `2998 errors / 591 files`，净减少 `50 errors / 3 files`。
 - Data Center 单元、component、API 与统一价格服务回归共 `340 passed`；覆盖 direct ORM 拒绝、数据库 update 绕过、严格 JSON 布尔和既有同步/查询路径。
 - 迁移漂移检查、改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十批
+
+- 按“策略配置跨账户隔离 × 执行入口结果真实性”收口 Strategy aggregate API。
+- Script Config 查询新增 owner/staff access facade 与 Repository 契约；普通用户的列表、详情、更新和删除不再暴露其他账户的策略脚本。
+- Script Config 与 AI Config 的创建、更新统一验证目标 strategy 的访问权；即使请求直接提交其他账户 strategy ID，也不能建立或改绑跨账户配置。
+- 策略执行日志分页改用严格 Serializer：offset 必须非负，limit 限制 1..200，未知参数、非整数和超限请求返回 400，不再触发 500 或无界查询。
+- 激活/停用写入若 Application 返回未更新，不再回退旧对象并伪报成功，统一返回 404。
+- 缺少 Account Profile 的策略创建与“我的策略”入口明确返回权限错误，不再访问匿名/缺失属性。
+- DRF action 与 schema decorator 通过局部类型保持 wrapper 暴露，ViewSet、Request、Response、Serializer 与 owner access context 补齐精确类型。
+
+## 第一百七十批验证结果
+
+- Strategy aggregate API 增量 mypy 清零；全仓基线从 `2998 errors / 591 files` 收紧为 `2979 errors / 590 files`，净减少 `19 errors / 1 file`。
+- Strategy API、结构和绑定一致性回归共 `45 passed`；覆盖脚本配置 owner 隔离、Script/AI 跨账户写入、分页限界、激活失败真实性和既有执行/读模型契约。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

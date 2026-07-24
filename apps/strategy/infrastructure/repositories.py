@@ -1216,6 +1216,21 @@ class StrategyInterfaceRepository:
         )
         return queryset
 
+    def get_script_config_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> QuerySet[ScriptConfigModel]:
+        """Return script configurations visible to one owner or staff caller."""
+
+        queryset = self.get_script_config_queryset()
+        if include_all:
+            return queryset
+        if owner_profile_id is None:
+            return queryset.none()
+        return queryset.filter(strategy__created_by_id=owner_profile_id)
+
     def get_ai_strategy_config_queryset(self) -> QuerySet[AIStrategyConfigModel]:
         queryset: QuerySet[AIStrategyConfigModel] = (
             AIStrategyConfigModel._default_manager.select_related(
@@ -1241,6 +1256,20 @@ class StrategyInterfaceRepository:
         if owner_profile_id is None:
             return queryset.none()
         return queryset.filter(strategy__created_by_id=owner_profile_id)
+
+    def strategy_is_accessible(
+        self,
+        *,
+        strategy_id: int,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> bool:
+        """Return whether one caller may configure the selected strategy."""
+
+        return self.get_strategy_queryset_for_access(
+            owner_profile_id=owner_profile_id,
+            include_all=include_all,
+        ).filter(pk=strategy_id).exists()
 
     def get_assignment_queryset(
         self,

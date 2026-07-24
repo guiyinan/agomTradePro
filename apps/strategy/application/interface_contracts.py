@@ -144,6 +144,14 @@ class StrategyInterfaceRepositoryProtocol(Protocol):
     def get_script_config_queryset(self) -> Any:
         """Return the ORM queryset boundary for script configurations."""
 
+    def get_script_config_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> Any:
+        """Return script configurations visible to one caller."""
+
     def get_ai_strategy_config_queryset(self) -> Any:
         """Return the ORM queryset boundary for AI configurations."""
 
@@ -154,6 +162,15 @@ class StrategyInterfaceRepositoryProtocol(Protocol):
         include_all: bool = False,
     ) -> Any:
         """Return AI configurations visible to one caller."""
+
+    def strategy_is_accessible(
+        self,
+        *,
+        strategy_id: int,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> bool:
+        """Return whether one caller may bind configuration to a strategy."""
 
     def get_assignment_queryset(self) -> Any:
         """Return the ORM queryset boundary for assignments."""

@@ -126,6 +126,19 @@ def get_script_config_queryset() -> Any:
     return _repo().get_script_config_queryset()
 
 
+def get_script_config_queryset_for_access(
+    *,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+) -> Any:
+    """Return script configs visible to an owner or staff caller."""
+
+    return _repo().get_script_config_queryset_for_access(
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+    )
+
+
 def get_ai_strategy_config_queryset() -> Any:
     return _repo().get_ai_strategy_config_queryset()
 
@@ -138,6 +151,21 @@ def get_ai_strategy_config_queryset_for_access(
     """Return AI strategy configs visible to an owner or staff caller."""
 
     return _repo().get_ai_strategy_config_queryset_for_access(
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+    )
+
+
+def strategy_is_accessible(
+    *,
+    strategy_id: int,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+) -> bool:
+    """Return whether one caller may configure a strategy."""
+
+    return _repo().strategy_is_accessible(
+        strategy_id=strategy_id,
         owner_profile_id=owner_profile_id,
         include_all=include_all,
     )
