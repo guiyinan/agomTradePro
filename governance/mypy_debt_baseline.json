@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3916,
-    "files_with_errors": 658
+    "errors": 3915,
+    "files_with_errors": 657
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2300,9 +2300,6 @@
       "no-untyped-def": 19,
       "type-arg": 1,
       "var-annotated": 1
-    },
-    "apps/simulated_trading/application/asset_pool_query_service.py": {
-      "assignment": 1
     },
     "apps/simulated_trading/infrastructure/models.py": {
       "no-untyped-def": 11,
