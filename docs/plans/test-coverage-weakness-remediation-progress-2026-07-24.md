@@ -7,15 +7,16 @@
 
 ## 当前阶段目标
 
-本批只推进以下主线：
+当前分支已按独立批次推进以下测试主线：
 
 1. T0：在固定提交上重采可追溯基线，显式记录失败、skip、xfail 和未运行套件。
 2. T1：建立 `apps/core/shared/sdk` 独立机器报告和前端 Node 契约结果。
 3. T2：启用分支采集，先建立可见基线，不用降低既有行覆盖门槛换取通过。
 4. T3A 首批：只对 `data_center/account/decision_rhythm` 的高损失半径补行为测试。
+5. T3B：`alpha/policy/simulated_trading` 的模型、政策、交易失败边界。
+6. T4A：`prompt/terminal/dashboard/ai_provider` 的用户入口、敏感信息和错误恢复。
 
-首批提交完成后，2026-07-25 按原计划单独推进 T3B：
-`alpha/policy/simulated_trading`。生产部署修复和其他治理主线不在 T3B 扩散。
+生产部署修复和其他治理主线不在 T3B/T4A 扩散。
 
 ## 分支与并行工作隔离
 
@@ -72,7 +73,7 @@ merge 或 cherry-pick。
 
 | Scope | 行覆盖率 | 分支覆盖率 | 初始 ratchet |
 |---|---:|---:|---|
-| `apps` | 81.13% | 63.42% | line 80.0 / branch 62.8 |
+| `apps` | 81.57% | 63.87% | line 80.0 / branch 62.8 |
 | `core` | 69.47% | 51.33% | line 69.4 / branch 51.3 |
 | `shared` | 69.07% | 50.29% | line 69.0 / branch 50.2 |
 | SDK/MCP | 72.16% | 52.38% | line 72.1 / branch 52.3 |
@@ -82,9 +83,9 @@ merge 或 cherry-pick。
 | 层 | 行覆盖率 | 分支覆盖率 | 未覆盖行 |
 |---|---:|---:|---:|
 | Domain | 94.83% | 85.16% | 857 |
-| Application | 80.18% | 61.35% | 7,994 |
-| Infrastructure | 75.93% | 55.88% | 9,185 |
-| Interface | 80.08% | 57.57% | 4,500 |
+| Application | 81.98% | 63.29% | 7,266 |
+| Infrastructure | 76.61% | 56.67% | 8,927 |
+| Interface | 80.79% | 57.57% | 4,339 |
 | Management Commands | 75.96% | 65.82% | 1,194 |
 
 所有有实质分支的 Domain 模块已写入逐模块只升不降基线。完成目标仍是每个关键
@@ -131,6 +132,27 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
   - `alpha=85.05%`（`5,133 / 6,035`），分支 `70.71%`；
   - `policy=85.06%`（`4,373 / 5,141`），分支 `67.71%`；
   - `simulated_trading=85.01%`（`5,018 / 5,903`），分支 `69.28%`。
+- T4A 已按独立批次完成：
+  - Prompt 覆盖模板缺失、占位符来源优先级、AI 失败、串行/并行/工具链、
+    报告/信号 facade、追踪日志截断与持久化失败；
+  - Terminal 覆盖状态/Regime/chat 三条路由、低置信度确认、分类器畸形输出、
+    普通用户技术细节屏蔽和 AI 失败恢复；
+  - Dashboard 将原零覆盖的 161 行 serializers 全部纳入嵌套、空态、只读字段和
+    非法 mutation 契约；
+  - AI Provider 覆盖密钥迁移命令的 unavailable/noop/dry-run/force/skip/error，
+    断言明文密钥不会写入输出；
+  - 修复 Prompt 旧版 `provider_name` 在 `provider_ref=None` 时无法降级，以及
+    Chain 结果重建重复传参导致所有执行失败的两个生产缺陷；
+  - Prompt 生产文件通过增量 mypy，未添加 `type: ignore` 或债务豁免；
+  - T4A 新增测试整批 `47 passed`，相关 Unit 交叉回归
+    `400 passed`，固定高风险链路 `229 passed`。
+- T4A 后的模块覆盖率：
+  - `prompt=80.15%`（`2,621 / 3,270`），分支 `58.23%`；
+  - `terminal=83.80%`（`4,256 / 5,079`），分支 `69.06%`；
+  - `dashboard=81.46%`（`4,241 / 5,206`），分支 `66.18%`；
+  - `ai_provider=80.81%`（`1,554 / 1,923`），分支 `58.03%`。
+- 四个 T4A 模块均建立 80% 机器阈值；代表性零覆盖生产文件已变为
+  `dashboard serializers=100%`、`terminal chat_router=99.16%`。
 - Fast suite：`3,578 passed in 31.03s`，总耗时 `45.22s`，低于 120 秒预算。
 - 固定高风险链路：`229 passed`。
 - 最终 coverage ratchet 已通过。
@@ -146,7 +168,7 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
   - `data_center=77.85%`；
   - `account=81.23%`；
   - `decision_rhythm=83.51%`。
-- T4、T5 和最终 T6 收口尚未开始；应按原计划在后续独立批次推进，不能在本批
+- T4B、T5 和最终 T6 收口尚未开始；应按原计划在后续独立批次推进，不能在本批
   用扩大 omit 或降低阈值替代。
 - Integration 修复后仅重跑了受影响的 24 项，完整 Integration 尚未二次全量重跑。
 - PostgreSQL、Celery worker、live/optional runtime 和 Playwright RC 尚未在本地执行。
@@ -166,5 +188,6 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
 
 ## 回滚点
 
-本批不修改生产业务逻辑和数据库 schema。若 branch/multi-scope 采集影响 Nightly，
-可单独回滚 coverage/CI 提交；测试数据契约修正可独立保留。
+本批不修改数据库 schema。T4A 的 Prompt 生产修复与覆盖率治理、行为测试分别提交，
+可独立回滚；若 branch/multi-scope 采集影响 Nightly，也可单独回滚 coverage/CI
+提交而保留测试和缺陷修复。
