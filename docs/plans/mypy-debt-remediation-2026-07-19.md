@@ -2311,3 +2311,19 @@
 - Account 相关改动文件增量 mypy 清零，并清除两个文件的遗留 `unused-ignore`；全仓基线从 `3129 errors / 607 files` 收紧为 `3119 errors / 605 files`，净减少 `10 errors / 2 files`。
 - Account 成本估算、费率 Domain、账户辅助服务、组合费率 API/页面、Admin 注册和模拟交易订单约束回归共 `90 passed`；新建测试数据库完整迁移通过。
 - Django system check、迁移漂移检查、架构 delta、改动文件 Ruff、Black 与全仓 mypy debt ceiling 通过。
+
+## 第一百六十一批
+
+- 按“Signal 跨入口查询影响面 × 仓储边界一致性”收口 Signal Query Service。
+- 管理页、API 和跨 App 调用共享的资产代码、状态、方向、Regime、搜索词、ID、limit、priority 与时间跨度统一在访问仓储前规范化和限界；布尔、非正 ID、超长文本和超大查询不再进入 ORM。
+- 创建与更新统一验证资产类别、方向、目标 Regime、审批标志、有限阈值、证伪规则结构和文本长度；空更新明确拒绝，不再产生无意义写入。
+- 持久化 Signal 的 ID、资产代码、状态、方向、Regime、置信度和证伪字段在返回调用方前再次校验，畸形历史行失败关闭。
+- 未知当前 Regime 不再给出推荐或中性资产，统一返回 hostile；统计结果拒绝布尔、负数和非整数计数。
+- 执行标记、批量证伪 ID 和 active-by-asset 查询统一使用正整数 canonical ID、去重与上限；批量 ID 最多 500 个。
+- 同步规范化上一批 Signal tasks 的 CRLF Git blob，消除提交级 trailing-whitespace 噪声，不改变运行逻辑。
+
+## 第一百六十一批验证结果
+
+- Signal Query Service 增量 mypy 清零；全仓基线从 `3119 errors / 605 files` 收紧为 `3111 errors / 604 files`，净减少 `8 errors / 1 file`。
+- Signal 单元与 API 边界回归共 `105 passed`；覆盖非法过滤、无效持久化 ID、空更新、查询上限、批量 ID、未知 Regime、非有限阈值和畸形统计/持久化记录。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
