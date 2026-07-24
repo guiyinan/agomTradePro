@@ -6,28 +6,24 @@ Cache Alpha Provider
 """
 
 import logging
+import math
+from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
+from typing import Any
 
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore, normalize_stock_code
 from ...domain.interfaces import AlphaProviderStatus
+from ...infrastructure.models import AlphaScoreCacheModel
 from .base import BaseAlphaProvider, provider_safe
 
 logger = logging.getLogger(__name__)
 
-try:
-    from ...infrastructure.models import AlphaScoreCacheModel
-except Exception:  # pragma: no cover - fallback for import-time edge cases
-    AlphaScoreCacheModel = None
-
-
-def _get_cache_model():
-    if AlphaScoreCacheModel is not None:
-        return AlphaScoreCacheModel
-    from ...infrastructure.models import AlphaScoreCacheModel as cache_model
-
-    return cache_model
+MAX_CACHE_RESULTS = 5000
+MAX_CACHE_RETENTION_DAYS = 3650
+MAX_CACHE_DATE_RANGE_DAYS = 3650
 
 
 class CacheAlphaProvider(BaseAlphaProvider):
@@ -48,13 +44,19 @@ class CacheAlphaProvider(BaseAlphaProvider):
         ...     print(f"Found {len(result.scores)} cached scores")
     """
 
-    def __init__(self, max_staleness_days: int = 5):
+    def __init__(self, max_staleness_days: int = 5) -> None:
         """
         初始化缓存 Provider
 
         Args:
             max_staleness_days: 最大可接受的数据陈旧天数（默认 5 天）
         """
+        if (
+            isinstance(max_staleness_days, bool)
+            or not isinstance(max_staleness_days, int)
+            or not 0 <= max_staleness_days <= 365
+        ):
+            raise ValueError("max_staleness_days must be an integer between 0 and 365")
         super().__init__()
         self._max_staleness_days = max_staleness_days
 
@@ -73,7 +75,6 @@ class CacheAlphaProvider(BaseAlphaProvider):
         """最大陈旧天数"""
         return self._max_staleness_days
 
-    @provider_safe(default_success=False)
     def health_check(self) -> AlphaProviderStatus:
         """
         健康检查
@@ -84,15 +85,18 @@ class CacheAlphaProvider(BaseAlphaProvider):
             Provider 状态
         """
         try:
-            cache_model = _get_cache_model()
-            latest_cache = cache_model.objects.order_by(
-                "-intended_trade_date", "-created_at"
+            latest_cache = AlphaScoreCacheModel._default_manager.order_by(
+                "-asof_date", "-created_at"
             ).first()
             if not latest_cache:
                 self._last_health_message = "暂无缓存数据"
                 return AlphaProviderStatus.DEGRADED
 
-            staleness_days = (timezone.localdate() - latest_cache.intended_trade_date).days
+            today = timezone.localdate()
+            if latest_cache.asof_date > today:
+                self._last_health_message = "最新缓存包含未来 asof_date，已拒绝使用"
+                return AlphaProviderStatus.UNAVAILABLE
+            staleness_days = (today - latest_cache.asof_date).days
             if staleness_days <= self.max_staleness_days:
                 self._last_health_message = None
                 return AlphaProviderStatus.AVAILABLE
@@ -114,7 +118,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
         intended_trade_date: date,
         top_n: int = 30,
         pool_scope: AlphaPoolScope | None = None,
-        user=None,
+        user: Any | None = None,
     ) -> AlphaResult:
         """
         从缓存获取股票评分（支持用户隔离）
@@ -135,18 +139,25 @@ class CacheAlphaProvider(BaseAlphaProvider):
         Returns:
             AlphaResult
         """
-        cache_model = _get_cache_model()
+        validation_error = self._validate_score_request(
+            universe_id=universe_id,
+            intended_trade_date=intended_trade_date,
+            top_n=top_n,
+            pool_scope=pool_scope,
+        )
+        if validation_error is not None:
+            return self._create_error_result(validation_error)
 
-        cache = None
+        cache: AlphaScoreCacheModel | None = None
         universe_filter = self._build_universe_filter(
             universe_id=universe_id,
             pool_scope=pool_scope,
         )
 
         # 1. 优先查用户个人评分
-        if user is not None and user.is_authenticated:
+        if user is not None and getattr(user, "is_authenticated", False) is True:
             cache = self._select_best_cache(
-                cache_model.objects.filter(
+                AlphaScoreCacheModel._default_manager.filter(
                     user=user,
                     **universe_filter,
                 ),
@@ -156,7 +167,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
         # 2. Fallback 到系统级评分
         if not cache:
             cache = self._select_best_cache(
-                cache_model.objects.filter(
+                AlphaScoreCacheModel._default_manager.filter(
                     user=None,
                     **universe_filter,
                 ),
@@ -168,11 +179,9 @@ class CacheAlphaProvider(BaseAlphaProvider):
             and pool_scope is not None
             and self._should_prefer_broader_qlib_cache(
                 cache=cache,
-                cache_model=cache_model,
             )
         ):
             broader_cache_result = self._select_broader_cache_for_scope(
-                cache_model=cache_model,
                 intended_trade_date=intended_trade_date,
                 top_n=top_n,
                 pool_scope=pool_scope,
@@ -186,7 +195,6 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 if not self._is_cache_degraded(
                     cache=broader_cache,
                     staleness_days=staleness_days,
-                    cache_model=cache_model,
                 ):
                     result = self._create_success_result(
                         scores=scores,
@@ -201,7 +209,6 @@ class CacheAlphaProvider(BaseAlphaProvider):
 
         if not cache and pool_scope is not None:
             broader_cache_result = self._select_broader_cache_for_scope(
-                cache_model=cache_model,
                 intended_trade_date=intended_trade_date,
                 top_n=top_n,
                 pool_scope=pool_scope,
@@ -215,7 +222,6 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 if self._is_cache_degraded(
                     cache=broader_cache,
                     staleness_days=staleness_days,
-                    cache_model=cache_model,
                 ):
                     result = self._create_degraded_result(
                         scores=scores,
@@ -223,7 +229,6 @@ class CacheAlphaProvider(BaseAlphaProvider):
                         reason=self._build_cache_degraded_reason(
                             cache=broader_cache,
                             staleness_days=staleness_days,
-                            cache_model=cache_model,
                             fallback_reason=(
                                 f"账户池专属缓存缺失，改用 {metadata['scope_fallback_source_universe_id']} "
                                 f"裁剪后的历史缓存，数据过期 {staleness_days} 天"
@@ -272,12 +277,10 @@ class CacheAlphaProvider(BaseAlphaProvider):
         if self._is_cache_degraded(
             cache=cache,
             staleness_days=staleness_days,
-            cache_model=cache_model,
         ):
             degraded_reason = self._build_cache_degraded_reason(
                 cache=cache,
                 staleness_days=staleness_days,
-                cache_model=cache_model,
             )
             result = self._create_degraded_result(
                 scores=scores,
@@ -296,6 +299,31 @@ class CacheAlphaProvider(BaseAlphaProvider):
             metadata=metadata,
         )
 
+    @staticmethod
+    def _validate_score_request(
+        *,
+        universe_id: str,
+        intended_trade_date: date,
+        top_n: int,
+        pool_scope: AlphaPoolScope | None,
+    ) -> str | None:
+        """Validate cache lookup bounds before accessing the database."""
+        if not isinstance(universe_id, str) or not universe_id.strip():
+            return "universe_id must be a non-empty string"
+        if len(universe_id) > 50:
+            return "universe_id exceeds 50 characters"
+        if not isinstance(intended_trade_date, date):
+            return "intended_trade_date must be a date"
+        if (
+            isinstance(top_n, bool)
+            or not isinstance(top_n, int)
+            or not 1 <= top_n <= MAX_CACHE_RESULTS
+        ):
+            return f"top_n must be an integer between 1 and {MAX_CACHE_RESULTS}"
+        if pool_scope is not None and pool_scope.trade_date != intended_trade_date:
+            return "pool_scope trade_date must match intended_trade_date"
+        return None
+
     def _build_universe_filter(
         self,
         *,
@@ -309,18 +337,28 @@ class CacheAlphaProvider(BaseAlphaProvider):
             }
         return {"universe_id": universe_id}
 
-    def _select_best_cache(self, queryset, intended_trade_date: date):
+    def _select_best_cache(
+        self,
+        queryset: QuerySet[AlphaScoreCacheModel],
+        intended_trade_date: date,
+    ) -> AlphaScoreCacheModel | None:
         """
         Prefer an exact-date cache when it is fresh; otherwise fall back to the
         freshest historical cache on or before the requested trade date.
         """
         exact_cache = (
-            queryset.filter(intended_trade_date=intended_trade_date)
+            queryset.filter(
+                intended_trade_date=intended_trade_date,
+                asof_date__lte=intended_trade_date,
+            )
             .order_by("-asof_date", "-created_at")
             .first()
         )
         historical_cache = (
-            queryset.filter(intended_trade_date__lte=intended_trade_date)
+            queryset.filter(
+                intended_trade_date__lte=intended_trade_date,
+                asof_date__lte=intended_trade_date,
+            )
             .order_by("-asof_date", "-intended_trade_date", "-created_at")
             .first()
         )
@@ -352,20 +390,20 @@ class CacheAlphaProvider(BaseAlphaProvider):
     def _select_broader_cache_for_scope(
         self,
         *,
-        cache_model,
         intended_trade_date: date,
         top_n: int,
         pool_scope: AlphaPoolScope,
-    ) -> tuple[object, list[StockScore], dict[str, object]] | None:
+    ) -> tuple[AlphaScoreCacheModel, list[StockScore], dict[str, object]] | None:
         scope_codes = {normalize_stock_code(code) for code in pool_scope.instrument_codes}
         if not scope_codes:
             return None
 
         broader_caches = (
-            cache_model.objects.filter(
+            AlphaScoreCacheModel._default_manager.filter(
                 user=None,
-                provider_source=cache_model.PROVIDER_QLIB,
+                provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
                 intended_trade_date__lte=intended_trade_date,
+                asof_date__lte=intended_trade_date,
             )
             .exclude(scores=[])
             .exclude(scope_hash=pool_scope.scope_hash)
@@ -423,14 +461,16 @@ class CacheAlphaProvider(BaseAlphaProvider):
     def _filter_scores_by_scope(
         self,
         *,
-        raw_scores: list,
+        raw_scores: Sequence[object],
         allowed_codes: set[str],
         top_n: int,
         default_asof_date: date | None,
         default_intended_trade_date: date | None,
     ) -> list[StockScore]:
-        filtered_raw_scores = []
+        filtered_raw_scores: list[dict[str, Any]] = []
         for item in raw_scores:
+            if not isinstance(item, Mapping):
+                continue
             payload = dict(item)
             normalized_code = normalize_stock_code(payload.get("code"))
             if normalized_code and normalized_code in allowed_codes:
@@ -444,15 +484,22 @@ class CacheAlphaProvider(BaseAlphaProvider):
         )
 
     @staticmethod
-    def _calculate_staleness_days(*, cache, intended_trade_date: date) -> int:
+    def _calculate_staleness_days(
+        *,
+        cache: AlphaScoreCacheModel,
+        intended_trade_date: date,
+    ) -> int:
         """Calculate cache age relative to the requested signal date."""
         if not cache.asof_date:
             return 999
         return max((intended_trade_date - cache.asof_date).days, 0)
 
     @staticmethod
-    def _build_cache_metadata(*, cache) -> dict[str, object]:
-        metadata = dict(getattr(cache, "metrics_snapshot", {}) or {})
+    def _build_cache_metadata(*, cache: AlphaScoreCacheModel) -> dict[str, object]:
+        metrics_snapshot = cache.metrics_snapshot
+        metadata: dict[str, object] = (
+            dict(metrics_snapshot) if isinstance(metrics_snapshot, Mapping) else {}
+        )
         metadata.update(
             {
                 "cache_date": cache.intended_trade_date.isoformat(),
@@ -467,36 +514,48 @@ class CacheAlphaProvider(BaseAlphaProvider):
         )
         return metadata
 
-    def _is_cache_degraded(self, *, cache, staleness_days: int, cache_model) -> bool:
+    def _is_cache_degraded(
+        self,
+        *,
+        cache: AlphaScoreCacheModel,
+        staleness_days: int,
+    ) -> bool:
         if staleness_days > self.max_staleness_days:
             return True
-        return getattr(cache, "status", "") == cache_model.STATUS_DEGRADED
+        return cache.status == AlphaScoreCacheModel.STATUS_DEGRADED
 
     @staticmethod
-    def _should_prefer_broader_qlib_cache(*, cache, cache_model) -> bool:
-        if getattr(cache, "status", "") != cache_model.STATUS_DEGRADED:
+    def _should_prefer_broader_qlib_cache(*, cache: AlphaScoreCacheModel) -> bool:
+        if cache.status != AlphaScoreCacheModel.STATUS_DEGRADED:
             return False
-        metrics_snapshot = dict(getattr(cache, "metrics_snapshot", {}) or {})
+        metrics_snapshot = (
+            cache.metrics_snapshot if isinstance(cache.metrics_snapshot, Mapping) else {}
+        )
         return metrics_snapshot.get("fallback_mode") == "forward_fill_latest_qlib_cache"
 
     def _build_cache_degraded_reason(
         self,
         *,
-        cache,
+        cache: AlphaScoreCacheModel,
         staleness_days: int,
-        cache_model,
         fallback_reason: str | None = None,
     ) -> str:
         if staleness_days > self.max_staleness_days:
             return f"缓存数据过期 {staleness_days} 天（最大允许 {self.max_staleness_days} 天）"
-        if getattr(cache, "status", "") == cache_model.STATUS_DEGRADED:
-            metrics_snapshot = dict(getattr(cache, "metrics_snapshot", {}) or {})
-            return str(metrics_snapshot.get("fallback_reason") or fallback_reason or "缓存结果当前为降级状态")
+        if cache.status == AlphaScoreCacheModel.STATUS_DEGRADED:
+            metrics_snapshot = (
+                cache.metrics_snapshot if isinstance(cache.metrics_snapshot, Mapping) else {}
+            )
+            return str(
+                metrics_snapshot.get("fallback_reason")
+                or fallback_reason
+                or "缓存结果当前为降级状态"
+            )
         return str(fallback_reason or "")
 
     def _parse_scores(
         self,
-        raw_scores: list,
+        raw_scores: Sequence[object],
         top_n: int,
         default_asof_date: date | None = None,
         default_intended_trade_date: date | None = None,
@@ -511,19 +570,40 @@ class CacheAlphaProvider(BaseAlphaProvider):
         Returns:
             StockScore 列表
         """
-        scores = []
-        for item in raw_scores[:top_n]:
+        scores: list[StockScore] = []
+        seen_codes: set[str] = set()
+        for item in raw_scores[:MAX_CACHE_RESULTS]:
+            if len(scores) >= top_n:
+                break
             try:
+                if not isinstance(item, Mapping):
+                    raise TypeError("score item must be a mapping")
                 payload = dict(item)
                 normalized_code = normalize_stock_code(payload.get("code"))
-                if normalized_code:
-                    payload["code"] = normalized_code
+                if not normalized_code or normalized_code in seen_codes:
+                    continue
+                payload["code"] = normalized_code
                 payload.setdefault("source", "cache")
-                if default_asof_date and not payload.get("asof_date"):
+                if default_asof_date:
                     payload["asof_date"] = default_asof_date.isoformat()
                 if default_intended_trade_date:
                     payload["intended_trade_date"] = default_intended_trade_date.isoformat()
-                scores.append(StockScore.from_dict(payload))
+                if any(
+                    isinstance(payload.get(field), bool)
+                    for field in ("score", "rank", "confidence")
+                ):
+                    raise ValueError("boolean values are not valid score numerics")
+                score = StockScore.from_dict(payload)
+                if (
+                    score.rank <= 0
+                    or not math.isfinite(score.score)
+                    or not -1.0 <= score.score <= 1.0
+                    or not math.isfinite(score.confidence)
+                    or not 0.0 <= score.confidence <= 1.0
+                ):
+                    raise ValueError("score payload contains invalid numeric values")
+                seen_codes.add(normalized_code)
+                scores.append(score)
             except Exception as e:
                 logger.warning(f"解析评分失败: {item}, error: {e}")
                 continue
@@ -542,10 +622,16 @@ class CacheAlphaProvider(BaseAlphaProvider):
         Returns:
             可用日期列表
         """
-        cache_model = _get_cache_model()
+        self._validate_universe_id(universe_id)
+        if not isinstance(start_date, date) or not isinstance(end_date, date):
+            raise ValueError("start_date and end_date must be dates")
+        if start_date > end_date:
+            raise ValueError("start_date must not be after end_date")
+        if (end_date - start_date).days > MAX_CACHE_DATE_RANGE_DAYS:
+            raise ValueError(f"cache date range cannot exceed {MAX_CACHE_DATE_RANGE_DAYS} days")
 
         caches = (
-            cache_model.objects.filter(
+            AlphaScoreCacheModel._default_manager.filter(
                 universe_id=universe_id,
                 intended_trade_date__gte=start_date,
                 intended_trade_date__lte=end_date,
@@ -566,10 +652,10 @@ class CacheAlphaProvider(BaseAlphaProvider):
         Returns:
             最新缓存日期，如果没有则返回 None
         """
-        cache_model = _get_cache_model()
+        self._validate_universe_id(universe_id)
 
         cache = (
-            cache_model.objects.filter(universe_id=universe_id)
+            AlphaScoreCacheModel._default_manager.filter(universe_id=universe_id)
             .order_by("-intended_trade_date")
             .first()
         )
@@ -587,13 +673,29 @@ class CacheAlphaProvider(BaseAlphaProvider):
         Returns:
             删除的记录数
         """
-        cache_model = _get_cache_model()
+        self._validate_universe_id(universe_id)
+        if (
+            isinstance(days_to_keep, bool)
+            or not isinstance(days_to_keep, int)
+            or not 1 <= days_to_keep <= MAX_CACHE_RETENTION_DAYS
+        ):
+            raise ValueError(
+                f"days_to_keep must be an integer between 1 and {MAX_CACHE_RETENTION_DAYS}"
+            )
 
-        cutoff_date = date.today() - timedelta(days=days_to_keep)
+        cutoff_date = timezone.localdate() - timedelta(days=days_to_keep)
 
-        deleted, _ = cache_model.objects.filter(
+        deleted, _ = AlphaScoreCacheModel._default_manager.filter(
             universe_id=universe_id, intended_trade_date__lt=cutoff_date
         ).delete()
 
         logger.info(f"清理了 {deleted} 条过期缓存（{universe_id}）")
-        return deleted
+        return int(deleted)
+
+    @staticmethod
+    def _validate_universe_id(universe_id: str) -> None:
+        """Validate a persisted universe identifier."""
+        if not isinstance(universe_id, str) or not universe_id.strip():
+            raise ValueError("universe_id must be a non-empty string")
+        if len(universe_id) > 50:
+            raise ValueError("universe_id exceeds 50 characters")

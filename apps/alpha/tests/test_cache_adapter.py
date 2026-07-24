@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -237,3 +237,141 @@ def test_cache_provider_prefers_fresh_broader_qlib_cache_over_scoped_forward_fil
     assert result.status == "available"
     assert result.metadata["derived_from_broader_cache"] is True
     assert result.metadata["trade_date_adjusted"] is True
+
+
+@pytest.mark.django_db
+def test_cache_provider_rejects_future_asof_cache_for_historical_trade_date():
+    """未来时点生成的评分不得用于更早交易日。"""
+    AlphaScoreCacheModel._default_manager.create(
+        universe_id="csi300",
+        intended_trade_date=date(2026, 4, 20),
+        provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+        asof_date=date(2026, 4, 21),
+        scores=[
+            {
+                "code": "000001.SZ",
+                "score": 0.99,
+                "rank": 1,
+                "factors": {},
+                "source": "qlib",
+                "confidence": 0.99,
+            }
+        ],
+        status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+        metrics_snapshot={},
+    )
+
+    result = CacheAlphaProvider().get_stock_scores(
+        universe_id="csi300",
+        intended_trade_date=date(2026, 4, 20),
+        top_n=10,
+    )
+
+    assert result.success is False
+    assert result.status == "unavailable"
+    assert result.scores == []
+
+
+@pytest.mark.django_db
+def test_cache_provider_rejects_future_asof_broader_scope_fallback():
+    """账户池 fallback 同样不得读取未来生成的宽基缓存。"""
+    pool_scope = AlphaPoolScope(
+        pool_type="portfolio_market",
+        market="CN",
+        pool_mode="strict_valuation",
+        instrument_codes=("000001.SZ",),
+        selection_reason="test",
+        trade_date=date(2026, 4, 20),
+        portfolio_id=135,
+    )
+    AlphaScoreCacheModel._default_manager.create(
+        universe_id="csi300",
+        intended_trade_date=date(2026, 4, 20),
+        provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+        asof_date=date(2026, 4, 21),
+        scores=[
+            {
+                "code": "000001.SZ",
+                "score": 0.99,
+                "rank": 1,
+                "factors": {},
+                "source": "qlib",
+                "confidence": 0.99,
+            }
+        ],
+        status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+        metrics_snapshot={},
+    )
+
+    result = CacheAlphaProvider().get_stock_scores(
+        universe_id=pool_scope.universe_id,
+        intended_trade_date=date(2026, 4, 20),
+        top_n=10,
+        pool_scope=pool_scope,
+    )
+
+    assert result.success is False
+    assert result.scores == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("top_n", [True, 0, -1, 5001])
+def test_cache_provider_rejects_invalid_result_limits(top_n):
+    """非法结果上限必须在查询缓存前失败。"""
+    result = CacheAlphaProvider().get_stock_scores(
+        universe_id="csi300",
+        intended_trade_date=date(2026, 4, 20),
+        top_n=top_n,
+    )
+
+    assert result.success is False
+    assert "top_n" in (result.error_message or "")
+
+
+@pytest.mark.django_db
+def test_cache_provider_rejects_mismatched_scope_trade_date():
+    """Scope 日期与请求日期不一致时不得跨期回退。"""
+    pool_scope = AlphaPoolScope(
+        pool_type="portfolio_market",
+        market="CN",
+        pool_mode="strict_valuation",
+        instrument_codes=("000001.SZ",),
+        selection_reason="test",
+        trade_date=date(2026, 4, 19),
+        portfolio_id=135,
+    )
+
+    result = CacheAlphaProvider().get_stock_scores(
+        universe_id=pool_scope.universe_id,
+        intended_trade_date=date(2026, 4, 20),
+        pool_scope=pool_scope,
+    )
+
+    assert result.success is False
+    assert "trade_date" in (result.error_message or "")
+
+
+@pytest.mark.django_db
+def test_cache_provider_health_rejects_future_asof_date():
+    """健康检查不得把未来缓存视为新鲜缓存。"""
+    tomorrow = date.today() + timedelta(days=1)
+    AlphaScoreCacheModel._default_manager.create(
+        universe_id="csi300",
+        intended_trade_date=tomorrow,
+        provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+        asof_date=tomorrow,
+        scores=[],
+        status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+        metrics_snapshot={},
+    )
+
+    provider = CacheAlphaProvider()
+
+    assert provider.health_check().value == "unavailable"
+    assert provider._last_health_message == "最新缓存包含未来 asof_date，已拒绝使用"
+
+
+@pytest.mark.parametrize("max_staleness_days", [True, -1, 366])
+def test_cache_provider_rejects_invalid_staleness_configuration(max_staleness_days):
+    with pytest.raises(ValueError, match="max_staleness_days"):
+        CacheAlphaProvider(max_staleness_days=max_staleness_days)

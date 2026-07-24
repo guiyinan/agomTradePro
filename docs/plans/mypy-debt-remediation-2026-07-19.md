@@ -2173,3 +2173,20 @@
 - Strategy Executor 与 Rule Evaluator 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3268 errors / 622 files` 收紧为 `3252 errors / 620 files`，净减少 `16 errors / 2 files`。
 - 规则评估、策略执行、执行全流程、自动交易集成和 Strategy API 边界回归共 `78 passed`；覆盖上下文不可用、非有限现金、审计失败、无效主键和重复信号。
 - Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百五十三批
+
+- 按“Alpha 降级链影响面 × 历史评分前视偏差”收口 Alpha Provider Base 与 Cache Provider。
+- 缓存选择同时限制 `intended_trade_date` 和 `asof_date` 不得晚于请求交易日；账户池使用宽基 Qlib 缓存裁剪时执行同一限制，未来生成的缓存不能进入历史评分。
+- 缓存健康检查改用真实 `asof_date` 计算新鲜度，并对未来 `asof_date` 失败关闭，不再按计划交易日把未来缓存判为可用。
+- 数据库缓存行的 `asof_date` 与 `intended_trade_date` 成为评分审计时间唯一真源，行内 JSON 不能覆盖为另一个未来时间。
+- 缓存评分过滤空代码、重复代码、NaN/无穷、越界 score/confidence、非法 rank 和布尔数值；同一标准代码只保留首个有效结果。
+- `top_n`、最大陈旧天数、清理保留天数、日期查询跨度、股票池标识和账户池交易日增加严格边界；布尔值、零负值、超大请求与跨期 scope 在查询前拒绝。
+- Provider 异常结果不再向上层暴露数据库或运行时原始异常文本；详细信息仅进入服务端日志。
+- Provider 装饰器使用 ParamSpec/TypeVar 保留被装饰函数签名，并同步清除 Simple、ETF 与 Qlib 调用侧的装饰器类型债务。
+
+## 第一百五十三批验证结果
+
+- Alpha Provider Base 与 Cache Provider 增量 mypy 清零，并同步消除 Simple/ETF/Qlib 装饰器下游债务；隔离并行工作区改动后，全仓基线从 `3252 errors / 620 files` 收紧为 `3212 errors / 617 files`，净减少 `40 errors / 3 files`。
+- Alpha Cache、代码归一化、Simple/ETF/Qlib Provider、任务、服务与集成回归共 `115 passed`；覆盖未来缓存、未来行内时间、非法结果上限、跨期 scope、非有限评分和重复代码。
+- Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

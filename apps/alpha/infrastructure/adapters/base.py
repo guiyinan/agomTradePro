@@ -10,15 +10,18 @@ import traceback
 from collections.abc import Callable
 from datetime import date
 from functools import wraps
-from typing import Any
+from typing import Any, ParamSpec, TypeVar, cast
 
 from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore
 from ...domain.interfaces import AlphaProvider
 
 logger = logging.getLogger(__name__)
 
+P = ParamSpec("P")
+R = TypeVar("R")
 
-def qlib_safe(default_return: Any = None):
+
+def qlib_safe(default_return: R) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """
     Qlib 安全装饰器
 
@@ -34,25 +37,30 @@ def qlib_safe(default_return: Any = None):
         ...     import qlib
         ...     return qlib.load_model(...)
     """
-    def decorator(func: Callable) -> Callable:
+
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
                 return func(*args, **kwargs)
             except ImportError as e:
                 logger.error(f"Qlib 未安装或导入失败: {e}")
                 return default_return
             except Exception as e:
-                logger.error(
-                    f"Qlib 调用失败: {e}\n{traceback.format_exc()}",
-                    exc_info=True
-                )
+                logger.error(f"Qlib 调用失败: {e}\n{traceback.format_exc()}", exc_info=True)
                 return default_return
+
         return wrapper
+
     return decorator
 
 
-def provider_safe(default_success: bool = False):
+def provider_safe(
+    default_success: bool = False,
+) -> Callable[
+    [Callable[P, R]],
+    Callable[P, R],
+]:
     """
     Provider 安全装饰器
 
@@ -67,16 +75,14 @@ def provider_safe(default_success: bool = False):
         ...     # Provider 实现
         ...     pass
     """
-    def decorator(func: Callable) -> Callable:
+
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> AlphaResult:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                logger.error(
-                    f"Provider 调用失败: {e}\n{traceback.format_exc()}",
-                    exc_info=True
-                )
+                logger.error(f"Provider 调用失败: {e}\n{traceback.format_exc()}", exc_info=True)
                 # 获取 self 作为第一个参数（实例方法）
                 if args:
                     provider = args[0]
@@ -84,15 +90,20 @@ def provider_safe(default_success: bool = False):
                 else:
                     source = "unknown"
 
-                return AlphaResult(
-                    success=default_success,
-                    scores=[],
-                    source=source,
-                    timestamp=date.today().isoformat(),
-                    status="unavailable",
-                    error_message=str(e),
+                return cast(
+                    R,
+                    AlphaResult(
+                        success=default_success,
+                        scores=[],
+                        source=source,
+                        timestamp=date.today().isoformat(),
+                        status="unavailable",
+                        error_message="Provider execution failed",
+                    ),
                 )
+
         return wrapper
+
     return decorator
 
 
@@ -117,7 +128,7 @@ class BaseAlphaProvider(AlphaProvider):
         ...         return 100
     """
 
-    def __init__(self, config: dict[str, Any] | None = None):
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         """
         初始化 Provider
 
@@ -150,11 +161,7 @@ class BaseAlphaProvider(AlphaProvider):
         """
         return True
 
-    def get_factor_exposure(
-        self,
-        stock_code: str,
-        trade_date: date
-    ) -> dict[str, float]:
+    def get_factor_exposure(self, stock_code: str, trade_date: date) -> dict[str, float]:
         """
         获取因子暴露（默认实现）
 
@@ -174,7 +181,7 @@ class BaseAlphaProvider(AlphaProvider):
         scores: list[StockScore],
         latency_ms: int | None = None,
         staleness_days: int | None = None,
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> AlphaResult:
         """
         创建成功结果
@@ -199,11 +206,7 @@ class BaseAlphaProvider(AlphaProvider):
             metadata=metadata or {},
         )
 
-    def _create_error_result(
-        self,
-        error_message: str,
-        status: str = "unavailable"
-    ) -> AlphaResult:
+    def _create_error_result(self, error_message: str, status: str = "unavailable") -> AlphaResult:
         """
         创建错误结果
 
@@ -224,10 +227,7 @@ class BaseAlphaProvider(AlphaProvider):
         )
 
     def _create_degraded_result(
-        self,
-        scores: list[StockScore],
-        staleness_days: int,
-        reason: str = ""
+        self, scores: list[StockScore], staleness_days: int, reason: str = ""
     ) -> AlphaResult:
         """
         创建降级结果
@@ -251,7 +251,7 @@ class BaseAlphaProvider(AlphaProvider):
         )
 
     @staticmethod
-    def measure_latency(func: Callable) -> Callable:
+    def measure_latency(func: Callable[P, R]) -> Callable[P, R]:
         """
         延迟测量装饰器
 
@@ -270,17 +270,19 @@ class BaseAlphaProvider(AlphaProvider):
             ...     result.latency_ms = self._last_latency
             ...     return result
         """
+
         @wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             start_time = time.time()
             try:
-                result = func(self, *args, **kwargs)
+                result = func(*args, **kwargs)
                 if isinstance(result, AlphaResult):
                     result.latency_ms = int((time.time() - start_time) * 1000)
                 return result
             except Exception as e:
                 logger.error(f"Function {func.__name__} failed: {e}")
                 raise
+
         return wrapper
 
 
@@ -291,7 +293,7 @@ def create_stock_score(
     source: str,
     factors: dict[str, float] | None = None,
     confidence: float = 0.5,
-    **kwargs
+    **kwargs: Any,
 ) -> StockScore:
     """
     创建 StockScore 的便捷函数
@@ -315,5 +317,5 @@ def create_stock_score(
         factors=factors or {},
         source=source,
         confidence=confidence,
-        **kwargs
+        **kwargs,
     )
