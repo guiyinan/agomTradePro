@@ -14,6 +14,7 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import User
+from django.core.management import CommandError, call_command
 from rest_framework.test import APIClient
 
 from apps.account.infrastructure.models import (
@@ -73,6 +74,15 @@ def _mk_position(portfolio, asset_code="600000.SH", shares=1000.0, avg_cost="10.
 
 
 # ── 1. Migration: two portfolios → two independent real accounts ──────────────
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("user_id", [0, -1, True, "invalid"])
+def test_migration_rejects_invalid_user_scope(user_id) -> None:
+    """Invalid user filters must never fall through to an all-user migration."""
+
+    with pytest.raises(CommandError, match="user_id 必须是正整数"):
+        call_command("migrate_account_ledger", user_id=user_id, dry_run=True)
 
 
 @pytest.mark.django_db

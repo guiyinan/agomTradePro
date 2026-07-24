@@ -2528,3 +2528,17 @@
 - Strategy 剩余 6 个生产文件增量 mypy 清零；全仓基线从 `2945 errors / 586 files` 收紧为 `2937 errors / 580 files`，净减少 `8 errors / 6 files`，Strategy 模块当前已无登记 mypy 债务。
 - Financial Configuration Command、Strategy API 与结构回归共 `37 passed`；覆盖仓位规则 dry-run/create/skip/force、API 权限边界和入口归属。
 - 改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十五批
+
+- 按“统一账本迁移作用域 × 资金历史数据影响面”收口 `migrate_account_ledger`。
+- 修复 `user_id=0`、负数、布尔或畸形值因 truthiness 判断退化为全用户迁移的高风险漏洞；非法 scope 现在在任何查询和写入前抛出 `CommandError`。
+- 三阶段 Portfolio、Position、Transaction 查询统一使用显式 `is not None` 过滤，指定用户迁移不会因假值分支扩大作用域。
+- Migration Stats 使用 `TypedDict` 固定计数器与告警结构；Command parser、动态 options、各迁移阶段和摘要输出补齐边界类型。
+- Capital Flow 汇总改用直接导入的 `Sum`，去除运行时动态导入；合并持仓进入公共计算函数前显式收窄 Decimal/float 边界。
+
+## 第一百七十五批验证结果
+
+- Account Ledger Migration 增量 mypy 清零；全仓基线从 `2937 errors / 580 files` 收紧为 `2926 errors / 579 files`，净减少 `11 errors / 1 file`。
+- Ledger Unification Acceptance 回归共 `11 passed`；新增覆盖 0、负数、布尔和字符串 user scope，保留多组合独立迁移、非整数份额、幂等和统一平仓链路。
+- 改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

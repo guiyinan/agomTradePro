@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2937,
-    "files_with_errors": 580
+    "errors": 2926,
+    "files_with_errors": 579
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -2008,11 +2008,6 @@
     },
     "apps/simulated_trading/interface/sdk_contract_views.py": {
       "no-untyped-def": 4
-    },
-    "apps/simulated_trading/management/commands/migrate_account_ledger.py": {
-      "arg-type": 1,
-      "no-untyped-call": 4,
-      "no-untyped-def": 6
     },
     "apps/simulated_trading/management/commands/repair_personal_account_readiness.py": {
       "no-untyped-def": 1
