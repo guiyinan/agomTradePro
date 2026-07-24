@@ -1746,3 +1746,20 @@
 - simulated trading account portfolio repository mypy 清零；全仓基线从 `4068 errors / 676 files` 收紧为 `4048 errors / 675 files`，净减少 `20 errors / 1 file`。
 - 账户桥接、手工交易同步和 simulated trading 集成回归共 `22 passed`。
 - 完整 mypy debt ceiling、Django system check、架构检查、改动文件 Ruff 与 diff check 通过；主工作树并行测试治理批次仍在更新 governance baseline，本批继续不覆盖该未提交真源。
+
+## 第一百二十七批
+
+- 按“组合基准绩效影响面 × 历史序列日期一致性”收口 performance report UseCase、绩效 Repository 与动态账本模型桥接。
+- 修复部分基准成分缺行情时仍发布不完整组合收益的问题；任一配置成分缺失时组合收益、超额收益和派生指标明确返回空值并给出 warning。
+- 多基准日收益不再按数组下标拼接，改为按实际交易日求交集，并与账户日收益日期对齐后计算 Beta、Alpha、Tracking Error 和 Information Ratio。
+- 修复缺失成分导致后续成分收益与前一成分权重错配的问题；组合累计收益严格使用代码对应的原始权重。
+- 业绩报告拒绝反向日期区间；历史估值现金显式收窄为浮点值，净值时间线现金流变量不再与记录字典串型。
+- 行情缺失只降级明确的数据获取异常，数据库与实现错误不再被宽泛异常伪装成“无行情”；真实账户现金流查询同样移除静默吞错。
+- 动态账本模型 helper 补齐边界返回标注，连带消除 Alpha Repository 与账本迁移命令的传播型未标注调用债务。
+- 新增多基准日期错位、缺失成分和反向日期三组回归。
+
+## 第一百二十七批验证结果
+
+- performance UseCase、performance Repository 与 account ledger bridge mypy 清零；全仓基线从 `4048 errors / 675 files` 收紧为 `4026 errors / 672 files`，净减少 `22 errors / 3 files`。
+- 绩效 UseCase、Domain 与账户绩效 API 回归共 `103 passed`。
+- 完整 mypy debt ceiling、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过；主工作树并行测试治理批次仍在更新 governance baseline，本批继续不覆盖该未提交真源。

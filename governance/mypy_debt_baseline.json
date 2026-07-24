@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4048,
-    "files_with_errors": 675
+    "errors": 4026,
+    "files_with_errors": 672
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -497,7 +497,6 @@
       "type-arg": 2
     },
     "apps/alpha/infrastructure/repositories.py": {
-      "no-untyped-call": 3,
       "no-untyped-def": 3
     },
     "apps/alpha/infrastructure/scientific_runtime.py": {
@@ -2369,10 +2368,6 @@
       "arg-type": 1,
       "attr-defined": 2
     },
-    "apps/simulated_trading/application/performance_use_cases.py": {
-      "assignment": 1,
-      "operator": 1
-    },
     "apps/simulated_trading/infrastructure/legacy_price_provider.py": {
       "assignment": 2,
       "no-untyped-call": 1,
@@ -2382,13 +2377,6 @@
       "no-untyped-def": 11,
       "type-arg": 2
     },
-    "apps/simulated_trading/infrastructure/performance_repositories.py": {
-      "arg-type": 1,
-      "misc": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 2,
-      "type-arg": 1
-    },
     "apps/simulated_trading/infrastructure/price_provider.py": {
       "assignment": 3
     },
@@ -2397,7 +2385,7 @@
     },
     "apps/simulated_trading/management/commands/migrate_account_ledger.py": {
       "arg-type": 1,
-      "no-untyped-call": 8,
+      "no-untyped-call": 4,
       "no-untyped-def": 6
     },
     "apps/simulated_trading/management/commands/repair_personal_account_readiness.py": {
@@ -2623,10 +2611,6 @@
     "core/context_processors.py": {
       "dict-item": 1,
       "no-untyped-def": 4
-    },
-    "core/integration/account_ledger.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 6
     },
     "core/integration/alpha_cache.py": {
       "no-untyped-def": 1
