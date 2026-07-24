@@ -1732,3 +1732,17 @@
 - simulated trading order use cases 与 interface service mypy 清零；全仓基线从 `4079 errors / 678 files` 收紧为 `4068 errors / 676 files`，净减少 `11 errors / 2 files`。
 - 模拟交易下单、绩效、策略、净值与 Decision Rhythm 执行回归共 `62 passed`，持仓成本领域服务 `2 passed`。
 - 完整 mypy debt ceiling、governance consistency、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过；主工作树并行测试治理批次正在更新 governance baseline，本批不覆盖该未提交真源。
+
+## 第一百二十六批
+
+- 按“实盘账户映射影响面 × 账本同步幂等性”收口 simulated trading 账户—组合桥接 Repository。
+- Portfolio、观察授权、旧持仓、统一持仓、映射和分类币种 ORM 输入输出全部具化，QuerySet 边界保留惰性查询语义。
+- `ensure_real_account` 改为在事务内锁定来源组合并复查映射，避免并发首次同步创建重复真实账户。
+- 发现映射目标账户已不存在时，不再返回悬空账户 ID；现创建新的真实账户并原位修复映射。
+- 新增悬空映射修复与重复调用幂等回归，验证映射、目标账户和账户数量一致。
+
+## 第一百二十六批验证结果
+
+- simulated trading account portfolio repository mypy 清零；全仓基线从 `4068 errors / 676 files` 收紧为 `4048 errors / 675 files`，净减少 `20 errors / 1 file`。
+- 账户桥接、手工交易同步和 simulated trading 集成回归共 `22 passed`。
+- 完整 mypy debt ceiling、Django system check、架构检查、改动文件 Ruff 与 diff check 通过；主工作树并行测试治理批次仍在更新 governance baseline，本批继续不覆盖该未提交真源。

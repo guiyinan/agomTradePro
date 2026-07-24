@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4068,
-    "files_with_errors": 676
+    "errors": 4048,
+    "files_with_errors": 675
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2372,9 +2372,6 @@
     "apps/simulated_trading/application/performance_use_cases.py": {
       "assignment": 1,
       "operator": 1
-    },
-    "apps/simulated_trading/infrastructure/account_portfolio_repository.py": {
-      "no-untyped-def": 20
     },
     "apps/simulated_trading/infrastructure/legacy_price_provider.py": {
       "assignment": 2,
