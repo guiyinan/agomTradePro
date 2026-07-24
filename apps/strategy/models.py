@@ -2,6 +2,8 @@
 Expose strategy ORM models at the Django app root for model discovery.
 """
 
+from typing import Any
+
 from django.apps import apps as django_apps
 
 from apps.strategy.infrastructure.models import (  # noqa: F401
@@ -16,7 +18,7 @@ from apps.strategy.infrastructure.models import (  # noqa: F401
 )
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     """Keep the historical order-intent import surface during the owner migration."""
 
     if name == "OrderIntentModel":

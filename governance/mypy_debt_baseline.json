@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2945,
-    "files_with_errors": 586
+    "errors": 2937,
+    "files_with_errors": 580
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -2015,25 +2015,6 @@
       "no-untyped-def": 6
     },
     "apps/simulated_trading/management/commands/repair_personal_account_readiness.py": {
-      "no-untyped-def": 1
-    },
-    "apps/strategy/application/prompt_gateway.py": {
-      "no-untyped-def": 1
-    },
-    "apps/strategy/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/strategy/infrastructure/__init__.py": {
-      "no-untyped-def": 1
-    },
-    "apps/strategy/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/strategy/management/commands/init_position_rules.py": {
-      "no-untyped-def": 2,
-      "type-arg": 1
-    },
-    "apps/strategy/models.py": {
       "no-untyped-def": 1
     },
     "apps/task_monitor/application/query_services.py": {

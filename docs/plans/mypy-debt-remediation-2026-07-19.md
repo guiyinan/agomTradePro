@@ -2514,3 +2514,17 @@
 - Strategy ORM models 增量 mypy 清零；全仓基线从 `2954 errors / 587 files` 收紧为 `2945 errors / 586 files`，净减少 `9 errors / 1 file`。
 - Strategy unit、component、API 与 integration 回归共 `88 passed`；覆盖 direct ORM 越界更新拒绝、仓储生命周期、策略规则与执行日志既有路径。
 - 迁移漂移检查、改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百七十四批
+
+- 按“Strategy 动态入口边界 × 模块债务完整收口”清理 Strategy 剩余启动注册、兼容导出、API 根视图和初始化命令。
+- Prompt Gateway 返回三个精确 Domain Provider Protocol，不再由未标注方法向 Prompt 上下文注册表传播动态类型。
+- Django App ready hook、兼容 serializer/model 动态导出和 API Root Request/Response 补齐边界类型，不改变既有注册与路由契约。
+- 仓位规则初始化模板改用 `TypedDict` 描述变量与表达式必需字段；模板缺字段或字段形状漂移会在增量类型门禁中暴露，不再以裸 dict 静默进入 ORM payload。
+- Management Command parser、可变参数与返回值补齐 Django 边界类型；`Any` 只保留在命令行/ORM 动态选项边界。
+
+## 第一百七十四批验证结果
+
+- Strategy 剩余 6 个生产文件增量 mypy 清零；全仓基线从 `2945 errors / 586 files` 收紧为 `2937 errors / 580 files`，净减少 `8 errors / 6 files`，Strategy 模块当前已无登记 mypy 债务。
+- Financial Configuration Command、Strategy API 与结构回归共 `37 passed`；覆盖仓位规则 dry-run/create/skip/force、API 权限边界和入口归属。
+- 改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

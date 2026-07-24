@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from django.core.management.base import BaseCommand, CommandError
+from typing import Any, TypedDict
+
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.strategy.infrastructure.models import (
     PositionManagementRuleModel,
@@ -10,10 +12,34 @@ from apps.strategy.infrastructure.models import (
 )
 
 
+class PositionRuleVariable(TypedDict):
+    """One variable exposed to a position-rule expression."""
+
+    name: str
+    type: str
+    required: bool
+
+
+class PositionRuleTemplate(TypedDict):
+    """Validated shape of a persisted position-rule template."""
+
+    name_suffix: str
+    description: str
+    price_precision: int
+    variables_schema: list[PositionRuleVariable]
+    buy_condition_expr: str
+    sell_condition_expr: str
+    buy_price_expr: str
+    sell_price_expr: str
+    stop_loss_expr: str
+    take_profit_expr: str
+    position_size_expr: str
+
+
 class Command(BaseCommand):
     help = "初始化仓位管理规则（数据库驱动表达式）"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--strategy-id",
             type=int,
@@ -38,7 +64,7 @@ class Command(BaseCommand):
             help="仅打印将执行的变更，不写入数据库。",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         strategy_id = options["strategy_id"]
         template_name = options["template"]
         force = options["force"]
@@ -106,7 +132,7 @@ class Command(BaseCommand):
         )
 
     @staticmethod
-    def _get_template(template_name: str) -> dict:
+    def _get_template(template_name: str) -> PositionRuleTemplate:
         if template_name == "breakout_trend":
             return {
                 "name_suffix": "突破趋势仓位规则",
