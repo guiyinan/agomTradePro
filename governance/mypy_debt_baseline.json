@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3101,
-    "files_with_errors": 603
+    "errors": 3094,
+    "files_with_errors": 601
   },
   "modules": {
     "apps/account/application/stress_testing_use_cases.py": {
@@ -2022,9 +2022,6 @@
     "apps/signal/apps.py": {
       "no-untyped-call": 1
     },
-    "apps/signal/forecast_composition.py": {
-      "arg-type": 3
-    },
     "apps/signal/infrastructure/config_init.py": {
       "attr-defined": 2,
       "no-untyped-call": 1,
@@ -2040,10 +2037,6 @@
     },
     "apps/signal/interface/admin.py": {
       "type-arg": 1
-    },
-    "apps/signal/interface/forecast_api_views.py": {
-      "assignment": 1,
-      "type-arg": 3
     },
     "apps/signal/interface/urls.py": {
       "no-untyped-def": 1

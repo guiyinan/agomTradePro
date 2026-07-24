@@ -37,9 +37,7 @@ class ForecastEvaluationRepository:
         entry = ForecastLedgerEntry._default_manager.filter(signal_id=int(signal_id)).first()
         if entry is None:
             if bool(getattr(settings, "SIGNAL_FORECAST_LEDGER_ENABLED", False)):
-                raise ValueError(
-                    f"scoreable signal {signal_id} has no forecast ledger entry"
-                )
+                raise ValueError(f"scoreable signal {signal_id} has no forecast ledger entry")
             return None
         return self.record_evaluation(
             entry_id=entry.entry_id,
@@ -62,6 +60,8 @@ class ForecastEvaluationRepository:
         missing_reason: str,
     ) -> ForecastEvaluation:
         entry = ForecastLedgerEntry._default_manager.select_for_update().get(entry_id=entry_id)
+        if checked_at < entry.published_at:
+            raise ValueError("checked_at must not precede forecast publication")
         key = f"{entry_id}:{checked_at.isoformat()}"
         prior_trigger = entry.evaluations.filter(triggered=True).order_by("checked_at").first()
         first_triggered_at = (
@@ -114,6 +114,8 @@ class ForecastEvaluationRepository:
         evidence: dict[str, Any],
     ) -> ForecastOutcome:
         entry = ForecastLedgerEntry._default_manager.select_for_update().get(entry_id=entry_id)
+        if finalized_at < entry.published_at:
+            raise ValueError("finalized_at must not precede forecast publication")
         existing = ForecastOutcome._default_manager.filter(entry=entry).first()
         if existing:
             expected = {

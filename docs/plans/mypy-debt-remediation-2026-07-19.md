@@ -2341,3 +2341,19 @@
 - Policy Influence Service 增量 mypy 清零；全仓基线从 `3111 errors / 604 files` 收紧为 `3101 errors / 603 files`，净减少 `10 errors / 1 file`。
 - Signal 单元与 API 边界回归共 `106 passed`；覆盖黑白名单、板块/舆情影响、畸形结构化数据及既有证伪与查询契约。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十三批
+
+- 按“预测账本不可变证据影响面 × 发布/评估/结果跨层契约”收口 Signal Forecast Ledger。
+- Forecast Gateway 的评估与最终结果方法改为精确关键字协议，composition root 不再依赖无法满足的泛型 `**kwargs` 契约。
+- 发布入口严格拒绝未知/缺失字段，统一规范 entry ID、资产代码、方向、signal ID、版本标识、来源和 Regime；布尔概率、NaN/无穷、越界概率、naive 时间和反向 horizon 在写账前拒绝。
+- 评估入口限制最多 1000 个正整数数据版本和 500 条条件；重复/布尔/非正版本、非布尔 triggered、超长缺失原因和超过 64 KiB 的组合条件证据不能进入 append-only ledger。
+- 最终结果拒绝 NaN/无穷收益与 neutral band，限制 evidence 为 JSON object 且不超过 64 KiB；未知 outcome type 和非法 entry ID 在访问仓储前失败。
+- Infrastructure 在锁定 ledger entry 后校验 `checked_at/finalized_at` 不早于发布时间，关闭发布前评估或结算的时间顺序旁路。
+- Forecast API 复用严格字段 serializer，补齐 Request/Response 类型；signal ID、列表上限与缺失原因在 Interface 层提前限界。
+
+## 第一百六十三批验证结果
+
+- Forecast composition 与 API view 增量 mypy 清零；全仓基线从 `3101 errors / 603 files` 收紧为 `3094 errors / 601 files`，净减少 `7 errors / 2 files`。
+- Signal、Forecast Ledger component、Forecast API 与研究完整性回归共 `134 passed`；覆盖未知字段、非有限数值、重复版本、畸形条件、超大 JSON 和发布前事件。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

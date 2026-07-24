@@ -151,3 +151,39 @@ def test_scheduled_signal_check_is_recorded_and_cutover_fails_closed(settings) -
             conditions=[],
             missing_reason="signal_not_linked",
         )
+
+
+@pytest.mark.django_db
+def test_forecast_ledger_rejects_events_before_publication() -> None:
+    repository = ForecastEvaluationRepository()
+    published_at = datetime(2026, 1, 2, tzinfo=UTC)
+    entry = RecordForecastLedgerEntryUseCase(repository).execute(
+        entry_id="forecast-chronology",
+        published_at=published_at,
+        direction="LONG",
+        asset_code="000001.SZ",
+        horizon_end=published_at + timedelta(days=30),
+        benchmark_asset="000300.SH",
+        probability=0.8,
+        invalidation_rule_version="rule-v1",
+        decision_snapshot_id="decision-v1",
+        pit_manifest_id="manifest-v1",
+        source="strategy",
+    )
+
+    with pytest.raises(ValueError, match="checked_at must not precede"):
+        RecordForecastEvaluationUseCase(repository).execute(
+            entry_id=entry.entry_id,
+            checked_at=published_at - timedelta(seconds=1),
+            data_version_ids=[1],
+            conditions=[],
+        )
+    with pytest.raises(ValueError, match="finalized_at must not precede"):
+        FinalizeForecastOutcomeUseCase(repository).execute(
+            entry_id=entry.entry_id,
+            finalized_at=published_at - timedelta(seconds=1),
+            outcome_type="expired",
+            asset_return=0.1,
+            benchmark_return=0.04,
+            neutral_band=0.01,
+        )
