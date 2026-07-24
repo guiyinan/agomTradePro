@@ -14,6 +14,7 @@ from apps.equity.application.use_cases import (
     ScreenStocksUseCase,
 )
 from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
+from core.exceptions import MissingConfigError
 
 
 def test_screen_stocks_returns_failure_response_when_repository_raises(mocker) -> None:
@@ -44,6 +45,46 @@ def test_screen_stocks_returns_failure_response_when_repository_raises(mocker) -
     assert response.success is False
     assert response.stock_codes == []
     assert response.error == "stocks unavailable"
+
+
+def test_screen_stocks_fails_when_scoring_weights_are_not_configured(mocker) -> None:
+    stock_repo = mocker.Mock()
+    stock_repo.get_all_stocks_with_fundamentals.return_value = [
+        (mocker.Mock(), mocker.Mock(), mocker.Mock())
+    ]
+    regime_repo = mocker.Mock()
+    mocker.patch(
+        "apps.equity.application.use_cases.get_stock_screening_rule",
+        return_value=SimpleNamespace(
+            regime="Recovery",
+            name="default",
+            min_roe=0.0,
+            min_revenue_growth=0.0,
+            min_profit_growth=0.0,
+            max_debt_ratio=100.0,
+            max_pe=100.0,
+            max_pb=10.0,
+            min_market_cap=0,
+            sector_preference=None,
+            max_count=30,
+        ),
+    )
+    config_repo = mocker.Mock()
+    config_repo.get_active_config.side_effect = MissingConfigError(
+        "未配置启用的股票评分权重，无法执行股票筛选"
+    )
+    mocker.patch(
+        "apps.equity.application.use_cases.get_equity_scoring_weight_config_repository",
+        return_value=config_repo,
+    )
+
+    response = ScreenStocksUseCase(stock_repo, regime_repo).execute(
+        ScreenStocksRequest(regime="Recovery")
+    )
+
+    assert response.success is False
+    assert response.stock_codes == []
+    assert response.error == "未配置启用的股票评分权重，无法执行股票筛选"
 
 
 def test_regime_history_returns_empty_dict_when_repository_fails(mocker) -> None:

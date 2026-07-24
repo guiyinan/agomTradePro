@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3756,
-    "files_with_errors": 643
+    "errors": 3711,
+    "files_with_errors": 641
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1221,12 +1221,11 @@
       "no-untyped-def": 2
     },
     "apps/equity/application/config.py": {
-      "no-any-return": 2,
-      "no-untyped-call": 1,
+      "no-any-return": 1,
       "no-untyped-def": 1
     },
     "apps/equity/application/interface_services.py": {
-      "no-untyped-call": 6
+      "no-untyped-call": 5
     },
     "apps/equity/application/market_sessions.py": {
       "no-untyped-def": 1
@@ -1296,14 +1295,6 @@
     },
     "apps/equity/infrastructure/config_loader.py": {
       "no-any-return": 1
-    },
-    "apps/equity/infrastructure/config_repositories.py": {
-      "no-untyped-call": 11,
-      "no-untyped-def": 12,
-      "type-arg": 3
-    },
-    "apps/equity/infrastructure/models.py": {
-      "no-untyped-def": 16
     },
     "apps/equity/infrastructure/valuation_repair_repositories.py": {
       "no-untyped-def": 1,

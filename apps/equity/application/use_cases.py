@@ -35,7 +35,7 @@ from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.domain.services import StockScreener
 from apps.equity.domain.services_technical import TechnicalChartService
 from apps.regime.domain.entities import RegimeSnapshot
-from core.exceptions import DataFetchError, DataValidationError
+from core.exceptions import ConfigurationError, DataFetchError, DataValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +129,7 @@ RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS = (
     ValueError,
     DataFetchError,
     DataValidationError,
+    ConfigurationError,
 )
 
 

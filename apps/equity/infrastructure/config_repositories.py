@@ -7,40 +7,43 @@ import surface; do not import it here.
 
 from typing import Any
 
+from django.db import transaction
+from django.db.models import QuerySet
 from django.utils import timezone
 
+from apps.equity.domain.entities import ScoringWeightConfig
+from apps.equity.domain.entities_valuation_repair import ValuationRepairConfig
 from apps.fund.infrastructure.models import FundTypePreferenceConfigModel
 from apps.sector.infrastructure.models import SectorPreferenceConfigModel
+from core.exceptions import MissingConfigError
 
-from .models import StockScreeningRuleConfigModel
+from .models import (
+    ScoringWeightConfigModel,
+    StockScreeningRuleConfigModel,
+    ValuationRepairConfigModel,
+)
 
 
 class ScoringWeightConfigRepository:
     """股票评分权重配置仓储"""
 
-    def get_active_config(self):
+    def get_active_config(self) -> ScoringWeightConfig:
         """
         获取当前启用的评分权重配置
 
         Returns:
-            ScoringWeightConfig 实体，如果没有启用配置则返回默认配置
+            当前唯一启用的 ScoringWeightConfig 实体。
+
+        Raises:
+            MissingConfigError: 数据库中没有启用的评分权重配置。
         """
-        from .models import ScoringWeightConfigModel
-
         try:
-            model = ScoringWeightConfigModel._default_manager.filter(is_active=True).first()
+            model = ScoringWeightConfigModel._default_manager.get(is_active=True)
+        except ScoringWeightConfigModel.DoesNotExist as exc:
+            raise MissingConfigError("未配置启用的股票评分权重，无法执行股票筛选") from exc
+        return model.to_domain_entity()
 
-            if model:
-                return model.to_domain_entity()
-
-            # 没有启用配置时返回默认配置
-            return self._get_default_config()
-
-        except Exception:
-            # 发生错误时返回默认配置
-            return self._get_default_config()
-
-    def get_config_by_name(self, name: str):
+    def get_config_by_name(self, name: str) -> ScoringWeightConfig | None:
         """
         根据名称获取评分权重配置
 
@@ -50,57 +53,48 @@ class ScoringWeightConfigRepository:
         Returns:
             ScoringWeightConfig 实体，不存在则返回 None
         """
-        from .models import ScoringWeightConfigModel
-
         try:
-            model = ScoringWeightConfigModel._default_manager.filter(name=name).first()
-
-            if model:
-                return model.to_domain_entity()
-
+            model = ScoringWeightConfigModel._default_manager.get(name=name)
+        except ScoringWeightConfigModel.DoesNotExist:
             return None
+        return model.to_domain_entity()
 
-        except Exception:
-            return None
-
-    def get_all_configs(self):
+    def get_all_configs(self) -> list[ScoringWeightConfig]:
         """
         获取所有评分权重配置
 
         Returns:
             ScoringWeightConfig 实体列表
         """
-        from .models import ScoringWeightConfigModel
+        models = ScoringWeightConfigModel._default_manager.all().order_by(
+            "-is_active", "-created_at"
+        )
+        return [model.to_domain_entity() for model in models]
 
-        try:
-            models = ScoringWeightConfigModel._default_manager.all().order_by(
-                "-is_active", "-created_at"
-            )
-            return [m.to_domain_entity() for m in models]
-        except Exception:
-            return []
-
-    def save_config(self, config_entity):
+    def save_config(self, config_entity: ScoringWeightConfig) -> None:
         """
         保存评分权重配置
 
         Args:
             config_entity: ScoringWeightConfig 实体
         """
-        from .models import ScoringWeightConfigModel
-
-        ScoringWeightConfigModel._default_manager.update_or_create(
-            name=config_entity.name,
-            defaults={
-                "description": config_entity.description,
-                "is_active": config_entity.is_active,
-                "growth_weight": config_entity.growth_weight,
-                "profitability_weight": config_entity.profitability_weight,
-                "valuation_weight": config_entity.valuation_weight,
-                "revenue_growth_weight": config_entity.revenue_growth_weight,
-                "profit_growth_weight": config_entity.profit_growth_weight,
-            },
-        )
+        with transaction.atomic():
+            if config_entity.is_active:
+                ScoringWeightConfigModel._default_manager.select_for_update().filter(
+                    is_active=True
+                ).exclude(name=config_entity.name).update(is_active=False)
+            ScoringWeightConfigModel._default_manager.update_or_create(
+                name=config_entity.name,
+                defaults={
+                    "description": config_entity.description,
+                    "is_active": config_entity.is_active,
+                    "growth_weight": config_entity.growth_weight,
+                    "profitability_weight": config_entity.profitability_weight,
+                    "valuation_weight": config_entity.valuation_weight,
+                    "revenue_growth_weight": config_entity.revenue_growth_weight,
+                    "profit_growth_weight": config_entity.profit_growth_weight,
+                },
+            )
 
     def deactivate_other_active_configs(self, exclude_pk: int | None) -> None:
         """Ensure only one scoring-weight config remains active."""
@@ -112,33 +106,12 @@ class ScoringWeightConfigRepository:
             queryset = queryset.exclude(pk=exclude_pk)
         queryset.update(is_active=False)
 
-    def _get_default_config(self):
-        """
-        获取默认评分权重配置
-
-        当数据库中没有配置或配置加载失败时使用此默认值。
-        """
-        from apps.equity.domain.entities import ScoringWeightConfig
-
-        return ScoringWeightConfig(
-            name="默认配置",
-            description="系统默认评分权重配置（当数据库配置不可用时使用）",
-            is_active=True,
-            growth_weight=0.4,
-            profitability_weight=0.4,
-            valuation_weight=0.2,
-            revenue_growth_weight=0.5,
-            profit_growth_weight=0.5,
-        )
-
 
 class ValuationRepairConfigRepository:
     """估值修复配置仓储。"""
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[ValuationRepairConfigModel]:
         """Return the config queryset ordered for admin/API use."""
-
-        from .models import ValuationRepairConfigModel
 
         return ValuationRepairConfigModel._default_manager.all().order_by(
             "-is_active",
@@ -146,12 +119,12 @@ class ValuationRepairConfigRepository:
             "-created_at",
         )
 
-    def get_active_model(self):
+    def get_active_model(self) -> ValuationRepairConfigModel | None:
         """Return the active config model if present."""
 
         return self.get_queryset().filter(is_active=True).first()
 
-    def get_active_domain_config(self):
+    def get_active_domain_config(self) -> ValuationRepairConfig | None:
         """Return the active config as a domain config object if present."""
         model = self.get_active_model()
         return model.to_domain_config() if model else None
@@ -161,20 +134,23 @@ class ValuationRepairConfigRepository:
         model = self.get_active_model()
         return int(getattr(model, "version", 0) or 0)
 
-    def list_models(self) -> list:
+    def list_models(self) -> list[ValuationRepairConfigModel]:
         """Return all config models for interface/application consumers."""
 
         return list(self.get_queryset())
 
-    def get_by_id(self, config_id: int):
+    def get_by_id(self, config_id: int) -> ValuationRepairConfigModel | None:
         """Return one config model by primary key, if present."""
 
         return self.get_queryset().filter(pk=config_id).first()
 
-    def create(self, *, data: dict, created_by: str):
+    def create(
+        self,
+        *,
+        data: dict[str, Any],
+        created_by: str,
+    ) -> ValuationRepairConfigModel:
         """Create one config model."""
-
-        from .models import ValuationRepairConfigModel
 
         model = ValuationRepairConfigModel(
             **data,
@@ -183,7 +159,12 @@ class ValuationRepairConfigRepository:
         model.save()
         return model
 
-    def update(self, *, config_id: int, data: dict):
+    def update(
+        self,
+        *,
+        config_id: int,
+        data: dict[str, Any],
+    ) -> ValuationRepairConfigModel | None:
         """Update one config model and return the refreshed instance."""
 
         model = self.get_by_id(config_id)
@@ -195,17 +176,20 @@ class ValuationRepairConfigRepository:
         model.save()
         return model
 
-    def activate(self, *, config_id: int):
+    def activate(self, *, config_id: int) -> ValuationRepairConfigModel | None:
         """Activate one config model and return the refreshed instance."""
 
-        model = self.get_by_id(config_id)
-        if model is None:
-            return None
+        with transaction.atomic():
+            models = self.get_queryset().select_for_update()
+            model = models.filter(pk=config_id).first()
+            if model is None:
+                return None
 
-        model.is_active = True
-        model.effective_from = timezone.now()
-        model.save()
-        return model
+            models.filter(is_active=True).exclude(pk=config_id).update(is_active=False)
+            model.is_active = True
+            model.effective_from = timezone.now()
+            model.save(update_fields=["is_active", "effective_from", "updated_at"])
+            return model
 
     def delete(self, *, config_id: int) -> bool:
         """Delete one config model if present."""

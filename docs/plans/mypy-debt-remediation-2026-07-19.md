@@ -1942,3 +1942,19 @@
 - 全仓基线从 `3820 errors / 647 files` 收紧为 `3756 errors / 643 files`，净减少 `64 errors / 4 files`。
 - Equity 核心用例、估值、Regime、Domain、页面导航回归 `103 passed`；包含 Equity API 边界的扩展回归 `54 passed`。
 - Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百三十九批
+
+- 按“股票评分配置真实性 × 激活版本一致性”收口 Equity 配置仓储和 ORM 配置约束。
+- 股票筛选不再在缺少数据库配置时使用代码内置评分权重；没有启用配置会返回明确失败，数据库读取异常继续向上暴露，不再伪装成正常评分结果。
+- 评分权重查询由任意取首条改为要求唯一激活记录；历史重复激活数据不再被静默忽略。
+- 评分权重保存和估值修复配置激活进入事务边界，切换前锁定并停用旧版本。
+- `ScoringWeightConfigModel` 与 `ValuationRepairConfigModel` 增加数据库条件唯一约束，保证每类配置最多一个 `is_active=True` 版本。
+- 新增迁移 `0009_enforce_single_active_configs`：约束建立前按更新时间和主键保留最新激活版本，并停用其余历史重复记录。
+- 新增缺配置失败关闭、数据库故障不吞异常、评分配置原子切换、数据库唯一约束和估值修复激活切换回归。
+
+## 第一百三十九批验证结果
+
+- Equity 配置仓储、ORM models 与筛选 use case 定向/增量 mypy 清零；全仓基线从 `3756 errors / 643 files` 收紧为 `3711 errors / 641 files`，净减少 `45 errors / 2 files`。
+- Equity 配置仓储、筛选用例、评分 Domain 与估值修复配置 API 回归 `27 passed`。
+- Django migration state/plan、Django system check、架构检查通过。
