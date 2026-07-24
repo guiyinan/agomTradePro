@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4130,
-    "files_with_errors": 683
+    "errors": 4127,
+    "files_with_errors": 682
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1237,10 +1237,6 @@
     },
     "apps/decision_rhythm/application/advisor_contracts.py": {
       "attr-defined": 1
-    },
-    "apps/decision_rhythm/application/advisor_sheet_intents.py": {
-      "attr-defined": 2,
-      "operator": 1
     },
     "apps/decision_rhythm/application/decision_model_param_use_cases.py": {
       "attr-defined": 2

@@ -1637,3 +1637,17 @@
 - Decision Request 与 Cooldown API mypy 清零；全仓基线从 `4138 errors / 685 files` 收紧为 `4130 errors / 683 files`，净减少 `8 errors / 2 files`。
 - Decision Rhythm API edge 与错误映射回归共 `27 passed`。
 - governance baseline 升级为 `2026-07-24.v191`，静态测试函数计数提升至 `7227`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百二十批
+
+- 按“Advisor Sheet 用户行动意图正确性 × 真实下单数量安全性”收口 advisor sheet intent 构造。
+- Mixin 显式声明 Risk Gate 与 Execution Guard Provider Protocol；缺价买入在除法前通过可空价格收窄，避免价格缺失路径参与数量计算。
+- 修复持仓已不高于 15% 时仍生成零差额 REDUCE 意图的问题，此时改为 HOLD 并说明当前权重已满足上限。
+- 修复持仓已达到或超过 20% 加仓上限时仍生成零差额 ADD 意图的问题，此时保留当前权重并改为 HOLD。
+- 新增低权重 REDUCE、高权重 ADD 与缺价 BUY 三组 intent 回归。
+
+## 第一百二十批验证结果
+
+- Advisor Sheet intent 构造 mypy 清零；全仓基线从 `4130 errors / 683 files` 收紧为 `4127 errors / 682 files`，净减少 `3 errors / 1 file`。
+- Advisor Sheet intent、核心、结构与 API 回归共 `33 passed`。
+- governance baseline 升级为 `2026-07-24.v192`，静态测试函数计数提升至 `7230`；完整 mypy debt ceiling、Django system check、架构与治理检查、改动文件 Ruff、Black 与 diff check 通过。
