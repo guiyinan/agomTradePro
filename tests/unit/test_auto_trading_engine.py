@@ -107,6 +107,31 @@ def test_exit_advisor_reduce_generates_partial_sell():
     assert engine.sell_use_case.execute.call_args.kwargs["reason"] == "统一调仓建议减仓"
 
 
+def test_exit_advisor_reduce_without_quantity_does_not_close_position():
+    position = _build_position()
+    exit_advisor = Mock()
+    exit_advisor.get_exit_advices.return_value = [
+        PositionExitAdvice(
+            asset_code="000001.SZ",
+            should_reduce=True,
+            quantity=None,
+            reason_code="TRANSITION_PLAN_REDUCE",
+            reason_text="缺少减仓数量",
+            source="decision_rhythm.transition_plan",
+        )
+    ]
+    engine = _build_engine(positions=[position], exit_advisor=exit_advisor)
+
+    buy_count, sell_count = engine._execute_legacy_trading(
+        _build_account(),
+        date(2026, 4, 30),
+    )
+
+    assert buy_count == 0
+    assert sell_count == 0
+    engine.sell_use_case.execute.assert_not_called()
+
+
 def test_exit_advisor_sell_waits_until_target_price_band():
     position = _build_position()
     exit_advisor = Mock()
@@ -256,3 +281,53 @@ def test_execute_buy_skips_when_risk_center_rejects(monkeypatch):
     assert bought is False
     risk_guard.execute.assert_called_once()
     engine.buy_use_case.execute.assert_not_called()
+
+
+def test_execute_buy_rejects_candidate_without_asset_code():
+    engine = _build_engine(positions=[])
+
+    bought = engine._execute_buy(
+        account=_build_account(),
+        candidate={"asset_name": "缺失代码"},
+        trade_date=date(2026, 4, 30),
+    )
+
+    assert bought is False
+    engine.price_provider.get_price.assert_not_called()
+    engine.buy_use_case.execute.assert_not_called()
+
+
+def test_buy_candidates_exclude_existing_position_case_insensitively():
+    position = _build_position(asset_code="000001.SZ")
+    engine = _build_engine(positions=[position])
+    engine.asset_pool_service = Mock(
+        get_investable_assets_with_signals=Mock(
+            return_value=[
+                {
+                    "asset_code": "000001.sz",
+                    "asset_name": "平安银行",
+                    "asset_type": "equity",
+                    "score": 90.0,
+                }
+            ]
+        )
+    )
+
+    candidates = engine._get_buy_candidates(
+        _build_account(),
+        date(2026, 4, 30),
+    )
+
+    assert candidates == []
+
+
+def test_current_price_rejects_non_positive_provider_values():
+    engine = _build_engine(positions=[])
+    engine.price_provider = Mock(
+        get_price=Mock(return_value=0),
+        require_price=Mock(return_value=-1),
+    )
+
+    price = engine._get_current_price("000001.SZ", date(2026, 4, 30))
+
+    assert price is None

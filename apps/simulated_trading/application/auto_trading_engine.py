@@ -7,9 +7,11 @@ Application层核心组件：
 - 依赖Use Cases和Domain层服务
 - 集成策略系统（Phase 5）
 """
+
 import logging
-from datetime import date
-from typing import TYPE_CHECKING, Any, Optional, Protocol
+from collections.abc import Mapping
+from datetime import date, datetime
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict
 
 from apps.risk_center.application.trade_guard import (
     EvaluatePreTradeRiskUseCase,
@@ -24,9 +26,12 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
+    PositionRepositoryProtocol,
+    SimulatedAccountRepositoryProtocol,
 )
-from apps.simulated_trading.domain.entities import Position, SimulatedAccount
+from apps.simulated_trading.domain.entities import Position, SimulatedAccount, SimulatedTrade
 from apps.simulated_trading.domain.rules import PositionSizingRule
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +42,22 @@ if TYPE_CHECKING:
 # Protocol接口定义
 class AssetPoolServiceProtocol(Protocol):
     """资产池服务接口"""
-    def get_investable_assets(self, asset_type: str) -> list[dict]:
+
+    def get_investable_assets(self, asset_type: str) -> list[dict[str, object]]:
         """获取可投池资产"""
+        ...
+
+    def get_investable_assets_with_signals(
+        self,
+        asset_type: str,
+        min_score: float,
+        limit: int,
+    ) -> list[dict[str, object]]:
+        """Return investable assets that have active signals."""
+        ...
+
+    def get_asset_pool_type(self, asset_code: str) -> str | None:
+        """Return the latest pool type for one asset."""
         ...
 
 
@@ -52,6 +71,7 @@ class SignalServiceProtocol(Protocol):
 
 class PriceProviderProtocol(Protocol):
     """价格提供者接口"""
+
     def get_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取指定日期的价格"""
         ...
@@ -63,6 +83,7 @@ class PriceProviderProtocol(Protocol):
 
 class RegimeServiceProtocol(Protocol):
     """Regime服务接口"""
+
     def get_current_regime(self) -> str:
         """获取当前Regime"""
         ...
@@ -88,6 +109,29 @@ class PreTradeRiskGuardProtocol(Protocol):
         ...
 
 
+class AutoTradingTradeRepositoryProtocol(Protocol):
+    """Trade persistence required by execution and daily net-value updates."""
+
+    def save(self, trade: SimulatedTrade) -> int:
+        """Persist one simulated trade."""
+        ...
+
+    def get_by_account(self, account_id: int) -> list[SimulatedTrade]:
+        """Return trades for one account."""
+        ...
+
+    def count_by_execution_date(self, account_id: int, execution_date: date) -> int:
+        """Count trades executed for an account on one date."""
+        ...
+
+
+class AccountTradingResult(TypedDict):
+    """Daily execution counters for one simulated account."""
+
+    buy_count: int
+    sell_count: int
+
+
 class AutoTradingEngine:
     """
     自动交易引擎
@@ -107,9 +151,9 @@ class AutoTradingEngine:
 
     def __init__(
         self,
-        account_repo,
-        position_repo,
-        trade_repo,
+        account_repo: SimulatedAccountRepositoryProtocol,
+        position_repo: PositionRepositoryProtocol,
+        trade_repo: AutoTradingTradeRepositoryProtocol,
         buy_use_case: ExecuteBuyOrderUseCase,
         sell_use_case: ExecuteSellOrderUseCase,
         performance_use_case: GetAccountPerformanceUseCase,
@@ -119,9 +163,9 @@ class AutoTradingEngine:
         regime_service: RegimeServiceProtocol | None = None,
         exit_advisor: PositionExitAdvisorProtocol | None = None,
         execution_link_recorder: ExecutionLinkRecorderProtocol | None = None,
-        strategy_executor: Optional["StrategyExecutor"] = None,
+        strategy_executor: "StrategyExecutor | None" = None,
         pre_trade_risk_guard: PreTradeRiskGuardProtocol | None = None,
-    ):
+    ) -> None:
         self.account_repo = account_repo
         self.position_repo = position_repo
         self.trade_repo = trade_repo
@@ -135,9 +179,17 @@ class AutoTradingEngine:
         self.exit_advisor = exit_advisor
         self.execution_link_recorder = execution_link_recorder
         self.strategy_executor = strategy_executor  # Phase 5: 策略执行引擎
-        self.pre_trade_risk_guard = pre_trade_risk_guard or EvaluatePreTradeRiskUseCase()
+        self.pre_trade_risk_guard = (
+            pre_trade_risk_guard
+            if pre_trade_risk_guard is not None
+            else EvaluatePreTradeRiskUseCase()
+        )
 
-    def run_daily_trading(self, trade_date: date, account_ids: list[int] | None = None) -> dict:
+    def run_daily_trading(
+        self,
+        trade_date: date,
+        account_ids: list[int] | None = None,
+    ) -> dict[int, AccountTradingResult]:
         """
         执行每日自动交易
 
@@ -148,9 +200,9 @@ class AutoTradingEngine:
         Returns:
             {account_id: {buy_count: int, sell_count: int}}
         """
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info(f"开始执行模拟盘自动交易: {trade_date}")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         # 1. 获取所有活跃的模拟账户
         accounts = self.account_repo.get_active_accounts()
@@ -159,21 +211,20 @@ class AutoTradingEngine:
             accounts = [account for account in accounts if account.account_id in allowed_ids]
         logger.info(f"找到 {len(accounts)} 个活跃模拟账户")
 
-        results = {}
+        results: dict[int, AccountTradingResult] = {}
         for account in accounts:
             if not account.auto_trading_enabled:
-                logger.info(f"账户 {account.account_name} (ID={account.account_id}) 未启用自动交易,跳过")
+                logger.info(
+                    f"账户 {account.account_name} (ID={account.account_id}) 未启用自动交易,跳过"
+                )
                 continue
 
             buy_count, sell_count = self._process_account(account, trade_date)
-            results[account.account_id] = {
-                "buy_count": buy_count,
-                "sell_count": sell_count
-            }
+            results[account.account_id] = {"buy_count": buy_count, "sell_count": sell_count}
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info(f"模拟盘自动交易完成: {results}")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         return results
 
@@ -190,7 +241,9 @@ class AutoTradingEngine:
             (买入次数, 卖出次数)
         """
         logger.info(f"\n处理账户: {account.account_name} (ID={account.account_id})")
-        logger.info(f"  当前资金: {account.current_cash:.2f}元, 持仓市值: {account.current_market_value:.2f}元")
+        logger.info(
+            f"  当前资金: {account.current_cash:.2f}元, 持仓市值: {account.current_market_value:.2f}元"
+        )
 
         # Phase 5: 检查是否绑定了策略
         active_strategy_id = self._get_account_strategy_id(account.account_id)
@@ -220,16 +273,14 @@ class AutoTradingEngine:
             from apps.simulated_trading.application.facade import get_simulated_trading_facade
 
             facade = get_simulated_trading_facade()
-            return facade.get_active_strategy_id(account_id)
+            strategy_id = facade.get_active_strategy_id(account_id)
+            return strategy_id if isinstance(strategy_id, int) else None
         except Exception as e:
             logger.warning(f"获取账户策略失败: {e}")
             return None
 
     def _execute_strategy_based_trading(
-        self,
-        account: SimulatedAccount,
-        strategy_id: int,
-        trade_date: date
+        self, account: SimulatedAccount, strategy_id: int, trade_date: date
     ) -> tuple[int, int]:
         """
         使用策略执行引擎进行交易
@@ -255,9 +306,7 @@ class AutoTradingEngine:
 
             gateway = get_strategy_execution_gateway()
             execution_result = gateway.execute_for_account(
-                strategy_id=strategy_id,
-                account_id=account.account_id,
-                as_of_date=trade_date
+                strategy_id=strategy_id, account_id=account.account_id, as_of_date=trade_date
             )
 
             if not execution_result.success:
@@ -272,7 +321,7 @@ class AutoTradingEngine:
 
             for signal in execution_result.signals:
                 # SignalInfo.action 是字符串而非枚举
-                if signal.action == 'sell' and signal.asset_code in held_codes:
+                if signal.action == "sell" and signal.asset_code in held_codes:
                     try:
                         price = self._get_current_price(signal.asset_code, trade_date)
                         if price is None:
@@ -291,14 +340,22 @@ class AutoTradingEngine:
                             continue
 
                         position = next(p for p in positions if p.asset_code == signal.asset_code)
-                        quantity = signal.quantity or position.quantity
+                        sell_quantity = int(
+                            signal.quantity if signal.quantity is not None else position.quantity
+                        )
+                        if sell_quantity <= 0:
+                            logger.warning(
+                                "    跳过 %s: 卖出数量必须为正数",
+                                signal.asset_code,
+                            )
+                            continue
 
                         trade = self.sell_use_case.execute(
                             account_id=account.account_id,
                             asset_code=signal.asset_code,
-                            quantity=quantity,
+                            quantity=sell_quantity,
                             price=price,
-                            reason=f"策略信号: {signal.reason}"
+                            reason=f"策略信号: {signal.reason}",
                         )
                         self._record_execution_link(
                             trade_id=trade.trade_id,
@@ -310,14 +367,16 @@ class AutoTradingEngine:
                             notes=f"Auto strategy sell: {signal.reason}",
                         )
                         sell_count += 1
-                        logger.info(f"    ✓ 卖出: {signal.asset_name} x{quantity} @ {price:.2f} (原因: {signal.reason})")
+                        logger.info(
+                            f"    ✓ 卖出: {signal.asset_name} x{sell_quantity} @ {price:.2f} (原因: {signal.reason})"
+                        )
                     except Exception as e:
                         logger.error(f"    ✗ 卖出失败: {signal.asset_code}, 错误: {e}")
 
             # 3. 处理买入信号
             for signal in execution_result.signals:
                 # SignalInfo.action 是字符串而非枚举
-                if signal.action == 'buy':
+                if signal.action == "buy":
                     try:
                         # 检查是否已有持仓
                         if signal.asset_code in held_codes:
@@ -341,25 +400,25 @@ class AutoTradingEngine:
                             continue
 
                         # 计算买入数量
-                        quantity = signal.quantity
-                        if quantity is None:
+                        buy_quantity = signal.quantity
+                        if buy_quantity is None:
                             # 根据权重计算数量
                             positions = self.position_repo.get_by_account(account.account_id)
-                            quantity = PositionSizingRule.calculate_buy_quantity(
+                            buy_quantity = PositionSizingRule.calculate_buy_quantity(
                                 account=account,
                                 asset_price=price,
                                 asset_score=signal.confidence * 100,
-                                existing_positions=positions
+                                existing_positions=positions,
                             )
 
-                        if quantity == 0:
-                            logger.info(f"    跳过 {signal.asset_code}: 计算买入数量为0")
+                        if buy_quantity <= 0:
+                            logger.info(f"    跳过 {signal.asset_code}: 买入数量必须为正数")
                             continue
 
                         if not self._passes_pre_trade_buy_risk(
                             account=account,
                             asset_code=signal.asset_code,
-                            quantity=quantity,
+                            quantity=buy_quantity,
                             price=price,
                         ):
                             continue
@@ -368,11 +427,11 @@ class AutoTradingEngine:
                             account_id=account.account_id,
                             asset_code=signal.asset_code,
                             asset_name=signal.asset_name,
-                            asset_type='equity',
-                            quantity=quantity,
+                            asset_type="equity",
+                            quantity=buy_quantity,
                             price=price,
                             reason=f"策略信号: {signal.reason}",
-                            signal_id=signal.signal_id
+                            signal_id=signal.signal_id,
                         )
                         self._record_execution_link(
                             trade_id=trade.trade_id,
@@ -384,7 +443,9 @@ class AutoTradingEngine:
                             notes=f"Auto strategy buy: {signal.reason}",
                         )
                         buy_count += 1
-                        logger.info(f"    ✓ 买入: {signal.asset_name} x{quantity} @ {price:.2f} (原因: {signal.reason})")
+                        logger.info(
+                            f"    ✓ 买入: {signal.asset_name} x{buy_quantity} @ {price:.2f} (原因: {signal.reason})"
+                        )
                     except Exception as e:
                         logger.error(f"    ✗ 买入失败: {signal.asset_code}, 错误: {e}")
 
@@ -398,7 +459,9 @@ class AutoTradingEngine:
 
         return buy_count, sell_count
 
-    def _execute_legacy_trading(self, account: SimulatedAccount, trade_date: date) -> tuple[int, int]:
+    def _execute_legacy_trading(
+        self, account: SimulatedAccount, trade_date: date
+    ) -> tuple[int, int]:
         """
         使用原有逻辑进行交易（向后兼容）
 
@@ -460,14 +523,11 @@ class AutoTradingEngine:
                         recommendation_id=exit_advice.recommendation_id,
                         match_if_missing=False,
                         notes=(
-                            f"Auto exit via {exit_advice.source}: "
-                            f"{exit_advice.reason_code}"
+                            f"Auto exit via {exit_advice.source}: " f"{exit_advice.reason_code}"
                         ),
                     )
                     sell_count += 1
-                    logger.info(
-                        f"    ✓ 卖出: {position.asset_name} x{quantity} @ {price:.2f}"
-                    )
+                    logger.info(f"    ✓ 卖出: {position.asset_name} x{quantity} @ {price:.2f}")
                 except Exception as e:
                     logger.error(f"    ✗ 卖出失败: {position.asset_code}, 错误: {e}")
 
@@ -499,12 +559,21 @@ class AutoTradingEngine:
             return {}
 
         try:
-            advices = self.exit_advisor.get_exit_advices(account_id, positions, trade_date)
+            position_objects: list[object] = list(positions)
+            advices = self.exit_advisor.get_exit_advices(
+                account_id,
+                position_objects,
+                trade_date,
+            )
         except Exception as exc:
             logger.warning("exit_advisor 执行失败，回退旧卖出逻辑: %s", exc)
             return {}
 
-        return {advice.asset_code: advice for advice in advices if advice.asset_code}
+        return {
+            advice.asset_code.strip().upper(): advice
+            for advice in advices
+            if advice.asset_code.strip()
+        }
 
     def _record_execution_link(
         self,
@@ -513,7 +582,7 @@ class AutoTradingEngine:
         account_id: int,
         security_code: str,
         actual_action: str,
-        executed_at,
+        executed_at: datetime,
         recommendation_id: str | None = None,
         match_if_missing: bool = False,
         notes: str = "",
@@ -569,7 +638,7 @@ class AutoTradingEngine:
                 source="simulated_trading.position_invalidation",
             )
 
-        advisor_advice = (advisor_map or {}).get(position.asset_code)
+        advisor_advice = (advisor_map or {}).get(position.asset_code.strip().upper())
         if advisor_advice and (advisor_advice.should_exit or advisor_advice.should_reduce):
             action = "清仓" if advisor_advice.should_exit else "减仓"
             logger.info(
@@ -633,22 +702,31 @@ class AutoTradingEngine:
         return None
 
     def _resolve_exit_quantity(self, position: Position, advice: PositionExitAdvice) -> int:
-        quantity = advice.quantity
-        if advice.should_exit or not quantity:
-            quantity = int(position.quantity)
-        quantity = min(int(quantity), int(position.quantity))
-        return max(quantity, 0)
+        position_quantity = max(int(position.quantity), 0)
+        if advice.should_exit:
+            return position_quantity
+        if not advice.should_reduce or advice.quantity is None:
+            return 0
+
+        requested_quantity = int(advice.quantity)
+        if requested_quantity <= 0:
+            return 0
+        return min(requested_quantity, position_quantity)
 
     def _get_sell_reason(self, position: Position, advice: PositionExitAdvice | None = None) -> str:
         """获取卖出原因"""
         if advice and advice.reason_text:
-            return advice.reason_text
+            return str(advice.reason_text)
         if position.unrealized_pnl_pct < 0:
             return f"止损卖出(浮亏{position.unrealized_pnl_pct:.2f}%)"
         else:
             return "信号变化卖出"
 
-    def _get_buy_candidates(self, account: SimulatedAccount, trade_date: date) -> list[dict]:
+    def _get_buy_candidates(
+        self,
+        account: SimulatedAccount,
+        trade_date: date,
+    ) -> list[dict[str, object]]:
         """
         获取买入候选资产
 
@@ -664,9 +742,7 @@ class AutoTradingEngine:
         try:
             # 1. 获取可投池且有有效信号的资产
             candidates = self.asset_pool_service.get_investable_assets_with_signals(
-                asset_type="equity",  # 当前只支持股票
-                min_score=60.0,
-                limit=20
+                asset_type="equity", min_score=60.0, limit=20  # 当前只支持股票
             )
 
             if not candidates:
@@ -675,12 +751,17 @@ class AutoTradingEngine:
 
             # 2. 过滤掉已持仓的资产
             existing_positions = self.position_repo.get_by_account(account.account_id)
-            held_codes = {p.asset_code for p in existing_positions}
+            held_codes = {position.asset_code.strip().upper() for position in existing_positions}
 
-            filtered_candidates = [
-                c for c in candidates
-                if c['asset_code'] not in held_codes
-            ]
+            filtered_candidates: list[dict[str, object]] = []
+            for candidate in candidates:
+                raw_asset_code = candidate.get("asset_code")
+                if not isinstance(raw_asset_code, str):
+                    continue
+                asset_code = raw_asset_code.strip().upper()
+                if not asset_code or asset_code in held_codes:
+                    continue
+                filtered_candidates.append({**candidate, "asset_code": asset_code})
 
             logger.info(
                 f"  找到 {len(candidates)} 个有信号的资产, "
@@ -696,8 +777,8 @@ class AutoTradingEngine:
     def _execute_buy(
         self,
         account: SimulatedAccount,
-        candidate: dict,
-        trade_date: date
+        candidate: dict[str, object],
+        trade_date: date,
     ) -> bool:
         """
         执行买入
@@ -705,11 +786,25 @@ class AutoTradingEngine:
         Returns:
             是否成功买入
         """
-        asset_code = candidate.get('asset_code')
-        asset_name = candidate.get('asset_name')
-        asset_type = candidate.get('asset_type', 'equity')
-        asset_score = candidate.get('score', 70.0)
-        signal_id = candidate.get('signal_id')
+        raw_asset_code = candidate.get("asset_code")
+        asset_code = raw_asset_code.strip().upper() if isinstance(raw_asset_code, str) else ""
+        if not asset_code:
+            logger.warning("    买入候选缺少有效证券代码,跳过")
+            return False
+
+        raw_asset_name = candidate.get("asset_name")
+        asset_name = (
+            raw_asset_name.strip() if isinstance(raw_asset_name, str) else ""
+        ) or asset_code
+        raw_asset_type = candidate.get("asset_type")
+        asset_type = (raw_asset_type.strip() if isinstance(raw_asset_type, str) else "") or "equity"
+        asset_score = safe_float(candidate.get("score"), default=70.0)
+        raw_signal_id = candidate.get("signal_id")
+        signal_id = (
+            raw_signal_id
+            if isinstance(raw_signal_id, int) and not isinstance(raw_signal_id, bool)
+            else None
+        )
 
         # 1. 获取当前价格
         price = self._get_current_price(asset_code, trade_date)
@@ -736,11 +831,11 @@ class AutoTradingEngine:
             account=account,
             asset_price=price,
             asset_score=asset_score,
-            existing_positions=positions
+            existing_positions=positions,
         )
 
-        if quantity == 0:
-            logger.info(f"    跳过 {asset_code}: 计算买入数量为0")
+        if quantity <= 0:
+            logger.info(f"    跳过 {asset_code}: 买入数量必须为正数")
             return False
 
         if not self._passes_pre_trade_buy_risk(
@@ -761,7 +856,7 @@ class AutoTradingEngine:
             quantity=quantity,
             price=price,
             reason="自动交易引擎买入",
-            signal_id=signal_id
+            signal_id=signal_id,
         )
 
         logger.info(f"    ✓ 买入: {asset_name} x{quantity} @ {price:.2f}")
@@ -777,17 +872,22 @@ class AutoTradingEngine:
         positions: list[Position] | None = None,
     ) -> bool:
         """Check centralized risk-center limits before a buy order is submitted."""
-        positions = positions if positions is not None else self.position_repo.get_by_account(account.account_id)
+        positions = (
+            positions
+            if positions is not None
+            else self.position_repo.get_by_account(account.account_id)
+        )
+        normalized_asset_code = asset_code.strip().upper()
         current_symbol_position_value = sum(
-            float(getattr(position, "market_value", 0.0) or 0.0)
+            float(position.market_value)
             for position in positions
-            if getattr(position, "asset_code", "") == asset_code
+            if position.asset_code.strip().upper() == normalized_asset_code
         )
 
         try:
             result = self.pre_trade_risk_guard.execute(
                 account_id=account.account_id,
-                symbol=asset_code,
+                symbol=normalized_asset_code,
                 side="buy",
                 quantity=float(quantity),
                 price=float(price),
@@ -811,15 +911,15 @@ class AutoTradingEngine:
     def _get_current_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取当前价格"""
         if self.price_provider:
-            get_price = getattr(self.price_provider, "get_price", None)
-            if callable(get_price):
-                price = get_price(asset_code, trade_date)
-                if price is not None:
-                    return price
+            price: float | None = safe_float(self.price_provider.get_price(asset_code, trade_date))
+            if price is not None and price > 0:
+                return price
 
-            require_price = getattr(self.price_provider, "require_price", None)
-            if callable(require_price):
-                return require_price(asset_code, trade_date)
+            required_price: float | None = safe_float(
+                self.price_provider.require_price(asset_code, trade_date)
+            )
+            if required_price is not None and required_price > 0:
+                return required_price
         return None
 
     def _is_exit_advice_price_triggered(
@@ -839,7 +939,7 @@ class AutoTradingEngine:
         *,
         action: str,
         price: float,
-        payload: dict,
+        payload: Mapping[str, object],
     ) -> bool:
         """Return whether current price satisfies optional execution bands."""
 
@@ -852,10 +952,14 @@ class AutoTradingEngine:
             if stop_loss_price is not None and price <= stop_loss_price:
                 return True
             low = self._pick_float(payload, "target_price_low", "sell_price_low", "exit_price_low")
-            high = self._pick_float(payload, "target_price_high", "sell_price_high", "exit_price_high")
+            high = self._pick_float(
+                payload, "target_price_high", "sell_price_high", "exit_price_high"
+            )
         else:
             low = self._pick_float(payload, "entry_price_low", "buy_price_low", "price_band_low")
-            high = self._pick_float(payload, "entry_price_high", "buy_price_high", "price_band_high")
+            high = self._pick_float(
+                payload, "entry_price_high", "buy_price_high", "price_band_high"
+            )
 
         if low is None and high is None:
             single_price = self._pick_float(
@@ -880,21 +984,15 @@ class AutoTradingEngine:
         return True
 
     @staticmethod
-    def _pick_float(payload: dict, *keys: str) -> float | None:
+    def _pick_float(payload: Mapping[str, object], *keys: str) -> float | None:
         for key in keys:
-            value = payload.get(key)
-            if value in [None, ""]:
-                continue
-            try:
-                parsed = float(value)
-            except (TypeError, ValueError):
-                continue
-            if parsed <= 0:
+            parsed: float | None = safe_float(payload.get(key))
+            if parsed is None or parsed <= 0:
                 continue
             return parsed
         return None
 
-    def _update_account_performance(self, account_id: int, trade_date: date):
+    def _update_account_performance(self, account_id: int, trade_date: date) -> None:
         """
         更新账户绩效
 
@@ -916,13 +1014,12 @@ class AutoTradingEngine:
             net_value_service = DailyNetValueService(
                 account_repo=self.account_repo,
                 position_repo=self.position_repo,
-                trade_repo=self.trade_repo
+                trade_repo=self.trade_repo,
             )
 
             # 记录当日净值并计算绩效指标
             metrics = net_value_service.record_and_update_performance(
-                account_id=account_id,
-                record_date=trade_date
+                account_id=account_id, record_date=trade_date
             )
 
             if metrics:
@@ -939,8 +1036,8 @@ class AutoTradingEngine:
 class MockPriceProvider:
     """模拟价格提供者(用于测试)"""
 
-    def __init__(self, prices: dict[str, float] | None = None):
-        self._prices = prices or {}
+    def __init__(self, prices: dict[str, float] | None = None) -> None:
+        self._prices = prices if prices is not None else {}
 
     def get_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取指定日期的价格(模拟)"""
@@ -952,4 +1049,3 @@ class MockPriceProvider:
         if price is None:
             raise ValueError(f"缺少价格: {asset_code} @ {trade_date}")
         return price
-
