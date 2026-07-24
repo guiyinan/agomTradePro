@@ -6,7 +6,7 @@ Application Layer - Celery Tasks for Policy Management
 
 import logging
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, TypeAlias, cast
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
@@ -33,8 +33,26 @@ from .use_cases import GetPolicyStatusUseCase
 
 logger = logging.getLogger(__name__)
 
+TaskPayload: TypeAlias = dict[str, object]
+
 # 获取通知服务实例（通过工厂单例）
-_notification_service = None
+_notification_service: Any | None = None
+
+
+def _validate_positive_int(value: object, *, field_name: str, maximum: int) -> int:
+    """Validate a positive bounded integer received from a Celery payload."""
+
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field_name} 必须是整数")
+    if not 1 <= value <= maximum:
+        raise ValueError(f"{field_name} 必须在 1..{maximum} 之间")
+    return value
+
+
+def _input_error(exc: ValueError) -> TaskPayload:
+    """Build a stable non-retryable input error payload."""
+
+    return {"status": "error", "error": str(exc), "error_type": "input"}
 
 
 def reevaluate_signals_for_policy_change(
@@ -42,7 +60,7 @@ def reevaluate_signals_for_policy_change(
     policy_level: int,
     current_regime: str,
     regime_confidence: float,
-):
+) -> Any:
     """Reevaluate active signals through the owning signal use case."""
 
     return reevaluate_signals(
@@ -52,7 +70,7 @@ def reevaluate_signals_for_policy_change(
     )
 
 
-def _get_notification_service():
+def _get_notification_service() -> Any:
     """获取通知服务实例（延迟初始化）"""
     global _notification_service
     if _notification_service is None:
@@ -60,14 +78,17 @@ def _get_notification_service():
     return _notification_service
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=300,  # 5分钟后重试
     time_limit=600,
     soft_time_limit=570,
 )
-def check_policy_status_alert(self, as_of_date_str: str | None = None):
+def check_policy_status_alert(
+    self: Any,
+    as_of_date_str: str | None = None,
+) -> TaskPayload:
     """
     定时检查政策状态并发送告警（如需要）
 
@@ -125,8 +146,8 @@ def check_policy_status_alert(self, as_of_date_str: str | None = None):
             raise
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
-def monitor_policy_transitions():
+@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
+def monitor_policy_transitions() -> TaskPayload:
     """
     监控政策档位变更
 
@@ -143,7 +164,7 @@ def monitor_policy_transitions():
 
         if len(recent_events) > 1:
             # 有多个事件，可能有档位变更
-            changes = []
+            changes: list[dict[str, str]] = []
             for i in range(1, len(recent_events)):
                 if recent_events[i].level != recent_events[i - 1].level:
                     changes.append(
@@ -176,8 +197,8 @@ def monitor_policy_transitions():
         return {"status": "error", "error": str(e)}
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
-def cleanup_old_policy_logs(days_to_keep: int = 365):
+@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
+def cleanup_old_policy_logs(days_to_keep: int = 365) -> TaskPayload:
     """
     清理旧的政策日志
 
@@ -187,7 +208,16 @@ def cleanup_old_policy_logs(days_to_keep: int = 365):
         days_to_keep: 保留天数（默认 365 天）
     """
     try:
-        cutoff_date = date.today() - timedelta(days=days_to_keep)
+        validated_days = _validate_positive_int(
+            days_to_keep,
+            field_name="days_to_keep",
+            maximum=36500,
+        )
+    except ValueError as exc:
+        return _input_error(exc)
+
+    try:
+        cutoff_date = date.today() - timedelta(days=validated_days)
 
         deleted_count = get_current_policy_repository().delete_events_before(cutoff_date)
 
@@ -212,7 +242,7 @@ def cleanup_old_policy_logs(days_to_keep: int = 365):
 # 辅助函数
 
 
-def _send_policy_alert(level: PolicyLevel, event: PolicyEvent, status: Any):
+def _send_policy_alert(level: PolicyLevel, event: PolicyEvent, status: Any) -> None:
     """
     发送政策告警
 
@@ -233,7 +263,7 @@ def _send_policy_alert(level: PolicyLevel, event: PolicyEvent, status: Any):
         logger.error(f"Failed to send policy alert: {e}", exc_info=True)
 
 
-def _send_transition_summary(changes: list):
+def _send_transition_summary(changes: list[dict[str, str]]) -> None:
     """
     发送档位变更摘要
 
@@ -254,7 +284,7 @@ def _send_transition_summary(changes: list):
 # ========== RSS 相关任务 ==========
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -265,7 +295,10 @@ def _send_transition_summary(changes: list):
     time_limit=600,
     soft_time_limit=570,
 )
-def fetch_rss_sources(self, source_id: int | None = None):
+def fetch_rss_sources(
+    self: Any,
+    source_id: int | None = None,
+) -> TaskPayload:
     """
     定时抓取RSS源（增强版 - 集成AI分类）
 
@@ -275,6 +308,16 @@ def fetch_rss_sources(self, source_id: int | None = None):
         source_id: 指定源ID，None表示抓取所有启用的源
     """
     from .use_cases import FetchRSSInput, FetchRSSUseCase
+
+    if source_id is not None:
+        try:
+            source_id = _validate_positive_int(
+                source_id,
+                field_name="source_id",
+                maximum=2_147_483_647,
+            )
+        except ValueError as exc:
+            return _input_error(exc)
 
     try:
         rss_repo = get_rss_repository()
@@ -327,8 +370,8 @@ def fetch_rss_sources(self, source_id: int | None = None):
             raise
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
-def cleanup_old_rss_logs(days_to_keep: int = 90):
+@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
+def cleanup_old_rss_logs(days_to_keep: int = 90) -> TaskPayload:
     """
     清理旧的RSS抓取日志
 
@@ -336,8 +379,17 @@ def cleanup_old_rss_logs(days_to_keep: int = 90):
         days_to_keep: 保留天数
     """
     try:
+        validated_days = _validate_positive_int(
+            days_to_keep,
+            field_name="days_to_keep",
+            maximum=36500,
+        )
+    except ValueError as exc:
+        return _input_error(exc)
+
+    try:
         rss_repo = get_rss_repository()
-        deleted_count = rss_repo.cleanup_old_logs(days_to_keep)
+        deleted_count = rss_repo.cleanup_old_logs(validated_days)
 
         logger.info(f"Cleaned up {deleted_count} old RSS logs")
 
@@ -351,8 +403,8 @@ def cleanup_old_rss_logs(days_to_keep: int = 90):
 # ========== 审核相关任务 ==========
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
-def auto_assign_pending_audits(max_per_user: int = 10):
+@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
+def auto_assign_pending_audits(max_per_user: int = 10) -> TaskPayload:
     """
     自动分配待审核的政策
 
@@ -361,6 +413,15 @@ def auto_assign_pending_audits(max_per_user: int = 10):
     Args:
         max_per_user: 每个用户最多分配数量
     """
+    try:
+        validated_max_per_user = _validate_positive_int(
+            max_per_user,
+            field_name="max_per_user",
+            maximum=1000,
+        )
+    except ValueError as exc:
+        return {"assigned": 0, **_input_error(exc)}
+
     try:
         workbench_repo = get_workbench_repository()
 
@@ -384,7 +445,7 @@ def auto_assign_pending_audits(max_per_user: int = 10):
                 auditor_id = auditor_ids[(idx + offset) % auditor_count]
                 current_assigned = assigned_per_auditor.get(auditor_id, 0)
 
-                if current_assigned >= max_per_user:
+                if current_assigned >= validated_max_per_user:
                     continue
 
                 if workbench_repo.assign_audit_queue_item(
@@ -409,8 +470,8 @@ def auto_assign_pending_audits(max_per_user: int = 10):
         return {"assigned": 0, "error": str(e)}
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
-def cleanup_old_audit_queues(days_to_keep: int = 30):
+@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
+def cleanup_old_audit_queues(days_to_keep: int = 30) -> TaskPayload:
     """
     清理旧的审核队列记录
 
@@ -420,7 +481,16 @@ def cleanup_old_audit_queues(days_to_keep: int = 30):
         days_to_keep: 保留天数
     """
     try:
-        cutoff_date = timezone.now() - timedelta(days=days_to_keep)
+        validated_days = _validate_positive_int(
+            days_to_keep,
+            field_name="days_to_keep",
+            maximum=36500,
+        )
+    except ValueError as exc:
+        return _input_error(exc)
+
+    try:
+        cutoff_date = timezone.now() - timedelta(days=validated_days)
 
         # 只删除已审核的队列记录
         deleted_count = get_workbench_repository().delete_reviewed_queue_before(cutoff_date)
@@ -434,8 +504,8 @@ def cleanup_old_audit_queues(days_to_keep: int = 30):
         return {"status": "error", "error": str(e)}
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
-def generate_daily_policy_summary():
+@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
+def generate_daily_policy_summary() -> TaskPayload:
     """
     生成每日政策摘要（增强版）
 
@@ -448,7 +518,7 @@ def generate_daily_policy_summary():
         # 存储摘要或发送告警
         logger.info(f"Daily policy summary generated: {summary}")
 
-        return summary
+        return cast(TaskPayload, summary)
 
     except Exception as e:
         logger.error(f"Daily policy summary generation failed: {e}", exc_info=True)
@@ -458,7 +528,7 @@ def generate_daily_policy_summary():
 # ========== Signal 同步相关任务 ==========
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=60,
@@ -467,7 +537,11 @@ def generate_daily_policy_summary():
     time_limit=600,
     soft_time_limit=570,
 )
-def trigger_signal_reevaluation(self, new_level: int, event_date: str) -> dict:
+def trigger_signal_reevaluation(
+    self: Any,
+    new_level: int,
+    event_date: str,
+) -> TaskPayload:
     """
     重评所有活跃信号任务
 
@@ -481,11 +555,22 @@ def trigger_signal_reevaluation(self, new_level: int, event_date: str) -> dict:
         dict: 重评结果
     """
     try:
+        if isinstance(new_level, bool) or not isinstance(new_level, int):
+            raise ValueError("new_level 必须是整数")
+        if not 0 <= new_level <= 3:
+            raise ValueError("new_level 必须在 0..3 之间")
+        if not isinstance(event_date, str):
+            raise ValueError("event_date 必须是 YYYY-MM-DD 字符串")
+        normalized_event_date = date.fromisoformat(event_date.strip()).isoformat()
+    except ValueError as exc:
+        return _input_error(exc)
+
+    try:
         from apps.regime.application.current_regime import resolve_current_regime
 
         logger.info(
             f"Starting signal reevaluation for policy level P{new_level}, "
-            f"event_date={event_date}"
+            f"event_date={normalized_event_date}"
         )
 
         # 获取当前 Regime（如果可用）
@@ -510,23 +595,20 @@ def trigger_signal_reevaluation(self, new_level: int, event_date: str) -> dict:
             "rejected_count": result.rejected_count,
             "rejected_signal_ids": result.rejected_signal_ids,
             "policy_level": f"P{new_level}",
-            "event_date": event_date,
+            "event_date": normalized_event_date,
             "current_regime": current_regime,
         }
 
     except Exception as exc:
         logger.error(f"Signal reevaluation failed: {exc}", exc_info=True)
-        try:
-            raise self.retry(exc=exc)
-        except Exception:
-            return {"status": "error", "error": str(exc)}
+        raise self.retry(exc=exc) from exc
 
 
 # ========== 工作台相关任务 ==========
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
-def auto_assign_pending_audits_task(max_per_user: int = 10):
+@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
+def auto_assign_pending_audits_task(max_per_user: int = 10) -> TaskPayload:
     """
     自动分配待审核的政策
 
@@ -535,11 +617,11 @@ def auto_assign_pending_audits_task(max_per_user: int = 10):
     Args:
         max_per_user: 每个用户最多分配数量
     """
-    return auto_assign_pending_audits(max_per_user)
+    return cast(TaskPayload, auto_assign_pending_audits(max_per_user))
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
-def monitor_sla_exceeded_task():
+@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
+def monitor_sla_exceeded_task() -> TaskPayload:
     """
     监控 SLA 超时事件
 
@@ -578,8 +660,8 @@ def monitor_sla_exceeded_task():
         return {"status": "error", "error": str(e)}
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
-def refresh_gate_constraints_task():
+@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
+def refresh_gate_constraints_task() -> TaskPayload:
     """
     刷新闸门约束
 

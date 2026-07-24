@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
 from django.db import DatabaseError
 
 from apps.policy.application import tasks
@@ -183,3 +184,75 @@ def test_policy_scheduled_tasks_report_repository_and_runtime_failures(monkeypat
     event = _event(PolicyLevel.P2, 24)
     tasks._send_policy_alert(PolicyLevel.P2, event, SimpleNamespace())
     tasks._send_transition_summary([{"from": "P1", "to": "P2"}])
+
+
+@pytest.mark.parametrize(
+    ("task", "kwargs"),
+    [
+        (tasks.cleanup_old_policy_logs, {"days_to_keep": -1}),
+        (tasks.cleanup_old_rss_logs, {"days_to_keep": 0}),
+        (tasks.cleanup_old_audit_queues, {"days_to_keep": False}),
+        (tasks.auto_assign_pending_audits, {"max_per_user": 0}),
+    ],
+)
+def test_policy_destructive_tasks_reject_invalid_bounds_before_repository_access(
+    monkeypatch,
+    task,
+    kwargs,
+) -> None:
+    monkeypatch.setattr(
+        tasks,
+        "get_current_policy_repository",
+        lambda: pytest.fail("policy repository must not be called"),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "get_rss_repository",
+        lambda: pytest.fail("RSS repository must not be called"),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "get_workbench_repository",
+        lambda: pytest.fail("workbench repository must not be called"),
+    )
+
+    result = task.run(**kwargs)
+
+    assert result["status"] == "error"
+    assert result["error_type"] == "input"
+
+
+@pytest.mark.parametrize(
+    ("new_level", "event_date"),
+    [
+        (4, "2026-07-24"),
+        (True, "2026-07-24"),
+        (2, "not-a-date"),
+    ],
+)
+def test_signal_reevaluation_rejects_invalid_policy_context(
+    new_level,
+    event_date,
+) -> None:
+    result = tasks.trigger_signal_reevaluation.run(new_level, event_date)
+
+    assert result["status"] == "error"
+    assert result["error_type"] == "input"
+
+
+def test_signal_reevaluation_does_not_swallow_retry(monkeypatch) -> None:
+    from apps.regime.application import current_regime
+
+    monkeypatch.setattr(
+        current_regime,
+        "resolve_current_regime",
+        lambda: (_ for _ in ()).throw(RuntimeError("regime unavailable")),
+    )
+    monkeypatch.setattr(
+        tasks.trigger_signal_reevaluation,
+        "retry",
+        lambda **kwargs: RuntimeError("retry scheduled"),
+    )
+
+    with pytest.raises(RuntimeError, match="retry scheduled"):
+        tasks.trigger_signal_reevaluation.run(2, "2026-07-24")

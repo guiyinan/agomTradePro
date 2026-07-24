@@ -1974,3 +1974,18 @@
 
 - Equity 估值/财务同步任务与兼容别名定向 mypy 清零；全仓基线从 `3711 errors / 641 files` 收紧为 `3676 errors / 639 files`，净减少 `35 errors / 2 files`。
 - 同步任务、估值同步用例、质量门禁、Celery 注册别名与调度配置回归 `18 passed`。
+
+## 第一百四十一批
+
+- 按“政策闸门影响面 × 定时任务破坏性操作安全”收口 Policy Celery tasks。
+- 政策日志、RSS 日志和审核队列清理任务增加 1..36500 天边界；负数、零、布尔值和错误类型在访问 Repository 前失败，不再把截止日期推进到未来后扩大删除范围。
+- 审核自动分配增加 1..1000 单人上限，非法容量不再进入分配循环。
+- RSS 单源抓取要求正整数 source ID，非法 ID 不再进入外部数据抓取与 AI 分类链路。
+- Signal 重评严格校验 P0..P3 档位和 ISO 日期；非法上下文不再进入 Regime 查询与下游信号拒绝逻辑。
+- Signal 重评失败改为将 Celery retry 异常继续抛出，不再用宽泛 `except Exception` 把已安排的重试吞掉并伪报普通错误结果。
+- 所有政策定时任务补齐有界输入、精确 payload 返回和 Celery 动态边界类型，通知服务继续通过延迟 factory 获取。
+
+## 第一百四十一批验证结果
+
+- Policy Celery tasks 定向 mypy 清零；全仓基线从 `3676 errors / 639 files` 收紧为 `3645 errors / 638 files`，净减少 `31 errors / 1 file`。
+- 政策状态、转档通知、清理、审核分配、SLA、闸门刷新与 Signal 重评回归 `29 passed`。

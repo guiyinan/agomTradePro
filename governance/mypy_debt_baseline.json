@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3676,
-    "files_with_errors": 639
+    "errors": 3645,
+    "files_with_errors": 638
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1686,12 +1686,6 @@
       "type-arg": 1,
       "valid-type": 1,
       "var-annotated": 2
-    },
-    "apps/policy/application/tasks.py": {
-      "misc": 8,
-      "no-untyped-call": 3,
-      "no-untyped-def": 18,
-      "type-arg": 2
     },
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1
