@@ -12,6 +12,8 @@ from apps.decision_rhythm.application.advisor_contracts import (
     RISK_POLICY_UNAVAILABLE_STATUS,
     AdvisorHoldingSnapshot,
     AdvisorOrderIntent,
+    ExecutionGuardProviderProtocol,
+    RiskGateProviderProtocol,
 )
 from apps.decision_rhythm.application.advisor_execution import (
     _confirmation_payload_for_intent,
@@ -41,6 +43,9 @@ from apps.decision_rhythm.application.advisor_performance import (
 
 class AdvisorSheetIntentMixin:
     """Apply decision guards and construct immutable order intents."""
+
+    risk_gate_provider: RiskGateProviderProtocol
+    execution_guard_provider: ExecutionGuardProviderProtocol
 
     def _apply_risk_gate(
         self,
@@ -242,10 +247,13 @@ class AdvisorSheetIntentMixin:
             priority = 10
             reason_parts.append("已有退出/卖出推荐")
         elif rec_side == "REDUCE":
-            side = "REDUCE"
             target_weight = min(holding.current_weight, Decimal("0.15"))
-            priority = 20
-            reason_parts.append("已有减仓推荐")
+            if target_weight < holding.current_weight:
+                side = "REDUCE"
+                priority = 20
+                reason_parts.append("已有减仓推荐")
+            else:
+                reason_parts.append("已有减仓推荐，但当前权重已不高于 15%")
         elif holding.unrealized_pnl_pct <= Decimal("-10"):
             side = "EXIT"
             target_weight = Decimal("0")
@@ -257,13 +265,17 @@ class AdvisorSheetIntentMixin:
             priority = 25
             reason_parts.append("单一持仓权重超过 25%，先降到 20% 以内")
         elif rec_side == "BUY":
-            side = "ADD"
-            target_weight = max(
-                holding.current_weight,
-                min(holding.current_weight + Decimal("0.03"), Decimal("0.20")),
+            target_weight = min(
+                holding.current_weight + Decimal("0.03"),
+                Decimal("0.20"),
             )
-            priority = 50
-            reason_parts.append("已有买入推荐，当前账户已持有，转换为加仓意图")
+            if target_weight > holding.current_weight:
+                side = "ADD"
+                priority = 50
+                reason_parts.append("已有买入推荐，当前账户已持有，转换为加仓意图")
+            else:
+                target_weight = holding.current_weight
+                reason_parts.append("已有买入推荐，但当前权重已达到 20% 加仓上限")
         else:
             reason_parts.append("当前持仓未触发调仓条件")
 
@@ -347,7 +359,7 @@ class AdvisorSheetIntentMixin:
         current_quantity = holding.quantity if holding else Decimal("0")
         current_weight = holding.current_weight if holding else Decimal("0")
         target_quantity = current_quantity
-        if blocking_status == "OK":
+        if blocking_status == "OK" and price is not None:
             target_quantity = current_quantity + _floor_quantity(budget / price)
             if target_quantity <= current_quantity:
                 blocking_status = "BLOCKED_MIN_SIZE"
