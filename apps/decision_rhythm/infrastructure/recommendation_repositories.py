@@ -17,6 +17,11 @@ from django.utils import timezone
 
 from ..domain.entities import (
     ApprovalStatus,
+    ExecutionApprovalRequest,
+    InvestmentRecommendation,
+    PortfolioTransitionPlan,
+    UnifiedRecommendation,
+    ValuationSnapshot,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,7 +52,7 @@ class ValuationSnapshotRepository:
         >>> snapshots = repo.get_latest_for_security("000001.SH", limit=5)
     """
 
-    def save(self, snapshot) -> Any:
+    def save(self, snapshot: ValuationSnapshot) -> ValuationSnapshot:
         """
         保存估值快照
 
@@ -63,7 +68,7 @@ class ValuationSnapshotRepository:
         model.save()
         return model.to_domain()
 
-    def get_by_id(self, snapshot_id: str) -> Any | None:
+    def get_by_id(self, snapshot_id: str) -> ValuationSnapshot | None:
         """
         根据 ID 获取估值快照
 
@@ -85,7 +90,7 @@ class ValuationSnapshotRepository:
         self,
         security_code: str,
         limit: int = 5,
-    ) -> list[Any]:
+    ) -> list[ValuationSnapshot]:
         """
         获取指定证券的最新估值快照
 
@@ -108,7 +113,7 @@ class ValuationSnapshotRepository:
         self,
         security_code: str,
         valuation_method: str,
-    ) -> Any | None:
+    ) -> ValuationSnapshot | None:
         """
         获取指定证券和方法的最新估值快照
 
@@ -121,18 +126,15 @@ class ValuationSnapshotRepository:
         """
         from .models import ValuationSnapshotModel
 
-        try:
-            model = (
-                ValuationSnapshotModel.objects.filter(
-                    security_code=security_code,
-                    valuation_method=valuation_method,
-                )
-                .order_by("-calculated_at")
-                .first()
+        model = (
+            ValuationSnapshotModel.objects.filter(
+                security_code=security_code,
+                valuation_method=valuation_method,
             )
-            return model.to_domain() if model else None
-        except Exception:
-            return None
+            .order_by("-calculated_at")
+            .first()
+        )
+        return model.to_domain() if model else None
 
     def delete_by_id(self, snapshot_id: str) -> bool:
         """
@@ -166,7 +168,10 @@ class InvestmentRecommendationRepository:
         >>> active_recs = repo.get_active_recommendations()
     """
 
-    def save(self, recommendation) -> Any:
+    def save(
+        self,
+        recommendation: InvestmentRecommendation,
+    ) -> InvestmentRecommendation:
         """
         保存投资建议
 
@@ -187,13 +192,15 @@ class InvestmentRecommendationRepository:
                     snapshot_id=recommendation.valuation_snapshot_id
                 )
                 model.valuation_snapshot = snapshot_model
-            except ValuationSnapshotModel.DoesNotExist:
-                pass
+            except ValuationSnapshotModel.DoesNotExist as exc:
+                raise ValueError(
+                    "Valuation snapshot not found: " f"{recommendation.valuation_snapshot_id}"
+                ) from exc
 
         model.save()
         return model.to_domain()
 
-    def get_by_id(self, recommendation_id: str) -> Any | None:
+    def get_by_id(self, recommendation_id: str) -> InvestmentRecommendation | None:
         """
         根据 ID 获取投资建议
 
@@ -206,7 +213,9 @@ class InvestmentRecommendationRepository:
         from .models import InvestmentRecommendationModel
 
         try:
-            model = InvestmentRecommendationModel.objects.get(recommendation_id=recommendation_id)
+            model = InvestmentRecommendationModel.objects.select_related("valuation_snapshot").get(
+                recommendation_id=recommendation_id
+            )
             return model.to_domain()
         except InvestmentRecommendationModel.DoesNotExist:
             return None
@@ -214,7 +223,7 @@ class InvestmentRecommendationRepository:
     def get_active_recommendations(
         self,
         include_executed: bool = False,
-    ) -> list[Any]:
+    ) -> list[InvestmentRecommendation]:
         """
         获取活跃的投资建议
 
@@ -226,7 +235,7 @@ class InvestmentRecommendationRepository:
         """
         from .models import InvestmentRecommendationModel
 
-        query = InvestmentRecommendationModel.objects.all()
+        query = InvestmentRecommendationModel.objects.select_related("valuation_snapshot")
 
         if not include_executed:
             query = query.filter(status="ACTIVE")
@@ -238,7 +247,7 @@ class InvestmentRecommendationRepository:
         self,
         account_id: str,
         include_executed: bool = False,
-    ) -> list[Any]:
+    ) -> list[InvestmentRecommendation]:
         """
         获取指定账户的活跃建议
 
@@ -251,7 +260,9 @@ class InvestmentRecommendationRepository:
         """
         from .models import InvestmentRecommendationModel
 
-        query = InvestmentRecommendationModel.objects.filter(account_id=account_id)
+        query = InvestmentRecommendationModel.objects.select_related("valuation_snapshot").filter(
+            account_id=account_id
+        )
         if not include_executed:
             query = query.filter(status="ACTIVE")
 
@@ -261,7 +272,7 @@ class InvestmentRecommendationRepository:
     def get_all_active(
         self,
         include_executed: bool = False,
-    ) -> list[Any]:
+    ) -> list[InvestmentRecommendation]:
         """
         获取所有活跃建议
 
@@ -277,7 +288,7 @@ class InvestmentRecommendationRepository:
         self,
         security_code: str,
         status: str | None = None,
-    ) -> list[Any]:
+    ) -> list[InvestmentRecommendation]:
         """
         获取指定证券的建议
 
@@ -290,7 +301,9 @@ class InvestmentRecommendationRepository:
         """
         from .models import InvestmentRecommendationModel
 
-        query = InvestmentRecommendationModel.objects.filter(security_code=security_code)
+        query = InvestmentRecommendationModel.objects.select_related("valuation_snapshot").filter(
+            security_code=security_code
+        )
 
         if status:
             query = query.filter(status=status)
@@ -302,7 +315,7 @@ class InvestmentRecommendationRepository:
         self,
         recommendation_id: str,
         status: str,
-    ) -> Any | None:
+    ) -> InvestmentRecommendation | None:
         """
         更新建议状态
 
@@ -346,7 +359,7 @@ class InvestmentRecommendationRepository:
 class PortfolioTransitionPlanRepository:
     """账户级调仓计划仓储。"""
 
-    def save(self, plan) -> Any:
+    def save(self, plan: PortfolioTransitionPlan) -> PortfolioTransitionPlan:
         from .models import PortfolioTransitionPlanModel
 
         model, _ = PortfolioTransitionPlanModel.objects.update_or_create(
@@ -368,7 +381,7 @@ class PortfolioTransitionPlanRepository:
 
         return transition_model_to_domain(model)
 
-    def get_by_id(self, plan_id: str) -> Any | None:
+    def get_by_id(self, plan_id: str) -> PortfolioTransitionPlan | None:
         from .models import PortfolioTransitionPlanModel
 
         try:
@@ -380,7 +393,7 @@ class PortfolioTransitionPlanRepository:
         except PortfolioTransitionPlanModel.DoesNotExist:
             return None
 
-    def get_latest_for_account(self, account_id: str) -> Any | None:
+    def get_latest_for_account(self, account_id: str) -> PortfolioTransitionPlan | None:
         from .models import PortfolioTransitionPlanModel
 
         model = (
@@ -399,7 +412,7 @@ class PortfolioTransitionPlanRepository:
         plan_id: str,
         status_value: str,
         approval_request_id: str | None = None,
-    ) -> Any | None:
+    ) -> PortfolioTransitionPlan | None:
         from .models import PortfolioTransitionPlanModel
 
         try:
@@ -428,7 +441,10 @@ class ExecutionApprovalRequestRepository:
         >>> pending_requests = repo.get_pending_requests("account_1")
     """
 
-    def save(self, approval_request) -> Any:
+    def save(
+        self,
+        approval_request: ExecutionApprovalRequest,
+    ) -> ExecutionApprovalRequest:
         """
         保存执行审批请求
 
@@ -454,7 +470,7 @@ class ExecutionApprovalRequestRepository:
         model.save()
         return model.to_domain()
 
-    def get_by_id(self, request_id: str) -> Any | None:
+    def get_by_id(self, request_id: str) -> ExecutionApprovalRequest | None:
         """
         根据 ID 获取执行审批请求
 
@@ -467,7 +483,11 @@ class ExecutionApprovalRequestRepository:
         from .models import ExecutionApprovalRequestModel
 
         try:
-            model = ExecutionApprovalRequestModel.objects.get(request_id=request_id)
+            model = ExecutionApprovalRequestModel.objects.select_related(
+                "recommendation",
+                "unified_recommendation",
+                "transition_plan",
+            ).get(request_id=request_id)
             return model.to_domain()
         except ExecutionApprovalRequestModel.DoesNotExist:
             return None
@@ -475,7 +495,7 @@ class ExecutionApprovalRequestRepository:
     def get_pending_requests(
         self,
         account_id: str | None = None,
-    ) -> list[Any]:
+    ) -> list[ExecutionApprovalRequest]:
         """
         获取待审批的请求
 
@@ -487,9 +507,11 @@ class ExecutionApprovalRequestRepository:
         """
         from .models import ExecutionApprovalRequestModel
 
-        query = ExecutionApprovalRequestModel.objects.filter(
-            approval_status=ApprovalStatus.PENDING.value
-        )
+        query = ExecutionApprovalRequestModel.objects.select_related(
+            "recommendation",
+            "unified_recommendation",
+            "transition_plan",
+        ).filter(approval_status=ApprovalStatus.PENDING.value)
 
         if account_id:
             query = query.filter(account_id=account_id)
@@ -502,7 +524,7 @@ class ExecutionApprovalRequestRepository:
         account_id: str,
         security_code: str,
         side: str | None = None,
-    ) -> list[Any]:
+    ) -> list[ExecutionApprovalRequest]:
         """
         获取指定账户和证券的审批请求
 
@@ -516,10 +538,11 @@ class ExecutionApprovalRequestRepository:
         """
         from .models import ExecutionApprovalRequestModel
 
-        query = ExecutionApprovalRequestModel.objects.filter(
-            account_id=account_id,
-            security_code=security_code,
-        )
+        query = ExecutionApprovalRequestModel.objects.select_related(
+            "recommendation",
+            "unified_recommendation",
+            "transition_plan",
+        ).filter(account_id=account_id, security_code=security_code)
 
         if side:
             query = query.filter(side=side)
@@ -532,7 +555,7 @@ class ExecutionApprovalRequestRepository:
         account_id: str,
         security_code: str,
         side: str,
-    ) -> Any | None:
+    ) -> ExecutionApprovalRequest | None:
         """
         获取指定聚合键的待审批请求
 
@@ -548,23 +571,28 @@ class ExecutionApprovalRequestRepository:
         """
         from .models import ExecutionApprovalRequestModel
 
-        try:
-            model = ExecutionApprovalRequestModel.objects.filter(
+        model = (
+            ExecutionApprovalRequestModel.objects.select_related(
+                "recommendation",
+                "unified_recommendation",
+                "transition_plan",
+            )
+            .filter(
                 account_id=account_id,
                 security_code=security_code,
                 side=side,
                 approval_status=ApprovalStatus.PENDING.value,
-            ).first()
-            return model.to_domain() if model else None
-        except Exception:
-            return None
+            )
+            .first()
+        )
+        return model.to_domain() if model else None
 
     def update_status(
         self,
         request_id: str,
         approval_status: ApprovalStatus,
         reviewer_comments: str | None = None,
-    ) -> Any | None:
+    ) -> ExecutionApprovalRequest | None:
         """
         更新审批状态并同步到关联的 UnifiedRecommendation
 
@@ -581,8 +609,14 @@ class ExecutionApprovalRequestRepository:
 
         try:
             with transaction.atomic():
-                model = ExecutionApprovalRequestModel.objects.select_for_update().get(
-                    request_id=request_id
+                model = (
+                    ExecutionApprovalRequestModel.objects.select_related(
+                        "recommendation",
+                        "unified_recommendation",
+                        "transition_plan",
+                    )
+                    .select_for_update()
+                    .get(request_id=request_id)
                 )
                 old_status = model.approval_status
                 model.approval_status = approval_status.value
@@ -696,13 +730,13 @@ class ExecutionApprovalRequestRepository:
 
     def create_for_transition_plan(
         self,
-        plan,
+        plan: PortfolioTransitionPlan,
         *,
         account_id: str,
         risk_checks: dict[str, Any],
         regime_source: str,
-        market_price,
-    ) -> Any:
+        market_price: Decimal | None,
+    ) -> ExecutionApprovalRequest:
         """为账户级调仓计划创建审批请求。"""
         from uuid import uuid4
 
@@ -714,8 +748,8 @@ class ExecutionApprovalRequestRepository:
         plan_model = PortfolioTransitionPlanModel.objects.get(plan_id=plan.plan_id)
         active_orders = [order for order in plan.orders if order.action != "HOLD"]
         total_quantity = sum(abs(order.delta_qty) for order in active_orders) or 1
-        price_lows = [order.price_band_low for order in active_orders] or [0]
-        price_highs = [order.price_band_high for order in active_orders] or [0]
+        price_lows = [order.price_band_low for order in active_orders] or [Decimal("0")]
+        price_highs = [order.price_band_high for order in active_orders] or [Decimal("0")]
 
         approval_model = ExecutionApprovalRequestModel.objects.create(
             request_id=f"apr_{uuid4().hex[:12]}",
@@ -745,13 +779,13 @@ class ExecutionApprovalRequestRepository:
 
     def create_for_unified_recommendation(
         self,
-        recommendation,
+        recommendation: UnifiedRecommendation,
         *,
         account_id: str,
         risk_checks: dict[str, Any],
         regime_source: str,
-        market_price,
-    ) -> Any:
+        market_price: Decimal | None,
+    ) -> ExecutionApprovalRequest:
         """为统一推荐创建审批请求。"""
         from datetime import datetime
         from uuid import uuid4
@@ -766,6 +800,8 @@ class ExecutionApprovalRequestRepository:
 
         entry_mid = (recommendation.entry_price_low + recommendation.entry_price_high) / 2
         suggested_qty = int(recommendation.max_capital / entry_mid) if entry_mid > 0 else 0
+        if suggested_qty <= 0:
+            raise ValueError("Unified recommendation has no executable quantity")
 
         approval_model = ExecutionApprovalRequestModel.objects.create(
             request_id=f"apr_{uuid4().hex[:12]}",
@@ -822,7 +858,7 @@ class ExecutionApprovalRequestRepository:
     def get_by_regime_source(
         self,
         regime_source: str,
-    ) -> list[Any]:
+    ) -> list[ExecutionApprovalRequest]:
         """
         根据 Regime 来源获取审批请求
 
@@ -846,7 +882,7 @@ class ExecutionApprovalRequestRepository:
         self,
         start_date: datetime,
         end_date: datetime,
-    ) -> list[Any]:
+    ) -> list[ExecutionApprovalRequest]:
         """
         获取指定时间段内已执行的请求
 

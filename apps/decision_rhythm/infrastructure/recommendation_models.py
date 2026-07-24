@@ -6,9 +6,9 @@ import uuid
 from decimal import Decimal
 from typing import Any
 
-from django.core.exceptions import ValidationError  # type: ignore[import-untyped]
-from django.db import models  # type: ignore[import-untyped]
-from django.utils import timezone  # type: ignore[import-untyped]
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils import timezone
 
 from ..domain.entities import (
     DecisionFeatureSnapshot,
@@ -18,7 +18,7 @@ from ..domain.entities import (
 )
 
 
-class DecisionFeatureSnapshotModel(models.Model):  # type: ignore[misc]
+class DecisionFeatureSnapshotModel(models.Model):
     """
     决策特征快照 ORM 模型
 
@@ -132,7 +132,7 @@ class DecisionFeatureSnapshotModel(models.Model):  # type: ignore[misc]
         )
 
 
-class UnifiedRecommendationModel(models.Model):  # type: ignore[misc]
+class UnifiedRecommendationModel(models.Model):
     """
     统一推荐对象 ORM 模型
 
@@ -437,7 +437,7 @@ class UnifiedRecommendationModel(models.Model):  # type: ignore[misc]
         )
 
 
-class DecisionExecutionLinkModel(models.Model):  # type: ignore[misc]
+class DecisionExecutionLinkModel(models.Model):
     """Link a manual account transaction to the system recommendation it followed."""
 
     TRANSACTION_SOURCE_CHOICES = [
