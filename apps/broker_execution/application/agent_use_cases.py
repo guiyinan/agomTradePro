@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from .alert_forwarding import forward_operational_alerts
 from .ports import BrokerExecutionRepositoryProtocol
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import BrokerExecutionValidationError
@@ -56,15 +57,9 @@ class AgentHeartbeatUseCase:
             allowed_account_ids=allowed_account_ids,
             payload=payload,
         )
-        from apps.task_monitor.application.operational_alerts import (
-            record_operational_alert,
-        )
-
-        result["task_monitor_alert_ids"] = [
-            alert_id
-            for alert in result.get("alerts", [])
-            if (alert_id := record_operational_alert(**alert))
-        ]
+        alert_ids, failure_count = forward_operational_alerts(result.get("alerts"))
+        result["task_monitor_alert_ids"] = alert_ids
+        result["task_monitor_alert_failure_count"] = failure_count
         return result
 
 
@@ -144,15 +139,9 @@ class ReportAgentEventsUseCase:
             allowed_account_ids=allowed_account_ids,
             events=events,
         )
-        from apps.task_monitor.application.operational_alerts import (
-            record_operational_alert,
-        )
-
-        result["task_monitor_alert_ids"] = [
-            alert_id
-            for alert in result.get("alerts", [])
-            if (alert_id := record_operational_alert(**alert))
-        ]
+        alert_ids, failure_count = forward_operational_alerts(result.get("alerts"))
+        result["task_monitor_alert_ids"] = alert_ids
+        result["task_monitor_alert_failure_count"] = failure_count
         return result
 
 

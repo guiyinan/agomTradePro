@@ -2226,3 +2226,19 @@
 - Policy RSS API 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3197 errors / 616 files` 收紧为 `3174 errors / 615 files`，净减少 `23 errors / 1 file`。
 - Policy 单元、serializer、RSS 抓取用例与 API 权限/调度回归共 `131 passed`；覆盖 staff 门禁、密钥不回显、404 保真、同步/异步错误脱敏与任务追踪。
 - Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百五十六批
+
+- 按“实盘订单与对账副作用影响面 × 异步任务重试安全”收口 Broker Execution Application 边界。
+- 维护任务、对账任务、Agent 心跳和成交事件上报统一通过失败安全的告警转发器接入 Task Monitor；畸形告警、监控写入失败或意外异常只记录失败计数，不再反向抛错触发已完成业务写入的重试。
+- 告警转发严格验证 level、task name、title、message、metadata 和 task ID 结构，调用结果同时返回成功告警 ID 与失败数量，避免监控降级被静默掩盖。
+- 对账目标在生成任何对账记录前验证 user/account 为正整数并拒绝重复账户，防止畸形 composition 数据生成错误归属的资金、持仓或自动停单证据。
+- 订单、对账和审计查询统一限制 limit 为 1..500；账户 ID 必须为正整数，状态过滤最多 32 字符并去除首尾空白。
+- 订单详情在访问仓储前把 UUID 路由值或字符串规范为 canonical UUID；畸形标识明确返回验证错误，不再向 ORM 边界透传。
+- Celery 任务改用共享 typed task adapter，Query Service 显式依赖 Repository Protocol，并保留注入的 falsy repository fake，清除动态装饰器和构造参数债务。
+
+## 第一百五十六批验证结果
+
+- Broker Execution tasks 与 Query Service 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3174 errors / 615 files` 收紧为 `3171 errors / 613 files`，净减少 `3 errors / 2 files`。
+- Broker Execution 应用边界、Agent 安全、API 权限和风险对账回归共 `68 passed`；覆盖监控异常隔离、畸形告警、非法对账目标、查询上限、过滤规范化与 UUID 边界。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和隔离 staged tree 的全仓 mypy debt ceiling。

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any
+from uuid import UUID
 
 from rest_framework import status
 from rest_framework.authentication import BaseAuthentication
@@ -163,13 +164,17 @@ class BrokerExecutionOrderDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request: Request, client_order_id: str) -> Response:
+    def get(self, request: Request, client_order_id: UUID) -> Response:
         try:
             data = BrokerExecutionQueryService().order_detail(
                 actor=request.user, client_order_id=client_order_id
             )
             return _success(data, permissions=action_permissions(request.user))
-        except (BrokerExecutionPermissionError, BrokerExecutionNotFoundError) as exc:
+        except (
+            BrokerExecutionPermissionError,
+            BrokerExecutionNotFoundError,
+            BrokerExecutionValidationError,
+        ) as exc:
             return _error_response(exc)
 
 
@@ -286,7 +291,11 @@ class BrokerExecutionReconciliationView(APIView):
                 ),
                 permissions=action_permissions(request.user),
             )
-        except (BrokerExecutionPermissionError, ValueError) as exc:
+        except (
+            BrokerExecutionPermissionError,
+            BrokerExecutionValidationError,
+            ValueError,
+        ) as exc:
             return _error_response(exc)
 
 
