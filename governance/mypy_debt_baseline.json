@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2855,
-    "files_with_errors": 575
+    "errors": 2840,
+    "files_with_errors": 574
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -22,10 +22,6 @@
     },
     "apps/account/apps.py": {
       "no-untyped-def": 1
-    },
-    "apps/account/infrastructure/account_interface_portfolio_repository.py": {
-      "arg-type": 1,
-      "no-untyped-def": 14
     },
     "apps/account/infrastructure/account_interface_registration_repository.py": {
       "assignment": 1,

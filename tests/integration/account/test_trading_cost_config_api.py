@@ -3,6 +3,9 @@ from django.contrib.auth.models import User
 from django.test import Client
 from rest_framework.test import APIClient
 
+from apps.account.infrastructure.account_interface_repository import (
+    AccountInterfaceRepository,
+)
 from apps.account.infrastructure.models import PortfolioModel, TradingCostConfigModel
 
 
@@ -88,6 +91,41 @@ class TestTradingCostConfigApi:
         assert response.status_code == 200
         assert response.data["data"]["transfer_fee"] == 0.0
         assert response.data["data"]["total"] == 25.0
+
+    @pytest.mark.parametrize(
+        ("field_name", "invalid_value"),
+        [
+            ("commission_rate", float("nan")),
+            ("min_commission", float("inf")),
+            ("stamp_duty_rate", float("-inf")),
+            ("transfer_fee_rate", float("nan")),
+        ],
+    )
+    def test_repository_rejects_nonfinite_fee_configuration(
+        self,
+        trading_cost_setup,
+        field_name,
+        invalid_value,
+    ):
+        values = {
+            "commission_rate": 0.00025,
+            "min_commission": 5.0,
+            "stamp_duty_rate": 0.001,
+            "transfer_fee_rate": 0.00002,
+        }
+        values[field_name] = invalid_value
+
+        with pytest.raises(ValueError):
+            AccountInterfaceRepository().save_api_trading_cost_config(
+                actor_user_id=trading_cost_setup["owner"].id,
+                portfolio_id=trading_cost_setup["portfolio"].id,
+                is_active=True,
+                **values,
+            )
+
+        trading_cost_setup["config"].refresh_from_db()
+        assert trading_cost_setup["config"].commission_rate == 0.00025
+        assert trading_cost_setup["config"].min_commission == 5.0
 
 
 @pytest.mark.django_db

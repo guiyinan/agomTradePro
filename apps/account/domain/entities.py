@@ -6,6 +6,7 @@ Account Domain Entities
 禁止依赖 Django、Pandas 等外部库。
 """
 
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -437,6 +438,70 @@ class TradingCostConfig:
     # 是否启用
     is_active: bool = True
 
+    def __post_init__(self) -> None:
+        """Reject malformed fee configuration before any cash calculation."""
+
+        if (
+            isinstance(self.portfolio_id, bool)
+            or not isinstance(self.portfolio_id, int)
+            or self.portfolio_id <= 0
+        ):
+            raise ValueError("portfolio_id 必须是正整数")
+        if self.id is not None and (
+            isinstance(self.id, bool) or not isinstance(self.id, int) or self.id <= 0
+        ):
+            raise ValueError("id 必须是正整数或 None")
+        if not isinstance(self.is_active, bool):
+            raise ValueError("is_active 必须是布尔值")
+        self._validate_rate(
+            self.commission_rate,
+            field_name="commission_rate",
+            maximum=0.01,
+        )
+        self._validate_rate(
+            self.stamp_duty_rate,
+            field_name="stamp_duty_rate",
+            maximum=0.01,
+        )
+        self._validate_rate(
+            self.transfer_fee_rate,
+            field_name="transfer_fee_rate",
+            maximum=0.001,
+        )
+        self._validate_rate(
+            self.min_commission,
+            field_name="min_commission",
+        )
+
+    @staticmethod
+    def _validate_rate(
+        value: float,
+        *,
+        field_name: str,
+        maximum: float | None = None,
+    ) -> None:
+        """Validate one finite, nonnegative configured fee."""
+
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{field_name} 必须是数值")
+        numeric = float(value)
+        if not math.isfinite(numeric) or numeric < 0:
+            raise ValueError(f"{field_name} 必须是非负有限数")
+        if maximum is not None and numeric > maximum:
+            raise ValueError(f"{field_name} 超出允许上限 {maximum}")
+
+    @staticmethod
+    def _validate_trade_amount(amount: float) -> None:
+        """Require a positive finite notional for fee calculation."""
+
+        if (
+            isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(float(amount))
+            or amount <= 0
+        ):
+            raise ValueError("amount 必须是正有限数")
+
     def calculate_buy_cost(self, amount: float, is_shanghai: bool = False) -> dict[str, float]:
         """
         计算买入总费用
@@ -448,6 +513,9 @@ class TradingCostConfig:
         Returns:
             各项费用明细
         """
+        self._validate_trade_amount(amount)
+        if not isinstance(is_shanghai, bool):
+            raise ValueError("is_shanghai 必须是布尔值")
         commission = max(amount * self.commission_rate, self.min_commission)
         transfer_fee = amount * self.transfer_fee_rate if is_shanghai else 0.0
         total = commission + transfer_fee
@@ -470,6 +538,9 @@ class TradingCostConfig:
         Returns:
             各项费用明细
         """
+        self._validate_trade_amount(amount)
+        if not isinstance(is_shanghai, bool):
+            raise ValueError("is_shanghai 必须是布尔值")
         commission = max(amount * self.commission_rate, self.min_commission)
         stamp_duty = amount * self.stamp_duty_rate
         transfer_fee = amount * self.transfer_fee_rate if is_shanghai else 0.0

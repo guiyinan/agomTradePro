@@ -1,7 +1,8 @@
 """Portfolio access, observer grant, and trading-cost repository operations."""
 
 import logging
-from datetime import date
+import math
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -25,6 +26,38 @@ from apps.account.infrastructure.models import (
 logger = logging.getLogger(__name__)
 
 
+def _validate_trading_cost_values(
+    *,
+    commission_rate: float,
+    min_commission: float,
+    stamp_duty_rate: float,
+    transfer_fee_rate: float,
+) -> None:
+    """Validate configured fees at the persistence boundary."""
+
+    values = {
+        "commission_rate": (commission_rate, 0.01),
+        "stamp_duty_rate": (stamp_duty_rate, 0.01),
+        "transfer_fee_rate": (transfer_fee_rate, 0.001),
+    }
+    for field_name, (value, maximum) in values.items():
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or value < 0
+            or value > maximum
+        ):
+            raise ValueError(f"{field_name} 必须是 0 到 {maximum} 之间的有限数")
+    if (
+        isinstance(min_commission, bool)
+        or not isinstance(min_commission, (int, float))
+        or not math.isfinite(float(min_commission))
+        or min_commission < 0
+    ):
+        raise ValueError("min_commission 必须是非负有限数")
+
+
 class AccountInterfacePortfolioRepositoryMixin:
     """Persist portfolio access, observer grants, and related account data."""
 
@@ -33,21 +66,21 @@ class AccountInterfacePortfolioRepositoryMixin:
 
         return AssetMetadataModel._default_manager.order_by("asset_code", "id")
 
-    def get_user_transaction_queryset(self, user_id: int):
+    def get_user_transaction_queryset(self, user_id: int) -> Any:
         """Return transactions scoped to portfolios owned by the user."""
 
         return TransactionModel._default_manager.filter(portfolio__user_id=user_id).select_related(
             "portfolio", "position"
         )
 
-    def get_user_capital_flow_queryset(self, user_id: int):
+    def get_user_capital_flow_queryset(self, user_id: int) -> Any:
         """Return capital flows scoped to portfolios owned by the user."""
 
         return CapitalFlowModel._default_manager.filter(portfolio__user_id=user_id).select_related(
             "portfolio"
         )
 
-    def get_user_portfolio(self, *, user_id: int, portfolio_id: int):
+    def get_user_portfolio(self, *, user_id: int, portfolio_id: int) -> Any:
         """Return one owned portfolio when available."""
 
         return PortfolioModel._default_manager.filter(
@@ -106,7 +139,7 @@ class AccountInterfacePortfolioRepositoryMixin:
             for user in users
         ]
 
-    def get_trading_cost_config_queryset(self, user_id: int):
+    def get_trading_cost_config_queryset(self, user_id: int) -> Any:
         """Return trading cost configs for portfolios owned by the user."""
 
         return (
@@ -125,21 +158,21 @@ class AccountInterfacePortfolioRepositoryMixin:
         stamp_duty_rate: float,
         transfer_fee_rate: float,
         is_active: bool,
-    ):
+    ) -> TradingCostConfigModel:
         """Create or update one trading cost configuration for the actor's portfolio."""
 
-        portfolio = PortfolioModel._default_manager.get(id=portfolio_id)
-        if portfolio.user_id != actor_user_id:
+        portfolio = PortfolioModel._default_manager.filter(
+            id=portfolio_id,
+            user_id=actor_user_id,
+        ).first()
+        if portfolio is None:
             raise PermissionError("无权为此投资组合配置费率")
-
-        if commission_rate < 0 or commission_rate > 0.01:
-            raise ValueError("佣金率应在 0 ~ 0.01（万0 ~ 万10）之间")
-        if min_commission < 0:
-            raise ValueError("最低佣金不能为负数")
-        if stamp_duty_rate < 0 or stamp_duty_rate > 0.01:
-            raise ValueError("印花税率应在 0 ~ 0.01 之间")
-        if transfer_fee_rate < 0 or transfer_fee_rate > 0.001:
-            raise ValueError("过户费率应在 0 ~ 0.001 之间")
+        _validate_trading_cost_values(
+            commission_rate=commission_rate,
+            min_commission=min_commission,
+            stamp_duty_rate=stamp_duty_rate,
+            transfer_fee_rate=transfer_fee_rate,
+        )
 
         defaults = {
             "commission_rate": commission_rate,
@@ -160,7 +193,7 @@ class AccountInterfacePortfolioRepositoryMixin:
         user_id: int,
         as_observer: bool,
         status_filter: str | None = None,
-    ):
+    ) -> Any:
         """Return observer grants scoped to the current owner or observer view."""
 
         filter_key = "observer_user_id_id" if as_observer else "owner_user_id_id"
@@ -225,10 +258,10 @@ class AccountInterfacePortfolioRepositoryMixin:
                     "asset_name": getattr(position, "asset_name", position.asset_code),
                     "asset_class": position.asset_class,
                     "shares": float(position.shares),
-                    "avg_cost": float(position.avg_cost),
-                    "current_price": float(position.current_price),
-                    "market_value": float(position.market_value),
-                    "unrealized_pnl": float(position.unrealized_pnl),
+                    "avg_cost": float(position.avg_cost or Decimal("0")),
+                    "current_price": float(position.current_price or Decimal("0")),
+                    "market_value": float(position.market_value or Decimal("0")),
+                    "unrealized_pnl": float(position.unrealized_pnl or Decimal("0")),
                     "unrealized_pnl_pct": float(position.unrealized_pnl_pct),
                 }
                 for position in positions
@@ -252,7 +285,12 @@ class AccountInterfacePortfolioRepositoryMixin:
         grant.save(update_fields=["expires_at"])
         return grant
 
-    def revoke_observer_grant(self, *, grant_id, revoked_by_user_id: int):
+    def revoke_observer_grant(
+        self,
+        *,
+        grant_id: Any,
+        revoked_by_user_id: int,
+    ) -> Any:
         """Revoke one observer grant and return the refreshed model."""
 
         grant = self.get_observer_grant_by_id(grant_id)
@@ -273,14 +311,12 @@ class AccountInterfacePortfolioRepositoryMixin:
     ) -> TradingCostConfigModel:
         """Create or update the trading cost configuration for a portfolio."""
 
-        if commission_rate < 0 or commission_rate > 0.01:
-            raise ValueError("佣金率应在 0 ~ 0.01（万0 ~ 万10）之间")
-        if min_commission < 0:
-            raise ValueError("最低佣金不能为负数")
-        if stamp_duty_rate < 0 or stamp_duty_rate > 0.01:
-            raise ValueError("印花税率应在 0 ~ 0.01 之间")
-        if transfer_fee_rate < 0 or transfer_fee_rate > 0.001:
-            raise ValueError("过户费率应在 0 ~ 0.001 之间")
+        _validate_trading_cost_values(
+            commission_rate=commission_rate,
+            min_commission=min_commission,
+            stamp_duty_rate=stamp_duty_rate,
+            transfer_fee_rate=transfer_fee_rate,
+        )
 
         portfolio = PortfolioModel._default_manager.get(id=portfolio_id)
         defaults = {
@@ -339,7 +375,7 @@ class AccountInterfacePortfolioRepositoryMixin:
             .exists()
         )
 
-    def get_accessible_portfolios_queryset(self, user_id: int):
+    def get_accessible_portfolios_queryset(self, user_id: int) -> Any:
         """Return portfolios owned by or shared with the given user."""
 
         now = timezone.now()
@@ -371,12 +407,12 @@ class AccountInterfacePortfolioRepositoryMixin:
             status="active",
         ).count()
 
-    def find_user_by_username(self, username: str):
+    def find_user_by_username(self, username: str) -> User | None:
         """Return one user by username when available."""
 
         return User._default_manager.filter(username=username).first()
 
-    def find_user_by_id(self, user_id: int):
+    def find_user_by_id(self, user_id: int) -> User | None:
         """Return one user by id when available."""
 
         return User._default_manager.filter(id=user_id).first()
@@ -385,7 +421,12 @@ class AccountInterfacePortfolioRepositoryMixin:
         """Return the unified account id mapped from one legacy portfolio id."""
         return get_unified_account_id_for_portfolio(portfolio_id)
 
-    def get_active_observer_grant(self, *, owner_user_id: int, observer_user_id: int):
+    def get_active_observer_grant(
+        self,
+        *,
+        owner_user_id: int,
+        observer_user_id: int,
+    ) -> Any:
         """Return one active observer grant for the owner/observer pair."""
 
         return PortfolioObserverGrantModel._default_manager.filter(
@@ -400,8 +441,8 @@ class AccountInterfacePortfolioRepositoryMixin:
         owner_user_id: int,
         observer_user_id: int,
         created_by_user_id: int,
-        expires_at,
-    ):
+        expires_at: datetime | None,
+    ) -> Any:
         """Create one observer grant record."""
 
         return PortfolioObserverGrantModel._default_manager.create(

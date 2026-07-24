@@ -2587,3 +2587,19 @@
 - Account Classification API 与 Classification Repository 增量 mypy 清零；全仓基线从 `2888 errors / 577 files` 收紧为 `2855 errors / 575 files`，净减少 `33 errors / 2 files`。
 - Account API 回归共 `54 passed`；覆盖分类树创建、父节点重命名级联、循环拒绝、非空分类序列化、缺失汇率失败、非法币种对和严格配置维度。
 - 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百七十九批
+
+- 按“交易费用配置真实性 × 买入资金公共计算影响面”收口 Account Trading Cost Domain、Serializer 与 Portfolio Repository。
+- 佣金率、最低手续费、印花税率和过户费率在 Repository 两条保存路径统一要求为非负有限数；`NaN`、正负无穷、布尔和越界值不能再绕过 Python 比较进入持久化。
+- API 保存按 `portfolio_id + actor_user_id` 同时定位所属组合，不再先读取任意组合后比较 owner，避免不存在与他人组合走不同数据访问路径。
+- `TradingCostConfig` Domain 实体在构造时校验 portfolio/config ID、active 标志和全部费率范围；内部调用无法用损坏配置参与买入资金或卖出所得计算。
+- 买卖费用计算要求成交金额为正有限数且交易所标志为真实布尔；零、负数、NaN、无穷或布尔金额不再产生最低佣金或畸形总费用。
+- DRF 费率配置与试算 Serializer 同步拒绝非有限数，确保 API、设置页、Application 和 Domain 多层边界一致。
+- Account Portfolio Interface Repository 的查询、授权和动态模型返回值补齐边界类型，并收窄可空持仓数值的输出转换。
+
+## 第一百七十九批验证结果
+
+- Account Portfolio Interface Repository 增量 mypy 清零；全仓基线从 `2855 errors / 575 files` 收紧为 `2840 errors / 574 files`，净减少 `15 errors / 1 file`。
+- Trading Cost Domain、API 与 Account Macro Sizing 回归共 `92 passed`；覆盖非有限费率、最低手续费、非法成交金额、归属保护和既有买卖费用计算。
+- 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。

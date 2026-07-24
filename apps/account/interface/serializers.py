@@ -558,22 +558,22 @@ class TradingCostConfigCreateSerializer(serializers.ModelSerializer[Any]):
         return attrs
 
     def validate_commission_rate(self, value: float) -> float:
-        if value < 0 or value > 0.01:
+        if not math.isfinite(value) or value < 0 or value > 0.01:
             raise serializers.ValidationError("佣金率应在 0 ~ 0.01（万0 ~ 万10）之间")
         return value
 
     def validate_min_commission(self, value: float) -> float:
-        if value < 0:
-            raise serializers.ValidationError("最低佣金不能为负数")
+        if not math.isfinite(value) or value < 0:
+            raise serializers.ValidationError("最低佣金必须是非负有限数")
         return value
 
     def validate_stamp_duty_rate(self, value: float) -> float:
-        if value < 0 or value > 0.01:
+        if not math.isfinite(value) or value < 0 or value > 0.01:
             raise serializers.ValidationError("印花税率应在 0 ~ 0.01 之间")
         return value
 
     def validate_transfer_fee_rate(self, value: float) -> float:
-        if value < 0 or value > 0.001:
+        if not math.isfinite(value) or value < 0 or value > 0.001:
             raise serializers.ValidationError("过户费率应在 0 ~ 0.001 之间")
         return value
 
@@ -586,6 +586,13 @@ class TradingCostCalculationSerializer(serializers.Serializer[dict[str, Any]]):
     action = serializers.ChoiceField(choices=ACTION_CHOICES)
     amount = serializers.FloatField(min_value=0.01)
     is_shanghai = serializers.BooleanField(required=False, default=False)
+
+    def validate_amount(self, value: float) -> float:
+        """Reject NaN and infinity before Domain fee calculation."""
+
+        if not math.isfinite(value) or value <= 0:
+            raise serializers.ValidationError("成交金额必须是正有限数")
+        return value
 
 
 class MacroSizingConfigSerializer(serializers.Serializer[dict[str, Any]]):
