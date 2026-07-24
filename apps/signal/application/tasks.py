@@ -4,10 +4,16 @@ Celery Tasks for Signal Management
 定期执行信号证伪检查等后台任务
 """
 
+import html
 import logging
+from collections.abc import Iterable, Mapping
+from itertools import chain
+from typing import Any, TypedDict, cast
 
-from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import DatabaseError
 from django.utils import timezone
 
@@ -20,19 +26,62 @@ from core.integration.research_integrity_registry import (
     record_forecast_evaluation_for_signal,
 )
 from core.metrics import record_exception
+from shared.infrastructure.celery_typing import BoundTask, typed_shared_task
 
 logger = logging.getLogger(__name__)
 
+_MAX_CLEANUP_DAYS = 3650
+_MAX_NOTIFICATION_RECIPIENTS = 100
+_MAX_DETAIL_TEXT_LENGTH = 500
 
-@shared_task(
-    name='signal.check_all_invalidations',
+
+class SignalSummary(TypedDict):
+    """Daily signal summary returned by the scheduled task."""
+
+    date: str
+    new_signals: int
+    invalidated_signals: int
+    total_approved: int
+    notification_sent: bool
+
+
+def _validated_batch_result(result: object) -> dict[str, object]:
+    """Validate invalidation batch evidence before publishing task success."""
+
+    if not isinstance(result, Mapping):
+        raise BusinessLogicError("Signal invalidation returned an invalid result")
+    normalized: dict[str, object] = dict(result)
+    for field_name in ("checked", "invalidated", "rejected"):
+        value = normalized.get(field_name)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise BusinessLogicError("Signal invalidation returned invalid counters")
+    for field_name in ("invalidated_ids", "rejected_ids"):
+        value = normalized.get(field_name)
+        if not isinstance(value, list) or any(
+            isinstance(item, bool) or not isinstance(item, (int, str)) or not str(item).strip()
+            for item in value
+        ):
+            raise BusinessLogicError("Signal invalidation returned invalid identifiers")
+    if normalized["invalidated"] != len(cast(list[object], normalized["invalidated_ids"])):
+        raise BusinessLogicError("Signal invalidation count does not match its identifiers")
+    if normalized["rejected"] != len(cast(list[object], normalized["rejected_ids"])):
+        raise BusinessLogicError("Signal rejection count does not match its identifiers")
+    if cast(int, normalized["checked"]) < (
+        cast(int, normalized["invalidated"]) + cast(int, normalized["rejected"])
+    ):
+        raise BusinessLogicError("Signal invalidation counters are inconsistent")
+    return normalized
+
+
+@typed_shared_task(
+    name="signal.check_all_invalidations",
     bind=True,
     max_retries=3,
     default_retry_delay=300,
     time_limit=600,
     soft_time_limit=570,
 )
-def check_all_signal_invalidations(self):
+def check_all_signal_invalidations(self: BoundTask) -> dict[str, object]:
     """
     定期检查所有已批准信号是否满足证伪条件
 
@@ -43,7 +92,7 @@ def check_all_signal_invalidations(self):
     logger.info(f"[{timezone.now()}] 开始检查信号证伪状态...")
 
     try:
-        result = check_and_invalidate_signals()
+        result = _validated_batch_result(check_and_invalidate_signals())
 
         logger.info(
             f"检查完成: 共检查 {result['checked']} 个信号, "
@@ -54,35 +103,38 @@ def check_all_signal_invalidations(self):
 
         return result
 
-    except (DataFetchError, DatabaseError) as e:
+    except (DataFetchError, DatabaseError) as exc:
         # Retryable data errors
-        logger.warning(f"信号证伪检查失败（数据错误）: {e}")
-        record_exception(e, module="signal", is_handled=True)
+        logger.warning("信号证伪检查失败（数据错误）: %s", exc)
+        record_exception(exc, module="signal", is_handled=True)
         try:
-            raise self.retry(exc=e)
+            raise self.retry(exc=exc, countdown=300)
         except MaxRetriesExceededError:
             logger.error("Max retries exceeded for signal invalidation check")
             raise
-    except BusinessLogicError as e:
+    except BusinessLogicError as exc:
         # Non-retryable business logic errors
-        logger.error(f"信号证伪检查失败（业务逻辑）: {e}")
-        record_exception(e, module="signal", is_handled=True)
+        logger.error("信号证伪检查失败（业务逻辑）: %s", exc)
+        record_exception(exc, module="signal", is_handled=True)
         raise
-    except Exception as e:
-        logger.exception(f"信号证伪检查失败（未预期）: {e}")
-        record_exception(e, module="signal", is_handled=False)
+    except Exception as exc:
+        logger.exception("信号证伪检查失败（未预期）")
+        record_exception(exc, module="signal", is_handled=False)
         raise
 
 
-@shared_task(
-    name='signal.check_single_invalidation',
+@typed_shared_task(
+    name="signal.check_single_invalidation",
     bind=True,
     max_retries=2,
     default_retry_delay=60,
     time_limit=600,
     soft_time_limit=570,
 )
-def check_single_signal_invalidation(self, signal_id: int):
+def check_single_signal_invalidation(
+    self: BoundTask,
+    signal_id: int,
+) -> dict[str, object] | None:
     """
     检查单个信号的证伪状态
 
@@ -90,7 +142,10 @@ def check_single_signal_invalidation(self, signal_id: int):
     """
     from apps.signal.application.invalidation_checker import InvalidationCheckService
 
-    logger.info(f"检查信号 {signal_id} 的证伪状态...")
+    if isinstance(signal_id, bool) or not isinstance(signal_id, int) or signal_id <= 0:
+        raise BusinessLogicError("signal_id must be a positive integer")
+
+    logger.info("检查信号 %s 的证伪状态...", signal_id)
 
     try:
         repository = get_signal_repository()
@@ -107,40 +162,46 @@ def check_single_signal_invalidation(self, signal_id: int):
                 logger.info(f"信号 {signal_id} 未满足证伪条件: {result.reason}")
 
             return {
-                'signal_id': signal_id,
-                'is_invalidated': result.is_invalidated,
-                'reason': result.reason
+                "signal_id": signal_id,
+                "is_invalidated": result.is_invalidated,
+                "reason": result.reason,
             }
         else:
             logger.warning(f"信号 {signal_id} 不存在")
             return None
 
-    except (DataFetchError, DatabaseError) as e:
-        logger.warning(f"检查信号 {signal_id} 失败（数据错误）: {e}")
-        record_exception(e, module="signal", is_handled=True)
+    except (DataFetchError, DatabaseError) as exc:
+        logger.warning("检查信号 %s 失败（数据错误）: %s", signal_id, exc)
+        record_exception(exc, module="signal", is_handled=True)
         try:
-            raise self.retry(exc=e)
+            raise self.retry(exc=exc, countdown=60)
         except MaxRetriesExceededError:
             logger.error(f"Max retries exceeded for signal {signal_id}")
             return {
-                'signal_id': signal_id,
-                'error': str(e),
-                'status': 'failed'
+                "signal_id": signal_id,
+                "error": "Signal invalidation data check failed",
+                "status": "failed",
             }
-    except Exception as e:
-        logger.exception(f"检查信号 {signal_id} 失败（未预期）: {e}")
-        record_exception(e, module="signal", is_handled=False)
+    except Exception as exc:
+        logger.exception("检查信号 %s 失败（未预期）", signal_id)
+        record_exception(exc, module="signal", is_handled=False)
         raise
 
 
-@shared_task(name='signal.cleanup_old_invalidated', time_limit=600, soft_time_limit=570)
-def cleanup_old_invalidated_signals(days: int = 90):
+@typed_shared_task(
+    name="signal.cleanup_old_invalidated",
+    time_limit=600,
+    soft_time_limit=570,
+)
+def cleanup_old_invalidated_signals(days: int = 90) -> dict[str, object]:
     """
     清理旧的已证伪信号
 
     默认清理 90 天前的证伪信号，可以归档或删除
     """
-    logger.info(f"清理 {days} 天前的已证伪信号...")
+    if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= _MAX_CLEANUP_DAYS:
+        raise BusinessLogicError(f"days must be between 1 and {_MAX_CLEANUP_DAYS}")
+    logger.info("清理 %s 天前的已证伪信号...", days)
 
     try:
         repository = get_signal_repository()
@@ -153,31 +214,30 @@ def cleanup_old_invalidated_signals(days: int = 90):
 
         logger.info(f"找到 {count} 个旧证伪信号: {old_ids}")
 
-        return {
-            'found': count,
-            'signal_ids': old_ids
-        }
+        return {"found": count, "signal_ids": old_ids}
 
-    except Exception as e:
-        logger.error(f"清理旧证伪信号失败: {e}", exc_info=True)
+    except Exception:
+        logger.exception("清理旧证伪信号失败")
         raise
 
 
-@shared_task(name='signal.daily_summary', time_limit=600, soft_time_limit=570)
-def send_daily_signal_summary():
+@typed_shared_task(
+    name="signal.daily_summary",
+    time_limit=600,
+    soft_time_limit=570,
+)
+def send_daily_signal_summary() -> SignalSummary:
     """
     发送每日信号状态摘要
 
     每天早上发送前一天的状态变化报告
     """
     from datetime import timedelta
+
     repository = get_signal_repository()
 
     yesterday = timezone.now() - timedelta(days=1)
     today = timezone.now()
-
-    # 统计变化
-    repository.count_by_status('pending')  # 近期新建信号数
 
     # 获取新建的信号详情
     new_signal_details = repository.get_signals_created_between(yesterday, today)
@@ -185,24 +245,41 @@ def send_daily_signal_summary():
     # 获取证伪的信号详情
     invalidated_details = repository.get_signals_invalidated_between(yesterday, today)
 
-    approved_count = repository.count_by_status('approved')
+    approved_count = repository.count_by_status("approved")
 
-    summary = {
-        'date': yesterday.date().isoformat(),
-        'new_signals': len(new_signal_details),
-        'invalidated_signals': len(invalidated_details),
-        'total_approved': approved_count
+    summary: SignalSummary = {
+        "date": yesterday.date().isoformat(),
+        "new_signals": len(new_signal_details),
+        "invalidated_signals": len(invalidated_details),
+        "total_approved": approved_count,
+        "notification_sent": False,
     }
 
     logger.info(f"每日信号摘要: {summary}")
 
     # 发送通知
-    _send_signal_summary_notification(summary, new_signal_details, invalidated_details)
+    summary["notification_sent"] = _send_signal_summary_notification(
+        summary,
+        new_signal_details,
+        invalidated_details,
+    )
+    if not summary["notification_sent"]:
+        raise DataFetchError("Signal summary notification delivery failed")
 
     return summary
 
 
-def _send_signal_summary_notification(summary: dict, new_details: list, invalidated_details: list) -> bool:
+def _bounded_detail_text(value: object) -> str:
+    """Return bounded plain text safe for HTML email rendering."""
+
+    return str(value or "")[:_MAX_DETAIL_TEXT_LENGTH]
+
+
+def _send_signal_summary_notification(
+    summary: SignalSummary,
+    new_details: list[dict[str, Any]],
+    invalidated_details: list[dict[str, Any]],
+) -> bool:
     """
     发送信号摘要通知
 
@@ -237,34 +314,45 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
 
     # 添加新建信号详情
     if new_details:
-        lines.extend([
-            f"## 新建信号 ({len(new_details)})",
-            "",
-        ])
+        lines.extend(
+            [
+                f"## 新建信号 ({len(new_details)})",
+                "",
+            ]
+        )
         for i, signal in enumerate(new_details[:10], 1):
-            lines.append(f"{i}. **{signal['asset_code']}** - {signal.get('logic_desc', 'N/A')}")
+            asset_code = _bounded_detail_text(signal.get("asset_code")) or "N/A"
+            logic_desc = _bounded_detail_text(signal.get("logic_desc")) or "N/A"
+            lines.append(f"{i}. **{asset_code}** - {logic_desc}")
         if len(new_details) > 10:
             lines.append(f"... 还有 {len(new_details) - 10} 个信号")
         lines.append("")
 
     # 添加证伪信号详情
     if invalidated_details:
-        lines.extend([
-            f"## 证伪信号 ({len(invalidated_details)})",
-            "",
-        ])
+        lines.extend(
+            [
+                f"## 证伪信号 ({len(invalidated_details)})",
+                "",
+            ]
+        )
         for i, signal in enumerate(invalidated_details[:10], 1):
-            details = signal.get('invalidation_details', {})
-            reason = details.get('reason', 'N/A') if isinstance(details, dict) else 'N/A'
-            lines.append(f"{i}. **{signal['asset_code']}** (ID: {signal['id']}) - {reason}")
+            details = signal.get("invalidation_details", {})
+            raw_reason = details.get("reason") if isinstance(details, Mapping) else None
+            reason = _bounded_detail_text(raw_reason) or "N/A"
+            asset_code = _bounded_detail_text(signal.get("asset_code")) or "N/A"
+            signal_id = _bounded_detail_text(signal.get("id")) or "N/A"
+            lines.append(f"{i}. **{asset_code}** (ID: {signal_id}) - {reason}")
         if len(invalidated_details) > 10:
             lines.append(f"... 还有 {len(invalidated_details) - 10} 个信号")
         lines.append("")
 
-    lines.extend([
-        "---",
-        f"发送时间: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}",
-    ])
+    lines.extend(
+        [
+            "---",
+            f"发送时间: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        ]
+    )
 
     body = "\n".join(lines)
 
@@ -316,7 +404,9 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
                 <tr><th>序号</th><th>资产代码</th><th>逻辑描述</th></tr>
         """
         for i, signal in enumerate(new_details[:10], 1):
-            html_body += f"<tr><td>{i}</td><td>{signal['asset_code']}</td><td>{signal.get('logic_desc', 'N/A')}</td></tr>"
+            asset_code = html.escape(_bounded_detail_text(signal.get("asset_code")) or "N/A")
+            logic_desc = html.escape(_bounded_detail_text(signal.get("logic_desc")) or "N/A")
+            html_body += f"<tr><td>{i}</td><td>{asset_code}</td>" f"<td>{logic_desc}</td></tr>"
         html_body += "</table></div>"
 
     if invalidated_details:
@@ -327,9 +417,11 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
                 <tr><th>序号</th><th>资产代码</th><th>证伪原因</th></tr>
         """
         for i, signal in enumerate(invalidated_details[:10], 1):
-            details = signal.get('invalidation_details', {})
-            reason = details.get('reason', 'N/A') if isinstance(details, dict) else 'N/A'
-            html_body += f"<tr><td>{i}</td><td>{signal['asset_code']}</td><td>{reason}</td></tr>"
+            details = signal.get("invalidation_details", {})
+            raw_reason = details.get("reason") if isinstance(details, Mapping) else None
+            reason = html.escape(_bounded_detail_text(raw_reason) or "N/A")
+            asset_code = html.escape(_bounded_detail_text(signal.get("asset_code")) or "N/A")
+            html_body += f"<tr><td>{i}</td><td>{asset_code}</td>" f"<td>{reason}</td></tr>"
         html_body += "</table></div>"
 
     html_body += f"""
@@ -371,6 +463,16 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
         return True
 
 
+def _candidate_emails(value: object) -> Iterable[object]:
+    """Yield configured email candidates without iterating string characters."""
+
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, Iterable) and not isinstance(value, (bytes, Mapping)):
+        return value
+    return ()
+
+
 def _get_signal_notification_recipients() -> list[str]:
     """
     获取信号通知收件人列表
@@ -378,21 +480,29 @@ def _get_signal_notification_recipients() -> list[str]:
     Returns:
         list: 收件人邮箱列表
     """
-    from django.conf import settings
-
     user_repo = get_user_repository()
-    recipients = []
+    recipients: set[str] = set()
 
     # 从配置获取
-    config_emails = getattr(settings, 'SIGNAL_NOTIFICATION_EMAILS', [])
-    if config_emails:
-        recipients.extend(config_emails)
+    config_emails = getattr(settings, "SIGNAL_NOTIFICATION_EMAILS", [])
 
     # 获取管理员邮箱
     admin_emails = user_repo.get_staff_emails()
-    recipients.extend(admin_emails)
+    for raw_email in chain(
+        _candidate_emails(config_emails),
+        _candidate_emails(admin_emails),
+    ):
+        if not isinstance(raw_email, str):
+            continue
+        normalized = raw_email.strip().lower()
+        if not normalized or len(normalized) > 254:
+            continue
+        try:
+            validate_email(normalized)
+        except ValidationError:
+            continue
+        recipients.add(normalized)
+        if len(recipients) >= _MAX_NOTIFICATION_RECIPIENTS:
+            break
 
-    # 去重并过滤空值
-    recipients = list({r for r in recipients if r and '@' in r})
-
-    return recipients
+    return sorted(recipients)

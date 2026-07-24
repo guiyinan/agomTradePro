@@ -2277,3 +2277,20 @@
 - Signal use cases、parser 与 rules 增量 mypy 清零，并同步减少 Policy gateway 与 Signal query service 下游债务；隔离并行工作区改动后，全仓基线从 `3155 errors / 612 files` 收紧为 `3139 errors / 608 files`，净减少 `16 errors / 4 files`。
 - Signal Application、Domain、完整工作流与 Policy→Signal 重评回归共 `110 passed`；覆盖长运算符、具名指标、非有限值、无效上下文、状态不覆盖、仓储失败与检查异常传播。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和隔离 staged tree 的全仓 mypy debt ceiling。
+
+## 第一百五十九批
+
+- 按“异步证伪状态变更影响面 × 任务成功真实性”收口 Signal Celery tasks 与每日通知边界。
+- 批量证伪任务在发布成功前验证 checked/invalidated/rejected 为非负整数、ID 列表合法、数量与 ID 一致且状态变化数不超过检查数；畸形结果不再因日志索引或宽松返回伪装成成功。
+- 单信号证伪在访问仓储前要求正整数 signal ID；数据重试耗尽后的任务结果使用稳定通用错误，不再把数据库或数据源异常原文写入 Celery result backend。
+- 旧证伪清理窗口限制为 1..3650 天，布尔、零负值和超大跨度不能进入仓储查询。
+- 每日摘要删除无效的 pending 计数查询，并显式返回 notification_sent；存在收件人但所有通知失败时任务真实失败，不再仅记录 warning 后返回成功摘要。
+- 邮件中的资产代码、逻辑描述和证伪原因统一限制长度并 HTML 转义，遗留数据库中的标签不能进入 HTML 邮件内容。
+- 通知收件人支持单字符串或 iterable 配置，使用 Django email validator、统一小写去重并限制最多 100 个；字符串不再被按字符展开。
+- Celery tasks 改用共享 typed task adapter，BoundTask、summary TypedDict、动态详情与 helper 容器补齐精确类型。
+
+## 第一百五十九批验证结果
+
+- Signal tasks 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3139 errors / 608 files` 收紧为 `3129 errors / 607 files`，净减少 `10 errors / 1 file`。
+- Signal task、通知和真实 ORM 每日摘要回归共 `69 passed`；覆盖结果不一致、非法 ID/天数、通知失败、HTML 转义、单字符串收件人和原有证伪任务契约。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和隔离 staged tree 的全仓 mypy debt ceiling。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3139,
-    "files_with_errors": 608
+    "errors": 3129,
+    "files_with_errors": 607
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2036,12 +2036,6 @@
       "attr-defined": 8,
       "no-untyped-call": 1,
       "no-untyped-def": 1
-    },
-    "apps/signal/application/tasks.py": {
-      "misc": 2,
-      "no-untyped-def": 5,
-      "type-arg": 2,
-      "var-annotated": 1
     },
     "apps/signal/apps.py": {
       "no-untyped-call": 1
