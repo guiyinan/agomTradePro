@@ -1811,3 +1811,20 @@
 - account risk tasks、stop-loss/take-profit use cases 与 Domain interfaces mypy 清零；全仓基线从 `3915 errors / 657 files` 收紧为 `3869 errors / 654 files`，净减少 `46 errors / 3 files`。
 - 账户周期任务、止损止盈用例与真实 Repository 执行回归共 `13 passed`。
 - 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百三十一批
+
+- 按“组合级自动减仓资金影响面 × 并发重试安全性”收口账户波动率分析与调整执行链路。
+- 波动率配置、历史快照、持仓与批量执行结果建立精确 Domain Protocol / TypedDict，Application 只依赖 provider 暴露的抽象边界。
+- 波动率、容忍度、最大降仓幅度、快照总值、持仓数量和成交价格统一拒绝 NaN、无穷值、非正值与越界配置，避免非法数值进入成交。
+- 调整用例在写库前完成全部持仓指令校验；任一持仓无效时整批拒绝，不再出现前序持仓已卖、后续持仓失败的部分成功。
+- 批量减仓以组合行锁串行化并在同一事务内执行全部持仓，任一成交失败即整体回滚。
+- 基于组合、快照日期和调整参数生成确定性幂等键；相同分析快照重复或并发执行时复用已有成交结果，不再重复减仓，也不虚报本次已减仓持仓。
+- 波动率分析用例正确使用注入的分析依赖，不再在执行方法内绕过测试或 composition root 新建具体用例。
+- 新增非法控制参数、无效成交价格、确定性幂等键、真实 ORM 重复执行和事务整体回滚回归。
+
+## 第一百三十一批验证结果
+
+- account volatility use cases、Domain services/interfaces 与 position repository mypy 清零；全仓基线从 `3869 errors / 654 files` 收紧为 `3858 errors / 653 files`，净减少 `11 errors / 1 file`。
+- 波动率领域服务、调整用例、真实 Repository、周期任务和账户 API 回归共 `49 passed`。
+- 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
