@@ -1580,3 +1580,16 @@
 - Decision Workspace UseCase mypy 清零；全仓基线从 `4169 errors / 692 files` 收紧为 `4162 errors / 691 files`，净减少 `7 errors / 1 file`。
 - Decision Workspace 安全回归、结构与工作流用例共 `18 passed`。
 - governance baseline 升级为 `2026-07-24.v187`，静态测试函数计数提升至 `7214`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百一十六批
+
+- 按“估值快照持久化影响面 × 审批价格审计正确性”收口 Decision Rhythm valuation models，覆盖估值快照、投资建议和执行审批 ORM。
+- 三个 ORM Model 与 Django imports 移除已经失效的宽泛 mypy ignore，恢复真实类型门禁。
+- 执行审批 mapper 使用显式 `is not None` 判断审核价格，修复合法零值被错误映射为缺失值的问题，保持审计记录原义。
+- 新增零审核价格 ORM-to-Domain 映射回归。
+
+## 第一百一十六批验证结果
+
+- Decision Rhythm valuation models mypy 清零；全仓基线从 `4162 errors / 691 files` 收紧为 `4156 errors / 690 files`，净减少 `6 errors / 1 file`。
+- Workspace 安全与模型结构回归 `5 passed`。
+- governance baseline 升级为 `2026-07-24.v188`，静态测试函数计数提升至 `7215`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。

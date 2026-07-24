@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4162,
-    "files_with_errors": 691
+    "errors": 4156,
+    "files_with_errors": 690
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1280,9 +1280,6 @@
     },
     "apps/decision_rhythm/infrastructure/valuation_adapters.py": {
       "no-any-return": 1
-    },
-    "apps/decision_rhythm/infrastructure/valuation_models.py": {
-      "unused-ignore": 6
     },
     "apps/decision_rhythm/interface/admin.py": {
       "type-arg": 3
