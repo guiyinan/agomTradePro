@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3846,
-    "files_with_errors": 652
+    "errors": 3839,
+    "files_with_errors": 651
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -827,11 +827,6 @@
     },
     "apps/broker_execution/application/tasks.py": {
       "misc": 2
-    },
-    "apps/broker_execution/application/use_cases.py": {
-      "arg-type": 1,
-      "no-untyped-def": 5,
-      "var-annotated": 1
     },
     "apps/broker_execution/domain/services.py": {
       "attr-defined": 2,

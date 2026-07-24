@@ -1842,3 +1842,20 @@
 - account manual trade sync mypy 清零；全仓基线从 `3858 errors / 653 files` 收紧为 `3846 errors / 652 files`，净减少 `12 errors / 1 file`。
 - 手工成交导入、重复导入、建议匹配和失败回滚回归共 `6 passed`。
 - 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百三十三批
+
+- 按“实盘委托资金影响面 × 风险结论与并发控制”收口 broker execution 订单草稿创建和 kill switch 持久化边界。
+- 订单数量、限价、账户资产、可用资金、持仓市值和行情价格统一拒绝 NaN、无穷值、负值及非正关键值；计划输入错误直接拒绝，服务端行情失真则生成风险拒绝草稿。
+- 风险引擎明确返回 `passed=False` 时不再因 violations 文本为空而被重写为通过，风险结论改为“原始通过且无违规”才可进入待审批状态。
+- 订单标的与方向标准化，空幂等键在 Application 边界拒绝；Decimal 原始数量和价格保留到持久化层，避免先转 float 导致大整数精度改变。
+- 订单创建在事务内锁定账户绑定，并以锁内最新配置重新验证授权、白名单、单笔限额、价格偏离、当日累计限额和 kill switch。
+- 下单与 kill switch 使用同一账户绑定锁顺序；停盘操作锁定全部目标绑定后再写控制状态，关闭停盘与下单并发穿透窗口。
+- 幂等结果在获取账户锁后再次查询；相同幂等键的并发后到请求返回先到请求的持久化结果，不再尝试创建第二张订单。
+- 新增风险引擎空违规拒绝、非法数值、NaN 行情/账户快照、锁后限额变化和锁后幂等重放回归。
+
+## 第一百三十三批验证结果
+
+- broker execution live-order use cases mypy 清零；全仓基线从 `3846 errors / 652 files` 收紧为 `3839 errors / 651 files`，净减少 `7 errors / 1 file`。
+- broker execution 风险、权限、kill switch、幂等和关键订单安全回归共 `56 passed`。
+- 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
