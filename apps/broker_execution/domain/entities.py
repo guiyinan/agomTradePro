@@ -59,13 +59,18 @@ class OrderApprovalSnapshot:
     """Immutable fields bound to one human approval."""
 
     account_id: int
+    agent_id: str
     asset_code: str
+    market: str
     side: LiveOrderSide
     order_type: LiveOrderType
     quantity: Decimal
     limit_price: Decimal | None
+    estimated_amount: Decimal
     expires_at: str
     risk_policy_version: str
+    risk_snapshot_json: str
+    approval_mode: str
     source_recommendation_ids: tuple[str, ...]
     source_signal_ids: tuple[str, ...] = ()
 

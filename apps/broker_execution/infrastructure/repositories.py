@@ -1277,6 +1277,8 @@ class DjangoBrokerExecutionRepository:
         """Verify the lease and enter SUBMITTING before calling the broker API."""
 
         now = timezone.now()
+        digest_invalid = False
+        result: dict[str, Any] | None = None
         with transaction.atomic():
             order = (
                 LiveOrderModel._default_manager.select_for_update()
@@ -1400,12 +1402,18 @@ class DjangoBrokerExecutionRepository:
                 order.approved_at = None
                 order.version += 1
                 order.save()
-                raise BrokerExecutionConflictError("Order approval digest is no longer valid")
-            validate_order_transition(order.status, LiveOrderStatus.SUBMITTING.value)
-            order.status = LiveOrderStatus.SUBMITTING.value
-            order.version += 1
-            order.save(update_fields=["status", "version", "updated_at"])
-            return {"accepted": True, "order": self._order_payload(order)}
+                digest_invalid = True
+            else:
+                validate_order_transition(order.status, LiveOrderStatus.SUBMITTING.value)
+                order.status = LiveOrderStatus.SUBMITTING.value
+                order.version += 1
+                order.save(update_fields=["status", "version", "updated_at"])
+                result = {"accepted": True, "order": self._order_payload(order)}
+        if digest_invalid:
+            raise BrokerExecutionConflictError("Order approval digest is no longer valid")
+        if result is None:
+            raise BrokerExecutionConflictError("Order submission acknowledgement failed")
+        return result
 
     @staticmethod
     def _parse_agent_datetime(raw: Any) -> datetime:

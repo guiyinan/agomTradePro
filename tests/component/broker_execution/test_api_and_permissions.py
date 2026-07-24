@@ -751,6 +751,64 @@ def test_submit_ack_rechecks_limits_and_allow_list_after_approval() -> None:
 
 
 @pytest.mark.django_db
+def test_submit_ack_revokes_approval_when_estimated_amount_changes() -> None:
+    owner = _user("digest-amount-owner", "owner")
+    agent, binding = _binding(owner, account_id=73)
+    binding.enforce_trading_session = False
+    binding.save(update_fields=["enforce_trading_session", "updated_at"])
+    order = _order(owner, agent, account_id=73)
+    client = Client()
+    client.force_login(owner)
+    approval = client.post(
+        f"/api/broker-execution/orders/{order.client_order_id}/approve/",
+        data=json.dumps(
+            {
+                "preview_only": False,
+                "reason": "approve immutable execution facts",
+                "expected_version": order.version,
+                "idempotency_key": "digest-amount-approve",
+            }
+        ),
+        content_type="application/json",
+    )
+    assert approval.status_code == 200
+    LiveOrderModel.objects.filter(pk=order.pk).update(estimated_amount=Decimal("1.00"))
+    BrokerAgentModel.objects.filter(pk=agent.pk).update(
+        status=BrokerAgentModel.STATUS_ONLINE,
+        qmt_connected=True,
+    )
+    BrokerAccountSnapshotModel.objects.create(
+        user=owner,
+        agent=agent,
+        account_id=73,
+        captured_at=timezone.now(),
+        cash_available=Decimal("100000"),
+        total_asset=Decimal("100000"),
+    )
+    repository = DjangoBrokerExecutionRepository()
+    leased = repository.lease_agent_orders(
+        agent_pk=agent.pk,
+        allowed_account_ids=[73],
+        limit=1,
+        lease_seconds=30,
+    )["orders"][0]
+
+    with pytest.raises(BrokerExecutionConflictError, match="digest"):
+        repository.acknowledge_submitting(
+            agent_pk=agent.pk,
+            allowed_account_ids=[73],
+            client_order_id=str(order.client_order_id),
+            lease_token=leased["lease_token"],
+        )
+
+    order.refresh_from_db()
+    assert order.status == "WAITING_APPROVAL"
+    assert order.approval_digest == ""
+    assert order.approved_by_id is None
+    assert order.approved_at is None
+
+
+@pytest.mark.django_db
 def test_cancel_command_acceptance_waits_for_authoritative_broker_status() -> None:
     owner = _user("cancel-pending-owner", "owner")
     agent, _ = _binding(owner, account_id=74)

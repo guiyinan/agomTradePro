@@ -1908,3 +1908,19 @@
 - 模拟交易订单、Domain 规则与买入信号追踪回归 `21 passed`。
 - 全仓 mypy debt ceiling 保持 `3823 errors / 648 files`，本批未新增类型债务。
 - Django migration state、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百三十七批
+
+- 按“实盘人工审批完整性 × Agent 提交前最终校验”收口 broker execution 审批摘要。
+- 审批摘要新增绑定 Agent、市场、预计金额、完整风险快照和审批模式；账户、标的、方向、委托类型、数量、限价、有效期、风险策略及来源证据继续纳入摘要。
+- `estimated_amount` 不再游离于审批摘要之外，审批后降低预计金额无法再绕过 Agent 提交前的现金与限额复核。
+- 风险快照使用排序 JSON、来源 ID 使用排序元组生成稳定摘要，等价输入顺序变化不会造成误失效。
+- 摘要失效后的撤销审批改为先在事务中持久化，再向 Agent 返回冲突；修复原先“保存后在原事务抛错”导致撤销状态被整体回滚的问题。
+- 审批投影的整数与数组边界显式验证，broker execution Domain services 清除动态迭代和整数转换类型债务。
+- 新增全部执行关键字段篡改摘要变化、JSON/来源顺序稳定性，以及真实 ORM 修改预计金额后撤销审批回归。
+
+## 第一百三十七批验证结果
+
+- broker execution Domain services、entities 与 rules mypy 清零；全仓基线从 `3823 errors / 648 files` 收紧为 `3820 errors / 647 files`，净减少 `3 errors / 1 file`。
+- broker execution 审批、权限、风险、对账与 Agent 提交回归共 `56 passed`。
+- 增量 mypy、Django system check、架构检查、改动文件 Ruff 与 diff check 通过。

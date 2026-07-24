@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3823,
-    "files_with_errors": 648
+    "errors": 3820,
+    "files_with_errors": 647
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -817,10 +817,6 @@
     },
     "apps/broker_execution/application/tasks.py": {
       "misc": 2
-    },
-    "apps/broker_execution/domain/services.py": {
-      "attr-defined": 2,
-      "call-overload": 1
     },
     "apps/dashboard/application/alpha_homepage_candidates.py": {
       "arg-type": 1,

@@ -141,9 +141,7 @@ def target_status_for_order_action(current: str, action: str) -> LiveOrderStatus
             else LiveOrderStatus.CANCEL_PENDING
         )
     else:
-        raise InvalidOrderTransitionError(
-            f"Unsupported order action {normalized_action!r}"
-        )
+        raise InvalidOrderTransitionError(f"Unsupported order action {normalized_action!r}")
     validate_order_transition(current_status.value, target.value)
     return target
 
@@ -155,8 +153,7 @@ def build_approval_digest(snapshot: OrderApprovalSnapshot) -> str:
     payload["side"] = snapshot.side.value
     payload["order_type"] = snapshot.order_type.value
     payload["quantity"] = str(snapshot.quantity)
-    payload["limit_price"] = (
-        str(snapshot.limit_price) if snapshot.limit_price is not None else None
-    )
+    payload["limit_price"] = str(snapshot.limit_price) if snapshot.limit_price is not None else None
+    payload["estimated_amount"] = str(snapshot.estimated_amount)
     canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
