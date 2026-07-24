@@ -16,6 +16,8 @@
 5. T3B：`alpha/policy/simulated_trading` 的模型、政策、交易失败边界。
 6. T4A：`prompt/terminal/dashboard/ai_provider` 的用户入口、敏感信息和错误恢复。
 7. T4B 第一批：`fund/hedge/sector/sentiment` 的数据源降级、任务结果和空态。
+8. T3A 收口：把 `data_center/account/decision_rhythm` 三个 P0 模块和关键
+   Domain 分支补到正式门槛。
 
 生产部署修复和其他治理主线不在 T3B/T4A 扩散。
 
@@ -194,6 +196,24 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
   - `pulse=83.27%`（`712 / 855`），分支 `68.28%`。
 - 五个模块均建立 80% 机器阈值；当前 `apps=82.14%`
   （`102,020 / 124,200`），分支 `64.56%`。
+- T3A 已完成收口：
+  - Decision Rhythm 覆盖审批/拒绝、批量部分失败、配额状态与重置、队列、
+    状态机和调度器，新增 `33 passed`；
+  - Account 覆盖 RBAC fail-closed、文档导入导出、备份/止损/止盈任务失败、
+    账户配置、Token、资金流水和回测落仓，完整模块单测 `151 passed`；
+  - Data Center 覆盖宏观 fetcher 矩阵、连接探针、Domain 验证、统一 Provider
+    转换、Sync 失败审计、QMT/Tushare 降级；新增两批共 `118 passed`，
+    完整模块单测 `386 passed`；
+  - 六个 P0 模块全部达到 85%：`data_center=85.06%`
+    （`9,912 / 11,653`）、`account=85.00%`（`6,711 / 7,895`）、
+    `decision_rhythm=85.00%`（`7,154 / 8,416`）、`alpha=85.05%`、
+    `policy=85.06%`、`simulated_trading=85.01%`；
+  - Data Center Domain 提升到 `98.05%` 行覆盖和 `89.06%` 分支覆盖，
+    Decision Rhythm Domain 分支为 `80.43%`；
+  - 三个 T3A 模块均建立逐模块 85% 机器阈值，Data Center Domain 分支
+    棘轮为 89.0%；覆盖率 ratchet 通过。
+- T3A 收口后的总体覆盖率为 `apps=83.16%`
+  （`103,284 / 124,200`），分支 `66.02%`。
 - Fast suite：`3,578 passed in 31.03s`，总耗时 `45.22s`，低于 120 秒预算。
 - 固定高风险链路：`229 passed`。
 - 最终 coverage ratchet 已通过。
@@ -205,10 +225,8 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
   - `core/shared/sdk >=80%`；
   - 所有 P0 模块行覆盖率 `>=85%`；
   - 关键 Domain 分支覆盖率 `>=80%`。
-- T3A 当前模块行覆盖率：
-  - `data_center=77.85%`；
-  - `account=81.23%`；
-  - `decision_rhythm=83.51%`。
+- T3A 与全部六个 P0 模块已经完成；剩余覆盖工作集中在其他业务模块、
+  `apps` 总体以及 `core/shared/sdk`。
 - T5 和最终 T6 收口尚未开始；应按原计划在后续独立批次推进，不能用扩大 omit
   或降低阈值替代。
 - Integration 修复后仅重跑了受影响的 24 项，完整 Integration 尚未二次全量重跑。
