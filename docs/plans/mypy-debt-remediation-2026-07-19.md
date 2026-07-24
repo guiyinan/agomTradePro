@@ -2388,3 +2388,19 @@
 - Signal config init 与 AppConfig 增量 mypy 清零；全仓基线从 `3085 errors / 600 files` 收紧为 `3078 errors / 598 files`，净减少 `7 errors / 2 files`。
 - Signal 配置初始化专用回归 `6 passed`，完整 Signal 单元、model、repository、task、API 与 forecast 回归共 `149 passed`；覆盖有效注入、畸形行、空库回退和跨 cache backend 刷新。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十六批
+
+- 按“模拟交易费用真源 × 默认费率原子性”收口 Simulated Trading ORM models。
+- FeeConfigModel 在持久化前验证所有佣金、印花税、过户费和滑点费率为 0..1 的有限数值，最低佣金与最低过户费为非负有限数值；布尔、NaN、无穷和负数不能进入运行时费用配置。
+- direct ORM 写入在 Django FloatField 类型转换前先验证原始 Python 类型，关闭 `True` 被静默转换为 `1.0` 的旁路。
+- 默认费率切换改为先完整验证新配置，再在同一事务中取消旧默认并保存新默认；新配置验证失败不再留下没有默认费率的状态。
+- 数据库增加按 `asset_type` 的条件唯一约束，QuerySet.update、bulk 或并发写入不能绕过“每类最多一个默认费率”；迁移先按 active、更新时间和主键确定性收敛历史重复默认项。
+- Rebalance Proposal、通知历史、账本迁移及账户/持仓/成交等 ORM helper 补齐精确返回类型和 JSON 容器类型。
+- 修复遗留集成测试夹具仍省略最低佣金的问题；测试配置现在显式声明 `min_commission`，不再依赖已移除的 5 元默认值。
+
+## 第一百六十六批验证结果
+
+- Simulated Trading ORM models 增量 mypy 清零；全仓基线从 `3078 errors / 598 files` 收紧为 `3065 errors / 597 files`，净减少 `13 errors / 1 file`。
+- 模拟交易 Domain、费用、买卖订单、仓位、净值、任务和集成回归共 `220 passed`；覆盖非法费率、失败替换保留旧默认、原子默认切换和数据库绕过约束。
+- 迁移漂移检查通过；改动文件 Ruff、Black 与增量 mypy 通过，提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

@@ -12,8 +12,15 @@ Infrastructure层:
 - 通过 user 外键关联用户
 """
 
+from __future__ import annotations
+
+from math import isfinite
+from typing import Any
+
 from django.conf import settings
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 
@@ -116,7 +123,7 @@ class SimulatedAccountModel(models.Model):
             # models.Index(fields=["active_strategy", "is_active"]),  # 临时注释
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         type_label = "实仓" if self.account_type == "real" else "模拟仓"
         return f"{self.account_name} ({type_label})"
 
@@ -197,7 +204,7 @@ class PositionModel(models.Model):
             models.Index(fields=["is_invalidated", "invalidation_checked_at"]),  # 定期检查
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.asset_name} ({self.quantity})"
 
 
@@ -271,7 +278,7 @@ class SimulatedTradeModel(models.Model):
             models.Index(fields=["-execution_date"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.get_action_display()} {self.asset_name} x{self.quantity} @ {self.execution_date}"
 
 
@@ -325,18 +332,63 @@ class FeeConfigModel(models.Model):
             models.Index(fields=["asset_type", "is_active"]),
             models.Index(fields=["is_default", "is_active"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["asset_type"],
+                condition=Q(is_default=True),
+                name="uniq_default_fee_config_per_asset_type",
+            )
+        ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.config_name} ({self.get_asset_type_display()})"
 
-    def save(self, *args, **kwargs):
-        """保存时确保只有一个默认配置"""
-        if self.is_default:
-            # 将其他默认配置设为非默认
-            FeeConfigModel._default_manager.filter(
-                asset_type=self.asset_type, is_default=True
-            ).exclude(id=self.id).update(is_default=False)
-        super().save(*args, **kwargs)
+    def clean(self) -> None:
+        """Validate finite, non-negative transaction fee parameters."""
+
+        super().clean()
+        rate_fields = (
+            "commission_rate_buy",
+            "commission_rate_sell",
+            "stamp_duty_rate",
+            "transfer_fee_rate",
+            "slippage_rate",
+        )
+        errors: dict[str, str] = {}
+        for field_name in rate_fields:
+            value = getattr(self, field_name)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not isfinite(float(value))
+                or not 0 <= float(value) <= 1
+            ):
+                errors[field_name] = "必须是 0 到 1 之间的有限数值"
+        for field_name in ("min_commission", "min_transfer_fee"):
+            value = getattr(self, field_name)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not isfinite(float(value))
+                or float(value) < 0
+            ):
+                errors[field_name] = "必须是非负有限数值"
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Validate and atomically switch the default fee configuration."""
+
+        # Preserve raw Python types so direct ORM writes cannot coerce bool to 1.0.
+        self.clean()
+        self.full_clean(validate_unique=False, validate_constraints=False)
+        with transaction.atomic():
+            if self.is_default:
+                FeeConfigModel._default_manager.filter(
+                    asset_type=self.asset_type,
+                    is_default=True,
+                ).exclude(id=self.id).update(is_default=False)
+            super().save(*args, **kwargs)
 
 
 class DailyInspectionReportModel(models.Model):
@@ -399,7 +451,7 @@ class DailyInspectionReportModel(models.Model):
             models.Index(fields=["inspection_date", "status"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.account.account_name} - {self.inspection_date} ({self.status})"
 
 
@@ -432,7 +484,7 @@ class DailyInspectionNotificationConfigModel(models.Model):
         verbose_name = "模拟盘巡检通知配置"
         verbose_name_plural = "模拟盘巡检通知配置"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.account.account_name} notify={self.is_enabled}"
 
 
@@ -483,7 +535,7 @@ class DailyNetValueModel(models.Model):
             models.Index(fields=["-record_date"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.account.account_name} - {self.record_date} - 净值:{self.net_value}"
 
 
@@ -707,7 +759,7 @@ class RebalanceProposalModel(models.Model):
             models.Index(fields=["priority", "-proposed_at"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.account.account_name} - {self.get_source_display()} - {self.get_status_display()}"
 
     def approve(self, reviewed_by: str, comment: str = "") -> None:
@@ -732,7 +784,7 @@ class RebalanceProposalModel(models.Model):
         self.executed_by = executed_by
         self.save()
 
-    def complete_execution(self, result: dict) -> None:
+    def complete_execution(self, result: dict[str, Any]) -> None:
         """完成执行"""
         self.status = self.STATUS_COMPLETED
         self.executed_at = timezone.now()
@@ -751,7 +803,7 @@ class RebalanceProposalModel(models.Model):
         self.status = self.STATUS_CANCELLED
         self.save()
 
-    def get_rebalance_actions(self) -> dict:
+    def get_rebalance_actions(self) -> dict[str, Any]:
         """获取再平衡操作汇总"""
         buy_actions = [p for p in self.proposals if p.get("action") == "buy"]
         sell_actions = [p for p in self.proposals if p.get("action") == "sell"]
@@ -918,7 +970,7 @@ class NotificationHistoryModel(models.Model):
             models.Index(fields=["recipient_user_id", "-created_at"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.notification_type} - {self.recipient_email or self.recipient_user_id} - {self.status}"
 
     def mark_sent(self) -> None:
@@ -988,7 +1040,7 @@ class LedgerMigrationMapModel(models.Model):
             models.Index(fields=["target_table", "target_id"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.source_table}:{self.source_id} → {self.target_table}:{self.target_id}"
 
 

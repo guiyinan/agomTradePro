@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3078,
-    "files_with_errors": 598
+    "errors": 3065,
+    "files_with_errors": 597
   },
   "modules": {
     "apps/account/application/stress_testing_use_cases.py": {
@@ -2027,10 +2027,6 @@
     },
     "apps/signal/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/simulated_trading/infrastructure/models.py": {
-      "no-untyped-def": 11,
-      "type-arg": 2
     },
     "apps/simulated_trading/infrastructure/price_provider.py": {
       "assignment": 3
