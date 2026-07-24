@@ -6,35 +6,35 @@
 ⚠️ 安全第一：执行前必须做全量备份
 """
 
-from decimal import Decimal
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
 
 from apps.macro.domain.entities import normalize_currency_unit
 from apps.macro.infrastructure.exchange_rate_config import ExchangeRateService
-from apps.macro.infrastructure.models import MacroIndicatorModel
+from apps.macro.infrastructure.models import MacroIndicator
 
 
 class Command(BaseCommand):
-    help = '迁移美元口径宏观数据，添加汇率转换'
+    help = "迁移美元口径宏观数据，添加汇率转换"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
-            '--dry-run',
-            action='store_true',
-            help='模拟运行，不实际修改数据',
+            "--dry-run",
+            action="store_true",
+            help="模拟运行，不实际修改数据",
         )
         parser.add_argument(
-            '--exchange-rate',
+            "--exchange-rate",
             type=float,
             default=None,
-            help='指定汇率（默认从 ExchangeRateService 获取）',
+            help="指定汇率（默认从 ExchangeRateService 获取）",
         )
 
-    def handle(self, *args, **options):
-        dry_run = options.get('dry_run', False)
-        manual_rate = options.get('exchange_rate')
+    def handle(self, *args: Any, **options: Any) -> None:
+        dry_run = options.get("dry_run", False)
+        manual_rate = options.get("exchange_rate")
 
         # 🔒 安全检查：强制先做备份
         self.stdout.write(self.style.WARNING("=" * 60))
@@ -42,7 +42,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING("=" * 60))
         self.stdout.write("请按以下步骤操作：")
         self.stdout.write("1. 备份数据：")
-        self.stdout.write("   python manage.py dumpdata macro.MacroIndicatorModel > backup_before_usd_fix.json")
+        self.stdout.write("   python manage.py dumpdata macro.MacroIndicator > backup_before_usd_fix.json")
         self.stdout.write("")
         self.stdout.write("2. 确认备份完成后，运行模拟迁移：")
         self.stdout.write("   python manage.py migrate_usd_data --dry-run")
@@ -55,7 +55,7 @@ class Command(BaseCommand):
         # 询问用户是否已备份
         if not dry_run:
             confirm = input("请确认您已完成数据备份 (输入 'yes' 继续): ")
-            if confirm.lower() != 'yes':
+            if confirm.lower() != "yes":
                 self.stdout.write(self.style.ERROR("❌ 未确认备份，迁移已取消"))
                 return
 
@@ -68,8 +68,8 @@ class Command(BaseCommand):
             self.stdout.write(f"使用服务获取汇率: {exchange_rate}")
 
         # 查找所有美元单位的数据
-        usd_indicators = MacroIndicatorModel._default_manager.filter(
-            original_unit__icontains='美元'
+        usd_indicators = MacroIndicator._default_manager.filter(
+            original_unit__icontains="美元"
         )
 
         total_count = usd_indicators.count()
@@ -82,7 +82,7 @@ class Command(BaseCommand):
         # 统计信息
         migrated_count = 0
         error_count = 0
-        error_details = []
+        error_details: list[str] = []
 
         with transaction.atomic():
             for indicator in usd_indicators:
@@ -105,7 +105,7 @@ class Command(BaseCommand):
                         )
                     else:
                         # 更新数据
-                        indicator.value = Decimal(str(new_value))
+                        indicator.value = float(new_value)
                         indicator.unit = new_unit
                         indicator.save()
 
