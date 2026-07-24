@@ -13,6 +13,7 @@ from apps.decision_rhythm.domain.entities import (
     ExecutionApprovalRequest,
     InvestmentRecommendation,
 )
+from apps.decision_rhythm.infrastructure.models import ExecutionApprovalRequestModel
 
 
 def _recommendation() -> InvestmentRecommendation:
@@ -121,3 +122,27 @@ def test_zero_market_price_is_validated_instead_of_skipped() -> None:
 
     assert response.success is False
     assert response.error == "无法批准: price must be positive"
+
+
+def test_approval_mapper_preserves_zero_market_price() -> None:
+    """A recorded zero must remain distinguishable from a missing price."""
+    model = ExecutionApprovalRequestModel(
+        request_id="approval-zero",
+        account_id="default",
+        security_code="000001.SH",
+        side="BUY",
+        approval_status=ApprovalStatus.PENDING.value,
+        suggested_quantity=100,
+        market_price_at_review=Decimal("0"),
+        price_range_low=Decimal("9"),
+        price_range_high=Decimal("11"),
+        stop_loss_price=Decimal("8"),
+        risk_check_results={},
+        reviewer_comments="",
+        regime_source="test",
+        created_at=datetime.now(UTC),
+    )
+
+    approval = model.to_domain()
+
+    assert approval.market_price_at_review == Decimal("0")

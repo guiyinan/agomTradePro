@@ -6,9 +6,9 @@ import uuid
 from decimal import Decimal
 from typing import Any
 
-from django.core.exceptions import ValidationError  # type: ignore[import-untyped]
-from django.db import models  # type: ignore[import-untyped]
-from django.utils import timezone  # type: ignore[import-untyped]
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils import timezone
 
 from ..domain.entities import (
     ExecutionApprovalRequest,
@@ -17,7 +17,7 @@ from ..domain.entities import (
 )
 
 
-class ValuationSnapshotModel(models.Model):  # type: ignore[misc]
+class ValuationSnapshotModel(models.Model):
     """
     估值快照 ORM 模型
 
@@ -165,7 +165,7 @@ class ValuationSnapshotModel(models.Model):  # type: ignore[misc]
         )
 
 
-class InvestmentRecommendationModel(models.Model):  # type: ignore[misc]
+class InvestmentRecommendationModel(models.Model):
     """
     投资建议 ORM 模型
 
@@ -357,7 +357,7 @@ class InvestmentRecommendationModel(models.Model):  # type: ignore[misc]
         )
 
 
-class ExecutionApprovalRequestModel(models.Model):  # type: ignore[misc]
+class ExecutionApprovalRequestModel(models.Model):
     """
     执行审批请求 ORM 模型
 
@@ -545,7 +545,9 @@ class ExecutionApprovalRequestModel(models.Model):  # type: ignore[misc]
             approval_status=ApprovalStatus(self.approval_status),
             suggested_quantity=self.suggested_quantity,
             market_price_at_review=(
-                Decimal(str(self.market_price_at_review)) if self.market_price_at_review else None
+                Decimal(str(self.market_price_at_review))
+                if self.market_price_at_review is not None
+                else None
             ),
             price_range_low=Decimal(str(self.price_range_low)),
             price_range_high=Decimal(str(self.price_range_high)),
