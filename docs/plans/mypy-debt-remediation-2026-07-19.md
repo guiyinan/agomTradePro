@@ -2450,7 +2450,8 @@
 
 - Data Center ORM models 增量 mypy 清零，并连带清除 Provider State 与 Market Thermometer Repository 下游债务；全仓基线从 `3048 errors / 594 files` 收紧为 `2998 errors / 591 files`，净减少 `50 errors / 3 files`。
 - Data Center 单元、component、API 与统一价格服务回归共 `340 passed`；覆盖 direct ORM 拒绝、数据库 update 绕过、严格 JSON 布尔和既有同步/查询路径。
-- 迁移漂移检查、改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+- 迁移漂移检查、Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 仍被本批未修改的 `broker_execution/infrastructure/repositories.py` 大文件增长和 `strategy/infrastructure/repositories.py` 缺少大文件基线两项阻断，留待对应模块拆分/治理批次处理。
 
 ## 第一百七十批
 
@@ -2619,3 +2620,20 @@
 - Account Profile API 增量 mypy 清零；全仓基线从 `2840 errors / 574 files` 收紧为 `2827 errors / 573 files`，净减少 `13 errors / 1 file`。
 - Profile、Macro Sizing、Trading Cost 与 Account Macro Domain 回归共 `87 passed`；覆盖无效 email、未知 Profile 字段、非有限/越界档位、倒置 Pulse 区间和第二个 active 配置数据库拒绝。
 - 迁移漂移检查、改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百八十一批
+
+- 按“长期访问凭证泄露影响面 × MCP/SDK 认证失败关闭”收口 Account Token Authentication。
+- 新建访问 Token 只在创建响应和受控密文中保留原始值；数据库检索列改存 SHA-256 指纹，认证 Repository 对调用方提交的原始 Token 做同算法检索，数据库泄露不再直接暴露可用凭证。
+- 增加数据迁移，将历史明文 Token 检索列原位转换为指纹；现有加密副本继续支持系统明确允许时的受控展示。
+- 普通 Token 和内部签名认证都要求用户存在启用 MCP 的账户配置；配置缺失、关闭或用户停用时统一拒绝，不再因缺失关联对象失败开放。
+- 只读 Token 的 POST 豁免只接受字符串集合/序列形式的显式 action；标量字符串等畸形 metadata 不再利用 Python 包含判断误获写权限。
+- Token 缺失 `allows_write` 能力时默认拒绝写操作；内部认证密钥类型异常和非正用户 ID 在用户查询前明确失败。
+- Authentication、Token Model 与 Registration Repository 的动态返回、请求和 ORM 边界补齐类型。
+
+## 第一百八十一批验证结果
+
+- Account Token Authentication、Identity Model 与 Registration Repository 增量 mypy 清零；全仓基线从 `2827 errors / 573 files` 收紧为 `2805 errors / 570 files`，净减少 `22 errors / 3 files`。
+- Token Authentication、Admin User Management 与 Account API 回归共 `70 passed`；新增覆盖哈希落库、历史明文迁移后原始 Token 认证、缺失账户配置、内部认证禁用和畸形只读 action 声明。
+- 另行确认模拟交易最低佣金来自启用的 `FeeConfig` 而非硬编码，资金校验边界回归 `7 passed`，其中使用 `7.5` 元最低佣金验证配置值会进入所需资金。
+- 迁移漂移检查、改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

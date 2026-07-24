@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2827,
-    "files_with_errors": 573
+    "errors": 2805,
+    "files_with_errors": 570
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -22,10 +22,6 @@
     },
     "apps/account/apps.py": {
       "no-untyped-def": 1
-    },
-    "apps/account/infrastructure/account_interface_registration_repository.py": {
-      "assignment": 1,
-      "no-untyped-def": 6
     },
     "apps/account/infrastructure/account_read_repository.py": {
       "no-untyped-def": 1
@@ -48,9 +44,6 @@
     "apps/account/infrastructure/documentation_models.py": {
       "unused-ignore": 2
     },
-    "apps/account/infrastructure/identity_models.py": {
-      "unused-ignore": 7
-    },
     "apps/account/infrastructure/market_price_service.py": {
       "assignment": 3
     },
@@ -70,11 +63,6 @@
     },
     "apps/account/interface/api_urls.py": {
       "unused-ignore": 1
-    },
-    "apps/account/interface/authentication.py": {
-      "no-untyped-call": 2,
-      "no-untyped-def": 5,
-      "var-annotated": 1
     },
     "apps/account/interface/backup_views.py": {
       "no-untyped-def": 2

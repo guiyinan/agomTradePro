@@ -1,10 +1,12 @@
 import hashlib
 import hmac
+import importlib
 import uuid
 from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 from rest_framework import exceptions
@@ -47,7 +49,31 @@ def test_multi_token_authentication_returns_user_and_updates_last_used():
     token.refresh_from_db()
     assert authenticated_user.id == user.id
     assert authenticated_token.id == token.id
+    assert token.key == UserAccessTokenModel.hash_key(raw_key)
+    assert token.key != raw_key
     assert token.last_used_at is not None
+
+
+@pytest.mark.django_db
+def test_legacy_raw_token_migration_preserves_authentication() -> None:
+    user = get_user_model().objects.create_user(
+        username=f"legacy_token_{uuid.uuid4().hex[:8]}",
+        password="test-pass-123",
+    )
+    _create_profile(user, mcp_enabled=True)
+    token, raw_key = UserAccessTokenModel.create_token(user=user, name="legacy")
+    UserAccessTokenModel.objects.filter(pk=token.pk).update(key=raw_key)
+    migration = importlib.import_module("apps.account.migrations.0035_hash_access_token_keys")
+
+    migration.hash_access_token_keys(django_apps, None)
+
+    token.refresh_from_db()
+    assert token.key == UserAccessTokenModel.hash_key(raw_key)
+    authenticated_user, authenticated_token = MultiTokenAuthentication().authenticate_credentials(
+        raw_key
+    )
+    assert authenticated_user.pk == user.pk
+    assert authenticated_token.pk == token.pk
 
 
 @pytest.mark.django_db
@@ -57,6 +83,22 @@ def test_multi_token_authentication_rejects_disabled_mcp_profile():
         password="test-pass-123",
     )
     _create_profile(user, mcp_enabled=False)
+    token, raw_key = UserAccessTokenModel.create_token(user=user, name="desktop")
+
+    with pytest.raises(exceptions.AuthenticationFailed, match="MCP access disabled."):
+        MultiTokenAuthentication().authenticate_credentials(raw_key)
+
+    token.refresh_from_db()
+    assert token.last_used_at is None
+
+
+@pytest.mark.django_db
+def test_multi_token_authentication_rejects_missing_mcp_profile():
+    user = get_user_model().objects.create_user(
+        username=f"token_no_profile_{uuid.uuid4().hex[:8]}",
+        password="test-pass-123",
+    )
+    AccountProfileModel.objects.filter(user=user).delete()
     token, raw_key = UserAccessTokenModel.create_token(user=user, name="desktop")
 
     with pytest.raises(exceptions.AuthenticationFailed, match="MCP access disabled."):
@@ -144,6 +186,34 @@ def test_multi_token_authentication_allows_explicit_pure_compute_post() -> None:
     assert authenticated_token.access_level == UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY
 
 
+@pytest.mark.django_db
+def test_multi_token_authentication_rejects_string_read_only_actions_metadata() -> None:
+    """A malformed scalar action declaration must not authorize a write transport."""
+    user = get_user_model().objects.create_user(
+        username=f"token_readonly_scalar_{uuid.uuid4().hex[:8]}",
+        password="test-pass-123",
+    )
+    _create_profile(user, mcp_enabled=True)
+    _, raw_key = UserAccessTokenModel.create_token(
+        user=user,
+        name="readonly-sdk",
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    request = APIRequestFactory().post(
+        "/api/regime/calculate/",
+        HTTP_AUTHORIZATION=f"Token {raw_key}",
+    )
+    request.parser_context = {
+        "view": SimpleNamespace(
+            action="calculate",
+            read_only_actions="calculate",
+        )
+    }
+
+    with pytest.raises(exceptions.PermissionDenied, match="read-only"):
+        MultiTokenAuthentication().authenticate(request)
+
+
 def _internal_signature(
     *, secret: str, timestamp: str, method: str, path: str, user_id: int, username: str
 ) -> str:
@@ -164,6 +234,7 @@ def test_terminal_internal_authentication_returns_originating_user():
         username=f"terminal_user_{uuid.uuid4().hex[:8]}",
         password="test-pass-123",
     )
+    _create_profile(user, mcp_enabled=True)
     request = APIRequestFactory().get(
         "/api/regime/current/?scope=latest",
         HTTP_X_AGOM_INTERNAL_TIMESTAMP="1700000000",
@@ -184,6 +255,35 @@ def test_terminal_internal_authentication_returns_originating_user():
         authenticated_user, _ = TerminalInternalAuthentication().authenticate(request)
 
     assert authenticated_user.id == user.id
+
+
+@pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_INTERNAL_AUTH_SECRET="terminal-secret")
+def test_terminal_internal_authentication_rejects_disabled_mcp_profile():
+    user = get_user_model().objects.create_user(
+        username=f"terminal_blocked_{uuid.uuid4().hex[:8]}",
+        password="test-pass-123",
+    )
+    _create_profile(user, mcp_enabled=False)
+    request = APIRequestFactory().get(
+        "/api/regime/current/",
+        HTTP_X_AGOM_INTERNAL_TIMESTAMP="1700000000",
+        HTTP_X_AGOM_INTERNAL_USER_ID=str(user.id),
+        HTTP_X_AGOM_INTERNAL_USERNAME=user.username,
+        HTTP_X_AGOM_INTERNAL_SIGNATURE=_internal_signature(
+            secret="terminal-secret",
+            timestamp="1700000000",
+            method="GET",
+            path="/api/regime/current/",
+            user_id=user.id,
+            username=user.username,
+        ),
+    )
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr("apps.account.interface.authentication.time.time", lambda: 1700000000)
+        with pytest.raises(exceptions.AuthenticationFailed, match="MCP access disabled."):
+            TerminalInternalAuthentication().authenticate(request)
 
 
 @pytest.mark.django_db

@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import time
+from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -10,13 +11,13 @@ from rest_framework.permissions import SAFE_METHODS
 from apps.account.application.repository_provider import get_account_interface_repository
 
 
-def _account_interface_repository():
+def _account_interface_repository() -> Any:
     """Return the lightweight account interface repository."""
 
     return get_account_interface_repository()
 
 
-def _is_explicit_read_only_operation(request) -> bool:
+def _is_explicit_read_only_operation(request: Any) -> bool:
     """Return whether a non-safe transport action is explicitly read-only.
 
     Some persisted-only calculations use POST because their structured inputs
@@ -27,14 +28,19 @@ def _is_explicit_read_only_operation(request) -> bool:
     parser_context = getattr(request, "parser_context", None) or {}
     view = parser_context.get("view")
     action = getattr(view, "action", None)
-    read_only_actions = getattr(view, "read_only_actions", frozenset())
-    return bool(action and action in read_only_actions)
+    raw_read_only_actions: Any = getattr(view, "read_only_actions", frozenset())
+    if not isinstance(raw_read_only_actions, (set, frozenset, list, tuple)):
+        return False
+    read_only_actions = {
+        item for item in raw_read_only_actions if isinstance(item, str) and item
+    }
+    return bool(isinstance(action, str) and action and action in read_only_actions)
 
 
 class MultiTokenAuthentication(authentication.TokenAuthentication):
     keyword = "Token"
 
-    def authenticate(self, request):
+    def authenticate(self, request: Any) -> tuple[Any, Any] | None:
         result = super().authenticate(request)
         if result is None:
             return None
@@ -43,13 +49,13 @@ class MultiTokenAuthentication(authentication.TokenAuthentication):
         read_only_operation = request.method in SAFE_METHODS or _is_explicit_read_only_operation(
             request
         )
-        if not read_only_operation and not getattr(token, "allows_write", True):
+        if not read_only_operation and not getattr(token, "allows_write", False):
             raise exceptions.PermissionDenied(
                 "This token is read-only and cannot perform write operations."
             )
         return user, token
 
-    def authenticate_credentials(self, key):
+    def authenticate_credentials(self, key: str) -> tuple[Any, Any]:
         token = _account_interface_repository().get_active_access_token(key)
         if token is None:
             raise exceptions.AuthenticationFailed("Invalid token.")
@@ -59,7 +65,7 @@ class MultiTokenAuthentication(authentication.TokenAuthentication):
             raise exceptions.AuthenticationFailed("User inactive or deleted.")
 
         profile = getattr(user, "account_profile", None)
-        if profile is not None and not profile.mcp_enabled:
+        if profile is None or not profile.mcp_enabled:
             raise exceptions.AuthenticationFailed("MCP access disabled.")
 
         _account_interface_repository().touch_access_token(token)
@@ -75,7 +81,7 @@ class TerminalInternalAuthentication(authentication.BaseAuthentication):
     HEADER_USER_ID = "HTTP_X_AGOM_INTERNAL_USER_ID"
     HEADER_USERNAME = "HTTP_X_AGOM_INTERNAL_USERNAME"
 
-    def authenticate(self, request):
+    def authenticate(self, request: Any) -> tuple[Any, None] | None:
         signature = request.META.get(self.HEADER_SIGNATURE, "").strip()
         if not signature:
             return None
@@ -87,15 +93,19 @@ class TerminalInternalAuthentication(authentication.BaseAuthentication):
         if not timestamp or not user_id:
             raise exceptions.AuthenticationFailed("Incomplete internal auth headers.")
 
-        secret = getattr(settings, "AGOMTRADEPRO_INTERNAL_AUTH_SECRET", "").strip()
-        if not secret:
+        raw_secret = getattr(settings, "AGOMTRADEPRO_INTERNAL_AUTH_SECRET", "")
+        if not isinstance(raw_secret, str) or not raw_secret.strip():
             raise exceptions.AuthenticationFailed("Internal auth is not configured.")
+        secret = raw_secret.strip()
 
         try:
             request_ts = int(timestamp)
             target_user_id = int(user_id)
         except (TypeError, ValueError):
             raise exceptions.AuthenticationFailed("Invalid internal auth headers.") from None
+
+        if target_user_id <= 0:
+            raise exceptions.AuthenticationFailed("Invalid internal auth headers.")
 
         if abs(int(time.time()) - request_ts) > self.SIGNATURE_TTL:
             raise exceptions.AuthenticationFailed("Internal auth signature expired.")
@@ -120,6 +130,10 @@ class TerminalInternalAuthentication(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed("Internal auth user is inactive or missing.")
         if username and user.username != username:
             raise exceptions.AuthenticationFailed("Internal auth user mismatch.")
+
+        profile = getattr(user, "account_profile", None)
+        if profile is None or not profile.mcp_enabled:
+            raise exceptions.AuthenticationFailed("MCP access disabled.")
 
         return (user, None)
 
