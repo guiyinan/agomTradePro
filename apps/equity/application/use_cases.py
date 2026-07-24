@@ -11,22 +11,110 @@ import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
+from math import isfinite
+from typing import Protocol, TypeAlias, cast
 
 from apps.account.application.config_summary_service import (
     get_account_config_summary_service,
 )
 from apps.equity.application.repository_provider import (
     get_equity_market_data_repository,
-    get_equity_regime_repository,
     get_equity_scoring_weight_config_repository,
     get_stock_screening_rule,
 )
+from apps.equity.domain.entities import (
+    FinancialData,
+    IntradayPricePoint,
+    ScoringWeightConfig,
+    StockInfo,
+    TechnicalBar,
+    ValuationMetrics,
+)
+from apps.equity.domain.ports import MarketDataPort
 from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.domain.services import StockScreener
 from apps.equity.domain.services_technical import TechnicalChartService
+from apps.regime.domain.entities import RegimeSnapshot
 from core.exceptions import DataFetchError, DataValidationError
 
 logger = logging.getLogger(__name__)
+
+EquityPayload: TypeAlias = dict[str, object]
+
+
+class EquityStockReadRepositoryProtocol(Protocol):
+    """Read contract used by equity analysis application use cases."""
+
+    def get_stock_info(self, stock_code: str) -> StockInfo | None: ...
+
+    def get_all_stocks_with_fundamentals(
+        self,
+        as_of_date: date | None = None,
+    ) -> list[tuple[StockInfo, FinancialData, ValuationMetrics]]: ...
+
+    def get_technical_bars(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        hydrate: bool = False,
+    ) -> list[TechnicalBar]: ...
+
+    def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]: ...
+
+    def get_last_intraday_source(self) -> str | None: ...
+
+    def get_valuation_history(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        hydrate: bool = False,
+    ) -> list[ValuationMetrics]: ...
+
+    def get_latest_financial_data(
+        self,
+        stock_code: str,
+        *,
+        hydrate: bool = False,
+    ) -> FinancialData | None: ...
+
+    def get_daily_prices(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        hydrate: bool = False,
+    ) -> list[tuple[date, Decimal]]: ...
+
+    def calculate_daily_returns(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        hydrate: bool = False,
+    ) -> dict[date, float]: ...
+
+
+class RegimeHistoryRepositoryProtocol(Protocol):
+    """Historical regime snapshots required by correlation analysis."""
+
+    def get_snapshots_in_range(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[RegimeSnapshot]: ...
+
+
+class ScoringWeightConfigRepositoryProtocol(Protocol):
+    """Read contract for the active database-backed scoring weights."""
+
+    def get_active_config(self) -> ScoringWeightConfig: ...
+
 
 RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS = (
     ArithmeticError,
@@ -47,34 +135,70 @@ RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS = (
 def get_runtime_benchmark_code(key: str, default: str = "") -> str:
     """Return a runtime benchmark code through the account-owned config service."""
 
-    return get_account_config_summary_service().get_runtime_benchmark_code(key, default)
+    value = get_account_config_summary_service().get_runtime_benchmark_code(key, default)
+    return str(value or default)
 
 
-def _call_repo_with_hydrate(method, *args, hydrate: bool = False, **kwargs):
-    """Call repositories that support optional read-through hydration when available."""
+def _custom_float(payload: EquityPayload, key: str, default: float) -> float:
+    """Read one finite numeric custom screening value."""
+
+    raw = payload.get(key)
+    if raw is None:
+        return default
+    if isinstance(raw, bool):
+        raise ValueError(f"{key} must be numeric")
     try:
-        return method(*args, hydrate=hydrate, **kwargs)
-    except TypeError as exc:
-        if "hydrate" not in str(exc):
-            raise
-        return method(*args, **kwargs)
+        value = float(str(raw))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{key} must be numeric") from exc
+    if not isfinite(value):
+        raise ValueError(f"{key} must be finite")
+    return value
 
 
-def _has_meaningful_repo_payload(payload: object) -> bool:
-    """Return True when a repository read produced usable data."""
-    if payload is None:
-        return False
-    if isinstance(payload, list | tuple | dict | set | str | bytes):
-        return bool(payload)
-    return True
+def _custom_decimal(payload: EquityPayload, key: str, default: Decimal) -> Decimal:
+    """Read one finite non-negative Decimal custom screening value."""
+
+    raw = payload.get(key)
+    if raw is None:
+        return default
+    if isinstance(raw, bool):
+        raise ValueError(f"{key} must be numeric")
+    try:
+        value = Decimal(str(raw))
+    except (ArithmeticError, ValueError) as exc:
+        raise ValueError(f"{key} must be numeric") from exc
+    if not value.is_finite() or value < 0:
+        raise ValueError(f"{key} must be a finite non-negative value")
+    return value
 
 
-def _load_repo_cache_first(method, *args, **kwargs):
-    """Prefer cached/local reads and only hydrate when nothing usable exists."""
-    cached_payload = _call_repo_with_hydrate(method, *args, hydrate=False, **kwargs)
-    if _has_meaningful_repo_payload(cached_payload):
-        return cached_payload
-    return _call_repo_with_hydrate(method, *args, hydrate=True, **kwargs)
+def _custom_count(payload: EquityPayload, key: str, default: int) -> int:
+    """Read one bounded custom screening count."""
+
+    raw = payload.get(key)
+    if raw is None:
+        return default
+    if isinstance(raw, bool):
+        raise ValueError(f"{key} must be an integer")
+    try:
+        value = int(str(raw))
+    except ValueError as exc:
+        raise ValueError(f"{key} must be an integer") from exc
+    if not 1 <= value <= 100:
+        raise ValueError(f"{key} must be between 1 and 100")
+    return value
+
+
+def _custom_sectors(payload: EquityPayload) -> list[str] | None:
+    """Read an optional string-only sector preference list."""
+
+    raw = payload.get("sector_preference")
+    if raw is None:
+        return None
+    if not isinstance(raw, list) or any(not isinstance(item, str) for item in raw):
+        raise ValueError("sector_preference must be an array of strings")
+    return [item.strip() for item in raw if item.strip()]
 
 
 @dataclass
@@ -82,7 +206,7 @@ class ScreenStocksRequest:
     """筛选个股请求"""
 
     regime: str | None = None  # 如果为 None，自动获取最新 Regime
-    custom_rule: dict | None = None  # 自定义规则
+    custom_rule: EquityPayload | None = None  # 自定义规则
     max_count: int = 30
 
 
@@ -93,15 +217,19 @@ class ScreenStocksResponse:
     success: bool
     regime: str
     stock_codes: list[str]
-    items: list[dict]
-    screening_criteria: dict
+    items: list[EquityPayload]
+    screening_criteria: EquityPayload
     error: str | None = None
 
 
 class ScreenStocksUseCase:
     """筛选个股用例"""
 
-    def __init__(self, stock_repository, regime_repository):
+    def __init__(
+        self,
+        stock_repository: EquityStockReadRepositoryProtocol,
+        regime_repository: object,
+    ) -> None:
         """
         初始化用例
 
@@ -124,6 +252,9 @@ class ScreenStocksUseCase:
         5. 返回结果
         """
         try:
+            if not 1 <= request.max_count <= 100:
+                raise ValueError("max_count must be between 1 and 100")
+
             # 1. 获取 Regime
             if request.regime:
                 regime = request.regime
@@ -168,7 +299,10 @@ class ScreenStocksUseCase:
                 raise ValueError("没有找到股票数据，请先运行数据采集任务")
 
             # 4. 获取评分权重配置
-            config_repo = get_equity_scoring_weight_config_repository()
+            config_repo = cast(
+                ScoringWeightConfigRepositoryProtocol,
+                get_equity_scoring_weight_config_repository(),
+            )
             scoring_config = config_repo.get_active_config()
 
             # 5. 筛选（调用 Domain 服务，传入评分配置）
@@ -179,7 +313,7 @@ class ScreenStocksUseCase:
                 stock_info.stock_code: (stock_info, financial, valuation)
                 for stock_info, financial, valuation in all_stocks
             }
-            items: list[dict] = []
+            items: list[EquityPayload] = []
             for rank, stock_code in enumerate(stock_codes, start=1):
                 stock_row = stock_lookup.get(stock_code)
                 if not stock_row:
@@ -232,7 +366,11 @@ class ScreenStocksUseCase:
                 error=str(e),
             )
 
-    def _parse_custom_rule(self, custom_rule: dict, regime: str) -> StockScreeningRule:
+    def _parse_custom_rule(
+        self,
+        custom_rule: EquityPayload,
+        regime: str,
+    ) -> StockScreeningRule:
         """
         解析自定义规则
 
@@ -243,18 +381,21 @@ class ScreenStocksUseCase:
         Returns:
             StockScreeningRule 对象
         """
+        raw_name = custom_rule.get("name")
+        if raw_name is not None and not isinstance(raw_name, str):
+            raise ValueError("name must be a string")
         return StockScreeningRule(
             regime=regime,
-            name=custom_rule.get("name", "自定义规则"),
-            min_roe=custom_rule.get("min_roe", 0.0),
-            min_revenue_growth=custom_rule.get("min_revenue_growth", 0.0),
-            min_profit_growth=custom_rule.get("min_profit_growth", 0.0),
-            max_debt_ratio=custom_rule.get("max_debt_ratio", 100.0),
-            max_pe=custom_rule.get("max_pe", 999.0),
-            max_pb=custom_rule.get("max_pb", 999.0),
-            min_market_cap=Decimal(str(custom_rule.get("min_market_cap", 0))),
-            sector_preference=custom_rule.get("sector_preference"),
-            max_count=custom_rule.get("max_count", 50),
+            name=raw_name or "自定义规则",
+            min_roe=_custom_float(custom_rule, "min_roe", 0.0),
+            min_revenue_growth=_custom_float(custom_rule, "min_revenue_growth", 0.0),
+            min_profit_growth=_custom_float(custom_rule, "min_profit_growth", 0.0),
+            max_debt_ratio=_custom_float(custom_rule, "max_debt_ratio", 100.0),
+            max_pe=_custom_float(custom_rule, "max_pe", 999.0),
+            max_pb=_custom_float(custom_rule, "max_pb", 999.0),
+            min_market_cap=_custom_decimal(custom_rule, "min_market_cap", Decimal("0")),
+            sector_preference=_custom_sectors(custom_rule),
+            max_count=_custom_count(custom_rule, "max_count", 50),
         )
 
 
@@ -275,9 +416,9 @@ class GetTechnicalChartResponse:
     stock_code: str
     stock_name: str
     timeframe: str
-    candles: list[dict]
-    signals: list[dict]
-    latest_signal: dict | None
+    candles: list[EquityPayload]
+    signals: list[EquityPayload]
+    latest_signal: EquityPayload | None
     error: str | None = None
 
 
@@ -295,8 +436,8 @@ class GetIntradayChartResponse:
     success: bool
     stock_code: str
     stock_name: str
-    points: list[dict]
-    latest_point: dict | None
+    points: list[EquityPayload]
+    latest_point: EquityPayload | None
     session_date: str | None
     source: str | None
     error: str | None = None
@@ -305,7 +446,7 @@ class GetIntradayChartResponse:
 class GetTechnicalChartUseCase:
     """个股技术图表用例。"""
 
-    def __init__(self, stock_repository):
+    def __init__(self, stock_repository: EquityStockReadRepositoryProtocol) -> None:
         self.stock_repo = stock_repository
         self.chart_service = TechnicalChartService()
 
@@ -321,8 +462,7 @@ class GetTechnicalChartUseCase:
                 request.timeframe, request.lookback_days
             )
             start_date = end_date - timedelta(days=lookback_days)
-            bars = _call_repo_with_hydrate(
-                self.stock_repo.get_technical_bars,
+            bars = self.stock_repo.get_technical_bars(
                 request.stock_code,
                 start_date=start_date,
                 end_date=end_date,
@@ -334,7 +474,7 @@ class GetTechnicalChartUseCase:
             aggregated_bars = self.chart_service.aggregate_bars(bars, request.timeframe)
             signals = self.chart_service.detect_crossovers(aggregated_bars)
 
-            candle_payload = [
+            candle_payload: list[EquityPayload] = [
                 {
                     "trade_date": bar.trade_date.isoformat(),
                     "open": float(bar.open),
@@ -353,7 +493,7 @@ class GetTechnicalChartUseCase:
                 }
                 for bar in aggregated_bars
             ]
-            signal_payload = [
+            signal_payload: list[EquityPayload] = [
                 {
                     "signal_type": signal.signal_type,
                     "trade_date": signal.trade_date.isoformat(),
@@ -400,7 +540,7 @@ class GetTechnicalChartUseCase:
 class GetIntradayChartUseCase:
     """个股分时图用例。"""
 
-    def __init__(self, stock_repository):
+    def __init__(self, stock_repository: EquityStockReadRepositoryProtocol) -> None:
         self.stock_repo = stock_repository
 
     def execute(self, request: GetIntradayChartRequest) -> GetIntradayChartResponse:
@@ -416,7 +556,7 @@ class GetIntradayChartUseCase:
             if not points:
                 raise ValueError(f"未找到股票 {request.stock_code} 的分时数据")
 
-            payload = [
+            payload: list[EquityPayload] = [
                 {
                     "timestamp": point.timestamp.isoformat(),
                     "price": float(point.price),
@@ -433,11 +573,7 @@ class GetIntradayChartUseCase:
                 points=payload,
                 latest_point=payload[-1] if payload else None,
                 session_date=points[-1].timestamp.date().isoformat() if points else None,
-                source=(
-                    self.stock_repo.get_last_intraday_source()
-                    if hasattr(self.stock_repo, "get_last_intraday_source")
-                    else "akshare"
-                ),
+                source=self.stock_repo.get_last_intraday_source() or "akshare",
             )
         except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
             logger.warning("GetIntradayChartUseCase.execute failed: %s", exc)
@@ -479,16 +615,16 @@ class AnalyzeValuationResponse:
     pb_percentile: float
     is_undervalued: bool
     # 最新估值详情
-    latest_valuation: dict | None = None
+    latest_valuation: EquityPayload | None = None
     # 财务数据
-    financial_data: dict | None = None
+    financial_data: EquityPayload | None = None
     error: str | None = None
 
 
 class AnalyzeValuationUseCase:
     """估值分析用例"""
 
-    def __init__(self, stock_repository):
+    def __init__(self, stock_repository: EquityStockReadRepositoryProtocol) -> None:
         """
         初始化用例
 
@@ -523,8 +659,7 @@ class AnalyzeValuationUseCase:
             end_date = date.today()
             start_date = end_date - timedelta(days=request.lookback_days)
 
-            valuation_history = _call_repo_with_hydrate(
-                self.stock_repo.get_valuation_history,
+            valuation_history = self.stock_repo.get_valuation_history(
                 request.stock_code,
                 start_date,
                 end_date,
@@ -532,15 +667,13 @@ class AnalyzeValuationUseCase:
             )
 
             # 5. 获取财务数据
-            financial = _call_repo_with_hydrate(
-                self.stock_repo.get_latest_financial_data,
+            financial = self.stock_repo.get_latest_financial_data(
                 request.stock_code,
                 hydrate=False,
             )
 
             # 6. 获取日线数据（用于获取当前价格、换手率等）
-            daily_prices = _call_repo_with_hydrate(
-                self.stock_repo.get_daily_prices,
+            daily_prices = self.stock_repo.get_daily_prices(
                 request.stock_code,
                 start_date=end_date - timedelta(days=7),
                 end_date=end_date,
@@ -552,7 +685,7 @@ class AnalyzeValuationUseCase:
             pe_percentile = 0.0
             pb_percentile = 0.0
             is_undervalued = False
-            latest_valuation = None
+            latest_valuation: EquityPayload | None = None
             response_error = None
 
             if valuation_history:
@@ -604,7 +737,7 @@ class AnalyzeValuationUseCase:
                 }
 
             # 8. 构建财务数据字典
-            financial_data = None
+            financial_data: EquityPayload | None = None
             if financial:
                 financial_data = {
                     "roe": financial.roe,
@@ -699,7 +832,7 @@ class CalculateDCFResponse:
 class CalculateDCFUseCase:
     """DCF 绝对估值用例"""
 
-    def __init__(self, stock_repository):
+    def __init__(self, stock_repository: EquityStockReadRepositoryProtocol) -> None:
         """
         初始化用例
 
@@ -729,8 +862,7 @@ class CalculateDCFUseCase:
                 raise ValueError(f"未找到股票 {request.stock_code}")
 
             # 2. 获取最新财务数据
-            financial = _call_repo_with_hydrate(
-                self.stock_repo.get_latest_financial_data,
+            financial = self.stock_repo.get_latest_financial_data(
                 request.stock_code,
                 hydrate=True,
             )
@@ -739,7 +871,9 @@ class CalculateDCFUseCase:
 
             # 3. 计算自由现金流（简化版：FCF = 净利润 + 折旧 - 资本支出 - 营运资本变化）
             # 简化：使用净利润的 80% 作为自由现金流近似值
-            latest_fcf = financial.net_profit * Decimal(0.8)
+            latest_fcf = financial.net_profit * Decimal("0.8")
+            if not latest_fcf.is_finite() or latest_fcf <= 0:
+                raise ValueError("自由现金流必须为有限正数，当前财务数据不适合 DCF")
 
             # 4. 调用 Domain 层的 DCF 计算
             analyzer = ValuationAnalyzer()
@@ -752,35 +886,33 @@ class CalculateDCFUseCase:
             )
 
             # 5. 获取当前市值和股价
-            valuation = _call_repo_with_hydrate(
-                self.stock_repo.get_valuation_history,
+            valuation = self.stock_repo.get_valuation_history(
                 request.stock_code,
                 date.today() - timedelta(days=7),
                 date.today(),
                 hydrate=True,
             )
+            if not valuation:
+                raise ValueError(f"未找到股票 {request.stock_code} 的估值数据")
+            current_mv = valuation[-1].total_mv
+            if not current_mv.is_finite() or current_mv <= 0:
+                raise ValueError("总市值必须为有限正数，无法推导总股本")
 
-            current_price = None
-            intrinsic_value_per_share = None
-            upside = None
+            daily_prices = self.stock_repo.get_daily_prices(
+                request.stock_code,
+                start_date=date.today() - timedelta(days=30),
+                end_date=date.today(),
+                hydrate=True,
+            )
+            if not daily_prices:
+                raise ValueError(f"未找到股票 {request.stock_code} 的当前价格")
+            current_price = daily_prices[-1][1]
+            if not current_price.is_finite() or current_price <= 0:
+                raise ValueError("当前价格必须为有限正数")
 
-            if valuation:
-                current_mv = valuation[-1].total_mv
-                current_price = (
-                    valuation[-1].total_mv / valuation[-1].ps if valuation[-1].ps > 0 else None
-                )
-
-                # 计算每股内在价值（简化：使用总股本）
-                # intrinsic_value_per_share = intrinsic_value / total_shares
-                # 这里简化处理：假设内在价值/市值比例
-                if current_mv and current_mv > 0:
-                    intrinsic_value_per_share = (
-                        intrinsic_value / current_mv * (current_price or Decimal(1))
-                    )
-
-                # 计算上涨空间
-                if current_price and current_price > 0:
-                    upside = float((intrinsic_value_per_share - current_price) / current_price)
+            total_shares = current_mv / current_price
+            intrinsic_value_per_share = intrinsic_value / total_shares
+            upside = float((intrinsic_value_per_share - current_price) / current_price)
 
             # 6. 返回结果
             return CalculateDCFResponse(
@@ -846,7 +978,11 @@ class AnalyzeRegimeCorrelationResponse:
 class AnalyzeRegimeCorrelationUseCase:
     """Regime 相关性分析用例"""
 
-    def __init__(self, stock_repository, regime_repository):
+    def __init__(
+        self,
+        stock_repository: EquityStockReadRepositoryProtocol,
+        regime_repository: RegimeHistoryRepositoryProtocol,
+    ) -> None:
         """
         初始化用例
 
@@ -883,8 +1019,7 @@ class AnalyzeRegimeCorrelationUseCase:
             end_date = date.today()
             start_date = end_date - timedelta(days=request.lookback_days)
 
-            stock_returns = _call_repo_with_hydrate(
-                self.stock_repo.calculate_daily_returns,
+            stock_returns = self.stock_repo.calculate_daily_returns(
                 request.stock_code,
                 start_date,
                 end_date,
@@ -914,7 +1049,7 @@ class AnalyzeRegimeCorrelationUseCase:
             )
 
             # 6. 构造响应
-            regime_performance = {}
+            regime_performance: dict[str, RegimePerformance] = {}
             for regime in ["Recovery", "Overheat", "Stagflation", "Deflation"]:
                 # 计算样本天数
                 sample_days = sum(1 for r in regime_history.values() if r == regime)
@@ -969,11 +1104,10 @@ class AnalyzeRegimeCorrelationUseCase:
             {日期: Regime 名称}
         """
         try:
-            regime_adapter = get_equity_regime_repository()
-            snapshots = regime_adapter.get_snapshots_in_range(start_date, end_date)
+            snapshots = self.regime_repo.get_snapshots_in_range(start_date, end_date)
 
             # 将快照列表转换为日期字典
-            regime_history = {}
+            regime_history: dict[date, str] = {}
             for snapshot in snapshots:
                 regime_history[snapshot.observed_at] = snapshot.dominant_regime
 
@@ -1000,13 +1134,19 @@ class AnalyzeRegimeCorrelationUseCase:
             {日期: 收益率}
         """
         try:
-            market_adapter = get_equity_market_data_repository()
+            market_adapter = cast(
+                MarketDataPort,
+                get_equity_market_data_repository(),
+            )
             benchmark_code = get_runtime_benchmark_code("equity_market_benchmark")
             if not benchmark_code:
                 return {}
-            return market_adapter.get_index_daily_returns(
-                index_code=benchmark_code, start_date=start_date, end_date=end_date
+            returns = market_adapter.get_index_daily_returns(
+                index_code=benchmark_code,
+                start_date=start_date,
+                end_date=end_date,
             )
+            return dict(returns)
 
         except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
             # 如果获取失败，返回空字典
@@ -1031,33 +1171,19 @@ class AnalyzeRegimeCorrelationUseCase:
         """
         from datetime import timedelta
 
-        result = {}
+        result: dict[date, str] = {}
+        if not regime_history:
+            return result
         current = start_date
-        last_regime = "Recovery"  # 默认 Regime
-
-        # 按日期排序
-        sorted_dates = sorted(regime_history.keys())
+        last_regime: str | None = None
 
         while current <= end_date:
             # 如果当前日期有数据，使用当前日期的数据
             if current in regime_history:
                 result[current] = regime_history[current]
                 last_regime = regime_history[current]
-            else:
-                # 找到最近的前一个日期
-                prev_date = None
-                for d in sorted_dates:
-                    if d <= current:
-                        prev_date = d
-                    else:
-                        break
-
-                if prev_date:
-                    result[current] = regime_history[prev_date]
-                    last_regime = regime_history[prev_date]
-                else:
-                    # 没有找到前一个日期，使用已知的最后一个 Regime
-                    result[current] = last_regime
+            elif last_regime is not None:
+                result[current] = last_regime
 
             current += timedelta(days=1)
 
@@ -1087,9 +1213,9 @@ class ValuationScoreDTO:
     method: str
     score: float
     signal: str  # 'undervalued', 'fair', 'overvalued'
-    details: dict
+    details: EquityPayload
 
-    def to_dict(self):
+    def to_dict(self) -> EquityPayload:
         return {
             "method": self.method,
             "score": self.score,
@@ -1109,14 +1235,14 @@ class ComprehensiveValuationResponse:
     overall_signal: str
     recommendation: str
     confidence: float
-    scores: list[dict]  # 序列化后的评分列表
+    scores: list[EquityPayload]  # 序列化后的评分列表
     error: str | None = None
 
 
 class ComprehensiveValuationUseCase:
     """综合估值分析用例"""
 
-    def __init__(self, stock_repository):
+    def __init__(self, stock_repository: EquityStockReadRepositoryProtocol) -> None:
         """
         初始化用例
 
@@ -1150,8 +1276,7 @@ class ComprehensiveValuationUseCase:
                 raise ValueError(f"未找到股票 {request.stock_code}")
 
             # 2. 获取最新财务数据
-            financial = _call_repo_with_hydrate(
-                self.stock_repo.get_latest_financial_data,
+            financial = self.stock_repo.get_latest_financial_data(
                 request.stock_code,
                 hydrate=True,
             )
@@ -1162,8 +1287,7 @@ class ComprehensiveValuationUseCase:
             end_date = date.today()
             start_date = end_date - timedelta(days=request.lookback_days)
 
-            valuation_history = _call_repo_with_hydrate(
-                self.stock_repo.get_valuation_history,
+            valuation_history = self.stock_repo.get_valuation_history(
                 request.stock_code,
                 start_date,
                 end_date,

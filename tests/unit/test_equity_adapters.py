@@ -20,12 +20,7 @@ class TestIncrementalScreeningEngineRuleDetection:
         from apps.equity.domain.rules import StockScreeningRule
 
         engine = IncrementalScreeningEngine()
-        rule1 = StockScreeningRule(
-            regime='Recovery',
-            name='测试规则',
-            min_roe=15.0,
-            max_pe=30.0
-        )
+        rule1 = StockScreeningRule(regime="Recovery", name="测试规则", min_roe=15.0, max_pe=30.0)
 
         hash1 = engine._compute_rule_hash(rule1)
         assert hash1 is not None
@@ -38,12 +33,7 @@ class TestIncrementalScreeningEngineRuleDetection:
         from apps.equity.domain.rules import StockScreeningRule
 
         engine = IncrementalScreeningEngine()
-        rule = StockScreeningRule(
-            regime='Recovery',
-            name='测试规则',
-            min_roe=15.0,
-            max_pe=30.0
-        )
+        rule = StockScreeningRule(regime="Recovery", name="测试规则", min_roe=15.0, max_pe=30.0)
 
         result = engine._has_rule_changed(rule)
 
@@ -56,12 +46,7 @@ class TestIncrementalScreeningEngineRuleDetection:
         from apps.equity.domain.rules import StockScreeningRule
 
         engine = IncrementalScreeningEngine()
-        rule = StockScreeningRule(
-            regime='Recovery',
-            name='测试规则',
-            min_roe=15.0,
-            max_pe=30.0
-        )
+        rule = StockScreeningRule(regime="Recovery", name="测试规则", min_roe=15.0, max_pe=30.0)
 
         # 第一次调用
         engine._has_rule_changed(rule)
@@ -76,17 +61,9 @@ class TestIncrementalScreeningEngineRuleDetection:
         from apps.equity.domain.rules import StockScreeningRule
 
         engine = IncrementalScreeningEngine()
-        rule1 = StockScreeningRule(
-            regime='Recovery',
-            name='测试规则',
-            min_roe=15.0,
-            max_pe=30.0
-        )
+        rule1 = StockScreeningRule(regime="Recovery", name="测试规则", min_roe=15.0, max_pe=30.0)
         rule2 = StockScreeningRule(
-            regime='Recovery',
-            name='测试规则',
-            min_roe=20.0,  # 修改了 min_roe
-            max_pe=30.0
+            regime="Recovery", name="测试规则", min_roe=20.0, max_pe=30.0  # 修改了 min_roe
         )
 
         # 第一次调用
@@ -105,22 +82,17 @@ class TestRegimeHistoryFill:
         from apps.equity.application.use_cases import AnalyzeRegimeCorrelationUseCase
 
         use_case = AnalyzeRegimeCorrelationUseCase(
-            stock_repository=Mock(),
-            regime_repository=Mock()
+            stock_repository=Mock(), regime_repository=Mock()
         )
 
         # 创建有缺失的数据
         regime_history = {
-            date(2024, 1, 1): 'Recovery',
-            date(2024, 1, 3): 'Recovery',
-            date(2024, 1, 5): 'Overheat',
+            date(2024, 1, 1): "Recovery",
+            date(2024, 1, 3): "Recovery",
+            date(2024, 1, 5): "Overheat",
         }
 
-        result = use_case._fill_missing_dates(
-            regime_history,
-            date(2024, 1, 1),
-            date(2024, 1, 5)
-        )
+        result = use_case._fill_missing_dates(regime_history, date(2024, 1, 1), date(2024, 1, 5))
 
         # 验证所有日期都被填充
         assert date(2024, 1, 1) in result
@@ -130,28 +102,41 @@ class TestRegimeHistoryFill:
         assert date(2024, 1, 5) in result
 
         # 1月2日应该使用1月1日的 Regime
-        assert result[date(2024, 1, 2)] == 'Recovery'
+        assert result[date(2024, 1, 2)] == "Recovery"
         # 1月4日应该使用1月3日的 Regime
-        assert result[date(2024, 1, 4)] == 'Recovery'
+        assert result[date(2024, 1, 4)] == "Recovery"
 
     def test_fill_missing_dates_empty_history(self):
-        """测试空历史数据的填充"""
+        """空历史不能伪造默认 Regime。"""
+        from apps.equity.application.use_cases import AnalyzeRegimeCorrelationUseCase
+
+        use_case = AnalyzeRegimeCorrelationUseCase(
+            stock_repository=Mock(), regime_repository=Mock()
+        )
+
+        result = use_case._fill_missing_dates({}, date(2024, 1, 1), date(2024, 1, 3))  # 空历史
+
+        assert result == {}
+
+    def test_fill_missing_dates_does_not_backfill_before_first_snapshot(self):
+        """首个真实快照之前的日期必须保持未知。"""
         from apps.equity.application.use_cases import AnalyzeRegimeCorrelationUseCase
 
         use_case = AnalyzeRegimeCorrelationUseCase(
             stock_repository=Mock(),
-            regime_repository=Mock()
+            regime_repository=Mock(),
         )
 
         result = use_case._fill_missing_dates(
-            {},  # 空历史
+            {date(2024, 1, 3): "Overheat"},
             date(2024, 1, 1),
-            date(2024, 1, 3)
+            date(2024, 1, 5),
         )
 
-        # 应该使用默认 Regime 填充所有日期
-        assert len(result) == 3
-        assert all(v == 'Recovery' for v in result.values())
+        assert date(2024, 1, 1) not in result
+        assert date(2024, 1, 2) not in result
+        assert result[date(2024, 1, 3)] == "Overheat"
+        assert result[date(2024, 1, 5)] == "Overheat"
 
 
 class TestEquityViewSetInitialization:
@@ -166,14 +151,14 @@ class TestEquityViewSetInitialization:
         if not settings.configured:
             settings.configure(
                 DEBUG=True,
-                DATABASES={'default': {'ENGINE': 'django.db.backends.sqlite3'}},
+                DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3"}},
                 INSTALLED_APPS=[
-                    'django.contrib.contenttypes',
-                    'django.contrib.auth',
-                    'rest_framework',
-                    'apps.equity',
+                    "django.contrib.contenttypes",
+                    "django.contrib.auth",
+                    "rest_framework",
+                    "apps.equity",
                 ],
-                SECRET_KEY='test-secret-key',
+                SECRET_KEY="test-secret-key",
             )
             django.setup()
 
@@ -182,7 +167,7 @@ class TestEquityViewSetInitialization:
         viewset = EquityViewSet()
 
         # 验证 regime_repo 已被注入
-        assert hasattr(viewset, 'regime_repo')
+        assert hasattr(viewset, "regime_repo")
         assert viewset.regime_repo is not None
 
 
@@ -197,9 +182,9 @@ class TestStockPoolImplementation:
 
         # 验证适配器有所需的方法
         adapter = StockPoolRepositoryAdapter()
-        assert hasattr(adapter, 'get_current_pool')
-        assert hasattr(adapter, 'save_pool')
-        assert hasattr(adapter, 'get_latest_pool_info')
+        assert hasattr(adapter, "get_current_pool")
+        assert hasattr(adapter, "save_pool")
+        assert hasattr(adapter, "get_latest_pool_info")
 
 
 # TODO 计数测试
@@ -218,31 +203,31 @@ class TestTOODOCount:
         import re
 
         files_to_check = [
-            'apps/equity/application/use_cases.py',
-            'apps/equity/domain/optimized_screener.py',
-            'apps/equity/interface/views.py',
+            "apps/equity/application/use_cases.py",
+            "apps/equity/domain/optimized_screener.py",
+            "apps/equity/interface/views.py",
         ]
 
         total_todos = 0
         low_priority_todos = 0
 
-        base_path = 'D:/githv/agomTradePro'
+        base_path = "D:/githv/agomTradePro"
 
         for file_path in files_to_check:
             full_path = os.path.join(base_path, file_path)
             if not os.path.exists(full_path):
                 continue
 
-            with open(full_path, encoding='utf-8') as f:
+            with open(full_path, encoding="utf-8") as f:
                 content = f.read()
 
                 # 查找 TODO
-                todos = re.findall(r'# TODO([^\n]*)', content)
+                todos = re.findall(r"# TODO([^\n]*)", content)
                 total_todos += len(todos)
 
                 # 统计低优先级 TODO
                 for todo in todos:
-                    if '[低优先级]' in todo or '[未来优化]' in todo or '[可保留' in todo:
+                    if "[低优先级]" in todo or "[未来优化]" in todo or "[可保留" in todo:
                         low_priority_todos += 1
 
         # 原始 TODO 数量约为 11 个

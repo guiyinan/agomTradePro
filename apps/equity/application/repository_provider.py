@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.infrastructure.adapters import (
     MarketDataRepositoryAdapter,
     RegimeRepositoryAdapter,
@@ -11,7 +12,9 @@ from apps.equity.infrastructure.adapters import (
 )
 from apps.equity.infrastructure.adapters import TushareStockAdapter as TushareStockAdapter
 from apps.equity.infrastructure.asset_master_queries import EquityAssetMasterQueryRepository
-from apps.equity.infrastructure.config_loader import get_stock_screening_rule  # noqa: F401
+from apps.equity.infrastructure.config_loader import (
+    get_stock_screening_rule as _load_stock_screening_rule,
+)
 from apps.equity.infrastructure.providers import (
     DjangoEquityAssetRepository,
     DjangoStockRepository,
@@ -28,7 +31,10 @@ from apps.equity.infrastructure.valuation_source_gateways import (
 from apps.equity.infrastructure.valuation_source_gateways import (
     TushareValuationGateway as TushareValuationGateway,
 )
-from apps.regime.application.repository_provider import get_regime_repository
+from apps.regime.application.repository_provider import (
+    DjangoRegimeRepository,
+    get_regime_repository,
+)
 
 if TYPE_CHECKING:
     from apps.equity.infrastructure.financial_source_gateway import (
@@ -51,7 +57,7 @@ def get_equity_asset_master_query_repository() -> EquityAssetMasterQueryReposito
 def resolve_equity_names(codes: list[str]) -> dict[str, str]:
     """Resolve equity display names through the equity stock repository."""
 
-    return get_equity_stock_repository().resolve_stock_names(codes)
+    return dict(get_equity_stock_repository().resolve_stock_names(codes))
 
 
 def get_equity_valuation_repair_repository() -> DjangoValuationRepairRepository:
@@ -72,7 +78,7 @@ def get_equity_regime_repository() -> RegimeRepositoryAdapter:
     return RegimeRepositoryAdapter()
 
 
-def get_equity_regime_history_repository():
+def get_equity_regime_history_repository() -> DjangoRegimeRepository:
     """Return the concrete regime history repository for correlation analysis."""
 
     return get_regime_repository()
@@ -128,6 +134,12 @@ def get_equity_scoring_weight_config_repository() -> ScoringWeightConfigReposito
     """Return the scoring weight config repository."""
 
     return ScoringWeightConfigRepository()
+
+
+def get_stock_screening_rule(regime: str) -> StockScreeningRule | None:
+    """Return the configured screening rule through the application provider boundary."""
+
+    return _load_stock_screening_rule(regime)
 
 
 def build_akshare_valuation_gateway() -> AKShareValuationGateway:

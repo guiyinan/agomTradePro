@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3820,
-    "files_with_errors": 647
+    "errors": 3756,
+    "files_with_errors": 643
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -429,7 +429,7 @@
       "type-arg": 3
     },
     "apps/alpha/infrastructure/cache_evaluation.py": {
-      "no-untyped-call": 2,
+      "no-untyped-call": 1,
       "var-annotated": 1
     },
     "apps/alpha/infrastructure/models.py": {
@@ -1234,10 +1234,6 @@
     "apps/equity/application/query_services.py": {
       "type-arg": 1
     },
-    "apps/equity/application/repository_provider.py": {
-      "no-untyped-call": 4,
-      "no-untyped-def": 1
-    },
     "apps/equity/application/sector_market_gateway.py": {
       "type-arg": 1
     },
@@ -1254,17 +1250,11 @@
     "apps/equity/application/tasks_valuation_sync.py": {
       "attr-defined": 4,
       "misc": 4,
-      "no-untyped-call": 6,
+      "no-untyped-call": 5,
       "return-value": 2,
       "type-arg": 5,
       "union-attr": 1,
       "var-annotated": 1
-    },
-    "apps/equity/application/use_cases.py": {
-      "attr-defined": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 11,
-      "type-arg": 14
     },
     "apps/equity/application/use_cases_valuation_repair.py": {
       "no-any-return": 2,
@@ -1286,10 +1276,6 @@
       "type-arg": 2,
       "valid-type": 1
     },
-    "apps/equity/domain/services.py": {
-      "return-value": 1,
-      "var-annotated": 2
-    },
     "apps/equity/domain/services_comprehensive_valuation.py": {
       "arg-type": 4,
       "type-arg": 1
@@ -1300,15 +1286,6 @@
     "apps/equity/domain/services_valuation_repair.py": {
       "assignment": 1,
       "type-arg": 2
-    },
-    "apps/equity/infrastructure/adapters.py": {
-      "import-untyped": 1,
-      "misc": 1,
-      "no-any-return": 4,
-      "no-untyped-call": 1,
-      "no-untyped-def": 4,
-      "type-arg": 4,
-      "valid-type": 2
     },
     "apps/equity/infrastructure/asset_master_queries.py": {
       "arg-type": 1
@@ -1343,7 +1320,6 @@
     },
     "apps/equity/interface/analysis_actions.py": {
       "attr-defined": 8,
-      "no-untyped-call": 8,
       "no-untyped-def": 7
     },
     "apps/equity/interface/multidim_screen_views.py": {
@@ -1354,7 +1330,6 @@
     },
     "apps/equity/interface/pool_actions.py": {
       "attr-defined": 8,
-      "no-untyped-call": 1,
       "no-untyped-def": 2
     },
     "apps/equity/interface/sdk_contract_actions.py": {

@@ -9,6 +9,7 @@
 
 from datetime import date
 from decimal import Decimal
+from math import isfinite
 from typing import TYPE_CHECKING
 
 from .entities import FinancialData, ScoringWeightConfig, StockInfo, ValuationMetrics
@@ -33,7 +34,7 @@ class StockScreener:
     def screen(
         self,
         all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]],
-        rule: StockScreeningRule
+        rule: StockScreeningRule,
     ) -> list[str]:
         """
         根据规则筛选个股
@@ -59,11 +60,10 @@ class StockScreener:
         matched_stocks.sort(key=lambda x: x[1], reverse=True)
 
         # 返回前 max_count 个
-        return [code for code, score in matched_stocks[:rule.max_count]]
+        return [code for code, score in matched_stocks[: rule.max_count]]
 
     def _collect_market_metrics(
-        self,
-        all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]]
+        self, all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]]
     ) -> dict[str, list[float]]:
         """
         收集全市场指标用于分位数计算
@@ -97,10 +97,10 @@ class StockScreener:
                 pe_list.append(valuation.pe)
 
         return {
-            'revenue_growth': revenue_growth,
-            'profit_growth': profit_growth,
-            'roe': roe_list,
-            'pe': pe_list
+            "revenue_growth": revenue_growth,
+            "profit_growth": profit_growth,
+            "roe": roe_list,
+            "pe": pe_list,
         }
 
     def _matches_rule(
@@ -108,7 +108,7 @@ class StockScreener:
         stock_info: StockInfo,
         financial: FinancialData,
         valuation: ValuationMetrics,
-        rule: StockScreeningRule
+        rule: StockScreeningRule,
     ) -> bool:
         """判断是否符合规则"""
         # 1. 行业偏好
@@ -140,7 +140,7 @@ class StockScreener:
         financial: FinancialData,
         valuation: ValuationMetrics,
         rule: StockScreeningRule,
-        market_metrics: dict[str, list[float]]
+        market_metrics: dict[str, list[float]],
     ) -> float:
         """
         计算综合评分（使用分位数归一化法）
@@ -169,35 +169,27 @@ class StockScreener:
         """
         # 1. 成长性分位数（营收和净利润增长率的分位数）
         revenue_growth_percentile = self._percentile(
-            financial.revenue_growth,
-            market_metrics['revenue_growth']
+            financial.revenue_growth, market_metrics["revenue_growth"]
         )
         profit_growth_percentile = self._percentile(
-            financial.net_profit_growth,
-            market_metrics['profit_growth']
+            financial.net_profit_growth, market_metrics["profit_growth"]
         )
 
         # 2. 盈利能力分位数（ROE 分位数）
-        profitability_percentile = self._percentile(
-            financial.roe,
-            market_metrics['roe']
-        )
+        profitability_percentile = self._percentile(financial.roe, market_metrics["roe"])
 
         # 3. 估值分位数（PE 反向分位数：PE 越低分越高）
-        pe_percentile = self._percentile(
-            valuation.pe,
-            market_metrics['pe']
-        )
+        pe_percentile = self._percentile(valuation.pe, market_metrics["pe"])
 
         # 4. 加权综合评分（使用配置的权重）
         total_score = self.scoring_config.get_total_score(
             revenue_growth_percentile=revenue_growth_percentile,
             profit_growth_percentile=profit_growth_percentile,
             roe_percentile=profitability_percentile,
-            pe_percentile=pe_percentile
+            pe_percentile=pe_percentile,
         )
 
-        return total_score
+        return float(total_score)
 
     def _percentile(self, value: float, reference: list[float]) -> float:
         """
@@ -245,18 +237,14 @@ class StockScreener:
             profitability_weight=0.4,
             valuation_weight=0.2,
             revenue_growth_weight=0.5,
-            profit_growth_weight=0.5
+            profit_growth_weight=0.5,
         )
 
 
 class ValuationAnalyzer:
     """估值分析服务（纯 Domain 层逻辑）"""
 
-    def calculate_pe_percentile(
-        self,
-        current_pe: float,
-        historical_pe: list[float]
-    ) -> float:
+    def calculate_pe_percentile(self, current_pe: float, historical_pe: list[float]) -> float:
         """
         计算 PE 在历史中的分位数
 
@@ -281,11 +269,7 @@ class ValuationAnalyzer:
 
         return percentile
 
-    def calculate_pb_percentile(
-        self,
-        current_pb: float,
-        historical_pb: list[float]
-    ) -> float:
+    def calculate_pb_percentile(self, current_pb: float, historical_pb: list[float]) -> float:
         """
         计算 PB 在历史中的分位数
 
@@ -311,10 +295,7 @@ class ValuationAnalyzer:
         return percentile
 
     def is_undervalued(
-        self,
-        pe_percentile: float,
-        pb_percentile: float,
-        threshold: float = 0.3
+        self, pe_percentile: float, pb_percentile: float, threshold: float = 0.3
     ) -> bool:
         """
         判断是否低估
@@ -335,7 +316,7 @@ class ValuationAnalyzer:
         growth_rate: float = 0.1,
         discount_rate: float = 0.1,
         terminal_growth: float = 0.03,
-        projection_years: int = 5
+        projection_years: int = 5,
     ) -> Decimal:
         """
         DCF 绝对估值（简化版）
@@ -350,21 +331,36 @@ class ValuationAnalyzer:
         Returns:
             企业总价值（单位：元）
         """
+        if not latest_fcf.is_finite() or latest_fcf < 0:
+            raise ValueError("latest_fcf must be a finite non-negative value")
+        if latest_fcf == 0:
+            return Decimal("0")
+        if projection_years <= 0:
+            raise ValueError("projection_years must be positive")
+        if not all(isfinite(value) for value in (growth_rate, discount_rate, terminal_growth)):
+            raise ValueError("DCF rates must be finite")
+        if growth_rate <= -1 or discount_rate <= -1 or terminal_growth <= -1:
+            raise ValueError("DCF rates must be greater than -1")
+        if discount_rate <= terminal_growth:
+            raise ValueError("discount_rate must be greater than terminal_growth")
+
+        growth_factor = Decimal("1") + Decimal(str(growth_rate))
+        discount_factor = Decimal("1") + Decimal(str(discount_rate))
+        terminal_growth_factor = Decimal("1") + Decimal(str(terminal_growth))
+        terminal_spread = Decimal(str(discount_rate)) - Decimal(str(terminal_growth))
+
         # 1. 预测未来现金流
-        projected_fcf = [
-            latest_fcf * (Decimal(1 + growth_rate) ** i)
-            for i in range(1, projection_years + 1)
-        ]
+        projected_fcf = [latest_fcf * (growth_factor**i) for i in range(1, projection_years + 1)]
 
         # 2. 折现现值
         pv = Decimal(0)
         for i, cf in enumerate(projected_fcf, 1):
-            pv += cf / (Decimal(1 + discount_rate) ** i)
+            pv += cf / (discount_factor**i)
 
         # 3. 终值（永续增长模型）
-        terminal_fcf = projected_fcf[-1] * Decimal(1 + terminal_growth)
-        terminal_value = terminal_fcf / Decimal(discount_rate - terminal_growth)
-        pv_terminal = terminal_value / (Decimal(1 + discount_rate) ** projection_years)
+        terminal_fcf = projected_fcf[-1] * terminal_growth_factor
+        terminal_value = terminal_fcf / terminal_spread
+        pv_terminal = terminal_value / (discount_factor**projection_years)
 
         # 4. 总价值
         total_value = pv + pv_terminal
@@ -376,9 +372,7 @@ class RegimeCorrelationAnalyzer:
     """Regime 相关性分析服务"""
 
     def calculate_regime_correlation(
-        self,
-        stock_returns: dict[date, float],
-        regime_history: dict[date, str]
+        self, stock_returns: dict[date, float], regime_history: dict[date, str]
     ) -> dict[str, float]:
         """
         计算个股在不同 Regime 下的平均收益
@@ -391,11 +385,11 @@ class RegimeCorrelationAnalyzer:
             {Regime: 平均收益率}
         """
         # 初始化各 Regime 的收益率列表
-        regime_returns = {
-            'Recovery': [],
-            'Overheat': [],
-            'Stagflation': [],
-            'Deflation': []
+        regime_returns: dict[str, list[float]] = {
+            "Recovery": [],
+            "Overheat": [],
+            "Stagflation": [],
+            "Deflation": [],
         }
 
         # 按 Regime 分组收益率
@@ -405,7 +399,7 @@ class RegimeCorrelationAnalyzer:
                 regime_returns[regime].append(return_rate)
 
         # 计算平均值
-        avg_returns = {}
+        avg_returns: dict[str, float] = {}
         for regime, returns in regime_returns.items():
             if returns:
                 avg_returns[regime] = sum(returns) / len(returns)
@@ -418,8 +412,8 @@ class RegimeCorrelationAnalyzer:
         self,
         stock_returns: dict[date, float],
         market_returns: dict[date, float],
-        regime_history: dict[date, str]
-    ) -> dict[str, float]:
+        regime_history: dict[date, str],
+    ) -> dict[str, float | None]:
         """
         计算个股在不同 Regime 下的 Beta（相对于市场）
 
@@ -432,11 +426,11 @@ class RegimeCorrelationAnalyzer:
             {Regime: Beta}
         """
         # 按 Regime 分组数据
-        regime_data = {
-            'Recovery': {'stock': [], 'market': []},
-            'Overheat': {'stock': [], 'market': []},
-            'Stagflation': {'stock': [], 'market': []},
-            'Deflation': {'stock': [], 'market': []}
+        regime_data: dict[str, dict[str, list[float]]] = {
+            "Recovery": {"stock": [], "market": []},
+            "Overheat": {"stock": [], "market": []},
+            "Stagflation": {"stock": [], "market": []},
+            "Deflation": {"stock": [], "market": []},
         }
         total_paired_observations = 0
 
@@ -444,19 +438,19 @@ class RegimeCorrelationAnalyzer:
             if trade_date in market_returns and trade_date in regime_history:
                 regime = regime_history[trade_date]
                 if regime in regime_data:
-                    regime_data[regime]['stock'].append(stock_returns[trade_date])
-                    regime_data[regime]['market'].append(market_returns[trade_date])
+                    regime_data[regime]["stock"].append(stock_returns[trade_date])
+                    regime_data[regime]["market"].append(market_returns[trade_date])
                     total_paired_observations += 1
 
         # 计算各 Regime 下的 Beta
-        regime_betas = {}
+        regime_betas: dict[str, float | None] = {}
         for regime, data in regime_data.items():
-            if len(data['stock']) >= 2 and len(data['market']) >= 2:
-                beta = self._calculate_beta(data['stock'], data['market'])
+            if len(data["stock"]) >= 2 and len(data["market"]) >= 2:
+                beta = self._calculate_beta(data["stock"], data["market"])
                 regime_betas[regime] = beta
             elif (
-                len(data['stock']) == 1
-                and len(data['market']) == 1
+                len(data["stock"]) == 1
+                and len(data["market"]) == 1
                 and total_paired_observations >= 2
             ):
                 regime_betas[regime] = 1.0
@@ -466,9 +460,7 @@ class RegimeCorrelationAnalyzer:
         return regime_betas
 
     def _calculate_beta(
-        self,
-        stock_returns: list[float],
-        market_returns: list[float]
+        self, stock_returns: list[float], market_returns: list[float]
     ) -> float | None:
         """
         计算 Beta（协方差 / 市场方差）
@@ -490,16 +482,13 @@ class RegimeCorrelationAnalyzer:
         avg_market = sum(market_returns) / n
 
         # 计算协方差
-        covariance = sum(
-            (stock_returns[i] - avg_stock) * (market_returns[i] - avg_market)
-            for i in range(n)
-        ) / n
+        covariance = (
+            sum((stock_returns[i] - avg_stock) * (market_returns[i] - avg_market) for i in range(n))
+            / n
+        )
 
         # 计算市场方差
-        variance = sum(
-            (market_returns[i] - avg_market) ** 2
-            for i in range(n)
-        ) / n
+        variance = sum((market_returns[i] - avg_market) ** 2 for i in range(n)) / n
 
         if variance < 1e-8:
             return None

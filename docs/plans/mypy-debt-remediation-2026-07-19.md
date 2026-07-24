@@ -1924,3 +1924,21 @@
 - broker execution Domain services、entities 与 rules mypy 清零；全仓基线从 `3823 errors / 648 files` 收紧为 `3820 errors / 647 files`，净减少 `3 errors / 1 file`。
 - broker execution 审批、权限、风险、对账与 Agent 提交回归共 `56 passed`。
 - 增量 mypy、Django system check、架构检查、改动文件 Ruff 与 diff check 通过。
+
+## 第一百三十八批
+
+- 按“个股估值资金影响面 × Equity 核心读链路覆盖面”收口 Equity 核心 Application use cases、repository provider、Domain services 与市场/Regime/股票池适配器。
+- Equity Application 增加股票读取、Regime 历史和评分配置 Protocol，移除按 `TypeError` 文本猜测 Repository 是否支持 `hydrate` 的动态重试；缓存读取、远端补数和返回实体均通过显式契约编排。
+- 股票筛选自定义规则增加有限数值、非负市值、1..100 数量与字符串行业列表校验；NaN、无穷、布尔冒充数字和错误容器不再进入 Domain 筛选。
+- DCF 当前价改为最新日线收盘价，不再使用错误的 `总市值 / PS` 伪造股价；每股内在价值按 `总市值 / 当前价` 推导总股本后计算。
+- DCF 对非有限/负自由现金流、无效预测期、非有限增长率和“折现率不高于永续增长率”失败关闭；Decimal 计算由字符串构造，避免二进制浮点误差进入现金流折现。
+- 无估值、市值或真实收盘价时 DCF 返回明确失败，不再输出表面成功但不可解释的 `None`/伪价格结果。
+- Regime 相关性使用构造函数注入的历史 Repository，不再绕过依赖注入另建适配器；空历史或首个真实快照之前的日期保持未知，不再整段伪造为 `Recovery`。
+- Equity provider 补齐显式规则导出和仓储返回类型；适配器补齐构造器、DataFrame/JSON/缓存边界类型，并对缓存股票池执行字符串白名单归一化。
+
+## 第一百三十八批验证结果
+
+- Equity use cases、provider、Domain services 与 adapters 定向/增量 mypy 清零；其类型改善同时消除下游 Interface、Alpha 和估值任务调用债务。
+- 全仓基线从 `3820 errors / 647 files` 收紧为 `3756 errors / 643 files`，净减少 `64 errors / 4 files`。
+- Equity 核心用例、估值、Regime、Domain、页面导航回归 `103 passed`；包含 Equity API 边界的扩展回归 `54 passed`。
+- Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。

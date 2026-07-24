@@ -10,6 +10,8 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from apps.equity.domain.services import RegimeCorrelationAnalyzer, ValuationAnalyzer
 
 
@@ -101,7 +103,7 @@ class TestValuationAnalyzer:
             growth_rate=0.1,
             discount_rate=0.1,
             terminal_growth=0.03,
-            projection_years=5
+            projection_years=5,
         )
 
         # 内在价值应该大于自由现金流
@@ -122,7 +124,7 @@ class TestValuationAnalyzer:
             growth_rate=0.2,
             discount_rate=0.1,
             terminal_growth=0.03,
-            projection_years=5
+            projection_years=5,
         )
 
         # 低增长率
@@ -131,11 +133,50 @@ class TestValuationAnalyzer:
             growth_rate=0.05,
             discount_rate=0.1,
             terminal_growth=0.03,
-            projection_years=5
+            projection_years=5,
         )
 
         # 高增长率应该产生更高的估值
         assert value_high_growth > value_low_growth
+
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"latest_fcf": Decimal("-1")}, "latest_fcf"),
+            ({"latest_fcf": Decimal("NaN")}, "latest_fcf"),
+            (
+                {
+                    "latest_fcf": Decimal("100"),
+                    "discount_rate": 0.03,
+                    "terminal_growth": 0.03,
+                },
+                "discount_rate",
+            ),
+            (
+                {
+                    "latest_fcf": Decimal("100"),
+                    "discount_rate": float("nan"),
+                },
+                "finite",
+            ),
+            (
+                {
+                    "latest_fcf": Decimal("100"),
+                    "projection_years": 0,
+                },
+                "projection_years",
+            ),
+        ],
+    )
+    def test_calculate_dcf_value_rejects_invalid_inputs(
+        self,
+        kwargs: dict[str, object],
+        message: str,
+    ) -> None:
+        analyzer = ValuationAnalyzer()
+
+        with pytest.raises(ValueError, match=message):
+            analyzer.calculate_dcf_value(**kwargs)
 
 
 class TestRegimeCorrelationAnalyzer:
@@ -155,29 +196,29 @@ class TestRegimeCorrelationAnalyzer:
 
         # 模拟 Regime 历史
         regime_history = {
-            date(2024, 1, 2): 'Recovery',
-            date(2024, 1, 3): 'Recovery',
-            date(2024, 1, 4): 'Stagflation',
-            date(2024, 1, 5): 'Recovery',
+            date(2024, 1, 2): "Recovery",
+            date(2024, 1, 3): "Recovery",
+            date(2024, 1, 4): "Stagflation",
+            date(2024, 1, 5): "Recovery",
         }
 
         result = analyzer.calculate_regime_correlation(stock_returns, regime_history)
 
         # 验证结果
-        assert 'Recovery' in result
-        assert 'Stagflation' in result
-        assert 'Overheat' in result
-        assert 'Deflation' in result
+        assert "Recovery" in result
+        assert "Stagflation" in result
+        assert "Overheat" in result
+        assert "Deflation" in result
 
         # Recovery 下的平均收益应该是 (0.01 + 0.02 + 0.015) / 3 = 0.015
-        assert abs(result['Recovery'] - 0.015) < 0.001
+        assert abs(result["Recovery"] - 0.015) < 0.001
 
         # Stagflation 下的平均收益应该是 -0.01
-        assert abs(result['Stagflation'] - (-0.01)) < 0.001
+        assert abs(result["Stagflation"] - (-0.01)) < 0.001
 
         # Overheat 和 Deflation 没有数据，应该是 0
-        assert result['Overheat'] == 0.0
-        assert result['Deflation'] == 0.0
+        assert result["Overheat"] == 0.0
+        assert result["Deflation"] == 0.0
 
     def test_calculate_regime_beta(self):
         """测试计算 Regime Beta"""
@@ -201,29 +242,25 @@ class TestRegimeCorrelationAnalyzer:
 
         # 模拟 Regime 历史
         regime_history = {
-            date(2024, 1, 2): 'Recovery',
-            date(2024, 1, 3): 'Recovery',
-            date(2024, 1, 4): 'Stagflation',
-            date(2024, 1, 5): 'Recovery',
+            date(2024, 1, 2): "Recovery",
+            date(2024, 1, 3): "Recovery",
+            date(2024, 1, 4): "Stagflation",
+            date(2024, 1, 5): "Recovery",
         }
 
-        result = analyzer.calculate_regime_beta(
-            stock_returns,
-            market_returns,
-            regime_history
-        )
+        result = analyzer.calculate_regime_beta(stock_returns, market_returns, regime_history)
 
         # 验证结果
-        assert 'Recovery' in result
-        assert 'Stagflation' in result
-        assert 'Overheat' in result
-        assert 'Deflation' in result
+        assert "Recovery" in result
+        assert "Stagflation" in result
+        assert "Overheat" in result
+        assert "Deflation" in result
 
         # Recovery 下应该有 3 个样本，Beta 应该大于 1（股票波动大于市场）
-        assert result['Recovery'] > 1.0
+        assert result["Recovery"] > 1.0
 
         # Stagflation 下只有 1 个样本，应该返回默认值 1.0
-        assert result['Stagflation'] == 1.0
+        assert result["Stagflation"] == 1.0
 
     def test_calculate_beta_with_identical_returns(self):
         """测试计算 Beta（收益率相同）"""

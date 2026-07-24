@@ -6,10 +6,10 @@ data_center 或本地持久化事实表，避免模块继续直连外部 SDK。
 """
 
 import logging
+from collections.abc import Callable
 from datetime import date, datetime
-from typing import Optional
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 from apps.account.application.config_summary_service import (
     get_account_config_summary_service,
@@ -20,8 +20,8 @@ from apps.data_center.composition import (
 )
 from apps.data_center.domain.entities import PriceBar as DataCenterPriceBar
 from apps.data_center.domain.enums import PriceAdjustment
+from apps.regime.domain.entities import RegimeSnapshot
 
-from ..domain.ports import MarketDataPort, RegimeDataPort, StockPoolPort
 from .models import StockDailyModel, StockInfoModel
 
 logger = logging.getLogger(__name__)
@@ -30,13 +30,14 @@ logger = logging.getLogger(__name__)
 def get_runtime_benchmark_code(key: str, default: str = "") -> str:
     """Return a runtime benchmark code through the account-owned config service."""
 
-    return get_account_config_summary_service().get_runtime_benchmark_code(key, default)
+    value = get_account_config_summary_service().get_runtime_benchmark_code(key, default)
+    return str(value or default)
 
 
 class TushareStockAdapter:
     """兼容旧调用方的股票日线适配器。"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._dc_price_repo = get_price_bar_repository()
 
     def fetch_stock_list(self) -> pd.DataFrame:
@@ -121,7 +122,7 @@ class TushareStockAdapter:
         df["pct_chg"] = (df["change"] / df["pre_close"] * 100).fillna(0.0)
         return df.reset_index(drop=True)
 
-    def fetch_stock_info(self, stock_code: str) -> dict:
+    def fetch_stock_info(self, stock_code: str) -> dict[str, object]:
         """获取单只股票基础信息。"""
         normalized_code = self._normalize_stock_code(stock_code)
         symbol = normalized_code.split(".")[0]
@@ -168,23 +169,27 @@ class TushareStockAdapter:
         parsed = pd.to_datetime(value, errors="coerce")
         if pd.isna(parsed):
             raise ValueError(f"无效日期格式: {value}")
-        return parsed.strftime("%Y%m%d")
+        return str(parsed.strftime("%Y%m%d"))
 
 
-class RegimeRepositoryAdapter(RegimeDataPort):
+class RegimeRepositoryAdapter:
     """
     Regime 数据仓储适配器
 
     适配 regime 模块的 DjangoRegimeRepository，实现 Domain 层定义的协议。
     """
 
-    def __init__(self):
-        # 延迟导入，避免循环依赖
-        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+    def __init__(self) -> None:
+        # 延迟导入，避免循环依赖；跨 App 通过 Regime Application provider 取仓储。
+        from apps.regime.application.repository_provider import get_regime_repository
 
-        self._regime_repo = DjangoRegimeRepository()
+        self._regime_repo = get_regime_repository()
 
-    def get_snapshots_in_range(self, start_date: date, end_date: date) -> list:
+    def get_snapshots_in_range(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[RegimeSnapshot]:
         """
         获取日期范围内的 Regime 快照列表
 
@@ -195,9 +200,9 @@ class RegimeRepositoryAdapter(RegimeDataPort):
         Returns:
             List[RegimeSnapshot]: 快照列表，按时间升序排列
         """
-        return self._regime_repo.get_snapshots_in_range(start_date, end_date)
+        return list(self._regime_repo.get_snapshots_in_range(start_date, end_date))
 
-    def get_snapshot_by_date(self, observed_at: date) -> Optional:
+    def get_snapshot_by_date(self, observed_at: date) -> RegimeSnapshot | None:
         """
         按日期获取 Regime 快照
 
@@ -210,14 +215,14 @@ class RegimeRepositoryAdapter(RegimeDataPort):
         return self._regime_repo.get_snapshot_by_date(observed_at)
 
 
-class MarketDataRepositoryAdapter(MarketDataPort):
+class MarketDataRepositoryAdapter:
     """
     市场数据仓储适配器
 
     从 macro 模块获取指数数据，计算收益率。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._bar_repo = get_price_bar_repository()
         self._default_index_code = get_runtime_benchmark_code("equity_default_index")
 
@@ -311,7 +316,7 @@ class MarketDataRepositoryAdapter(MarketDataPort):
         raw_code = self._to_raw_index_code(index_code)
         ak = get_akshare_module()
 
-        fetch_attempts: list[tuple[str, callable]] = []
+        fetch_attempts: list[tuple[str, Callable[[], pd.DataFrame]]] = []
         if symbol is not None:
             fetch_attempts.extend(
                 [
@@ -394,7 +399,7 @@ class MarketDataRepositoryAdapter(MarketDataPort):
                 data_points = self._load_remote_index_points(index_code, start_date, end_date)
 
             # 计算收益率
-            returns = {}
+            returns: dict[date, float] = {}
             for i in range(1, len(data_points)):
                 prev_date, prev_price = data_points[i - 1]
                 curr_date, curr_price = data_points[i]
@@ -410,14 +415,14 @@ class MarketDataRepositoryAdapter(MarketDataPort):
             return {}
 
 
-class StockPoolRepositoryAdapter(StockPoolPort):
+class StockPoolRepositoryAdapter:
     """
     股票池仓储适配器
 
     使用 Django 缓存和数据库存储股票池信息。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         from django.core.cache import cache
 
         self._cache = cache
@@ -435,8 +440,9 @@ class StockPoolRepositoryAdapter(StockPoolPort):
         pool_key = f"{self._cache_key_prefix}:current"
         cached_pool = cache.get(pool_key)
 
-        if cached_pool:
-            return cached_pool
+        normalized_cached = self._normalize_stock_codes(cached_pool)
+        if normalized_cached:
+            return normalized_cached
 
         # 如果缓存没有，从数据库读取
         return self._load_pool_from_db()
@@ -471,7 +477,7 @@ class StockPoolRepositoryAdapter(StockPoolPort):
         # 同时保存到数据库（持久化）
         self._save_pool_to_db(stock_codes, regime, as_of_date)
 
-    def get_latest_pool_info(self) -> dict | None:
+    def get_latest_pool_info(self) -> dict[str, object] | None:
         """
         获取最新的股票池信息
 
@@ -485,8 +491,10 @@ class StockPoolRepositoryAdapter(StockPoolPort):
         meta_key = f"{self._cache_key_prefix}:meta"
         meta_str = cache.get(meta_key)
 
-        if meta_str:
-            return json.loads(meta_str)
+        if isinstance(meta_str, (str, bytes, bytearray)):
+            decoded = json.loads(meta_str)
+            if isinstance(decoded, dict):
+                return {str(key): value for key, value in decoded.items() if isinstance(key, str)}
 
         return self._load_pool_meta_from_db()
 
@@ -500,7 +508,7 @@ class StockPoolRepositoryAdapter(StockPoolPort):
             )
 
             if latest:
-                return latest.stock_codes
+                return self._normalize_stock_codes(latest.stock_codes)
 
             return []
 
@@ -524,7 +532,7 @@ class StockPoolRepositoryAdapter(StockPoolPort):
         except Exception as e:
             logger.error(f"保存股票池到数据库失败: {e}")
 
-    def _load_pool_meta_from_db(self) -> dict | None:
+    def _load_pool_meta_from_db(self) -> dict[str, object] | None:
         """从数据库加载股票池元数据"""
         try:
             from .models import StockPoolSnapshot
@@ -546,3 +554,13 @@ class StockPoolRepositoryAdapter(StockPoolPort):
         except Exception as e:
             logger.error(f"从数据库加载股票池元数据失败: {e}")
             return None
+
+    @staticmethod
+    def _normalize_stock_codes(value: object) -> list[str]:
+        """Return a normalized string-only stock-code list from cache or JSON storage."""
+
+        if not isinstance(value, list):
+            return []
+        return [
+            normalized for item in value if isinstance(item, str) and (normalized := item.strip())
+        ]

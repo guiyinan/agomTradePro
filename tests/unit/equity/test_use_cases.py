@@ -6,6 +6,8 @@ from apps.equity.application.use_cases import (
     AnalyzeRegimeCorrelationUseCase,
     AnalyzeValuationRequest,
     AnalyzeValuationUseCase,
+    CalculateDCFRequest,
+    CalculateDCFUseCase,
     ComprehensiveValuationRequest,
     ComprehensiveValuationUseCase,
     ScreenStocksRequest,
@@ -45,13 +47,9 @@ def test_screen_stocks_returns_failure_response_when_repository_raises(mocker) -
 
 
 def test_regime_history_returns_empty_dict_when_repository_fails(mocker) -> None:
-    use_case = AnalyzeRegimeCorrelationUseCase(mocker.Mock(), mocker.Mock())
     regime_repo = mocker.Mock()
     regime_repo.get_snapshots_in_range.side_effect = ValueError("regime down")
-    mocker.patch(
-        "apps.equity.application.use_cases.get_equity_regime_repository",
-        return_value=regime_repo,
-    )
+    use_case = AnalyzeRegimeCorrelationUseCase(mocker.Mock(), regime_repo)
 
     result = use_case._get_regime_history(
         start_date=SimpleNamespace(),
@@ -224,3 +222,50 @@ def test_analyze_valuation_does_not_hydrate_when_persisted_payload_missing() -> 
         ("financial", False),
         ("daily_prices", False),
     ]
+
+
+def test_dcf_uses_latest_close_instead_of_market_cap_divided_by_ps() -> None:
+    valuation = _build_valuation_metrics("002493.SZ", date(2026, 5, 12))
+    financial = _build_financial_data("002493.SZ", date(2025, 12, 31))
+    current_price = Decimal("19.88")
+    repo = _FakeStockRepository(
+        valuation_history_cached=[valuation],
+        valuation_history_hydrated=[valuation],
+        financial_cached=financial,
+        financial_hydrated=financial,
+        daily_prices_cached=[(date(2026, 5, 12), current_price)],
+        daily_prices_hydrated=[(date(2026, 5, 12), current_price)],
+    )
+
+    response = CalculateDCFUseCase(stock_repository=repo).execute(
+        CalculateDCFRequest(stock_code="002493.SZ")
+    )
+
+    assert response.success is True
+    assert response.current_price == current_price
+    assert response.intrinsic_value_per_share is not None
+    inferred_shares = valuation.total_mv / current_price
+    assert response.intrinsic_value_per_share == response.intrinsic_value / inferred_shares
+    assert response.current_price != valuation.total_mv / Decimal(str(valuation.ps))
+
+
+def test_dcf_fails_closed_when_current_price_is_missing() -> None:
+    valuation = _build_valuation_metrics("002493.SZ", date(2026, 5, 12))
+    financial = _build_financial_data("002493.SZ", date(2025, 12, 31))
+    repo = _FakeStockRepository(
+        valuation_history_cached=[valuation],
+        valuation_history_hydrated=[valuation],
+        financial_cached=financial,
+        financial_hydrated=financial,
+        daily_prices_cached=[],
+        daily_prices_hydrated=[],
+    )
+
+    response = CalculateDCFUseCase(stock_repository=repo).execute(
+        CalculateDCFRequest(stock_code="002493.SZ")
+    )
+
+    assert response.success is False
+    assert response.current_price is None
+    assert response.error is not None
+    assert "当前价格" in response.error
