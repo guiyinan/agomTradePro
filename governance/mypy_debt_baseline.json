@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3839,
-    "files_with_errors": 651
+    "errors": 3831,
+    "files_with_errors": 650
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -816,10 +816,6 @@
       "no-untyped-def": 1
     },
     "apps/broker_execution/application/agent_use_cases.py": {
-      "no-untyped-def": 7
-    },
-    "apps/broker_execution/application/management_use_cases.py": {
-      "arg-type": 1,
       "no-untyped-def": 7
     },
     "apps/broker_execution/application/query_services.py": {

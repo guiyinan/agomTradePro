@@ -1859,3 +1859,20 @@
 - broker execution live-order use cases mypy 清零；全仓基线从 `3846 errors / 652 files` 收紧为 `3839 errors / 651 files`，净减少 `7 errors / 1 file`。
 - broker execution 风险、权限、kill switch、幂等和关键订单安全回归共 `56 passed`。
 - 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百三十四批
+
+- 按“实盘权限管理影响面 × Agent 凭据与限额配置并发安全”收口 broker execution 管理写用例和持久化边界。
+- 账户绑定、访问授权、凭据轮换/吊销、连接同步、执行设置和对账处置用例统一依赖 BrokerExecution Repository Protocol，清除动态返回和隐式可空构造参数。
+- 所有提交幂等键统一去空格并拒绝空值；账户、用户、Agent、credential、reason 和 reconciliation resolution 在 Application 边界完成规范化与白名单校验。
+- 布尔配置只接受真实 bool，不再把字符串 `"false"` 按 Python truthiness 转成 True；绑定激活必须提供 broker account reference。
+- 凭据轮换在事务内锁定 Agent 与目标账户绑定，以锁内最新状态复核全部 account scope；绑定在轮换窗口失效时不再签发带失效范围的 secret。
+- 凭据轮换在取锁后再次查询幂等结果，并发后到请求只返回脱敏重放结果，不创建第二份 credential 或泄露第二个 token。
+- 执行设置更新锁定与下单相同的账户绑定行，并在锁内重查幂等结果；金额、价格偏离、数量和布尔配置统一拒绝 NaN、无穷、越界和错误类型。
+- 新增字符串布尔、凭据范围锁内失效、凭据锁后幂等重放和设置写入边界回归。
+
+## 第一百三十四批验证结果
+
+- broker execution management use cases mypy 清零；全仓基线从 `3839 errors / 651 files` 收紧为 `3831 errors / 650 files`，净减少 `8 errors / 1 file`。
+- broker execution 管理 API、权限、凭据、Agent 恢复和 fake-agent 全流程回归共 `41 passed`。
+- 增量 mypy、Django system check、架构检查、改动文件 Ruff、Black 与 diff check 通过。
