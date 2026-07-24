@@ -2357,3 +2357,19 @@
 - Forecast composition 与 API view 增量 mypy 清零；全仓基线从 `3101 errors / 603 files` 收紧为 `3094 errors / 601 files`，净减少 `7 errors / 2 files`。
 - Signal、Forecast Ledger component、Forecast API 与研究完整性回归共 `134 passed`；覆盖未知字段、非有限数值、重复版本、畸形条件、超大 JSON 和发布前事件。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十四批
+
+- 按“Signal 共同持久化边界 × direct ORM 写入旁路”收口 InvestmentSignalModel。
+- InvestmentSignalModel 的所有 `save()` 在落库前执行完整字段和业务校验；`objects.create()`、Admin、任务或仓储直接写入不再绕过方向、状态、长度、数值和证伪规则约束。
+- 新结构化证伪规则统一复用 Domain `InvalidationRule.from_dict()`；布尔、NaN/无穷阈值、空条件、未知 indicator type/operator/logic、非法 duration 和 compare target 在 ORM 边界拒绝。
+- 旧证伪格式继续保留兼容校验；新格式优先且不再由 Infrastructure 维护一套更宽松的重复规则。
+- 证伪阈值、回测分数和平均收益必须有限；回测分数限制 0..100、回测次数不得为负数。
+- 持久化遗留行若包含损坏的新证伪 JSON，转换 Domain 时明确失败关闭，不再静默丢弃规则并把有证伪条件的信号当作无规则信号。
+- Domain → ORM 映射把可空描述与拒绝理由显式规范为空字符串；Unified Signal 的字符串方法补齐类型，执行标记只更新必要字段。
+
+## 第一百六十四批验证结果
+
+- Signal 核心 ORM models 增量 mypy 清零；全仓基线从 `3094 errors / 601 files` 收紧为 `3085 errors / 600 files`，净减少 `9 errors / 1 file`。
+- Signal 单元、核心 model、repository、task、query、API 与 forecast 回归共 `143 passed`；覆盖 direct ORM 非法规则/状态/数值、Domain round-trip 和损坏持久化 JSON。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。

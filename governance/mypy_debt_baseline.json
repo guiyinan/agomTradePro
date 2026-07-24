@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3094,
-    "files_with_errors": 601
+    "errors": 3085,
+    "files_with_errors": 600
   },
   "modules": {
     "apps/account/application/stress_testing_use_cases.py": {
@@ -2030,10 +2030,6 @@
     },
     "apps/signal/infrastructure/diagnostic_queries.py": {
       "misc": 1
-    },
-    "apps/signal/infrastructure/models.py": {
-      "no-untyped-call": 2,
-      "no-untyped-def": 7
     },
     "apps/signal/interface/admin.py": {
       "type-arg": 1
