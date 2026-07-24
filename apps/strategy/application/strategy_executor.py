@@ -6,7 +6,9 @@
 - 不直接依赖 ORM Model
 - 编排业务逻辑流程
 """
+
 import logging
+import math
 from typing import Any
 
 from django.utils import timezone
@@ -34,9 +36,14 @@ from apps.strategy.domain.protocols import (
 logger = logging.getLogger(__name__)
 
 
+class StrategyContextUnavailableError(RuntimeError):
+    """Raised when required strategy execution context cannot be loaded safely."""
+
+
 # ========================================================================
 # 策略执行引擎（中央调度器）
 # ========================================================================
+
 
 class StrategyExecutor:
     """
@@ -58,8 +65,8 @@ class StrategyExecutor:
         asset_pool_provider: AssetPoolProviderProtocol,
         signal_provider: SignalProviderProtocol,
         portfolio_provider: PortfolioDataProviderProtocol,
-        script_security_mode: str = SecurityMode.RELAXED
-    ):
+        script_security_mode: str = SecurityMode.RELAXED,
+    ) -> None:
         """
         初始化策略执行引擎
 
@@ -92,7 +99,7 @@ class StrategyExecutor:
             asset_pool_provider=asset_pool_provider,
             signal_provider=signal_provider,
             portfolio_provider=portfolio_provider,
-            security_mode=script_security_mode
+            security_mode=script_security_mode,
         )
 
         # 初始化 AI 执行器
@@ -101,14 +108,10 @@ class StrategyExecutor:
             regime_provider=regime_provider,
             asset_pool_provider=asset_pool_provider,
             signal_provider=signal_provider,
-            portfolio_provider=portfolio_provider
+            portfolio_provider=portfolio_provider,
         )
 
-    def execute_strategy(
-        self,
-        strategy_id: int,
-        portfolio_id: int
-    ) -> StrategyExecutionResult:
+    def execute_strategy(self, strategy_id: int, portfolio_id: int) -> StrategyExecutionResult:
         """
         执行策略
 
@@ -121,11 +124,13 @@ class StrategyExecutor:
         """
         start_time = timezone.now()
         error_message = ""
-        signals = []
+        signals: list[SignalRecommendation] = []
         is_success = False
-        context = {}
+        context: dict[str, Any] = {}
 
         try:
+            self._validate_execution_ids(strategy_id, portfolio_id)
+
             # 1. 加载策略
             strategy = self.strategy_repository.get_by_id(strategy_id)
             if strategy is None:
@@ -137,10 +142,12 @@ class StrategyExecutor:
             context = self._prepare_context(portfolio_id)
 
             # 3. 根据策略类型分发执行
-            signals = self._dispatch_execution(strategy, context)
+            signals = self._deduplicate_signals(self._dispatch_execution(strategy, context))
 
             is_success = True
-            logger.info(f"Strategy execution succeeded: {strategy.name}, generated {len(signals)} signals")
+            logger.info(
+                f"Strategy execution succeeded: {strategy.name}, generated {len(signals)} signals"
+            )
 
         except Exception as e:
             error_message = f"Strategy execution failed: {str(e)}"
@@ -160,16 +167,29 @@ class StrategyExecutor:
             signals=signals,
             is_success=is_success,
             error_message=error_message,
-            context=context
+            context=context,
         )
 
         # 6. 保存执行日志
         try:
             self.execution_log_repository.save(result)
-        except Exception as e:
-            logger.error(f"Failed to save execution log: {e}")
+        except Exception:
+            logger.error("Failed to save strategy execution log", exc_info=True)
+            result.signals = []
+            result.is_success = False
+            result.error_message = (
+                f"{result.error_message}; " if result.error_message else ""
+            ) + "Strategy execution log persistence failed"
 
         return result
+
+    @staticmethod
+    def _validate_execution_ids(strategy_id: int, portfolio_id: int) -> None:
+        """Reject invalid identifiers before any provider or repository access."""
+        if isinstance(strategy_id, bool) or strategy_id <= 0:
+            raise ValueError("strategy_id must be a positive integer")
+        if isinstance(portfolio_id, bool) or portfolio_id <= 0:
+            raise ValueError("portfolio_id must be a positive integer")
 
     def _prepare_context(self, portfolio_id: int) -> dict[str, Any]:
         """
@@ -186,52 +206,82 @@ class StrategyExecutor:
             - portfolio: 投资组合数据（持仓、现金）
             - signals: 有效信号列表
         """
-        context = {}
+        context: dict[str, Any] = {}
 
         # 1. 获取宏观数据
         try:
-            context['macro'] = self.macro_provider.get_all_indicators()
+            macro = self.macro_provider.get_all_indicators()
+            if not isinstance(macro, dict):
+                raise TypeError("macro provider returned a non-mapping payload")
+            context["macro"] = macro
         except Exception as e:
-            logger.warning(f"Failed to get macro data: {e}")
-            context['macro'] = {}
+            raise StrategyContextUnavailableError(
+                "Required strategy context unavailable: macro"
+            ) from e
 
         # 2. 获取 Regime 状态
         try:
-            context['regime'] = self.regime_provider.get_current_regime()
+            regime = self.regime_provider.get_current_regime()
+            if not isinstance(regime, dict):
+                raise TypeError("regime provider returned a non-mapping payload")
+            context["regime"] = regime
         except Exception as e:
-            logger.warning(f"Failed to get regime data: {e}")
-            context['regime'] = {}
+            raise StrategyContextUnavailableError(
+                "Required strategy context unavailable: regime"
+            ) from e
 
         # 3. 获取可投资产池
         try:
             raw_asset_pool = self.asset_pool_provider.get_investable_assets(min_score=60.0)
-            context['asset_pool'] = [
-                asset for asset in raw_asset_pool
-                if self._is_actionable_asset_pool_item(asset)
+            if not isinstance(raw_asset_pool, list):
+                raise TypeError("asset pool provider returned a non-list payload")
+            context["asset_pool"] = [
+                asset
+                for asset in raw_asset_pool
+                if isinstance(asset, dict) and self._is_actionable_asset_pool_item(asset)
             ]
         except Exception as e:
-            logger.warning(f"Failed to get asset pool: {e}")
-            context['asset_pool'] = []
+            raise StrategyContextUnavailableError(
+                "Required strategy context unavailable: asset_pool"
+            ) from e
 
         # 4. 获取投资组合数据
         try:
             positions = self.portfolio_provider.get_positions(portfolio_id)
             cash = self.portfolio_provider.get_cash(portfolio_id)
-            context['portfolio'] = {
-                'portfolio_id': portfolio_id,
-                'positions': positions,
-                'cash': cash
+            if not isinstance(positions, list) or not all(
+                isinstance(position, dict) for position in positions
+            ):
+                raise TypeError("portfolio provider returned invalid positions")
+            if (
+                isinstance(cash, bool)
+                or not isinstance(cash, (int, float))
+                or not math.isfinite(float(cash))
+                or cash < 0
+            ):
+                raise ValueError("portfolio provider returned invalid cash")
+            context["portfolio"] = {
+                "portfolio_id": portfolio_id,
+                "positions": positions,
+                "cash": float(cash),
             }
         except Exception as e:
-            logger.warning(f"Failed to get portfolio data: {e}")
-            context['portfolio'] = {'portfolio_id': portfolio_id, 'positions': [], 'cash': 0.0}
+            raise StrategyContextUnavailableError(
+                "Required strategy context unavailable: portfolio"
+            ) from e
 
         # 5. 获取有效信号
         try:
-            context['signals'] = self.signal_provider.get_valid_signals()
+            valid_signals = self.signal_provider.get_valid_signals()
+            if not isinstance(valid_signals, list) or not all(
+                isinstance(signal, dict) for signal in valid_signals
+            ):
+                raise TypeError("signal provider returned an invalid payload")
+            context["signals"] = valid_signals
         except Exception as e:
-            logger.warning(f"Failed to get signals: {e}")
-            context['signals'] = []
+            raise StrategyContextUnavailableError(
+                "Required strategy context unavailable: signals"
+            ) from e
 
         return context
 
@@ -243,14 +293,36 @@ class StrategyExecutor:
         if asset.get("is_fallback") is True:
             return False
         data_quality = asset.get("data_quality") or {}
+        if not isinstance(data_quality, dict):
+            return False
         if data_quality.get("status") in {"degraded", "invalid", "unavailable"}:
             return False
         return True
 
+    @staticmethod
+    def _deduplicate_signals(
+        signals: list[SignalRecommendation],
+    ) -> list[SignalRecommendation]:
+        """Keep the first, highest-precedence recommendation for each asset."""
+        unique_signals: list[SignalRecommendation] = []
+        seen_asset_codes: set[str] = set()
+        for signal in signals:
+            asset_code = signal.asset_code.strip()
+            if not asset_code:
+                logger.warning("Discarding strategy signal with an empty asset code")
+                continue
+            if asset_code in seen_asset_codes:
+                logger.warning(
+                    "Discarding duplicate strategy signal for asset %s",
+                    asset_code,
+                )
+                continue
+            seen_asset_codes.add(asset_code)
+            unique_signals.append(signal)
+        return unique_signals
+
     def _dispatch_execution(
-        self,
-        strategy: Strategy,
-        context: dict[str, Any]
+        self, strategy: Strategy, context: dict[str, Any]
     ) -> list[SignalRecommendation]:
         """
         根据策略类型分发执行
@@ -267,11 +339,17 @@ class StrategyExecutor:
 
         elif strategy.strategy_type == StrategyType.SCRIPT_BASED:
             # 脚本驱动策略 - 使用脚本执行器
-            return self.script_executor.execute(strategy, context['portfolio'].get('portfolio_id', 0))
+            return self.script_executor.execute(
+                strategy,
+                self._portfolio_id_from_context(context),
+            )
 
         elif strategy.strategy_type == StrategyType.AI_DRIVEN:
             # AI 驱动策略 - 使用 AI 执行器
-            return self.ai_executor.execute(strategy, context['portfolio'].get('portfolio_id', 0))
+            return self.ai_executor.execute(
+                strategy,
+                self._portfolio_id_from_context(context),
+            )
 
         elif strategy.strategy_type == StrategyType.HYBRID:
             # 混合策略 - 组合多种策略类型
@@ -280,10 +358,19 @@ class StrategyExecutor:
         else:
             raise ValueError(f"Unknown strategy type: {strategy.strategy_type}")
 
+    @staticmethod
+    def _portfolio_id_from_context(context: dict[str, Any]) -> int:
+        """Return the already validated portfolio identifier from context."""
+        portfolio = context.get("portfolio")
+        if not isinstance(portfolio, dict):
+            raise ValueError("Strategy context is missing portfolio data")
+        portfolio_id = portfolio.get("portfolio_id")
+        if isinstance(portfolio_id, bool) or not isinstance(portfolio_id, int) or portfolio_id <= 0:
+            raise ValueError("Strategy context contains an invalid portfolio_id")
+        return portfolio_id
+
     def _execute_rule_based_strategy(
-        self,
-        strategy: Strategy,
-        context: dict[str, Any]
+        self, strategy: Strategy, context: dict[str, Any]
     ) -> list[SignalRecommendation]:
         """
         执行规则驱动策略
@@ -299,8 +386,11 @@ class StrategyExecutor:
             logger.warning(f"Rule-based strategy has no rules: {strategy.name}")
             return []
 
-        signals = []
-        asset_pool = context.get('asset_pool', [])
+        signals: list[SignalRecommendation] = []
+        raw_asset_pool = context.get("asset_pool")
+        if not isinstance(raw_asset_pool, list):
+            raise ValueError("Strategy context contains an invalid asset pool")
+        asset_pool = [asset for asset in raw_asset_pool if isinstance(asset, dict)]
 
         # 按优先级排序规则（优先级高的先执行）
         sorted_rules = sorted(strategy.rule_conditions, key=lambda r: r.priority, reverse=True)
@@ -314,14 +404,14 @@ class StrategyExecutor:
                 rule_signals = self._generate_signals_from_rule(rule, asset_pool, context)
                 signals.extend(rule_signals)
 
-                logger.info(f"Rule matched: {rule.rule_name}, generated {len(rule_signals)} signals")
+                logger.info(
+                    f"Rule matched: {rule.rule_name}, generated {len(rule_signals)} signals"
+                )
 
         return signals
 
     def _execute_hybrid_strategy(
-        self,
-        strategy: Strategy,
-        context: dict[str, Any]
+        self, strategy: Strategy, context: dict[str, Any]
     ) -> list[SignalRecommendation]:
         """
         执行混合策略
@@ -333,8 +423,8 @@ class StrategyExecutor:
         Returns:
             信号推荐列表
         """
-        signals = []
-        portfolio_id = context['portfolio'].get('portfolio_id', 0)
+        signals: list[SignalRecommendation] = []
+        portfolio_id = self._portfolio_id_from_context(context)
 
         # 执行规则部分
         if strategy.rule_conditions and len(strategy.rule_conditions) > 0:
@@ -354,10 +444,7 @@ class StrategyExecutor:
         return signals
 
     def _generate_signals_from_rule(
-        self,
-        rule: RuleCondition,
-        asset_pool: list[dict[str, Any]],
-        context: dict[str, Any]
+        self, rule: RuleCondition, asset_pool: list[dict[str, Any]], context: dict[str, Any]
     ) -> list[SignalRecommendation]:
         """
         从规则生成信号
@@ -370,15 +457,14 @@ class StrategyExecutor:
         Returns:
             信号推荐列表
         """
-        signals = []
+        signals: list[SignalRecommendation] = []
 
         # 确定目标资产列表
         if rule.target_assets and len(rule.target_assets) > 0:
             # 规则指定了目标资产
             target_asset_codes = rule.target_assets
             target_assets = [
-                asset for asset in asset_pool
-                if asset.get('asset_code') in target_asset_codes
+                asset for asset in asset_pool if asset.get("asset_code") in target_asset_codes
             ]
         else:
             # 使用所有可投资产
@@ -386,9 +472,35 @@ class StrategyExecutor:
 
         # 为每个目标资产生成信号
         for asset in target_assets:
-            asset_code = asset.get('asset_code', '')
-            asset_name = asset.get('asset_name', '')
-            total_score = asset.get('total_score', 0)
+            asset_code_value = asset.get("asset_code")
+            asset_name_value = asset.get("asset_name")
+            if (
+                not isinstance(asset_code_value, str)
+                or not asset_code_value.strip()
+                or not isinstance(asset_name_value, str)
+            ):
+                logger.warning("Skipping malformed strategy asset-pool item")
+                continue
+            asset_code = asset_code_value.strip()
+            asset_name = asset_name_value.strip()
+
+            total_score_value = asset.get("total_score")
+            if total_score_value is None:
+                total_score = None
+                confidence = 0.5
+            elif (
+                isinstance(total_score_value, bool)
+                or not isinstance(total_score_value, (int, float))
+                or not math.isfinite(float(total_score_value))
+            ):
+                logger.warning(
+                    "Skipping strategy asset %s with invalid total_score",
+                    asset_code,
+                )
+                continue
+            else:
+                total_score = float(total_score_value)
+                confidence = min(max(total_score / 100.0, 0.0), 1.0)
 
             signal = SignalRecommendation(
                 asset_code=asset_code,
@@ -397,13 +509,13 @@ class StrategyExecutor:
                 weight=rule.weight,
                 quantity=None,  # 由后续的仓位管理模块计算
                 reason=f"Rule: {rule.rule_name}",
-                confidence=min(total_score / 100.0, 1.0) if total_score else 0.5,
+                confidence=confidence,
                 metadata={
-                    'rule_id': rule.rule_id,
-                    'rule_name': rule.rule_name,
-                    'rule_type': rule.rule_type.value,
-                    'asset_score': total_score
-                }
+                    "rule_id": rule.rule_id,
+                    "rule_name": rule.rule_name,
+                    "rule_type": rule.rule_type.value,
+                    "asset_score": total_score,
+                },
             )
             signals.append(signal)
 

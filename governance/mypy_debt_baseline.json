@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3268,
-    "files_with_errors": 622
+    "errors": 3252,
+    "files_with_errors": 620
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2150,20 +2150,6 @@
     },
     "apps/strategy/application/prompt_gateway.py": {
       "no-untyped-def": 1
-    },
-    "apps/strategy/application/rule_evaluator.py": {
-      "arg-type": 2,
-      "assignment": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 2,
-      "return-value": 1,
-      "type-arg": 1
-    },
-    "apps/strategy/application/strategy_executor.py": {
-      "assignment": 4,
-      "dict-item": 2,
-      "no-untyped-call": 1
     },
     "apps/strategy/apps.py": {
       "no-untyped-def": 1

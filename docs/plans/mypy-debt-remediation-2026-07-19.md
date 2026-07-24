@@ -2156,3 +2156,20 @@
 - Strategy Script Engine 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3286 errors / 623 files` 收紧为 `3268 errors / 622 files`，净减少 `18 errors / 1 file`。
 - Strategy API、执行全流程、script engine、serializer、视图结构、repository 生命周期和自动交易集成回归共 `71 passed`；新增未知模式、无限循环、递归、超大 range、源码、AST、资产池、非有限信号与输出数量覆盖。
 - Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。
+
+## 第一百五十二批
+
+- 按“策略信号生成影响面 × 执行证据完整性”收口 Strategy Executor 与 Rule Evaluator。
+- 策略 ID 和组合 ID 在访问仓储或数据提供者前严格要求正整数，布尔值、零值和负值不再进入执行链。
+- 宏观、Regime、资产池、组合和有效信号任一必需上下文读取异常或返回畸形结构时失败关闭，不再用空字典、空列表或零现金继续执行并伪报成功。
+- 组合现金必须是非负有限数，持仓、信号和资产池结构在进入规则引擎前收窄；降级资产、畸形质量元数据、空资产代码和非有限评分不能生成推荐。
+- 执行日志持久化失败时结果改为失败并清空信号，防止上层消费无法审计的策略建议。
+- 同一资产被多条规则或混合执行分支重复命中时，只保留先执行的高优先级建议，避免重复或冲突信号进入下游。
+- 规则分数比较增加运行时数值校验；批量评估拒绝没有持久化 ID 的规则，避免 `None` 键覆盖结果。
+- Strategy Executor、Rule Evaluator 的容器、动态值、执行结果和批量映射补齐精确类型。
+
+## 第一百五十二批验证结果
+
+- Strategy Executor 与 Rule Evaluator 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3268 errors / 622 files` 收紧为 `3252 errors / 620 files`，净减少 `16 errors / 2 files`。
+- 规则评估、策略执行、执行全流程、自动交易集成和 Strategy API 边界回归共 `78 passed`；覆盖上下文不可用、非有限现金、审计失败、无效主键和重复信号。
+- Django system check、架构检查、改动文件 Ruff、Black、diff check 与隔离 staged tree 的全仓 mypy debt ceiling 通过。

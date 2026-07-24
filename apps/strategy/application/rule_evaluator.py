@@ -7,6 +7,7 @@
 - 通过依赖注入获取数据
 - 纯业务逻辑，无外部依赖
 """
+
 import logging
 from abc import ABC, abstractmethod
 from typing import Any
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 # ========================================================================
 # 基础评估器
 # ========================================================================
+
 
 class BaseEvaluator(ABC):
     """评估器基类"""
@@ -49,8 +51,8 @@ class BaseEvaluator(ABC):
         Returns:
             值或默认值
         """
-        keys = key.split('.')
-        value = data
+        keys = key.split(".")
+        value: Any = data
 
         for k in keys:
             if isinstance(value, dict):
@@ -66,6 +68,7 @@ class BaseEvaluator(ABC):
 # ========================================================================
 # 宏观指标评估器
 # ========================================================================
+
 
 class MacroIndicatorEvaluator(BaseEvaluator):
     """
@@ -109,15 +112,15 @@ class MacroIndicatorEvaluator(BaseEvaluator):
         Returns:
             是否满足条件
         """
-        operator = self._normalize_operator(condition.get('operator'))
-        indicator_code = condition.get('indicator')
+        operator = self._normalize_operator(condition.get("operator"))
+        indicator_code = condition.get("indicator")
 
         if not operator or not indicator_code:
             logger.warning(f"Invalid macro condition: {condition}")
             return False
 
         # 从上下文获取宏观指标数据
-        macro_data = context.get('macro', {})
+        macro_data = context.get("macro", {})
         indicator_value = self._get_value(macro_data, indicator_code)
 
         if indicator_value is None:
@@ -126,37 +129,37 @@ class MacroIndicatorEvaluator(BaseEvaluator):
 
         # 根据运算符进行评估
         try:
-            if operator == '>':
-                threshold = condition.get('threshold', 0)
+            if operator == ">":
+                threshold = condition.get("threshold", 0)
                 return float(indicator_value) > float(threshold)
 
-            elif operator == '<':
-                threshold = condition.get('threshold', 0)
+            elif operator == "<":
+                threshold = condition.get("threshold", 0)
                 return float(indicator_value) < float(threshold)
 
-            elif operator == '>=':
-                threshold = condition.get('threshold', 0)
+            elif operator == ">=":
+                threshold = condition.get("threshold", 0)
                 return float(indicator_value) >= float(threshold)
 
-            elif operator == '<=':
-                threshold = condition.get('threshold', 0)
+            elif operator == "<=":
+                threshold = condition.get("threshold", 0)
                 return float(indicator_value) <= float(threshold)
 
-            elif operator == '==':
-                threshold = condition.get('threshold', 0)
+            elif operator == "==":
+                threshold = condition.get("threshold", 0)
                 return abs(float(indicator_value) - float(threshold)) < 1e-6
 
-            elif operator == '!=':
-                threshold = condition.get('threshold', 0)
+            elif operator == "!=":
+                threshold = condition.get("threshold", 0)
                 return abs(float(indicator_value) - float(threshold)) >= 1e-6
 
-            elif operator == 'between':
+            elif operator == "between":
                 # 兼容历史字段：min_value/max_value
-                min_val = condition.get('min', condition.get('min_value', 0))
-                max_val = condition.get('max', condition.get('max_value', 0))
+                min_val = condition.get("min", condition.get("min_value", 0))
+                max_val = condition.get("max", condition.get("max_value", 0))
                 return float(min_val) <= float(indicator_value) <= float(max_val)
 
-            elif operator == 'trend':
+            elif operator == "trend":
                 return self._evaluate_trend(condition, macro_data)
 
             else:
@@ -170,13 +173,15 @@ class MacroIndicatorEvaluator(BaseEvaluator):
     @staticmethod
     def _normalize_operator(operator: str | None) -> str | None:
         """兼容前端历史写法（gt/gte/eq...）"""
-        mapping = {
-            'gt': '>',
-            'gte': '>=',
-            'lt': '<',
-            'lte': '<=',
-            'eq': '==',
-            'ne': '!=',
+        if operator is None:
+            return None
+        mapping: dict[str, str] = {
+            "gt": ">",
+            "gte": ">=",
+            "lt": "<",
+            "lte": "<=",
+            "eq": "==",
+            "ne": "!=",
         }
         return mapping.get(operator, operator)
 
@@ -191,9 +196,9 @@ class MacroIndicatorEvaluator(BaseEvaluator):
         Returns:
             是否满足趋势条件
         """
-        indicator_code = condition.get('indicator')
-        direction = condition.get('direction', 'up')  # up, down
-        periods = condition.get('periods', 2)  # 连续周期数
+        indicator_code = condition.get("indicator")
+        direction = condition.get("direction", "up")  # up, down
+        periods = condition.get("periods", 2)  # 连续周期数
 
         # 获取历史数据（假设上下文中包含历史数据）
         history_key = f"{indicator_code}_history"
@@ -206,17 +211,17 @@ class MacroIndicatorEvaluator(BaseEvaluator):
         # 检查最近 N 个周期的趋势
         recent_values = history[-periods:]
 
-        if direction == 'up':
+        if direction == "up":
             # 检查是否连续上升
             for i in range(1, len(recent_values)):
-                if recent_values[i] <= recent_values[i-1]:
+                if recent_values[i] <= recent_values[i - 1]:
                     return False
             return True
 
-        elif direction == 'down':
+        elif direction == "down":
             # 检查是否连续下降
             for i in range(1, len(recent_values)):
-                if recent_values[i] >= recent_values[i-1]:
+                if recent_values[i] >= recent_values[i - 1]:
                     return False
             return True
 
@@ -228,6 +233,7 @@ class MacroIndicatorEvaluator(BaseEvaluator):
 # ========================================================================
 # Regime 评估器
 # ========================================================================
+
 
 class RegimeEvaluator(BaseEvaluator):
     """
@@ -267,15 +273,15 @@ class RegimeEvaluator(BaseEvaluator):
         Returns:
             是否满足条件
         """
-        operator = condition.get('operator')
+        operator = condition.get("operator")
 
         if not operator:
             logger.warning(f"Invalid regime condition: {condition}")
             return False
 
         # 从上下文获取 Regime 数据
-        regime_data = context.get('regime', {})
-        current_regime_raw = regime_data.get('dominant_regime')
+        regime_data = context.get("regime", {})
+        current_regime_raw = regime_data.get("dominant_regime")
         current_regime = self._normalize_regime(current_regime_raw)
 
         if current_regime is None:
@@ -283,15 +289,15 @@ class RegimeEvaluator(BaseEvaluator):
             return False
 
         try:
-            if operator == '==':
-                target_value = self._normalize_regime(condition.get('value'))
+            if operator == "==":
+                target_value = self._normalize_regime(condition.get("value"))
                 return current_regime == target_value
 
-            elif operator == 'in':
-                allowed_values = [self._normalize_regime(v) for v in condition.get('values', [])]
+            elif operator == "in":
+                allowed_values = [self._normalize_regime(v) for v in condition.get("values", [])]
                 return current_regime in allowed_values
 
-            elif operator == 'transitions':
+            elif operator == "transitions":
                 return self._evaluate_transitions(condition, regime_data)
 
             else:
@@ -313,11 +319,11 @@ class RegimeEvaluator(BaseEvaluator):
         Returns:
             是否满足变换条件
         """
-        from_regime = self._normalize_regime(condition.get('from'))
-        to_regime = self._normalize_regime(condition.get('to'))
+        from_regime = self._normalize_regime(condition.get("from"))
+        to_regime = self._normalize_regime(condition.get("to"))
 
-        previous_regime = self._normalize_regime(regime_data.get('previous_regime'))
-        current_regime = self._normalize_regime(regime_data.get('dominant_regime'))
+        previous_regime = self._normalize_regime(regime_data.get("previous_regime"))
+        current_regime = self._normalize_regime(regime_data.get("dominant_regime"))
 
         if previous_regime is None:
             # 没有历史数据，无法判断变换
@@ -331,14 +337,14 @@ class RegimeEvaluator(BaseEvaluator):
         if regime is None:
             return None
         mapping = {
-            'HG': 'Overheat',
-            'HD': 'Recovery',
-            'LG': 'Stagflation',
-            'LD': 'Deflation',
-            'Overheat': 'Overheat',
-            'Recovery': 'Recovery',
-            'Stagflation': 'Stagflation',
-            'Deflation': 'Deflation',
+            "HG": "Overheat",
+            "HD": "Recovery",
+            "LG": "Stagflation",
+            "LD": "Deflation",
+            "Overheat": "Overheat",
+            "Recovery": "Recovery",
+            "Stagflation": "Stagflation",
+            "Deflation": "Deflation",
         }
         return mapping.get(regime, regime)
 
@@ -346,6 +352,7 @@ class RegimeEvaluator(BaseEvaluator):
 # ========================================================================
 # 信号评估器
 # ========================================================================
+
 
 class SignalEvaluator(BaseEvaluator):
     """
@@ -389,30 +396,30 @@ class SignalEvaluator(BaseEvaluator):
         Returns:
             是否满足条件
         """
-        operator = condition.get('operator')
+        operator = condition.get("operator")
 
         if not operator:
             logger.warning(f"Invalid signal condition: {condition}")
             return False
 
         # 从上下文获取信号数据
-        signals = context.get('signals', [])
+        signals = context.get("signals", [])
 
         try:
-            if operator == 'exists':
-                asset_code = condition.get('asset_code')
-                return any(s.get('asset_code') == asset_code for s in signals)
+            if operator == "exists":
+                asset_code = condition.get("asset_code")
+                return any(s.get("asset_code") == asset_code for s in signals)
 
-            elif operator == 'score':
+            elif operator == "score":
                 return self._evaluate_score(condition, signals)
 
-            elif operator == 'AND':
+            elif operator == "AND":
                 return self._evaluate_and(condition, context)
 
-            elif operator == 'OR':
+            elif operator == "OR":
                 return self._evaluate_or(condition, context)
 
-            elif operator == 'NOT':
+            elif operator == "NOT":
                 return self._evaluate_not(condition, context)
 
             else:
@@ -423,37 +430,39 @@ class SignalEvaluator(BaseEvaluator):
             logger.error(f"Error evaluating signal condition: {e}, condition: {condition}")
             return False
 
-    def _evaluate_score(self, condition: dict[str, Any], signals: list[dict]) -> bool:
+    def _evaluate_score(
+        self,
+        condition: dict[str, Any],
+        signals: list[dict[str, Any]],
+    ) -> bool:
         """评估信号评分条件"""
-        asset_code = condition.get('asset_code')
-        min_score = condition.get('min_score', 0)
+        asset_code = condition.get("asset_code")
+        min_score = condition.get("min_score", 0)
+        if isinstance(min_score, bool) or not isinstance(min_score, (int, float)):
+            return False
 
         for signal in signals:
-            if signal.get('asset_code') == asset_code:
-                score = signal.get('total_score', 0)
-                return score >= min_score
+            if signal.get("asset_code") == asset_code:
+                score = signal.get("total_score", 0)
+                if isinstance(score, bool) or not isinstance(score, (int, float)):
+                    return False
+                return float(score) >= float(min_score)
 
         return False
 
     def _evaluate_and(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 AND 条件"""
-        sub_conditions = condition.get('conditions', [])
-        return all(
-            self.evaluate(cond, context)
-            for cond in sub_conditions
-        )
+        sub_conditions = condition.get("conditions", [])
+        return all(self.evaluate(cond, context) for cond in sub_conditions)
 
     def _evaluate_or(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 OR 条件"""
-        sub_conditions = condition.get('conditions', [])
-        return any(
-            self.evaluate(cond, context)
-            for cond in sub_conditions
-        )
+        sub_conditions = condition.get("conditions", [])
+        return any(self.evaluate(cond, context) for cond in sub_conditions)
 
     def _evaluate_not(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 NOT 条件"""
-        sub_condition = condition.get('condition')
+        sub_condition = condition.get("condition")
         if sub_condition:
             return not self.evaluate(sub_condition, context)
         return False
@@ -462,6 +471,7 @@ class SignalEvaluator(BaseEvaluator):
 # ========================================================================
 # 组合条件评估器
 # ========================================================================
+
 
 class CompositeEvaluator(BaseEvaluator):
     """
@@ -488,7 +498,7 @@ class CompositeEvaluator(BaseEvaluator):
     }
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # 初始化子评估器
         self.macro_evaluator = MacroIndicatorEvaluator()
         self.regime_evaluator = RegimeEvaluator()
@@ -505,20 +515,20 @@ class CompositeEvaluator(BaseEvaluator):
         Returns:
             是否满足条件
         """
-        operator = condition.get('operator')
+        operator = condition.get("operator")
 
         if not operator:
             logger.warning(f"Invalid composite condition: {condition}")
             return False
 
         try:
-            if operator == 'AND':
+            if operator == "AND":
                 return self._evaluate_and(condition, context)
 
-            elif operator == 'OR':
+            elif operator == "OR":
                 return self._evaluate_or(condition, context)
 
-            elif operator == 'NOT':
+            elif operator == "NOT":
                 return self._evaluate_not(condition, context)
 
             else:
@@ -531,7 +541,7 @@ class CompositeEvaluator(BaseEvaluator):
 
     def _evaluate_and(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 AND 条件"""
-        sub_conditions = condition.get('conditions', [])
+        sub_conditions = condition.get("conditions", [])
 
         for sub_cond in sub_conditions:
             if not self._evaluate_sub_condition(sub_cond, context):
@@ -541,7 +551,7 @@ class CompositeEvaluator(BaseEvaluator):
 
     def _evaluate_or(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 OR 条件"""
-        sub_conditions = condition.get('conditions', [])
+        sub_conditions = condition.get("conditions", [])
 
         for sub_cond in sub_conditions:
             if self._evaluate_sub_condition(sub_cond, context):
@@ -551,7 +561,7 @@ class CompositeEvaluator(BaseEvaluator):
 
     def _evaluate_not(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 NOT 条件"""
-        sub_condition = condition.get('condition')
+        sub_condition = condition.get("condition")
 
         if sub_condition:
             return not self._evaluate_sub_condition(sub_condition, context)
@@ -569,18 +579,18 @@ class CompositeEvaluator(BaseEvaluator):
         Returns:
             是否满足子条件
         """
-        condition_type = condition.get('type', 'composite')
+        condition_type = condition.get("type", "composite")
 
-        if condition_type == 'macro':
+        if condition_type == "macro":
             return self.macro_evaluator.evaluate(condition, context)
 
-        elif condition_type == 'regime':
+        elif condition_type == "regime":
             return self.regime_evaluator.evaluate(condition, context)
 
-        elif condition_type == 'signal':
+        elif condition_type == "signal":
             return self.signal_evaluator.evaluate(condition, context)
 
-        elif condition_type == 'composite':
+        elif condition_type == "composite":
             return self.evaluate(condition, context)
 
         else:
@@ -591,6 +601,7 @@ class CompositeEvaluator(BaseEvaluator):
 # ========================================================================
 # 组合规则评估器（主入口）
 # ========================================================================
+
 
 class CompositeRuleEvaluator:
     """
@@ -606,17 +617,13 @@ class CompositeRuleEvaluator:
     - composite: 组合规则
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.macro_evaluator = MacroIndicatorEvaluator()
         self.regime_evaluator = RegimeEvaluator()
         self.signal_evaluator = SignalEvaluator()
         self.composite_evaluator = CompositeEvaluator()
 
-    def evaluate(
-        self,
-        rule: RuleCondition,
-        context: dict[str, Any]
-    ) -> bool:
+    def evaluate(self, rule: RuleCondition, context: dict[str, Any]) -> bool:
         """
         评估规则条件
 
@@ -659,9 +666,7 @@ class CompositeRuleEvaluator:
             return False
 
     def evaluate_batch(
-        self,
-        rules: list[RuleCondition],
-        context: dict[str, Any]
+        self, rules: list[RuleCondition], context: dict[str, Any]
     ) -> dict[int, bool]:
         """
         批量评估规则
@@ -673,9 +678,11 @@ class CompositeRuleEvaluator:
         Returns:
             规则ID到评估结果的映射
         """
-        results = {}
+        results: dict[int, bool] = {}
 
         for rule in rules:
+            if rule.rule_id is None:
+                raise ValueError("Cannot batch-evaluate an unpersisted rule")
             results[rule.rule_id] = self.evaluate(rule, context)
 
         return results
