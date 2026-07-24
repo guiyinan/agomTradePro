@@ -2,10 +2,10 @@
   "counts": {
     "acceptance": 2,
     "api": 51,
-    "component": 294,
+    "component": 296,
     "critical": 3,
     "e2e": 7,
-    "fast": 246,
+    "fast": 249,
     "guardrails": 18,
     "integration": 97,
     "migrations": 6,
@@ -29,10 +29,12 @@
     "tests/unit/account/test_trading_cost_config.py",
     "tests/unit/account/test_transaction_cost_use_cases.py",
     "tests/unit/account/test_volatility_adjustment_use_case.py",
+    "tests/unit/ai_capability/test_t4b_management_command_contracts.py",
     "tests/unit/alpha/test_t3b_ops_contracts.py",
     "tests/unit/alpha/test_t3b_task_failure_contracts.py",
     "tests/unit/alpha_trigger/test_page_query_service_edges.py",
     "tests/unit/alpha_trigger/test_use_cases_edges.py",
+    "tests/unit/application/factor/test_t4b_interface_service_contracts.py",
     "tests/unit/application/factor/test_use_cases.py",
     "tests/unit/application/strategy/test_ai_strategy_executor.py",
     "tests/unit/application/strategy/test_position_management_service.py",
@@ -128,6 +130,7 @@
     "tests/unit/events/test_replay_domain.py",
     "tests/unit/events/test_replay_registry.py",
     "tests/unit/events/test_replay_service.py",
+    "tests/unit/events/test_t4b_retry_outcome_contracts.py",
     "tests/unit/filter/test_filter_use_cases.py",
     "tests/unit/macro/test_data_management.py",
     "tests/unit/macro/test_indicator_service.py",
@@ -3328,6 +3331,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/ai_capability/test_t4b_management_command_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/ai_provider/test_encrypt_api_keys_command.py",
       "reasons": [
         "import:.infrastructure"
@@ -3404,6 +3413,12 @@
         "import:.infrastructure"
       ],
       "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/application/factor/test_t4b_interface_service_contracts.py",
+      "reasons": [],
+      "tier": "fast"
     },
     {
       "database_dependent": false,
@@ -4294,6 +4309,12 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/events/test_t4b_retry_outcome_contracts.py",
+      "reasons": [],
+      "tier": "fast"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/filter/test_filter_use_cases.py",
       "reasons": [],
       "tier": "fast"
@@ -4600,6 +4621,14 @@
     },
     {
       "database_dependent": false,
+      "path": "tests/unit/pulse/test_t4b_task_and_serializer_contracts.py",
+      "reasons": [
+        "import:.interface"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
       "path": "tests/unit/realtime/test_alert_domain.py",
       "reasons": [],
       "tier": "fast"
@@ -4897,6 +4926,14 @@
       "path": "tests/unit/task_monitor/test_legacy_api_view_edges.py",
       "reasons": [
         "import:rest_framework.test"
+      ],
+      "tier": "component"
+    },
+    {
+      "database_dependent": false,
+      "path": "tests/unit/task_monitor/test_t4b_monitoring_outcome_contracts.py",
+      "reasons": [
+        "import:.infrastructure"
       ],
       "tier": "component"
     },
@@ -6318,6 +6355,6 @@
   ],
   "schema_version": 1,
   "unit_database_file_count": 7,
-  "unit_database_file_ratio": 0.015,
-  "unit_file_count": 466
+  "unit_database_file_ratio": 0.0149,
+  "unit_file_count": 471
 }
