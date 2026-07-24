@@ -1,7 +1,8 @@
 """Compatibility exports plus focused transaction, risk, and settings repositories."""
 
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, cast
@@ -183,6 +184,14 @@ class TransactionRepository:
 
 class ManualTradeSyncRepository:
     """Persistence operations for manual broker trade imports."""
+
+    @contextmanager
+    def atomic_import_row(self, *, portfolio_id: int) -> Iterator[None]:
+        """Serialize and atomically persist every side effect for one import row."""
+
+        with transaction.atomic():
+            PortfolioModel._default_manager.select_for_update().get(id=portfolio_id)
+            yield
 
     def get_owned_portfolio(self, *, user_id: int, portfolio_id: int) -> PortfolioModel | None:
         return PortfolioModel._default_manager.filter(id=portfolio_id, user_id=user_id).first()

@@ -5,8 +5,11 @@ import pytest
 from django.contrib.auth.models import User
 
 from apps.account.application.manual_trade_sync import ManualTradeImportUseCase
-from apps.account.infrastructure.models import PortfolioModel, TransactionModel
-from apps.account.infrastructure.repositories import PortfolioApiRepository
+from apps.account.infrastructure.models import PortfolioModel, PositionModel, TransactionModel
+from apps.account.infrastructure.repositories import (
+    ManualTradeSyncRepository,
+    PortfolioApiRepository,
+)
 from apps.backtest.application.decision_replay import (
     DecisionReplayBacktestRequest,
     DecisionReplayBacktestUseCase,
@@ -69,6 +72,49 @@ def test_import_broker_trades_syncs_positions_and_skips_duplicates(owner_portfol
     assert duplicate.imported_rows == 0
     assert duplicate.skipped_rows == 3
     assert TransactionModel.objects.filter(portfolio=portfolio).count() == 3
+
+
+@pytest.mark.django_db
+def test_transaction_failure_rolls_back_position_side_effects(
+    owner_portfolio,
+    monkeypatch,
+):
+    """A failed ledger write must not leave unified or legacy holdings changed."""
+
+    user, portfolio = owner_portfolio
+
+    def _fail_transaction(*args, **kwargs):
+        raise RuntimeError("ledger unavailable")
+
+    monkeypatch.setattr(
+        ManualTradeSyncRepository,
+        "create_imported_transaction",
+        _fail_transaction,
+    )
+    result = ManualTradeImportUseCase().confirm(
+        user_id=user.id,
+        portfolio_id=portfolio.id,
+        broker_name="demo",
+        filename="rollback.csv",
+        content=_csv(["2026-05-20T10:00:00,buy,000009.SZ,100,10.00,t9,rollback"]),
+    )
+
+    account_id = PortfolioApiRepository().ensure_real_account(portfolio)
+    assert result.imported_rows == 0
+    assert result.error_rows == 1
+    assert "ledger unavailable" in result.errors[0]["error"]
+    assert (
+        PortfolioApiRepository().get_unified_position_for_account_asset(
+            account_id=account_id,
+            asset_code="000009.SZ",
+        )
+        is None
+    )
+    assert not PositionModel.objects.filter(
+        portfolio=portfolio,
+        asset_code="000009.SZ",
+    ).exists()
+    assert not TransactionModel.objects.filter(portfolio=portfolio).exists()
 
 
 @pytest.mark.django_db

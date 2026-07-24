@@ -6,7 +6,7 @@ import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from django.utils import timezone
 
@@ -108,15 +108,18 @@ class RepositoryBackedManualTradeExecutionMatcher:
             traded_at=traded_at,
         )
         if match is None:
-            return self.recommendation_repo.record_execution_link(
-                recommendation_id="",
-                transaction_id=transaction_id,
-                account_id=account_id,
-                security_code=security_code,
-                actual_action=actual_action,
-                match_method="manual_only",
-                match_confidence=0.0,
-                notes="No matching system recommendation",
+            return cast(
+                dict[str, Any],
+                self.recommendation_repo.record_execution_link(
+                    recommendation_id="",
+                    transaction_id=transaction_id,
+                    account_id=account_id,
+                    security_code=security_code,
+                    actual_action=actual_action,
+                    match_method="manual_only",
+                    match_confidence=0.0,
+                    notes="No matching system recommendation",
+                ),
             )
 
         self.recommendation_repo.update_user_action(
@@ -125,15 +128,18 @@ class RepositoryBackedManualTradeExecutionMatcher:
             note=f"Matched imported transaction {transaction_id}",
             account_id=account_id,
         )
-        return self.recommendation_repo.record_execution_link(
-            recommendation_id=match["recommendation_id"],
-            transaction_id=transaction_id,
-            account_id=account_id,
-            security_code=security_code,
-            actual_action=actual_action,
-            match_method="auto",
-            match_confidence=match["match_confidence"],
-            notes="Matched by account/security/side/time window",
+        return cast(
+            dict[str, Any],
+            self.recommendation_repo.record_execution_link(
+                recommendation_id=match["recommendation_id"],
+                transaction_id=transaction_id,
+                account_id=account_id,
+                security_code=security_code,
+                actual_action=actual_action,
+                match_method="auto",
+                match_confidence=match["match_confidence"],
+                notes="Matched by account/security/side/time window",
+            ),
         )
 
 
@@ -143,15 +149,15 @@ class ManualTradeImportUseCase:
     def __init__(
         self,
         *,
-        sync_repo=None,
-        portfolio_repo=None,
-        recommendation_repo=None,
-        parser=None,
-        position_service=None,
+        sync_repo: Any | None = None,
+        portfolio_repo: Any | None = None,
+        recommendation_repo: Any | None = None,
+        parser: Any | None = None,
+        position_service: Any | None = None,
         execution_matcher: ManualTradeExecutionMatcherProtocol | None = None,
     ) -> None:
         self.sync_repo = sync_repo or get_manual_trade_sync_repository()
-        self.portfolio_repo = portfolio_repo or get_portfolio_api_repository()
+        self.portfolio_repo: Any = portfolio_repo or get_portfolio_api_repository()
         self.execution_matcher = (
             execution_matcher
             or (
@@ -235,40 +241,43 @@ class ManualTradeImportUseCase:
         skipped_rows = 0
         rows: list[dict[str, Any]] = []
         for row in normalized_rows:
-            if self.sync_repo.broker_trade_key_exists(row.broker_trade_key):
-                skipped_rows += 1
-                rows.append(row.to_preview_dict(duplicate=True) | {"status": "skipped_duplicate"})
-                continue
-
             try:
-                legacy_projection = self._apply_position_change(
-                    account_id=account_id,
-                    portfolio=portfolio,
-                    row=row,
-                )
-                transaction = self.sync_repo.create_imported_transaction(
-                    portfolio=portfolio,
-                    position=legacy_projection,
-                    action=row.action,
-                    asset_code=row.asset_code,
-                    shares=row.shares,
-                    price=row.price,
-                    commission=row.commission,
-                    stamp_duty=row.stamp_duty,
-                    transfer_fee=row.transfer_fee,
-                    traded_at=row.traded_at,
-                    notes=row.notes,
-                    broker_name=broker_name,
-                    external_trade_id=row.external_trade_id,
-                    broker_trade_key=row.broker_trade_key,
-                    raw_payload=row.raw_payload,
-                    import_batch=batch,
-                )
-                match_payload = self._match_recommendation(
-                    account_id=str(account_id),
-                    transaction_id=transaction.id,
-                    row=row,
-                )
+                with self.sync_repo.atomic_import_row(portfolio_id=portfolio_id):
+                    if self.sync_repo.broker_trade_key_exists(row.broker_trade_key):
+                        skipped_rows += 1
+                        rows.append(
+                            row.to_preview_dict(duplicate=True) | {"status": "skipped_duplicate"}
+                        )
+                        continue
+
+                    legacy_projection = self._apply_position_change(
+                        account_id=account_id,
+                        portfolio=portfolio,
+                        row=row,
+                    )
+                    transaction = self.sync_repo.create_imported_transaction(
+                        portfolio=portfolio,
+                        position=legacy_projection,
+                        action=row.action,
+                        asset_code=row.asset_code,
+                        shares=row.shares,
+                        price=row.price,
+                        commission=row.commission,
+                        stamp_duty=row.stamp_duty,
+                        transfer_fee=row.transfer_fee,
+                        traded_at=row.traded_at,
+                        notes=row.notes,
+                        broker_name=broker_name,
+                        external_trade_id=row.external_trade_id,
+                        broker_trade_key=row.broker_trade_key,
+                        raw_payload=row.raw_payload,
+                        import_batch=batch,
+                    )
+                    match_payload = self._match_recommendation(
+                        account_id=str(account_id),
+                        transaction_id=transaction.id,
+                        row=row,
+                    )
                 imported_rows += 1
                 rows.append(
                     row.to_preview_dict()
@@ -300,7 +309,13 @@ class ManualTradeImportUseCase:
             batch_id=batch.id,
         )
 
-    def _apply_position_change(self, *, account_id: int, portfolio, row: NormalizedTradeRow):
+    def _apply_position_change(
+        self,
+        *,
+        account_id: int,
+        portfolio: Any,
+        row: NormalizedTradeRow,
+    ) -> Any:
         if row.action == "buy":
             unified_model = self.position_service.create_position(
                 account_id=account_id,
@@ -493,7 +508,7 @@ class ManualTradeImportUseCase:
 class ManualTradeReviewSummaryUseCase:
     """Build a compact manual trade review payload for audit pages."""
 
-    def __init__(self, *, sync_repo=None) -> None:
+    def __init__(self, *, sync_repo: Any | None = None) -> None:
         self.sync_repo = sync_repo or get_manual_trade_sync_repository()
 
     def execute(self, *, user_id: int) -> dict[str, Any]:
