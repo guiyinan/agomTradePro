@@ -6,7 +6,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, TypeVar
 
 from django.db import IntegrityError, transaction
@@ -1972,9 +1972,35 @@ class DjangoBrokerExecutionRepository:
         )
         if replay is not None:
             return replay
-        agent = BrokerAgentModel._default_manager.filter(agent_id=agent_id, is_active=True).first()
+        agent = (
+            BrokerAgentModel._default_manager.select_for_update()
+            .filter(agent_id=agent_id, is_active=True)
+            .first()
+        )
         if agent is None:
             raise BrokerExecutionNotFoundError("Agent does not exist")
+        active_account_ids = set(
+            BrokerAccountBindingModel._default_manager.select_for_update()
+            .filter(
+                agent=agent,
+                account_id__in=allowed_account_ids,
+                is_active=True,
+            )
+            .order_by("account_id")
+            .values_list("account_id", flat=True)
+        )
+        if active_account_ids != set(allowed_account_ids):
+            raise BrokerExecutionConflictError(
+                "Credential scope contains an inactive or unbound Agent account"
+            )
+        replay = self._replay_or_conflict(
+            user_id=actor_id,
+            action=action,
+            idempotency_key=idempotency_key,
+            request_digest=request_digest,
+        )
+        if replay is not None:
+            return replay
         parsed_expiry = self._parse_agent_datetime(expires_at)
         if parsed_expiry <= timezone.now():
             raise BrokerExecutionConflictError("Credential expiry must be in the future")
@@ -2157,11 +2183,21 @@ class DjangoBrokerExecutionRepository:
         )
         if replay is not None:
             return replay
-        binding = BrokerAccountBindingModel._default_manager.filter(
-            account_id=account_id, is_active=True
-        ).first()
+        binding = (
+            BrokerAccountBindingModel._default_manager.select_for_update()
+            .filter(account_id=account_id, is_active=True)
+            .first()
+        )
         if binding is None:
             raise BrokerExecutionNotFoundError("Broker account binding does not exist")
+        replay = self._replay_or_conflict(
+            user_id=actor_id,
+            action=action,
+            idempotency_key=idempotency_key,
+            request_digest=request_digest,
+        )
+        if replay is not None:
+            return replay
         before = {
             "auto_execution_enabled": binding.auto_execution_enabled,
             "max_single_order_amount": str(binding.max_single_order_amount),
@@ -2175,19 +2211,42 @@ class DjangoBrokerExecutionRepository:
         }
         for field in ("max_single_order_amount", "daily_order_amount_limit"):
             if field in payload:
-                value = Decimal(str(payload[field]))
-                if value < 0:
-                    raise BrokerExecutionConflictError(f"{field} cannot be negative")
+                try:
+                    value = Decimal(str(payload[field]))
+                except (InvalidOperation, ValueError) as exc:
+                    raise BrokerExecutionConflictError(f"{field} must be numeric") from exc
+                if not value.is_finite() or value < 0:
+                    raise BrokerExecutionConflictError(
+                        f"{field} must be a non-negative finite number"
+                    )
                 setattr(binding, field, value)
         if "price_deviation_limit_pct" in payload:
-            binding.price_deviation_limit_pct = Decimal(str(payload["price_deviation_limit_pct"]))
+            try:
+                price_deviation = Decimal(str(payload["price_deviation_limit_pct"]))
+            except (InvalidOperation, ValueError) as exc:
+                raise BrokerExecutionConflictError(
+                    "price_deviation_limit_pct must be numeric"
+                ) from exc
+            if not price_deviation.is_finite() or not 0 <= price_deviation <= 1:
+                raise BrokerExecutionConflictError(
+                    "price_deviation_limit_pct must be between 0 and 1"
+                )
+            binding.price_deviation_limit_pct = price_deviation
         for field in ("max_position_count", "max_snapshot_age_seconds"):
             if field in payload:
-                setattr(binding, field, int(payload[field]))
+                try:
+                    integer_value = int(payload[field])
+                except (TypeError, ValueError, OverflowError) as exc:
+                    raise BrokerExecutionConflictError(f"{field} must be an integer") from exc
+                if integer_value <= 0:
+                    raise BrokerExecutionConflictError(f"{field} must be positive")
+                setattr(binding, field, integer_value)
         if "allowed_trading_windows" in payload:
             binding.allowed_trading_windows = list(payload["allowed_trading_windows"])
         if "enforce_trading_session" in payload:
-            binding.enforce_trading_session = bool(payload["enforce_trading_session"])
+            if not isinstance(payload["enforce_trading_session"], bool):
+                raise BrokerExecutionConflictError("enforce_trading_session must be boolean")
+            binding.enforce_trading_session = payload["enforce_trading_session"]
         if "allowed_symbols" in payload:
             binding.allowed_symbols = sorted(
                 {
@@ -2197,7 +2256,9 @@ class DjangoBrokerExecutionRepository:
                 }
             )
         if "auto_execution_enabled" in payload:
-            binding.auto_execution_enabled = bool(payload["auto_execution_enabled"])
+            if not isinstance(payload["auto_execution_enabled"], bool):
+                raise BrokerExecutionConflictError("auto_execution_enabled must be boolean")
+            binding.auto_execution_enabled = payload["auto_execution_enabled"]
         binding.save()
         after = {
             "account_id": account_id,
