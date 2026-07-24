@@ -1462,3 +1462,18 @@
 - Rotation 直接清除剩余 `56` 条债务，共享相关性计算器清除 `4` 条债务。
 - Rotation readiness、API 与 Domain 回归共 `113 passed`。
 - governance baseline 升级为 `2026-07-24.v179`，静态测试函数计数提升至 `7200`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。
+
+## 第一百零八批
+
+- 按“推荐生成前置影响面 × 跨模块调用扇出”继续收口 Decision Rhythm，首批清零统一推荐的 Feature Provider 聚合入口，覆盖 Regime、Policy、Beta Gate、舆情、资金、技术、基本面、Alpha 信号与候选。
+- 为 Alpha 查询、交易日解析及六类延迟加载依赖建立精确 Callable/Protocol/具体边界类型；所有 provider constructor、repository/use-case getter 与 Alpha 查询返回契约具化。
+- Composite Provider 的 Beta Gate 方法与父类保持可替换签名，并将动态 Regime confidence 通过共享安全数值入口收窄；Alpha 排名结果改为直接使用已具化的 Domain 实体字段。
+- 修复 Policy `P0/P1/P2/P3` 字符串可能直接进入要求整数的 Beta Gate 请求的问题；`P*` 与 `LEVEL_*` 现统一规范化为受限 `0..3`，未知值安全回退为 0。
+- Alpha 候选分数使用 `safe_float` 拒绝非法值、NaN 与无穷值，继续保持中性分数降级。
+- 新增 Policy 档位规范化参数化回归。
+
+## 第一百零八批验证结果
+
+- Decision Rhythm Feature Provider mypy 清零；全仓基线从 `4306 errors / 707 files` 收紧为 `4273 errors / 706 files`，净减少 `33 errors / 1 file`，跨文件无新增。
+- Feature Provider 与统一推荐用例回归共 `49 passed`。
+- governance baseline 升级为 `2026-07-24.v180`，静态测试函数计数提升至 `7201`；完整 mypy debt ceiling、Django system check、改动文件 Ruff、Black 与 diff check 通过。

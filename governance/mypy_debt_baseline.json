@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 4306,
-    "files_with_errors": 707
+    "errors": 4273,
+    "files_with_errors": 706
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1300,13 +1300,6 @@
     },
     "apps/decision_rhythm/infrastructure/consistency_snapshots.py": {
       "no-any-return": 1
-    },
-    "apps/decision_rhythm/infrastructure/feature_providers.py": {
-      "arg-type": 2,
-      "no-untyped-call": 14,
-      "no-untyped-def": 15,
-      "override": 1,
-      "union-attr": 1
     },
     "apps/decision_rhythm/infrastructure/model_param_models.py": {
       "unused-ignore": 4
