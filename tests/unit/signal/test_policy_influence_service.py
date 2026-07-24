@@ -86,3 +86,47 @@ def test_policy_influence_service_uses_application_providers(monkeypatch):
         }
     ]
     assert any("负面舆情" in item for item in result["recommendations"])
+
+
+def test_policy_influence_service_ignores_malformed_structured_data(monkeypatch):
+    policy_repo = _FakePolicyRepository()
+    policy_repo.list_recent_sector_policies = lambda cutoff_datetime: [
+        {
+            "id": 2,
+            "title": "畸形结构化数据",
+            "level": "P1",
+            "info_category": "sector",
+            "structured_data": ["not", "an", "object"],
+        }
+    ]
+    policy_repo.list_recent_sentiment_policies = lambda *, asset_code, cutoff_datetime: [
+        {
+            "id": 3,
+            "title": "畸形舆情数据",
+            "level": "P1",
+            "info_category": "individual",
+            "structured_data": "invalid",
+        }
+    ]
+    monkeypatch.setattr(
+        "apps.signal.application.services.get_current_policy_repository",
+        lambda: policy_repo,
+    )
+    monkeypatch.setattr(
+        "apps.signal.application.services.get_sector_repository",
+        lambda: _FakeSectorRepository(),
+    )
+
+    result = PolicyInfluenceService().apply_policy_influences(
+        InvestmentSignal(
+            id="sig-2",
+            asset_code="000001.SZ",
+            asset_class="a_share_finance",
+            direction="LONG",
+            logic_desc="test",
+        )
+    )
+
+    assert len(result["affected_by_policies"]) == 2
+    assert result["risk_adjustments"] == []
+    assert not any("负面舆情" in item for item in result["recommendations"])

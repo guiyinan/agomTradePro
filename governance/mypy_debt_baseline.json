@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3111,
-    "files_with_errors": 604
+    "errors": 3101,
+    "files_with_errors": 603
   },
   "modules": {
     "apps/account/application/stress_testing_use_cases.py": {
@@ -2018,11 +2018,6 @@
       "no-any-return": 1,
       "no-untyped-def": 5,
       "type-arg": 10
-    },
-    "apps/signal/application/services.py": {
-      "attr-defined": 8,
-      "no-untyped-call": 1,
-      "no-untyped-def": 1
     },
     "apps/signal/apps.py": {
       "no-untyped-call": 1

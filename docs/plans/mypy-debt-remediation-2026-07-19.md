@@ -2327,3 +2327,17 @@
 - Signal Query Service 增量 mypy 清零；全仓基线从 `3119 errors / 605 files` 收紧为 `3111 errors / 604 files`，净减少 `8 errors / 1 file`。
 - Signal 单元与 API 边界回归共 `105 passed`；覆盖非法过滤、无效持久化 ID、空更新、查询上限、批量 ID、未知 Regime、非有限阈值和畸形统计/持久化记录。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十二批
+
+- 按“政策影响进入投资信号的决策影响面 × 动态 JSON 安全”收口 Policy Influence Service。
+- 政策影响返回值改为明确的 `TypedDict` 契约，黑白名单标志、受影响政策、风险调整和建议不再被推断为不安全的混合容器。
+- `structured_data` 只在真实 JSON object 时读取；字符串、列表、空值等遗留畸形数据按空对象处理，不再因调用 `.get()` 中断整条信号决策链。
+- 板块影响列表只接受非空字符串数组；字符串或其他动态结构不能被按字符迭代并产生伪板块命中。
+- Policy Influence Service 的构造、返回值和中间容器补齐精确类型。
+
+## 第一百六十二批验证结果
+
+- Policy Influence Service 增量 mypy 清零；全仓基线从 `3111 errors / 604 files` 收紧为 `3101 errors / 603 files`，净减少 `10 errors / 1 file`。
+- Signal 单元与 API 边界回归共 `106 passed`；覆盖黑白名单、板块/舆情影响、畸形结构化数据及既有证伪与查询契约。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
