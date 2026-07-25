@@ -2770,3 +2770,20 @@
 - Base Fetcher、Macro Fetcher Resilience、日期和指标治理回归共 `60 passed`；新增覆盖全部核心命名列、六类 CPI 细分、M2 原始亿元值、单位规则、schema 漂移、非法月份和未知 CPI 代码拒绝。
 - Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
 - 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十批
+
+- 按“PMI 领先分项长期空数据 × Pulse/Regime 领先指标影响面”收口 Data Center PMI Subitems Fetcher。
+- 修复手工数据路径从不存在的 `apps/data_center/data/pmi_subitems_manual.json` 读取的问题；Fetcher 现在准确定位既有 `apps/macro/data/pmi_subitems_manual.json`，六类 PMI 分项不再永久静默返回空列表。
+- 手工文件事实来源改为 `manual_pmi_subitems`，不再错误标记为 `akshare`；指标目录补齐国家统计局、NBS publisher code、official provenance 和 manual-file access channel。
+- 数据迁移把历史误标为 akshare 的 PMI 分项事实改为手工来源并补审计 metadata；若 canonical 手工事实已存在，则保留冲突行并标记 `error`，避免唯一键覆盖，迁移回滚可恢复原来源与质量。
+- 缺失可选文件仍返回空列表；文件不可读、JSON 损坏、根结构错误、缺失/非数组 data 或非对象记录改为明确 `DataValidationError`，不再把损坏数据伪装成“无数据”。
+- reporting period 必须是 ISO 月末日期；布尔、缺失、NaN、无穷及 0..100 外的 PMI 指数跳过；反向日期范围在文件 I/O 前拒绝。
+- 六个公开 fetch 方法复用统一字段转换入口，单位由指标治理元数据解析；动态 JSON、回调、记录、列表和返回边界补齐精确类型。
+
+## 第一百九十批验证结果
+
+- PMI Subitems Fetcher 增量 mypy 清零；全仓基线从 `2704 errors / 560 files` 收紧为 `2694 errors / 559 files`，净减少 `10 errors / 1 file`。
+- PMI Subitems、provenance migration 与指标治理回归共 `26 passed`；新增直接读取真实默认文件的六分项覆盖，以及损坏 JSON、结构错误、缺失文件、非法月末、越界值、来源修复和冲突隔离回归。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。

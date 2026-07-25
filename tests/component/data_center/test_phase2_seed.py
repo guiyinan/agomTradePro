@@ -35,6 +35,27 @@ def test_akshare_m2_raw_unit_rule_uses_canonical_currency_storage():
 
 
 @pytest.mark.django_db
+def test_manual_pmi_subitems_publish_official_file_provenance():
+    indicators = IndicatorCatalogModel.objects.filter(
+        code__in=[
+            "CN_PMI_NEW_ORDER",
+            "CN_PMI_INVENTORY",
+            "CN_PMI_RAW_MAT",
+            "CN_PMI_PURCHASE",
+            "CN_PMI_PRODUCTION",
+            "CN_PMI_EMPLOYMENT",
+        ]
+    )
+
+    assert indicators.count() == 6
+    for indicator in indicators:
+        assert indicator.extra["provenance_class"] == "official"
+        assert indicator.extra["publisher_code"] == "NBS"
+        assert indicator.extra["publisher_codes"] == ["NBS"]
+        assert indicator.extra["access_channel"] == "manual_file"
+
+
+@pytest.mark.django_db
 def test_indicator_catalog_cutover_codes_exist_after_expansion():
     codes = set(
         IndicatorCatalogModel.objects.filter(

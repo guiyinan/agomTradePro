@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2704,
-    "files_with_errors": 560
+    "errors": 2694,
+    "files_with_errors": 559
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -875,11 +875,6 @@
       "no-any-return": 3,
       "no-untyped-call": 1,
       "no-untyped-def": 2
-    },
-    "apps/data_center/infrastructure/macro_sources/fetchers/pmi_subitems_fetchers.py": {
-      "no-any-return": 7,
-      "no-untyped-def": 1,
-      "type-arg": 2
     },
     "apps/data_center/infrastructure/macro_sources/fetchers/trade_fetchers.py": {
       "import-untyped": 1,
