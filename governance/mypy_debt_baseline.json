@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2037,
-    "files_with_errors": 492
+    "errors": 2027,
+    "files_with_errors": 491
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1182,15 +1182,6 @@
     "apps/policy/application/repository_provider.py": {
       "attr-defined": 1,
       "no-untyped-call": 1
-    },
-    "apps/policy/application/services.py": {
-      "assignment": 2,
-      "attr-defined": 1,
-      "no-any-return": 1,
-      "operator": 2,
-      "type-arg": 1,
-      "valid-type": 1,
-      "var-annotated": 2
     },
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1

@@ -3346,3 +3346,17 @@
 - Policy 模型信号、任务边界和事件 API 回归 `25 passed`。
 - Policy models 增量 mypy 清零，并传播清除 workbench repository 2 项债务；全仓基线从 `2055 errors / 493 files` 收紧为 `2037 errors / 492 files`，净减少 `18 errors / 1 file`。
 - `makemigrations --check --dry-run` 无 schema 漂移；Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十八批
+
+- 按“Policy 关键词分类真实性 × 风险档位决策影响面”收口 Policy Application matcher service。
+- 关键词规则在构建 matcher 时拒绝空关键词、非正权重和 P1–P3 之外的档位；空字符串不再因属于所有标题而把每条新闻误判为命中。
+- 同一规则内的关键词先去空白、统一大小写并去重，重复配置不再重复累加权重；关键词映射、逐档详情和解释 payload 使用明确 TypedDict 与 tuple 类型。
+- 多个档位得分相同时按更高严重度 P3→P2→P1 决胜，不再因字典插入顺序默认选择低风险 P1；无正分时仍明确返回未匹配。
+- 匹配日志改为参数化固定消息，不复制完整 RSS 标题；普通匹配与解释型匹配共享相同规范化和风险决胜规则。
+
+## 第二百二十八批验证结果
+
+- Policy 内容、事件、RSS Application 与任务回归 `14 passed`，覆盖空关键词、非法权重/档位、重复关键词和同分高严重度决胜。
+- Policy Application services 增量 mypy 清零；全仓基线从 `2037 errors / 492 files` 收紧为 `2027 errors / 491 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
