@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2089,
-    "files_with_errors": 495
+    "errors": 2072,
+    "files_with_errors": 494
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1216,11 +1216,6 @@
     },
     "apps/policy/infrastructure/hedge_position_repository.py": {
       "no-untyped-def": 1
-    },
-    "apps/policy/infrastructure/interface_repositories.py": {
-      "arg-type": 2,
-      "misc": 5,
-      "no-untyped-def": 10
     },
     "apps/policy/infrastructure/models.py": {
       "assignment": 1,

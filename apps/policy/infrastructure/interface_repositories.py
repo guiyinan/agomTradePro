@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, TypeVar
 
 from django.db import models, transaction
 from django.db.models.functions import TruncDate
@@ -18,6 +18,35 @@ from .models import (
     RSSSourceConfigModel,
     SentimentGateConfig,
 )
+
+ModelT = TypeVar("ModelT", bound=models.Model)
+
+
+def _parse_optional_id(raw_value: str, *, field_name: str) -> int | None:
+    """Parse an optional positive database identifier."""
+
+    if not raw_value:
+        return None
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must be a positive integer") from exc
+    if value <= 0:
+        raise ValueError(f"{field_name} must be a positive integer")
+    return value
+
+
+def _parse_optional_bool(raw_value: str | None, *, field_name: str) -> bool | None:
+    """Parse common HTML/DRF boolean query representations."""
+
+    if raw_value is None or raw_value == "":
+        return None
+    normalized = raw_value.strip().casefold()
+    if normalized in {"1", "true"}:
+        return True
+    if normalized in {"0", "false"}:
+        return False
+    raise ValueError(f"{field_name} must be true, false, 1, or 0")
 
 
 class PolicyAdminInterfaceRepository:
@@ -130,9 +159,7 @@ class PolicyAdminInterfaceRepository:
     def get_rsshub_global_config_id(self) -> int | None:
         """Return the singleton config primary key when present."""
 
-        return (
-            RSSHubGlobalConfig._default_manager.values_list("pk", flat=True).first()
-        )
+        return RSSHubGlobalConfig._default_manager.values_list("pk", flat=True).first()
 
 
 class PolicyWorkbenchInterfaceRepository:
@@ -141,27 +168,25 @@ class PolicyWorkbenchInterfaceRepository:
     def list_active_source_options(self) -> list[dict[str, Any]]:
         """Return active RSS source options for workbench filters."""
 
-        return list(
+        rows = (
             RSSSourceConfigModel._default_manager.filter(is_active=True)
             .values("id", "name", "category")
             .order_by("name")
         )
+        return [dict(row) for row in rows]
 
     def get_workbench_filter_options(self) -> dict[str, Any]:
         """Return static and dynamic filter options for the workbench."""
 
         return {
             "event_types": [
-                {"value": value, "label": label}
-                for value, label in PolicyLog.EVENT_TYPE_CHOICES
+                {"value": value, "label": label} for value, label in PolicyLog.EVENT_TYPE_CHOICES
             ],
             "levels": [
-                {"value": value, "label": label}
-                for value, label in PolicyLog.POLICY_LEVELS
+                {"value": value, "label": label} for value, label in PolicyLog.POLICY_LEVELS
             ],
             "gate_levels": [
-                {"value": value, "label": label}
-                for value, label in PolicyLog.GATE_LEVEL_CHOICES
+                {"value": value, "label": label} for value, label in PolicyLog.GATE_LEVEL_CHOICES
             ],
             "asset_classes": ["equity", "bond", "commodity", "fx", "crypto", "all"],
             "sources": self.list_active_source_options(),
@@ -175,15 +200,14 @@ class PolicyWorkbenchInterfaceRepository:
     ) -> list[dict[str, Any]]:
         """Return the last 30d sentiment trend."""
 
-        return list(
+        rows = (
             PolicyLog._default_manager.filter(
                 gate_effective=True,
                 event_type__in=["hotspot", "sentiment", "mixed"],
                 event_date__gte=start_date,
                 event_date__lte=end_date,
             )
-            .annotate(day=TruncDate("event_date"))
-            .values("day")
+            .values(day=TruncDate("event_date"))
             .annotate(
                 avg_heat=models.Avg("heat_score"),
                 avg_sentiment=models.Avg("sentiment_score"),
@@ -191,6 +215,7 @@ class PolicyWorkbenchInterfaceRepository:
             )
             .order_by("day")
         )
+        return [dict(row) for row in rows]
 
     def get_recent_effective_events_trend(
         self,
@@ -200,26 +225,27 @@ class PolicyWorkbenchInterfaceRepository:
     ) -> list[dict[str, Any]]:
         """Return effective event counts grouped by day and event type."""
 
-        return list(
+        rows = (
             PolicyLog._default_manager.filter(
                 gate_effective=True,
                 event_date__gte=start_date,
                 event_date__lte=end_date,
             )
-            .annotate(day=TruncDate("event_date"))
-            .values("day", "event_type")
+            .values("event_type", day=TruncDate("event_date"))
             .annotate(count=models.Count("id"))
             .order_by("day", "event_type")
         )
+        return [dict(row) for row in rows]
 
     def get_recent_fetch_errors(self, *, limit: int = 5) -> list[dict[str, Any]]:
         """Return recent RSS fetch failures."""
 
-        return list(
+        rows = (
             RSSFetchLog._default_manager.filter(status="error")
             .order_by("-fetched_at")[:limit]
             .values("fetched_at", "source__name", "error_message")
         )
+        return [dict(row) for row in rows]
 
     def get_latest_fetch_log(self) -> RSSFetchLog | None:
         """Return the latest RSS fetch log."""
@@ -339,12 +365,13 @@ class PolicyPageInterfaceRepository:
         category: str = "",
         is_active: str = "",
         search: str = "",
-    ):
+    ) -> models.QuerySet[RSSSourceConfigModel]:
         queryset = RSSSourceConfigModel._default_manager.all()
         if category:
             queryset = queryset.filter(category=category)
-        if is_active:
-            queryset = queryset.filter(is_active=is_active == "true")
+        parsed_is_active = _parse_optional_bool(is_active, field_name="is_active")
+        if parsed_is_active is not None:
+            queryset = queryset.filter(is_active=parsed_is_active)
         if search:
             queryset = queryset.filter(name__icontains=search)
         return queryset.order_by("category", "name")
@@ -354,12 +381,13 @@ class PolicyPageInterfaceRepository:
         *,
         level: str = "",
         is_active: str = "",
-    ):
+    ) -> models.QuerySet[PolicyLevelKeywordModel]:
         queryset = PolicyLevelKeywordModel._default_manager.all()
         if level:
             queryset = queryset.filter(level=level)
-        if is_active:
-            queryset = queryset.filter(is_active=is_active == "true")
+        parsed_is_active = _parse_optional_bool(is_active, field_name="is_active")
+        if parsed_is_active is not None:
+            queryset = queryset.filter(is_active=parsed_is_active)
         return queryset.order_by("-weight", "level")
 
     def list_rss_fetch_logs(
@@ -367,10 +395,11 @@ class PolicyPageInterfaceRepository:
         *,
         source_id: str = "",
         status: str = "",
-    ):
+    ) -> models.QuerySet[RSSFetchLog]:
         queryset = RSSFetchLog._default_manager.select_related("source").all()
-        if source_id:
-            queryset = queryset.filter(source_id=source_id)
+        parsed_source_id = _parse_optional_id(source_id, field_name="source_id")
+        if parsed_source_id is not None:
+            queryset = queryset.filter(source_id=parsed_source_id)
         if status:
             queryset = queryset.filter(status=status)
         return queryset.order_by("-fetched_at")
@@ -390,10 +419,11 @@ class PolicyPageInterfaceRepository:
         source_id: str = "",
         level: str = "",
         category: str = "",
-    ):
+    ) -> models.QuerySet[PolicyLog]:
         queryset = PolicyLog._default_manager.select_related("rss_source").all()
-        if source_id:
-            queryset = queryset.filter(rss_source_id=source_id)
+        parsed_source_id = _parse_optional_id(source_id, field_name="source_id")
+        if parsed_source_id is not None:
+            queryset = queryset.filter(rss_source_id=parsed_source_id)
         if level:
             queryset = queryset.filter(level=level)
         if category:
@@ -428,7 +458,7 @@ class PolicyPageInterfaceRepository:
         level: str = "",
         start_date: str = "",
         end_date: str = "",
-    ):
+    ) -> models.QuerySet[PolicyLog]:
         queryset = PolicyLog._default_manager.all()
         if level:
             queryset = queryset.filter(level=level)
@@ -456,10 +486,16 @@ class PolicyRssApiInterfaceRepository:
     """Data access helpers used by policy RSS API views."""
 
     @staticmethod
-    def _apply_bool_filter(queryset, *, field_name: str, raw_value: str | None):
-        if raw_value in (None, ""):
+    def _apply_bool_filter(
+        queryset: models.QuerySet[ModelT],
+        *,
+        field_name: str,
+        raw_value: str | None,
+    ) -> models.QuerySet[ModelT]:
+        parsed_value = _parse_optional_bool(raw_value, field_name=field_name)
+        if parsed_value is None:
             return queryset
-        return queryset.filter(**{field_name: raw_value == "true"})
+        return queryset.filter(**{field_name: parsed_value})
 
     def list_rss_source_configs(
         self,
@@ -468,7 +504,7 @@ class PolicyRssApiInterfaceRepository:
         is_active: str | None = "",
         parser_type: str = "",
         search: str = "",
-    ):
+    ) -> models.QuerySet[RSSSourceConfigModel]:
         queryset = RSSSourceConfigModel._default_manager.all()
         if category:
             queryset = queryset.filter(category=category)
@@ -518,22 +554,20 @@ class PolicyRssApiInterfaceRepository:
         source_name: str = "",
         source_id: str = "",
         status: str = "",
-    ):
+    ) -> models.QuerySet[RSSFetchLog]:
         queryset = RSSFetchLog._default_manager.select_related("source").all()
         if source_name:
             queryset = queryset.filter(source__name=source_name)
-        elif source_id:
-            queryset = queryset.filter(source_id=source_id)
+        else:
+            parsed_source_id = _parse_optional_id(source_id, field_name="source_id")
+            if parsed_source_id is not None:
+                queryset = queryset.filter(source_id=parsed_source_id)
         if status:
             queryset = queryset.filter(status=status)
         return queryset.order_by("-fetched_at")
 
     def get_rss_fetch_log(self, log_id: int) -> RSSFetchLog | None:
-        return (
-            RSSFetchLog._default_manager.select_related("source")
-            .filter(pk=log_id)
-            .first()
-        )
+        return RSSFetchLog._default_manager.select_related("source").filter(pk=log_id).first()
 
     def list_policy_level_keywords(
         self,
@@ -541,7 +575,7 @@ class PolicyRssApiInterfaceRepository:
         level: str = "",
         is_active: str | None = "",
         category: str = "",
-    ):
+    ) -> models.QuerySet[PolicyLevelKeywordModel]:
         queryset = PolicyLevelKeywordModel._default_manager.all()
         if level:
             queryset = queryset.filter(level=level)

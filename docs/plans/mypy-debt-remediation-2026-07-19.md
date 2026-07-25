@@ -3303,3 +3303,18 @@
 - 估值修复配置集成与 serializer 契约回归 `16 passed`。
 - 配置 ViewSet 及兼容 facade 增量 mypy 清零；全仓基线从 `2101 errors / 496 files` 收紧为 `2089 errors / 495 files`，净减少 `12 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十五批
+
+- 按“Policy 公共查询边界 × 工作台与 RSS 管理影响面”收口 Policy interface repositories。
+- 页面和 API 的可选布尔过滤统一解析 `true/false/1/0`；修复 HTML 页面常用 `is_active=1` 被错误解释为 `False` 的查询语义，并拒绝含糊布尔值。
+- RSS 来源外键过滤统一解析为正整数；空值表示不过滤，零、负数、小数和非数字不再直接交给 ORM 隐式转换。
+- Policy 趋势聚合使用 `values(day=TruncDate(...))` 声明派生日期列，保持按日分组 SQL 语义并让 Django ORM 类型系统识别 annotation。
+- 页面、RSS API、工作台查询补齐具体 QuerySet Model 类型；values/aggregate 结果在 Infrastructure 边界复制为普通字典，不再把 Django TypedDict QuerySet 声明成不兼容的可变字典列表。
+- 通用布尔 QuerySet helper 使用协变 Model TypeVar 保持输入输出模型一致；管理统计、工作台详情、RSS 状态等现有查询契约保持不变。
+
+## 第二百二十五批验证结果
+
+- Policy 页面、RSS API、工作台、Application 装配及新增布尔/ID 边界回归 `55 passed`；派生日期查询调整后工作台与边界定点复核 `35 passed`。
+- Policy interface repository 增量 mypy 清零；全仓基线从 `2089 errors / 495 files` 收紧为 `2072 errors / 494 files`，净减少 `17 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
