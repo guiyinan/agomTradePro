@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1995,
-    "files_with_errors": 488
+    "errors": 1983,
+    "files_with_errors": 487
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1123,11 +1123,6 @@
     "apps/operational_readiness/infrastructure/readiness_window_validation_core.py": {
       "arg-type": 3,
       "union-attr": 3
-    },
-    "apps/operational_readiness/management/commands/collect_personal_readiness_evidence.py": {
-      "assignment": 2,
-      "no-any-return": 9,
-      "no-untyped-def": 1
     },
     "apps/operational_readiness/management/commands/inspect_personal_readiness_evidence.py": {
       "assignment": 2,

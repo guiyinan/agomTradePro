@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from argparse import ArgumentParser
 from datetime import UTC, date, datetime
 from importlib import import_module
 from io import StringIO
+from math import isfinite
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -34,27 +36,30 @@ def get_application_user_by_id(user_id: int) -> Any:
 
 def resolve_recent_closed_trade_date() -> date:
     module = import_module("apps.alpha.application.trade_dates")
-    return module.resolve_recent_closed_trade_date()
+    return cast(date, module.resolve_recent_closed_trade_date())
 
 
 def build_auto_advisor_console_payload(**kwargs: Any) -> dict[str, Any]:
     module = import_module("apps.dashboard.application.query_services")
-    return module.build_auto_advisor_console_payload(**kwargs)
+    return cast(dict[str, Any], module.build_auto_advisor_console_payload(**kwargs))
 
 
 def build_auto_advisor_notifications_payload(**kwargs: Any) -> dict[str, Any]:
     module = import_module("apps.dashboard.application.query_services")
-    return module.build_auto_advisor_notifications_payload(**kwargs)
+    return cast(dict[str, Any], module.build_auto_advisor_notifications_payload(**kwargs))
 
 
 def build_auto_advisor_weekly_report_history_payload(**kwargs: Any) -> dict[str, Any]:
     module = import_module("apps.dashboard.application.query_services")
-    return module.build_auto_advisor_weekly_report_history_payload(**kwargs)
+    return cast(
+        dict[str, Any],
+        module.build_auto_advisor_weekly_report_history_payload(**kwargs),
+    )
 
 
 def build_auto_advisor_weekly_report_payload(**kwargs: Any) -> dict[str, Any]:
     module = import_module("apps.dashboard.application.query_services")
-    return module.build_auto_advisor_weekly_report_payload(**kwargs)
+    return cast(dict[str, Any], module.build_auto_advisor_weekly_report_payload(**kwargs))
 
 
 def EvaluatePreTradeRiskUseCase() -> Any:
@@ -69,29 +74,35 @@ def GenerateRiskCenterDailyReportUseCase() -> Any:
 
 def get_position_snapshots(**kwargs: Any) -> list[dict[str, Any]]:
     module = import_module("apps.simulated_trading.application.query_services")
-    return module.get_position_snapshots(**kwargs)
+    return cast(list[dict[str, Any]], module.get_position_snapshots(**kwargs))
 
 
 def list_active_account_targets() -> list[dict[str, Any]]:
     module = import_module("apps.simulated_trading.application.query_services")
-    return module.list_active_account_targets()
+    return cast(list[dict[str, Any]], module.list_active_account_targets())
 
 
 def list_dashboard_account_payloads(user_id: int) -> list[dict[str, Any]]:
     module = import_module("apps.simulated_trading.application.query_services")
-    return module.list_dashboard_account_payloads(user_id)
+    return cast(
+        list[dict[str, Any]],
+        module.list_dashboard_account_payloads(user_id),
+    )
 
 
 def get_broker_execution_readiness_evidence(**kwargs: Any) -> dict[str, Any]:
     module = import_module("apps.broker_execution.application.readiness")
-    return module.get_broker_execution_readiness_evidence(**kwargs)
+    return cast(
+        dict[str, Any],
+        module.get_broker_execution_readiness_evidence(**kwargs),
+    )
 
 
 class Command(BaseCommand):
     help = "Collect daily evidence for personal investment system readiness."
     stealth_options = ("trigger_source", "trigger_task_id", "trigger_task_name")
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
             "--target-date",
             dest="target_date",
@@ -231,6 +242,13 @@ def collect_personal_readiness_evidence(
 ) -> dict[str, Any]:
     """Collect daily readiness evidence without requiring every subsystem to pass."""
 
+    _validate_collection_inputs(
+        target_date=target_date,
+        user_id=user_id,
+        account_id=account_id,
+        max_qlib_staleness_days=max_qlib_staleness_days,
+        allow_unclosed_target_date=allow_unclosed_target_date,
+    )
     generated_at = datetime.now(UTC)
     latest_closed_date = resolve_default_readiness_target_date()
     operation_context = _build_operation_context(
@@ -268,7 +286,16 @@ def collect_personal_readiness_evidence(
         for target in targets
     ]
 
-    sections = [system, qlib, workspace, *account_checks]
+    scheduler_status = str(
+        (scheduler_evidence.get("quote_pre_readiness_scheduler") or {}).get("status") or "unknown"
+    )
+    sections = [
+        system,
+        qlib,
+        workspace,
+        {"status": scheduler_status},
+        *account_checks,
+    ]
     overall_status = _rollup_status(
         [str(section.get("status") or "unknown") for section in sections]
     )
@@ -374,11 +401,22 @@ def _collect_system_readiness(*, target_date: date) -> dict[str, Any]:
     try:
         checks = run_readiness_checks()
         macro_context = status_services.build_current_macro_context(target_date=target_date)
-        checks["regime"] = macro_context.get("regime")
-        checks["pulse"] = macro_context.get("pulse")
+        regime = macro_context.get("regime")
+        pulse = macro_context.get("pulse")
+        checks["regime"] = (
+            regime
+            if isinstance(regime, dict)
+            else {"status": "error", "reason": "regime_evidence_missing"}
+        )
+        checks["pulse"] = (
+            pulse
+            if isinstance(pulse, dict)
+            else {"status": "error", "reason": "pulse_evidence_missing"}
+        )
+        healthy = is_healthy(checks)
         return {
-            "status": "ok" if is_healthy(checks) else "error",
-            "healthy": is_healthy(checks),
+            "status": "ok" if healthy else "error",
+            "healthy": healthy,
             "checks": checks,
         }
     except Exception as exc:
@@ -689,24 +727,31 @@ def _build_pre_trade_probe(
         else sum(_optional_float(item.get("market_value")) or 0.0 for item in positions)
     )
     position = _first_position_with_symbol(positions)
-    symbol = str(
-        (position or {}).get("symbol") or (position or {}).get("asset_code") or "510300.SH"
+    if position is None:
+        return None
+    symbol = str(position.get("symbol") or position.get("asset_code") or "").strip().upper()
+    if not symbol:
+        return None
+    price = _first_positive_float(
+        position.get("current_price"),
+        position.get("price"),
+        position.get("avg_cost"),
     )
-    price = (
-        _optional_float((position or {}).get("current_price"))
-        or _optional_float((position or {}).get("price"))
-        or _optional_float((position or {}).get("avg_cost"))
-        or 1.0
-    )
-    current_symbol_position_value = _optional_float((position or {}).get("market_value")) or 0.0
+    if price is None:
+        return None
+    current_symbol_position_value = _optional_float(position.get("market_value")) or 0.0
 
     if cash > 0:
-        order_value = max(min(cash * 0.01, equity * 0.005), min(cash, price))
-        quantity = max(order_value / price, 0.000001)
+        order_value = min(cash * 0.01, equity * 0.005, cash)
+        if order_value <= 0:
+            return None
+        quantity = order_value / price
         side = "buy"
     elif current_symbol_position_value > 0:
         order_value = min(current_symbol_position_value * 0.01, equity * 0.005)
-        quantity = max(order_value / price, 0.000001)
+        if order_value <= 0:
+            return None
+        quantity = order_value / price
         side = "sell"
     else:
         return None
@@ -1135,6 +1180,9 @@ def _validate_target_date_is_closed(
 
 def _rollup_status(statuses: list[str]) -> str:
     normalized = [status for status in statuses if status]
+    known_statuses = {"ok", "warning", "error", "skipped"}
+    if any(status not in known_statuses for status in normalized):
+        return "error"
     if any(status == "error" for status in normalized):
         return "error"
     if any(status == "warning" for status in normalized):
@@ -1168,9 +1216,42 @@ def _optional_float(value: Any) -> float | None:
     try:
         if value in (None, ""):
             return None
-        return float(value)
+        parsed = float(value)
     except (TypeError, ValueError):
         return None
+    return parsed if isfinite(parsed) else None
+
+
+def _first_positive_float(*values: Any) -> float | None:
+    """Return the first finite positive numeric value."""
+
+    for value in values:
+        parsed = _optional_float(value)
+        if parsed is not None and parsed > 0:
+            return parsed
+    return None
+
+
+def _validate_collection_inputs(
+    *,
+    target_date: date,
+    user_id: int | None,
+    account_id: int | None,
+    max_qlib_staleness_days: int,
+    allow_unclosed_target_date: bool,
+) -> None:
+    """Reject invalid direct-call inputs before collecting formal evidence."""
+
+    if user_id is not None and user_id <= 0:
+        raise CommandError("user-id must be a positive integer")
+    if account_id is not None and account_id <= 0:
+        raise CommandError("account-id must be a positive integer")
+    if max_qlib_staleness_days < 0:
+        raise CommandError("max-qlib-staleness-days must be non-negative")
+    _validate_target_date_is_closed(
+        target_date=target_date,
+        allow_unclosed_target_date=allow_unclosed_target_date,
+    )
 
 
 def _json_safe(value: Any) -> Any:

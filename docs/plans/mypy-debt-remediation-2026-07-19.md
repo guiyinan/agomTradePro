@@ -3400,3 +3400,19 @@
 - Dashboard Alpha 查询、视图、上下文仓储和 mixin 结构回归 `91 passed`，覆盖宏观仓位上下文缺失、非有限评分和非有限因子不能形成可行动建议。
 - Dashboard Alpha candidate mixin 增量 mypy 清零；全仓基线从 `2010 errors / 489 files` 收紧为 `1995 errors / 488 files`，净减少 `15 errors / 1 file`。
 - Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十二批
+
+- 按“生产 readiness 证据真实性 × 直接调用输入边界 × 探针数据可追溯性”收口个人 readiness 取证命令。
+- Readiness 总状态正式纳入 quote pre-readiness 调度器状态；任一未识别状态失败关闭，不再把 `unknown` 或调度器错误包装成整体 `ok`。
+- 命令函数的直接调用与 CLI 使用相同边界：拒绝未收盘目标日、非正用户/账户 ID 和负 Qlib 新鲜度窗口，定时任务或内部调用不再绕过 CLI 校验。
+- 系统宏观上下文缺少 Regime 或 Pulse 字典时写入明确错误检查项，不再把动态 `None` 注入 readiness checks；健康状态只计算一次并与保存证据一致。
+- 预交易 readiness 探针只使用实际持仓代码和实际正价格；没有可追溯标的或价格时返回不可用警告，不再硬编码 `510300.SH` 或用 `1.0` 伪造报价。
+- 探针订单金额严格限制在现金的 1% 与账户权益的 0.5% 内；数值解析拒绝 `NaN` 和 `Inf`，避免非有限资产、现金或价格进入风控证据。
+- 延迟导入的 Dashboard、模拟交易、Qlib 和券商 readiness 边界使用明确集合/日期类型，管理命令 parser、系统检查合并和动态 provider 返回值全部进入增量类型检查。
+
+## 第二百三十二批验证结果
+
+- Readiness 取证命令、日常任务、证据修复和窗口验收回归 `57 passed`；核心命令定点回归 `22 passed`。
+- 个人 readiness 取证命令增量 mypy 清零；全仓基线从 `1995 errors / 488 files` 收紧为 `1983 errors / 487 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

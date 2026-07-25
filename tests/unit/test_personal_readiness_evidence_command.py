@@ -55,6 +55,106 @@ def test_parse_date_defaults_to_latest_closed_trading_day():
     assert command_module._parse_date(None) == date(2026, 6, 30)
 
 
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"user_id": 0}, "user-id must be a positive integer"),
+        ({"account_id": -1}, "account-id must be a positive integer"),
+        (
+            {"max_qlib_staleness_days": -1},
+            "max-qlib-staleness-days must be non-negative",
+        ),
+    ],
+)
+def test_collect_personal_readiness_evidence_rejects_invalid_direct_inputs(kwargs, message):
+    options = {
+        "target_date": date(2026, 6, 30),
+        "user_id": None,
+        "account_id": None,
+    }
+    options.update(kwargs)
+
+    with pytest.raises(CommandError, match=message):
+        command_module.collect_personal_readiness_evidence(**options)
+
+
+def test_collect_personal_readiness_evidence_rejects_unclosed_direct_target():
+    with pytest.raises(CommandError, match="later than latest closed trading day"):
+        command_module.collect_personal_readiness_evidence(
+            target_date=date(2026, 7, 1),
+            user_id=None,
+            account_id=None,
+        )
+
+
+def test_readiness_rollup_fails_closed_on_unknown_status():
+    assert command_module._rollup_status(["ok", "unknown", "skipped"]) == "error"
+
+
+def test_collect_personal_readiness_evidence_includes_scheduler_in_status(monkeypatch):
+    monkeypatch.setattr(
+        command_module,
+        "_collect_system_readiness",
+        lambda **kwargs: {"status": "ok", "checks": {}},
+    )
+    monkeypatch.setattr(
+        command_module,
+        "_collect_qlib_readiness",
+        lambda **kwargs: {"status": "ok"},
+    )
+    monkeypatch.setattr(
+        command_module,
+        "_collect_workspace_refresh",
+        lambda **kwargs: {"status": "skipped"},
+    )
+    monkeypatch.setattr(
+        command_module,
+        "_collect_scheduler_evidence",
+        lambda **kwargs: {
+            "quote_pre_readiness_scheduler": {
+                "status": "error",
+                "reason": "scheduler_unavailable",
+            }
+        },
+    )
+    monkeypatch.setattr(command_module, "_resolve_targets", lambda **kwargs: [])
+
+    payload = command_module.collect_personal_readiness_evidence(
+        target_date=date(2026, 6, 30),
+        user_id=None,
+        account_id=None,
+    )
+
+    assert payload["status"] == "error"
+    assert payload["summary"]["quote_pre_readiness_scheduler_status"] == "error"
+
+
+def test_pre_trade_probe_requires_observed_symbol_and_price():
+    assert (
+        command_module._build_pre_trade_probe(
+            account_equity=100000.0,
+            cash_balance=50000.0,
+            total_position_value=0.0,
+            positions=[],
+        )
+        is None
+    )
+    assert (
+        command_module._build_pre_trade_probe(
+            account_equity=100000.0,
+            cash_balance=50000.0,
+            total_position_value=10000.0,
+            positions=[{"asset_code": "000001.SZ", "market_value": 10000.0}],
+        )
+        is None
+    )
+
+
+def test_optional_float_rejects_non_finite_values():
+    assert command_module._optional_float(float("nan")) is None
+    assert command_module._optional_float(float("inf")) is None
+
+
 def test_collect_personal_readiness_evidence_runs_account_chain(monkeypatch):
     captured: dict[str, object] = {}
 
@@ -161,7 +261,13 @@ def test_collect_personal_readiness_evidence_runs_account_chain(monkeypatch):
     monkeypatch.setattr(
         command_module,
         "get_position_snapshots",
-        lambda account_id: [{"asset_code": "510300.SH", "market_value": 75000.0}],
+        lambda account_id: [
+            {
+                "asset_code": "510300.SH",
+                "current_price": 4.0,
+                "market_value": 75000.0,
+            }
+        ],
     )
     monkeypatch.setattr(command_module, "GenerateRiskCenterDailyReportUseCase", FakeRiskUseCase)
     monkeypatch.setattr(command_module, "EvaluatePreTradeRiskUseCase", FakePreTradeUseCase)
@@ -397,7 +503,13 @@ def test_collect_risk_report_records_persisted_report_id(monkeypatch):
     monkeypatch.setattr(
         command_module,
         "get_position_snapshots",
-        lambda account_id: [{"asset_code": "510300.SH", "market_value": 75000.0}],
+        lambda account_id: [
+            {
+                "asset_code": "510300.SH",
+                "current_price": 4.0,
+                "market_value": 75000.0,
+            }
+        ],
     )
     monkeypatch.setattr(command_module, "GenerateRiskCenterDailyReportUseCase", FakeRiskUseCase)
     monkeypatch.setattr(command_module, "EvaluatePreTradeRiskUseCase", FakePreTradeUseCase)
