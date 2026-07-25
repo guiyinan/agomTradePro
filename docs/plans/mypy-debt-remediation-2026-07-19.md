@@ -3262,3 +3262,18 @@
 - 估值同步、质量门禁、来源 gateway、任务、修复 API、管理命令和 Data Center provider 选择相关合并回归 `58 passed`；格式后核心不变量定点复核 `19 passed`。
 - 七个关联生产文件增量 mypy 清零；全仓基线从 `2137 errors / 499 files` 收紧为 `2119 errors / 498 files`，净减少 `18 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十二批
+
+- 按“估值修复状态真实性 × 批量扫描结果真实性”收口 Equity 估值修复 Application 用例。
+- 单股状态与百分位历史在 Application 边界校验股票代码和回看窗口，批量扫描校验窗口与数量上限，内部调用不再依赖 Interface 才能阻止非法输入。
+- 估值历史使用 `is not None` 转换 PE/PB，合法的 `0` 不再被错误改写为缺失值。
+- 批量扫描存在任一股票失败时明确返回失败和失败计数，不再把部分失败包装为成功；逐股和整体异常只记录异常类型，对外使用稳定错误文案。
+- `all_active` 股票池通过明确 Repository Protocol 读取，移除运行时 `hasattr` 和不受控降级查询；股票、质量快照、修复快照与股票池依赖均收窄为只读 Protocol。
+- 状态、历史、列表响应和阶段计数补齐具体集合类型；质量快照分支显式收窄，正式 API、任务和仓储装配进入增量类型检查。
+
+## 第二百二十二批验证结果
+
+- 估值修复 API、配置集成、同步任务及新增真实性不变量回归 `42 passed`。
+- 估值修复 Application 用例及其主要调用方增量 mypy 清零；全仓基线从 `2119 errors / 498 files` 收紧为 `2106 errors / 497 files`，净减少 `13 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。

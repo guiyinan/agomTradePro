@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2119,
-    "files_with_errors": 498
+    "errors": 2106,
+    "files_with_errors": 497
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -858,12 +858,6 @@
       "attr-defined": 1,
       "no-untyped-def": 2,
       "type-arg": 4
-    },
-    "apps/equity/application/use_cases_valuation_repair.py": {
-      "no-any-return": 2,
-      "no-untyped-def": 5,
-      "type-arg": 5,
-      "var-annotated": 1
     },
     "apps/equity/apps.py": {
       "no-untyped-def": 1
