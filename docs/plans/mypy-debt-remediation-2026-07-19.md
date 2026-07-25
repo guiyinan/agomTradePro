@@ -2963,3 +2963,18 @@
 - Qlib runtime contracts、training component 与 mock fallback remediation 回归共 `48 passed`；覆盖同步/异步同配置、模型专属参数、v1 规范化、真实评估 effective config 和影子保存器移除。
 - Qlib training command 及相关 task/runtime 增量 mypy 清零；全仓基线从 `2535 errors / 541 files` 收紧为 `2517 errors / 540 files`，净减少 `18 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、diff check 与增量 mypy 通过。
+
+## 第二百零二批
+
+- 按“中央 AI Provider 路由 × 凭据轮换与故障接管影响面”收口 `AIClientFactory`。
+- 删除 `_ScopedAIClient` 按 provider ID 永久缓存适配器的逻辑；每次请求均使用本次从数据库解析出的最新 Base URL、API Key、默认模型、API mode 与 fallback 设置构建适配器，配置或密钥轮换无需等待进程重启。
+- 适配器构建或调用抛出的异常统一转换为安全的标准失败结果并写入使用日志；日志只保留 provider 名称和异常类型，不向调用方或审计记录复制可能含凭据、地址或第三方响应正文的原始异常消息。单个 provider 异常后继续尝试后续个人或系统候选，不再中断整条 failover 链。
+- 个人 provider 与系统 provider 统一执行自身日/月预算限制；个人配置达到预算后跳过并进入受用户 fallback quota 约束的系统兜底，不再绕过 provider 级预算。
+- 显式传入的非法或不存在用户引用改为失败关闭，不再解析为匿名请求后使用不计用户额度的 system-global provider。
+- 补齐中央 factory、scoped client、adapter contract 与 chat completion application protocol 的精确类型；删除未使用的 legacy null client，并让 Prompt、Valuation、Terminal 与 AI Capability 消费端共享同一可检查契约。
+
+## 第二百零二批验证结果
+
+- AI Provider Domain/Adapter/配置/加密/预算/路由/API、Prompt/Valuation API 与 Terminal Agent 回归共 `151 passed`；新增覆盖 provider 抛异常后的接管、异常消息脱敏、缓存 client 下配置和 API Key 轮换即时生效、非法用户 ID 拒绝及个人预算执行。
+- AI client factory 与 application chat contract 增量 mypy 清零；类型传播同时消除 AI Capability facade 与 Terminal chat router 的既有未类型调用，全仓基线从 `2517 errors / 540 files` 收紧为 `2497 errors / 539 files`，净减少 `20 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。

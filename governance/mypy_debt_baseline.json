@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2517,
-    "files_with_errors": 540
+    "errors": 2497,
+    "files_with_errors": 539
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -138,8 +138,7 @@
     "apps/ai_capability/application/facade.py": {
       "assignment": 1,
       "attr-defined": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 1
+      "no-any-return": 1
     },
     "apps/ai_capability/application/mcp_catalog_projection.py": {
       "arg-type": 2
@@ -221,13 +220,6 @@
       "no-any-return": 1,
       "union-attr": 1,
       "unused-ignore": 1
-    },
-    "apps/ai_provider/infrastructure/client_factory.py": {
-      "comparison-overlap": 1,
-      "index": 2,
-      "no-any-return": 1,
-      "no-untyped-call": 3,
-      "no-untyped-def": 10
     },
     "apps/ai_provider/infrastructure/management/commands/encrypt_api_keys.py": {
       "no-untyped-def": 2
@@ -1880,7 +1872,6 @@
     "apps/terminal/application/chat_router.py": {
       "assignment": 4,
       "attr-defined": 1,
-      "no-untyped-call": 2,
       "no-untyped-def": 3
     },
     "apps/terminal/application/confirmation.py": {

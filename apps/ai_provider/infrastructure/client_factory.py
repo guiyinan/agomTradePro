@@ -3,12 +3,15 @@ AI client factory shared by prompt, terminal, and other modules.
 """
 
 import logging
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Protocol, cast
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
 
 from ..domain.services import AICostCalculator
 from .adapters import OpenAICompatibleAdapter
+from .models import AIProviderConfig
 from .repositories import (
     AIProviderRepository,
     AIUsageRepository,
@@ -16,6 +19,26 @@ from .repositories import (
 )
 
 logger = logging.getLogger(__name__)
+ProviderReference = int | str | None
+ChatResult = dict[str, Any]
+ChatMessages = list[dict[str, Any]]
+
+
+class _ChatAdapter(Protocol):
+    """Minimal adapter contract consumed by the routing client."""
+
+    def chat_completion(
+        self,
+        messages: ChatMessages,
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        stream: bool = False,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> ChatResult:
+        """Return one normalized chat result."""
 
 
 class AIClientFactory:
@@ -30,9 +53,13 @@ class AIClientFactory:
         self._provider_repo = provider_repo or AIProviderRepository()
         self._usage_repo = usage_repo or AIUsageRepository()
         self._quota_repo = quota_repo or AIUserFallbackQuotaRepository(usage_repo=self._usage_repo)
-        self._clients: dict[tuple[str, Any], Any] = {}
+        self._clients: dict[tuple[str, ProviderReference, int | None], _ScopedAIClient] = {}
 
-    def get_client(self, provider_ref=None, user=None):
+    def get_client(
+        self,
+        provider_ref: ProviderReference = None,
+        user: User | int | str | object | None = None,
+    ) -> "_ScopedAIClient":
         """Return a user-aware AI client."""
         resolved_user = _resolve_user(user)
         cache_key = ("scoped", provider_ref, getattr(resolved_user, "id", None))
@@ -47,7 +74,8 @@ class AIClientFactory:
             )
         return self._clients[cache_key]
 
-    def _build_adapter(self, provider):
+    def _build_adapter(self, provider: AIProviderConfig) -> _ChatAdapter:
+        """Build an adapter from the provider's latest persisted configuration."""
         api_key = self._provider_repo.get_api_key(provider)
         return OpenAICompatibleAdapter(
             base_url=provider.base_url,
@@ -64,12 +92,12 @@ class _ScopedAIClient:
     def __init__(
         self,
         *,
-        provider_ref,
-        user,
+        provider_ref: ProviderReference,
+        user: User | None,
         provider_repo: AIProviderRepository,
         usage_repo: AIUsageRepository,
         quota_repo: AIUserFallbackQuotaRepository,
-        adapter_builder,
+        adapter_builder: Callable[[AIProviderConfig], _ChatAdapter],
     ) -> None:
         self._provider_ref = provider_ref
         self._user = user
@@ -77,11 +105,10 @@ class _ScopedAIClient:
         self._usage_repo = usage_repo
         self._quota_repo = quota_repo
         self._adapter_builder = adapter_builder
-        self._adapter_cache: dict[int, Any] = {}
 
     def chat_completion(
         self,
-        messages: list[dict[str, Any]],
+        messages: ChatMessages,
         model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
@@ -104,8 +131,11 @@ class _ScopedAIClient:
 
         personal_candidates, system_candidates = self._resolve_candidates()
 
-        last_error = None
+        last_error: str | None = None
         for provider in personal_candidates:
+            if not self._provider_budget_allows(provider):
+                last_error = f"Provider budget exhausted: {provider.name}"
+                continue
             result = self._call_provider(
                 provider=provider,
                 messages=messages,
@@ -185,22 +215,41 @@ class _ScopedAIClient:
             "tool_calls": None,
         }
 
-    def _chat_with_system_only(self, **kwargs) -> dict[str, Any]:
+    def _chat_with_system_only(
+        self,
+        *,
+        messages: ChatMessages,
+        model: str | None,
+        temperature: float,
+        max_tokens: int | None,
+        stream: bool,
+        tools: list[dict[str, Any]] | None,
+        tool_choice: str | None,
+        response_format: dict[str, Any] | None,
+    ) -> ChatResult:
         provider = self._provider_repo.get_provider_for_reference(self._provider_ref, user=None)
         if provider is not None and self._provider_repo.has_usable_api_key(provider):
             providers = [provider]
         else:
             providers = self._provider_repo.get_active_configured_system_providers()
 
-        last_error = None
+        last_error: str | None = None
         for candidate in providers:
             if not self._provider_budget_allows(candidate):
+                last_error = f"Provider budget exhausted: {candidate.name}"
                 continue
             result = self._call_provider(
                 provider=candidate,
                 provider_scope="system_global",
                 quota_charged=False,
-                **kwargs,
+                messages=messages,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=stream,
+                tools=tools,
+                tool_choice=tool_choice,
+                response_format=response_format,
             )
             if result["status"] == "success":
                 return result
@@ -208,7 +257,7 @@ class _ScopedAIClient:
 
         return {
             "content": None,
-            "model": kwargs.get("model") or "",
+            "model": model or "",
             "prompt_tokens": 0,
             "completion_tokens": 0,
             "total_tokens": 0,
@@ -226,8 +275,12 @@ class _ScopedAIClient:
             "tool_calls": None,
         }
 
-    def _resolve_candidates(self):
-        explicit = self._provider_repo.get_provider_for_reference(self._provider_ref, user=self._user)
+    def _resolve_candidates(
+        self,
+    ) -> tuple[list[AIProviderConfig], list[AIProviderConfig]]:
+        explicit = self._provider_repo.get_provider_for_reference(
+            self._provider_ref, user=self._user
+        )
         personal = self._provider_repo.get_active_configured_user_providers(self._user)
         system = self._provider_repo.get_active_configured_system_providers()
 
@@ -245,20 +298,21 @@ class _ScopedAIClient:
             system = _move_to_front(system, explicit.id)
         return personal, system
 
-    def _get_adapter(self, provider):
-        if provider.id not in self._adapter_cache:
-            self._adapter_cache[provider.id] = self._adapter_builder(provider)
-        return self._adapter_cache[provider.id]
-
-    def _provider_budget_allows(self, provider) -> bool:
+    def _provider_budget_allows(self, provider: AIProviderConfig) -> bool:
         budget = self._usage_repo.check_budget_limits(
             provider.id,
             float(provider.daily_budget_limit) if provider.daily_budget_limit is not None else None,
-            float(provider.monthly_budget_limit) if provider.monthly_budget_limit is not None else None,
+            (
+                float(provider.monthly_budget_limit)
+                if provider.monthly_budget_limit is not None
+                else None
+            ),
         )
         return not budget["daily"]["exceeded"] and not budget["monthly"]["exceeded"]
 
     def _get_fallback_quota_status(self) -> dict[str, Any]:
+        if self._user is None:
+            raise RuntimeError("Fallback quota requires an authenticated user")
         quota, daily_spent, monthly_spent = self._quota_repo.get_with_usage(self._user)
         if quota is None or not quota.is_active:
             return {
@@ -282,29 +336,41 @@ class _ScopedAIClient:
     def _call_provider(
         self,
         *,
-        provider,
-        messages,
-        model,
-        temperature,
-        max_tokens,
-        stream,
-        tools,
-        tool_choice,
-        response_format,
+        provider: AIProviderConfig,
+        messages: ChatMessages,
+        model: str | None,
+        temperature: float,
+        max_tokens: int | None,
+        stream: bool,
+        tools: list[dict[str, Any]] | None,
+        tool_choice: str | None,
+        response_format: dict[str, Any] | None,
         provider_scope: str,
         quota_charged: bool,
-    ) -> dict[str, Any]:
-        adapter = self._get_adapter(provider)
-        result = adapter.chat_completion(
-            messages=messages,
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=stream,
-            tools=tools,
-            tool_choice=tool_choice,
-            response_format=response_format,
-        )
+    ) -> ChatResult:
+        try:
+            adapter = self._adapter_builder(provider)
+            result = adapter.chat_completion(
+                messages=messages,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=stream,
+                tools=tools,
+                tool_choice=tool_choice,
+                response_format=response_format,
+            )
+        except Exception as exc:
+            logger.warning(
+                "AI provider call failed before returning a normalized result: "
+                "provider=%s exception_type=%s",
+                provider.name,
+                type(exc).__name__,
+            )
+            result = _error_result(
+                model=model or provider.default_model,
+                error_message=f"Provider {provider.name} request failed ({type(exc).__name__})",
+            )
         estimated_cost = result.get("estimated_cost") or AICostCalculator.calculate_cost(
             result.get("model") or model or provider.default_model,
             int(result.get("prompt_tokens", 0) or 0),
@@ -338,50 +404,31 @@ class _ScopedAIClient:
         return result
 
 
-class _NullAIClient:
-    """Legacy null client fallback."""
-
-    def chat_completion(self, *args, **kwargs):
-        return {
-            "content": None,
-            "model": "",
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-            "finish_reason": None,
-            "response_time_ms": 0,
-            "status": "error",
-            "error_message": "No active AI providers configured",
-            "estimated_cost": 0.0,
-            "provider_used": None,
-            "provider_scope": "system_global",
-            "quota_charged": False,
-            "request_type": "chat",
-            "api_mode_used": None,
-            "fallback_used": False,
-            "tool_calls": None,
-        }
-
-
-def _resolve_user(user):
+def _resolve_user(user: User | int | str | object | None) -> User | None:
+    """Resolve an explicit user reference without downgrading invalid IDs to anonymous."""
     if user is None:
         return None
     if hasattr(user, "is_authenticated"):
-        return user if user.is_authenticated else None
+        return cast(User, user) if bool(cast(Any, user).is_authenticated) else None
+    if not isinstance(user, (int, str)):
+        raise ValueError("Invalid user reference") from None
     try:
         user_id = int(user)
-    except (TypeError, ValueError):
-        return None
+    except ValueError:
+        raise ValueError("Invalid user reference") from None
     user_model = get_user_model()
     try:
         return user_model._default_manager.get(pk=user_id)
     except user_model.DoesNotExist:
-        return None
+        raise ValueError("Unknown user reference") from None
 
 
-def _move_to_front(providers: list[Any], provider_id: int) -> list[Any]:
-    target = None
-    remainder: list[Any] = []
+def _move_to_front(
+    providers: list[AIProviderConfig],
+    provider_id: int,
+) -> list[AIProviderConfig]:
+    target: AIProviderConfig | None = None
+    remainder: list[AIProviderConfig] = []
     for item in providers:
         if item.id == provider_id and target is None:
             target = item
@@ -390,3 +437,26 @@ def _move_to_front(providers: list[Any], provider_id: int) -> list[Any]:
     if target is None:
         return providers
     return [target, *remainder]
+
+
+def _error_result(*, model: str, error_message: str) -> ChatResult:
+    """Build the normalized error shape shared by routing failures."""
+    return {
+        "content": None,
+        "model": model,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "finish_reason": None,
+        "response_time_ms": 0,
+        "status": "error",
+        "error_message": error_message,
+        "estimated_cost": 0.0,
+        "provider_used": None,
+        "provider_scope": None,
+        "quota_charged": False,
+        "request_type": "chat",
+        "api_mode_used": None,
+        "fallback_used": False,
+        "tool_calls": None,
+    }

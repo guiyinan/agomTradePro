@@ -17,7 +17,17 @@ from apps.ai_provider.application.repository_provider import (
 class ChatCompletionClientProtocol(Protocol):
     """Client surface used by the application chat helper."""
 
-    def chat_completion(self, **kwargs: Any) -> dict[str, Any]: ...
+    def chat_completion(
+        self,
+        messages: list[dict[str, Any]],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        stream: bool = False,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> dict[str, Any]: ...
 
 
 class AIClientFactoryProtocol(Protocol):
@@ -25,8 +35,8 @@ class AIClientFactoryProtocol(Protocol):
 
     def get_client(
         self,
-        provider_ref: Any | None = None,
-        user: Any | None = None,
+        provider_ref: int | str | None = None,
+        user: object | None = None,
     ) -> ChatCompletionClientProtocol: ...
 
 
@@ -70,11 +80,9 @@ def generate_chat_completion(
         provider_ref=provider_ref,
         user=user,
     )
-    request_payload: dict[str, Any] = {
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-    if model:
-        request_payload["model"] = model
-    return ai_client.chat_completion(**request_payload)
+    return ai_client.chat_completion(
+        messages=messages,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
