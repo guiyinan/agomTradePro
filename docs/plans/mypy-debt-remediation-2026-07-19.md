@@ -3009,3 +3009,17 @@
 - AI Provider Domain/Adapter/配置/加密/预算/路由/API 回归共 `107 passed`，并单独复跑配置模式 `11 passed`；新增覆盖固定密钥掩码、无凭据指纹、负预算、NaN、零预算持续生效、非对象 extra config、非法 Chat 参数和直接 UseCase scope 抬升拒绝。
 - Provider Serializer 目标 mypy 清零；全仓基线从 `2484 errors / 538 files` 收紧为 `2474 errors / 537 files`，净减少 `10 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零五批
+
+- 按“AI Provider 管理页面可恢复性 × 日志查询输入边界”收口 Provider page views。
+- 日志页面不再直接对 `provider` 与 `limit` 查询参数调用 `int()`；非数字、零和负数 provider 过滤器改为不筛选，非法或非正 limit 回到 100，超大 limit 截断为 500，避免用户构造 URL 导致 500 或无界查询。
+- 日志 status 只接受正式状态集合，未知值不再下传仓储；页面回显使用规范化后的过滤值，避免界面显示了未实际执行的条件。
+- 系统 Provider 管理页改为包含停用配置；管理员可以从同一管理入口重新启用已停用 provider，不再把可恢复配置隐藏在唯一操作页面之外。
+- 页面 request、response、provider DTO、动态更新 payload 与辅助解析函数补齐精确类型。
+
+## 第二百零五批验证结果
+
+- AI Provider 页面与 API edge 回归共 `20 passed`；覆盖畸形/负数/超大日志过滤参数、状态规范化和停用系统 provider 可见性。
+- Provider page views 目标 mypy 清零；全仓基线从 `2474 errors / 537 files` 收紧为 `2465 errors / 536 files`，净减少 `9 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。

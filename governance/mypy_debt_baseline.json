@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2474,
-    "files_with_errors": 537
+    "errors": 2465,
+    "files_with_errors": 536
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -234,9 +234,6 @@
     "apps/ai_provider/interface/forms.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 3
-    },
-    "apps/ai_provider/interface/views/page_views.py": {
-      "no-untyped-def": 9
     },
     "apps/alpha/admin.py": {
       "assignment": 2,
