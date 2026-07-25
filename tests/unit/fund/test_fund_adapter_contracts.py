@@ -57,6 +57,32 @@ def test_tushare_fund_adapter_rejects_missing_token(monkeypatch: pytest.MonkeyPa
         TushareFundAdapter().fetch_fund_list()
 
 
+def test_tushare_fund_adapter_normalizes_no_data_response() -> None:
+    adapter = TushareFundAdapter(token="token")
+    adapter.pro = SimpleNamespace(fund_nav=lambda **kwargs: None)
+
+    result = adapter.fetch_fund_daily("510300.SH", "20260701", "20260724")
+
+    assert isinstance(result, pd.DataFrame)
+    assert result.empty
+
+
+def test_tushare_fund_adapter_coerces_invalid_provider_dates() -> None:
+    adapter = TushareFundAdapter(token="token")
+    adapter.pro = SimpleNamespace(
+        fund_portfolio=lambda **kwargs: pd.DataFrame(
+            [{"end_date": "invalid-date", "ts_code": "000001.SZ"}]
+        ),
+        fund_daily=lambda **kwargs: pd.DataFrame([{"trade_date": "invalid-date", "close": 4.2}]),
+    )
+
+    portfolio = adapter.fetch_fund_portfolio("510300.SH", "20260101", "20260724")
+    daily = adapter.fetch_fund_daily_basic("510300.SH", "20260701", "20260724")
+
+    assert pd.isna(portfolio.loc[0, "end_date"])
+    assert pd.isna(daily.loc[0, "trade_date"])
+
+
 def test_hybrid_fund_adapter_uses_healthy_sources_and_exposes_health(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

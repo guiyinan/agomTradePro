@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1925,
-    "files_with_errors": 481
+    "errors": 1910,
+    "files_with_errors": 480
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -979,13 +979,6 @@
       "import-untyped": 1,
       "no-untyped-def": 2,
       "type-arg": 1
-    },
-    "apps/fund/infrastructure/adapters/tushare_fund_adapter.py": {
-      "assignment": 1,
-      "attr-defined": 6,
-      "import-untyped": 1,
-      "no-untyped-call": 6,
-      "no-untyped-def": 1
     },
     "apps/fund/infrastructure/models.py": {
       "no-untyped-def": 7

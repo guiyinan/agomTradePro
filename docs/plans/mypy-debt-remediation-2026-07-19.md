@@ -3494,3 +3494,19 @@
 - Data Center route cleanup 与市场温度 API 回归 `39 passed`，覆盖非有限新鲜度、非法布尔/天数、损坏的 provider 遥测和个人 override CRUD。
 - Data Center API views 增量 mypy 清零；全仓基线从 `1938 errors / 482 files` 收紧为 `1925 errors / 481 files`，净减少 `13 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十八批
+
+- 按“基金外部数据边界稳定性 × 无数据返回契约 × 来源脏日期隔离”收口 Tushare fund adapter。
+- 适配器新增最小 Tushare fund client Protocol；延迟初始化返回已收窄 client，六个基金 API 调用不再从可空动态对象传播未类型调用。
+- Tushare 的 `None` 无数据响应统一规范化为空 DataFrame，各公开 fetch 方法继续稳定返回 DataFrame，不再把 `None` 送入基金仓储和 Data Center 映射链路。
+- 非 DataFrame 的异常 SDK 返回明确拒绝，不再在后续列访问处产生含糊异常；返回帧先复制，日期规范化不会原地修改 SDK 共享对象。
+- 基金持仓和场内日线日期与其他基金接口统一使用 `errors="coerce"`；来源脏日期隔离为缺失值，不再使整批基金数据同步失败。
+- Pandas 第三方无 stub 边界使用精确 `import-untyped` 豁免，适配器内部和 Tushare client 能力保持完整类型检查。
+
+## 第二百三十八批验证结果
+
+- 基金适配器契约回归 `5 passed`，Tushare 统一 provider 的 fund NAV 映射回归 `1 passed`，覆盖无数据空帧和无效来源日期。
+- Fund Tushare adapter 增量 mypy 清零；全仓基线从 `1925 errors / 481 files` 收紧为 `1910 errors / 480 files`，净减少 `15 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+- 扩展运行整个 `test_phase3_provider_adapters.py` 时，既有 CPI 细分测试因测试帧列名被规范化为 `column_0...` 而失败；单独复跑同样失败，调用栈不经过本批基金适配器，未混入本批修复。
