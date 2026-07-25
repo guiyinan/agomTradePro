@@ -2,15 +2,13 @@
 DRF serializers for AI provider management.
 """
 
-import base64
-import hashlib
+from decimal import Decimal
+from typing import Any
 
-from cryptography.fernet import Fernet, InvalidToken
-from django.conf import settings
 from rest_framework import serializers
 
 
-class AIProviderConfigSerializer(serializers.Serializer):
+class AIProviderConfigSerializer(serializers.Serializer[Any]):
     """Read serializer for provider payloads."""
 
     id = serializers.IntegerField(read_only=True)
@@ -24,6 +22,7 @@ class AIProviderConfigSerializer(serializers.Serializer):
     priority = serializers.IntegerField(read_only=True)
     base_url = serializers.URLField(read_only=True)
     api_key = serializers.SerializerMethodField()
+    api_key_configured = serializers.BooleanField(read_only=True)
     default_model = serializers.CharField(read_only=True)
     api_mode = serializers.CharField(read_only=True)
     fallback_enabled = serializers.BooleanField(read_only=True)
@@ -39,63 +38,77 @@ class AIProviderConfigSerializer(serializers.Serializer):
     month_requests = serializers.IntegerField(read_only=True, required=False)
     month_cost = serializers.FloatField(read_only=True, required=False)
 
-    def get_api_key(self, obj) -> str:
-        raw = getattr(obj, "api_key", "") or ""
-        if not raw:
-            encrypted = getattr(obj, "api_key_encrypted", "") or ""
-            key = getattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY", "") or ""
-            if encrypted and key:
-                try:
-                    raw_key = key.encode() if isinstance(key, str) else key
-                    fernet = Fernet(raw_key if len(raw_key) == 44 else base64.urlsafe_b64encode(hashlib.sha256(raw_key).digest()))
-                    prefix = "encrypted:v1:"
-                    encrypted_b64 = encrypted[len(prefix):] if encrypted.startswith(prefix) else encrypted
-                    raw = fernet.decrypt(base64.urlsafe_b64decode(encrypted_b64.encode("ascii"))).decode("utf-8")
-                except (InvalidToken, ValueError, TypeError):
-                    raw = ""
-        if not raw:
-            return ""
-        return f"****{raw[-4:]}" if len(raw) >= 4 else "****"
+    def get_api_key(self, obj: object) -> str:
+        """Return a fixed mask without decrypting or fingerprinting the credential."""
+        return "****" if bool(getattr(obj, "api_key_configured", False)) else ""
 
 
-class AdminProviderCreateSerializer(serializers.Serializer):
+class AdminProviderCreateSerializer(serializers.Serializer[Any]):
     """Admin serializer for system provider create/update."""
 
     name = serializers.CharField(max_length=50)
-    provider_type = serializers.ChoiceField(choices=["openai", "deepseek", "qwen", "moonshot", "custom"])
+    provider_type = serializers.ChoiceField(
+        choices=["openai", "deepseek", "qwen", "moonshot", "custom"]
+    )
     is_active = serializers.BooleanField(required=False, default=True)
     priority = serializers.IntegerField(required=False, default=10, min_value=1)
     base_url = serializers.URLField()
     api_key = serializers.CharField(required=False, allow_blank=True)
     default_model = serializers.CharField(required=False, default="gpt-3.5-turbo")
-    api_mode = serializers.ChoiceField(choices=["dual", "responses_only", "chat_only"], required=False, default="dual")
+    api_mode = serializers.ChoiceField(
+        choices=["dual", "responses_only", "chat_only"], required=False, default="dual"
+    )
     fallback_enabled = serializers.BooleanField(required=False, default=True)
-    daily_budget_limit = serializers.FloatField(required=False, allow_null=True)
-    monthly_budget_limit = serializers.FloatField(required=False, allow_null=True)
+    daily_budget_limit = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0"),
+    )
+    monthly_budget_limit = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0"),
+    )
     extra_config = serializers.JSONField(required=False, default=dict)
     description = serializers.CharField(required=False, allow_blank=True, default="")
 
+    def validate_extra_config(self, value: object) -> dict[str, Any]:
+        """Require an object so downstream provider options remain key-addressable."""
+        return _validate_extra_config(value)
 
-class PersonalProviderCreateSerializer(serializers.Serializer):
+
+class PersonalProviderCreateSerializer(serializers.Serializer[Any]):
     """User serializer for personal provider create/update."""
 
     name = serializers.CharField(max_length=50)
-    provider_type = serializers.ChoiceField(choices=["openai", "deepseek", "qwen", "moonshot", "custom"])
+    provider_type = serializers.ChoiceField(
+        choices=["openai", "deepseek", "qwen", "moonshot", "custom"]
+    )
     is_active = serializers.BooleanField(required=False, default=True)
     priority = serializers.IntegerField(required=False, default=10, min_value=1)
     base_url = serializers.URLField()
     api_key = serializers.CharField(required=False, allow_blank=True)
     default_model = serializers.CharField(required=False, default="gpt-3.5-turbo")
-    api_mode = serializers.ChoiceField(choices=["dual", "responses_only", "chat_only"], required=False, default="dual")
+    api_mode = serializers.ChoiceField(
+        choices=["dual", "responses_only", "chat_only"], required=False, default="dual"
+    )
     fallback_enabled = serializers.BooleanField(required=False, default=True)
     extra_config = serializers.JSONField(required=False, default=dict)
     description = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_extra_config(self, value: object) -> dict[str, Any]:
+        """Require an object so downstream provider options remain key-addressable."""
+        return _validate_extra_config(value)
 
 
 AIProviderConfigCreateSerializer = AdminProviderCreateSerializer
 
 
-class AIUsageLogSerializer(serializers.Serializer):
+class AIUsageLogSerializer(serializers.Serializer[Any]):
     """Usage log serializer with attribution fields."""
 
     id = serializers.IntegerField(read_only=True)
@@ -117,7 +130,7 @@ class AIUsageLogSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
 
 
-class UserFallbackQuotaSerializer(serializers.Serializer):
+class UserFallbackQuotaSerializer(serializers.Serializer[Any]):
     """Serializer for one user's fallback quota."""
 
     user_id = serializers.IntegerField(read_only=True)
@@ -133,26 +146,50 @@ class UserFallbackQuotaSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
 
-class UserFallbackQuotaUpdateSerializer(serializers.Serializer):
+class UserFallbackQuotaUpdateSerializer(serializers.Serializer[Any]):
     """Admin serializer for per-user quota updates."""
 
-    daily_limit = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
-    monthly_limit = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
+    daily_limit = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0"),
+    )
+    monthly_limit = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0"),
+    )
     is_active = serializers.BooleanField(required=False, default=True)
     admin_note = serializers.CharField(required=False, allow_blank=True, default="")
 
 
-class BatchQuotaApplySerializer(serializers.Serializer):
+class BatchQuotaApplySerializer(serializers.Serializer[Any]):
     """Admin serializer for batch quota apply."""
 
-    daily_limit = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
-    monthly_limit = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
+    daily_limit = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0"),
+    )
+    monthly_limit = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0"),
+    )
     overwrite_existing = serializers.BooleanField(required=False, default=False)
     is_active = serializers.BooleanField(required=False, default=True)
     admin_note = serializers.CharField(required=False, allow_blank=True, default="")
 
 
-class AIChatRequestSerializer(serializers.Serializer):
+class AIChatRequestSerializer(serializers.Serializer[Any]):
     """AI聊天请求序列化器"""
 
     provider_id = serializers.IntegerField(required=False, help_text="提供商ID（不指定则自动选择）")
@@ -161,11 +198,20 @@ class AIChatRequestSerializer(serializers.Serializer):
         child=serializers.DictField(),
         help_text="消息列表 [{'role': 'user', 'content': '...'}]",
     )
-    temperature = serializers.FloatField(default=0.7, help_text="温度参数")
-    max_tokens = serializers.IntegerField(required=False, help_text="最大输出token数")
+    temperature = serializers.FloatField(
+        default=0.7,
+        min_value=0.0,
+        max_value=2.0,
+        help_text="温度参数",
+    )
+    max_tokens = serializers.IntegerField(
+        required=False,
+        min_value=1,
+        help_text="最大输出token数",
+    )
 
 
-class AIChatResponseSerializer(serializers.Serializer):
+class AIChatResponseSerializer(serializers.Serializer[Any]):
     """AI聊天响应序列化器"""
 
     content = serializers.CharField()
@@ -180,3 +226,9 @@ class AIChatResponseSerializer(serializers.Serializer):
     quota_charged = serializers.BooleanField()
     status = serializers.CharField()
     error_message = serializers.CharField(required=False, allow_null=True)
+
+
+def _validate_extra_config(value: object) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise serializers.ValidationError("extra_config must be an object")
+    return value

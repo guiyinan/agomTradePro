@@ -101,6 +101,9 @@ def test_admin_can_create_system_ai_provider(admin_client):
     assert payload["provider_type"] == "openai"
     assert payload["base_url"] == "https://example.invalid/system"
     assert payload["default_model"] == "gpt-4o-mini"
+    assert payload["api_key_configured"] is True
+    assert payload["api_key"] == "****"
+    assert "main" not in payload["api_key"]
 
     provider = AIProviderConfig.objects.get(pk=payload["id"])
     assert provider.api_key == ""

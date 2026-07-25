@@ -24,7 +24,7 @@ def test_repository_rejects_api_key_write_without_encryption_key(settings):
 
 
 @pytest.mark.django_db
-def test_serializer_masks_only_last_four_characters(settings):
+def test_serializer_uses_fixed_mask_without_credential_fingerprint(settings):
     key = FieldEncryptionService.generate_key()
     settings.AGOMTRADEPRO_ENCRYPTION_KEY = key
     repo = AIProviderRepository()
@@ -39,8 +39,11 @@ def test_serializer_masks_only_last_four_characters(settings):
         fallback_enabled=True,
     )
 
+    provider.api_key_configured = repo.has_usable_api_key(provider)
     data = AIProviderConfigSerializer(provider).data
-    assert data["api_key"] == "****1234"
+    assert data["api_key_configured"] is True
+    assert data["api_key"] == "****"
+    assert "1234" not in data["api_key"]
 
 
 @pytest.mark.django_db

@@ -2992,3 +2992,20 @@
 - AI Provider Domain/Adapter/配置/加密/预算/路由/API 回归共 `102 passed`；覆盖管理员/个人双向跨 scope 拒绝、合法系统连接测试和既有 CRUD 契约。
 - Provider use cases 增量 mypy 清零；全仓基线从 `2497 errors / 539 files` 收紧为 `2484 errors / 538 files`，净减少 `13 errors / 1 file`。
 - 架构 delta 无违规，改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零四批
+
+- 按“AI Provider 配置输入可信度 × 密钥读接口最小披露”收口 Provider Serializer 与写入校验。
+- Read Serializer 删除 Interface 层自行读取加密设置、解密 API Key 并输出后四位的重复密钥实现；Application DTO 只发布 `api_key_configured` 布尔状态，API 的兼容 `api_key` 字段仅返回固定 `****`，不再暴露可用于关联凭据的后四位。
+- Provider 日/月预算改用有精度和非负约束的 Decimal 输入；HTTP Serializer 与直接 Application UseCase 同时拒绝负数、布尔、NaN、Infinity 和畸形预算，避免绕过 API 后写入不可比较或无限预算值。
+- 零预算保持为有效的“禁止消费”限制；预算状态查询不再用 truthiness 把 `0` 错当成未配置，路由与管理视图对零预算的判断保持一致。
+- 用户 fallback quota 与批量额度 Serializer 同步增加非负约束；Chat request 的 temperature 限定在 `0..2`，max_tokens 必须大于零。
+- `extra_config` 必须是 JSON object，禁止数组、字符串等无法按配置键读取的结构进入运行时。
+- Update UseCase 禁止修改既有 provider 的 scope 或 owner；即使绕过 HTTP Serializer，个人 provider 也不能抬升为 system provider 或转移给其他用户。
+- 全部 DRF Serializer 补齐泛型参数和字段校验签名，密钥状态由 Application 查询服务生成，不把解密职责重新放回 Interface。
+
+## 第二百零四批验证结果
+
+- AI Provider Domain/Adapter/配置/加密/预算/路由/API 回归共 `107 passed`，并单独复跑配置模式 `11 passed`；新增覆盖固定密钥掩码、无凭据指纹、负预算、NaN、零预算持续生效、非对象 extra config、非法 Chat 参数和直接 UseCase scope 抬升拒绝。
+- Provider Serializer 目标 mypy 清零；全仓基线从 `2484 errors / 538 files` 收紧为 `2474 errors / 537 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。

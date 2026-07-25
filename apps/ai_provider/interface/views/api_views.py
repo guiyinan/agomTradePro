@@ -381,6 +381,8 @@ def _provider_list_item_to_dict(item: ProviderListItemDTO) -> dict[str, Any]:
         "is_active": item.is_active,
         "priority": item.priority,
         "base_url": item.base_url,
+        "api_key": "****" if item.api_key_configured else "",
+        "api_key_configured": item.api_key_configured,
         "default_model": item.default_model,
         "api_mode": item.api_mode,
         "fallback_enabled": item.fallback_enabled,

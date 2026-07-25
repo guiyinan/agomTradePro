@@ -5,6 +5,8 @@ Use cases for AI provider management.
 from datetime import date
 from typing import Any
 
+from shared.numeric import safe_float
+
 from ..domain.entities import AIProviderType
 from ..domain.services import BudgetChecker
 from .dtos import (
@@ -72,6 +74,7 @@ class ListProvidersUseCase:
                     is_active=provider.is_active,
                     priority=provider.priority,
                     base_url=provider.base_url,
+                    api_key_configured=self._provider_repo.has_usable_api_key(provider),
                     default_model=provider.default_model,
                     api_mode=provider.api_mode,
                     fallback_enabled=provider.fallback_enabled,
@@ -133,6 +136,9 @@ class CreateProviderUseCase:
             scope=scope,
             owner_user=owner_user,
         )
+        _validate_provider_limit(daily_budget_limit, "daily_budget_limit")
+        _validate_provider_limit(monthly_budget_limit, "monthly_budget_limit")
+        _validate_extra_config(extra_config)
         if self._provider_repo.name_exists(name=name, scope=scope, owner_user=owner_user):
             raise ValueError(f"Provider with name '{name}' already exists in this scope")
         return self._provider_repo.create(
@@ -209,11 +215,16 @@ class UpdateProviderUseCase:
 
         scope = kwargs.get("scope", provider.scope)
         owner_user = kwargs.get("owner_user", provider.owner_user)
-        if scope == "user" and owner_user is None:
-            raise ValueError("owner_user is required for user-scope providers")
-        if scope == "system":
-            owner_user = None
-            kwargs["owner_user"] = None
+        if scope != provider.scope or owner_user != provider.owner_user:
+            raise ValueError("Provider scope and owner cannot be changed")
+        if "name" in kwargs and not str(kwargs["name"]).strip():
+            raise ValueError("Provider name is required")
+        if "daily_budget_limit" in kwargs:
+            _validate_provider_limit(kwargs["daily_budget_limit"], "daily_budget_limit")
+        if "monthly_budget_limit" in kwargs:
+            _validate_provider_limit(kwargs["monthly_budget_limit"], "monthly_budget_limit")
+        if "extra_config" in kwargs:
+            _validate_extra_config(kwargs["extra_config"])
 
         if "name" in kwargs and self._provider_repo.name_exists(
             name=kwargs["name"],
@@ -395,9 +406,13 @@ class CheckBudgetUseCase:
     ) -> BudgetCheckResultDTO:
         provider = _get_managed_provider(self._provider_repo, pk, actor_user)
 
-        daily_limit = float(provider.daily_budget_limit) if provider.daily_budget_limit else None
+        daily_limit = (
+            float(provider.daily_budget_limit) if provider.daily_budget_limit is not None else None
+        )
         monthly_limit = (
-            float(provider.monthly_budget_limit) if provider.monthly_budget_limit else None
+            float(provider.monthly_budget_limit)
+            if provider.monthly_budget_limit is not None
+            else None
         )
         budget_status = self._usage_repo.check_budget_limits(pk, daily_limit, monthly_limit)
         daily_allowed, daily_message = BudgetChecker.check_budget_limit(
@@ -575,6 +590,23 @@ def _remaining(limit: float | None, spent: float) -> float | None:
     if limit is None:
         return None
     return max(limit - spent, 0.0)
+
+
+def _validate_provider_limit(value: object, field_name: str) -> None:
+    """Reject negative, boolean and non-finite provider budget limits."""
+    if value is None:
+        return
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a finite nonnegative number")
+    normalized = safe_float(value)
+    if normalized is None or normalized < 0:
+        raise ValueError(f"{field_name} must be a finite nonnegative number")
+
+
+def _validate_extra_config(value: object) -> None:
+    """Require provider runtime options to remain an object."""
+    if value is not None and not isinstance(value, dict):
+        raise ValueError("extra_config must be an object")
 
 
 def _get_managed_provider(
