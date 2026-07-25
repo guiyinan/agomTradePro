@@ -309,8 +309,9 @@ def test_indicator_catalog_seed_covers_representative_runtime_chart_policies():
     assert export_alias.extra["governance_scope"] == "macro_compat_alias"
     assert export_alias.extra["chart_policy"] == "period_bar"
 
-    assert rmb_deposit.extra["series_semantics"] == "balance_level"
-    assert rmb_deposit.extra["chart_policy"] == "continuous_line"
+    assert rmb_deposit.name_cn == "新增人民币存款"
+    assert rmb_deposit.extra["series_semantics"] == "flow_level"
+    assert rmb_deposit.extra["chart_policy"] == "period_bar"
 
     assert rmb_loan.extra["series_semantics"] == "flow_level"
     assert rmb_loan.extra["chart_policy"] == "period_bar"

@@ -2719,3 +2719,21 @@
 - Decision Reliability Repair Command 增量 mypy 清零；全仓基线从 `2760 errors / 566 files` 收紧为 `2745 errors / 565 files`，净减少 `15 errors / 1 file`。
 - Repair Command Component 与 Initialization Command Edge 回归共 `20 passed`；新增覆盖代码规范化/上限、非法 scope ID、失效用户、非有限行情年龄、未来日期和 cold-start strict 传播。
 - Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百八十七批
+
+- 按“宏观金融事实真实性 × 多条决策输入传播影响面”收口 Data Center Financial Fetcher 与公共宏观数据校验。
+- LPR、SHIBOR、存款准备金率、外汇储备、新增信贷、人民币存贷款、DR007 和公开市场净投放改用显式语义列契约；第三方返回列漂移时失败关闭，不再按位置猜列并静默写入错误序列。
+- LPR 与 SHIBOR 对齐当前 AKShare `TRADE_DATE/LPR1Y`、`日期/O/N-定价` 契约；非法日期行转为缺失并跳过，不再中止整批有效数据。
+- 存款准备金率改用“生效时间 + 大型金融机构调整后”口径，不再把公布时间和调整前数值发布为当前政策水平。
+- `CN_RMB_DEPOSIT` 改为“新增人民币存款总额”流量口径，并明确选取“新增存款-数量”；不再优先取“新增储蓄存款”子项却标记为人民币存款余额。
+- 数据迁移同步修正人民币存款目录名称、描述、流量语义与图表策略；历史 AKShare 错口径事实不删除，统一标记为 `error` 并保留原质量和失效原因，等待正确口径重同步，迁移回滚可恢复原质量。
+- 所有必需金融数值通过 `safe_float` 收窄为有限数；缺失标记、畸形字符串、NaN 与正负无穷不再回退为零。公共宏观数据校验器进一步拒绝任何 fetcher 遗漏的非有限事实。
+- Financial Fetcher 的第三方模块、校验回调、排序回调和返回边界补齐精确类型；仅在 pandas 外部库边界保留定点 `import-untyped` 注释。
+
+## 第一百八十七批验证结果
+
+- Financial Fetcher 与 Macro Source Base 增量 mypy 清零；全仓基线从 `2745 errors / 565 files` 收紧为 `2728 errors / 563 files`，净减少 `17 errors / 2 files`。
+- Financial Fetcher、Macro Fetcher Resilience、公共 Adapter、迁移和指标治理回归共 `82 passed`；新增覆盖当前 AKShare 列契约、RRR 生效后值、人民币存款总额、非法日期、schema 漂移、无效数值跳过和历史事实可逆隔离。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 仍被本批未修改的 `broker_execution/infrastructure/repositories.py` 大文件增长和 `strategy/infrastructure/repositories.py` 缺少大文件基线两项阻断，留待对应模块拆分/治理批次处理。

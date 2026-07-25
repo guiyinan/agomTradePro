@@ -384,9 +384,9 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
         semantics="rate",
     ),
     "CN_RMB_DEPOSIT": _row(
-        name_cn="人民币存款余额",
-        description="月度人民币存款余额口径，属于存量序列，不应按当期流量值理解。",
-        semantics="balance_level",
+        name_cn="新增人民币存款",
+        description="月度新增人民币存款总额口径，属于当期流量值，不应与存款余额混用。",
+        semantics="flow_level",
     ),
     "CN_RMB_LOAN": _row(
         name_cn="人民币贷款新增额",
