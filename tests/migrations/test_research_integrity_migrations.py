@@ -90,7 +90,7 @@ def test_research_integrity_unique_constraints_and_indexes_exist() -> None:
     assert _has_foreign_key("signal_forecast_evaluation", "signal_forecast_ledger_entry")
 
 
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+@pytest.mark.django_db(transaction=True)
 def test_transition_plan_owner_transfer_preserves_existing_rows() -> None:
     """State-only owner transfer keeps historical transition-plan rows intact."""
 

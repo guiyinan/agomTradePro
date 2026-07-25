@@ -1281,7 +1281,7 @@ class DjangoBrokerExecutionRepository:
         result: dict[str, Any] | None = None
         with transaction.atomic():
             order = (
-                LiveOrderModel._default_manager.select_for_update()
+                LiveOrderModel._default_manager.select_for_update(of=("self",))
                 .select_related("lease")
                 .filter(client_order_id=client_order_id, agent_id=agent_pk)
                 .first()
