@@ -24,6 +24,14 @@ class _CatalogHarness(TuiWorkbenchCatalogMixin):
         return dict(screen.get("business_context") or {})
 
     @staticmethod
+    def _metadata() -> dict[str, list[dict[str, Any]]]:
+        return {"screens": []}
+
+    @staticmethod
+    def _screen_by_key(metadata: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        return {str(screen["key"]): screen for screen in metadata.get("screens", [])}
+
+    @staticmethod
     def _screen_entry_state(
         screen: dict[str, Any],
         actions: list[dict[str, Any]],
