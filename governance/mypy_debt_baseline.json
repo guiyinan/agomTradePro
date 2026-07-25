@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2182,
-    "files_with_errors": 502
+    "errors": 2152,
+    "files_with_errors": 500
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -930,17 +930,8 @@
     "apps/equity/interface/sdk_contract_actions.py": {
       "no-untyped-def": 2
     },
-    "apps/equity/interface/valuation_actions.py": {
-      "attr-defined": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 9
-    },
     "apps/equity/interface/valuation_config_views.py": {
       "no-untyped-def": 12
-    },
-    "apps/equity/interface/views.py": {
-      "no-untyped-call": 9,
-      "no-untyped-def": 10
     },
     "apps/equity/management/commands/backfill_equity_valuation.py": {
       "no-untyped-call": 1,

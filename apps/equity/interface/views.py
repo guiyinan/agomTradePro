@@ -4,8 +4,11 @@
 monkeypatch 面（`DjangoStockRepository` 工厂与估值修复/估值数据用例类）。
 """
 
+from typing import Any
+
 from rest_framework import viewsets
-from rest_framework.decorators import action
+from rest_framework.request import Request
+from rest_framework.response import Response
 
 from apps.equity.application.repository_provider import (
     get_equity_regime_repository,
@@ -41,13 +44,13 @@ from apps.equity.interface.valuation_actions import EquityValuationActionsMixin
 from apps.equity.interface.valuation_config_views import ValuationRepairConfigViewSet
 
 
-def DjangoStockRepository():
+def DjangoStockRepository() -> Any:
     """Compatibility factory kept for legacy API tests."""
 
     return get_equity_stock_repository()
 
 
-def DjangoValuationRepairRepository():
+def DjangoValuationRepairRepository() -> Any:
     """Compatibility factory kept for legacy API tests."""
 
     return get_equity_valuation_repair_repository()
@@ -68,7 +71,7 @@ class EquityViewSet(
     keep working.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.stock_repo = DjangoStockRepository()
         self.repair_repo = DjangoValuationRepairRepository()
@@ -79,64 +82,72 @@ class EquityViewSet(
     # ==================== 估值修复跟踪 API ====================
 
     @_valuation_actions.valuation_repair_status_schema
-    @action(
+    @_valuation_actions.typed_action(
         detail=False,
         methods=["get"],
         url_path="valuation-repair/(?P<stock_code>(?!scan|list)[^/]+)",
     )
-    def get_valuation_repair_status(self, request, stock_code):
+    def get_valuation_repair_status(self, request: Request, stock_code: str) -> Response:
         """GET /api/equity/valuation-repair/{stock_code}/（实时计算，不依赖快照表）"""
         return _valuation_actions.get_valuation_repair_status_impl(
             self, request, stock_code, use_case_cls=GetValuationRepairStatusUseCase
         )
 
     @_valuation_actions.valuation_repair_history_schema
-    @action(
+    @_valuation_actions.typed_action(
         detail=False,
         methods=["get"],
         url_path="valuation-repair/(?P<stock_code>(?!scan|list)[^/]+)/history",
     )
-    def get_valuation_repair_history(self, request, stock_code):
+    def get_valuation_repair_history(self, request: Request, stock_code: str) -> Response:
         """GET /api/equity/valuation-repair/{stock_code}/history/（百分位历史序列）"""
         return _valuation_actions.get_valuation_repair_history_impl(
             self, request, stock_code, use_case_cls=GetValuationPercentileHistoryUseCase
         )
 
     @_valuation_actions.scan_valuation_repairs_schema
-    @action(detail=False, methods=["post"], url_path="valuation-repair/scan")
-    def scan_valuation_repairs(self, request):
+    @_valuation_actions.typed_action(
+        detail=False, methods=["post"], url_path="valuation-repair/scan"
+    )
+    def scan_valuation_repairs(self, request: Request) -> Response:
         """POST /api/equity/valuation-repair/scan/（批量计算并保存快照）"""
         return _valuation_actions.scan_valuation_repairs_impl(
             self, request, use_case_cls=ScanValuationRepairsUseCase
         )
 
     @_valuation_actions.sync_valuation_data_schema
-    @action(detail=False, methods=["post"], url_path="valuation-data/sync")
-    def sync_valuation_data(self, request):
+    @_valuation_actions.typed_action(detail=False, methods=["post"], url_path="valuation-data/sync")
+    def sync_valuation_data(self, request: Request) -> Response:
         """POST /api/equity/valuation-data/sync/"""
         return _valuation_actions.sync_valuation_data_impl(
             self, request, use_case_cls=SyncEquityValuationUseCase
         )
 
     @_valuation_actions.validate_valuation_data_schema
-    @action(detail=False, methods=["post"], url_path="valuation-data/validate")
-    def validate_valuation_data(self, request):
+    @_valuation_actions.typed_action(
+        detail=False, methods=["post"], url_path="valuation-data/validate"
+    )
+    def validate_valuation_data(self, request: Request) -> Response:
         """POST /api/equity/valuation-data/validate/"""
         return _valuation_actions.validate_valuation_data_impl(
             self, request, use_case_cls=ValidateEquityValuationQualityUseCase
         )
 
     @_valuation_actions.valuation_data_freshness_schema
-    @action(detail=False, methods=["get"], url_path="valuation-data/freshness")
-    def valuation_data_freshness(self, request):
+    @_valuation_actions.typed_action(
+        detail=False, methods=["get"], url_path="valuation-data/freshness"
+    )
+    def valuation_data_freshness(self, request: Request) -> Response:
         """GET /api/equity/valuation-data/freshness/"""
         return _valuation_actions.valuation_data_freshness_impl(
             self, request, use_case_cls=GetEquityValuationFreshnessUseCase
         )
 
     @_valuation_actions.valuation_data_quality_latest_schema
-    @action(detail=False, methods=["get"], url_path="valuation-data/quality-latest")
-    def valuation_data_quality_latest(self, request):
+    @_valuation_actions.typed_action(
+        detail=False, methods=["get"], url_path="valuation-data/quality-latest"
+    )
+    def valuation_data_quality_latest(self, request: Request) -> Response:
         """GET /api/equity/valuation-data/quality-latest/"""
         return _valuation_actions.valuation_data_quality_latest_impl(
             self, request, use_case_cls=GetLatestEquityValuationQualityUseCase

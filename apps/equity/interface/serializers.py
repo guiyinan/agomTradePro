@@ -18,9 +18,28 @@ from apps.equity.application.use_cases import (
     GetTechnicalChartResponse,
     ScreenStocksResponse,
 )
-from apps.equity.domain.entities_valuation_repair import DEFAULT_VALUATION_REPAIR_CONFIG
+from apps.equity.domain.entities_valuation_repair import (
+    DEFAULT_VALUATION_REPAIR_CONFIG,
+    ValuationRepairPhase,
+)
 
 SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
+
+
+class StrictFieldsSerializer(serializers.Serializer[dict[str, Any]]):
+    """Reject undeclared request fields instead of silently discarding them."""
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Validate that every submitted key belongs to the public contract."""
+
+        if not hasattr(data, "keys"):
+            raise serializers.ValidationError({"non_field_errors": ["Expected an object."]})
+        unknown_fields = sorted(set(data.keys()) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
+            )
+        return cast(dict[str, Any], super().to_internal_value(data))
 
 
 class ScreenStocksRequestSerializer(serializers.Serializer[dict[str, Any]]):
@@ -411,7 +430,7 @@ class ValuationRepairHistoryResponseSerializer(serializers.Serializer[dict[str, 
     data_as_of_date = serializers.DateField(required=False)
 
 
-class ScanValuationRepairsRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class ScanValuationRepairsRequestSerializer(StrictFieldsSerializer):
     """扫描估值修复请求序列化器"""
 
     universe = serializers.ChoiceField(choices=["all_active", "current_pool"], default="all_active")
@@ -430,11 +449,15 @@ class ScanValuationRepairsResponseSerializer(serializers.Serializer[dict[str, An
     error = serializers.CharField(allow_null=True, required=False)
 
 
-class ListValuationRepairsRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class ListValuationRepairsRequestSerializer(StrictFieldsSerializer):
     """列出估值修复请求序列化器"""
 
     universe = serializers.ChoiceField(choices=["all_active", "current_pool"], default="all_active")
-    phase = serializers.CharField(required=False, allow_null=True)
+    phase = serializers.ChoiceField(
+        choices=[phase.value for phase in ValuationRepairPhase],
+        required=False,
+        allow_null=True,
+    )
     limit = serializers.IntegerField(default=50, min_value=1, max_value=200)
 
 
@@ -461,14 +484,19 @@ class ListValuationRepairsResponseSerializer(serializers.Serializer[dict[str, An
     results = ListValuationRepairsItemSerializer(many=True)
 
 
-class ValidateValuationDataRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class ValidateValuationDataRequestSerializer(StrictFieldsSerializer):
     """估值数据质量校验请求序列化器"""
 
     as_of_date = serializers.DateField(required=False)
-    primary_source = serializers.CharField(required=False, default="akshare")
+    primary_source = serializers.RegexField(
+        regex=r"^[A-Za-z0-9_.-]+$",
+        max_length=64,
+        required=False,
+        default="akshare",
+    )
 
 
-class SyncValuationDataRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class SyncValuationDataRequestSerializer(StrictFieldsSerializer):
     """估值数据同步请求序列化器"""
 
     stock_codes = serializers.ListField(
@@ -479,8 +507,29 @@ class SyncValuationDataRequestSerializer(serializers.Serializer[dict[str, Any]])
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
     days_back = serializers.IntegerField(required=False, default=1, min_value=1, max_value=3650)
-    primary_source = serializers.CharField(required=False, default="akshare")
-    fallback_source = serializers.CharField(required=False, default="tushare")
+    primary_source = serializers.RegexField(
+        regex=r"^[A-Za-z0-9_.-]+$",
+        max_length=64,
+        required=False,
+        default="akshare",
+    )
+    fallback_source = serializers.RegexField(
+        regex=r"^[A-Za-z0-9_.-]+$",
+        max_length=64,
+        required=False,
+        default="tushare",
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Reject reversed evidence windows and duplicate source fallbacks."""
+
+        start_date = attrs.get("start_date")
+        end_date = attrs.get("end_date")
+        if start_date is not None and end_date is not None and start_date > end_date:
+            raise serializers.ValidationError("start_date must be on or before end_date")
+        if attrs["primary_source"] == attrs["fallback_source"]:
+            raise serializers.ValidationError("fallback_source must differ from primary_source")
+        return attrs
 
 
 class SyncValuationDataResponseSerializer(serializers.Serializer[dict[str, Any]]):
@@ -502,7 +551,7 @@ class SyncValuationDataResponseSerializer(serializers.Serializer[dict[str, Any]]
         return fields
 
 
-class SyncFinancialDataRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class SyncFinancialDataRequestSerializer(StrictFieldsSerializer):
     """财务数据同步请求序列化器"""
 
     stock_codes = serializers.ListField(
@@ -516,7 +565,12 @@ class SyncFinancialDataRequestSerializer(serializers.Serializer[dict[str, Any]])
         """Register the API ``source`` field without overriding DRF internals."""
 
         fields = super().get_fields()
-        fields["source"] = serializers.CharField(required=False, default="akshare")
+        fields["source"] = serializers.RegexField(
+            regex=r"^[A-Za-z0-9_.-]+$",
+            max_length=64,
+            required=False,
+            default="akshare",
+        )
         return fields
 
 

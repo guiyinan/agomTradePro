@@ -3218,3 +3218,18 @@
 - Fund API edge、Domain、Repository、Application 与配置命令相关回归 `116 passed`。
 - 八个核心改动文件增量 mypy 清零；适配器保留的 `16` 个历史错误无新增；全仓基线从 `2257 errors / 509 files` 收紧为 `2182 errors / 502 files`，净减少 `75 errors / 7 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十九批
+
+- 按“估值研究输入真实性 × 内部错误最小披露”收口 Equity 估值修复与数据同步 API。
+- 财务数据同步和估值修复列表改为实际执行已发布的 request serializer；未知字段、非法 phase、越界数量不再被静默忽略或绕过校验。
+- 估值同步拒绝反向日期区间和相同的主备来源；数据源名称只校验动态标识符格式，不把供应商目录硬编码进 Interface。
+- 估值修复、同步、质量、新鲜度和快照接口不再复制底层异常正文；质量 gate 等明确业务失败保留稳定语义，其他异常统一发布固定错误。
+- 财务同步任务的逐股票失败结果只返回股票代码和稳定失败文案，provider 异常原文仅以异常类型进入内部日志，不再通过任务/API payload 泄露。
+- Equity compatibility facade、valuation action、DRF action 与 OpenAPI decorator 增加精确类型边界，在保持既有 monkeypatch 与路由契约的同时清除未类型调用。
+
+## 第二百一十九批验证结果
+
+- Equity valuation repair、sync、serializer 与 task 相关完整回归 `127 passed`；最终严格输入和错误披露边界集 `41 passed`。
+- Equity facade 与 valuation action 增量 mypy 清零；全仓基线从 `2182 errors / 502 files` 收紧为 `2152 errors / 500 files`，净减少 `30 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
