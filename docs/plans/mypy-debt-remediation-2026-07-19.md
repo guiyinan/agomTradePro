@@ -2869,3 +2869,19 @@
 - 模拟交易余额边界、Account 费用 Domain/API、SDK client 与 MCP capability 回归共 `87 passed`；覆盖 `7.5` 元最低佣金进入资金校验、SDK 显式透传 `2.5` 元和 MCP 缺参拒绝。
 - Django system check、架构 delta、改动文件 Ruff、diff check 与全仓 debt ceiling 通过；全仓生产代码基线保持 `2665 errors / 555 files`，本批不抬高债务。
 - SDK 独立严格 mypy 仍被跨模块历史债务阻断，共 `176 errors / 34 files`；本批改动未产生参数顺序、缺参或调用签名相关类型错误，后续按 SDK 专项债务批次治理。
+
+## 第一百九十六批
+
+- 按“事件分发唯一实例 × 风控/决策 handler 启动完整性”收口全局 Event Bus 初始化链路。
+- 修复启动器单独创建 Celery/内存总线、而发布用例和 Celery task 继续读取 Domain 第二个全局总线的问题；完整注册并启动的 concrete bus 现在安装为 `apps.events.domain.services.get_event_bus()` 的唯一进程级实例。
+- `INSTALLED_APPS` 将 `events` 调整到 `decision_rhythm`、`alpha_trigger` 与 `beta_gate` 之后，修复 Beta Gate 在事件总线初始化完成后才写 registry、两个关键订阅永久缺失的问题。
+- 初始化器改为线程安全且幂等；registry 订阅使用稳定 ID 并保留声明优先级，handler 的 follow-up event bus 注入与发布方使用同一实例。总线被测试/运维 reset 后再次初始化会重建完整订阅，不复用已清空的假健康实例。
+- Registry、handler 构造或订阅失败不再逐项吞掉；Events、Alpha Trigger 与 Beta Gate 的关键启动链路统一失败关闭，避免 Django 在缺失风控、触发或执行一致性 handler 时继续提供服务。
+- `EventBus` 抽象补齐 start/stop 生命周期；全局替换会停止旧实例，reset 会关闭线程池。订阅查询改为不可共享列表容器的浅快照，修复 bus-aware handler 因内部 `RLock` 无法 deepcopy 导致健康查询崩溃的问题。
+- 同步更新事件总线集成设计，明确 App 启动顺序、唯一实例与失败关闭契约。
+
+## 第一百九十六批验证结果
+
+- Event Bus Domain、初始化器、异步 task、Alpha/Beta/Decision Rhythm 订阅 wiring、决策执行 handler 与 Events API 回归共 `83 passed`；启动日志确认完整注册 `18 handlers`，并显式覆盖 Beta Gate 订阅存在、全局实例同一性、幂等、reset 重建和构造失败不安装。
+- Event Bus、Beta Gate 启动链路及相关 Domain 增量 mypy 清零；全仓基线从 `2665 errors / 555 files` 收紧为 `2626 errors / 549 files`，净减少 `39 errors / 6 files`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。

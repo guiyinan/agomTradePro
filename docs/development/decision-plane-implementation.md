@@ -790,18 +790,15 @@ GET  /api/decision-rhythm/quota/weekly
 
 ### 8.1 事件总线初始化
 
-```python
-"""shared/infrastructure/event_bus_initializer.py"""
+运行时入口为 `apps/events/application/event_bus_initializer.py`。所有订阅模块必须先在
+各自 `AppConfig.ready()` 中写入 Domain registry，`apps.events` 再统一构造 handler，
+因此 `INSTALLED_APPS` 中 `decision_rhythm`、`alpha_trigger`、`beta_gate` 必须位于
+`events` 之前。
 
-class EventBusInitializer:
-    """事件总线初始化器"""
-    @staticmethod
-    def setup_subscriptions(event_bus):
-        """设置所有订阅"""
-        # Beta Gate 订阅 Regime 变化事件
-        # Alpha Trigger 订阅 Signal 创建事件
-        # Decision Rhythm 订阅所有决策相关事件
-```
+初始化完成后，Celery 或内存实现会安装为 `apps.events.domain.services.get_event_bus()`
+返回的同一个进程级实例；Application 用例、Celery task、健康检查和跨 App 发布方不得
+各自创建第二条总线。订阅 ID 稳定且初始化幂等；registry 写入、handler 构造或总线注册
+任一失败都必须阻止 Django 启动，禁止以缺失风控/执行一致性 handler 的状态继续服务。
 
 ### 8.2 与现有 Signal 模块集成
 

@@ -93,6 +93,14 @@ class EventBus:
         """清空所有订阅和事件"""
         raise NotImplementedError
 
+    def start(self) -> None:
+        """启动事件总线。"""
+        raise NotImplementedError
+
+    def stop(self) -> None:
+        """停止事件总线。"""
+        raise NotImplementedError
+
 
 class InMemoryEventBus(EventBus):
     """
@@ -129,7 +137,7 @@ class InMemoryEventBus(EventBus):
         """
         self.config = config
         self._subscriptions: dict[EventType, list[EventSubscription]] = defaultdict(list)
-        self._event_queue: deque = deque(maxlen=config.max_queue_size)
+        self._event_queue: deque[DomainEvent] = deque(maxlen=config.max_queue_size)
         self._snapshots: list[EventSnapshot] = []
         self._lock = threading.RLock()
         self._metrics = EventMetrics()
@@ -140,7 +148,7 @@ class InMemoryEventBus(EventBus):
             thread_name_prefix="event-bus",
         )
         self._executor_shutdown = False
-        self._pending_futures: set[Future] = set()
+        self._pending_futures: set[Future[None]] = set()
 
     def subscribe(self, subscription: EventSubscription) -> None:
         """
@@ -270,7 +278,7 @@ class InMemoryEventBus(EventBus):
             self._pending_futures.add(future)
         future.add_done_callback(self._handle_async_done)
 
-    def _handle_async_done(self, future: Future) -> None:
+    def _handle_async_done(self, future: Future[None]) -> None:
         """Remove completed async work and log unexpected failures."""
 
         with self._lock:
@@ -438,10 +446,10 @@ class InMemoryEventBus(EventBus):
             event_type: 事件类型
 
         Returns:
-            订阅列表的深拷贝
+            不共享列表容器的订阅快照
         """
         with self._lock:
-            return deepcopy(self._subscriptions.get(event_type, []))
+            return list(self._subscriptions.get(event_type, []))
 
     def clear(self) -> None:
         """清空所有订阅和事件"""
@@ -506,6 +514,18 @@ _global_event_bus: InMemoryEventBus | None = None
 _global_bus_lock = threading.Lock()
 
 
+def install_event_bus(event_bus: InMemoryEventBus) -> None:
+    """Install the fully initialized process-wide event bus."""
+    global _global_event_bus
+
+    with _global_bus_lock:
+        previous_bus = _global_event_bus
+        _global_event_bus = event_bus
+
+    if previous_bus is not None and previous_bus is not event_bus:
+        previous_bus.stop()
+
+
 def get_event_bus(config: EventBusConfig | None = None) -> InMemoryEventBus:
     """
     获取全局事件总线实例
@@ -530,10 +550,13 @@ def reset_event_bus() -> None:
     global _global_event_bus
 
     with _global_bus_lock:
-        if _global_event_bus is not None:
-            _global_event_bus.clear()
-            _global_event_bus = None
-            logger.info("Global event bus reset")
+        event_bus = _global_event_bus
+        _global_event_bus = None
+
+    if event_bus is not None:
+        event_bus.stop()
+        event_bus.clear()
+        logger.info("Global event bus reset")
 
 
 # ========== 装饰器 ==========
@@ -541,7 +564,10 @@ def reset_event_bus() -> None:
 
 def event_handler(
     event_type: EventType, filter_criteria: dict[str, Any] | None = None, priority: int = 100
-):
+) -> Callable[
+    [Callable[[DomainEvent], None]],
+    Callable[[DomainEvent], None],
+]:
     """
     事件处理器装饰器
 
@@ -558,7 +584,9 @@ def event_handler(
         ...     print(f"Regime changed to {event.payload['new_regime']}")
     """
 
-    def decorator(func: Callable[[DomainEvent], None]):
+    def decorator(
+        func: Callable[[DomainEvent], None],
+    ) -> Callable[[DomainEvent], None]:
         class FunctionHandler(EventHandler):
             def can_handle(self, et: EventType) -> bool:
                 return et == event_type

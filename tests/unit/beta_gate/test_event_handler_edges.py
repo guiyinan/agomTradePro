@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from apps.beta_gate.application import subscribers
 from apps.beta_gate.application.handlers import BetaGateEventHandler, GateInvalidationHandler
 from apps.events.domain.entities import EventType, create_event
@@ -74,3 +76,20 @@ def test_subscriber_registration_publishes_both_factories(monkeypatch) -> None:
         EventType.REGIME_CHANGED,
         EventType.POLICY_LEVEL_CHANGED,
     }
+
+
+def test_subscriber_registration_failure_propagates(monkeypatch) -> None:
+    """A missing risk subscriber must prevent a false healthy startup."""
+
+    class BrokenRegistry:
+        def register(self, **_kwargs: object) -> None:
+            raise RuntimeError("registry unavailable")
+
+    monkeypatch.setattr(
+        subscribers,
+        "get_event_subscriber_registry",
+        BrokenRegistry,
+    )
+
+    with pytest.raises(RuntimeError, match="registry unavailable"):
+        subscribers.register_subscribers()

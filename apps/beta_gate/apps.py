@@ -12,7 +12,7 @@ class BetaGateConfig(AppConfig):
     name = "apps.beta_gate"
     verbose_name = "硬闸门过滤"
 
-    def ready(self):
+    def ready(self) -> None:
         """应用启动时初始化"""
         from .application.config_summary_service import (
             configure_beta_gate_config_summary_repository,
@@ -35,13 +35,7 @@ class BetaGateConfig(AppConfig):
             from .application import handlers  # noqa
         except ImportError:
             pass
-        # 注册事件订阅器（通过 registry 实现反向依赖）
-        try:
-            from .application.subscribers import register_subscribers
-            register_subscribers()
-        except ImportError as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Could not import subscribers: {e}")
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Failed to register subscribers: {e}")
+        # 关键订阅注册失败必须阻止启动，避免风控事件被静默丢弃。
+        from .application.subscribers import register_subscribers
+
+        register_subscribers()

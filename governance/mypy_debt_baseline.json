@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2665,
-    "files_with_errors": 555
+    "errors": 2626,
+    "files_with_errors": 549
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -655,17 +655,6 @@
       "no-untyped-call": 2,
       "no-untyped-def": 13
     },
-    "apps/beta_gate/application/handlers.py": {
-      "no-untyped-def": 5
-    },
-    "apps/beta_gate/application/subscribers.py": {
-      "no-untyped-call": 2,
-      "no-untyped-def": 2,
-      "type-arg": 1
-    },
-    "apps/beta_gate/apps.py": {
-      "no-untyped-def": 1
-    },
     "apps/beta_gate/interface/api_urls.py": {
       "no-untyped-def": 1
     },
@@ -1140,12 +1129,6 @@
     "apps/events/application/dtos.py": {
       "no-untyped-def": 2
     },
-    "apps/events/application/event_bus_initializer.py": {
-      "attr-defined": 2,
-      "no-untyped-call": 6,
-      "no-untyped-def": 8,
-      "union-attr": 6
-    },
     "apps/events/application/health_check.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 1,
@@ -1155,19 +1138,12 @@
       "misc": 7,
       "no-untyped-def": 7
     },
-    "apps/events/apps.py": {
-      "no-untyped-def": 1
-    },
     "apps/events/composition.py": {
       "arg-type": 2
     },
     "apps/events/domain/registry.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 2
-    },
-    "apps/events/domain/services.py": {
-      "no-untyped-def": 2,
-      "type-arg": 3
     },
     "apps/events/infrastructure/celery_event_bus.py": {
       "attr-defined": 2

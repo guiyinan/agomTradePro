@@ -12,7 +12,7 @@ Beta Gate Event Subscribers.
 import logging
 from collections.abc import Callable
 
-from apps.events.domain.entities import EventType
+from apps.events.domain.entities import EventHandler, EventType
 from apps.events.domain.registry import get_event_subscriber_registry
 
 logger = logging.getLogger(__name__)
@@ -24,32 +24,23 @@ def register_subscribers() -> None:
 
     在 Django app ready() 时自动调用此方法。
     """
-    try:
-        registry = get_event_subscriber_registry()
-
-        # 注册 Beta Gate 主处理器
-        registry.register(
-            module_name="beta_gate",
-            event_type=EventType.REGIME_CHANGED,
-            handler_factory=_create_beta_gate_handler,
-            priority=100
-        )
-
-        # 注册 Gate 失效处理器
-        registry.register(
-            module_name="beta_gate",
-            event_type=EventType.POLICY_LEVEL_CHANGED,
-            handler_factory=_create_gate_invalidation_handler,
-            priority=90
-        )
-
-        logger.debug("Beta Gate subscribers registered successfully")
-
-    except Exception as e:
-        logger.error(f"Failed to register Beta Gate subscribers: {e}")
+    registry = get_event_subscriber_registry()
+    registry.register(
+        module_name="beta_gate",
+        event_type=EventType.REGIME_CHANGED,
+        handler_factory=_create_beta_gate_handler,
+        priority=100,
+    )
+    registry.register(
+        module_name="beta_gate",
+        event_type=EventType.POLICY_LEVEL_CHANGED,
+        handler_factory=_create_gate_invalidation_handler,
+        priority=90,
+    )
+    logger.debug("Beta Gate subscribers registered successfully")
 
 
-def _create_beta_gate_handler():
+def _create_beta_gate_handler() -> EventHandler:
     """创建 Beta Gate 处理器"""
     try:
         # 延迟导入避免循环依赖
@@ -60,14 +51,14 @@ def _create_beta_gate_handler():
         return BetaGateEventHandler(
             universe_builder=VisibilityUniverseBuilder(),
             config_selector=GateConfigSelector(get_default_configs()),
-            event_bus=None  # 将被注入
+            event_bus=None,  # 将被注入
         )
     except Exception as e:
         logger.error(f"Failed to create BetaGateEventHandler: {e}")
         raise
 
 
-def _create_gate_invalidation_handler():
+def _create_gate_invalidation_handler() -> EventHandler:
     """创建 Gate 失效处理器"""
     try:
         # 延迟导入避免循环依赖
@@ -75,15 +66,13 @@ def _create_gate_invalidation_handler():
         from apps.beta_gate.domain.entities import get_default_configs
         from apps.beta_gate.domain.services import GateConfigSelector
 
-        return GateInvalidationHandler(
-            config_selector=GateConfigSelector(get_default_configs())
-        )
+        return GateInvalidationHandler(config_selector=GateConfigSelector(get_default_configs()))
     except Exception as e:
         logger.error(f"Failed to create GateInvalidationHandler: {e}")
         raise
 
 
-def get_handler_factories() -> dict[EventType, Callable]:
+def get_handler_factories() -> dict[EventType, Callable[[], EventHandler]]:
     """
     获取处理器工厂
 
@@ -92,5 +81,5 @@ def get_handler_factories() -> dict[EventType, Callable]:
     """
     return {
         EventType.REGIME_CHANGED: _create_beta_gate_handler,
-        EventType.POLICY_LEVEL_CHANGED: _create_gate_invalidation_handler
+        EventType.POLICY_LEVEL_CHANGED: _create_gate_invalidation_handler,
     }
