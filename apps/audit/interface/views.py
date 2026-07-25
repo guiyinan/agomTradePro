@@ -770,6 +770,7 @@ class OperationLogExportView(APIView):
             end_date=end,
             mcp_client_id=mcp_client_id,
             format=export_format,
+            is_admin=IsAuditAdmin().has_permission(request, self),
         )
 
         if not response["success"]:
@@ -842,6 +843,7 @@ class OperationLogStatsView(APIView):
             start_date=start,
             end_date=end,
             group_by=group_by,
+            is_admin=IsAuditAdmin().has_permission(request, self),
         )
 
         if not response["success"]:

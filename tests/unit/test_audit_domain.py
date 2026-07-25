@@ -2,8 +2,6 @@
 Unit tests for Operation Audit Log Domain layer.
 """
 
-
-
 from apps.audit.domain.entities import (
     OperationAction,
     OperationLog,
@@ -204,4 +202,39 @@ class TestOperationLogEntity:
         assert log.response_payload["token"] == "***"
         assert log.response_payload["nested"]["api_key"] == "***"
         assert log.response_payload["nested"]["value"] == 1
-        assert log.response_text == '{"token":"secret-token"}'
+        assert log.response_text == '{"token":"***"}'
+
+    def test_free_text_audit_fields_are_redacted_on_create(self):
+        """DSNs, bearer tokens and key assignments must never reach persistence."""
+
+        log = OperationLog.create(
+            request_id="req-sensitive-text",
+            user_id=1,
+            username="testuser",
+            source=OperationSource.API,
+            operation_type=OperationType.API_ACCESS,
+            module="audit",
+            action=OperationAction.READ,
+            request_path="/api/provider?token=raw-token",
+            request_params={
+                "endpoint": "postgresql://user:db-password@internal/db",
+            },
+            response_text="Authorization=Bearer raw-access-token",
+            response_message="api_key=raw-api-key",
+            exception_traceback="connect postgresql://user:secret@internal/db",
+        )
+
+        serialized = str(
+            {
+                "request_path": log.request_path,
+                "request_params": log.request_params,
+                "response_text": log.response_text,
+                "response_message": log.response_message,
+                "exception_traceback": log.exception_traceback,
+            }
+        )
+        assert "raw-token" not in serialized
+        assert "db-password" not in serialized
+        assert "raw-access-token" not in serialized
+        assert "raw-api-key" not in serialized
+        assert "://user:secret@" not in serialized

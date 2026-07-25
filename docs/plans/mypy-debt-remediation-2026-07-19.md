@@ -3154,3 +3154,19 @@
 - Audit health、failure counter 与 interface invariants 回归 `42 passed`，公开健康响应专项回归 `14 passed`；Audit API edge、API integration 与 endpoints 回归 `48 passed`。
 - Health check 与 Audit Domain interface 增量 mypy 清零；全仓基线从 `2331 errors / 519 files` 收紧为 `2322 errors / 517 files`，净减少 `9 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十五批
+
+- 按“操作审计凭据保密 × 审计查询授权完整性”收口 Audit operation log 全链路。
+- 新写入日志对结构化请求与响应递归脱敏，并同步清理响应正文、响应消息、异常堆栈和含查询参数的请求路径；覆盖 Bearer Token、URL 凭据、私钥、API Key、密码及 OpenAI 风格密钥，不再只保护 JSON 字段。
+- Repository 在列表、详情和决策追踪读取边界再次脱敏，历史遗留的未清理记录也不会直接返回；摘要生成只使用清理后的响应内容。
+- 日志写入与查询失败不再把数据库异常正文复制到 API、失败计数或应用日志，只保留稳定错误文案与异常类型。
+- 普通用户缺少可信用户 ID 时，日志列表、详情和决策追踪默认拒绝，不再把空用户过滤条件解释为全量查询；导出与统计在 Application 边界要求显式管理员上下文。
+- 查询排序、分页、导出格式、日期范围、统计分组和行数上限在 Application 边界统一校验，内部调用不能绕过 Interface Serializer 向 ORM 传入任意排序字段。
+- Operation Log entity、factory、use case 与 repository 补齐具体集合、ORM 和序列化返回类型；归因周期集合改用协变只读接口，保持 Brinson 调用方类型兼容。
+
+## 第二百一十五批验证结果
+
+- Audit operation log Domain、failure counter 与安全不变量回归 `46 passed`；Audit internal ingest 与 API integration 全组 `21 passed`，另对历史记录读取脱敏和签名写入做定点复核 `2 passed`。
+- 七个相关生产文件增量 mypy 清零；全仓基线从 `2322 errors / 517 files` 收紧为 `2297 errors / 513 files`，净减少 `25 errors / 4 files`。
+- 改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

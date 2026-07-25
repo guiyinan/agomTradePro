@@ -642,6 +642,7 @@ def export_operation_logs_payload(
     end_date: date | None,
     mcp_client_id: str | None,
     format: str,
+    is_admin: bool,
 ) -> dict[str, Any]:
     """Export operation logs for the interface layer."""
     response = ExportOperationLogsUseCase(audit_repository=get_audit_repository()).execute(
@@ -650,6 +651,7 @@ def export_operation_logs_payload(
             end_date=end_date,
             mcp_client_id=mcp_client_id,
             format=format,
+            is_admin=is_admin,
         )
     )
     return {
@@ -666,6 +668,7 @@ def get_operation_stats_payload(
     start_date: date | None,
     end_date: date | None,
     group_by: str,
+    is_admin: bool,
 ) -> dict[str, Any]:
     """Return operation log stats payload."""
     response = GetOperationStatsUseCase(audit_repository=get_audit_repository()).execute(
@@ -673,6 +676,7 @@ def get_operation_stats_payload(
             start_date=start_date,
             end_date=end_date,
             group_by=group_by,
+            is_admin=is_admin,
         )
     )
     return {"success": response.success, "stats": response.stats, "error": response.error}
@@ -695,6 +699,10 @@ def list_decision_traces_payload(
     page_size: int,
 ) -> tuple[list[dict[str, Any]], int]:
     """List decision traces through the audit repository."""
+    if not is_admin and current_user_id is None:
+        return [], 0
+    if page <= 0 or page_size <= 0 or page_size > 100:
+        raise ValueError("page and page_size are outside the allowed range")
     return get_audit_repository().list_decision_traces(
         current_user_id=current_user_id,
         is_admin=is_admin,
@@ -712,6 +720,10 @@ def get_decision_trace_payload(
     is_admin: bool,
 ) -> dict[str, Any] | None:
     """Fetch one decision trace through the audit repository."""
+    if not is_admin and current_user_id is None:
+        return None
+    if not request_id.strip():
+        return None
     return get_audit_repository().get_decision_trace(
         request_id=request_id,
         mcp_client_id=mcp_client_id,

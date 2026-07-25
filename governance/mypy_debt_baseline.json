@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2322,
-    "files_with_errors": 517
+    "errors": 2297,
+    "files_with_errors": 513
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -410,20 +410,11 @@
       "arg-type": 1,
       "assignment": 1
     },
-    "apps/audit/application/operation_log_use_cases.py": {
-      "type-arg": 4
-    },
     "apps/audit/domain/attribution_services.py": {
       "no-any-return": 2,
       "no-untyped-def": 4,
       "type-arg": 7,
       "var-annotated": 2
-    },
-    "apps/audit/domain/entities.py": {
-      "type-arg": 4
-    },
-    "apps/audit/domain/operation_log_services.py": {
-      "type-arg": 2
     },
     "apps/audit/domain/performance_services.py": {
       "no-untyped-def": 2
@@ -447,12 +438,6 @@
     },
     "apps/audit/infrastructure/models.py": {
       "no-untyped-def": 10
-    },
-    "apps/audit/infrastructure/operation_log_repositories.py": {
-      "assignment": 3,
-      "no-any-return": 3,
-      "no-untyped-def": 2,
-      "type-arg": 7
     },
     "apps/audit/infrastructure/validation_repositories.py": {
       "type-arg": 6
