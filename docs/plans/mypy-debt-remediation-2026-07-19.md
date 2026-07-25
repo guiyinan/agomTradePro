@@ -2855,3 +2855,17 @@
 - Weekly Fetcher、Phase 2 Seed、目录治理命令与代理隔离迁移回归共 `17 passed`；新增覆盖四条错误端点零调用、同步持续关闭、历史事实隔离和反向迁移。
 - Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
 - 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十五批
+
+- 按“最低佣金唯一真源 × 买入资金真实性”补齐模拟交易费用配置的外部调用闭环。
+- 核心买入链路继续从按资产类型启用的数据库 `FeeConfig.min_commission` 读取最低佣金，并以包含佣金、过户费与滑点的完整费用执行资金校验和实际扣款；非 5 元配置值会直接改变所需现金。
+- SDK `create_trading_cost_config`、MCP legacy tool、内部 handler 与 fallback 创建入口删除 `5.0` 默认值，最低佣金改为显式必填参数，避免调用方省略参数时重新注入硬编码。
+- `account.create.trading_cost_config` 能力清单将 `min_commission` 纳入 required contract；缺参在预览或写入前以 `missing_required_arguments` 失败关闭。
+- SDK 与架构文档同步删除最低佣金 5 元运行时默认口径，明确该值必须来自券商/资产费率配置；历史迁移中的 5 元仅用于保留既有数据库演进记录，不作为当前运行时默认值。
+
+## 第一百九十五批验证结果
+
+- 模拟交易余额边界、Account 费用 Domain/API、SDK client 与 MCP capability 回归共 `87 passed`；覆盖 `7.5` 元最低佣金进入资金校验、SDK 显式透传 `2.5` 元和 MCP 缺参拒绝。
+- Django system check、架构 delta、改动文件 Ruff、diff check 与全仓 debt ceiling 通过；全仓生产代码基线保持 `2665 errors / 555 files`，本批不抬高债务。
+- SDK 独立严格 mypy 仍被跨模块历史债务阻断，共 `176 errors / 34 files`；本批改动未产生参数顺序、缺参或调用签名相关类型错误，后续按 SDK 专项债务批次治理。

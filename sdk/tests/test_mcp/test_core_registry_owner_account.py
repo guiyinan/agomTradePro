@@ -617,6 +617,22 @@ def test_account_create_trading_cost_config_capability_runs_internal_preview_bef
     assert audit_events[1]["event_type"] == "confirmation_completed"
 
 
+def test_account_create_trading_cost_config_requires_minimum_commission():
+    import agomtradepro_mcp.server as server_module
+
+    response = server_module.CORE_DISPATCHER.call(
+        capability_key="account.create.trading_cost_config",
+        arguments={
+            "portfolio_id": 9,
+            "idempotency_key": "idem-account-create-cost-missing-minimum",
+        },
+    )
+
+    assert response["status"] == "error"
+    assert response["error"]["code"] == "missing_required_arguments"
+    assert response["missing_required"] == ["min_commission"]
+
+
 def test_account_update_trading_cost_config_capability_runs_internal_preview_before_commit(
     monkeypatch: pytest.MonkeyPatch,
 ):

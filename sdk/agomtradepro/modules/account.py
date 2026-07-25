@@ -682,8 +682,8 @@ class AccountModule(BaseModule):
     def create_trading_cost_config(
         self,
         portfolio_id: int,
+        min_commission: float,
         commission_rate: float = 0.00025,
-        min_commission: float = 5.0,
         stamp_duty_rate: float = 0.001,
         transfer_fee_rate: float = 0.00002,
     ) -> dict[str, Any]:
@@ -692,8 +692,8 @@ class AccountModule(BaseModule):
 
         Args:
             portfolio_id: 投资组合 ID
+            min_commission: 最低佣金（元，必须按券商配置显式提供）
             commission_rate: 佣金率（默认万2.5）
-            min_commission: 最低佣金（元）
             stamp_duty_rate: 印花税率（默认千1）
             transfer_fee_rate: 过户费率（默认万0.2）
 

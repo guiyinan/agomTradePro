@@ -279,7 +279,7 @@ class FeeConfig:
     # 手续费(双向)
     commission_rate_buy: float = 0.0003    # 买入手续费率(默认0.03%)
     commission_rate_sell: float = 0.0003   # 卖出手续费率(默认0.03%)
-    min_commission: float = 5.0            # 最低手续费(元,不足按此收取)
+    min_commission: float                  # 最低手续费(元,由启用的费率配置显式提供)
 
     # 印花税(仅卖出,A股特有)
     stamp_duty_rate: float = 0.001         # 印花税率(卖出,默认0.1%)
@@ -1130,7 +1130,7 @@ class FeeConfigModel(models.Model):
     # 手续费(双向)
     commission_rate_buy = models.FloatField("买入手续费率", default=0.0003, help_text="默认0.03%")
     commission_rate_sell = models.FloatField("卖出手续费率", default=0.0003, help_text="默认0.03%")
-    min_commission = models.FloatField("最低手续费(元)", default=5.0, help_text="不足按此收取")
+    min_commission = models.FloatField("最低手续费(元)", help_text="不足按此收取")
 
     # 印花税(仅卖出,A股特有)
     stamp_duty_rate = models.FloatField("印花税率(卖出)", default=0.001, help_text="默认0.1%,仅股票")
@@ -1179,7 +1179,7 @@ class FeeConfigModel(models.Model):
 
 1. **手续费 (Commission)**
    - 买入/卖出可分别配置
-   - 最低手续费5元(不足按5元收取)
+   - 最低手续费按启用的券商/资产费率配置读取，不设运行时默认值
    - 典型范围: 0.02%-0.03% (万2-万3)
 
 2. **印花税 (Stamp Duty)**
