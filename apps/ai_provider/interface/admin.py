@@ -5,7 +5,7 @@ Django admin configuration for AI provider management.
 from django.contrib import admin
 from django.http import HttpRequest
 
-from apps.ai_provider.application.interface_services import get_masked_provider_api_key
+from apps.ai_provider.application.repository_provider import get_ai_provider_repository
 from apps.ai_provider.models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
 from shared.infrastructure.django_admin import TypedModelAdmin
 
@@ -56,7 +56,8 @@ class AIProviderConfigAdmin(TypedModelAdmin[AIProviderConfig]):
     @admin.display(description="API Key")
     def masked_api_key(self, obj: AIProviderConfig) -> str:
         """Return a non-identifying fixed credential mask."""
-        return get_masked_provider_api_key(obj)
+        api_key = get_ai_provider_repository().get_api_key(obj)
+        return "****" if api_key else "Not configured"
 
 
 @admin.register(AIUsageLog)

@@ -25,7 +25,13 @@ def get_changed_files(base: str, head: str) -> list[str]:
 
     try:
         result = subprocess.run(
-            ["git", "diff", "--name-only", f"{base}...{head}"],
+            [
+                "git",
+                "diff",
+                "--name-only",
+                "--diff-filter=ACMRT",
+                f"{base}...{head}",
+            ],
             capture_output=True,
             text=True,
             check=True,
