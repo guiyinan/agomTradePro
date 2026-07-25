@@ -589,6 +589,11 @@
                 state.operatorHomePromise = null;
             }
             renderScreen(screenSpec, options);
+            if (!options.suppressHistory) {
+                syncBrowserScreenLocation(screenSpec?.screen?.key || screenKey, {
+                    replace: Boolean(options.replaceHistory),
+                });
+            }
             refreshGovernanceBadges();
             return screenSpec;
         } catch (error) {

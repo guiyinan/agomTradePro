@@ -115,6 +115,8 @@
         "module_key": { "type": "string" },
         "view_type": { "$ref": "#/$defs/viewType" },
         "risk": { "enum": ["read", "ai", "write", "unsafe", "admin"] },
+        "audience": { "enum": ["authenticated", "admin"] },
+        "effect": { "enum": ["read", "create", "update", "toggle", "delete", "execute"] },
         "fields": {
           "type": "array",
           "items": { "$ref": "#/$defs/field" }
@@ -257,12 +259,26 @@
             "additionalProperties": false
           }
         },
+        "field_rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "visible": { "type": "boolean" },
+              "format": { "enum": ["text", "money", "percentage", "datetime"] }
+            },
+            "additionalProperties": false
+          }
+        },
         "row_actions": {
           "type": "array",
           "items": { "$ref": "#/$defs/dashboardRowAction" }
         },
         "layout_area": { "type": "string" },
-        "target_screen": { "type": "string" }
+        "target_screen": { "type": "string" },
+        "audience": { "enum": ["authenticated", "admin"] }
       },
       "additionalProperties": false
     },

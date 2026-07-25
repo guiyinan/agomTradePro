@@ -11,7 +11,7 @@ const bundlePath = resolve(root, "static/js/tui-workbench.js");
 
 const harnessHtml = `<!doctype html>
 <html><head><meta charset="utf-8"><title>TUI harness</title></head><body>
-<div data-tui-app>
+<div data-tui-app data-user-key="test-user">
   <button data-menu-command="file">系统</button>
   <button data-menu-command="module">模块</button>
   <button data-menu-command="action">任务</button>
@@ -19,7 +19,7 @@ const harnessHtml = `<!doctype html>
   <button data-menu-command="help">帮助</button>
   <span data-tui-clock></span><span data-theme-status></span><span data-theme-indicator-code></span>
   <input data-current-location value="screen:boot">
-  <div data-menu-popover hidden></div>
+  <div data-menu-popover role="menu" hidden></div>
   <aside data-rail-panel><button data-toggle-rail></button><div data-module-tree></div></aside>
   <div class="tui-workspace-grid">
     <section class="tui-panel"><div data-actions-panel></div></section>
@@ -58,7 +58,10 @@ const actions = [
     action("test.list", { label: "读取列表", view_type: "datagrid", task_tier: "primary", sequence: 1 }),
     action("test.detail", {
         label: "读取明细",
-        fields: [{ key: "code", label: "代码", input_type: "text", required: true }],
+        fields: [
+            { key: "code", label: "代码", input_type: "text", required: true },
+            { key: "context", label: "上下文", input_type: "text", value_type: "object", default: { source: "test" } },
+        ],
         sequence: 2,
     }),
     action("test.upload", {
@@ -170,10 +173,12 @@ function listResult() {
             columns: [
                 { key: "code", label: "代码" },
                 { key: "value", label: "值" },
+                { key: "meta", label: "元数据" },
             ],
             rows: Array.from({ length: 205 }, (_, index) => ({
                 code: `row-${String(index + 1).padStart(3, "0")}`,
                 value: index + 1,
+                meta: { source: "test" },
             })),
         },
     };
@@ -420,10 +425,59 @@ test("dashboard auto-loads passive reads and never auto-runs sensitive actions",
         assert.equal(await marker.getAttribute("style"), "left:25%;top:25%");
         assert.match(
             await page.locator('[data-dashboard-panel="unsafe"]').innerText(),
-            /需要填写参数或确认操作/,
+            /敏感操作/,
         );
         assert.equal(secureRequests, 0);
         assert.equal(adminReadRequests, 1);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("screen navigation updates shareable history and browser back restores the screen", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        assert.equal(new URL(page.url()).searchParams.get("screen"), "test.grid");
+        const location = page.locator("[data-current-location]");
+        await location.fill("screen:test.dashboard");
+        await location.press("Enter");
+        await page.waitForURL(/screen=test\.dashboard/);
+        await page.goBack();
+        await page.waitForFunction(() => document.querySelector("[data-screen-title]")?.textContent === "测试表格");
+        assert.equal(new URL(page.url()).searchParams.get("screen"), "test.grid");
+    } finally {
+        await browser.close();
+    }
+});
+
+test("user-owned state is namespaced and structured values never render as object placeholders", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        await page.locator('[data-pin-screen-key="test.grid"]').click();
+        const keys = await page.evaluate(() => Object.keys(localStorage));
+        assert.equal(
+            keys.some((key) => key === "agom-tui-pinned-screen-keys:v1:user:test-user"),
+            true,
+        );
+        assert.equal(await page.locator('form[data-action-ui-key="test.detail"] textarea[name="context"]').count(), 1);
+        assert.equal((await page.locator("[data-main-panel]").innerText()).includes("[object Object]"), false);
+        assert.match(await page.locator("[data-main-panel]").innerText(), /"source":"test"|"source": "test"/);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("menus expose menuitem semantics and return focus on Escape", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        const button = page.locator('[data-menu-command="file"]');
+        await button.click();
+        assert.equal(await button.getAttribute("aria-expanded"), "true");
+        assert.equal(await page.locator('[data-menu-popover] [role="menuitem"]').count(), 2);
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("Escape");
+        assert.equal(await button.getAttribute("aria-expanded"), "false");
+        assert.equal(await button.evaluate((element) => element === document.activeElement), true);
     } finally {
         await browser.close();
     }

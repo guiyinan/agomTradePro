@@ -40,6 +40,7 @@
         operatorHomePayload: null,
         operatorHomePromise: null,
         modalReturnFocus: null,
+        menuSourceButton: null,
     };
 
     const els = {
@@ -218,6 +219,35 @@
         } catch (_error) {
             // Persisted UI state is optional; the current session remains usable.
         }
+    }
+
+    function userStorageKey(baseKey) {
+        const userKey = String(els.app?.dataset.userKey || "anonymous")
+            .trim()
+            .replace(/[^a-zA-Z0-9_-]+/g, "_");
+        return `${baseKey}:user:${userKey || "anonymous"}`;
+    }
+
+    function screenKeyFromBrowserLocation() {
+        try {
+            return new URL(window.location.href).searchParams.get("screen")?.trim() || "";
+        } catch (_error) {
+            return "";
+        }
+    }
+
+    function syncBrowserScreenLocation(screenKey, options = {}) {
+        const normalizedKey = String(screenKey || "").trim();
+        if (!normalizedKey || !window.history?.pushState) {
+            return;
+        }
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("screen") === normalizedKey) {
+            return;
+        }
+        url.searchParams.set("screen", normalizedKey);
+        const method = options.replace ? "replaceState" : "pushState";
+        window.history[method]({ screenKey: normalizedKey }, "", url);
     }
     const builtInRendererNames = new Set([
         "datagrid",
@@ -659,7 +689,7 @@
 
     function loadStoredProgress() {
         try {
-            const raw = safeStorageGet("sessionStorage", progressStorageKey);
+            const raw = safeStorageGet("sessionStorage", userStorageKey(progressStorageKey));
             if (!raw) {
                 return;
             }
@@ -677,13 +707,20 @@
     function loadStoredOperatorState() {
         try {
             state.lastNonHomeScreen = String(
-                safeStorageGet("localStorage", lastNonHomeScreenStorageKey, "")
+                safeStorageGet("localStorage", userStorageKey(lastNonHomeScreenStorageKey), "")
             ).trim();
             const storedLane = String(
-                safeStorageGet("localStorage", preferredHomeLaneStorageKey, "decision")
+                safeStorageGet(
+                    "localStorage",
+                    userStorageKey(preferredHomeLaneStorageKey),
+                    "decision"
+                )
             ).trim();
             state.preferredHomeLane = storedLane === "governance" ? "governance" : "decision";
-            const rawPinned = safeStorageGet("localStorage", pinnedScreensStorageKey);
+            const rawPinned = safeStorageGet(
+                "localStorage",
+                userStorageKey(pinnedScreensStorageKey)
+            );
             const parsed = rawPinned ? JSON.parse(rawPinned) : [];
             state.pinnedScreenKeys = new Set(
                 Array.isArray(parsed)
@@ -705,7 +742,11 @@
                     serializable[screenKey] = Array.from(actionSet);
                 }
             });
-            safeStorageSet("sessionStorage", progressStorageKey, JSON.stringify(serializable));
+            safeStorageSet(
+                "sessionStorage",
+                userStorageKey(progressStorageKey),
+                JSON.stringify(serializable)
+            );
         } catch (error) {
             // Session progress is a UI convenience; ignore storage failures.
         }
@@ -715,38 +756,46 @@
         const normalizedKey = String(screenKey || "").trim();
         state.lastNonHomeScreen = normalizedKey;
         if (normalizedKey) {
-            safeStorageSet("localStorage", lastNonHomeScreenStorageKey, normalizedKey);
+            safeStorageSet(
+                "localStorage",
+                userStorageKey(lastNonHomeScreenStorageKey),
+                normalizedKey
+            );
         } else {
-            safeStorageRemove("localStorage", lastNonHomeScreenStorageKey);
+            safeStorageRemove("localStorage", userStorageKey(lastNonHomeScreenStorageKey));
         }
     }
 
     function persistPreferredHomeLane(lane) {
         state.preferredHomeLane = lane === "governance" ? "governance" : "decision";
-        safeStorageSet("localStorage", preferredHomeLaneStorageKey, state.preferredHomeLane);
+        safeStorageSet(
+            "localStorage",
+            userStorageKey(preferredHomeLaneStorageKey),
+            state.preferredHomeLane
+        );
     }
 
     function persistPinnedScreens() {
         safeStorageSet(
             "localStorage",
-            pinnedScreensStorageKey,
+            userStorageKey(pinnedScreensStorageKey),
             JSON.stringify(Array.from(state.pinnedScreenKeys))
         );
     }
 
     function shouldResumeOnBoot() {
-        return safeStorageGet("sessionStorage", resumeOnBootStorageKey) === "1";
+        return safeStorageGet("sessionStorage", userStorageKey(resumeOnBootStorageKey)) === "1";
     }
 
     function clearResumeOnBootFlag() {
-        safeStorageRemove("sessionStorage", resumeOnBootStorageKey);
+        safeStorageRemove("sessionStorage", userStorageKey(resumeOnBootStorageKey));
     }
 
     function markResumeOnBoot() {
         if (state.screen?.screen?.key && !isOperatorHomeScreen(state.screen.screen.key)) {
-            safeStorageSet("sessionStorage", resumeOnBootStorageKey, "1");
+            safeStorageSet("sessionStorage", userStorageKey(resumeOnBootStorageKey), "1");
         } else {
-            safeStorageRemove("sessionStorage", resumeOnBootStorageKey);
+            safeStorageRemove("sessionStorage", userStorageKey(resumeOnBootStorageKey));
         }
     }
 
@@ -968,13 +1017,18 @@
 
     function actionVerbLabel(action) {
         const risk = String(action.risk || "read").toLowerCase();
+        const effect = String(action.effect || "").toLowerCase();
         const intent = String(action.intent || "").toLowerCase();
         const label = String(action.label || "").toLowerCase();
-        if (risk === "write") {
-            return "提交变更";
-        }
-        if (risk === "admin") {
-            return action.method === "GET" ? "打开管理视图" : "提交管理变更";
+        const effectLabels = {
+            create: "创建记录",
+            update: "保存修改",
+            toggle: "切换状态",
+            delete: "删除或撤销",
+            execute: risk === "ai" ? "发起问答" : "执行任务",
+        };
+        if (effectLabels[effect]) {
+            return effectLabels[effect];
         }
         if (risk === "ai") {
             return "发起问答";
@@ -1056,6 +1110,20 @@
             .replace(/直接读取/g, "直接打开");
     }
 
+    function displayValue(value) {
+        if (value === null || value === undefined || value === "") {
+            return "-";
+        }
+        if (typeof value === "object") {
+            try {
+                return JSON.stringify(value, null, 2);
+            } catch (_error) {
+                return "结构化数据";
+            }
+        }
+        return String(value);
+    }
+
     function humanizeRowKey(key) {
         const labels = {
             account_id: "账户ID",
@@ -1105,7 +1173,10 @@
                 orderedKeys.push(key);
             }
         });
-        return orderedKeys.slice(0, limit).map((key) => [rowLabelForKey(key), row[key]]);
+        return orderedKeys.slice(0, limit).map((key) => [
+            rowLabelForKey(key),
+            displayValue(row[key]),
+        ]);
     }
 
     function actionUiKey(action) {

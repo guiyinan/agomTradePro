@@ -5,18 +5,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TUI Workbench - AgomTradePro</title>
-    <link rel="stylesheet" href="{% static 'css/tui-workbench.css' %}?v=agomtui-mcp-self-service-20260715">
+    <link rel="stylesheet" href="{% static 'css/tui-workbench.css' %}?v=agomtui-design-review-20260725-2">
 </head>
 <body>
-    <div class="tui-app" data-tui-app tabindex="-1" aria-label="AgomTradePro TUI workbench">
-        <header class="tui-menubar">
+    <div
+        class="tui-app"
+        data-tui-app
+        data-user-key="{{ request.user.pk }}"
+        tabindex="-1"
+        aria-label="AgomTradePro TUI workbench"
+    >
+        <header class="tui-menubar" role="menubar" aria-label="工作台菜单">
             <div class="tui-menu-left">
                 <a class="tui-brand" href="/tui/">AgomTradePro TUI</a>
-                <button class="tui-menu-item" type="button" data-menu-command="file" aria-haspopup="menu">系统(S)</button>
-                <button class="tui-menu-item" type="button" data-menu-command="module" aria-haspopup="menu">模块(M)</button>
-                <button class="tui-menu-item" type="button" data-menu-command="action" aria-haspopup="menu">任务(R)</button>
-                <button class="tui-menu-item" type="button" data-menu-command="view" aria-haspopup="menu">视图(V)</button>
-                <button class="tui-menu-item" type="button" data-menu-command="help" aria-haspopup="menu">帮助(H)</button>
+                <button class="tui-menu-item" role="menuitem" type="button" data-menu-command="file" aria-haspopup="menu" aria-expanded="false">系统(S)</button>
+                <button class="tui-menu-item" role="menuitem" type="button" data-menu-command="module" aria-haspopup="menu" aria-expanded="false">模块(M)</button>
+                <button class="tui-menu-item" role="menuitem" type="button" data-menu-command="action" aria-haspopup="menu" aria-expanded="false">任务(R)</button>
+                <button class="tui-menu-item" role="menuitem" type="button" data-menu-command="view" aria-haspopup="menu" aria-expanded="false">视图(V)</button>
+                <button class="tui-menu-item" role="menuitem" type="button" data-menu-command="help" aria-haspopup="menu" aria-expanded="false">帮助(H)</button>
             </div>
             <div class="tui-menu-right">
                 <span data-tui-clock>就绪</span>
@@ -25,11 +31,10 @@
 
         <section class="tui-system-strip" aria-label="System status">
             <div class="tui-system-primary">
-                <span>TUI: <strong class="tui-green">PUBLISHED</strong></span>
-                <span>MODE: <strong class="tui-green">OPERATE</strong></span>
-                <span>JSON: <strong class="tui-warn-text">DEBUG ONLY</strong></span>
+                <span>工作台: <strong class="tui-green">已就绪</strong></span>
                 <span>用户: {{ request.user.username }}</span>
             </div>
+            {% if request.user.is_staff or request.user.is_superuser %}
             <div class="tui-system-location">
                 <label for="tui-location-input">位置:</label>
                 <input
@@ -43,13 +48,13 @@
                     aria-label="输入 TUI screen 地址后跳转"
                 >
             </div>
+            {% endif %}
             <div class="tui-system-source">
-                <span>元数据: 已发布工作台</span>
                 <span data-theme-status>STYLE: B</span>
             </div>
         </section>
 
-        <div class="tui-menu-popover" data-menu-popover hidden></div>
+        <div class="tui-menu-popover" data-menu-popover role="menu" aria-label="工作台命令" hidden></div>
 
         <main class="tui-shell">
             <aside class="tui-rail" data-rail-panel aria-label="TUI module tree">
@@ -132,23 +137,18 @@
             <span><strong>F2</strong> 模块</span>
             <span><strong>F3</strong> 上屏</span>
             <span><strong>F4</strong> 下屏</span>
-            <span><strong>Enter</strong> 明细</span>
             <span><strong>F5</strong> 刷新</span>
             <span><strong>F6</strong> 下一项</span>
-            <span><strong>F7</strong> 筛选</span>
-            <span><strong>F8</strong> 导出</span>
             <span><strong>F9</strong> 任务</span>
-            <span><strong>F10</strong> 说明</span>
             <span data-theme-indicator><strong>ALT+T</strong> <bdi data-theme-indicator-code>T:B</bdi></span>
-            <span><strong>PgUp/PgDn</strong> 翻页</span>
             <span><strong>Esc</strong> 返回</span>
             <a class="tui-function-link" href="/dashboard/" title="打开经典 Dashboard"><strong>Classic</strong> 界面</a>
             <a class="tui-function-link tui-function-link--cli" href="/terminal/" target="_blank" rel="noopener noreferrer" title="在新标签页打开 CLI 系统"><strong>CLI</strong> 系统</a>
         </footer>
     </div>
 
-    <script src="{% static 'js/agomtui-runtime-core.js' %}?v=agomtui-runtime-0.2.0"></script>
-    <script src="{% static 'js/tui-agomtradepro-adapter.js' %}?v=agomtui-runtime-0.2.0"></script>
-    <script src="{% static 'js/tui-workbench.js' %}?v=agomtui-runtime-0.2.0"></script>
+    <script src="{% static 'js/agomtui-runtime-core.js' %}?v=agomtui-design-review-20260725-2"></script>
+    <script src="{% static 'js/tui-agomtradepro-adapter.js' %}?v=agomtui-design-review-20260725-2"></script>
+    <script src="{% static 'js/tui-workbench.js' %}?v=agomtui-design-review-20260725-2"></script>
 </body>
 </html>

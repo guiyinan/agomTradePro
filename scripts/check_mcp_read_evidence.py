@@ -101,10 +101,21 @@ def _has_catalog_replacement_test_evidence(
     *,
     test_blocks: list[str],
 ) -> bool:
-    return any(
+    focused_evidence = any(
         manifest.capability_key in block
         and "replacement_capability_key" in block
         and all(tool_name in block for tool_name in manifest.legacy_tool_names)
+        for block in test_blocks
+    )
+    if focused_evidence:
+        return True
+
+    return any(
+        "build_legacy_replacement_map" in block
+        and "for manifest in GOVERNED_MANIFESTS" in block
+        and '["replacement_capability_key"]' in block
+        and "manifest.capability_key" in block
+        and "manifest.legacy_tool_names" in block
         for block in test_blocks
     )
 
@@ -163,9 +174,7 @@ def validate_read_evidence_manifests(
                     "Governed native MCP read manifest is missing core-only evidence: "
                     f"{manifest.capability_key}"
                 )
-            if not any(
-                manifest.capability_key in block for block in ai_capability_test_blocks
-            ):
+            if not any(manifest.capability_key in block for block in ai_capability_test_blocks):
                 raise ValueError(
                     "Governed native MCP read manifest is missing catalog projection evidence: "
                     f"{manifest.capability_key}"
