@@ -259,7 +259,7 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
 | Fast suite | 3,722 passed，61.81s / 120s |
 | 固定高风险回归包 | 229 passed |
 | Sentiment 定向回归 | 124 passed |
-| 覆盖边界追加回归 | 292 passed + 12 passed |
+| 覆盖边界追加回归 | 292 passed + 13 passed |
 
 T6 期间发现并修复两处测试基础设施缺陷：
 
@@ -283,9 +283,7 @@ T6 期间发现并修复两处测试基础设施缺陷：
 - 架构增量与全量扫描均为 `0 boundary / 0 audit` 违规。
 
 完整 Guardrail 的唯一失败仍是下述冻结基线超大文件债务；本分支相对
-`5ba332c5` 没有修改这两个文件。冻结提交中也不存在
-`scripts/check_celery_task_contracts.py` 或相应登记文件，本分支未新增/修改 Celery
-任务，因此该脚本项记为“不适用（入口不存在）”，真实 Celery 业务结果另有 T5 证据。
+`5ba332c5` 没有修改这两个文件。真实 Celery 业务结果由 T5 证据覆盖。
 
 ## 当前未完成项
 
