@@ -3170,3 +3170,18 @@
 - Audit operation log Domain、failure counter 与安全不变量回归 `46 passed`；Audit internal ingest 与 API integration 全组 `21 passed`，另对历史记录读取脱敏和签名写入做定点复核 `2 passed`。
 - 七个相关生产文件增量 mypy 清零；全仓基线从 `2322 errors / 517 files` 收紧为 `2297 errors / 513 files`，净减少 `25 errors / 4 files`。
 - 改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十六批
+
+- 按“归因统计真实性 × 投研判断影响面”收口 Audit heuristic attribution Domain service。
+- Regime 预测与实际值在双方带日期时按共同日期对齐，不再按列表位置比较；输入顺序变化不会制造错误命中率，大小写统一后再计算准确率与混淆矩阵。
+- Regime 周期先验证日期、非空象限和有限置信度并按日期排序，畸形观察不会进入归因；权益曲线过滤非有限值，周期起始净值必须大于零，避免除零或发布 `NaN` 收益。
+- 信息比率要求基准收益数与权益曲线区间数严格一致，不再用零填充缺失基准；零或非有限净值、非有限基准直接返回不可计算。
+- 资产收益只聚合有限数，交易成本总额必须有限；损坏数据不再静默形成看似有效的归因数字。
+- 通过最小只读 Protocol 接受正式 BacktestResult 与 Audit Application 的不可变简化结果，服务函数补齐具体集合、返回 DTO 和内部变量类型。
+
+## 第二百一十六批验证结果
+
+- Attribution service、performance analyzer 与新增真实性不变量回归共 `90 passed`。
+- Attribution Domain service 增量 mypy 清零；全仓基线从 `2297 errors / 513 files` 收紧为 `2282 errors / 512 files`，净减少 `15 errors / 1 file`。
+- 改动文件 Ruff、Black、isort、diff check、增量 mypy与全仓 debt ceiling 通过。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2297,
-    "files_with_errors": 513
+    "errors": 2282,
+    "files_with_errors": 512
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -409,12 +409,6 @@
     "apps/audit/application/indicator_use_cases.py": {
       "arg-type": 1,
       "assignment": 1
-    },
-    "apps/audit/domain/attribution_services.py": {
-      "no-any-return": 2,
-      "no-untyped-def": 4,
-      "type-arg": 7,
-      "var-annotated": 2
     },
     "apps/audit/domain/performance_services.py": {
       "no-untyped-def": 2

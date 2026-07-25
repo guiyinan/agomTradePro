@@ -5,7 +5,11 @@ Only uses Python standard library (no pandas/numpy).
 """
 
 import math
+from collections.abc import Mapping, Sequence
 from datetime import date
+from typing import NotRequired, Protocol, TypedDict
+
+from apps.backtest.domain.entities import Trade
 
 from .entities import (
     AttributionConfig,
@@ -15,6 +19,29 @@ from .entities import (
     RegimePeriod,
 )
 
+
+class RegimeAccuracyResult(TypedDict):
+    """Serializable Regime accuracy metrics."""
+
+    total_periods: int
+    correct_predictions: int
+    accuracy: float
+    regime_confusion_matrix: NotRequired[dict[str, dict[str, int]]]
+
+
+class BacktestResultLike(Protocol):
+    """Minimal backtest result surface required by attribution calculations."""
+
+    @property
+    def equity_curve(self) -> Sequence[tuple[date, float]]: ...
+
+    @property
+    def trades(self) -> Sequence[Trade]: ...
+
+    @property
+    def total_return(self) -> float: ...
+
+
 __all__ = [
     "AttributionAnalyzer",
     "analyze_attribution",
@@ -22,9 +49,9 @@ __all__ = [
 
 
 def analyze_attribution(
-    backtest_result,
-    regime_history: list[dict],
-    asset_returns: dict[str, list[tuple[date, float]]],
+    backtest_result: BacktestResultLike,
+    regime_history: Sequence[Mapping[str, object]],
+    asset_returns: Mapping[str, Sequence[tuple[date, float]]],
     config: AttributionConfig | None = None,
 ) -> AttributionResult:
     """
@@ -81,27 +108,47 @@ def analyze_attribution(
     )
 
 
-def _build_regime_periods(regime_history: list[dict]) -> list[RegimePeriod]:
+def _build_regime_periods(
+    regime_history: Sequence[Mapping[str, object]],
+) -> list[RegimePeriod]:
     """构建 Regime 周期"""
     if not regime_history:
         return []
 
-    periods = []
-    current_regime = None
-    current_start = None
-    current_confidence = 0.0
-
-    for _i, entry in enumerate(regime_history):
+    periods: list[RegimePeriod] = []
+    normalized_history: list[tuple[date, str, float]] = []
+    for entry in regime_history:
+        entry_date = entry.get("date")
         regime = entry.get("regime")
         confidence = entry.get("confidence", 0.0)
-        entry_date = entry.get("date")
+        if (
+            not isinstance(entry_date, date)
+            or not isinstance(regime, str)
+            or not regime.strip()
+            or isinstance(confidence, bool)
+            or not isinstance(confidence, (int, float))
+            or not math.isfinite(float(confidence))
+        ):
+            continue
+        normalized_history.append((entry_date, regime.strip(), float(confidence)))
 
+    if not normalized_history:
+        return []
+
+    normalized_history.sort(key=lambda item: item[0])
+    current_regime: str | None = None
+    current_start: date | None = None
+    current_confidence = 0.0
+
+    for entry_date, regime, confidence in normalized_history:
         if current_regime is None:
             current_regime = regime
             current_start = entry_date
             current_confidence = confidence
         elif regime != current_regime:
             # Regime 变化，保存上一个周期
+            if current_start is None:
+                raise ValueError("Regime period start date is required")
             periods.append(
                 RegimePeriod(
                     start_date=current_start,
@@ -115,11 +162,11 @@ def _build_regime_periods(regime_history: list[dict]) -> list[RegimePeriod]:
             current_confidence = confidence
 
     # 添加最后一个周期
-    if current_regime and current_start:
+    if current_regime is not None and current_start is not None:
         periods.append(
             RegimePeriod(
                 start_date=current_start,
-                end_date=regime_history[-1].get("date", current_start),
+                end_date=normalized_history[-1][0],
                 regime=current_regime,
                 confidence=current_confidence,
             )
@@ -129,28 +176,40 @@ def _build_regime_periods(regime_history: list[dict]) -> list[RegimePeriod]:
 
 
 def _calculate_period_performances(
-    periods: list[RegimePeriod],
-    equity_curve: list[tuple[date, float]],
-    asset_returns: dict[str, list[tuple[date, float]]],
+    periods: Sequence[RegimePeriod],
+    equity_curve: Sequence[tuple[date, float]],
+    asset_returns: Mapping[str, Sequence[tuple[date, float]]],
 ) -> list[PeriodPerformance]:
     """计算各周期表现"""
-    performances = []
+    performances: list[PeriodPerformance] = []
 
     if not equity_curve:
         return performances
 
     try:
-        sorted_curve = sorted(equity_curve, key=lambda x: x[0])
+        sorted_curve = sorted(
+            (
+                (observed_at, float(value))
+                for observed_at, value in equity_curve
+                if isinstance(observed_at, date)
+                and not isinstance(value, bool)
+                and isinstance(value, (int, float))
+                and math.isfinite(float(value))
+            ),
+            key=lambda point: point[0],
+        )
     except TypeError:
         return performances
+    if not sorted_curve:
+        return performances
 
-    def _get_value_on_or_after(target_date: date):
+    def _get_value_on_or_after(target_date: date) -> float | None:
         for d, v in sorted_curve:
             if d >= target_date:
                 return v
         return None
 
-    def _get_value_on_or_before(target_date: date):
+    def _get_value_on_or_before(target_date: date) -> float | None:
         for d, v in reversed(sorted_curve):
             if d <= target_date:
                 return v
@@ -161,16 +220,23 @@ def _calculate_period_performances(
         start_value = _get_value_on_or_after(period.start_date)
         end_value = _get_value_on_or_before(period.end_date)
 
-        if start_value is None or end_value is None:
+        if start_value is None or end_value is None or start_value <= 0:
             continue
 
         portfolio_return = (end_value - start_value) / start_value
 
         # 获取各资产收益（简化：取首尾日期）
-        asset_period_returns = {}
+        asset_period_returns: dict[str, float] = {}
         for asset, returns in asset_returns.items():
             # 找到周期内的收益率
-            period_returns = [r for d, r in returns if period.start_date <= d <= period.end_date]
+            period_returns = [
+                float(asset_return)
+                for observed_at, asset_return in returns
+                if period.start_date <= observed_at <= period.end_date
+                and not isinstance(asset_return, bool)
+                and isinstance(asset_return, (int, float))
+                and math.isfinite(float(asset_return))
+            ]
             if period_returns:
                 # 简化：使用平均收益
                 asset_period_returns[asset] = sum(period_returns) / len(period_returns)
@@ -314,14 +380,19 @@ def _generate_lessons(
     return lesson, suggestions
 
 
-def _calculate_total_transaction_cost(trades: list) -> float:
+def _calculate_total_transaction_cost(trades: Sequence[Trade]) -> float:
     """计算总交易成本"""
-    return sum(trade.cost for trade in trades)
+    total_cost = sum(trade.cost for trade in trades)
+    if not math.isfinite(total_cost):
+        raise ValueError("Transaction costs must be finite")
+    return total_cost
 
 
-def _build_period_attributions(performances: list[PeriodPerformance]) -> list[dict]:
+def _build_period_attributions(
+    performances: Sequence[PeriodPerformance],
+) -> list[dict[str, object]]:
     """构建周期归因详情"""
-    attributions = []
+    attributions: list[dict[str, object]] = []
 
     for perf in performances:
         attributions.append(
@@ -347,12 +418,14 @@ class AttributionAnalyzer:
     提供更高级的归因分析功能。
     """
 
-    def __init__(self, config: AttributionConfig | None = None):
+    def __init__(self, config: AttributionConfig | None = None) -> None:
         self.config = config or AttributionConfig()
 
     def analyze_regime_accuracy(
-        self, regime_history: list[dict], actual_regime_history: list[dict]
-    ) -> dict:
+        self,
+        regime_history: Sequence[Mapping[str, object]],
+        actual_regime_history: Sequence[Mapping[str, object]],
+    ) -> RegimeAccuracyResult:
         """
         分析 Regime 判断准确率
 
@@ -366,45 +439,87 @@ class AttributionAnalyzer:
         if not regime_history or not actual_regime_history:
             return {"total_periods": 0, "correct_predictions": 0, "accuracy": 0.0}
 
-        correct = 0
-        total = min(len(regime_history), len(actual_regime_history))
-
-        for i in range(total):
-            predicted = regime_history[i].get("regime")
-            actual = actual_regime_history[i].get("regime")
-            if predicted == actual:
-                correct += 1
+        aligned = self._align_regime_observations(regime_history, actual_regime_history)
+        correct = sum(
+            1 for predicted, actual in aligned if predicted.casefold() == actual.casefold()
+        )
+        total = len(aligned)
 
         return {
             "total_periods": total,
             "correct_predictions": correct,
             "accuracy": correct / total if total > 0 else 0.0,
             "regime_confusion_matrix": self._build_confusion_matrix(
-                regime_history, actual_regime_history
+                regime_history,
+                actual_regime_history,
             ),
         }
 
+    @staticmethod
+    def _align_regime_observations(
+        predicted: Sequence[Mapping[str, object]],
+        actual: Sequence[Mapping[str, object]],
+    ) -> list[tuple[str, str]]:
+        """Align observations by date when dates exist, otherwise by position."""
+
+        predicted_by_date = {
+            entry_date: regime
+            for entry in predicted
+            if isinstance((entry_date := entry.get("date")), date)
+            and isinstance((regime := entry.get("regime")), str)
+            and regime.strip()
+        }
+        actual_by_date = {
+            entry_date: regime
+            for entry in actual
+            if isinstance((entry_date := entry.get("date")), date)
+            and isinstance((regime := entry.get("regime")), str)
+            and regime.strip()
+        }
+        if predicted_by_date and actual_by_date:
+            common_dates = sorted(predicted_by_date.keys() & actual_by_date.keys())
+            return [
+                (predicted_by_date[entry_date], actual_by_date[entry_date])
+                for entry_date in common_dates
+            ]
+
+        aligned: list[tuple[str, str]] = []
+        for predicted_entry, actual_entry in zip(predicted, actual, strict=False):
+            predicted_regime = predicted_entry.get("regime")
+            actual_regime = actual_entry.get("regime")
+            if (
+                isinstance(predicted_regime, str)
+                and predicted_regime.strip()
+                and isinstance(actual_regime, str)
+                and actual_regime.strip()
+            ):
+                aligned.append((predicted_regime, actual_regime))
+        return aligned
+
     def _build_confusion_matrix(
-        self, predicted: list[dict], actual: list[dict]
+        self,
+        predicted: Sequence[Mapping[str, object]],
+        actual: Sequence[Mapping[str, object]],
     ) -> dict[str, dict[str, int]]:
         """构建混淆矩阵"""
         regimes = ["Recovery", "Overheat", "Stagflation", "Deflation"]
-        matrix = {r: {} for r in regimes}
+        canonical = {regime.casefold(): regime for regime in regimes}
+        matrix: dict[str, dict[str, int]] = {
+            regime: dict.fromkeys(regimes, 0) for regime in regimes
+        }
 
-        for p in regimes:
-            matrix[p] = dict.fromkeys(regimes, 0)
-
-        total = min(len(predicted), len(actual))
-        for i in range(total):
-            p_regime = predicted[i].get("regime")
-            a_regime = actual[i].get("regime")
-            if p_regime in matrix and a_regime in matrix[p_regime]:
-                matrix[p_regime][a_regime] += 1
+        for predicted_regime, actual_regime in self._align_regime_observations(predicted, actual):
+            predicted_label = canonical.get(predicted_regime.casefold())
+            actual_label = canonical.get(actual_regime.casefold())
+            if predicted_label is not None and actual_label is not None:
+                matrix[predicted_label][actual_label] += 1
 
         return matrix
 
     def calculate_information_ratio(
-        self, backtest_result, benchmark_returns: list[float]
+        self,
+        backtest_result: BacktestResultLike,
+        benchmark_returns: Sequence[float],
     ) -> float | None:
         """
         计算信息比率
@@ -416,17 +531,26 @@ class AttributionAnalyzer:
         Returns:
             Optional[float]: 信息比率
         """
-        if len(backtest_result.equity_curve) < 2 or not benchmark_returns:
+        equity_curve = backtest_result.equity_curve
+        interval_count = len(equity_curve) - 1
+        if interval_count < 1 or len(benchmark_returns) != interval_count:
             return None
 
         # 计算超额收益
-        excess_returns = []
-        for i in range(1, len(backtest_result.equity_curve)):
-            prev_val = backtest_result.equity_curve[i - 1][1]
-            curr_val = backtest_result.equity_curve[i][1]
+        excess_returns: list[float] = []
+        for i in range(1, len(equity_curve)):
+            prev_val = equity_curve[i - 1][1]
+            curr_val = equity_curve[i][1]
+            benchmark_return = benchmark_returns[i - 1]
+            if (
+                not math.isfinite(prev_val)
+                or not math.isfinite(curr_val)
+                or not math.isfinite(benchmark_return)
+                or prev_val <= 0
+            ):
+                return None
 
             portfolio_return = (curr_val - prev_val) / prev_val
-            benchmark_return = benchmark_returns[i - 1] if i - 1 < len(benchmark_returns) else 0
 
             excess_returns.append(portfolio_return - benchmark_return)
 
