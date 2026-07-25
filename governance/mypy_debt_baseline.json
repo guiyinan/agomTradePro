@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2257,
-    "files_with_errors": 509
+    "errors": 2182,
+    "files_with_errors": 502
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1033,36 +1033,15 @@
       "no-untyped-def": 6,
       "type-arg": 1
     },
-    "apps/fund/application/interface_services.py": {
-      "attr-defined": 2,
-      "no-untyped-call": 8,
-      "no-untyped-def": 10,
-      "type-arg": 1
-    },
-    "apps/fund/application/repository_provider.py": {
-      "no-untyped-call": 3
-    },
-    "apps/fund/application/services.py": {
-      "attr-defined": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 2,
-      "type-arg": 4
-    },
-    "apps/fund/application/use_cases.py": {
-      "attr-defined": 1,
-      "type-arg": 1
-    },
     "apps/fund/apps.py": {
       "no-untyped-def": 1
     },
     "apps/fund/infrastructure/adapters/akshare_fund_adapter.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 1
+      "import-untyped": 1
     },
     "apps/fund/infrastructure/adapters/hybrid_fund_adapter.py": {
       "assignment": 2,
       "import-untyped": 1,
-      "no-untyped-call": 1,
       "no-untyped-def": 2,
       "type-arg": 1
     },
@@ -1076,13 +1055,6 @@
     "apps/fund/infrastructure/models.py": {
       "no-untyped-def": 7
     },
-    "apps/fund/infrastructure/repositories.py": {
-      "arg-type": 3,
-      "no-any-return": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 9,
-      "type-arg": 1
-    },
     "apps/fund/interface/admin.py": {
       "attr-defined": 2,
       "no-untyped-def": 2,
@@ -1091,15 +1063,7 @@
     "apps/fund/interface/api_urls.py": {
       "no-untyped-def": 1
     },
-    "apps/fund/interface/serializers.py": {
-      "no-untyped-def": 1,
-      "type-arg": 11
-    },
-    "apps/fund/interface/views.py": {
-      "no-untyped-def": 10
-    },
     "apps/fund/management/commands/prepare_fund_research_data.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 3
     },
     "apps/hedge/infrastructure/adapters/__init__.py": {

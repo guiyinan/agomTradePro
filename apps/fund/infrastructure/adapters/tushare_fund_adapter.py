@@ -7,7 +7,6 @@ Tushare 基金数据适配器
 3. 获取基金持仓数据
 """
 
-
 import pandas as pd
 
 from shared.config.secrets import get_secrets
@@ -17,7 +16,7 @@ from shared.infrastructure.tushare_client import create_tushare_pro_client
 class TushareFundAdapter:
     """Tushare 基金数据适配器"""
 
-    def __init__(self, token: str | None = None, http_url: str | None = None):
+    def __init__(self, token: str | None = None, http_url: str | None = None) -> None:
         """延迟初始化（避免启动时必须有 token）"""
         self._token = token
         self._http_url = http_url
@@ -34,10 +33,7 @@ class TushareFundAdapter:
                 http_url=self._http_url,
             )
 
-    def fetch_fund_list(
-        self,
-        market: str = 'E'
-    ) -> pd.DataFrame:
+    def fetch_fund_list(self, market: str = "E") -> pd.DataFrame:
         """获取基金列表
 
         Args:
@@ -52,25 +48,22 @@ class TushareFundAdapter:
 
         df = self.pro.fund_basic(
             market=market,
-            status='L',  # 上市状态
-            fields='ts_code,name,management,custodian,fund_type,setup_date,list_date,issue_date,delist_date,issue_amount,m_fee,realm'
+            status="L",  # 上市状态
+            fields="ts_code,name,management,custodian,fund_type,setup_date,list_date,issue_date,delist_date,issue_amount,m_fee,realm",
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            if 'setup_date' in df.columns:
-                df['setup_date'] = pd.to_datetime(df['setup_date'], format='%Y%m%d', errors='coerce')
-            if 'list_date' in df.columns:
-                df['list_date'] = pd.to_datetime(df['list_date'], format='%Y%m%d', errors='coerce')
+            if "setup_date" in df.columns:
+                df["setup_date"] = pd.to_datetime(
+                    df["setup_date"], format="%Y%m%d", errors="coerce"
+                )
+            if "list_date" in df.columns:
+                df["list_date"] = pd.to_datetime(df["list_date"], format="%Y%m%d", errors="coerce")
 
         return df
 
-    def fetch_fund_daily(
-        self,
-        fund_code: str,
-        start_date: str,
-        end_date: str
-    ) -> pd.DataFrame:
+    def fetch_fund_daily(self, fund_code: str, start_date: str, end_date: str) -> pd.DataFrame:
         """获取基金净值数据
 
         Args:
@@ -87,22 +80,17 @@ class TushareFundAdapter:
             ts_code=fund_code,
             start_date=start_date,
             end_date=end_date,
-            fields='ts_code,ann_date,nav_date,unit_nav,accum_nav,adj_nav'
+            fields="ts_code,ann_date,nav_date,unit_nav,accum_nav,adj_nav",
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['nav_date'] = pd.to_datetime(df['nav_date'], format='%Y%m%d', errors='coerce')
-            df = df.rename(columns={'nav_date': 'trade_date'})
+            df["nav_date"] = pd.to_datetime(df["nav_date"], format="%Y%m%d", errors="coerce")
+            df = df.rename(columns={"nav_date": "trade_date"})
 
         return df
 
-    def fetch_fund_portfolio(
-        self,
-        fund_code: str,
-        start_date: str,
-        end_date: str
-    ) -> pd.DataFrame:
+    def fetch_fund_portfolio(self, fund_code: str, start_date: str, end_date: str) -> pd.DataFrame:
         """获取基金持仓数据
 
         Args:
@@ -119,20 +107,17 @@ class TushareFundAdapter:
             ts_code=fund_code,
             start_date=start_date,
             end_date=end_date,
-            fields='end_date,ts_code,name,amount,ratio_mv'
+            fields="end_date,ts_code,name,amount,ratio_mv",
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['end_date'] = pd.to_datetime(df['end_date'], format='%Y%m%d')
+            df["end_date"] = pd.to_datetime(df["end_date"], format="%Y%m%d")
 
         return df
 
     def fetch_fund_daily_basic(
-        self,
-        fund_code: str,
-        start_date: str,
-        end_date: str
+        self, fund_code: str, start_date: str, end_date: str
     ) -> pd.DataFrame:
         """获取基金日线基本信息（涨跌幅、换手率等）
 
@@ -150,12 +135,12 @@ class TushareFundAdapter:
             ts_code=fund_code,
             start_date=start_date,
             end_date=end_date,
-            fields='trade_date,pre_close,open,high,low,close,change,pct_chg,vol,amount'
+            fields="trade_date,pre_close,open,high,low,close,change,pct_chg,vol,amount",
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['trade_date'] = pd.to_datetime(df['trade_date'], format='%Y%m%d')
+            df["trade_date"] = pd.to_datetime(df["trade_date"], format="%Y%m%d")
 
         return df
 
@@ -172,21 +157,18 @@ class TushareFundAdapter:
 
         df = self.pro.fund_manager(
             ts_code=fund_code,
-            fields='ts_code,ann_date,name,gender,birth_year,start_date,end_date,return_total,tenure_date'
+            fields="ts_code,ann_date,name,gender,birth_year,start_date,end_date,return_total,tenure_date",
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['start_date'] = pd.to_datetime(df['start_date'], format='%Y%m%d', errors='coerce')
-            df['end_date'] = pd.to_datetime(df['end_date'], format='%Y%m%d', errors='coerce')
+            df["start_date"] = pd.to_datetime(df["start_date"], format="%Y%m%d", errors="coerce")
+            df["end_date"] = pd.to_datetime(df["end_date"], format="%Y%m%d", errors="coerce")
 
         return df
 
     def fetch_fund_holdings_detail(
-        self,
-        fund_code: str,
-        start_date: str,
-        end_date: str
+        self, fund_code: str, start_date: str, end_date: str
     ) -> pd.DataFrame:
         """获取基金持仓详情（包含更多字段）
 
@@ -201,14 +183,10 @@ class TushareFundAdapter:
         self._ensure_initialized()
 
         # 使用 fund_portfolio 接口
-        df = self.pro.fund_portfolio(
-            ts_code=fund_code,
-            start_date=start_date,
-            end_date=end_date
-        )
+        df = self.pro.fund_portfolio(ts_code=fund_code, start_date=start_date, end_date=end_date)
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['end_date'] = pd.to_datetime(df['end_date'], format='%Y%m%d', errors='coerce')
+            df["end_date"] = pd.to_datetime(df["end_date"], format="%Y%m%d", errors="coerce")
 
         return df

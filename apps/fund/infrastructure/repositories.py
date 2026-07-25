@@ -16,6 +16,7 @@ from django.db.models import Max
 
 from apps.data_center.application.dtos import SyncFundNavRequest
 from apps.data_center.application.use_cases import SyncFundNavUseCase
+from apps.data_center.domain.entities import FundNavFact
 from apps.data_center.infrastructure.provider_registry import ProviderRegistry
 from apps.data_center.infrastructure.repositories import (
     FundNavRepository as DataCenterFundNavRepository,
@@ -54,12 +55,12 @@ class DjangoFundAssetRepository:
     为通用资产分析框架提供基金数据访问接口。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化仓储"""
         self.fund_repo = DjangoFundRepository()
 
     def get_assets_by_filter(
-        self, asset_type: str, filters: dict, max_count: int = 100
+        self, asset_type: str, filters: dict[str, object], max_count: int = 100
     ) -> list[FundAssetScore]:
         """
         根据过滤条件获取资产列表
@@ -86,10 +87,14 @@ class DjangoFundAssetRepository:
         # 应用过滤条件
         fund_type = filters.get("fund_type")
         if fund_type:
+            if not isinstance(fund_type, str):
+                raise ValueError("fund_type must be a string")
             queryset = queryset.filter(fund_type=fund_type)
 
         investment_style = filters.get("investment_style")
         if investment_style:
+            if not isinstance(investment_style, str):
+                raise ValueError("investment_style must be a string")
             queryset = queryset.filter(investment_style=investment_style)
 
         min_scale = filters.get("min_scale")
@@ -102,6 +107,8 @@ class DjangoFundAssetRepository:
 
         fund_company = filters.get("fund_company")
         if fund_company:
+            if not isinstance(fund_company, str):
+                raise ValueError("fund_company must be a string")
             queryset = queryset.filter(management_company__icontains=fund_company)
 
         # 限制数量并排序
@@ -143,7 +150,7 @@ class DjangoFundRepository:
     3. 处理数据同步
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化仓储"""
         from .adapters.akshare_fund_adapter import AkShareFundAdapter
         from .adapters.tushare_fund_adapter import TushareFundAdapter
@@ -214,25 +221,27 @@ class DjangoFundRepository:
 
         if not base_codes:
             return []
-        return list(
-            FundInfoModel._default_manager.filter(fund_code__in=base_codes).values(
+        return [
+            dict(row)
+            for row in FundInfoModel._default_manager.filter(fund_code__in=base_codes).values(
                 "fund_code",
                 "fund_name",
                 "fund_type",
                 "investment_style",
             )
-        )
+        ]
 
     def list_asset_master_holding_rows(self, lookup_codes: list[str]) -> list[dict[str, Any]]:
         """Return fund holding rows used to infer stock names."""
 
         if not lookup_codes:
             return []
-        return list(
-            FundHoldingModel._default_manager.filter(stock_code__in=lookup_codes)
+        return [
+            dict(row)
+            for row in FundHoldingModel._default_manager.filter(stock_code__in=lookup_codes)
             .order_by("stock_code", "-report_date")
             .values("stock_code", "stock_name")
-        )
+        ]
 
     def get_all_funds(self, fund_type: str | None = None) -> list[FundInfo]:
         """获取所有基金信息
@@ -255,12 +264,21 @@ class DjangoFundRepository:
         """Return preferred fund types for one regime ordered by priority."""
 
         return list(
+            dict.fromkeys(
+                fund_type for fund_type, _style in self.get_fund_preferences_by_regime(regime)
+            )
+        )
+
+    def get_fund_preferences_by_regime(self, regime: str) -> list[tuple[str, str]]:
+        """Return configured fund type/style pairs ordered by priority."""
+
+        return list(
             FundTypePreferenceConfigModel._default_manager.filter(
                 regime=regime,
                 is_active=True,
             )
-            .order_by("-priority")
-            .values_list("fund_type", flat=True)
+            .order_by("-priority", "fund_type", "style")
+            .values_list("fund_type", "style")
         )
 
     def save_fund_info(self, fund_info: FundInfo) -> None:
@@ -594,7 +612,9 @@ class DjangoFundRepository:
         latest_performance_end = FundPerformanceModel._default_manager.aggregate(
             latest=Max("end_date")
         )["latest"]
-        latest_nav_date = FundNetValueModel._default_manager.aggregate(latest=Max("nav_date"))["latest"]
+        latest_nav_date = FundNetValueModel._default_manager.aggregate(latest=Max("nav_date"))[
+            "latest"
+        ]
         latest_available = latest_performance_end or latest_nav_date or requested_end_date
         resolved_end_date = min(requested_end_date, latest_available)
         resolved_start_date = resolved_end_date - timedelta(days=lookback_days)
@@ -660,11 +680,7 @@ class DjangoFundRepository:
         days = (nav_series[-1].nav_date - nav_series[0].nav_date).days
         annualized_return = self._perf_calculator.calculate_annualized_return(total_return, days)
 
-        daily_returns = [
-            nav.daily_return
-            for nav in nav_series
-            if nav.daily_return is not None
-        ]
+        daily_returns = [nav.daily_return for nav in nav_series if nav.daily_return is not None]
         if len(daily_returns) < 2:
             daily_returns = self._derive_daily_returns(nav_series)
 
@@ -741,9 +757,7 @@ class DjangoFundRepository:
     ) -> list[tuple[FundInfo, FundPerformance, list[FundSectorAllocation]]]:
         """Return fund research inputs from persisted snapshots without hydration."""
 
-        result: list[
-            tuple[FundInfo, FundPerformance, list[FundSectorAllocation]]
-        ] = []
+        result: list[tuple[FundInfo, FundPerformance, list[FundSectorAllocation]]] = []
         for fund in self.get_all_funds():
             performance = self.get_fund_performance(
                 fund.fund_code,
@@ -817,7 +831,7 @@ class DjangoFundRepository:
         start = datetime.strptime(start_date, "%Y%m%d").date()
         end = datetime.strptime(end_date, "%Y%m%d").date()
         active_configs = self._provider_repo.get_active_by_type("tushare")
-        if active_configs:
+        if active_configs and active_configs[0].id is not None:
             try:
                 use_case = SyncFundNavUseCase(
                     provider_repo=self._provider_repo,
@@ -865,9 +879,7 @@ class DjangoFundRepository:
 
     # ==================== 私有方法 ====================
 
-    def _entity_nav_to_dc_fact(self, nav: FundNetValue):
-        from apps.data_center.domain.entities import FundNavFact
-
+    def _entity_nav_to_dc_fact(self, nav: FundNetValue) -> FundNavFact:
         return FundNavFact(
             fund_code=nav.fund_code,
             nav_date=nav.nav_date,
@@ -877,7 +889,7 @@ class DjangoFundRepository:
             source="fund_legacy_repo",
         )
 
-    def _dc_fact_to_entity_nav(self, fact) -> FundNetValue:
+    def _dc_fact_to_entity_nav(self, fact: FundNavFact) -> FundNetValue:
         accum_nav = fact.acc_nav if fact.acc_nav is not None else fact.nav
         return FundNetValue(
             fund_code=fact.fund_code,
@@ -887,7 +899,7 @@ class DjangoFundRepository:
             daily_return=fact.daily_return,
         )
 
-    def _mirror_dc_nav_fact(self, fact) -> None:
+    def _mirror_dc_nav_fact(self, fact: FundNavFact) -> None:
         accum_nav = fact.acc_nav if fact.acc_nav is not None else fact.nav
         FundNetValueModel._default_manager.update_or_create(
             fund_code=fact.fund_code,
@@ -999,7 +1011,7 @@ class DjangoFundRepository:
             return "混合型" if market == "O" else "指数型"
         return "混合型"
 
-    def _coerce_date(self, value) -> date | None:
+    def _coerce_date(self, value: object) -> date | None:
         """Convert provider date values to ``date`` when possible."""
 
         if value is None:
@@ -1010,7 +1022,7 @@ class DjangoFundRepository:
             return value
         return None
 
-    def _coerce_issue_amount(self, value) -> Decimal | None:
+    def _coerce_issue_amount(self, value: object) -> Decimal | None:
         """Convert issue amount in 亿份 to yuan-like storage used by the fund module."""
 
         if self._is_empty_like(value):
@@ -1020,14 +1032,14 @@ class DjangoFundRepository:
         except ArithmeticError:
             return None
 
-    def _clean_optional_text(self, value) -> str | None:
+    def _clean_optional_text(self, value: object) -> str | None:
         """Normalize provider text fields and drop NaN-like placeholders."""
 
         if self._is_empty_like(value):
             return None
         return str(value).strip() or None
 
-    def _is_empty_like(self, value) -> bool:
+    def _is_empty_like(self, value: object) -> bool:
         """Return True when provider data is empty, null, or NaN-like."""
 
         if value is None:
@@ -1036,4 +1048,4 @@ class DjangoFundRepository:
             return value.strip() == "" or value.strip().lower() == "nan"
         if isinstance(value, float):
             return math.isnan(value) or value == 0.0
-        return value == 0
+        return bool(value == 0)

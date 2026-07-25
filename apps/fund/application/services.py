@@ -4,9 +4,11 @@ Fund 模块 - Application 层服务（资产分析框架集成）
 本模块提供基金多维度评分的服务，集成通用资产分析框架。
 """
 
+from collections.abc import Mapping
 from dataclasses import replace
+from typing import Protocol, TypedDict
 
-from apps.asset_analysis.domain.entities import AssetType
+from apps.asset_analysis.domain.entities import AssetScore, AssetType
 from apps.asset_analysis.domain.services import (
     PolicyMatcher,
     RegimeMatcher,
@@ -14,8 +16,28 @@ from apps.asset_analysis.domain.services import (
     SignalMatcher,
 )
 from apps.asset_analysis.domain.value_objects import ScoreContext
-from apps.fund.application.repository_provider import DjangoFundAssetRepository
+from apps.fund.application.repository_provider import get_fund_asset_repository
 from apps.fund.domain.entities import FundAssetScore
+
+
+class FundAssetRepositoryProtocol(Protocol):
+    """Fund asset reads required by multi-dimensional scoring."""
+
+    def get_assets_by_filter(
+        self,
+        asset_type: str,
+        filters: dict[str, object],
+        max_count: int = 100,
+    ) -> list[FundAssetScore]: ...
+
+
+class FundScreenResult(TypedDict):
+    """Stable multi-dimensional screening result."""
+
+    success: bool
+    count: int
+    message: str
+    funds: list[dict[str, object]]
 
 
 class FundMultiDimScorer:
@@ -25,7 +47,7 @@ class FundMultiDimScorer:
     整合通用资产分析框架和基金特有的评分逻辑。
     """
 
-    def __init__(self, asset_repository: DjangoFundAssetRepository):
+    def __init__(self, asset_repository: FundAssetRepositoryProtocol) -> None:
         """
         初始化评分服务
 
@@ -50,7 +72,7 @@ class FundMultiDimScorer:
             评分后的基金列表（已排序并设置排名）
         """
         # 1. 计算每个基金的通用维度得分
-        scored_funds = []
+        scored_funds: list[FundAssetScore] = []
         for fund in funds:
             # 转换为通用 AssetScore 格式计算
             asset_score = self._to_asset_score(fund)
@@ -107,10 +129,10 @@ class FundMultiDimScorer:
 
     def screen_funds(
         self,
-        filters: dict,
+        filters: dict[str, object],
         context: ScoreContext,
         max_count: int = 30,
-    ) -> dict:
+    ) -> FundScreenResult:
         """
         多维度筛选基金
 
@@ -132,6 +154,7 @@ class FundMultiDimScorer:
         if not funds:
             return {
                 "success": False,
+                "count": 0,
                 "message": "未找到符合条件的基金",
                 "funds": [],
             }
@@ -146,11 +169,12 @@ class FundMultiDimScorer:
         return {
             "success": True,
             "count": len(scored_funds),
+            "message": "",
             "funds": [fund.to_dict() for fund in scored_funds],
         }
 
     @staticmethod
-    def _to_asset_score(fund: FundAssetScore):
+    def _to_asset_score(fund: FundAssetScore) -> AssetScore:
         """将 FundAssetScore 转换为通用 AssetScore 格式"""
         from apps.asset_analysis.domain.entities import AssetScore, AssetSize, AssetStyle
 
@@ -215,12 +239,15 @@ class FundMultiDimScorer:
         return base_risk
 
 
-def screen_fund_assets_for_pool(context, filters: dict) -> list[FundAssetScore]:
+def screen_fund_assets_for_pool(
+    context: ScoreContext,
+    filters: Mapping[str, object],
+) -> list[FundAssetScore]:
     """Screen and score fund assets for the shared asset-pool workflow."""
-    repo = DjangoFundAssetRepository()
+    repo = get_fund_asset_repository()
     scorer = FundMultiDimScorer(repo)
 
-    filter_dict: dict = {}
+    filter_dict: dict[str, object] = {}
     if filters.get("fund_type"):
         filter_dict["fund_type"] = filters["fund_type"]
     if filters.get("investment_style"):

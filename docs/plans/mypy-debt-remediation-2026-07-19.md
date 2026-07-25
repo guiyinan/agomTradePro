@@ -3202,3 +3202,19 @@
 - `makemigrations --check --dry-run` 无漂移，Django system check 与架构 delta 通过。
 - Indicator use case、repository 与 Audit models 增量 mypy 清零；全仓基线从 `2282 errors / 512 files` 收紧为 `2257 errors / 509 files`，净减少 `25 errors / 3 files`。
 - 改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十八批
+
+- 按“基金研究状态真实性 × 配置唯一真源 × API 输入边界”收口 Fund 研究链路。
+- 基金筛选同时读取数据库中按 Regime 配置的基金类型与投资风格；调用方显式条件可覆盖数据库偏好，未配置基金类型时失败关闭，不再使用代码内置的类型或风格列表制造筛选依据。
+- Dashboard 缺少或损坏 Regime、Policy、Sentiment 数据时明确发布未知或未配置；不再用 Recovery、P1 或中性情绪伪装缺失状态。
+- 基金表现记录的起止日期改为实际净值证据覆盖区间；反向日期、未来排名日期、非有限门槛和非法 Regime 在 Application 边界拒绝。
+- Fund detail、分析、表现、净值、持仓和多维筛选 API 统一要求认证；请求 serializer 拒绝未知字段并验证日期、数值范围和筛选上下界。
+- 多维筛选要求显式提供 Regime、Policy 与有限 Sentiment，不再补默认宏观环境；无匹配结果返回稳定的 `count=0` 结构并正确映射 404，内部异常不再复制到 API。
+- Application 通过 Repository Protocol 与 provider factory 访问持久化实现，基金代码、日期、动态 ORM 与外部数据在边界完成类型收窄。
+
+## 第二百一十八批验证结果
+
+- Fund API edge、Domain、Repository、Application 与配置命令相关回归 `116 passed`。
+- 八个核心改动文件增量 mypy 清零；适配器保留的 `16` 个历史错误无新增；全仓基线从 `2257 errors / 509 files` 收紧为 `2182 errors / 502 files`，净减少 `75 errors / 7 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
