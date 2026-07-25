@@ -5,6 +5,7 @@ from __future__ import annotations
 from io import StringIO
 from types import SimpleNamespace
 
+import pytest
 from django.core.management import CommandError
 
 from apps.account.management.commands import init_all
@@ -333,11 +334,11 @@ def test_cold_start_handle_runs_optional_work_and_is_idempotent(monkeypatch) -> 
         "repair_decision_data_reliability",
     ]
     assert invoked[-1][1]["asset_codes"] == "000001.SZ,600000.SH"
-    assert "applied=2, skipped=18" in command.stdout.getvalue()
+    assert "applied=3, skipped=18" in command.stdout.getvalue()
 
 
 def test_cold_start_handle_applies_missing_steps_and_skips_command_errors(monkeypatch) -> None:
-    """Missing configuration invokes every initializer while dev-only errors stay non-fatal."""
+    """Only the explicitly optional dev seed may fail without aborting bootstrap."""
     command = BootstrapCommand(stdout=StringIO())
     module = "apps.account.management.commands.bootstrap_cold_start"
     missing_model = SimpleNamespace(_default_manager=_Query(exists=False))
@@ -395,6 +396,41 @@ def test_cold_start_handle_applies_missing_steps_and_skips_command_errors(monkey
     assert "init_classification" in called
     assert "init_decision_model_params" in called
     assert "applied=17, skipped=1" in command.stdout.getvalue()
+
+    def _required_failure(name: str, **kwargs: object) -> None:
+        if name == "init_classification":
+            raise CommandError("classification seed failed")
+
+    monkeypatch.setattr(command, "_run_command", _required_failure)
+    with pytest.raises(
+        CommandError,
+        match="Required cold-start step failed: account_classification",
+    ):
+        command.handle(
+            decision_env="dev",
+            with_macro_sync=False,
+            with_alpha=False,
+            with_decision_repair=False,
+            decision_asset_codes="",
+            decision_quote_max_age_hours=4,
+            skip_pulse=False,
+            skip_alpha=False,
+            alpha_universes="csi300",
+            alpha_top_n=30,
+        )
+
+
+def test_cold_start_rejects_invalid_operational_options() -> None:
+    command = BootstrapCommand(stdout=StringIO())
+
+    with pytest.raises(CommandError, match="decision-env"):
+        command._resolve_decision_env("staging")
+    for value in (True, 0, -1):
+        with pytest.raises(CommandError, match="positive integer"):
+            command._require_positive_int(value, "--alpha-top-n")
+    for value in (True, 0, -1.0, float("nan"), float("inf")):
+        with pytest.raises(CommandError, match="positive finite"):
+            command._require_positive_float(value, "--decision-quote-max-age-hours")
 
 
 def test_mcp_handle_reports_each_seed_count(monkeypatch) -> None:

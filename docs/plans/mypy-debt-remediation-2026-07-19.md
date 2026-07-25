@@ -2669,3 +2669,19 @@
 - Account Backup Service 增量 mypy 清零；全仓基线从 `2800 errors / 569 files` 收紧为 `2795 errors / 568 files`，净减少 `5 errors / 1 file`。
 - Database Backup Email 回归共 `7 passed`；新增覆盖下载后重放拒绝、新链接撤销旧链接、持久化到期拒绝，并由同一测试证明 SQLite 备份后数据库连接仍可继续处理请求。
 - 迁移漂移、Django system check、架构 delta、diff check、改动文件 Ruff 与全仓 mypy debt ceiling 通过。
+
+## 第一百八十四批
+
+- 按“首次部署配置完整性 × 初始化失败不得伪装成功”收口 Account Cold-Start Bootstrap Command。
+- 每个 bootstrap step 新增显式 `optional` 语义；只有开发环境专用的 MCP cold-start seed 可在 `CommandError` 后记录跳过，分类、风控、调度、因子、Prompt、决策参数等必需步骤失败会携带步骤名终止命令。
+- 修复 Alpha bootstrap 成功执行后未增加 applied 计数的问题，最终摘要现在与真实副作用数量一致。
+- `decision-env` 在命令内部再次限定为 `auto|dev|test|prod`，防止测试、代码调用或未来入口绕过 argparse choices。
+- Alpha Top N 要求非布尔正整数；决策行情最大年龄要求正有限数，零、负数、NaN、无穷和布尔不再传播到网络/数据修复子命令。
+- 启用 Alpha 时 universe 参数必须是非空字符串并去除首尾空白；决策修复 kwargs 使用显式对象字典，避免字符串资产代码污染数值推断。
+- Bootstrap Step、CommandParser、动态 options、子命令 kwargs、动态模型和 readiness 返回边界补齐类型。
+
+## 第一百八十四批验证结果
+
+- Account Cold-Start Bootstrap Command 增量 mypy 清零；全仓基线从 `2795 errors / 568 files` 收紧为 `2782 errors / 567 files`，净减少 `13 errors / 1 file`。
+- Initialization Command Edge 与 Scheduler Initialization 回归共 `29 passed`；新增覆盖必需步骤失败中止、可选 MCP seed 跳过、非法环境、Top N 与非有限行情年龄，并保留完整幂等编排。
+- Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2795,
-    "files_with_errors": 568
+    "errors": 2782,
+    "files_with_errors": 567
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -75,14 +75,6 @@
     },
     "apps/account/interface/sizing_views.py": {
       "unused-ignore": 2
-    },
-    "apps/account/management/commands/bootstrap_cold_start.py": {
-      "assignment": 1,
-      "misc": 2,
-      "no-any-return": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 6,
-      "valid-type": 2
     },
     "apps/account/management/commands/bootstrap_mcp_cold_start.py": {
       "no-untyped-def": 1
