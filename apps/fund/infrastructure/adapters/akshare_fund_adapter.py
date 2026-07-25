@@ -25,7 +25,7 @@ from apps.fund.infrastructure.models import (
 class AkShareFundAdapter:
     """Compatibility adapter for fund reads after data-center cutover."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._dc_nav_repo = DataCenterFundNavRepository()
 
     def fetch_fund_list_em(self) -> pd.DataFrame:

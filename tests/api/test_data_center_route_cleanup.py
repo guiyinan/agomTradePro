@@ -562,6 +562,45 @@ def test_data_center_quotes_strict_freshness_blocks_stale_snapshot(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("raw_value", ["nan", "inf", "-inf"])
+def test_data_center_quotes_reject_non_finite_max_age(
+    authenticated_client,
+    raw_value,
+):
+    response = authenticated_client.get(
+        f"/api/data-center/prices/quotes/?asset_code=510300.SH&max_age_hours={raw_value}"
+    )
+
+    assert response.status_code == 400
+    assert response["Content-Type"].startswith("application/json")
+    assert "有限数字" in response.json()["detail"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/data-center/publishers/?active_only=unknown",
+        "/api/data-center/indicators/?active_only=unknown",
+    ],
+)
+def test_data_center_catalogs_reject_invalid_boolean_filter(
+    authenticated_client,
+    auth_user,
+    path,
+):
+    auth_user.is_staff = True
+    auth_user.is_superuser = True
+    auth_user.save(update_fields=["is_staff", "is_superuser"])
+
+    response = authenticated_client.get(path)
+
+    assert response.status_code == 400
+    assert response["Content-Type"].startswith("application/json")
+    assert "active_only" in response.json()["detail"]
+
+
+@pytest.mark.django_db
 def test_provider_status_enriches_last_success_from_persisted_telemetry(
     authenticated_client,
     monkeypatch,
@@ -614,6 +653,60 @@ def test_provider_status_enriches_last_success_from_persisted_telemetry(
     payload = response.json()
     assert payload["results"][0]["last_success_at"] == "2026-04-21T09:00:00+00:00"
     assert payload["results"][0]["avg_latency_ms"] == 88.8
+
+
+@pytest.mark.django_db
+def test_provider_status_ignores_invalid_persisted_numeric_telemetry(
+    authenticated_client,
+    monkeypatch,
+    auth_user,
+):
+    auth_user.is_staff = True
+    auth_user.is_superuser = True
+    auth_user.save(update_fields=["is_staff", "is_superuser"])
+    ProviderConfigModel.objects.create(
+        name="tushare-invalid-metrics",
+        source_type="tushare",
+        is_active=True,
+        priority=1,
+        extra_config={
+            "health_metrics": {
+                "macro": {
+                    "avg_latency_ms": "nan",
+                    "consecutive_failures": "not-a-number",
+                }
+            }
+        },
+    )
+
+    class _Snapshot:
+        provider_name = "tushare-invalid-metrics"
+
+        def to_dict(self):
+            return {
+                "provider_name": self.provider_name,
+                "capability": "macro",
+                "status": "unknown",
+                "consecutive_failures": 0,
+                "last_success_at": None,
+                "avg_latency_ms": None,
+            }
+
+    class _Registry:
+        def get_all_statuses(self):
+            return [_Snapshot()]
+
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_registry",
+        lambda: _Registry(),
+    )
+
+    response = authenticated_client.get("/api/data-center/providers/status/")
+
+    assert response.status_code == 200
+    payload = response.json()["results"][0]
+    assert payload["consecutive_failures"] == 0
+    assert payload["avg_latency_ms"] is None
 
 
 @pytest.mark.django_db

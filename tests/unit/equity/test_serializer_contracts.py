@@ -7,8 +7,10 @@ import pytest
 from apps.equity.interface.serializers import (
     FinancialDataSerializer,
     IntradayChartResponseSerializer,
+    ListValuationRepairsRequestSerializer,
     SyncFinancialDataRequestSerializer,
     SyncFinancialDataResponseSerializer,
+    SyncValuationDataRequestSerializer,
     SyncValuationDataResponseSerializer,
 )
 
@@ -72,3 +74,35 @@ def test_sync_financial_source_field_accepts_value_and_default() -> None:
     assert defaulted.is_valid(), defaulted.errors
     assert explicit.validated_data["source"] == "tushare"
     assert defaulted.validated_data["source"] == "akshare"
+
+
+@pytest.mark.parametrize(
+    ("serializer", "payload"),
+    [
+        (SyncFinancialDataRequestSerializer, {"unknown": True}),
+        (ListValuationRepairsRequestSerializer, {"unknown": "value"}),
+        (
+            SyncValuationDataRequestSerializer,
+            {
+                "start_date": "2026-07-24",
+                "end_date": "2026-07-01",
+            },
+        ),
+        (
+            SyncValuationDataRequestSerializer,
+            {
+                "primary_source": "configured.provider",
+                "fallback_source": "configured.provider",
+            },
+        ),
+    ],
+)
+def test_equity_valuation_requests_reject_ambiguous_inputs(
+    serializer: type,
+    payload: dict[str, object],
+) -> None:
+    """Unknown fields and ambiguous sync windows must fail at the HTTP boundary."""
+
+    instance = serializer(data=payload)
+
+    assert instance.is_valid() is False

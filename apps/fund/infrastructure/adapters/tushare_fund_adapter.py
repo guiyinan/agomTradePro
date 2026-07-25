@@ -7,37 +7,63 @@ Tushare 基金数据适配器
 3. 获取基金持仓数据
 """
 
+from typing import Protocol, cast
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 from shared.config.secrets import get_secrets
 from shared.infrastructure.tushare_client import create_tushare_pro_client
 
 
+class TushareFundClient(Protocol):
+    """Minimal Tushare fund API contract used by this adapter."""
+
+    def fund_basic(self, **kwargs: object) -> pd.DataFrame | None: ...
+
+    def fund_nav(self, **kwargs: object) -> pd.DataFrame | None: ...
+
+    def fund_portfolio(self, **kwargs: object) -> pd.DataFrame | None: ...
+
+    def fund_daily(self, **kwargs: object) -> pd.DataFrame | None: ...
+
+    def fund_manager(self, **kwargs: object) -> pd.DataFrame | None: ...
+
+
 class TushareFundAdapter:
     """Tushare 基金数据适配器"""
 
-    def __init__(self, token: str | None = None, http_url: str | None = None):
+    def __init__(self, token: str | None = None, http_url: str | None = None) -> None:
         """延迟初始化（避免启动时必须有 token）"""
         self._token = token
         self._http_url = http_url
-        self.pro = None
+        self.pro: TushareFundClient | None = None
 
-    def _ensure_initialized(self):
+    def _ensure_initialized(self) -> TushareFundClient:
         """确保已初始化"""
         if self.pro is None:
             token = self._token or get_secrets().data_sources.tushare_token
             if not token:
                 raise ValueError("Tushare token 未配置")
-            self.pro = create_tushare_pro_client(
-                token=token,
-                http_url=self._http_url,
+            self.pro = cast(
+                TushareFundClient,
+                create_tushare_pro_client(
+                    token=token,
+                    http_url=self._http_url,
+                ),
             )
+        return self.pro
 
-    def fetch_fund_list(
-        self,
-        market: str = 'E'
-    ) -> pd.DataFrame:
+    @staticmethod
+    def _normalize_frame(frame: pd.DataFrame | None) -> pd.DataFrame:
+        """Normalize the provider's no-data response to an empty frame."""
+
+        if frame is None:
+            return pd.DataFrame()
+        if not isinstance(frame, pd.DataFrame):
+            raise TypeError("Tushare fund API returned an invalid data frame")
+        return frame.copy()
+
+    def fetch_fund_list(self, market: str = "E") -> pd.DataFrame:
         """获取基金列表
 
         Args:
@@ -48,29 +74,28 @@ class TushareFundAdapter:
         Returns:
             DataFrame with columns: ts_code, name, fund_type, list_date, etc.
         """
-        self._ensure_initialized()
+        pro = self._ensure_initialized()
 
-        df = self.pro.fund_basic(
-            market=market,
-            status='L',  # 上市状态
-            fields='ts_code,name,management,custodian,fund_type,setup_date,list_date,issue_date,delist_date,issue_amount,m_fee,realm'
+        df = self._normalize_frame(
+            pro.fund_basic(
+                market=market,
+                status="L",  # 上市状态
+                fields="ts_code,name,management,custodian,fund_type,setup_date,list_date,issue_date,delist_date,issue_amount,m_fee,realm",
+            )
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            if 'setup_date' in df.columns:
-                df['setup_date'] = pd.to_datetime(df['setup_date'], format='%Y%m%d', errors='coerce')
-            if 'list_date' in df.columns:
-                df['list_date'] = pd.to_datetime(df['list_date'], format='%Y%m%d', errors='coerce')
+            if "setup_date" in df.columns:
+                df["setup_date"] = pd.to_datetime(
+                    df["setup_date"], format="%Y%m%d", errors="coerce"
+                )
+            if "list_date" in df.columns:
+                df["list_date"] = pd.to_datetime(df["list_date"], format="%Y%m%d", errors="coerce")
 
         return df
 
-    def fetch_fund_daily(
-        self,
-        fund_code: str,
-        start_date: str,
-        end_date: str
-    ) -> pd.DataFrame:
+    def fetch_fund_daily(self, fund_code: str, start_date: str, end_date: str) -> pd.DataFrame:
         """获取基金净值数据
 
         Args:
@@ -81,28 +106,25 @@ class TushareFundAdapter:
         Returns:
             DataFrame with columns: trade_date, unit_nav, accum_nav, etc.
         """
-        self._ensure_initialized()
+        pro = self._ensure_initialized()
 
-        df = self.pro.fund_nav(
-            ts_code=fund_code,
-            start_date=start_date,
-            end_date=end_date,
-            fields='ts_code,ann_date,nav_date,unit_nav,accum_nav,adj_nav'
+        df = self._normalize_frame(
+            pro.fund_nav(
+                ts_code=fund_code,
+                start_date=start_date,
+                end_date=end_date,
+                fields="ts_code,ann_date,nav_date,unit_nav,accum_nav,adj_nav",
+            )
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['nav_date'] = pd.to_datetime(df['nav_date'], format='%Y%m%d', errors='coerce')
-            df = df.rename(columns={'nav_date': 'trade_date'})
+            df["nav_date"] = pd.to_datetime(df["nav_date"], format="%Y%m%d", errors="coerce")
+            df = df.rename(columns={"nav_date": "trade_date"})
 
         return df
 
-    def fetch_fund_portfolio(
-        self,
-        fund_code: str,
-        start_date: str,
-        end_date: str
-    ) -> pd.DataFrame:
+    def fetch_fund_portfolio(self, fund_code: str, start_date: str, end_date: str) -> pd.DataFrame:
         """获取基金持仓数据
 
         Args:
@@ -113,26 +135,29 @@ class TushareFundAdapter:
         Returns:
             DataFrame with columns: end_date, ts_code, name, amount, ratio_mv, etc.
         """
-        self._ensure_initialized()
+        pro = self._ensure_initialized()
 
-        df = self.pro.fund_portfolio(
-            ts_code=fund_code,
-            start_date=start_date,
-            end_date=end_date,
-            fields='end_date,ts_code,name,amount,ratio_mv'
+        df = self._normalize_frame(
+            pro.fund_portfolio(
+                ts_code=fund_code,
+                start_date=start_date,
+                end_date=end_date,
+                fields="end_date,ts_code,name,amount,ratio_mv",
+            )
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['end_date'] = pd.to_datetime(df['end_date'], format='%Y%m%d')
+            df["end_date"] = pd.to_datetime(
+                df["end_date"],
+                format="%Y%m%d",
+                errors="coerce",
+            )
 
         return df
 
     def fetch_fund_daily_basic(
-        self,
-        fund_code: str,
-        start_date: str,
-        end_date: str
+        self, fund_code: str, start_date: str, end_date: str
     ) -> pd.DataFrame:
         """获取基金日线基本信息（涨跌幅、换手率等）
 
@@ -144,18 +169,24 @@ class TushareFundAdapter:
         Returns:
             DataFrame with columns: trade_date, pct_chg, turnover, etc.
         """
-        self._ensure_initialized()
+        pro = self._ensure_initialized()
 
-        df = self.pro.fund_daily(
-            ts_code=fund_code,
-            start_date=start_date,
-            end_date=end_date,
-            fields='trade_date,pre_close,open,high,low,close,change,pct_chg,vol,amount'
+        df = self._normalize_frame(
+            pro.fund_daily(
+                ts_code=fund_code,
+                start_date=start_date,
+                end_date=end_date,
+                fields="trade_date,pre_close,open,high,low,close,change,pct_chg,vol,amount",
+            )
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['trade_date'] = pd.to_datetime(df['trade_date'], format='%Y%m%d')
+            df["trade_date"] = pd.to_datetime(
+                df["trade_date"],
+                format="%Y%m%d",
+                errors="coerce",
+            )
 
         return df
 
@@ -168,25 +199,24 @@ class TushareFundAdapter:
         Returns:
             DataFrame with columns: ts_code, name, gender, birth_year, start_date, end_date, etc.
         """
-        self._ensure_initialized()
+        pro = self._ensure_initialized()
 
-        df = self.pro.fund_manager(
-            ts_code=fund_code,
-            fields='ts_code,ann_date,name,gender,birth_year,start_date,end_date,return_total,tenure_date'
+        df = self._normalize_frame(
+            pro.fund_manager(
+                ts_code=fund_code,
+                fields="ts_code,ann_date,name,gender,birth_year,start_date,end_date,return_total,tenure_date",
+            )
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['start_date'] = pd.to_datetime(df['start_date'], format='%Y%m%d', errors='coerce')
-            df['end_date'] = pd.to_datetime(df['end_date'], format='%Y%m%d', errors='coerce')
+            df["start_date"] = pd.to_datetime(df["start_date"], format="%Y%m%d", errors="coerce")
+            df["end_date"] = pd.to_datetime(df["end_date"], format="%Y%m%d", errors="coerce")
 
         return df
 
     def fetch_fund_holdings_detail(
-        self,
-        fund_code: str,
-        start_date: str,
-        end_date: str
+        self, fund_code: str, start_date: str, end_date: str
     ) -> pd.DataFrame:
         """获取基金持仓详情（包含更多字段）
 
@@ -198,17 +228,19 @@ class TushareFundAdapter:
         Returns:
             DataFrame with columns: end_date, ts_code, name, amount, ratio_mv, etc.
         """
-        self._ensure_initialized()
+        pro = self._ensure_initialized()
 
         # 使用 fund_portfolio 接口
-        df = self.pro.fund_portfolio(
-            ts_code=fund_code,
-            start_date=start_date,
-            end_date=end_date
+        df = self._normalize_frame(
+            pro.fund_portfolio(
+                ts_code=fund_code,
+                start_date=start_date,
+                end_date=end_date,
+            )
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['end_date'] = pd.to_datetime(df['end_date'], format='%Y%m%d', errors='coerce')
+            df["end_date"] = pd.to_datetime(df["end_date"], format="%Y%m%d", errors="coerce")
 
         return df

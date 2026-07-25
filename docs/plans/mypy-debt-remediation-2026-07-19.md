@@ -3202,3 +3202,327 @@
 - `makemigrations --check --dry-run` 无漂移，Django system check 与架构 delta 通过。
 - Indicator use case、repository 与 Audit models 增量 mypy 清零；全仓基线从 `2282 errors / 512 files` 收紧为 `2257 errors / 509 files`，净减少 `25 errors / 3 files`。
 - 改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十八批
+
+- 按“基金研究状态真实性 × 配置唯一真源 × API 输入边界”收口 Fund 研究链路。
+- 基金筛选同时读取数据库中按 Regime 配置的基金类型与投资风格；调用方显式条件可覆盖数据库偏好，未配置基金类型时失败关闭，不再使用代码内置的类型或风格列表制造筛选依据。
+- Dashboard 缺少或损坏 Regime、Policy、Sentiment 数据时明确发布未知或未配置；不再用 Recovery、P1 或中性情绪伪装缺失状态。
+- 基金表现记录的起止日期改为实际净值证据覆盖区间；反向日期、未来排名日期、非有限门槛和非法 Regime 在 Application 边界拒绝。
+- Fund detail、分析、表现、净值、持仓和多维筛选 API 统一要求认证；请求 serializer 拒绝未知字段并验证日期、数值范围和筛选上下界。
+- 多维筛选要求显式提供 Regime、Policy 与有限 Sentiment，不再补默认宏观环境；无匹配结果返回稳定的 `count=0` 结构并正确映射 404，内部异常不再复制到 API。
+- Application 通过 Repository Protocol 与 provider factory 访问持久化实现，基金代码、日期、动态 ORM 与外部数据在边界完成类型收窄。
+
+## 第二百一十八批验证结果
+
+- Fund API edge、Domain、Repository、Application 与配置命令相关回归 `116 passed`。
+- 八个核心改动文件增量 mypy 清零；适配器保留的 `16` 个历史错误无新增；全仓基线从 `2257 errors / 509 files` 收紧为 `2182 errors / 502 files`，净减少 `75 errors / 7 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十九批
+
+- 按“估值研究输入真实性 × 内部错误最小披露”收口 Equity 估值修复与数据同步 API。
+- 财务数据同步和估值修复列表改为实际执行已发布的 request serializer；未知字段、非法 phase、越界数量不再被静默忽略或绕过校验。
+- 估值同步拒绝反向日期区间和相同的主备来源；数据源名称只校验动态标识符格式，不把供应商目录硬编码进 Interface。
+- 估值修复、同步、质量、新鲜度和快照接口不再复制底层异常正文；质量 gate 等明确业务失败保留稳定语义，其他异常统一发布固定错误。
+- 财务同步任务的逐股票失败结果只返回股票代码和稳定失败文案，provider 异常原文仅以异常类型进入内部日志，不再通过任务/API payload 泄露。
+- Equity compatibility facade、valuation action、DRF action 与 OpenAPI decorator 增加精确类型边界，在保持既有 monkeypatch 与路由契约的同时清除未类型调用。
+
+## 第二百一十九批验证结果
+
+- Equity valuation repair、sync、serializer 与 task 相关完整回归 `127 passed`；最终严格输入和错误披露边界集 `41 passed`。
+- Equity facade 与 valuation action 增量 mypy 清零；全仓基线从 `2182 errors / 502 files` 收紧为 `2152 errors / 500 files`，净减少 `30 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十批
+
+- 按“个股分析输入契约 × 用户研究入口影响面”收口 Equity analysis actions。
+- 个股筛选、DCF、综合估值、技术图表、分时图和 Regime 相关性请求统一使用严格字段 serializer；未声明的 body 或 query 参数不再被静默忽略。
+- 技术图表、分时图和 Regime 相关性查询改为把完整 query 交给 serializer，再注入路径股票代码；避免只挑选已知参数后掩盖调用方拼写错误。
+- Analysis mixin 明确发布组合 viewset 所需仓储属性、DRF Request/Response 和方法签名，并复用已类型化的 action/schema decorator；保持现有路由与 OpenAPI 契约不变。
+
+## 第二百二十批验证结果
+
+- Equity API edge 与 serializer contract 回归 `34 passed`，覆盖六类分析端点的未知输入拒绝。
+- Equity analysis action 增量 mypy 清零；全仓基线从 `2152 errors / 500 files` 收紧为 `2137 errors / 499 files`，净减少 `15 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十一批
+
+- 按“估值来源真实性 × 同步结果真实性 × 质量门禁影响面”收口 Equity 估值同步与质量链路。
+- Data Center provider 选择服务同时返回数据库 provider ID 与实际配置名称；估值读取按 canonical fact 的 `extra.provider_name` 精确匹配，不再把动态配置名称误当固定 `akshare` / `tushare` 来源，也不再因 canonical `source_type` 覆盖名称而读不到已同步数据。
+- 估值同步根据数据库启用的 provider 动态构造读取 gateway；主备来源配置缺失、名称非法或相同均失败关闭，不在业务代码硬编码 provider 目录。
+- 显式空股票列表不再被扩展为全部活跃股票；股票代码、日期区间、未来日期和 `days_back` 在 Application 边界统一校验。
+- 单股失败只发布稳定错误文案，底层异常仅以类型进入日志；零写入和回填中任一批次失败均返回失败，不再把“全部失败”或“部分失败”包装成成功。
+- 质量快照记录实际 provider 名称；新鲜度检查只接受估值日期当天的质量证据，旧快照和未来估值日期均失败关闭，避免用过期质量结果放行当前数据。
+- 估值仓储只读 Protocol 改用协变 `Sequence`，正式 ORM 仓储与管理命令调用进入类型检查；同步、质量、回填 DTO 与内部集合补齐精确类型。
+
+## 第二百二十一批验证结果
+
+- 估值同步、质量门禁、来源 gateway、任务、修复 API、管理命令和 Data Center provider 选择相关合并回归 `58 passed`；格式后核心不变量定点复核 `19 passed`。
+- 七个关联生产文件增量 mypy 清零；全仓基线从 `2137 errors / 499 files` 收紧为 `2119 errors / 498 files`，净减少 `18 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十二批
+
+- 按“估值修复状态真实性 × 批量扫描结果真实性”收口 Equity 估值修复 Application 用例。
+- 单股状态与百分位历史在 Application 边界校验股票代码和回看窗口，批量扫描校验窗口与数量上限，内部调用不再依赖 Interface 才能阻止非法输入。
+- 估值历史使用 `is not None` 转换 PE/PB，合法的 `0` 不再被错误改写为缺失值。
+- 批量扫描存在任一股票失败时明确返回失败和失败计数，不再把部分失败包装为成功；逐股和整体异常只记录异常类型，对外使用稳定错误文案。
+- `all_active` 股票池通过明确 Repository Protocol 读取，移除运行时 `hasattr` 和不受控降级查询；股票、质量快照、修复快照与股票池依赖均收窄为只读 Protocol。
+- 状态、历史、列表响应和阶段计数补齐具体集合类型；质量快照分支显式收窄，正式 API、任务和仓储装配进入增量类型检查。
+
+## 第二百二十二批验证结果
+
+- 估值修复 API、配置集成、同步任务及新增真实性不变量回归 `42 passed`。
+- 估值修复 Application 用例及其主要调用方增量 mypy 清零；全仓基线从 `2119 errors / 498 files` 收紧为 `2106 errors / 497 files`，净减少 `13 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十三批
+
+- 按“质量覆盖率真实性 × ORM 边界完整性”收口 Equity 估值修复与质量快照仓储。
+- 质量快照按股票代码去重后计算同步数、有效数、异常数和主备来源数，同一股票重复记录不再虚增覆盖率或改变质量 gate。
+- 质量快照拒绝负预期股票数、空主来源和缺失或错误类型的快照日期；主来源去除首尾空白后再持久化和比较。
+- 修复状态写入使用明确 Domain 实体，修复快照列表使用具体 ORM Model，质量 payload 与批量快照映射补齐键值类型；移除仓储内部重复的延迟 model import。
+
+## 第二百二十三批验证结果
+
+- 估值质量、修复用例和修复 API 相关回归 `31 passed`，覆盖重复股票不重复计数。
+- 估值修复仓储及主要调用方增量 mypy 清零；全仓基线从 `2106 errors / 497 files` 收紧为 `2101 errors / 496 files`，净减少 `5 errors / 1 file`。
+- 改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十四批
+
+- 按“估值配置管理接口类型完整性 × 管理操作授权面”收口 Equity 估值修复配置 ViewSet。
+- 配置列表、详情、创建、更新、删除、激活、回滚和清缓存 handler 补齐 DRF Request/Response 与路由主键类型，动态 Application 返回值只在 Interface 边界保留 `Any`。
+- 激活和回滚复用内部类型化 helper，避免直接调用经 DRF decorator 包装的方法而破坏方法绑定；OpenAPI 与 action 统一复用项目已有类型化 decorator 适配层。
+- 审计操作者通过认证用户的标准 `get_username()` 获取，不再依赖具体 User Model 的动态 `username` 属性；管理员权限、路由和响应契约保持不变。
+
+## 第二百二十四批验证结果
+
+- 估值修复配置集成与 serializer 契约回归 `16 passed`。
+- 配置 ViewSet 及兼容 facade 增量 mypy 清零；全仓基线从 `2101 errors / 496 files` 收紧为 `2089 errors / 495 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十五批
+
+- 按“Policy 公共查询边界 × 工作台与 RSS 管理影响面”收口 Policy interface repositories。
+- 页面和 API 的可选布尔过滤统一解析 `true/false/1/0`；修复 HTML 页面常用 `is_active=1` 被错误解释为 `False` 的查询语义，并拒绝含糊布尔值。
+- RSS 来源外键过滤统一解析为正整数；空值表示不过滤，零、负数、小数和非数字不再直接交给 ORM 隐式转换。
+- Policy 趋势聚合使用 `values(day=TruncDate(...))` 声明派生日期列，保持按日分组 SQL 语义并让 Django ORM 类型系统识别 annotation。
+- 页面、RSS API、工作台查询补齐具体 QuerySet Model 类型；values/aggregate 结果在 Infrastructure 边界复制为普通字典，不再把 Django TypedDict QuerySet 声明成不兼容的可变字典列表。
+- 通用布尔 QuerySet helper 使用协变 Model TypeVar 保持输入输出模型一致；管理统计、工作台详情、RSS 状态等现有查询契约保持不变。
+
+## 第二百二十五批验证结果
+
+- Policy 页面、RSS API、工作台、Application 装配及新增布尔/ID 边界回归 `55 passed`；派生日期查询调整后工作台与边界定点复核 `35 passed`。
+- Policy interface repository 增量 mypy 清零；全仓基线从 `2089 errors / 495 files` 收紧为 `2072 errors / 494 files`，净减少 `17 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十六批
+
+- 按“Policy 事件写入授权 × 查询输入完整性 × 内部错误最小披露”收口 Policy event API。
+- 状态、历史和事件 ID 查询新增严格 serializer；未知参数、反向日期范围、非法档位和非正 event ID 在进入用例与仓储前返回稳定 400，不再依赖手写字符串转换或静默忽略拼写错误。
+- 创建、更新、删除继续要求 staff，读取继续要求认证；权限实例、DRF Request/Response、路径日期和 schema decorator 补齐精确类型。
+- 创建事件的意外异常不再把数据库、通知服务或其他内部异常正文复制进 `errors`；全部异常日志只在固定消息中附带异常类型，API 返回稳定错误文案。
+- 状态、历史、创建和更新响应使用明确 JSON payload 边界，修复嵌套事件字典写入被错误推断为标量的问题；OpenAPI 类型从正式 `drf_spectacular.types` 入口导入。
+
+## 第二百二十六批验证结果
+
+- Policy 事件 API 与 serializer 契约回归 `14 passed`，覆盖未知查询、反向日期、非正事件 ID、权限和内部异常脱敏。
+- Policy event API 与 serializers 增量 mypy 清零；全仓基线从 `2072 errors / 494 files` 收紧为 `2055 errors / 493 files`，净减少 `17 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十七批
+
+- 按“Policy 档位变更副作用真实性 × 中心 ORM 类型完整性”收口 Policy models 与信号派发。
+- 原 `post_save` 通过查询更早日期的另一条事件判断档位变化，导致只修改描述也可能重复触发全量信号重评；现由 `pre_save` 捕获同一行持久化前的档位，仅真实档位变化才进入派发。
+- 信号重评改为事务成功提交后调度，避免 worker 在数据尚未提交时读取旧状态；`PX` 和其他非 P0–P3 档位不会再执行 `int(level[1])` 而抛错。
+- 信号异常日志只发布异常类型，不复制 Celery、数据库或配置异常正文；非变更保存、真实 P1→P2 变化和 P1→PX 三种路径均新增回归。
+- Policy ORM 的字符串展示、单例配置读取和 RSSHub URL 构造补齐具体返回与 Optional 类型；单例查询统一使用 `_default_manager`，不再从未类型 `objects` 传播 Any。
+
+## 第二百二十七批验证结果
+
+- Policy 模型信号、任务边界和事件 API 回归 `25 passed`。
+- Policy models 增量 mypy 清零，并传播清除 workbench repository 2 项债务；全仓基线从 `2055 errors / 493 files` 收紧为 `2037 errors / 492 files`，净减少 `18 errors / 1 file`。
+- `makemigrations --check --dry-run` 无 schema 漂移；Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十八批
+
+- 按“Policy 关键词分类真实性 × 风险档位决策影响面”收口 Policy Application matcher service。
+- 关键词规则在构建 matcher 时拒绝空关键词、非正权重和 P1–P3 之外的档位；空字符串不再因属于所有标题而把每条新闻误判为命中。
+- 同一规则内的关键词先去空白、统一大小写并去重，重复配置不再重复累加权重；关键词映射、逐档详情和解释 payload 使用明确 TypedDict 与 tuple 类型。
+- 多个档位得分相同时按更高严重度 P3→P2→P1 决胜，不再因字典插入顺序默认选择低风险 P1；无正分时仍明确返回未匹配。
+- 匹配日志改为参数化固定消息，不复制完整 RSS 标题；普通匹配与解释型匹配共享相同规范化和风险决胜规则。
+
+## 第二百二十八批验证结果
+
+- Policy 内容、事件、RSS Application 与任务回归 `14 passed`，覆盖空关键词、非法权重/档位、重复关键词和同分高严重度决胜。
+- Policy Application services 增量 mypy 清零；全仓基线从 `2037 errors / 492 files` 收紧为 `2027 errors / 491 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十九批
+
+- 按“Policy 审核队列公平性 × 状态与审计原子性”收口 Policy workbench repository。
+- 审核队列优先级改为数据库 `Case` 表达式按 urgent/high/normal/low 排序后再应用 limit，同批最紧急事项不再因先截断、后内存排序而被排除。
+- 批准、拒绝、回滚和豁免的事件状态写入与 `GateActionAuditLog` 写入统一进入同一事务；审计落库失败时事件状态一并回滚，不再留下无审计凭据的变更。
+- 摄入配置更新只接受五个公开运行参数，未知字段在访问数据库前拒绝；写入前执行 Model validation，禁止通过动态 `setattr` 覆盖 `save` 等模型方法或非公开字段。
+- 审核分配与清理时间使用 aware datetime 契约，日统计嵌套映射、事件状态快照和审计前后状态补齐具体类型；workbench 构造函数与最新抓取时间返回值进入类型检查。
+
+## 第二百二十九批验证结果
+
+- Policy workbench repository、审核 use case、工作台 API 与集成回归 `40 passed`；排序、事务回滚和配置字段边界定点复核 `3 passed`。
+- Workbench repository 增量 mypy 清零，并传播清除 audit use case 与 repository provider 4 项债务；全仓基线从 `2027 errors / 491 files` 收紧为 `2011 errors / 490 files`，净减少 `16 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十批
+
+- 收口 Policy 公共 repository provider 的最后一项导出债务。
+- `PolicyDiagnosticRepository` 在 Infrastructure provider 中改为显式同名 re-export，Application composition root 与约 25 个 Policy 生产调用方不再依赖未声明的隐式符号。
+
+## 第二百三十批验证结果
+
+- Policy repository 导出契约与 use case 回归 `6 passed`。
+- Policy repository provider 增量 mypy 清零；全仓基线从 `2011 errors / 490 files` 收紧为 `2010 errors / 489 files`，净减少 `1 error / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十一批
+
+- 按“首页投资候选真实性 × 缺失上下文失败关闭 × 非有限数值隔离”收口 Dashboard Alpha 首页候选链路。
+- 组合候选缺少宏观仓位上下文时不再使用 `1.0` 中性系数继续生成可行动建议；结果明确降级为仅供研究，建议金额归零并发布稳定阻断原因。
+- Regime、Pulse、组合快照或市场温度上下文不可用，以及市场温度明确降级时，候选不再进入可行动阶段；原始可靠性阻断原因继续保持为对外主原因。
+- Alpha 评分、置信度、排名、仓位系数、市场温度和待执行金额统一拒绝 `NaN`、`Inf`、越界值与负数；非法评分和置信度以缺失发布，不再伪装为中性 `0`。
+- 因子依据中的非有限数值明确显示为“不可用”；待执行请求不再发布虚构的 `0` 分和 `0` 置信度，数量恢复为整数语义。
+- Candidate mixin 明确声明仓储、决策、仓位和风控依赖，评分与仓位上下文参数收窄为正式实体/DTO；仓位上下文加载失败仅在内部日志保留堆栈，对外保持稳定降级语义。
+
+## 第二百三十一批验证结果
+
+- Dashboard Alpha 查询、视图、上下文仓储和 mixin 结构回归 `91 passed`，覆盖宏观仓位上下文缺失、非有限评分和非有限因子不能形成可行动建议。
+- Dashboard Alpha candidate mixin 增量 mypy 清零；全仓基线从 `2010 errors / 489 files` 收紧为 `1995 errors / 488 files`，净减少 `15 errors / 1 file`。
+- Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十二批
+
+- 按“生产 readiness 证据真实性 × 直接调用输入边界 × 探针数据可追溯性”收口个人 readiness 取证命令。
+- Readiness 总状态正式纳入 quote pre-readiness 调度器状态；任一未识别状态失败关闭，不再把 `unknown` 或调度器错误包装成整体 `ok`。
+- 命令函数的直接调用与 CLI 使用相同边界：拒绝未收盘目标日、非正用户/账户 ID 和负 Qlib 新鲜度窗口，定时任务或内部调用不再绕过 CLI 校验。
+- 系统宏观上下文缺少 Regime 或 Pulse 字典时写入明确错误检查项，不再把动态 `None` 注入 readiness checks；健康状态只计算一次并与保存证据一致。
+- 预交易 readiness 探针只使用实际持仓代码和实际正价格；没有可追溯标的或价格时返回不可用警告，不再硬编码 `510300.SH` 或用 `1.0` 伪造报价。
+- 探针订单金额严格限制在现金的 1% 与账户权益的 0.5% 内；数值解析拒绝 `NaN` 和 `Inf`，避免非有限资产、现金或价格进入风控证据。
+- 延迟导入的 Dashboard、模拟交易、Qlib 和券商 readiness 边界使用明确集合/日期类型，管理命令 parser、系统检查合并和动态 provider 返回值全部进入增量类型检查。
+
+## 第二百三十二批验证结果
+
+- Readiness 取证命令、日常任务、证据修复和窗口验收回归 `57 passed`；核心命令定点回归 `22 passed`。
+- 个人 readiness 取证命令增量 mypy 清零；全仓基线从 `1995 errors / 488 files` 收紧为 `1983 errors / 487 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十三批
+
+- 按“Regime 四象限语义真实性 × 快照持久化完整性 × 变化通知结果真实性”收口 Regime 定时编排链路。
+- 高频日度用例输出的是 `BULLISH/BEARISH/NEUTRAL` 方向信号，月度结果输出的是四象限 Regime；编排层不再把两套不可比较的枚举送入冲突解析器并发布虚假 `HYBRID` 结论。
+- 日度方向通过完整性校验后作为独立上下文证据发布，最终四象限继续使用可审计的月度结果；在 Domain 尚未提供方向到四象限的正式映射前不擅自推断象限或改写置信度。
+- 日度方向、强度和置信度必须完整、有限且位于合法范围；成功标记但 payload 缺失、含 `NaN`/`Inf` 或越界时明确返回错误，不再进入融合链路。
+- V2 快照持久化前验证 PMI/CPI 动量有限、置信度在 `[0, 1]`、四个 canonical Regime 概率完整非负且总和为 1；非法计算结果不会写入 Regime 真源。
+- Macro 同步结果只有显式 `success`、`partial` 或 legacy `success=True` 才允许继续计算；错误和未知结构失败关闭，不再因缺少 `success` 字段而被默认视为成功。
+- 通知输入验证 canonical Regime、有限置信度和有效日期；无变化时明确 `notified=false`，只有实际通知结果成功才发布已通知，需通知但全部失败时状态为 warning。
+- Celery task 返回值、V2 结果和快照使用具体类型；共享任务 decorator 使用局部错误码豁免，不再让整个编排函数退化为未类型代码。
+
+## 第二百三十三批验证结果
+
+- Regime 编排、持久化、任务契约、Macro 周期调度和 Celery 注册回归 `15 passed`；核心编排定点回归 `10 passed`。
+- Regime orchestration 增量 mypy 清零；全仓基线从 `1983 errors / 487 files` 收紧为 `1970 errors / 486 files`，净减少 `13 errors / 1 file`。
+- Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十四批
+
+- 按“Dashboard 决策配额真实性 × 单次快照一致性 × 用户页面可解释降级”收口 DecisionPlane 导航与页面上下文。
+- 决策平面一次执行只读取一次周度配额，不再分别查询总额、已用和剩余后拼接可能来自不同时间点的三项数据。
+- 配额总额、已用和剩余必须是非负整数，且满足 `used <= total` 和 `remaining = total - used`；布尔值、小数、负数和勾稽不一致的 payload 均判为不可用。
+- 配额查询缺失、异常或不一致时发布 `quota_available=false` 与零值占位，不再硬编码“总额 10、剩余 10”制造虚假可用额度。
+- Dashboard 页面新增明确的配额可用状态；不可用时总额和剩余显示“不可用”，进度条保持空白，不把占位零解释为真实零额度。
+- DecisionPlane DTO、Interface fallback 和兼容 navigation facade 统一使用同一可用性语义；旧测试/兼容对象缺少新字段时按不可用处理，避免乐观推断。
+
+## 第二百三十四批验证结果
+
+- Dashboard Alpha 查询与结构回归 `38 passed`，页面与 HTMX 相关回归 `47 passed`，覆盖单次配额读取、三项勾稽失败和页面兼容渲染。
+- Dashboard navigation context 增量 mypy 清零；全仓基线从 `1970 errors / 486 files` 收紧为 `1958 errors / 485 files`，净减少 `12 errors / 1 file`。
+- Dashboard queries 保留既有 `6` 项历史类型债务且无新增；Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十五批
+
+- 按“全局股票池写入授权 × 筛选配置唯一真源 × 缺失指标真实性”收口 Equity 股票池 API。
+- 股票池读取显式要求认证；全局股票池刷新改为仅 staff 可执行，普通登录用户不再能够改写所有用户共用的池快照。
+- Pool GET query 与 refresh body 使用严格空请求 serializer；任何未知字段在查询或筛选前返回 400，不再被静默忽略。
+- Refresh 不再传入硬编码 `max_count=50`；`ScreenStocksRequest.max_count` 改为可选，调用方未显式覆盖时使用数据库中当前 Regime 的筛选规则数量。
+- 当前 Regime 缺失、降级或不是 canonical 四象限时刷新失败关闭；筛选结果为空时返回 422 并保留现有池，不再用空列表覆盖有效快照。
+- 股票池读取优先发布快照自身记录的 Regime；快照没有 Regime 且当前判定不可用时发布空值，不再使用 `Unknown` 伪装成业务状态。
+- 缺失 ROE、PE、PB、增长率和尚未实现的评分统一发布 `null`；平均 ROE/PE 只按真实有效观测计算，`NaN`/`Inf` 被隔离，不再以 `0` 冒充实测值或稀释平均数。
+- 股票池异常响应不再复制 ORM、配置或筛选异常正文；日期使用 Django 本地交易日语义，Mixin 仓储属性、Request/Response 和 provider 公共类型导出补齐精确声明。
+
+## 第二百三十五批验证结果
+
+- Equity Pool API、API edge、用例和模块结构回归 `43 passed`，覆盖普通用户禁止刷新、未知字段拒绝、空筛选保留旧池、配置数量不硬编码和缺失指标发布为空。
+- Equity pool actions 增量 mypy 清零；全仓基线从 `1958 errors / 485 files` 收紧为 `1948 errors / 484 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十六批
+
+- 按“Agent Runtime 公共快照可用性 × 单源故障隔离 × 内部错误最小披露”收口 context facade 基类。
+- Application 层新增完整的 context snapshot repository Protocol；基类构造函数、八项公共读取和各领域扩展仓储能力不再通过未类型动态对象传播 `Any`。
+- 快照构建对 Regime、Policy、组合、信号、决策、风险、任务健康和数据新鲜度逐项隔离；任一 fetch 抛异常只将对应摘要降级，不再中断整个 Agent 上下文。
+- 仓储返回的 `unavailable` / `unsupported` 摘要在 facade 出口统一替换为稳定错误码 `source_fetch_failed`；数据库地址、连接错误和其他内部异常正文只进入服务端日志。
+- fetch 返回非字典结构时失败关闭为该来源不可用，避免异常动态结果直接进入 API/MCP 快照。
+
+## 第二百三十六批验证结果
+
+- Agent Runtime facade 回归 `28 passed`，context repository 与 MCP 资源回归 `25 passed`，覆盖 fetch 异常隔离、错误详情脱敏和其他来源继续可用。
+- 6 个 context facade 文件增量 mypy 清零；同时传播清除 facade factory 的未类型调用债务，全仓基线从 `1948 errors / 484 files` 收紧为 `1938 errors / 482 files`，净减少 `10 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十七批
+
+- 按“数据中台公共 API 输入可靠性 × 市场温度用户边界 × Provider 健康数据真实性”收口 Data Center API views。
+- 行情新鲜度小时数除正数外必须为有限值；`NaN`、`Inf` 和 `-Inf` 在进入报价用例前返回稳定 400，不再绕过比较并污染决策新鲜度。
+- 市场温度个人阈值布尔开关、历史天数和指标/发布机构 active filter 的非法查询值统一返回带正确字段名的 400，不再由未捕获 `ValueError` 形成 500 或误报为其他参数。
+- 个人市场温度 override 的 GET、写入和删除统一从认证请求提取已持久化的正整数用户 ID；缺少有效身份时失败关闭，不再向 Application 传递可空 ID。
+- Provider 健康快照的持久化延迟和连续失败数使用共享安全数值解析；非数字、非有限、负数和非整数遥测不再导致状态 API 500 或发布非法数值。
+- Provider 配置列表/创建 serializer 分离变量，健康快照和 provider payload 使用明确 JSON 边界类型；接口动态用户对象只在 composition 边界保留 `Any`。
+
+## 第二百三十七批验证结果
+
+- Data Center route cleanup 与市场温度 API 回归 `39 passed`，覆盖非有限新鲜度、非法布尔/天数、损坏的 provider 遥测和个人 override CRUD。
+- Data Center API views 增量 mypy 清零；全仓基线从 `1938 errors / 482 files` 收紧为 `1925 errors / 481 files`，净减少 `13 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十八批
+
+- 按“基金外部数据边界稳定性 × 无数据返回契约 × 来源脏日期隔离”收口 Tushare fund adapter。
+- 适配器新增最小 Tushare fund client Protocol；延迟初始化返回已收窄 client，六个基金 API 调用不再从可空动态对象传播未类型调用。
+- Tushare 的 `None` 无数据响应统一规范化为空 DataFrame，各公开 fetch 方法继续稳定返回 DataFrame，不再把 `None` 送入基金仓储和 Data Center 映射链路。
+- 非 DataFrame 的异常 SDK 返回明确拒绝，不再在后续列访问处产生含糊异常；返回帧先复制，日期规范化不会原地修改 SDK 共享对象。
+- 基金持仓和场内日线日期与其他基金接口统一使用 `errors="coerce"`；来源脏日期隔离为缺失值，不再使整批基金数据同步失败。
+- Pandas 第三方无 stub 边界使用精确 `import-untyped` 豁免，适配器内部和 Tushare client 能力保持完整类型检查。
+
+## 第二百三十八批验证结果
+
+- 基金适配器契约回归 `5 passed`，Tushare 统一 provider 的 fund NAV 映射回归 `1 passed`，覆盖无数据空帧和无效来源日期。
+- Fund Tushare adapter 增量 mypy 清零；全仓基线从 `1925 errors / 481 files` 收紧为 `1910 errors / 480 files`，净减少 `15 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+- 扩展运行整个 `test_phase3_provider_adapters.py` 时，既有 CPI 细分测试因测试帧列名被规范化为 `column_0...` 而失败；单独复跑同样失败，调用栈不经过本批基金适配器，未混入本批修复。
+
+## 第二百三十九批
+
+- 按“全局任务运维授权 × 查询输入边界 × 内部异常最小披露”收口 Task Monitor API。
+- 任务状态、列表、统计、Celery 健康和 Dashboard 都读取全局任务/基础设施状态，且任务记录没有用户归属字段；权限由普通登录收紧为 staff-only，避免普通账户枚举全局任务运行信息。
+- 列表 `limit` 和统计 `days` 严格要求正整数；`failures_only` 仅接受明确布尔值，`status` 仅接受 Domain 已定义的七种任务状态，非法输入稳定返回 400。
+- 状态、列表、统计和 Dashboard 的意外异常正文不再复制到 API；服务端保留异常堆栈，对外统一稳定 `INTERNAL_ERROR`。Celery 健康降级继续返回 503 结构化状态，但错误字段固定为 `health_check_failed`。
+- 五个 handler 补齐 DRF Request/Response 类型；OpenAPI 类型从正式 `drf_spectacular.types` 入口导入，Dashboard schema 不再使用裸 `dict`。
+- Application provider 的 repository/health checker 等四项能力改为显式同名 re-export，Task Monitor 调用方不再依赖隐式模块属性。
+
+## 第二百三十九批验证结果
+
+- Task Monitor API 回归 `26 passed`，覆盖普通用户禁止访问、非法 limit/days/status/boolean、内部异常脱敏和 Dashboard/Celery 正常契约。
+- Task Monitor views 的 `attr-defined` 与未类型 handler 债务清零，并传播清除 query service 的隐式 provider 属性债务；全仓基线从 `1910 errors / 480 files` 收紧为 `1902 errors / 479 files`，净减少 `8 errors / 1 file`。
+- 全仓口径仍保留该 views 文件 `5` 项 DRF decorator `misc` 历史债务；本批未通过宽泛 ignore 掩盖，后续结合 serializer 泛型治理处理。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

@@ -22,9 +22,12 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime
+from math import isfinite
+from typing import Any
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -134,12 +137,18 @@ from apps.data_center.interface.serializers import (
     SyncValuationRequestSerializer,
 )
 from apps.data_center.provider_runtime import get_registry, refresh_registry
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
 
-def _parse_bool_param(raw_value: str | None, *, default: bool = False) -> bool:
-    if raw_value in (None, ""):
+def _parse_bool_param(
+    raw_value: str | None,
+    *,
+    field_name: str,
+    default: bool = False,
+) -> bool:
+    if raw_value is None or raw_value == "":
         return default
 
     normalized = str(raw_value).strip().lower()
@@ -147,7 +156,7 @@ def _parse_bool_param(raw_value: str | None, *, default: bool = False) -> bool:
         return True
     if normalized in {"0", "false", "no", "off"}:
         return False
-    raise ValueError("strict_freshness 必须是布尔值")
+    raise ValueError(f"{field_name} 必须是布尔值")
 
 
 def _parse_positive_float_param(
@@ -156,7 +165,7 @@ def _parse_positive_float_param(
     field_name: str,
     default: float,
 ) -> float:
-    if raw_value in (None, ""):
+    if raw_value is None or raw_value == "":
         return default
 
     try:
@@ -164,8 +173,8 @@ def _parse_positive_float_param(
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{field_name} 必须是数字") from exc
 
-    if value <= 0:
-        raise ValueError(f"{field_name} 必须大于 0")
+    if not isfinite(value) or value <= 0:
+        raise ValueError(f"{field_name} 必须是大于 0 的有限数字")
     return value
 
 
@@ -175,7 +184,7 @@ def _parse_positive_int_param(
     field_name: str,
     default: int,
 ) -> int:
-    if raw_value in (None, ""):
+    if raw_value is None or raw_value == "":
         return default
 
     try:
@@ -188,16 +197,22 @@ def _parse_positive_int_param(
     return value
 
 
-def _get_provider_health_metric(extra_config: dict, capability: str) -> dict:
+def _get_provider_health_metric(
+    extra_config: dict[str, Any],
+    capability: str,
+) -> dict[str, Any]:
     if capability and capability != "N/A":
         health_metrics = extra_config.get("health_metrics") or {}
         metric = health_metrics.get(capability)
         if isinstance(metric, dict):
-            return metric
+            return dict(metric)
     return {}
 
 
-def _enrich_provider_status_snapshot(snapshot: dict, extra_config: dict) -> dict:
+def _enrich_provider_status_snapshot(
+    snapshot: dict[str, Any],
+    extra_config: dict[str, Any],
+) -> dict[str, Any]:
     capability = str(snapshot.get("capability") or "")
     metric = _get_provider_health_metric(extra_config, capability)
     enriched = dict(snapshot)
@@ -207,22 +222,38 @@ def _enrich_provider_status_snapshot(snapshot: dict, extra_config: dict) -> dict
             "provider_last_success_at"
         )
     if enriched.get("avg_latency_ms") in (None, ""):
-        enriched["avg_latency_ms"] = metric.get("avg_latency_ms") or extra_config.get(
-            "provider_avg_latency_ms"
+        raw_latency = metric.get(
+            "avg_latency_ms",
+            extra_config.get("provider_avg_latency_ms"),
         )
+        latency = safe_float(raw_latency)
+        enriched["avg_latency_ms"] = latency if latency is not None and latency >= 0 else None
     if not enriched.get("consecutive_failures"):
-        enriched["consecutive_failures"] = int(metric.get("consecutive_failures", 0))
+        failures = safe_float(metric.get("consecutive_failures"))
+        if failures is not None and failures >= 0 and failures.is_integer():
+            enriched["consecutive_failures"] = int(failures)
 
     return enriched
 
 
-def _safe_provider_payload(provider: ProviderResponse) -> dict:
+def _safe_provider_payload(provider: ProviderResponse) -> dict[str, Any]:
     serializer = ProviderConfigListSerializer(provider.to_dict())
     return dict(serializer.data)
 
 
-def _make_decision_repair_use_case(user) -> RepairDecisionDataReliabilityUseCase:
+def _make_decision_repair_use_case(
+    user: Any,
+) -> RepairDecisionDataReliabilityUseCase:
     return make_decision_repair_use_case(user)
+
+
+def _authenticated_user_id(request: Request) -> int:
+    """Return a persisted integer user ID or reject the request."""
+
+    user_id = request.user.id
+    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
+        raise NotAuthenticated("Authenticated user identity is unavailable.")
+    return user_id
 
 
 # ---------------------------------------------------------------------------
@@ -241,13 +272,16 @@ def provider_list_create(request: Request) -> Response:
 
     if request.method == "GET":
         providers = use_case.list_all()
-        serializer = ProviderConfigListSerializer([p.to_dict() for p in providers], many=True)
-        return Response({"results": serializer.data})
+        list_serializer = ProviderConfigListSerializer(
+            [p.to_dict() for p in providers],
+            many=True,
+        )
+        return Response({"results": list_serializer.data})
 
     # POST — create
-    serializer = ProviderConfigSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    d = serializer.validated_data
+    create_serializer = ProviderConfigSerializer(data=request.data)
+    create_serializer.is_valid(raise_exception=True)
+    d = create_serializer.validated_data
     req = CreateProviderRequest(
         name=d["name"],
         source_type=d["source_type"],
@@ -331,7 +365,14 @@ def publisher_list_create(request: Request) -> Response:
     use_case = make_manage_publisher_catalog_use_case()
 
     if request.method == "GET":
-        active_only = _parse_bool_param(request.query_params.get("active_only"), default=False)
+        try:
+            active_only = _parse_bool_param(
+                request.query_params.get("active_only"),
+                field_name="active_only",
+                default=False,
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         results = use_case.list_all(active_only=active_only)
         serializer = PublisherCatalogSerializer([item.to_dict() for item in results], many=True)
         return Response({"results": serializer.data})
@@ -405,7 +446,14 @@ def indicator_list_create(request: Request) -> Response:
     use_case = make_manage_indicator_catalog_use_case()
 
     if request.method == "GET":
-        active_only = _parse_bool_param(request.query_params.get("active_only"), default=False)
+        try:
+            active_only = _parse_bool_param(
+                request.query_params.get("active_only"),
+                field_name="active_only",
+                default=False,
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         results = use_case.list_all(active_only=active_only)
         serializer = IndicatorCatalogSerializer([item.to_dict() for item in results], many=True)
         return Response({"results": serializer.data})
@@ -578,7 +626,7 @@ def provider_status(request: Request) -> Response:
     has been exercised through the registry; otherwise it reads ``unknown``.
     """
     # Build a lookup: provider_name → [snapshot] from live registry
-    live: dict[str, list[dict]] = {}
+    live: dict[str, list[dict[str, Any]]] = {}
     for snap in get_registry().get_all_statuses():
         live.setdefault(snap.provider_name, []).append(snap.to_dict())
 
@@ -590,7 +638,7 @@ def provider_status(request: Request) -> Response:
         ),
         key=lambda provider: (provider.priority, provider.name),
     )
-    results = []
+    results: list[dict[str, Any]] = []
     for provider in providers:
         extra_config = provider.extra_config or {}
         if provider.name in live:
@@ -836,6 +884,7 @@ def price_latest_quote(request: Request) -> Response:
     try:
         strict_freshness = _parse_bool_param(
             request.query_params.get("strict_freshness"),
+            field_name="strict_freshness",
             default=False,
         )
         max_age_hours = _parse_positive_float_param(
@@ -1009,12 +1058,16 @@ def capital_flows(request: Request) -> Response:
 def market_thermometer_current(request: Request) -> Response:
     """Return the latest market-thermometer payload."""
 
-    use_personal_thresholds = _parse_bool_param(
-        request.query_params.get("use_personal_thresholds"),
-        default=True,
-    )
+    try:
+        use_personal_thresholds = _parse_bool_param(
+            request.query_params.get("use_personal_thresholds"),
+            field_name="use_personal_thresholds",
+            default=True,
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     payload = load_market_thermometer_payload(
-        user_id=request.user.id if request.user.is_authenticated else None,
+        user_id=_authenticated_user_id(request),
         use_personal_thresholds=use_personal_thresholds,
     )
     return Response(payload)
@@ -1025,12 +1078,15 @@ def market_thermometer_current(request: Request) -> Response:
 def market_thermometer_history(request: Request) -> Response:
     """Return recent market-thermometer snapshots."""
 
-    days = _parse_positive_int_param(
-        request.query_params.get("days"),
-        field_name="days",
-        default=90,
-    )
-    data = make_calculate_market_thermometer_use_case().list_history(days=days or 90)
+    try:
+        days = _parse_positive_int_param(
+            request.query_params.get("days"),
+            field_name="days",
+            default=90,
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    data = make_calculate_market_thermometer_use_case().list_history(days=days)
     return Response({"results": data})
 
 
@@ -1054,18 +1110,19 @@ def market_thermometer_config(request: Request) -> Response:
 def market_thermometer_me(request: Request) -> Response:
     """Return or update current user's threshold override."""
 
+    user_id = _authenticated_user_id(request)
     use_case = make_manage_market_thermometer_user_override_use_case()
     if request.method == "GET":
-        return Response(load_market_thermometer_override_payload(user_id=request.user.id))
+        return Response(load_market_thermometer_override_payload(user_id=user_id))
 
     if request.method == "DELETE":
-        use_case.delete(request.user.id)
+        use_case.delete(user_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     serializer = MarketThermometerUserOverrideSerializer(data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
-    use_case.upsert(user_id=request.user.id, **serializer.validated_data)
-    return Response(load_market_thermometer_override_payload(user_id=request.user.id))
+    use_case.upsert(user_id=user_id, **serializer.validated_data)
+    return Response(load_market_thermometer_override_payload(user_id=user_id))
 
 
 @api_view(["POST"])

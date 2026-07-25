@@ -1,12 +1,16 @@
 """Policy event API views."""
 
 import logging
+from collections.abc import Callable
 from datetime import date
+from typing import Any, TypeVar, cast
 
-from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -28,13 +32,24 @@ from ..application.use_cases import (
 from ..domain.entities import PolicyLevel
 from .serializers import (
     PolicyCreateResponseSerializer,
+    PolicyEventIdentityQuerySerializer,
     PolicyEventSerializer,
+    PolicyHistoryQuerySerializer,
     PolicyHistorySerializer,
     PolicyHistoryWithStatsSerializer,
+    PolicyStatusQuerySerializer,
     PolicyStatusSerializer,
 )
 
 logger = logging.getLogger(__name__)
+ViewMethod = TypeVar("ViewMethod", bound=Callable[..., Any])
+Payload = dict[str, Any]
+
+
+def typed_schema(*args: Any, **kwargs: Any) -> Callable[[ViewMethod], ViewMethod]:
+    """Narrow drf-spectacular's dynamically typed decorator."""
+
+    return cast(Callable[[ViewMethod], ViewMethod], extend_schema(*args, **kwargs))
 
 
 class PolicyStatusView(APIView):
@@ -44,7 +59,7 @@ class PolicyStatusView(APIView):
     GET /api/policy/status/ - 获取当前政策状态
     """
 
-    @extend_schema(
+    @typed_schema(
         tags=["Policy"],
         summary="获取当前政策状态",
         description="获取当前政策档位、响应配置和操作建议",
@@ -59,7 +74,7 @@ class PolicyStatusView(APIView):
         ],
         responses={200: PolicyStatusSerializer},
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """
         获取当前政策状态
 
@@ -68,8 +83,9 @@ class PolicyStatusView(APIView):
         """
         try:
             # 获取参数
-            as_of_date_str = request.query_params.get("as_of_date")
-            as_of_date = date.fromisoformat(as_of_date_str) if as_of_date_str else None
+            query = PolicyStatusQuerySerializer(data=request.query_params)
+            query.is_valid(raise_exception=True)
+            as_of_date = cast(date | None, query.validated_data.get("as_of_date"))
 
             # 执行用例
             repo = get_current_policy_repository()
@@ -77,7 +93,7 @@ class PolicyStatusView(APIView):
             output: PolicyStatusOutput = use_case.execute(as_of_date)
 
             # 序列化响应
-            response_data = {
+            response_data: Payload = {
                 "current_level": output.current_level.value,
                 "level_name": output.level_name,
                 "is_intervention_active": output.is_intervention_active,
@@ -105,12 +121,17 @@ class PolicyStatusView(APIView):
             # Return response_data directly (already formatted for JSON serialization)
             return Response(response_data, status=status.HTTP_200_OK)
 
-        except ValueError as e:
+        except (ValueError, ValidationError):
             return Response(
-                {"error": f"Invalid date format: {e}"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid query parameters"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
-            logger.error(f"Failed to get policy status: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Failed to get policy status: error_type=%s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             return Response(
                 {"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -126,14 +147,14 @@ class PolicyEventListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[BasePermission]:
         """Restrict policy-event creation to staff users."""
 
         if self.request.method == "POST":
             return [IsAdminUser()]
-        return super().get_permissions()
+        return cast(list[BasePermission], list(super().get_permissions()))
 
-    @extend_schema(
+    @typed_schema(
         tags=["Policy"],
         summary="获取政策事件列表",
         description="获取指定日期范围内的政策事件",
@@ -162,23 +183,16 @@ class PolicyEventListView(APIView):
         ],
         responses={200: PolicyHistorySerializer},
     )
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """获取政策事件列表"""
         try:
             # 获取参数
-            start_date_str = request.query_params.get("start_date")
-            end_date_str = request.query_params.get("end_date")
-            level_str = request.query_params.get("level")
-
-            if not start_date_str or not end_date_str:
-                return Response(
-                    {"error": "start_date and end_date are required"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            start_date = date.fromisoformat(start_date_str)
-            end_date = date.fromisoformat(end_date_str)
-            level = PolicyLevel(level_str) if level_str else None
+            query = PolicyHistoryQuerySerializer(data=request.query_params)
+            query.is_valid(raise_exception=True)
+            start_date = cast(date, query.validated_data["start_date"])
+            end_date = cast(date, query.validated_data["end_date"])
+            level_raw = cast(str | None, query.validated_data.get("level"))
+            level = PolicyLevel(level_raw) if level_raw else None
 
             # 执行用例
             repo = get_current_policy_repository()
@@ -197,7 +211,7 @@ class PolicyEventListView(APIView):
                 for e in output.events
             ]
 
-            response_data = {
+            response_data: Payload = {
                 "events": events_data,
                 "total_count": output.total_count,
                 "level_stats": {
@@ -211,24 +225,29 @@ class PolicyEventListView(APIView):
             serializer = PolicyHistoryWithStatsSerializer(instance=response_data)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
-        except ValueError as e:
+        except (ValueError, ValidationError):
             return Response(
-                {"error": f"Invalid parameter: {e}"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid query parameters"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
-            logger.error(f"Failed to get policy events: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Failed to get policy events: error_type=%s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             return Response(
                 {"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @extend_schema(
+    @typed_schema(
         tags=["Policy"],
         summary="创建政策事件",
         description="创建新的政策事件记录",
         request=PolicyEventSerializer,
         responses={201: PolicyCreateResponseSerializer},
     )
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         """创建新的政策事件"""
         try:
             # 验证输入
@@ -252,7 +271,7 @@ class PolicyEventListView(APIView):
             output: CreatePolicyEventOutput = use_case.execute(input_data)
 
             # 构建响应
-            response_data = {
+            response_data: Payload = {
                 "success": output.success,
                 "event": None,
                 "errors": output.errors,
@@ -273,23 +292,27 @@ class PolicyEventListView(APIView):
 
             return Response(response_data, status=status_code)
 
-        except ValidationError as e:
+        except ValidationError as exc:
             return Response(
                 {
                     "success": False,
-                    "errors": e.detail,
+                    "errors": exc.detail,
                     "event": None,
                     "warnings": [],
                     "alert_triggered": False,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
-            logger.error(f"Failed to create policy event: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Failed to create policy event: error_type=%s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             return Response(
                 {
                     "success": False,
-                    "errors": [f"Internal server error: {str(e)}"],
+                    "errors": ["Internal server error"],
                     "event": None,
                     "warnings": [],
                     "alert_triggered": False,
@@ -309,14 +332,14 @@ class PolicyEventDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[BasePermission]:
         """Restrict policy-event mutations to staff users."""
 
         if self.request.method in {"PUT", "PATCH", "DELETE"}:
             return [IsAdminUser()]
-        return super().get_permissions()
+        return cast(list[BasePermission], list(super().get_permissions()))
 
-    @extend_schema(
+    @typed_schema(
         tags=["Policy"],
         summary="获取指定日期的政策事件",
         description="根据日期获取政策事件详情",
@@ -331,7 +354,7 @@ class PolicyEventDetailView(APIView):
         ],
         responses={200: PolicyEventSerializer},
     )
-    def get(self, request, event_date: str):
+    def get(self, request: Request, event_date: str) -> Response:
         """获取指定日期的政策事件"""
         try:
             event_date_obj = date.fromisoformat(event_date)
@@ -354,13 +377,17 @@ class PolicyEventDetailView(APIView):
 
         except ValueError:
             return Response({"error": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            logger.error(f"Failed to get policy event: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Failed to get policy event: error_type=%s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             return Response(
                 {"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @extend_schema(
+    @typed_schema(
         tags=["Policy"],
         summary="更新政策事件",
         description="更新指定日期的政策事件",
@@ -376,12 +403,13 @@ class PolicyEventDetailView(APIView):
         request=PolicyEventSerializer,
         responses={200: PolicyCreateResponseSerializer},
     )
-    def put(self, request, event_date: str):
+    def put(self, request: Request, event_date: str) -> Response:
         """更新指定日期的政策事件"""
         try:
             event_date_obj = date.fromisoformat(event_date)
-            event_id_raw = request.query_params.get("event_id")
-            event_id = int(event_id_raw) if event_id_raw else None
+            query = PolicyEventIdentityQuerySerializer(data=request.query_params)
+            query.is_valid(raise_exception=True)
+            event_id = cast(int | None, query.validated_data.get("event_id"))
 
             # 验证输入
             serializer = PolicyEventSerializer(data=request.data)
@@ -401,7 +429,7 @@ class PolicyEventDetailView(APIView):
                 event_id=event_id,
             )
 
-            response_data = {
+            response_data: Payload = {
                 "success": output.success,
                 "event": None,
                 "errors": output.errors,
@@ -422,17 +450,22 @@ class PolicyEventDetailView(APIView):
 
             return Response(response_data, status=status_code)
 
-        except ValueError as e:
+        except (ValueError, ValidationError):
             return Response(
-                {"error": f"Invalid parameter: {e}"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid request parameters"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
-            logger.error(f"Failed to update policy event: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Failed to update policy event: error_type=%s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             return Response(
                 {"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @extend_schema(
+    @typed_schema(
         tags=["Policy"],
         summary="删除政策事件",
         description="删除指定日期的政策事件（可通过 event_id 精确删除单条）",
@@ -454,12 +487,13 @@ class PolicyEventDetailView(APIView):
         ],
         responses={204: None},
     )
-    def delete(self, request, event_date: str):
+    def delete(self, request: Request, event_date: str) -> Response:
         """删除指定日期的政策事件"""
         try:
             event_date_obj = date.fromisoformat(event_date)
-            event_id_raw = request.query_params.get("event_id")
-            event_id = int(event_id_raw) if event_id_raw else None
+            query = PolicyEventIdentityQuerySerializer(data=request.query_params)
+            query.is_valid(raise_exception=True)
+            event_id = cast(int | None, query.validated_data.get("event_id"))
 
             repo = get_current_policy_repository()
             use_case = DeletePolicyEventUseCase(event_store=repo)
@@ -468,13 +502,19 @@ class PolicyEventDetailView(APIView):
 
             if success:
                 return Response(status=status.HTTP_204_NO_CONTENT)
-            else:
-                return Response({"error": message}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": message}, status=status.HTTP_404_NOT_FOUND)
 
-        except ValueError:
-            return Response({"error": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            logger.error(f"Failed to delete policy event: {e}", exc_info=True)
+        except (ValueError, ValidationError):
+            return Response(
+                {"error": "Invalid request parameters"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed to delete policy event: error_type=%s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             return Response(
                 {"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

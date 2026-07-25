@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from apps.policy.infrastructure.models import PolicyLog
+from apps.policy.interface import event_api_views
 
 
 @pytest.fixture(autouse=True)
@@ -51,6 +52,63 @@ def test_api_policy_events_endpoint_returns_json_contract():
     assert response.status_code == 400
     assert response.headers["Content-Type"].startswith("application/json")
     assert "error" in response.json()
+
+
+@pytest.mark.django_db
+def test_policy_event_queries_reject_unknown_and_reversed_ranges():
+    client = _build_authenticated_api_client("policy_api_strict_query")
+
+    unknown = client.get("/api/policy/events/?start_date=2026-07-01&end_date=2026-07-10&typo=1")
+    reversed_range = client.get("/api/policy/events/?start_date=2026-07-10&end_date=2026-07-01")
+
+    assert unknown.status_code == 400
+    assert reversed_range.status_code == 400
+    assert unknown.json()["error"] == "Invalid query parameters"
+
+
+@pytest.mark.django_db
+def test_policy_event_identity_rejects_non_positive_id():
+    client = _build_authenticated_api_client(
+        "policy_api_invalid_identity",
+        is_staff=True,
+    )
+
+    response = client.delete("/api/policy/events/2026-07-10/?event_id=0")
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "Invalid request parameters"
+
+
+@pytest.mark.django_db
+def test_policy_event_create_does_not_expose_internal_exception(monkeypatch):
+    client = _build_authenticated_api_client(
+        "policy_api_stable_error",
+        is_staff=True,
+    )
+
+    def fail_repository():
+        raise RuntimeError("database-password")
+
+    monkeypatch.setattr(
+        event_api_views,
+        "get_current_policy_repository",
+        fail_repository,
+    )
+    response = client.post(
+        "/api/policy/events/",
+        {
+            "event_date": "2026-07-11",
+            "level": "P0",
+            "title": "Stable error contract",
+            "description": "Internal details must remain private.",
+            "evidence_url": "https://example.com/policy/error",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 500
+    assert response.json()["errors"] == ["Internal server error"]
+    assert "database-password" not in response.content.decode()
 
 
 @pytest.mark.django_db

@@ -11,35 +11,39 @@
 - 不包含业务逻辑
 """
 
+from typing import Any, cast
+
 from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..application import interface_services
+from ..application import interface_services, use_cases
 from ..application.use_cases import (
     AnalyzeFundStyleRequest,
     CalculateFundPerformanceRequest,
     ScreenFundsRequest,
-)
-from ..application.use_cases import (
-    AnalyzeFundStyleUseCase as _AnalyzeFundStyleUseCase,
 )
 from .serializers import (
     AnalyzeFundStyleRequestSerializer,
     AnalyzeFundStyleResponseSerializer,
     CalculateFundPerformanceRequestSerializer,
     CalculateFundPerformanceResponseSerializer,
+    FundHoldingQuerySerializer,
+    FundMultiDimScreenRequestSerializer,
+    FundNavQuerySerializer,
     FundScoreSerializer,
     RankFundsQuerySerializer,
     ScreenFundsRequestSerializer,
     ScreenFundsResponseSerializer,
 )
 
-AnalyzeFundStyleUseCase = _AnalyzeFundStyleUseCase
+AnalyzeFundStyleUseCase = use_cases.AnalyzeFundStyleUseCase
 
 # ============================================================================
 # 页面视图（前端）
@@ -48,7 +52,7 @@ AnalyzeFundStyleUseCase = _AnalyzeFundStyleUseCase
 
 @login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
-def dashboard_view(request):
+def dashboard_view(request: HttpRequest) -> HttpResponse:
     """
     基金分析仪表盘页面
 
@@ -66,7 +70,7 @@ class ScreenFundsView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """筛选基金"""
         # 1. 验证请求
         serializer = ScreenFundsRequestSerializer(data=request.data)
@@ -87,7 +91,7 @@ class ScreenFundsView(APIView):
         response = interface_services.screen_funds(screen_request)
 
         # 4. 序列化响应
-        response_serializer = ScreenFundsResponseSerializer(response)
+        response_serializer = ScreenFundsResponseSerializer(instance=cast(Any, response))
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
@@ -97,7 +101,9 @@ class AnalyzeFundStyleView(APIView):
     GET /api/fund/style/{fund_code}/
     """
 
-    def get(self, request, fund_code: str) -> Response:
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, fund_code: str) -> Response:
         """分析基金风格"""
         # 1. 验证请求
         query_params = {**request.query_params, "fund_code": fund_code}
@@ -119,7 +125,7 @@ class AnalyzeFundStyleView(APIView):
         response = interface_services.analyze_fund_style(analyze_request)
 
         # 4. 序列化响应
-        response_serializer = AnalyzeFundStyleResponseSerializer(response)
+        response_serializer = AnalyzeFundStyleResponseSerializer(instance=cast(Any, response))
         status_code = status.HTTP_200_OK if response.success else status.HTTP_404_NOT_FOUND
         return Response(response_serializer.data, status=status_code)
 
@@ -130,7 +136,9 @@ class CalculateFundPerformanceView(APIView):
     POST /api/fund/performance/calculate/
     """
 
-    def post(self, request) -> Response:
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
         """计算基金业绩"""
         # 1. 验证请求
         serializer = CalculateFundPerformanceRequestSerializer(data=request.data)
@@ -151,7 +159,9 @@ class CalculateFundPerformanceView(APIView):
         response = interface_services.calculate_fund_performance(perf_request)
 
         # 4. 序列化响应
-        response_serializer = CalculateFundPerformanceResponseSerializer(response)
+        response_serializer = CalculateFundPerformanceResponseSerializer(
+            instance=cast(Any, response)
+        )
         status_code = status.HTTP_200_OK if response.success else status.HTTP_404_NOT_FOUND
         return Response(response_serializer.data, status=status_code)
 
@@ -165,7 +175,7 @@ class RankFundsView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = RankFundsQuerySerializer
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """获取基金排名"""
         query = RankFundsQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
@@ -176,7 +186,7 @@ class RankFundsView(APIView):
         fund_scores = interface_services.rank_funds(regime, max_count)
 
         # 序列化响应
-        serializer = FundScoreSerializer(fund_scores, many=True)
+        serializer = FundScoreSerializer(instance=cast(Any, fund_scores), many=True)
         return Response(
             {
                 "success": True,
@@ -193,7 +203,7 @@ class FundScoreView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, fund_code: str) -> Response:
+    def get(self, request: Request, fund_code: str) -> Response:
         from .serializers import FundScoreQuerySerializer, FundScoreSerializer
 
         query = FundScoreQuerySerializer(data=request.query_params)
@@ -208,7 +218,12 @@ class FundScoreView(APIView):
                 {"success": False, "error": f"基金 {fund_code} 暂无评分"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response({"success": True, "score": FundScoreSerializer(score).data})
+        return Response(
+            {
+                "success": True,
+                "score": FundScoreSerializer(instance=cast(Any, score)).data,
+            }
+        )
 
 
 class FundInfoView(APIView):
@@ -217,7 +232,9 @@ class FundInfoView(APIView):
     GET /api/fund/info/{fund_code}/
     """
 
-    def get(self, request, fund_code: str) -> Response:
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, fund_code: str) -> Response:
         """获取基金信息"""
         fund_info = interface_services.get_fund_info(fund_code)
 
@@ -229,7 +246,7 @@ class FundInfoView(APIView):
 
         from .serializers import FundInfoSerializer
 
-        serializer = FundInfoSerializer(fund_info)
+        serializer = FundInfoSerializer(instance=cast(Any, fund_info))
 
         return Response({"success": True, "fund": serializer.data}, status=status.HTTP_200_OK)
 
@@ -240,20 +257,14 @@ class FundNavView(APIView):
     GET /api/fund/nav/{fund_code}/?start_date=&end_date=
     """
 
-    def get(self, request, fund_code: str) -> Response:
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, fund_code: str) -> Response:
         """获取基金净值"""
-        from datetime import datetime
-
-        start_date_str = request.query_params.get("start_date")
-        end_date_str = request.query_params.get("end_date")
-
-        start_date = None
-        end_date = None
-
-        if start_date_str:
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-        if end_date_str:
-            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        query = FundNavQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        start_date = query.validated_data.get("start_date")
+        end_date = query.validated_data.get("end_date")
 
         nav_list = interface_services.get_fund_nav(fund_code, start_date, end_date)
 
@@ -265,7 +276,7 @@ class FundNavView(APIView):
 
         from .serializers import FundNetValueSerializer
 
-        serializer = FundNetValueSerializer(nav_list, many=True)
+        serializer = FundNetValueSerializer(instance=cast(Any, nav_list), many=True)
 
         return Response(
             {
@@ -284,15 +295,13 @@ class FundHoldingView(APIView):
     GET /api/fund/holding/{fund_code}/?report_date=
     """
 
-    def get(self, request, fund_code: str) -> Response:
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, fund_code: str) -> Response:
         """获取基金持仓"""
-        from datetime import datetime
-
-        report_date_str = request.query_params.get("report_date")
-        report_date = None
-
-        if report_date_str:
-            report_date = datetime.strptime(report_date_str, "%Y-%m-%d").date()
+        query = FundHoldingQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        report_date = query.validated_data.get("report_date")
 
         holdings = interface_services.get_fund_holdings(fund_code, report_date)
 
@@ -304,13 +313,13 @@ class FundHoldingView(APIView):
 
         from .serializers import FundHoldingSerializer
 
-        serializer = FundHoldingSerializer(holdings, many=True)
+        serializer = FundHoldingSerializer(instance=cast(Any, holdings), many=True)
 
         return Response(
             {
                 "success": True,
                 "fund_code": fund_code,
-                "report_date": report_date_str or "最新",
+                "report_date": report_date.isoformat() if report_date else "最新",
                 "count": len(holdings),
                 "holdings": serializer.data,
             },
@@ -329,7 +338,9 @@ class FundMultiDimScreenAPIView(APIView):
     使用通用资产分析框架进行多维度评分筛选。
     """
 
-    def post(self, request) -> Response:
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
         """
         多维度筛选基金
 
@@ -349,9 +360,11 @@ class FundMultiDimScreenAPIView(APIView):
         }
         """
         # 1. 验证请求
-        filters = request.data.get("filters", {})
-        context_data = request.data.get("context", {})
-        max_count = request.data.get("max_count", 30)
+        request_serializer = FundMultiDimScreenRequestSerializer(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+        filters = request_serializer.validated_data.get("filters", {})
+        context_data = request_serializer.validated_data["context"]
+        max_count = request_serializer.validated_data["max_count"]
 
         try:
             payload = interface_services.screen_funds_multidim(
@@ -377,11 +390,11 @@ class FundMultiDimScreenAPIView(APIView):
                 status=status.HTTP_200_OK if result["success"] else status.HTTP_404_NOT_FOUND,
             )
 
-        except Exception as e:
+        except Exception:
             return Response(
                 {
                     "success": False,
-                    "message": f"筛选失败: {str(e)}",
+                    "message": "筛选失败，请检查基金筛选条件与宏观上下文",
                     "funds": [],
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

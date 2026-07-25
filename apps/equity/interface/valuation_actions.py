@@ -6,9 +6,13 @@ actions whose use-case classes stay patchable through the legacy
 `use_case_cls`). Do not import the compatibility facade here.
 """
 
+from collections.abc import Callable
+from typing import Any, Protocol, TypeVar, cast
+
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.equity.application.use_cases_valuation_repair import (
@@ -36,84 +40,122 @@ from .serializers import (
     ValuationRepairStatusResponseSerializer,
 )
 
+ViewMethod = TypeVar("ViewMethod", bound=Callable[..., Any])
+
+
+def typed_action(*args: Any, **kwargs: Any) -> Callable[[ViewMethod], ViewMethod]:
+    """Narrow DRF's dynamically typed action decorator."""
+
+    return cast(Callable[[ViewMethod], ViewMethod], action(*args, **kwargs))
+
+
+def typed_schema(*args: Any, **kwargs: Any) -> Callable[[ViewMethod], ViewMethod]:
+    """Narrow drf-spectacular's dynamically typed schema decorator."""
+
+    return cast(Callable[[ViewMethod], ViewMethod], extend_schema(*args, **kwargs))
+
+
 # OpenAPI declarations for the facade valuation actions. The facade applies
 # these prebuilt decorators so its thin methods stay bounded without losing
 # the established API schema contract.
-valuation_repair_status_schema = extend_schema(
+valuation_repair_status_schema = typed_schema(
     summary="获取估值修复状态",
     description="获取单只股票的估值修复状态（实时计算）",
     responses={200: ValuationRepairStatusResponseSerializer},
 )
-valuation_repair_history_schema = extend_schema(
+valuation_repair_history_schema = typed_schema(
     summary="获取估值修复历史",
     description="获取估值百分位历史序列（实时计算）",
     responses={200: ValuationRepairHistoryResponseSerializer},
 )
-scan_valuation_repairs_schema = extend_schema(
+scan_valuation_repairs_schema = typed_schema(
     summary="批量扫描估值修复",
     description="批量扫描股票池并保存快照",
     request=ScanValuationRepairsRequestSerializer,
     responses={200: ScanValuationRepairsResponseSerializer},
 )
-sync_valuation_data_schema = extend_schema(
+sync_valuation_data_schema = typed_schema(
     summary="同步估值数据",
     description="从主备 provider 同步估值数据到本地估值表",
     request=SyncValuationDataRequestSerializer,
     responses={200: SyncValuationDataResponseSerializer},
 )
-validate_valuation_data_schema = extend_schema(
+validate_valuation_data_schema = typed_schema(
     summary="校验估值数据质量",
     description="对本地估值表生成质量快照并计算 gate 状态",
     request=ValidateValuationDataRequestSerializer,
     responses={200: ValuationQualitySnapshotResponseSerializer},
 )
-valuation_data_freshness_schema = extend_schema(
+valuation_data_freshness_schema = typed_schema(
     summary="获取估值数据新鲜度",
     description="返回本地估值表最新交易日和 freshness 状态",
     responses={200: ValuationFreshnessResponseSerializer},
 )
-valuation_data_quality_latest_schema = extend_schema(
+valuation_data_quality_latest_schema = typed_schema(
     summary="获取最近估值数据质量快照",
     description="返回最近一次估值数据质量快照",
     responses={200: ValuationQualitySnapshotResponseSerializer},
 )
 
 
+class EquityValuationViewProtocol(Protocol):
+    """Dependencies exposed by the composed equity viewset."""
+
+    stock_repo: Any
+    repair_repo: Any
+    quality_repo: Any
+    pool_adapter: Any
+
+
+def _repair_failure_message(error: object, *, fallback: str) -> str:
+    """Publish known business failures without exposing arbitrary exception text."""
+
+    if isinstance(error, str):
+        if "quality gate not passed" in error:
+            return "valuation data quality gate not passed"
+        for prefix in ("历史数据不足:", "估值数据无效:", "股票不存在:"):
+            if error.startswith(prefix):
+                return error
+    return fallback
+
+
 class EquityValuationActionsMixin:
     """Snapshot listing and financial-data sync actions."""
 
-    @extend_schema(
+    repair_repo: Any
+
+    @typed_schema(
         summary="同步财务数据",
         description="同步指定股票的财务数据（ROE、营收、利润等）",
         request=SyncFinancialDataRequestSerializer,
         responses={200: SyncFinancialDataResponseSerializer},
     )
-    @action(detail=False, methods=["post"], url_path="financial-data/sync")
-    def sync_financial_data(self, request):
+    @typed_action(detail=False, methods=["post"], url_path="financial-data/sync")
+    def sync_financial_data(self, request: Request) -> Response:
         """同步财务数据"""
         from apps.equity.application.tasks_valuation_sync import sync_financial_data_task
 
-        stock_codes = request.data.get("stock_codes")
-        periods = request.data.get("periods", 8)
-        source = request.data.get("source", "akshare")
+        serializer = SyncFinancialDataRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
         # 异步执行同步任务
         result = sync_financial_data_task(
-            source=source,
-            periods=periods,
-            stock_codes=stock_codes,
+            source=data["source"],
+            periods=data["periods"],
+            stock_codes=data.get("stock_codes"),
         )
 
         return Response(result, status=status.HTTP_200_OK)
 
-    @extend_schema(
+    @typed_schema(
         summary="列出估值修复快照",
         description="列出估值修复快照（不触发实时重算）",
         request=ListValuationRepairsRequestSerializer,
         responses={200: ListValuationRepairsResponseSerializer},
     )
-    @action(detail=False, methods=["get"], url_path="valuation-repair-list")
-    def list_valuation_repairs(self, request):
+    @typed_action(detail=False, methods=["get"], url_path="valuation-repair-list")
+    def list_valuation_repairs(self, request: Request) -> Response:
         """
         GET /api/equity/valuation-repair-list/
 
@@ -148,28 +190,20 @@ class EquityValuationActionsMixin:
         }
         """
         # 1. 验证并获取参数
-        try:
-            limit = int(request.query_params.get("limit", 50))
-            if limit < 1 or limit > 200:
-                return Response(
-                    {"success": False, "error": "limit must be between 1 and 200"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        except (ValueError, TypeError):
-            return Response(
-                {"success": False, "error": "limit must be a valid integer"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer = ListValuationRepairsRequestSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
         # 2. 构造请求对象
         use_case_request = ListValuationRepairsRequest(
-            universe=request.query_params.get("universe", "all_active"),
-            phase=request.query_params.get("phase"),
-            limit=limit,
+            universe=data["universe"],
+            phase=data.get("phase"),
+            limit=data["limit"],
         )
 
         # 2. 执行用例
-        use_case = ListValuationRepairsUseCase(valuation_repair_repository=self.repair_repo)
+        use_case_factory = cast(Callable[..., Any], ListValuationRepairsUseCase)
+        use_case = use_case_factory(valuation_repair_repository=self.repair_repo)
         use_case_response = use_case.execute(use_case_request)
 
         # 3. 返回响应
@@ -179,7 +213,7 @@ class EquityValuationActionsMixin:
             )
         else:
             return Response(
-                {"success": False, "error": use_case_response.error},
+                {"success": False, "error": "估值修复快照查询失败"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -189,7 +223,13 @@ class EquityValuationActionsMixin:
 # legacy `apps.equity.interface.views` monkeypatch surface keeps working.
 
 
-def get_valuation_repair_status_impl(viewset, request, stock_code, *, use_case_cls):
+def get_valuation_repair_status_impl(
+    viewset: EquityValuationViewProtocol,
+    request: Request,
+    stock_code: str,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 GET /api/equity/valuation-repair/{stock_code}/（实时计算估值修复状态）。"""
     from apps.equity.application.use_cases_valuation_repair import (
         GetValuationRepairStatusRequest,
@@ -227,12 +267,24 @@ def get_valuation_repair_status_impl(viewset, request, stock_code, *, use_case_c
         return Response(use_case_response.data, status=status.HTTP_200_OK)
     else:
         return Response(
-            {"success": False, "error": use_case_response.error},
+            {
+                "success": False,
+                "error": _repair_failure_message(
+                    use_case_response.error,
+                    fallback="估值修复状态查询失败",
+                ),
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
 
-def get_valuation_repair_history_impl(viewset, request, stock_code, *, use_case_cls):
+def get_valuation_repair_history_impl(
+    viewset: EquityValuationViewProtocol,
+    request: Request,
+    stock_code: str,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 GET /api/equity/valuation-repair/{stock_code}/history/（百分位历史序列）。"""
     from apps.equity.application.use_cases_valuation_repair import (
         GetValuationPercentileHistoryRequest,
@@ -280,12 +332,23 @@ def get_valuation_repair_history_impl(viewset, request, stock_code, *, use_case_
         )
     else:
         return Response(
-            {"success": False, "error": use_case_response.error},
+            {
+                "success": False,
+                "error": _repair_failure_message(
+                    use_case_response.error,
+                    fallback="估值百分位历史查询失败",
+                ),
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
 
-def scan_valuation_repairs_impl(viewset, request, *, use_case_cls):
+def scan_valuation_repairs_impl(
+    viewset: EquityValuationViewProtocol,
+    request: Request,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 POST /api/equity/valuation-repair/scan/（批量扫描并保存快照）。"""
     from apps.equity.application.use_cases_valuation_repair import (
         ScanValuationRepairsRequest,
@@ -325,12 +388,23 @@ def scan_valuation_repairs_impl(viewset, request, *, use_case_cls):
         return Response(response_data, status=status.HTTP_200_OK)
     else:
         return Response(
-            {"success": False, "error": use_case_response.error},
+            {
+                "success": False,
+                "error": _repair_failure_message(
+                    use_case_response.error,
+                    fallback="估值修复扫描失败",
+                ),
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-def sync_valuation_data_impl(viewset, request, *, use_case_cls):
+def sync_valuation_data_impl(
+    viewset: EquityValuationViewProtocol,
+    request: Request,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 POST /api/equity/valuation-data/sync/（同步估值数据到本地估值表）。"""
     serializer = SyncValuationDataRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -350,11 +424,17 @@ def sync_valuation_data_impl(viewset, request, *, use_case_cls):
     if response.success:
         return Response(response.data, status=status.HTTP_200_OK)
     return Response(
-        {"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST
+        {"success": False, "error": "估值数据同步失败"},
+        status=status.HTTP_400_BAD_REQUEST,
     )
 
 
-def validate_valuation_data_impl(viewset, request, *, use_case_cls):
+def validate_valuation_data_impl(
+    viewset: EquityValuationViewProtocol,
+    request: Request,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 POST /api/equity/valuation-data/validate/（质量快照与 gate 状态）。"""
     serializer = ValidateValuationDataRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -373,11 +453,17 @@ def validate_valuation_data_impl(viewset, request, *, use_case_cls):
     if response.success:
         return Response(response.data, status=status.HTTP_200_OK)
     return Response(
-        {"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST
+        {"success": False, "error": "估值数据质量校验失败"},
+        status=status.HTTP_400_BAD_REQUEST,
     )
 
 
-def valuation_data_freshness_impl(viewset, request, *, use_case_cls):
+def valuation_data_freshness_impl(
+    viewset: EquityValuationViewProtocol,
+    request: Request,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 GET /api/equity/valuation-data/freshness/（估值数据新鲜度）。"""
     use_case = use_case_cls(
         stock_repository=viewset.stock_repo,
@@ -387,11 +473,17 @@ def valuation_data_freshness_impl(viewset, request, *, use_case_cls):
     if response.success:
         return Response(response.data, status=status.HTTP_200_OK)
     return Response(
-        {"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST
+        {"success": False, "error": "估值数据新鲜度查询失败"},
+        status=status.HTTP_400_BAD_REQUEST,
     )
 
 
-def valuation_data_quality_latest_impl(viewset, request, *, use_case_cls):
+def valuation_data_quality_latest_impl(
+    viewset: EquityValuationViewProtocol,
+    request: Request,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 GET /api/equity/valuation-data/quality-latest/（最近质量快照）。"""
     use_case = use_case_cls(
         quality_repository=viewset.quality_repo,
@@ -400,7 +492,8 @@ def valuation_data_quality_latest_impl(viewset, request, *, use_case_cls):
     if response.success:
         return Response(response.data, status=status.HTTP_200_OK)
     return Response(
-        {"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST
+        {"success": False, "error": "最近估值质量快照查询失败"},
+        status=status.HTTP_400_BAD_REQUEST,
     )
 
 

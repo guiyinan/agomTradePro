@@ -5,30 +5,59 @@ the final `EquityViewSet` and keeps the legacy monkeypatch surface; do not
 import it here.
 """
 
-from datetime import date
+from __future__ import annotations
+
+import logging
+from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.equity.application.use_cases import (
     ScreenStocksRequest,
     ScreenStocksUseCase,
 )
+from apps.regime.domain.services_v2 import RegimeType
+from shared.numeric import safe_float
+
+from .serializers import PoolActionRequestSerializer
+from .valuation_actions import typed_action
+
+if TYPE_CHECKING:
+    from apps.equity.application.repository_provider import (
+        DjangoStockRepository,
+        RegimeRepositoryAdapter,
+        StockPoolRepositoryAdapter,
+    )
+
+logger = logging.getLogger(__name__)
 
 
 class EquityPoolActionsMixin:
     """Current-pool query and Regime-driven pool refresh actions."""
 
-    @action(detail=False, methods=["get"], url_path="pool")
-    def get_pool(self, request):
+    stock_repo: DjangoStockRepository
+    regime_repo: RegimeRepositoryAdapter
+    pool_adapter: StockPoolRepositoryAdapter
+
+    @typed_action(
+        detail=False,
+        methods=["get"],
+        url_path="pool",
+        permission_classes=[IsAuthenticated],
+    )
+    def get_pool(self, request: Request) -> Response:
         """
         GET /api/equity/pool/
 
         获取当前股票池
         """
-        from apps.regime.application.current_regime import resolve_current_regime
+        serializer = PoolActionRequestSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
 
         try:
             # 获取当前股票池
@@ -37,26 +66,32 @@ class EquityPoolActionsMixin:
             # 获取股票池元数据
             pool_info = self.pool_adapter.get_latest_pool_info()
 
-            # 获取当前 Regime
-            latest_regime = resolve_current_regime()
+            pool_regime = str((pool_info or {}).get("regime") or "").strip()
+            latest_regime_name = self._resolve_current_regime_name() if not pool_regime else None
+            displayed_regime = pool_regime or latest_regime_name
 
             if not stock_codes:
                 # 如果没有股票池，返回空结果
                 return Response(
                     {
                         "success": True,
-                        "regime": latest_regime.dominant_regime if latest_regime else "Unknown",
+                        "regime": displayed_regime,
                         "count": 0,
-                        "update_time": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "update_time": None,
+                        "avg_roe": None,
+                        "avg_pe": None,
                         "stocks": [],
                     }
                 )
 
             # 获取股票详细信息
             stocks = []
-            total_roe = 0
-            total_pe = 0
+            total_roe = 0.0
+            valid_roe_count = 0
+            total_pe = 0.0
             valid_pe_count = 0
+            end_date = timezone.localdate()
+            start_date = end_date - timedelta(days=7)
 
             for stock_code in stock_codes[:100]:  # 限制最多返回 100 只
                 stock_info = self.stock_repo.get_stock_info(stock_code)
@@ -64,66 +99,67 @@ class EquityPoolActionsMixin:
                     continue
 
                 # 获取最新估值和财务数据
-                from datetime import timedelta
-
-                end_date = date.today()
-                start_date = end_date - timedelta(days=7)
-
                 valuations = self.stock_repo.get_valuation_history(stock_code, start_date, end_date)
                 latest_valuation = valuations[-1] if valuations else None
 
                 financial = self.stock_repo.get_latest_financial_data(stock_code)
+                roe = safe_float(financial.roe) if financial else None
+                revenue_growth = safe_float(financial.revenue_growth) if financial else None
+                profit_growth = safe_float(financial.net_profit_growth) if financial else None
+                pe = safe_float(latest_valuation.pe) if latest_valuation else None
+                pb = safe_float(latest_valuation.pb) if latest_valuation else None
+                pe = pe if pe is not None and pe > 0 else None
+                pb = pb if pb is not None and pb > 0 else None
 
                 stock_data = {
                     "code": stock_info.stock_code,
                     "name": stock_info.name,
                     "sector": stock_info.sector,
-                    "roe": financial.roe if financial else 0,
-                    "pe": latest_valuation.pe
-                    if latest_valuation and latest_valuation.pe > 0
-                    else 0,
-                    "pb": latest_valuation.pb
-                    if latest_valuation and latest_valuation.pb > 0
-                    else 0,
-                    "revenue_growth": financial.revenue_growth if financial else 0,
-                    "profit_growth": financial.net_profit_growth if financial else 0,
-                    "score": 0,  # 暂时为 0，后续可添加评分逻辑
+                    "roe": roe,
+                    "pe": pe,
+                    "pb": pb,
+                    "revenue_growth": revenue_growth,
+                    "profit_growth": profit_growth,
+                    "score": None,
                 }
                 stocks.append(stock_data)
 
-                if financial:
-                    total_roe += financial.roe
-                if latest_valuation and latest_valuation.pe > 0:
-                    total_pe += latest_valuation.pe
+                if roe is not None:
+                    total_roe += roe
+                    valid_roe_count += 1
+                if pe is not None:
+                    total_pe += pe
                     valid_pe_count += 1
 
-            avg_roe = total_roe / len(stocks) if stocks else 0
-            avg_pe = total_pe / valid_pe_count if valid_pe_count > 0 else 0
+            avg_roe = total_roe / valid_roe_count if valid_roe_count > 0 else None
+            avg_pe = total_pe / valid_pe_count if valid_pe_count > 0 else None
 
             return Response(
                 {
                     "success": True,
-                    "regime": pool_info.get("regime")
-                    if pool_info
-                    else (latest_regime.dominant_regime if latest_regime else "Unknown"),
+                    "regime": displayed_regime,
                     "count": len(stocks),
-                    "update_time": pool_info.get("updated_at")
-                    if pool_info
-                    else timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "avg_roe": round(avg_roe, 2),
-                    "avg_pe": round(avg_pe, 2),
+                    "update_time": (pool_info or {}).get("updated_at"),
+                    "avg_roe": round(avg_roe, 2) if avg_roe is not None else None,
+                    "avg_pe": round(avg_pe, 2) if avg_pe is not None else None,
                     "stocks": stocks,
                 }
             )
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Failed to load equity stock pool")
             return Response(
-                {"success": False, "message": f"获取股票池失败: {str(e)}", "stocks": []},
+                {"success": False, "message": "获取股票池失败", "stocks": []},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @action(detail=False, methods=["post"], url_path="pool/refresh")
-    def refresh_pool(self, request):
+    @typed_action(
+        detail=False,
+        methods=["post"],
+        url_path="pool/refresh",
+        permission_classes=[IsAdminUser],
+    )
+    def refresh_pool(self, request: Request) -> Response:
         """
         POST /api/equity/pool/refresh/
 
@@ -133,19 +169,30 @@ class EquityPoolActionsMixin:
         """
         from apps.regime.application.current_regime import resolve_current_regime
 
+        serializer = PoolActionRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         try:
             # 获取当前 Regime
             latest_regime = resolve_current_regime()
-            if not latest_regime:
+            if not latest_regime or bool(getattr(latest_regime, "is_fallback", False)):
                 return Response(
-                    {"success": False, "message": "无法获取当前 Regime，请先运行 Regime 判定"},
+                    {
+                        "success": False,
+                        "message": "当前 Regime 不可用或处于降级状态，请先完成正式判定",
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            regime = str(latest_regime.dominant_regime or "").strip()
+            if regime not in {item.value for item in RegimeType}:
+                return Response(
+                    {"success": False, "message": "当前 Regime 不是有效四象限结果"},
                     status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
 
             # 构造筛选请求
             screen_request = ScreenStocksRequest(
-                regime=latest_regime.dominant_regime,
-                max_count=50,  # 默认筛选 50 只股票
+                regime=regime,
             )
 
             # 执行筛选
@@ -156,32 +203,55 @@ class EquityPoolActionsMixin:
 
             if not screen_response.success:
                 return Response(
-                    {"success": False, "message": f"筛选失败: {screen_response.error}"},
+                    {"success": False, "message": "股票池筛选失败"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+            if not screen_response.stock_codes:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "筛选结果为空，已保留现有股票池",
+                    },
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 )
 
             # 保存新的股票池
             self.pool_adapter.save_pool(
                 stock_codes=screen_response.stock_codes,
-                regime=latest_regime.dominant_regime,
-                as_of_date=date.today(),
+                regime=regime,
+                as_of_date=timezone.localdate(),
             )
 
             return Response(
                 {
                     "success": True,
                     "message": "股票池已刷新",
-                    "regime": latest_regime.dominant_regime,
+                    "regime": regime,
                     "count": len(screen_response.stock_codes),
                     "update_time": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
                 }
             )
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Failed to refresh equity stock pool")
             return Response(
-                {"success": False, "message": f"刷新股票池失败: {str(e)}"},
+                {"success": False, "message": "刷新股票池失败"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @staticmethod
+    def _resolve_current_regime_name() -> str | None:
+        """Resolve a canonical current Regime for display without inventing a fallback."""
+
+        from apps.regime.application.current_regime import resolve_current_regime
+
+        try:
+            result = resolve_current_regime()
+        except Exception:
+            logger.warning("Current Regime unavailable while loading stock pool", exc_info=True)
+            return None
+        regime = str(getattr(result, "dominant_regime", "") or "").strip()
+        return regime if regime in {item.value for item in RegimeType} else None
 
 
 __all__ = ["EquityPoolActionsMixin"]

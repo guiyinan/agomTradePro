@@ -208,7 +208,7 @@ class ScreenStocksRequest:
 
     regime: str | None = None  # 如果为 None，自动获取最新 Regime
     custom_rule: EquityPayload | None = None  # 自定义规则
-    max_count: int = 30
+    max_count: int | None = None
 
 
 @dataclass
@@ -253,7 +253,7 @@ class ScreenStocksUseCase:
         5. 返回结果
         """
         try:
-            if not 1 <= request.max_count <= 100:
+            if request.max_count is not None and not 1 <= request.max_count <= 100:
                 raise ValueError("max_count must be between 1 and 100")
 
             # 1. 获取 Regime
@@ -278,7 +278,7 @@ class ScreenStocksUseCase:
                 rule = self._parse_custom_rule(request.custom_rule, regime)
 
             # 调整 max_count
-            if request.max_count != rule.max_count:
+            if request.max_count is not None and request.max_count != rule.max_count:
                 rule = StockScreeningRule(
                     regime=rule.regime,
                     name=rule.name,

@@ -8,8 +8,12 @@
 """
 
 import logging
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
+from decimal import Decimal
+from typing import Protocol
 
 from apps.equity.application.config import get_valuation_repair_config
 from apps.equity.domain.entities_valuation_repair import (
@@ -24,13 +28,87 @@ from apps.equity.domain.services_valuation_repair import (
 )
 
 logger = logging.getLogger(__name__)
+Payload = dict[str, object]
+_STOCK_CODE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+class StockInfoProtocol(Protocol):
+    name: str
+
+
+class ValuationProtocol(Protocol):
+    trade_date: date
+    pe: Decimal | float | None
+    pb: Decimal | float | None
+
+
+class StockRepositoryProtocol(Protocol):
+    def get_stock_info(self, stock_code: str) -> StockInfoProtocol | None: ...
+    def get_valuation_history(
+        self, stock_code: str, start_date: date, end_date: date
+    ) -> Sequence[ValuationProtocol]: ...
+    def list_active_stock_codes(self, limit: int | None = None) -> list[str]: ...
+
+
+class QualitySnapshotProtocol(Protocol):
+    as_of_date: date
+    is_gate_passed: bool
+
+
+class QualityRepositoryProtocol(Protocol):
+    def get_snapshot(self, as_of_date: date) -> QualitySnapshotProtocol | None: ...
+    def get_latest_gate_passed_snapshot(self) -> QualitySnapshotProtocol | None: ...
+
+
+class RepairSnapshotProtocol(Protocol):
+    stock_code: str
+    stock_name: str
+    as_of_date: date
+    current_phase: str
+    signal: str
+    composite_percentile: float
+    repair_progress: float
+    repair_speed_per_30d: float
+    repair_duration_trading_days: int
+    estimated_days_to_target: int | None
+    is_stalled: bool
+    confidence: float
+
+
+class RepairRepositoryProtocol(Protocol):
+    def upsert_snapshot(
+        self, status: ValuationRepairStatus, source_universe: str = "all_active"
+    ) -> None: ...
+    def deactivate_snapshot(self, stock_code: str, source_universe: str = "all_active") -> None: ...
+    def list_active_snapshots(
+        self, source_universe: str = "all_active", phase: str | None = None, limit: int = 50
+    ) -> Sequence[RepairSnapshotProtocol | ValuationRepairStatus]: ...
+
+
+class StockPoolProtocol(Protocol):
+    def get_current_pool(self, limit: int | None = None) -> list[str]: ...
+
+
+def _validate_stock_code(stock_code: str) -> str:
+    normalized = stock_code.strip().upper()
+    if not normalized or not _STOCK_CODE_PATTERN.fullmatch(normalized):
+        raise ValueError("stock_code 格式无效")
+    return normalized
+
+
+def _validate_lookback_days(value: int) -> int:
+    if isinstance(value, bool) or not 20 <= value <= 3660:
+        raise ValueError("lookback_days 必须在 20 到 3660 之间")
+    return value
 
 
 # ============== 请求/响应 DTO ==============
 
+
 @dataclass
 class GetValuationRepairStatusRequest:
     """获取估值修复状态请求"""
+
     stock_code: str
     lookback_days: int = 756
 
@@ -38,15 +116,17 @@ class GetValuationRepairStatusRequest:
 @dataclass
 class GetValuationRepairStatusResponse:
     """获取估值修复状态响应"""
+
     success: bool
     stock_code: str
-    data: dict | None = None
+    data: Payload | None = None
     error: str | None = None
 
 
 @dataclass
 class GetValuationPercentileHistoryRequest:
     """获取百分位历史请求"""
+
     stock_code: str
     lookback_days: int = 252
 
@@ -54,15 +134,17 @@ class GetValuationPercentileHistoryRequest:
 @dataclass
 class GetValuationPercentileHistoryResponse:
     """获取百分位历史响应"""
+
     success: bool
     stock_code: str
-    data: list[dict]
+    data: list[Payload]
     error: str | None = None
 
 
 @dataclass
 class ScanValuationRepairsRequest:
     """扫描估值修复请求"""
+
     universe: str = "all_active"
     lookback_days: int = 756
     limit: int | None = None
@@ -71,6 +153,7 @@ class ScanValuationRepairsRequest:
 @dataclass
 class ScanValuationRepairsResponse:
     """扫描估值修复响应"""
+
     success: bool
     universe: str
     as_of_date: date
@@ -84,6 +167,7 @@ class ScanValuationRepairsResponse:
 @dataclass
 class ListValuationRepairsRequest:
     """列出估值修复请求"""
+
     universe: str = "all_active"
     phase: str | None = None
     limit: int = 50
@@ -92,19 +176,26 @@ class ListValuationRepairsRequest:
 @dataclass
 class ListValuationRepairsResponse:
     """列出估值修复响应"""
+
     success: bool
     universe: str
     count: int
-    data: list[dict]
+    data: list[Payload]
     error: str | None = None
 
 
 # ============== 用例实现 ==============
 
+
 class GetValuationRepairStatusUseCase:
     """获取估值修复状态用例（实时计算，不依赖快照表）"""
 
-    def __init__(self, stock_repository, valuation_repair_repository=None, valuation_quality_repository=None):
+    def __init__(
+        self,
+        stock_repository: StockRepositoryProtocol,
+        valuation_repair_repository: RepairRepositoryProtocol | None = None,
+        valuation_quality_repository: QualityRepositoryProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -127,20 +218,20 @@ class GetValuationRepairStatusUseCase:
         4. 返回结果
         """
         try:
+            stock_code = _validate_stock_code(request.stock_code)
+            lookback_days = _validate_lookback_days(request.lookback_days)
             # 1. 获取股票信息
-            stock_info = self.stock_repo.get_stock_info(request.stock_code)
+            stock_info = self.stock_repo.get_stock_info(stock_code)
             if not stock_info:
                 raise ValueError(f"未找到股票 {request.stock_code}")
 
             # 2. 获取估值历史数据
             # 计算足够长的日期范围以获取所需的交易日样本
             end_date = date.today()
-            start_date = end_date - timedelta(days=request.lookback_days * 2)  # 粗略估计
+            start_date = end_date - timedelta(days=lookback_days * 2)
 
             valuation_history = self.stock_repo.get_valuation_history(
-                request.stock_code,
-                start_date,
-                end_date
+                stock_code, start_date, end_date
             )
 
             if not valuation_history:
@@ -150,49 +241,45 @@ class GetValuationRepairStatusUseCase:
             history_dicts = [
                 {
                     "trade_date": v.trade_date,
-                    "pe": float(v.pe) if v.pe else None,
-                    "pb": float(v.pb) if v.pb else None,
+                    "pe": float(v.pe) if v.pe is not None else None,
+                    "pb": float(v.pb) if v.pb is not None else None,
                 }
                 for v in valuation_history
             ]
 
             # 4. 调用 Domain 层分析
             status = analyze_repair_status(
-                stock_code=request.stock_code,
+                stock_code=stock_code,
                 stock_name=stock_info.name,
                 history=history_dicts,
-                lookback_days=request.lookback_days,
+                lookback_days=lookback_days,
                 config=get_valuation_repair_config(use_cache=False),
             )
 
             # 5. 转换为字典返回
             return GetValuationRepairStatusResponse(
-                success=True,
-                stock_code=request.stock_code,
-                data=self._status_to_dict(status)
+                success=True, stock_code=request.stock_code, data=self._status_to_dict(status)
             )
 
         except InsufficientHistoryError as e:
             return GetValuationRepairStatusResponse(
-                success=False,
-                stock_code=request.stock_code,
-                error=f"历史数据不足: {str(e)}"
+                success=False, stock_code=request.stock_code, error=f"历史数据不足: {str(e)}"
             )
         except InvalidValuationDataError as e:
             return GetValuationRepairStatusResponse(
-                success=False,
-                stock_code=request.stock_code,
-                error=f"估值数据无效: {str(e)}"
+                success=False, stock_code=request.stock_code, error=f"估值数据无效: {str(e)}"
             )
-        except Exception as e:
-            logger.exception(f"获取估值修复状态失败: {request.stock_code}")
+        except Exception as exc:
+            logger.error(
+                "获取估值修复状态失败: stock=%s error_type=%s",
+                request.stock_code,
+                type(exc).__name__,
+            )
             return GetValuationRepairStatusResponse(
-                success=False,
-                stock_code=request.stock_code,
-                error=str(e)
+                success=False, stock_code=request.stock_code, error="获取估值修复状态失败"
             )
 
-    def _status_to_dict(self, status: ValuationRepairStatus) -> dict:
+    def _status_to_dict(self, status: ValuationRepairStatus) -> Payload:
         """将 ValuationRepairStatus 转换为字典"""
         return {
             "stock_code": status.stock_code,
@@ -206,7 +293,9 @@ class GetValuationRepairStatusUseCase:
             "pb_percentile": status.pb_percentile,
             "composite_percentile": status.composite_percentile,
             "composite_method": status.composite_method,
-            "repair_start_date": status.repair_start_date.isoformat() if status.repair_start_date else None,
+            "repair_start_date": (
+                status.repair_start_date.isoformat() if status.repair_start_date else None
+            ),
             "repair_start_percentile": status.repair_start_percentile,
             "lowest_percentile": status.lowest_percentile,
             "lowest_percentile_date": status.lowest_percentile_date.isoformat(),
@@ -215,7 +304,9 @@ class GetValuationRepairStatusUseCase:
             "repair_speed_per_30d": status.repair_speed_per_30d,
             "estimated_days_to_target": status.estimated_days_to_target,
             "is_stalled": status.is_stalled,
-            "stall_start_date": status.stall_start_date.isoformat() if status.stall_start_date else None,
+            "stall_start_date": (
+                status.stall_start_date.isoformat() if status.stall_start_date else None
+            ),
             "stall_duration_trading_days": status.stall_duration_trading_days,
             "repair_duration_trading_days": status.repair_duration_trading_days,
             "lookback_trading_days": status.lookback_trading_days,
@@ -238,7 +329,7 @@ class GetValuationRepairStatusUseCase:
 class GetValuationPercentileHistoryUseCase:
     """获取百分位历史序列用例（实时计算，不依赖快照表）"""
 
-    def __init__(self, stock_repository):
+    def __init__(self, stock_repository: StockRepositoryProtocol) -> None:
         """
         初始化用例
 
@@ -247,7 +338,9 @@ class GetValuationPercentileHistoryUseCase:
         """
         self.stock_repo = stock_repository
 
-    def execute(self, request: GetValuationPercentileHistoryRequest) -> GetValuationPercentileHistoryResponse:
+    def execute(
+        self, request: GetValuationPercentileHistoryRequest
+    ) -> GetValuationPercentileHistoryResponse:
         """
         执行获取百分位历史
 
@@ -257,14 +350,14 @@ class GetValuationPercentileHistoryUseCase:
         3. 转换为字典列表返回
         """
         try:
+            stock_code = _validate_stock_code(request.stock_code)
+            lookback_days = _validate_lookback_days(request.lookback_days)
             # 1. 获取估值历史数据
             end_date = date.today()
-            start_date = end_date - timedelta(days=request.lookback_days * 2)
+            start_date = end_date - timedelta(days=lookback_days * 2)
 
             valuation_history = self.stock_repo.get_valuation_history(
-                request.stock_code,
-                start_date,
-                end_date
+                stock_code, start_date, end_date
             )
 
             if not valuation_history:
@@ -274,8 +367,8 @@ class GetValuationPercentileHistoryUseCase:
             history_dicts = [
                 {
                     "trade_date": v.trade_date,
-                    "pe": float(v.pe) if v.pe else None,
-                    "pb": float(v.pb) if v.pb else None,
+                    "pe": float(v.pe) if v.pe is not None else None,
+                    "pb": float(v.pb) if v.pb is not None else None,
                 }
                 for v in valuation_history
             ]
@@ -283,12 +376,12 @@ class GetValuationPercentileHistoryUseCase:
             # 3. 调用 Domain 层构建百分位序列
             series = build_percentile_series(
                 history_dicts,
-                lookback_days=request.lookback_days,
+                lookback_days=lookback_days,
                 config=get_valuation_repair_config(use_cache=False),
             )
 
             # 4. 转换为字典列表
-            data = [
+            data: list[Payload] = [
                 {
                     "trade_date": point.trade_date.isoformat(),
                     "pe_percentile": point.pe_percentile,
@@ -300,9 +393,7 @@ class GetValuationPercentileHistoryUseCase:
             ]
 
             return GetValuationPercentileHistoryResponse(
-                success=True,
-                stock_code=request.stock_code,
-                data=data
+                success=True, stock_code=request.stock_code, data=data
             )
 
         except InsufficientHistoryError as e:
@@ -310,22 +401,23 @@ class GetValuationPercentileHistoryUseCase:
                 success=False,
                 stock_code=request.stock_code,
                 data=[],
-                error=f"历史数据不足: {str(e)}"
+                error=f"历史数据不足: {str(e)}",
             )
         except InvalidValuationDataError as e:
             return GetValuationPercentileHistoryResponse(
                 success=False,
                 stock_code=request.stock_code,
                 data=[],
-                error=f"估值数据无效: {str(e)}"
+                error=f"估值数据无效: {str(e)}",
             )
-        except Exception as e:
-            logger.exception(f"获取百分位历史失败: {request.stock_code}")
+        except Exception as exc:
+            logger.error(
+                "获取百分位历史失败: stock=%s error_type=%s",
+                request.stock_code,
+                type(exc).__name__,
+            )
             return GetValuationPercentileHistoryResponse(
-                success=False,
-                stock_code=request.stock_code,
-                data=[],
-                error=str(e)
+                success=False, stock_code=request.stock_code, data=[], error="获取百分位历史失败"
             )
 
 
@@ -350,11 +442,11 @@ class ScanValuationRepairsUseCase:
 
     def __init__(
         self,
-        stock_repository,
-        valuation_repair_repository,
-        stock_pool_adapter=None,
-        valuation_quality_repository=None
-    ):
+        stock_repository: StockRepositoryProtocol,
+        valuation_repair_repository: RepairRepositoryProtocol,
+        stock_pool_adapter: StockPoolProtocol | None = None,
+        valuation_quality_repository: QualityRepositoryProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -380,10 +472,17 @@ class ScanValuationRepairsUseCase:
         5. 返回统计信息
         """
         try:
-            if self.quality_repo:
-                snapshot = self.quality_repo.get_latest_gate_passed_snapshot()
-                if not snapshot:
+            _validate_lookback_days(request.lookback_days)
+            if isinstance(request.limit, bool) or (
+                request.limit is not None and not 1 <= request.limit <= 10000
+            ):
+                raise ValueError("limit 必须在 1 到 10000 之间")
+            as_of_date = date.today()
+            if self.quality_repo is not None:
+                quality_snapshot = self.quality_repo.get_latest_gate_passed_snapshot()
+                if quality_snapshot is None:
                     raise ValueError("valuation data quality gate not passed")
+                as_of_date = quality_snapshot.as_of_date
 
             # 1. 解析 universe
             stock_codes = self._resolve_universe(request.universe, request.limit)
@@ -392,11 +491,10 @@ class ScanValuationRepairsUseCase:
                 raise ValueError(f"未找到股票池: {request.universe}")
 
             # 2. 批量扫描
-            as_of_date = snapshot.as_of_date if self.quality_repo else date.today()
             scanned_count = 0
             saved_count = 0
             failed_count = 0
-            phase_counts = {}
+            phase_counts: dict[str, int] = {}
 
             for stock_code in stock_codes:
                 scanned_count += 1
@@ -412,35 +510,42 @@ class ScanValuationRepairsUseCase:
                     if status.phase in self.ACTIVE_PHASES:
                         # Active: 保存或更新快照
                         self.repair_repo.upsert_snapshot(
-                            status=status,
-                            source_universe=request.universe
+                            status=status, source_universe=request.universe
                         )
                         saved_count += 1
 
                     elif status.phase in self.INACTIVE_PHASES:
                         # Inactive: 停用快照
                         self.repair_repo.deactivate_snapshot(
-                            stock_code=stock_code,
-                            source_universe=request.universe
+                            stock_code=stock_code, source_universe=request.universe
                         )
 
-                except Exception as e:
+                except Exception as exc:
                     failed_count += 1
-                    logger.warning(f"扫描股票 {stock_code} 失败: {e}")
+                    logger.warning(
+                        "扫描股票失败: stock=%s error_type=%s",
+                        stock_code,
+                        type(exc).__name__,
+                    )
                     continue
 
             return ScanValuationRepairsResponse(
-                success=True,
+                success=failed_count == 0,
                 universe=request.universe,
                 as_of_date=as_of_date,
                 scanned_count=scanned_count,
                 saved_count=saved_count,
                 failed_count=failed_count,
-                phase_counts=phase_counts
+                phase_counts=phase_counts,
+                error="部分股票扫描失败" if failed_count else None,
             )
 
-        except Exception as e:
-            logger.exception(f"批量扫描失败: {request.universe}")
+        except Exception as exc:
+            logger.error(
+                "批量扫描失败: universe=%s error_type=%s",
+                request.universe,
+                type(exc).__name__,
+            )
             return ScanValuationRepairsResponse(
                 success=False,
                 universe=request.universe,
@@ -449,7 +554,7 @@ class ScanValuationRepairsUseCase:
                 saved_count=0,
                 failed_count=0,
                 phase_counts={},
-                error=str(e)
+                error="批量扫描失败",
             )
 
     def _resolve_universe(self, universe: str, limit: int | None) -> list[str]:
@@ -464,18 +569,11 @@ class ScanValuationRepairsUseCase:
             股票代码列表
         """
         if universe == "all_active":
-            # 获取所有活跃股票
-            if hasattr(self.stock_repo, "list_active_stock_codes"):
-                return self.stock_repo.list_active_stock_codes(limit=limit)
-            else:
-                # 降级方案
-                stocks = self.stock_repo.get_all_stocks_with_fundamentals()
-                codes = [s.stock_code for s, f, v in stocks]
-                return codes[:limit] if limit else codes
+            return self.stock_repo.list_active_stock_codes(limit=limit)
 
         elif universe == "current_pool":
             # 获取当前股票池
-            if self.pool_adapter:
+            if self.pool_adapter is not None:
                 return self.pool_adapter.get_current_pool(limit=limit)
             else:
                 raise ValueError("未配置 stock_pool_adapter")
@@ -484,7 +582,9 @@ class ScanValuationRepairsUseCase:
             # 假设是预定义的股票池名称
             raise ValueError(f"不支持的 universe: {universe}")
 
-    def _calculate_status(self, stock_code: str, lookback_days: int, as_of_date: date | None = None) -> ValuationRepairStatus:
+    def _calculate_status(
+        self, stock_code: str, lookback_days: int, as_of_date: date | None = None
+    ) -> ValuationRepairStatus:
         """
         计算单只股票的估值修复状态
 
@@ -504,11 +604,7 @@ class ScanValuationRepairsUseCase:
         end_date = as_of_date or date.today()
         start_date = end_date - timedelta(days=lookback_days * 2)
 
-        valuation_history = self.stock_repo.get_valuation_history(
-            stock_code,
-            start_date,
-            end_date
-        )
+        valuation_history = self.stock_repo.get_valuation_history(stock_code, start_date, end_date)
 
         if not valuation_history:
             raise ValueError(f"未找到股票 {stock_code} 的估值数据")
@@ -517,8 +613,8 @@ class ScanValuationRepairsUseCase:
         history_dicts = [
             {
                 "trade_date": v.trade_date,
-                "pe": float(v.pe) if v.pe else None,
-                "pb": float(v.pb) if v.pb else None,
+                "pe": float(v.pe) if v.pe is not None else None,
+                "pb": float(v.pb) if v.pb is not None else None,
             }
             for v in valuation_history
         ]
@@ -536,7 +632,7 @@ class ScanValuationRepairsUseCase:
 class ListValuationRepairsUseCase:
     """列出估值修复快照用例（不触发实时重算）"""
 
-    def __init__(self, valuation_repair_repository):
+    def __init__(self, valuation_repair_repository: RepairRepositoryProtocol) -> None:
         """
         初始化用例
 
@@ -557,31 +653,28 @@ class ListValuationRepairsUseCase:
         """
         try:
             snapshots = self.repair_repo.list_active_snapshots(
-                source_universe=request.universe,
-                phase=request.phase,
-                limit=request.limit
+                source_universe=request.universe, phase=request.phase, limit=request.limit
             )
 
             data = [self._snapshot_to_dict(s) for s in snapshots]
 
             return ListValuationRepairsResponse(
-                success=True,
-                universe=request.universe,
-                count=len(data),
-                data=data
+                success=True, universe=request.universe, count=len(data), data=data
             )
 
-        except Exception as e:
-            logger.exception(f"列出估值修复失败: {request.universe}")
+        except Exception as exc:
+            logger.error(
+                "列出估值修复失败: universe=%s error_type=%s",
+                request.universe,
+                type(exc).__name__,
+            )
             return ListValuationRepairsResponse(
-                success=False,
-                universe=request.universe,
-                count=0,
-                data=[],
-                error=str(e)
+                success=False, universe=request.universe, count=0, data=[], error="列出估值修复失败"
             )
 
-    def _snapshot_to_dict(self, snapshot) -> dict:
+    def _snapshot_to_dict(
+        self, snapshot: RepairSnapshotProtocol | ValuationRepairStatus
+    ) -> Payload:
         """将快照对象转换为字典"""
         # 支持两种类型：ValuationRepairStatus 或 ORM Model
         if isinstance(snapshot, ValuationRepairStatus):

@@ -18,6 +18,7 @@ Regime Orchestration Module.
 """
 
 from datetime import date, timedelta
+from math import isclose, isfinite
 from typing import Any
 
 from celery import chain, shared_task
@@ -29,17 +30,21 @@ from apps.regime.application.repository_provider import (
     build_macro_sync_task_gateway,
     get_regime_repository,
 )
+from apps.regime.domain.entities import RegimeSnapshot
+from apps.regime.domain.services_v2 import RegimeCalculationResult, RegimeType
 
 logger = get_task_logger(__name__)
+
+VALID_DAILY_SIGNAL_DIRECTIONS = frozenset({"BULLISH", "BEARISH", "NEUTRAL"})
+CALCULATION_READY_SYNC_STATUSES = frozenset({"success", "partial"})
 
 
 def build_regime_snapshot_from_v2_result(
     *,
-    calculation_result: Any,
+    calculation_result: RegimeCalculationResult,
     observed_at: date,
-) -> Any:
+) -> RegimeSnapshot:
     """Convert a V2 regime calculation result into a persistable snapshot."""
-    from apps.regime.domain.entities import RegimeSnapshot
 
     trend_by_indicator = {
         indicator.indicator_code: indicator for indicator in calculation_result.trend_indicators
@@ -53,17 +58,66 @@ def build_regime_snapshot_from_v2_result(
         raise ValueError(
             "V2 result is missing required trend indicators: " + ", ".join(missing_indicators)
         )
+    if growth_trend is None or inflation_trend is None:
+        raise ValueError("V2 result is missing required trend indicators")
+
+    growth_momentum_z = float(growth_trend.momentum_z)
+    inflation_momentum_z = float(inflation_trend.momentum_z)
+    confidence = float(calculation_result.confidence)
+    distribution = {
+        str(regime): float(probability)
+        for regime, probability in calculation_result.distribution.items()
+    }
+    expected_regimes = {item.value for item in RegimeType}
+    if not isfinite(growth_momentum_z) or not isfinite(inflation_momentum_z):
+        raise ValueError("V2 result contains non-finite momentum evidence")
+    if not isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+        raise ValueError("V2 result confidence must be finite and within [0, 1]")
+    if set(distribution) != expected_regimes:
+        raise ValueError("V2 result distribution must contain all four canonical regimes")
+    if any(not isfinite(value) or value < 0.0 for value in distribution.values()):
+        raise ValueError("V2 result distribution contains invalid probabilities")
+    if not isclose(sum(distribution.values()), 1.0, rel_tol=1e-6, abs_tol=1e-6):
+        raise ValueError("V2 result distribution probabilities must sum to 1")
+    if calculation_result.regime.value not in distribution:
+        raise ValueError("V2 result dominant regime is not present in its distribution")
 
     return RegimeSnapshot(
-        growth_momentum_z=float(growth_trend.momentum_z),
-        inflation_momentum_z=float(inflation_trend.momentum_z),
-        distribution=dict(calculation_result.distribution or {}),
+        growth_momentum_z=growth_momentum_z,
+        inflation_momentum_z=inflation_momentum_z,
+        distribution=distribution,
         dominant_regime=calculation_result.regime.value,
-        confidence=float(calculation_result.confidence),
+        confidence=confidence,
         observed_at=observed_at,
         data_source="calculated",
         fallback_count=0,
     )
+
+
+def _is_valid_daily_signal(
+    *,
+    direction: str | None,
+    strength: float,
+    confidence: float,
+) -> bool:
+    """Return whether a high-frequency directional signal is decision-safe."""
+
+    return (
+        direction in VALID_DAILY_SIGNAL_DIRECTIONS
+        and isfinite(strength)
+        and 0.0 <= strength <= 1.0
+        and isfinite(confidence)
+        and 0.0 <= confidence <= 1.0
+    )
+
+
+def _sync_result_allows_calculation(sync_result: dict[str, Any]) -> bool:
+    """Fail closed unless upstream synchronization explicitly reports usable data."""
+
+    status = str(sync_result.get("status") or "").strip().lower()
+    if status:
+        return status in CALCULATION_READY_SYNC_STATUSES
+    return sync_result.get("success") is True
 
 
 # ============================================================================
@@ -71,8 +125,8 @@ def build_regime_snapshot_from_v2_result(
 # ============================================================================
 
 
-@shared_task(time_limit=900, soft_time_limit=850)
-def generate_daily_regime_signal(as_of_date: str | None = None) -> dict:
+@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]
+def generate_daily_regime_signal(as_of_date: str | None = None) -> dict[str, Any]:
     """
     生成日度 Regime 信号任务
 
@@ -103,7 +157,11 @@ def generate_daily_regime_signal(as_of_date: str | None = None) -> dict:
 
         result = use_case.execute(request)
 
-        if result.success:
+        if result.success and _is_valid_daily_signal(
+            direction=result.signal_direction,
+            strength=result.signal_strength,
+            confidence=result.confidence,
+        ):
             logger.info(
                 f"Daily regime signal generated: {result.signal_direction}, "
                 f"strength={result.signal_strength:.2f}, "
@@ -122,19 +180,23 @@ def generate_daily_regime_signal(as_of_date: str | None = None) -> dict:
                 "contributing_indicators": result.contributing_indicators,
                 "warning_signals": result.warning_signals,
             }
-        else:
-            logger.error(f"Daily regime signal generation failed: {result.error}")
-            return {"status": "error", "error": result.error}
+        error = (
+            result.error
+            if not result.success
+            else "daily signal payload is incomplete or outside its valid range"
+        )
+        logger.error("Daily regime signal generation failed: %s", error)
+        return {"status": "error", "error": error}
 
     except Exception as exc:
         logger.error(f"Daily regime signal generation failed: {exc}")
         raise
 
 
-@shared_task(time_limit=900, soft_time_limit=850)
+@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]
 def recalculate_regime_with_daily_signal(
     as_of_date: str | None = None, use_pit: bool = True
-) -> dict:
+) -> dict[str, Any]:
     """
     重新计算 Regime（融合日度信号）
 
@@ -153,8 +215,6 @@ def recalculate_regime_with_daily_signal(
         from apps.regime.application.use_cases import (
             HighFrequencySignalRequest,
             HighFrequencySignalUseCase,
-            ResolveSignalConflictRequest,
-            ResolveSignalConflictUseCase,
         )
 
         target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
@@ -172,9 +232,14 @@ def recalculate_regime_with_daily_signal(
         daily_request = HighFrequencySignalRequest(as_of_date=target_date, lookback_days=30)
         daily_response = daily_use_case.execute(daily_request)
 
-        if not daily_response.success:
+        if not daily_response.success or not _is_valid_daily_signal(
+            direction=daily_response.signal_direction,
+            strength=daily_response.signal_strength,
+            confidence=daily_response.confidence,
+        ):
             logger.warning(
-                "Daily signal generation failed, using monthly only: %s", daily_response.error
+                "Daily signal unavailable or invalid; using monthly regime only: %s",
+                daily_response.error,
             )
             return {
                 "status": "success",
@@ -186,29 +251,21 @@ def recalculate_regime_with_daily_signal(
                 "daily_signal": None,
             }
 
-        # 3. 解决信号冲突
-        resolver = ResolveSignalConflictUseCase()
-        conflict_request = ResolveSignalConflictRequest(
-            daily_signal=daily_response.signal_direction,
-            daily_confidence=daily_response.confidence,
-            daily_duration_days=1,
-            monthly_signal=monthly_result.dominant_regime,
-            monthly_confidence=monthly_result.confidence,
-        )
-        resolution = resolver.execute(conflict_request)
-
+        # 日频信号表达方向，月频结果表达四象限；没有 Domain 映射证据时不能互相替代。
         logger.info(
-            f"Regime recalculation completed: final={resolution.final_signal}, "
-            f"reason={resolution.resolution_reason}"
+            "Daily directional context collected without changing monthly four-quadrant regime"
         )
 
         return {
             "status": "success",
             "as_of_date": str(target_date),
-            "final_regime": resolution.final_signal,
-            "final_confidence": resolution.final_confidence,
-            "source": resolution.source,
-            "resolution_reason": resolution.resolution_reason,
+            "final_regime": monthly_result.dominant_regime,
+            "final_confidence": monthly_result.confidence,
+            "source": "MONTHLY_WITH_DAILY_DIRECTION_CONTEXT",
+            "resolution_reason": (
+                "Daily signal is directional evidence and is not a four-quadrant "
+                "Regime classification."
+            ),
             "monthly_signal": monthly_result.dominant_regime,
             "monthly_confidence": monthly_result.confidence,
             "daily_signal": daily_response.signal_direction,
@@ -227,10 +284,10 @@ def recalculate_regime_with_daily_signal(
 # ============================================================================
 
 
-@shared_task(time_limit=900, soft_time_limit=850)
+@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]
 def calculate_regime_after_sync(
     sync_result: dict[str, Any] | None = None, as_of_date: str | None = None, use_pit: bool = True
-) -> dict:
+) -> dict[str, Any]:
     """
     在 macro 数据同步后计算 Regime
 
@@ -252,7 +309,7 @@ def calculate_regime_after_sync(
         )
 
         # 检查前一步是否成功
-        if sync_result and not sync_result.get("success", True):
+        if sync_result and not _sync_result_allows_calculation(sync_result):
             logger.warning(
                 f"Previous sync step failed, skipping regime calculation: "
                 f"{sync_result.get('error')}"
@@ -316,8 +373,10 @@ def calculate_regime_after_sync(
         raise
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
-def notify_regime_change_after_calculation(regime_result: dict[str, Any] | None = None) -> dict:
+@shared_task(time_limit=600, soft_time_limit=570)  # type: ignore[misc]
+def notify_regime_change_after_calculation(
+    regime_result: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     在 Regime 计算后发送变化通知
 
@@ -337,17 +396,36 @@ def notify_regime_change_after_calculation(regime_result: dict[str, Any] | None 
             )
             return {"status": "skipped", "reason": "regime_not_successful"}
 
+        dominant_regime = str(regime_result.get("dominant_regime") or "").strip()
+        confidence = regime_result.get("confidence")
+        raw_observed_at = regime_result.get("observed_at") or regime_result.get("as_of_date")
+        if (
+            dominant_regime not in {item.value for item in RegimeType}
+            or isinstance(confidence, bool)
+            or not isinstance(confidence, int | float)
+            or not isfinite(float(confidence))
+            or not 0.0 <= float(confidence) <= 1.0
+            or not isinstance(raw_observed_at, str)
+        ):
+            return {"status": "error", "reason": "invalid_regime_result"}
+        try:
+            current_date = date.fromisoformat(raw_observed_at)
+        except ValueError:
+            return {"status": "error", "reason": "invalid_regime_result"}
+
         logger.info(
             f"Checking regime change for notification: " f"{regime_result.get('dominant_regime')}"
         )
 
         regime_repo = get_regime_repository()
-        current_date = date.fromisoformat(
-            regime_result.get("observed_at", regime_result["as_of_date"])
-        )
         last_snapshot = regime_repo.get_latest_snapshot(
             before_date=current_date - timedelta(days=1)
         )
+
+        regime_changed = False
+        confidence_dropped = False
+        notification_attempted = False
+        notified = False
 
         # 检查是否有显著变化
         if last_snapshot:
@@ -392,15 +470,18 @@ def notify_regime_change_after_calculation(regime_result: dict[str, Any] | None 
                         getattr(django_settings, "PERFORMANCE_SUMMARY_RECIPIENTS", []),
                     )
                     if recipients:
-                        svc.send_email(
+                        notification_attempted = True
+                        email_results = svc.send_email(
                             subject=subject,
                             body=body,
                             recipients=recipients,
                             priority=NotificationPriority.URGENT,
                         )
+                        notified = notified or any(item.success for item in email_results)
 
                     # 同时发送系统告警
-                    svc.send_alert(
+                    notification_attempted = True
+                    alert_result = svc.send_alert(
                         title=subject,
                         message=body,
                         level="critical",
@@ -410,6 +491,7 @@ def notify_regime_change_after_calculation(regime_result: dict[str, Any] | None 
                             "confidence": regime_result["confidence"],
                         },
                     )
+                    notified = notified or bool(alert_result.success)
                 except Exception as notify_err:
                     logger.warning(f"Regime 变化通知发送失败: {notify_err}")
 
@@ -435,7 +517,8 @@ def notify_regime_change_after_calculation(regime_result: dict[str, Any] | None 
                         getattr(django_settings, "PERFORMANCE_SUMMARY_RECIPIENTS", []),
                     )
                     if recipients:
-                        svc.send_email(
+                        notification_attempted = True
+                        email_results = svc.send_email(
                             subject=(
                                 f"[重要] Regime 置信度下降: "
                                 f"{last_snapshot.confidence:.2f} → "
@@ -453,12 +536,17 @@ def notify_regime_change_after_calculation(regime_result: dict[str, Any] | None 
                             recipients=recipients,
                             priority=NotificationPriority.HIGH,
                         )
+                        notified = notified or any(item.success for item in email_results)
                 except Exception as notify_err:
                     logger.warning(f"置信度下降通知发送失败: {notify_err}")
 
+        notification_required = regime_changed or confidence_dropped
         return {
-            "status": "success",
-            "notified": True,
+            "status": "warning" if notification_required and not notified else "success",
+            "notified": notified,
+            "notification_attempted": notification_attempted,
+            "regime_changed": regime_changed,
+            "confidence_dropped": confidence_dropped,
             "regime": regime_result.get("dominant_regime"),
             "confidence": regime_result.get("confidence"),
         }
@@ -468,14 +556,14 @@ def notify_regime_change_after_calculation(regime_result: dict[str, Any] | None 
         raise
 
 
-@shared_task(time_limit=900, soft_time_limit=850)
+@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]
 def sync_macro_then_refresh_regime(
     source: str = "akshare",
     indicator: str | None = None,
     days_back: int = 30,
     use_pit: bool = True,
     as_of_date: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     编排任务：宏观数据同步 + Regime 计算 + 通知
 

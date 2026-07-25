@@ -1,3 +1,4 @@
+import logging
 import re
 from collections.abc import Callable
 from typing import TypeAlias, cast
@@ -28,6 +29,8 @@ from apps.equity.application.use_cases_valuation_sync import (
 )
 
 TaskPayload: TypeAlias = dict[str, object]
+
+logger = logging.getLogger(__name__)
 
 _SOURCE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 _STOCK_CODE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -413,8 +416,13 @@ def sync_financial_data_task(
             synced_count += stored_count
         except Exception as exc:
             error_count += 1
+            logger.warning(
+                "Financial data sync failed for %s: %s",
+                stock_code,
+                type(exc).__name__,
+            )
             if len(errors) < 10:  # 只记录前 10 个错误
-                errors.append(f"{stock_code}: {exc}")
+                errors.append(f"{stock_code}: 同步失败")
 
     return {
         "success": error_count < len(active_stock_codes),

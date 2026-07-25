@@ -191,6 +191,11 @@ def test_sync_financial_data_task_reports_complete_failure():
     assert result["synced_count"] == 0
     assert result["error_count"] == 2
     assert result["total_stocks"] == 2
+    assert result["errors"] == [
+        "000001.SZ: 同步失败",
+        "600000.SH: 同步失败",
+    ]
+    assert "provider down" not in str(result)
 
 
 def test_sync_financial_data_task_reports_partial_success():

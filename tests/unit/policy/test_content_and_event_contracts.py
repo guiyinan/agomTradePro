@@ -217,3 +217,32 @@ def test_policy_level_matcher_scores_keywords_and_returns_explainable_details() 
     )
     assert matcher.match(unmatched) is None
     assert extract_policy_level_from_title("央行降准", rules) == PolicyLevel.P2
+
+
+def test_policy_level_matcher_uses_higher_severity_for_equal_scores() -> None:
+    rules = [
+        PolicyLevelKeywordRule(PolicyLevel.P1, ["预期"], 1),
+        PolicyLevelKeywordRule(PolicyLevel.P3, ["紧急"], 1),
+    ]
+
+    assert extract_policy_level_from_title("紧急政策预期", rules) == PolicyLevel.P3
+
+
+def test_policy_level_matcher_rejects_invalid_rules_and_deduplicates_keywords() -> None:
+    with pytest.raises(ValueError, match="blank"):
+        PolicyLevelMatcher([PolicyLevelKeywordRule(PolicyLevel.P1, [""], 1)])
+    with pytest.raises(ValueError, match="positive"):
+        PolicyLevelMatcher([PolicyLevelKeywordRule(PolicyLevel.P2, ["降准"], 0)])
+    with pytest.raises(ValueError, match="P1, P2, or P3"):
+        PolicyLevelMatcher([PolicyLevelKeywordRule(PolicyLevel.P0, ["常态"], 1)])
+
+    matcher = PolicyLevelMatcher([PolicyLevelKeywordRule(PolicyLevel.P2, ["降准", " 降准 "], 3)])
+    item = RSSItem(
+        title="央行降准",
+        link="https://policy.test/deduplicated",
+        pub_date=datetime(2026, 7, 24, tzinfo=UTC),
+    )
+    level, details = matcher.match_with_details(item)
+    assert level == PolicyLevel.P2
+    assert details["score"] == 3
+    assert details["matched_keywords"] == ["降准"]

@@ -72,6 +72,17 @@ def test_build_regime_snapshot_rejects_missing_trend_indicators() -> None:
         )
 
 
+def test_build_regime_snapshot_rejects_non_finite_evidence() -> None:
+    calculation_result = _mock_v2_response().result
+    calculation_result.confidence = float("nan")
+
+    with pytest.raises(ValueError, match="confidence must be finite"):
+        build_regime_snapshot_from_v2_result(
+            calculation_result=calculation_result,
+            observed_at=date(2026, 4, 8),
+        )
+
+
 def test_notify_regime_change_after_calculation_uses_previous_snapshot(mocker) -> None:
     previous_snapshot = RegimeSnapshot(
         growth_momentum_z=0.2,
@@ -106,3 +117,6 @@ def test_notify_regime_change_after_calculation_uses_previous_snapshot(mocker) -
     repo.get_latest_snapshot.assert_called_once_with(before_date=date(2026, 4, 7))
     notification_service.send_alert.assert_called_once()
     assert result["status"] == "success"
+    assert result["regime_changed"] is True
+    assert result["notification_attempted"] is True
+    assert result["notified"] is True

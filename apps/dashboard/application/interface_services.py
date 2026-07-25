@@ -102,6 +102,7 @@ def _empty_decision_plane_data() -> DecisionPlaneData:
         quota_usage_percent=0.0,
         actionable_candidates=[],
         pending_requests=[],
+        quota_available=False,
     )
 
 

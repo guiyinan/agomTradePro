@@ -25,6 +25,42 @@ from core.exceptions import DataFetchError
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        ("post", "/api/equity/screen/", {"unexpected": True}),
+        ("post", "/api/equity/dcf/", {"stock_code": "000001.SZ", "unexpected": True}),
+        (
+            "post",
+            "/api/equity/comprehensive-valuation/",
+            {"stock_code": "000001.SZ", "unexpected": True},
+        ),
+        ("get", "/api/equity/technical/000001.SZ/?unexpected=true", None),
+        ("get", "/api/equity/intraday/000001.SZ/?unexpected=true", None),
+        (
+            "get",
+            "/api/equity/regime-correlation/000001.SZ/?unexpected=true",
+            None,
+        ),
+    ],
+)
+def test_equity_analysis_actions_reject_unknown_inputs(
+    authenticated_client,
+    method: str,
+    path: str,
+    payload: dict[str, object] | None,
+) -> None:
+    """Analysis endpoints must not silently discard undeclared input."""
+
+    if method == "post":
+        response = authenticated_client.post(path, payload, format="json")
+    else:
+        response = authenticated_client.get(path)
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
 def test_equity_pool_returns_empty_payload_when_no_pool(authenticated_client):
     regime = SimpleNamespace(dominant_regime="Recovery")
 
@@ -125,12 +161,43 @@ def test_equity_pool_default_read_chain_does_not_persist_business_state(
             "pb": 1.2,
             "revenue_growth": 8.0,
             "profit_growth": 10.0,
-            "score": 0,
+            "score": None,
         }
     ]
     assert after == before
     assert cache.get("equity:stock_pool:current") is None
     assert cache.get("equity:stock_pool:meta") is None
+
+
+@pytest.mark.django_db
+def test_equity_pool_keeps_missing_metrics_explicit(authenticated_client):
+    today = timezone.localdate()
+    StockPoolSnapshot.objects.create(
+        stock_codes=["000001.SZ"],
+        regime="Recovery",
+        as_of_date=today,
+        is_active=True,
+        count=1,
+    )
+    StockInfoModel.objects.create(
+        stock_code="000001.SZ",
+        name="平安银行",
+        sector="银行",
+        market="SZ",
+        list_date=today,
+        is_active=True,
+    )
+
+    response = authenticated_client.get("/api/equity/pool/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["avg_roe"] is None
+    assert payload["avg_pe"] is None
+    assert payload["stocks"][0]["roe"] is None
+    assert payload["stocks"][0]["pe"] is None
+    assert payload["stocks"][0]["pb"] is None
+    assert payload["stocks"][0]["score"] is None
 
 
 @pytest.mark.django_db
@@ -178,12 +245,91 @@ def test_equity_financial_history_is_persisted_only_and_filters_period_type(
 
 
 @pytest.mark.django_db
-def test_equity_refresh_pool_returns_503_when_regime_missing(authenticated_client):
+def test_equity_refresh_pool_requires_staff(authenticated_client):
+    response = authenticated_client.post("/api/equity/pool/refresh/", {}, format="json")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_equity_refresh_pool_returns_503_when_regime_missing(
+    authenticated_client,
+    auth_user,
+):
+    auth_user.is_staff = True
+    auth_user.save(update_fields=["is_staff"])
+
     with patch("apps.regime.application.current_regime.resolve_current_regime", return_value=None):
         response = authenticated_client.post("/api/equity/pool/refresh/", {}, format="json")
 
     assert response.status_code == 503
-    assert response.json()["message"] == "无法获取当前 Regime，请先运行 Regime 判定"
+    assert response.json()["message"] == "当前 Regime 不可用或处于降级状态，请先完成正式判定"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        ("get", "/api/equity/pool/?unexpected=true", None),
+        ("post", "/api/equity/pool/refresh/", {"unexpected": True}),
+    ],
+)
+def test_equity_pool_actions_reject_unknown_inputs(
+    authenticated_client,
+    auth_user,
+    method,
+    path,
+    payload,
+):
+    auth_user.is_staff = True
+    auth_user.save(update_fields=["is_staff"])
+
+    if method == "get":
+        response = authenticated_client.get(path)
+    else:
+        response = authenticated_client.post(path, payload, format="json")
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_equity_refresh_pool_preserves_existing_pool_when_screen_is_empty(
+    authenticated_client,
+    auth_user,
+):
+    auth_user.is_staff = True
+    auth_user.save(update_fields=["is_staff"])
+    captured = {}
+    empty_response = SimpleNamespace(success=True, stock_codes=[], error=None)
+
+    def execute(request):
+        captured["max_count"] = request.max_count
+        return empty_response
+
+    fake_use_case = SimpleNamespace(execute=execute)
+
+    with (
+        patch(
+            "apps.regime.application.current_regime.resolve_current_regime",
+            return_value=SimpleNamespace(
+                dominant_regime="Recovery",
+                is_fallback=False,
+            ),
+        ),
+        patch(
+            "apps.equity.interface.pool_actions.ScreenStocksUseCase",
+            return_value=fake_use_case,
+        ),
+        patch(
+            "apps.equity.infrastructure.adapters.StockPoolRepositoryAdapter.save_pool"
+        ) as save_pool,
+    ):
+        response = authenticated_client.post("/api/equity/pool/refresh/", {}, format="json")
+
+    assert response.status_code == 422
+    assert response.json()["message"] == "筛选结果为空，已保留现有股票池"
+    assert captured["max_count"] is None
+    save_pool.assert_not_called()
 
 
 @pytest.mark.django_db

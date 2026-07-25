@@ -7,6 +7,7 @@ P1-4: 接入输入消毒，防止 XSS 攻击
 """
 
 from collections.abc import Callable, Mapping
+from datetime import date
 from typing import Any, TypeAlias, TypeVar, cast
 
 from drf_spectacular.types import OpenApiTypes
@@ -64,6 +65,55 @@ RSSHUB_FORMAT_CHOICES = [
     ("atom", "Atom"),
     ("json", "JSON Feed"),
 ]
+
+
+class StrictFieldsSerializer(serializers.Serializer[dict[str, Any]]):
+    """Reject request fields outside the published API contract."""
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Validate the key set before normal DRF field conversion."""
+
+        if not isinstance(data, Mapping):
+            raise serializers.ValidationError("Expected an object payload.")
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {"non_field_errors": [f"Unknown parameters: {', '.join(unknown_fields)}"]}
+            )
+        return cast(dict[str, Any], super().to_internal_value(data))
+
+
+class PolicyStatusQuerySerializer(StrictFieldsSerializer):
+    """Validate the optional policy-status cutoff."""
+
+    as_of_date = serializers.DateField(required=False, allow_null=True)
+
+
+class PolicyHistoryQuerySerializer(StrictFieldsSerializer):
+    """Validate policy-history filters."""
+
+    start_date = serializers.DateField(required=True)
+    end_date = serializers.DateField(required=True)
+    level = serializers.ChoiceField(
+        choices=[level.value for level in PolicyLevel],
+        required=False,
+        allow_null=True,
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Reject reversed date ranges."""
+
+        start_date = cast(date, attrs["start_date"])
+        end_date = cast(date, attrs["end_date"])
+        if start_date > end_date:
+            raise serializers.ValidationError("start_date cannot be after end_date")
+        return attrs
+
+
+class PolicyEventIdentityQuerySerializer(StrictFieldsSerializer):
+    """Validate optional precise event selection."""
+
+    event_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
 
 
 @schema_string_field

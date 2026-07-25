@@ -200,6 +200,12 @@ def test_fund_research_contracts_reject_unknown_parameters(
         ("post", "/api/fund/screen/"),
         ("get", "/api/fund/rank/"),
         ("get", "/api/fund/score/000001/"),
+        ("get", "/api/fund/style/000001/"),
+        ("post", "/api/fund/performance/calculate/"),
+        ("get", "/api/fund/info/000001/"),
+        ("get", "/api/fund/nav/000001/"),
+        ("get", "/api/fund/holding/000001/"),
+        ("post", "/api/fund/multidim-screen/"),
     ],
 )
 def test_fund_research_contracts_require_authentication(api_client, method, path):
@@ -379,3 +385,63 @@ def test_fund_multidim_screen_returns_500_on_exception(authenticated_client):
     payload = response.json()
     assert payload["success"] is False
     assert "筛选失败" in payload["message"]
+    assert "boom" not in str(payload)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        (
+            "post",
+            "/api/fund/performance/calculate/",
+            {
+                "fund_code": "000001",
+                "start_date": "2026-07-10",
+                "end_date": "2026-07-01",
+            },
+        ),
+        (
+            "get",
+            "/api/fund/nav/000001/",
+            {"start_date": "2026-07-10", "end_date": "2026-07-01"},
+        ),
+        ("get", "/api/fund/nav/000001/", {"start_date": "not-a-date"}),
+        ("get", "/api/fund/holding/000001/", {"report_date": "not-a-date"}),
+        (
+            "post",
+            "/api/fund/multidim-screen/",
+            {"filters": {}, "max_count": 10},
+        ),
+    ],
+)
+def test_fund_contracts_reject_invalid_dates_and_missing_context(
+    authenticated_client,
+    method,
+    path,
+    payload,
+):
+    response = getattr(authenticated_client, method)(path, payload, format="json")
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_fund_multidim_empty_result_is_404_not_500(authenticated_client):
+    response = authenticated_client.post(
+        "/api/fund/multidim-screen/",
+        {
+            "filters": {"fund_type": "不存在类型"},
+            "context": {
+                "regime": "Recovery",
+                "policy_level": "P0",
+                "sentiment_index": 0.0,
+            },
+            "max_count": 10,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 404
+    assert response.json()["success"] is False
+    assert response.json()["count"] == 0

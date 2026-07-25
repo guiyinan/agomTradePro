@@ -91,10 +91,16 @@ def test_market_thermometer_current_returns_user_override_contract(user_client):
         ("put", "/api/data-center/market-thermometer/config/", {"hot_threshold": 62.0}),
         ("post", "/api/data-center/market-thermometer/calculate/", {}),
         ("post", "/api/data-center/market-thermometer/sync-inputs/", {}),
-        ("post", "/api/data-center/market-thermometer/import/investor-accounts/", {"csv_text": "reporting_period,value\n2026-04-30,100\n"}),
+        (
+            "post",
+            "/api/data-center/market-thermometer/import/investor-accounts/",
+            {"csv_text": "reporting_period,value\n2026-04-30,100\n"},
+        ),
     ],
 )
-def test_market_thermometer_admin_endpoints_forbid_regular_users(user_client, method, path, payload):
+def test_market_thermometer_admin_endpoints_forbid_regular_users(
+    user_client, method, path, payload
+):
     response = getattr(user_client, method)(
         path,
         data=json.dumps(payload),
@@ -128,6 +134,23 @@ def test_market_thermometer_me_supports_upsert_and_delete(user_client):
 
     assert delete_response.status_code == 204
     assert MarketThermometerUserOverrideModel.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/data-center/market-thermometer/current/?use_personal_thresholds=unknown",
+        "/api/data-center/market-thermometer/history/?days=0",
+        "/api/data-center/market-thermometer/history/?days=not-a-number",
+    ],
+)
+def test_market_thermometer_queries_reject_invalid_values(user_client, path):
+    response = user_client.get(path)
+
+    assert response.status_code == 400
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json()["detail"]
 
 
 @pytest.mark.django_db
@@ -171,6 +194,4 @@ def test_market_thermometer_import_investor_accounts_supports_dry_run_units(admi
     assert converted_payload["source_unit"] == "万户"
     assert converted_payload["unit"] == "户"
     assert converted_payload["warnings"] == []
-    assert MacroFactModel.objects.filter(
-        indicator_code="CN_A_NEW_INVESTOR_ACCOUNTS"
-    ).count() == 0
+    assert MacroFactModel.objects.filter(indicator_code="CN_A_NEW_INVESTOR_ACCOUNTS").count() == 0
