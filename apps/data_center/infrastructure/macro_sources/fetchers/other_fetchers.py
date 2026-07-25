@@ -1,43 +1,69 @@
-"""
-Data Center 其他指标数据获取器。
+"""Data Center fetchers for employment, housing, and refined-oil indicators."""
 
-包含就业、房产、价格等其他指标的获取逻辑。
-"""
+from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from datetime import date
+from typing import Any
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 from ..base import DataValidationError, MacroDataPoint
-from .common import parse_required_float, pick_column, resolve_indicator_units
+from .common import parse_required_float, resolve_indicator_units
 
 logger = logging.getLogger(__name__)
 
+ValidateDataPoint = Callable[[MacroDataPoint], None]
+SortAndDeduplicate = Callable[[list[MacroDataPoint]], list[MacroDataPoint]]
 
-def _safe_percent_point(value, default=0.0):
-    """Return percentage-style source values in percentage points."""
-    try:
-        return parse_required_float(value)
-    except ValueError:
-        return default
+_NATIONAL_UNEMPLOYMENT_ITEM = "全国城镇调查失业率"
+_HOUSE_CITY = "北京"
 
 
-def parse_chinese_date(date_str: str) -> str:
-    """解析中文日期格式"""
-    if '年' in str(date_str) and '月' in str(date_str):
-        match = re.match(r'(\d{4})年(\d{1,2})月', str(date_str))
-        if match:
-            year, month = match.groups()
-            return f"{year}-{month.zfill(2)}"
-    return date_str
+def parse_month_period(value: object) -> str:
+    """Normalize supported monthly source labels without partial matching."""
+
+    text = str(value).strip()
+    match = re.fullmatch(r"(\d{4})(\d{2})", text)
+    if match is None:
+        match = re.fullmatch(r"(\d{4})年(\d{1,2})月份?", text)
+    if match is None:
+        return text
+
+    year, month_text = match.groups()
+    month = int(month_text)
+    if not 1 <= month <= 12:
+        return text
+    return f"{year}-{month:02d}-01"
+
+
+def _require_columns(
+    dataframe: Any,
+    required_columns: tuple[str, ...],
+    *,
+    dataset_name: str,
+) -> None:
+    """Reject upstream schema drift instead of guessing columns by position."""
+
+    missing = [column for column in required_columns if column not in dataframe.columns]
+    if missing:
+        raise DataValidationError(
+            f"{dataset_name} 数据缺少必需列 {missing}，当前列: {list(dataframe.columns)}"
+        )
 
 
 class OtherIndicatorFetcher:
-    """其他指标获取器"""
+    """Fetch employment, Beijing new-house, and refined-oil facts."""
 
-    def __init__(self, ak, source_name: str, validate_fn, sort_dedup_fn):
+    def __init__(
+        self,
+        ak: Any,
+        source_name: str,
+        validate_fn: ValidateDataPoint,
+        sort_dedup_fn: SortAndDeduplicate,
+    ) -> None:
         self.ak = ak
         self.source_name = source_name
         self._validate = validate_fn
@@ -46,152 +72,144 @@ class OtherIndicatorFetcher:
     def fetch_unemployment(
         self,
         start_date: date,
-        end_date: date
+        end_date: date,
     ) -> list[MacroDataPoint]:
-        """获取中国城镇调查失业率数据"""
-        try:
-            df = self.ak.macro_china_urban_unemployment()
-            if df.empty:
-                logger.warning("失业率数据为空")
-                return []
+        """Fetch the NBS national urban surveyed unemployment rate."""
 
-            date_col = pick_column(df, ['月份', '日期'], 0)
-            value_col = pick_column(df, ['城镇调查失业率', '今值'], 1)
-
-            df['date'] = pd.to_datetime(
-                df[date_col].apply(parse_chinese_date),
-                format='mixed',
-                errors='coerce',
-            )
-            df = df[['date', value_col]].dropna()
-            df.columns = ['observed_at', 'value']
-            df = df[
-                (df['observed_at'].dt.date >= start_date) &
-                (df['observed_at'].dt.date <= end_date)
-            ]
-
-            data_points = []
-            unit, original_unit = resolve_indicator_units("CN_UNEMPLOYMENT")
-            for _, row in df.iterrows():
-                try:
-                    value_decimal = _safe_percent_point(row['value'])
-                    point = MacroDataPoint(
-                        code="CN_UNEMPLOYMENT",
-                        value=value_decimal,
-                        observed_at=row['observed_at'].date(),
-                        source=self.source_name,
-                        unit=unit,
-                        original_unit=original_unit
-                    )
-                    self._validate(point)
-                    data_points.append(point)
-                except (ValueError, DataValidationError) as e:
-                    logger.warning(f"跳过无效失业率数据: {row}, 错误: {e}")
-
-            return self._sort_and_deduplicate(data_points)
-
-        except Exception as e:
-            logger.warning(f"获取失业率数据失败，跳过该指标: {e}")
+        df = self.ak.macro_china_urban_unemployment()
+        if df.empty:
+            logger.warning("失业率数据为空")
             return []
+
+        _require_columns(
+            df,
+            ("date", "item", "value"),
+            dataset_name="城镇调查失业率",
+        )
+        df = df[df["item"] == _NATIONAL_UNEMPLOYMENT_ITEM].copy()
+        if df.empty:
+            raise DataValidationError(
+                f"城镇调查失业率数据缺少指标项: {_NATIONAL_UNEMPLOYMENT_ITEM}"
+            )
+
+        df["observed_at"] = pd.to_datetime(
+            df["date"].apply(parse_month_period),
+            format="mixed",
+            errors="coerce",
+        )
+        df = df[["observed_at", "value"]].dropna()
+        df = df[(df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)]
+
+        data_points: list[MacroDataPoint] = []
+        unit, original_unit = resolve_indicator_units("CN_UNEMPLOYMENT")
+        for _, row in df.iterrows():
+            try:
+                value = parse_required_float(row["value"])
+                if not 0 < value <= 100:
+                    raise DataValidationError(
+                        f"全国城镇调查失业率必须在 0..100 之间且不能为 0: {value}"
+                    )
+                point = MacroDataPoint(
+                    code="CN_UNEMPLOYMENT",
+                    value=value,
+                    observed_at=row["observed_at"].date(),
+                    source=self.source_name,
+                    unit=unit,
+                    original_unit=original_unit,
+                )
+                self._validate(point)
+                data_points.append(point)
+            except (ValueError, DataValidationError) as exc:
+                logger.warning("跳过无效失业率数据: %s, 错误: %s", row, exc)
+
+        return self._sort_and_deduplicate(data_points)
 
     def fetch_new_house_price(
         self,
         start_date: date,
-        end_date: date
+        end_date: date,
     ) -> list[MacroDataPoint]:
-        """获取中国新房价格指数数据"""
-        try:
-            df = self.ak.macro_china_new_house_price()
-            if df.empty:
-                logger.warning("新房价格指数数据为空")
-                return []
+        """Fetch Beijing new-commercial-home year-on-year price change."""
 
-            date_col_idx = 0
-            region_col_idx = 1
-            value_col_idx = 2
+        df = self.ak.macro_china_new_house_price()
+        if df.empty:
+            logger.warning("新房价格指数数据为空")
+            return []
 
-            df_filtered = df[df.iloc[:, region_col_idx] == '北京'].copy()
-            if df_filtered.empty:
-                logger.warning("新房价格指数中北京数据为空")
-                return []
+        value_column = "新建商品住宅价格指数-同比"
+        _require_columns(
+            df,
+            ("日期", "城市", value_column),
+            dataset_name="新建商品住宅价格指数",
+        )
+        df = df[df["城市"] == _HOUSE_CITY].copy()
+        if df.empty:
+            raise DataValidationError(f"新房价格指数数据缺少城市: {_HOUSE_CITY}")
 
-            df_filtered['observed_at'] = pd.to_datetime(df_filtered.iloc[:, date_col_idx], format='mixed', errors='coerce')
-            df_filtered['value'] = pd.to_numeric(df_filtered.iloc[:, value_col_idx], errors='coerce')
-            df_filtered = df_filtered[['observed_at', 'value']].dropna()
-            df_filtered = df_filtered[
-                (df_filtered['observed_at'].dt.date >= start_date) &
-                (df_filtered['observed_at'].dt.date <= end_date)
-            ]
+        df["observed_at"] = pd.to_datetime(df["日期"], format="mixed", errors="coerce")
+        df = df[["observed_at", value_column]].dropna()
+        df = df[(df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)]
 
-            data_points = []
-            unit, original_unit = resolve_indicator_units("CN_NEW_HOUSE_PRICE")
-            for _, row in df_filtered.iterrows():
-                try:
-                    value_yoy = parse_required_float(row['value']) - 100.0
-                    point = MacroDataPoint(
-                        code="CN_NEW_HOUSE_PRICE",
-                        value=value_yoy,
-                        observed_at=row['observed_at'].date(),
-                        source=self.source_name,
-                        unit=unit,
-                        original_unit=original_unit
-                    )
-                    self._validate(point)
-                    data_points.append(point)
-                except (ValueError, DataValidationError) as e:
-                    logger.warning(f"跳过无效新房价格指数数据: {row}, 错误: {e}")
+        data_points: list[MacroDataPoint] = []
+        unit, original_unit = resolve_indicator_units("CN_NEW_HOUSE_PRICE")
+        for _, row in df.iterrows():
+            try:
+                point = MacroDataPoint(
+                    code="CN_NEW_HOUSE_PRICE",
+                    value=parse_required_float(row[value_column]) - 100.0,
+                    observed_at=row["observed_at"].date(),
+                    source=self.source_name,
+                    unit=unit,
+                    original_unit=original_unit,
+                )
+                self._validate(point)
+                data_points.append(point)
+            except (ValueError, DataValidationError) as exc:
+                logger.warning("跳过无效新房价格指数数据: %s, 错误: %s", row, exc)
 
-            return self._sort_and_deduplicate(data_points)
-
-        except Exception as e:
-            logger.error(f"获取新房价格指数数据失败: {e}")
-            raise
+        return self._sort_and_deduplicate(data_points)
 
     def fetch_oil_price(
         self,
         start_date: date,
-        end_date: date
+        end_date: date,
     ) -> list[MacroDataPoint]:
-        """获取中国成品油价格数据"""
-        try:
-            df = self.ak.energy_oil_hist()
-            if df.empty:
-                logger.warning("成品油价格数据为空")
-                return []
+        """Fetch the published gasoline price in its source unit, yuan per tonne."""
 
-            date_col = '调价日期' if '调价日期' in df.columns else df.columns[0]
-            value_col = '汽油最高零售价' if '汽油最高零售价' in df.columns else df.columns[1]
+        df = self.ak.energy_oil_hist()
+        if df.empty:
+            logger.warning("成品油价格数据为空")
+            return []
 
-            df['date'] = pd.to_datetime(df[date_col], format='mixed', errors='coerce')
-            df = df[['date', value_col]].dropna()
-            df.columns = ['observed_at', 'value']
-            df = df[
-                (df['observed_at'].dt.date >= start_date) &
-                (df['observed_at'].dt.date <= end_date)
-            ]
+        _require_columns(
+            df,
+            ("调整日期", "汽油价格"),
+            dataset_name="汽柴油历史调价",
+        )
+        df = df.copy()
+        df["observed_at"] = pd.to_datetime(
+            df["调整日期"],
+            format="mixed",
+            errors="coerce",
+        )
+        df = df[["observed_at", "汽油价格"]].dropna()
+        df = df[(df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)]
 
-            data_points = []
-            unit, original_unit = resolve_indicator_units("CN_OIL_PRICE")
-            for _, row in df.iterrows():
-                try:
-                    # 原始数据单位是元/吨，转换为元/升
-                    # 假设汽油密度约为 0.735 kg/L，即 1 吨 ≈ 1360 升
-                    value_in_yuan_per_liter = float(row['value']) / 1360
-                    point = MacroDataPoint(
-                        code="CN_OIL_PRICE",
-                        value=value_in_yuan_per_liter,
-                        observed_at=row['observed_at'].date(),
-                        source=self.source_name,
-                        unit=unit,
-                        original_unit=original_unit
-                    )
-                    self._validate(point)
-                    data_points.append(point)
-                except (ValueError, DataValidationError) as e:
-                    logger.warning(f"跳过无效成品油价格数据: {row}, 错误: {e}")
+        data_points: list[MacroDataPoint] = []
+        unit, original_unit = resolve_indicator_units("CN_OIL_PRICE")
+        for _, row in df.iterrows():
+            try:
+                point = MacroDataPoint(
+                    code="CN_OIL_PRICE",
+                    value=parse_required_float(row["汽油价格"]),
+                    observed_at=row["observed_at"].date(),
+                    source=self.source_name,
+                    unit=unit,
+                    original_unit=original_unit,
+                )
+                self._validate(point)
+                data_points.append(point)
+            except (ValueError, DataValidationError) as exc:
+                logger.warning("跳过无效成品油价格数据: %s, 错误: %s", row, exc)
 
-            return self._sort_and_deduplicate(data_points)
-
-        except Exception as e:
-            logger.error(f"获取成品油价格数据失败: {e}")
-            raise
+        return self._sort_and_deduplicate(data_points)

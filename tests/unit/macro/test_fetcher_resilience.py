@@ -129,16 +129,50 @@ class _RateLikeOtherAK:
     def macro_china_urban_unemployment(self):
         return pd.DataFrame(
             {
-                "月份": ["2025年03月"],
-                "城镇调查失业率": [5.2],
+                "date": ["202503", "202503"],
+                "item": ["全国城镇调查失业率", "31个大城市城镇调查失业率"],
+                "value": [5.2, 5.1],
             }
         )
 
     def macro_china_new_house_price(self):
         return pd.DataFrame(
-            [
-                ["2025-03-01", "北京", 101.4],
-            ]
+            {
+                "日期": ["2025-03-01", "2025-03-01"],
+                "城市": ["上海", "北京"],
+                "新建商品住宅价格指数-同比": [109.9, 101.4],
+            }
+        )
+
+    def energy_oil_hist(self):
+        return pd.DataFrame(
+            {
+                "调整日期": ["2025-03-01"],
+                "汽油价格": [8_160.0],
+                "柴油价格": [7_200.0],
+            }
+        )
+
+
+class _InvalidUnemploymentValueAK(_RateLikeOtherAK):
+    def macro_china_urban_unemployment(self):
+        return pd.DataFrame(
+            {
+                "date": ["202502", "202503"],
+                "item": ["全国城镇调查失业率", "全国城镇调查失业率"],
+                "value": ["--", 0.0],
+            }
+        )
+
+
+class _UnemploymentSchemaDriftAK(_RateLikeOtherAK):
+    def macro_china_urban_unemployment(self):
+        return pd.DataFrame(
+            {
+                "月份": ["202503"],
+                "指标": ["全国城镇调查失业率"],
+                "数值": [5.2],
+            }
         )
 
 
@@ -185,6 +219,10 @@ def governed_macro_runtime_metadata(monkeypatch) -> None:
             "CN_UNEMPLOYMENT": {"default_unit": "%", "governance_scope": "macro_console"},
             "CN_NEW_HOUSE_PRICE": {
                 "default_unit": "%",
+                "governance_scope": "macro_console",
+            },
+            "CN_OIL_PRICE": {
+                "default_unit": "元/吨",
                 "governance_scope": "macro_console",
             },
         },
@@ -511,12 +549,11 @@ def test_fetch_fx_reserves_keeps_catalog_unit_in_hundred_million_usd() -> None:
     assert points[0].unit == "亿美元"
 
 
-def test_fetch_unemployment_gracefully_skips_upstream_parse_failure() -> None:
+def test_fetch_unemployment_propagates_upstream_failure() -> None:
     fetcher = OtherIndicatorFetcher(_BrokenUnemploymentAK(), "akshare", _validate, _sort)
 
-    points = fetcher.fetch_unemployment(date(2025, 1, 1), date(2025, 12, 31))
-
-    assert points == []
+    with pytest.raises(ValueError, match="JSON decode failed"):
+        fetcher.fetch_unemployment(date(2025, 1, 1), date(2025, 12, 31))
 
 
 def test_fetch_unemployment_keeps_percent_point_values() -> None:
@@ -530,6 +567,31 @@ def test_fetch_unemployment_keeps_percent_point_values() -> None:
     assert points[0].unit == "%"
 
 
+def test_fetch_unemployment_does_not_turn_invalid_text_into_zero() -> None:
+    fetcher = OtherIndicatorFetcher(
+        _InvalidUnemploymentValueAK(),
+        "akshare",
+        _validate,
+        _sort,
+    )
+
+    points = fetcher.fetch_unemployment(date(2025, 1, 1), date(2025, 12, 31))
+
+    assert points == []
+
+
+def test_fetch_unemployment_rejects_schema_drift() -> None:
+    fetcher = OtherIndicatorFetcher(
+        _UnemploymentSchemaDriftAK(),
+        "akshare",
+        _validate,
+        _sort,
+    )
+
+    with pytest.raises(DataValidationError, match="缺少必需列"):
+        fetcher.fetch_unemployment(date(2025, 1, 1), date(2025, 12, 31))
+
+
 def test_fetch_new_house_price_returns_percent_point_change() -> None:
     fetcher = OtherIndicatorFetcher(_RateLikeOtherAK(), "akshare", _validate, _sort)
 
@@ -539,3 +601,14 @@ def test_fetch_new_house_price_returns_percent_point_change() -> None:
     assert points[0].code == "CN_NEW_HOUSE_PRICE"
     assert points[0].value == pytest.approx(1.4)
     assert points[0].unit == "%"
+
+
+def test_fetch_oil_price_keeps_governed_source_unit_without_density_guess() -> None:
+    fetcher = OtherIndicatorFetcher(_RateLikeOtherAK(), "akshare", _validate, _sort)
+
+    points = fetcher.fetch_oil_price(date(2025, 1, 1), date(2025, 12, 31))
+
+    assert len(points) == 1
+    assert points[0].code == "CN_OIL_PRICE"
+    assert points[0].value == 8_160.0
+    assert points[0].unit == "元/吨"

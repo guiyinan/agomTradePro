@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2685,
-    "files_with_errors": 558
+    "errors": 2678,
+    "files_with_errors": 557
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -862,12 +862,6 @@
       "assignment": 3,
       "misc": 2,
       "var-annotated": 1
-    },
-    "apps/data_center/infrastructure/macro_sources/fetchers/other_fetchers.py": {
-      "import-untyped": 1,
-      "no-any-return": 3,
-      "no-untyped-call": 1,
-      "no-untyped-def": 2
     },
     "apps/data_center/infrastructure/macro_sources/fetchers/trade_fetchers.py": {
       "import-untyped": 1,

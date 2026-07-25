@@ -2804,3 +2804,20 @@
 - 高频 Fetcher、Regime 观察指标、高频信号规则及语义隔离迁移回归共 `40 passed`；新增覆盖中美国别/期限精确列、同日利差派生、schema 漂移、空数据异常路径、错误商品/汇率端点禁止调用和历史事实隔离。
 - Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
 - 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十二批
+
+- 按“就业/房价/能源事实真实性 × Regime 增长与通胀输入影响面”收口 Data Center Other Fetcher。
+- 城镇调查失业率对齐当前 AKShare `date/item/value` 契约，只读取“全国城镇调查失业率”；删除按位置回退到 `item` 列和解析失败默认 0 的逻辑，避免把指标名称文本发布成 0% 失业率。
+- 全国失业率要求为 `(0, 100]` 有限百分点；AKShare 官方样例中的 0 缺失占位和其他无效值跳过，历史 AKShare 0 值事实由迁移标记为 `error` 并保留原质量和原因。
+- 新建商品住宅价格改用“日期/城市/新建商品住宅价格指数-同比”显式列契约，只选择北京并将目录名称、描述和 geographic metadata 明确为北京单城市序列，不再冒充全国房价。
+- 成品油价格改用“调整日期/汽油价格”显式列契约并保持上游元/吨原值；删除运行时硬编码的 1360 升/吨密度假设，目录和单位规则统一为元/吨。
+- 数据迁移把历史 AKShare 元/升油价按旧运行时除数可逆还原为元/吨，并记录修复前值、单位和转换依据；迁移回滚可恢复旧目录、单位规则、油价事实和失业率质量。
+- Other Fetcher 的第三方模块、回调、DataFrame、数据点列表与返回边界补齐精确类型，仅在 pandas 外部库边界保留定点 `import-untyped` 注释。
+
+## 第一百九十二批验证结果
+
+- Other Fetcher 增量 mypy 清零；全仓基线从 `2685 errors / 558 files` 收紧为 `2678 errors / 557 files`，净减少 `7 errors / 1 file`。
+- Other Fetcher、Macro Fetcher Resilience、目录治理命令与语义修复迁移回归共 `37 passed`；新增覆盖正式 AKShare 列契约、全国指标项筛选、0/缺失值拒绝、北京/上海隔离、schema 漂移、油价原始单位和历史事实修复。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。

@@ -54,6 +54,12 @@ python manage.py normalize_macro_fact_units --check
 - `normalize_macro_fact_units` 不只修数值和单位，也会回填 `matched_rule_id`、`display_unit`、`dimension_key`、`publication_lag_days` 等治理元信息
 - 脏数据修复流程固定为：先修 fetcher / 规则，再走 `SyncMacroUseCase` 重刷事实，最后执行 `python manage.py normalize_macro_fact_units` 并要求 dry-run 为 `updated=0`
 
+## 2026-07-25 其他宏观事实口径修复
+
+- `CN_UNEMPLOYMENT` 固定读取 AKShare 的 `date/item/value` 契约及“全国城镇调查失业率”指标项；0 值按上游缺失占位隔离，不再发布伪造的 0% 失业率。
+- `CN_NEW_HOUSE_PRICE` 明确为“北京新建商品住宅价格同比变动”，不再用泛中国名称掩盖单城市样本。
+- `CN_OIL_PRICE` 保留上游“汽油价格”的原始元/吨口径；运行时代码删除固定 1360 升/吨的密度换算假设，历史 AKShare 元/升事实可逆还原为元/吨。
+
 ## 2026-07-19 Regime CPI 读取口径修复
 
 - `CN_CPI_NATIONAL_YOY` 的 canonical storage unit 是 `%`，数值直接表示百分比点；例如 `0.1` 表示 `0.1%`，读取链不得再按数值大小猜测口径并乘以 100。

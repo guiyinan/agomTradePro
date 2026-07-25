@@ -287,9 +287,13 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
         semantics="flow_level",
     ),
     "CN_NEW_HOUSE_PRICE": _row(
-        name_cn="新房价格同比变动",
-        description="当前按新房价格指数减 100 后入库，代表同比变动幅度，应按同比增速序列理解。",
+        name_cn="北京新建商品住宅价格同比变动",
+        description=(
+            "北京市新建商品住宅价格同比指数减 100 后的月度变动幅度；"
+            "属于北京单城市序列，不代表全国房价。"
+        ),
         semantics="yoy_rate",
+        extra={"geographic_scope": "city", "city": "北京"},
     ),
     "CN_NHCI": _row(
         name_cn="南华商品指数",
@@ -302,8 +306,8 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
         semantics="index_level",
     ),
     "CN_OIL_PRICE": _row(
-        name_cn="成品油价格",
-        description="调价时点价格水平值口径，用于连续观察成品油价格水平。",
+        name_cn="汽油最高零售价格",
+        description="国家发改委调价时点汽油最高零售价格，按数据源原始元/吨口径发布。",
         semantics="level",
     ),
     "CN_PBOC_NET_INJECTION": _row(
