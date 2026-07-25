@@ -2,7 +2,11 @@
 
 import pytest
 
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, PublisherCatalogModel
+from apps.data_center.infrastructure.models import (
+    IndicatorCatalogModel,
+    IndicatorUnitRuleModel,
+    PublisherCatalogModel,
+)
 
 
 @pytest.mark.django_db
@@ -14,6 +18,20 @@ def test_indicator_catalog_seed_contains_core_phase2_codes():
     )
 
     assert codes == {"CN_GDP", "CN_PMI", "CN_CPI", "CN_M2", "CN_SHIBOR"}
+
+
+@pytest.mark.django_db
+def test_akshare_m2_raw_unit_rule_uses_canonical_currency_storage():
+    rule = IndicatorUnitRuleModel.objects.get(
+        indicator_code="CN_M2",
+        source_type="akshare",
+        original_unit="亿元",
+    )
+
+    assert rule.storage_unit == "元"
+    assert rule.display_unit == "万亿元"
+    assert float(rule.multiplier_to_storage) == 100_000_000.0
+    assert rule.is_active is True
 
 
 @pytest.mark.django_db

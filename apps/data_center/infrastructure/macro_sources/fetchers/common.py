@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, cast
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
+from shared.numeric import safe_float
 
 
 def pick_column(
@@ -19,7 +20,7 @@ def pick_column(
     for candidate in candidates:
         if candidate in df.columns:
             return candidate
-    return df.columns[fallback_index]
+    return cast(str, df.columns[fallback_index])
 
 
 def parse_required_float(value: object) -> float:
@@ -33,7 +34,10 @@ def parse_required_float(value: object) -> float:
             raise ValueError(f"invalid numeric value: {value!r}")
         return float(cleaned)
 
-    return float(value)
+    parsed = safe_float(value, strip_chars=",%")
+    if parsed is None:
+        raise ValueError(f"invalid numeric value: {value!r}")
+    return parsed
 
 
 def _load_indicator_metadata(indicator_code: str) -> dict[str, Any]:
@@ -62,21 +66,44 @@ def _load_indicator_metadata(indicator_code: str) -> dict[str, Any]:
     return extra
 
 
-def resolve_indicator_units(indicator_code: str) -> tuple[str, str]:
+def resolve_indicator_units(
+    indicator_code: str,
+    *,
+    source_type: str = "",
+    source_unit: str | None = None,
+) -> tuple[str, str]:
     """Resolve fetcher-facing units from governed metadata or active unit rules.
 
     Fetchers should continue emitting source/raw units. Canonical conversion is
     still owned by data_center normalization and unit-rule governance.
     """
 
+    normalized_source_unit = str(source_unit or "").strip()
+    if normalized_source_unit:
+        try:
+            from apps.data_center.composition import (
+                get_indicator_unit_rule_repository,
+            )
+
+            rule = get_indicator_unit_rule_repository().resolve_active_rule(
+                indicator_code,
+                source_type=source_type,
+                original_unit=normalized_source_unit,
+            )
+        except Exception:
+            rule = None
+        if rule is None:
+            raise ValueError(
+                f"Indicator {indicator_code} source={source_type!r} is missing an "
+                f"active unit rule for raw unit {normalized_source_unit!r}"
+            )
+        return normalized_source_unit, normalized_source_unit
+
     metadata = _load_indicator_metadata(indicator_code)
     governance_scope = str(metadata.get("governance_scope") or "").strip()
     original_unit = ""
     original_unit = str(
-        metadata.get("default_unit")
-        or metadata.get("original_unit")
-        or metadata.get("unit")
-        or ""
+        metadata.get("default_unit") or metadata.get("original_unit") or metadata.get("unit") or ""
     ).strip()
 
     if not original_unit:

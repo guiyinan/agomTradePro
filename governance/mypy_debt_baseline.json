@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2717,
-    "files_with_errors": 562
+    "errors": 2704,
+    "files_with_errors": 560
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -862,16 +862,6 @@
       "assignment": 3,
       "misc": 2,
       "var-annotated": 1
-    },
-    "apps/data_center/infrastructure/macro_sources/fetchers/base_fetchers.py": {
-      "import-untyped": 1,
-      "no-any-return": 8,
-      "no-untyped-def": 1
-    },
-    "apps/data_center/infrastructure/macro_sources/fetchers/common.py": {
-      "arg-type": 1,
-      "import-untyped": 1,
-      "no-any-return": 1
     },
     "apps/data_center/infrastructure/macro_sources/fetchers/high_frequency_fetchers.py": {
       "import-untyped": 1,

@@ -2753,3 +2753,20 @@
 - Macro Fetcher Resilience 回归共 `29 passed`；新增覆盖工业增加值命名列、GDP schema 漂移拒绝、非法季度标签和固定资产投资非正累计值跳过，保留 GDP、社零、社融及派生口径回归。
 - Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
 - 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百八十九批
+
+- 按“PMI/CPI/PPI/M2 核心 Regime 输入 × 单位治理唯一真源”收口 Data Center Base Fetcher 与公共解析辅助。
+- 制造业 PMI、CPI 指数及六类城乡同比/环比、PPI 指数及同比、M2 余额及同比、非制造业 PMI 全部改用显式语义列契约；第三方列漂移时失败关闭，不再按位置猜测。
+- CPI 细分路由从列序号映射改为指标代码到正式列名映射；未知 CPI 细分代码明确拒绝，不再返回空列表伪装成无数据。
+- 月份解析改为完整匹配并校验 1..12；非法月份行转为缺失后跳过，保留同批有效事实。
+- M2 Fetcher 删除硬编码 `/10000` 换算，直接发布 AKShare 原始“亿元”值；新增 `CN_M2 + akshare + 亿元` 单位规则，由统一治理链路按 `100000000` 转换为 canonical 元存储并按万亿元展示。
+- 公共必需数值解析改用 `safe_float`，统一拒绝缺失标记、畸形值、NaN 与无穷；source unit 模式必须找到精确启用的单位规则，否则在事实构造前失败关闭。
+- Base Fetcher 与公共 helper 的第三方 DataFrame、回调、列表和返回边界补齐精确类型。
+
+## 第一百八十九批验证结果
+
+- Base Fetcher 与 Common Helper 增量 mypy 清零；全仓基线从 `2717 errors / 562 files` 收紧为 `2704 errors / 560 files`，净减少 `13 errors / 2 files`。
+- Base Fetcher、Macro Fetcher Resilience、日期和指标治理回归共 `60 passed`；新增覆盖全部核心命名列、六类 CPI 细分、M2 原始亿元值、单位规则、schema 漂移、非法月份和未知 CPI 代码拒绝。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。
