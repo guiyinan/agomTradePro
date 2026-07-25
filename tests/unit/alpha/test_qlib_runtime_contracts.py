@@ -867,6 +867,9 @@ def test_alpha_monitoring_tasks_publish_metrics_drift_reports_and_cleanup(monkey
             set_gauge=lambda name, value, labels=None: gauges.append((name, value, labels))
         ),
         log_metrics=lambda: None,
+        record_coverage=lambda scored, universe: gauges.append(
+            ("alpha_coverage_ratio", scored / universe, None)
+        ),
         record_ic_metrics=lambda current, history, window: gauges.append(("ic", current, window)),
         get_metrics_json=lambda: {"coverage": 0.5},
     )
@@ -889,7 +892,11 @@ def test_alpha_monitoring_tasks_publish_metrics_drift_reports_and_cleanup(monkey
     ]
     cache_repo = SimpleNamespace(
         list_recent_provider_caches=lambda **kwargs: cache_rows[:2],
-        get_latest_cache_for_universe=lambda **kwargs: SimpleNamespace(scores=[{"code": "S00"}]),
+        get_latest_cache_for_universe=lambda **kwargs: SimpleNamespace(
+            scores=[{"code": "S00"}],
+            scope_metadata={"pool_size": 2},
+            metrics_snapshot={},
+        ),
         list_caches_for_model=lambda **kwargs: cache_rows,
         list_today_cache_rows=lambda today: [
             {"provider_source": "qlib", "status": "available"},
@@ -906,6 +913,7 @@ def test_alpha_monitoring_tasks_publish_metrics_drift_reports_and_cleanup(monkey
     monkeypatch.setattr(monitoring_tasks, "_registry_repository", registry_repo)
     updated = monitoring_tasks.update_provider_metrics.run()
     assert updated["status"] == "success"
+    assert updated["coverage_universe_count"] == 2
     assert any(name == "alpha_coverage_ratio" for name, _, _ in gauges)
 
     monkeypatch.setattr(
@@ -916,6 +924,8 @@ def test_alpha_monitoring_tasks_publish_metrics_drift_reports_and_cleanup(monkey
     drift = monitoring_tasks.calculate_ic_drift.run()
     assert drift["status"] == "success"
     assert drift["current_ic"] == pytest.approx(0.29)
+    assert drift["historical_mean"] == pytest.approx(0.19)
+    assert drift["history_count"] == 19
 
     report = monitoring_tasks.generate_daily_report.run()
     assert report["cache_records"] == 2
@@ -923,3 +933,55 @@ def test_alpha_monitoring_tasks_publish_metrics_drift_reports_and_cleanup(monkey
     cleanup = monitoring_tasks.cleanup_old_metrics.run(30)
     assert cleanup["deleted_count"] == 4
     assert cleanup["archive"]["archived_count"] == 3
+    with pytest.raises(ValueError, match="正整数"):
+        monitoring_tasks.cleanup_old_metrics.run(0)
+
+
+def test_alpha_queue_monitor_does_not_report_unknown_lag_as_zero(monkeypatch) -> None:
+    """Celery inspect failures remain unavailable instead of publishing false zero lag."""
+    from apps.alpha.application import monitoring_tasks
+
+    recorded: list[tuple[str, int]] = []
+    monkeypatch.setattr(
+        monitoring_tasks,
+        "get_alpha_metrics",
+        lambda: SimpleNamespace(
+            record_queue_lag=lambda queue, count: recorded.append((queue, count))
+        ),
+    )
+    monkeypatch.setattr(
+        monitoring_tasks,
+        "current_app",
+        SimpleNamespace(
+            control=SimpleNamespace(
+                inspect=lambda: SimpleNamespace(reserved=lambda: None),
+            )
+        ),
+    )
+
+    unavailable = monitoring_tasks.check_queue_lag.run()
+
+    assert unavailable["status"] == "unavailable"
+    assert unavailable["reason"] == "no_worker_response"
+    assert recorded == []
+
+    monkeypatch.setattr(
+        monitoring_tasks,
+        "current_app",
+        SimpleNamespace(
+            control=SimpleNamespace(
+                inspect=lambda: SimpleNamespace(
+                    reserved=lambda: {
+                        "worker-1": [
+                            {"delivery_info": {"routing_key": "qlib_infer"}},
+                            {"delivery_info": {"routing_key": "other"}},
+                        ]
+                    }
+                ),
+            )
+        ),
+    )
+    available = monitoring_tasks.check_queue_lag.run()
+
+    assert available["status"] == "success"
+    assert recorded == [("qlib_infer", 1), ("qlib_train", 0)]

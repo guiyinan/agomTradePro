@@ -761,6 +761,8 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 | `generate_daily_report` | 每天 | 生成每日报告 |
 | `cleanup_old_metrics` | 每周 | 清理旧数据 |
 
+监控口径：覆盖率分母必须来自缓存随附的 `universe_count` 或账户池 `pool_size`，缺少分母时指标状态为 unavailable，不使用 300 等名称推断值。`check_queue_lag` 统计 worker 的 reserved 任务；Celery inspect 无响应时返回 unavailable 且不把积压写成 0。IC 漂移用当前滚动 IC 对比之前最多 20 个有效历史值。
+
 ---
 
 ## 模块速查表

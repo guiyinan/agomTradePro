@@ -2932,3 +2932,18 @@
 - Qlib runtime、Alpha infrastructure edge、task structure 与 training component 回归共 `48 passed`；覆盖真实标签指标、标签缺失失败、工件清单哈希、不可覆盖和实际 schema。
 - Qlib artifact/scientific runtime 及其 Application 导出增量 mypy 清零；全仓基线从 `2577 errors / 544 files` 收紧为 `2553 errors / 542 files`，净减少 `24 errors / 2 files`。
 - Django system check、迁移漂移检查、架构 delta、改动文件 Ruff、diff check 与增量 mypy 通过。
+
+## 第二百批
+
+- 按“Alpha 监控证据真实性 × Qlib 运维误报影响面”收口 Alpha monitoring tasks。
+- 覆盖率删除 CSI300/手动结果固定 300 分母；只从缓存 `scope_metadata.pool_size`、`metrics_snapshot.universe_count/pool_size` 或 AlphaResult metadata 读取可审计分母。缺少分母时返回 unavailable，不发布猜测值；评分数超过股票池规模时标记 invalid。
+- 队列积压改为读取 Celery worker 的 reserved 任务，不再把 active 执行中任务当作 backlog；inspect 异常或无 worker 响应时返回 unavailable 且不写入 0，避免监控失联被误报为无积压。
+- IC 漂移将最新有效 IC 与其之前最多 20 个有效历史值比较，不再把当前值混入自身历史均值；有效滚动历史不足两点时明确 skipped。
+- 清理任务拒绝零、负数和布尔保留期，避免未来 cutoff 大范围删除缓存；旧任务名统一调用 canonical task body。
+- Application 通过 repository provider factory 获取仓储，所有任务、结果、日统计和辅助入口补齐精确类型。
+
+## 第二百批验证结果
+
+- Alpha/Qlib runtime contracts 与 Alpha monitoring integration 回归共 `48 passed`；覆盖真实覆盖率分母、IC 历史排除当前值、队列 unavailable 不写假 0、reserved 计数和非法保留期拒绝。
+- Alpha monitoring tasks 增量 mypy 清零；全仓基线从 `2553 errors / 542 files` 收紧为 `2535 errors / 541 files`，净减少 `18 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check 与增量 mypy 通过。
