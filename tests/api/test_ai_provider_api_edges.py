@@ -379,7 +379,8 @@ def test_ai_provider_test_connection_success_contract(admin_client, monkeypatch)
             return True
 
     monkeypatch.setattr(
-        "apps.ai_provider.application.use_cases.OpenAICompatibleAdapter", _HealthyAdapter
+        "apps.ai_provider.application.use_cases.build_openai_compatible_adapter",
+        _HealthyAdapter,
     )
     provider = AIProviderConfig.objects.create(
         name="system-main",

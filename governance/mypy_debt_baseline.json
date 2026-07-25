@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2497,
-    "files_with_errors": 539
+    "errors": 2484,
+    "files_with_errors": 538
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -208,10 +208,6 @@
     },
     "apps/ai_provider/application/interface_services.py": {
       "no-untyped-def": 1
-    },
-    "apps/ai_provider/application/use_cases.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 12
     },
     "apps/ai_provider/apps.py": {
       "no-untyped-def": 1

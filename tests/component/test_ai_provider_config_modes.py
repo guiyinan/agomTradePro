@@ -1,6 +1,13 @@
 import pytest
+from django.contrib.auth import get_user_model
 
-from apps.ai_provider.application.use_cases import CreateProviderUseCase, UpdateProviderUseCase
+from apps.ai_provider.application.use_cases import (
+    CreateProviderUseCase,
+    UpdateProviderUseCase,
+)
+from apps.ai_provider.application.use_cases import (
+    TestProviderConnectionUseCase as ProviderConnectionUseCase,
+)
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.ai_provider.interface.serializers import AIProviderConfigCreateSerializer
 
@@ -74,3 +81,56 @@ def test_ai_provider_create_serializer_accepts_new_fields():
     assert serializer.is_valid(), serializer.errors
     assert serializer.validated_data["api_mode"] == "responses_only"
     assert serializer.validated_data["fallback_enabled"] is False
+
+
+@pytest.mark.django_db
+def test_system_management_scope_cannot_mutate_personal_provider():
+    owner = get_user_model().objects.create_user(username="personal-owner")
+    provider = AIProviderConfig.objects.create(
+        name="personal-only",
+        scope="user",
+        owner_user=owner,
+        provider_type="openai",
+        is_active=True,
+        priority=10,
+        base_url="https://personal.example.invalid/v1",
+        api_key="sk-test",
+        default_model="gpt-4o-mini",
+    )
+
+    with pytest.raises(ValueError, match="not found"):
+        UpdateProviderUseCase().execute(provider.id, name="admin-cross-scope")
+
+    provider.refresh_from_db()
+    assert provider.name == "personal-only"
+
+
+@pytest.mark.django_db
+def test_personal_management_scope_cannot_access_system_provider(monkeypatch):
+    user = get_user_model().objects.create_user(username="personal-caller")
+    provider = AIProviderConfig.objects.create(
+        name="system-only",
+        scope="system",
+        provider_type="openai",
+        is_active=True,
+        priority=10,
+        base_url="https://system.example.invalid/v1",
+        api_key="sk-test",
+        default_model="gpt-4o-mini",
+    )
+    builder_called = False
+
+    def _unexpected_builder(**kwargs):
+        nonlocal builder_called
+        builder_called = True
+        raise AssertionError("connection adapter must not be built across scopes")
+
+    monkeypatch.setattr(
+        "apps.ai_provider.application.use_cases.build_openai_compatible_adapter",
+        _unexpected_builder,
+    )
+
+    with pytest.raises(ValueError, match="not found"):
+        ProviderConnectionUseCase().execute(provider.id, actor_user=user)
+
+    assert builder_called is False

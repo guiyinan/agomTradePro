@@ -2978,3 +2978,17 @@
 - AI Provider Domain/Adapter/配置/加密/预算/路由/API、Prompt/Valuation API 与 Terminal Agent 回归共 `151 passed`；新增覆盖 provider 抛异常后的接管、异常消息脱敏、缓存 client 下配置和 API Key 轮换即时生效、非法用户 ID 拒绝及个人预算执行。
 - AI client factory 与 application chat contract 增量 mypy 清零；类型传播同时消除 AI Capability facade 与 Terminal chat router 的既有未类型调用，全仓基线从 `2517 errors / 540 files` 收紧为 `2497 errors / 539 files`，净减少 `20 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零三批
+
+- 按“AI Provider 管理 scope 隔离 × 配置写入与连接测试影响面”收口 Provider Application use cases。
+- 系统管理调用与个人管理调用改为显式的互斥 scope：未传 actor 的管理员链路只能管理 system provider，传入 actor 的个人链路只能管理该用户自己的 user provider；更新、删除、启停、统计、预算和连接测试统一复用同一解析规则。
+- 修复管理员 system API 可凭个人 provider ID 修改或删除个人配置、个人 API 可凭 system provider ID 操作系统配置的越权边界；跨 scope 请求在数据库写入、API Key 解密或外部连接前统一按 not found 失败关闭。
+- 连接测试不再从 Application use case 导入 concrete Infrastructure adapter，改由 Application repository provider 暴露的 adapter factory 组装，恢复四层依赖边界。
+- Provider 管理用例的 actor、owner、动态更新字段及仓储注入边界补齐类型，保持 ORM 动态对象仅停留在 Application/Infrastructure 交界。
+
+## 第二百零三批验证结果
+
+- AI Provider Domain/Adapter/配置/加密/预算/路由/API 回归共 `102 passed`；覆盖管理员/个人双向跨 scope 拒绝、合法系统连接测试和既有 CRUD 契约。
+- Provider use cases 增量 mypy 清零；全仓基线从 `2497 errors / 539 files` 收紧为 `2484 errors / 538 files`，净减少 `13 errors / 1 file`。
+- 架构 delta 无违规，改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。

@@ -17,7 +17,7 @@ from .dtos import (
     UserFallbackQuotaDTO,
 )
 from .repository_provider import (
-    OpenAICompatibleAdapter,
+    build_openai_compatible_adapter,
     get_ai_provider_repository,
     get_ai_usage_repository,
     get_ai_user_fallback_quota_repository,
@@ -40,7 +40,7 @@ class ListProvidersUseCase:
         *,
         include_inactive: bool = True,
         scope: str = "system",
-        owner_user=None,
+        owner_user: Any | None = None,
         include_all_scopes: bool = False,
     ) -> list[ProviderListItemDTO]:
         """List providers for admin/system or one user."""
@@ -124,7 +124,7 @@ class CreateProviderUseCase:
         description: str = "",
         extra_config: dict[str, Any] | None = None,
         scope: str = "system",
-        owner_user=None,
+        owner_user: Any | None = None,
     ) -> Any:
         self._validate_common(
             provider_type=provider_type,
@@ -160,7 +160,7 @@ class CreateProviderUseCase:
         api_mode: str,
         name: str,
         scope: str,
-        owner_user,
+        owner_user: Any | None,
     ) -> None:
         valid_types = [item.value for item in AIProviderType]
         if provider_type not in valid_types:
@@ -189,10 +189,14 @@ class UpdateProviderUseCase:
     def __init__(self, provider_repo: Any | None = None) -> None:
         self._provider_repo = provider_repo or get_ai_provider_repository()
 
-    def execute(self, pk: int, *, actor_user=None, **kwargs) -> Any:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(
+        self,
+        pk: int,
+        *,
+        actor_user: Any | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        provider = _get_managed_provider(self._provider_repo, pk, actor_user)
 
         if "provider_type" in kwargs:
             valid_types = [item.value for item in AIProviderType]
@@ -222,9 +226,7 @@ class UpdateProviderUseCase:
         success = self._provider_repo.update(pk, **kwargs)
         if not success:
             raise ValueError(f"Provider with id {pk} not found")
-        updated = self._provider_repo.get_by_id(pk, user=actor_user)
-        if updated is None:
-            raise ValueError(f"Provider with id {pk} not found after update")
+        updated = _get_managed_provider(self._provider_repo, pk, actor_user)
         return updated
 
 
@@ -234,10 +236,8 @@ class DeleteProviderUseCase:
     def __init__(self, provider_repo: Any | None = None) -> None:
         self._provider_repo = provider_repo or get_ai_provider_repository()
 
-    def execute(self, pk: int, *, actor_user=None) -> bool:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(self, pk: int, *, actor_user: Any | None = None) -> bool:
+        _get_managed_provider(self._provider_repo, pk, actor_user)
         success = self._provider_repo.delete(pk)
         if not success:
             raise ValueError(f"Provider with id {pk} not found")
@@ -250,14 +250,10 @@ class ToggleProviderUseCase:
     def __init__(self, provider_repo: Any | None = None) -> None:
         self._provider_repo = provider_repo or get_ai_provider_repository()
 
-    def execute(self, pk: int, *, actor_user=None) -> Any:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(self, pk: int, *, actor_user: Any | None = None) -> Any:
+        provider = _get_managed_provider(self._provider_repo, pk, actor_user)
         self._provider_repo.update(pk, is_active=not provider.is_active)
-        updated = self._provider_repo.get_by_id(pk, user=actor_user)
-        if updated is None:
-            raise ValueError(f"Provider with id {pk} not found")
+        updated = _get_managed_provider(self._provider_repo, pk, actor_user)
         return updated
 
 
@@ -272,10 +268,14 @@ class GetProviderStatsUseCase:
         self._provider_repo = provider_repo or get_ai_provider_repository()
         self._usage_repo = usage_repo or get_ai_usage_repository()
 
-    def execute(self, pk: int, days: int = 30, *, actor_user=None) -> ProviderStatsDTO:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(
+        self,
+        pk: int,
+        days: int = 30,
+        *,
+        actor_user: Any | None = None,
+    ) -> ProviderStatsDTO:
+        provider = _get_managed_provider(self._provider_repo, pk, actor_user)
 
         today = date.today()
         today_usage = self._usage_repo.get_daily_usage(pk, today)
@@ -339,7 +339,7 @@ class ListUsageLogsUseCase:
         provider_id: int | None = None,
         status: str | None = None,
         limit: int = 100,
-        user=None,
+        user: Any | None = None,
         provider_scope: str | None = None,
     ) -> list[UsageLogListItemDTO]:
         logs = self._usage_repo.get_recent_logs(
@@ -387,10 +387,13 @@ class CheckBudgetUseCase:
         self._provider_repo = provider_repo or get_ai_provider_repository()
         self._usage_repo = usage_repo or get_ai_usage_repository()
 
-    def execute(self, pk: int, *, actor_user=None) -> BudgetCheckResultDTO:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(
+        self,
+        pk: int,
+        *,
+        actor_user: Any | None = None,
+    ) -> BudgetCheckResultDTO:
+        provider = _get_managed_provider(self._provider_repo, pk, actor_user)
 
         daily_limit = float(provider.daily_budget_limit) if provider.daily_budget_limit else None
         monthly_limit = (
@@ -426,7 +429,7 @@ class GetUserFallbackQuotaUseCase:
     ) -> None:
         self._quota_repo = quota_repo or get_ai_user_fallback_quota_repository()
 
-    def execute(self, *, user) -> UserFallbackQuotaDTO:
+    def execute(self, *, user: Any) -> UserFallbackQuotaDTO:
         quota, daily_spent, monthly_spent = self._quota_repo.get_with_usage(user)
         return UserFallbackQuotaDTO(
             user_id=user.id,
@@ -465,7 +468,7 @@ class UpdateUserFallbackQuotaUseCase:
     def execute(
         self,
         *,
-        user,
+        user: Any,
         daily_limit: float | None,
         monthly_limit: float | None,
         is_active: bool = True,
@@ -531,10 +534,13 @@ class TestProviderConnectionUseCase:
     def __init__(self, provider_repo: Any | None = None) -> None:
         self._provider_repo = provider_repo or get_ai_provider_repository()
 
-    def execute(self, pk: int, *, actor_user=None) -> dict[str, Any]:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(
+        self,
+        pk: int,
+        *,
+        actor_user: Any | None = None,
+    ) -> dict[str, Any]:
+        provider = _get_managed_provider(self._provider_repo, pk, actor_user)
 
         api_key = self._provider_repo.get_api_key(provider)
         if not api_key:
@@ -544,7 +550,7 @@ class TestProviderConnectionUseCase:
                 "error_message": "API key not available in current environment",
             }
 
-        adapter = OpenAICompatibleAdapter(
+        adapter = build_openai_compatible_adapter(
             base_url=provider.base_url,
             api_key=api_key,
             default_model=provider.default_model,
@@ -569,3 +575,18 @@ def _remaining(limit: float | None, spent: float) -> float | None:
     if limit is None:
         return None
     return max(limit - spent, 0.0)
+
+
+def _get_managed_provider(
+    provider_repo: Any,
+    pk: int,
+    actor_user: Any | None,
+) -> Any:
+    """Resolve a provider within the system-admin or personal-owner management scope."""
+    provider = provider_repo.get_by_id(pk, user=actor_user)
+    expected_scope = "system" if actor_user is None else "user"
+    if provider is None or provider.scope != expected_scope:
+        raise ValueError(f"Provider with id {pk} not found")
+    if actor_user is not None and provider.owner_user_id != getattr(actor_user, "pk", None):
+        raise ValueError(f"Provider with id {pk} not found")
+    return provider
