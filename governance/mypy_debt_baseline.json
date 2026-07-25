@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2152,
-    "files_with_errors": 500
+    "errors": 2137,
+    "files_with_errors": 499
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -912,10 +912,6 @@
       "attr-defined": 4,
       "no-untyped-def": 6,
       "type-arg": 5
-    },
-    "apps/equity/interface/analysis_actions.py": {
-      "attr-defined": 8,
-      "no-untyped-def": 7
     },
     "apps/equity/interface/multidim_screen_views.py": {
       "no-untyped-def": 2

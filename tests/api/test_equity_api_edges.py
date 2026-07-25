@@ -25,6 +25,42 @@ from core.exceptions import DataFetchError
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        ("post", "/api/equity/screen/", {"unexpected": True}),
+        ("post", "/api/equity/dcf/", {"stock_code": "000001.SZ", "unexpected": True}),
+        (
+            "post",
+            "/api/equity/comprehensive-valuation/",
+            {"stock_code": "000001.SZ", "unexpected": True},
+        ),
+        ("get", "/api/equity/technical/000001.SZ/?unexpected=true", None),
+        ("get", "/api/equity/intraday/000001.SZ/?unexpected=true", None),
+        (
+            "get",
+            "/api/equity/regime-correlation/000001.SZ/?unexpected=true",
+            None,
+        ),
+    ],
+)
+def test_equity_analysis_actions_reject_unknown_inputs(
+    authenticated_client,
+    method: str,
+    path: str,
+    payload: dict[str, object] | None,
+) -> None:
+    """Analysis endpoints must not silently discard undeclared input."""
+
+    if method == "post":
+        response = authenticated_client.post(path, payload, format="json")
+    else:
+        response = authenticated_client.get(path)
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
 def test_equity_pool_returns_empty_payload_when_no_pool(authenticated_client):
     regime = SimpleNamespace(dominant_regime="Recovery")
 

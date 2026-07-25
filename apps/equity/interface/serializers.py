@@ -42,7 +42,7 @@ class StrictFieldsSerializer(serializers.Serializer[dict[str, Any]]):
         return cast(dict[str, Any], super().to_internal_value(data))
 
 
-class ScreenStocksRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class ScreenStocksRequestSerializer(StrictFieldsSerializer):
     """筛选个股请求序列化器"""
 
     regime = serializers.CharField(
@@ -76,7 +76,7 @@ class FinancialHistoryQuerySerializer(serializers.Serializer[dict[str, Any]]):
     limit = serializers.IntegerField(required=False, default=5, min_value=1, max_value=40)
 
 
-class AnalyzeValuationRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class AnalyzeValuationRequestSerializer(StrictFieldsSerializer):
     """估值分析请求序列化器"""
 
     stock_code = serializers.CharField(required=True, help_text="股票代码")
@@ -87,16 +87,6 @@ class AnalyzeValuationRequestSerializer(serializers.Serializer[dict[str, Any]]):
         max_value=1260,
         help_text="回看天数（默认 252，即 1 年）",
     )
-
-    def to_internal_value(self, data: Any) -> dict[str, Any]:
-        """Reject unknown query parameters instead of silently ignoring them."""
-
-        unknown_fields = sorted(set(data) - set(self.fields))
-        if unknown_fields:
-            raise serializers.ValidationError(
-                {"non_field_errors": [f"Unknown query parameters: {', '.join(unknown_fields)}"]}
-            )
-        return cast(dict[str, Any], super().to_internal_value(data))
 
 
 class LatestValuationSerializer(serializers.Serializer[dict[str, Any]]):
@@ -162,7 +152,7 @@ class AnalyzeValuationResponseSerializer(serializers.Serializer[AnalyzeValuation
     error = serializers.CharField(allow_null=True, required=False)
 
 
-class TechnicalChartRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class TechnicalChartRequestSerializer(StrictFieldsSerializer):
     """技术图表请求序列化器。"""
 
     stock_code = serializers.CharField(required=True, help_text="股票代码")
@@ -193,7 +183,7 @@ class TechnicalChartResponseSerializer(serializers.Serializer[GetTechnicalChartR
     error = serializers.CharField(allow_null=True, required=False)
 
 
-class IntradayChartRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class IntradayChartRequestSerializer(StrictFieldsSerializer):
     """分时图请求序列化器。"""
 
     stock_code = serializers.CharField(required=True, help_text="股票代码")
@@ -223,7 +213,7 @@ class IntradayChartResponseSerializer(serializers.Serializer[GetIntradayChartRes
 # ============================================================================
 
 
-class CalculateDCFRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class CalculateDCFRequestSerializer(StrictFieldsSerializer):
     """DCF 估值请求序列化器"""
 
     stock_code = serializers.CharField(required=True, help_text="股票代码")
@@ -286,7 +276,7 @@ class RegimePerformanceSerializer(serializers.Serializer[dict[str, Any]]):
     sample_days = serializers.IntegerField(help_text="样本天数")
 
 
-class AnalyzeRegimeCorrelationRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class AnalyzeRegimeCorrelationRequestSerializer(StrictFieldsSerializer):
     """Regime 相关性分析请求序列化器"""
 
     stock_code = serializers.CharField(required=True, help_text="股票代码")
@@ -316,7 +306,7 @@ class AnalyzeRegimeCorrelationResponseSerializer(serializers.Serializer[dict[str
 # ============================================================================
 
 
-class ComprehensiveValuationRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class ComprehensiveValuationRequestSerializer(StrictFieldsSerializer):
     """综合估值分析请求序列化器"""
 
     stock_code = serializers.CharField(required=True, help_text="股票代码")

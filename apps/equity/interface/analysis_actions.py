@@ -5,10 +5,11 @@ composes the final `EquityViewSet` and keeps the legacy monkeypatch surface;
 do not import it here.
 """
 
-from drf_spectacular.utils import extend_schema
+from typing import Any
+
 from rest_framework import status
-from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.equity.application.repository_provider import (
@@ -47,19 +48,23 @@ from .serializers import (
     TechnicalChartRequestSerializer,
     TechnicalChartResponseSerializer,
 )
+from .valuation_actions import typed_action, typed_schema
 
 
 class EquityAnalysisActionsMixin:
     """Screening, valuation analysis, chart, DCF, and regime-correlation actions."""
 
-    @extend_schema(
+    stock_repo: Any
+    regime_repo: Any
+
+    @typed_schema(
         summary="筛选个股",
         description="基于 Regime 和财务指标筛选个股",
         request=ScreenStocksRequestSerializer,
         responses={200: ScreenStocksResponseSerializer},
     )
-    @action(detail=False, methods=["post"], url_path="screen")
-    def screen_stocks(self, request):
+    @typed_action(detail=False, methods=["post"], url_path="screen")
+    def screen_stocks(self, request: Request) -> Response:
         """
         POST /api/equity/screen/
 
@@ -108,17 +113,19 @@ class EquityAnalysisActionsMixin:
         response_serializer = ScreenStocksResponseSerializer(use_case_response)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(
+    @typed_schema(
         summary="估值分析（个股详情）",
         description="获取个股的完整估值分析数据，包括基本信息、估值指标、财务数据等",
         request=AnalyzeValuationRequestSerializer,
         responses={200: AnalyzeValuationResponseSerializer},
     )
-    @action(
-        detail=False, methods=["get"], url_path="valuation/(?P<stock_code>[^/]+)",
-        permission_classes=[IsAuthenticated]
+    @typed_action(
+        detail=False,
+        methods=["get"],
+        url_path="valuation/(?P<stock_code>[^/]+)",
+        permission_classes=[IsAuthenticated],
     )
-    def analyze_valuation(self, request, stock_code):
+    def analyze_valuation(self, request: Request, stock_code: str) -> Response:
         """
         GET /api/equity/valuation/{stock_code}/
 
@@ -182,22 +189,18 @@ class EquityAnalysisActionsMixin:
         response_serializer = AnalyzeValuationResponseSerializer(use_case_response)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(
+    @typed_schema(
         summary="技术图表数据",
         description="返回个股 K 线、均线、MACD 与最近金叉死叉信号",
         request=TechnicalChartRequestSerializer,
         responses={200: TechnicalChartResponseSerializer},
     )
-    @action(detail=False, methods=["get"], url_path="technical/(?P<stock_code>[^/]+)")
-    def technical_chart(self, request, stock_code):
+    @typed_action(detail=False, methods=["get"], url_path="technical/(?P<stock_code>[^/]+)")
+    def technical_chart(self, request: Request, stock_code: str) -> Response:
         """GET /api/equity/technical/{stock_code}/"""
-        serializer = TechnicalChartRequestSerializer(
-            data={
-                "stock_code": stock_code,
-                "timeframe": request.query_params.get("timeframe", "day"),
-                "lookback_days": request.query_params.get("lookback_days", 365),
-            }
-        )
+        query = request.query_params.copy()
+        query["stock_code"] = stock_code
+        serializer = TechnicalChartRequestSerializer(data=query)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
@@ -212,16 +215,18 @@ class EquityAnalysisActionsMixin:
         response_serializer = TechnicalChartResponseSerializer(response)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(
+    @typed_schema(
         summary="分时图数据",
         description="返回个股最新交易日的 1 分钟分时价格、均价与成交量",
         request=IntradayChartRequestSerializer,
         responses={200: IntradayChartResponseSerializer},
     )
-    @action(detail=False, methods=["get"], url_path="intraday/(?P<stock_code>[^/]+)")
-    def intraday_chart(self, request, stock_code):
+    @typed_action(detail=False, methods=["get"], url_path="intraday/(?P<stock_code>[^/]+)")
+    def intraday_chart(self, request: Request, stock_code: str) -> Response:
         """GET /api/equity/intraday/{stock_code}/"""
-        serializer = IntradayChartRequestSerializer(data={"stock_code": stock_code})
+        query = request.query_params.copy()
+        query["stock_code"] = stock_code
+        serializer = IntradayChartRequestSerializer(data=query)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
@@ -230,14 +235,14 @@ class EquityAnalysisActionsMixin:
         response_serializer = IntradayChartResponseSerializer(response)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(
+    @typed_schema(
         summary="DCF 绝对估值",
         description="计算股票的内在价值",
         request=CalculateDCFRequestSerializer,
         responses={200: CalculateDCFResponseSerializer},
     )
-    @action(detail=False, methods=["post"], url_path="dcf")
-    def calculate_dcf(self, request):
+    @typed_action(detail=False, methods=["post"], url_path="dcf")
+    def calculate_dcf(self, request: Request) -> Response:
         """
         POST /api/equity/dcf/
 
@@ -285,14 +290,18 @@ class EquityAnalysisActionsMixin:
         response_serializer = CalculateDCFResponseSerializer(use_case_response)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(
+    @typed_schema(
         summary="Regime 相关性分析",
         description="分析个股在不同宏观环境下的表现",
         request=AnalyzeRegimeCorrelationRequestSerializer,
         responses={200: AnalyzeRegimeCorrelationResponseSerializer},
     )
-    @action(detail=False, methods=["get"], url_path="regime-correlation/(?P<stock_code>[^/]+)")
-    def analyze_regime_correlation(self, request, stock_code):
+    @typed_action(
+        detail=False,
+        methods=["get"],
+        url_path="regime-correlation/(?P<stock_code>[^/]+)",
+    )
+    def analyze_regime_correlation(self, request: Request, stock_code: str) -> Response:
         """
         GET /api/equity/regime-correlation/{stock_code}/
 
@@ -334,12 +343,9 @@ class EquityAnalysisActionsMixin:
         }
         """
         # 1. 验证请求
-        serializer = AnalyzeRegimeCorrelationRequestSerializer(
-            data={
-                "stock_code": stock_code,
-                "lookback_days": request.query_params.get("lookback_days", 1260),
-            }
-        )
+        query = request.query_params.copy()
+        query["stock_code"] = stock_code
+        serializer = AnalyzeRegimeCorrelationRequestSerializer(data=query)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
@@ -387,14 +393,14 @@ class EquityAnalysisActionsMixin:
         # 5. 返回响应
         return Response(response_data, status=status.HTTP_200_OK)
 
-    @extend_schema(
+    @typed_schema(
         summary="综合估值分析",
         description="整合多种估值方法，提供综合的低估/高估判断",
         request=ComprehensiveValuationRequestSerializer,
         responses={200: ComprehensiveValuationResponseSerializer},
     )
-    @action(detail=False, methods=["post"], url_path="comprehensive-valuation")
-    def comprehensive_valuation(self, request):
+    @typed_action(detail=False, methods=["post"], url_path="comprehensive-valuation")
+    def comprehensive_valuation(self, request: Request) -> Response:
         """
         POST /api/equity/comprehensive-valuation/
 

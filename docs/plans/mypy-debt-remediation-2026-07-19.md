@@ -3233,3 +3233,16 @@
 - Equity valuation repair、sync、serializer 与 task 相关完整回归 `127 passed`；最终严格输入和错误披露边界集 `41 passed`。
 - Equity facade 与 valuation action 增量 mypy 清零；全仓基线从 `2182 errors / 502 files` 收紧为 `2152 errors / 500 files`，净减少 `30 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十批
+
+- 按“个股分析输入契约 × 用户研究入口影响面”收口 Equity analysis actions。
+- 个股筛选、DCF、综合估值、技术图表、分时图和 Regime 相关性请求统一使用严格字段 serializer；未声明的 body 或 query 参数不再被静默忽略。
+- 技术图表、分时图和 Regime 相关性查询改为把完整 query 交给 serializer，再注入路径股票代码；避免只挑选已知参数后掩盖调用方拼写错误。
+- Analysis mixin 明确发布组合 viewset 所需仓储属性、DRF Request/Response 和方法签名，并复用已类型化的 action/schema decorator；保持现有路由与 OpenAPI 契约不变。
+
+## 第二百二十批验证结果
+
+- Equity API edge 与 serializer contract 回归 `34 passed`，覆盖六类分析端点的未知输入拒绝。
+- Equity analysis action 增量 mypy 清零；全仓基线从 `2152 errors / 500 files` 收紧为 `2137 errors / 499 files`，净减少 `15 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
