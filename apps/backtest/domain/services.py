@@ -6,7 +6,7 @@ Only uses Python standard library (no pandas/numpy).
 """
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import date, timedelta
 
 # 从 entities 导入数据类
@@ -14,6 +14,7 @@ from .entities import (
     BacktestConfig,
     BacktestResult,
     RebalanceResult,
+    RegimeHistoryEntry,
     Trade,
 )
 
@@ -48,11 +49,7 @@ class PITDataProcessor:
         """
         self.publication_lags = publication_lags
 
-    def get_publication_date(
-        self,
-        observed_at: date,
-        indicator_code: str
-    ) -> date:
+    def get_publication_date(self, observed_at: date, indicator_code: str) -> date:
         """
         获取数据观测日期对应的发布日期
 
@@ -69,11 +66,7 @@ class PITDataProcessor:
         lag = self.publication_lags.get(indicator_code, timedelta(days=0))
         return observed_at + lag
 
-    def get_available_as_of_date(
-        self,
-        observed_at: date,
-        indicator_code: str
-    ) -> date:
+    def get_available_as_of_date(self, observed_at: date, indicator_code: str) -> date:
         """
         Backward-compatible alias for publication date lookup.
 
@@ -81,12 +74,7 @@ class PITDataProcessor:
         """
         return self.get_publication_date(observed_at, indicator_code)
 
-    def is_data_available(
-        self,
-        observed_at: date,
-        indicator_code: str,
-        as_of_date: date
-    ) -> bool:
+    def is_data_available(self, observed_at: date, indicator_code: str, as_of_date: date) -> bool:
         """
         检查数据在指定日期是否可用
 
@@ -109,7 +97,7 @@ class PITDataProcessor:
         self,
         data_points: list[tuple[date, float]],  # [(observed_at, value), ...]
         indicator_code: str,
-        as_of_date: date
+        as_of_date: date,
     ) -> list[tuple[date, float]]:
         """
         筛选出在指定日期已发布的所有数据点
@@ -134,10 +122,7 @@ class PITDataProcessor:
         return available
 
     def get_latest_available_value(
-        self,
-        data_points: list[tuple[date, float]],
-        indicator_code: str,
-        as_of_date: date
+        self, data_points: list[tuple[date, float]], indicator_code: str, as_of_date: date
     ) -> tuple[date, float] | None:
         """
         获取指定日期可用的最新数据点
@@ -192,7 +177,7 @@ class BacktestEngine:
     def __init__(
         self,
         config: BacktestConfig,
-        get_regime_func: Callable[[date], dict | None],
+        get_regime_func: Callable[[date], Mapping[str, object] | None],
         get_asset_price_func: Callable[[str, date], float | None],
         pit_processor: PITDataProcessor | None = None,
         risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
@@ -216,7 +201,7 @@ class BacktestEngine:
         self._positions: dict[str, float] = {}  # asset_class -> shares
         self._trades: list[Trade] = []
         self._equity_curve: list[tuple[date, float]] = []
-        self._regime_history: list[dict] = []
+        self._regime_history: list[RegimeHistoryEntry] = []
 
     def run(self) -> BacktestResult:
         """
@@ -248,19 +233,23 @@ class BacktestEngine:
             # 执行再平衡
             result = self._rebalance(rebalance_date)
             if result:
-                self._regime_history.append({
-                    "date": rebalance_date.isoformat(),  # 转换为字符串以便 JSON 序列化
-                    "regime": result.regime,
-                    "confidence": result.regime_confidence,
-                    "portfolio_value": result.portfolio_value
-                })
+                self._regime_history.append(
+                    {
+                        "date": rebalance_date.isoformat(),  # 转换为字符串以便 JSON 序列化
+                        "regime": result.regime,
+                        "confidence": result.regime_confidence,
+                        "portfolio_value": result.portfolio_value,
+                    }
+                )
 
             # 记录权益曲线
             portfolio_value = self._calculate_portfolio_value(rebalance_date)
             self._equity_curve.append((rebalance_date, portfolio_value))
 
         # 计算最终结果
-        final_value = self._equity_curve[-1][1] if self._equity_curve else self.config.initial_capital
+        final_value = (
+            self._equity_curve[-1][1] if self._equity_curve else self.config.initial_capital
+        )
         total_return = (final_value / self.config.initial_capital) - 1
 
         return BacktestResult(
@@ -273,7 +262,7 @@ class BacktestEngine:
             trades=self._trades,
             equity_curve=self._equity_curve,
             regime_history=self._regime_history,
-            warnings=warnings
+            warnings=warnings,
         )
 
     def _generate_rebalance_dates(self) -> list[date]:
@@ -320,8 +309,19 @@ class BacktestEngine:
         if not regime_data:
             return None
 
-        regime = regime_data.get("dominant_regime")
-        confidence = regime_data.get("confidence", 0.0)
+        raw_regime = regime_data.get("dominant_regime")
+        if not isinstance(raw_regime, str) or not raw_regime:
+            return None
+        regime = raw_regime
+
+        raw_confidence = regime_data.get("confidence", 0.0)
+        confidence = (
+            float(raw_confidence)
+            if isinstance(raw_confidence, (int, float))
+            and not isinstance(raw_confidence, bool)
+            and math.isfinite(float(raw_confidence))
+            else 0.0
+        )
 
         # 2. 计算旧权重（再平衡前的权重）
         old_weights = self._calculate_current_weights(as_of_date)
@@ -360,15 +360,15 @@ class BacktestEngine:
                     shares=abs(shares_diff),
                     price=price,
                     notional=notional,
-                    cost=cost
+                    cost=cost,
                 )
                 trades.append(trade)
 
                 # 更新现金和持仓
                 if shares_diff > 0:
-                    self._cash -= (notional + cost)
+                    self._cash -= notional + cost
                 else:
-                    self._cash += (notional - cost)
+                    self._cash += notional - cost
 
                 new_positions[asset_class] = target_shares
             else:
@@ -390,11 +390,11 @@ class BacktestEngine:
                         shares=shares,
                         price=price,
                         notional=notional,
-                        cost=cost
+                        cost=cost,
                     )
                     trades.append(trade)
 
-                    self._cash += (notional - cost)
+                    self._cash += notional - cost
 
         self._positions = new_positions
         self._trades.extend(trades)
@@ -406,7 +406,7 @@ class BacktestEngine:
             old_weights=old_weights,
             new_weights=target_weights,
             trades=trades,
-            portfolio_value=current_portfolio_value
+            portfolio_value=current_portfolio_value,
         )
 
     def _calculate_current_weights(self, as_of_date: date) -> dict[str, float]:
@@ -438,11 +438,7 @@ class BacktestEngine:
 
         return weights
 
-    def _calculate_target_weights(
-        self,
-        regime: str,
-        confidence: float
-    ) -> dict[str, float]:
+    def _calculate_target_weights(self, regime: str, confidence: float) -> dict[str, float]:
         """
         计算目标权重（应用准入规则）
 
@@ -502,7 +498,10 @@ class BacktestEngine:
         years = days / 365.25
         if years <= 0:
             return 0.0
-        return (1 + total_return) ** (1 / years) - 1
+        growth_factor = 1 + total_return
+        if growth_factor <= 0:
+            return -1.0
+        return float(growth_factor ** (1 / years) - 1)
 
     def _calculate_sharpe_ratio(self) -> float | None:
         """计算夏普比率"""

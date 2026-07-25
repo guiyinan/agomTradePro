@@ -4,18 +4,12 @@ Repositories for Backtest Module.
 Infrastructure layer implementation using Django ORM.
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from django.db.models import Avg
 
-from ..domain.entities import (
-    BacktestConfig,
-    Trade,
-)
-from ..domain.entities import (
-    BacktestResult as DomainBacktestResult,
-)
+from ..domain.entities import BacktestConfig, BacktestResult, Trade
 from .models import BacktestResultModel, BacktestTradeModel
 
 
@@ -32,7 +26,7 @@ class DjangoBacktestRepository:
     提供回测结果和配置的增删改查操作。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._model = BacktestResultModel
         self._trade_model = BacktestTradeModel
 
@@ -136,7 +130,7 @@ class DjangoBacktestRepository:
         except self._model.DoesNotExist:
             return False
 
-    def save_result(self, backtest_id: int, result: DomainBacktestResult) -> bool:
+    def save_result(self, backtest_id: int, result: BacktestResult) -> bool:
         """
         保存回测结果
 
@@ -198,6 +192,17 @@ class DjangoBacktestRepository:
         """
         count, _ = self._model.objects.filter(id=backtest_id).delete()
         return count > 0
+
+    def delete_completed_before(self, cutoff: datetime) -> int:
+        """Bulk-delete completed backtests older than the aware cutoff."""
+
+        queryset = self._model.objects.filter(
+            status="completed",
+            created_at__lt=cutoff,
+        )
+        backtest_count = queryset.count()
+        queryset.delete()
+        return backtest_count
 
     def get_statistics(self) -> dict[str, Any]:
         """
@@ -268,7 +273,7 @@ class DjangoBacktestRepository:
         ]
 
     @staticmethod
-    def to_domain_entity(orm_obj: BacktestResultModel) -> DomainBacktestResult:
+    def to_domain_entity(orm_obj: BacktestResultModel) -> BacktestResult:
         """
         将 ORM 对象转换为 Domain 实体
 
@@ -276,7 +281,7 @@ class DjangoBacktestRepository:
             orm_obj: ORM 模型实例
 
         Returns:
-            DomainBacktestResult: Domain 层的回测结果实体
+            BacktestResult: Domain 层的回测结果实体
         """
         from ..domain.entities import BacktestConfig
 
@@ -314,7 +319,7 @@ class DjangoBacktestRepository:
         # 转换权益曲线
         equity_curve = [(date.fromisoformat(e["date"]), e["value"]) for e in orm_obj.equity_curve]
 
-        return DomainBacktestResult(
+        return BacktestResult(
             config=config,
             final_value=float(orm_obj.final_capital) if orm_obj.final_capital else 0.0,
             total_return=orm_obj.total_return or 0.0,

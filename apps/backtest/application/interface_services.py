@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
 from typing import Any
 
@@ -11,52 +12,36 @@ from core.integration.research_integrity_registry import (
     make_manifest_bound_pit_view,
 )
 
-from .repository_provider import create_default_price_adapter, get_backtest_repository
+from .repository_provider import (
+    build_default_price_reader,
+    build_default_regime_reader,
+    get_backtest_repository,
+)
 from .use_cases import (
     DeleteBacktestRequest,
     DeleteBacktestUseCase,
     GetBacktestResultRequest,
     GetBacktestResultUseCase,
+    GetBacktestStatisticsResponse,
     GetBacktestStatisticsUseCase,
     ListBacktestsRequest,
     ListBacktestsUseCase,
     RunBacktestRequest,
+    RunBacktestResponse,
     RunBacktestUseCase,
 )
 
 
-def _build_regime_reader():
-    def get_regime(as_of_date: date):
-        snapshot = get_regime_repository().get_regime_by_date(as_of_date)
-        if snapshot:
-            return {
-                "dominant_regime": snapshot.dominant_regime,
-                "confidence": snapshot.confidence,
-                "growth_momentum_z": snapshot.growth_momentum_z,
-                "inflation_momentum_z": snapshot.inflation_momentum_z,
-                "distribution": snapshot.distribution,
-            }
-        return None
+def _build_regime_reader() -> Callable[[date], dict[str, object] | None]:
+    """Return a repository-cached regime reader."""
 
-    return get_regime
+    return build_default_regime_reader()
 
 
-def _build_price_reader():
-    def get_asset_price(asset_class: str, as_of_date: date):
-        from shared.config.secrets import get_secrets
+def _build_price_reader() -> Callable[[str, date], float | None]:
+    """Return a lazily initialized, execution-scoped price reader."""
 
-        try:
-            tushare_settings = get_secrets().data_sources
-        except Exception:
-            tushare_settings = None
-
-        adapter = create_default_price_adapter(
-            tushare_token=(tushare_settings.tushare_token if tushare_settings else None),
-            tushare_http_url=(tushare_settings.tushare_http_url if tushare_settings else None),
-        )
-        return adapter.get_price(asset_class, as_of_date)
-
-    return get_asset_price
+    return build_default_price_reader()
 
 
 def load_backtest_list_context(*, limit: int = 20) -> dict[str, Any]:
@@ -141,25 +126,22 @@ def get_backtest_equity_curve_payload(backtest_id: int) -> dict[str, Any] | None
     }
 
 
-def run_backtest_payload(validated_data: dict[str, Any]):
+def run_backtest_payload(validated_data: dict[str, Any]) -> RunBacktestResponse:
     """Execute a backtest run from validated request data."""
+    resolved_data = dict(validated_data)
     pit_data_view = None
-    if validated_data.get("trust_status") == "pit_verified":
+    if resolved_data.get("trust_status") == "pit_verified":
         pit_data_view = make_manifest_bound_pit_view(
-            str(validated_data.get("data_manifest_id") or "")
+            str(resolved_data.get("data_manifest_id") or "")
         )
-        validated_data["pit_coverage"] = pit_data_view.coverage
+        resolved_data["pit_coverage"] = pit_data_view.coverage
     return RunBacktestUseCase(
         get_backtest_repository(),
         _build_regime_reader(),
         _build_price_reader(),
         pit_data_view=pit_data_view,
-        get_decision_snapshot_func=(
-            get_decision_snapshot
-            if pit_data_view is not None
-            else None
-        ),
-    ).execute(RunBacktestRequest(**validated_data))
+        get_decision_snapshot_func=(get_decision_snapshot if pit_data_view is not None else None),
+    ).execute(RunBacktestRequest(**resolved_data))
 
 
 def delete_backtest_payload(backtest_id: int) -> dict[str, Any]:
@@ -170,7 +152,7 @@ def delete_backtest_payload(backtest_id: int) -> dict[str, Any]:
     return {"success": response.success, "error": response.error}
 
 
-def get_backtest_statistics_payload():
+def get_backtest_statistics_payload() -> GetBacktestStatisticsResponse:
     """Return the backtest statistics DTO."""
     return GetBacktestStatisticsUseCase(get_backtest_repository()).execute()
 

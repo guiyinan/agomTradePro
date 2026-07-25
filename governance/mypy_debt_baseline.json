@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2415,
-    "files_with_errors": 528
+    "errors": 2372,
+    "files_with_errors": 522
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -523,25 +523,6 @@
       "no-untyped-call": 1,
       "no-untyped-def": 2
     },
-    "apps/backtest/application/interface_services.py": {
-      "arg-type": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 6
-    },
-    "apps/backtest/application/repository_provider.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 1
-    },
-    "apps/backtest/application/tasks.py": {
-      "arg-type": 1,
-      "assignment": 2,
-      "misc": 3,
-      "no-any-return": 1,
-      "no-untyped-call": 3,
-      "no-untyped-def": 3,
-      "type-arg": 3,
-      "var-annotated": 1
-    },
     "apps/backtest/application/use_cases.py": {
       "type-arg": 4,
       "var-annotated": 1
@@ -551,15 +532,6 @@
       "no-untyped-def": 3,
       "override": 1,
       "var-annotated": 6
-    },
-    "apps/backtest/domain/entities.py": {
-      "no-untyped-def": 1,
-      "type-arg": 6
-    },
-    "apps/backtest/domain/services.py": {
-      "arg-type": 2,
-      "no-any-return": 1,
-      "type-arg": 2
     },
     "apps/backtest/domain/stock_selection_backtest.py": {
       "type-arg": 2,
@@ -578,9 +550,6 @@
       "no-untyped-def": 2,
       "type-arg": 1
     },
-    "apps/backtest/infrastructure/repositories.py": {
-      "no-untyped-def": 1
-    },
     "apps/backtest/interface/__init__.py": {
       "var-annotated": 1
     },
@@ -597,7 +566,6 @@
       "type-arg": 7
     },
     "apps/backtest/interface/views.py": {
-      "no-untyped-call": 2,
       "no-untyped-def": 13
     },
     "apps/beta_gate/interface/api_urls.py": {

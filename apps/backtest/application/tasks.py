@@ -5,22 +5,135 @@ Celery Tasks for Backtest Module.
 """
 
 import logging
-from datetime import date
-from typing import Any
+from collections.abc import Mapping
+from datetime import date, timedelta
 
-from celery import shared_task
+from django.db import DatabaseError
+from django.utils import timezone
 
-from apps.regime.application.repository_provider import get_regime_repository
+from core.exceptions import BusinessLogicError, InvalidInputError, ResourceNotFoundError
+from shared.infrastructure.celery_typing import BoundTask, typed_shared_task
+from shared.numeric import safe_float
 
-from ..domain.entities import BacktestConfig
+from ..domain.entities import BacktestConfig, RegimeHistoryEntry, Trade
 from ..domain.services import BacktestEngine
-from .repository_provider import DjangoBacktestRepository, create_default_price_adapter
+from .repository_provider import (
+    build_default_price_reader,
+    build_default_regime_reader,
+    get_backtest_repository,
+)
 from .use_cases import RunBacktestUseCase
 
 logger = logging.getLogger(__name__)
+_MAX_CLEANUP_DAYS = 3650
 
 
-@shared_task(
+def _required_text(payload: Mapping[str, object], field_name: str) -> str:
+    """Return one required non-empty task string."""
+
+    value = payload.get(field_name)
+    if not isinstance(value, str) or not value.strip():
+        raise InvalidInputError(f"{field_name} must be a non-empty string")
+    return value.strip()
+
+
+def _optional_text(
+    payload: Mapping[str, object],
+    field_name: str,
+    *,
+    default: str | None = None,
+) -> str | None:
+    """Return one optional task string without coercing arbitrary objects."""
+
+    value = payload.get(field_name, default)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise InvalidInputError(f"{field_name} must be a string or null")
+    return value.strip()
+
+
+def _finite_number(
+    payload: Mapping[str, object],
+    field_name: str,
+    *,
+    default: float | None = None,
+) -> float:
+    """Parse one finite task number through the shared external-value boundary."""
+
+    value = payload.get(field_name, default)
+    if isinstance(value, bool):
+        raise InvalidInputError(f"{field_name} must be a finite number")
+    normalized = safe_float(value)
+    if normalized is None:
+        raise InvalidInputError(f"{field_name} must be a finite number")
+    return normalized
+
+
+def _boolean_value(
+    payload: Mapping[str, object],
+    field_name: str,
+    *,
+    default: bool,
+) -> bool:
+    """Return one strict boolean task option."""
+
+    value = payload.get(field_name, default)
+    if not isinstance(value, bool):
+        raise InvalidInputError(f"{field_name} must be a boolean")
+    return value
+
+
+def _pit_coverage(payload: Mapping[str, object]) -> dict[str, float]:
+    """Validate manifest coverage as a finite numeric mapping."""
+
+    raw_coverage = payload.get("pit_coverage") or {}
+    if not isinstance(raw_coverage, Mapping):
+        raise InvalidInputError("pit_coverage must be an object")
+
+    coverage: dict[str, float] = {}
+    for raw_key, raw_value in raw_coverage.items():
+        if not isinstance(raw_key, str) or not raw_key.strip():
+            raise InvalidInputError("pit_coverage keys must be non-empty strings")
+        if isinstance(raw_value, bool):
+            raise InvalidInputError("pit_coverage values must be finite numbers")
+        normalized = safe_float(raw_value)
+        if normalized is None:
+            raise InvalidInputError("pit_coverage values must be finite numbers")
+        coverage[raw_key.strip()] = normalized
+    return coverage
+
+
+def _build_backtest_config(payload: Mapping[str, object]) -> BacktestConfig:
+    """Validate a serialized task payload and build its domain configuration."""
+
+    try:
+        start_date = date.fromisoformat(_required_text(payload, "start_date"))
+        end_date = date.fromisoformat(_required_text(payload, "end_date"))
+    except ValueError as exc:
+        raise InvalidInputError("start_date and end_date must use YYYY-MM-DD format") from exc
+
+    return BacktestConfig(
+        start_date=start_date,
+        end_date=end_date,
+        initial_capital=_finite_number(payload, "initial_capital"),
+        rebalance_frequency=_required_text(payload, "rebalance_frequency"),
+        use_pit_data=_boolean_value(payload, "use_pit_data", default=False),
+        transaction_cost_bps=_finite_number(payload, "transaction_cost_bps", default=10.0),
+        trust_status=_optional_text(payload, "trust_status", default="exploratory")
+        or "exploratory",
+        data_manifest_id=_optional_text(payload, "data_manifest_id"),
+        pit_coverage=_pit_coverage(payload),
+        config_hash=_optional_text(payload, "config_hash", default="") or "",
+        code_commit=_optional_text(payload, "code_commit", default="") or "",
+        engine_version=_optional_text(payload, "engine_version", default="backtest-v1")
+        or "backtest-v1",
+        research_trial_id=_optional_text(payload, "research_trial_id"),
+        decision_snapshot_id=_optional_text(payload, "decision_snapshot_id"),
+    )
+
+
+@typed_shared_task(
     bind=True,
     max_retries=3,
     default_retry_delay=600,
@@ -28,10 +141,10 @@ logger = logging.getLogger(__name__)
     soft_time_limit=3300,
 )
 def run_backtest_task(
-    self,
+    self: BoundTask,
     backtest_id: int,
-    config_dict: dict[str, Any],
-) -> dict[str, Any]:
+    config_dict: Mapping[str, object],
+) -> dict[str, object]:
     """
     异步执行回测任务
 
@@ -42,109 +155,64 @@ def run_backtest_task(
     Returns:
         Dict: 任务结果
     """
-    repository = DjangoBacktestRepository()
-    warnings = []
+    if isinstance(backtest_id, bool) or not isinstance(backtest_id, int) or backtest_id <= 0:
+        raise InvalidInputError("backtest_id must be a positive integer")
+
+    repository = get_backtest_repository()
+    backtest_exists = False
 
     try:
         # 1. 获取回测记录
         backtest = repository.get_backtest_by_id(backtest_id)
         if not backtest:
-            raise ValueError(f"Backtest {backtest_id} not found")
+            raise ResourceNotFoundError(f"Backtest {backtest_id} not found")
+        backtest_exists = True
 
         # 2. Resolve trusted evidence before persisting/using the config.
         pit_view = None
-        if config_dict.get("trust_status") == "pit_verified":
+        resolved_config: dict[str, object] = dict(config_dict)
+        if _optional_text(config_dict, "trust_status", default="exploratory") == "pit_verified":
             from core.integration.research_integrity_registry import (
                 make_manifest_bound_pit_view,
             )
 
             pit_view = make_manifest_bound_pit_view(
-                str(config_dict.get("data_manifest_id") or "")
+                _optional_text(config_dict, "data_manifest_id") or ""
             )
-            config_dict["pit_coverage"] = pit_view.coverage
+            resolved_config["pit_coverage"] = dict(pit_view.coverage)
 
         # 3. 创建配置
-        config = BacktestConfig(
-            start_date=date.fromisoformat(config_dict["start_date"]),
-            end_date=date.fromisoformat(config_dict["end_date"]),
-            initial_capital=config_dict["initial_capital"],
-            rebalance_frequency=config_dict["rebalance_frequency"],
-            use_pit_data=config_dict.get("use_pit_data", False),
-            transaction_cost_bps=config_dict.get("transaction_cost_bps", 10.0),
-            trust_status=config_dict.get("trust_status", "exploratory"),
-            data_manifest_id=config_dict.get("data_manifest_id"),
-            pit_coverage=dict(config_dict.get("pit_coverage") or {}),
-            config_hash=config_dict.get("config_hash", ""),
-            code_commit=config_dict.get("code_commit", ""),
-            engine_version=config_dict.get("engine_version", "backtest-v1"),
-            research_trial_id=config_dict.get("research_trial_id"),
-            decision_snapshot_id=config_dict.get("decision_snapshot_id"),
-        )
+        config = _build_backtest_config(resolved_config)
 
         # 4. 标记为运行中
-        repository.update_status(backtest_id, "running")
+        if not repository.update_status(backtest_id, "running"):
+            raise ResourceNotFoundError(f"Backtest {backtest_id} not found")
 
-        # 5. 获取数据获取函数（需要在实际使用时注入）
-        # 这里使用模拟数据，实际应用中需要从外部传入
-        def get_regime(as_of_date: date) -> dict | None:
-            """
-            获取指定日期的 Regime 数据
-
-            实际应用中应该从数据库查询或调用 Regime 服务
-            """
-            regime_repo = get_regime_repository()
-            snapshot = regime_repo.get_regime_by_date(as_of_date)
-            if snapshot:
-                return {
-                    "dominant_regime": snapshot.dominant_regime,
-                    "confidence": snapshot.confidence,
-                    "growth_momentum_z": snapshot.growth_momentum_z,
-                    "inflation_momentum_z": snapshot.inflation_momentum_z,
-                    "distribution": snapshot.distribution,
-                }
-            return None
-
-        def get_asset_price(asset_class: str, as_of_date: date) -> float | None:
-            """
-            获取指定资产在指定日期的价格
-
-            实际应用中应该从数据库查询或调用外部数据源
-            """
-            from shared.config.secrets import get_secrets
-
-            try:
-                tushare_settings = get_secrets().data_sources
-            except Exception:
-                tushare_settings = None
-
-            adapter = create_default_price_adapter(
-                tushare_token=(tushare_settings.tushare_token if tushare_settings else None),
-                tushare_http_url=(tushare_settings.tushare_http_url if tushare_settings else None),
-            )
-            return adapter.get_price(asset_class, as_of_date)
-
-        # 6. Trusted workers use exactly the evidence frozen by the manifest.
+        # 5. Trusted workers use exactly the evidence frozen by the manifest.
         if config.trust_status == "pit_verified":
             assert pit_view is not None
             from core.integration.research_integrity_registry import get_decision_snapshot
 
             if get_decision_snapshot(config.decision_snapshot_id or "") is None:
                 raise ValueError("decision input snapshot not found")
-            get_regime, get_asset_price = RunBacktestUseCase._build_pit_readers(pit_view)
+            regime_reader, price_reader = RunBacktestUseCase._build_pit_readers(pit_view)
+        else:
+            regime_reader = build_default_regime_reader()
+            price_reader = build_default_price_reader()
 
-        # 7. 创建并运行回测引擎
+        # 6. 创建并运行回测引擎
         engine = BacktestEngine(
             config=config,
-            get_regime_func=get_regime,
-            get_asset_price_func=get_asset_price,
+            get_regime_func=regime_reader,
+            get_asset_price_func=price_reader,
             pit_processor=None,
         )
 
         result = engine.run()
-        warnings.extend(result.warnings)
 
-        # 8. 保存结果
-        repository.save_result(backtest_id, result)
+        # 7. 保存结果
+        if not repository.save_result(backtest_id, result):
+            raise ResourceNotFoundError(f"Backtest {backtest_id} not found while saving result")
 
         logger.info(f"Backtest {backtest_id} completed successfully via Celery")
 
@@ -157,29 +225,33 @@ def run_backtest_task(
             "sharpe_ratio": result.sharpe_ratio,
         }
 
-    except Exception as e:
-        logger.exception(f"Backtest task {backtest_id} failed: {e}")
-
-        # 标记为失败
-        repository.update_status(backtest_id, "failed", str(e))
-
-        # 重试逻辑
+    except (
+        BusinessLogicError,
+        InvalidInputError,
+        ResourceNotFoundError,
+        ValueError,
+    ) as exc:
+        logger.exception("Backtest task %s rejected: %s", backtest_id, exc)
+        if backtest_exists:
+            repository.update_status(backtest_id, "failed", str(exc))
+        raise
+    except Exception as exc:
+        logger.exception("Backtest task %s failed: %s", backtest_id, exc)
         if self.request.retries < self.max_retries:
-            try:
-                raise self.retry(exc=e, countdown=60 * (2**self.request.retries))
-            except Exception:
-                logger.warning(
-                    f"Retry {self.request.retries + 1} scheduled for backtest {backtest_id}"
-                )
+            countdown = 60 * (2**self.request.retries)
+            logger.warning(
+                "Scheduling retry %s for backtest %s in %s seconds",
+                self.request.retries + 1,
+                backtest_id,
+                countdown,
+            )
+            raise self.retry(exc=exc, countdown=countdown) from exc
+        if backtest_exists:
+            repository.update_status(backtest_id, "failed", str(exc))
+        raise
 
-        return {
-            "backtest_id": backtest_id,
-            "status": "failed",
-            "error": str(e),
-        }
 
-
-@shared_task(
+@typed_shared_task(
     name="backtest.cleanup_old_backtests",
     bind=True,
     max_retries=2,
@@ -187,7 +259,7 @@ def run_backtest_task(
     time_limit=300,
     soft_time_limit=280,
 )
-def cleanup_old_backtests(self, days_old: int = 90) -> int:
+def cleanup_old_backtests(self: BoundTask, days_old: int = 90) -> int:
     """
     清理旧的回测记录
 
@@ -197,29 +269,26 @@ def cleanup_old_backtests(self, days_old: int = 90) -> int:
     Returns:
         int: 删除的记录数
     """
-    from datetime import timedelta
+    if (
+        isinstance(days_old, bool)
+        or not isinstance(days_old, int)
+        or not 1 <= days_old <= _MAX_CLEANUP_DAYS
+    ):
+        raise InvalidInputError(f"days_old must be between 1 and {_MAX_CLEANUP_DAYS}")
 
-    from django.utils import timezone
+    try:
+        repository = get_backtest_repository()
+        cutoff_date = timezone.now() - timedelta(days=days_old)
+        deleted_count = repository.delete_completed_before(cutoff_date)
 
-    repository = DjangoBacktestRepository()
-    cutoff_date = timezone.now() - timedelta(days=days_old)
-
-    # 获取所有回测
-    backtests = repository.get_all_backtests()
-
-    deleted_count = 0
-    for backtest in backtests:
-        # 只删除已完成的旧回测
-        if backtest.status == "completed" and backtest.created_at < cutoff_date:
-            if repository.delete_backtest(backtest.id):
-                deleted_count += 1
-                logger.info(f"Deleted old backtest {backtest.id}")
-
-    logger.info(f"Cleanup completed: {deleted_count} old backtests deleted")
-    return deleted_count
+        logger.info(f"Cleanup completed: {deleted_count} old backtests deleted")
+        return deleted_count
+    except DatabaseError as exc:
+        logger.exception("Backtest cleanup failed")
+        raise self.retry(exc=exc, countdown=60) from exc
 
 
-@shared_task(
+@typed_shared_task(
     name="backtest.generate_backtest_report",
     bind=True,
     max_retries=2,
@@ -227,7 +296,10 @@ def cleanup_old_backtests(self, days_old: int = 90) -> int:
     time_limit=300,
     soft_time_limit=280,
 )
-def generate_backtest_report(self, backtest_id: int) -> dict[str, Any]:
+def generate_backtest_report(
+    self: BoundTask,
+    backtest_id: int,
+) -> dict[str, object]:
     """
     生成回测报告
 
@@ -237,17 +309,23 @@ def generate_backtest_report(self, backtest_id: int) -> dict[str, Any]:
     Returns:
         Dict: 报告数据
     """
-    repository = DjangoBacktestRepository()
-    backtest = repository.get_backtest_by_id(backtest_id)
+    if isinstance(backtest_id, bool) or not isinstance(backtest_id, int) or backtest_id <= 0:
+        raise InvalidInputError("backtest_id must be a positive integer")
 
-    if not backtest:
-        return {"error": f"Backtest {backtest_id} not found"}
+    try:
+        repository = get_backtest_repository()
+        backtest = repository.get_backtest_by_id(backtest_id)
+    except DatabaseError as exc:
+        logger.exception("Loading backtest %s for report failed", backtest_id)
+        raise self.retry(exc=exc, countdown=60) from exc
 
+    if backtest is None:
+        raise ResourceNotFoundError(f"Backtest {backtest_id} not found")
     if backtest.status != "completed":
-        return {"error": f"Backtest {backtest_id} is not completed"}
+        raise BusinessLogicError(f"Backtest {backtest_id} is not completed")
 
     # 转换为 Domain 实体
-    domain_result = DjangoBacktestRepository.to_domain_entity(backtest)
+    domain_result = repository.to_domain_entity(backtest)
 
     # 生成报告
     report = {
@@ -263,20 +341,22 @@ def generate_backtest_report(self, backtest_id: int) -> dict[str, Any]:
     return report
 
 
-def _analyze_regime_performance(regime_history: list) -> dict[str, Any]:
+def _analyze_regime_performance(
+    regime_history: list[RegimeHistoryEntry],
+) -> dict[str, object]:
     """分析各 Regime 下的表现"""
     if not regime_history:
         return {}
 
-    regime_returns = {}
+    regime_returns: dict[str, list[float]] = {}
     for entry in regime_history:
         regime = entry.get("regime", "Unknown")
-        value = entry.get("portfolio_value", 0)
+        value = entry.get("portfolio_value", 0.0)
         if regime not in regime_returns:
             regime_returns[regime] = []
         regime_returns[regime].append(value)
 
-    analysis = {}
+    analysis: dict[str, object] = {}
     for regime, values in regime_returns.items():
         if len(values) >= 2:
             total_return = (values[-1] - values[0]) / values[0] if values[0] > 0 else 0
@@ -289,7 +369,7 @@ def _analyze_regime_performance(regime_history: list) -> dict[str, Any]:
     return analysis
 
 
-def _analyze_trades(trades: list) -> dict[str, Any]:
+def _analyze_trades(trades: list[Trade]) -> dict[str, object]:
     """分析交易记录"""
     if not trades:
         return {}

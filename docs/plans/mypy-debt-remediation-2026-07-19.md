@@ -3092,3 +3092,19 @@
 - Sentiment 单元与 API edge 回归共 `43 passed`；覆盖真实重试调用、永久输入不重试、批量任务错误穿透、AI 失败不缓存/不落指数、上游错误信息保留、非有限评分拒绝及动态关键词收窄。
 - 四个改动生产文件增量 mypy 清零；全仓基线从 `2445 errors / 532 files` 收紧为 `2415 errors / 528 files`，净减少 `30 errors / 4 files`。
 - Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十一批
+
+- 按“回测任务状态真实性 × 异步失败恢复与批量清理影响面”收口 Backtest Celery tasks。
+- 回测执行、旧结果清理和报告生成统一使用 typed Celery boundary 与 canonical repository provider；永久输入或业务错误直接失败，运行时异常调用真实 `retry()`，重试期间数据库状态保持 running，只有最终失败才写 failed，避免 Celery 显示成功或尚在重试而业务记录提前失败。
+- 任务配置严格校验正整数 ID、日期、布尔值、有限数和 PIT 覆盖结构；Domain 同步拒绝非有限初始资金与交易费率，避免 `NaN`、无穷值或 Python truthiness 进入回测。
+- 异步任务和同步页面共用 execution-scoped regime/price reader；单次回测只初始化一次仓储与价格适配器，不再按每个交易日重复读取密钥和构建客户端。
+- 旧回测清理拒绝布尔、零、负数及超大保留期，并下沉为数据库 bulk delete；只删除 cutoff 前已完成记录，不逐条加载和删除，也不误删失败或运行中记录。
+- 报告任务对不存在或未完成回测抛出正式错误，不再返回包含 `error` 的字典却让 Celery 把任务标记为成功。
+- 回测实体、服务、Application provider/interface 和 Infrastructure repository 补齐精确集合与返回类型；类型传播同时消除 Interface views 的既有未类型调用。
+
+## 第二百一十一批验证结果
+
+- Backtest use case、adapter、Domain、API edge、任务与 integration 回归共 `89 passed, 1 skipped`；另行复核模拟交易最低手续费配置链路 `39 passed`，确认买入资金校验读取 `FeeConfig.min_commission`，生产代码无硬编码 `5`。
+- Backtest 改动文件增量 mypy 清零；全仓基线从 `2415 errors / 528 files` 收紧为 `2372 errors / 522 files`，净减少 `43 errors / 6 files`。
+- Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
