@@ -45,6 +45,7 @@ class EvaluateIndicatorPerformanceRequest:
     start_date: date
     end_date: date
     use_shadow_mode: bool = False  # 影子模式：不保存结果
+    validation_run_id: str | None = None
 
 
 @dataclass
@@ -162,6 +163,7 @@ class EvaluateIndicatorPerformanceUseCase:
                         recommended_action=report.recommended_action,
                         recommended_weight=report.recommended_weight,
                         confidence_level=report.confidence_level,
+                        validation_run_id=request.validation_run_id,
                         analysis_details={
                             "true_positive_count": report.true_positive_count,
                             "false_positive_count": report.false_positive_count,
@@ -281,6 +283,7 @@ class ValidateThresholdsUseCase:
                         start_date=request.start_date,
                         end_date=request.end_date,
                         use_shadow_mode=request.use_shadow_mode,
+                        validation_run_id=validation_run_id,
                     )
                 )
 
@@ -422,7 +425,7 @@ class AdjustIndicatorWeightsResponse:
     """调整指标权重响应"""
 
     success: bool
-    adjusted_weights: list[DynamicWeightConfig] = None
+    adjusted_weights: list[DynamicWeightConfig] | None = None
     error: str | None = None
 
 
@@ -456,12 +459,17 @@ class AdjustIndicatorWeightsUseCase:
                 )
 
             # 2. 获取本次验证的所有指标表现报告 (通过 Repository)
-            performance_reports = self.audit_repo.get_indicator_performance_by_date_range(
-                start_date=summary["evaluation_period_start"],
-                end_date=summary["evaluation_period_end"],
+            performance_reports = self.audit_repo.get_indicator_performance_reports(
+                validation_run_id=request.validation_run_id,
+                limit=None,
             )
+            if not performance_reports:
+                return AdjustIndicatorWeightsResponse(
+                    success=False,
+                    error=f"验证记录 {request.validation_run_id} 没有批次关联的指标表现",
+                )
 
-            adjusted_weights = []
+            adjusted_weights: list[DynamicWeightConfig] = []
 
             for report in performance_reports:
                 # 获取对应的阈值配置 (通过 Repository)
@@ -470,10 +478,30 @@ class AdjustIndicatorWeightsUseCase:
                 )
 
                 if not threshold_config:
-                    continue
+                    return AdjustIndicatorWeightsResponse(
+                        success=False,
+                        error=f"指标 {report['indicator_code']} 的激活阈值配置不存在",
+                    )
 
                 original_weight = threshold_config["base_weight"]
                 current_weight = report["recommended_weight"]
+                f1_score = report["f1_score"]
+                stability_score = report["stability_score"]
+                confidence = report["confidence_level"]
+                decay_rate = report["decay_rate"]
+                recommended_action = report["recommended_action"]
+                if (
+                    current_weight is None
+                    or f1_score is None
+                    or stability_score is None
+                    or confidence is None
+                    or decay_rate is None
+                    or recommended_action is None
+                ):
+                    return AdjustIndicatorWeightsResponse(
+                        success=False,
+                        error=f"指标 {report['indicator_code']} 的表现数据不完整",
+                    )
 
                 # 计算调整系数
                 if original_weight > 0:
@@ -483,21 +511,19 @@ class AdjustIndicatorWeightsUseCase:
 
                 # 生成调整原因
                 reason = self._generate_adjustment_reason(
-                    report["recommended_action"],
-                    report["f1_score"],
-                    report["stability_score"],
+                    recommended_action,
+                    f1_score,
+                    stability_score,
                 )
 
                 # 置信度
-                confidence = report["confidence_level"]
-
                 weight_config = DynamicWeightConfig(
                     indicator_code=report["indicator_code"],
                     current_weight=current_weight,
                     original_weight=original_weight,
-                    f1_score=report["f1_score"],
-                    stability_score=report["stability_score"],
-                    decay_rate=report.get("decay_rate"),
+                    f1_score=f1_score,
+                    stability_score=stability_score,
+                    decay_rate=decay_rate,
                     adjustment_factor=adjustment_factor,
                     new_weight=current_weight,
                     reason=reason,

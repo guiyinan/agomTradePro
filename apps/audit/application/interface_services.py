@@ -9,6 +9,7 @@ from typing import Any, cast
 
 from apps.account.application.manual_trade_sync import ManualTradeReviewSummaryUseCase
 from apps.audit.application.attribution_use_cases import BacktestRepositoryProtocol
+from apps.audit.domain.interfaces import IndicatorThresholdRecord
 from apps.backtest.application.repository_provider import (
     DjangoBacktestRepository,
     get_backtest_repository,
@@ -501,14 +502,16 @@ def build_indicator_performance_page_context() -> dict[str, Any]:
         latest_summary.evaluation_period_end,
     )
 
-    indicator_reports = []
+    indicator_reports: list[dict[str, object]] = []
     for performance in performances:
-        config = threshold_configs.get(performance.indicator_code, {})
+        config: IndicatorThresholdRecord | None = threshold_configs.get(performance.indicator_code)
         indicator_reports.append(
             {
                 "indicator_code": performance.indicator_code,
-                "indicator_name": config.get("indicator_name", performance.indicator_code),
-                "category": config.get("category", ""),
+                "indicator_name": (
+                    config["indicator_name"] if config else performance.indicator_code
+                ),
+                "category": config["category"] if config else "",
                 "f1_score": (
                     float(performance.f1_score) if performance.f1_score is not None else None
                 ),
@@ -557,7 +560,14 @@ def build_threshold_validation_page_context() -> dict[str, Any]:
     """Build the threshold validation page context."""
     audit_repo = get_audit_repository()
     threshold_configs = audit_repo.get_active_threshold_configs()
-    configs_with_history = []
+    threshold_data = {
+        config["indicator_code"]: {
+            "level_low": config["level_low"] if config["level_low"] is not None else 0.0,
+            "level_high": config["level_high"] if config["level_high"] is not None else 0.0,
+        }
+        for config in threshold_configs
+    }
+    configs_with_history: list[dict[str, object]] = []
     for config in threshold_configs:
         history_records = audit_repo.get_recent_indicator_performance_records(
             config["indicator_code"],
@@ -588,16 +598,7 @@ def build_threshold_validation_page_context() -> dict[str, Any]:
 
     return {
         "threshold_configs": configs_with_history,
-        "threshold_data": json.dumps(
-            {
-                config["indicator_code"]: {
-                    "level_low": float(config["level_low"] or 0),
-                    "level_high": float(config["level_high"] or 0),
-                }
-                for config in configs_with_history
-            },
-            ensure_ascii=False,
-        ),
+        "threshold_data": json.dumps(threshold_data, ensure_ascii=False),
         "validation_status": validation_status,
         "validation_status_label": validation_status_label,
         "validation_message": validation_message,

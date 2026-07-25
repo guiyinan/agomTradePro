@@ -4,8 +4,19 @@ Owns ORM persistence for indicator performance records, threshold configs,
 and the cross-module read wrappers (macro facts, regime logs).
 """
 
-from datetime import date
+from __future__ import annotations
 
+import math
+from collections.abc import Mapping
+from dataclasses import dataclass
+from datetime import date, datetime
+from decimal import Decimal
+
+from apps.audit.domain.interfaces import (
+    IndicatorPerformanceRecord,
+    IndicatorThresholdRecord,
+    RegimeLogRecord,
+)
 from apps.data_center.infrastructure.macro_fact_selection import (
     configured_macro_source,
     select_macro_fact_series,
@@ -20,6 +31,79 @@ from .models import (
 __all__ = ["IndicatorRepositoryMixin"]
 
 
+@dataclass
+class _MacroFactCandidate:
+    """Typed projection used by the canonical macro-fact selector."""
+
+    indicator_code: str
+    reporting_period: date
+    value: float
+    source: str
+    revision_number: int
+    published_at: date | None
+    fetched_at: datetime
+    extra: Mapping[str, object]
+
+
+def _optional_finite_float(value: object) -> float | None:
+    """Return a finite float while preserving a legitimate zero."""
+
+    if (
+        value is None
+        or isinstance(value, bool)
+        or not isinstance(value, (int, float, Decimal, str))
+    ):
+        return None
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return numeric if math.isfinite(numeric) else None
+
+
+def _required_finite_float(value: object, *, field_name: str) -> float:
+    """Return a finite float or reject corrupted persisted input."""
+
+    numeric = _optional_finite_float(value)
+    if numeric is None:
+        raise ValueError(f"{field_name} must be finite")
+    return numeric
+
+
+def _nonnegative_int(value: object, *, field_name: str) -> int:
+    """Return a non-negative integer without accepting booleans."""
+
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{field_name} must be a non-negative integer")
+    return value
+
+
+def _json_mapping(value: object) -> dict[str, object]:
+    """Narrow a JSON object to string-keyed metadata."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _json_float_mapping(value: object) -> dict[str, float]:
+    """Narrow JSON numeric mappings and drop invalid values."""
+
+    return {
+        str(key): numeric
+        for key, item in _json_mapping(value).items()
+        if (numeric := _optional_finite_float(item)) is not None
+    }
+
+
+def _json_object_list(value: object) -> list[dict[str, object]]:
+    """Narrow a JSON list to object entries."""
+
+    if not isinstance(value, list):
+        return []
+    return [_json_mapping(item) for item in value if isinstance(item, Mapping)]
+
+
 class IndicatorRepositoryMixin:
     """Indicator performance and threshold configuration persistence."""
 
@@ -28,53 +112,61 @@ class IndicatorRepositoryMixin:
         indicator_code: str,
         start_date: date,
         end_date: date,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         """获取指标在指定时间段内的表现记录"""
+        if start_date > end_date:
+            raise ValueError("start_date must not be after end_date")
         performances = IndicatorPerformanceModel._default_manager.filter(
             indicator_code=indicator_code,
             evaluation_period_start__gte=start_date,
             evaluation_period_end__lte=end_date,
-        ).order_by('-evaluation_period_end')
+        ).order_by("-evaluation_period_end")
 
         return [
             {
-                'id': p.id,
-                'indicator_code': p.indicator_code,
-                'evaluation_period_start': p.evaluation_period_start.isoformat(),
-                'evaluation_period_end': p.evaluation_period_end.isoformat(),
-                'f1_score': float(p.f1_score) if p.f1_score else None,
-                'stability_score': float(p.stability_score),
-                'recommended_action': p.recommended_action,
-                'recommended_weight': float(p.recommended_weight),
-                'confidence_level': float(p.confidence_level),
-                'created_at': p.created_at.isoformat(),
+                "id": p.id,
+                "indicator_code": p.indicator_code,
+                "evaluation_period_start": p.evaluation_period_start.isoformat(),
+                "evaluation_period_end": p.evaluation_period_end.isoformat(),
+                "validation_run_id": p.validation_run_id,
+                "f1_score": _optional_finite_float(p.f1_score),
+                "stability_score": _required_finite_float(
+                    p.stability_score, field_name="stability_score"
+                ),
+                "recommended_action": p.recommended_action,
+                "recommended_weight": float(p.recommended_weight),
+                "confidence_level": float(p.confidence_level),
+                "created_at": p.created_at.isoformat(),
             }
             for p in performances
         ]
 
-    def get_latest_indicator_performance(self, indicator_code: str) -> dict | None:
+    def get_latest_indicator_performance(self, indicator_code: str) -> dict[str, object] | None:
         """获取指标最新的表现记录"""
         try:
             performance = IndicatorPerformanceModel._default_manager.filter(
                 indicator_code=indicator_code
-            ).latest('evaluation_period_end')
+            ).latest("evaluation_period_end")
 
             return {
-                'id': performance.id,
-                'indicator_code': performance.indicator_code,
-                'evaluation_period_start': performance.evaluation_period_start.isoformat(),
-                'evaluation_period_end': performance.evaluation_period_end.isoformat(),
-                'f1_score': float(performance.f1_score) if performance.f1_score else None,
-                'stability_score': float(performance.stability_score),
-                'recommended_action': performance.recommended_action,
-                'recommended_weight': float(performance.recommended_weight),
-                'confidence_level': float(performance.confidence_level),
-                'created_at': performance.created_at.isoformat(),
+                "id": performance.id,
+                "indicator_code": performance.indicator_code,
+                "evaluation_period_start": performance.evaluation_period_start.isoformat(),
+                "evaluation_period_end": performance.evaluation_period_end.isoformat(),
+                "validation_run_id": performance.validation_run_id,
+                "f1_score": _optional_finite_float(performance.f1_score),
+                "stability_score": float(performance.stability_score),
+                "recommended_action": performance.recommended_action,
+                "recommended_weight": float(performance.recommended_weight),
+                "confidence_level": float(performance.confidence_level),
+                "created_at": performance.created_at.isoformat(),
             }
         except IndicatorPerformanceModel.DoesNotExist:
             return None
 
-    def get_latest_indicator_performance_detail(self, indicator_code: str) -> dict | None:
+    def get_latest_indicator_performance_detail(
+        self, indicator_code: str
+    ) -> dict[str, object] | None:
         """获取指标最新表现的完整详情。"""
         try:
             performance = (
@@ -86,79 +178,91 @@ class IndicatorRepositoryMixin:
                 return None
             return {
                 "indicator_code": performance.indicator_code,
+                "validation_run_id": performance.validation_run_id,
                 "evaluation_period_start": performance.evaluation_period_start,
                 "evaluation_period_end": performance.evaluation_period_end,
                 "true_positive_count": performance.true_positive_count,
                 "false_positive_count": performance.false_positive_count,
                 "true_negative_count": performance.true_negative_count,
                 "false_negative_count": performance.false_negative_count,
-                "precision": float(performance.precision)
-                if performance.precision is not None
-                else None,
+                "precision": (
+                    float(performance.precision) if performance.precision is not None else None
+                ),
                 "recall": float(performance.recall) if performance.recall is not None else None,
-                "f1_score": float(performance.f1_score)
-                if performance.f1_score is not None
-                else None,
-                "accuracy": float(performance.accuracy)
-                if performance.accuracy is not None
-                else None,
-                "lead_time_mean": float(performance.lead_time_mean)
-                if performance.lead_time_mean is not None
-                else None,
-                "lead_time_std": float(performance.lead_time_std)
-                if performance.lead_time_std is not None
-                else None,
-                "stability_score": float(performance.stability_score)
-                if performance.stability_score is not None
-                else None,
-                "decay_rate": float(performance.decay_rate)
-                if performance.decay_rate is not None
-                else None,
-                "signal_strength": float(performance.signal_strength)
-                if performance.signal_strength is not None
-                else None,
+                "f1_score": (
+                    float(performance.f1_score) if performance.f1_score is not None else None
+                ),
+                "accuracy": (
+                    float(performance.accuracy) if performance.accuracy is not None else None
+                ),
+                "lead_time_mean": (
+                    float(performance.lead_time_mean)
+                    if performance.lead_time_mean is not None
+                    else None
+                ),
+                "lead_time_std": (
+                    float(performance.lead_time_std)
+                    if performance.lead_time_std is not None
+                    else None
+                ),
+                "stability_score": (
+                    float(performance.stability_score)
+                    if performance.stability_score is not None
+                    else None
+                ),
+                "decay_rate": (
+                    float(performance.decay_rate) if performance.decay_rate is not None else None
+                ),
+                "signal_strength": (
+                    float(performance.signal_strength)
+                    if performance.signal_strength is not None
+                    else None
+                ),
                 "recommended_action": performance.recommended_action,
-                "recommended_weight": float(performance.recommended_weight)
-                if performance.recommended_weight is not None
-                else None,
-                "confidence_level": float(performance.confidence_level)
-                if performance.confidence_level is not None
-                else None,
+                "recommended_weight": (
+                    float(performance.recommended_weight)
+                    if performance.recommended_weight is not None
+                    else None
+                ),
+                "confidence_level": (
+                    float(performance.confidence_level)
+                    if performance.confidence_level is not None
+                    else None
+                ),
             }
         except IndicatorPerformanceModel.DoesNotExist:
             return None
 
-    def get_active_threshold_configs(self) -> list[dict]:
+    def get_active_threshold_configs(self) -> list[IndicatorThresholdRecord]:
         """获取所有激活的阈值配置"""
-        configs = IndicatorThresholdConfigModel._default_manager.filter(
-            is_active=True
-        ).order_by('category', 'indicator_code')
+        configs = IndicatorThresholdConfigModel._default_manager.filter(is_active=True).order_by(
+            "category", "indicator_code"
+        )
 
         return [
             {
-                'indicator_code': c.indicator_code,
-                'indicator_name': c.indicator_name,
-                'category': c.category,
-                'level_low': float(c.level_low) if c.level_low is not None else None,
-                'level_high': float(c.level_high) if c.level_high is not None else None,
-                'base_weight': float(c.base_weight),
-                'min_weight': float(c.min_weight),
-                'max_weight': float(c.max_weight),
-                'decay_threshold': float(c.decay_threshold),
-                'decay_penalty': float(c.decay_penalty),
-                'improvement_threshold': float(c.improvement_threshold),
-                'improvement_bonus': float(c.improvement_bonus),
-                'action_thresholds': c.action_thresholds,
-                'validation_periods': c.validation_periods,
-                'description': c.description,
+                "indicator_code": c.indicator_code,
+                "indicator_name": c.indicator_name,
+                "category": c.category,
+                "level_low": float(c.level_low) if c.level_low is not None else None,
+                "level_high": float(c.level_high) if c.level_high is not None else None,
+                "base_weight": float(c.base_weight),
+                "min_weight": float(c.min_weight),
+                "max_weight": float(c.max_weight),
+                "decay_threshold": float(c.decay_threshold),
+                "decay_penalty": float(c.decay_penalty),
+                "improvement_threshold": float(c.improvement_threshold),
+                "improvement_bonus": float(c.improvement_bonus),
+                "action_thresholds": _json_float_mapping(c.action_thresholds),
+                "validation_periods": _json_object_list(c.validation_periods),
+                "description": c.description,
             }
             for c in configs
         ]
 
     def get_threshold_config_by_indicator(
-        self,
-        indicator_code: str
-    ) -> dict | None:
+        self, indicator_code: str
+    ) -> IndicatorThresholdRecord | None:
         """
         获取指标的阈值配置
 
@@ -170,25 +274,24 @@ class IndicatorRepositoryMixin:
         """
         try:
             config = IndicatorThresholdConfigModel._default_manager.get(
-                indicator_code=indicator_code,
-                is_active=True
+                indicator_code=indicator_code, is_active=True
             )
             return {
-                'indicator_code': config.indicator_code,
-                'indicator_name': config.indicator_name,
-                'category': config.category,
-                'level_low': float(config.level_low) if config.level_low is not None else None,
-                'level_high': float(config.level_high) if config.level_high is not None else None,
-                'base_weight': float(config.base_weight),
-                'min_weight': float(config.min_weight),
-                'max_weight': float(config.max_weight),
-                'decay_threshold': float(config.decay_threshold),
-                'decay_penalty': float(config.decay_penalty),
-                'improvement_threshold': float(config.improvement_threshold),
-                'improvement_bonus': float(config.improvement_bonus),
-                'action_thresholds': config.action_thresholds or {},
-                'validation_periods': config.validation_periods or {},
-                'description': config.description,
+                "indicator_code": config.indicator_code,
+                "indicator_name": config.indicator_name,
+                "category": config.category,
+                "level_low": float(config.level_low) if config.level_low is not None else None,
+                "level_high": float(config.level_high) if config.level_high is not None else None,
+                "base_weight": float(config.base_weight),
+                "min_weight": float(config.min_weight),
+                "max_weight": float(config.max_weight),
+                "decay_threshold": float(config.decay_threshold),
+                "decay_penalty": float(config.decay_penalty),
+                "improvement_threshold": float(config.improvement_threshold),
+                "improvement_bonus": float(config.improvement_bonus),
+                "action_thresholds": _json_float_mapping(config.action_thresholds),
+                "validation_periods": _json_object_list(config.validation_periods),
+                "description": config.description,
             }
         except IndicatorThresholdConfigModel.DoesNotExist:
             return None
@@ -202,10 +305,11 @@ class IndicatorRepositoryMixin:
         precision_score: float | None = None,
         recall_score: float | None = None,
         stability_score: float = 0.0,
-        recommended_action: str = 'keep',
+        recommended_action: str = "keep",
         recommended_weight: float = 1.0,
         confidence_level: float = 0.5,
-        analysis_details: dict | None = None,
+        analysis_details: Mapping[str, object] | None = None,
+        validation_run_id: str | None = None,
     ) -> int:
         """
         保存指标性能评估记录
@@ -213,37 +317,101 @@ class IndicatorRepositoryMixin:
         Returns:
             int: 记录 ID
         """
+        normalized_code = indicator_code.strip()
+        if not normalized_code:
+            raise ValueError("indicator_code is required")
+        if evaluation_period_start > evaluation_period_end:
+            raise ValueError("evaluation period start must not be after end")
+        normalized_run_id = (validation_run_id or "").strip() or None
+        details = dict(analysis_details or {})
         record = IndicatorPerformanceModel._default_manager.create(
-            indicator_code=indicator_code,
+            indicator_code=normalized_code,
+            validation_run_id=normalized_run_id,
             evaluation_period_start=evaluation_period_start,
             evaluation_period_end=evaluation_period_end,
-            true_positive_count=(analysis_details or {}).get('true_positive_count', 0),
-            false_positive_count=(analysis_details or {}).get('false_positive_count', 0),
-            true_negative_count=(analysis_details or {}).get('true_negative_count', 0),
-            false_negative_count=(analysis_details or {}).get('false_negative_count', 0),
-            f1_score=f1_score,
-            precision=precision_score,
-            recall=recall_score,
-            accuracy=(analysis_details or {}).get('accuracy'),
-            lead_time_mean=(analysis_details or {}).get('lead_time_mean', 0.0),
-            lead_time_std=(analysis_details or {}).get('lead_time_std', 0.0),
-            pre_2015_correlation=(analysis_details or {}).get('pre_2015_correlation'),
-            post_2015_correlation=(analysis_details or {}).get('post_2015_correlation'),
-            stability_score=stability_score,
-            decay_rate=(analysis_details or {}).get('decay_rate', 0.0),
-            signal_strength=(analysis_details or {}).get('signal_strength', 0.0),
+            true_positive_count=_nonnegative_int(
+                details.get("true_positive_count", 0),
+                field_name="true_positive_count",
+            ),
+            false_positive_count=_nonnegative_int(
+                details.get("false_positive_count", 0),
+                field_name="false_positive_count",
+            ),
+            true_negative_count=_nonnegative_int(
+                details.get("true_negative_count", 0),
+                field_name="true_negative_count",
+            ),
+            false_negative_count=_nonnegative_int(
+                details.get("false_negative_count", 0),
+                field_name="false_negative_count",
+            ),
+            f1_score=(
+                _required_finite_float(f1_score, field_name="f1_score")
+                if f1_score is not None
+                else None
+            ),
+            precision=(
+                _required_finite_float(precision_score, field_name="precision")
+                if precision_score is not None
+                else None
+            ),
+            recall=(
+                _required_finite_float(recall_score, field_name="recall")
+                if recall_score is not None
+                else None
+            ),
+            accuracy=(
+                _required_finite_float(details["accuracy"], field_name="accuracy")
+                if details.get("accuracy") is not None
+                else None
+            ),
+            lead_time_mean=_required_finite_float(
+                details.get("lead_time_mean", 0.0), field_name="lead_time_mean"
+            ),
+            lead_time_std=_required_finite_float(
+                details.get("lead_time_std", 0.0), field_name="lead_time_std"
+            ),
+            pre_2015_correlation=(
+                _required_finite_float(
+                    details["pre_2015_correlation"],
+                    field_name="pre_2015_correlation",
+                )
+                if details.get("pre_2015_correlation") is not None
+                else None
+            ),
+            post_2015_correlation=(
+                _required_finite_float(
+                    details["post_2015_correlation"],
+                    field_name="post_2015_correlation",
+                )
+                if details.get("post_2015_correlation") is not None
+                else None
+            ),
+            stability_score=_required_finite_float(stability_score, field_name="stability_score"),
+            decay_rate=_required_finite_float(
+                details.get("decay_rate", 0.0), field_name="decay_rate"
+            ),
+            signal_strength=_required_finite_float(
+                details.get("signal_strength", 0.0), field_name="signal_strength"
+            ),
             recommended_action=recommended_action,
-            recommended_weight=recommended_weight,
-            confidence_level=confidence_level,
+            recommended_weight=_required_finite_float(
+                recommended_weight, field_name="recommended_weight"
+            ),
+            confidence_level=_required_finite_float(
+                confidence_level, field_name="confidence_level"
+            ),
         )
-        return record.id
+        if record.id is None:
+            raise RuntimeError("Indicator performance record was not persisted")
+        return int(record.id)
 
     def get_indicator_performance_reports(
         self,
         validation_run_id: str | None = None,
         indicator_code: str | None = None,
-        limit: int = 100,
-    ) -> list[dict]:
+        limit: int | None = 100,
+    ) -> list[IndicatorPerformanceRecord]:
         """
         获取指标性能报告列表
 
@@ -255,24 +423,34 @@ class IndicatorRepositoryMixin:
         Returns:
             List[dict]: 性能报告列表
         """
+        if limit is not None and (limit < 1 or limit > 1000):
+            raise ValueError("limit must be between 1 and 1000")
         queryset = IndicatorPerformanceModel._default_manager.all()
 
+        if validation_run_id:
+            queryset = queryset.filter(validation_run_id=validation_run_id)
         if indicator_code:
             queryset = queryset.filter(indicator_code=indicator_code)
 
-        queryset = queryset.order_by('-created_at')[:limit]
+        queryset = queryset.order_by("-created_at")
+        if limit is not None:
+            queryset = queryset[:limit]
 
         return [
             {
-                'id': p.id,
-                'indicator_code': p.indicator_code,
-                'evaluation_period_start': p.evaluation_period_start.isoformat(),
-                'evaluation_period_end': p.evaluation_period_end.isoformat(),
-                'f1_score': float(p.f1_score) if p.f1_score else None,
-                'stability_score': float(p.stability_score),
-                'recommended_action': p.recommended_action,
-                'recommended_weight': float(p.recommended_weight),
-                'confidence_level': float(p.confidence_level),
+                "id": p.id,
+                "indicator_code": p.indicator_code,
+                "validation_run_id": p.validation_run_id,
+                "evaluation_period_start": p.evaluation_period_start.isoformat(),
+                "evaluation_period_end": p.evaluation_period_end.isoformat(),
+                "f1_score": _optional_finite_float(p.f1_score),
+                "precision": _optional_finite_float(p.precision),
+                "recall": _optional_finite_float(p.recall),
+                "stability_score": _optional_finite_float(p.stability_score),
+                "recommended_action": p.recommended_action,
+                "recommended_weight": float(p.recommended_weight),
+                "confidence_level": float(p.confidence_level),
+                "decay_rate": _optional_finite_float(p.decay_rate),
             }
             for p in queryset
         ]
@@ -298,8 +476,9 @@ class IndicatorRepositoryMixin:
     ) -> list[IndicatorPerformanceModel]:
         """返回某个指标最近的若干条表现记录。"""
         return list(
-            IndicatorPerformanceModel._default_manager.filter(indicator_code=indicator_code)
-            .order_by("-evaluation_period_end")[:limit]
+            IndicatorPerformanceModel._default_manager.filter(
+                indicator_code=indicator_code
+            ).order_by("-evaluation_period_end")[:limit]
         )
 
     def get_macro_indicator_values(
@@ -307,7 +486,7 @@ class IndicatorRepositoryMixin:
         indicator_code: str,
         start_date: date,
         end_date: date,
-    ) -> list[tuple]:
+    ) -> list[tuple[date, float]]:
         """
         获取宏观指标历史值（跨模块查询包装）
 
@@ -323,10 +502,23 @@ class IndicatorRepositoryMixin:
             indicator_code=indicator_code,
             reporting_period__gte=start_date,
             reporting_period__lte=end_date,
-        ).order_by('reporting_period', 'id')
+        ).order_by("reporting_period", "id")
         catalog = IndicatorCatalogModel._default_manager.filter(code=indicator_code).first()
+        candidates = [
+            _MacroFactCandidate(
+                indicator_code=fact.indicator_code,
+                reporting_period=fact.reporting_period,
+                value=float(fact.value),
+                source=fact.source,
+                revision_number=fact.revision_number,
+                published_at=fact.published_at,
+                fetched_at=fact.fetched_at,
+                extra=_json_mapping(fact.extra),
+            )
+            for fact in queryset
+        ]
         selection = select_macro_fact_series(
-            list(queryset),
+            candidates,
             preferred_source=configured_macro_source(catalog.extra if catalog else {}),
         )
 
@@ -336,7 +528,7 @@ class IndicatorRepositoryMixin:
         self,
         start_date: date,
         end_date: date,
-    ) -> list[dict]:
+    ) -> list[RegimeLogRecord]:
         """
         获取 Regime 日志历史（跨模块查询包装)
 
@@ -352,24 +544,27 @@ class IndicatorRepositoryMixin:
         queryset = RegimeLog._default_manager.filter(
             observed_at__gte=start_date,
             observed_at__lte=end_date,
-        ).order_by('observed_at')
+        ).order_by("observed_at")
 
         return [
             {
-                'observed_at': log.observed_at,
-                'dominant_regime': log.dominant_regime,
-                'confidence': float(log.confidence) if log.confidence else None,
-                'growth_momentum_z': float(log.growth_momentum_z) if log.growth_momentum_z else None,
-                'inflation_momentum_z': float(log.inflation_momentum_z) if log.inflation_momentum_z else None,
-                'distribution': log.distribution or {},
+                "observed_at": log.observed_at,
+                "dominant_regime": log.dominant_regime,
+                "confidence": _required_finite_float(log.confidence, field_name="confidence"),
+                "growth_momentum_z": _required_finite_float(
+                    log.growth_momentum_z, field_name="growth_momentum_z"
+                ),
+                "inflation_momentum_z": _required_finite_float(
+                    log.inflation_momentum_z, field_name="inflation_momentum_z"
+                ),
+                "distribution": _json_float_mapping(log.distribution),
             }
             for log in queryset
         ]
 
     def get_active_threshold_configs_by_codes(
-        self,
-        indicator_codes: list[str] | None = None
-    ) -> list[dict]:
+        self, indicator_codes: list[str] | None = None
+    ) -> list[IndicatorThresholdRecord]:
         """
         获取激活的阈值配置（可选按指标代码过滤）
 
@@ -379,40 +574,35 @@ class IndicatorRepositoryMixin:
         Returns:
             List[dict]: 阈值配置字典列表
         """
-        queryset = IndicatorThresholdConfigModel._default_manager.filter(
-            is_active=True
-        )
+        queryset = IndicatorThresholdConfigModel._default_manager.filter(is_active=True)
 
         if indicator_codes:
             queryset = queryset.filter(indicator_code__in=indicator_codes)
 
         return [
             {
-                'indicator_code': c.indicator_code,
-                'indicator_name': c.indicator_name,
-                'category': c.category,
-                'level_low': float(c.level_low) if c.level_low is not None else None,
-                'level_high': float(c.level_high) if c.level_high is not None else None,
-                'base_weight': float(c.base_weight),
-                'min_weight': float(c.min_weight),
-                'max_weight': float(c.max_weight),
-                'decay_threshold': float(c.decay_threshold),
-                'decay_penalty': float(c.decay_penalty),
-                'improvement_threshold': float(c.improvement_threshold),
-                'improvement_bonus': float(c.improvement_bonus),
-                'action_thresholds': c.action_thresholds or {},
+                "indicator_code": c.indicator_code,
+                "indicator_name": c.indicator_name,
+                "category": c.category,
+                "level_low": float(c.level_low) if c.level_low is not None else None,
+                "level_high": float(c.level_high) if c.level_high is not None else None,
+                "base_weight": float(c.base_weight),
+                "min_weight": float(c.min_weight),
+                "max_weight": float(c.max_weight),
+                "decay_threshold": float(c.decay_threshold),
+                "decay_penalty": float(c.decay_penalty),
+                "improvement_threshold": float(c.improvement_threshold),
+                "improvement_bonus": float(c.improvement_bonus),
+                "action_thresholds": _json_float_mapping(c.action_thresholds),
+                "validation_periods": _json_object_list(c.validation_periods),
+                "description": c.description,
             }
             for c in queryset
         ]
 
-    def count_active_threshold_configs(
-        self,
-        indicator_codes: list[str] | None = None
-    ) -> int:
+    def count_active_threshold_configs(self, indicator_codes: list[str] | None = None) -> int:
         """统计激活的阈值配置数量"""
-        queryset = IndicatorThresholdConfigModel._default_manager.filter(
-            is_active=True
-        )
+        queryset = IndicatorThresholdConfigModel._default_manager.filter(is_active=True)
         if indicator_codes:
             queryset = queryset.filter(indicator_code__in=indicator_codes)
         return queryset.count()
@@ -421,7 +611,7 @@ class IndicatorRepositoryMixin:
         self,
         start_date: date,
         end_date: date,
-    ) -> list[dict]:
+    ) -> list[IndicatorPerformanceRecord]:
         """
         根据日期范围获取指标性能报告
 
@@ -435,17 +625,19 @@ class IndicatorRepositoryMixin:
 
         return [
             {
-                'id': r.id,
-                'indicator_code': r.indicator_code,
-                'evaluation_period_start': r.evaluation_period_start.isoformat(),
-                'evaluation_period_end': r.evaluation_period_end.isoformat(),
-                'f1_score': float(r.f1_score) if r.f1_score else None,
-                'precision': float(r.precision) if r.precision else None,
-                'recall': float(r.recall) if r.recall else None,
-                'stability_score': float(r.stability_score) if r.stability_score else None,
-                'recommended_action': r.recommended_action,
-                'recommended_weight': float(r.recommended_weight) if r.recommended_weight else None,
-                'confidence_level': float(r.confidence_level) if r.confidence_level else None,
+                "id": r.id,
+                "indicator_code": r.indicator_code,
+                "evaluation_period_start": r.evaluation_period_start.isoformat(),
+                "evaluation_period_end": r.evaluation_period_end.isoformat(),
+                "validation_run_id": r.validation_run_id,
+                "f1_score": _optional_finite_float(r.f1_score),
+                "precision": _optional_finite_float(r.precision),
+                "recall": _optional_finite_float(r.recall),
+                "stability_score": _optional_finite_float(r.stability_score),
+                "recommended_action": r.recommended_action,
+                "recommended_weight": _optional_finite_float(r.recommended_weight),
+                "confidence_level": _optional_finite_float(r.confidence_level),
+                "decay_rate": _optional_finite_float(r.decay_rate),
             }
             for r in queryset
         ]
@@ -461,15 +653,16 @@ class IndicatorRepositoryMixin:
         Returns:
             bool: 是否更新成功
         """
-        try:
-            config = IndicatorThresholdConfigModel._default_manager.get(
-                indicator_code=indicator_code
-            )
-            config.base_weight = new_weight
-            config.save()
-            return True
-        except IndicatorThresholdConfigModel.DoesNotExist:
+        if not math.isfinite(new_weight):
             return False
+        return bool(
+            IndicatorThresholdConfigModel._default_manager.filter(
+                indicator_code=indicator_code,
+                is_active=True,
+                min_weight__lte=new_weight,
+                max_weight__gte=new_weight,
+            ).update(base_weight=new_weight)
+        )
 
     def update_threshold_config_levels(
         self,
@@ -479,23 +672,20 @@ class IndicatorRepositoryMixin:
         level_high: float,
     ) -> bool:
         """更新阈值配置的高低阈值。"""
-        try:
-            config = IndicatorThresholdConfigModel._default_manager.get(
+        if not math.isfinite(level_low) or not math.isfinite(level_high) or level_low >= level_high:
+            return False
+        return bool(
+            IndicatorThresholdConfigModel._default_manager.filter(
                 indicator_code=indicator_code,
                 is_active=True,
-            )
-            config.level_low = level_low
-            config.level_high = level_high
-            config.save(update_fields=["level_low", "level_high", "updated_at"])
-            return True
-        except IndicatorThresholdConfigModel.DoesNotExist:
-            return False
+            ).update(level_low=level_low, level_high=level_high)
+        )
 
     def get_indicator_performance_by_date_range(
         self,
         start_date: date,
         end_date: date,
-    ) -> list[dict]:
+    ) -> list[IndicatorPerformanceRecord]:
         """
         根据日期范围获取指标表现报告
 
@@ -509,18 +699,19 @@ class IndicatorRepositoryMixin:
 
         return [
             {
-                'id': r.id,
-                'indicator_code': r.indicator_code,
-                'evaluation_period_start': r.evaluation_period_start.isoformat(),
-                'evaluation_period_end': r.evaluation_period_end.isoformat(),
-                'f1_score': float(r.f1_score) if r.f1_score else None,
-                'precision': float(r.precision) if r.precision else None,
-                'recall': float(r.recall) if r.recall else None,
-                'stability_score': float(r.stability_score) if r.stability_score else None,
-                'recommended_action': r.recommended_action,
-                'recommended_weight': float(r.recommended_weight) if r.recommended_weight else None,
-                'confidence_level': float(r.confidence_level) if r.confidence_level else None,
-                'decay_rate': float(r.decay_rate) if r.decay_rate else None,
+                "id": r.id,
+                "indicator_code": r.indicator_code,
+                "evaluation_period_start": r.evaluation_period_start.isoformat(),
+                "evaluation_period_end": r.evaluation_period_end.isoformat(),
+                "validation_run_id": r.validation_run_id,
+                "f1_score": _optional_finite_float(r.f1_score),
+                "precision": _optional_finite_float(r.precision),
+                "recall": _optional_finite_float(r.recall),
+                "stability_score": _optional_finite_float(r.stability_score),
+                "recommended_action": r.recommended_action,
+                "recommended_weight": _optional_finite_float(r.recommended_weight),
+                "confidence_level": _optional_finite_float(r.confidence_level),
+                "decay_rate": _optional_finite_float(r.decay_rate),
             }
             for r in queryset
         ]

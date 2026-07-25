@@ -1,7 +1,6 @@
 """Canonical macro selection coverage for Audit infrastructure readers."""
 
 from datetime import date
-from decimal import Decimal
 
 import pytest
 
@@ -46,4 +45,4 @@ def test_audit_macro_reader_prefers_governed_canonical_fact() -> None:
         date(2026, 6, 30),
     )
 
-    assert values == [(date(2026, 6, 30), Decimal("1.200000"))]
+    assert values == [(date(2026, 6, 30), 1.2)]

@@ -3185,3 +3185,20 @@
 - Attribution service、performance analyzer 与新增真实性不变量回归共 `90 passed`。
 - Attribution Domain service 增量 mypy 清零；全仓基线从 `2297 errors / 513 files` 收紧为 `2282 errors / 512 files`，净减少 `15 errors / 1 file`。
 - 改动文件 Ruff、Black、isort、diff check、增量 mypy与全仓 debt ceiling 通过。
+
+## 第二百一十七批
+
+- 按“指标验证批次隔离 × 动态权重调整影响面”收口 Audit indicator performance persistence。
+- `IndicatorPerformanceModel` 新增可空、带索引的 `validation_run_id`，并以条件唯一约束保证同一批次每个指标至多一份报告；阈值验证生成批次后把同一 ID 传给每个指标评估并随报告落库，报告查询实际按批次过滤，不再忽略已有参数。
+- 动态权重调整只读取指定验证批次的报告；没有批次关联报告、缺少激活阈值配置或报告关键指标不完整时默认拒绝，不再按相同日期区间混入其他运行或历史报告。
+- 指标表现、Regime 日志和页面上下文序列化统一使用 `is not None` 与有限数收窄；合法的 `0.0` F1、精确率、召回率、稳定性、权重、置信度和衰减率不再被错误发布为缺失。
+- 指标表现写入拒绝空指标、反向日期、负混淆矩阵计数和非有限指标；阈值更新只允许激活配置，权重必须有限且处于该指标配置的最小/最大范围，水平阈值必须有限且 `low < high`。
+- Macro Fact 查询先投影为明确的候选 DTO，再调用统一来源选择规则；返回值统一为有限浮点数，不再把 Django Decimal 模型硬塞入不兼容的选择协议。
+- 补充迁移 `0009_indicatorperformancemodel_validation_run_id.py`；Audit ORM model 的字符串与 Domain 转换方法补齐返回类型，F1 缺失时字符串展示为 `N/A`，不再因格式化 `None` 抛错。
+
+## 第二百一十七批验证结果
+
+- Audit unit、Domain、Application、integration 与 Macro Fact 组件完整相关回归 `301 passed`；Interface、validation 与 threshold config 定点回归另有 `20 passed`。
+- `makemigrations --check --dry-run` 无漂移，Django system check 与架构 delta 通过。
+- Indicator use case、repository 与 Audit models 增量 mypy 清零；全仓基线从 `2282 errors / 512 files` 收紧为 `2257 errors / 509 files`，净减少 `25 errors / 3 files`。
+- 改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。

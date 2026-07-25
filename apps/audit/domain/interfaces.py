@@ -5,7 +5,56 @@ Repository interfaces for audit operations.
 """
 
 from datetime import date
-from typing import Protocol
+from typing import Protocol, TypedDict
+
+
+class IndicatorThresholdRecord(TypedDict):
+    """Typed persistence projection for an indicator threshold."""
+
+    indicator_code: str
+    indicator_name: str
+    category: str
+    level_low: float | None
+    level_high: float | None
+    base_weight: float
+    min_weight: float
+    max_weight: float
+    decay_threshold: float
+    decay_penalty: float
+    improvement_threshold: float
+    improvement_bonus: float
+    action_thresholds: dict[str, float]
+    validation_periods: list[dict[str, object]]
+    description: str
+
+
+class IndicatorPerformanceRecord(TypedDict):
+    """Typed persistence projection for indicator performance."""
+
+    id: int
+    indicator_code: str
+    validation_run_id: str | None
+    evaluation_period_start: str
+    evaluation_period_end: str
+    f1_score: float | None
+    precision: float | None
+    recall: float | None
+    stability_score: float | None
+    recommended_action: str | None
+    recommended_weight: float | None
+    confidence_level: float | None
+    decay_rate: float | None
+
+
+class RegimeLogRecord(TypedDict):
+    """Typed persistence projection for a Regime observation."""
+
+    observed_at: date
+    dominant_regime: str
+    confidence: float
+    growth_momentum_z: float
+    inflation_momentum_z: float
+    distribution: dict[str, float]
 
 
 class AuditRepositoryProtocol(Protocol):
