@@ -2,18 +2,16 @@
 Django admin configuration for AI provider management.
 """
 
-from django.apps import apps as django_apps
 from django.contrib import admin
+from django.http import HttpRequest
 
 from apps.ai_provider.application.interface_services import get_masked_provider_api_key
-
-AIProviderConfig = django_apps.get_model("ai_provider", "AIProviderConfig")
-AIUsageLog = django_apps.get_model("ai_provider", "AIUsageLog")
-AIUserFallbackQuota = django_apps.get_model("ai_provider", "AIUserFallbackQuota")
+from apps.ai_provider.models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 @admin.register(AIProviderConfig)
-class AIProviderConfigAdmin(admin.ModelAdmin):
+class AIProviderConfigAdmin(TypedModelAdmin[AIProviderConfig]):
     """AI提供商配置管理"""
 
     list_display = [
@@ -37,21 +35,32 @@ class AIProviderConfigAdmin(admin.ModelAdmin):
     fieldsets = (
         ("归属", {"fields": ("scope", "owner_user")}),
         ("基本信息", {"fields": ("name", "provider_type", "description")}),
-        ("连接配置", {"fields": ("base_url", "api_key", "default_model", "api_mode", "fallback_enabled")}),
+        (
+            "连接配置",
+            {
+                "fields": (
+                    "base_url",
+                    "masked_api_key",
+                    "default_model",
+                    "api_mode",
+                    "fallback_enabled",
+                )
+            },
+        ),
         ("状态与优先级", {"fields": ("is_active", "priority")}),
         ("预算控制", {"fields": ("daily_budget_limit", "monthly_budget_limit")}),
         ("额外配置", {"fields": ("extra_config",), "classes": ("collapse",)}),
     )
-    readonly_fields = ["created_at", "updated_at", "last_used_at"]
+    readonly_fields = ["masked_api_key", "created_at", "updated_at", "last_used_at"]
 
-    def masked_api_key(self, obj):
+    @admin.display(description="API Key")
+    def masked_api_key(self, obj: AIProviderConfig) -> str:
+        """Return a non-identifying fixed credential mask."""
         return get_masked_provider_api_key(obj)
-
-    masked_api_key.short_description = "API Key"
 
 
 @admin.register(AIUsageLog)
-class AIUsageLogAdmin(admin.ModelAdmin):
+class AIUsageLogAdmin(TypedModelAdmin[AIUsageLog]):
     """AI调用日志管理"""
 
     list_display = [
@@ -90,15 +99,19 @@ class AIUsageLogAdmin(admin.ModelAdmin):
     ]
     list_per_page = 50
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         return False
 
-    def has_change_permission(self, request, obj=None):
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: AIUsageLog | None = None,
+    ) -> bool:
         return False
 
 
 @admin.register(AIUserFallbackQuota)
-class AIUserFallbackQuotaAdmin(admin.ModelAdmin):
+class AIUserFallbackQuotaAdmin(TypedModelAdmin[AIUserFallbackQuota]):
     """管理员维护用户系统兜底额度。"""
 
     list_display = ["user", "daily_limit", "monthly_limit", "is_active", "updated_at"]

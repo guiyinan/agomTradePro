@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2461,
-    "files_with_errors": 535
+    "errors": 2453,
+    "files_with_errors": 533
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -206,9 +206,6 @@
     "apps/ai_capability/management/commands/sync_ai_capability_catalog.py": {
       "no-untyped-def": 2
     },
-    "apps/ai_provider/application/interface_services.py": {
-      "no-untyped-def": 1
-    },
     "apps/ai_provider/apps.py": {
       "no-untyped-def": 1
     },
@@ -222,11 +219,6 @@
     },
     "apps/ai_provider/infrastructure/models.py": {
       "no-untyped-def": 3
-    },
-    "apps/ai_provider/interface/admin.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 3,
-      "type-arg": 3
     },
     "apps/ai_provider/interface/api_urls.py": {
       "no-untyped-def": 1

@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from apps.ai_provider.application.repository_provider import get_ai_provider_repository
+from apps.ai_provider.models import AIProviderConfig
 
 
-def get_masked_provider_api_key(provider) -> str:
-    """Return a masked API key string for admin display."""
+def get_masked_provider_api_key(provider: AIProviderConfig) -> str:
+    """Return a fixed mask without disclosing a credential fingerprint."""
 
     api_key = get_ai_provider_repository().get_api_key(provider)
-    if api_key:
-        return f"****{api_key[-4:]}" if len(api_key) >= 4 else "****"
-    return "****"
+    return "****" if api_key else "Not configured"

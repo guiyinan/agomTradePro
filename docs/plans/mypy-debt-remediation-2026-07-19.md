@@ -3036,3 +3036,17 @@
 - Provider Forms 与管理页面回归共 `5 passed`；新增覆盖表单校验失败后 HTML 不含原始 API Key。
 - Provider Forms 目标 mypy 清零；全仓基线从 `2465 errors / 536 files` 收紧为 `2461 errors / 535 files`，净减少 `4 errors / 1 file`。
 - 改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零七批
+
+- 按“Django Admin 密钥写入绕过 × 高权限配置入口”收口 AI Provider Admin。
+- Admin fieldset 删除 deprecated 明文 `api_key` 与加密字段，改为只读 `masked_api_key`；管理员不能再绕过 Repository/API 加密链路把新凭据直接写入模型明文字段，密钥更新统一走正式页面或 API。
+- Admin 与 Application 展示服务统一使用固定 `****` 掩码，不再解密后输出末四位；未配置时明确显示 `Not configured`，避免凭据指纹泄露。
+- 三个 Admin 类改为项目统一的 `TypedModelAdmin[ConcreteModel]`，显示列使用 `@admin.display`；Usage Log 的 add/change 权限 handler 补齐 HttpRequest、具体模型与返回类型。
+- Admin 仍由既有唯一 `interface.admin` 入口注册，未新增重复注册路径。
+
+## 第二百零七批验证结果
+
+- AI Provider Admin 与加密 guardrail 回归共 `9 passed`；覆盖 Admin 不出现明文/密文字段、固定掩码不泄露后四位和 Repository 加密落库。
+- Provider Admin 与密钥展示 Application service 增量 mypy 清零；全仓基线从 `2461 errors / 535 files` 收紧为 `2453 errors / 533 files`，净减少 `8 errors / 2 files`。
+- 架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
