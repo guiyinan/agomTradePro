@@ -257,6 +257,7 @@ class Command(BaseCommand):
                     options.get("decision_quote_max_age_hours"),
                     "--decision-quote-max-age-hours",
                 ),
+                "strict": True,
                 "skip_pulse": bool(options.get("skip_pulse")),
                 "skip_alpha": bool(options.get("skip_alpha")),
             }

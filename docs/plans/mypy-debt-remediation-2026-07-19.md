@@ -2701,3 +2701,21 @@
 - Account `init_all` Command 增量 mypy 清零；全仓基线从 `2782 errors / 567 files` 收紧为 `2760 errors / 566 files`，净减少 `22 errors / 1 file`。
 - Initialization Command Edge 回归共 `13 passed`；新增覆盖未知 step 拒绝、必需失败非零退出且不展示下一步，并验证 Django introspection 输出。
 - Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百八十六批
+
+- 按“决策建议输入新鲜度 × 主动数据修复副作用范围”收口 Data Center Decision Reliability Repair Command。
+- 用户与组合 scope 只接受非布尔正整数；显式用户不存在或已停用时立即失败，不再静默退化为无用户 Alpha skip。
+- 默认用户只选择 active superuser；启用 Alpha 修复但系统无有效用户时在构造 Provider/发起网络同步前返回 `CommandError`。
+- 目标日期使用 Django 当前时区的 local date；空白、畸形 ISO 日期和未来日期明确拒绝，避免为未来交易日生成伪新鲜数据。
+- 行情最大年龄要求正有限数；零、负数、NaN、无穷和布尔不再传播到 quote readiness 判定。
+- 资产与宏观指标代码统一去空白、转大写、保持顺序去重，并校验字符、单码长度和最多 200 个唯一代码，阻断畸形或无界外部同步范围。
+- scoped quote sync 只捕获 Data Center 声明的可恢复异常；编程错误不再被包装为普通 failed payload 后继续执行。
+- Alpha queue task ID 收窄为字符串；Pulse/Alpha refresher、status reader、动态用户、结果 payload、CommandParser 与 options 边界补齐类型。
+- Cold-start 的显式 decision repair 调用固定传递 `strict=True`；修复报告仍阻断时部署初始化失败，不再因命令默认非严格模式伪成功。
+
+## 第一百八十六批验证结果
+
+- Decision Reliability Repair Command 增量 mypy 清零；全仓基线从 `2760 errors / 566 files` 收紧为 `2745 errors / 565 files`，净减少 `15 errors / 1 file`。
+- Repair Command Component 与 Initialization Command Edge 回归共 `20 passed`；新增覆盖代码规范化/上限、非法 scope ID、失效用户、非有限行情年龄、未来日期和 cold-start strict 传播。
+- Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。

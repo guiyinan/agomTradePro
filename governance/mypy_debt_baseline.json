@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2760,
-    "files_with_errors": 566
+    "errors": 2745,
+    "files_with_errors": 565
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -986,12 +986,6 @@
     },
     "apps/data_center/management/commands/normalize_macro_fact_units.py": {
       "no-untyped-def": 2
-    },
-    "apps/data_center/management/commands/repair_decision_data_reliability.py": {
-      "import-untyped": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 9,
-      "type-arg": 3
     },
     "apps/data_center/management/commands/setup_decision_quote_refresh.py": {
       "arg-type": 1,

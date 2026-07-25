@@ -351,6 +351,7 @@ def test_cold_start_handle_runs_optional_work_and_is_idempotent(monkeypatch) -> 
         "repair_decision_data_reliability",
     ]
     assert invoked[-1][1]["asset_codes"] == "000001.SZ,600000.SH"
+    assert invoked[-1][1]["strict"] is True
     assert "applied=3, skipped=18" in command.stdout.getvalue()
 
 
