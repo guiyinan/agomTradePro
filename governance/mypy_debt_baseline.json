@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 3197,
-    "files_with_errors": 616
+    "errors": 3157,
+    "files_with_errors": 611
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1516,10 +1516,6 @@
     "apps/macro/interface/views/page_views.py": {
       "unused-ignore": 2
     },
-    "apps/macro/management/commands/migrate_usd_data.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 2
-    },
     "apps/macro/management/commands/setup_macro_daily_sync.py": {
       "import-untyped": 1,
       "no-untyped-def": 2
@@ -1712,14 +1708,6 @@
     },
     "apps/prompt/application/trace_logging.py": {
       "type-arg": 1
-    },
-    "apps/prompt/application/use_cases.py": {
-      "arg-type": 3,
-      "attr-defined": 1,
-      "no-any-return": 1,
-      "no-untyped-def": 7,
-      "type-arg": 2,
-      "var-annotated": 3
     },
     "apps/prompt/infrastructure/__init__.py": {
       "assignment": 2,
@@ -1954,24 +1942,15 @@
       "no-untyped-def": 8
     },
     "apps/sentiment/application/interface_services.py": {
-      "attr-defined": 1,
-      "no-untyped-call": 2
+      "attr-defined": 1
     },
     "apps/sentiment/application/repository_provider.py": {
       "no-untyped-def": 2
-    },
-    "apps/sentiment/application/services.py": {
-      "assignment": 1,
-      "attr-defined": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 3,
-      "type-arg": 1
     },
     "apps/sentiment/application/tasks.py": {
       "assignment": 1,
       "attr-defined": 3,
       "misc": 4,
-      "no-untyped-call": 4,
       "no-untyped-def": 5,
       "type-arg": 1
     },
@@ -2173,9 +2152,6 @@
     "apps/task_monitor/application/repository_provider.py": {
       "unused-ignore": 1
     },
-    "apps/task_monitor/application/tasks.py": {
-      "unused-ignore": 1
-    },
     "apps/task_monitor/apps.py": {
       "unused-ignore": 2
     },
@@ -2185,9 +2161,6 @@
     "apps/task_monitor/infrastructure/maintenance_status.py": {
       "redundant-cast": 1,
       "unused-ignore": 2
-    },
-    "apps/task_monitor/infrastructure/repositories.py": {
-      "unused-ignore": 6
     },
     "apps/task_monitor/interface/admin.py": {
       "attr-defined": 6,
