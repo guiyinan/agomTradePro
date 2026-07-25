@@ -5,7 +5,9 @@
 仓储实现了 Domain 层定义的 Protocol 接口。
 """
 
-from typing import Any, Optional
+import math
+from datetime import datetime
+from typing import Any, cast
 
 from apps.asset_analysis.domain.interfaces import (
     AssetRepositoryProtocol,
@@ -21,6 +23,7 @@ from apps.asset_analysis.infrastructure.models import (
     WeightConfigModel,
 )
 from core.integration.asset_analysis_market_registry import (
+    MarketAssetRepositoryProtocol,
     get_asset_analysis_market_registry,
 )
 
@@ -32,7 +35,7 @@ class AssetRepositoryFactory:
     根据资产类型返回对应的仓储实例。
     """
 
-    _repositories = {
+    _repositories: dict[str, MarketAssetRepositoryProtocol | None] = {
         "fund": None,  # 延迟加载，避免循环导入
         "equity": None,
         "bond": None,
@@ -42,7 +45,7 @@ class AssetRepositoryFactory:
     }
 
     @classmethod
-    def get_repository(cls, asset_type: str) -> AssetRepositoryProtocol:
+    def get_repository(cls, asset_type: str) -> MarketAssetRepositoryProtocol:
         """
         获取指定资产类型的仓储
 
@@ -70,7 +73,10 @@ class AssetRepositoryFactory:
             else:
                 raise ValueError(f"不支持的资产类型: {asset_type}")
 
-        return cls._repositories[asset_type]
+        repository = cls._repositories[asset_type]
+        if repository is None:
+            raise RuntimeError(f"资产仓储初始化失败: {asset_type}")
+        return repository
 
 
 class EmptyAssetRepository(AssetRepositoryProtocol):
@@ -78,11 +84,16 @@ class EmptyAssetRepository(AssetRepositoryProtocol):
     空资产仓储（用于未实现的资产类型）
     """
 
-    def get_assets_by_filter(self, asset_type: str, filters: dict, max_count: int = 100) -> list:
+    def get_assets_by_filter(
+        self,
+        asset_type: str,
+        filters: dict[str, Any],
+        max_count: int = 100,
+    ) -> list[Any]:
         """返回空列表"""
         return []
 
-    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Optional:
+    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Any | None:
         """返回 None"""
         return None
 
@@ -120,19 +131,33 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
 
         # 2. 其次匹配资产类型
         if asset_type:
-            type_specific = query.filter(asset_type=asset_type).order_by("-priority").first()
+            type_specific = (
+                query.filter(
+                    asset_type=asset_type,
+                    market_condition__isnull=True,
+                )
+                .order_by("-priority")
+                .first()
+            )
             if type_specific:
                 return self._to_entity(type_specific)
 
         # 3. 最后使用通用配置
-        general = query.filter(asset_type__isnull=True).order_by("-priority").first()
+        general = (
+            query.filter(
+                asset_type__isnull=True,
+                market_condition__isnull=True,
+            )
+            .order_by("-priority")
+            .first()
+        )
         if general:
             return self._to_entity(general)
 
         # 4. 降级到默认值
         return WeightConfig()
 
-    def list_all_configs(self) -> list[dict]:
+    def list_all_configs(self) -> list[dict[str, Any]]:
         """
         列出所有权重配置
 
@@ -174,6 +199,12 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
 
         如果配置已存在则更新，否则创建新配置。
         """
+        WeightConfig(
+            regime_weight=regime_weight,
+            policy_weight=policy_weight,
+            sentiment_weight=sentiment_weight,
+            signal_weight=signal_weight,
+        )
         config, created = WeightConfigModel._default_manager.get_or_create(
             name=name,
             defaults={
@@ -199,7 +230,19 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
             config.market_condition = market_condition
             config.is_active = is_active
             config.priority = priority
-            config.save()
+            config.save(
+                update_fields=[
+                    "regime_weight",
+                    "policy_weight",
+                    "sentiment_weight",
+                    "signal_weight",
+                    "asset_type",
+                    "market_condition",
+                    "is_active",
+                    "priority",
+                    "updated_at",
+                ]
+            )
 
     @staticmethod
     def _to_entity(model: WeightConfigModel) -> WeightConfig:
@@ -227,7 +270,12 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
     这是一个适配器仓储，根据资产类型委托给具体的资产仓储。
     """
 
-    def get_assets_by_filter(self, asset_type: str, filters: dict, max_count: int = 100) -> list:
+    def get_assets_by_filter(
+        self,
+        asset_type: str,
+        filters: dict[str, Any],
+        max_count: int = 100,
+    ) -> list[Any]:
         """
         根据过滤条件获取资产列表
 
@@ -236,7 +284,7 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
         repo = AssetRepositoryFactory.get_repository(asset_type)
         return repo.get_assets_by_filter(asset_type, filters, max_count)
 
-    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Optional:
+    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Any | None:
         """
         根据代码获取资产
 
@@ -254,21 +302,24 @@ class DjangoAssetPoolQueryRepository:
         asset_type: str,
         min_score: float,
         limit: int,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
+        normalized_asset_type = asset_type.strip().lower()
+        if not normalized_asset_type or not math.isfinite(min_score) or limit <= 0:
+            return []
         pool_entries = AssetPoolEntry._default_manager.filter(
             pool_type=PoolType.INVESTABLE.value,
-            asset_category=asset_type,
+            asset_category=normalized_asset_type,
             is_active=True,
             total_score__gte=min_score,
-        ).order_by("-total_score")[:limit]
+        ).order_by("-total_score", "asset_code")[: min(limit, 500)]
 
-        candidates = []
+        candidates: list[dict[str, object]] = []
         for entry in pool_entries:
             candidates.append(
                 {
                     "asset_code": entry.asset_code,
                     "asset_name": entry.asset_name,
-                    "asset_type": asset_type,
+                    "asset_type": normalized_asset_type,
                     "score": entry.total_score,
                     "regime_score": entry.regime_score,
                     "policy_score": entry.policy_score,
@@ -292,16 +343,16 @@ class DjangoAssetPoolQueryRepository:
         asset_type: str,
         min_score: float,
         limit: int,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         """Return latest scored assets as a legacy fallback when pool data is absent."""
 
-        rows = (
-            AssetScoreCache._default_manager.filter(
-                asset_type=asset_type,
-                total_score__gte=min_score,
-            )
-            .order_by("-score_date", "-total_score", "asset_code")
-        )
+        normalized_asset_type = asset_type.strip().lower()
+        if not normalized_asset_type or not math.isfinite(min_score) or limit <= 0:
+            return []
+        rows = AssetScoreCache._default_manager.filter(
+            asset_type=normalized_asset_type,
+            total_score__gte=min_score,
+        ).order_by("-score_date", "-total_score", "asset_code")
 
         latest_by_code: dict[str, AssetScoreCache] = {}
         for row in rows:
@@ -312,15 +363,15 @@ class DjangoAssetPoolQueryRepository:
             latest_by_code.values(),
             key=lambda item: (item.total_score, item.score_date),
             reverse=True,
-        )[:limit]
+        )[: min(limit, 500)]
 
-        candidates: list[dict] = []
+        candidates: list[dict[str, object]] = []
         for row in ranked_rows:
             candidates.append(
                 {
                     "asset_code": row.asset_code,
                     "asset_name": row.asset_name,
-                    "asset_type": asset_type,
+                    "asset_type": normalized_asset_type,
                     "score": row.total_score,
                     "regime_score": row.regime_score,
                     "policy_score": row.policy_score,
@@ -351,7 +402,9 @@ class DjangoAssetPoolQueryRepository:
 
     def resolve_asset_names(self, codes: list[str]) -> dict[str, str]:
         """Resolve asset names from active asset-pool entries."""
-        normalized_codes = [str(code).upper() for code in codes if code]
+        normalized_codes = list(
+            dict.fromkeys(normalized for code in codes if (normalized := str(code).strip().upper()))
+        )
         if not normalized_codes:
             return {}
 
@@ -360,14 +413,16 @@ class DjangoAssetPoolQueryRepository:
                 asset_code__in=normalized_codes,
                 is_active=True,
             )
-            .values("asset_code", "asset_name")
-            .distinct()
+            .order_by("asset_code", "-entry_date", "-id")
+            .values_list("asset_code", "asset_name")
         )
-        return {
-            str(row["asset_code"]).upper(): row["asset_name"]
-            for row in rows
-            if row.get("asset_code") and row.get("asset_name")
-        }
+        resolved: dict[str, str] = {}
+        for asset_code, asset_name in rows:
+            normalized_code = str(asset_code).strip().upper()
+            normalized_name = str(asset_name).strip()
+            if normalized_code and normalized_name:
+                resolved.setdefault(normalized_code, normalized_name)
+        return resolved
 
     def list_active_watchlist_asset_codes(self) -> list[str]:
         """Return distinct active asset codes from the watch pool."""
@@ -392,16 +447,24 @@ class DjangoAssetPoolQueryRepository:
             )
         )
 
-    def list_asset_master_pool_rows(self, lookup_codes: list[str]) -> list[dict[str, Any]]:
+    def list_asset_master_pool_rows(
+        self,
+        lookup_codes: list[str],
+    ) -> list[dict[str, Any]]:
         """Return asset-pool rows used by the data-center asset master backfill."""
 
         if not lookup_codes:
             return []
-        return list(
+        rows = (
             AssetPoolEntry._default_manager.filter(asset_code__in=lookup_codes)
             .order_by("asset_code", "-entry_date")
-            .values("asset_code", "asset_name", "asset_category")
+            .values(
+                "asset_code",
+                "asset_name",
+                "asset_category",
+            )
         )
+        return [cast(dict[str, Any], row) for row in rows]
 
     def summarize_pool_counts(self, asset_type: str | None = None) -> dict[str, int]:
         queryset = AssetPoolEntry._default_manager.filter(is_active=True)
@@ -416,13 +479,13 @@ class DjangoAssetPoolQueryRepository:
 class AssetAnalysisLogRepository:
     """ORM-backed repository for asset-analysis scoring logs and alerts."""
 
-    def create_scoring_log(self, payload: dict) -> int:
+    def create_scoring_log(self, payload: dict[str, Any]) -> int:
         """Create one scoring log row and return its id."""
 
         log = AssetScoringLog._default_manager.create(**payload)
         return int(log.id)
 
-    def create_alert(self, payload: dict) -> int:
+    def create_alert(self, payload: dict[str, Any]) -> int:
         """Create one analysis alert row and return its id."""
 
         alert = AssetAnalysisAlert._default_manager.create(**payload)
@@ -449,7 +512,7 @@ class AssetAnalysisLogRepository:
         *,
         alert_id: int,
         resolved_by: int,
-        resolved_at,
+        resolved_at: datetime,
         resolution_notes: str | None = None,
     ) -> bool:
         """Mark one alert as resolved."""

@@ -5,6 +5,7 @@
 这些匹配器是纯函数实现，不依赖外部状态，符合 Domain 层的设计原则。
 """
 
+from collections.abc import Sequence
 
 from apps.asset_analysis.domain.entities import AssetScore, AssetType
 
@@ -80,18 +81,12 @@ class RegimeMatcher:
         score = 0.0
 
         # 1. 资产类型匹配（权重 60%）
-        type_score = cls.REGIME_ASSET_TYPE_MATRIX.get(
-            (current_regime, asset.asset_type.value),
-            50
-        )
+        type_score = cls.REGIME_ASSET_TYPE_MATRIX.get((current_regime, asset.asset_type.value), 50)
         score += type_score * 0.6
 
         # 2. 风格匹配（权重 40%）
         if asset.style:
-            style_score = cls.REGIME_STYLE_MATRIX.get(
-                (current_regime, asset.style.value),
-                60
-            )
+            style_score = cls.REGIME_STYLE_MATRIX.get((current_regime, asset.style.value), 60)
             score += style_score * 0.4
         else:
             # 无风格信息时，使用平均得分
@@ -123,17 +118,14 @@ class RegimeMatcher:
             ("消费", "Recovery"): 80,
             ("工业", "Recovery"): 88,
             ("材料", "Recovery"): 82,
-
             # Overheat 行业偏好
             ("能源", "Overheat"): 90,
             ("材料", "Overheat"): 88,
             ("金融", "Overheat"): 75,
-
             # Stagflation 行业偏好
             ("医药", "Stagflation"): 85,
             ("公用事业", "Stagflation"): 90,
             ("消费", "Stagflation"): 70,
-
             # Deflation 行业偏好
             ("公用事业", "Deflation"): 90,
             ("金融", "Deflation"): 75,
@@ -187,10 +179,7 @@ class PolicyMatcher:
         Returns:
             匹配得分（0-100）
         """
-        base_score = cls.POLICY_ASSET_TYPE_MATRIX.get(
-            (policy_level, asset.asset_type.value),
-            50
-        )
+        base_score = cls.POLICY_ASSET_TYPE_MATRIX.get((policy_level, asset.asset_type.value), 50)
 
         # 根据风险等级调整
         risk_adjustment = {
@@ -263,7 +252,7 @@ class SignalMatcher:
     """
 
     @classmethod
-    def match(cls, asset: AssetScore, active_signals: list) -> float:
+    def match(cls, asset: AssetScore, active_signals: Sequence[object]) -> float:
         """
         计算信号匹配得分
 
@@ -293,7 +282,7 @@ class SignalMatcher:
             return 40.0
 
     @staticmethod
-    def _is_signal_match_asset(signal, asset: AssetScore) -> bool:
+    def _is_signal_match_asset(signal: object, asset: AssetScore) -> bool:
         """
         判断信号是否匹配资产
 
@@ -305,15 +294,15 @@ class SignalMatcher:
             是否匹配
         """
         # 精确匹配
-        if hasattr(signal, 'asset_code') and signal.asset_code == asset.asset_code:
+        if getattr(signal, "asset_code", None) == asset.asset_code:
             return True
 
         # 资产类别匹配
-        if hasattr(signal, 'asset_class') and signal.asset_class == asset.asset_type.value:
+        if getattr(signal, "asset_class", None) == asset.asset_type.value:
             return True
 
         # 行业匹配
-        if asset.sector and hasattr(signal, 'sector') and signal.sector == asset.sector:
+        if asset.sector and getattr(signal, "sector", None) == asset.sector:
             return True
 
         return False

@@ -3575,3 +3575,19 @@
 - GenerateSignal、Prompt execution 与 Prompt API 回归 `28 passed`，Prompt serializer、装配、Domain 和初始化一致性回归 `64 passed`。
 - Data DTO、Application、serializer 和 view 增量 mypy 清零且无新增债务；全仓基线保持 `1853 errors / 474 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百四十三批
+
+- 按“公共资产评分配置正确性 × 资产池查询确定性 × 金融数值失败关闭”收口 Asset Analysis Domain 与 ORM 仓储。
+- 权重配置按资产类型降级时只选择无市场条件的默认配置；不再因其他市场条件配置优先级较高而串用危机、极端情绪等专用权重。通用降级同样要求市场条件为空。
+- Domain 与 ORM 模型同时拒绝 `NaN`、`Inf` 等非有限权重；仓储在写库前先构造 `WeightConfig` 验证，不再允许非法金融参数绕过比较和总和校验进入数据库。
+- `ScoreContext.score_date` 改用实例化时的 `default_factory`，长生命周期进程不再持续沿用模块首次导入日期；活动信号改为协变只读序列，并同步收窄 SignalMatcher 动态属性边界。
+- 可投池与评分缓存查询统一规范化资产类型，拒绝空类型、非有限最低分和非正 limit，并在仓储边界限制最大返回 500 条。
+- 资产名称解析对输入去空白、统一大写并去重；同一代码存在多条活跃记录时确定性选择最新入池记录，不再依赖数据库无序结果覆盖。
+- Asset Repository factory、权重配置、池候选、资产主数据行、日志 payload 与告警解决时间补齐精确类型；公共 repository、model、value object 与 SignalMatcher 的既有 mypy 债务清零。
+
+## 第二百四十三批验证结果
+
+- Asset Analysis Domain、仓储、日志告警、Pool API、多维筛选、模拟交易与 Strategy provider 回归 `75 passed`，覆盖权重条件隔离、非有限权重拒绝、最新名称解析和非法池查询失败关闭。
+- Asset Analysis repositories、models、value objects 与 SignalMatcher 增量 mypy 清零；全仓基线从 `1853 errors / 474 files` 收紧为 `1819 errors / 470 files`，净减少 `34 errors / 4 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
