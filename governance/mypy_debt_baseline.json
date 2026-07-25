@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2372,
-    "files_with_errors": 522
+    "errors": 2357,
+    "files_with_errors": 521
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -405,14 +405,6 @@
     "apps/asset_analysis/interface/views.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 4
-    },
-    "apps/audit/application/attribution_use_cases.py": {
-      "assignment": 1,
-      "attr-defined": 1,
-      "no-untyped-call": 3,
-      "no-untyped-def": 2,
-      "type-arg": 6,
-      "var-annotated": 2
     },
     "apps/audit/application/health_check.py": {
       "attr-defined": 2,

@@ -3108,3 +3108,18 @@
 - Backtest use case、adapter、Domain、API edge、任务与 integration 回归共 `89 passed, 1 skipped`；另行复核模拟交易最低手续费配置链路 `39 passed`，确认买入资金校验读取 `FeeConfig.min_commission`，生产代码无硬编码 `5`。
 - Backtest 改动文件增量 mypy 清零；全仓基线从 `2415 errors / 528 files` 收紧为 `2372 errors / 522 files`，净减少 `43 errors / 6 files`。
 - Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十二批
+
+- 按“归因证据完整性 × Regime 准确率真实性”收口 Audit attribution application use case。
+- 回测仓储当前使用 JSONField 保存权益曲线与 Regime 历史；归因用例现同时支持原生 JSON list 和历史 JSON text，不再对原生列表误调用 `json.loads()` 后静默清空真实证据。
+- 权益曲线统一收窄为有日期的有限数值点，兼容 ISO 日期与历史毫秒时间戳；畸形、`NaN` 和无穷值在进入 Domain 前丢弃并按日期排序。
+- Regime 历史统一验证日期、非空象限和有限置信度；归因准确率改用标准化权益曲线计算区间收益，并统一使用大写枚举比较，修复 `.upper()` 后与混合大小写常量永远不匹配、结果错误回落到中性 `0.5` 的缺陷。
+- 行情适配器初始化和单资产读取失败只记录异常类型；Application 响应不再复制可能含凭据、地址或第三方正文的原始异常消息。
+- Backtest 查询通过 Application Protocol 注入，动态 ORM 对象只在转换边界保留 `Any`；请求、响应、回测归因数据、Regime 记录、资产收益和审计摘要补齐精确类型。
+
+## 第二百一十二批验证结果
+
+- Audit Application/Domain 回归 `86 passed`，新增归因真实性与 Application 回归 `43 passed`，Audit 数据库 workflow、实际 Regime、治理与 API integration 回归 `50 passed`；分组存在既有测试重叠，均独立通过。
+- Attribution application use case 增量 mypy 清零；全仓基线从 `2372 errors / 522 files` 收紧为 `2357 errors / 521 files`，净减少 `15 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
