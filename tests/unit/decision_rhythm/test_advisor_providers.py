@@ -11,6 +11,7 @@ from apps.decision_rhythm.application.advisor_contracts import (
     AdvisorAccessError,
     AdvisorHoldingSnapshot,
     AdvisorOrderIntent,
+    get_manual_trade_portfolio_id_for_account,
 )
 from apps.decision_rhythm.application.advisor_providers import (
     AccountHoldingSnapshotProvider,
@@ -67,6 +68,21 @@ def _holding() -> AdvisorHoldingSnapshot:
         data_source="simulated",
         price_time="2026-07-24T00:00:00+00:00",
     )
+
+
+def test_manual_trade_portfolio_id_uses_account_portfolio_repository(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The legacy bridge returns the integer portfolio id for an account."""
+    repository = SimpleNamespace(
+        get_portfolio_for_account=lambda account_id: SimpleNamespace(id=str(account_id + 5))
+    )
+    monkeypatch.setattr(
+        "apps.account.application.repository_provider.get_portfolio_api_repository",
+        lambda: repository,
+    )
+
+    assert get_manual_trade_portfolio_id_for_account(7) == 12
 
 
 def test_workspace_recommendation_provider_enforces_stable_query_contract(

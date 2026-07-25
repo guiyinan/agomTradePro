@@ -8,6 +8,7 @@ Application 层依赖 Domain 层和 Infrastructure 层的接口。
 import json
 import logging
 import re
+from collections.abc import Sequence
 from typing import Any, Protocol
 
 from django.utils import timezone
@@ -31,22 +32,14 @@ DEFAULT_NEWS_WEIGHT = 0.4
 DEFAULT_POLICY_WEIGHT = 0.6
 
 
-class AIProviderConfigProtocol(Protocol):
-    """Configured provider fields required by the sentiment analyzer."""
-
-    base_url: str
-    default_model: str
-    extra_config: dict[str, Any] | None
-
-
 class AIProviderRepositoryProtocol(Protocol):
     """Provider repository operations required by sentiment analysis."""
 
     def get_active_configured_system_providers(
         self,
-    ) -> list[AIProviderConfigProtocol]: ...
+    ) -> Sequence[Any]: ...
 
-    def get_api_key(self, provider: AIProviderConfigProtocol) -> str: ...
+    def get_api_key(self, provider: Any) -> str: ...
 
 
 class AIAdapterProtocol(Protocol):
