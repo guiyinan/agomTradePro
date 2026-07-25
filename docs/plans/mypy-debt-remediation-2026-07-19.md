@@ -2902,3 +2902,18 @@
 - Event task、health checker、Celery transport、受控 replay、Domain bus、初始化器、决策执行 handler 与 Events API 回归共 `91 passed`；覆盖 naive 时间拒绝、已持久化重试续投、ID 冲突、批量失败状态、清理失败、空闲健康和零订阅不健康。
 - Events async/health/adapter/composition 增量 mypy 清零；全仓基线从 `2626 errors / 549 files` 收紧为 `2601 errors / 545 files`，净减少 `25 errors / 4 files`。
 - Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百九十八批
+
+- 按“Prompt 四层边界 × AI 模板写入入口唯一性”清理 `apps/prompt/infrastructure/__init__.py`。
+- 确认该文件是早期遗留的完整 DRF Serializer 影子副本：位于 Infrastructure 层却承载 Interface 职责，创建模板/链时直接实例化 concrete Repository，并与当前正式 Serializer 的名称唯一性、输入上限、provider_ref、更新和 Application facade 契约持续分叉。
+- 全仓静态调用审计确认没有生产或测试调用者依赖该影子入口；删除旧 Serializer 实现，将 Infrastructure 包恢复为无 ORM/DRF 导入副作用、无 shortcut export 的 package marker。
+- `apps/prompt/interface/serializers.py` 保持唯一 Serializer 真源；新增边界回归禁止 Infrastructure 重新暴露模板/链 Serializer。
+- 修复 ChatRequest 既有测试在输入校验收紧后仍构造缺失 content 历史消息的问题；合法夹具改为完整 role/content，并新增缺 content 必须拒绝的安全契约。
+- 同步更新 Prompt 架构文档，明确 DRF、Application facade 与 Infrastructure 的职责边界。
+
+## 第一百九十八批验证结果
+
+- Prompt Infrastructure 边界、Interface Serializer、Prompt API edge、Evaluation Gate 与初始化命令一致性回归共 `31 passed`。
+- Prompt Infrastructure package 增量 mypy 清零；全仓基线从 `2601 errors / 545 files` 收紧为 `2577 errors / 544 files`，净减少 `24 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。

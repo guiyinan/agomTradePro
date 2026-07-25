@@ -72,6 +72,10 @@ AI Prompt管理系统是AgomTradePro的核心组件，提供统一的Prompt模�
 └─────────────────────────────────────┘
 ```
 
+DRF Serializer 的唯一入口是 `apps/prompt/interface/serializers.py`。`infrastructure`
+包只包含 ORM、Repository、provider 与外部适配器，包入口不导出 Serializer，也不得
+在导入时初始化 ORM 或直接提供绕过 Application facade 的写入捷径。
+
 ## 3. 占位符语法
 
 ### 3.1 占位符类型

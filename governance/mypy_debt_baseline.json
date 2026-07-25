@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2601,
-    "files_with_errors": 545
+    "errors": 2577,
+    "files_with_errors": 544
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1519,11 +1519,6 @@
       "no-untyped-def": 7,
       "type-arg": 2,
       "var-annotated": 3
-    },
-    "apps/prompt/infrastructure/__init__.py": {
-      "assignment": 2,
-      "no-untyped-def": 6,
-      "type-arg": 16
     },
     "apps/prompt/infrastructure/adapters/__init__.py": {
       "no-untyped-def": 2
