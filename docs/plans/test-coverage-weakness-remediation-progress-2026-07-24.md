@@ -218,21 +218,82 @@ Domain 分支覆盖率至少 80%，当前 `data_center=67.97%`、
 - 固定高风险链路：`229 passed`。
 - 最终 coverage ratchet 已通过。
 
+## T5 真实运行时验收
+
+- Playwright RC 通过 `scripts/run_live_server_pytest.py` 启动真实 Django 服务：
+  `33 passed in 147.54s`。首次运行发现隔离 SQLite 尚未迁移，完成迁移后全量重跑
+  通过；证据为 `reports/quality/t5-playwright-smoke.xml` 及对应 server/pytest 日志。
+- PostgreSQL 使用唯一临时容器、空数据库和正式迁移链验证：
+  - 空库全量迁移通过；
+  - 针对 PostgreSQL 暴露的修复回归 `3 passed`；
+  - Critical + Research migration 全量 `21 passed`；
+  - 修复 `select_for_update()` 对 nullable outer join 的 PostgreSQL 锁定错误，并
+    修正迁移测试的事务隔离方式；
+  - 本机已有镜像为 PostgreSQL 15.15，拉取 PostgreSQL 16 超时，因此该项存在
+    “15.15 而非计划 16”的明确环境偏差，但使用的是真实 PostgreSQL，不是 SQLite
+    伪装。
+- Celery 使用唯一临时 Redis、真实 worker、真实 broker/backend 和临时 PostgreSQL：
+  - `inspect ping` 成功；
+  - 安全清理任务重复投递两次均返回规范化 `success/noop`；
+  - 非法 `older_than_days` 的 AsyncResult 技术状态为 `SUCCESS`，业务 payload
+    明确为 `success=false`，证明监控可区分技术完成与业务失败；
+  - worker 按精确 node 名优雅关闭。
+- 所有本批临时 PostgreSQL/Redis 容器均已删除，未停止或改动另一 goal 的容器。
+
+## T6 最终回归与覆盖验收
+
+同一份从空 `.coverage` 开始的 branch-aware 数据完成以下全量/分层回归：
+
+| 套件 | 最终结果 |
+|---|---:|
+| Unit | 5,990 passed |
+| Component | 1,747 passed, 4 skipped |
+| API + Migration | 611 passed |
+| Critical | 18 passed |
+| Integration | 965 passed, 13 deselected |
+| App-local | 301 passed |
+| SDK/MCP | 1,120 passed |
+| Django E2E | 97 passed |
+| Guardrails | 146 passed, 1 个冻结基线已知失败 |
+| Frontend Node | 通过，JUnit 已生成 |
+| Fast suite | 3,722 passed，61.81s / 120s |
+| 固定高风险回归包 | 229 passed |
+| Sentiment 定向回归 | 124 passed |
+| 覆盖边界追加回归 | 292 passed + 12 passed |
+
+T6 期间发现并修复两处测试基础设施缺陷：
+
+- 仓库存在同名测试模块，默认 import 模式导致 Unit 全量收集冲突；`pytest.ini`
+  改为 `--import-mode=importlib` 后 `5,990` 项完整收集并通过。
+- SDK 扩展工具 smoke 的统一 fake 列表遗漏 `policy_tools`，使
+  `create_policy_event` 可能访问 `127.0.0.1:8000`；补齐隔离后定向 `1 passed`，
+  完整 xdist 套件 `1,120 passed`。
+
+最终覆盖门槛均由机器 ratchet 校验，不降低阈值、不扩大 omit：
+
+- `apps` 行覆盖率达到 `85.0%`；
+- `core=80.1%`、`shared=80.6%`、`sdk=80.2%`；
+- 六个 P0：`data_center=86.3%`、`account=86.7%`、
+  `decision_rhythm>=85.0%`、`alpha=85.1%`、`policy=85.1%`、
+  `simulated_trading=86.6%`；
+- 其余业务模块均不低于 `80%`；
+- 所有 Domain 模块行覆盖率不低于 `90%`，机器登记的关键 Domain 分支门槛通过；
+- Sentiment 最终为 `88.4%`，畸形 `keywords` payload 已有生产修复和回归；
+- mypy 总债务从 `3,197 / 616 files` 降至 `3,157 / 611 files`，基线只收紧不放宽；
+- 架构增量与全量扫描均为 `0 boundary / 0 audit` 违规。
+
+完整 Guardrail 的唯一失败仍是下述冻结基线超大文件债务；本分支相对
+`5ba332c5` 没有修改这两个文件。冻结提交中也不存在
+`scripts/check_celery_task_contracts.py` 或相应登记文件，本分支未新增/修改 Celery
+任务，因此该脚本项记为“不适用（入口不存在）”，真实 Celery 业务结果另有 T5 证据。
+
 ## 当前未完成项
 
-- 本批建立了真实 ratchet，但尚未达到计划最终目标：
-  - `apps >=85%`；
-  - `core/shared/sdk >=80%`；
-  - 所有 P0 模块行覆盖率 `>=85%`；
-  - 关键 Domain 分支覆盖率 `>=80%`。
-- T3A 与全部六个 P0 模块已经完成；剩余覆盖工作集中在其他业务模块、
-  `apps` 总体以及 `core/shared/sdk`。
-- T5 和最终 T6 收口尚未开始；应按原计划在后续独立批次推进，不能用扩大 omit
-  或降低阈值替代。
-- Integration 修复后仅重跑了受影响的 24 项，完整 Integration 尚未二次全量重跑。
-- PostgreSQL、Celery worker、live/optional runtime 和 Playwright RC 尚未在本地执行。
-- AGENTS 指定的 `agomtradepro` conda 环境在本机不可用；本次证据来自
-  Python 3.13.5 / Django 5.2.12。CI 的 Python 3.11 仍需远端验证。
+- 本计划范围内的覆盖率、真实运行时、分层回归和机器治理目标已完成。
+- AGENTS 指定的 `agomtradepro` conda 环境在本机不可用；最终证据来自
+  Python 3.13.5 / Django 5.2.12。Python 3.11 CI 仍属于合并后的远端环境验证。
+- 原工作区的另一 goal 仍在运行，因此本分支只形成可合并提交，不在共享工作区
+  自动 merge；待另一 goal 收口后再 merge 或按提交依赖 cherry-pick。
 
 ## 阻断项
 
