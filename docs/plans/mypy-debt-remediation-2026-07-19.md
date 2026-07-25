@@ -3332,3 +3332,17 @@
 - Policy 事件 API 与 serializer 契约回归 `14 passed`，覆盖未知查询、反向日期、非正事件 ID、权限和内部异常脱敏。
 - Policy event API 与 serializers 增量 mypy 清零；全仓基线从 `2072 errors / 494 files` 收紧为 `2055 errors / 493 files`，净减少 `17 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十七批
+
+- 按“Policy 档位变更副作用真实性 × 中心 ORM 类型完整性”收口 Policy models 与信号派发。
+- 原 `post_save` 通过查询更早日期的另一条事件判断档位变化，导致只修改描述也可能重复触发全量信号重评；现由 `pre_save` 捕获同一行持久化前的档位，仅真实档位变化才进入派发。
+- 信号重评改为事务成功提交后调度，避免 worker 在数据尚未提交时读取旧状态；`PX` 和其他非 P0–P3 档位不会再执行 `int(level[1])` 而抛错。
+- 信号异常日志只发布异常类型，不复制 Celery、数据库或配置异常正文；非变更保存、真实 P1→P2 变化和 P1→PX 三种路径均新增回归。
+- Policy ORM 的字符串展示、单例配置读取和 RSSHub URL 构造补齐具体返回与 Optional 类型；单例查询统一使用 `_default_manager`，不再从未类型 `objects` 传播 Any。
+
+## 第二百二十七批验证结果
+
+- Policy 模型信号、任务边界和事件 API 回归 `25 passed`。
+- Policy models 增量 mypy 清零，并传播清除 workbench repository 2 项债务；全仓基线从 `2055 errors / 493 files` 收紧为 `2037 errors / 492 files`，净减少 `18 errors / 1 file`。
+- `makemigrations --check --dry-run` 无 schema 漂移；Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
