@@ -138,7 +138,10 @@
                             const globalIndex = pageOffset + rowIndex;
                             return `
                             <tr data-row-index="${globalIndex}" class="${globalIndex === state.selectedRowIndex ? "is-selected" : ""}">
-                                ${columns.map((column) => `<td title="${escapeHtml(row[column.key])}">${escapeHtml(row[column.key])}</td>`).join("")}
+                                ${columns.map((column) => {
+                                    const value = displayValue(row[column.key]);
+                                    return `<td title="${escapeHtml(value)}">${escapeHtml(value)}</td>`;
+                                }).join("")}
                             </tr>
                         `;
                         }).join("")}

@@ -778,6 +778,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             action
             for action in metadata["actions"]
             if str(action.get("risk")) in self._allowed_runtime_risks(user)
+            and self._action_matches_audience(action, user=user)
             and str(action.get("key") or "") not in USER_HIDDEN_SCREEN_ACTION_KEYS
         ]
 
@@ -814,6 +815,8 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         *,
         user: Any | None = None,
     ) -> bool:
+        if not self._action_matches_audience(action, user=user):
+            return False
         action_key = str(action.get("key") or "")
         predicate = USER_CONDITIONAL_SCREEN_ACTIONS.get(action_key)
         if predicate is not None:
@@ -830,6 +833,19 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             self._action_availability_cache[cache_key] = available
             return available
         return True
+
+    def _action_matches_audience(
+        self,
+        action: dict[str, Any],
+        *,
+        user: Any | None = None,
+    ) -> bool:
+        """Return whether an action belongs to the current user's role."""
+
+        audience = str(action.get("audience") or "authenticated")
+        if audience == "admin":
+            return self._is_admin_user(user)
+        return audience == "authenticated"
 
     @staticmethod
     def _availability_provider_version(action_key: str) -> int:

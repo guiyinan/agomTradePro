@@ -31,3 +31,24 @@ test("home action copy does not hardcode workflow step count", async () => {
     assert.equal(decisionAction.description, "进入每日投研主流程");
     assert.doesNotMatch(decisionAction.description, /\d+步/);
 });
+
+test("home actions are filtered by server-published action keys", async () => {
+    const runtime = await loadHostRuntime();
+    const actions = runtime.hooks.getHomeActions({
+        preferredLane: "decision",
+        availableActionKeys: new Set([
+            "operator.home.continue_decision_flow",
+            "operator.home.resume_last_workspace",
+            "operator.home.open_cli",
+        ]),
+    });
+
+    assert.deepEqual(
+        Array.from(actions, (action) => action.key),
+        [
+            "operator.home.continue_decision_flow",
+            "operator.home.resume_last_workspace",
+            "operator.home.open_cli",
+        ]
+    );
+});

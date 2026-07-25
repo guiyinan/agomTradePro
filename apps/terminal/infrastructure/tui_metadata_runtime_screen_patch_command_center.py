@@ -40,10 +40,8 @@ RUNTIME_SCREEN_PATCHES_COMMAND_CENTER: dict[str, dict[str, Any]] = {
                 "columns": [
                     {"key": "priority", "label": "优先级"},
                     {"key": "status", "label": "状态"},
-                    {"key": "type", "label": "类型"},
                     {"key": "title", "label": "事项"},
                     {"key": "next_action", "label": "下一步"},
-                    {"key": "security_code", "label": "标的"},
                 ],
             },
             {

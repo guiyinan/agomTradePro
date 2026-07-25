@@ -30,8 +30,9 @@
                                         class="tui-screen-pin${state.pinnedScreenKeys.has(screen.key) ? " is-active" : ""}"
                                         type="button"
                                         data-pin-screen-key="${escapeHtml(screen.key)}"
-                                        aria-label="${escapeHtml(state.pinnedScreenKeys.has(screen.key) ? "取消收藏工作区" : "收藏工作区")}"
-                                        title="${escapeHtml(state.pinnedScreenKeys.has(screen.key) ? "取消收藏工作区" : "收藏工作区")}"
+                                        aria-label="${escapeHtml(`${state.pinnedScreenKeys.has(screen.key) ? "取消收藏工作区" : "收藏工作区"}：${screen.label}`)}"
+                                        title="${escapeHtml(`${state.pinnedScreenKeys.has(screen.key) ? "取消收藏工作区" : "收藏工作区"}：${screen.label}`)}"
+                                        aria-pressed="${state.pinnedScreenKeys.has(screen.key) ? "true" : "false"}"
                                     >${state.pinnedScreenKeys.has(screen.key) ? "★" : "☆"}</button>
                                 </div>
                             </div>
@@ -135,7 +136,13 @@
 
     function renderField(action, field) {
         const id = `tui-${action.key}-${field.key}`;
-        const value = field.default ?? "";
+        const rawValue = field.default ?? "";
+        const valueType = String(field.value_type || "").toLowerCase();
+        const isStructuredValue = ["json", "object", "list"].includes(valueType)
+            || (rawValue !== null && typeof rawValue === "object");
+        const value = isStructuredValue
+            ? (typeof rawValue === "string" ? rawValue : JSON.stringify(rawValue, null, 2))
+            : rawValue;
         const required = field.required ? "required" : "";
         if (field.input_type === "hidden") {
             return `<input id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" type="hidden" value="${escapeHtml(value)}">`;
@@ -167,11 +174,11 @@
                 </label>
             `;
         }
-        if (field.input_type === "textarea") {
+        if (field.input_type === "textarea" || isStructuredValue) {
             return `
                 <label class="tui-field" for="${escapeHtml(id)}">
                     <span>${escapeHtml(field.label)}</span>
-                    <textarea id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" rows="3" ${required} placeholder="${escapeHtml(field.placeholder || "")}">${escapeHtml(value)}</textarea>
+                    <textarea id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" rows="${isStructuredValue ? "5" : "3"}" ${required} placeholder="${escapeHtml(field.placeholder || "")}">${escapeHtml(value)}</textarea>
                 </label>
             `;
         }
@@ -596,6 +603,9 @@
             ? runtimeHooks.getHomeActions({
                 lastWorkspace: state.lastNonHomeScreen,
                 preferredLane: state.preferredHomeLane,
+                availableActionKeys: new Set(
+                    (state.screen?.actions || []).map((action) => String(action.key || ""))
+                ),
             })
             : [];
         if (!Array.isArray(actions) || !actions.length) {

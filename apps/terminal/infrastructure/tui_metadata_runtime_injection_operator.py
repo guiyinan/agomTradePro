@@ -38,6 +38,7 @@ RUNTIME_OPERATOR_ACTIONS: tuple[dict[str, Any], ...] = (
         "task_group": "00 首页主动作",
         "sequence": 11,
         "task_tier": "primary",
+        "audience": "admin",
     },
     {
         "key": "operator.home.resume_last_workspace",
@@ -160,6 +161,7 @@ RUNTIME_OPERATOR_ACTIONS: tuple[dict[str, Any], ...] = (
         "task_group": "01 首页摘要",
         "sequence": 23,
         "task_tier": "support",
+        "audience": "admin",
     },
     {
         "key": "operator.home.data_task_summary",
@@ -182,6 +184,7 @@ RUNTIME_OPERATOR_ACTIONS: tuple[dict[str, Any], ...] = (
         "task_group": "01 首页摘要",
         "sequence": 24,
         "task_tier": "support",
+        "audience": "admin",
     },
     {
         "key": "operator.home.ai_config_summary",
@@ -204,6 +207,7 @@ RUNTIME_OPERATOR_ACTIONS: tuple[dict[str, Any], ...] = (
         "task_group": "01 首页摘要",
         "sequence": 25,
         "task_tier": "support",
+        "audience": "admin",
     },
     {
         "key": "operator.governance.runtime_summary",

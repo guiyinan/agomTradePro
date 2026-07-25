@@ -634,11 +634,16 @@
 
     function openMenu(menuName, sourceButton) {
         const items = menuItems[menuName] || [];
+        if (state.menuSourceButton && state.menuSourceButton !== sourceButton) {
+            state.menuSourceButton.setAttribute("aria-expanded", "false");
+        }
         state.activeMenu = menuName;
+        state.menuSourceButton = sourceButton;
+        sourceButton.setAttribute("aria-expanded", "true");
         els.menuPopover.innerHTML = `
             <div class="tui-menu-title">${escapeHtml(menuName.toUpperCase())}</div>
             ${items.map(([command, label, key]) => `
-                <button type="button" data-menu-action="${escapeHtml(command)}">
+                <button type="button" role="menuitem" data-menu-action="${escapeHtml(command)}">
                     <span>${escapeHtml(label)}</span>
                     <kbd>${escapeHtml(key)}</kbd>
                 </button>
@@ -654,11 +659,17 @@
         }
     }
 
-    function closeMenu() {
+    function closeMenu(options = {}) {
+        const sourceButton = state.menuSourceButton;
         state.activeMenu = null;
+        state.menuSourceButton = null;
+        sourceButton?.setAttribute("aria-expanded", "false");
         if (els.menuPopover) {
             els.menuPopover.hidden = true;
             els.menuPopover.innerHTML = "";
+        }
+        if (options.restoreFocus && sourceButton && document.contains(sourceButton)) {
+            sourceButton.focus();
         }
     }
 
@@ -714,7 +725,7 @@
             return true;
         }
         if (!els.menuPopover.hidden) {
-            closeMenu();
+            closeMenu({ restoreFocus: true });
             return true;
         }
         if (!els.rawDrawer.hidden) {
@@ -861,6 +872,33 @@
                 runCommand(action.dataset.menuAction);
             }
         });
+        els.menuPopover.addEventListener("keydown", (event) => {
+            const items = Array.from(els.menuPopover.querySelectorAll("[role='menuitem']"));
+            const currentIndex = items.indexOf(document.activeElement);
+            let nextIndex = currentIndex;
+            if (event.key === "ArrowDown") {
+                nextIndex = (currentIndex + 1 + items.length) % items.length;
+            } else if (event.key === "ArrowUp") {
+                nextIndex = (currentIndex - 1 + items.length) % items.length;
+            } else if (event.key === "Home") {
+                nextIndex = 0;
+            } else if (event.key === "End") {
+                nextIndex = items.length - 1;
+            } else if (event.key === "Escape") {
+                event.preventDefault();
+                closeMenu({ restoreFocus: true });
+                return;
+            } else if (event.key === "Tab") {
+                closeMenu();
+                return;
+            } else {
+                return;
+            }
+            if (items.length) {
+                event.preventDefault();
+                items[nextIndex]?.focus();
+            }
+        });
         document.addEventListener("click", (event) => {
             if (!els.menuPopover.hidden && !event.target.closest("[data-menu-popover]") && !event.target.closest("[data-menu-command]")) {
                 closeMenu();
@@ -912,9 +950,12 @@
         try {
             els.moduleTree.innerHTML = '<div class="tui-loading">正在加载目录...</div>';
             setStatus("启动中");
-            const requestedScreen = shouldResumeOnBoot() && state.lastNonHomeScreen
-                ? state.lastNonHomeScreen
-                : "";
+            const deepLinkedScreen = screenKeyFromBrowserLocation();
+            const requestedScreen = deepLinkedScreen || (
+                shouldResumeOnBoot() && state.lastNonHomeScreen
+                    ? state.lastNonHomeScreen
+                    : ""
+            );
             const optimizedUrl = bootstrapUrl(requestedScreen);
             if (optimizedUrl) {
                 try {
@@ -927,6 +968,7 @@
                             state.operatorHomePromise = null;
                         }
                         renderScreen(payload.screen);
+                        syncBrowserScreenLocation(payload.screen?.screen?.key, { replace: true });
                         refreshGovernanceBadges();
                         if (requestedScreen && payload.resolved_screen !== requestedScreen) {
                             setStatus("上次工作区已不可用，已返回首页");
@@ -943,15 +985,17 @@
             }
             const catalog = await fetchJson(catalogUrl());
             renderCatalog(catalog);
-            const isResumeAttempt = Boolean(shouldResumeOnBoot() && state.lastNonHomeScreen);
-            const initialScreen = isResumeAttempt
-                ? state.lastNonHomeScreen
-                : catalog.default_screen;
+            const isResumeAttempt = Boolean(!deepLinkedScreen && shouldResumeOnBoot() && state.lastNonHomeScreen);
+            const initialScreen = deepLinkedScreen || (
+                isResumeAttempt ? state.lastNonHomeScreen : catalog.default_screen
+            );
             clearResumeOnBootFlag();
-            const loaded = await loadScreen(initialScreen);
-            if (!loaded && isResumeAttempt) {
-                setStatus("上次工作区已不可用，已返回首页");
-                await loadScreen(catalog.default_screen);
+            const loaded = await loadScreen(initialScreen, { replaceHistory: true });
+            if (!loaded && (isResumeAttempt || deepLinkedScreen)) {
+                setStatus(deepLinkedScreen
+                    ? "链接中的工作区不可用，已返回首页"
+                    : "上次工作区已不可用，已返回首页");
+                await loadScreen(catalog.default_screen, { replaceHistory: true });
             }
             runtimeCore.mark?.("p0-ready");
             runtimeCore.measure?.("bootstrap-to-p0", "bootstrap-start", "p0-ready");
@@ -1007,6 +1051,12 @@
         applyTheme(loadStoredTheme(), { silent: true });
         loadStoredInspectorWidth();
         bindControls();
+        window.addEventListener("popstate", () => {
+            const screenKey = screenKeyFromBrowserLocation();
+            if (screenKey && screenKey !== state.screen?.screen?.key) {
+                loadScreen(screenKey, { suppressHistory: true });
+            }
+        });
         updateClock();
         window.setInterval(updateClock, 1000);
         bootstrap();
