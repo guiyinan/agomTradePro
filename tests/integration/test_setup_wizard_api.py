@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.test import Client
 
 from apps.setup_wizard.domain.entities import WizardStep
 
@@ -32,11 +33,11 @@ def _assert_wizard_page_contract(response, *step_fragments: str) -> str:
     common_fragments = (
         "系统初始化向导 - AgomTradePro",
         'class="setup-progress"',
-        "step-label\">欢迎<",
-        "step-label\">管理员<",
-        "step-label\">AI 配置<",
-        "step-label\">数据源<",
-        "step-label\">完成<",
+        'step-label">欢迎<',
+        'step-label">管理员<',
+        'step-label">AI 配置<',
+        'step-label">数据源<',
+        'step-label">完成<',
         "/setup/api/password-strength/",
     )
     return _assert_html_contract(response, *common_fragments, *step_fragments)
@@ -156,6 +157,10 @@ class TestSetupWizardStepSubmission:
         )
 
     def test_admin_password_step_password_mismatch(self, client):
+        session = client.session
+        session["setup_wizard"] = {"current_step": "admin_password"}
+        session.save()
+
         with patch("apps.setup_wizard.interface.views.CheckSetupStatusUseCase") as mock_check:
             mock_result = MagicMock()
             mock_result.is_first_time = True
@@ -189,11 +194,14 @@ class TestSetupWizardStepSubmission:
         session["setup_wizard"] = {"current_step": "data_source"}
         session.save()
 
-        with patch(
-            "apps.setup_wizard.application.use_cases.SetupDataSourceUseCase.execute"
-        ) as mock_setup, patch(
-            "apps.setup_wizard.interface.views.CompleteSetupUseCase.execute"
-        ) as mock_complete:
+        with (
+            patch(
+                "apps.setup_wizard.application.use_cases.SetupDataSourceUseCase.execute"
+            ) as mock_setup,
+            patch(
+                "apps.setup_wizard.interface.views.CompleteSetupUseCase.execute"
+            ) as mock_complete,
+        ):
             mock_setup.return_value = MagicMock(success=True, message="ok")
 
             response = client.post(
@@ -277,6 +285,50 @@ class TestSetupWizardSecurity:
         assert response.status_code == 302
         assert "setup_wizard_authenticated" not in client.session
         assert "setup_wizard" not in client.session
+
+    def test_step_post_requires_csrf(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+
+        response = csrf_client.post("/setup/step/welcome/")
+
+        assert response.status_code == 403
+
+    def test_existing_install_step_requires_wizard_authentication(self, client):
+        with patch("apps.setup_wizard.interface.views.CheckSetupStatusUseCase") as mock_check:
+            mock_check.return_value.execute.return_value = MagicMock(
+                is_first_time=False,
+                requires_auth=True,
+            )
+
+            response = client.post("/setup/step/welcome/")
+
+        assert response.status_code == 403
+        assert response.json() == {"error": "需要管理员认证"}
+
+    def test_setup_cannot_skip_directly_to_data_source(self, client):
+        with (
+            patch("apps.setup_wizard.interface.views.CheckSetupStatusUseCase") as mock_check,
+            patch(
+                "apps.setup_wizard.interface.views.SetupDataSourceUseCase.execute"
+            ) as mock_data_source,
+            patch(
+                "apps.setup_wizard.interface.views.CompleteSetupUseCase.execute"
+            ) as mock_complete,
+        ):
+            mock_check.return_value.execute.return_value = MagicMock(
+                is_first_time=True,
+                requires_auth=False,
+            )
+
+            response = client.post(
+                "/setup/step/data_source/",
+                data={"skip": "true"},
+            )
+
+        assert response.status_code == 409
+        assert response.json() == {"error": "安装步骤顺序无效"}
+        mock_data_source.assert_not_called()
+        mock_complete.assert_not_called()
 
 
 @pytest.mark.django_db

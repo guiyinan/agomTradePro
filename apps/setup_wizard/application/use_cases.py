@@ -4,6 +4,7 @@ Application Use Cases for Setup Wizard.
 用例编排层，协调 Domain 和 Infrastructure 层。
 """
 
+import logging
 from dataclasses import dataclass
 
 from apps.setup_wizard.application.repository_provider import (
@@ -26,6 +27,8 @@ from apps.setup_wizard.domain.services import (
     SetupProgressCalculator,
     SetupValidator,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -58,7 +61,7 @@ class SetupAIProviderResult:
 class CheckSetupStatusUseCase:
     """检查安装状态用例"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.state_repo = get_setup_state_repository()
         self.admin_repo = get_setup_admin_repository()
 
@@ -88,7 +91,7 @@ class CheckSetupStatusUseCase:
 class SetupAdminUseCase:
     """设置管理员用例"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.admin_repo = get_setup_admin_repository()
         self.state_repo = get_setup_state_repository()
         self.validator = SetupValidator()
@@ -139,10 +142,11 @@ class SetupAdminUseCase:
                 message="管理员账户创建成功",
                 password_strength=password_strength,
             )
-        except Exception as e:
+        except Exception:
+            logger.exception("Setup admin configuration failed")
             return SetupAdminResult(
                 success=False,
-                message=f"创建管理员失败: {str(e)}",
+                message="创建管理员失败，请检查服务端日志",
                 password_strength=password_strength,
             )
 
@@ -150,7 +154,7 @@ class SetupAdminUseCase:
 class SetupAIProviderUseCase:
     """设置 AI Provider 用例"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.ai_provider_repo = get_setup_ai_provider_repository()
         self.state_repo = get_setup_state_repository()
         self.validator = SetupValidator()
@@ -184,17 +188,18 @@ class SetupAIProviderUseCase:
                 success=True,
                 message=f"AI Provider '{config.name}' 配置成功",
             )
-        except Exception as e:
+        except Exception:
+            logger.exception("Setup AI provider configuration failed")
             return SetupAIProviderResult(
                 success=False,
-                message=f"配置 AI Provider 失败: {str(e)}",
+                message="配置 AI Provider 失败，请检查服务端日志",
             )
 
 
 class SetupDataSourceUseCase:
     """设置数据源用例"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.data_source_repo = get_setup_data_source_repository()
         self.state_repo = get_setup_state_repository()
 
@@ -230,10 +235,11 @@ class SetupDataSourceUseCase:
                 success=True,
                 message="数据源配置成功",
             )
-        except Exception as e:
+        except Exception:
+            logger.exception("Setup data source configuration failed")
             return SetupAIProviderResult(
                 success=False,
-                message=f"配置数据源失败: {str(e)}",
+                message="配置数据源失败，请检查服务端日志",
             )
 
 
@@ -258,7 +264,7 @@ class EnsureSecurityKeysUseCase:
 class CompleteSetupUseCase:
     """完成安装用例"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.state_repo = get_setup_state_repository()
 
     def execute(self) -> None:
@@ -269,7 +275,7 @@ class CompleteSetupUseCase:
 class VerifyAdminAuthUseCase:
     """验证管理员认证用例"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.admin_repo = get_setup_admin_repository()
 
     def execute(self, password: str) -> bool:
@@ -288,7 +294,7 @@ class VerifyAdminAuthUseCase:
 class GetNextStepUseCase:
     """获取下一步骤用例"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.calculator = SetupProgressCalculator()
 
     def execute(self, current_step: WizardStep) -> WizardStep | None:

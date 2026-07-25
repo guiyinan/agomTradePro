@@ -32,7 +32,11 @@ def get_setup_data_source_repository() -> DataSourceRepository:
     return DataSourceRepository()
 
 
-def ensure_setup_security_keys(*, generate_secret_key: bool = True, generate_encryption_key: bool = True):
+def ensure_setup_security_keys(
+    *,
+    generate_secret_key: bool = True,
+    generate_encryption_key: bool = True,
+) -> dict[str, bool]:
     """Ensure required setup-time security keys exist."""
 
     from apps.setup_wizard.infrastructure.encryption_setup import ensure_all_keys

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1902,
-    "files_with_errors": 479
+    "errors": 1874,
+    "files_with_errors": 475
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1459,13 +1459,6 @@
     "apps/sentiment/interface/views.py": {
       "no-untyped-def": 9
     },
-    "apps/setup_wizard/application/repository_provider.py": {
-      "no-untyped-def": 1
-    },
-    "apps/setup_wizard/application/use_cases.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 7
-    },
     "apps/setup_wizard/apps.py": {
       "no-untyped-def": 1
     },
@@ -1474,11 +1467,6 @@
     },
     "apps/setup_wizard/infrastructure/repositories.py": {
       "valid-type": 1
-    },
-    "apps/setup_wizard/interface/views.py": {
-      "no-any-return": 1,
-      "no-untyped-call": 10,
-      "no-untyped-def": 1
     },
     "apps/setup_wizard/management/commands/bootstrap_local_env.py": {
       "no-untyped-def": 2
@@ -1607,11 +1595,6 @@
     "apps/terminal/infrastructure/tui_contract_export.py": {
       "arg-type": 2,
       "union-attr": 3
-    },
-    "apps/terminal/infrastructure/tui_metadata_repository.py": {
-      "attr-defined": 1,
-      "redundant-cast": 2,
-      "unused-ignore": 4
     },
     "apps/terminal/interface/admin.py": {
       "no-untyped-def": 4,

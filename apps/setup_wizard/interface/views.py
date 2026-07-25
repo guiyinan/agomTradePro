@@ -5,6 +5,7 @@ Interface Views for Setup Wizard.
 """
 
 import logging
+from collections.abc import Callable
 
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -26,6 +27,7 @@ from apps.setup_wizard.domain.entities import (
     AdminConfig,
     AIProviderConfigDTO,
     DataSourceConfigDTO,
+    SetupState,
     WizardStep,
 )
 
@@ -66,7 +68,7 @@ class SetupWizardView(View):
         self,
         request: HttpRequest,
         current_step: str,
-        state,
+        state: SetupState,
     ) -> HttpResponse:
         """渲染向导页面"""
         try:
@@ -140,8 +142,22 @@ class SetupStepView(View):
         except ValueError:
             return JsonResponse({"error": "无效的步骤"}, status=400)
 
-        handler = getattr(self, f"_handle_{current_step.value}", None)
-        if handler:
+        setup_status = CheckSetupStatusUseCase().execute()
+        if setup_status.requires_auth and not request.session.get("setup_wizard_authenticated"):
+            return JsonResponse({"error": "需要管理员认证"}, status=403)
+
+        session_step = request.session.get("setup_wizard", {}).get("current_step")
+        if current_step != WizardStep.WELCOME and session_step != current_step.value:
+            return JsonResponse({"error": "安装步骤顺序无效"}, status=409)
+
+        handlers: dict[WizardStep, Callable[[HttpRequest], HttpResponse]] = {
+            WizardStep.WELCOME: self._handle_welcome,
+            WizardStep.ADMIN_PASSWORD: self._handle_admin_password,
+            WizardStep.AI_PROVIDER: self._handle_ai_provider,
+            WizardStep.DATA_SOURCE: self._handle_data_source,
+        }
+        handler = handlers.get(current_step)
+        if handler is not None:
             return handler(request)
 
         return JsonResponse({"error": "未知的步骤"}, status=400)

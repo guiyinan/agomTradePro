@@ -3526,3 +3526,19 @@
 - Task Monitor views 的 `attr-defined` 与未类型 handler 债务清零，并传播清除 query service 的隐式 provider 属性债务；全仓基线从 `1910 errors / 480 files` 收紧为 `1902 errors / 479 files`，净减少 `8 errors / 1 file`。
 - 全仓口径仍保留该 views 文件 `5` 项 DRF decorator `misc` 历史债务；本批未通过宽泛 ignore 掩盖，后续结合 serializer 泛型治理处理。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百四十批
+
+- 按“首次安装高权限写入防护 × 向导步骤完整性 × 配置异常最小披露”收口 Setup Wizard。
+- 移除步骤 POST 路由的 `csrf_exempt`；管理员创建、AI 密钥和数据源密钥写入重新受 Django CSRF 防护，跨站请求不能再触发初始化副作用。
+- 已存在管理员时，每个步骤 POST 都要求 `setup_wizard_authenticated` session；不再只有 GET 页面检查认证而让调用方绕过页面直接提交配置。
+- welcome 之后的步骤必须与服务端 session 当前步骤一致；直接跳到 data source 不会再保存密钥、跳过前置步骤或调用 `CompleteSetupUseCase`。
+- 动态 `getattr` handler 改为 WizardStep 到精确 Callable 的显式映射；SetupState、HttpRequest 和 HttpResponse 全部进入类型检查。
+- 管理员、AI Provider 和数据源保存异常只在服务端日志保留堆栈，对用户返回稳定失败文案，不再在消息框暴露数据库、文件系统或密钥存储异常正文。
+- 八个用例构造函数及安全密钥 provider 补齐返回类型，并将 `ensure_all_keys` 的既有 `dict[str, bool]` 契约传递到 Application。
+
+## 第二百四十批验证结果
+
+- Setup Wizard HTTP 安全与流程回归 `18 passed`，Application/Domain/集成回归 `52 passed`，覆盖 CSRF、既有安装认证、禁止跳步和正常完整流程。
+- Setup Wizard provider、use cases 与 views 增量 mypy 清零，并传播清除 TUI metadata repository 的 7 项过期豁免债务；全仓基线从 `1902 errors / 479 files` 收紧为 `1874 errors / 475 files`，净减少 `28 errors / 4 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
