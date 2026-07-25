@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
+import pytest
+
 from apps.data_center.application.dtos import (
     SyncMacroBatchRequest,
     SyncMacroRequest,
@@ -60,14 +62,18 @@ class _ProviderRepo:
 class _ProviderFactory:
     def __init__(self, provider):
         self._provider = provider
+        self.successes = []
+        self.failures = []
 
     def get_by_id(self, provider_id: int):
         return self._provider if provider_id == 1 else None
 
     def record_success(self, provider_name, capability, latency_ms):
+        self.successes.append((provider_name, capability, latency_ms))
         return None
 
     def record_failure(self, provider_name, capability):
+        self.failures.append((provider_name, capability))
         return None
 
 
@@ -296,9 +302,10 @@ def test_sync_news_use_case_stores_articles_and_audit():
     provider_repo = _ProviderRepo()
     raw_repo = _RawAuditRepo()
     news_repo = _NewsRepo()
+    provider_factory = _ProviderFactory(provider)
     use_case = SyncNewsUseCase(
         provider_repo=provider_repo,
-        provider_registry=_ProviderFactory(provider),
+        provider_registry=provider_factory,
         fact_repo=news_repo,
         raw_audit_repo=raw_repo,
     )
@@ -319,3 +326,39 @@ def test_sync_news_use_case_stores_articles_and_audit():
     assert news_repo.saved[0].extra["provider_name"] == "provider-main"
     assert news_repo.saved[0].extra["source_type"] == "tushare"
     assert raw_repo.items[0].capability == "news"
+    assert (
+        provider_repo.saved[-1].extra_config["health_metrics"]["news"]["last_status"] == "healthy"
+    )
+    assert provider_factory.successes[0][1] == DataCapability.NEWS
+
+
+def test_sync_news_failure_updates_persistent_and_runtime_health():
+    class _FailingNewsProvider(_Provider):
+        def fetch_news(self, asset_code: str, limit: int = 20):
+            raise TimeoutError("news provider timed out")
+
+    provider = _FailingNewsProvider()
+    provider_repo = _ProviderRepo()
+    provider_factory = _ProviderFactory(provider)
+    raw_repo = _RawAuditRepo()
+    use_case = SyncNewsUseCase(
+        provider_repo=provider_repo,
+        provider_registry=provider_factory,
+        fact_repo=_NewsRepo(),
+        raw_audit_repo=raw_repo,
+    )
+
+    with pytest.raises(TimeoutError, match="timed out"):
+        use_case.execute(
+            SyncNewsRequest(
+                provider_id=1,
+                asset_code="000001.SZ",
+                limit=10,
+            )
+        )
+
+    metric = provider_repo.saved[-1].extra_config["health_metrics"]["news"]
+    assert metric["last_status"] == "degraded"
+    assert metric["consecutive_failures"] == 1
+    assert provider_factory.failures == [("provider-main", DataCapability.NEWS)]
+    assert raw_repo.items[-1].status == "error"

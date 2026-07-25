@@ -3050,3 +3050,18 @@
 - AI Provider Admin 与加密 guardrail 回归共 `9 passed`；覆盖 Admin 不出现明文/密文字段、固定掩码不泄露后四位和 Repository 加密落库。
 - Provider Admin 与密钥展示 Application service 增量 mypy 清零；全仓基线从 `2461 errors / 535 files` 收紧为 `2453 errors / 533 files`，净减少 `8 errors / 2 files`。
 - 架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零八批
+
+- 按“Data Center Provider 健康真实性 × 九类事实同步影响面”收口统一 sync use cases。
+- 补齐 Fund NAV、财务报表、估值、板块成分、新闻和资金流六类同步的健康写入；这些能力成功时更新成功次数、平均延迟与最后成功时间，失败时更新连续失败数、最后错误与 degraded 状态，并同步通知运行时 Provider Registry。
+- 六类同步统一通过 Base UseCase 的 outcome 入口同时写 Provider 健康与 RawAudit；避免各能力分别拼装导致健康和审计状态分叉，Macro、历史价格和实时报价既有行为保持不变。
+- 代表性新闻同步回归证明成功与 TimeoutError 都同时更新持久化 health_metrics、运行时 registry 和 raw audit，不再出现同步持续失败但健康面板保留旧状态。
+- Fact source 规范化改为保留具体 Fact 类型的泛型入口；Macro Fact 列表、动态 dataclass replace 和 RawAudit request mapping 补齐精确类型。
+- 新增 outcome 复用后同步文件保持 `798` 个非空行，低于既有 `800` 行结构预算；未通过提高阈值接受文件膨胀。
+
+## 第二百零八批验证结果
+
+- Data Center Phase 3 sync、结构预算、按需同步回归共 `12 passed`，Data Center API integration 共 `6 passed`。
+- Data Center sync use cases 目标 mypy 清零；全仓基线从 `2453 errors / 533 files` 收紧为 `2445 errors / 532 files`，净减少 `8 errors / 1 file`。
+- Django system check、架构 delta、结构预算、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。

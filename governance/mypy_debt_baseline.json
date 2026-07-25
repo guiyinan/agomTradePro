@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2453,
-    "files_with_errors": 533
+    "errors": 2445,
+    "files_with_errors": 532
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -722,11 +722,6 @@
     },
     "apps/data_center/application/reliability_use_cases.py": {
       "no-untyped-def": 1
-    },
-    "apps/data_center/application/sync_use_cases.py": {
-      "arg-type": 4,
-      "no-untyped-def": 2,
-      "type-arg": 2
     },
     "apps/data_center/application/tasks.py": {
       "unused-ignore": 1
