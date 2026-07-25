@@ -3290,3 +3290,16 @@
 - 估值质量、修复用例和修复 API 相关回归 `31 passed`，覆盖重复股票不重复计数。
 - 估值修复仓储及主要调用方增量 mypy 清零；全仓基线从 `2106 errors / 497 files` 收紧为 `2101 errors / 496 files`，净减少 `5 errors / 1 file`。
 - 改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十四批
+
+- 按“估值配置管理接口类型完整性 × 管理操作授权面”收口 Equity 估值修复配置 ViewSet。
+- 配置列表、详情、创建、更新、删除、激活、回滚和清缓存 handler 补齐 DRF Request/Response 与路由主键类型，动态 Application 返回值只在 Interface 边界保留 `Any`。
+- 激活和回滚复用内部类型化 helper，避免直接调用经 DRF decorator 包装的方法而破坏方法绑定；OpenAPI 与 action 统一复用项目已有类型化 decorator 适配层。
+- 审计操作者通过认证用户的标准 `get_username()` 获取，不再依赖具体 User Model 的动态 `username` 属性；管理员权限、路由和响应契约保持不变。
+
+## 第二百二十四批验证结果
+
+- 估值修复配置集成与 serializer 契约回归 `16 passed`。
+- 配置 ViewSet 及兼容 facade 增量 mypy 清零；全仓基线从 `2101 errors / 496 files` 收紧为 `2089 errors / 495 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
