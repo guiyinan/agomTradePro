@@ -85,6 +85,19 @@ def test_manual_trade_portfolio_id_uses_account_portfolio_repository(
     assert get_manual_trade_portfolio_id_for_account(7) == 12
 
 
+def test_manual_trade_portfolio_id_returns_none_without_linked_portfolio(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The legacy bridge preserves an explicit missing-portfolio result."""
+    repository = SimpleNamespace(get_portfolio_for_account=lambda _account_id: None)
+    monkeypatch.setattr(
+        "apps.account.application.repository_provider.get_portfolio_api_repository",
+        lambda: repository,
+    )
+
+    assert get_manual_trade_portfolio_id_for_account(7) is None
+
+
 def test_workspace_recommendation_provider_enforces_stable_query_contract(
     monkeypatch,
 ) -> None:
