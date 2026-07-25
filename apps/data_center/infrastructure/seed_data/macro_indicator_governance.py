@@ -138,11 +138,12 @@ def _alias_row(
 INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
     "CN_BLAST_FURNACE": _row(
         name_cn="高炉开工率",
-        description=(
-            "当前公开源使用钢铁行业指数周频代理高炉开工率，运行时应按指数水平序列理解，"
-            "不可按累计值或同比序列解释。"
-        ),
+        description=("当前无语义一致的公开数据源；钢铁股票指数不能作为高炉开工率事实发布。"),
         semantics="index_level",
+        extra={
+            "governance_sync_supported": False,
+            "governance_status": "unsupported_proxy",
+        },
     ),
     "CN_BOND_10Y": _row(
         name_cn="10年期国债收益率",
@@ -171,8 +172,12 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
     ),
     "CN_CCFI": _row(
         name_cn="中国出口集装箱运价指数",
-        description="周频运价指数水平值口径，用于连续观察外贸航运景气度。",
+        description="当前无语义一致的公开数据源；BDI 干散货指数不能作为 CCFI 事实发布。",
         semantics="index_level",
+        extra={
+            "governance_sync_supported": False,
+            "governance_status": "unsupported_proxy",
+        },
     ),
     "CN_CORP_YIELD_AA": _row(
         name_cn="AA级企业债收益率",
@@ -364,8 +369,12 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
     ),
     "CN_POWER_GEN": _row(
         name_cn="发电量",
-        description="当前公开源使用全社会用电量月度值作为发电量代理序列，属于当期量级口径。",
+        description="当前无语义一致的公开数据源；全社会用电量不能作为发电量事实发布。",
         semantics="monthly_level",
+        extra={
+            "governance_sync_supported": False,
+            "governance_status": "unsupported_proxy",
+        },
     ),
     "CN_PPIRM": _row(
         name_cn="PPIRM同比增速",
@@ -404,8 +413,12 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
     ),
     "CN_SCFI": _row(
         name_cn="上海出口集装箱运价指数",
-        description="周频运价指数水平值口径，用于连续观察出口航运价格变化。",
+        description="当前无语义一致的公开数据源；BCI 干散货指数不能作为 SCFI 事实发布。",
         semantics="index_level",
+        extra={
+            "governance_sync_supported": False,
+            "governance_status": "unsupported_proxy",
+        },
     ),
     "CN_SHIBOR": _row(
         name_cn="SHIBOR 上海银行间同业拆放利率",

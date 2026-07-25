@@ -339,9 +339,13 @@ def test_indicator_catalog_seed_covers_representative_runtime_chart_policies():
 
     assert power_gen.extra["series_semantics"] == "monthly_level"
     assert power_gen.extra["chart_policy"] == "period_bar"
+    assert power_gen.extra["governance_sync_supported"] is False
+    assert power_gen.extra["governance_status"] == "unsupported_proxy"
 
     assert blast_furnace.extra["series_semantics"] == "index_level"
     assert blast_furnace.extra["chart_policy"] == "continuous_line"
+    assert blast_furnace.extra["governance_sync_supported"] is False
+    assert blast_furnace.extra["governance_status"] == "unsupported_proxy"
 
     assert export_alias.extra["series_semantics"] == "monthly_level"
     assert export_alias.extra["alias_of_indicator_code"] == "CN_EXPORTS"

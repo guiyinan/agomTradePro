@@ -2838,3 +2838,20 @@
 - Trade Fetcher、Macro Fetcher Resilience、目录治理命令与海关单位迁移回归共 `40 passed`；新增覆盖当前列契约、原始千美元、同月贸易差额、schema 漂移、单行错误隔离、三条单位规则、历史事实隔离和反向迁移。
 - Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
 - 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十四批
+
+- 按“代理指标语义污染 × Regime 中期验证输入影响面”收口 Data Center Weekly Indicator Fetcher。
+- 确认并停止四条不具同义性的代理发布：全社会用电量不是发电量、钢铁股票指数不是高炉开工率、BDI 干散货指数不是 CCFI、BCI 海岬型干散货指数不是 SCFI。
+- 四个既有 fetch 路由保留接口兼容，但在取得语义一致数据源前统一失败关闭且不调用代理端点；避免下游仅凭指标代码把代理值当成目标事实。
+- 指标目录将四项标记为 `unsupported_proxy` 且 `governance_sync_supported=false`；治理初始化真源同步携带该状态，后续运行初始化不会把自动同步重新打开。
+- 数据迁移将历史 AKShare 代理事实统一标记为 `error`，保留原质量和隔离原因；目录描述、同步标志、治理状态及事实质量支持精确回滚。
+- 全面更正 Regime 滞后改进文档中“已实现/代理可用/有效记录”的过时结论，历史 33/155/156/155 条代理记录不再计入有效覆盖。
+- Weekly Fetcher 的第三方模块、回调和返回边界补齐精确类型；移除不再需要的 pandas 外部边界。
+
+## 第一百九十四批验证结果
+
+- Weekly Indicator Fetcher 增量 mypy 清零；全仓基线从 `2671 errors / 556 files` 收紧为 `2665 errors / 555 files`，净减少 `6 errors / 1 file`。
+- Weekly Fetcher、Phase 2 Seed、目录治理命令与代理隔离迁移回归共 `17 passed`；新增覆盖四条错误端点零调用、同步持续关闭、历史事实隔离和反向迁移。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。

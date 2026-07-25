@@ -166,46 +166,39 @@ ak.fx_spot_quote(symbol="USD/CNY")  # 美元兑人民币
 
 **目标**: 提供中期验证信号
 
-**状态**: 使用公开数据源完成所有指标采集
+**状态**: 2026-07-25 语义审计后失败关闭；原公开代理源均不等同于目标指标
 
 #### 新增指标（使用公开数据源替代）
 
 | 指标 | 原始需求 | 实际数据源 | 更新频率 | 状态 |
 |------|---------|-----------|---------|------|
-| 发电量 (CN_POWER_GEN) | 发电量 | AKShare (macro_china_society_electricity) | 月度 | ✅ 33条记录 |
-| 高炉开工率 (CN_BLAST_FURNACE) | 高炉开工率 | 东方财富 (钢铁指数 sh000819) | 周度 | ✅ 155条记录 |
-| CCFI (CN_CCFI) | 集装箱运价指数 | AKShare (BDI波罗的海干散货指数) | 周度 | ✅ 156条记录 |
-| SCFI (CN_SCFI) | 上海出口运价指数 | AKShare (BCI波罗的海海岬型指数) | 周度 | ✅ 155条记录 |
+| 发电量 (CN_POWER_GEN) | 发电量 | 暂无语义一致公开源 | - | ❌ 原用电量代理已隔离 |
+| 高炉开工率 (CN_BLAST_FURNACE) | 高炉开工率 | 暂无语义一致公开源 | - | ❌ 原钢铁股票指数代理已隔离 |
+| CCFI (CN_CCFI) | 集装箱运价指数 | 暂无语义一致公开源 | - | ❌ 原 BDI 干散货代理已隔离 |
+| SCFI (CN_SCFI) | 上海出口运价指数 | 暂无语义一致公开源 | - | ❌ 原 BCI 干散货代理已隔离 |
 
-**替代方案说明**：
-- **钢铁指数** (000819): 反映钢铁行业景气度，可作为高炉开工率的代理指标
-- **BDI/BCI**: 波罗的海航运指数，反映全球干散货运输需求，可作为集装箱运价指数的代理指标
+**代理审计结论**：上述序列可作为独立指标另行建模，但不能沿用发电量、高炉开工率、
+CCFI 或 SCFI 的指标代码发布；历史代理事实已标记为 `error`。
 
 #### 实现内容
 
 1. **WeeklyIndicatorFetcher 类** (`apps/data_center/infrastructure/macro_sources/fetchers/weekly_indicators_fetchers.py`)
-   - fetch_power_generation(): 获取全社会用电量数据（月度）
-   - fetch_blast_furnace_utilization(): 获取钢铁指数数据（周聚合）
-   - fetch_ccfi(): 获取BDI航运指数数据（周聚合）
-   - fetch_scfi(): 获取BCI航运指数数据（周聚合）
+   - 四个兼容路由保留，但在取得语义一致数据源前统一失败关闭，不调用代理端点
 
 2. **配置更新**
    - SUPPORTED_INDICATORS: 新增 4 个周度指标代码
    - sync_macro_data: 支持周度指标同步
    - init_indicator_thresholds: 新增阈值配置
 
-3. **数据同步**
-   - CN_POWER_GEN: 33 个月度记录（2023-2025年）
-   - CN_BLAST_FURNACE: 155 条周度记录（钢铁指数）
-   - CN_CCFI: 156 条周度记录（BDI）
-   - CN_SCFI: 155 条周度记录（BCI）
+3. **历史数据隔离**
+   - 原 33/155/156/155 条代理记录保留审计痕迹并标记为 `error`
 
 #### 实现步骤
 
 1. ✅ WeeklyIndicatorFetcher 基础架构
-2. ✅ 发电量数据获取（月度替代）
-3. ✅ 高炉开工率（钢铁指数替代）
-4. ✅ CCFI/SCFI（BDI/BCI 替代）
+2. ⚠️ 发电量代理因语义不一致停止发布
+3. ⚠️ 高炉开工率代理因语义不一致停止发布
+4. ⚠️ CCFI/SCFI 代理因语义不一致停止发布
 
 ### 3.4 Phase 3: PMI 分项指标 ✅ **完成（手动维护）**
 
@@ -1268,29 +1261,26 @@ def evaluate_credit_spread(
 | 任务 | 状态 | 交付物 | 备注 |
 |------|------|--------|------|
 | Infrastructure：WeeklyIndicatorFetcher | ✅ | 4个fetch方法 | |
-| 发电量数据采集 (CN_POWER_GEN) | ✅ | 33条记录 | 月度用电量替代 |
-| 高炉开工率 (CN_BLAST_FURNACE) | ✅ | 155条记录 | 钢铁指数替代 |
-| CCFI运价指数 (CN_CCFI) | ✅ | 156条记录 | BDI航运指数替代 |
-| SCFI运价指数 (CN_SCFI) | ✅ | 155条记录 | BCI航运指数替代 |
+| 发电量数据采集 (CN_POWER_GEN) | ❌ | 无有效记录 | 用电量代理已隔离 |
+| 高炉开工率 (CN_BLAST_FURNACE) | ❌ | 无有效记录 | 钢铁指数代理已隔离 |
+| CCFI运价指数 (CN_CCFI) | ❌ | 无有效记录 | BDI 代理已隔离 |
+| SCFI运价指数 (CN_SCFI) | ❌ | 无有效记录 | BCI 代理已隔离 |
 | 指标阈值配置 | ✅ | init_indicator_thresholds | |
 | sync_macro_data支持 | ✅ | period_type映射 | |
 
 **已同步数据**:
 | 指标代码 | 数据点 | period_type | 数据源 | 状态 |
 |---------|--------|-------------|--------|------|
-| CN_POWER_GEN | 33 | M | 全社会用电量 | ✅ |
-| CN_BLAST_FURNACE | 155 | W | 钢铁指数(000819) | ✅ |
-| CN_CCFI | 156 | W | BDI波罗的海干散货 | ✅ |
-| CN_SCFI | 155 | W | BCI波罗的海海岬型 | ✅ |
+| CN_POWER_GEN | 0 | M | 暂无语义一致公开源 | ❌ |
+| CN_BLAST_FURNACE | 0 | W | 暂无语义一致公开源 | ❌ |
+| CN_CCFI | 0 | W | 暂无语义一致公开源 | ❌ |
+| CN_SCFI | 0 | W | 暂无语义一致公开源 | ❌ |
 
-**数据源替代说明**:
-- **高炉开工率 → 钢铁指数**: 使用东方财富钢铁行业指数 (sh000819) 作为替代指标，反映钢铁行业景气度
-- **CCFI/SCFI → BDI/BCI**: 使用波罗的海航运指数作为替代，反映全球干散货运输和贸易需求
-| CN_POWER_GEN | 33 | M | ✅ |
+**数据源限制说明**: 代理序列必须以独立指标代码建模，不能冒充本节四个目标指标。
+| CN_POWER_GEN | 0 | M | ❌ |
 
 **数据源限制说明**:
-- 使用公开数据源（钢铁指数、BDI/BCI）替代商业数据源
-- 发电量使用全社会用电量月度数据作为替代指标
+- 四项均需语义一致的授权源或独立官方公开源
 
 ---
 
@@ -1324,20 +1314,20 @@ def evaluate_credit_spread(
 | 任务 | 状态 | 交付物 | 备注 |
 |------|------|--------|------|
 | Infrastructure：WeeklyIndicatorFetcher | ✅ | 4个fetch方法 | |
-| 发电量数据采集 (CN_POWER_GEN) | ✅ | 33条记录 | 月度用电量替代 |
-| 高炉开工率 (CN_BLAST_FURNACE) | ✅ | 155条记录 | 钢铁指数替代 |
-| CCFI运价指数 (CN_CCFI) | ✅ | 156条记录 | BDI航运指数替代 |
-| SCFI运价指数 (CN_SCFI) | ✅ | 155条记录 | BCI航运指数替代 |
+| 发电量数据采集 (CN_POWER_GEN) | ❌ | 无有效记录 | 代理已隔离 |
+| 高炉开工率 (CN_BLAST_FURNACE) | ❌ | 无有效记录 | 代理已隔离 |
+| CCFI运价指数 (CN_CCFI) | ❌ | 无有效记录 | 代理已隔离 |
+| SCFI运价指数 (CN_SCFI) | ❌ | 无有效记录 | 代理已隔离 |
 | 指标阈值配置 | ✅ | init_indicator_thresholds | |
 | sync_macro_data支持 | ✅ | period_type映射 | |
 
 **已同步数据**:
 | 指标代码 | 数据点 | period_type | 数据源 | 状态 |
 |---------|--------|-------------|--------|------|
-| CN_POWER_GEN | 33 | M | 全社会用电量 | ✅ |
-| CN_BLAST_FURNACE | 155 | W | 钢铁指数(000819) | ✅ |
-| CN_CCFI | 156 | W | BDI波罗的海干散货 | ✅ |
-| CN_SCFI | 155 | W | BCI波罗的海海岬型 | ✅ |
+| CN_POWER_GEN | 0 | M | 暂无语义一致公开源 | ❌ |
+| CN_BLAST_FURNACE | 0 | W | 暂无语义一致公开源 | ❌ |
+| CN_CCFI | 0 | W | 暂无语义一致公开源 | ❌ |
+| CN_SCFI | 0 | W | 暂无语义一致公开源 | ❌ |
 
 ---
 
@@ -1654,10 +1644,10 @@ celery -A core beat -l info
 | `US_BOND_10Y` | 美国10年期国债 | D | `bond_zh_us_rate` | 1 | ✅ 已实现 |
 | `USD_INDEX` | 美元指数 | D | `fx_spot_quote` | 1 | ❌ 需FRED数据源 |
 | `VIX_INDEX` | VIX波动率 | D | `index_option_sina_sina` | 1 | ❌ 需CBOE数据源 |
-| `CN_POWER_GEN` | 发电量 | M | 月度用电量替代 | 2 | ✅ 已实现 |
-| `CN_BLAST_FURNACE` | 高炉开工率 | W | 钢铁指数替代 | 2 | ✅ 已实现 |
-| `CN_CCFI` | 集装箱运价指数 | W | BDI替代 | 2 | ✅ 已实现 |
-| `CN_SCFI` | 上海出口运价 | W | BCI替代 | 2 | ✅ 已实现 |
+| `CN_POWER_GEN` | 发电量 | M | 暂无语义一致公开源 | 2 | ❌ 代理已隔离 |
+| `CN_BLAST_FURNACE` | 高炉开工率 | W | 暂无语义一致公开源 | 2 | ❌ 代理已隔离 |
+| `CN_CCFI` | 集装箱运价指数 | W | 暂无语义一致公开源 | 2 | ❌ 代理已隔离 |
+| `CN_SCFI` | 上海出口运价 | W | 暂无语义一致公开源 | 2 | ❌ 代理已隔离 |
 | `CN_PMI_NEW_ORDER` | PMI新订单 | M | 手动维护文件 | 3 | ✅ 已实现 |
 | `CN_PMI_INVENTORY` | PMI产成品库存 | M | 手动维护文件 | 3 | ✅ 已实现 |
 | `CN_PMI_RAW_MAT` | PMI原材料库存 | M | 手动维护文件 | 3 | ✅ 已实现 |
@@ -1683,15 +1673,12 @@ celery -A core beat -l info
 **完成时间线**:
 - Phase 0 验证阶段: ✅ 2026-02-03 完成
 - Phase 1 日度核心指标: ✅ 2026-02-03 完成
-- Phase 2 周度指标: ✅ 2026-02-03 完成（使用公开数据源替代）
+- Phase 2 周度指标: ⚠️ 2026-07-25 语义审计后失败关闭，等待一致数据源
 - Phase 3 PMI 分项: ✅ 2026-02-03 完成（手动维护数据文件）
 - Phase 4 概率模型: ✅ 2026-02-03 完成
 
-**Phase 2 数据源替代方案（全部使用公开数据）**:
-- CN_POWER_GEN (发电量): ✅ 全社会用电量月度数据（AKShare）
-- CN_BLAST_FURNACE (高炉开工率): ✅ 钢铁指数 sh000819（东方财富）周聚合
-- CN_CCFI (集装箱运价): ✅ BDI波罗的海干散货指数（AKShare）周聚合
-- CN_SCFI (上海出口运价): ✅ BCI波罗的海海岬型指数（AKShare）周聚合
+**Phase 2 数据源状态**:
+- 四项代理均因语义不一致停止发布；取得一致数据源前自动同步保持关闭
 
 **Phase 3 数据源解决方案**:
 - PMI 分项数据（新订单、产成品库存、原材料库存、采购量、生产指数、从业人员）
