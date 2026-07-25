@@ -59,11 +59,11 @@ AgomTradePro V3.4 的 Regime 判断基于月度宏观数据，存在多重滞后
 | 指标代码 | 指标名称 | AKShare 函数 | 经济意义 | Regime 敏感度 |
 |---------|---------|-------------|---------|---------------|
 | `CN_BOND_10Y` | 10年期国债收益率 | `ak.bond_zh_us_rate()` | 无风险利率、长期增长预期 | 🔥🔥🔥 核心 |
-| `CN_BOND_1Y` | 1年期国债收益率 | `ak.bond_zh_us_rate()` | 短端利率、货币政策 | 🔥🔥 核心 |
+| `CN_BOND_1Y` | 1年期国债收益率 | 暂无可信公开源 | 短端利率、货币政策 | 🔥🔥 核心 |
 | `CN_TERM_SPREAD` | 期限利差（10Y-1Y） | 计算 | 收益率曲线，衰退预警 | 🔥🔥🔥 核心 |
 | `CN_CREDIT_SPREAD` | 信用利差（AA-AAA） | `ak.bond_china_yield()` | 信用风险、金融压力 | 🔥🔥🔥 核心 |
-| `CN_FX_CENTER` | 人民币中间价 | `ak.fx_spot_quote()` | 汇率压力、资本流动 | 🔥🔥 重要 |
-| `CN_NHCI` | 南华商品指数 | `ak.futures_sina_index_sina()` | 工业品通胀、实体经济 | 🔥🔥 重要 |
+| `CN_FX_CENTER` | 人民币中间价 | 暂无可信公开源（`fx_spot_quote` 口径不符） | 汇率压力、资本流动 | 🔥🔥 重要 |
+| `CN_NHCI` | 南华商品指数 | 暂无可信公开源 | 工业品通胀、实体经济 | 🔥🔥 重要 |
 | `CN_GOLD_PRICE` | 黄金价格 | `akSpotGold` | 通胀预期、避险情绪 | 🔥 参考 |
 | `US_BOND_10Y` | 美国10年期国债 | `ak.bond_zh_us_rate()` | 全球定价锚 | 🔥🔥 重要 |
 | `USD_INDEX` | 美元指数 | `ak.fx_spot_quote()` | 新兴市场压力 | 🔥 重要 |
@@ -1649,8 +1649,8 @@ celery -A core beat -l info
 | `CN_CORP_YIELD_AAA` | AAA企业债收益率 | D | `bond_china_yield` | 1 | ❌ 需商业数据源 |
 | `CN_CORP_YIELD_AA` | AA企业债收益率 | D | `bond_china_yield` | 1 | ❌ 需商业数据源 |
 | `CN_CREDIT_SPREAD` | 信用利差(AA-AAA) | D | 计算 | 1 | ❌ 需商业数据源 |
-| `CN_NHCI` | 南华商品指数 | W | `macro_china_commodity_price_index` | 1 | ✅ 已实现 |
-| `CN_FX_CENTER` | 人民币中间价 | D | `fx_spot_quote` | 1 | ⚠️ 仅当前报价 |
+| `CN_NHCI` | 南华商品指数 | W | 暂无可信公开源 | 1 | ❌ 原端点为其他商品指数，已失败关闭 |
+| `CN_FX_CENTER` | 人民币中间价 | D | 暂无可信公开源 | 1 | ❌ 即期买价不是中间价，已失败关闭 |
 | `US_BOND_10Y` | 美国10年期国债 | D | `bond_zh_us_rate` | 1 | ✅ 已实现 |
 | `USD_INDEX` | 美元指数 | D | `fx_spot_quote` | 1 | ❌ 需FRED数据源 |
 | `VIX_INDEX` | VIX波动率 | D | `index_option_sina_sina` | 1 | ❌ 需CBOE数据源 |
@@ -1666,10 +1666,9 @@ celery -A core beat -l info
 | `CN_PMI_EMPLOYMENT` | PMI从业人员 | M | 手动维护文件 | 3 | ✅ 已实现 |
 
 **Phase 1 状态总结**:
-- ✅ 已实现: 6个指标 (CN_BOND_10Y, CN_BOND_5Y, CN_BOND_2Y, US_BOND_10Y, CN_TERM_SPREAD_10Y2Y, CN_NHCI)
-- ⚠️ 部分实现: 1个指标 (CN_FX_CENTER - 仅当前报价，无历史数据)
-- ❌ 数据源限制: 7个指标 (需商业数据源或外部API)
-- 📊 数据总量: 4,842条记录 (37%覆盖率，3年历史)
+- ✅ 已实现: 5个指标 (CN_BOND_10Y, CN_BOND_5Y, CN_BOND_2Y, US_BOND_10Y, CN_TERM_SPREAD_10Y2Y)
+- ❌ 数据源限制: 9个指标 (含 CN_NHCI、CN_FX_CENTER，需可信商业数据源或外部 API)
+- 📊 历史抓取总量: 4,842 条；其中 CN_NHCI 的 1,095 条错口径事实已隔离，不计入有效覆盖
 | `CN_PMI_PURCHASE` | PMI采购量 | M | `macro_china_pmi` | 3 |
 | `CN_NONBANK_COST` | 非银融资成本 | D | 需购买 | 4 |
 | `CN_BOND_DEFAULT` | 企业债违约率 | M | 需购买 | 4 |

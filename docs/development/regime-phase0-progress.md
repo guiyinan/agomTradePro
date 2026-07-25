@@ -183,17 +183,19 @@ python manage.py validate_high_frequency_indicators --save-report
 | CN_BOND_2Y | 750 | 37.0% | ✅ 通过 | 2年期国债收益率 |
 | US_BOND_10Y | 747 | 37.0% | ✅ 通过 | 美国10年期国债 |
 | CN_TERM_SPREAD_10Y2Y | 750 | 37.0% | ✅ 通过 | 期限利差(10Y-2Y) |
-| CN_NHCI | 1,095 | 37.0% | ✅ 通过 | 南华商品指数 |
+| CN_NHCI | 1,095 | - | ❌ 已隔离 | 实际来自另一中国大宗商品价格指数，并非南华商品指数 |
 | CN_BOND_1Y | - | - | ❌ 无数据 | AKShare 不提供 |
 | CN_TERM_SPREAD_10Y1Y | - | - | ❌ 无数据 | 需要 1Y 数据 |
 | CN_CREDIT_SPREAD | - | - | ❌ 无数据 | 需商业数据源 |
 | CN_CORP_YIELD_AAA | - | - | ❌ 无数据 | 需商业数据源 |
 | CN_CORP_YIELD_AA | - | - | ❌ 无数据 | 需商业数据源 |
-| CN_FX_CENTER | - | - | ❌ 无数据 | 仅当前报价 |
+| CN_FX_CENTER | - | - | ❌ 无数据 | `fx_spot_quote` 是即期买卖报价，并非人民币中间价 |
 | USD_INDEX | - | - | ❌ 无数据 | 需 FRED 数据源 |
 | VIX_INDEX | - | - | ❌ 无数据 | 需 CBOE 数据源 |
 
-**总数据量**: 4,842 条记录
+**历史抓取总量**: 4,842 条记录；其中 CN_NHCI 的 1,095 条错口径事实已在
+`0044_quarantine_mislabeled_high_frequency_facts` 中标记为 `error`，不得作为
+Regime/Pulse 输入。
 
 ### 验证结论
 

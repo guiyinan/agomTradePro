@@ -2787,3 +2787,20 @@
 - PMI Subitems、provenance migration 与指标治理回归共 `26 passed`；新增直接读取真实默认文件的六分项覆盖，以及损坏 JSON、结构错误、缺失文件、非法月末、越界值、来源修复和冲突隔离回归。
 - Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
 - 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十一批
+
+- 按“高频宏观事实口径 × Pulse/Regime/Risk 多链路传播影响面”收口 Data Center High Frequency Fetcher。
+- 中美国债收益率改用当前 AKShare 的显式中文列契约；删除基于 `2Y/5Y/10Y` 子串的模糊列识别，避免运算符优先级和英文同期限列把美国收益率误写为中国收益率。
+- 10Y-2Y 期限利差只从同一 DataFrame、同一日期的中国 10Y 与 2Y 基础收益率派生并转换为 BP；数据源为空时直接返回，不再继续访问空对象列。
+- 识别并关闭两条错口径发布路径：`macro_china_commodity_price_index` 不是南华商品指数，`fx_spot_quote` 的即期买价也不是人民币中间价；`CN_NHCI` 与 `CN_FX_CENTER` 在取得可信数据源前失败关闭。
+- 数据迁移将上述两项的 `governance_sync_supported` 设为 false，并把历史 AKShare 错口径事实标记为 `error`、保留原质量和隔离原因；回滚可恢复先前目录标志与事实质量。
+- 同步更正 Regime Phase 0 与滞后改进文档中把 CN_NHCI、CN_FX_CENTER 标为已实现/部分实现的过时结论，明确历史错口径数量不计入有效覆盖。
+- Fetcher 的第三方模块、校验回调、排序回调、数据点列表和返回边界补齐精确类型，仅在 pandas 外部库边界保留定点 `import-untyped` 注释。
+
+## 第一百九十一批验证结果
+
+- High Frequency Fetcher 增量 mypy 清零；全仓基线从 `2694 errors / 559 files` 收紧为 `2685 errors / 558 files`，净减少 `9 errors / 1 file`。
+- 高频 Fetcher、Regime 观察指标、高频信号规则及语义隔离迁移回归共 `40 passed`；新增覆盖中美国别/期限精确列、同日利差派生、schema 漂移、空数据异常路径、错误商品/汇率端点禁止调用和历史事实隔离。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。
