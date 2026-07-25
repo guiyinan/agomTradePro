@@ -50,8 +50,12 @@ class ScreenStocksRequestSerializer(StrictFieldsSerializer):
     )
     custom_rule = serializers.JSONField(required=False, help_text="自定义规则（可选）")
     max_count = serializers.IntegerField(
-        required=False, default=30, min_value=1, max_value=100, help_text="最多返回个股数量"
+        required=False, min_value=1, max_value=100, help_text="最多返回个股数量"
     )
+
+
+class PoolActionRequestSerializer(StrictFieldsSerializer):
+    """Reject all undeclared inputs for stock-pool read and refresh actions."""
 
 
 class ScreenStocksResponseSerializer(serializers.Serializer[ScreenStocksResponse]):

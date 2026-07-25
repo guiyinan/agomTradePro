@@ -3448,3 +3448,20 @@
 - Dashboard Alpha 查询与结构回归 `38 passed`，页面与 HTMX 相关回归 `47 passed`，覆盖单次配额读取、三项勾稽失败和页面兼容渲染。
 - Dashboard navigation context 增量 mypy 清零；全仓基线从 `1970 errors / 486 files` 收紧为 `1958 errors / 485 files`，净减少 `12 errors / 1 file`。
 - Dashboard queries 保留既有 `6` 项历史类型债务且无新增；Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十五批
+
+- 按“全局股票池写入授权 × 筛选配置唯一真源 × 缺失指标真实性”收口 Equity 股票池 API。
+- 股票池读取显式要求认证；全局股票池刷新改为仅 staff 可执行，普通登录用户不再能够改写所有用户共用的池快照。
+- Pool GET query 与 refresh body 使用严格空请求 serializer；任何未知字段在查询或筛选前返回 400，不再被静默忽略。
+- Refresh 不再传入硬编码 `max_count=50`；`ScreenStocksRequest.max_count` 改为可选，调用方未显式覆盖时使用数据库中当前 Regime 的筛选规则数量。
+- 当前 Regime 缺失、降级或不是 canonical 四象限时刷新失败关闭；筛选结果为空时返回 422 并保留现有池，不再用空列表覆盖有效快照。
+- 股票池读取优先发布快照自身记录的 Regime；快照没有 Regime 且当前判定不可用时发布空值，不再使用 `Unknown` 伪装成业务状态。
+- 缺失 ROE、PE、PB、增长率和尚未实现的评分统一发布 `null`；平均 ROE/PE 只按真实有效观测计算，`NaN`/`Inf` 被隔离，不再以 `0` 冒充实测值或稀释平均数。
+- 股票池异常响应不再复制 ORM、配置或筛选异常正文；日期使用 Django 本地交易日语义，Mixin 仓储属性、Request/Response 和 provider 公共类型导出补齐精确声明。
+
+## 第二百三十五批验证结果
+
+- Equity Pool API、API edge、用例和模块结构回归 `43 passed`，覆盖普通用户禁止刷新、未知字段拒绝、空筛选保留旧池、配置数量不硬编码和缺失指标发布为空。
+- Equity pool actions 增量 mypy 清零；全仓基线从 `1958 errors / 485 files` 收紧为 `1948 errors / 484 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

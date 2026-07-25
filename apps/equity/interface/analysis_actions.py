@@ -100,7 +100,7 @@ class EquityAnalysisActionsMixin:
         use_case_request = ScreenStocksRequest(
             regime=data.get("regime"),
             custom_rule=data.get("custom_rule"),
-            max_count=data.get("max_count", 30),
+            max_count=data.get("max_count"),
         )
 
         # 3. 执行用例

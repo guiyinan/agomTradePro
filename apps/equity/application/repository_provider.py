@@ -2,28 +2,31 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+# isort: off
+from typing import TYPE_CHECKING, TypeAlias
 
 from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.infrastructure.adapters import (
     MarketDataRepositoryAdapter,
-    RegimeRepositoryAdapter,
-    StockPoolRepositoryAdapter,
 )
-from apps.equity.infrastructure.adapters import TushareStockAdapter as TushareStockAdapter
+from apps.equity.infrastructure.adapters import RegimeRepositoryAdapter as _RegimeRepositoryAdapter
+from apps.equity.infrastructure.adapters import (
+    StockPoolRepositoryAdapter as _StockPoolRepositoryAdapter,
+)
+from apps.equity.infrastructure.adapters import TushareStockAdapter as _TushareStockAdapter
 from apps.equity.infrastructure.asset_master_queries import EquityAssetMasterQueryRepository
 from apps.equity.infrastructure.config_loader import (
     get_stock_screening_rule as _load_stock_screening_rule,
 )
 from apps.equity.infrastructure.providers import (
     DjangoEquityAssetRepository,
-    DjangoStockRepository,
     DjangoValuationDataQualityRepository,
     DjangoValuationRepairRepository,
     EquityBootstrapConfigRepository,
     ScoringWeightConfigRepository,
     ValuationRepairConfigRepository,
 )
+from apps.equity.infrastructure.providers import DjangoStockRepository as _DjangoStockRepository
 from apps.equity.infrastructure.providers import build_quality_snapshot as build_quality_snapshot
 from apps.equity.infrastructure.valuation_source_gateways import (
     AKShareValuationGateway,
@@ -37,10 +40,17 @@ from apps.regime.application.repository_provider import (
     get_regime_repository,
 )
 
+# isort: on
+
 if TYPE_CHECKING:
     from apps.equity.infrastructure.financial_source_gateway import (
         TushareFinancialGateway as TushareFinancialGateway,
     )
+
+DjangoStockRepository: TypeAlias = _DjangoStockRepository
+RegimeRepositoryAdapter: TypeAlias = _RegimeRepositoryAdapter
+StockPoolRepositoryAdapter: TypeAlias = _StockPoolRepositoryAdapter
+TushareStockAdapter: TypeAlias = _TushareStockAdapter
 
 
 def get_equity_stock_repository() -> DjangoStockRepository:

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1958,
-    "files_with_errors": 485
+    "errors": 1948,
+    "files_with_errors": 484
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -890,10 +890,6 @@
     },
     "apps/equity/interface/page_views.py": {
       "no-untyped-def": 5
-    },
-    "apps/equity/interface/pool_actions.py": {
-      "attr-defined": 8,
-      "no-untyped-def": 2
     },
     "apps/equity/interface/sdk_contract_actions.py": {
       "no-untyped-def": 2

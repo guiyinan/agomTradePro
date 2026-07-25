@@ -79,8 +79,6 @@ class EquityViewSet(
         self.regime_repo = get_equity_regime_repository()
         self.pool_adapter = get_equity_stock_pool_repository()
 
-    # ==================== 估值修复跟踪 API ====================
-
     @_valuation_actions.valuation_repair_status_schema
     @_valuation_actions.typed_action(
         detail=False,
