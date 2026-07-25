@@ -9,6 +9,8 @@ from pathlib import Path
 from string import Formatter
 from typing import Any
 
+from apps.terminal.application.tui_metadata_field_aliases import DEFAULT_TUI_FIELD_ALIASES
+
 try:
     from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
     from jsonschema import exceptions as jsonschema_exceptions
@@ -221,67 +223,6 @@ HIGH_REVIEW_FIELD_TOKENS = (
     "weight",
 )
 GOVERNED_TUI_RISKS = {"write", "admin"}
-
-DEFAULT_TUI_FIELD_ALIASES: dict[str, list[str]] = {
-    "company.keyword": [
-        "keyword",
-        "name",
-        "companyName",
-        "company_name",
-        "creditCode",
-        "credit_code",
-        "统一社会信用代码",
-    ],
-    "company.id": ["id", "cid", "companyId", "company_id"],
-    "company.credit_code": ["creditCode", "credit_code", "统一社会信用代码"],
-    "pk": ["pk", "id", "ID", "记录ID", "config_id", "decision_id", "snapshot_id"],
-    "id": ["id", "pk", "ID", "记录ID", "cid", "companyId", "company_id"],
-    "keyword": ["keyword", "name", "companyName", "company_name", "creditCode", "credit_code"],
-    "company_id": ["company_id", "companyId", "cid", "id", "pk"],
-    "company_name": ["company_name", "companyName", "name", "keyword"],
-    "credit_code": ["credit_code", "creditCode", "统一社会信用代码"],
-    "account_id": ["account_id", "account.id", "account", "账户ID", "id", "pk"],
-    "portfolio_id": ["portfolio_id", "portfolio.id", "portfolio", "组合ID", "id", "pk"],
-    "asset_class": ["asset_class", "code", "category", "name"],
-    "asset_code": ["asset_code", "asset.code", "code", "symbol", "标的代码", "代码"],
-    "asset_codes": ["asset_codes", "asset_code", "code", "symbol", "标的代码", "代码"],
-    "fund_code": ["fund_code", "code", "symbol", "基金代码", "代码"],
-    "indicator_code": ["indicator_code", "code", "指标代码", "代码"],
-    "capability_key": ["capability_key", "key", "id", "pk"],
-    "short_code": ["short_code", "code", "shortCode", "短码"],
-    "snapshot_id": ["snapshot_id", "valuation_snapshot_id", "snapshot.id", "id", "pk"],
-    "event_id": ["event_id", "event.id", "id", "pk"],
-    "decision_id": ["decision_id", "id", "pk"],
-    "report_id": ["report_id", "report.id"],
-    "run_id": ["run_id", "id", "pk"],
-    "validation_id": ["validation_id", "validation.id"],
-    "summary_id": ["summary_id", "summary.id"],
-    "log_id": ["log_id", "log.id", "id", "pk"],
-    "request_id": ["request_id", "request.id"],
-    "task_id": ["task_id", "task.id", "id", "pk"],
-    "provider_id": ["provider_id", "provider.id", "id", "pk"],
-    "from_code": [
-        "from_code",
-        "from_currency_code",
-        "from_currency",
-        "base_currency_code",
-        "base_currency",
-        "code",
-    ],
-    "strategy_id": ["strategy_id", "strategy.id", "strategy", "id", "pk"],
-    "sector_code": ["sector_code", "code", "symbol", "板块代码", "代码"],
-    "task_name": ["task_name", "name", "title"],
-    "to_code": [
-        "to_code",
-        "to_currency_code",
-        "to_currency",
-        "target_currency_code",
-        "target_currency",
-        "quote_currency_code",
-        "quote_currency",
-    ],
-    "period": ["period", "period_type", "type", "name"],
-}
 
 
 class TuiMetadataValidationError(ValueError):

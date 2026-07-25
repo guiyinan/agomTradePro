@@ -91,6 +91,7 @@
 ### 阶段 D：验证与收口
 
 - schema、Application 元数据、Infrastructure runtime injection、前端 renderer 同步更新。
+- 将默认字段别名注册表拆到独立 Application 模块，保持 metadata 校验器低于治理行数上限。
 - 增加普通用户/管理员契约测试。
 - 增加 981、1024、1180、1280、1440 宽度的 Dashboard 防重叠测试。
 - 增加 URL 历史、账号存储隔离、对象渲染和菜单焦点浏览器测试。
