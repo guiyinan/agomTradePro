@@ -3374,3 +3374,14 @@
 - Policy workbench repository、审核 use case、工作台 API 与集成回归 `40 passed`；排序、事务回滚和配置字段边界定点复核 `3 passed`。
 - Workbench repository 增量 mypy 清零，并传播清除 audit use case 与 repository provider 4 项债务；全仓基线从 `2027 errors / 491 files` 收紧为 `2011 errors / 490 files`，净减少 `16 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十批
+
+- 收口 Policy 公共 repository provider 的最后一项导出债务。
+- `PolicyDiagnosticRepository` 在 Infrastructure provider 中改为显式同名 re-export，Application composition root 与约 25 个 Policy 生产调用方不再依赖未声明的隐式符号。
+
+## 第二百三十批验证结果
+
+- Policy repository 导出契约与 use case 回归 `6 passed`。
+- Policy repository provider 增量 mypy 清零；全仓基线从 `2011 errors / 490 files` 收紧为 `2010 errors / 489 files`，净减少 `1 error / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

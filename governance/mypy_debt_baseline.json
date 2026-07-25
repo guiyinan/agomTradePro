@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2011,
-    "files_with_errors": 490
+    "errors": 2010,
+    "files_with_errors": 489
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1177,9 +1177,6 @@
       "no-untyped-call": 1,
       "no-untyped-def": 6,
       "type-arg": 3
-    },
-    "apps/policy/application/repository_provider.py": {
-      "attr-defined": 1
     },
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1
