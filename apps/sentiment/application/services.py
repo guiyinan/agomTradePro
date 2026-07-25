@@ -7,11 +7,14 @@ Application 层依赖 Domain 层和 Infrastructure 层的接口。
 
 import json
 import logging
+import math
 import re
+from collections.abc import Mapping, Sequence
+from typing import Any, Protocol
 
 from django.utils import timezone
 
-from apps.ai_provider.application.client_provider import build_openai_compatible_adapter
+from apps.ai_provider.application.repository_provider import build_openai_compatible_adapter
 from apps.sentiment.application.repository_provider import (
     get_sentiment_alert_repository,
     get_sentiment_config_repository,
@@ -30,6 +33,38 @@ DEFAULT_NEWS_WEIGHT = 0.4
 DEFAULT_POLICY_WEIGHT = 0.6
 
 
+class _AIProviderRepositoryProtocol(Protocol):
+    """AI-provider operations consumed at the dynamic ORM boundary."""
+
+    def get_active_configured_system_providers(self) -> Sequence[Any]: ...
+
+    def get_api_key(self, provider: Any) -> str: ...
+
+
+class _ChatAdapterProtocol(Protocol):
+    """Minimal OpenAI-compatible adapter surface used by sentiment."""
+
+    def chat_completion(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        stream: bool = False,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> dict[str, Any]: ...
+
+
+class _SentimentConfigRepositoryProtocol(Protocol):
+    """Config values required by the index calculator."""
+
+    def get_news_weight(self, default: float) -> float: ...
+
+    def get_policy_weight(self, default: float) -> float: ...
+
+
 class SentimentAnalyzer:
     """
     情感分析服务（调用 AI API）
@@ -37,7 +72,10 @@ class SentimentAnalyzer:
     使用系统 AI API（apps/ai_provider）进行金融舆情情感分析。
     """
 
-    def __init__(self, provider_repository):
+    def __init__(
+        self,
+        provider_repository: _AIProviderRepositoryProtocol,
+    ) -> None:
         """
         初始化情感分析器
 
@@ -45,7 +83,7 @@ class SentimentAnalyzer:
             provider_repository: AI 提供商仓储
         """
         self.provider_repo = provider_repository
-        self._adapter_cache = {}
+        self._adapter_cache: _ChatAdapterProtocol | None = None
 
     def analyze_text(self, text: str) -> SentimentAnalysisResult:
         """
@@ -74,23 +112,19 @@ class SentimentAnalyzer:
         )
 
         # 4. 解析结果
-        if response["status"] != "success":
-            # AI 调用失败，返回中性结果并发送告警
-            self._send_ai_failure_alert(text, response.get("error", "Unknown error"))
-            return SentimentAnalysisResult(
-                text=text,
-                sentiment_score=0.0,
-                confidence=0.0,
-                category=SentimentCategory.NEUTRAL,
-                keywords=[],
-                analyzed_at=timezone.now(),
-                error_message=f"AI 调用失败: {response.get('error', 'Unknown error')}",
-            )
+        if response.get("status") != "success":
+            raw_error = response.get("error_message") or response.get("error")
+            error_message = str(raw_error or "Unknown error")
+            return self._build_ai_failure_result(text, error_message)
 
-        sentiment_score = self._parse_sentiment_score(response["content"])
+        content = response.get("content")
+        if not isinstance(content, str) or not content.strip():
+            return self._build_ai_failure_result(text, "AI response content is empty")
+
+        sentiment_score = self._parse_sentiment_score(content)
         confidence = self._estimate_confidence(response, sentiment_score)
         category = self._categorize_sentiment(sentiment_score)
-        keywords = self._extract_keywords(text, response["content"])
+        keywords = self._extract_keywords(text, content)
 
         return SentimentAnalysisResult(
             text=text,
@@ -99,6 +133,25 @@ class SentimentAnalyzer:
             category=category,
             keywords=keywords,
             analyzed_at=timezone.now(),
+        )
+
+    def _build_ai_failure_result(
+        self,
+        text: str,
+        error_message: str,
+    ) -> SentimentAnalysisResult:
+        """Build an explicit failed analysis that callers cannot mistake for neutral data."""
+
+        normalized_error = error_message.strip() or "Unknown error"
+        self._send_ai_failure_alert(text, normalized_error)
+        return SentimentAnalysisResult(
+            text=text,
+            sentiment_score=0.0,
+            confidence=0.0,
+            category=SentimentCategory.NEUTRAL,
+            keywords=[],
+            analyzed_at=timezone.now(),
+            error_message=f"AI 调用失败: {normalized_error}",
         )
 
     def analyze_batch(self, texts: list[str]) -> list[SentimentAnalysisResult]:
@@ -129,9 +182,9 @@ class SentimentAnalyzer:
         # 将来源信息添加到结果中（通过自定义字段）
         return result
 
-    def _get_ai_adapter(self):
+    def _get_ai_adapter(self) -> _ChatAdapterProtocol:
         """获取 AI 适配器（带缓存）"""
-        if not self._adapter_cache:
+        if self._adapter_cache is None:
             # 获取激活的提供商
             providers = self.provider_repo.get_active_configured_system_providers()
 
@@ -202,20 +255,26 @@ class SentimentAnalyzer:
             if json_match:
                 data = json.loads(json_match.group())
                 score = float(data.get("score", 0))
-                return max(-3.0, min(3.0, score))
-        except (json.JSONDecodeError, ValueError):
+                if math.isfinite(score):
+                    return max(-3.0, min(3.0, score))
+        except (json.JSONDecodeError, TypeError, ValueError):
             pass
 
         # 降级：直接提取数字
         number_match = re.search(r"-?\d+\.?\d*", ai_response)
         if number_match:
             score = float(number_match.group())
-            return max(-3.0, min(3.0, score))
+            if math.isfinite(score):
+                return max(-3.0, min(3.0, score))
 
         # 默认返回中性
         return 0.0
 
-    def _estimate_confidence(self, response: dict, sentiment_score: float) -> float:
+    def _estimate_confidence(
+        self,
+        response: Mapping[str, object],
+        sentiment_score: float,
+    ) -> float:
         """
         估算置信度
 
@@ -238,7 +297,13 @@ class SentimentAnalyzer:
             base_confidence = 0.80
 
         # 根据响应时间调整（响应过快可能是缓存，过慢可能是网络问题）
-        response_time = response.get("response_time_ms", 0)
+        raw_response_time = response.get("response_time_ms", 0)
+        response_time = (
+            float(raw_response_time)
+            if isinstance(raw_response_time, (int, float))
+            and not isinstance(raw_response_time, bool)
+            else 0.0
+        )
         if 500 < response_time < 5000:  # 0.5-5 秒是正常范围
             base_confidence += 0.05
 
@@ -272,17 +337,21 @@ class SentimentAnalyzer:
         Returns:
             关键词列表
         """
-        keywords = []
+        keywords: list[str] = []
 
         # 尝试从 AI 响应中提取
         try:
             json_match = re.search(r"\{[^}]+\}", ai_response, re.DOTALL)
             if json_match:
                 data = json.loads(json_match.group())
-                keywords = data.get("keywords", [])
-                if isinstance(keywords, list):
-                    return keywords[:5]  # 最多返回 5 个
-        except (json.JSONDecodeError, ValueError):
+                raw_keywords = data.get("keywords", [])
+                if isinstance(raw_keywords, list):
+                    return [
+                        item.strip()
+                        for item in raw_keywords
+                        if isinstance(item, str) and item.strip()
+                    ][:5]
+        except (json.JSONDecodeError, TypeError, ValueError):
             pass
 
         # 降级：简单的关键词提取（金融相关词汇）
@@ -346,7 +415,10 @@ class SentimentIndexCalculator:
     负责根据多个情感分析结果计算综合情绪指数。
     """
 
-    def __init__(self, config_repository=None):
+    def __init__(
+        self,
+        config_repository: _SentimentConfigRepositoryProtocol | None = None,
+    ) -> None:
         self.config_repository = config_repository or get_sentiment_config_repository()
 
     def calculate_index(

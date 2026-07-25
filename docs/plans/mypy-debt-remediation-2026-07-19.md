@@ -3078,3 +3078,17 @@
 - Data Center Provider 应用与 Serializer 回归共 `39 passed`，Provider connection governance 与 API integration 共 `9 passed`；覆盖 Application Response 不含秘密、HTTP 创建/详情不回显凭据及嵌套配置脱敏。
 - 三个改动生产文件增量 mypy 清零；全仓 debt ceiling 保持 `2445 errors / 532 files`，本批未抬高债务。
 - Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十批
+
+- 按“舆情指数真实性 × Celery 异步任务可靠性”收口 Sentiment 每日指数、单事件分析、批量分析与新鲜度检查链路。
+- 每日指数、单政策事件和新鲜度任务的 `max_retries` 不再只是装饰配置；运行时仓储、AI 或持久化异常会实际调用 Celery `retry()`，而非法日期和非法事件 ID 等永久输入错误在进入任务主流程前直接拒绝，避免无效重试。
+- AI Adapter 返回失败、超时或空内容时生成显式失败结果，并优先保留正式 `error_message`；失败结果不再被当作 0 分中性数据缓存、通过 API 返回或写入每日指数。每日任务遇到 AI 分析失败会在持久化前请求重试，防止“服务不可用”伪装成“市场中性”。
+- Data Center 已存新闻情绪在进入指数前必须是有限数；`NaN`、正负无穷和布尔值不会被夹成极端分数。AI 动态关键词只允许非空字符串进入 Domain，数字、空值和其他 JSON 类型被丢弃。
+- Sentiment Analyzer、配置仓储、AI Adapter、市场新闻 Provider 和四个 Celery task 补齐 Protocol、具体集合与返回类型；统一使用共享 typed Celery boundary，并改用 AI Provider 正式 Application provider 入口。
+
+## 第二百一十批验证结果
+
+- Sentiment 单元与 API edge 回归共 `43 passed`；覆盖真实重试调用、永久输入不重试、批量任务错误穿透、AI 失败不缓存/不落指数、上游错误信息保留、非有限评分拒绝及动态关键词收窄。
+- 四个改动生产文件增量 mypy 清零；全仓基线从 `2445 errors / 532 files` 收紧为 `2415 errors / 528 files`，净减少 `30 errors / 4 files`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。

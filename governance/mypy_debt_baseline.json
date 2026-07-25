@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2445,
-    "files_with_errors": 532
+    "errors": 2415,
+    "files_with_errors": 528
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1686,28 +1686,6 @@
     },
     "apps/sector/interface/views.py": {
       "no-untyped-def": 8
-    },
-    "apps/sentiment/application/interface_services.py": {
-      "attr-defined": 1,
-      "no-untyped-call": 2
-    },
-    "apps/sentiment/application/repository_provider.py": {
-      "no-untyped-def": 2
-    },
-    "apps/sentiment/application/services.py": {
-      "assignment": 1,
-      "attr-defined": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 3,
-      "type-arg": 1
-    },
-    "apps/sentiment/application/tasks.py": {
-      "assignment": 1,
-      "attr-defined": 3,
-      "misc": 4,
-      "no-untyped-call": 4,
-      "no-untyped-def": 5,
-      "type-arg": 1
     },
     "apps/sentiment/apps.py": {
       "no-untyped-def": 1
