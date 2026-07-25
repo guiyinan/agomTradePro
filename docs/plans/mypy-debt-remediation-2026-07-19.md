@@ -3023,3 +3023,16 @@
 - AI Provider 页面与 API edge 回归共 `20 passed`；覆盖畸形/负数/超大日志过滤参数、状态规范化和停用系统 provider 可见性。
 - Provider page views 目标 mypy 清零；全仓基线从 `2474 errors / 537 files` 收紧为 `2465 errors / 536 files`，净减少 `9 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零六批
+
+- 按“API Key 表单回显 × 浏览器页面凭据泄露影响面”收口 Provider Forms。
+- Provider API Key 的 PasswordInput 关闭 `render_value`；当 JSON、URL、预算或其他字段校验失败时，用户刚提交的密钥不再重新写入 HTML value，避免通过页面源代码、浏览器插件、截图或前端日志泄露。
+- 编辑页留空表示不修改的既有语义保持不变，表单仍只在有效提交时把新密钥交给 Application 写入。
+- Provider form 的动态 provider 输入、构造参数和 JSON object 清洗返回值补齐类型。
+
+## 第二百零六批验证结果
+
+- Provider Forms 与管理页面回归共 `5 passed`；新增覆盖表单校验失败后 HTML 不含原始 API Key。
+- Provider Forms 目标 mypy 清零；全仓基线从 `2465 errors / 536 files` 收紧为 `2461 errors / 535 files`，净减少 `4 errors / 1 file`。
+- 改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
