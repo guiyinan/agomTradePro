@@ -3416,3 +3416,20 @@
 - Readiness 取证命令、日常任务、证据修复和窗口验收回归 `57 passed`；核心命令定点回归 `22 passed`。
 - 个人 readiness 取证命令增量 mypy 清零；全仓基线从 `1995 errors / 488 files` 收紧为 `1983 errors / 487 files`，净减少 `12 errors / 1 file`。
 - Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十三批
+
+- 按“Regime 四象限语义真实性 × 快照持久化完整性 × 变化通知结果真实性”收口 Regime 定时编排链路。
+- 高频日度用例输出的是 `BULLISH/BEARISH/NEUTRAL` 方向信号，月度结果输出的是四象限 Regime；编排层不再把两套不可比较的枚举送入冲突解析器并发布虚假 `HYBRID` 结论。
+- 日度方向通过完整性校验后作为独立上下文证据发布，最终四象限继续使用可审计的月度结果；在 Domain 尚未提供方向到四象限的正式映射前不擅自推断象限或改写置信度。
+- 日度方向、强度和置信度必须完整、有限且位于合法范围；成功标记但 payload 缺失、含 `NaN`/`Inf` 或越界时明确返回错误，不再进入融合链路。
+- V2 快照持久化前验证 PMI/CPI 动量有限、置信度在 `[0, 1]`、四个 canonical Regime 概率完整非负且总和为 1；非法计算结果不会写入 Regime 真源。
+- Macro 同步结果只有显式 `success`、`partial` 或 legacy `success=True` 才允许继续计算；错误和未知结构失败关闭，不再因缺少 `success` 字段而被默认视为成功。
+- 通知输入验证 canonical Regime、有限置信度和有效日期；无变化时明确 `notified=false`，只有实际通知结果成功才发布已通知，需通知但全部失败时状态为 warning。
+- Celery task 返回值、V2 结果和快照使用具体类型；共享任务 decorator 使用局部错误码豁免，不再让整个编排函数退化为未类型代码。
+
+## 第二百三十三批验证结果
+
+- Regime 编排、持久化、任务契约、Macro 周期调度和 Celery 注册回归 `15 passed`；核心编排定点回归 `10 passed`。
+- Regime orchestration 增量 mypy 清零；全仓基线从 `1983 errors / 487 files` 收紧为 `1970 errors / 486 files`，净减少 `13 errors / 1 file`。
+- Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

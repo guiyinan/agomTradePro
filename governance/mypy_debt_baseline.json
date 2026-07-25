@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1983,
-    "files_with_errors": 487
+    "errors": 1970,
+    "files_with_errors": 486
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1340,12 +1340,6 @@
     "apps/regime/application/navigator_use_cases.py": {
       "no-untyped-def": 2,
       "type-arg": 1
-    },
-    "apps/regime/application/orchestration.py": {
-      "arg-type": 1,
-      "misc": 5,
-      "type-arg": 5,
-      "union-attr": 2
     },
     "apps/regime/application/tasks.py": {
       "misc": 3,

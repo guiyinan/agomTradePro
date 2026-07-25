@@ -16,7 +16,7 @@ def test_generate_daily_regime_signal_success_and_business_failure(monkeypatch) 
 
     response = SimpleNamespace(
         success=True,
-        signal_direction="Recovery",
+        signal_direction="BULLISH",
         signal_strength=0.7,
         confidence=0.8,
         contributing_indicators=["PMI"],
@@ -30,7 +30,7 @@ def test_generate_daily_regime_signal_success_and_business_failure(monkeypatch) 
     )
     result = orchestration.generate_daily_regime_signal("2026-07-24")
     assert result["status"] == "success"
-    assert result["signal_direction"] == "Recovery"
+    assert result["signal_direction"] == "BULLISH"
 
     response.success = False
     response.error = "insufficient observations"
@@ -66,24 +66,14 @@ def test_recalculation_uses_monthly_fallback_and_conflict_resolution(monkeypatch
     assert fallback["daily_signal"] is None
 
     daily.success = True
-    daily.signal_direction = "Recovery"
+    daily.signal_direction = "BULLISH"
+    daily.signal_strength = 0.7
     daily.confidence = 0.8
     daily.contributing_indicators = ["PMI"]
-    monkeypatch.setattr(
-        use_cases,
-        "ResolveSignalConflictUseCase",
-        lambda: SimpleNamespace(
-            execute=lambda request: SimpleNamespace(
-                final_signal="Recovery",
-                final_confidence=0.72,
-                source="HYBRID",
-                resolution_reason="daily lead confirmed",
-            )
-        ),
-    )
     blended = orchestration.recalculate_regime_with_daily_signal("2026-07-24")
-    assert blended["source"] == "HYBRID"
-    assert blended["final_regime"] == "Recovery"
+    assert blended["source"] == "MONTHLY_WITH_DAILY_DIRECTION_CONTEXT"
+    assert blended["final_regime"] == "Deflation"
+    assert blended["daily_signal"] == "BULLISH"
 
 
 def test_calculation_skip_fallback_and_notification_skip(monkeypatch) -> None:
@@ -119,3 +109,68 @@ def test_calculation_skip_fallback_and_notification_skip(monkeypatch) -> None:
     fallback = orchestration.calculate_regime_after_sync(as_of_date="2026-07-24")
     assert fallback["is_fallback"] is True
     assert fallback["data_source"] == "cached"
+
+
+def test_invalid_daily_signal_payload_fails_closed(monkeypatch) -> None:
+    monkeypatch.setattr(orchestration, "build_macro_data_provider", lambda: object())
+    monkeypatch.setattr(
+        orchestration, "build_macro_repository_adapter", lambda provider=None: object()
+    )
+    response = SimpleNamespace(
+        success=True,
+        signal_direction=None,
+        signal_strength=float("nan"),
+        confidence=1.2,
+        contributing_indicators=[],
+        warning_signals=[],
+        error=None,
+    )
+    monkeypatch.setattr(
+        use_cases,
+        "HighFrequencySignalUseCase",
+        lambda repo: SimpleNamespace(execute=lambda request: response),
+    )
+
+    result = orchestration.generate_daily_regime_signal("2026-07-24")
+
+    assert result["status"] == "error"
+    assert result["error"] == "daily signal payload is incomplete or outside its valid range"
+
+
+def test_sync_result_requires_explicit_usable_status() -> None:
+    assert orchestration._sync_result_allows_calculation({"status": "success"}) is True
+    assert orchestration._sync_result_allows_calculation({"status": "partial"}) is True
+    assert orchestration._sync_result_allows_calculation({"status": "error"}) is False
+    assert orchestration._sync_result_allows_calculation({"unexpected": True}) is False
+
+
+def test_notification_truthfully_reports_no_change_and_invalid_payload(monkeypatch) -> None:
+    previous = SimpleNamespace(dominant_regime="Recovery", confidence=0.8)
+    monkeypatch.setattr(
+        orchestration,
+        "get_regime_repository",
+        lambda: SimpleNamespace(get_latest_snapshot=lambda **kwargs: previous),
+    )
+
+    unchanged = orchestration.notify_regime_change_after_calculation(
+        {
+            "status": "success",
+            "as_of_date": "2026-07-24",
+            "dominant_regime": "Recovery",
+            "confidence": 0.8,
+        }
+    )
+    invalid = orchestration.notify_regime_change_after_calculation(
+        {
+            "status": "success",
+            "as_of_date": "2026-07-24",
+            "dominant_regime": "Recovery",
+            "confidence": float("nan"),
+        }
+    )
+
+    assert unchanged["status"] == "success"
+    assert unchanged["notified"] is False
+    assert unchanged["notification_attempted"] is False
+    assert unchanged["regime_changed"] is False
+    assert invalid == {"status": "error", "reason": "invalid_regime_result"}
