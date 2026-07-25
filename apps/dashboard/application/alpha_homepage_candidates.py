@@ -3,14 +3,29 @@
 from __future__ import annotations
 
 import logging
+from math import isfinite
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
+
+from apps.account.application.use_cases import SizingContextOutput
+from apps.alpha.domain.entities import StockScore
+
+if TYPE_CHECKING:
+    from apps.account.application.repository_provider import PortfolioRepository
+    from apps.dashboard.application.repository_provider import DashboardAlphaContextRepository
+    from apps.strategy.domain.services import DecisionPolicyEngine, PreTradeRiskGate, SizingEngine
 
 logger = logging.getLogger(__name__)
 
 
 class AlphaCandidateMixin:
     """Private behavior shard for AlphaHomepageQuery."""
+
+    context_repo: DashboardAlphaContextRepository
+    portfolio_repo: PortfolioRepository
+    decision_engine: DecisionPolicyEngine
+    sizing_engine: SizingEngine
+    risk_gate: PreTradeRiskGate
 
     def _load_stock_context(self, codes: list[str]) -> dict[str, dict[str, Any]]:
         return self.context_repo.load_stock_context(codes)
@@ -27,13 +42,13 @@ class AlphaCandidateMixin:
         user_id: int,
         portfolio_id: int | None,
         refresh_pulse_if_stale: bool,
-    ) -> tuple[dict[str, float], Any | None, Any | None]:
+    ) -> tuple[dict[str, float], object | None, SizingContextOutput | None]:
         if portfolio_id is None:
             return {}, None, None
         position_map: dict[str, float] = {}
-        portfolio_snapshot = self.portfolio_repo.get_portfolio_snapshot(portfolio_id)
+        portfolio_snapshot: object | None = self.portfolio_repo.get_portfolio_snapshot(portfolio_id)
         if portfolio_snapshot is not None:
-            for position in portfolio_snapshot.positions:
+            for position in getattr(portfolio_snapshot, "positions", ()):
                 position_map[str(position.asset_code).upper()] = float(position.market_value)
         if (
             portfolio_snapshot is None
@@ -59,8 +74,12 @@ class AlphaCandidateMixin:
                 user_id=user_id,
                 refresh_pulse_if_stale=refresh_pulse_if_stale,
             )
-        except Exception as exc:
-            logger.warning("Failed to load sizing context for portfolio %s: %s", portfolio_id, exc)
+        except Exception:
+            logger.warning(
+                "Failed to load sizing context for portfolio %s",
+                portfolio_id,
+                exc_info=True,
+            )
             sizing_context = None
         return position_map, portfolio_snapshot, sizing_context
 
@@ -70,34 +89,91 @@ class AlphaCandidateMixin:
     def _build_candidate_item(
         self,
         *,
-        score,
+        score: StockScore,
         stock_context: dict[str, Any],
-        actionable_candidate,
-        pending_request,
-        sizing_context,
-        portfolio_snapshot,
+        actionable_candidate: object | None,
+        pending_request: object | None,
+        sizing_context: SizingContextOutput | None,
+        portfolio_snapshot: object | None,
         position_map: dict[str, float],
         policy_state: dict[str, Any],
         meta: dict[str, Any],
     ) -> dict[str, Any]:
-        code = str(score.code).upper()
-        current_price = float(stock_context.get("close") or 0.0)
-        account_equity = float(getattr(portfolio_snapshot, "total_value", 0.0) or 0.0)
-        current_position_value = float(position_map.get(code, 0.0))
-        multiplier = (
-            float(sizing_context.multiplier_result.multiplier)
-            if sizing_context is not None
-            else 1.0
+        data_quality_reasons: list[str] = []
+        code = str(score.code or "").strip().upper()
+        if not code:
+            code = "UNKNOWN"
+            data_quality_reasons.append("候选缺少有效证券代码。")
+
+        resolved_score = self._finite_float(score.score, minimum=-1.0, maximum=1.0)
+        if resolved_score is None:
+            score_value = 0.0
+            data_quality_reasons.append("Alpha 评分缺失、非有限或超出 [-1, 1]。")
+        else:
+            score_value = resolved_score
+
+        resolved_confidence = self._finite_float(
+            score.confidence,
+            minimum=0.0,
+            maximum=1.0,
         )
+        if resolved_confidence is None:
+            confidence = 0.0
+            data_quality_reasons.append("Alpha 置信度缺失、非有限或超出 [0, 1]。")
+        else:
+            confidence = resolved_confidence
+
+        rank = score.rank if isinstance(score.rank, int) and not isinstance(score.rank, bool) else 0
+        if rank <= 0:
+            rank = 0
+            data_quality_reasons.append("Alpha 排名缺失或不是正整数。")
+
+        current_price = self._finite_float(stock_context.get("close"), minimum=0.0) or 0.0
+        account_equity = (
+            self._finite_float(getattr(portfolio_snapshot, "total_value", None), minimum=0.0) or 0.0
+        )
+        resolved_position_value = self._finite_float(position_map.get(code), minimum=0.0)
+        if code in position_map and resolved_position_value is None:
+            data_quality_reasons.append("当前持仓市值缺失、非有限或为负数。")
+        current_position_value = resolved_position_value or 0.0
+        multiplier = 0.0
+        if sizing_context is not None:
+            resolved_multiplier = self._finite_float(
+                sizing_context.multiplier_result.multiplier,
+                minimum=0.0,
+            )
+            if resolved_multiplier is None:
+                data_quality_reasons.append("宏观仓位系数缺失、非有限或为负数。")
+            else:
+                multiplier = resolved_multiplier
         regime_name = sizing_context.regime_name if sizing_context else "Unknown"
-        regime_confidence = float(sizing_context.regime_confidence) if sizing_context else 0.0
-        pulse_composite = float(sizing_context.pulse_composite) if sizing_context else 0.0
+        regime_confidence = (
+            self._finite_float(
+                sizing_context.regime_confidence,
+                minimum=0.0,
+                maximum=1.0,
+            )
+            if sizing_context
+            else None
+        )
+        if sizing_context is not None and regime_confidence is None:
+            data_quality_reasons.append("Regime 置信度缺失、非有限或超出 [0, 1]。")
+        regime_confidence = regime_confidence or 0.0
+        pulse_composite = (
+            self._finite_float(sizing_context.pulse_composite) if sizing_context else None
+        )
+        if sizing_context is not None and pulse_composite is None:
+            data_quality_reasons.append("Pulse 综合分缺失或非有限。")
+        pulse_composite = pulse_composite or 0.0
         pulse_warning = bool(sizing_context.pulse_warning) if sizing_context else False
         market_temperature_score = (
-            float(getattr(sizing_context, "market_temperature_score", 0.0) or 0.0)
+            self._finite_float(getattr(sizing_context, "market_temperature_score", None))
             if sizing_context is not None
-            else 0.0
+            else None
         )
+        if sizing_context is not None and market_temperature_score is None:
+            data_quality_reasons.append("市场温度分缺失或非有限。")
+        market_temperature_score = market_temperature_score or 0.0
         market_temperature_band = (
             str(getattr(sizing_context, "market_temperature_band", "") or "").strip().lower()
             if sizing_context is not None
@@ -124,22 +200,56 @@ class AlphaCandidateMixin:
             else False
         )
         market_temperature_factor = (
-            float(
+            self._finite_float(
                 getattr(
                     getattr(sizing_context, "multiplier_result", None),
                     "market_temperature_factor",
-                    1.0,
-                )
-                or 1.0
+                    None,
+                ),
+                minimum=0.0,
             )
             if sizing_context is not None
-            else 1.0
+            else None
         )
-        signal_strength = max(min((float(score.score) + 1.0) / 2.0, 1.0), 0.0)
+        if sizing_context is not None and market_temperature_factor is None:
+            data_quality_reasons.append("市场温度仓位系数缺失、非有限或为负数。")
+        market_temperature_factor = market_temperature_factor or 0.0
+
+        reliability_reasons: list[str] = []
+        metadata_blocked_reason = str(meta.get("blocked_reason") or "").strip()
+        if bool(meta.get("must_not_use_for_decision", False)):
+            reliability_reasons.append(metadata_blocked_reason or "Alpha 结果未通过可靠性校验。")
+        if sizing_context is None and meta.get("alpha_scope") != "general":
+            reliability_reasons.append("宏观仓位上下文不可用，当前候选仅供研究。")
+        if market_temperature_degraded:
+            reliability_reasons.append(
+                market_temperature_blocked_reason or "市场温度数据已降级，当前候选仅供研究。"
+            )
+        critical_context_warnings = {
+            "regime_unavailable",
+            "pulse_unavailable",
+            "snapshot_unavailable",
+            "market_temperature_unavailable",
+            "market_temperature_degraded",
+        }
+        if sizing_context is not None:
+            context_warnings = {
+                str(item).strip()
+                for item in getattr(sizing_context, "warnings", [])
+                if str(item).strip()
+            }
+            unavailable_warnings = sorted(context_warnings & critical_context_warnings)
+            if unavailable_warnings:
+                reliability_reasons.append(
+                    "仓位决策上下文不完整：" + "、".join(unavailable_warnings)
+                )
+        reliability_reasons.extend(data_quality_reasons)
+
+        signal_strength = max(min((score_value + 1.0) / 2.0, 1.0), 0.0)
         action, decision_codes, decision_text, _ = self.decision_engine.evaluate(
             signal_strength=signal_strength,
-            signal_direction="bullish" if float(score.score) >= 0 else "bearish",
-            signal_confidence=float(score.confidence),
+            signal_direction="bullish" if score_value >= 0 else "bearish",
+            signal_confidence=confidence,
             regime=regime_name,
             regime_confidence=regime_confidence,
             daily_pnl_pct=0.0,
@@ -181,8 +291,10 @@ class AlphaCandidateMixin:
 
         stage = "top_ranked"
         gate_status = "blocked"
-        reliability_blocked = bool(meta.get("must_not_use_for_decision", False))
-        reliability_blocked_reason = str(meta.get("blocked_reason") or "")
+        reliability_blocked = bool(reliability_reasons)
+        reliability_blocked_reason = metadata_blocked_reason or "；".join(
+            dict.fromkeys(reliability_reasons)
+        )
 
         if pending_request is not None:
             stage = "pending"
@@ -208,9 +320,20 @@ class AlphaCandidateMixin:
             },
             {
                 "code": "ALPHA_TOP_RANK",
-                "text": f"Alpha 排名第 {score.rank}，评分 {float(score.score):.3f}",
+                "text": (
+                    f"Alpha 排名第 {rank or '未知'}，评分 " f"{score_value:.3f}"
+                    if resolved_score is not None
+                    else f"Alpha 排名第 {rank or '未知'}，评分不可用"
+                ),
             },
-            {"code": "ALPHA_CONFIDENCE", "text": f"评分置信度 {float(score.confidence):.2f}"},
+            {
+                "code": "ALPHA_CONFIDENCE",
+                "text": (
+                    f"评分置信度 {confidence:.2f}"
+                    if resolved_confidence is not None
+                    else "评分置信度不可用"
+                ),
+            },
             {
                 "code": "REGIME_CONTEXT",
                 "text": f"当前 Regime {regime_name}，置信度 {regime_confidence:.0%}",
@@ -237,8 +360,9 @@ class AlphaCandidateMixin:
                     "text": "因子依据：" + "；".join(factor_basis[:3]),
                 }
             )
-        if actionable_candidate is not None and getattr(actionable_candidate, "thesis", ""):
-            buy_reasons.append({"code": "WORKFLOW_THESIS", "text": actionable_candidate.thesis})
+        workflow_thesis = str(getattr(actionable_candidate, "thesis", "") or "").strip()
+        if workflow_thesis:
+            buy_reasons.append({"code": "WORKFLOW_THESIS", "text": workflow_thesis})
 
         no_buy_reasons = []
         if pending_request is not None:
@@ -281,9 +405,9 @@ class AlphaCandidateMixin:
             )
 
         invalidation_rule = {
-            "summary": f"若跌出 Top {max(score.rank + 5, 10)}、政策/风控转差或评分跌破 0.55，则当前候选失效。",
+            "summary": f"若跌出 Top {max(rank + 5, 10)}、政策/风控转差或评分跌破 0.55，则当前候选失效。",
             "conditions": [
-                f"Alpha 评分跌出 Top {max(score.rank + 5, 10)}",
+                f"Alpha 评分跌出 Top {max(rank + 5, 10)}",
                 "政策闸门提升至 L2/L3",
                 "预交易风控由通过变为阻断",
                 "当前候选进入待执行队列或被 workflow 显式否决",
@@ -327,11 +451,11 @@ class AlphaCandidateMixin:
             "dividend_yield": stock_context.get("dividend_yield"),
             "report_date": stock_context.get("report_date"),
             "valuation_trade_date": stock_context.get("valuation_trade_date"),
-            "score": round(float(score.score), 4),
-            "alpha_score": round(float(score.score), 4),
-            "rank": int(score.rank),
+            "score": round(score_value, 4) if resolved_score is not None else None,
+            "alpha_score": round(score_value, 4) if resolved_score is not None else None,
+            "rank": rank,
             "source": score.source,
-            "confidence": round(float(score.confidence), 3),
+            "confidence": (round(confidence, 3) if resolved_confidence is not None else None),
             "factors": score.factors,
             "asof_date": score.asof_date.isoformat() if score.asof_date else None,
             "trade_date": stock_context.get("trade_date"),
@@ -374,9 +498,9 @@ class AlphaCandidateMixin:
                 "asof_date": score.asof_date.isoformat() if score.asof_date else None,
                 "requested_trade_date": meta.get("requested_trade_date"),
                 "effective_asof_date": meta.get("effective_asof_date"),
-                "rank": int(score.rank),
-                "score": round(float(score.score), 4),
-                "confidence": round(float(score.confidence), 3),
+                "rank": rank,
+                "score": round(score_value, 4) if resolved_score is not None else None,
+                "confidence": (round(confidence, 3) if resolved_confidence is not None else None),
                 "factor_basis": factor_basis,
                 "scope_verification_status": meta.get("scope_verification_status"),
                 "freshness_status": meta.get("freshness_status"),
@@ -428,14 +552,52 @@ class AlphaCandidateMixin:
             except (TypeError, ValueError):
                 basis.append(f"{key}={raw_value}")
                 continue
+            if not isfinite(value):
+                basis.append(f"{key}=不可用")
+                continue
             basis.append(f"{key}={value:.3f}")
         return basis
 
+    @staticmethod
+    def _finite_float(
+        value: object,
+        *,
+        minimum: float | None = None,
+        maximum: float | None = None,
+    ) -> float | None:
+        """Return a bounded finite float without inventing a numeric fallback."""
+
+        if value is None or isinstance(value, bool):
+            return None
+        try:
+            parsed = float(cast(Any, value))
+        except (TypeError, ValueError):
+            return None
+        if not isfinite(parsed):
+            return None
+        if minimum is not None and parsed < minimum:
+            return None
+        if maximum is not None and parsed > maximum:
+            return None
+        return parsed
+
     def _serialize_pending_request(
-        self, *, request_model, stock_context: dict[str, Any]
+        self, *, request_model: object, stock_context: dict[str, Any]
     ) -> dict[str, Any]:
-        code = str(request_model.asset_code).upper()
+        code = str(getattr(request_model, "asset_code", "") or "").strip().upper()
         reason = str(getattr(request_model, "reason", "") or "")
+        position_pct = self._finite_float(
+            getattr(request_model, "position_pct", None),
+            minimum=0.0,
+        )
+        notional = self._finite_float(
+            getattr(request_model, "notional", None),
+            minimum=0.0,
+        )
+        quantity = self._finite_float(
+            getattr(request_model, "quantity", None),
+            minimum=0.0,
+        )
         return {
             "request_id": getattr(request_model, "request_id", ""),
             "code": code,
@@ -444,8 +606,8 @@ class AlphaCandidateMixin:
             "stage_label": "待执行队列",
             "gate_status": "warn",
             "rank": 0,
-            "alpha_score": 0.0,
-            "confidence": 0.0,
+            "alpha_score": None,
+            "confidence": None,
             "source": "workflow",
             "buy_reasons": [{"code": "REQUEST_APPROVED", "text": "该标的已通过决策审批。"}],
             "no_buy_reasons": [{"code": "ALREADY_PENDING", "text": "当前已在待执行队列中。"}],
@@ -453,9 +615,9 @@ class AlphaCandidateMixin:
                 "summary": "若执行失败或审批撤回，该待执行请求失效。",
                 "conditions": ["审批被撤回", "执行状态转为取消/失败后未重试"],
             },
-            "suggested_position_pct": float(getattr(request_model, "position_pct", 0.0) or 0.0),
-            "suggested_notional": float(getattr(request_model, "notional", 0.0) or 0.0),
-            "suggested_quantity": float(getattr(request_model, "quantity", 0.0) or 0.0),
+            "suggested_position_pct": position_pct,
+            "suggested_notional": notional,
+            "suggested_quantity": int(quantity) if quantity is not None else None,
             "source_recommendation_id": getattr(request_model, "id", None),
             "reason_summary": reason,
             "recommendation_ready": False,

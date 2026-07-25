@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2010,
-    "files_with_errors": 489
+    "errors": 1995,
+    "files_with_errors": 488
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -515,12 +515,6 @@
     "apps/broker_execution/admin.py": {
       "no-untyped-def": 3,
       "type-arg": 1
-    },
-    "apps/dashboard/application/alpha_homepage_candidates.py": {
-      "arg-type": 1,
-      "attr-defined": 8,
-      "no-any-return": 4,
-      "no-untyped-def": 2
     },
     "apps/dashboard/application/alpha_homepage_exit_watch.py": {
       "attr-defined": 2

@@ -915,11 +915,18 @@ def test_alpha_homepage_candidate_is_not_actionable_when_readiness_is_blocked():
         actionable_candidate=None,
         pending_request=None,
         sizing_context=SimpleNamespace(
-            multiplier_result=SimpleNamespace(multiplier=1.0),
+            multiplier_result=SimpleNamespace(multiplier=1.0, market_temperature_factor=1.0),
             regime_name="Recovery",
             regime_confidence=0.8,
             pulse_composite=0.2,
             pulse_warning=False,
+            market_temperature_score=50.0,
+            market_temperature_band="warm",
+            market_temperature_threshold_source="system",
+            market_temperature_degraded=False,
+            market_temperature_blocked_reason="",
+            market_temperature_blocks_new_position=False,
+            warnings=[],
         ),
         portfolio_snapshot=SimpleNamespace(total_value=100000.0),
         position_map={},
@@ -987,11 +994,18 @@ def test_alpha_homepage_watch_candidate_remains_usable_for_decision():
         actionable_candidate=None,
         pending_request=None,
         sizing_context=SimpleNamespace(
-            multiplier_result=SimpleNamespace(multiplier=1.0),
+            multiplier_result=SimpleNamespace(multiplier=1.0, market_temperature_factor=1.0),
             regime_name="Recovery",
             regime_confidence=0.37,
             pulse_composite=0.2,
             pulse_warning=False,
+            market_temperature_score=50.0,
+            market_temperature_band="warm",
+            market_temperature_threshold_source="system",
+            market_temperature_degraded=False,
+            market_temperature_blocked_reason="",
+            market_temperature_blocks_new_position=False,
+            warnings=[],
         ),
         portfolio_snapshot=SimpleNamespace(total_value=100000.0),
         position_map={},
@@ -1023,6 +1037,129 @@ def test_alpha_homepage_watch_candidate_remains_usable_for_decision():
     assert item["must_not_use_for_decision"] is False
     assert item["blocked_reason"] == "宏观置信度偏低，先观察"
     assert item["no_buy_reasons"][0]["code"] == "DECISION_WATCH"
+
+
+def test_alpha_homepage_missing_sizing_context_is_research_only():
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeDecisionEngine:
+        @staticmethod
+        def evaluate(**kwargs):
+            return "allow", ["ALLOW"], "可执行", {}
+
+    class FakeSizingEngine:
+        @staticmethod
+        def calculate(**kwargs):
+            return 10000.0, 100.0, None, None, "sizing ok"
+
+    class FakeRiskGate:
+        @staticmethod
+        def check(**kwargs):
+            return True, [], [], {"liquidity": "ok"}
+
+    query.decision_engine = FakeDecisionEngine()
+    query.sizing_engine = FakeSizingEngine()
+    query.risk_gate = FakeRiskGate()
+
+    item = query._build_candidate_item(
+        score=SimpleNamespace(
+            code="000001.SZ",
+            score=0.91,
+            rank=1,
+            source="qlib",
+            confidence=0.82,
+            factors={"momentum": 0.9},
+            asof_date=date(2026, 4, 21),
+        ),
+        stock_context={"name": "平安银行", "close": 10.0, "volume": 1000000},
+        actionable_candidate=None,
+        pending_request=None,
+        sizing_context=None,
+        portfolio_snapshot=SimpleNamespace(total_value=100000.0),
+        position_map={},
+        policy_state={"gate_level": "L1"},
+        meta={
+            "alpha_scope": "portfolio",
+            "provider_source": "qlib",
+            "scope_hash": "scope-1",
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    assert item["stage"] == "top_ranked"
+    assert item["recommendation_ready"] is False
+    assert item["must_not_use_for_decision"] is True
+    assert item["suggested_notional"] == 0.0
+    assert "宏观仓位上下文不可用" in item["blocked_reason"]
+    assert item["no_buy_reasons"][0]["code"] == "ALPHA_RELIABILITY_BLOCK"
+
+
+def test_alpha_homepage_non_finite_score_never_becomes_actionable():
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeDecisionEngine:
+        @staticmethod
+        def evaluate(**kwargs):
+            return "allow", ["ALLOW"], "可执行", {}
+
+    class FakeSizingEngine:
+        @staticmethod
+        def calculate(**kwargs):
+            return 10000.0, 100.0, None, None, "sizing ok"
+
+    class FakeRiskGate:
+        @staticmethod
+        def check(**kwargs):
+            return True, [], [], {"liquidity": "ok"}
+
+    query.decision_engine = FakeDecisionEngine()
+    query.sizing_engine = FakeSizingEngine()
+    query.risk_gate = FakeRiskGate()
+
+    item = query._build_candidate_item(
+        score=SimpleNamespace(
+            code="000001.SZ",
+            score=float("nan"),
+            rank=1,
+            source="qlib",
+            confidence=0.82,
+            factors={"momentum": float("inf")},
+            asof_date=date(2026, 4, 21),
+        ),
+        stock_context={"name": "平安银行", "close": 10.0, "volume": 1000000},
+        actionable_candidate=None,
+        pending_request=None,
+        sizing_context=SimpleNamespace(
+            multiplier_result=SimpleNamespace(multiplier=1.0, market_temperature_factor=1.0),
+            regime_name="Recovery",
+            regime_confidence=0.8,
+            pulse_composite=0.2,
+            pulse_warning=False,
+            market_temperature_score=50.0,
+            market_temperature_band="warm",
+            market_temperature_threshold_source="system",
+            market_temperature_degraded=False,
+            market_temperature_blocked_reason="",
+            market_temperature_blocks_new_position=False,
+            warnings=[],
+        ),
+        portfolio_snapshot=SimpleNamespace(total_value=100000.0),
+        position_map={},
+        policy_state={"gate_level": "L1"},
+        meta={
+            "alpha_scope": "portfolio",
+            "provider_source": "qlib",
+            "scope_hash": "scope-1",
+            "must_not_use_for_decision": False,
+        },
+    )
+
+    assert item["stage"] == "top_ranked"
+    assert item["recommendation_ready"] is False
+    assert item["must_not_use_for_decision"] is True
+    assert item["alpha_score"] is None
+    assert item["recommendation_basis"]["factor_basis"] == ["momentum=不可用"]
+    assert "Alpha 评分缺失" in item["blocked_reason"]
 
 
 def test_alpha_homepage_market_temperature_extreme_blocks_new_position():

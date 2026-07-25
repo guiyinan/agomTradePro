@@ -3385,3 +3385,18 @@
 - Policy repository 导出契约与 use case 回归 `6 passed`。
 - Policy repository provider 增量 mypy 清零；全仓基线从 `2011 errors / 490 files` 收紧为 `2010 errors / 489 files`，净减少 `1 error / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十一批
+
+- 按“首页投资候选真实性 × 缺失上下文失败关闭 × 非有限数值隔离”收口 Dashboard Alpha 首页候选链路。
+- 组合候选缺少宏观仓位上下文时不再使用 `1.0` 中性系数继续生成可行动建议；结果明确降级为仅供研究，建议金额归零并发布稳定阻断原因。
+- Regime、Pulse、组合快照或市场温度上下文不可用，以及市场温度明确降级时，候选不再进入可行动阶段；原始可靠性阻断原因继续保持为对外主原因。
+- Alpha 评分、置信度、排名、仓位系数、市场温度和待执行金额统一拒绝 `NaN`、`Inf`、越界值与负数；非法评分和置信度以缺失发布，不再伪装为中性 `0`。
+- 因子依据中的非有限数值明确显示为“不可用”；待执行请求不再发布虚构的 `0` 分和 `0` 置信度，数量恢复为整数语义。
+- Candidate mixin 明确声明仓储、决策、仓位和风控依赖，评分与仓位上下文参数收窄为正式实体/DTO；仓位上下文加载失败仅在内部日志保留堆栈，对外保持稳定降级语义。
+
+## 第二百三十一批验证结果
+
+- Dashboard Alpha 查询、视图、上下文仓储和 mixin 结构回归 `91 passed`，覆盖宏观仓位上下文缺失、非有限评分和非有限因子不能形成可行动建议。
+- Dashboard Alpha candidate mixin 增量 mypy 清零；全仓基线从 `2010 errors / 489 files` 收紧为 `1995 errors / 488 files`，净减少 `15 errors / 1 file`。
+- Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
