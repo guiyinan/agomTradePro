@@ -127,3 +127,30 @@ def test_unknown_report_method_filter_is_not_sent_to_repository(
         attribution_method=None,
         limit=50,
     )
+
+
+def test_public_failure_stats_exclude_raw_failure_reasons(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stats = Mock(
+        total_count=3,
+        by_component={"database": 3},
+        recent_failures=[
+            Mock(reason="postgresql://user:secret@internal/db"),
+        ],
+    )
+    counter = Mock()
+    counter.get_failure_stats.return_value = stats
+    monkeypatch.setattr(
+        interface_services,
+        "get_audit_failure_counter",
+        lambda: counter,
+    )
+
+    payload = interface_services.get_audit_failure_stats()
+
+    assert payload == {
+        "total_count": 3,
+        "by_component": {"database": 3},
+    }
+    assert "secret" not in str(payload)

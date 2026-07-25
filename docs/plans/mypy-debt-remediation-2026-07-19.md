@@ -3138,3 +3138,19 @@
 - Audit interface invariants 与 manual trade helper 回归 `11 passed`；Audit API endpoints、归因治理、验证 API 和阈值配置 API integration 回归 `42 passed`。
 - 两个改动 Application 文件增量 mypy 清零；全仓基线从 `2357 errors / 521 files` 收紧为 `2331 errors / 519 files`，净减少 `26 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十四批
+
+- 按“公开健康接口最小披露 × 运维状态真实性”收口 Audit health check。
+- 健康接口不再返回数据库名称、数据库引擎、原始异常消息或最近失败 reason；数据库与表检查只发布 passed/error type，失败计数接口只发布总数和按组件聚合，避免公开接口泄露 DSN、SQL、内部地址或第三方响应。
+- 显式 `warning_threshold=0` 不再被 Python truthiness 替换为默认 10；阈值必须是非负整数且 error 严格大于 warning，非法查询参数返回 400，不再静默使用默认值或触发 500。
+- 健康检查器不再跨调用缓存首个阈值配置；每次请求按本次参数构建，避免后续调用实际使用旧阈值。
+- 指标采集失败会增加 `audit_metrics=ERROR` 检查并把 overall status 置为 ERROR，不再出现 metrics 已不可用但总体仍为 OK；错误 payload 只保留异常类型。
+- `failure_rate` 改为失败数除以成功日志与失败数之和，保持在 `0..1`，不再用失败数直接除以成功日志数而产生大于 100% 的伪比率。
+- Audit Repository Protocol 补齐 operation log count，并清理全部裸集合类型；Health Checker、Failure Stats 与 Counter 使用精确 Protocol。
+
+## 第二百一十四批验证结果
+
+- Audit health、failure counter 与 interface invariants 回归 `42 passed`，公开健康响应专项回归 `14 passed`；Audit API edge、API integration 与 endpoints 回归 `48 passed`。
+- Health check 与 Audit Domain interface 增量 mypy 清零；全仓基线从 `2331 errors / 519 files` 收紧为 `2322 errors / 517 files`，净减少 `9 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。

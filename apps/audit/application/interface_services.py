@@ -742,11 +742,13 @@ def list_execution_links_payload(
 
 
 def get_audit_failure_stats() -> dict[str, Any]:
-    """Return the current audit failure counter snapshot."""
-    return cast(
-        dict[str, Any],
-        get_audit_failure_counter().get_failure_stats().to_dict(),
-    )
+    """Return public-safe aggregate failure counts without raw reasons."""
+
+    stats = get_audit_failure_counter().get_failure_stats()
+    return {
+        "total_count": stats.total_count,
+        "by_component": dict(stats.by_component),
+    }
 
 
 def reset_audit_failure_counter() -> None:
