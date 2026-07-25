@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2027,
-    "files_with_errors": 491
+    "errors": 2011,
+    "files_with_errors": 490
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1165,7 +1165,6 @@
     "apps/policy/application/audit_use_cases.py": {
       "assignment": 1,
       "attr-defined": 1,
-      "no-untyped-call": 3,
       "no-untyped-def": 1,
       "operator": 2
     },
@@ -1180,8 +1179,7 @@
       "type-arg": 3
     },
     "apps/policy/application/repository_provider.py": {
-      "attr-defined": 1,
-      "no-untyped-call": 1
+      "attr-defined": 1
     },
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1
@@ -1215,12 +1213,6 @@
       "type-arg": 5,
       "union-attr": 1,
       "var-annotated": 1
-    },
-    "apps/policy/infrastructure/workbench_repositories.py": {
-      "index": 3,
-      "no-untyped-call": 1,
-      "no-untyped-def": 5,
-      "type-arg": 3
     },
     "apps/policy/interface/audit_api_views.py": {
       "no-untyped-def": 4

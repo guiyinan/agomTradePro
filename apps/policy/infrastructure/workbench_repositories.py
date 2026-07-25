@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from django.db import models, transaction
@@ -25,7 +25,17 @@ class WorkbenchRepository:
     提供工作台专用的数据访问操作。
     """
 
-    def __init__(self):
+    _INGESTION_CONFIG_FIELDS = frozenset(
+        {
+            "auto_approve_enabled",
+            "auto_approve_min_level",
+            "auto_approve_threshold",
+            "p23_sla_hours",
+            "normal_sla_hours",
+        }
+    )
+
+    def __init__(self) -> None:
         self._model = PolicyLog
         self._ingestion_config_model = PolicyIngestionConfig
         self._gate_config_model = SentimentGateConfig
@@ -87,17 +97,25 @@ class WorkbenchRepository:
         if priority:
             queryset = queryset.filter(priority=priority)
 
-        priority_order = {"urgent": 0, "high": 1, "normal": 2, "low": 3}
-        rows = list(queryset[:limit])
-        rows.sort(key=lambda item: priority_order.get(item.priority, 99))
+        priority_order = models.Case(
+            models.When(priority="urgent", then=0),
+            models.When(priority="high", then=1),
+            models.When(priority="normal", then=2),
+            models.When(priority="low", then=3),
+            default=99,
+            output_field=models.IntegerField(),
+        )
+        rows = list(queryset.order_by(priority_order.asc(), "created_at")[:limit])
 
         return [
             {
                 "id": item.policy_log.id,
                 "title": item.policy_log.title,
-                "description": item.policy_log.description[:200] + "..."
-                if len(item.policy_log.description) > 200
-                else item.policy_log.description,
+                "description": (
+                    item.policy_log.description[:200] + "..."
+                    if len(item.policy_log.description) > 200
+                    else item.policy_log.description
+                ),
                 "level": item.policy_log.level,
                 "info_category": item.policy_log.info_category,
                 "ai_confidence": item.policy_log.ai_confidence,
@@ -105,7 +123,9 @@ class WorkbenchRepository:
                 "priority": item.priority,
                 "created_at": item.policy_log.created_at.isoformat(),
                 "assigned_at": item.assigned_at.isoformat() if item.assigned_at else None,
-                "rss_source": item.policy_log.rss_source.name if item.policy_log.rss_source else None,
+                "rss_source": (
+                    item.policy_log.rss_source.name if item.policy_log.rss_source else None
+                ),
             }
             for item in rows
         ]
@@ -149,7 +169,7 @@ class WorkbenchRepository:
         *,
         queue_id: int,
         auditor_id: int,
-        assigned_at,
+        assigned_at: datetime,
     ) -> bool:
         """Assign one audit queue item to an auditor."""
         updated = PolicyAuditQueue._default_manager.filter(
@@ -162,7 +182,7 @@ class WorkbenchRepository:
         )
         return updated > 0
 
-    def delete_reviewed_queue_before(self, cutoff_datetime) -> int:
+    def delete_reviewed_queue_before(self, cutoff_datetime: datetime) -> int:
         """Delete audit queue rows whose related policy was reviewed before cutoff."""
         return PolicyAuditQueue._default_manager.filter(
             policy_log__reviewed_at__lt=cutoff_datetime
@@ -235,7 +255,7 @@ class WorkbenchRepository:
     def get_daily_policy_summary(self, target_date: date) -> dict[str, Any]:
         """Return daily policy summary grouped by level/category/audit status."""
         today_policies = self._model._default_manager.filter(created_at__date=target_date)
-        summary = {
+        summary: dict[str, Any] = {
             "date": target_date.isoformat(),
             "total_new": today_policies.count(),
             "by_level": {},
@@ -276,7 +296,7 @@ class WorkbenchRepository:
             .first()
         )
 
-    def get_last_fetch_at(self):
+    def get_last_fetch_at(self) -> datetime | None:
         """Return the latest RSS fetch timestamp."""
         return (
             RSSFetchLog._default_manager.order_by("-fetched_at")
@@ -343,9 +363,11 @@ class WorkbenchRepository:
                     "level": item.level,
                     "gate_level": item.gate_level,
                     "title": item.title,
-                    "description": item.description[:200] + "..."
-                    if len(item.description) > 200
-                    else item.description,
+                    "description": (
+                        item.description[:200] + "..."
+                        if len(item.description) > 200
+                        else item.description
+                    ),
                     "evidence_url": item.evidence_url,
                     "ai_confidence": item.ai_confidence,
                     "heat_score": item.heat_score,
@@ -364,6 +386,7 @@ class WorkbenchRepository:
             ],
         }
 
+    @transaction.atomic
     def approve_event(
         self,
         event_id: int,
@@ -395,6 +418,7 @@ class WorkbenchRepository:
         except self._model.DoesNotExist:
             return None
 
+    @transaction.atomic
     def reject_event(
         self,
         event_id: int,
@@ -425,6 +449,7 @@ class WorkbenchRepository:
         except self._model.DoesNotExist:
             return None
 
+    @transaction.atomic
     def rollback_event(
         self,
         event_id: int,
@@ -453,6 +478,7 @@ class WorkbenchRepository:
         except self._model.DoesNotExist:
             return None
 
+    @transaction.atomic
     def override_event(
         self,
         event_id: int,
@@ -523,13 +549,16 @@ class WorkbenchRepository:
         """获取摄入配置（单例）"""
         return self._ingestion_config_model.get_config()
 
-    def update_ingestion_config(self, **kwargs) -> PolicyIngestionConfig:
+    def update_ingestion_config(self, **kwargs: Any) -> PolicyIngestionConfig:
         """更新摄入配置"""
+        unknown_fields = sorted(set(kwargs) - self._INGESTION_CONFIG_FIELDS)
+        if unknown_fields:
+            raise ValueError(f"unsupported ingestion config fields: {', '.join(unknown_fields)}")
         config = self.get_ingestion_config()
         for key, value in kwargs.items():
-            if hasattr(config, key):
-                setattr(config, key, value)
+            setattr(config, key, value)
         config.version = (config.version or 0) + 1
+        config.full_clean()
         config.save()
         return config
 
@@ -541,7 +570,7 @@ class WorkbenchRepository:
         """获取所有闸门配置"""
         return list(self._gate_config_model.objects.filter(enabled=True).all())
 
-    def _get_event_state(self, event: PolicyLog) -> dict:
+    def _get_event_state(self, event: PolicyLog) -> dict[str, object]:
         """获取事件状态快照"""
         return {
             "level": event.level,
@@ -556,8 +585,8 @@ class WorkbenchRepository:
         event: PolicyLog,
         action: str,
         operator_id: int | None,
-        before_state: dict,
-        after_state: dict,
+        before_state: dict[str, object],
+        after_state: dict[str, object],
         reason: str,
         rule_version: str = "1.0",
     ) -> GateActionAuditLog:

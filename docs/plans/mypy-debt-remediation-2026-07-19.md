@@ -3360,3 +3360,17 @@
 - Policy 内容、事件、RSS Application 与任务回归 `14 passed`，覆盖空关键词、非法权重/档位、重复关键词和同分高严重度决胜。
 - Policy Application services 增量 mypy 清零；全仓基线从 `2037 errors / 492 files` 收紧为 `2027 errors / 491 files`，净减少 `10 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十九批
+
+- 按“Policy 审核队列公平性 × 状态与审计原子性”收口 Policy workbench repository。
+- 审核队列优先级改为数据库 `Case` 表达式按 urgent/high/normal/low 排序后再应用 limit，同批最紧急事项不再因先截断、后内存排序而被排除。
+- 批准、拒绝、回滚和豁免的事件状态写入与 `GateActionAuditLog` 写入统一进入同一事务；审计落库失败时事件状态一并回滚，不再留下无审计凭据的变更。
+- 摄入配置更新只接受五个公开运行参数，未知字段在访问数据库前拒绝；写入前执行 Model validation，禁止通过动态 `setattr` 覆盖 `save` 等模型方法或非公开字段。
+- 审核分配与清理时间使用 aware datetime 契约，日统计嵌套映射、事件状态快照和审计前后状态补齐具体类型；workbench 构造函数与最新抓取时间返回值进入类型检查。
+
+## 第二百二十九批验证结果
+
+- Policy workbench repository、审核 use case、工作台 API 与集成回归 `40 passed`；排序、事务回滚和配置字段边界定点复核 `3 passed`。
+- Workbench repository 增量 mypy 清零，并传播清除 audit use case 与 repository provider 4 项债务；全仓基线从 `2027 errors / 491 files` 收紧为 `2011 errors / 490 files`，净减少 `16 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
