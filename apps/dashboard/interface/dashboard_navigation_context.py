@@ -1,7 +1,7 @@
 """Dashboard empty-state and decision-plane navigation helpers."""
 
 import logging
-from types import SimpleNamespace
+from typing import Any
 
 from apps.alpha.application.ops_locks import (
     ALPHA_REFRESH_LOCK_TTL_SECONDS,
@@ -26,6 +26,7 @@ from apps.alpha.application.trade_dates import (
 )
 from apps.dashboard.application import interface_services as dashboard_interface_services
 from apps.dashboard.application.queries import (
+    DecisionPlaneData,
     get_decision_plane_query,
 )
 from apps.dashboard.interface import (
@@ -49,19 +50,20 @@ release_dashboard_alpha_refresh_lock = _release_dashboard_alpha_refresh_lock
 resolve_dashboard_alpha_trade_date = _resolve_dashboard_alpha_trade_date
 
 
-def _empty_decision_plane_data() -> SimpleNamespace:
+def _empty_decision_plane_data() -> DecisionPlaneData:
     """Return a safe fallback when decision-plane aggregation is unavailable."""
-    return SimpleNamespace(
+    return DecisionPlaneData(
         beta_gate_visible_classes="-",
         alpha_watch_count=0,
         alpha_candidate_count=0,
         alpha_actionable_count=0,
-        quota_total=10,
+        quota_total=0,
         quota_used=0,
-        quota_remaining=10,
+        quota_remaining=0,
         quota_usage_percent=0.0,
         actionable_candidates=[],
         pending_requests=[],
+        quota_available=False,
     )
 
 
@@ -132,17 +134,20 @@ def _get_quota_usage_percent() -> float:
     return _get_decision_plane_data().quota_usage_percent
 
 
-def _get_actionable_candidates():
+def _get_actionable_candidates() -> list[Any]:
     """
     首页主流程展示：可操作候选列表（含估值修复信息）
 
     重构说明 (2026-03-11):
     - 委托至 DecisionPlaneQuery
     """
-    return _get_decision_plane_data(max_candidates=5, max_pending=10).actionable_candidates
+    return _get_decision_plane_data(
+        max_candidates=5,
+        max_pending=10,
+    ).actionable_candidates
 
 
-def _get_pending_requests():
+def _get_pending_requests() -> list[Any]:
     """
     首页主流程展示：已批准但未执行/失败待重试请求
 
@@ -156,14 +161,17 @@ def _get_pending_count() -> int:
     return len(_get_pending_requests())
 
 
-def _get_decision_plane_data(max_candidates: int = 5, max_pending: int = 10):
+def _get_decision_plane_data(
+    max_candidates: int = 5,
+    max_pending: int = 10,
+) -> DecisionPlaneData:
     """Return the aggregated decision-plane payload with a single query execution."""
     data = dashboard_interface_services.get_decision_plane_data(
         max_candidates=max_candidates,
         max_pending=max_pending,
         query_factory=get_decision_plane_query,
     )
-    return data or _empty_decision_plane_data()
+    return data
 
 
 workflow_refresh_candidates = workflow_views.workflow_refresh_candidates

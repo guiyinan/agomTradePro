@@ -607,6 +607,7 @@ def _build_dashboard_page_context(
         "quota_used": decision_plane_data.quota_used,
         "quota_remaining": decision_plane_data.quota_remaining,
         "quota_usage_percent": decision_plane_data.quota_usage_percent,
+        "quota_available": bool(getattr(decision_plane_data, "quota_available", False)),
         "actionable_candidates": workflow_actionable_candidates,
         "pending_requests": workflow_pending_requests,
         "pending_count": len(workflow_pending_requests),

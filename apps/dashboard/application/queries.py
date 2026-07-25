@@ -525,6 +525,18 @@ class DecisionPlaneData:
     quota_usage_percent: float
     actionable_candidates: list[Any]
     pending_requests: list[Any]
+    quota_available: bool = True
+
+
+@dataclass(frozen=True)
+class DecisionQuotaData:
+    """Consistent weekly decision-quota snapshot."""
+
+    total: int
+    used: int
+    remaining: int
+    usage_percent: float
+    available: bool
 
 
 @dataclass(frozen=True)
@@ -566,18 +578,20 @@ class DecisionPlaneQuery:
             if max_candidates > 0
             else all_actionable_candidates
         )
+        quota = self._get_quota_usage()
 
         return DecisionPlaneData(
             beta_gate_visible_classes=self._get_beta_gate_visible_classes(),
             alpha_watch_count=self._get_alpha_status_count("WATCH"),
             alpha_candidate_count=self._get_alpha_status_count("CANDIDATE"),
             alpha_actionable_count=len(all_actionable_candidates),
-            quota_total=self._get_quota_total(),
-            quota_used=self._get_quota_used(),
-            quota_remaining=self._get_quota_remaining(),
-            quota_usage_percent=self._get_quota_usage_percent(),
+            quota_total=quota.total,
+            quota_used=quota.used,
+            quota_remaining=quota.remaining,
+            quota_usage_percent=quota.usage_percent,
             actionable_candidates=listed_actionable_candidates,
             pending_requests=self._get_pending_requests(max_pending),
+            quota_available=quota.available,
         )
 
     def _get_beta_gate_visible_classes(self) -> str:
@@ -616,50 +630,74 @@ class DecisionPlaneQuery:
 
     def _get_quota_total(self) -> int:
         """获取决策配额总数"""
-        try:
-            from apps.decision_rhythm.application.global_alert_service import (
-                get_decision_rhythm_global_alert_service,
-            )
-
-            quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
-            return quota["quota_total"] if quota else 10
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get quota total: {e}")
-            return 10
+        return self._get_quota_usage().total
 
     def _get_quota_used(self) -> int:
         """获取已使用的决策配额"""
-        try:
-            from apps.decision_rhythm.application.global_alert_service import (
-                get_decision_rhythm_global_alert_service,
-            )
-
-            quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
-            return quota["quota_used"] if quota else 0
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get quota used: {e}")
-            return 0
+        return self._get_quota_usage().used
 
     def _get_quota_remaining(self) -> int:
         """获取剩余决策配额"""
+        return self._get_quota_usage().remaining
+
+    def _get_quota_usage_percent(self) -> float:
+        """获取决策配额使用百分比"""
+        return self._get_quota_usage().usage_percent
+
+    def _get_quota_usage(self) -> DecisionQuotaData:
+        """Load and validate one coherent weekly quota snapshot."""
+
+        unavailable = DecisionQuotaData(
+            total=0,
+            used=0,
+            remaining=0,
+            usage_percent=0.0,
+            available=False,
+        )
         try:
             from apps.decision_rhythm.application.global_alert_service import (
                 get_decision_rhythm_global_alert_service,
             )
 
             quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
-            return quota["quota_remaining"] if quota else 10
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get quota remaining: {e}")
-            return 10
+            if not isinstance(quota, dict):
+                return unavailable
+            total = self._non_negative_int(quota.get("quota_total"))
+            used = self._non_negative_int(quota.get("quota_used"))
+            remaining = self._non_negative_int(quota.get("quota_remaining"))
+            if (
+                total is None
+                or used is None
+                or remaining is None
+                or used > total
+                or remaining != total - used
+            ):
+                logger.warning("Decision quota snapshot is incomplete or inconsistent")
+                return unavailable
+            return DecisionQuotaData(
+                total=total,
+                used=used,
+                remaining=remaining,
+                usage_percent=round(used / total * 100, 1) if total > 0 else 0.0,
+                available=True,
+            )
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning("Failed to get decision quota snapshot: %s", exc)
+            return unavailable
 
-    def _get_quota_usage_percent(self) -> float:
-        """获取决策配额使用百分比"""
-        total = self._get_quota_total()
-        used = self._get_quota_used()
-        if total > 0:
-            return round(used / total * 100, 1)
-        return 0.0
+    @staticmethod
+    def _non_negative_int(value: object) -> int | None:
+        """Return an exact non-negative integer without coercing fractions or booleans."""
+
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return value if value >= 0 else None
+        if isinstance(value, str):
+            normalized = value.strip()
+            if normalized.isdigit():
+                return int(normalized)
+        return None
 
     def _attach_asset_names(self, items: list[Any]) -> list[Any]:
         """为候选或请求对象批量补充资产名称。"""

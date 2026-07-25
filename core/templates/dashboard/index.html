@@ -426,7 +426,7 @@
                     <div class="decision-card-body">
                         <div class="decision-status">
                             <span class="status-label">本期配额</span>
-                            <span class="status-value">{{ quota_total|default:0 }}</span>
+                            <span class="status-value">{% if quota_available %}{{ quota_total }}{% else %}不可用{% endif %}</span>
                         </div>
                         <div class="decision-status">
                             <span class="status-label">已占用</span>
@@ -434,10 +434,10 @@
                         </div>
                         <div class="decision-status">
                             <span class="status-label">剩余额度</span>
-                            <span class="status-value">{{ quota_remaining|default:0 }}</span>
+                            <span class="status-value">{% if quota_available %}{{ quota_remaining }}{% else %}不可用{% endif %}</span>
                         </div>
                         <div class="quota-progress">
-                            <div class="quota-progress-bar" style="width: {{ quota_usage_percent|default:0 }}%"></div>
+                            <div class="quota-progress-bar" style="width: {% if quota_available %}{{ quota_usage_percent }}{% else %}0{% endif %}%"></div>
                         </div>
                     </div>
                 </div>

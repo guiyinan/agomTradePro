@@ -1504,6 +1504,65 @@ def test_decision_plane_query_attach_asset_names_supports_exchange_suffix(monkey
     assert enriched[2].asset_name == "创业板ETF"
 
 
+def test_decision_plane_query_loads_one_consistent_quota_snapshot(monkeypatch):
+    from apps.decision_rhythm.application import global_alert_service
+
+    calls = 0
+
+    class FakeService:
+        def get_weekly_quota_usage(self):
+            nonlocal calls
+            calls += 1
+            return {
+                "quota_total": 10,
+                "quota_used": 3,
+                "quota_remaining": 7,
+            }
+
+    monkeypatch.setattr(
+        global_alert_service,
+        "get_decision_rhythm_global_alert_service",
+        lambda: FakeService(),
+    )
+    query = DecisionPlaneQuery()
+    monkeypatch.setattr(query, "_get_beta_gate_visible_classes", lambda: "equity")
+    monkeypatch.setattr(query, "_get_alpha_status_count", lambda status: 0)
+    monkeypatch.setattr(query, "_get_actionable_candidates", lambda max_count: [])
+    monkeypatch.setattr(query, "_get_pending_requests", lambda max_count: [])
+
+    result = query.execute()
+
+    assert calls == 1
+    assert result.quota_available is True
+    assert result.quota_total == 10
+    assert result.quota_used == 3
+    assert result.quota_remaining == 7
+    assert result.quota_usage_percent == 30.0
+
+
+def test_decision_plane_query_does_not_invent_quota_when_snapshot_is_invalid(monkeypatch):
+    from apps.decision_rhythm.application import global_alert_service
+
+    monkeypatch.setattr(
+        global_alert_service,
+        "get_decision_rhythm_global_alert_service",
+        lambda: SimpleNamespace(
+            get_weekly_quota_usage=lambda: {
+                "quota_total": 10,
+                "quota_used": 3,
+                "quota_remaining": 10,
+            }
+        ),
+    )
+
+    quota = DecisionPlaneQuery()._get_quota_usage()
+
+    assert quota.available is False
+    assert quota.total == 0
+    assert quota.used == 0
+    assert quota.remaining == 0
+
+
 @pytest.mark.django_db
 def test_decision_plane_query_skips_manual_override_candidates():
     StockInfoModel.objects.create(

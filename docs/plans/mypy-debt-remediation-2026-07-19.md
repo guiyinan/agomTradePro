@@ -3433,3 +3433,18 @@
 - Regime 编排、持久化、任务契约、Macro 周期调度和 Celery 注册回归 `15 passed`；核心编排定点回归 `10 passed`。
 - Regime orchestration 增量 mypy 清零；全仓基线从 `1983 errors / 487 files` 收紧为 `1970 errors / 486 files`，净减少 `13 errors / 1 file`。
 - Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十四批
+
+- 按“Dashboard 决策配额真实性 × 单次快照一致性 × 用户页面可解释降级”收口 DecisionPlane 导航与页面上下文。
+- 决策平面一次执行只读取一次周度配额，不再分别查询总额、已用和剩余后拼接可能来自不同时间点的三项数据。
+- 配额总额、已用和剩余必须是非负整数，且满足 `used <= total` 和 `remaining = total - used`；布尔值、小数、负数和勾稽不一致的 payload 均判为不可用。
+- 配额查询缺失、异常或不一致时发布 `quota_available=false` 与零值占位，不再硬编码“总额 10、剩余 10”制造虚假可用额度。
+- Dashboard 页面新增明确的配额可用状态；不可用时总额和剩余显示“不可用”，进度条保持空白，不把占位零解释为真实零额度。
+- DecisionPlane DTO、Interface fallback 和兼容 navigation facade 统一使用同一可用性语义；旧测试/兼容对象缺少新字段时按不可用处理，避免乐观推断。
+
+## 第二百三十四批验证结果
+
+- Dashboard Alpha 查询与结构回归 `38 passed`，页面与 HTMX 相关回归 `47 passed`，覆盖单次配额读取、三项勾稽失败和页面兼容渲染。
+- Dashboard navigation context 增量 mypy 清零；全仓基线从 `1970 errors / 486 files` 收紧为 `1958 errors / 485 files`，净减少 `12 errors / 1 file`。
+- Dashboard queries 保留既有 `6` 项历史类型债务且无新增；Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
