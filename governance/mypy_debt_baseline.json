@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2072,
-    "files_with_errors": 494
+    "errors": 2055,
+    "files_with_errors": 493
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1239,11 +1239,6 @@
     },
     "apps/policy/interface/audit_api_views.py": {
       "no-untyped-def": 4
-    },
-    "apps/policy/interface/event_api_views.py": {
-      "assignment": 3,
-      "misc": 3,
-      "no-untyped-def": 11
     },
     "apps/policy/interface/forms.py": {
       "no-untyped-def": 5,

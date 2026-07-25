@@ -3318,3 +3318,17 @@
 - Policy 页面、RSS API、工作台、Application 装配及新增布尔/ID 边界回归 `55 passed`；派生日期查询调整后工作台与边界定点复核 `35 passed`。
 - Policy interface repository 增量 mypy 清零；全仓基线从 `2089 errors / 495 files` 收紧为 `2072 errors / 494 files`，净减少 `17 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十六批
+
+- 按“Policy 事件写入授权 × 查询输入完整性 × 内部错误最小披露”收口 Policy event API。
+- 状态、历史和事件 ID 查询新增严格 serializer；未知参数、反向日期范围、非法档位和非正 event ID 在进入用例与仓储前返回稳定 400，不再依赖手写字符串转换或静默忽略拼写错误。
+- 创建、更新、删除继续要求 staff，读取继续要求认证；权限实例、DRF Request/Response、路径日期和 schema decorator 补齐精确类型。
+- 创建事件的意外异常不再把数据库、通知服务或其他内部异常正文复制进 `errors`；全部异常日志只在固定消息中附带异常类型，API 返回稳定错误文案。
+- 状态、历史、创建和更新响应使用明确 JSON payload 边界，修复嵌套事件字典写入被错误推断为标量的问题；OpenAPI 类型从正式 `drf_spectacular.types` 入口导入。
+
+## 第二百二十六批验证结果
+
+- Policy 事件 API 与 serializer 契约回归 `14 passed`，覆盖未知查询、反向日期、非正事件 ID、权限和内部异常脱敏。
+- Policy event API 与 serializers 增量 mypy 清零；全仓基线从 `2072 errors / 494 files` 收紧为 `2055 errors / 493 files`，净减少 `17 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
