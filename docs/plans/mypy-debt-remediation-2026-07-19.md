@@ -3542,3 +3542,20 @@
 - Setup Wizard HTTP 安全与流程回归 `18 passed`，Application/Domain/集成回归 `52 passed`，覆盖 CSRF、既有安装认证、禁止跳步和正常完整流程。
 - Setup Wizard provider、use cases 与 views 增量 mypy 清零，并传播清除 TUI metadata repository 的 7 项过期豁免债务；全仓基线从 `1902 errors / 479 files` 收紧为 `1874 errors / 475 files`，净减少 `28 errors / 4 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百四十一批
+
+- 按“Prompt 公共执行链成功真实性 × Domain/Application 结果一致性 × 配置唯一真源”收口 Prompt execution use cases。
+- 修复所有成功 Prompt 链在返回前重复传入 `total_time_ms`、必然触发 `TypeError` 并被包装成失败的问题；使用 dataclass `replace` 只更新实测总耗时。
+- 单步执行不再用 `or` 覆盖显式 `temperature=0`，模型未指定时传递 `None` 交由 AI Provider 当前配置决定，不再硬编码 `gpt-4`。
+- 串行、并行、tool calling 和 hybrid 四种模式统一把 Application `ExecutePromptResponse` 转换为 Domain `PromptExecutionResult`；ChainExecutionResult 不再混入错误层级的 DTO。
+- 结构化步骤输出缺少 `content` 时按稳定字符串发布，不再由最后一步字典索引触发异常；并行线程池使用运行库受控默认并发上限，不再按数据库步骤数无界扩张 worker。
+- 链执行意外异常只在服务端日志保留堆栈，对外返回稳定 `chain_execution_failed`，不再暴露数据库地址、Provider 或 SDK 异常正文。
+- 报告链和信号验证链按数据库唯一名称 `investment_report_chain` / `signal_validation_chain` 解析活动配置与真实主键，不再硬编码主键 `1` / `2`。
+- AI client factory compatibility provider 改为显式同名 re-export；provider、user、step context、累积输出和序列化结果补齐精确边界类型。
+
+## 第二百四十一批验证结果
+
+- Prompt 核心执行与最终输出回归 `5 passed`，Prompt API、装配、Domain 与初始化一致性回归 `81 passed`，覆盖零温度、成功链返回、结构化末步、异常脱敏和按名称解析链。
+- Prompt use cases 增量 mypy 清零，并传播清除 AI Capability、Prompt interface services 与 Terminal chat/service 的隐式 AI factory 属性债务；全仓基线从 `1874 errors / 475 files` 收紧为 `1853 errors / 474 files`，净减少 `21 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

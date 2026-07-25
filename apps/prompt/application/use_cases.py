@@ -4,17 +4,21 @@ Use Cases for AI Prompt Management.
 Orchestration layer that coordinates components from Domain and Infrastructure layers.
 """
 
+import logging
 import time
 import uuid
+from dataclasses import replace
 from datetime import date
 from typing import Any
 
+from apps.ai_provider.application.chat_completion import AIClientFactoryProtocol
 from apps.ai_provider.application.client_provider import get_ai_client_factory
 
 from ..domain.entities import (
     ChainConfig,
     ChainExecutionMode,
     ChainExecutionResult,
+    ChainStep,
     PlaceholderDef,
     PlaceholderType,
     PromptExecutionResult,
@@ -39,6 +43,8 @@ from .repository_provider import (
     RegimeDataAdapter,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ExecutePromptUseCase:
     """
@@ -51,7 +57,7 @@ class ExecutePromptUseCase:
         self,
         prompt_repository: DjangoPromptRepository,
         execution_log_repository: DjangoExecutionLogRepository,
-        ai_client_factory,
+        ai_client_factory: AIClientFactoryProtocol,
         macro_adapter: MacroDataAdapter,
         regime_adapter: RegimeDataAdapter,
     ):
@@ -103,9 +109,13 @@ class ExecutePromptUseCase:
                     {"role": "system", "content": template.system_prompt or ""},
                     {"role": "user", "content": rendered_prompt},
                 ],
-                model=request.model or "gpt-4",
-                temperature=request.temperature or template.temperature,
-                max_tokens=request.max_tokens or template.max_tokens,
+                model=request.model,
+                temperature=(
+                    request.temperature if request.temperature is not None else template.temperature
+                ),
+                max_tokens=(
+                    request.max_tokens if request.max_tokens is not None else template.max_tokens
+                ),
             )
 
             # 计算执行时间
@@ -164,14 +174,14 @@ class ExecutePromptUseCase:
             raise
 
     @staticmethod
-    def _resolve_provider_ref(request) -> Any:
+    def _resolve_provider_ref(request: Any) -> Any:
         """Support both provider_ref and the legacy provider_name field."""
         if isinstance(request, dict):
             return request.get("provider_ref", request.get("provider_name"))
         return getattr(request, "provider_ref", getattr(request, "provider_name", None))
 
     @staticmethod
-    def _resolve_user_ref(request) -> Any:
+    def _resolve_user_ref(request: Any) -> Any:
         """Extract requesting user/user_id for user-aware provider routing."""
         if isinstance(request, dict):
             return request.get("user_id")
@@ -181,7 +191,7 @@ class ExecutePromptUseCase:
         self, placeholders: list[PlaceholderDef], user_values: dict[str, Any]
     ) -> dict[str, Any]:
         """解析占位符"""
-        resolved = {}
+        resolved: dict[str, Any] = {}
 
         for ph in placeholders:
             # 优先使用用户提供的值
@@ -230,7 +240,7 @@ class ExecutePromptUseCase:
         placeholder_values: dict[str, Any],
         rendered_prompt: str,
         result: PromptExecutionResult,
-    ):
+    ) -> None:
         """记录执行日志"""
         log_data = {
             "execution_id": execution_id,
@@ -251,7 +261,13 @@ class ExecutePromptUseCase:
         }
         self.execution_log_repository.create_log(log_data)
 
-    def _log_error(self, execution_id: str, template_id: int, error: str, response_time_ms: int):
+    def _log_error(
+        self,
+        execution_id: str,
+        template_id: int,
+        error: str,
+        response_time_ms: int,
+    ) -> None:
         """记录错误日志"""
         log_data = {
             "execution_id": execution_id,
@@ -313,9 +329,7 @@ class ExecuteChainUseCase:
 
             # 计算总时间
             total_time_ms = int((time.time() - start_time) * 1000)
-            chain_result = ChainExecutionResult(
-                **chain_result.__dict__, total_time_ms=total_time_ms
-            )
+            chain_result = replace(chain_result, total_time_ms=total_time_ms)
 
             return ExecuteChainResponse(
                 success=chain_result.success,
@@ -329,7 +343,8 @@ class ExecuteChainUseCase:
                 error_message=chain_result.error_message,
             )
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Prompt chain execution failed")
             return ExecuteChainResponse(
                 success=False,
                 chain_name="",
@@ -339,15 +354,82 @@ class ExecuteChainUseCase:
                 total_tokens=0,
                 total_cost=0.0,
                 total_time_ms=int((time.time() - start_time) * 1000),
-                error_message=str(e),
+                error_message="chain_execution_failed",
             )
+
+    def execute_named(
+        self,
+        *,
+        chain_name: str,
+        placeholder_values: dict[str, Any],
+        provider_ref: Any | None = None,
+        model: str | None = None,
+        user_id: int | None = None,
+    ) -> ExecuteChainResponse:
+        """Resolve an active chain by its configured name and execute it."""
+
+        chain = self.chain_repository.get_chain_by_name(chain_name)
+        if chain is None or not chain.is_active or chain.id is None:
+            return ExecuteChainResponse(
+                success=False,
+                chain_name=chain_name,
+                execution_mode="",
+                step_results={},
+                final_output=None,
+                total_tokens=0,
+                total_cost=0.0,
+                total_time_ms=0,
+                error_message="chain_unavailable",
+            )
+        try:
+            chain_id = int(chain.id)
+        except (TypeError, ValueError):
+            logger.error("Prompt chain %s has an invalid persisted ID", chain_name)
+            return ExecuteChainResponse(
+                success=False,
+                chain_name=chain_name,
+                execution_mode="",
+                step_results={},
+                final_output=None,
+                total_tokens=0,
+                total_cost=0.0,
+                total_time_ms=0,
+                error_message="chain_unavailable",
+            )
+        return self.execute(
+            ExecuteChainRequest(
+                chain_id=chain_id,
+                placeholder_values=placeholder_values,
+                provider_ref=provider_ref,
+                model=model,
+                user_id=user_id,
+            )
+        )
+
+    @staticmethod
+    def _to_domain_result(response: ExecutePromptResponse) -> PromptExecutionResult:
+        """Convert the Application response into the Domain chain result type."""
+
+        return PromptExecutionResult(
+            success=response.success,
+            content=response.content,
+            provider_used=response.provider_used,
+            model_used=response.model_used,
+            prompt_tokens=response.prompt_tokens,
+            completion_tokens=response.completion_tokens,
+            total_tokens=response.total_tokens,
+            estimated_cost=response.estimated_cost,
+            response_time_ms=response.response_time_ms,
+            error_message=response.error_message,
+            parsed_output=response.parsed_output,
+        )
 
     def _execute_serial(
         self, chain: ChainConfig, request: ExecuteChainRequest
     ) -> ChainExecutionResult:
         """串行执行"""
-        step_results = {}
-        accumulated_output = {}
+        step_results: dict[str, PromptExecutionResult] = {}
+        accumulated_output: dict[str, Any] = {}
 
         for step in sorted(chain.steps, key=lambda s: s.order):
             # 构建步骤上下文
@@ -363,8 +445,9 @@ class ExecuteChainUseCase:
                 user_id=self.prompt_use_case._resolve_user_ref(request),
             )
             step_response = self.prompt_use_case.execute(step_request)
+            domain_result = self._to_domain_result(step_response)
 
-            step_results[step.step_id] = step_response
+            step_results[step.step_id] = domain_result
 
             # 保存输出
             if step_response.success:
@@ -377,9 +460,7 @@ class ExecuteChainUseCase:
             chain_name=chain.name,
             execution_mode=chain.execution_mode,
             step_results=step_results,
-            final_output=(
-                list(accumulated_output.values())[-1]["content"] if accumulated_output else None
-            ),
+            final_output=(self._resolve_final_output(chain, accumulated_output)),
             total_tokens=sum(r.total_tokens for r in step_results.values()),
             total_cost=sum(r.estimated_cost for r in step_results.values()),
             total_time_ms=sum(r.response_time_ms for r in step_results.values()),
@@ -392,11 +473,11 @@ class ExecuteChainUseCase:
         from collections import defaultdict
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        step_results = {}
-        accumulated_output = {}
+        step_results: dict[str, PromptExecutionResult] = {}
+        accumulated_output: dict[str, Any] = {}
 
         # 按 parallel_group 和 order 分组
-        groups: dict[str | None, list] = defaultdict(list)
+        groups: dict[str | None, list[ChainStep]] = defaultdict(list)
         for step in sorted(chain.steps, key=lambda s: s.order):
             groups[step.parallel_group].append(step)
 
@@ -417,14 +498,14 @@ class ExecuteChainUseCase:
                         user_id=self.prompt_use_case._resolve_user_ref(request),
                     )
                     step_response = self.prompt_use_case.execute(step_request)
-                    step_results[step.step_id] = step_response
+                    step_results[step.step_id] = self._to_domain_result(step_response)
                     if step_response.success:
                         accumulated_output[step.step_id] = step_response.parsed_output or {
                             "content": step_response.content
                         }
             else:
                 # 并行组：使用线程池并行执行
-                def _run_step(s):
+                def _run_step(s: ChainStep) -> tuple[str, ExecutePromptResponse]:
                     ctx = self._build_step_context(
                         s, request.placeholder_values, accumulated_output
                     )
@@ -436,11 +517,11 @@ class ExecuteChainUseCase:
                     )
                     return s.step_id, self.prompt_use_case.execute(req)
 
-                with ThreadPoolExecutor(max_workers=len(steps)) as executor:
+                with ThreadPoolExecutor() as executor:
                     futures = {executor.submit(_run_step, step): step for step in steps}
                     for future in as_completed(futures):
                         step_id, step_response = future.result()
-                        step_results[step_id] = step_response
+                        step_results[step_id] = self._to_domain_result(step_response)
                         if step_response.success:
                             accumulated_output[step_id] = step_response.parsed_output or {
                                 "content": step_response.content
@@ -464,8 +545,8 @@ class ExecuteChainUseCase:
         from ..domain.agent_entities import AgentExecutionRequest
         from .runtime_provider import build_terminal_agent_runtime
 
-        step_results = {}
-        accumulated_output = {}
+        step_results: dict[str, PromptExecutionResult] = {}
+        accumulated_output: dict[str, Any] = {}
 
         for step in sorted(chain.steps, key=lambda s: s.order):
             if step.enable_tool_calling and step.available_tools:
@@ -534,7 +615,7 @@ class ExecuteChainUseCase:
                 )
                 step_response = self.prompt_use_case.execute(step_request)
 
-            step_results[step.step_id] = step_response
+            step_results[step.step_id] = self._to_domain_result(step_response)
             if step_response.success:
                 accumulated_output[step.step_id] = step_response.parsed_output or {
                     "content": step_response.content
@@ -583,12 +664,15 @@ class ExecuteChainUseCase:
             if isinstance(step_output, dict):
                 content = step_output.get("content")
                 if content is not None:
-                    return content
+                    return str(content)
             return str(step_output)
         return None
 
     def _build_step_context(
-        self, step, base_values: dict[str, Any], accumulated_output: dict[str, Any]
+        self,
+        step: ChainStep,
+        base_values: dict[str, Any],
+        accumulated_output: dict[str, Any],
     ) -> dict[str, Any]:
         """构建步骤上下文"""
         context = base_values.copy()
@@ -606,7 +690,7 @@ class ExecuteChainUseCase:
 
     def _serialize_step_results(
         self, step_results: dict[str, PromptExecutionResult]
-    ) -> dict[str, dict]:
+    ) -> dict[str, dict[str, Any]]:
         """序列化步骤结果"""
         return {
             step_id: {
@@ -648,16 +732,13 @@ class GenerateReportUseCase:
         if request.indicators:
             placeholder_values["indicators"] = request.indicators
 
-        # 执行报告生成链（假设已预定义）
-        # 实际使用时需要先创建investment_report_chain
-        chain_request = ExecuteChainRequest(
-            chain_id=1,  # 预定义的报告生成链ID
+        chain_result = self.chain_use_case.execute_named(
+            chain_name="investment_report_chain",
             placeholder_values=placeholder_values,
-            provider_ref=getattr(request, "provider_ref", getattr(request, "provider_name", None)),
+            provider_ref=request.provider_ref or request.provider_name,
+            model=request.model,
             user_id=getattr(request, "user_id", None),
         )
-
-        chain_result = self.chain_use_case.execute(chain_request)
 
         return GenerateReportResponse(
             report=chain_result.final_output or "报告生成失败",
@@ -689,14 +770,12 @@ class GenerateSignalUseCase:
         """
         placeholder_values = {"asset_code": request.asset_code, **request.analysis_context}
 
-        chain_request = ExecuteChainRequest(
-            chain_id=2,  # 预定义的信号生成链ID
+        chain_result = self.chain_use_case.execute_named(
+            chain_name="signal_validation_chain",
             placeholder_values=placeholder_values,
-            provider_ref=getattr(request, "provider_ref", getattr(request, "provider_name", None)),
-            user_id=getattr(request, "user_id", None),
+            provider_ref=request.provider_ref or request.provider_name,
+            user_id=request.user_id,
         )
-
-        chain_result = self.chain_use_case.execute(chain_request)
 
         # 解析输出
         parsed = chain_result.final_output or "{}"

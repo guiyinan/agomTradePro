@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1874,
-    "files_with_errors": 475
+    "errors": 1853,
+    "files_with_errors": 474
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -130,7 +130,6 @@
     },
     "apps/ai_capability/application/facade.py": {
       "assignment": 1,
-      "attr-defined": 1,
       "no-any-return": 1
     },
     "apps/ai_capability/application/mcp_catalog_projection.py": {
@@ -1197,7 +1196,6 @@
       "no-untyped-def": 1
     },
     "apps/prompt/application/interface_services.py": {
-      "attr-defined": 1,
       "no-untyped-call": 1
     },
     "apps/prompt/application/repository_provider.py": {
@@ -1211,14 +1209,6 @@
     },
     "apps/prompt/application/trace_logging.py": {
       "type-arg": 1
-    },
-    "apps/prompt/application/use_cases.py": {
-      "arg-type": 3,
-      "attr-defined": 1,
-      "no-any-return": 1,
-      "no-untyped-def": 7,
-      "type-arg": 2,
-      "var-annotated": 3
     },
     "apps/prompt/infrastructure/adapters/__init__.py": {
       "no-untyped-def": 2
@@ -1558,7 +1548,6 @@
     },
     "apps/terminal/application/chat_router.py": {
       "assignment": 4,
-      "attr-defined": 1,
       "no-untyped-def": 3
     },
     "apps/terminal/application/confirmation.py": {
@@ -1568,7 +1557,6 @@
       "attr-defined": 1
     },
     "apps/terminal/application/services.py": {
-      "attr-defined": 1,
       "no-untyped-call": 1,
       "no-untyped-def": 4
     },
