@@ -3591,3 +3591,19 @@
 - Asset Analysis Domain、仓储、日志告警、Pool API、多维筛选、模拟交易与 Strategy provider 回归 `75 passed`，覆盖权重条件隔离、非有限权重拒绝、最新名称解析和非法池查询失败关闭。
 - Asset Analysis repositories、models、value objects 与 SignalMatcher 增量 mypy 清零；全仓基线从 `1853 errors / 474 files` 收紧为 `1819 errors / 470 files`，净减少 `34 errors / 4 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百四十四批
+
+- 按“Regime 历史替换原子性 × 决策快照数值真实性 × Navigator 历史错误最小披露”收口 Regime 持久化仓储。
+- 范围重算写入前验证起止日期、每条快照所属区间和观测日期唯一性；区间外或重复日期的替换集在删除任何既有历史前失败，不再发生先删后越界写入或唯一键冲突。
+- 单条保存改为事务内 `update_or_create`，消除先查后写的竞态窗口；范围替换继续在一个数据库事务内删除并批量写入。
+- Regime 快照写入前拒绝未知四象限、`NaN`/`Inf`、越界置信度、负概率、空分布及缺少主导象限的分布，非法决策状态不再进入历史真源。
+- 历史分页对非正 limit 和负 offset 返回空结果，不再触发 ORM 负切片异常；最早/最新日期聚合结果在仓储边界收窄为真实日期。
+- 活动阈值配置缺少 PMI/CPI 上下界或 PMI 趋势配置时返回不可用，不再将 ORM 可空字段传入计算配置；非有限阈值同样失败关闭。
+- Navigator 仓储查询补齐模型与 QuerySet 返回契约；历史查询异常仅在服务端记录堆栈，对外发布稳定 `history_query_failed`，不再复制数据库连接等内部错误。
+
+## 第二百四十四批验证结果
+
+- Regime 仓储、Navigator、编排与 API edge 回归 `28 passed`，覆盖越界/重复替换集不删除历史、非有限快照拒绝、非法分页和 Navigator 异常脱敏。
+- Regime repository 与 Navigator history 增量 mypy 清零，并传播清除重算命令的未类型调用债务；全仓基线从 `1819 errors / 470 files` 收紧为 `1799 errors / 468 files`，净减少 `20 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

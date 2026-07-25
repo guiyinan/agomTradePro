@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1819,
-    "files_with_errors": 470
+    "errors": 1799,
+    "files_with_errors": 468
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1277,10 +1277,6 @@
     "apps/regime/application/interface_services.py": {
       "no-untyped-def": 2
     },
-    "apps/regime/application/navigator_use_cases.py": {
-      "no-untyped-def": 2,
-      "type-arg": 1
-    },
     "apps/regime/application/tasks.py": {
       "misc": 3,
       "no-untyped-def": 1,
@@ -1319,12 +1315,6 @@
       "no-redef": 1,
       "no-untyped-def": 10
     },
-    "apps/regime/infrastructure/repositories.py": {
-      "dict-item": 4,
-      "no-untyped-call": 1,
-      "no-untyped-def": 6,
-      "type-arg": 5
-    },
     "apps/regime/infrastructure/views.py": {
       "no-untyped-def": 1
     },
@@ -1351,7 +1341,6 @@
       "no-untyped-def": 2
     },
     "apps/regime/management/commands/recalculate_regime.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 2
     },
     "apps/regime/management/commands/set_regime_threshold.py": {

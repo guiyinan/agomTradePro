@@ -4,19 +4,20 @@ Repositories for Regime Data.
 Infrastructure layer implementation using Django ORM.
 """
 
+import math
 from datetime import date
+from typing import Any
 
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Max, Min, QuerySet
 
 from ..domain.entities import RegimeSnapshot
 from .config_helper import ConfigHelper, ConfigKeys
-from .models import RegimeLog
+from .models import ActionRecommendationLog, RegimeLog
 
 
 class RegimeRepositoryError(Exception):
     """数据仓储异常"""
-    pass
 
 
 class DjangoRegimeRepository:
@@ -26,13 +27,12 @@ class DjangoRegimeRepository:
     提供 Regime 计算结果的持久化。
     """
 
-    def __init__(self):
-        self._model = RegimeLog
+    VALID_REGIMES = frozenset({"Recovery", "Overheat", "Stagflation", "Deflation"})
 
-    def save_snapshot(
-        self,
-        snapshot: RegimeSnapshot
-    ) -> RegimeSnapshot:
+    def __init__(self) -> None:
+        self._model: type[RegimeLog] = RegimeLog
+
+    def save_snapshot(self, snapshot: RegimeSnapshot) -> RegimeSnapshot:
         """
         保存 Regime 快照
 
@@ -42,37 +42,22 @@ class DjangoRegimeRepository:
         Returns:
             RegimeSnapshot: 保存后的快照
         """
-        # 检查是否已存在
-        existing = self._model.objects.filter(
-            observed_at=snapshot.observed_at
-        ).first()
-
-        if existing:
-            # 更新
-            existing.growth_momentum_z = snapshot.growth_momentum_z
-            existing.inflation_momentum_z = snapshot.inflation_momentum_z
-            existing.distribution = snapshot.distribution
-            existing.dominant_regime = snapshot.dominant_regime
-            existing.confidence = snapshot.confidence
-            existing.save()
-            orm_obj = existing
-        else:
-            # 新建
-            orm_obj = self._model.objects.create(
+        self._validate_snapshot(snapshot)
+        with transaction.atomic():
+            orm_obj, _ = self._model._default_manager.update_or_create(
                 observed_at=snapshot.observed_at,
-                growth_momentum_z=snapshot.growth_momentum_z,
-                inflation_momentum_z=snapshot.inflation_momentum_z,
-                distribution=snapshot.distribution,
-                dominant_regime=snapshot.dominant_regime,
-                confidence=snapshot.confidence
+                defaults={
+                    "growth_momentum_z": snapshot.growth_momentum_z,
+                    "inflation_momentum_z": snapshot.inflation_momentum_z,
+                    "distribution": snapshot.distribution,
+                    "dominant_regime": snapshot.dominant_regime,
+                    "confidence": snapshot.confidence,
+                },
             )
 
         return self._orm_to_entity(orm_obj)
 
-    def get_snapshot_by_date(
-        self,
-        observed_at: date
-    ) -> RegimeSnapshot | None:
+    def get_snapshot_by_date(self, observed_at: date) -> RegimeSnapshot | None:
         """
         按日期获取 Regime 快照
 
@@ -82,18 +67,13 @@ class DjangoRegimeRepository:
         Returns:
             Optional[RegimeSnapshot]: 快照实体，不存在则返回 None
         """
-        orm_obj = self._model.objects.filter(
-            observed_at=observed_at
-        ).first()
+        orm_obj = self._model.objects.filter(observed_at=observed_at).first()
 
         if orm_obj:
             return self._orm_to_entity(orm_obj)
         return None
 
-    def get_latest_snapshot(
-        self,
-        before_date: date | None = None
-    ) -> RegimeSnapshot | None:
+    def get_latest_snapshot(self, before_date: date | None = None) -> RegimeSnapshot | None:
         """
         获取最新快照
 
@@ -108,17 +88,13 @@ class DjangoRegimeRepository:
         if before_date:
             query = query.filter(observed_at__lte=before_date)
 
-        orm_obj = query.order_by('-observed_at').first()
+        orm_obj = query.order_by("-observed_at").first()
 
         if orm_obj:
             return self._orm_to_entity(orm_obj)
         return None
 
-    def get_snapshots_in_range(
-        self,
-        start_date: date,
-        end_date: date
-    ) -> list[RegimeSnapshot]:
+    def get_snapshots_in_range(self, start_date: date, end_date: date) -> list[RegimeSnapshot]:
         """
         获取日期范围内的快照列表
 
@@ -130,17 +106,13 @@ class DjangoRegimeRepository:
             List[RegimeSnapshot]: 快照列表，按时间升序排列
         """
         query = self._model.objects.filter(
-            observed_at__gte=start_date,
-            observed_at__lte=end_date
-        ).order_by('observed_at')
+            observed_at__gte=start_date, observed_at__lte=end_date
+        ).order_by("observed_at")
 
         return [self._orm_to_entity(obj) for obj in query]
 
     def get_regime_history(
-        self,
-        regime_name: str,
-        start_date: date | None = None,
-        end_date: date | None = None
+        self, regime_name: str, start_date: date | None = None, end_date: date | None = None
     ) -> list[RegimeSnapshot]:
         """
         获取指定 Regime 的历史快照
@@ -153,16 +125,14 @@ class DjangoRegimeRepository:
         Returns:
             List[RegimeSnapshot]: 快照列表
         """
-        query = self._model.objects.filter(
-            dominant_regime=regime_name
-        )
+        query = self._model.objects.filter(dominant_regime=regime_name)
 
         if start_date:
             query = query.filter(observed_at__gte=start_date)
         if end_date:
             query = query.filter(observed_at__lte=end_date)
 
-        query = query.order_by('observed_at')
+        query = query.order_by("observed_at")
 
         return [self._orm_to_entity(obj) for obj in query]
 
@@ -176,9 +146,7 @@ class DjangoRegimeRepository:
         Returns:
             bool: 是否成功删除
         """
-        count, _ = self._model.objects.filter(
-            observed_at=observed_at
-        ).delete()
+        count, _ = self._model.objects.filter(observed_at=observed_at).delete()
         return count > 0
 
     def get_snapshot_count(self) -> int:
@@ -198,9 +166,11 @@ class DjangoRegimeRepository:
         regime: str | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Return API-ready regime history payloads."""
 
+        if limit <= 0 or offset < 0:
+            return []
         queryset = self._model._default_manager.all()
         if start_date:
             queryset = queryset.filter(observed_at__gte=start_date)
@@ -239,6 +209,22 @@ class DjangoRegimeRepository:
     ) -> int:
         """Atomically replace persisted snapshots inside one inclusive date range."""
 
+        if start_date > end_date:
+            raise RegimeRepositoryError("start_date must be on or before end_date")
+
+        observed_dates: set[date] = set()
+        for snapshot in snapshots:
+            self._validate_snapshot(snapshot)
+            if not start_date <= snapshot.observed_at <= end_date:
+                raise RegimeRepositoryError(
+                    "replacement snapshot is outside the requested date range"
+                )
+            if snapshot.observed_at in observed_dates:
+                raise RegimeRepositoryError(
+                    "replacement snapshots contain duplicate observed_at dates"
+                )
+            observed_dates.add(snapshot.observed_at)
+
         rows = [
             self._model(
                 observed_at=snapshot.observed_at,
@@ -263,7 +249,7 @@ class DjangoRegimeRepository:
         *,
         start_date: date | None = None,
         end_date: date | None = None,
-    ) -> dict:
+    ) -> dict[str, object]:
         """Return API-ready distribution statistics."""
 
         queryset = self._model._default_manager.all()
@@ -273,12 +259,10 @@ class DjangoRegimeRepository:
             queryset = queryset.filter(observed_at__lte=end_date)
 
         stats = list(
-            queryset.values("dominant_regime")
-            .annotate(count=Count("id"))
-            .order_by("-count")
+            queryset.values("dominant_regime").annotate(count=Count("id")).order_by("-count")
         )
         total = sum(item["count"] for item in stats)
-        distribution = []
+        distribution: list[dict[str, object]] = []
         for item in stats:
             distribution.append(
                 {
@@ -300,12 +284,9 @@ class DjangoRegimeRepository:
         Returns:
             Optional[date]: 最早日期，无数据则返回 None
         """
-        from django.db.models import Min
-
-        result = self._model.objects.aggregate(
-            earliest_date=Min('observed_at')
-        )
-        return result.get('earliest_date')
+        result = self._model._default_manager.aggregate(earliest_date=Min("observed_at"))
+        value = result.get("earliest_date")
+        return value if isinstance(value, date) else None
 
     def get_latest_date(self) -> date | None:
         """
@@ -314,12 +295,9 @@ class DjangoRegimeRepository:
         Returns:
             Optional[date]: 最新日期，无数据则返回 None
         """
-        from django.db.models import Max
-
-        result = self._model.objects.aggregate(
-            latest_date=Max('observed_at')
-        )
-        return result.get('latest_date')
+        result = self._model._default_manager.aggregate(latest_date=Max("observed_at"))
+        value = result.get("latest_date")
+        return value if isinstance(value, date) else None
 
     # 别名方法，用于兼容 backtest 模块的调用
     def get_regime_by_date(self, observed_at: date) -> RegimeSnapshot | None:
@@ -335,10 +313,8 @@ class DjangoRegimeRepository:
         return self.get_snapshot_by_date(observed_at)
 
     def get_regime_distribution_stats(
-        self,
-        start_date: date | None = None,
-        end_date: date | None = None
-    ) -> dict:
+        self, start_date: date | None = None, end_date: date | None = None
+    ) -> dict[str, object]:
         """
         获取 Regime 分布统计
 
@@ -359,23 +335,22 @@ class DjangoRegimeRepository:
         total = query.count()
 
         # 统计各 Regime 数量
-        from django.db.models import Count
-        regime_counts = query.values('dominant_regime').annotate(
-            count=Count('id')
-        ).order_by('-count')
+        regime_counts = (
+            query.values("dominant_regime").annotate(count=Count("id")).order_by("-count")
+        )
 
-        stats = {}
+        stats: dict[str, dict[str, float | int]] = {}
         for item in regime_counts:
-            regime = item['dominant_regime']
-            count = item['count']
+            regime = item["dominant_regime"]
+            count = item["count"]
             stats[regime] = {
-                'count': count,
-                'percentage': count / total if total > 0 else 0
+                "count": count,
+                "percentage": count / total if total > 0 else 0,
             }
 
         return {
-            'total': total,
-            'by_regime': stats
+            "total": total,
+            "by_regime": stats,
         }
 
     def get_active_threshold_config_values(self) -> dict[str, float] | None:
@@ -388,21 +363,34 @@ class DjangoRegimeRepository:
             return None
 
         thresholds = {
-            threshold.indicator_code: threshold
-            for threshold in config_model.thresholds.all()
+            threshold.indicator_code: threshold for threshold in config_model.thresholds.all()
         }
         pmi_threshold = thresholds.get("PMI")
         cpi_threshold = thresholds.get("CPI")
         trend_config = config_model.trend_indicators.filter(indicator_code="PMI").first()
 
-        return {
-            "pmi_expansion": pmi_threshold.level_high if pmi_threshold else 50.0,
-            "pmi_contraction": pmi_threshold.level_low if pmi_threshold else 50.0,
-            "cpi_high": cpi_threshold.level_high if cpi_threshold else 2.0,
-            "cpi_low": cpi_threshold.level_low if cpi_threshold else 1.0,
+        if (
+            pmi_threshold is None
+            or pmi_threshold.level_high is None
+            or pmi_threshold.level_low is None
+            or cpi_threshold is None
+            or cpi_threshold.level_high is None
+            or cpi_threshold.level_low is None
+            or trend_config is None
+        ):
+            return None
+
+        values = {
+            "pmi_expansion": float(pmi_threshold.level_high),
+            "pmi_contraction": float(pmi_threshold.level_low),
+            "cpi_high": float(cpi_threshold.level_high),
+            "cpi_low": float(cpi_threshold.level_low),
             "cpi_deflation": 0.0,
-            "momentum_weight": trend_config.trend_weight if trend_config else 0.3,
+            "momentum_weight": float(trend_config.trend_weight),
         }
+        if not all(math.isfinite(value) for value in values.values()):
+            return None
+        return values
 
     @staticmethod
     def _orm_to_entity(orm_obj: RegimeLog) -> RegimeSnapshot:
@@ -413,11 +401,11 @@ class DjangoRegimeRepository:
             distribution=orm_obj.distribution,
             dominant_regime=orm_obj.dominant_regime,
             confidence=orm_obj.confidence,
-            observed_at=orm_obj.observed_at
+            observed_at=orm_obj.observed_at,
         )
 
     @staticmethod
-    def _serialize_log(orm_obj: RegimeLog) -> dict:
+    def _serialize_log(orm_obj: RegimeLog) -> dict[str, Any]:
         """Serialize a regime log record to a plain payload."""
 
         return {
@@ -431,6 +419,29 @@ class DjangoRegimeRepository:
             "created_at": orm_obj.created_at,
         }
 
+    @classmethod
+    def _validate_snapshot(cls, snapshot: RegimeSnapshot) -> None:
+        """Reject invalid decision-state snapshots before any database mutation."""
+
+        if snapshot.dominant_regime not in cls.VALID_REGIMES:
+            raise RegimeRepositoryError("snapshot has an invalid dominant_regime")
+        numeric_values = (
+            snapshot.growth_momentum_z,
+            snapshot.inflation_momentum_z,
+            snapshot.confidence,
+            *snapshot.distribution.values(),
+        )
+        if not all(math.isfinite(value) for value in numeric_values):
+            raise RegimeRepositoryError("snapshot contains non-finite numeric values")
+        if not 0.0 <= snapshot.confidence <= 1.0:
+            raise RegimeRepositoryError("snapshot confidence must be between 0 and 1")
+        if (
+            not snapshot.distribution
+            or snapshot.dominant_regime not in snapshot.distribution
+            or any(value < 0.0 for value in snapshot.distribution.values())
+        ):
+            raise RegimeRepositoryError("snapshot has an invalid regime distribution")
+
 
 def get_regime_repository() -> DjangoRegimeRepository:
     """Backward-compatible repository factory."""
@@ -442,39 +453,52 @@ class DjangoNavigatorRepository:
     Django ORM 实现的 Navigator 数据仓储
     """
 
-    def save_action_recommendation(self, observed_at: date, data: dict):
-        from .models import ActionRecommendationLog
-        ActionRecommendationLog.objects.update_or_create(
-            observed_at=observed_at,
-            defaults=data
-        )
+    def save_action_recommendation(
+        self,
+        observed_at: date,
+        data: dict[str, Any],
+    ) -> None:
+        ActionRecommendationLog.objects.update_or_create(observed_at=observed_at, defaults=data)
 
-    def get_latest_action_recommendation(self, before_date: date | None = None):
+    def get_latest_action_recommendation(
+        self,
+        before_date: date | None = None,
+    ) -> ActionRecommendationLog | None:
         """Return the latest persisted action recommendation log."""
-        from .models import ActionRecommendationLog
 
         queryset = ActionRecommendationLog.objects.all()
         if before_date is not None:
             queryset = queryset.filter(observed_at__lte=before_date)
         return queryset.order_by("-observed_at", "-id").first()
 
-    def get_regimes_in_range(self, start_date: date, end_date: date):
-        from .models import RegimeLog
-        return RegimeLog.objects.filter(
-            observed_at__range=(start_date, end_date)
-        ).order_by("observed_at")
+    def get_regimes_in_range(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> QuerySet[RegimeLog]:
+        return RegimeLog.objects.filter(observed_at__range=(start_date, end_date)).order_by(
+            "observed_at"
+        )
 
-    def get_actions_in_range(self, start_date: date, end_date: date):
-        from .models import ActionRecommendationLog
+    def get_actions_in_range(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> QuerySet[ActionRecommendationLog]:
         return ActionRecommendationLog.objects.filter(
             observed_at__range=(start_date, end_date)
         ).order_by("observed_at")
 
-    def get_pulses_in_range(self, start_date: date, end_date: date):
+    def get_pulses_in_range(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> QuerySet[Any]:
         from apps.pulse.infrastructure.models import PulseLog
-        return PulseLog.objects.filter(
-            observed_at__range=(start_date, end_date)
-        ).order_by("observed_at")
+
+        return PulseLog.objects.filter(observed_at__range=(start_date, end_date)).order_by(
+            "observed_at"
+        )
 
 
 def get_navigator_repository() -> DjangoNavigatorRepository:

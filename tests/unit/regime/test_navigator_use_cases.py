@@ -1,7 +1,10 @@
 from datetime import date
 from types import SimpleNamespace
 
-from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
+from apps.regime.application.navigator_use_cases import (
+    GetActionRecommendationUseCase,
+    GetRegimeNavigatorHistoryUseCase,
+)
 
 
 class _FakeNavigatorRepository:
@@ -127,3 +130,22 @@ def test_get_action_recommendation_can_compute_without_refresh_or_persistence(mo
             "refresh_if_stale": False,
         }
     ]
+
+
+def test_navigator_history_redacts_repository_errors(monkeypatch):
+    class _FailingHistoryRepository:
+        def get_regimes_in_range(self, start_date, end_date):
+            raise RuntimeError("postgresql://secret@internal/regime")
+
+    monkeypatch.setattr(
+        "apps.regime.application.navigator_use_cases.get_navigator_repository",
+        lambda: _FailingHistoryRepository(),
+    )
+
+    result = GetRegimeNavigatorHistoryUseCase().execute(
+        date(2026, 7, 1),
+        date(2026, 7, 31),
+    )
+
+    assert result["error"] == "history_query_failed"
+    assert "secret" not in str(result)

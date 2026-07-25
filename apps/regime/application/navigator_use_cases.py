@@ -8,12 +8,14 @@ GetActionRecommendationUseCase: 获取联合行动建议（Regime + Pulse）
 """
 
 import logging
+from collections.abc import Mapping, Sequence
 from datetime import date
-from typing import Any
+from typing import Any, Protocol, cast
 
 from apps.pulse.application.query_services import (
     list_active_navigator_asset_config_payloads,
 )
+from apps.pulse.domain.entities import PulseSnapshot
 from apps.regime.application.repository_provider import (
     get_default_macro_repository,
     get_navigator_repository,
@@ -41,13 +43,27 @@ from apps.regime.domain.navigator_services import (
 logger = logging.getLogger(__name__)
 
 
+class CachedActionRecommendationProtocol(Protocol):
+    """Persisted action fields consumed when rehydrating a recommendation."""
+
+    risk_budget_pct: float
+    pulse_strength: str
+    regime_name: str
+    observed_at: date
+    blocked_reason: str
+    must_not_use_for_decision: bool
+    asset_weights: Mapping[str, float]
+    recommended_sectors: Sequence[str]
+    benefiting_styles: Sequence[str]
+
+
 def _build_blocked_action_recommendation(
     *,
     navigator: RegimeNavigatorOutput,
     as_of_date: date,
     blocked_reason: str,
     blocked_code: str,
-    pulse_snapshot=None,
+    pulse_snapshot: PulseSnapshot | None = None,
 ) -> RegimeActionRecommendation:
     """Build a non-decision-grade response when Pulse is unavailable or stale."""
     stale_indicator_codes: list[str] = []
@@ -123,10 +139,10 @@ def _load_asset_config_from_db() -> RegimeAssetConfig | None:
 
 def _build_cached_action_recommendation(
     *,
-    cached_action,
+    cached_action: CachedActionRecommendationProtocol,
     as_of_date: date,
     confidence: float,
-    pulse_snapshot=None,
+    pulse_snapshot: PulseSnapshot | None = None,
 ) -> RegimeActionRecommendation:
     """Rehydrate a UI-friendly action recommendation from the latest persisted log."""
     config = ActionMapperConfig.defaults()
@@ -350,12 +366,15 @@ class GetActionRecommendationUseCase:
                             exc,
                         )
 
-                    return _build_cached_action_recommendation(
-                        cached_action=cached_action,
-                        as_of_date=target_date,
-                        confidence=float(getattr(latest_regime, "confidence", 0.0) or 0.0),
-                        pulse_snapshot=pulse_snapshot,
-                    )
+                return _build_cached_action_recommendation(
+                    cached_action=cast(
+                        CachedActionRecommendationProtocol,
+                        cached_action,
+                    ),
+                    as_of_date=target_date,
+                    confidence=float(getattr(latest_regime, "confidence", 0.0) or 0.0),
+                    pulse_snapshot=pulse_snapshot,
+                )
 
             # 1. 获取导航仪输出
             nav_use_case = BuildRegimeNavigatorUseCase(macro_repo=self.macro_repo)
@@ -472,7 +491,7 @@ class GetRegimeNavigatorHistoryUseCase:
     }
     """
 
-    def execute(self, start_date: date, end_date: date) -> dict:
+    def execute(self, start_date: date, end_date: date) -> dict[str, Any]:
         try:
             repo = get_navigator_repository()
 
@@ -495,15 +514,16 @@ class GetRegimeNavigatorHistoryUseCase:
 
             # 如果在这段时间内没有发生变化，也要在开头放一个当前状态
             if not regime_transitions and regimes.exists():
-                r = regimes.first()
-                regime_transitions.append(
-                    {
-                        "date": r.observed_at.isoformat(),
-                        "from_regime": None,
-                        "to_regime": r.dominant_regime,
-                        "confidence": r.confidence,
-                    }
-                )
+                first_regime = regimes.first()
+                if first_regime is not None:
+                    regime_transitions.append(
+                        {
+                            "date": first_regime.observed_at.isoformat(),
+                            "from_regime": None,
+                            "to_regime": first_regime.dominant_regime,
+                            "confidence": first_regime.confidence,
+                        }
+                    )
 
             # 2. Pulse History
             pulses = repo.get_pulses_in_range(start_date, end_date)
@@ -555,5 +575,5 @@ class GetRegimeNavigatorHistoryUseCase:
                 "regime_transitions": [],
                 "pulse_history": [],
                 "action_history": [],
-                "error": str(e),
+                "error": "history_query_failed",
             }
