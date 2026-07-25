@@ -31,6 +31,8 @@ from apps.account.models import (
     StopLossConfigModel,
     StopLossTriggerModel,
     TakeProfitConfigModel,
+    TradingCostConfigModel,
+    TransactionCostConfigModel,
     TransactionModel,
     UserAccessTokenModel,
 )
@@ -540,6 +542,40 @@ class MacroSizingConfigModelAdmin(TypedModelAdmin[MacroSizingConfigModel]):
         "updated_at",
     ]
     ordering = ["-version"]
+
+
+@admin.register(TradingCostConfigModel)
+class TradingCostConfigModelAdmin(TypedModelAdmin[TradingCostConfigModel]):
+    """Manage portfolio-specific transaction fee configurations."""
+
+    list_display = [
+        "portfolio",
+        "commission_rate",
+        "min_commission",
+        "stamp_duty_rate",
+        "transfer_fee_rate",
+        "is_active",
+    ]
+    list_filter = ["is_active"]
+    search_fields = ["portfolio__name", "portfolio__user__username"]
+    ordering = ["portfolio_id"]
+
+
+@admin.register(TransactionCostConfigModel)
+class TransactionCostConfigModelAdmin(TypedModelAdmin[TransactionCostConfigModel]):
+    """Manage market and asset-class transaction fee configurations."""
+
+    list_display = [
+        "market",
+        "asset_class",
+        "commission_rate",
+        "min_commission",
+        "cost_warning_threshold",
+        "is_active",
+    ]
+    list_filter = ["market", "asset_class", "is_active"]
+    search_fields = ["market", "asset_class"]
+    ordering = ["market", "asset_class"]
 
 
 @admin.register(PortfolioDailySnapshotModel)

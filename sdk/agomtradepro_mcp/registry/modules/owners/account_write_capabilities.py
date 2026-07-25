@@ -335,7 +335,7 @@ MANIFESTS = [
                 "transfer_fee_rate": {"type": "number"},
                 "idempotency_key": {"type": "string"},
             },
-            "required": ["portfolio_id"],
+            "required": ["portfolio_id", "min_commission"],
         },
         output_schema={
             "type": "object",

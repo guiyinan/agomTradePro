@@ -138,11 +138,12 @@ def _alias_row(
 INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
     "CN_BLAST_FURNACE": _row(
         name_cn="高炉开工率",
-        description=(
-            "当前公开源使用钢铁行业指数周频代理高炉开工率，运行时应按指数水平序列理解，"
-            "不可按累计值或同比序列解释。"
-        ),
+        description=("当前无语义一致的公开数据源；钢铁股票指数不能作为高炉开工率事实发布。"),
         semantics="index_level",
+        extra={
+            "governance_sync_supported": False,
+            "governance_status": "unsupported_proxy",
+        },
     ),
     "CN_BOND_10Y": _row(
         name_cn="10年期国债收益率",
@@ -171,8 +172,12 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
     ),
     "CN_CCFI": _row(
         name_cn="中国出口集装箱运价指数",
-        description="周频运价指数水平值口径，用于连续观察外贸航运景气度。",
+        description="当前无语义一致的公开数据源；BDI 干散货指数不能作为 CCFI 事实发布。",
         semantics="index_level",
+        extra={
+            "governance_sync_supported": False,
+            "governance_status": "unsupported_proxy",
+        },
     ),
     "CN_CORP_YIELD_AA": _row(
         name_cn="AA级企业债收益率",
@@ -287,9 +292,13 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
         semantics="flow_level",
     ),
     "CN_NEW_HOUSE_PRICE": _row(
-        name_cn="新房价格同比变动",
-        description="当前按新房价格指数减 100 后入库，代表同比变动幅度，应按同比增速序列理解。",
+        name_cn="北京新建商品住宅价格同比变动",
+        description=(
+            "北京市新建商品住宅价格同比指数减 100 后的月度变动幅度；"
+            "属于北京单城市序列，不代表全国房价。"
+        ),
         semantics="yoy_rate",
+        extra={"geographic_scope": "city", "city": "北京"},
     ),
     "CN_NHCI": _row(
         name_cn="南华商品指数",
@@ -302,8 +311,8 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
         semantics="index_level",
     ),
     "CN_OIL_PRICE": _row(
-        name_cn="成品油价格",
-        description="调价时点价格水平值口径，用于连续观察成品油价格水平。",
+        name_cn="汽油最高零售价格",
+        description="国家发改委调价时点汽油最高零售价格，按数据源原始元/吨口径发布。",
         semantics="level",
     ),
     "CN_PBOC_NET_INJECTION": _row(
@@ -360,8 +369,12 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
     ),
     "CN_POWER_GEN": _row(
         name_cn="发电量",
-        description="当前公开源使用全社会用电量月度值作为发电量代理序列，属于当期量级口径。",
+        description="当前无语义一致的公开数据源；全社会用电量不能作为发电量事实发布。",
         semantics="monthly_level",
+        extra={
+            "governance_sync_supported": False,
+            "governance_status": "unsupported_proxy",
+        },
     ),
     "CN_PPIRM": _row(
         name_cn="PPIRM同比增速",
@@ -384,9 +397,9 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
         semantics="rate",
     ),
     "CN_RMB_DEPOSIT": _row(
-        name_cn="人民币存款余额",
-        description="月度人民币存款余额口径，属于存量序列，不应按当期流量值理解。",
-        semantics="balance_level",
+        name_cn="新增人民币存款",
+        description="月度新增人民币存款总额口径，属于当期流量值，不应与存款余额混用。",
+        semantics="flow_level",
     ),
     "CN_RMB_LOAN": _row(
         name_cn="人民币贷款新增额",
@@ -400,8 +413,12 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
     ),
     "CN_SCFI": _row(
         name_cn="上海出口集装箱运价指数",
-        description="周频运价指数水平值口径，用于连续观察出口航运价格变化。",
+        description="当前无语义一致的公开数据源；BCI 干散货指数不能作为 SCFI 事实发布。",
         semantics="index_level",
+        extra={
+            "governance_sync_supported": False,
+            "governance_status": "unsupported_proxy",
+        },
     ),
     "CN_SHIBOR": _row(
         name_cn="SHIBOR 上海银行间同业拆放利率",
@@ -425,8 +442,14 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
     ),
     "CN_TRADE_BALANCE": _row(
         name_cn="贸易差额",
-        description="月度贸易差额口径，属于当期流量值，不应与累计值或同比序列混用。",
+        description="同月海关出口额减进口额的月度贸易差额，基础金额原始单位为千美元。",
         semantics="flow_level",
+        extra={
+            "derivation_method": (
+                "AKShare 当月出口额-金额 minus 当月进口额-金额 on the same month"
+            ),
+            "upstream_indicator_codes": ["CN_EXPORTS", "CN_IMPORTS"],
+        },
     ),
     "CN_UNEMPLOYMENT": _row(
         name_cn="城镇调查失业率",

@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.test import APIRequestFactory
 
 from apps.account.infrastructure.models import (
@@ -38,9 +39,8 @@ class TestObserverAccessPermission:
         request.user = None
 
         permission = ObserverAccessPermission()
-        # 未认证用户应该返回 False 或 None（表示无权限）
         result = permission.has_permission(request, None)
-        assert result is False or result is None
+        assert result is False
 
     def test_has_permission_returns_true_for_authenticated(self):
         """测试已认证用户返回 True"""
@@ -167,6 +167,20 @@ class TestObserverAccessPermission:
 
         permission = ObserverAccessPermission()
         assert permission.has_object_permission(request, None, data["portfolio"]) is False
+
+    def test_has_object_permission_rejects_anonymous_and_malformed_object(
+        self, setup_portfolio_with_grant
+    ):
+        """对象权限入口自身也必须对匿名身份和缺失 owner 的对象失败关闭。"""
+        factory = APIRequestFactory()
+        request = factory.get("/api/account/portfolios/1/")
+        request.user = None
+        permission = ObserverAccessPermission()
+
+        assert permission.has_object_permission(request, None, object()) is False
+
+        request.user = setup_portfolio_with_grant["observer"]
+        assert permission.has_object_permission(request, None, object()) is False
 
     def test_has_object_permission_with_expired_grant(self, setup_portfolio_with_grant):
         """测试过期授权被拒绝"""
@@ -560,6 +574,11 @@ class TestGetAccessiblePortfolios:
         portfolios = get_accessible_portfolios(user)
 
         assert portfolios.count() == 0
+
+    def test_anonymous_user_is_rejected_before_portfolio_query(self):
+        """辅助查询不得把缺失身份传播到 Application 查询边界。"""
+        with pytest.raises(NotAuthenticated):
+            get_accessible_portfolios(None)
 
     def test_owner_and_observer_combined(self):
         """测试既是拥有者又是观察员"""

@@ -34,10 +34,10 @@ def admin_user():
     """创建管理员用户"""
     user = User.objects.create_user(
         username=f"admin_{uuid.uuid4().hex[:8]}",
-        password='admin123',
+        password="admin123",
         is_superuser=True,
     )
-    user.rbac_role = 'admin'
+    user.rbac_role = "admin"
     return user
 
 
@@ -46,9 +46,9 @@ def regular_user():
     """创建普通用户"""
     user = User.objects.create_user(
         username=f"analyst_{uuid.uuid4().hex[:8]}",
-        password='analyst123',
+        password="analyst123",
     )
-    user.rbac_role = 'analyst'
+    user.rbac_role = "analyst"
     return user
 
 
@@ -62,19 +62,19 @@ def api_client():
 def sample_log(admin_user):
     """创建示例日志"""
     return OperationLogModel._default_manager.create(
-        request_id='req-test-001',
+        request_id="req-test-001",
         user_id=admin_user.id,
         username=admin_user.username,
-        source='MCP',
-        operation_type='MCP_CALL',
-        module='signal',
-        action='CREATE',
-        mcp_tool_name='create_signal',
-        request_params={'asset_code': '000001.SH'},
+        source="MCP",
+        operation_type="MCP_CALL",
+        module="signal",
+        action="CREATE",
+        mcp_tool_name="create_signal",
+        request_params={"asset_code": "000001.SH"},
         response_status=200,
-        response_message='Success',
-        ip_address='127.0.0.1',
-        user_agent='Test Agent',
+        response_message="Success",
+        ip_address="127.0.0.1",
+        user_agent="Test Agent",
     )
 
 
@@ -85,323 +85,360 @@ class TestOperationLogAPI:
     def test_list_logs_as_admin(self, api_client, admin_user, sample_log):
         """测试管理员列出日志"""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/api/audit/operation-logs/')
+        response = api_client.get("/api/audit/operation-logs/")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['success'] is True
-        assert len(data['logs']) >= 1
-        assert data['total_count'] >= 1
+        assert data["success"] is True
+        assert len(data["logs"]) >= 1
+        assert data["total_count"] >= 1
+
+    def test_legacy_sensitive_text_is_redacted_on_read(self, api_client, admin_user):
+        """Historical rows written before redaction must be safe at read time."""
+
+        legacy_log = OperationLogModel._default_manager.create(
+            request_id="req-legacy-secret",
+            user_id=admin_user.id,
+            username=admin_user.username,
+            source="API",
+            operation_type="API_ACCESS",
+            module="audit",
+            action="READ",
+            request_path="/api/provider?token=raw-token",
+            request_params={"endpoint": "postgresql://user:db-secret@internal/db"},
+            response_payload={"authorization": "Bearer raw-bearer"},
+            response_text='{"api_key":"raw-api-key"}',
+            response_status=500,
+            response_message="password=raw-password",
+            exception_traceback="postgresql://user:trace-secret@internal/db",
+        )
+        api_client.force_authenticate(user=admin_user)
+
+        response = api_client.get(f"/api/audit/operation-logs/{legacy_log.id}/")
+
+        assert response.status_code == 200
+        serialized = str(response.json())
+        for secret in (
+            "raw-token",
+            "db-secret",
+            "raw-bearer",
+            "raw-api-key",
+            "raw-password",
+            "trace-secret",
+        ):
+            assert secret not in serialized
 
     def test_list_logs_as_regular_user(self, api_client, regular_user):
         """测试普通用户列出日志（仅自己的）"""
         # 创建普通用户的日志
         OperationLogModel._default_manager.create(
-            request_id='req-test-002',
+            request_id="req-test-002",
             user_id=regular_user.id,
             username=regular_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='signal',
-            action='READ',
-            mcp_tool_name='get_signals',
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="signal",
+            action="READ",
+            mcp_tool_name="get_signals",
             request_params={},
             response_status=200,
         )
 
         api_client.force_authenticate(user=regular_user)
-        response = api_client.get('/api/audit/operation-logs/')
+        response = api_client.get("/api/audit/operation-logs/")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['success'] is True
+        assert data["success"] is True
         # 普通用户只能看到自己的日志
-        for log in data['logs']:
-            assert log['user_id'] == regular_user.id
+        for log in data["logs"]:
+            assert log["user_id"] == regular_user.id
 
     def test_get_log_detail_as_owner(self, api_client, regular_user):
         """测试用户查看自己的日志详情"""
         log = OperationLogModel._default_manager.create(
-            request_id='req-test-003',
+            request_id="req-test-003",
             user_id=regular_user.id,
             username=regular_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='signal',
-            action='READ',
-            mcp_tool_name='get_signals',
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="signal",
+            action="READ",
+            mcp_tool_name="get_signals",
             request_params={},
             response_status=200,
         )
 
         api_client.force_authenticate(user=regular_user)
-        response = api_client.get(f'/api/audit/operation-logs/{log.id}/')
+        response = api_client.get(f"/api/audit/operation-logs/{log.id}/")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['success'] is True
-        assert data['log']['id'] == str(log.id)
+        assert data["success"] is True
+        assert data["log"]["id"] == str(log.id)
 
     def test_get_log_detail_forbidden_for_other_user(self, api_client, regular_user, sample_log):
         """测试用户不能查看他人日志"""
         api_client.force_authenticate(user=regular_user)
-        response = api_client.get(f'/api/audit/operation-logs/{sample_log.id}/')
+        response = api_client.get(f"/api/audit/operation-logs/{sample_log.id}/")
 
         assert response.status_code == 403
 
     def test_filter_by_module(self, api_client, admin_user, sample_log):
         """测试按模块过滤"""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/api/audit/operation-logs/?module=signal')
+        response = api_client.get("/api/audit/operation-logs/?module=signal")
 
         assert response.status_code == 200
         data = response.json()
-        for log in data['logs']:
-            assert log['module'] == 'signal'
+        for log in data["logs"]:
+            assert log["module"] == "signal"
 
     def test_filter_by_status(self, api_client, admin_user):
         """测试按状态码过滤"""
         # 创建不同状态码的日志
         OperationLogModel._default_manager.create(
-            request_id='req-test-004',
+            request_id="req-test-004",
             user_id=admin_user.id,
             username=admin_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='signal',
-            action='CREATE',
-            mcp_tool_name='create_signal',
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="signal",
+            action="CREATE",
+            mcp_tool_name="create_signal",
             request_params={},
             response_status=500,
-            error_code='INTERNAL_ERROR',
+            error_code="INTERNAL_ERROR",
         )
 
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/api/audit/operation-logs/?response_status=500')
+        response = api_client.get("/api/audit/operation-logs/?response_status=500")
 
         assert response.status_code == 200
         data = response.json()
-        for log in data['logs']:
-            assert log['response_status'] == 500
+        for log in data["logs"]:
+            assert log["response_status"] == 500
 
     def test_stats_as_admin(self, api_client, admin_user, sample_log):
         """测试管理员查看统计"""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/api/audit/operation-logs/stats/')
+        response = api_client.get("/api/audit/operation-logs/stats/")
 
         assert response.status_code == 200
         data = response.json()
-        assert 'total_count' in data
-        assert 'error_count' in data
-        assert 'error_rate' in data
+        assert "total_count" in data
+        assert "error_count" in data
+        assert "error_rate" in data
 
     def test_stats_forbidden_for_regular_user(self, api_client, regular_user):
         """测试普通用户不能查看统计"""
         api_client.force_authenticate(user=regular_user)
-        response = api_client.get('/api/audit/operation-logs/stats/')
+        response = api_client.get("/api/audit/operation-logs/stats/")
 
         assert response.status_code == 403
 
     def test_export_as_admin(self, api_client, admin_user, sample_log):
         """测试管理员导出日志"""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/api/audit/operation-logs/export/?format=csv')
+        response = api_client.get("/api/audit/operation-logs/export/?format=csv")
 
         assert response.status_code == 200
-        assert 'attachment' in response.get('Content-Disposition', '')
+        assert "attachment" in response.get("Content-Disposition", "")
 
     def test_export_as_admin_can_filter_by_token(self, api_client, admin_user):
         """测试管理员可按 token 导出日志。"""
         OperationLogModel._default_manager.create(
-            request_id='req-export-token-a',
+            request_id="req-export-token-a",
             user_id=admin_user.id,
             username=admin_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='signal',
-            action='READ',
-            mcp_tool_name='get_signals',
-            mcp_client_id='token-a',
-            request_params={'scope': 'a'},
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="signal",
+            action="READ",
+            mcp_tool_name="get_signals",
+            mcp_client_id="token-a",
+            request_params={"scope": "a"},
             response_status=200,
         )
         OperationLogModel._default_manager.create(
-            request_id='req-export-token-b',
+            request_id="req-export-token-b",
             user_id=admin_user.id,
             username=admin_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='signal',
-            action='READ',
-            mcp_tool_name='get_signals',
-            mcp_client_id='token-b',
-            request_params={'scope': 'b'},
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="signal",
+            action="READ",
+            mcp_tool_name="get_signals",
+            mcp_client_id="token-b",
+            request_params={"scope": "b"},
             response_status=200,
         )
 
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/api/audit/operation-logs/export/?format=json&mcp_client_id=token-a')
+        response = api_client.get(
+            "/api/audit/operation-logs/export/?format=json&mcp_client_id=token-a"
+        )
 
         assert response.status_code == 200
         payload = response.json()
         assert len(payload) == 1
-        assert payload[0]['mcp_client_id'] == 'token-a'
-        assert payload[0]['request_id'] == 'req-export-token-a'
+        assert payload[0]["mcp_client_id"] == "token-a"
+        assert payload[0]["request_id"] == "req-export-token-a"
 
     def test_export_forbidden_for_regular_user(self, api_client, regular_user):
         """测试普通用户不能导出"""
         api_client.force_authenticate(user=regular_user)
-        response = api_client.get('/api/audit/operation-logs/export/')
+        response = api_client.get("/api/audit/operation-logs/export/")
 
         assert response.status_code == 403
 
     def test_decision_trace_list_groups_logs_by_request_id(self, api_client, admin_user):
         """测试决策链列表按 request_id 聚合。"""
         OperationLogModel._default_manager.create(
-            request_id='trace-001',
+            request_id="trace-001",
             user_id=admin_user.id,
             username=admin_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='regime',
-            action='READ',
-            mcp_tool_name='get_current_regime',
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="regime",
+            action="READ",
+            mcp_tool_name="get_current_regime",
             request_params={},
             response_status=200,
-            response_message='Regime loaded',
+            response_message="Regime loaded",
         )
         OperationLogModel._default_manager.create(
-            request_id='trace-001',
+            request_id="trace-001",
             user_id=admin_user.id,
             username=admin_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='policy',
-            action='READ',
-            mcp_tool_name='get_policy_status',
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="policy",
+            action="READ",
+            mcp_tool_name="get_policy_status",
             request_params={},
             response_status=200,
-            response_message='Policy loaded',
+            response_message="Policy loaded",
         )
 
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/api/audit/decision-traces/')
+        response = api_client.get("/api/audit/decision-traces/")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['success'] is True
-        trace = next(item for item in data['traces'] if item['request_id'] == 'trace-001')
-        assert trace['step_count'] == 2
-        assert trace['tools'] == ['get_current_regime', 'get_policy_status']
+        assert data["success"] is True
+        trace = next(item for item in data["traces"] if item["request_id"] == "trace-001")
+        assert trace["step_count"] == 2
+        assert trace["tools"] == ["get_current_regime", "get_policy_status"]
 
     def test_decision_trace_detail_returns_ordered_steps(self, api_client, admin_user):
         """测试决策链详情返回步骤序列。"""
         OperationLogModel._default_manager.create(
-            request_id='trace-002',
+            request_id="trace-002",
             user_id=admin_user.id,
             username=admin_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='regime',
-            action='READ',
-            mcp_tool_name='get_current_regime',
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="regime",
+            action="READ",
+            mcp_tool_name="get_current_regime",
             request_params={},
             response_status=200,
-            response_message='Regime loaded',
+            response_message="Regime loaded",
         )
         OperationLogModel._default_manager.create(
-            request_id='trace-002',
+            request_id="trace-002",
             user_id=admin_user.id,
             username=admin_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='strategy',
-            action='EXECUTE',
-            mcp_tool_name='run_strategy',
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="strategy",
+            action="EXECUTE",
+            mcp_tool_name="run_strategy",
             request_params={},
             response_status=200,
-            response_message='Strategy executed',
-            response_payload={'summary': 'Buy CSI300 ETF'},
+            response_message="Strategy executed",
+            response_payload={"summary": "Buy CSI300 ETF"},
         )
 
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/api/audit/decision-traces/trace-002/')
+        response = api_client.get("/api/audit/decision-traces/trace-002/")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['success'] is True
-        assert data['trace']['step_count'] == 2
-        assert data['trace']['steps'][0]['tool_name'] == 'get_current_regime'
-        assert data['trace']['steps'][1]['tool_name'] == 'run_strategy'
-        assert data['trace']['final_summary'] == 'Buy CSI300 ETF'
+        assert data["success"] is True
+        assert data["trace"]["step_count"] == 2
+        assert data["trace"]["steps"][0]["tool_name"] == "get_current_regime"
+        assert data["trace"]["steps"][1]["tool_name"] == "run_strategy"
+        assert data["trace"]["final_summary"] == "Buy CSI300 ETF"
 
     def test_decision_trace_list_separates_same_request_id_by_token(self, api_client, admin_user):
         """测试相同 request_id 但不同 token 会拆成不同决策链。"""
         OperationLogModel._default_manager.create(
-            request_id='trace-003',
+            request_id="trace-003",
             user_id=admin_user.id,
             username=admin_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='regime',
-            action='READ',
-            mcp_tool_name='get_current_regime',
-            mcp_client_id='token-a',
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="regime",
+            action="READ",
+            mcp_tool_name="get_current_regime",
+            mcp_client_id="token-a",
             request_params={},
             response_status=200,
         )
         OperationLogModel._default_manager.create(
-            request_id='trace-003',
+            request_id="trace-003",
             user_id=admin_user.id,
             username=admin_user.username,
-            source='MCP',
-            operation_type='MCP_CALL',
-            module='regime',
-            action='READ',
-            mcp_tool_name='get_current_regime',
-            mcp_client_id='token-b',
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="regime",
+            action="READ",
+            mcp_tool_name="get_current_regime",
+            mcp_client_id="token-b",
             request_params={},
             response_status=200,
         )
 
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/api/audit/decision-traces/')
+        response = api_client.get("/api/audit/decision-traces/")
 
         assert response.status_code == 200
-        traces = [item for item in response.json()['traces'] if item['request_id'] == 'trace-003']
+        traces = [item for item in response.json()["traces"] if item["request_id"] == "trace-003"]
         assert len(traces) == 2
-        assert {item['mcp_client_id'] for item in traces} == {'token-a', 'token-b'}
+        assert {item["mcp_client_id"] for item in traces} == {"token-a", "token-b"}
 
     def test_execution_link_list_returns_simulated_trade_links(self, api_client, admin_user):
         """测试推荐执行关联列表可回溯模拟盘成交。"""
         DecisionExecutionLinkModel._default_manager.create(
-            recommendation_id='rec-auto-001',
+            recommendation_id="rec-auto-001",
             transaction_id=9001,
-            transaction_source='simulated_trade',
-            account_id='7',
-            security_code='510300',
-            actual_action='sell',
-            match_method='auto',
+            transaction_source="simulated_trade",
+            account_id="7",
+            security_code="510300",
+            actual_action="sell",
+            match_method="auto",
             match_confidence=0.91,
-            notes='Auto trading exit linked to recommendation.',
+            notes="Auto trading exit linked to recommendation.",
         )
 
         api_client.force_authenticate(user=admin_user)
         response = api_client.get(
-            '/api/audit/execution-links/?transaction_source=simulated_trade&limit=10'
+            "/api/audit/execution-links/?transaction_source=simulated_trade&limit=10"
         )
 
         assert response.status_code == 200
         payload = response.json()
-        assert payload['success'] is True
+        assert payload["success"] is True
         link = next(
-            item for item in payload['links'] if item['recommendation_id'] == 'rec-auto-001'
+            item for item in payload["links"] if item["recommendation_id"] == "rec-auto-001"
         )
-        assert link['transaction_source'] == 'simulated_trade'
-        assert link['transaction_id'] == 9001
-        assert link['account_id'] == '7'
-        assert link['security_code'] == '510300'
-        assert link['actual_action'] == 'sell'
+        assert link["transaction_source"] == "simulated_trade"
+        assert link["transaction_id"] == 9001
+        assert link["account_id"] == "7"
+        assert link["security_code"] == "510300"
+        assert link["actual_action"] == "sell"
 
 
 @pytest.mark.django_db
@@ -411,15 +448,15 @@ class TestOperationLogIngest:
     def test_ingest_without_signature(self, api_client):
         """测试无签名写入被拒绝"""
         response = api_client.post(
-            '/api/audit/internal/operation-logs/',
+            "/api/audit/internal/operation-logs/",
             {
-                'request_id': 'req-test-005',
-                'source': 'MCP',
-                'operation_type': 'MCP_CALL',
-                'module': 'signal',
-                'action': 'CREATE',
+                "request_id": "req-test-005",
+                "source": "MCP",
+                "operation_type": "MCP_CALL",
+                "module": "signal",
+                "action": "CREATE",
             },
-            format='json',
+            format="json",
         )
 
         assert response.status_code == 403

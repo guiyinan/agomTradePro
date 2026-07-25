@@ -38,7 +38,7 @@ __all__ = [
 # ============ MCP/SDK 操作审计日志用例 ============
 
 
-@dataclass
+@dataclass(frozen=True)
 class LogOperationRequest:
     """记录操作日志请求"""
 
@@ -50,7 +50,7 @@ class LogOperationRequest:
     module: str = ""
     action: str = "READ"  # CREATE/READ/UPDATE/DELETE/EXECUTE
     mcp_tool_name: str | None = None
-    request_params: dict | None = None
+    request_params: dict[str, object] | None = None
     response_payload: object | None = None
     response_text: str = ""
     response_status: int = 200
@@ -70,7 +70,7 @@ class LogOperationRequest:
     request_path: str = ""
 
 
-@dataclass
+@dataclass(frozen=True)
 class LogOperationResponse:
     """记录操作日志响应"""
 
@@ -160,28 +160,27 @@ class LogOperationUseCase:
                 log_id=log_id,
             )
 
-        except Exception as e:
+        except Exception as exc:
             # 计算延迟
             latency_seconds = time.time() - start_time
 
             # 审计日志属于非阻断型旁路写入，这里保留边界级兜底，
             # 避免任意 repository/metrics 故障影响主业务流程。
-            error_msg = f"记录操作日志失败: {e}"
-
             # 增强可观测性：记录到失败计数器
             try:
                 # 判断失败组件类型
                 component = "repository"
-                if "database" in str(e).lower() or "connection" in str(e).lower():
+                error_name = type(exc).__name__.lower()
+                if "database" in error_name or "connection" in error_name:
                     component = "database"
-                elif "validation" in str(e).lower():
+                elif "validation" in error_name:
                     component = "validation"
-                elif "timeout" in str(e).lower():
+                elif "timeout" in error_name:
                     component = "timeout"
 
                 record_audit_failure(
                     component=component,
-                    reason=f"{type(e).__name__}: {str(e)[:200]}",
+                    reason=type(exc).__name__,
                     exc_info=False,  # 已在下面记录
                 )
             except ImportError:
@@ -203,15 +202,19 @@ class LogOperationUseCase:
             except ImportError:
                 pass  # Prometheus 指标模块不可用时跳过
 
-            logger.error(error_msg, exc_info=True)
+            logger.error(
+                "记录操作日志失败: %s",
+                type(exc).__name__,
+                exc_info=False,
+            )
 
             return LogOperationResponse(
                 success=False,
-                error=str(e),
+                error="审计日志写入失败",
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class QueryOperationLogsRequest:
     """查询操作日志请求"""
 
@@ -236,12 +239,12 @@ class QueryOperationLogsRequest:
     current_user_id: int | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class QueryOperationLogsResponse:
     """查询操作日志响应"""
 
     success: bool
-    logs: list[dict] | None = None
+    logs: list[dict[str, object]] | None = None
     total_count: int = 0
     page: int = 1
     page_size: int = 20
@@ -264,11 +267,27 @@ class QueryOperationLogsUseCase:
         """
         try:
             # 权限控制：普通用户只能查看自己的日志
+            user_id: int | None
             if not request.is_admin:
+                if request.current_user_id is None:
+                    return QueryOperationLogsResponse(
+                        success=False,
+                        error="需要有效用户身份",
+                    )
                 # 强制覆盖 user_id 为当前用户
                 user_id = request.current_user_id
             else:
                 user_id = request.user_id
+            if request.ordering not in {"timestamp", "-timestamp", "duration_ms", "-duration_ms"}:
+                return QueryOperationLogsResponse(
+                    success=False,
+                    error="不支持的排序字段",
+                )
+            if request.page <= 0 or request.page_size <= 0 or request.page_size > 100:
+                return QueryOperationLogsResponse(
+                    success=False,
+                    error="分页参数超出允许范围",
+                )
 
             # 查询日志
             logs, total_count = self.audit_repo.query_operation_logs(
@@ -298,15 +317,15 @@ class QueryOperationLogsUseCase:
                 page_size=request.page_size,
             )
 
-        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
-            logger.error(f"查询操作日志失败: {e}", exc_info=True)
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as exc:
+            logger.error("查询操作日志失败: %s", type(exc).__name__)
             return QueryOperationLogsResponse(
                 success=False,
-                error=str(e),
+                error="查询操作日志失败",
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class GetOperationLogDetailRequest:
     """获取操作日志详情请求"""
 
@@ -315,12 +334,12 @@ class GetOperationLogDetailRequest:
     is_admin: bool = False
 
 
-@dataclass
+@dataclass(frozen=True)
 class GetOperationLogDetailResponse:
     """获取操作日志详情响应"""
 
     success: bool
-    log: dict | None = None
+    log: dict[str, object] | None = None
     error: str | None = None
 
 
@@ -339,6 +358,11 @@ class GetOperationLogDetailUseCase:
         - 普通用户仅可查看本人日志
         """
         try:
+            if not request.is_admin and request.current_user_id is None:
+                return GetOperationLogDetailResponse(
+                    success=False,
+                    error="需要有效用户身份",
+                )
             log = self.audit_repo.get_operation_log_by_id(request.log_id)
 
             if not log:
@@ -360,15 +384,15 @@ class GetOperationLogDetailUseCase:
                 log=log,
             )
 
-        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
-            logger.error(f"获取操作日志详情失败: {e}", exc_info=True)
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as exc:
+            logger.error("获取操作日志详情失败: %s", type(exc).__name__)
             return GetOperationLogDetailResponse(
                 success=False,
-                error=str(e),
+                error="获取操作日志详情失败",
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExportOperationLogsRequest:
     """导出操作日志请求"""
 
@@ -385,12 +409,13 @@ class ExportOperationLogsRequest:
     resource_id: str | None = None
     source: str | None = None
     format: str = "csv"  # csv 或 json
+    is_admin: bool = False
     # 导出限制
     max_rows: int = 10000
     max_days: int = 90
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExportOperationLogsResponse:
     """导出操作日志响应"""
 
@@ -421,6 +446,27 @@ class ExportOperationLogsUseCase:
 
             from django.conf import settings
 
+            if not request.is_admin:
+                return ExportOperationLogsResponse(
+                    success=False,
+                    error="仅管理员可导出操作日志",
+                )
+            if request.format not in {"csv", "json"}:
+                return ExportOperationLogsResponse(
+                    success=False,
+                    error="导出格式必须是 csv 或 json",
+                )
+            if (
+                request.max_rows <= 0
+                or request.max_days <= 0
+                or isinstance(request.max_rows, bool)
+                or isinstance(request.max_days, bool)
+            ):
+                return ExportOperationLogsResponse(
+                    success=False,
+                    error="导出限制必须是正整数",
+                )
+
             # 从 settings 读取配置
             max_rows = getattr(settings, "AUDIT_EXPORT_MAX_ROWS", 10000)
             max_days = getattr(settings, "AUDIT_EXPORT_MAX_DAYS", 90)
@@ -432,6 +478,11 @@ class ExportOperationLogsUseCase:
             # 检查时间范围限制
             if request.start_date and request.end_date:
                 days_diff = (request.end_date - request.start_date).days
+                if days_diff < 0:
+                    return ExportOperationLogsResponse(
+                        success=False,
+                        error="start_date must not be after end_date",
+                    )
                 if days_diff > effective_max_days:
                     return ExportOperationLogsResponse(
                         success=False,
@@ -485,29 +536,30 @@ class ExportOperationLogsUseCase:
                 row_count=len(logs),
             )
 
-        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
-            logger.error(f"导出操作日志失败: {e}", exc_info=True)
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as exc:
+            logger.error("导出操作日志失败: %s", type(exc).__name__)
             return ExportOperationLogsResponse(
                 success=False,
-                error=str(e),
+                error="导出操作日志失败",
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class GetOperationStatsRequest:
     """获取操作统计请求"""
 
     start_date: date | None = None
     end_date: date | None = None
     group_by: str = "module"  # module/tool/user/status
+    is_admin: bool = False
 
 
-@dataclass
+@dataclass(frozen=True)
 class GetOperationStatsResponse:
     """获取操作统计响应"""
 
     success: bool
-    stats: dict | None = None
+    stats: dict[str, object] | None = None
     error: str | None = None
 
 
@@ -528,6 +580,25 @@ class GetOperationStatsUseCase:
         - Top 工具/模块
         """
         try:
+            if not request.is_admin:
+                return GetOperationStatsResponse(
+                    success=False,
+                    error="仅管理员可查看操作统计",
+                )
+            if request.group_by not in {"module", "tool", "user", "status"}:
+                return GetOperationStatsResponse(
+                    success=False,
+                    error="不支持的统计分组",
+                )
+            if (
+                request.start_date is not None
+                and request.end_date is not None
+                and request.start_date > request.end_date
+            ):
+                return GetOperationStatsResponse(
+                    success=False,
+                    error="start_date must not be after end_date",
+                )
             stats = self.audit_repo.get_operation_stats(
                 start_date=request.start_date,
                 end_date=request.end_date,
@@ -539,9 +610,9 @@ class GetOperationStatsUseCase:
                 stats=stats,
             )
 
-        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
-            logger.error(f"获取操作统计失败: {e}", exc_info=True)
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as exc:
+            logger.error("获取操作统计失败: %s", type(exc).__name__)
             return GetOperationStatsResponse(
                 success=False,
-                error=str(e),
+                error="获取操作统计失败",
             )

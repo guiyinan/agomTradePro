@@ -67,7 +67,7 @@ class AccountInterfaceRegistrationRepositoryMixin:
 
         return SystemSettingsModel._default_manager.first()
 
-    def get_active_access_token(self, key: str):
+    def get_active_access_token(self, key: str) -> UserAccessTokenModel | None:
         """Return one active access token with user/profile preloaded."""
 
         return (
@@ -75,11 +75,11 @@ class AccountInterfaceRegistrationRepositoryMixin:
                 "user",
                 "user__account_profile",
             )
-            .filter(key=key, is_active=True)
+            .filter(key=UserAccessTokenModel.hash_key(key), is_active=True)
             .first()
         )
 
-    def touch_access_token(self, token) -> None:
+    def touch_access_token(self, token: UserAccessTokenModel) -> None:
         """Persist last-used metadata for one access token."""
 
         token.last_used_at = timezone.now()
@@ -90,7 +90,7 @@ class AccountInterfaceRegistrationRepositoryMixin:
         *,
         user: User,
         display_name: str,
-        system_settings,
+        system_settings: Any,
         client_ip: str | None,
         approval_status: str,
         rbac_role: str,
@@ -193,7 +193,7 @@ class AccountInterfaceRegistrationRepositoryMixin:
             "display_name": display_name,
         }
 
-    def get_active_portfolio_for_user(self, user_id: int):
+    def get_active_portfolio_for_user(self, user_id: int) -> PortfolioModel | None:
         """Return the user's active portfolio when available."""
 
         return (
@@ -235,6 +235,7 @@ class AccountInterfaceRegistrationRepositoryMixin:
         portfolio = PortfolioModel._default_manager.filter(user_id=user_id, is_active=True).first()
         system_settings = SystemSettingsModel.get_settings()
 
+        capital_flows: Any
         if portfolio:
             capital_flows = CapitalFlowModel._default_manager.filter(portfolio=portfolio).order_by(
                 "-flow_date", "-created_at"
@@ -446,7 +447,7 @@ class AccountInterfaceRegistrationRepositoryMixin:
             user.save(update_fields=user_update_fields)
         return bool(new_password)
 
-    def get_api_profile(self, user_id: int):
+    def get_api_profile(self, user_id: int) -> AccountProfileModel:
         """Return the account profile model for API serialization."""
 
         user = User._default_manager.select_related("account_profile").get(id=user_id)
@@ -458,7 +459,7 @@ class AccountInterfaceRegistrationRepositoryMixin:
         *,
         profile_data: Mapping[str, Any],
         email: str | None = None,
-    ):
+    ) -> AccountProfileModel:
         """Persist API profile updates and return the refreshed profile model."""
 
         user = User._default_manager.select_related("account_profile").get(id=user_id)

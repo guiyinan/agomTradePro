@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from io import StringIO
+from math import isfinite
+from typing import Any
 
 from django.apps import apps as django_apps
 from django.core.management import call_command
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.account.application.business_provider_gateway import authoritative_rss_sources_ready
 from apps.account.infrastructure.models import (
@@ -39,14 +42,15 @@ FactorPortfolioConfigModel = django_apps.get_model("factor", "FactorPortfolioCon
 @dataclass(frozen=True)
 class BootstrapStep:
     name: str
-    check: callable
-    run: callable
+    check: Callable[[], bool]
+    run: Callable[[], None]
+    optional: bool = False
 
 
 class Command(BaseCommand):
     help = "Bootstrap idempotent cold-start configuration data for a fresh deployment"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--with-macro-sync",
             action="store_true",
@@ -101,8 +105,8 @@ class Command(BaseCommand):
             help="Environment to use for init_decision_model_params.",
         )
 
-    def handle(self, *args, **options):
-        decision_env = self._resolve_decision_env(options["decision_env"])
+    def handle(self, *args: object, **options: Any) -> None:
+        decision_env = self._resolve_decision_env(str(options.get("decision_env", "")))
         self.stdout.write(self.style.SUCCESS("Cold-start bootstrap begin"))
 
         steps = [
@@ -194,6 +198,7 @@ class Command(BaseCommand):
                 name="mcp_cold_start_defaults",
                 check=self._mcp_cold_start_ready,
                 run=lambda: self._run_command("bootstrap_mcp_cold_start"),
+                optional=True,
             ),
             BootstrapStep(
                 name="decision_model_params",
@@ -217,8 +222,12 @@ class Command(BaseCommand):
             self.stdout.write(f"[apply] {step.name}")
             try:
                 step.run()
-            except CommandError:
-                self.stdout.write(f"[skip] {step.name} (CommandError, likely dev-only)")
+            except CommandError as exc:
+                if not step.optional:
+                    raise CommandError(
+                        f"Required cold-start step failed: {step.name}: {exc}"
+                    ) from exc
+                self.stdout.write(f"[skip] {step.name} (optional: {exc})")
                 skipped += 1
                 continue
             applied += 1
@@ -229,17 +238,26 @@ class Command(BaseCommand):
             applied += 1
 
         if options.get("with_alpha"):
+            raw_universes = options.get("alpha_universes")
+            if not isinstance(raw_universes, str) or not raw_universes.strip():
+                raise CommandError("--alpha-universes must not be empty")
+            top_n = self._require_positive_int(options.get("alpha_top_n"), "--alpha-top-n")
             self.stdout.write("[apply] alpha_bootstrap")
             self._run_command(
                 "bootstrap_alpha_cold_start",
-                universes=options["alpha_universes"],
-                top_n=options["alpha_top_n"],
+                universes=raw_universes.strip(),
+                top_n=top_n,
             )
+            applied += 1
 
         if options.get("with_decision_repair"):
             self.stdout.write("[apply] decision_repair")
-            repair_kwargs = {
-                "quote_max_age_hours": float(options.get("decision_quote_max_age_hours") or 4.0),
+            repair_kwargs: dict[str, object] = {
+                "quote_max_age_hours": self._require_positive_float(
+                    options.get("decision_quote_max_age_hours"),
+                    "--decision-quote-max-age-hours",
+                ),
+                "strict": True,
                 "skip_pulse": bool(options.get("skip_pulse")),
                 "skip_alpha": bool(options.get("skip_alpha")),
             }
@@ -256,6 +274,8 @@ class Command(BaseCommand):
         )
 
     def _resolve_decision_env(self, raw_env: str) -> str:
+        if raw_env not in {"auto", "dev", "test", "prod"}:
+            raise CommandError("--decision-env must be one of auto, dev, test, prod")
         if raw_env != "auto":
             return raw_env
         settings_module = os.environ.get("DJANGO_SETTINGS_MODULE", "")
@@ -265,7 +285,26 @@ class Command(BaseCommand):
             return "test"
         return "dev"
 
-    def _run_command(self, command_name: str, **kwargs):
+    @staticmethod
+    def _require_positive_int(raw_value: object, option_name: str) -> int:
+        if (
+            isinstance(raw_value, bool)
+            or not isinstance(raw_value, int)
+            or raw_value <= 0
+        ):
+            raise CommandError(f"{option_name} must be a positive integer")
+        return raw_value
+
+    @staticmethod
+    def _require_positive_float(raw_value: object, option_name: str) -> float:
+        if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
+            raise CommandError(f"{option_name} must be a positive finite number")
+        value = float(raw_value)
+        if not isfinite(value) or value <= 0:
+            raise CommandError(f"{option_name} must be a positive finite number")
+        return value
+
+    def _run_command(self, command_name: str, **kwargs: object) -> None:
         buffer = StringIO()
         call_command(command_name, stdout=buffer, stderr=buffer, **kwargs)
         output = buffer.getvalue().strip()
@@ -277,9 +316,9 @@ class Command(BaseCommand):
             "decision_rhythm",
             "DecisionModelParamConfigModel",
         )
-        return model._default_manager.filter(env=env).exists()
+        return bool(model._default_manager.filter(env=env).exists())
 
-    def _bootstrap_scoring_weights(self):
+    def _bootstrap_scoring_weights(self) -> None:
         default_configs = [
             {
                 "name": "默认配置",
@@ -385,7 +424,7 @@ class Command(BaseCommand):
         return rotation_ready and macro_ready and stock_ready and factor_seed_ready and factor_ready
 
     @staticmethod
-    def _macro_indicator_model():
+    def _macro_indicator_model() -> Any:
         from apps.data_center.infrastructure.models import MacroFactModel
 
         return MacroFactModel

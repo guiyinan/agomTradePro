@@ -8,8 +8,8 @@
 from decimal import Decimal
 from typing import Any
 
-from django.contrib.auth.models import User  # type: ignore[import-untyped]
-from django.db import models  # type: ignore[import-untyped]
+from django.contrib.auth.models import User
+from django.db import models
 
 from .portfolio_models import PortfolioModel, PositionModel
 
@@ -24,7 +24,7 @@ __all__ = [
 ]
 
 
-class InvestmentRuleModel(models.Model):  # type: ignore[misc]
+class InvestmentRuleModel(models.Model):
     """
     投资规则配置表
 
@@ -103,7 +103,7 @@ class InvestmentRuleModel(models.Model):  # type: ignore[misc]
 # ============================================================
 
 
-class TradingCostConfigModel(models.Model):  # type: ignore[misc]
+class TradingCostConfigModel(models.Model):
     """
     交易费率配置表
 
@@ -121,7 +121,7 @@ class TradingCostConfigModel(models.Model):  # type: ignore[misc]
         default=0.00025, verbose_name="佣金率", help_text="默认万2.5，如 0.00025"
     )
     min_commission = models.FloatField(
-        default=5.0, verbose_name="最低佣金（元）", help_text="单笔佣金不足此金额按此收取"
+        verbose_name="最低佣金（元）", help_text="单笔佣金不足此金额按此收取"
     )
     stamp_duty_rate = models.FloatField(
         default=0.001, verbose_name="印花税率", help_text="卖出时收取，默认千1，如 0.001"
@@ -159,7 +159,7 @@ class TradingCostConfigModel(models.Model):  # type: ignore[misc]
         )
 
 
-class StopLossConfigModel(models.Model):  # type: ignore[misc]
+class StopLossConfigModel(models.Model):
     """
     止损配置表
 
@@ -233,7 +233,7 @@ class StopLossConfigModel(models.Model):  # type: ignore[misc]
         return f"{self.position.asset_code} - {self.get_stop_loss_type_display()} ({self.stop_loss_pct:.2%})"
 
 
-class TakeProfitConfigModel(models.Model):  # type: ignore[misc]
+class TakeProfitConfigModel(models.Model):
     """
     止盈配置表
 
@@ -275,7 +275,7 @@ class TakeProfitConfigModel(models.Model):  # type: ignore[misc]
         return f"{self.position.asset_code} - 止盈 {self.take_profit_pct:.2%}"
 
 
-class StopLossTriggerModel(models.Model):  # type: ignore[misc]
+class StopLossTriggerModel(models.Model):
     """
     止损触发记录表
 
@@ -330,7 +330,7 @@ class StopLossTriggerModel(models.Model):  # type: ignore[misc]
 # ============================================================
 
 
-class MacroSizingConfigModel(models.Model):  # type: ignore[misc]
+class MacroSizingConfigModel(models.Model):
     """
     宏观感知仓位系数配置持久化模型。
     支持多版本配置，is_active=True 且 version 最大的一条为生效配置。
@@ -383,6 +383,13 @@ class MacroSizingConfigModel(models.Model):  # type: ignore[misc]
         ordering = ["-version"]
         verbose_name = "宏观仓位系数配置"
         verbose_name_plural = "宏观仓位系数配置"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["is_active"],
+                condition=models.Q(is_active=True),
+                name="account_one_active_macro_sizing",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"MacroSizingConfig v{self.version} (active={self.is_active})"
@@ -391,7 +398,7 @@ class MacroSizingConfigModel(models.Model):  # type: ignore[misc]
 # Shared configuration models repatriated from shared.infrastructure.models
 
 
-class TransactionCostConfigModel(models.Model):  # type: ignore[misc]
+class TransactionCostConfigModel(models.Model):
     """
     交易成本配置表
 
@@ -444,7 +451,6 @@ class TransactionCostConfigModel(models.Model):  # type: ignore[misc]
     min_commission = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=5.00,
         verbose_name="最低佣金",
         help_text="单笔交易最低佣金（元）",
     )

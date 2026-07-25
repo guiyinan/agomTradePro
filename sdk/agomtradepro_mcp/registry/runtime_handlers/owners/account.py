@@ -531,8 +531,8 @@ def _fallback_import_capital_flows_json(
 
 def _fallback_create_trading_cost_config(
     portfolio_id: int,
+    min_commission: float,
     commission_rate: float = 0.00025,
-    min_commission: float = 5.0,
     stamp_duty_rate: float = 0.001,
     transfer_fee_rate: float = 0.00002,
     idempotency_key: str | None = None,
@@ -573,8 +573,8 @@ def _fallback_update_trading_cost_config(
 
 def _internal_handler_account_create_trading_cost_config(
     portfolio_id: int,
+    min_commission: float,
     commission_rate: float = 0.00025,
-    min_commission: float = 5.0,
     stamp_duty_rate: float = 0.001,
     transfer_fee_rate: float = 0.00002,
     preview_only: bool = False,

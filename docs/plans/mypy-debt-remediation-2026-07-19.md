@@ -2277,3 +2277,928 @@
 - Signal use cases、parser 与 rules 增量 mypy 清零，并同步减少 Policy gateway 与 Signal query service 下游债务；隔离并行工作区改动后，全仓基线从 `3155 errors / 612 files` 收紧为 `3139 errors / 608 files`，净减少 `16 errors / 4 files`。
 - Signal Application、Domain、完整工作流与 Policy→Signal 重评回归共 `110 passed`；覆盖长运算符、具名指标、非有限值、无效上下文、状态不覆盖、仓储失败与检查异常传播。
 - 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和隔离 staged tree 的全仓 mypy debt ceiling。
+
+## 第一百五十九批
+
+- 按“异步证伪状态变更影响面 × 任务成功真实性”收口 Signal Celery tasks 与每日通知边界。
+- 批量证伪任务在发布成功前验证 checked/invalidated/rejected 为非负整数、ID 列表合法、数量与 ID 一致且状态变化数不超过检查数；畸形结果不再因日志索引或宽松返回伪装成成功。
+- 单信号证伪在访问仓储前要求正整数 signal ID；数据重试耗尽后的任务结果使用稳定通用错误，不再把数据库或数据源异常原文写入 Celery result backend。
+- 旧证伪清理窗口限制为 1..3650 天，布尔、零负值和超大跨度不能进入仓储查询。
+- 每日摘要删除无效的 pending 计数查询，并显式返回 notification_sent；存在收件人但所有通知失败时任务真实失败，不再仅记录 warning 后返回成功摘要。
+- 邮件中的资产代码、逻辑描述和证伪原因统一限制长度并 HTML 转义，遗留数据库中的标签不能进入 HTML 邮件内容。
+- 通知收件人支持单字符串或 iterable 配置，使用 Django email validator、统一小写去重并限制最多 100 个；字符串不再被按字符展开。
+- Celery tasks 改用共享 typed task adapter，BoundTask、summary TypedDict、动态详情与 helper 容器补齐精确类型。
+
+## 第一百五十九批验证结果
+
+- Signal tasks 增量 mypy 清零；隔离并行工作区改动后，全仓基线从 `3139 errors / 608 files` 收紧为 `3129 errors / 607 files`，净减少 `10 errors / 1 file`。
+- Signal task、通知和真实 ORM 每日摘要回归共 `69 passed`；覆盖结果不一致、非法 ID/天数、通知失败、HTML 转义、单字符串收件人和原有证伪任务契约。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和隔离 staged tree 的全仓 mypy debt ceiling。
+
+## 第一百六十批
+
+- 按“买入资金真实性 × 最低佣金配置唯一真源”补强 Account 与 Simulated Trading 交易费用边界。
+- 模拟交易买入继续从按资产类型启用的数据库 `FeeConfig` 读取最低佣金，并使用同一份完整费用结果执行资金校验和实际扣款；缺少生效配置时失败关闭。
+- Account `TradingCostConfig` Domain 实体及组合费率、市场费率两类 ORM 模型取消最低佣金运行时默认值；新建配置必须显式提供，不再把 `5.0` 当作代码规则。
+- 账户设置页面把最低佣金改为必填；HTTP 输入和 Application 保存服务均不再为空值补 `5.0`，缺失输入不会覆盖已有配置。
+- 交易成本估算移除 Repository 中整套硬编码默认费率；找不到对应市场/资产类别的启用配置时明确拒绝估算，避免用隐式 5 元产生可执行错觉。
+- 组合费率与市场/资产类别费率均注册到类型安全的 Django Admin，运维人员可显式维护运行时配置，不需要通过代码常量恢复功能。
+- 新增迁移 `0033_require_explicit_minimum_commission`：保留已有数据库费率值，只收紧新建契约；同时在历史 shared 迁移删除旧表后按当前显式字段契约恢复 `transaction_cost_config` 表，并对已有表安全跳过。
+- 新增非 5 元模拟买入资金边界、Domain/ORM 无默认值、页面缺失最低佣金不写入、成本估算缺配置拒绝等回归。
+
+## 第一百六十批验证结果
+
+- Account 相关改动文件增量 mypy 清零，并清除两个文件的遗留 `unused-ignore`；全仓基线从 `3129 errors / 607 files` 收紧为 `3119 errors / 605 files`，净减少 `10 errors / 2 files`。
+- Account 成本估算、费率 Domain、账户辅助服务、组合费率 API/页面、Admin 注册和模拟交易订单约束回归共 `90 passed`；新建测试数据库完整迁移通过。
+- Django system check、迁移漂移检查、架构 delta、改动文件 Ruff、Black 与全仓 mypy debt ceiling 通过。
+
+## 第一百六十一批
+
+- 按“Signal 跨入口查询影响面 × 仓储边界一致性”收口 Signal Query Service。
+- 管理页、API 和跨 App 调用共享的资产代码、状态、方向、Regime、搜索词、ID、limit、priority 与时间跨度统一在访问仓储前规范化和限界；布尔、非正 ID、超长文本和超大查询不再进入 ORM。
+- 创建与更新统一验证资产类别、方向、目标 Regime、审批标志、有限阈值、证伪规则结构和文本长度；空更新明确拒绝，不再产生无意义写入。
+- 持久化 Signal 的 ID、资产代码、状态、方向、Regime、置信度和证伪字段在返回调用方前再次校验，畸形历史行失败关闭。
+- 未知当前 Regime 不再给出推荐或中性资产，统一返回 hostile；统计结果拒绝布尔、负数和非整数计数。
+- 执行标记、批量证伪 ID 和 active-by-asset 查询统一使用正整数 canonical ID、去重与上限；批量 ID 最多 500 个。
+- 同步规范化上一批 Signal tasks 的 CRLF Git blob，消除提交级 trailing-whitespace 噪声，不改变运行逻辑。
+
+## 第一百六十一批验证结果
+
+- Signal Query Service 增量 mypy 清零；全仓基线从 `3119 errors / 605 files` 收紧为 `3111 errors / 604 files`，净减少 `8 errors / 1 file`。
+- Signal 单元与 API 边界回归共 `105 passed`；覆盖非法过滤、无效持久化 ID、空更新、查询上限、批量 ID、未知 Regime、非有限阈值和畸形统计/持久化记录。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十二批
+
+- 按“政策影响进入投资信号的决策影响面 × 动态 JSON 安全”收口 Policy Influence Service。
+- 政策影响返回值改为明确的 `TypedDict` 契约，黑白名单标志、受影响政策、风险调整和建议不再被推断为不安全的混合容器。
+- `structured_data` 只在真实 JSON object 时读取；字符串、列表、空值等遗留畸形数据按空对象处理，不再因调用 `.get()` 中断整条信号决策链。
+- 板块影响列表只接受非空字符串数组；字符串或其他动态结构不能被按字符迭代并产生伪板块命中。
+- Policy Influence Service 的构造、返回值和中间容器补齐精确类型。
+
+## 第一百六十二批验证结果
+
+- Policy Influence Service 增量 mypy 清零；全仓基线从 `3111 errors / 604 files` 收紧为 `3101 errors / 603 files`，净减少 `10 errors / 1 file`。
+- Signal 单元与 API 边界回归共 `106 passed`；覆盖黑白名单、板块/舆情影响、畸形结构化数据及既有证伪与查询契约。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十三批
+
+- 按“预测账本不可变证据影响面 × 发布/评估/结果跨层契约”收口 Signal Forecast Ledger。
+- Forecast Gateway 的评估与最终结果方法改为精确关键字协议，composition root 不再依赖无法满足的泛型 `**kwargs` 契约。
+- 发布入口严格拒绝未知/缺失字段，统一规范 entry ID、资产代码、方向、signal ID、版本标识、来源和 Regime；布尔概率、NaN/无穷、越界概率、naive 时间和反向 horizon 在写账前拒绝。
+- 评估入口限制最多 1000 个正整数数据版本和 500 条条件；重复/布尔/非正版本、非布尔 triggered、超长缺失原因和超过 64 KiB 的组合条件证据不能进入 append-only ledger。
+- 最终结果拒绝 NaN/无穷收益与 neutral band，限制 evidence 为 JSON object 且不超过 64 KiB；未知 outcome type 和非法 entry ID 在访问仓储前失败。
+- Infrastructure 在锁定 ledger entry 后校验 `checked_at/finalized_at` 不早于发布时间，关闭发布前评估或结算的时间顺序旁路。
+- Forecast API 复用严格字段 serializer，补齐 Request/Response 类型；signal ID、列表上限与缺失原因在 Interface 层提前限界。
+
+## 第一百六十三批验证结果
+
+- Forecast composition 与 API view 增量 mypy 清零；全仓基线从 `3101 errors / 603 files` 收紧为 `3094 errors / 601 files`，净减少 `7 errors / 2 files`。
+- Signal、Forecast Ledger component、Forecast API 与研究完整性回归共 `134 passed`；覆盖未知字段、非有限数值、重复版本、畸形条件、超大 JSON 和发布前事件。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十四批
+
+- 按“Signal 共同持久化边界 × direct ORM 写入旁路”收口 InvestmentSignalModel。
+- InvestmentSignalModel 的所有 `save()` 在落库前执行完整字段和业务校验；`objects.create()`、Admin、任务或仓储直接写入不再绕过方向、状态、长度、数值和证伪规则约束。
+- 新结构化证伪规则统一复用 Domain `InvalidationRule.from_dict()`；布尔、NaN/无穷阈值、空条件、未知 indicator type/operator/logic、非法 duration 和 compare target 在 ORM 边界拒绝。
+- 旧证伪格式继续保留兼容校验；新格式优先且不再由 Infrastructure 维护一套更宽松的重复规则。
+- 证伪阈值、回测分数和平均收益必须有限；回测分数限制 0..100、回测次数不得为负数。
+- 持久化遗留行若包含损坏的新证伪 JSON，转换 Domain 时明确失败关闭，不再静默丢弃规则并把有证伪条件的信号当作无规则信号。
+- Domain → ORM 映射把可空描述与拒绝理由显式规范为空字符串；Unified Signal 的字符串方法补齐类型，执行标记只更新必要字段。
+
+## 第一百六十四批验证结果
+
+- Signal 核心 ORM models 增量 mypy 清零；全仓基线从 `3094 errors / 601 files` 收紧为 `3085 errors / 600 files`，净减少 `9 errors / 1 file`。
+- Signal 单元、核心 model、repository、task、query、API 与 forecast 回归共 `143 passed`；覆盖 direct ORM 非法规则/状态/数值、Domain round-trip 和损坏持久化 JSON。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十五批
+
+- 按“Signal 全局准入配置影响面 × 启动初始化真实性”收口 eligibility matrix provider。
+- 修复初始化调用不存在的 `signal_rules.set_eligibility_matrix_provider` 且被 `AppConfig.ready()` 静默吞掉的问题；provider 现在注册到实际拥有矩阵真源的 Regime Domain 模块。
+- AppConfig 启动只注册惰性数据库 provider，不访问尚未迁移的表，因此移除宽泛异常吞噬；初始化编程错误不再静默导致数据库配置永久失效。
+- 数据库 loader 明确验证 model 可用性、资产类别、四种 Regime、Eligibility 枚举和重复组合；畸形行使整次 provider 加载失败并由 Domain 回退完整默认矩阵，不生成部分错误矩阵。
+- 无任何 active 配置时 loader 明确失败，Domain 使用完整默认矩阵；空数据库不再返回空矩阵并让所有资产类别变成未知。
+- `refresh_domain_config` 移除不存在于所有 Django cache backend 的 `delete_pattern` 调用；当前 eligibility provider 无该缓存键，刷新只需重新注册惰性 provider。
+
+## 第一百六十五批验证结果
+
+- Signal config init 与 AppConfig 增量 mypy 清零；全仓基线从 `3085 errors / 600 files` 收紧为 `3078 errors / 598 files`，净减少 `7 errors / 2 files`。
+- Signal 配置初始化专用回归 `6 passed`，完整 Signal 单元、model、repository、task、API 与 forecast 回归共 `149 passed`；覆盖有效注入、畸形行、空库回退和跨 cache backend 刷新。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十六批
+
+- 按“模拟交易费用真源 × 默认费率原子性”收口 Simulated Trading ORM models。
+- FeeConfigModel 在持久化前验证所有佣金、印花税、过户费和滑点费率为 0..1 的有限数值，最低佣金与最低过户费为非负有限数值；布尔、NaN、无穷和负数不能进入运行时费用配置。
+- direct ORM 写入在 Django FloatField 类型转换前先验证原始 Python 类型，关闭 `True` 被静默转换为 `1.0` 的旁路。
+- 默认费率切换改为先完整验证新配置，再在同一事务中取消旧默认并保存新默认；新配置验证失败不再留下没有默认费率的状态。
+- 数据库增加按 `asset_type` 的条件唯一约束，QuerySet.update、bulk 或并发写入不能绕过“每类最多一个默认费率”；迁移先按 active、更新时间和主键确定性收敛历史重复默认项。
+- Rebalance Proposal、通知历史、账本迁移及账户/持仓/成交等 ORM helper 补齐精确返回类型和 JSON 容器类型。
+- 修复遗留集成测试夹具仍省略最低佣金的问题；测试配置现在显式声明 `min_commission`，不再依赖已移除的 5 元默认值。
+
+## 第一百六十六批验证结果
+
+- Simulated Trading ORM models 增量 mypy 清零；全仓基线从 `3078 errors / 598 files` 收紧为 `3065 errors / 597 files`，净减少 `13 errors / 1 file`。
+- 模拟交易 Domain、费用、买卖订单、仓位、净值、任务和集成回归共 `220 passed`；覆盖非法费率、失败替换保留旧默认、原子默认切换和数据库绕过约束。
+- 迁移漂移检查通过；改动文件 Ruff、Black 与增量 mypy 通过，提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十七批
+
+- 按“账户压力测试结果可信度 × 外部行情动态数据边界”收口 Historical Stress Testing Application。
+- 压力测试持仓输入在计算前收窄为明确的 `TypedDict`：资产代码必须为非空且唯一，权重必须为正有限数；重复标的、布尔、NaN、无穷和非正权重不再进入收益聚合。
+- 历史行情的交易日与涨跌幅在第三方 DataFrame 边界逐项校验；NaN、无穷、布尔和低于 `-100%` 的不可能收益不再污染净值、波动率与 VaR。
+- VaR 置信度必须为 0 到 1 之间的有限数，收益序列必须全部有限；最大回撤拒绝负数或非有限净值曲线，避免错误风险指标被当作有效结果。
+- Position Repository 改为通过 Application provider factory 和精确 Protocol 注入，不再在用例构造器中直接实例化具体仓储。
+- 情景与结果 DTO 改为不可变 dataclass；回撤 tuple、日期集合、动态行情映射和持仓容器补齐精确类型。
+
+## 第一百六十七批验证结果
+
+- Account Historical Stress Testing 增量 mypy 清零；全仓基线从 `3065 errors / 597 files` 收紧为 `3060 errors / 596 files`，净减少 `5 errors / 1 file`。
+- Account 单元回归共 `86 passed`；覆盖非法置信度、非有限收益/净值、重复资产、非法权重、无行情与既有历史情景聚合。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十八批
+
+- 按“统一价格真实性 × 下单与估值公共上游影响面”收口 Data Center Unified Price Service 与 Simulated Trading Price Provider。
+- 实时价、历史收盘价、最近收盘价和基金净值统一要求为正有限数；零、负数、布尔、NaN 与无穷不能进入 `PriceLookupResult` 或下游订单、净值和资金计算。
+- 实时来源返回非法价格时继续尝试有效最近收盘价；所有来源均非法时返回 unavailable，`require_*` 入口抛出标准 `PRICE_UNAVAILABLE`，不再把畸形数值伪装成可执行价格。
+- 价格结果要求非空 requested/normalized code、可审计数据来源、合法日期和受控 freshness；空来源记录不能进入业务模块。
+- Data Center 的 `PriceBar.close`、`QuoteSnapshot.current_price` 与 `FundNavFact.nav` Domain 实体同步要求正有限数，阻断新畸形事实进入标准化存储。
+- AKShare 基金净值 fallback 同时校验价格和日期；非法日期或数值按无可用数据处理，不再在转换后产生不受控异常或错误结果。
+- Unified Price Service 通过 Domain Repository Protocol 与 composition factory 组装仓储；价格、基金净值 payload、repository helper 返回值和模拟盘可空日期补齐精确类型。
+
+## 第一百六十八批验证结果
+
+- Unified Price Service 与 Simulated Trading Price Provider 增量 mypy 清零；全仓基线从 `3060 errors / 596 files` 收紧为 `3048 errors / 594 files`，净减少 `12 errors / 2 files`。
+- Data Center 与 Simulated Trading 单元回归共 `289 passed`；覆盖无效实时价回退、无来源价格拒绝、Domain 价格实体约束、标准错误和既有行情/订单路径。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百六十九批
+
+- 按“Data Center 价格事实持久化旁路 × 公共模型契约影响面”收口 Data Center ORM models。
+- Price Bar、Quote Snapshot 与 Fund NAV 的 direct ORM 保存会先验证新增价格约束；`objects.create()` 不能写入零/负价格、空资产代码或空来源。
+- 三类价格事实增加数据库 CheckConstraint；`QuerySet.update`、bulk 或并发写入不能绕过正价格、非空代码和非空来源约束。
+- 新迁移 `0040_enforce_executable_price_facts` 只增加约束，不自动删除或改写历史事实；若已有脏数据，迁移明确失败并要求先审计处置，避免静默破坏行情证据。
+- 保存钩子只执行约束验证，不对现有 float 输入执行 DecimalField 小数位校验；保持既有同步入口由数据库 DecimalField 量化的兼容行为。
+- Provider、全局数据源配置、覆盖范围、Publisher 与 Market Thermometer 模型的 `to_domain()` 补齐精确返回类型，singleton `save()` 补齐 Django 边界参数类型。
+- Market Thermometer 持久化 JSON 的数值、布尔和非负天数显式收窄；字符串 `"false"` 不再被 Python truthiness 转为 `True`，NaN/无穷和畸形整数明确失败。
+
+## 第一百六十九批验证结果
+
+- Data Center ORM models 增量 mypy 清零，并连带清除 Provider State 与 Market Thermometer Repository 下游债务；全仓基线从 `3048 errors / 594 files` 收紧为 `2998 errors / 591 files`，净减少 `50 errors / 3 files`。
+- Data Center 单元、component、API 与统一价格服务回归共 `340 passed`；覆盖 direct ORM 拒绝、数据库 update 绕过、严格 JSON 布尔和既有同步/查询路径。
+- 迁移漂移检查、Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 仍被本批未修改的 `broker_execution/infrastructure/repositories.py` 大文件增长和 `strategy/infrastructure/repositories.py` 缺少大文件基线两项阻断，留待对应模块拆分/治理批次处理。
+
+## 第一百七十批
+
+- 按“策略配置跨账户隔离 × 执行入口结果真实性”收口 Strategy aggregate API。
+- Script Config 查询新增 owner/staff access facade 与 Repository 契约；普通用户的列表、详情、更新和删除不再暴露其他账户的策略脚本。
+- Script Config 与 AI Config 的创建、更新统一验证目标 strategy 的访问权；即使请求直接提交其他账户 strategy ID，也不能建立或改绑跨账户配置。
+- 策略执行日志分页改用严格 Serializer：offset 必须非负，limit 限制 1..200，未知参数、非整数和超限请求返回 400，不再触发 500 或无界查询。
+- 激活/停用写入若 Application 返回未更新，不再回退旧对象并伪报成功，统一返回 404。
+- 缺少 Account Profile 的策略创建与“我的策略”入口明确返回权限错误，不再访问匿名/缺失属性。
+- DRF action 与 schema decorator 通过局部类型保持 wrapper 暴露，ViewSet、Request、Response、Serializer 与 owner access context 补齐精确类型。
+
+## 第一百七十批验证结果
+
+- Strategy aggregate API 增量 mypy 清零；全仓基线从 `2998 errors / 591 files` 收紧为 `2979 errors / 590 files`，净减少 `19 errors / 1 file`。
+- Strategy API、结构和绑定一致性回归共 `45 passed`；覆盖脚本配置 owner 隔离、Script/AI 跨账户写入、分页限界、激活失败真实性和既有执行/读模型契约。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十一批
+
+- 按“策略真实执行开关 × SDK 结果真实性”收口 Strategy SDK Contract Actions 与公共 Application facade。
+- `execute_strategy_for_assignments` 在加载 assignment 和调用 executor 前验证 strategy ID、可选 portfolio ID 与数据库 active 状态；停用或不存在的策略不能再通过 SDK 执行动作运行。
+- 每个执行器结果必须与请求的 strategy/portfolio 一致，并要求非负耗时、timezone-aware 执行时间、真实布尔成功标志和列表型 signals；错配或畸形结果不再汇总成成功响应。
+- Signal 与 Performance 读取在展开历史 JSON 前验证 signals 为对象列表；字符串、混合列表或其他损坏结构返回标准数据校验错误，不再被按字符/键计数或触发不受控异常。
+- Performance 拒绝布尔或负执行耗时，避免生成负平均时长；Position 与 Trade 读模型要求每项为对象，动态 provider 不能向 SDK 泄漏非结构化值。
+- SDK mixin 使用最小 ViewSet Protocol 与类型保持 action wrapper，Request、Response、pk 和 owner-scoped `get_object()` 补齐精确类型。
+
+## 第一百七十一批验证结果
+
+- Strategy SDK Contract Actions 增量 mypy 清零；全仓基线从 `2979 errors / 590 files` 收紧为 `2969 errors / 589 files`，净减少 `10 errors / 1 file`。
+- Strategy SDK Application、API、结构与绑定一致性回归共 `52 passed`；覆盖停用策略、执行结果 ID 错配、负耗时、损坏 signal JSON 和既有执行/读模型契约。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十二批
+
+- 按“策略规则可变权限 × 执行日志敏感信息隔离”收口 Strategy Rule 与 Execution Log API。
+- RuleCondition 列表、详情、筛选、更新、删除和启停统一按 strategy owner 隔离；普通用户不能再查看或修改其他账户的策略规则。
+- PositionManagementRule 与 RuleCondition 的创建、更新统一验证请求中 strategy 的访问权；直接提交其他账户 strategy ID 不能建立或改绑规则。
+- Rule enable/disable 的 Application 写入返回空值时不再回退旧对象伪报成功，统一返回 404。
+- Execution Log 列表与详情要求关联的 strategy 和 portfolio 同时属于调用者；`by_strategy`、`by_portfolio` 使用相同双归属查询，staff/superuser 才能查看全局日志。
+- 日志作用域参数改用严格 Serializer，拒绝缺失、非整数、非正 ID 与未知字段；动态字符串不能再直接进入 Repository filter。
+- 修复 `signals_count` 把 `list.__len__` 方法对象交给 IntegerField、导致正常日志列表 500 的既有错误；现在显式计算真实列表长度并拒绝畸形持久化 JSON。
+- 两类 ViewSet 的 QuerySet、Serializer、Request、Response 和 decorator 补齐精确类型。
+
+## 第一百七十二批验证结果
+
+- Strategy Rule 与 Execution Log API 增量 mypy 清零；全仓基线从 `2969 errors / 589 files` 收紧为 `2954 errors / 587 files`，净减少 `15 errors / 2 files`。
+- Strategy SDK、Rule、Execution Log、结构和绑定一致性回归共 `59 passed`；覆盖跨账户规则写入/启停、双归属日志隔离、staff 覆盖、作用域参数与 signals count。
+- 改动文件 Ruff、Black 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十三批
+
+- 按“策略风控参数持久化旁路 × 执行审计真实性”收口 Strategy ORM 数值不变量。
+- Strategy 的单资产上限、总仓位上限与可选止损比例增加数据库范围约束；直接 ORM 更新不能写入 0..100 之外的风险参数。
+- AI 策略的 temperature、max tokens 与 confidence threshold 增加组合约束；仓位规则价格精度、规则目标权重与组合覆盖参数同步受数据库保护。
+- Strategy Execution Log 的执行耗时必须非负；`QuerySet.update()`、bulk 或并发写入不能绕过 Application 层校验制造负耗时审计记录。
+- 新迁移 `0011_enforce_strategy_numeric_invariants` 只增加约束，不自动改写历史策略配置；若存在越界存量数据，迁移会明确失败并要求先审计处置。
+- Strategy ORM 模型的字符串表示与动态兼容导出补齐精确返回类型，清除该公共模型文件的全部 mypy 债务。
+
+## 第一百七十三批验证结果
+
+- Strategy ORM models 增量 mypy 清零；全仓基线从 `2954 errors / 587 files` 收紧为 `2945 errors / 586 files`，净减少 `9 errors / 1 file`。
+- Strategy unit、component、API 与 integration 回归共 `88 passed`；覆盖 direct ORM 越界更新拒绝、仓储生命周期、策略规则与执行日志既有路径。
+- 迁移漂移检查、改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百七十四批
+
+- 按“Strategy 动态入口边界 × 模块债务完整收口”清理 Strategy 剩余启动注册、兼容导出、API 根视图和初始化命令。
+- Prompt Gateway 返回三个精确 Domain Provider Protocol，不再由未标注方法向 Prompt 上下文注册表传播动态类型。
+- Django App ready hook、兼容 serializer/model 动态导出和 API Root Request/Response 补齐边界类型，不改变既有注册与路由契约。
+- 仓位规则初始化模板改用 `TypedDict` 描述变量与表达式必需字段；模板缺字段或字段形状漂移会在增量类型门禁中暴露，不再以裸 dict 静默进入 ORM payload。
+- Management Command parser、可变参数与返回值补齐 Django 边界类型；`Any` 只保留在命令行/ORM 动态选项边界。
+
+## 第一百七十四批验证结果
+
+- Strategy 剩余 6 个生产文件增量 mypy 清零；全仓基线从 `2945 errors / 586 files` 收紧为 `2937 errors / 580 files`，净减少 `8 errors / 6 files`，Strategy 模块当前已无登记 mypy 债务。
+- Financial Configuration Command、Strategy API 与结构回归共 `37 passed`；覆盖仓位规则 dry-run/create/skip/force、API 权限边界和入口归属。
+- 改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十五批
+
+- 按“统一账本迁移作用域 × 资金历史数据影响面”收口 `migrate_account_ledger`。
+- 修复 `user_id=0`、负数、布尔或畸形值因 truthiness 判断退化为全用户迁移的高风险漏洞；非法 scope 现在在任何查询和写入前抛出 `CommandError`。
+- 三阶段 Portfolio、Position、Transaction 查询统一使用显式 `is not None` 过滤，指定用户迁移不会因假值分支扩大作用域。
+- Migration Stats 使用 `TypedDict` 固定计数器与告警结构；Command parser、动态 options、各迁移阶段和摘要输出补齐边界类型。
+- Capital Flow 汇总改用直接导入的 `Sum`，去除运行时动态导入；合并持仓进入公共计算函数前显式收窄 Decimal/float 边界。
+
+## 第一百七十五批验证结果
+
+- Account Ledger Migration 增量 mypy 清零；全仓基线从 `2937 errors / 580 files` 收紧为 `2926 errors / 579 files`，净减少 `11 errors / 1 file`。
+- Ledger Unification Acceptance 回归共 `11 passed`；新增覆盖 0、负数、布尔和字符串 user scope，保留多组合独立迁移、非整数份额、幂等和统一平仓链路。
+- 改动文件 Ruff 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta、diff check 和全仓 mypy debt ceiling。
+
+## 第一百七十六批
+
+- 按“观察员持仓隐私 × 授权对象级访问影响面”收口 Account Observer Grant API。
+- 观察员列表只接受 `as_observer=0|1` 与 `status=active|revoked|expired`；歧义值和未知参数返回 400，不再静默退化到 owner 视角或产生不可审计空结果。
+- 授权详情、更新、撤销与持仓动作统一使用已验证的正整数用户主键比较，不再依赖动态 User 对象相等判断。
+- 无关用户访问授权详情现在稳定返回显式 403，兑现 ViewSet 的对象存在但无权限契约；owner 与 observer 的合法详情访问保持不变。
+- 创建和更新钩子要求 serializer 返回真实持久化对象；缺失实例不再继续审计或序列化伪成功响应。
+- 审计日志入口、客户端 IP、Request/Response、Serializer、QuerySet 与 DRF action wrapper 补齐精确边界类型。
+
+## 第一百七十六批验证结果
+
+- Account Observer Grant API 增量 mypy 清零；全仓基线从 `2926 errors / 579 files` 收紧为 `2908 errors / 578 files`，净减少 `18 errors / 1 file`。
+- Account API、Observer Permission 与 Observer Model 回归共 `89 passed`；新增覆盖歧义 scope 参数和无关用户详情访问，保留 owner/observer、过期、撤销和持仓权限链路。
+- 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百七十七批
+
+- 按“MCP Token 副作用入口 × 外部代理访问影响面”收口 Account MCP Self-Service 与 Admin Governance API。
+- 当前用户身份在读取状态、创建 Token 和撤销 Token 前统一收窄为正整数 user ID；缺失或畸形认证主体不能进入 Application 服务。
+- Self-Service token revoke 与 Admin 用户详情、Token 创建、批量撤销、单 Token 撤销、能力开关统一拒绝 0 或非正路径 ID，非法主键在任何轮换/撤销副作用前返回 400。
+- 新 Token 的 copy-ready Agent Prompt 接受只读 Mapping，并显式收窄 base URL；动态 payload 不能再把非字符串值传播到接入 Prompt。
+- 所有 MCP API Request/Response 与辅助函数补齐精确类型，`Any` 不再从 DRF request 或 URL 参数扩散到 Token 治理服务。
+
+## 第一百七十七批验证结果
+
+- Account MCP API 增量 mypy 清零；全仓基线从 `2908 errors / 578 files` 收紧为 `2888 errors / 577 files`，净减少 `20 errors / 1 file`。
+- Account API 回归共 `48 passed`；新增覆盖 Self-Service 与五类 Admin MCP 非正路径 ID，保留 Token 创建、Prompt 生成、管理员列表和既有账户 API 契约。
+- 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百七十八批
+
+- 按“资产分类物化树 × 多币种估值真实性”收口 Account Classification、Exchange Rate 与 Portfolio Allocation API。
+- Asset Category API 创建节点时由 Repository 统一生成 `level/path`；父节点重命名或移动在事务内级联刷新全部后代物化路径。
+- 分类更新拒绝把节点移动到自身或后代下，阻断循环树；Application 返回的结构错误转为明确 400，不再形成 500 或损坏分类层级。
+- 修复 Category Allocation Serializer 要求不存在 `currency_code`、导致非空分类配置响应失败的问题；真实持仓分类现在可正常序列化。
+- Currency Allocation 缺失 FX rate 时不再把外币金额静默按 1:1 当作基准币金额，改为明确失败，避免组合总值和配置比例被系统性高估或低估。
+- 同币种转换也必须验证币种已注册且启用；汇率写入拒绝相同币种对和停用币种，最新汇率路径统一规范化货币代码。
+- Portfolio allocation 只接受 `category|currency` 维度和已声明查询参数；分类、汇率 ViewSet 与 DRF 动态边界补齐精确类型。
+
+## 第一百七十八批验证结果
+
+- Account Classification API 与 Classification Repository 增量 mypy 清零；全仓基线从 `2888 errors / 577 files` 收紧为 `2855 errors / 575 files`，净减少 `33 errors / 2 files`。
+- Account API 回归共 `54 passed`；覆盖分类树创建、父节点重命名级联、循环拒绝、非空分类序列化、缺失汇率失败、非法币种对和严格配置维度。
+- 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百七十九批
+
+- 按“交易费用配置真实性 × 买入资金公共计算影响面”收口 Account Trading Cost Domain、Serializer 与 Portfolio Repository。
+- 佣金率、最低手续费、印花税率和过户费率在 Repository 两条保存路径统一要求为非负有限数；`NaN`、正负无穷、布尔和越界值不能再绕过 Python 比较进入持久化。
+- API 保存按 `portfolio_id + actor_user_id` 同时定位所属组合，不再先读取任意组合后比较 owner，避免不存在与他人组合走不同数据访问路径。
+- `TradingCostConfig` Domain 实体在构造时校验 portfolio/config ID、active 标志和全部费率范围；内部调用无法用损坏配置参与买入资金或卖出所得计算。
+- 买卖费用计算要求成交金额为正有限数且交易所标志为真实布尔；零、负数、NaN、无穷或布尔金额不再产生最低佣金或畸形总费用。
+- DRF 费率配置与试算 Serializer 同步拒绝非有限数，确保 API、设置页、Application 和 Domain 多层边界一致。
+- Account Portfolio Interface Repository 的查询、授权和动态模型返回值补齐边界类型，并收窄可空持仓数值的输出转换。
+
+## 第一百七十九批验证结果
+
+- Account Portfolio Interface Repository 增量 mypy 清零；全仓基线从 `2855 errors / 575 files` 收紧为 `2840 errors / 574 files`，净减少 `15 errors / 1 file`。
+- Trading Cost Domain、API 与 Account Macro Sizing 回归共 `92 passed`；覆盖非有限费率、最低手续费、非法成交金额、归属保护和既有买卖费用计算。
+- 改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百八十批
+
+- 按“账户身份字段校验 × 宏观仓位配置唯一真源”收口 Account Profile 与 Macro Sizing API。
+- 修复 Profile API 从原始 request payload 读取 email、绕过 Serializer 的问题；email 现在经过正式格式校验，未知字段明确返回 400，不能借 Profile 更新提交未声明权限字段。
+- Regime、Pulse、Drawdown 与 Market Temperature tier Domain 值对象新增有限数、范围、区间顺序、布尔和非空 band 不变量。
+- Macro Sizing Config 要求所有档位集合非空、warning factor 为 0..1 有限数、version 为正整数、市场温度 band 不重复。
+- Macro Sizing Serializer 验证嵌套 tier 的对象结构、数值类型、有限性、factor 范围和 Pulse 区间顺序；Repository 在切换 active 版本前构造完整 Domain 配置复核。
+- 持久化模型增加全表最多一个 active Macro Sizing Config 的条件唯一约束；数据迁移保留最新版 active，并将旧 active 版本转为 inactive，消除排序碰巧选中配置的歧义。
+- Profile、Macro Sizing、Asset Metadata、Health、User Search 与 Trading Cost ViewSet 的 Request/Response、权限、Serializer 和 action wrapper 补齐精确类型。
+
+## 第一百八十批验证结果
+
+- Account Profile API 增量 mypy 清零；全仓基线从 `2840 errors / 574 files` 收紧为 `2827 errors / 573 files`，净减少 `13 errors / 1 file`。
+- Profile、Macro Sizing、Trading Cost 与 Account Macro Domain 回归共 `87 passed`；覆盖无效 email、未知 Profile 字段、非有限/越界档位、倒置 Pulse 区间和第二个 active 配置数据库拒绝。
+- 迁移漂移检查、改动文件 Ruff、diff check 与增量 mypy 通过；提交前继续执行 Django system check、架构 delta 和全仓 mypy debt ceiling。
+
+## 第一百八十一批
+
+- 按“长期访问凭证泄露影响面 × MCP/SDK 认证失败关闭”收口 Account Token Authentication。
+- 新建访问 Token 只在创建响应和受控密文中保留原始值；数据库检索列改存 SHA-256 指纹，认证 Repository 对调用方提交的原始 Token 做同算法检索，数据库泄露不再直接暴露可用凭证。
+- 增加数据迁移，将历史明文 Token 检索列原位转换为指纹；现有加密副本继续支持系统明确允许时的受控展示。
+- 普通 Token 和内部签名认证都要求用户存在启用 MCP 的账户配置；配置缺失、关闭或用户停用时统一拒绝，不再因缺失关联对象失败开放。
+- 只读 Token 的 POST 豁免只接受字符串集合/序列形式的显式 action；标量字符串等畸形 metadata 不再利用 Python 包含判断误获写权限。
+- Token 缺失 `allows_write` 能力时默认拒绝写操作；内部认证密钥类型异常和非正用户 ID 在用户查询前明确失败。
+- Authentication、Token Model 与 Registration Repository 的动态返回、请求和 ORM 边界补齐类型。
+
+## 第一百八十一批验证结果
+
+- Account Token Authentication、Identity Model 与 Registration Repository 增量 mypy 清零；全仓基线从 `2827 errors / 573 files` 收紧为 `2805 errors / 570 files`，净减少 `22 errors / 3 files`。
+- Token Authentication、Admin User Management 与 Account API 回归共 `70 passed`；新增覆盖哈希落库、历史明文迁移后原始 Token 认证、缺失账户配置、内部认证禁用和畸形只读 action 声明。
+- 另行确认模拟交易最低佣金来自启用的 `FeeConfig` 而非硬编码，资金校验边界回归 `7 passed`，其中使用 `7.5` 元最低佣金验证配置值会进入所需资金。
+- 迁移漂移检查、Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 仍被本批未修改的 `broker_execution/infrastructure/repositories.py` 大文件增长和 `strategy/infrastructure/repositories.py` 缺少大文件基线两项阻断，留待对应模块拆分/治理批次处理。
+
+## 第一百八十二批
+
+- 按“持仓隐私对象级权限 × 匿名身份失败关闭”收口 Account Observer Permission。
+- 基础权限和对象权限统一把认证主体收窄为非布尔正整数主键；匿名、未持久化或畸形用户不能进入 owner 比较和观察授权查询。
+- 对象权限不再依赖动态 User 对象相等判断，改为比较已验证的 `portfolio.user_id`；Position 仍通过所属 Portfolio 执行同一授权边界。
+- 缺失 portfolio/owner、布尔或非正 owner ID 的畸形对象统一拒绝；对象权限钩子即使被单独调用，也不依赖上层已经执行基础权限检查。
+- 可访问组合辅助查询对匿名或无效用户显式抛出 `NotAuthenticated`，不再把空 ID 传播到 Application 查询边界。
+- RBAC、Observer Request/View/Object 与查询返回边界补齐类型。
+
+## 第一百八十二批验证结果
+
+- Account Observer Permission 增量 mypy 清零；全仓基线从 `2805 errors / 570 files` 收紧为 `2800 errors / 569 files`，净减少 `5 errors / 1 file`。
+- Observer Grant Component 与 Integration 回归共 `44 passed`；新增覆盖匿名对象权限、畸形资源对象和匿名组合查询拒绝，保留 owner、observer、过期、撤销及只读访问链路。
+- Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百八十三批
+
+- 按“数据库全量导出泄露影响面 × 无会话下载链接可重放”收口 Account Database Backup Download。
+- 备份下载令牌新增数据库持久化 SHA-256 nonce 指纹、明确到期时间和消费时间；数据库不保存可直接使用的链接 nonce。
+- 每次生成新链接都会原子替换当前指纹并清空消费状态，因此新邮件链接自动撤销旧链接；历史无持久化状态的链接升级后失败关闭。
+- 下载 Repository 在事务内锁定系统配置行，校验签名、settings ID、接收邮箱、当前指纹、持久化到期时间、启用状态和未消费状态，再原子标记已消费，阻断并发重放。
+- 令牌 payload 对正整数配置 ID、非空邮箱、nonce、时间戳和正数 TTL 显式收窄，畸形签名内容不再以动态字典传播。
+- SQLite 备份不再关闭 Django 活跃连接后直接读取数据库文件，改用 SQLite online backup API 生成一致性临时快照，并在读取后确定性清理临时文件。
+- 备份包 metadata、邮件连接、签名 payload 和加密字节边界补齐精确类型；Application Provider 移除已失效的动态 cast。
+
+## 第一百八十三批验证结果
+
+- Account Backup Service 增量 mypy 清零；全仓基线从 `2800 errors / 569 files` 收紧为 `2795 errors / 568 files`，净减少 `5 errors / 1 file`。
+- Database Backup Email 回归共 `7 passed`；新增覆盖下载后重放拒绝、新链接撤销旧链接、持久化到期拒绝，并由同一测试证明 SQLite 备份后数据库连接仍可继续处理请求。
+- 迁移漂移、Django system check、架构 delta、diff check、改动文件 Ruff 与全仓 mypy debt ceiling 通过。
+
+## 第一百八十四批
+
+- 按“首次部署配置完整性 × 初始化失败不得伪装成功”收口 Account Cold-Start Bootstrap Command。
+- 每个 bootstrap step 新增显式 `optional` 语义；只有开发环境专用的 MCP cold-start seed 可在 `CommandError` 后记录跳过，分类、风控、调度、因子、Prompt、决策参数等必需步骤失败会携带步骤名终止命令。
+- 修复 Alpha bootstrap 成功执行后未增加 applied 计数的问题，最终摘要现在与真实副作用数量一致。
+- `decision-env` 在命令内部再次限定为 `auto|dev|test|prod`，防止测试、代码调用或未来入口绕过 argparse choices。
+- Alpha Top N 要求非布尔正整数；决策行情最大年龄要求正有限数，零、负数、NaN、无穷和布尔不再传播到网络/数据修复子命令。
+- 启用 Alpha 时 universe 参数必须是非空字符串并去除首尾空白；决策修复 kwargs 使用显式对象字典，避免字符串资产代码污染数值推断。
+- Bootstrap Step、CommandParser、动态 options、子命令 kwargs、动态模型和 readiness 返回边界补齐类型。
+
+## 第一百八十四批验证结果
+
+- Account Cold-Start Bootstrap Command 增量 mypy 清零；全仓基线从 `2795 errors / 568 files` 收紧为 `2782 errors / 567 files`，净减少 `13 errors / 1 file`。
+- Initialization Command Edge 与 Scheduler Initialization 回归共 `29 passed`；新增覆盖必需步骤失败中止、可选 MCP seed 跳过、非法环境、Top N 与非有限行情年龄，并保留完整幂等编排。
+- Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百八十五批
+
+- 按“全量初始化入口退出真实性 × 多数据库部署影响面”收口 Account `init_all` Command。
+- 必需初始化步骤失败仍先进入结构化 summary，但随后抛出 `CommandError` 产生非零退出状态；命令不再继续展示启动服务、访问后台等误导性下一步。
+- 可选网络宏观同步仍可失败后记录 skip，不阻断离线初始化；必需/可选语义与下层 cold-start 命令保持一致。
+- `--step` 改为解析唯一的完整命令名或短别名；未知、空白、非字符串或歧义选择在任何子命令副作用前拒绝，不再静默跳过全部步骤并返回成功。
+- 计划展示和真实执行复用同一个 target command 解析结果，避免 UI 显示范围与实际执行范围漂移。
+- 数据库状态检查不再查询 SQLite 专属 `sqlite_master`，改用 Django connection introspection，兼容正式生产 PostgreSQL。
+- Initialization Step/Results 使用 TypedDict 固定必需字段和 optional 策略；CommandParser、options、确认、计划、执行、summary 与 next-step 边界补齐类型。
+
+## 第一百八十五批验证结果
+
+- Account `init_all` Command 增量 mypy 清零；全仓基线从 `2782 errors / 567 files` 收紧为 `2760 errors / 566 files`，净减少 `22 errors / 1 file`。
+- Initialization Command Edge 回归共 `13 passed`；新增覆盖未知 step 拒绝、必需失败非零退出且不展示下一步，并验证 Django introspection 输出。
+- Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百八十六批
+
+- 按“决策建议输入新鲜度 × 主动数据修复副作用范围”收口 Data Center Decision Reliability Repair Command。
+- 用户与组合 scope 只接受非布尔正整数；显式用户不存在或已停用时立即失败，不再静默退化为无用户 Alpha skip。
+- 默认用户只选择 active superuser；启用 Alpha 修复但系统无有效用户时在构造 Provider/发起网络同步前返回 `CommandError`。
+- 目标日期使用 Django 当前时区的 local date；空白、畸形 ISO 日期和未来日期明确拒绝，避免为未来交易日生成伪新鲜数据。
+- 行情最大年龄要求正有限数；零、负数、NaN、无穷和布尔不再传播到 quote readiness 判定。
+- 资产与宏观指标代码统一去空白、转大写、保持顺序去重，并校验字符、单码长度和最多 200 个唯一代码，阻断畸形或无界外部同步范围。
+- scoped quote sync 只捕获 Data Center 声明的可恢复异常；编程错误不再被包装为普通 failed payload 后继续执行。
+- Alpha queue task ID 收窄为字符串；Pulse/Alpha refresher、status reader、动态用户、结果 payload、CommandParser 与 options 边界补齐类型。
+- Cold-start 的显式 decision repair 调用固定传递 `strict=True`；修复报告仍阻断时部署初始化失败，不再因命令默认非严格模式伪成功。
+
+## 第一百八十六批验证结果
+
+- Decision Reliability Repair Command 增量 mypy 清零；全仓基线从 `2760 errors / 566 files` 收紧为 `2745 errors / 565 files`，净减少 `15 errors / 1 file`。
+- Repair Command Component 与 Initialization Command Edge 回归共 `20 passed`；新增覆盖代码规范化/上限、非法 scope ID、失效用户、非有限行情年龄、未来日期和 cold-start strict 传播。
+- Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百八十七批
+
+- 按“宏观金融事实真实性 × 多条决策输入传播影响面”收口 Data Center Financial Fetcher 与公共宏观数据校验。
+- LPR、SHIBOR、存款准备金率、外汇储备、新增信贷、人民币存贷款、DR007 和公开市场净投放改用显式语义列契约；第三方返回列漂移时失败关闭，不再按位置猜列并静默写入错误序列。
+- LPR 与 SHIBOR 对齐当前 AKShare `TRADE_DATE/LPR1Y`、`日期/O/N-定价` 契约；非法日期行转为缺失并跳过，不再中止整批有效数据。
+- 存款准备金率改用“生效时间 + 大型金融机构调整后”口径，不再把公布时间和调整前数值发布为当前政策水平。
+- `CN_RMB_DEPOSIT` 改为“新增人民币存款总额”流量口径，并明确选取“新增存款-数量”；不再优先取“新增储蓄存款”子项却标记为人民币存款余额。
+- 数据迁移同步修正人民币存款目录名称、描述、流量语义与图表策略；历史 AKShare 错口径事实不删除，统一标记为 `error` 并保留原质量和失效原因，等待正确口径重同步，迁移回滚可恢复原质量。
+- 所有必需金融数值通过 `safe_float` 收窄为有限数；缺失标记、畸形字符串、NaN 与正负无穷不再回退为零。公共宏观数据校验器进一步拒绝任何 fetcher 遗漏的非有限事实。
+- Financial Fetcher 的第三方模块、校验回调、排序回调和返回边界补齐精确类型；仅在 pandas 外部库边界保留定点 `import-untyped` 注释。
+
+## 第一百八十七批验证结果
+
+- Financial Fetcher 与 Macro Source Base 增量 mypy 清零；全仓基线从 `2745 errors / 565 files` 收紧为 `2728 errors / 563 files`，净减少 `17 errors / 2 files`。
+- Financial Fetcher、Macro Fetcher Resilience、公共 Adapter、迁移和指标治理回归共 `82 passed`；新增覆盖当前 AKShare 列契约、RRR 生效后值、人民币存款总额、非法日期、schema 漂移、无效数值跳过和历史事实可逆隔离。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 仍被本批未修改的 `broker_execution/infrastructure/repositories.py` 大文件增长和 `strategy/infrastructure/repositories.py` 缺少大文件基线两项阻断，留待对应模块拆分/治理批次处理。
+
+## 第一百八十八批
+
+- 按“增长与融资宏观事实 × Regime/Pulse 公共输入影响面”收口 Data Center Economic Fetcher。
+- 工业增加值、社零当月值及同比、GDP 累计值及同比、固定资产投资累计值及派生同比、社会融资增量及派生同比统一改用显式语义列契约；第三方列漂移时失败关闭，不再按位置猜测并误用其他指标列。
+- 工业增加值明确读取“同比增长”，社零明确区分“当月”和“同比增长”，GDP 明确区分累计绝对值和同比增长，固定资产投资只使用“自年初累计”，社会融资只使用“社会融资规模增量”。
+- 中文月度和季度标签改为完整匹配；非法月份、第五季度、倒置季度区间和带尾随垃圾的标签不再被部分正则接受或默认映射到第四季度。
+- 固定资产投资派生同比要求当前和上年同月累计值均为正数；零或负累计基数不再产生失真同比。
+- 所有经济指标数值统一通过必需数值解析与公共有限性校验，Fetcher 的第三方模块、校验回调、排序回调、数据点列表与返回边界补齐精确类型。
+
+## 第一百八十八批验证结果
+
+- Economic Fetcher 增量 mypy 清零；全仓基线从 `2728 errors / 563 files` 收紧为 `2717 errors / 562 files`，净减少 `11 errors / 1 file`。
+- Macro Fetcher Resilience 回归共 `29 passed`；新增覆盖工业增加值命名列、GDP schema 漂移拒绝、非法季度标签和固定资产投资非正累计值跳过，保留 GDP、社零、社融及派生口径回归。
+- Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百八十九批
+
+- 按“PMI/CPI/PPI/M2 核心 Regime 输入 × 单位治理唯一真源”收口 Data Center Base Fetcher 与公共解析辅助。
+- 制造业 PMI、CPI 指数及六类城乡同比/环比、PPI 指数及同比、M2 余额及同比、非制造业 PMI 全部改用显式语义列契约；第三方列漂移时失败关闭，不再按位置猜测。
+- CPI 细分路由从列序号映射改为指标代码到正式列名映射；未知 CPI 细分代码明确拒绝，不再返回空列表伪装成无数据。
+- 月份解析改为完整匹配并校验 1..12；非法月份行转为缺失后跳过，保留同批有效事实。
+- M2 Fetcher 删除硬编码 `/10000` 换算，直接发布 AKShare 原始“亿元”值；新增 `CN_M2 + akshare + 亿元` 单位规则，由统一治理链路按 `100000000` 转换为 canonical 元存储并按万亿元展示。
+- 公共必需数值解析改用 `safe_float`，统一拒绝缺失标记、畸形值、NaN 与无穷；source unit 模式必须找到精确启用的单位规则，否则在事实构造前失败关闭。
+- Base Fetcher 与公共 helper 的第三方 DataFrame、回调、列表和返回边界补齐精确类型。
+
+## 第一百八十九批验证结果
+
+- Base Fetcher 与 Common Helper 增量 mypy 清零；全仓基线从 `2717 errors / 562 files` 收紧为 `2704 errors / 560 files`，净减少 `13 errors / 2 files`。
+- Base Fetcher、Macro Fetcher Resilience、日期和指标治理回归共 `60 passed`；新增覆盖全部核心命名列、六类 CPI 细分、M2 原始亿元值、单位规则、schema 漂移、非法月份和未知 CPI 代码拒绝。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十批
+
+- 按“PMI 领先分项长期空数据 × Pulse/Regime 领先指标影响面”收口 Data Center PMI Subitems Fetcher。
+- 修复手工数据路径从不存在的 `apps/data_center/data/pmi_subitems_manual.json` 读取的问题；Fetcher 现在准确定位既有 `apps/macro/data/pmi_subitems_manual.json`，六类 PMI 分项不再永久静默返回空列表。
+- 手工文件事实来源改为 `manual_pmi_subitems`，不再错误标记为 `akshare`；指标目录补齐国家统计局、NBS publisher code、official provenance 和 manual-file access channel。
+- 数据迁移把历史误标为 akshare 的 PMI 分项事实改为手工来源并补审计 metadata；若 canonical 手工事实已存在，则保留冲突行并标记 `error`，避免唯一键覆盖，迁移回滚可恢复原来源与质量。
+- 缺失可选文件仍返回空列表；文件不可读、JSON 损坏、根结构错误、缺失/非数组 data 或非对象记录改为明确 `DataValidationError`，不再把损坏数据伪装成“无数据”。
+- reporting period 必须是 ISO 月末日期；布尔、缺失、NaN、无穷及 0..100 外的 PMI 指数跳过；反向日期范围在文件 I/O 前拒绝。
+- 六个公开 fetch 方法复用统一字段转换入口，单位由指标治理元数据解析；动态 JSON、回调、记录、列表和返回边界补齐精确类型。
+
+## 第一百九十批验证结果
+
+- PMI Subitems Fetcher 增量 mypy 清零；全仓基线从 `2704 errors / 560 files` 收紧为 `2694 errors / 559 files`，净减少 `10 errors / 1 file`。
+- PMI Subitems、provenance migration 与指标治理回归共 `26 passed`；新增直接读取真实默认文件的六分项覆盖，以及损坏 JSON、结构错误、缺失文件、非法月末、越界值、来源修复和冲突隔离回归。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十一批
+
+- 按“高频宏观事实口径 × Pulse/Regime/Risk 多链路传播影响面”收口 Data Center High Frequency Fetcher。
+- 中美国债收益率改用当前 AKShare 的显式中文列契约；删除基于 `2Y/5Y/10Y` 子串的模糊列识别，避免运算符优先级和英文同期限列把美国收益率误写为中国收益率。
+- 10Y-2Y 期限利差只从同一 DataFrame、同一日期的中国 10Y 与 2Y 基础收益率派生并转换为 BP；数据源为空时直接返回，不再继续访问空对象列。
+- 识别并关闭两条错口径发布路径：`macro_china_commodity_price_index` 不是南华商品指数，`fx_spot_quote` 的即期买价也不是人民币中间价；`CN_NHCI` 与 `CN_FX_CENTER` 在取得可信数据源前失败关闭。
+- 数据迁移将上述两项的 `governance_sync_supported` 设为 false，并把历史 AKShare 错口径事实标记为 `error`、保留原质量和隔离原因；回滚可恢复先前目录标志与事实质量。
+- 同步更正 Regime Phase 0 与滞后改进文档中把 CN_NHCI、CN_FX_CENTER 标为已实现/部分实现的过时结论，明确历史错口径数量不计入有效覆盖。
+- Fetcher 的第三方模块、校验回调、排序回调、数据点列表和返回边界补齐精确类型，仅在 pandas 外部库边界保留定点 `import-untyped` 注释。
+
+## 第一百九十一批验证结果
+
+- High Frequency Fetcher 增量 mypy 清零；全仓基线从 `2694 errors / 559 files` 收紧为 `2685 errors / 558 files`，净减少 `9 errors / 1 file`。
+- 高频 Fetcher、Regime 观察指标、高频信号规则及语义隔离迁移回归共 `40 passed`；新增覆盖中美国别/期限精确列、同日利差派生、schema 漂移、空数据异常路径、错误商品/汇率端点禁止调用和历史事实隔离。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十二批
+
+- 按“就业/房价/能源事实真实性 × Regime 增长与通胀输入影响面”收口 Data Center Other Fetcher。
+- 城镇调查失业率对齐当前 AKShare `date/item/value` 契约，只读取“全国城镇调查失业率”；删除按位置回退到 `item` 列和解析失败默认 0 的逻辑，避免把指标名称文本发布成 0% 失业率。
+- 全国失业率要求为 `(0, 100]` 有限百分点；AKShare 官方样例中的 0 缺失占位和其他无效值跳过，历史 AKShare 0 值事实由迁移标记为 `error` 并保留原质量和原因。
+- 新建商品住宅价格改用“日期/城市/新建商品住宅价格指数-同比”显式列契约，只选择北京并将目录名称、描述和 geographic metadata 明确为北京单城市序列，不再冒充全国房价。
+- 成品油价格改用“调整日期/汽油价格”显式列契约并保持上游元/吨原值；删除运行时硬编码的 1360 升/吨密度假设，目录和单位规则统一为元/吨。
+- 数据迁移把历史 AKShare 元/升油价按旧运行时除数可逆还原为元/吨，并记录修复前值、单位和转换依据；迁移回滚可恢复旧目录、单位规则、油价事实和失业率质量。
+- Other Fetcher 的第三方模块、回调、DataFrame、数据点列表与返回边界补齐精确类型，仅在 pandas 外部库边界保留定点 `import-untyped` 注释。
+
+## 第一百九十二批验证结果
+
+- Other Fetcher 增量 mypy 清零；全仓基线从 `2685 errors / 558 files` 收紧为 `2678 errors / 557 files`，净减少 `7 errors / 1 file`。
+- Other Fetcher、Macro Fetcher Resilience、目录治理命令与语义修复迁移回归共 `37 passed`；新增覆盖正式 AKShare 列契约、全国指标项筛选、0/缺失值拒绝、北京/上海隔离、schema 漂移、油价原始单位和历史事实修复。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十三批
+
+- 按“海关贸易事实 × 增长判断与外需输入影响面”收口 Data Center Trade Fetcher。
+- 出口额、出口同比、进口额、进口同比统一使用当前 AKShare 海关数据的“月份/当月出口额-金额/当月出口额-同比增长/当月进口额-金额/当月进口额-同比增长”显式列契约；删除所有列序号回退。
+- 月份标签改为完整匹配并校验 1..12；schema 漂移明确失败，单行缺失标记或畸形金额只跳过该行，不再中断同批有效月份。
+- 出口和进口金额删除运行时 `/100000` 硬编码换算，按上游原始“千美元”值发布；新增三条 `akshare + 千美元` 单位规则，由统一治理链路按 1000 转换为 canonical 元存储并按亿美元展示。
+- 贸易差额不再读取 Jin10 发布日接口并把发布日期误作 reporting period；现在从同一海关 DataFrame、同一统计月份的当月出口额减当月进口额派生，目录补齐 derivation method 和上下游指标。
+- 数据迁移将历史 AKShare 贸易差额事实标记为 `error` 并保留原质量和错位原因，等待同月海关口径重同步；单位规则、目录 metadata 和事实质量均支持精确回滚。
+- Trade Fetcher 的第三方模块、回调、动态行、数据点列表与返回边界补齐精确类型，仅在 pandas 外部库边界保留定点 `import-untyped` 注释。
+
+## 第一百九十三批验证结果
+
+- Trade Fetcher 增量 mypy 清零；全仓基线从 `2678 errors / 557 files` 收紧为 `2671 errors / 556 files`，净减少 `7 errors / 1 file`。
+- Trade Fetcher、Macro Fetcher Resilience、目录治理命令与海关单位迁移回归共 `40 passed`；新增覆盖当前列契约、原始千美元、同月贸易差额、schema 漂移、单行错误隔离、三条单位规则、历史事实隔离和反向迁移。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十四批
+
+- 按“代理指标语义污染 × Regime 中期验证输入影响面”收口 Data Center Weekly Indicator Fetcher。
+- 确认并停止四条不具同义性的代理发布：全社会用电量不是发电量、钢铁股票指数不是高炉开工率、BDI 干散货指数不是 CCFI、BCI 海岬型干散货指数不是 SCFI。
+- 四个既有 fetch 路由保留接口兼容，但在取得语义一致数据源前统一失败关闭且不调用代理端点；避免下游仅凭指标代码把代理值当成目标事实。
+- 指标目录将四项标记为 `unsupported_proxy` 且 `governance_sync_supported=false`；治理初始化真源同步携带该状态，后续运行初始化不会把自动同步重新打开。
+- 数据迁移将历史 AKShare 代理事实统一标记为 `error`，保留原质量和隔离原因；目录描述、同步标志、治理状态及事实质量支持精确回滚。
+- 全面更正 Regime 滞后改进文档中“已实现/代理可用/有效记录”的过时结论，历史 33/155/156/155 条代理记录不再计入有效覆盖。
+- Weekly Fetcher 的第三方模块、回调和返回边界补齐精确类型；移除不再需要的 pandas 外部边界。
+
+## 第一百九十四批验证结果
+
+- Weekly Indicator Fetcher 增量 mypy 清零；全仓基线从 `2671 errors / 556 files` 收紧为 `2665 errors / 555 files`，净减少 `6 errors / 1 file`。
+- Weekly Fetcher、Phase 2 Seed、目录治理命令与代理隔离迁移回归共 `17 passed`；新增覆盖四条错误端点零调用、同步持续关闭、历史事实隔离和反向迁移。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十五批
+
+- 按“最低佣金唯一真源 × 买入资金真实性”补齐模拟交易费用配置的外部调用闭环。
+- 核心买入链路继续从按资产类型启用的数据库 `FeeConfig.min_commission` 读取最低佣金，并以包含佣金、过户费与滑点的完整费用执行资金校验和实际扣款；非 5 元配置值会直接改变所需现金。
+- SDK `create_trading_cost_config`、MCP legacy tool、内部 handler 与 fallback 创建入口删除 `5.0` 默认值，最低佣金改为显式必填参数，避免调用方省略参数时重新注入硬编码。
+- `account.create.trading_cost_config` 能力清单将 `min_commission` 纳入 required contract；缺参在预览或写入前以 `missing_required_arguments` 失败关闭。
+- SDK 与架构文档同步删除最低佣金 5 元运行时默认口径，明确该值必须来自券商/资产费率配置；历史迁移中的 5 元仅用于保留既有数据库演进记录，不作为当前运行时默认值。
+
+## 第一百九十五批验证结果
+
+- 模拟交易余额边界、Account 费用 Domain/API、SDK client 与 MCP capability 回归共 `87 passed`；覆盖 `7.5` 元最低佣金进入资金校验、SDK 显式透传 `2.5` 元和 MCP 缺参拒绝。
+- Django system check、架构 delta、改动文件 Ruff、diff check 与全仓 debt ceiling 通过；全仓生产代码基线保持 `2665 errors / 555 files`，本批不抬高债务。
+- SDK 独立严格 mypy 仍被跨模块历史债务阻断，共 `176 errors / 34 files`；本批改动未产生参数顺序、缺参或调用签名相关类型错误，后续按 SDK 专项债务批次治理。
+
+## 第一百九十六批
+
+- 按“事件分发唯一实例 × 风控/决策 handler 启动完整性”收口全局 Event Bus 初始化链路。
+- 修复启动器单独创建 Celery/内存总线、而发布用例和 Celery task 继续读取 Domain 第二个全局总线的问题；完整注册并启动的 concrete bus 现在安装为 `apps.events.domain.services.get_event_bus()` 的唯一进程级实例。
+- `INSTALLED_APPS` 将 `events` 调整到 `decision_rhythm`、`alpha_trigger` 与 `beta_gate` 之后，修复 Beta Gate 在事件总线初始化完成后才写 registry、两个关键订阅永久缺失的问题。
+- 初始化器改为线程安全且幂等；registry 订阅使用稳定 ID 并保留声明优先级，handler 的 follow-up event bus 注入与发布方使用同一实例。总线被测试/运维 reset 后再次初始化会重建完整订阅，不复用已清空的假健康实例。
+- Registry、handler 构造或订阅失败不再逐项吞掉；Events、Alpha Trigger 与 Beta Gate 的关键启动链路统一失败关闭，避免 Django 在缺失风控、触发或执行一致性 handler 时继续提供服务。
+- `EventBus` 抽象补齐 start/stop 生命周期；全局替换会停止旧实例，reset 会关闭线程池。订阅查询改为不可共享列表容器的浅快照，修复 bus-aware handler 因内部 `RLock` 无法 deepcopy 导致健康查询崩溃的问题。
+- 同步更新事件总线集成设计，明确 App 启动顺序、唯一实例与失败关闭契约。
+
+## 第一百九十六批验证结果
+
+- Event Bus Domain、初始化器、异步 task、Alpha/Beta/Decision Rhythm 订阅 wiring、决策执行 handler 与 Events API 回归共 `83 passed`；启动日志确认完整注册 `18 handlers`，并显式覆盖 Beta Gate 订阅存在、全局实例同一性、幂等、reset 重建和构造失败不安装。
+- Event Bus、Beta Gate 启动链路及相关 Domain 增量 mypy 清零；全仓基线从 `2665 errors / 555 files` 收紧为 `2626 errors / 549 files`，净减少 `39 errors / 6 files`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百九十七批
+
+- 按“异步事件不丢投递 × 健康状态真实性”收口 Events Celery task、health checker、Celery adapter 与受控重放 composition contract。
+- 单事件异步发布严格解析 timezone-aware ISO 时间；显式非法或 naive 时间直接失败，不再记录 warning 后改用当前时间，避免事件发生时间被静默篡改。
+- Celery 重试在持久化前按 `event_id` 查询：已存在且内容一致的事件继续完成投递，修复 worker 在“已入库、尚未 publish”窗口失败后永久丢投递的问题；同 ID 不同 payload、metadata、类型或显式时间失败关闭。
+- 批量发布的 `success` 改为只在零失败时为 true，并校验事件类型、payload、metadata、ID 与时间边界；初始化 event store/bus 失败走 Celery 重试，不再返回假成功。
+- Replay 的 since/until 必须含时区且顺序有效，limit 必须大于零；无效 handler 路径和类型属于确定性输入错误，不消耗基础设施重试。
+- Events/Snapshot 清理、指标采集和健康任务补齐真实重试契约；非法保留期和批大小直接拒绝，数据库等瞬时故障在达到 max retries 后返回失败证据。
+- 健康计算修复空闲总线 `0 failed < 0 processed` 被误判 unhealthy 的问题；现在以实际失败率计算，并要求总线运行、订阅数大于零。无 handler 或缺失决策批准/执行成功/执行失败关键 handler 均为 ERROR，不再降级为 WARNING。
+- Celery adapter 从 DomainEvent metadata 读取 correlation/causation ID，修复访问不存在实体属性的运行时错误；受控 Replay Protocol 改为与 concrete store/repository 一致的精确签名。
+
+## 第一百九十七批验证结果
+
+- Event task、health checker、Celery transport、受控 replay、Domain bus、初始化器、决策执行 handler 与 Events API 回归共 `91 passed`；覆盖 naive 时间拒绝、已持久化重试续投、ID 冲突、批量失败状态、清理失败、空闲健康和零订阅不健康。
+- Events async/health/adapter/composition 增量 mypy 清零；全仓基线从 `2626 errors / 549 files` 收紧为 `2601 errors / 545 files`，净减少 `25 errors / 4 files`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百九十八批
+
+- 按“Prompt 四层边界 × AI 模板写入入口唯一性”清理 `apps/prompt/infrastructure/__init__.py`。
+- 确认该文件是早期遗留的完整 DRF Serializer 影子副本：位于 Infrastructure 层却承载 Interface 职责，创建模板/链时直接实例化 concrete Repository，并与当前正式 Serializer 的名称唯一性、输入上限、provider_ref、更新和 Application facade 契约持续分叉。
+- 全仓静态调用审计确认没有生产或测试调用者依赖该影子入口；删除旧 Serializer 实现，将 Infrastructure 包恢复为无 ORM/DRF 导入副作用、无 shortcut export 的 package marker。
+- `apps/prompt/interface/serializers.py` 保持唯一 Serializer 真源；新增边界回归禁止 Infrastructure 重新暴露模板/链 Serializer。
+- 修复 ChatRequest 既有测试在输入校验收紧后仍构造缺失 content 历史消息的问题；合法夹具改为完整 role/content，并新增缺 content 必须拒绝的安全契约。
+- 同步更新 Prompt 架构文档，明确 DRF、Application facade 与 Infrastructure 的职责边界。
+
+## 第一百九十八批验证结果
+
+- Prompt Infrastructure 边界、Interface Serializer、Prompt API edge、Evaluation Gate 与初始化命令一致性回归共 `31 passed`。
+- Prompt Infrastructure package 增量 mypy 清零；全仓基线从 `2601 errors / 545 files` 收紧为 `2577 errors / 544 files`，净减少 `24 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百九十九批
+
+- 按“Alpha 质量指标真实性 × Qlib 工件可复现性”收口 Qlib artifact/training/evaluation runtime。
+- 模型评估只从独立验证区间内按日期和证券代码对齐的真实标签计算横截面 Rank IC；每个横截面至少要求 10 只有效证券。标签缺失、索引无法对齐或样本不足时失败关闭，不再根据预测分数变异系数编造 IC、ICIR 和 Rank IC。
+- 删除已弃用且返回虚构指标的 `get_default_metrics` 生产导出，训练运行记录和模型注册表只接收真实评估结果。
+- `Alpha158` / `Alpha360` 改为显式支持列表，未知特征集直接拒绝；LightGBM 专属默认参数不再注入 GRU、LSTM 和 MLP，日期范围和独立验证集划分在训练前校验。
+- 模型工件改为不可覆盖的原子目录发布；先写同级临时目录，写入模型、配置、真实指标、实际特征/标签 metadata 与数据版本后，最后生成含逐文件 SHA-256 和字节数的 `manifest.json` 并原子改名。路径逃逸和同版本覆盖均失败关闭。
+- 删除与实际 Alpha158/Alpha360 不一致的硬编码示例特征和标签；`feature_schema.json` 只发布本次训练配置中真实存在的 feature set、label 和显式 feature columns。
+
+## 第一百九十九批验证结果
+
+- Qlib runtime、Alpha infrastructure edge、task structure 与 training component 回归共 `48 passed`；覆盖真实标签指标、标签缺失失败、工件清单哈希、不可覆盖和实际 schema。
+- Qlib artifact/scientific runtime 及其 Application 导出增量 mypy 清零；全仓基线从 `2577 errors / 544 files` 收紧为 `2553 errors / 542 files`，净减少 `24 errors / 2 files`。
+- Django system check、迁移漂移检查、架构 delta、改动文件 Ruff、diff check 与增量 mypy 通过。
+
+## 第二百批
+
+- 按“Alpha 监控证据真实性 × Qlib 运维误报影响面”收口 Alpha monitoring tasks。
+- 覆盖率删除 CSI300/手动结果固定 300 分母；只从缓存 `scope_metadata.pool_size`、`metrics_snapshot.universe_count/pool_size` 或 AlphaResult metadata 读取可审计分母。缺少分母时返回 unavailable，不发布猜测值；评分数超过股票池规模时标记 invalid。
+- 队列积压改为读取 Celery worker 的 reserved 任务，不再把 active 执行中任务当作 backlog；inspect 异常或无 worker 响应时返回 unavailable 且不写入 0，避免监控失联被误报为无积压。
+- IC 漂移将最新有效 IC 与其之前最多 20 个有效历史值比较，不再把当前值混入自身历史均值；有效滚动历史不足两点时明确 skipped。
+- 清理任务拒绝零、负数和布尔保留期，避免未来 cutoff 大范围删除缓存；旧任务名统一调用 canonical task body。
+- Application 通过 repository provider factory 获取仓储，所有任务、结果、日统计和辅助入口补齐精确类型。
+
+## 第二百批验证结果
+
+- Alpha/Qlib runtime contracts 与 Alpha monitoring integration 回归共 `48 passed`；覆盖真实覆盖率分母、IC 历史排除当前值、队列 unavailable 不写假 0、reserved 计数和非法保留期拒绝。
+- Alpha monitoring tasks 增量 mypy 清零；全仓基线从 `2553 errors / 542 files` 收紧为 `2535 errors / 541 files`，净减少 `18 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check 与增量 mypy 通过。
+
+## 第二百零一批
+
+- 按“Qlib 训练入口唯一性 × 新模型指标归属真实性”收口 `train_qlib_model` management command 与 canonical task 配置。
+- 删除 CLI 内独立的 Qlib 初始化、训练、评估、pickle 保存和 ORM Registry 写入实现；同步执行与异步投递现在都调用 `qlib_train_model` canonical task，统一使用真实标签评估、原子不可变 artifact、manifest 和 repository 写入。
+- 删除“新模型真实评估失败后读取另一旧模型缓存 IC/ICIR 并写入新 Registry”的错误回填路径；评估异常现在使训练失败，不再跨模型冒用质量指标。
+- canonical task 将本次训练的日期、股票池、特征集和标签组成 effective config，同时传给训练、评估、artifact 和 Registry；修复此前评估使用默认日期/Alpha360、而训练使用另一配置的错位。
+- CLI `learning-rate/epochs` 改为模型专属 `model_params`：LightGBM 使用 `learning_rate/num_boost_round`，GRU/LSTM/MLP 使用 `lr/n_epochs`；非正数、非有限数和非法轮数在任务投递前拒绝。
+- 股票池、特征集、标签与模型目录省略时交由 Config Center 提供，不再由 CLI 硬编码运行时默认值；历史 `v1` 特征集别名规范化为真实 `alpha360`，未知特征集失败关闭。
+- `--force` 不再伪装为可用选项；不可变 artifact 禁止覆盖，显式使用时返回 CommandError。
+
+## 第二百零一批验证结果
+
+- Qlib runtime contracts、training component 与 mock fallback remediation 回归共 `48 passed`；覆盖同步/异步同配置、模型专属参数、v1 规范化、真实评估 effective config 和影子保存器移除。
+- Qlib training command 及相关 task/runtime 增量 mypy 清零；全仓基线从 `2535 errors / 541 files` 收紧为 `2517 errors / 540 files`，净减少 `18 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check 与增量 mypy 通过。
+
+## 第二百零二批
+
+- 按“中央 AI Provider 路由 × 凭据轮换与故障接管影响面”收口 `AIClientFactory`。
+- 删除 `_ScopedAIClient` 按 provider ID 永久缓存适配器的逻辑；每次请求均使用本次从数据库解析出的最新 Base URL、API Key、默认模型、API mode 与 fallback 设置构建适配器，配置或密钥轮换无需等待进程重启。
+- 适配器构建或调用抛出的异常统一转换为安全的标准失败结果并写入使用日志；日志只保留 provider 名称和异常类型，不向调用方或审计记录复制可能含凭据、地址或第三方响应正文的原始异常消息。单个 provider 异常后继续尝试后续个人或系统候选，不再中断整条 failover 链。
+- 个人 provider 与系统 provider 统一执行自身日/月预算限制；个人配置达到预算后跳过并进入受用户 fallback quota 约束的系统兜底，不再绕过 provider 级预算。
+- 显式传入的非法或不存在用户引用改为失败关闭，不再解析为匿名请求后使用不计用户额度的 system-global provider。
+- 补齐中央 factory、scoped client、adapter contract 与 chat completion application protocol 的精确类型；删除未使用的 legacy null client，并让 Prompt、Valuation、Terminal 与 AI Capability 消费端共享同一可检查契约。
+
+## 第二百零二批验证结果
+
+- AI Provider Domain/Adapter/配置/加密/预算/路由/API、Prompt/Valuation API 与 Terminal Agent 回归共 `151 passed`；新增覆盖 provider 抛异常后的接管、异常消息脱敏、缓存 client 下配置和 API Key 轮换即时生效、非法用户 ID 拒绝及个人预算执行。
+- AI client factory 与 application chat contract 增量 mypy 清零；类型传播同时消除 AI Capability facade 与 Terminal chat router 的既有未类型调用，全仓基线从 `2517 errors / 540 files` 收紧为 `2497 errors / 539 files`，净减少 `20 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零三批
+
+- 按“AI Provider 管理 scope 隔离 × 配置写入与连接测试影响面”收口 Provider Application use cases。
+- 系统管理调用与个人管理调用改为显式的互斥 scope：未传 actor 的管理员链路只能管理 system provider，传入 actor 的个人链路只能管理该用户自己的 user provider；更新、删除、启停、统计、预算和连接测试统一复用同一解析规则。
+- 修复管理员 system API 可凭个人 provider ID 修改或删除个人配置、个人 API 可凭 system provider ID 操作系统配置的越权边界；跨 scope 请求在数据库写入、API Key 解密或外部连接前统一按 not found 失败关闭。
+- 连接测试不再从 Application use case 导入 concrete Infrastructure adapter，改由 Application repository provider 暴露的 adapter factory 组装，恢复四层依赖边界。
+- Provider 管理用例的 actor、owner、动态更新字段及仓储注入边界补齐类型，保持 ORM 动态对象仅停留在 Application/Infrastructure 交界。
+
+## 第二百零三批验证结果
+
+- AI Provider Domain/Adapter/配置/加密/预算/路由/API 回归共 `102 passed`；覆盖管理员/个人双向跨 scope 拒绝、合法系统连接测试和既有 CRUD 契约。
+- Provider use cases 增量 mypy 清零；全仓基线从 `2497 errors / 539 files` 收紧为 `2484 errors / 538 files`，净减少 `13 errors / 1 file`。
+- 架构 delta 无违规，改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零四批
+
+- 按“AI Provider 配置输入可信度 × 密钥读接口最小披露”收口 Provider Serializer 与写入校验。
+- Read Serializer 删除 Interface 层自行读取加密设置、解密 API Key 并输出后四位的重复密钥实现；Application DTO 只发布 `api_key_configured` 布尔状态，API 的兼容 `api_key` 字段仅返回固定 `****`，不再暴露可用于关联凭据的后四位。
+- Provider 日/月预算改用有精度和非负约束的 Decimal 输入；HTTP Serializer 与直接 Application UseCase 同时拒绝负数、布尔、NaN、Infinity 和畸形预算，避免绕过 API 后写入不可比较或无限预算值。
+- 零预算保持为有效的“禁止消费”限制；预算状态查询不再用 truthiness 把 `0` 错当成未配置，路由与管理视图对零预算的判断保持一致。
+- 用户 fallback quota 与批量额度 Serializer 同步增加非负约束；Chat request 的 temperature 限定在 `0..2`，max_tokens 必须大于零。
+- `extra_config` 必须是 JSON object，禁止数组、字符串等无法按配置键读取的结构进入运行时。
+- Update UseCase 禁止修改既有 provider 的 scope 或 owner；即使绕过 HTTP Serializer，个人 provider 也不能抬升为 system provider 或转移给其他用户。
+- 全部 DRF Serializer 补齐泛型参数和字段校验签名，密钥状态由 Application 查询服务生成，不把解密职责重新放回 Interface。
+
+## 第二百零四批验证结果
+
+- AI Provider Domain/Adapter/配置/加密/预算/路由/API 回归共 `107 passed`，并单独复跑配置模式 `11 passed`；新增覆盖固定密钥掩码、无凭据指纹、负预算、NaN、零预算持续生效、非对象 extra config、非法 Chat 参数和直接 UseCase scope 抬升拒绝。
+- Provider Serializer 目标 mypy 清零；全仓基线从 `2484 errors / 538 files` 收紧为 `2474 errors / 537 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零五批
+
+- 按“AI Provider 管理页面可恢复性 × 日志查询输入边界”收口 Provider page views。
+- 日志页面不再直接对 `provider` 与 `limit` 查询参数调用 `int()`；非数字、零和负数 provider 过滤器改为不筛选，非法或非正 limit 回到 100，超大 limit 截断为 500，避免用户构造 URL 导致 500 或无界查询。
+- 日志 status 只接受正式状态集合，未知值不再下传仓储；页面回显使用规范化后的过滤值，避免界面显示了未实际执行的条件。
+- 系统 Provider 管理页改为包含停用配置；管理员可以从同一管理入口重新启用已停用 provider，不再把可恢复配置隐藏在唯一操作页面之外。
+- 页面 request、response、provider DTO、动态更新 payload 与辅助解析函数补齐精确类型。
+
+## 第二百零五批验证结果
+
+- AI Provider 页面与 API edge 回归共 `20 passed`；覆盖畸形/负数/超大日志过滤参数、状态规范化和停用系统 provider 可见性。
+- Provider page views 目标 mypy 清零；全仓基线从 `2474 errors / 537 files` 收紧为 `2465 errors / 536 files`，净减少 `9 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零六批
+
+- 按“API Key 表单回显 × 浏览器页面凭据泄露影响面”收口 Provider Forms。
+- Provider API Key 的 PasswordInput 关闭 `render_value`；当 JSON、URL、预算或其他字段校验失败时，用户刚提交的密钥不再重新写入 HTML value，避免通过页面源代码、浏览器插件、截图或前端日志泄露。
+- 编辑页留空表示不修改的既有语义保持不变，表单仍只在有效提交时把新密钥交给 Application 写入。
+- Provider form 的动态 provider 输入、构造参数和 JSON object 清洗返回值补齐类型。
+
+## 第二百零六批验证结果
+
+- Provider Forms 与管理页面回归共 `5 passed`；新增覆盖表单校验失败后 HTML 不含原始 API Key。
+- Provider Forms 目标 mypy 清零；全仓基线从 `2465 errors / 536 files` 收紧为 `2461 errors / 535 files`，净减少 `4 errors / 1 file`。
+- 改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零七批
+
+- 按“Django Admin 密钥写入绕过 × 高权限配置入口”收口 AI Provider Admin。
+- Admin fieldset 删除 deprecated 明文 `api_key` 与加密字段，改为只读 `masked_api_key`；管理员不能再绕过 Repository/API 加密链路把新凭据直接写入模型明文字段，密钥更新统一走正式页面或 API。
+- Admin 与 Application 展示服务统一使用固定 `****` 掩码，不再解密后输出末四位；未配置时明确显示 `Not configured`，避免凭据指纹泄露。
+- 三个 Admin 类改为项目统一的 `TypedModelAdmin[ConcreteModel]`，显示列使用 `@admin.display`；Usage Log 的 add/change 权限 handler 补齐 HttpRequest、具体模型与返回类型。
+- Admin 仍由既有唯一 `interface.admin` 入口注册，未新增重复注册路径。
+
+## 第二百零七批验证结果
+
+- AI Provider Admin 与加密 guardrail 回归共 `9 passed`；覆盖 Admin 不出现明文/密文字段、固定掩码不泄露后四位和 Repository 加密落库。
+- Provider Admin 与密钥展示 Application service 增量 mypy 清零；全仓基线从 `2461 errors / 535 files` 收紧为 `2453 errors / 533 files`，净减少 `8 errors / 2 files`。
+- 架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零八批
+
+- 按“Data Center Provider 健康真实性 × 九类事实同步影响面”收口统一 sync use cases。
+- 补齐 Fund NAV、财务报表、估值、板块成分、新闻和资金流六类同步的健康写入；这些能力成功时更新成功次数、平均延迟与最后成功时间，失败时更新连续失败数、最后错误与 degraded 状态，并同步通知运行时 Provider Registry。
+- 六类同步统一通过 Base UseCase 的 outcome 入口同时写 Provider 健康与 RawAudit；避免各能力分别拼装导致健康和审计状态分叉，Macro、历史价格和实时报价既有行为保持不变。
+- 代表性新闻同步回归证明成功与 TimeoutError 都同时更新持久化 health_metrics、运行时 registry 和 raw audit，不再出现同步持续失败但健康面板保留旧状态。
+- Fact source 规范化改为保留具体 Fact 类型的泛型入口；Macro Fact 列表、动态 dataclass replace 和 RawAudit request mapping 补齐精确类型。
+- 新增 outcome 复用后同步文件保持 `798` 个非空行，低于既有 `800` 行结构预算；未通过提高阈值接受文件膨胀。
+
+## 第二百零八批验证结果
+
+- Data Center Phase 3 sync、结构预算、按需同步回归共 `12 passed`，Data Center API integration 共 `6 passed`。
+- Data Center sync use cases 目标 mypy 清零；全仓基线从 `2453 errors / 533 files` 收紧为 `2445 errors / 532 files`，净减少 `8 errors / 1 file`。
+- Django system check、架构 delta、结构预算、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零九批
+
+- 按“Data Center Provider Response 最小披露 × 分层安全契约”收口 Provider 配置响应 DTO。
+- `ProviderResponse` 删除原始 `api_key/api_secret` 字段与 `to_dict()` 输出，改为只携带 `has_api_key/has_api_secret`；Application 调用者、任务和日志即使绕过 Interface Serializer，也无法从响应对象取得凭据。
+- Provider catalog use case 在 Domain 配置进入响应边界时立即折叠为布尔状态，不再把秘密一路传到 Interface 后才删除。
+- Provider List Serializer 原生消费 Application 布尔状态，同时保留对旧字典输入的兼容读取；nested extra_config 的 token/secret/password 递归清理保持不变。
+
+## 第二百零九批验证结果
+
+- Data Center Provider 应用与 Serializer 回归共 `39 passed`，Provider connection governance 与 API integration 共 `9 passed`；覆盖 Application Response 不含秘密、HTTP 创建/详情不回显凭据及嵌套配置脱敏。
+- 三个改动生产文件增量 mypy 清零；全仓 debt ceiling 保持 `2445 errors / 532 files`，本批未抬高债务。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十批
+
+- 按“舆情指数真实性 × Celery 异步任务可靠性”收口 Sentiment 每日指数、单事件分析、批量分析与新鲜度检查链路。
+- 每日指数、单政策事件和新鲜度任务的 `max_retries` 不再只是装饰配置；运行时仓储、AI 或持久化异常会实际调用 Celery `retry()`，而非法日期和非法事件 ID 等永久输入错误在进入任务主流程前直接拒绝，避免无效重试。
+- AI Adapter 返回失败、超时或空内容时生成显式失败结果，并优先保留正式 `error_message`；失败结果不再被当作 0 分中性数据缓存、通过 API 返回或写入每日指数。每日任务遇到 AI 分析失败会在持久化前请求重试，防止“服务不可用”伪装成“市场中性”。
+- Data Center 已存新闻情绪在进入指数前必须是有限数；`NaN`、正负无穷和布尔值不会被夹成极端分数。AI 动态关键词只允许非空字符串进入 Domain，数字、空值和其他 JSON 类型被丢弃。
+- Sentiment Analyzer、配置仓储、AI Adapter、市场新闻 Provider 和四个 Celery task 补齐 Protocol、具体集合与返回类型；统一使用共享 typed Celery boundary，并改用 AI Provider 正式 Application provider 入口。
+
+## 第二百一十批验证结果
+
+- Sentiment 单元与 API edge 回归共 `43 passed`；覆盖真实重试调用、永久输入不重试、批量任务错误穿透、AI 失败不缓存/不落指数、上游错误信息保留、非有限评分拒绝及动态关键词收窄。
+- 四个改动生产文件增量 mypy 清零；全仓基线从 `2445 errors / 532 files` 收紧为 `2415 errors / 528 files`，净减少 `30 errors / 4 files`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十一批
+
+- 按“回测任务状态真实性 × 异步失败恢复与批量清理影响面”收口 Backtest Celery tasks。
+- 回测执行、旧结果清理和报告生成统一使用 typed Celery boundary 与 canonical repository provider；永久输入或业务错误直接失败，运行时异常调用真实 `retry()`，重试期间数据库状态保持 running，只有最终失败才写 failed，避免 Celery 显示成功或尚在重试而业务记录提前失败。
+- 任务配置严格校验正整数 ID、日期、布尔值、有限数和 PIT 覆盖结构；Domain 同步拒绝非有限初始资金与交易费率，避免 `NaN`、无穷值或 Python truthiness 进入回测。
+- 异步任务和同步页面共用 execution-scoped regime/price reader；单次回测只初始化一次仓储与价格适配器，不再按每个交易日重复读取密钥和构建客户端。
+- 旧回测清理拒绝布尔、零、负数及超大保留期，并下沉为数据库 bulk delete；只删除 cutoff 前已完成记录，不逐条加载和删除，也不误删失败或运行中记录。
+- 报告任务对不存在或未完成回测抛出正式错误，不再返回包含 `error` 的字典却让 Celery 把任务标记为成功。
+- 回测实体、服务、Application provider/interface 和 Infrastructure repository 补齐精确集合与返回类型；类型传播同时消除 Interface views 的既有未类型调用。
+
+## 第二百一十一批验证结果
+
+- Backtest use case、adapter、Domain、API edge、任务与 integration 回归共 `89 passed, 1 skipped`；另行复核模拟交易最低手续费配置链路 `39 passed`，确认买入资金校验读取 `FeeConfig.min_commission`，生产代码无硬编码 `5`。
+- Backtest 改动文件增量 mypy 清零；全仓基线从 `2415 errors / 528 files` 收紧为 `2372 errors / 522 files`，净减少 `43 errors / 6 files`。
+- Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十二批
+
+- 按“归因证据完整性 × Regime 准确率真实性”收口 Audit attribution application use case。
+- 回测仓储当前使用 JSONField 保存权益曲线与 Regime 历史；归因用例现同时支持原生 JSON list 和历史 JSON text，不再对原生列表误调用 `json.loads()` 后静默清空真实证据。
+- 权益曲线统一收窄为有日期的有限数值点，兼容 ISO 日期与历史毫秒时间戳；畸形、`NaN` 和无穷值在进入 Domain 前丢弃并按日期排序。
+- Regime 历史统一验证日期、非空象限和有限置信度；归因准确率改用标准化权益曲线计算区间收益，并统一使用大写枚举比较，修复 `.upper()` 后与混合大小写常量永远不匹配、结果错误回落到中性 `0.5` 的缺陷。
+- 行情适配器初始化和单资产读取失败只记录异常类型；Application 响应不再复制可能含凭据、地址或第三方正文的原始异常消息。
+- Backtest 查询通过 Application Protocol 注入，动态 ORM 对象只在转换边界保留 `Any`；请求、响应、回测归因数据、Regime 记录、资产收益和审计摘要补齐精确类型。
+
+## 第二百一十二批验证结果
+
+- Audit Application/Domain 回归 `86 passed`，新增归因真实性与 Application 回归 `43 passed`，Audit 数据库 workflow、实际 Regime、治理与 API integration 回归 `50 passed`；分组存在既有测试重叠，均独立通过。
+- Attribution application use case 增量 mypy 清零；全仓基线从 `2372 errors / 522 files` 收紧为 `2357 errors / 521 files`，净减少 `15 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十三批
+
+- 按“归因结果可读取性 × 阈值写入防绕过”收口 Audit interface services 与 repository provider。
+- 归因生成 payload 只有在 use case 明确成功、返回有效 report ID 且报告能够立即读回时才返回成功；修复缺少 ID 或写后读不到记录仍发布 `success=true` 的错误语义。
+- 归因图表 payload 通过 repository 实际查询 LossAnalysis 与 ExperienceSummary，不再因为主报告 serializer 不含 nested 字段而固定返回两个空列表。
+- 归因生成、预览与图表入口拒绝非正 ID；报告方法过滤器只接受空值、heuristic 或 brinson，未知值规范化为空过滤器，不把任意字符串下传数据库。
+- 阈值更新和预览在 Application 边界再次校验非空指标、有限数与 `level_low < level_high`；直接 use case/内部调用不能绕过 DRF Serializer 写入 `NaN`、无穷值或反向区间。验证预览与执行同步拒绝反向日期范围。
+- Backtest repository、阈值响应、动态 ORM 页面上下文和 Audit failure counter/provider 补齐精确返回类型；provider 类型传播同时清除 Audit health check 的既有未类型调用。
+
+## 第二百一十三批验证结果
+
+- Audit interface invariants 与 manual trade helper 回归 `11 passed`；Audit API endpoints、归因治理、验证 API 和阈值配置 API integration 回归 `42 passed`。
+- 两个改动 Application 文件增量 mypy 清零；全仓基线从 `2357 errors / 521 files` 收紧为 `2331 errors / 519 files`，净减少 `26 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十四批
+
+- 按“公开健康接口最小披露 × 运维状态真实性”收口 Audit health check。
+- 健康接口不再返回数据库名称、数据库引擎、原始异常消息或最近失败 reason；数据库与表检查只发布 passed/error type，失败计数接口只发布总数和按组件聚合，避免公开接口泄露 DSN、SQL、内部地址或第三方响应。
+- 显式 `warning_threshold=0` 不再被 Python truthiness 替换为默认 10；阈值必须是非负整数且 error 严格大于 warning，非法查询参数返回 400，不再静默使用默认值或触发 500。
+- 健康检查器不再跨调用缓存首个阈值配置；每次请求按本次参数构建，避免后续调用实际使用旧阈值。
+- 指标采集失败会增加 `audit_metrics=ERROR` 检查并把 overall status 置为 ERROR，不再出现 metrics 已不可用但总体仍为 OK；错误 payload 只保留异常类型。
+- `failure_rate` 改为失败数除以成功日志与失败数之和，保持在 `0..1`，不再用失败数直接除以成功日志数而产生大于 100% 的伪比率。
+- Audit Repository Protocol 补齐 operation log count，并清理全部裸集合类型；Health Checker、Failure Stats 与 Counter 使用精确 Protocol。
+
+## 第二百一十四批验证结果
+
+- Audit health、failure counter 与 interface invariants 回归 `42 passed`，公开健康响应专项回归 `14 passed`；Audit API edge、API integration 与 endpoints 回归 `48 passed`。
+- Health check 与 Audit Domain interface 增量 mypy 清零；全仓基线从 `2331 errors / 519 files` 收紧为 `2322 errors / 517 files`，净减少 `9 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十五批
+
+- 按“操作审计凭据保密 × 审计查询授权完整性”收口 Audit operation log 全链路。
+- 新写入日志对结构化请求与响应递归脱敏，并同步清理响应正文、响应消息、异常堆栈和含查询参数的请求路径；覆盖 Bearer Token、URL 凭据、私钥、API Key、密码及 OpenAI 风格密钥，不再只保护 JSON 字段。
+- Repository 在列表、详情和决策追踪读取边界再次脱敏，历史遗留的未清理记录也不会直接返回；摘要生成只使用清理后的响应内容。
+- 日志写入与查询失败不再把数据库异常正文复制到 API、失败计数或应用日志，只保留稳定错误文案与异常类型。
+- 普通用户缺少可信用户 ID 时，日志列表、详情和决策追踪默认拒绝，不再把空用户过滤条件解释为全量查询；导出与统计在 Application 边界要求显式管理员上下文。
+- 查询排序、分页、导出格式、日期范围、统计分组和行数上限在 Application 边界统一校验，内部调用不能绕过 Interface Serializer 向 ORM 传入任意排序字段。
+- Operation Log entity、factory、use case 与 repository 补齐具体集合、ORM 和序列化返回类型；归因周期集合改用协变只读接口，保持 Brinson 调用方类型兼容。
+
+## 第二百一十五批验证结果
+
+- Audit operation log Domain、failure counter 与安全不变量回归 `46 passed`；Audit internal ingest 与 API integration 全组 `21 passed`，另对历史记录读取脱敏和签名写入做定点复核 `2 passed`。
+- 七个相关生产文件增量 mypy 清零；全仓基线从 `2322 errors / 517 files` 收紧为 `2297 errors / 513 files`，净减少 `25 errors / 4 files`。
+- 改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十六批
+
+- 按“归因统计真实性 × 投研判断影响面”收口 Audit heuristic attribution Domain service。
+- Regime 预测与实际值在双方带日期时按共同日期对齐，不再按列表位置比较；输入顺序变化不会制造错误命中率，大小写统一后再计算准确率与混淆矩阵。
+- Regime 周期先验证日期、非空象限和有限置信度并按日期排序，畸形观察不会进入归因；权益曲线过滤非有限值，周期起始净值必须大于零，避免除零或发布 `NaN` 收益。
+- 信息比率要求基准收益数与权益曲线区间数严格一致，不再用零填充缺失基准；零或非有限净值、非有限基准直接返回不可计算。
+- 资产收益只聚合有限数，交易成本总额必须有限；损坏数据不再静默形成看似有效的归因数字。
+- 通过最小只读 Protocol 接受正式 BacktestResult 与 Audit Application 的不可变简化结果，服务函数补齐具体集合、返回 DTO 和内部变量类型。
+
+## 第二百一十六批验证结果
+
+- Attribution service、performance analyzer 与新增真实性不变量回归共 `90 passed`。
+- Attribution Domain service 增量 mypy 清零；全仓基线从 `2297 errors / 513 files` 收紧为 `2282 errors / 512 files`，净减少 `15 errors / 1 file`。
+- 改动文件 Ruff、Black、isort、diff check、增量 mypy与全仓 debt ceiling 通过。
+
+## 第二百一十七批
+
+- 按“指标验证批次隔离 × 动态权重调整影响面”收口 Audit indicator performance persistence。
+- `IndicatorPerformanceModel` 新增可空、带索引的 `validation_run_id`，并以条件唯一约束保证同一批次每个指标至多一份报告；阈值验证生成批次后把同一 ID 传给每个指标评估并随报告落库，报告查询实际按批次过滤，不再忽略已有参数。
+- 动态权重调整只读取指定验证批次的报告；没有批次关联报告、缺少激活阈值配置或报告关键指标不完整时默认拒绝，不再按相同日期区间混入其他运行或历史报告。
+- 指标表现、Regime 日志和页面上下文序列化统一使用 `is not None` 与有限数收窄；合法的 `0.0` F1、精确率、召回率、稳定性、权重、置信度和衰减率不再被错误发布为缺失。
+- 指标表现写入拒绝空指标、反向日期、负混淆矩阵计数和非有限指标；阈值更新只允许激活配置，权重必须有限且处于该指标配置的最小/最大范围，水平阈值必须有限且 `low < high`。
+- Macro Fact 查询先投影为明确的候选 DTO，再调用统一来源选择规则；返回值统一为有限浮点数，不再把 Django Decimal 模型硬塞入不兼容的选择协议。
+- 补充迁移 `0009_indicatorperformancemodel_validation_run_id.py`；Audit ORM model 的字符串与 Domain 转换方法补齐返回类型，F1 缺失时字符串展示为 `N/A`，不再因格式化 `None` 抛错。
+
+## 第二百一十七批验证结果
+
+- Audit unit、Domain、Application、integration 与 Macro Fact 组件完整相关回归 `301 passed`；Interface、validation 与 threshold config 定点回归另有 `20 passed`。
+- `makemigrations --check --dry-run` 无漂移，Django system check 与架构 delta 通过。
+- Indicator use case、repository 与 Audit models 增量 mypy 清零；全仓基线从 `2282 errors / 512 files` 收紧为 `2257 errors / 509 files`，净减少 `25 errors / 3 files`。
+- 改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。

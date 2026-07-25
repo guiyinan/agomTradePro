@@ -6,65 +6,93 @@ Data Center 经济活动指标数据获取器。
 
 import logging
 import re
+from collections.abc import Callable
 from datetime import date
+from typing import Any
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 from ..base import DataValidationError, MacroDataPoint
-from .common import parse_required_float, pick_column, resolve_indicator_units
+from .common import parse_required_float, resolve_indicator_units
 
 logger = logging.getLogger(__name__)
 
 
-def parse_chinese_date(date_str: str) -> str:
+ValidateDataPoint = Callable[[MacroDataPoint], None]
+SortAndDeduplicate = Callable[[list[MacroDataPoint]], list[MacroDataPoint]]
+
+
+def parse_chinese_date(date_value: object) -> str:
     """解析中文日期格式"""
-    if '年' in str(date_str) and '月' in str(date_str):
-        match = re.match(r'(\d{4})年(\d{1,2})月', str(date_str))
+    date_text = str(date_value)
+    if "年" in date_text and "月" in date_text:
+        match = re.fullmatch(r"\s*(\d{4})年(\d{1,2})月份?\s*", date_text)
         if match:
             year, month = match.groups()
+            if not 1 <= int(month) <= 12:
+                return date_text
             return f"{year}-{month.zfill(2)}"
-    return date_str
+    return date_text
 
 
-def parse_chinese_quarter(date_str: str) -> str:
+def parse_chinese_quarter(date_value: object) -> str:
     """处理中文季度格式 (如: '2024年第1季度')"""
-    date_str = str(date_str)
-    match = re.match(r'(\d{4})年(?:第)?(\d)(?:-(\d))?季度', date_str)
+    date_text = str(date_value)
+    match = re.fullmatch(
+        r"\s*(\d{4})年(?:第)?([1-4])(?:-([1-4]))?季度\s*",
+        date_text,
+    )
     if match:
         year, start_quarter, end_quarter = match.groups()
+        if end_quarter is not None and int(end_quarter) < int(start_quarter):
+            return date_text
         quarter = end_quarter or start_quarter
-        quarter_to_month = {'1': '03', '2': '06', '3': '09', '4': '12'}
-        return f"{year}-{quarter_to_month.get(quarter, '12')}-01"
+        quarter_to_month = {"1": "03", "2": "06", "3": "09", "4": "12"}
+        return f"{year}-{quarter_to_month[quarter]}-01"
 
-    match = re.match(r'(\d{4})年(?:第)?(\d)-(\d)季度', date_str)
-    if match:
-        year, _, end_quarter = match.groups()
-        quarter_to_month = {'1': '03', '2': '06', '3': '09', '4': '12'}
-        return f"{year}-{quarter_to_month.get(end_quarter, '12')}-01"
-
-    match = re.match(r'(\d{4})年(\d+)-(\d+)月', date_str)
+    match = re.fullmatch(r"\s*(\d{4})年(\d{1,2})-(\d{1,2})月\s*", date_text)
     if match:
         year = match.group(1)
-        end_month = match.group(3)
-        return f"{year}-{end_month.zfill(2)}-01"
+        end_month = int(match.group(3))
+        if not 1 <= end_month <= 12:
+            return date_text
+        return f"{year}-{end_month:02d}-01"
 
-    return date_str
+    return date_text
+
+
+def _require_column(
+    dataframe: Any,
+    candidates: tuple[str, ...],
+    *,
+    indicator_code: str,
+) -> str:
+    """Resolve a semantic source column without positional guessing."""
+
+    for candidate in candidates:
+        if candidate in dataframe.columns:
+            return candidate
+    raise DataValidationError(
+        f"{indicator_code} 数据缺少必需列 {list(candidates)}，" f"当前列: {list(dataframe.columns)}"
+    )
 
 
 class EconomicIndicatorFetcher:
     """经济活动指标获取器"""
 
-    def __init__(self, ak, source_name: str, validate_fn, sort_dedup_fn):
+    def __init__(
+        self,
+        ak: Any,
+        source_name: str,
+        validate_fn: ValidateDataPoint,
+        sort_dedup_fn: SortAndDeduplicate,
+    ) -> None:
         self.ak = ak
         self.source_name = source_name
         self._validate = validate_fn
         self._sort_and_deduplicate = sort_dedup_fn
 
-    def fetch_value_added(
-        self,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch_value_added(self, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """获取工业增加值数据"""
         try:
             df = self.ak.macro_china_gyzjz()
@@ -72,29 +100,40 @@ class EconomicIndicatorFetcher:
                 logger.warning("工业增加值数据为空")
                 return []
 
-            date_col_idx = 0
-            value_col_idx = 1
+            date_col = _require_column(
+                df,
+                ("月份",),
+                indicator_code="CN_VALUE_ADDED",
+            )
+            value_col = _require_column(
+                df,
+                ("同比增长",),
+                indicator_code="CN_VALUE_ADDED",
+            )
 
             df = df.copy()
-            df['observed_at'] = pd.to_datetime(df.iloc[:, date_col_idx].apply(parse_chinese_date), format='mixed', errors='coerce')
-            df['value'] = pd.to_numeric(df.iloc[:, value_col_idx], errors='coerce')
-            df = df[['observed_at', 'value']].dropna()
+            df["observed_at"] = pd.to_datetime(
+                df[date_col].apply(parse_chinese_date),
+                format="mixed",
+                errors="coerce",
+            )
+            df["value"] = pd.to_numeric(df[value_col], errors="coerce")
+            df = df[["observed_at", "value"]].dropna()
             df = df[
-                (df['observed_at'].dt.date >= start_date) &
-                (df['observed_at'].dt.date <= end_date)
+                (df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)
             ]
 
-            data_points = []
+            data_points: list[MacroDataPoint] = []
             unit, original_unit = resolve_indicator_units("CN_VALUE_ADDED")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_VALUE_ADDED",
-                        value=float(row['value']),
-                        observed_at=row['observed_at'].date(),
+                        value=parse_required_float(row["value"]),
+                        observed_at=row["observed_at"].date(),
                         source=self.source_name,
                         unit=unit,
-                        original_unit=original_unit
+                        original_unit=original_unit,
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -107,11 +146,7 @@ class EconomicIndicatorFetcher:
             logger.error(f"获取工业增加值数据失败: {e}")
             raise
 
-    def fetch_retail_sales(
-        self,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch_retail_sales(self, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """获取社会消费品零售总额当月值数据。"""
         try:
             df = self.ak.macro_china_consumer_goods_retail()
@@ -119,29 +154,40 @@ class EconomicIndicatorFetcher:
                 logger.warning("社零数据为空")
                 return []
 
-            date_col_idx = 0
-            value_col_idx = 1
+            date_col = _require_column(
+                df,
+                ("月份",),
+                indicator_code="CN_RETAIL_SALES",
+            )
+            value_col = _require_column(
+                df,
+                ("当月",),
+                indicator_code="CN_RETAIL_SALES",
+            )
 
             df = df.copy()
-            df['observed_at'] = pd.to_datetime(df.iloc[:, date_col_idx].apply(parse_chinese_date), format='mixed', errors='coerce')
-            df['value'] = pd.to_numeric(df.iloc[:, value_col_idx], errors='coerce')
+            df["observed_at"] = pd.to_datetime(
+                df[date_col].apply(parse_chinese_date),
+                format="mixed",
+                errors="coerce",
+            )
+            df["value"] = pd.to_numeric(df[value_col], errors="coerce")
             df = df[
-                (df['observed_at'].dt.date >= start_date) &
-                (df['observed_at'].dt.date <= end_date)
+                (df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)
             ]
-            df = df[['observed_at', 'value']].dropna()
+            df = df[["observed_at", "value"]].dropna()
 
-            data_points = []
+            data_points: list[MacroDataPoint] = []
             unit, original_unit = resolve_indicator_units("CN_RETAIL_SALES")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_RETAIL_SALES",
-                        value=float(row['value']),
-                        observed_at=row['observed_at'].date(),
+                        value=parse_required_float(row["value"]),
+                        observed_at=row["observed_at"].date(),
                         source=self.source_name,
                         unit=unit,
-                        original_unit=original_unit
+                        original_unit=original_unit,
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -154,11 +200,7 @@ class EconomicIndicatorFetcher:
             logger.error(f"获取社零数据失败: {e}")
             raise
 
-    def fetch_retail_sales_yoy(
-        self,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch_retail_sales_yoy(self, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """获取社会消费品零售总额同比增速数据。"""
         try:
             df = self.ak.macro_china_consumer_goods_retail()
@@ -166,33 +208,40 @@ class EconomicIndicatorFetcher:
                 logger.warning("社零同比数据为空")
                 return []
 
-            date_col_idx = 0
-            value_col_idx = 2
+            date_col = _require_column(
+                df,
+                ("月份",),
+                indicator_code="CN_RETAIL_SALES_YOY",
+            )
+            value_col = _require_column(
+                df,
+                ("同比增长",),
+                indicator_code="CN_RETAIL_SALES_YOY",
+            )
 
             df = df.copy()
-            df['observed_at'] = pd.to_datetime(
-                df.iloc[:, date_col_idx].apply(parse_chinese_date),
-                format='mixed',
-                errors='coerce',
+            df["observed_at"] = pd.to_datetime(
+                df[date_col].apply(parse_chinese_date),
+                format="mixed",
+                errors="coerce",
             )
-            df['value'] = pd.to_numeric(df.iloc[:, value_col_idx], errors='coerce')
+            df["value"] = pd.to_numeric(df[value_col], errors="coerce")
             df = df[
-                (df['observed_at'].dt.date >= start_date) &
-                (df['observed_at'].dt.date <= end_date)
+                (df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)
             ]
-            df = df[['observed_at', 'value']].dropna()
+            df = df[["observed_at", "value"]].dropna()
 
-            data_points = []
+            data_points: list[MacroDataPoint] = []
             unit, original_unit = resolve_indicator_units("CN_RETAIL_SALES_YOY")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_RETAIL_SALES_YOY",
-                        value=float(row['value']),
-                        observed_at=row['observed_at'].date(),
+                        value=parse_required_float(row["value"]),
+                        observed_at=row["observed_at"].date(),
                         source=self.source_name,
                         unit=unit,
-                        original_unit=original_unit
+                        original_unit=original_unit,
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -205,11 +254,7 @@ class EconomicIndicatorFetcher:
             logger.error(f"获取社零同比数据失败: {e}")
             raise
 
-    def fetch_gdp(
-        self,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch_gdp(self, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """获取中国 GDP 数据
 
         注意：akshare返回的GDP数据单位是"亿元"
@@ -221,31 +266,38 @@ class EconomicIndicatorFetcher:
                 return []
 
             df = df.copy()
-            date_col = pick_column(df, ["季度"], 0)
-            value_col = pick_column(df, ["国内生产总值-绝对值"], 1)
-            df['observed_at'] = pd.to_datetime(
-                df[date_col].apply(parse_chinese_quarter),
-                format='mixed',
-                errors='coerce',
+            date_col = _require_column(
+                df,
+                ("季度",),
+                indicator_code="CN_GDP",
             )
-            df['value'] = pd.to_numeric(df[value_col], errors='coerce')
-            df = df[['observed_at', 'value']].dropna()
+            value_col = _require_column(
+                df,
+                ("国内生产总值-绝对值",),
+                indicator_code="CN_GDP",
+            )
+            df["observed_at"] = pd.to_datetime(
+                df[date_col].apply(parse_chinese_quarter),
+                format="mixed",
+                errors="coerce",
+            )
+            df["value"] = pd.to_numeric(df[value_col], errors="coerce")
+            df = df[["observed_at", "value"]].dropna()
             df = df[
-                (df['observed_at'].dt.date >= start_date) &
-                (df['observed_at'].dt.date <= end_date)
+                (df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)
             ]
 
-            data_points = []
+            data_points: list[MacroDataPoint] = []
             unit, original_unit = resolve_indicator_units("CN_GDP")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_GDP",
-                        value=parse_required_float(row['value']),  # 保持原始值（亿元）
-                        observed_at=row['observed_at'].date(),
+                        value=parse_required_float(row["value"]),  # 保持原始值（亿元）
+                        observed_at=row["observed_at"].date(),
                         source=self.source_name,
                         unit=unit,
-                        original_unit=original_unit
+                        original_unit=original_unit,
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -258,11 +310,7 @@ class EconomicIndicatorFetcher:
             logger.error(f"获取 GDP 数据失败: {e}")
             raise
 
-    def fetch_gdp_yoy(
-        self,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch_gdp_yoy(self, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """获取中国 GDP 同比数据"""
         try:
             df = self.ak.macro_china_gdp()
@@ -271,31 +319,38 @@ class EconomicIndicatorFetcher:
                 return []
 
             df = df.copy()
-            date_col = pick_column(df, ["季度"], 0)
-            value_col = pick_column(df, ["国内生产总值-同比增长"], 2)
-            df['observed_at'] = pd.to_datetime(
-                df[date_col].apply(parse_chinese_quarter),
-                format='mixed',
-                errors='coerce',
+            date_col = _require_column(
+                df,
+                ("季度",),
+                indicator_code="CN_GDP_YOY",
             )
-            df['value'] = pd.to_numeric(df[value_col], errors='coerce')
-            df = df[['observed_at', 'value']].dropna()
+            value_col = _require_column(
+                df,
+                ("国内生产总值-同比增长",),
+                indicator_code="CN_GDP_YOY",
+            )
+            df["observed_at"] = pd.to_datetime(
+                df[date_col].apply(parse_chinese_quarter),
+                format="mixed",
+                errors="coerce",
+            )
+            df["value"] = pd.to_numeric(df[value_col], errors="coerce")
+            df = df[["observed_at", "value"]].dropna()
             df = df[
-                (df['observed_at'].dt.date >= start_date) &
-                (df['observed_at'].dt.date <= end_date)
+                (df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)
             ]
 
-            data_points = []
+            data_points: list[MacroDataPoint] = []
             unit, original_unit = resolve_indicator_units("CN_GDP_YOY")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_GDP_YOY",
-                        value=parse_required_float(row['value']),
-                        observed_at=row['observed_at'].date(),
+                        value=parse_required_float(row["value"]),
+                        observed_at=row["observed_at"].date(),
                         source=self.source_name,
                         unit=unit,
-                        original_unit=original_unit
+                        original_unit=original_unit,
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -321,8 +376,16 @@ class EconomicIndicatorFetcher:
                 return []
 
             df = df.copy()
-            date_col = pick_column(df, ["月份"], 0)
-            value_col = pick_column(df, ["自年初累计"], 4)
+            date_col = _require_column(
+                df,
+                ("月份",),
+                indicator_code="CN_FIXED_INVESTMENT",
+            )
+            value_col = _require_column(
+                df,
+                ("自年初累计",),
+                indicator_code="CN_FIXED_INVESTMENT",
+            )
             df["observed_at"] = pd.to_datetime(
                 df[date_col].apply(parse_chinese_date),
                 format="mixed",
@@ -331,11 +394,10 @@ class EconomicIndicatorFetcher:
             df["value"] = pd.to_numeric(df[value_col], errors="coerce")
             df = df[["observed_at", "value"]].dropna()
             df = df[
-                (df["observed_at"].dt.date >= start_date)
-                & (df["observed_at"].dt.date <= end_date)
+                (df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)
             ]
 
-            data_points = []
+            data_points: list[MacroDataPoint] = []
             unit, original_unit = resolve_indicator_units("CN_FIXED_INVESTMENT")
             for _, row in df.iterrows():
                 try:
@@ -373,8 +435,16 @@ class EconomicIndicatorFetcher:
                 return []
 
             df = df.copy()
-            date_col = pick_column(df, ["月份"], 0)
-            value_col = pick_column(df, ["自年初累计"], 4)
+            date_col = _require_column(
+                df,
+                ("月份",),
+                indicator_code="CN_FAI_YOY",
+            )
+            value_col = _require_column(
+                df,
+                ("自年初累计",),
+                indicator_code="CN_FAI_YOY",
+            )
             df["observed_at"] = pd.to_datetime(
                 df[date_col].apply(parse_chinese_date),
                 format="mixed",
@@ -382,29 +452,24 @@ class EconomicIndicatorFetcher:
             )
             df["cumulative_value"] = pd.to_numeric(df[value_col], errors="coerce")
             df = df[["observed_at", "cumulative_value"]].dropna()
+            df = df[df["cumulative_value"] > 0]
             df["year"] = df["observed_at"].dt.year
             df["month"] = df["observed_at"].dt.month
-            prior = (
-                df[["year", "month", "cumulative_value"]]
-                .rename(
-                    columns={
-                        "year": "prior_year",
-                        "cumulative_value": "prior_cumulative_value",
-                    }
-                )
+            prior = df[["year", "month", "cumulative_value"]].rename(
+                columns={
+                    "year": "prior_year",
+                    "cumulative_value": "prior_cumulative_value",
+                }
             )
             df["prior_year"] = df["year"] - 1
             df = df.merge(prior, on=["prior_year", "month"], how="left")
-            df = df[df["prior_cumulative_value"].notna() & (df["prior_cumulative_value"] != 0)]
-            df["value"] = (
-                (df["cumulative_value"] / df["prior_cumulative_value"] - 1.0) * 100.0
-            )
+            df = df[df["prior_cumulative_value"].notna() & (df["prior_cumulative_value"] > 0)]
+            df["value"] = (df["cumulative_value"] / df["prior_cumulative_value"] - 1.0) * 100.0
             df = df[
-                (df["observed_at"].dt.date >= start_date)
-                & (df["observed_at"].dt.date <= end_date)
+                (df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)
             ]
 
-            data_points = []
+            data_points: list[MacroDataPoint] = []
             unit, original_unit = resolve_indicator_units("CN_FAI_YOY")
             for _, row in df.iterrows():
                 try:
@@ -439,8 +504,16 @@ class EconomicIndicatorFetcher:
                 return []
 
             df = df.copy()
-            date_col = pick_column(df, ["月份"], 0)
-            value_col = pick_column(df, ["社会融资规模增量"], 1)
+            date_col = _require_column(
+                df,
+                ("月份",),
+                indicator_code="CN_SOCIAL_FINANCING",
+            )
+            value_col = _require_column(
+                df,
+                ("社会融资规模增量",),
+                indicator_code="CN_SOCIAL_FINANCING",
+            )
             df["observed_at"] = pd.to_datetime(
                 df[date_col].astype(str),
                 format="%Y%m",
@@ -449,11 +522,10 @@ class EconomicIndicatorFetcher:
             df["value"] = pd.to_numeric(df[value_col], errors="coerce")
             df = df[["observed_at", "value"]].dropna()
             df = df[
-                (df["observed_at"].dt.date >= start_date)
-                & (df["observed_at"].dt.date <= end_date)
+                (df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)
             ]
 
-            data_points = []
+            data_points: list[MacroDataPoint] = []
             unit, original_unit = resolve_indicator_units("CN_SOCIAL_FINANCING")
             for _, row in df.iterrows():
                 try:
@@ -491,8 +563,16 @@ class EconomicIndicatorFetcher:
                 return []
 
             df = df.copy()
-            date_col = pick_column(df, ["月份"], 0)
-            value_col = pick_column(df, ["社会融资规模增量"], 1)
+            date_col = _require_column(
+                df,
+                ("月份",),
+                indicator_code="CN_SOCIAL_FINANCING_YOY",
+            )
+            value_col = _require_column(
+                df,
+                ("社会融资规模增量",),
+                indicator_code="CN_SOCIAL_FINANCING_YOY",
+            )
             df["observed_at"] = pd.to_datetime(
                 df[date_col].astype(str),
                 format="%Y%m",
@@ -502,20 +582,18 @@ class EconomicIndicatorFetcher:
             df = df[["observed_at", "flow_value"]].dropna()
             df["year"] = df["observed_at"].dt.year
             df["month"] = df["observed_at"].dt.month
-            prior = (
-                df[["year", "month", "flow_value"]]
-                .rename(columns={"year": "prior_year", "flow_value": "prior_flow_value"})
+            prior = df[["year", "month", "flow_value"]].rename(
+                columns={"year": "prior_year", "flow_value": "prior_flow_value"}
             )
             df["prior_year"] = df["year"] - 1
             df = df.merge(prior, on=["prior_year", "month"], how="left")
             df = df[df["prior_flow_value"].notna() & (df["prior_flow_value"] > 0)]
             df["value"] = ((df["flow_value"] / df["prior_flow_value"]) - 1.0) * 100.0
             df = df[
-                (df["observed_at"].dt.date >= start_date)
-                & (df["observed_at"].dt.date <= end_date)
+                (df["observed_at"].dt.date >= start_date) & (df["observed_at"].dt.date <= end_date)
             ]
 
-            data_points = []
+            data_points: list[MacroDataPoint] = []
             unit, original_unit = resolve_indicator_units("CN_SOCIAL_FINANCING_YOY")
             for _, row in df.iterrows():
                 try:

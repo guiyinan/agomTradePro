@@ -1105,8 +1105,8 @@ def register_account_tools(server: FastMCP) -> None:
     @server.tool()
     def create_trading_cost_config(
         portfolio_id: int,
+        min_commission: float,
         commission_rate: float = 0.00025,
-        min_commission: float = 5.0,
         stamp_duty_rate: float = 0.001,
         transfer_fee_rate: float = 0.00002,
     ) -> dict[str, Any]:
@@ -1115,8 +1115,8 @@ def register_account_tools(server: FastMCP) -> None:
 
         Args:
             portfolio_id: 投资组合 ID
+            min_commission: 最低佣金（元，必须按券商配置显式提供）
             commission_rate: 佣金率（默认万2.5，如 0.00025）
-            min_commission: 最低佣金（元，默认5）
             stamp_duty_rate: 印花税率（默认千1，如 0.001，卖出时收取）
             transfer_fee_rate: 过户费率（默认万0.2，如 0.00002，沪市股票双向收取）
 

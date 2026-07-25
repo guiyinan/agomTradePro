@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from django import forms
 
@@ -29,7 +30,7 @@ class _BaseProviderForm(forms.Form):
     api_key = forms.CharField(
         label="API Key",
         required=False,
-        widget=forms.PasswordInput(render_value=True),
+        widget=forms.PasswordInput(render_value=False),
         help_text="编辑时留空表示不修改",
     )
     default_model = forms.CharField(label="默认模型", max_length=50)
@@ -43,7 +44,9 @@ class _BaseProviderForm(forms.Form):
         initial="dual",
     )
     fallback_enabled = forms.BooleanField(label="允许回退", required=False, initial=True)
-    description = forms.CharField(label="描述", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    description = forms.CharField(
+        label="描述", required=False, widget=forms.Textarea(attrs={"rows": 2})
+    )
     extra_config_text = forms.CharField(
         label="额外配置(JSON)",
         required=False,
@@ -51,7 +54,12 @@ class _BaseProviderForm(forms.Form):
         help_text="可选。建议字段：timeout、max_retries、temperature、max_tokens",
     )
 
-    def __init__(self, *args, provider=None, **kwargs):
+    def __init__(
+        self,
+        *args: Any,
+        provider: Any | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.provider = provider
         self.fields["extra_config_text"].widget.attrs.update(
@@ -84,7 +92,7 @@ class _BaseProviderForm(forms.Form):
                 json.dumps(self.EXTRA_CONFIG_EXAMPLE, ensure_ascii=False, indent=2),
             )
 
-    def clean_extra_config_text(self):
+    def clean_extra_config_text(self) -> dict[str, Any]:
         raw = self.cleaned_data.get("extra_config_text", "").strip()
         if not raw:
             return {}
@@ -98,10 +106,19 @@ class _BaseProviderForm(forms.Form):
 
 
 class AIProviderConfigForm(_BaseProviderForm):
-    daily_budget_limit = forms.DecimalField(label="每日预算限制", required=False, min_value=0, decimal_places=2)
-    monthly_budget_limit = forms.DecimalField(label="每月预算限制", required=False, min_value=0, decimal_places=2)
+    daily_budget_limit = forms.DecimalField(
+        label="每日预算限制", required=False, min_value=0, decimal_places=2
+    )
+    monthly_budget_limit = forms.DecimalField(
+        label="每月预算限制", required=False, min_value=0, decimal_places=2
+    )
 
-    def __init__(self, *args, provider=None, **kwargs):
+    def __init__(
+        self,
+        *args: Any,
+        provider: Any | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, provider=provider, **kwargs)
         if provider is not None:
             self.initial.setdefault("daily_budget_limit", provider.daily_budget_limit)
@@ -113,7 +130,13 @@ class PersonalAIProviderConfigForm(_BaseProviderForm):
 
 
 class UserFallbackQuotaForm(forms.Form):
-    daily_limit = forms.DecimalField(label="每日额度", required=False, min_value=0, decimal_places=2)
-    monthly_limit = forms.DecimalField(label="每月额度", required=False, min_value=0, decimal_places=2)
+    daily_limit = forms.DecimalField(
+        label="每日额度", required=False, min_value=0, decimal_places=2
+    )
+    monthly_limit = forms.DecimalField(
+        label="每月额度", required=False, min_value=0, decimal_places=2
+    )
     is_active = forms.BooleanField(label="启用额度", required=False, initial=True)
-    admin_note = forms.CharField(label="备注", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    admin_note = forms.CharField(
+        label="备注", required=False, widget=forms.Textarea(attrs={"rows": 2})
+    )

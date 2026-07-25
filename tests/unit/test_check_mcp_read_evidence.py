@@ -137,6 +137,28 @@ def test_validate_read_evidence_rejects_missing_catalog_test():
         module.validate_read_evidence_manifests([_manifest()], **kwargs)
 
 
+def test_validate_read_evidence_accepts_exhaustive_catalog_projection_matrix():
+    module = _load_module()
+    kwargs = _valid_kwargs()
+    kwargs["ai_capability_test_blocks"] = [
+        (
+            "legacy_replacements = build_legacy_replacement_map(list(GOVERNED_MANIFESTS))\n"
+            "for manifest in GOVERNED_MANIFESTS:\n"
+            "    for legacy_tool_name in manifest.legacy_tool_names:\n"
+            '        assert legacy.execution_target["replacement_capability_key"] == (\n'
+            "            manifest.capability_key\n"
+            "        )"
+        )
+    ]
+
+    summary = module.validate_read_evidence_manifests(
+        [_manifest()],
+        **kwargs,
+    )
+
+    assert summary["catalog_test_evidence_manifests"] == 1
+
+
 def test_validate_read_evidence_rejects_unsupported_contract_overlap():
     module = _load_module()
     kwargs = _valid_kwargs()

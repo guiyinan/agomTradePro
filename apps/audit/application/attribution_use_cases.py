@@ -1,8 +1,12 @@
 """Attribution report and audit summary use cases."""
 
+import json
 import logging
-from dataclasses import dataclass
-from datetime import date, datetime
+import math
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime
+from typing import Any, Protocol, TypedDict
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
@@ -16,6 +20,7 @@ from apps.audit.domain.services import (
 from apps.backtest.application.repository_provider import (
     create_default_price_adapter,
 )
+from apps.backtest.domain.entities import Trade
 from apps.regime.application.repository_provider import get_regime_repository
 from core.exceptions import DataValidationError, InsufficientDataError
 from shared.numeric import safe_float
@@ -50,14 +55,56 @@ __all__ = [
 ]
 
 
-@dataclass
+class BacktestRepositoryProtocol(Protocol):
+    """Dynamic ORM lookup required by attribution."""
+
+    def get_backtest_by_id(self, backtest_id: int) -> Any | None: ...
+
+
+class RegimeHistoryRecord(TypedDict):
+    """Normalized regime evidence used by attribution."""
+
+    date: date
+    regime: str
+    dominant_regime: str
+    confidence: float
+
+
+class BacktestAttributionData(TypedDict):
+    """Validated persisted backtest data."""
+
+    id: int
+    name: str
+    start_date: date
+    end_date: date
+    initial_capital: float
+    total_return: float
+    sharpe_ratio: float
+    max_drawdown: float
+    annualized_return: float
+    equity_curve: list[tuple[date, float]]
+    trades: list[object]
+    regime_history: list[RegimeHistoryRecord]
+    status: str
+
+
+@dataclass(frozen=True)
+class SimpleBacktestResult:
+    """Minimal backtest result surface accepted by Audit Domain."""
+
+    equity_curve: list[tuple[date, float]]
+    trades: list[Trade]
+    total_return: float
+
+
+@dataclass(frozen=True)
 class GenerateAttributionReportRequest:
     """生成归因报告请求"""
 
     backtest_id: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class GenerateAttributionReportResponse:
     """生成归因报告响应"""
 
@@ -77,8 +124,8 @@ class GenerateAttributionReportUseCase:
     def __init__(
         self,
         audit_repository: DjangoAuditRepository,
-        backtest_repository: object,
-    ):
+        backtest_repository: BacktestRepositoryProtocol,
+    ) -> None:
         self.audit_repo = audit_repository
         self.backtest_repo = backtest_repository
         self.regime_repo = get_regime_repository()
@@ -98,77 +145,34 @@ class GenerateAttributionReportUseCase:
             # 2. 将 ORM 对象转换为字典
             backtest_dict = self._backtest_model_to_dict(backtest_model)
 
-            # 3. 解析 Regime 历史（兼容 list/dict 与 JSON 字符串）
-            import json
-
-            regime_history_raw = backtest_dict.get("regime_history")
-            regime_history = []
-            if isinstance(regime_history_raw, list):
-                regime_history = regime_history_raw
-            elif isinstance(regime_history_raw, str) and regime_history_raw.strip():
-                try:
-                    regime_history = json.loads(regime_history_raw)
-                except (json.JSONDecodeError, TypeError):
-                    logger.warning("Regime 历史解析失败，使用空列表")
-            elif regime_history_raw:
-                logger.warning("Regime 历史格式异常，使用空列表")
-
-            # 4. 进行归因分析（Domain 层）
-            # 构建 asset_returns（简化版本，实际需要从数据库获取）
+            # 3. 进行归因分析（Domain 层）
             asset_returns = self._build_asset_returns(backtest_dict)
-
             config = AttributionConfig()
-
-            # 使用 Domain 层的 analyze_attribution 函数
-            # 需要构造 backtest_result 对象
-            from dataclasses import dataclass
-
-            @dataclass
-            class SimpleBacktestResult:
-                equity_curve: list[tuple]
-                trades: list
-                total_return: float
-
-            normalized_regime_history = []
-            for entry in regime_history:
-                if not isinstance(entry, dict):
-                    continue
-                normalized_entry = dict(entry)
-                normalized_entry["date"] = self._to_date(entry.get("date"))
-                normalized_regime_history.append(normalized_entry)
+            normalized_regime_history = list(backtest_dict["regime_history"])
 
             # Ensure the last regime period covers the full backtest window.
             if normalized_regime_history:
                 last_entry = normalized_regime_history[-1]
-                end_date = backtest_dict.get("end_date")
-                if (
-                    isinstance(end_date, date)
-                    and isinstance(last_entry.get("date"), date)
-                    and last_entry["date"] < end_date
-                ):
+                end_date = backtest_dict["end_date"]
+                if last_entry["date"] < end_date:
                     normalized_regime_history.append(
                         {
                             "date": end_date,
-                            "regime": last_entry.get("regime") or last_entry.get("dominant_regime"),
-                            "dominant_regime": last_entry.get("dominant_regime")
-                            or last_entry.get("regime"),
-                            "confidence": last_entry.get("confidence", 0.0),
+                            "regime": last_entry["regime"],
+                            "dominant_regime": last_entry["dominant_regime"],
+                            "confidence": last_entry["confidence"],
                         }
                     )
 
             simple_result = SimpleBacktestResult(
-                equity_curve=[
-                    (self._to_date(d), v)
-                    for d, v in backtest_dict.get("equity_curve", [])
-                    if self._to_date(d) is not None
-                ],
+                equity_curve=backtest_dict["equity_curve"],
                 trades=[],  # 简化：不使用 trades（避免 Domain 层依赖 Trade 对象）
-                total_return=backtest_dict.get("total_return", 0.0),
+                total_return=backtest_dict["total_return"],
             )
 
             attribution = analyze_attribution(
                 backtest_result=simple_result,
-                regime_history=normalized_regime_history,
+                regime_history=[dict(entry) for entry in normalized_regime_history],
                 asset_returns=asset_returns,
                 config=config,
             )
@@ -178,15 +182,11 @@ class GenerateAttributionReportUseCase:
 
             # 计算 Regime 准确率（基于回测中的 Regime 预测与实际收益的一致性）
             regime_accuracy = self._calculate_regime_accuracy(
-                normalized_regime_history, backtest_dict.get("equity_curve", [])
+                normalized_regime_history, backtest_dict["equity_curve"]
             )
 
             dominant_regime = (
-                (
-                    normalized_regime_history[-1].get("dominant_regime")
-                    or normalized_regime_history[-1].get("regime")
-                    or "UNKNOWN"
-                )
+                normalized_regime_history[-1]["dominant_regime"]
                 if normalized_regime_history
                 else "UNKNOWN"
             )
@@ -251,9 +251,12 @@ class GenerateAttributionReportUseCase:
 
             return GenerateAttributionReportResponse(success=True, report_id=report_id)
 
-        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
-            logger.error(f"归因分析失败: {e}", exc_info=True)
-            return GenerateAttributionReportResponse(success=False, error=str(e))
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as exc:
+            logger.error("归因分析失败: %s", type(exc).__name__, exc_info=True)
+            return GenerateAttributionReportResponse(
+                success=False,
+                error="归因分析失败，请检查回测数据与行情数据源",
+            )
 
     def _calculate_regime_actual(self, start_date: date, end_date: date) -> str:
         """
@@ -297,7 +300,6 @@ class GenerateAttributionReportUseCase:
         # 2. 检查数据充足性
         period_days = (end_date - start_date).days
         data_points = len(regime_snapshots)
-        data_points / max(period_days, 1)
 
         if data_points < 10:
             logger.warning(
@@ -306,7 +308,7 @@ class GenerateAttributionReportUseCase:
             return self.ERROR_INSUFFICIENT_DATA
 
         # 3. 统计各 Regime 的出现频率
-        regime_counts = {}
+        regime_counts: dict[str, int] = {}
         for snapshot in regime_snapshots:
             regime = snapshot.dominant_regime
             regime_counts[regime] = regime_counts.get(regime, 0) + 1
@@ -338,7 +340,11 @@ class GenerateAttributionReportUseCase:
 
         return dominant_regime
 
-    def _calculate_regime_accuracy(self, regime_history: list, equity_curve: list) -> float:
+    def _calculate_regime_accuracy(
+        self,
+        regime_history: Sequence[RegimeHistoryRecord],
+        equity_curve: Sequence[tuple[date, float]],
+    ) -> float:
         """
         计算 Regime 预测准确率
 
@@ -360,26 +366,19 @@ class GenerateAttributionReportUseCase:
         total_predictions = 0
 
         # 构建日期到收益的映射
-        returns_by_date = {}
+        returns_by_date: dict[date, float] = {}
         for i in range(1, len(equity_curve)):
-            prev = equity_curve[i - 1]
-            curr = equity_curve[i]
-            if isinstance(prev, dict) and isinstance(curr, dict):
-                date = curr.get("date")
-                prev_value = prev.get("value", 0)
-                curr_value = curr.get("value", 0)
-                if date and prev_value > 0:
-                    returns_by_date[date] = (curr_value - prev_value) / prev_value
+            prev_value = equity_curve[i - 1][1]
+            current_date, current_value = equity_curve[i]
+            if prev_value > 0:
+                returns_by_date[current_date] = (current_value - prev_value) / prev_value
 
         # 检查每个 Regime 预测
         for regime_record in regime_history:
-            regime = regime_record.get("regime", "").upper()
-            date = regime_record.get("date")
+            regime = regime_record["regime"].upper()
+            regime_date = regime_record["date"]
 
-            if not regime or not date:
-                continue
-
-            actual_return = returns_by_date.get(date)
+            actual_return = returns_by_date.get(regime_date)
             if actual_return is None:
                 continue
 
@@ -388,10 +387,10 @@ class GenerateAttributionReportUseCase:
             # 判断预测是否正确
             # Recovery/Overheat (增长环境) 预期正收益
             # Stagflation/Deflation (衰退环境) 预期负收益
-            if regime in ("Recovery", "Overheat"):
+            if regime in ("RECOVERY", "OVERHEAT"):
                 if actual_return > 0:
                     correct_predictions += 1
-            elif regime in ("Stagflation", "Deflation"):
+            elif regime in ("STAGFLATION", "DEFLATION"):
                 if actual_return < 0:
                     correct_predictions += 1
             else:
@@ -403,7 +402,10 @@ class GenerateAttributionReportUseCase:
 
         return correct_predictions / total_predictions
 
-    def _build_asset_returns(self, backtest: dict) -> dict:
+    def _build_asset_returns(
+        self,
+        backtest: BacktestAttributionData,
+    ) -> dict[str, list[tuple[date, float]]]:
         """
         构建资产收益数据（从真实数据源获取）
 
@@ -423,7 +425,7 @@ class GenerateAttributionReportUseCase:
         end_date = backtest["end_date"]
 
         # 资产类别映射（与 backtest 模块保持一致）
-        asset_classes = {
+        asset_classes: dict[str, str] = {
             "a_share_growth": "equity",  # 沪深300
             "a_share_value": "equity",  # 中证500
             "china_bond": "bond",  # 债券
@@ -439,15 +441,14 @@ class GenerateAttributionReportUseCase:
                 tushare_token=tushare_settings.tushare_token,
                 tushare_http_url=tushare_settings.tushare_http_url,
             )
-        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
-            logger.error(f"无法初始化价格适配器: {e}")
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as exc:
+            logger.error("无法初始化价格适配器: %s", type(exc).__name__)
             raise ValueError(
-                f"无法初始化价格数据源，归因分析需要真实的历史价格数据。"
-                f"请确保 Tushare token 配置正确。错误: {e}"
-            ) from e
+                "无法初始化价格数据源，归因分析需要真实的历史价格数据。请检查行情数据源配置。"
+            ) from exc
 
-        asset_returns = {}
-        data_source_status = {}
+        asset_returns: dict[str, list[tuple[date, float]]] = {}
+        data_source_status: dict[str, str] = {}
 
         # 获取各资产的价格数据并计算收益率
         for asset_class, return_category in asset_classes.items():
@@ -463,14 +464,21 @@ class GenerateAttributionReportUseCase:
                     continue
 
                 # 计算日收益率
-                returns = []
+                returns: list[tuple[date, float]] = []
                 for i in range(1, len(price_points)):
-                    prev_price = price_points[i - 1].price
-                    curr_price = price_points[i].price
+                    prev_price = safe_float(price_points[i - 1].price)
+                    curr_price = safe_float(price_points[i].price)
+                    as_of_date = price_points[i].as_of_date
 
-                    if prev_price > 0:
+                    if (
+                        prev_price is not None
+                        and curr_price is not None
+                        and prev_price > 0
+                        and isinstance(as_of_date, date)
+                    ):
                         daily_return = (curr_price - prev_price) / prev_price
-                        returns.append((price_points[i].as_of_date, daily_return))
+                        if math.isfinite(daily_return):
+                            returns.append((as_of_date, daily_return))
 
                 if returns:
                     # 使用 return_category 作为键，与归因分析期望的格式一致
@@ -481,9 +489,13 @@ class GenerateAttributionReportUseCase:
                 else:
                     data_source_status[asset_class] = "无收益率数据"
 
-            except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
-                data_source_status[asset_class] = f"错误: {e}"
-                logger.warning(f"获取 {asset_class} 数据失败: {e}")
+            except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as exc:
+                data_source_status[asset_class] = f"错误: {type(exc).__name__}"
+                logger.warning(
+                    "获取 %s 数据失败: %s",
+                    asset_class,
+                    type(exc).__name__,
+                )
 
         # 至少需要一种非现金资产数据
         non_cash_assets = [k for k in asset_returns.keys() if k != "cash"]
@@ -500,7 +512,10 @@ class GenerateAttributionReportUseCase:
         logger.info(f"成功获取资产收益数据: {data_source_status}")
         return asset_returns
 
-    def _backtest_model_to_dict(self, model) -> dict:
+    def _backtest_model_to_dict(
+        self,
+        model: Any,
+    ) -> BacktestAttributionData:
         """
         将 BacktestResultModel 转换为字典
 
@@ -510,26 +525,9 @@ class GenerateAttributionReportUseCase:
         Returns:
             dict: 回测数据字典
         """
-        import json
-
-        # 解析 JSON 字段
-        equity_curve = []
-        regime_history = []
-
-        if model.equity_curve:
-            try:
-                equity_curve = json.loads(model.equity_curve)
-            except (json.JSONDecodeError, TypeError):
-                pass
-
-        if model.regime_history:
-            try:
-                regime_history = json.loads(model.regime_history)
-            except (json.JSONDecodeError, TypeError):
-                pass
-
-        # trades 字段是 JSONField，直接是列表
-        trades = model.trades if model.trades else []
+        equity_curve = self._normalize_equity_curve(model.equity_curve)
+        regime_history = self._normalize_regime_history(model.regime_history)
+        trades = model.trades if isinstance(model.trades, list) else []
 
         def _model_float(field: str) -> float:
             return safe_float(getattr(model, field, 0.0), default=0.0)
@@ -546,21 +544,113 @@ class GenerateAttributionReportUseCase:
             "annualized_return": _model_float("annualized_return"),
             "equity_curve": equity_curve,
             "trades": trades,
-            "regime_history": regime_history if regime_history else [],
+            "regime_history": regime_history,
             "status": model.status,
         }
 
     @staticmethod
-    def _to_date(value):
-        """Normalize date-like values to datetime.date."""
-        if isinstance(value, date):
+    def _decode_json_value(value: object) -> object:
+        """Decode legacy JSON text while preserving native JSONField values."""
+
+        if not isinstance(value, str):
             return value
+        if not value.strip():
+            return []
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    @classmethod
+    def _normalize_equity_curve(cls, value: object) -> list[tuple[date, float]]:
+        """Normalize native or legacy equity points into finite dated values."""
+
+        decoded = cls._decode_json_value(value)
+        if not isinstance(decoded, list):
+            return []
+
+        normalized: list[tuple[date, float]] = []
+        for item in decoded:
+            raw_date: object
+            raw_value: object
+            if isinstance(item, Mapping):
+                raw_date = item.get("date")
+                raw_value = item.get("value")
+            elif isinstance(item, Sequence) and not isinstance(item, (str, bytes)):
+                if len(item) < 2:
+                    continue
+                raw_date, raw_value = item[0], item[1]
+            else:
+                continue
+
+            point_date = cls._to_date(raw_date)
+            point_value = safe_float(raw_value)
+            if point_date is not None and point_value is not None:
+                normalized.append((point_date, point_value))
+
+        normalized.sort(key=lambda point: point[0])
+        return normalized
+
+    @classmethod
+    def _normalize_regime_history(cls, value: object) -> list[RegimeHistoryRecord]:
+        """Normalize persisted regime evidence and reject malformed records."""
+
+        decoded = cls._decode_json_value(value)
+        if not isinstance(decoded, list):
+            return []
+
+        normalized: list[RegimeHistoryRecord] = []
+        for item in decoded:
+            if not isinstance(item, Mapping):
+                continue
+            observed_date = cls._to_date(item.get("date"))
+            raw_regime = item.get("regime") or item.get("dominant_regime")
+            if observed_date is None or not isinstance(raw_regime, str):
+                continue
+            regime = raw_regime.strip()
+            if not regime:
+                continue
+            raw_dominant = item.get("dominant_regime")
+            dominant_regime = (
+                raw_dominant.strip()
+                if isinstance(raw_dominant, str) and raw_dominant.strip()
+                else regime
+            )
+            confidence = safe_float(item.get("confidence"), default=0.0)
+            normalized.append(
+                {
+                    "date": observed_date,
+                    "regime": regime,
+                    "dominant_regime": dominant_regime,
+                    "confidence": confidence,
+                }
+            )
+
+        normalized.sort(key=lambda item: item["date"])
+        return normalized
+
+    @staticmethod
+    def _to_date(value: object) -> date | None:
+        """Normalize date-like values to datetime.date."""
+
         if isinstance(value, datetime):
             return value.date()
+        if isinstance(value, date):
+            return value
         if isinstance(value, str):
             try:
                 return date.fromisoformat(value)
             except ValueError:
+                return None
+        if isinstance(value, bool):
+            return None
+        timestamp = safe_float(value)
+        if timestamp is not None:
+            if abs(timestamp) >= 100_000_000_000:
+                timestamp /= 1000
+            try:
+                return datetime.fromtimestamp(timestamp, tz=UTC).date()
+            except (OverflowError, OSError, ValueError):
                 return None
         return None
 
@@ -577,7 +667,7 @@ class GenerateAttributionReportUseCase:
         return mapping.get(loss_source, "TIMING_ERROR")
 
 
-@dataclass
+@dataclass(frozen=True)
 class GetAuditSummaryRequest:
     """获取审计摘要请求"""
 
@@ -586,19 +676,19 @@ class GetAuditSummaryRequest:
     backtest_id: int | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class GetAuditSummaryResponse:
     """获取审计摘要响应"""
 
     success: bool
-    reports: list[dict] = None
+    reports: list[dict[str, object]] = field(default_factory=list)
     error: str | None = None
 
 
 class GetAuditSummaryUseCase:
     """获取审计摘要的用例"""
 
-    def __init__(self, audit_repository: DjangoAuditRepository):
+    def __init__(self, audit_repository: DjangoAuditRepository) -> None:
         self.audit_repo = audit_repository
 
     def execute(self, request: GetAuditSummaryRequest) -> GetAuditSummaryResponse:
@@ -624,6 +714,9 @@ class GetAuditSummaryUseCase:
 
             return GetAuditSummaryResponse(success=True, reports=reports)
 
-        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
-            logger.error(f"获取审计摘要失败: {e}", exc_info=True)
-            return GetAuditSummaryResponse(success=False, error=str(e))
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as exc:
+            logger.error("获取审计摘要失败: %s", type(exc).__name__, exc_info=True)
+            return GetAuditSummaryResponse(
+                success=False,
+                error="获取审计摘要失败，请稍后重试",
+            )

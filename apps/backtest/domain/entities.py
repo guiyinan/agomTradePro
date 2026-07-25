@@ -5,13 +5,25 @@ Domain Entities for Backtesting Module.
 只使用 Python 标准库。
 """
 
+import math
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import Enum
+from typing import TypedDict
+
+
+class RegimeHistoryEntry(TypedDict):
+    """One regime observation captured during a backtest."""
+
+    date: str
+    regime: str
+    confidence: float
+    portfolio_value: float
 
 
 class RebalanceFrequency(Enum):
     """再平衡频率"""
+
     MONTHLY = "monthly"
     QUARTERLY = "quarterly"
     YEARLY = "yearly"
@@ -19,6 +31,7 @@ class RebalanceFrequency(Enum):
 
 class AssetClass(Enum):
     """资产类别"""
+
     A_SHARE_GROWTH = "a_share_growth"
     A_SHARE_VALUE = "a_share_value"
     CHINA_BOND = "china_bond"
@@ -29,6 +42,7 @@ class AssetClass(Enum):
 
 class BacktestStatus(Enum):
     """回测状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -38,6 +52,7 @@ class BacktestStatus(Enum):
 @dataclass(frozen=True)
 class BacktestConfig:
     """回测配置（值对象）"""
+
     start_date: date
     end_date: date
     initial_capital: float
@@ -53,14 +68,22 @@ class BacktestConfig:
     research_trial_id: str | None = None
     decision_snapshot_id: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证配置"""
-        if self.initial_capital <= 0:
-            raise ValueError("initial_capital must be positive")
+        if (
+            isinstance(self.initial_capital, bool)
+            or not math.isfinite(self.initial_capital)
+            or self.initial_capital <= 0
+        ):
+            raise ValueError("initial_capital must be positive and finite")
         if self.start_date >= self.end_date:
             raise ValueError("start_date must be before end_date")
-        if self.transaction_cost_bps < 0:
-            raise ValueError("transaction_cost_bps must be non-negative")
+        if (
+            isinstance(self.transaction_cost_bps, bool)
+            or not math.isfinite(self.transaction_cost_bps)
+            or self.transaction_cost_bps < 0
+        ):
+            raise ValueError("transaction_cost_bps must be non-negative and finite")
         valid_frequencies = ["monthly", "quarterly", "yearly"]
         if self.rebalance_frequency not in valid_frequencies:
             raise ValueError(f"rebalance_frequency must be one of {valid_frequencies}")
@@ -73,9 +96,7 @@ class BacktestConfig:
             if not self.data_manifest_id:
                 raise ValueError("pit_verified backtests require data_manifest_id")
             if not self.config_hash or not self.code_commit or not self.engine_version:
-                raise ValueError(
-                    "pit_verified backtests require config, code and engine versions"
-                )
+                raise ValueError("pit_verified backtests require config, code and engine versions")
             if not self.research_trial_id:
                 raise ValueError("pit_verified backtests require research_trial_id")
             if not self.decision_snapshot_id:
@@ -85,6 +106,7 @@ class BacktestConfig:
 @dataclass(frozen=True)
 class Trade:
     """交易记录（值对象）"""
+
     trade_date: date
     asset_class: str
     action: str  # "buy" or "sell"
@@ -97,6 +119,7 @@ class Trade:
 @dataclass
 class PortfolioState:
     """组合状态（实体）"""
+
     as_of_date: date
     cash: float
     positions: dict[str, float]  # asset_class -> shares
@@ -107,7 +130,7 @@ class PortfolioState:
         shares = self.positions.get(asset_class, 0)
         return shares * price
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "as_of_date": self.as_of_date.isoformat(),
@@ -120,6 +143,7 @@ class PortfolioState:
 @dataclass
 class BacktestResult:
     """回测结果（实体）"""
+
     config: BacktestConfig
     final_value: float
     total_return: float
@@ -128,10 +152,10 @@ class BacktestResult:
     max_drawdown: float
     trades: list[Trade] = field(default_factory=list)
     equity_curve: list[tuple[date, float]] = field(default_factory=list)
-    regime_history: list[dict] = field(default_factory=list)
+    regime_history: list[RegimeHistoryEntry] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
-    def to_summary_dict(self) -> dict:
+    def to_summary_dict(self) -> dict[str, object]:
         """转换为摘要字典"""
         return {
             "start_date": self.config.start_date.isoformat(),
@@ -160,6 +184,7 @@ class BacktestResult:
 @dataclass
 class RebalanceResult:
     """再平衡结果（值对象）"""
+
     date: date
     regime: str
     regime_confidence: float
@@ -168,7 +193,7 @@ class RebalanceResult:
     trades: list[Trade]
     portfolio_value: float
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "date": self.date.isoformat(),
@@ -184,6 +209,7 @@ class RebalanceResult:
 @dataclass
 class AttributionEntry:
     """归因分析条目"""
+
     date: date
     regime: str
     return_contribution: float  # 该期间收益贡献
@@ -195,14 +221,15 @@ class AttributionEntry:
 @dataclass
 class AttributionReport:
     """归因分析报告"""
+
     backtest_config: BacktestConfig
     total_return: float
     benchmark_return: float
     active_return: float  # 超额收益
-    regime_attribution: dict[str, dict]  # 各 Regime 下的归因
+    regime_attribution: dict[str, dict[str, float]]  # 各 Regime 下的归因
     entries: list[AttributionEntry]
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "total_return": self.total_return,
@@ -216,6 +243,7 @@ class AttributionReport:
 @dataclass
 class PITDataConfig:
     """Point-in-Time 数据配置"""
+
     publication_lags: dict[str, timedelta] = field(default_factory=dict)
 
     def add_lag(self, indicator_code: str, lag_days: int) -> None:
@@ -254,6 +282,7 @@ class DataVersion:
         DataVersion("GDP", date(2024,1,1), 5.3, 2, date(2024,4,1), False, "修订值")
         DataVersion("GDP", date(2024,1,1), 5.3, 3, date(2024,5,1), True, "最终值")
     """
+
     indicator_code: str
     observed_at: date
     value: float
@@ -292,6 +321,7 @@ class DataVersionHistory:
     方法:
         get_version_on(date): 获取指定日期可用的最新版本
     """
+
     indicator_code: str
     observed_at: date
     versions: tuple[DataVersion, ...]  # 按版本号排序

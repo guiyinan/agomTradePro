@@ -93,8 +93,10 @@ class AccountAdminUserManagementTests(TestCase):
         self.assertEqual(resp.status_code, 200)
 
         new_token_obj = UserAccessTokenModel.objects.get(user=user, name="new-one", is_active=True)
-        new_token = new_token_obj.key
+        new_token = new_token_obj.reveal_key()
         self.assertNotEqual(old_token, new_token)
+        self.assertEqual(new_token_obj.key, UserAccessTokenModel.hash_key(new_token))
+        self.assertNotEqual(new_token_obj.key, new_token)
         self.assertEqual(UserAccessTokenModel.objects.filter(user=user, is_active=True).count(), 2)
 
         payload = resp.context["new_token_payload"]

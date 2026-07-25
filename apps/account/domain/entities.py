@@ -6,6 +6,7 @@ Account Domain Entities
 禁止依赖 Django、Pandas 等外部库。
 """
 
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -423,10 +424,10 @@ class TradingCostConfig:
 
     id: int | None
     portfolio_id: int
+    min_commission: float  # 最低佣金（元，由交易费率配置显式提供）
 
     # 佣金（双向）
     commission_rate: float = 0.00025  # 佣金率（默认万2.5）
-    min_commission: float = 5.0  # 最低佣金（元）
 
     # 印花税（仅卖出，A股特有）
     stamp_duty_rate: float = 0.001  # 印花税率（默认千1）
@@ -436,6 +437,70 @@ class TradingCostConfig:
 
     # 是否启用
     is_active: bool = True
+
+    def __post_init__(self) -> None:
+        """Reject malformed fee configuration before any cash calculation."""
+
+        if (
+            isinstance(self.portfolio_id, bool)
+            or not isinstance(self.portfolio_id, int)
+            or self.portfolio_id <= 0
+        ):
+            raise ValueError("portfolio_id 必须是正整数")
+        if self.id is not None and (
+            isinstance(self.id, bool) or not isinstance(self.id, int) or self.id <= 0
+        ):
+            raise ValueError("id 必须是正整数或 None")
+        if not isinstance(self.is_active, bool):
+            raise ValueError("is_active 必须是布尔值")
+        self._validate_rate(
+            self.commission_rate,
+            field_name="commission_rate",
+            maximum=0.01,
+        )
+        self._validate_rate(
+            self.stamp_duty_rate,
+            field_name="stamp_duty_rate",
+            maximum=0.01,
+        )
+        self._validate_rate(
+            self.transfer_fee_rate,
+            field_name="transfer_fee_rate",
+            maximum=0.001,
+        )
+        self._validate_rate(
+            self.min_commission,
+            field_name="min_commission",
+        )
+
+    @staticmethod
+    def _validate_rate(
+        value: float,
+        *,
+        field_name: str,
+        maximum: float | None = None,
+    ) -> None:
+        """Validate one finite, nonnegative configured fee."""
+
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{field_name} 必须是数值")
+        numeric = float(value)
+        if not math.isfinite(numeric) or numeric < 0:
+            raise ValueError(f"{field_name} 必须是非负有限数")
+        if maximum is not None and numeric > maximum:
+            raise ValueError(f"{field_name} 超出允许上限 {maximum}")
+
+    @staticmethod
+    def _validate_trade_amount(amount: float) -> None:
+        """Require a positive finite notional for fee calculation."""
+
+        if (
+            isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(float(amount))
+            or amount <= 0
+        ):
+            raise ValueError("amount 必须是正有限数")
 
     def calculate_buy_cost(self, amount: float, is_shanghai: bool = False) -> dict[str, float]:
         """
@@ -448,6 +513,9 @@ class TradingCostConfig:
         Returns:
             各项费用明细
         """
+        self._validate_trade_amount(amount)
+        if not isinstance(is_shanghai, bool):
+            raise ValueError("is_shanghai 必须是布尔值")
         commission = max(amount * self.commission_rate, self.min_commission)
         transfer_fee = amount * self.transfer_fee_rate if is_shanghai else 0.0
         total = commission + transfer_fee
@@ -470,6 +538,9 @@ class TradingCostConfig:
         Returns:
             各项费用明细
         """
+        self._validate_trade_amount(amount)
+        if not isinstance(is_shanghai, bool):
+            raise ValueError("is_shanghai 必须是布尔值")
         commission = max(amount * self.commission_rate, self.min_commission)
         stamp_duty = amount * self.stamp_duty_rate
         transfer_fee = amount * self.transfer_fee_rate if is_shanghai else 0.0
@@ -514,12 +585,47 @@ class TakeProfitConfig:
 # ============================================================
 
 
+def _require_finite_range(
+    value: float,
+    *,
+    field_name: str,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> None:
+    """Require a real finite number within optional inclusive bounds."""
+
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+    ):
+        raise ValueError(f"{field_name} 必须是有限数")
+    if minimum is not None and value < minimum:
+        raise ValueError(f"{field_name} 不能小于 {minimum}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"{field_name} 不能大于 {maximum}")
+
+
 @dataclass(frozen=True)
 class RegimeTier:
     """Regime 置信度档位配置（单档）"""
 
     min_confidence: float
     factor: float
+
+    def __post_init__(self) -> None:
+        _require_finite_range(
+            self.min_confidence,
+            field_name="min_confidence",
+            minimum=0,
+            maximum=1,
+        )
+        _require_finite_range(
+            self.factor,
+            field_name="factor",
+            minimum=0,
+            maximum=1,
+        )
 
 
 @dataclass(frozen=True)
@@ -530,6 +636,18 @@ class PulseTier:
     max_composite: float
     factor: float
 
+    def __post_init__(self) -> None:
+        _require_finite_range(self.min_composite, field_name="min_composite")
+        _require_finite_range(self.max_composite, field_name="max_composite")
+        if self.min_composite > self.max_composite:
+            raise ValueError("min_composite 不能大于 max_composite")
+        _require_finite_range(
+            self.factor,
+            field_name="factor",
+            minimum=0,
+            maximum=1,
+        )
+
 
 @dataclass(frozen=True)
 class DrawdownTier:
@@ -537,6 +655,20 @@ class DrawdownTier:
 
     min_drawdown: float
     factor: float
+
+    def __post_init__(self) -> None:
+        _require_finite_range(
+            self.min_drawdown,
+            field_name="min_drawdown",
+            minimum=0,
+            maximum=1,
+        )
+        _require_finite_range(
+            self.factor,
+            field_name="factor",
+            minimum=0,
+            maximum=1,
+        )
 
 
 @dataclass(frozen=True)
@@ -546,6 +678,18 @@ class MarketTemperatureTier:
     band: str
     factor: float
     block_new_position: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.band.strip():
+            raise ValueError("band 不能为空")
+        _require_finite_range(
+            self.factor,
+            field_name="factor",
+            minimum=0,
+            maximum=1,
+        )
+        if not isinstance(self.block_new_position, bool):
+            raise ValueError("block_new_position 必须是布尔值")
 
 
 @dataclass(frozen=True)
@@ -579,6 +723,35 @@ class MacroSizingConfig:
         ]
     )
     version: int = 1
+
+    def __post_init__(self) -> None:
+        """Validate the complete database-driven sizing configuration."""
+
+        if not self.regime_tiers:
+            raise ValueError("regime_tiers 不能为空")
+        if not self.pulse_tiers:
+            raise ValueError("pulse_tiers 不能为空")
+        if not self.drawdown_tiers:
+            raise ValueError("drawdown_tiers 不能为空")
+        if not self.market_temperature_tiers:
+            raise ValueError("market_temperature_tiers 不能为空")
+        _require_finite_range(
+            self.warning_factor,
+            field_name="warning_factor",
+            minimum=0,
+            maximum=1,
+        )
+        if (
+            isinstance(self.version, bool)
+            or not isinstance(self.version, int)
+            or self.version <= 0
+        ):
+            raise ValueError("version 必须是正整数")
+        normalized_bands = [
+            tier.band.strip().lower() for tier in self.market_temperature_tiers
+        ]
+        if len(normalized_bands) != len(set(normalized_bands)):
+            raise ValueError("market_temperature_tiers 的 band 不能重复")
 
     def get_regime_factor(self, confidence: float) -> float:
         """查找 confidence 对应的系数，无匹配档位时返回最小档的 factor。"""

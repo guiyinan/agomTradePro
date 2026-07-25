@@ -6,8 +6,9 @@ Policy Influence Service - 政策影响服务
 """
 
 import logging
+from collections.abc import Mapping
 from datetime import timedelta
-from typing import Any
+from typing import Any, TypedDict
 
 from django.utils import timezone
 
@@ -16,6 +17,23 @@ from apps.sector.application.repository_provider import get_sector_repository
 from apps.signal.domain.entities import InvestmentSignal
 
 logger = logging.getLogger(__name__)
+
+
+class PolicyInfluenceResult(TypedDict):
+    """Validated policy influence result consumed by signal callers."""
+
+    blacklisted: bool
+    whitelisted: bool
+    affected_by_policies: list[dict[str, Any]]
+    risk_adjustments: list[dict[str, Any]]
+    recommendations: list[str]
+
+
+def _structured_data(policy: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Return policy structured data only when it is a JSON object."""
+
+    value = policy.get("structured_data")
+    return value if isinstance(value, dict) else {}
 
 
 class PolicyInfluenceService:
@@ -29,15 +47,12 @@ class PolicyInfluenceService:
     4. 个股舆情影响
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.policy_repository = get_current_policy_repository()
         self.sector_repository = get_sector_repository()
         self._sector_map = self._build_sector_mapping()
 
-    def apply_policy_influences(
-        self,
-        signal: InvestmentSignal
-    ) -> dict[str, Any]:
+    def apply_policy_influences(self, signal: InvestmentSignal) -> PolicyInfluenceResult:
         """
         应用政策影响到信号
 
@@ -47,98 +62,109 @@ class PolicyInfluenceService:
         Returns:
             Dict: 影响分析结果
         """
-        influences = {
-            'blacklisted': False,
-            'whitelisted': False,
-            'affected_by_policies': [],
-            'risk_adjustments': [],
-            'recommendations': []
+        influences: PolicyInfluenceResult = {
+            "blacklisted": False,
+            "whitelisted": False,
+            "affected_by_policies": [],
+            "risk_adjustments": [],
+            "recommendations": [],
         }
 
         # 1. 检查黑名单
         blacklisted_policies = self._check_blacklist(signal.asset_code)
         if blacklisted_policies:
-            influences['blacklisted'] = True
-            influences['affected_by_policies'].extend([
-                {
-                    'policy_id': p['id'],
-                    'title': p['title'],
-                    'level': p['level'],
-                    'reason': 'blacklist'
-                }
-                for p in blacklisted_policies
-            ])
-            influences['recommendations'].append(
+            influences["blacklisted"] = True
+            influences["affected_by_policies"].extend(
+                [
+                    {
+                        "policy_id": p["id"],
+                        "title": p["title"],
+                        "level": p["level"],
+                        "reason": "blacklist",
+                    }
+                    for p in blacklisted_policies
+                ]
+            )
+            influences["recommendations"].append(
                 f"该资产在黑名单中（{len(blacklisted_policies)}条政策），建议避免交易"
             )
 
         # 2. 检查白名单
         whitelisted_policies = self._check_whitelist(signal.asset_code)
         if whitelisted_policies:
-            influences['whitelisted'] = True
-            influences['affected_by_policies'].extend([
-                {
-                    'policy_id': p['id'],
-                    'title': p['title'],
-                    'level': p['level'],
-                    'reason': 'whitelist'
-                }
-                for p in whitelisted_policies
-            ])
+            influences["whitelisted"] = True
+            influences["affected_by_policies"].extend(
+                [
+                    {
+                        "policy_id": p["id"],
+                        "title": p["title"],
+                        "level": p["level"],
+                        "reason": "whitelist",
+                    }
+                    for p in whitelisted_policies
+                ]
+            )
 
         # 3. 检查板块政策影响
         sector_policies = self._check_sector_influence(signal.asset_code)
         if sector_policies:
-            influences['affected_by_policies'].extend([
-                {
-                    'policy_id': p['id'],
-                    'title': p['title'],
-                    'level': p['level'],
-                    'category': p['info_category'],
-                    'reason': 'sector_influence',
-                    'sentiment': (p.get('structured_data') or {}).get('sentiment', 'unknown')
-                }
-                for p in sector_policies
-            ])
+            influences["affected_by_policies"].extend(
+                [
+                    {
+                        "policy_id": p["id"],
+                        "title": p["title"],
+                        "level": p["level"],
+                        "category": p["info_category"],
+                        "reason": "sector_influence",
+                        "sentiment": _structured_data(p).get("sentiment", "unknown"),
+                    }
+                    for p in sector_policies
+                ]
+            )
 
             # 根据政策情绪调整风险
             for policy in sector_policies:
-                sentiment = (policy.get('structured_data') or {}).get('sentiment', 'neutral')
-                if sentiment == 'negative' and policy['level'] in ['P2', 'P3']:
-                    influences['risk_adjustments'].append({
-                        'policy_id': policy['id'],
-                        'adjustment': 'increase_cash',
-                        'reason': f"负面政策: {policy['title']}"
-                    })
-                elif sentiment == 'positive' and policy['level'] in ['P1', 'P2']:
-                    influences['risk_adjustments'].append({
-                        'policy_id': policy['id'],
-                        'adjustment': 'favorable_sector',
-                        'reason': f"利好政策: {policy['title']}"
-                    })
+                sentiment = _structured_data(policy).get("sentiment", "neutral")
+                if sentiment == "negative" and policy["level"] in ["P2", "P3"]:
+                    influences["risk_adjustments"].append(
+                        {
+                            "policy_id": policy["id"],
+                            "adjustment": "increase_cash",
+                            "reason": f"负面政策: {policy['title']}",
+                        }
+                    )
+                elif sentiment == "positive" and policy["level"] in ["P1", "P2"]:
+                    influences["risk_adjustments"].append(
+                        {
+                            "policy_id": policy["id"],
+                            "adjustment": "favorable_sector",
+                            "reason": f"利好政策: {policy['title']}",
+                        }
+                    )
 
         # 4. 检查个股舆情
         sentiment_policies = self._check_sentiment_influence(signal.asset_code)
         if sentiment_policies:
-            influences['affected_by_policies'].extend([
-                {
-                    'policy_id': p['id'],
-                    'title': p['title'],
-                    'category': p['info_category'],
-                    'reason': 'sentiment_influence',
-                    'sentiment': (p.get('structured_data') or {}).get('sentiment', 'unknown'),
-                    'sentiment_score': (p.get('structured_data') or {}).get('sentiment_score', 0)
-                }
-                for p in sentiment_policies
-            ])
+            influences["affected_by_policies"].extend(
+                [
+                    {
+                        "policy_id": p["id"],
+                        "title": p["title"],
+                        "category": p["info_category"],
+                        "reason": "sentiment_influence",
+                        "sentiment": _structured_data(p).get("sentiment", "unknown"),
+                        "sentiment_score": _structured_data(p).get("sentiment_score", 0),
+                    }
+                    for p in sentiment_policies
+                ]
+            )
 
             # 根据舆情情绪调整建议
             negative_sentiments = [
-                p for p in sentiment_policies
-                if (p.get('structured_data') or {}).get('sentiment') == 'negative'
+                p for p in sentiment_policies if _structured_data(p).get("sentiment") == "negative"
             ]
             if negative_sentiments:
-                influences['recommendations'].append(
+                influences["recommendations"].append(
                     f"检测到{len(negative_sentiments)}条负面舆情，建议谨慎交易"
                 )
 
@@ -190,12 +216,17 @@ class PolicyInfluenceService:
         policies = self.policy_repository.list_recent_sector_policies(cutoff_date)
 
         # 过滤出真正影响该板块的政策
-        affected = []
+        affected: list[dict[str, Any]] = []
         for policy in policies:
-            policy_sectors = (policy.get('structured_data') or {}).get('affected_sectors', [])
+            raw_policy_sectors = _structured_data(policy).get("affected_sectors", [])
+            policy_sectors = (
+                [sector for sector in raw_policy_sectors if isinstance(sector, str) and sector]
+                if isinstance(raw_policy_sectors, list)
+                else []
+            )
             if any(
-                policy_sector in sectors or
-                any(policy_sector in sector_name for sector_name in sectors)
+                policy_sector in sectors
+                or any(policy_sector in sector_name for sector_name in sectors)
                 for policy_sector in policy_sectors
             ):
                 affected.append(policy)
@@ -242,4 +273,3 @@ def create_policy_influence_service() -> PolicyInfluenceService:
         PolicyInfluenceService
     """
     return PolicyInfluenceService()
-

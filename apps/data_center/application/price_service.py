@@ -5,18 +5,21 @@ This is the canonical price lookup entry for business modules.
 """
 
 import logging
+import math
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import Any, TypedDict, cast
 
 from apps.data_center.composition import (
-    FundNavRepository as DataCenterFundNavRepository,
+    get_fund_nav_repository,
+    get_price_bar_repository,
+    get_quote_snapshot_repository,
 )
-from apps.data_center.composition import (
-    PriceBarRepository as DataCenterPriceBarRepository,
-)
-from apps.data_center.composition import (
-    QuoteSnapshotRepository as DataCenterQuoteSnapshotRepository,
+from apps.data_center.domain.entities import FundNavFact, PriceBar, QuoteSnapshot
+from apps.data_center.domain.protocols import (
+    FundNavRepositoryProtocol,
+    PriceBarRepositoryProtocol,
+    QuoteSnapshotRepositoryProtocol,
 )
 from core.exceptions import DataFetchError
 from core.integration.data_center_business_sources import build_hybrid_fund_adapter
@@ -24,8 +27,18 @@ from core.integration.data_center_business_sources import build_hybrid_fund_adap
 logger = logging.getLogger(__name__)
 
 
+class FundPriceResult(TypedDict):
+    """Validated fund price payload from a repository or external adapter."""
+
+    price: float
+    as_of: date
+    source: str
+
+
 @dataclass(frozen=True)
 class PriceLookupResult:
+    """Validated canonical price returned to business modules."""
+
     requested_code: str
     normalized_code: str
     price: float
@@ -34,15 +47,29 @@ class PriceLookupResult:
     freshness: str
     is_fallback: bool = False
 
+    def __post_init__(self) -> None:
+        """Reject unusable prices and unauditable result metadata."""
+
+        if not self.requested_code.strip() or not self.normalized_code.strip():
+            raise ValueError("价格查询结果缺少资产代码")
+        if isinstance(self.price, bool) or not math.isfinite(self.price) or self.price <= 0:
+            raise ValueError("价格查询结果必须为正有限数")
+        if self.as_of is not None and not isinstance(self.as_of, date):
+            raise ValueError("价格查询结果日期无效")
+        if not self.source.strip():
+            raise ValueError("价格查询结果缺少数据来源")
+        if self.freshness not in {"historical", "realtime", "close_fallback"}:
+            raise ValueError("价格查询结果新鲜度类型无效")
+
 
 class UnifiedPriceService:
     """Unified price lookup over standardized data-center repositories."""
 
     def __init__(self) -> None:
         self._fund_adapter: Any | None = None
-        self._dc_price_repo = DataCenterPriceBarRepository()
-        self._dc_quote_repo = DataCenterQuoteSnapshotRepository()
-        self._dc_fund_nav_repo = DataCenterFundNavRepository()
+        self._dc_price_repo: PriceBarRepositoryProtocol = get_price_bar_repository()
+        self._dc_quote_repo: QuoteSnapshotRepositoryProtocol = get_quote_snapshot_repository()
+        self._dc_fund_nav_repo: FundNavRepositoryProtocol = get_fund_nav_repository()
 
     @property
     def fund_adapter(self) -> Any:
@@ -157,15 +184,17 @@ class UnifiedPriceService:
         if trade_date is not None:
             historical = self._get_historical_price(normalized_code, trade_date)
             if historical is not None:
-                return PriceLookupResult(
+                result = self._build_price_result(
                     requested_code=asset_code,
                     normalized_code=normalized_code,
-                    price=float(historical.close),
+                    raw_price=historical.close,
                     as_of=historical.bar_date,
-                    source=historical.source,
+                    raw_source=historical.source,
                     freshness="historical",
                     is_fallback=False,
                 )
+                if result is not None:
+                    return result
 
             if self._should_use_fund_nav(normalized_code, asset_type=asset_type):
                 fund_nav = self._get_fund_nav_price(
@@ -174,12 +203,12 @@ class UnifiedPriceService:
                     asset_type=asset_type,
                 )
                 if fund_nav is not None:
-                    return PriceLookupResult(
+                    return self._build_price_result(
                         requested_code=asset_code,
                         normalized_code=normalized_code,
-                        price=fund_nav["price"],
+                        raw_price=fund_nav["price"],
                         as_of=fund_nav["as_of"],
-                        source=fund_nav["source"],
+                        raw_source=fund_nav["source"],
                         freshness="historical",
                         is_fallback=True,
                     )
@@ -187,27 +216,31 @@ class UnifiedPriceService:
 
         quote = self._get_realtime_quote(normalized_code)
         if quote is not None:
-            return PriceLookupResult(
+            result = self._build_price_result(
                 requested_code=asset_code,
                 normalized_code=normalized_code,
-                price=float(quote.current_price),
+                raw_price=quote.current_price,
                 as_of=None,
-                source=quote.source,
+                raw_source=quote.source,
                 freshness="realtime",
                 is_fallback=False,
             )
+            if result is not None:
+                return result
 
         recent_close = self._get_recent_close(normalized_code)
         if recent_close is not None:
-            return PriceLookupResult(
+            result = self._build_price_result(
                 requested_code=asset_code,
                 normalized_code=normalized_code,
-                price=float(recent_close.close),
+                raw_price=recent_close.close,
                 as_of=recent_close.bar_date,
-                source=recent_close.source,
+                raw_source=recent_close.source,
                 freshness="close_fallback",
                 is_fallback=True,
             )
+            if result is not None:
+                return result
 
         if self._should_use_fund_nav(normalized_code, asset_type=asset_type):
             fund_nav = self._get_fund_nav_price(
@@ -216,26 +249,59 @@ class UnifiedPriceService:
                 asset_type=asset_type,
             )
             if fund_nav is not None:
-                return PriceLookupResult(
+                return self._build_price_result(
                     requested_code=asset_code,
                     normalized_code=normalized_code,
-                    price=fund_nav["price"],
+                    raw_price=fund_nav["price"],
                     as_of=fund_nav["as_of"],
-                    source=fund_nav["source"],
+                    raw_source=fund_nav["source"],
                     freshness="close_fallback",
                     is_fallback=True,
                 )
 
         return None
 
-    def _get_realtime_quote(self, normalized_code: str):
+    @staticmethod
+    def _build_price_result(
+        *,
+        requested_code: str,
+        normalized_code: str,
+        raw_price: object,
+        as_of: date | None,
+        raw_source: object,
+        freshness: str,
+        is_fallback: bool,
+    ) -> PriceLookupResult | None:
+        """Build a canonical result only from positive, attributable prices."""
+
+        if isinstance(raw_price, bool):
+            return None
+        try:
+            price = float(cast(Any, raw_price))
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(price) or price <= 0:
+            return None
+        if not isinstance(raw_source, str) or not raw_source.strip():
+            return None
+        return PriceLookupResult(
+            requested_code=requested_code,
+            normalized_code=normalized_code,
+            price=price,
+            as_of=as_of,
+            source=raw_source.strip(),
+            freshness=freshness,
+            is_fallback=is_fallback,
+        )
+
+    def _get_realtime_quote(self, normalized_code: str) -> QuoteSnapshot | None:
         try:
             return self._dc_quote_repo.get_latest(normalized_code)
         except Exception as exc:
             logger.debug("Realtime quote lookup failed for %s: %s", normalized_code, exc)
             return None
 
-    def _get_historical_price(self, normalized_code: str, trade_date: date):
+    def _get_historical_price(self, normalized_code: str, trade_date: date) -> PriceBar | None:
         try:
             bars = self._dc_price_repo.get_bars(
                 normalized_code,
@@ -253,7 +319,7 @@ class UnifiedPriceService:
             )
             return None
 
-    def _get_recent_close(self, normalized_code: str):
+    def _get_recent_close(self, normalized_code: str) -> PriceBar | None:
         try:
             return self._dc_price_repo.get_latest(normalized_code)
         except Exception as exc:
@@ -265,7 +331,7 @@ class UnifiedPriceService:
         normalized_code: str,
         trade_date: date | None,
         asset_type: str | None,
-    ) -> dict[str, object] | None:
+    ) -> FundPriceResult | None:
         if not self._should_use_fund_nav(normalized_code, asset_type=asset_type):
             return None
 
@@ -279,15 +345,15 @@ class UnifiedPriceService:
                 )
                 if facts:
                     fact = facts[0]
-                    return {"price": fact.nav, "as_of": fact.nav_date, "source": fact.source}
+                    result = self._fund_fact_price(fact)
+                    if result is not None:
+                        return result
             else:
                 latest_fact = self._dc_fund_nav_repo.get_latest(bare_code)
                 if latest_fact is not None:
-                    return {
-                        "price": latest_fact.nav,
-                        "as_of": latest_fact.nav_date,
-                        "source": latest_fact.source,
-                    }
+                    result = self._fund_fact_price(latest_fact)
+                    if result is not None:
+                        return result
         except Exception as exc:
             logger.debug("Fund NAV repository lookup failed for %s: %s", bare_code, exc)
 
@@ -324,14 +390,35 @@ class UnifiedPriceService:
 
         try:
             price = float(row[nav_col])
-        except Exception as exc:
+            nav_date = date.fromisoformat(str(row[nav_date_col]))
+        except (TypeError, ValueError) as exc:
             logger.debug("Fund NAV price parse failed for %s: %s", bare_code, exc)
+            return None
+        if not math.isfinite(price) or price <= 0:
+            logger.debug("Fund NAV price is invalid for %s: %r", bare_code, price)
             return None
 
         return {
             "price": price,
-            "as_of": date.fromisoformat(str(row[nav_date_col])),
+            "as_of": nav_date,
             "source": "akshare_fund",
+        }
+
+    @staticmethod
+    def _fund_fact_price(fact: FundNavFact) -> FundPriceResult | None:
+        """Narrow a stored fund fact before exposing it as an executable price."""
+
+        if (
+            isinstance(fact.nav, bool)
+            or not math.isfinite(fact.nav)
+            or fact.nav <= 0
+            or not fact.source.strip()
+        ):
+            return None
+        return {
+            "price": fact.nav,
+            "as_of": fact.nav_date,
+            "source": fact.source.strip(),
         }
 
     def _should_use_fund_nav(

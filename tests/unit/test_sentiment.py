@@ -12,7 +12,10 @@ from apps.sentiment.application.services import (
 )
 from apps.sentiment.application.tasks import (
     _normalize_news_sentiment_score,
+    analyze_policy_event_sentiment,
+    batch_analyze_texts,
     calculate_daily_sentiment_index,
+    check_sentiment_data_freshness,
 )
 from apps.sentiment.domain.entities import (
     SentimentAnalysisResult,
@@ -24,6 +27,7 @@ from apps.sentiment.infrastructure.repositories import (
     SentimentCacheRepository,
     SentimentIndexRepository,
 )
+from core.exceptions import AIServiceError
 
 
 class TestSentimentAnalysisResult:
@@ -285,6 +289,11 @@ class TestSentimentDailyTask:
         assert _normalize_news_sentiment_score(-2.0) == -2.0
         assert _normalize_news_sentiment_score(9.0) == 3.0
 
+    @pytest.mark.parametrize("score", [float("nan"), float("inf"), float("-inf"), True])
+    def test_normalize_news_sentiment_score_rejects_non_finite_values(self, score):
+        with pytest.raises(ValueError, match="finite number"):
+            _normalize_news_sentiment_score(score)
+
     def test_calculate_daily_sentiment_index_uses_market_news_scores(self, monkeypatch):
         saved = {}
 
@@ -310,7 +319,7 @@ class TestSentimentDailyTask:
             lambda: _PolicyRepo(),
         )
         monkeypatch.setattr(
-            "apps.ai_provider.application.client_provider.get_ai_provider_repository",
+            "apps.ai_provider.application.repository_provider.get_ai_provider_repository",
             lambda: object(),
         )
         monkeypatch.setattr(
@@ -348,6 +357,164 @@ class TestSentimentDailyTask:
         assert result["policy_events"] == 0
         assert saved["index"].news_count == 2
         assert saved["index"].data_sufficient is True
+
+    def test_invalid_target_date_fails_without_retry(self, monkeypatch):
+        monkeypatch.setattr(
+            calculate_daily_sentiment_index,
+            "retry",
+            lambda **_kwargs: pytest.fail("permanent input errors must not retry"),
+        )
+
+        with pytest.raises(ValueError, match="YYYY-MM-DD"):
+            calculate_daily_sentiment_index.run(target_date="2026-02-30")
+
+    def test_policy_analysis_runtime_failure_requests_retry(self, monkeypatch):
+        class _FailingPolicyRepo:
+            @staticmethod
+            def get_event_by_id(_event_id):
+                raise TimeoutError("policy repository timed out")
+
+        retry_error = RuntimeError("retry requested")
+        observed = {}
+
+        def _retry(*, exc, countdown):
+            observed["exc"] = exc
+            observed["countdown"] = countdown
+            return retry_error
+
+        monkeypatch.setattr(
+            "apps.policy.application.repository_provider.get_current_policy_repository",
+            lambda: _FailingPolicyRepo(),
+        )
+        monkeypatch.setattr(analyze_policy_event_sentiment, "retry", _retry)
+
+        with pytest.raises(RuntimeError, match="retry requested"):
+            analyze_policy_event_sentiment.run(event_id=7)
+
+        assert isinstance(observed["exc"], TimeoutError)
+        assert observed["countdown"] == 60
+
+    def test_daily_ai_failure_retries_without_persisting_false_neutral_index(
+        self,
+        monkeypatch,
+    ):
+        saved = []
+
+        class _PolicyRepo:
+            @staticmethod
+            def get_events_in_range(_start, _end):
+                return []
+
+        class _IndexRepo:
+            @staticmethod
+            def save(index):
+                saved.append(index)
+
+        class _Analyzer:
+            def __init__(self, _repo):
+                pass
+
+            @staticmethod
+            def analyze_text(_text):
+                raise RuntimeError("provider unavailable")
+
+        retry_error = RuntimeError("retry requested")
+        observed = {}
+
+        def _retry(*, exc, countdown):
+            observed["exc"] = exc
+            observed["countdown"] = countdown
+            return retry_error
+
+        monkeypatch.setattr(
+            "apps.policy.application.repository_provider.get_current_policy_repository",
+            lambda: _PolicyRepo(),
+        )
+        monkeypatch.setattr(
+            "apps.ai_provider.application.repository_provider.get_ai_provider_repository",
+            lambda: object(),
+        )
+        monkeypatch.setattr(
+            "apps.sentiment.application.repository_provider.get_market_news_for_sentiment",
+            lambda _target_date, limit=50: [
+                SimpleNamespace(
+                    title="待分析新闻",
+                    summary="正文",
+                    sentiment_score=None,
+                    external_id="failed-news",
+                    url="",
+                )
+            ],
+        )
+        monkeypatch.setattr(
+            "apps.sentiment.application.repository_provider.get_sentiment_index_repository",
+            lambda: _IndexRepo(),
+        )
+        monkeypatch.setattr(
+            "apps.sentiment.application.services.SentimentAnalyzer",
+            _Analyzer,
+        )
+        monkeypatch.setattr(calculate_daily_sentiment_index, "retry", _retry)
+
+        with pytest.raises(RuntimeError, match="retry requested"):
+            calculate_daily_sentiment_index.run(target_date="2026-06-26")
+
+        assert isinstance(observed["exc"], AIServiceError)
+        assert observed["countdown"] == 300
+        assert saved == []
+
+    def test_freshness_repository_failure_requests_retry(self, monkeypatch):
+        class _FailingIndexRepo:
+            @staticmethod
+            def get_latest():
+                raise ConnectionError("database unavailable")
+
+        retry_error = RuntimeError("retry requested")
+        observed = {}
+
+        def _retry(*, exc, countdown):
+            observed["exc"] = exc
+            observed["countdown"] = countdown
+            return retry_error
+
+        monkeypatch.setattr(
+            "apps.sentiment.application.repository_provider.get_sentiment_index_repository",
+            lambda: _FailingIndexRepo(),
+        )
+        monkeypatch.setattr(check_sentiment_data_freshness, "retry", _retry)
+
+        with pytest.raises(RuntimeError, match="retry requested"):
+            check_sentiment_data_freshness.run()
+
+        assert isinstance(observed["exc"], ConnectionError)
+        assert observed["countdown"] == 60
+
+    def test_batch_ai_failure_reaches_celery_autoretry_boundary(self, monkeypatch):
+        class _Analyzer:
+            def __init__(self, _repo):
+                pass
+
+            @staticmethod
+            def analyze_text(text):
+                return SentimentAnalysisResult(
+                    text=text,
+                    sentiment_score=0.0,
+                    confidence=0.0,
+                    category=SentimentCategory.NEUTRAL,
+                    error_message="AI 调用失败: unavailable",
+                )
+
+        monkeypatch.setattr(
+            "apps.ai_provider.application.repository_provider.get_ai_provider_repository",
+            lambda: object(),
+        )
+        monkeypatch.setattr(
+            "apps.sentiment.application.services.SentimentAnalyzer",
+            _Analyzer,
+        )
+
+        with pytest.raises(AIServiceError, match="batch sentiment analysis failed"):
+            batch_analyze_texts.run(texts=["待分析文本"])
 
 
 class TestSentimentCacheRepository:
@@ -453,3 +620,87 @@ class TestSentimentAnalyzer:
         assert analyzer._categorize_sentiment(1.5) == SentimentCategory.POSITIVE
         assert analyzer._categorize_sentiment(-1.5) == SentimentCategory.NEGATIVE
         assert analyzer._categorize_sentiment(0.0) == SentimentCategory.NEUTRAL
+
+    def test_extract_keywords_discards_non_string_values(self):
+        from apps.sentiment.application.services import SentimentAnalyzer
+
+        class MockRepo:
+            pass
+
+        analyzer = SentimentAnalyzer(MockRepo())
+        response = '{"keywords": [" 降息 ", 7, null, "", "宽松"]}'
+
+        assert analyzer._extract_keywords("测试", response) == ["降息", "宽松"]
+
+    def test_analyze_text_preserves_adapter_error_message(self, monkeypatch):
+        from apps.sentiment.application.services import SentimentAnalyzer
+
+        class MockRepo:
+            pass
+
+        class _Adapter:
+            @staticmethod
+            def chat_completion(**_kwargs):
+                return {
+                    "status": "timeout",
+                    "error_message": "upstream timed out",
+                }
+
+        analyzer = SentimentAnalyzer(MockRepo())
+        monkeypatch.setattr(analyzer, "_get_ai_adapter", lambda: _Adapter())
+        monkeypatch.setattr(analyzer, "_send_ai_failure_alert", lambda *_args: None)
+
+        result = analyzer.analyze_text("测试")
+
+        assert result.error_message == "AI 调用失败: upstream timed out"
+        assert result.confidence == 0.0
+
+
+def test_interface_service_does_not_cache_or_return_failed_ai_analysis(monkeypatch):
+    from apps.sentiment.application import interface_services
+
+    cached = []
+    logged = []
+
+    class _CacheRepo:
+        @staticmethod
+        def get(_text):
+            return None
+
+        @staticmethod
+        def set(text, result):
+            cached.append((text, result))
+
+    class _LogRepo:
+        @staticmethod
+        def log(**payload):
+            logged.append(payload)
+
+    class _Analyzer:
+        def __init__(self, provider_repository):
+            pass
+
+        @staticmethod
+        def analyze_text(text):
+            return SentimentAnalysisResult(
+                text=text,
+                sentiment_score=0.0,
+                confidence=0.0,
+                category=SentimentCategory.NEUTRAL,
+                error_message="AI 调用失败: unavailable",
+            )
+
+    monkeypatch.setattr(interface_services, "get_sentiment_cache_repository", lambda: _CacheRepo())
+    monkeypatch.setattr(
+        interface_services,
+        "get_sentiment_analysis_log_repository",
+        lambda: _LogRepo(),
+    )
+    monkeypatch.setattr(interface_services, "get_ai_provider_repository", lambda: object())
+    monkeypatch.setattr(interface_services, "SentimentAnalyzer", _Analyzer)
+
+    with pytest.raises(AIServiceError, match="暂时不可用"):
+        interface_services.analyze_sentiment_text(text="测试", use_cache=True)
+
+    assert cached == []
+    assert len(logged) == 1

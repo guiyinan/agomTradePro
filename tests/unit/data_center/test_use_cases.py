@@ -340,6 +340,11 @@ class TestManageProviderConfigUseCase:
         resp = uc.create(req)
         assert resp.name == "ts"
         assert resp.id is not None
+        assert resp.has_api_key is True
+        assert resp.has_api_secret is False
+        assert "api_key" not in resp.to_dict()
+        assert "api_secret" not in resp.to_dict()
+        assert "tok" not in str(resp.to_dict())
 
         all_providers = uc.list_all()
         assert len(all_providers) == 1

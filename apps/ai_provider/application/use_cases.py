@@ -5,6 +5,8 @@ Use cases for AI provider management.
 from datetime import date
 from typing import Any
 
+from shared.numeric import safe_float
+
 from ..domain.entities import AIProviderType
 from ..domain.services import BudgetChecker
 from .dtos import (
@@ -17,7 +19,7 @@ from .dtos import (
     UserFallbackQuotaDTO,
 )
 from .repository_provider import (
-    OpenAICompatibleAdapter,
+    build_openai_compatible_adapter,
     get_ai_provider_repository,
     get_ai_usage_repository,
     get_ai_user_fallback_quota_repository,
@@ -40,7 +42,7 @@ class ListProvidersUseCase:
         *,
         include_inactive: bool = True,
         scope: str = "system",
-        owner_user=None,
+        owner_user: Any | None = None,
         include_all_scopes: bool = False,
     ) -> list[ProviderListItemDTO]:
         """List providers for admin/system or one user."""
@@ -72,6 +74,7 @@ class ListProvidersUseCase:
                     is_active=provider.is_active,
                     priority=provider.priority,
                     base_url=provider.base_url,
+                    api_key_configured=self._provider_repo.has_usable_api_key(provider),
                     default_model=provider.default_model,
                     api_mode=provider.api_mode,
                     fallback_enabled=provider.fallback_enabled,
@@ -124,7 +127,7 @@ class CreateProviderUseCase:
         description: str = "",
         extra_config: dict[str, Any] | None = None,
         scope: str = "system",
-        owner_user=None,
+        owner_user: Any | None = None,
     ) -> Any:
         self._validate_common(
             provider_type=provider_type,
@@ -133,6 +136,9 @@ class CreateProviderUseCase:
             scope=scope,
             owner_user=owner_user,
         )
+        _validate_provider_limit(daily_budget_limit, "daily_budget_limit")
+        _validate_provider_limit(monthly_budget_limit, "monthly_budget_limit")
+        _validate_extra_config(extra_config)
         if self._provider_repo.name_exists(name=name, scope=scope, owner_user=owner_user):
             raise ValueError(f"Provider with name '{name}' already exists in this scope")
         return self._provider_repo.create(
@@ -160,7 +166,7 @@ class CreateProviderUseCase:
         api_mode: str,
         name: str,
         scope: str,
-        owner_user,
+        owner_user: Any | None,
     ) -> None:
         valid_types = [item.value for item in AIProviderType]
         if provider_type not in valid_types:
@@ -189,10 +195,14 @@ class UpdateProviderUseCase:
     def __init__(self, provider_repo: Any | None = None) -> None:
         self._provider_repo = provider_repo or get_ai_provider_repository()
 
-    def execute(self, pk: int, *, actor_user=None, **kwargs) -> Any:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(
+        self,
+        pk: int,
+        *,
+        actor_user: Any | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        provider = _get_managed_provider(self._provider_repo, pk, actor_user)
 
         if "provider_type" in kwargs:
             valid_types = [item.value for item in AIProviderType]
@@ -205,11 +215,16 @@ class UpdateProviderUseCase:
 
         scope = kwargs.get("scope", provider.scope)
         owner_user = kwargs.get("owner_user", provider.owner_user)
-        if scope == "user" and owner_user is None:
-            raise ValueError("owner_user is required for user-scope providers")
-        if scope == "system":
-            owner_user = None
-            kwargs["owner_user"] = None
+        if scope != provider.scope or owner_user != provider.owner_user:
+            raise ValueError("Provider scope and owner cannot be changed")
+        if "name" in kwargs and not str(kwargs["name"]).strip():
+            raise ValueError("Provider name is required")
+        if "daily_budget_limit" in kwargs:
+            _validate_provider_limit(kwargs["daily_budget_limit"], "daily_budget_limit")
+        if "monthly_budget_limit" in kwargs:
+            _validate_provider_limit(kwargs["monthly_budget_limit"], "monthly_budget_limit")
+        if "extra_config" in kwargs:
+            _validate_extra_config(kwargs["extra_config"])
 
         if "name" in kwargs and self._provider_repo.name_exists(
             name=kwargs["name"],
@@ -222,9 +237,7 @@ class UpdateProviderUseCase:
         success = self._provider_repo.update(pk, **kwargs)
         if not success:
             raise ValueError(f"Provider with id {pk} not found")
-        updated = self._provider_repo.get_by_id(pk, user=actor_user)
-        if updated is None:
-            raise ValueError(f"Provider with id {pk} not found after update")
+        updated = _get_managed_provider(self._provider_repo, pk, actor_user)
         return updated
 
 
@@ -234,10 +247,8 @@ class DeleteProviderUseCase:
     def __init__(self, provider_repo: Any | None = None) -> None:
         self._provider_repo = provider_repo or get_ai_provider_repository()
 
-    def execute(self, pk: int, *, actor_user=None) -> bool:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(self, pk: int, *, actor_user: Any | None = None) -> bool:
+        _get_managed_provider(self._provider_repo, pk, actor_user)
         success = self._provider_repo.delete(pk)
         if not success:
             raise ValueError(f"Provider with id {pk} not found")
@@ -250,14 +261,10 @@ class ToggleProviderUseCase:
     def __init__(self, provider_repo: Any | None = None) -> None:
         self._provider_repo = provider_repo or get_ai_provider_repository()
 
-    def execute(self, pk: int, *, actor_user=None) -> Any:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(self, pk: int, *, actor_user: Any | None = None) -> Any:
+        provider = _get_managed_provider(self._provider_repo, pk, actor_user)
         self._provider_repo.update(pk, is_active=not provider.is_active)
-        updated = self._provider_repo.get_by_id(pk, user=actor_user)
-        if updated is None:
-            raise ValueError(f"Provider with id {pk} not found")
+        updated = _get_managed_provider(self._provider_repo, pk, actor_user)
         return updated
 
 
@@ -272,10 +279,14 @@ class GetProviderStatsUseCase:
         self._provider_repo = provider_repo or get_ai_provider_repository()
         self._usage_repo = usage_repo or get_ai_usage_repository()
 
-    def execute(self, pk: int, days: int = 30, *, actor_user=None) -> ProviderStatsDTO:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(
+        self,
+        pk: int,
+        days: int = 30,
+        *,
+        actor_user: Any | None = None,
+    ) -> ProviderStatsDTO:
+        provider = _get_managed_provider(self._provider_repo, pk, actor_user)
 
         today = date.today()
         today_usage = self._usage_repo.get_daily_usage(pk, today)
@@ -339,7 +350,7 @@ class ListUsageLogsUseCase:
         provider_id: int | None = None,
         status: str | None = None,
         limit: int = 100,
-        user=None,
+        user: Any | None = None,
         provider_scope: str | None = None,
     ) -> list[UsageLogListItemDTO]:
         logs = self._usage_repo.get_recent_logs(
@@ -387,14 +398,21 @@ class CheckBudgetUseCase:
         self._provider_repo = provider_repo or get_ai_provider_repository()
         self._usage_repo = usage_repo or get_ai_usage_repository()
 
-    def execute(self, pk: int, *, actor_user=None) -> BudgetCheckResultDTO:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(
+        self,
+        pk: int,
+        *,
+        actor_user: Any | None = None,
+    ) -> BudgetCheckResultDTO:
+        provider = _get_managed_provider(self._provider_repo, pk, actor_user)
 
-        daily_limit = float(provider.daily_budget_limit) if provider.daily_budget_limit else None
+        daily_limit = (
+            float(provider.daily_budget_limit) if provider.daily_budget_limit is not None else None
+        )
         monthly_limit = (
-            float(provider.monthly_budget_limit) if provider.monthly_budget_limit else None
+            float(provider.monthly_budget_limit)
+            if provider.monthly_budget_limit is not None
+            else None
         )
         budget_status = self._usage_repo.check_budget_limits(pk, daily_limit, monthly_limit)
         daily_allowed, daily_message = BudgetChecker.check_budget_limit(
@@ -426,7 +444,7 @@ class GetUserFallbackQuotaUseCase:
     ) -> None:
         self._quota_repo = quota_repo or get_ai_user_fallback_quota_repository()
 
-    def execute(self, *, user) -> UserFallbackQuotaDTO:
+    def execute(self, *, user: Any) -> UserFallbackQuotaDTO:
         quota, daily_spent, monthly_spent = self._quota_repo.get_with_usage(user)
         return UserFallbackQuotaDTO(
             user_id=user.id,
@@ -465,7 +483,7 @@ class UpdateUserFallbackQuotaUseCase:
     def execute(
         self,
         *,
-        user,
+        user: Any,
         daily_limit: float | None,
         monthly_limit: float | None,
         is_active: bool = True,
@@ -531,10 +549,13 @@ class TestProviderConnectionUseCase:
     def __init__(self, provider_repo: Any | None = None) -> None:
         self._provider_repo = provider_repo or get_ai_provider_repository()
 
-    def execute(self, pk: int, *, actor_user=None) -> dict[str, Any]:
-        provider = self._provider_repo.get_by_id(pk, user=actor_user)
-        if provider is None:
-            raise ValueError(f"Provider with id {pk} not found")
+    def execute(
+        self,
+        pk: int,
+        *,
+        actor_user: Any | None = None,
+    ) -> dict[str, Any]:
+        provider = _get_managed_provider(self._provider_repo, pk, actor_user)
 
         api_key = self._provider_repo.get_api_key(provider)
         if not api_key:
@@ -544,7 +565,7 @@ class TestProviderConnectionUseCase:
                 "error_message": "API key not available in current environment",
             }
 
-        adapter = OpenAICompatibleAdapter(
+        adapter = build_openai_compatible_adapter(
             base_url=provider.base_url,
             api_key=api_key,
             default_model=provider.default_model,
@@ -569,3 +590,35 @@ def _remaining(limit: float | None, spent: float) -> float | None:
     if limit is None:
         return None
     return max(limit - spent, 0.0)
+
+
+def _validate_provider_limit(value: object, field_name: str) -> None:
+    """Reject negative, boolean and non-finite provider budget limits."""
+    if value is None:
+        return
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a finite nonnegative number")
+    normalized = safe_float(value)
+    if normalized is None or normalized < 0:
+        raise ValueError(f"{field_name} must be a finite nonnegative number")
+
+
+def _validate_extra_config(value: object) -> None:
+    """Require provider runtime options to remain an object."""
+    if value is not None and not isinstance(value, dict):
+        raise ValueError("extra_config must be an object")
+
+
+def _get_managed_provider(
+    provider_repo: Any,
+    pk: int,
+    actor_user: Any | None,
+) -> Any:
+    """Resolve a provider within the system-admin or personal-owner management scope."""
+    provider = provider_repo.get_by_id(pk, user=actor_user)
+    expected_scope = "system" if actor_user is None else "user"
+    if provider is None or provider.scope != expected_scope:
+        raise ValueError(f"Provider with id {pk} not found")
+    if actor_user is not None and provider.owner_user_id != getattr(actor_user, "pk", None):
+        raise ValueError(f"Provider with id {pk} not found")
+    return provider

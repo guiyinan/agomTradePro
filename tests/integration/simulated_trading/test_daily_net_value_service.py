@@ -54,6 +54,7 @@ class TestDailyNetValueService(TestCase):
         FeeConfigModel.objects.create(
             config_name="净值测试默认费率",
             asset_type="equity",
+            min_commission=5.0,
             is_default=True,
         )
 

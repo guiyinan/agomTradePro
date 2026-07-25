@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from apps.data_center.application.dtos import (
     SyncCapitalFlowRequest,
@@ -20,7 +21,7 @@ from apps.data_center.application.dtos import (
     SyncSectorMembershipRequest,
     SyncValuationRequest,
 )
-from apps.data_center.domain.entities import ProviderConfig, RawAudit
+from apps.data_center.domain.entities import MacroFact, ProviderConfig, RawAudit
 from apps.data_center.domain.enums import DataCapability
 from apps.data_center.domain.protocols import (
     CapitalFlowRepositoryProtocol,
@@ -42,6 +43,8 @@ from apps.data_center.domain.protocols import (
 
 from .macro_fact_governance import MacroFactGovernanceNormalizer
 
+FactT = TypeVar("FactT")
+
 RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
     AttributeError,
     ConnectionError,
@@ -57,7 +60,7 @@ RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
 def _build_sync_audit(
     provider_name: str,
     capability: str,
-    request_params: dict[str, object],
+    request_params: Mapping[str, object],
     status: str,
     row_count: int,
     latency_ms: float,
@@ -66,7 +69,7 @@ def _build_sync_audit(
     return RawAudit(
         provider_name=provider_name,
         capability=capability,
-        request_params=request_params,
+        request_params=dict(request_params),
         status=status,
         row_count=row_count,
         latency_ms=latency_ms,
@@ -97,27 +100,27 @@ class _BaseSyncUseCase:
 
     @staticmethod
     def _normalize_fact_source(
-        fact,
+        fact: FactT,
         *,
         source_type: str,
         provider_name: str,
-    ):
+    ) -> FactT:
         updates: dict[str, Any] = {"source": source_type}
         if hasattr(fact, "extra"):
             next_extra = dict(getattr(fact, "extra", {}) or {})
             next_extra["source_type"] = source_type
             next_extra.setdefault("provider_name", provider_name)
             updates["extra"] = next_extra
-        return dataclasses.replace(fact, **updates)
+        return cast(FactT, dataclasses.replace(cast(Any, fact), **updates))
 
     @classmethod
     def _normalize_fact_sources(
         cls,
-        facts: list[Any],
+        facts: list[FactT],
         *,
         source_type: str,
         provider_name: str,
-    ) -> list[Any]:
+    ) -> list[FactT]:
         return [
             cls._normalize_fact_source(
                 fact,
@@ -204,6 +207,38 @@ class _BaseSyncUseCase:
         else:
             self._provider_registry.record_failure(config.name, runtime_capability)
 
+    def _record_outcome(
+        self,
+        config: ProviderConfig,
+        *,
+        provider_name: str,
+        capability: str,
+        request_params: Mapping[str, object],
+        status: str,
+        row_count: int,
+        latency_ms: float,
+        error_message: str = "",
+    ) -> None:
+        """Persist one consistent health and raw-audit outcome."""
+        self._persist_provider_health_metric(
+            config,
+            capability=capability,
+            latency_ms=latency_ms,
+            success=status == "ok",
+            error=error_message,
+        )
+        self._raw_audit_repo.log(
+            _build_sync_audit(
+                provider_name,
+                capability,
+                request_params,
+                status,
+                row_count,
+                latency_ms,
+                error_message,
+            )
+        )
+
 
 class SyncMacroUseCase(_BaseSyncUseCase):
     def __init__(
@@ -225,8 +260,8 @@ class SyncMacroUseCase(_BaseSyncUseCase):
         indicator_code: str,
         source_type: str,
         provider_name: str,
-        facts: list,
-    ) -> list:
+        facts: list[MacroFact],
+    ) -> list[MacroFact]:
         if any(fact.indicator_code != indicator_code for fact in facts):
             raise ValueError(f"Provider returned a mismatched indicator for {indicator_code}")
         return self._normalizer.normalize_many(
@@ -503,6 +538,11 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
     def execute(self, request: SyncFundNavRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
         started = datetime.now(UTC)
+        params = {
+            "fund_code": request.fund_code,
+            "start": request.start.isoformat(),
+            "end": request.end.isoformat(),
+        }
         try:
             facts = provider.fetch_fund_nav(request.fund_code, request.start, request.end)
             facts = self._normalize_fact_sources(
@@ -512,37 +552,27 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
             )
             stored_count = self._facts.bulk_upsert(facts)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "fund_nav",
-                    {
-                        "fund_code": request.fund_code,
-                        "start": request.start.isoformat(),
-                        "end": request.end.isoformat(),
-                    },
-                    "ok",
-                    stored_count,
-                    latency_ms,
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="fund_nav",
+                request_params=params,
+                status="ok",
+                row_count=stored_count,
+                latency_ms=latency_ms,
             )
             return SyncResult("fund_nav", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "fund_nav",
-                    {
-                        "fund_code": request.fund_code,
-                        "start": request.start.isoformat(),
-                        "end": request.end.isoformat(),
-                    },
-                    "error",
-                    0,
-                    latency_ms,
-                    str(exc),
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="fund_nav",
+                request_params=params,
+                status="error",
+                row_count=0,
+                latency_ms=latency_ms,
+                error_message=str(exc),
             )
             raise
 
@@ -561,6 +591,7 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
     def execute(self, request: SyncFinancialRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
         started = datetime.now(UTC)
+        params = {"asset_code": request.asset_code, "periods": request.periods}
         try:
             facts = provider.fetch_financials(request.asset_code, periods=request.periods)
             facts = self._normalize_fact_sources(
@@ -570,29 +601,27 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
             )
             stored_count = self._facts.bulk_upsert(facts)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "financial",
-                    {"asset_code": request.asset_code, "periods": request.periods},
-                    "ok",
-                    stored_count,
-                    latency_ms,
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="financial",
+                request_params=params,
+                status="ok",
+                row_count=stored_count,
+                latency_ms=latency_ms,
             )
             return SyncResult("financial", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "financial",
-                    {"asset_code": request.asset_code, "periods": request.periods},
-                    "error",
-                    0,
-                    latency_ms,
-                    str(exc),
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="financial",
+                request_params=params,
+                status="error",
+                row_count=0,
+                latency_ms=latency_ms,
+                error_message=str(exc),
             )
             raise
 
@@ -611,6 +640,11 @@ class SyncValuationUseCase(_BaseSyncUseCase):
     def execute(self, request: SyncValuationRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
         started = datetime.now(UTC)
+        params = {
+            "asset_code": request.asset_code,
+            "start": request.start.isoformat(),
+            "end": request.end.isoformat(),
+        }
         try:
             facts = provider.fetch_valuations(request.asset_code, request.start, request.end)
             facts = self._normalize_fact_sources(
@@ -620,37 +654,27 @@ class SyncValuationUseCase(_BaseSyncUseCase):
             )
             stored_count = self._facts.bulk_upsert(facts)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "valuation",
-                    {
-                        "asset_code": request.asset_code,
-                        "start": request.start.isoformat(),
-                        "end": request.end.isoformat(),
-                    },
-                    "ok",
-                    stored_count,
-                    latency_ms,
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="valuation",
+                request_params=params,
+                status="ok",
+                row_count=stored_count,
+                latency_ms=latency_ms,
             )
             return SyncResult("valuation", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "valuation",
-                    {
-                        "asset_code": request.asset_code,
-                        "start": request.start.isoformat(),
-                        "end": request.end.isoformat(),
-                    },
-                    "error",
-                    0,
-                    latency_ms,
-                    str(exc),
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="valuation",
+                request_params=params,
+                status="error",
+                row_count=0,
+                latency_ms=latency_ms,
+                error_message=str(exc),
             )
             raise
 
@@ -689,31 +713,29 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
             )
             stored_count = self._facts.bulk_upsert(facts)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "sector_membership",
-                    params,
-                    "ok",
-                    stored_count,
-                    latency_ms,
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="sector_membership",
+                request_params=params,
+                status="ok",
+                row_count=stored_count,
+                latency_ms=latency_ms,
             )
             return SyncResult(
                 "sector_membership", provider.provider_name(), stored_count, "success"
             )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "sector_membership",
-                    params,
-                    "error",
-                    0,
-                    latency_ms,
-                    str(exc),
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="sector_membership",
+                request_params=params,
+                status="error",
+                row_count=0,
+                latency_ms=latency_ms,
+                error_message=str(exc),
             )
             raise
 
@@ -742,18 +764,27 @@ class SyncNewsUseCase(_BaseSyncUseCase):
             )
             stored_count = self._facts.bulk_insert(facts)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(), "news", params, "ok", stored_count, latency_ms
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="news",
+                request_params=params,
+                status="ok",
+                row_count=stored_count,
+                latency_ms=latency_ms,
             )
             return SyncResult("news", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(), "news", params, "error", 0, latency_ms, str(exc)
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="news",
+                request_params=params,
+                status="error",
+                row_count=0,
+                latency_ms=latency_ms,
+                error_message=str(exc),
             )
             raise
 
@@ -782,24 +813,27 @@ class SyncCapitalFlowUseCase(_BaseSyncUseCase):
             )
             stored_count = self._facts.bulk_upsert(facts)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(), "capital_flow", params, "ok", stored_count, latency_ms
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="capital_flow",
+                request_params=params,
+                status="ok",
+                row_count=stored_count,
+                latency_ms=latency_ms,
             )
             return SyncResult("capital_flow", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
-            self._raw_audit_repo.log(
-                _build_sync_audit(
-                    provider.provider_name(),
-                    "capital_flow",
-                    params,
-                    "error",
-                    0,
-                    latency_ms,
-                    str(exc),
-                )
+            self._record_outcome(
+                config,
+                provider_name=provider.provider_name(),
+                capability="capital_flow",
+                request_params=params,
+                status="error",
+                row_count=0,
+                latency_ms=latency_ms,
+                error_message=str(exc),
             )
             raise
 

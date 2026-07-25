@@ -5,6 +5,9 @@ This module contains the core data entities for the audit module.
 Following four-layer architecture, this file uses ONLY Python standard library.
 """
 
+import json
+import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date
 from enum import Enum
@@ -13,6 +16,7 @@ from typing import Any
 
 class LossSource(Enum):
     """损失来源归因"""
+
     REGIME_TIMING_ERROR = "regime_timing"  # Regime 判断错误
     ASSET_SELECTION_ERROR = "asset_selection"  # 资产选择错误
     POLICY_INTERVENTION = "policy_intervention"  # 政策干预
@@ -23,6 +27,7 @@ class LossSource(Enum):
 
 class RegimeTransition(Enum):
     """Regime 转换类型"""
+
     SAME = "same"  # 保持不变
     CORRECT_PREDICTION = "correct_prediction"  # 正确预测转换
     MISSED_PREDICTION = "missed_prediction"  # 错过转换
@@ -31,6 +36,7 @@ class RegimeTransition(Enum):
 
 class AttributionMethod(Enum):
     """归因方法"""
+
     HEURISTIC = "heuristic"  # 启发式方法（30%/50% 规则）
     BRINSON = "brinson"  # 标准 Brinson 模型
 
@@ -38,6 +44,7 @@ class AttributionMethod(Enum):
 @dataclass(frozen=True)
 class RegimePeriod:
     """Regime 周期"""
+
     start_date: date
     end_date: date
     regime: str
@@ -52,6 +59,7 @@ class RegimePeriod:
 @dataclass(frozen=True)
 class PeriodPerformance:
     """周期表现"""
+
     period: RegimePeriod
     portfolio_return: float
     benchmark_return: float
@@ -73,6 +81,7 @@ class AttributionResult:
     - 选资产收益：超额收益的 50% 归因于资产选择
     - 这是简化估算，如需严格归因应使用 Brinson 模型
     """
+
     # 收益归因
     total_return: float
     regime_timing_pnl: float  # 择时收益（Regime 判断正确带来的收益）
@@ -90,7 +99,7 @@ class AttributionResult:
     improvement_suggestions: list[str]
 
     # 详细分解
-    period_attributions: list[dict]  # 每个周期的归因
+    period_attributions: Sequence[Mapping[str, object]]  # 每个周期的归因
 
     # 归因方法标识（放在最后，因为有默认值）
     attribution_method: AttributionMethod = AttributionMethod.HEURISTIC  # 使用的归因方法
@@ -117,6 +126,7 @@ class BrinsonAttributionResult:
     - rb_i: 基准中资产 i 的收益
     - rb: 基准整体收益
     """
+
     # 总体指标
     benchmark_return: float  # 基准收益率
     portfolio_return: float  # 组合收益率
@@ -131,16 +141,17 @@ class BrinsonAttributionResult:
     attribution_sum: float  # allocation + selection + interaction
 
     # 分时段分解
-    period_breakdown: list[dict]  # 各时段的 Brinson 分解
+    period_breakdown: Sequence[Mapping[str, object]]  # 各时段的 Brinson 分解
 
     # 分资产类别分解
-    sector_breakdown: dict[str, dict]  # 各资产类别的详细分解
+    sector_breakdown: dict[str, dict[str, float]]  # 各资产类别的详细分解
     # 格式: {asset_class: {"allocation": float, "selection": float, "interaction": float}}
 
 
 @dataclass(frozen=True)
 class AttributionConfig:
     """归因分析配置"""
+
     risk_free_rate: float = 0.03  # 无风险利率
     benchmark_return: float = 0.08  # 基准收益（年化）
     min_confidence_threshold: float = 0.3  # 最低置信度阈值
@@ -149,8 +160,10 @@ class AttributionConfig:
 
 # ============ 指标表现评估相关实体 ============
 
+
 class ValidationStatus(Enum):
     """验证状态"""
+
     PENDING = "pending"  # 待验证
     IN_PROGRESS = "in_progress"  # 验证中
     PASSED = "passed"  # 通过验证
@@ -160,6 +173,7 @@ class ValidationStatus(Enum):
 
 class RecommendedAction(Enum):
     """建议操作"""
+
     KEEP = "keep"  # 保持当前配置
     INCREASE = "increase"  # 增加权重
     DECREASE = "decrease"  # 降低权重
@@ -172,6 +186,7 @@ class IndicatorPerformanceReport:
 
     评估单个指标对 Regime 判断的预测能力。
     """
+
     indicator_code: str
     evaluation_period_start: date
     evaluation_period_end: date
@@ -210,6 +225,7 @@ class IndicatorPerformanceReport:
 @dataclass(frozen=True)
 class IndicatorThresholdConfig:
     """指标阈值配置（Domain 层值对象）"""
+
     indicator_code: str
     indicator_name: str
 
@@ -240,6 +256,7 @@ class ThresholdValidationReport:
 
     验证历史阈值配置的表现。
     """
+
     validation_run_id: str
     run_date: date
     evaluation_period_start: date
@@ -266,6 +283,7 @@ class DynamicWeightConfig:
 
     根据指标表现动态调整权重。
     """
+
     indicator_code: str
     current_weight: float
     original_weight: float
@@ -287,6 +305,7 @@ class DynamicWeightConfig:
 @dataclass(frozen=True)
 class SignalEvent:
     """信号事件"""
+
     indicator_code: str
     signal_date: date
     signal_type: str  # "BULLISH" / "BEARISH" / "NEUTRAL"
@@ -298,6 +317,7 @@ class SignalEvent:
 @dataclass(frozen=True)
 class RegimeSnapshot:
     """Regime 快照（用于验证）"""
+
     observed_at: date
     dominant_regime: str
     confidence: float
@@ -308,8 +328,10 @@ class RegimeSnapshot:
 
 # ============ MCP/SDK 操作审计日志实体 ============
 
+
 class OperationSource(Enum):
     """操作来源"""
+
     MCP = "MCP"
     SDK = "SDK"
     API = "API"
@@ -317,6 +339,7 @@ class OperationSource(Enum):
 
 class OperationType(Enum):
     """操作类型"""
+
     MCP_CALL = "MCP_CALL"
     API_ACCESS = "API_ACCESS"
     DATA_MODIFY = "DATA_MODIFY"
@@ -324,6 +347,7 @@ class OperationType(Enum):
 
 class OperationAction(Enum):
     """操作动作"""
+
     CREATE = "CREATE"
     READ = "READ"
     UPDATE = "UPDATE"
@@ -338,6 +362,7 @@ class OperationLog:
     记录所有通过 MCP 和 SDK 进行的工具调用，用于审计追踪。
     遵循四层架构，此文件仅使用 Python 标准库。
     """
+
     # 唯一标识
     id: str  # UUID
     request_id: str  # 链路追踪ID
@@ -412,7 +437,7 @@ class OperationLog:
         sdk_version: str = "",
         request_method: str = "MCP",
         request_path: str = "",
-    ) -> 'OperationLog':
+    ) -> "OperationLog":
         """创建操作日志实体"""
         import uuid
         from datetime import datetime
@@ -426,7 +451,10 @@ class OperationLog:
         # 脱敏参数
         masked_params = mask_sensitive_params(request_params or {})
         masked_response_payload = mask_sensitive_params(response_payload)
-        normalized_response_text = response_text or ""
+        normalized_response_text = mask_sensitive_text(response_text or "")
+        normalized_response_message = mask_sensitive_text(response_message or "")
+        normalized_exception_traceback = mask_sensitive_text(exception_traceback or "")
+        normalized_request_path = mask_sensitive_text(request_path or "")
 
         # 计算校验和
         checksum = cls._compute_checksum(
@@ -457,14 +485,14 @@ class OperationLog:
             mcp_role=mcp_role,
             sdk_version=sdk_version,
             request_method=request_method,
-            request_path=request_path,
+            request_path=normalized_request_path,
             request_params=masked_params,
             response_payload=masked_response_payload,
             response_text=normalized_response_text,
             response_status=response_status,
-            response_message=response_message,
+            response_message=normalized_response_message,
             error_code=error_code,
-            exception_traceback=exception_traceback or "",
+            exception_traceback=normalized_exception_traceback,
             timestamp=timestamp,
             duration_ms=duration_ms,
             checksum=checksum,
@@ -475,13 +503,12 @@ class OperationLog:
         log_id: str,
         request_id: str,
         timestamp: str,
-        params: dict,
+        params: dict[str, Any],
         response_payload: Any,
         response_text: str,
     ) -> str:
         """计算校验和"""
         import hashlib
-        import json
 
         payload_json = json.dumps(response_payload, sort_keys=True, ensure_ascii=False, default=str)
         params_json = json.dumps(params, sort_keys=True, ensure_ascii=False, default=str)
@@ -490,20 +517,60 @@ class OperationLog:
 
 
 # 敏感字段关键词（用于脱敏）
-SENSITIVE_KEYWORDS = frozenset([
-    "password",
-    "token",
-    "secret",
-    "api_key",
-    "apikey",
-    "authorization",
-    "cookie",
-    "session",
-    "credential",
-    "private_key",
-    "access_key",
-    "secret_key",
-])
+SENSITIVE_KEYWORDS = frozenset(
+    [
+        "password",
+        "passphrase",
+        "token",
+        "secret",
+        "api_key",
+        "apikey",
+        "authorization",
+        "cookie",
+        "session",
+        "credential",
+        "private_key",
+        "access_key",
+        "secret_key",
+    ]
+)
+_SENSITIVE_ASSIGNMENT_PATTERN = re.compile(
+    r"(?i)\b("
+    r"password|passphrase|token|secret|api[_-]?key|apikey|authorization|"
+    r"cookie|session|credential|private[_-]?key|access[_-]?key|secret[_-]?key"
+    r")\b(\s*=\s*)([^,\s;&]+)"
+)
+_BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
+_CREDENTIAL_URL_PATTERN = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://)([^/\s:@]+):([^@\s/]+)@")
+_PRIVATE_KEY_PATTERN = re.compile(
+    r"-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----.*?" r"-----END (?:[A-Z ]+ )?PRIVATE KEY-----",
+    re.DOTALL,
+)
+_OPENAI_STYLE_KEY_PATTERN = re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b")
+
+
+def mask_sensitive_text(value: str, mask: str = "***") -> str:
+    """Redact structured or free-text credentials before audit persistence."""
+
+    if not value:
+        return ""
+
+    try:
+        parsed = json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        parsed = None
+    if isinstance(parsed, (dict, list)):
+        return json.dumps(
+            mask_sensitive_params(parsed, mask),
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+
+    masked = _CREDENTIAL_URL_PATTERN.sub(rf"\1{mask}:{mask}@", value)
+    masked = _BEARER_PATTERN.sub(f"Bearer {mask}", masked)
+    masked = _SENSITIVE_ASSIGNMENT_PATTERN.sub(rf"\1\2{mask}", masked)
+    masked = _PRIVATE_KEY_PATTERN.sub(mask, masked)
+    return _OPENAI_STYLE_KEY_PATTERN.sub(mask, masked)
 
 
 def mask_sensitive_params(params: Any, mask: str = "***") -> Any:
@@ -519,9 +586,9 @@ def mask_sensitive_params(params: Any, mask: str = "***") -> Any:
         脱敏后的参数
     """
     if isinstance(params, dict):
-        masked = {}
+        masked: dict[object, Any] = {}
         for key, value in params.items():
-            key_lower = key.lower()
+            key_lower = str(key).lower()
             # 检查是否为敏感字段
             if any(keyword in key_lower for keyword in SENSITIVE_KEYWORDS):
                 masked[key] = mask
@@ -531,6 +598,8 @@ def mask_sensitive_params(params: Any, mask: str = "***") -> Any:
         return masked
     elif isinstance(params, list):
         return [mask_sensitive_params(item, mask) for item in params]
+    elif isinstance(params, str):
+        return mask_sensitive_text(params, mask)
     else:
         return params
 
@@ -548,11 +617,19 @@ def infer_action_from_tool(tool_name: str) -> OperationAction:
 
     if name_lower.startswith("create_") or name_lower.startswith("add_"):
         return OperationAction.CREATE
-    elif name_lower.startswith("update_") or name_lower.startswith("modify_") or name_lower.startswith("edit_"):
+    elif (
+        name_lower.startswith("update_")
+        or name_lower.startswith("modify_")
+        or name_lower.startswith("edit_")
+    ):
         return OperationAction.UPDATE
     elif name_lower.startswith("delete_") or name_lower.startswith("remove_"):
         return OperationAction.DELETE
-    elif name_lower.startswith("execute_") or name_lower.startswith("run_") or name_lower.startswith("submit_"):
+    elif (
+        name_lower.startswith("execute_")
+        or name_lower.startswith("run_")
+        or name_lower.startswith("submit_")
+    ):
         return OperationAction.EXECUTE
     else:
         return OperationAction.READ

@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import json
+import re
+from collections.abc import Callable
 from datetime import date
+from math import isfinite
+from typing import Any
 
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, CommandError, call_command
+from django.core.management.base import CommandParser
+from django.utils import timezone
 
 from apps.data_center.application.dtos import DecisionReliabilityRepairRequest, SyncQuoteRequest
 from apps.data_center.application.interface_services import (
@@ -16,6 +22,7 @@ from apps.data_center.application.interface_services import (
     resolve_portfolio_alpha_scope,
     run_alpha_score_prediction_now,
 )
+from apps.data_center.application.sync_use_cases import RECOVERABLE_DATA_CENTER_EXCEPTIONS
 from apps.data_center.application.use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
     DEFAULT_DECISION_MACRO_INDICATORS,
@@ -36,18 +43,37 @@ from apps.data_center.infrastructure.repositories import (
 )
 
 ALPHA_POOL_MODE_STRICT_VALUATION = "strict_valuation"
+MAX_REPAIR_CODES = 200
+CODE_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9._-]{0,63}$")
 
 
-def _split_codes(raw: str | None, defaults: tuple[str, ...]) -> list[str]:
-    if not raw:
+def _split_codes(
+    raw: object,
+    defaults: tuple[str, ...],
+    *,
+    option_name: str,
+) -> list[str]:
+    """Normalize, deduplicate, and bound one comma-separated code option."""
+
+    if raw is None:
         return list(defaults)
-    return [item.strip() for item in raw.split(",") if item.strip()]
+    if not isinstance(raw, str) or not raw.strip():
+        raise CommandError(f"{option_name} must be a non-empty comma-separated string")
+    codes = list(dict.fromkeys(item.strip().upper() for item in raw.split(",") if item.strip()))
+    if not codes:
+        raise CommandError(f"{option_name} must contain at least one code")
+    if len(codes) > MAX_REPAIR_CODES:
+        raise CommandError(f"{option_name} accepts at most {MAX_REPAIR_CODES} unique codes")
+    invalid_codes = [code for code in codes if CODE_PATTERN.fullmatch(code) is None]
+    if invalid_codes:
+        raise CommandError(f"{option_name} contains invalid code: {invalid_codes[0]}")
+    return codes
 
 
 class Command(BaseCommand):
     help = "Repair data inputs required for actionable decision outputs."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--target-date", dest="target_date", default=None)
         parser.add_argument("--portfolio-id", dest="portfolio_id", type=int, default=None)
         parser.add_argument("--user-id", dest="user_id", type=int, default=None)
@@ -73,14 +99,37 @@ class Command(BaseCommand):
             help="Run scoped Alpha inference synchronously. Default queues it to avoid blocking repair.",
         )
 
-    def handle(self, *args, **options):
-        target_date = (
-            date.fromisoformat(options["target_date"])
-            if options.get("target_date")
-            else date.today()
+    def handle(self, *args: object, **options: Any) -> None:
+        raw_target_date = options.get("target_date")
+        if raw_target_date is not None and (
+            not isinstance(raw_target_date, str) or not raw_target_date.strip()
+        ):
+            raise CommandError("--target-date must use YYYY-MM-DD")
+        try:
+            target_date = (
+                date.fromisoformat(raw_target_date.strip())
+                if isinstance(raw_target_date, str)
+                else timezone.localdate()
+            )
+        except ValueError as exc:
+            raise CommandError("--target-date must use YYYY-MM-DD") from exc
+        if target_date > timezone.localdate():
+            raise CommandError("--target-date cannot be in the future")
+
+        user_id = self._optional_positive_id(options.get("user_id"), "--user-id")
+        portfolio_id = self._optional_positive_id(
+            options.get("portfolio_id"),
+            "--portfolio-id",
         )
-        user = self._resolve_user(options.get("user_id"))
-        portfolio_id = options.get("portfolio_id")
+        quote_max_age_hours = self._positive_finite_float(
+            options.get("quote_max_age_hours"),
+            "--quote-max-age-hours",
+        )
+        user = self._resolve_user(user_id)
+        if not options.get("skip_alpha") and user is None:
+            raise CommandError(
+                "Alpha repair requires an active user; pass --user-id or create an active superuser"
+            )
         if portfolio_id is None:
             portfolio_id = self._resolve_default_portfolio_id(user, target_date)
         provider_repo = ProviderConfigRepository()
@@ -107,13 +156,15 @@ class Command(BaseCommand):
                 asset_codes=_split_codes(
                     options.get("asset_codes"),
                     DEFAULT_DECISION_ASSET_CODES,
+                    option_name="--asset-codes",
                 ),
                 macro_indicator_codes=_split_codes(
                     options.get("macro_indicator_codes"),
                     DEFAULT_DECISION_MACRO_INDICATORS,
+                    option_name="--macro-indicator-codes",
                 ),
                 strict=bool(options.get("strict")),
-                quote_max_age_hours=float(options.get("quote_max_age_hours") or 4.0),
+                quote_max_age_hours=quote_max_age_hours,
                 repair_pulse=not bool(options.get("skip_pulse")),
                 repair_alpha=not bool(options.get("skip_alpha")),
             )
@@ -123,22 +174,54 @@ class Command(BaseCommand):
         if options.get("strict") and payload["must_not_use_for_decision"]:
             raise CommandError("Decision data reliability repair completed but remains blocked.")
 
-    def _resolve_user(self, user_id: int | None):
-        User = get_user_model()
-        if user_id is not None:
-            return User.objects.filter(pk=user_id).first()
-        return User.objects.filter(is_superuser=True).order_by("id").first()
+    @staticmethod
+    def _optional_positive_id(raw_value: object, option_name: str) -> int | None:
+        if raw_value is None:
+            return None
+        if (
+            isinstance(raw_value, bool)
+            or not isinstance(raw_value, int)
+            or raw_value <= 0
+        ):
+            raise CommandError(f"{option_name} must be a positive integer")
+        return raw_value
 
     @staticmethod
-    def _build_pulse_refresher():
-        def _refresh(target_date: date):
+    def _positive_finite_float(raw_value: object, option_name: str) -> float:
+        if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
+            raise CommandError(f"{option_name} must be a positive finite number")
+        value = float(raw_value)
+        if not isfinite(value) or value <= 0:
+            raise CommandError(f"{option_name} must be a positive finite number")
+        return value
+
+    def _resolve_user(self, user_id: int | None) -> Any | None:
+        User = get_user_model()
+        if user_id is not None:
+            user = User._default_manager.filter(pk=user_id, is_active=True).first()
+            if user is None:
+                raise CommandError(f"Active user not found: {user_id}")
+            return user
+        return (
+            User._default_manager.filter(is_superuser=True, is_active=True)
+            .order_by("id")
+            .first()
+        )
+
+    @staticmethod
+    def _build_pulse_refresher() -> Callable[[date], Any]:
+        def _refresh(target_date: date) -> Any:
             return refresh_pulse_snapshot(target_date=target_date)
 
         return _refresh
 
     @staticmethod
-    def _build_alpha_refresher(user, *, sync_alpha: bool = False):
-        def _refresh(target_date: date, portfolio_id: int | None) -> dict:
+    def _build_alpha_refresher(
+        user: Any | None,
+        *,
+        sync_alpha: bool = False,
+    ) -> Callable[[date, int | None], dict[str, Any]]:
+        def _refresh(target_date: date, portfolio_id: int | None) -> dict[str, Any]:
             if user is None:
                 return {"status": "skipped", "message": "No admin user is available."}
             if portfolio_id is None:
@@ -168,7 +251,7 @@ class Command(BaseCommand):
             quote_sync_result = Command._sync_scope_quotes(
                 list(getattr(resolved.scope, "instrument_codes", ()) or ())
             )
-            task_kwargs = {"scope_payload": resolved.scope.to_dict()}
+            task_kwargs: dict[str, Any] = {"scope_payload": resolved.scope.to_dict()}
             if sync_alpha:
                 result = run_alpha_score_prediction_now(
                     universe_id=resolved.scope.universe_id,
@@ -178,7 +261,9 @@ class Command(BaseCommand):
                 status = "completed"
                 task_id = ""
             else:
-                from kombu.exceptions import OperationalError as KombuOperationalError
+                from kombu.exceptions import (  # type: ignore[import-untyped]
+                    OperationalError as KombuOperationalError,
+                )
 
                 try:
                     task = queue_alpha_score_prediction(
@@ -203,7 +288,7 @@ class Command(BaseCommand):
                     "task_id": getattr(task, "id", ""),
                 }
                 status = "queued"
-                task_id = getattr(task, "id", "")
+                task_id = str(getattr(task, "id", "") or "")
             return {
                 "status": status,
                 "scope_hash": resolved.scope.scope_hash,
@@ -216,7 +301,7 @@ class Command(BaseCommand):
         return _refresh
 
     @staticmethod
-    def _sync_scope_quotes(asset_codes: list[str]) -> dict:
+    def _sync_scope_quotes(asset_codes: list[str]) -> dict[str, Any]:
         normalized_codes = [str(code or "").strip().upper() for code in asset_codes if code]
         if not normalized_codes:
             return {"status": "skipped", "message": "No scoped instruments to sync."}
@@ -245,13 +330,15 @@ class Command(BaseCommand):
                     asset_codes=normalized_codes,
                 )
             )
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             return {"status": "failed", "error_message": str(exc)}
         return result.to_dict()
 
     @staticmethod
-    def _build_alpha_status_reader(user):
-        def _read(target_date: date, portfolio_id: int | None) -> dict:
+    def _build_alpha_status_reader(
+        user: Any | None,
+    ) -> Callable[[date, int | None], dict[str, Any]]:
+        def _read(target_date: date, portfolio_id: int | None) -> dict[str, Any]:
             if user is None or portfolio_id is None:
                 return {"status": "blocked", "recommendation_ready": False}
 
@@ -282,7 +369,7 @@ class Command(BaseCommand):
         return _read
 
     @staticmethod
-    def _resolve_default_portfolio_id(user, target_date: date) -> int | None:
+    def _resolve_default_portfolio_id(user: Any | None, target_date: date) -> int | None:
         if user is None:
             return None
         resolved = resolve_portfolio_alpha_scope(

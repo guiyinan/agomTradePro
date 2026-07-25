@@ -175,8 +175,8 @@ INSTALLED_APPS = [
     "apps.valuation",  # 独立估值引擎 owner（R3-lite）
     "apps.decision_rhythm",  # 决策频率约束模块（新增）
     "apps.alpha_trigger",  # Alpha 离散触发模块（新增）
-    "apps.events",  # 事件总线模块（新增）
     "apps.beta_gate",  # Beta 闸门模块（新增）
+    "apps.events",  # 事件总线（必须位于事件订阅模块之后）
     "apps.risk_center",  # 集中风控中心（新增）
     "apps.broker_execution",  # QMT 实盘执行桥（默认关闭真实执行）
     "apps.alpha",  # Alpha AI 选股模块（新增）

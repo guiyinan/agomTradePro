@@ -128,6 +128,28 @@ class ExchangeRateCreateSerializer(serializers.ModelSerializer[Any]):
             raise serializers.ValidationError("汇率必须大于0")
         return value
 
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Require two distinct active currencies for a governed FX rate."""
+
+        instance = self.instance
+        from_currency = attrs.get(
+            "from_currency",
+            getattr(instance, "from_currency", None),
+        )
+        to_currency = attrs.get(
+            "to_currency",
+            getattr(instance, "to_currency", None),
+        )
+        if from_currency is None or to_currency is None:
+            return attrs
+        if from_currency.pk == to_currency.pk:
+            raise serializers.ValidationError(
+                {"to_currency": "源币种和目标币种不能相同"}
+            )
+        if not from_currency.is_active or not to_currency.is_active:
+            raise serializers.ValidationError("汇率只能引用启用中的币种")
+        return attrs
+
 
 class CurrencyConvertSerializer(serializers.Serializer[dict[str, Any]]):
     """货币转换序列化器"""
@@ -141,6 +163,16 @@ class CurrencyConvertSerializer(serializers.Serializer[dict[str, Any]]):
     rate_used = serializers.DecimalField(max_digits=20, decimal_places=6, read_only=True)
     rate_date = serializers.DateField(read_only=True)
 
+    def validate_from_currency(self, value: str) -> str:
+        """Normalize the source currency code."""
+
+        return value.strip().upper()
+
+    def validate_to_currency(self, value: str) -> str:
+        """Normalize the target currency code."""
+
+        return value.strip().upper()
+
 
 # ==================== Statistics ====================
 
@@ -151,7 +183,6 @@ class AssetAllocationSerializer(serializers.Serializer[dict[str, Any]]):
     category_path = serializers.CharField()
     amount = serializers.DecimalField(max_digits=20, decimal_places=2)
     percentage = serializers.FloatField()
-    currency_code = serializers.CharField()
 
 
 class CurrencyAllocationSerializer(serializers.Serializer[dict[str, Any]]):

@@ -1,6 +1,7 @@
 """Compatibility re-exports for legacy strategy serializer imports."""
 
 from importlib import import_module
+from typing import Any
 
 __all__ = [
     "AIStrategyConfigSerializer",
@@ -16,7 +17,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name not in __all__:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     module = import_module("apps.strategy.interface.serializers")

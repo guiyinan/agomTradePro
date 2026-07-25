@@ -1,337 +1,236 @@
-"""
-Event Bus Initializer
+"""Initialize the process-wide event bus and its subscriptions."""
 
-事件总线初始化和订阅器注册。
-负责在应用启动时设置所有事件订阅。
-
-这是应用层的入口点，协调所有模块的事件处理器。
-"""
+from __future__ import annotations
 
 import logging
+import threading
+from typing import Protocol, runtime_checkable
 
-from ..domain.entities import EventType
-from ..domain.services import EventBus, EventHandler, InMemoryEventBus
-from .repository_provider import CeleryEventBus, InMemoryEventStore, is_celery_available
+from ..domain.entities import (
+    DomainEvent,
+    EventBusConfig,
+    EventHandler,
+    EventSubscription,
+    EventType,
+)
+from ..domain.registry import get_event_subscriber_registry
+from ..domain.services import EventBus, InMemoryEventBus, install_event_bus
+from .repository_provider import CeleryEventBus, is_celery_available
 
 logger = logging.getLogger(__name__)
 
 
+@runtime_checkable
+class _EventBusAwareHandler(Protocol):
+    """Handler boundary for subscribers that publish follow-up events."""
+
+    event_bus: EventBus | None
+
+
 class EventBusInitializer:
-    """
-    事件总线初始化器
+    """Build and install one fully wired event bus per process."""
 
-    在应用启动时初始化事件总线并注册所有事件处理器。
-
-    Attributes:
-        event_bus: 事件总线实例
-        event_store: 事件存储实例（可选）
-        handlers: 已注册的处理器列表
-
-    Example:
-        >>> initializer = EventBusInitializer()
-        >>> initializer.initialize()
-        >>> event_bus = initializer.get_event_bus()
-    """
-
-    def __init__(self, event_store=None):
-        """
-        初始化初始化器
-
-        Args:
-            event_store: 事件存储（可选，默认使用内存存储）
-        """
-        self.event_store = event_store or InMemoryEventStore()
-        self.event_bus: EventBus | None = None
+    def __init__(self) -> None:
+        self.event_bus: InMemoryEventBus | None = None
         self.handlers: list[EventHandler] = []
+        self._initialization_lock = threading.RLock()
 
-    def initialize(self) -> EventBus:
-        """
-        初始化事件总线并注册所有处理器
+    def initialize(self) -> InMemoryEventBus:
+        """Initialize once, failing closed if any required handler cannot be wired."""
+        with self._initialization_lock:
+            if self.event_bus is not None and self.event_bus.get_subscription_count() > 0:
+                self.event_bus.start()
+                install_event_bus(self.event_bus)
+                return self.event_bus
 
-        流程：
-        1. 创建事件总线
-        2. 注册 Beta Gate 处理器
-        3. 注册 Alpha Trigger 处理器
-        4. 注册 Decision Rhythm 处理器
-        5. 注册其他处理器
-        6. 启动事件总线
+            event_bus = self._create_event_bus()
+            handlers: list[EventHandler] = []
+            try:
+                self._register_all_handlers(event_bus, handlers)
+                event_bus.start()
+                install_event_bus(event_bus)
+            except Exception:
+                event_bus.stop()
+                raise
 
-        Returns:
-            初始化完成的事件总线
-        """
-        # 创建事件总线（Celery 可用时使用 CeleryEventBus）
-        from ..domain.entities import EventBusConfig
+            self.event_bus = event_bus
+            self.handlers = handlers
+            logger.info("Event bus initialized with %s handlers", len(handlers))
+            return event_bus
 
+    @staticmethod
+    def _create_event_bus() -> InMemoryEventBus:
+        """Create the configured concrete bus without publishing it globally."""
         config = EventBusConfig()
+        if is_celery_available():
+            logger.debug("Using CeleryEventBus for async event publishing")
+            return CeleryEventBus(config)
+        logger.debug("Celery not available, using InMemoryEventBus")
+        return InMemoryEventBus(config)
 
-        try:
-            if is_celery_available():
-                self.event_bus = CeleryEventBus(config)
-                logger.debug("Using CeleryEventBus for async event publishing")
-            else:
-                self.event_bus = InMemoryEventBus(config)
-                logger.debug("Celery not available, using InMemoryEventBus")
-        except ImportError:
-            self.event_bus = InMemoryEventBus(config)
+    def _register_all_handlers(
+        self,
+        event_bus: EventBus,
+        handlers: list[EventHandler],
+    ) -> None:
+        """Register registry-owned and internal handlers on one bus."""
+        self._register_from_registry(event_bus, handlers)
+        self._register_decision_execution_handlers(event_bus, handlers)
+        self._register_logging_handler(event_bus, handlers)
 
-        # 注册所有处理器
-        self._register_all_handlers()
+    @staticmethod
+    def _register_from_registry(
+        event_bus: EventBus,
+        handlers: list[EventHandler],
+    ) -> None:
+        """Construct every declared subscriber and propagate wiring failures."""
+        subscribers = get_event_subscriber_registry().get_all_subscribers()
+        for subscriber in subscribers:
+            handler = subscriber.handler_factory()
+            if isinstance(handler, _EventBusAwareHandler):
+                handler.event_bus = event_bus
 
-        # 启动事件总线
-        self.event_bus.start()
+            event_bus.subscribe(
+                EventSubscription(
+                    subscription_id=(
+                        f"registry:{subscriber.module_name}:{subscriber.event_type.value}"
+                    ),
+                    event_type=subscriber.event_type,
+                    handler=handler,
+                    priority=subscriber.priority,
+                )
+            )
+            handlers.append(handler)
+            logger.debug(
+                "Registered handler from registry: %s -> %s",
+                subscriber.module_name,
+                subscriber.event_type.value,
+            )
 
-        logger.debug(f"Event bus initialized with {len(self.handlers)} handlers")
-
-        return self.event_bus
-
-    def _register_all_handlers(self):
-        """
-        注册所有事件处理器
-
-        重构说明 (2026-03-11):
-        - 从注册表加载业务模块订阅器
-        - 移除直接导入业务模块 handlers
-        - 保留内部处理器注册
-        """
-        # 从注册表加载业务模块订阅器
-        self._register_from_registry()
-
-        # 注册内部处理器
-        self._register_other_handlers()
-
-    def _register_from_registry(self):
-        """
-        从注册表加载订阅器
-
-        业务模块通过 registry.register() 注册自己的订阅器，
-        此方法从注册表读取并创建处理器。
-        """
-        import uuid
-
-        from ..domain.entities import EventSubscription
-        from ..domain.registry import get_event_subscriber_registry
-
-        try:
-            registry = get_event_subscriber_registry()
-            all_subscribers = registry.get_all_subscribers()
-
-            for subscriber_info in all_subscribers:
-                try:
-                    # 调用工厂函数创建处理器
-                    handler = subscriber_info.handler_factory()
-
-                    # 注入事件总线（如果处理器需要）
-                    if hasattr(handler, "event_bus"):
-                        handler.event_bus = self.event_bus
-
-                    # 创建订阅
-                    subscription = EventSubscription(
-                        subscription_id=f"{subscriber_info.module_name}_{uuid.uuid4().hex[:8]}",
-                        event_type=subscriber_info.event_type,
-                        handler=handler,
-                    )
-
-                    # 注册到事件总线
-                    self.event_bus.subscribe(subscription)
-                    self.handlers.append(handler)
-
-                    logger.debug(
-                        f"Registered handler from registry: "
-                        f"{subscriber_info.module_name} -> {subscriber_info.event_type.value}"
-                    )
-
-                except Exception as e:
-                    logger.error(f"Failed to create handler for {subscriber_info.module_name}: {e}")
-
-            logger.debug(f"Loaded {len(all_subscribers)} subscribers from registry")
-
-        except Exception as e:
-            logger.error(f"Failed to load subscribers from registry: {e}")
-
-    def _register_other_handlers(self):
-        """注册其他处理器"""
-        # 注册决策执行相关处理器
-        self._register_decision_execution_handlers()
-
-        # 添加日志处理器（默认）- 使用 EventSubscription 包装
-        import uuid
-
-        from ..domain.entities import EventSubscription, EventType
-
-        log_handler = LoggingEventHandler()
-        log_subscription = EventSubscription(
-            subscription_id=f"log_handler_{uuid.uuid4().hex[:8]}",
-            event_type=EventType.REGIME_CHANGED,  # 使用通用事件类型
-            handler=log_handler,
+    @staticmethod
+    def _register_decision_execution_handlers(
+        event_bus: EventBus,
+        handlers: list[EventHandler],
+    ) -> None:
+        """Register required decision execution consistency handlers."""
+        from .decision_execution_handlers import (
+            DecisionApprovedHandler,
+            DecisionExecutedHandler,
+            DecisionExecutionFailedHandler,
+            DecisionRejectedHandler,
         )
-        self.event_bus.subscribe(log_subscription)
-        self.handlers.append(log_handler)
 
-    def _register_decision_execution_handlers(self):
-        """注册决策执行相关处理器"""
-        try:
-            import uuid
-
-            from ..domain.entities import EventSubscription, EventType
-            from .decision_execution_handlers import (
-                DecisionApprovedHandler,
-                DecisionExecutedHandler,
-                DecisionExecutionFailedHandler,
-                DecisionRejectedHandler,
+        handler_specs: tuple[tuple[str, EventType, EventHandler], ...] = (
+            (
+                "decision_approved",
+                EventType.DECISION_APPROVED,
+                DecisionApprovedHandler(event_bus=event_bus),
+            ),
+            (
+                "decision_executed",
+                EventType.DECISION_EXECUTED,
+                DecisionExecutedHandler(event_bus=event_bus),
+            ),
+            (
+                "decision_failed",
+                EventType.DECISION_EXECUTION_FAILED,
+                DecisionExecutionFailedHandler(event_bus=event_bus),
+            ),
+            (
+                "decision_rejected",
+                EventType.DECISION_REJECTED,
+                DecisionRejectedHandler(event_bus=event_bus),
+            ),
+        )
+        for subscription_id, event_type, handler in handler_specs:
+            event_bus.subscribe(
+                EventSubscription(
+                    subscription_id=subscription_id,
+                    event_type=event_type,
+                    handler=handler,
+                )
             )
+            handlers.append(handler)
 
-            # 创建处理器
-            decision_approved_handler = DecisionApprovedHandler(event_bus=self.event_bus)
-            decision_executed_handler = DecisionExecutedHandler(event_bus=self.event_bus)
-            decision_execution_failed_handler = DecisionExecutionFailedHandler(
-                event_bus=self.event_bus
+    @staticmethod
+    def _register_logging_handler(
+        event_bus: EventBus,
+        handlers: list[EventHandler],
+    ) -> None:
+        """Register the default regime-event audit logger."""
+        handler = LoggingEventHandler()
+        event_bus.subscribe(
+            EventSubscription(
+                subscription_id="events_logging",
+                event_type=EventType.REGIME_CHANGED,
+                handler=handler,
             )
-            decision_rejected_handler = DecisionRejectedHandler(event_bus=self.event_bus)
+        )
+        handlers.append(handler)
 
-            # 修复：使用 EventSubscription 包装 handler
-            approved_subscription = EventSubscription(
-                subscription_id=f"decision_approved_{uuid.uuid4().hex[:8]}",
-                event_type=EventType.DECISION_APPROVED,
-                handler=decision_approved_handler,
-            )
-            executed_subscription = EventSubscription(
-                subscription_id=f"decision_executed_{uuid.uuid4().hex[:8]}",
-                event_type=EventType.DECISION_EXECUTED,
-                handler=decision_executed_handler,
-            )
-            failed_subscription = EventSubscription(
-                subscription_id=f"decision_failed_{uuid.uuid4().hex[:8]}",
-                event_type=EventType.DECISION_EXECUTION_FAILED,
-                handler=decision_execution_failed_handler,
-            )
-            rejected_subscription = EventSubscription(
-                subscription_id=f"decision_rejected_{uuid.uuid4().hex[:8]}",
-                event_type=EventType.DECISION_REJECTED,
-                handler=decision_rejected_handler,
-            )
-
-            # 注册
-            self.event_bus.subscribe(approved_subscription)
-            self.event_bus.subscribe(executed_subscription)
-            self.event_bus.subscribe(failed_subscription)
-            self.event_bus.subscribe(rejected_subscription)
-
-            self.handlers.extend(
-                [
-                    decision_approved_handler,
-                    decision_executed_handler,
-                    decision_execution_failed_handler,
-                    decision_rejected_handler,
-                ]
-            )
-
-            logger.debug("Decision execution handlers registered")
-
-        except ImportError as e:
-            logger.warning(f"Failed to import decision execution handlers: {e}")
-
-    def get_event_bus(self) -> EventBus | None:
-        """
-        获取事件总线
-
-        Returns:
-            事件总线实例，如果未初始化则返回 None
-        """
+    def get_event_bus(self) -> InMemoryEventBus | None:
+        """Return the initialized bus without creating it."""
         return self.event_bus
 
     def get_handlers(self) -> list[EventHandler]:
-        """
-        获取已注册的处理器列表
-
-        Returns:
-            处理器列表
-        """
+        """Return a defensive copy of initialized handlers."""
         return self.handlers.copy()
 
-    def shutdown(self):
-        """关闭事件总线"""
-        if self.event_bus:
+    def shutdown(self) -> None:
+        """Stop this initializer's bus."""
+        with self._initialization_lock:
+            if self.event_bus is None:
+                return
             self.event_bus.stop()
-            logger.debug("Event bus shut down")
+            self.event_bus = None
+            self.handlers = []
+            logger.info("Event bus shut down")
 
 
 class LoggingEventHandler(EventHandler):
-    """
-    日志事件处理器
+    """Log subscribed domain events."""
 
-    记录所有事件到日志。
-
-    Attributes:
-        level: 日志级别
-
-    Example:
-        >>> handler = LoggingEventHandler()
-        >>> handler.can_handle(EventType.ANY)  # True
-    """
-
-    def __init__(self, level=logging.INFO):
-        """
-        初始化处理器
-
-        Args:
-            level: 日志级别
-        """
+    def __init__(self, level: int = logging.INFO) -> None:
         self.level = level
 
     def can_handle(self, event_type: EventType) -> bool:
-        """处理所有事件类型"""
+        """Accept the event type selected by the subscription."""
         return True
 
-    def handle(self, event) -> None:
-        """记录事件"""
+    def handle(self, event: DomainEvent) -> None:
+        """Write the event identity and payload to the configured logger."""
         logger.log(
             self.level,
-            f"Event: {event.event_type.value} | "
-            f"ID: {event.event_id} | "
-            f"Payload: {event.payload}",
+            "Event: %s | ID: %s | Payload: %s",
+            event.event_type.value,
+            event.event_id,
+            event.payload,
         )
 
     def get_handler_id(self) -> str:
-        """获取处理器标识符"""
+        """Return the stable handler identifier."""
         return "events.LoggingEventHandler"
 
 
-# 全局单例
 _event_bus_initializer: EventBusInitializer | None = None
+_initializer_lock = threading.Lock()
 
 
 def get_event_bus_initializer() -> EventBusInitializer:
-    """
-    获取全局事件总线初始化器
-
-    Returns:
-        事件总线初始化器单例
-    """
+    """Return the process-wide initializer singleton."""
     global _event_bus_initializer
 
-    if _event_bus_initializer is None:
-        _event_bus_initializer = EventBusInitializer()
-
-    return _event_bus_initializer
-
-
-def get_event_bus() -> EventBus | None:
-    """
-    获取全局事件总线
-
-    Returns:
-        事件总线实例，如果未初始化则返回 None
-    """
-    initializer = get_event_bus_initializer()
-    return initializer.get_event_bus()
+    with _initializer_lock:
+        if _event_bus_initializer is None:
+            _event_bus_initializer = EventBusInitializer()
+        return _event_bus_initializer
 
 
-def initialize_event_bus() -> EventBus:
-    """
-    初始化事件总线
+def get_event_bus() -> InMemoryEventBus:
+    """Return the initialized process-wide event bus."""
+    return initialize_event_bus()
 
-    Returns:
-        初始化完成的事件总线
-    """
-    initializer = get_event_bus_initializer()
-    return initializer.initialize()
+
+def initialize_event_bus() -> InMemoryEventBus:
+    """Initialize and return the process-wide event bus."""
+    return get_event_bus_initializer().initialize()

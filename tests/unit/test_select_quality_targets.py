@@ -1,10 +1,35 @@
 """Tests for incremental quality target selection."""
 
+import subprocess
+from unittest.mock import patch
+
 from scripts.select_quality_targets import (
+    get_changed_files,
     select_domain_coverage_targets,
     select_lint_targets,
     select_typecheck_targets,
 )
+
+
+def test_get_changed_files_excludes_deleted_paths_from_quality_targets() -> None:
+    completed = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout="apps/account/domain/entities.py\n",
+        stderr="",
+    )
+
+    with patch("scripts.select_quality_targets.subprocess.run", return_value=completed) as run:
+        changed_files = get_changed_files("origin/main", "HEAD")
+
+    assert changed_files == ["apps/account/domain/entities.py"]
+    assert run.call_args.args[0] == [
+        "git",
+        "diff",
+        "--name-only",
+        "--diff-filter=ACMRT",
+        "origin/main...HEAD",
+    ]
 
 
 def test_select_lint_targets_includes_changed_python_files_under_supported_roots() -> None:

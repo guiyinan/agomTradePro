@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
 import pytest
+from django.db import DatabaseError
 
 from apps.audit.infrastructure.failure_counter import (
     FailureRecord,
@@ -81,6 +82,7 @@ class TestAuditFailureCounter:
         mock_cache.get.return_value = None
 
         from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+
         counter = AuditFailureCounter()
 
         counter.record_failure("database", "Connection timeout")
@@ -106,6 +108,7 @@ class TestAuditFailureCounter:
         mock_cache.get.return_value = existing_stats
 
         from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+
         counter = AuditFailureCounter()
 
         counter.record_failure("database", "Another timeout")
@@ -133,6 +136,7 @@ class TestAuditFailureCounter:
         mock_cache.get.side_effect = mock_get_side_effect
 
         from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+
         counter = AuditFailureCounter()
 
         # 记录超过 MAX_RECENT_FAILURES 的失败
@@ -152,6 +156,7 @@ class TestAuditFailureCounter:
         mock_cache.get.return_value = {"total_count": 7, "by_component": {}, "recent_failures": []}
 
         from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+
         counter = AuditFailureCounter()
 
         count = counter.get_failure_count()
@@ -174,6 +179,7 @@ class TestAuditFailureCounter:
         }
 
         from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+
         counter = AuditFailureCounter()
 
         stats = counter.get_failure_stats()
@@ -188,6 +194,7 @@ class TestAuditFailureCounter:
     def test_reset(self, mock_cache):
         """测试重置计数器"""
         from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+
         counter = AuditFailureCounter()
 
         counter.reset()
@@ -201,6 +208,7 @@ class TestAuditFailureCounter:
         mock_cache.get.return_value = {"total_count": 5, "by_component": {}, "recent_failures": []}
 
         from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+
         counter = AuditFailureCounter()
 
         status = counter.get_health_status(threshold=10)
@@ -215,6 +223,7 @@ class TestAuditFailureCounter:
         mock_cache.get.return_value = {"total_count": 15, "by_component": {}, "recent_failures": []}
 
         from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+
         counter = AuditFailureCounter()
 
         status = counter.get_health_status(threshold=10)
@@ -227,6 +236,7 @@ class TestAuditFailureCounter:
         mock_cache.get.return_value = {"total_count": 25, "by_component": {}, "recent_failures": []}
 
         from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+
         counter = AuditFailureCounter()
 
         status = counter.get_health_status(threshold=10)
@@ -239,6 +249,7 @@ class TestAuditFailureCounter:
         mock_cache.get.return_value = None
 
         from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+
         counter = AuditFailureCounter()
 
         new_count = counter.increment_component_count("database")
@@ -328,7 +339,9 @@ class TestIntegrationWithUseCase:
 
         # Mock repository 抛出异常
         mock_repo = Mock()
-        mock_repo.save_operation_log.side_effect = Exception("Database connection failed")
+        mock_repo.save_operation_log.side_effect = DatabaseError(
+            "postgresql://user:secret@internal/db"
+        )
 
         # 使用 patch 装饰器来 mock failure_counter 模块中的函数
         with patch("apps.audit.infrastructure.failure_counter.record_audit_failure") as mock_record:
@@ -348,7 +361,7 @@ class TestIntegrationWithUseCase:
 
             # 验证返回失败响应
             assert response.success is False
-            assert "Database connection failed" in response.error
+            assert response.error == "审计日志写入失败"
 
             # 验证记录了失败
             assert mock_record.called
@@ -406,4 +419,3 @@ class TestIntegrationWithUseCase:
 
                 # 验证记录了失败
                 assert mock_record.called
-

@@ -5,17 +5,33 @@ Account Application - Stress Testing Use Cases
 """
 
 import logging
+import math
 import statistics
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import Any, Protocol, TypedDict
 
-from apps.account.application.repository_provider import PositionRepository
+from apps.account.application.repository_provider import get_account_position_repository
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+class PositionWeight(TypedDict):
+    """Validated position input used by the stress-test calculation."""
+
+    asset_code: str
+    weight: float
+
+
+class PositionWeightRepository(Protocol):
+    """Port for loading the minimum position data needed by stress tests."""
+
+    def list_portfolio_position_weights(self, portfolio_id: int) -> list[dict[str, Any]]:
+        """Return asset codes and portfolio weights."""
+
+
+@dataclass(frozen=True)
 class StressTestScenario:
     """压力测试情景"""
 
@@ -26,7 +42,7 @@ class StressTestScenario:
     end_date: date  # 结束日期
 
 
-@dataclass
+@dataclass(frozen=True)
 class StressTestResult:
     """压力测试结果"""
 
@@ -108,8 +124,12 @@ class VaRService:
         Returns:
             VaR 值（负数表示损失）
         """
+        if not math.isfinite(confidence) or not 0 < confidence < 1:
+            raise ValueError("VaR 置信度必须是 0 到 1 之间的有限数")
         if not returns:
             return 0.0
+        if any(not math.isfinite(value) for value in returns):
+            raise ValueError("VaR 收益率序列必须全部为有限数")
 
         # 排序收益率
         sorted_returns = sorted(returns)
@@ -121,7 +141,7 @@ class VaRService:
         return var
 
     @staticmethod
-    def calculate_max_drawdown(equity_curve: list[float]) -> tuple:
+    def calculate_max_drawdown(equity_curve: list[float]) -> tuple[float, int]:
         """
         计算最大回撤
 
@@ -133,6 +153,8 @@ class VaRService:
         """
         if not equity_curve:
             return 0.0, 0
+        if any(not math.isfinite(value) or value < 0 for value in equity_curve):
+            raise ValueError("净值曲线必须全部为非负有限数")
 
         max_drawdown = 0.0
         peak = equity_curve[0]
@@ -161,8 +183,11 @@ class StressTestingUseCase:
     对投资组合进行历史情景压力测试。
     """
 
-    def __init__(self, position_repo: PositionRepository = None):
-        self.position_repo = position_repo or PositionRepository()
+    def __init__(
+        self,
+        position_repo: PositionWeightRepository | None = None,
+    ) -> None:
+        self.position_repo = position_repo or get_account_position_repository()
 
     def run_historical_scenario_test(
         self,
@@ -229,13 +254,36 @@ class StressTestingUseCase:
             recommendations=recommendations,
         )
 
-    def _get_portfolio_positions(self, portfolio_id: int) -> list[dict]:
+    def _get_portfolio_positions(self, portfolio_id: int) -> list[PositionWeight]:
         """获取组合持仓及权重"""
-        return self.position_repo.list_portfolio_position_weights(portfolio_id)
+        raw_positions = self.position_repo.list_portfolio_position_weights(portfolio_id)
+        positions: list[PositionWeight] = []
+        seen_codes: set[str] = set()
+        for raw_position in raw_positions:
+            asset_code = raw_position.get("asset_code")
+            weight_value = raw_position.get("weight")
+            if not isinstance(asset_code, str) or not asset_code.strip():
+                raise ValueError("压力测试持仓缺少有效资产代码")
+            asset_code = asset_code.strip()
+            if asset_code in seen_codes:
+                raise ValueError(f"压力测试持仓包含重复资产代码: {asset_code}")
+            if isinstance(weight_value, bool):
+                raise ValueError(f"持仓 {asset_code} 的权重无效")
+            if not isinstance(weight_value, (str, int, float, Decimal)):
+                raise ValueError(f"持仓 {asset_code} 的权重无效")
+            try:
+                weight = float(weight_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"持仓 {asset_code} 的权重无效") from exc
+            if not math.isfinite(weight) or weight <= 0:
+                raise ValueError(f"持仓 {asset_code} 的权重必须为正有限数")
+            positions.append({"asset_code": asset_code, "weight": weight})
+            seen_codes.add(asset_code)
+        return positions
 
     def _simulate_portfolio_returns(
         self,
-        positions: list[dict],
+        positions: list[PositionWeight],
         start_date: date,
         end_date: date,
     ) -> list[float]:
@@ -251,8 +299,8 @@ class StressTestingUseCase:
             return []
 
         # 获取每个持仓的日线收益率
-        stock_returns = {}
-        common_dates = None
+        stock_returns: dict[str, dict[date, float]] = {}
+        common_dates: set[date] | None = None
 
         for pos in positions:
             try:
@@ -261,19 +309,30 @@ class StressTestingUseCase:
                     continue
 
                 # 以 trade_date 为 index，pct_chg 为值
-                daily = {}
+                daily: dict[date, float] = {}
                 for _, row in df.iterrows():
-                    d = (
-                        row["trade_date"].date()
-                        if hasattr(row["trade_date"], "date")
-                        else row["trade_date"]
+                    trade_date_value = row["trade_date"]
+                    trade_date = (
+                        trade_date_value.date()
+                        if hasattr(trade_date_value, "date")
+                        else trade_date_value
                     )
-                    daily[d] = row["pct_chg"] / 100.0
+                    if not isinstance(trade_date, date):
+                        raise ValueError("行情交易日无效")
+                    pct_change_value = row["pct_chg"]
+                    if isinstance(pct_change_value, bool):
+                        raise ValueError("行情涨跌幅无效")
+                    pct_change = float(pct_change_value) / 100.0
+                    if not math.isfinite(pct_change) or pct_change < -1:
+                        raise ValueError("行情涨跌幅必须为有限数且不得低于 -100%")
+                    daily[trade_date] = pct_change
 
                 if daily:
                     stock_returns[pos["asset_code"]] = daily
                     dates_set = set(daily.keys())
-                    common_dates = dates_set if common_dates is None else common_dates & dates_set
+                    common_dates = (
+                        dates_set if common_dates is None else common_dates.intersection(dates_set)
+                    )
 
             except Exception as e:
                 logger.debug(f"获取 {pos['asset_code']} 历史数据失败: {e}")

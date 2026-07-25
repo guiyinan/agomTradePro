@@ -18,6 +18,7 @@ class _FakeAdapter:
         fallback_enabled=None,
     ):
         self.base_url = base_url
+        self.api_key = api_key
         self.default_model = default_model
 
     def chat_completion(
@@ -166,6 +167,132 @@ def test_personal_failure_falls_back_to_system_when_quota_allows(monkeypatch, us
     assert success_log.provider_id == system.id
     assert success_log.provider_scope == "system_fallback"
     assert success_log.quota_charged is True
+
+
+@pytest.mark.django_db
+def test_adapter_exception_is_logged_and_next_provider_takes_over(monkeypatch, user, caplog):
+    class _RaisingAdapter(_FakeAdapter):
+        def chat_completion(self, *args, **kwargs):
+            if "personal-raises" in self.base_url:
+                raise TimeoutError("credential-bearing upstream detail")
+            return super().chat_completion(*args, **kwargs)
+
+    monkeypatch.setattr(
+        "apps.ai_provider.infrastructure.client_factory.OpenAICompatibleAdapter",
+        _RaisingAdapter,
+    )
+    personal = _create_provider(
+        name="personal-raising",
+        scope="user",
+        owner_user=user,
+        base_url="https://personal-raises.example.invalid/v1",
+        priority=1,
+    )
+    system = _create_provider(
+        name="system-main",
+        scope="system",
+        base_url="https://system-success.example.invalid/v1",
+        priority=10,
+    )
+    AIUserFallbackQuota.objects.create(user=user, daily_limit=10, monthly_limit=100, is_active=True)
+
+    result = (
+        AIClientFactory()
+        .get_client(user=user)
+        .chat_completion(
+            messages=[{"role": "user", "content": "hello"}],
+        )
+    )
+
+    assert result["status"] == "success"
+    assert result["provider_used"] == system.name
+    failed_log = AIUsageLog.objects.get(provider=personal)
+    assert failed_log.status == "error"
+    assert "TimeoutError" in failed_log.error_message
+    assert "credential-bearing upstream detail" not in failed_log.error_message
+    assert "credential-bearing upstream detail" not in caplog.text
+
+
+@pytest.mark.django_db
+def test_cached_scoped_client_rebuilds_adapter_after_provider_rotation(monkeypatch):
+    observed_connections = []
+
+    class _ObservedAdapter(_FakeAdapter):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            observed_connections.append((self.base_url, self.api_key))
+
+    monkeypatch.setattr(
+        "apps.ai_provider.infrastructure.client_factory.OpenAICompatibleAdapter",
+        _ObservedAdapter,
+    )
+    provider = _create_provider(
+        name="system-main",
+        scope="system",
+        base_url="https://system-old.example.invalid/v1",
+    )
+    client = AIClientFactory().get_client()
+
+    first = client.chat_completion(messages=[{"role": "user", "content": "first"}])
+    AIProviderConfig.objects.filter(pk=provider.pk).update(
+        base_url="https://system-new.example.invalid/v1",
+        api_key="sk-rotated",
+        api_key_encrypted="",
+    )
+    second = client.chat_completion(messages=[{"role": "user", "content": "second"}])
+
+    assert first["status"] == second["status"] == "success"
+    assert observed_connections == [
+        ("https://system-old.example.invalid/v1", "sk-test"),
+        ("https://system-new.example.invalid/v1", "sk-rotated"),
+    ]
+
+
+@pytest.mark.django_db
+def test_invalid_explicit_user_id_does_not_fall_through_to_system_provider():
+    _create_provider(
+        name="system-main",
+        scope="system",
+        base_url="https://system-success.example.invalid/v1",
+    )
+
+    with pytest.raises(ValueError, match="Unknown user reference"):
+        AIClientFactory().get_client(user=999999999)
+
+
+@pytest.mark.django_db
+def test_personal_provider_budget_is_enforced_before_system_fallback(monkeypatch, user):
+    monkeypatch.setattr(
+        "apps.ai_provider.infrastructure.client_factory.OpenAICompatibleAdapter",
+        _FakeAdapter,
+    )
+    personal = _create_provider(
+        name="personal-main",
+        scope="user",
+        owner_user=user,
+        base_url="https://personal-success.example.invalid/v1",
+    )
+    personal.daily_budget_limit = 0
+    personal.save(update_fields=["daily_budget_limit"])
+    system = _create_provider(
+        name="system-main",
+        scope="system",
+        base_url="https://system-success.example.invalid/v1",
+        priority=10,
+    )
+    AIUserFallbackQuota.objects.create(user=user, daily_limit=10, monthly_limit=100, is_active=True)
+
+    result = (
+        AIClientFactory()
+        .get_client(user=user)
+        .chat_completion(
+            messages=[{"role": "user", "content": "hello"}],
+        )
+    )
+
+    assert result["status"] == "success"
+    assert result["provider_used"] == system.name
+    assert not AIUsageLog.objects.filter(provider=personal).exists()
 
 
 @pytest.mark.django_db

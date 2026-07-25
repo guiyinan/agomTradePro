@@ -1,8 +1,11 @@
 """Authenticated APIs for forecast publication, checks and outcomes."""
 
+from typing import Any
+
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -11,11 +14,16 @@ from apps.signal.forecast_composition import (
     make_record_forecast_entry,
     make_record_forecast_evaluation,
 )
+from apps.signal.interface.serializers import StrictFieldsSerializer
 
 
-class ForecastEntrySerializer(serializers.Serializer):
+class ForecastEntrySerializer(StrictFieldsSerializer):
     entry_id = serializers.CharField(max_length=64, required=False)
-    signal_id = serializers.IntegerField(required=False, allow_null=True)
+    signal_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+    )
     published_at = serializers.DateTimeField()
     direction = serializers.ChoiceField(choices=["LONG", "SHORT", "NEUTRAL"])
     asset_code = serializers.CharField(max_length=32)
@@ -28,18 +36,30 @@ class ForecastEntrySerializer(serializers.Serializer):
     strategy_version = serializers.CharField(max_length=64, required=False, allow_blank=True)
     model_version = serializers.CharField(max_length=64, required=False, allow_blank=True)
     prompt_version = serializers.CharField(max_length=64, required=False, allow_blank=True)
-    source = serializers.CharField(max_length=64)
+    source: Any = serializers.CharField(max_length=64)
     regime = serializers.CharField(max_length=32, required=False, allow_blank=True)
 
 
-class ForecastEvaluationSerializer(serializers.Serializer):
+class ForecastEvaluationSerializer(StrictFieldsSerializer):
     checked_at = serializers.DateTimeField()
-    data_version_ids = serializers.ListField(child=serializers.IntegerField(), default=list)
-    conditions = serializers.ListField(child=serializers.DictField(), default=list)
-    missing_reason = serializers.CharField(required=False, allow_blank=True)
+    data_version_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        default=list,
+        max_length=1000,
+    )
+    conditions = serializers.ListField(
+        child=serializers.DictField(),
+        default=list,
+        max_length=500,
+    )
+    missing_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=2000,
+    )
 
 
-class ForecastOutcomeSerializer(serializers.Serializer):
+class ForecastOutcomeSerializer(StrictFieldsSerializer):
     finalized_at = serializers.DateTimeField()
     outcome_type = serializers.ChoiceField(
         choices=["expired", "invalidated", "exited", "data_insufficient"]
@@ -53,7 +73,9 @@ class ForecastOutcomeSerializer(serializers.Serializer):
 class ForecastEntryCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):  # type: ignore[no-untyped-def]
+    def post(self, request: Request) -> Response:
+        """Publish one immutable forecast entry."""
+
         serializer = ForecastEntrySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -69,7 +91,9 @@ class ForecastEntryCreateView(APIView):
 class ForecastEvaluationCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, entry_id: str):  # type: ignore[no-untyped-def]
+    def post(self, request: Request, entry_id: str) -> Response:
+        """Append one forecast evaluation."""
+
         serializer = ForecastEvaluationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -96,7 +120,9 @@ class ForecastEvaluationCreateView(APIView):
 class ForecastOutcomeCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, entry_id: str):  # type: ignore[no-untyped-def]
+    def post(self, request: Request, entry_id: str) -> Response:
+        """Finalize one forecast outcome."""
+
         serializer = ForecastOutcomeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:

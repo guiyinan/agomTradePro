@@ -24,9 +24,11 @@ Management command: migrate_account_ledger
 
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, TypedDict
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from core.integration.account_ledger import (
@@ -37,10 +39,22 @@ from core.integration.account_ledger import (
 )
 
 
+class MigrationStats(TypedDict):
+    """Counters and warnings emitted by one ledger migration run."""
+
+    portfolios_skipped: int
+    portfolios_migrated: int
+    positions_skipped: int
+    positions_migrated: int
+    transactions_skipped: int
+    transactions_migrated: int
+    errors: list[str]
+
+
 class Command(BaseCommand):
     help = "将 apps/account 账本数据迁移至 simulated_trading 统一账本（幂等）"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--dry-run",
             action="store_true",
@@ -53,9 +67,15 @@ class Command(BaseCommand):
             help="只迁移指定用户（不填则迁移所有用户）",
         )
 
-    def handle(self, *args, **options):
-        dry_run: bool = options["dry_run"]
-        user_id: int | None = options.get("user_id")
+    def handle(self, *args: Any, **options: Any) -> None:
+        dry_run = options["dry_run"]
+        user_id = options.get("user_id")
+        if not isinstance(dry_run, bool):
+            raise CommandError("dry_run 必须是布尔值")
+        if user_id is not None and (
+            isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0
+        ):
+            raise CommandError("user_id 必须是正整数")
 
         self.stdout.write(self.style.WARNING("=" * 70))
         self.stdout.write(self.style.WARNING("账本迁移工具  apps/account → simulated_trading"))
@@ -69,7 +89,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR("已取消"))
                 return
 
-        stats = {
+        stats: MigrationStats = {
             "portfolios_skipped": 0,
             "portfolios_migrated": 0,
             "positions_skipped": 0,
@@ -87,7 +107,12 @@ class Command(BaseCommand):
 
     # ── Step 1: PortfolioModel → SimulatedAccountModel ──────────────────
 
-    def _migrate_portfolios(self, user_id, dry_run, stats):
+    def _migrate_portfolios(
+        self,
+        user_id: int | None,
+        dry_run: bool,
+        stats: MigrationStats,
+    ) -> None:
         from apps.simulated_trading.infrastructure.models import (
             LedgerMigrationMapModel,
             SimulatedAccountModel,
@@ -96,7 +121,7 @@ class Command(BaseCommand):
         CapitalFlowModel = get_capital_flow_model()
         PortfolioModel = get_portfolio_model()
         qs = PortfolioModel._default_manager.select_related("user")
-        if user_id:
+        if user_id is not None:
             qs = qs.filter(user_id=user_id)
 
         self.stdout.write(f"\n[1/3] 迁移投资组合 → SimulatedAccountModel ({qs.count()} 条)")
@@ -116,7 +141,7 @@ class Command(BaseCommand):
                 CapitalFlowModel._default_manager.filter(
                     portfolio=portfolio,
                     flow_type="deposit",
-                ).aggregate(total=__import__("django.db.models", fromlist=["Sum"]).Sum("amount"))["total"]
+                ).aggregate(total=Sum("amount"))["total"]
                 or Decimal("0")
             )
 
@@ -166,7 +191,12 @@ class Command(BaseCommand):
 
     # ── Step 2: account.PositionModel → simulated_trading.PositionModel ─
 
-    def _migrate_positions(self, user_id, dry_run, stats):
+    def _migrate_positions(
+        self,
+        user_id: int | None,
+        dry_run: bool,
+        stats: MigrationStats,
+    ) -> None:
         from apps.simulated_trading.infrastructure.models import (
             LedgerMigrationMapModel,
         )
@@ -177,7 +207,7 @@ class Command(BaseCommand):
 
         AccountPositionModel = get_account_position_model()
         qs = AccountPositionModel._default_manager.select_related("portfolio__user")
-        if user_id:
+        if user_id is not None:
             qs = qs.filter(portfolio__user_id=user_id)
 
         self.stdout.write(f"\n[2/3] 迁移持仓 → simulated_trading.PositionModel ({qs.count()} 条)")
@@ -240,7 +270,9 @@ class Command(BaseCommand):
                             / combined_qty
                         ).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
                         mv2, pnl2, pnl_pct2 = recalculate_derived_fields(
-                            combined_qty, float(blended_cost), current_price
+                            float(combined_qty),
+                            float(blended_cost),
+                            current_price,
                         )
                         SimPositionModel._default_manager.filter(pk=existing.pk).update(
                             quantity=combined_qty,
@@ -289,7 +321,12 @@ class Command(BaseCommand):
 
     # ── Step 3: TransactionModel → SimulatedTradeModel ───────────────────
 
-    def _migrate_transactions(self, user_id, dry_run, stats):
+    def _migrate_transactions(
+        self,
+        user_id: int | None,
+        dry_run: bool,
+        stats: MigrationStats,
+    ) -> None:
         from apps.simulated_trading.infrastructure.models import (
             LedgerMigrationMapModel,
             SimulatedTradeModel,
@@ -297,7 +334,7 @@ class Command(BaseCommand):
 
         TransactionModel = get_account_transaction_model()
         qs = TransactionModel._default_manager.select_related("portfolio__user")
-        if user_id:
+        if user_id is not None:
             qs = qs.filter(portfolio__user_id=user_id)
 
         self.stdout.write(f"\n[3/3] 迁移交易记录 → SimulatedTradeModel ({qs.count()} 条)")
@@ -368,7 +405,7 @@ class Command(BaseCommand):
 
     # ── Summary ───────────────────────────────────────────────────────────
 
-    def _print_summary(self, stats):
+    def _print_summary(self, stats: MigrationStats) -> None:
         self.stdout.write("\n" + "=" * 70)
         self.stdout.write(self.style.SUCCESS("迁移摘要"))
         self.stdout.write(

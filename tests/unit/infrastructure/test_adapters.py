@@ -44,16 +44,14 @@ def _stub_runtime_publication_lags(monkeypatch):
 # Test MacroDataPoint
 # ============================================================================
 
+
 class TestMacroDataPoint:
     """测试 MacroDataPoint 数据类"""
 
     def test_auto_calculate_published_at(self):
         """测试自动计算发布时间"""
         point = MacroDataPoint(
-            code="CN_PMI",
-            value=50.5,
-            observed_at=date(2024, 1, 1),
-            source="test"
+            code="CN_PMI", value=50.5, observed_at=date(2024, 1, 1), source="test"
         )
         # PMI 的发布延迟是 1 天
         assert point.published_at == date(2024, 1, 2)
@@ -66,17 +64,14 @@ class TestMacroDataPoint:
             value=50.5,
             observed_at=date(2024, 1, 1),
             published_at=custom_date,
-            source="test"
+            source="test",
         )
         assert point.published_at == custom_date
 
     def test_unknown_indicator_no_lag(self):
         """测试未知指标无延迟配置"""
         point = MacroDataPoint(
-            code="UNKNOWN_INDICATOR",
-            value=100.0,
-            observed_at=date(2024, 1, 1),
-            source="test"
+            code="UNKNOWN_INDICATOR", value=100.0, observed_at=date(2024, 1, 1), source="test"
         )
         # 未知指标不会有发布时间
         assert point.published_at is None
@@ -93,6 +88,7 @@ class TestMacroDataPoint:
 # ============================================================================
 # Test BaseMacroAdapter
 # ============================================================================
+
 
 class MockAdapter(BaseMacroAdapter):
     """Mock adapter for testing BaseMacroAdapter"""
@@ -116,10 +112,7 @@ class TestBaseMacroAdapter:
         """测试数据验证成功"""
         adapter = MockAdapter()
         point = MacroDataPoint(
-            code="TEST_INDICATOR",
-            value=100.0,
-            observed_at=date(2024, 1, 1),
-            source="test"
+            code="TEST_INDICATOR", value=100.0, observed_at=date(2024, 1, 1), source="test"
         )
         # 不应抛出异常
         adapter._validate_data_point(point)
@@ -127,12 +120,7 @@ class TestBaseMacroAdapter:
     def test_validate_data_point_empty_code(self):
         """测试空代码验证失败"""
         adapter = MockAdapter()
-        point = MacroDataPoint(
-            code="",
-            value=100.0,
-            observed_at=date(2024, 1, 1),
-            source="test"
-        )
+        point = MacroDataPoint(code="", value=100.0, observed_at=date(2024, 1, 1), source="test")
         with pytest.raises(DataValidationError, match="指标代码不能为空"):
             adapter._validate_data_point(point)
 
@@ -143,9 +131,23 @@ class TestBaseMacroAdapter:
             code="TEST_INDICATOR",
             value="not_a_number",  # type: ignore
             observed_at=date(2024, 1, 1),
-            source="test"
+            source="test",
         )
         with pytest.raises(DataValidationError, match="指标值必须是数值类型"):
+            adapter._validate_data_point(point)
+
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+    def test_validate_data_point_rejects_nonfinite_values(self, value):
+        """宏观事实不得接受 NaN 或无穷值。"""
+        adapter = MockAdapter()
+        point = MacroDataPoint(
+            code="TEST_INDICATOR",
+            value=value,
+            observed_at=date(2024, 1, 1),
+            source="test",
+        )
+
+        with pytest.raises(DataValidationError, match="指标值必须是有限数值"):
             adapter._validate_data_point(point)
 
     def test_validate_data_point_invalid_date_type(self):
@@ -155,7 +157,7 @@ class TestBaseMacroAdapter:
             code="TEST_INDICATOR",
             value=100.0,
             observed_at="2024-01-01",  # type: ignore
-            source="test"
+            source="test",
         )
         with pytest.raises(DataValidationError, match="观测日期必须是 date 类型"):
             adapter._validate_data_point(point)
@@ -167,7 +169,9 @@ class TestBaseMacroAdapter:
             MacroDataPoint(code="TEST", value=1.0, observed_at=date(2024, 1, 3), source="test"),
             MacroDataPoint(code="TEST", value=2.0, observed_at=date(2024, 1, 1), source="test"),
             MacroDataPoint(code="TEST", value=3.0, observed_at=date(2024, 1, 2), source="test"),
-            MacroDataPoint(code="TEST", value=4.0, observed_at=date(2024, 1, 1), source="test"),  # 重复
+            MacroDataPoint(
+                code="TEST", value=4.0, observed_at=date(2024, 1, 1), source="test"
+            ),  # 重复
         ]
 
         result = adapter._sort_and_deduplicate(points)
@@ -183,6 +187,7 @@ class TestBaseMacroAdapter:
 # ============================================================================
 # Test FailoverAdapter
 # ============================================================================
+
 
 class TestFailoverAdapter:
     """测试 FailoverAdapter 容错切换"""
@@ -219,7 +224,9 @@ class TestFailoverAdapter:
         secondary.source_name = "secondary"
         secondary.supports.return_value = True
         secondary.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="secondary")
+            MacroDataPoint(
+                code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="secondary"
+            )
         ]
 
         adapter = FailoverAdapter(adapters=[primary, secondary], validate_consistency=False)
@@ -259,13 +266,13 @@ class TestFailoverAdapter:
         secondary.source_name = "secondary"
         secondary.supports.return_value = True
         secondary.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=100.5, observed_at=date(2024, 1, 1), source="secondary")
+            MacroDataPoint(
+                code="TEST", value=100.5, observed_at=date(2024, 1, 1), source="secondary"
+            )
         ]
 
         adapter = FailoverAdapter(
-            adapters=[primary, secondary],
-            validate_consistency=True,
-            tolerance=0.01  # 1% 容差
+            adapters=[primary, secondary], validate_consistency=True, tolerance=0.01  # 1% 容差
         )
         result = adapter.fetch("TEST", date(2024, 1, 1), date(2024, 1, 31))
 
@@ -286,13 +293,13 @@ class TestFailoverAdapter:
         secondary.source_name = "secondary"
         secondary.supports.return_value = True
         secondary.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=105.0, observed_at=date(2024, 1, 1), source="secondary")
+            MacroDataPoint(
+                code="TEST", value=105.0, observed_at=date(2024, 1, 1), source="secondary"
+            )
         ]
 
         adapter = FailoverAdapter(
-            adapters=[primary, secondary],
-            validate_consistency=True,
-            tolerance=0.01  # 1% 容差
+            adapters=[primary, secondary], validate_consistency=True, tolerance=0.01  # 1% 容差
         )
         result = adapter.fetch("TEST", date(2024, 1, 1), date(2024, 1, 31))
 
@@ -322,7 +329,9 @@ class TestFailoverAdapter:
         secondary.source_name = "secondary"
         secondary.supports.return_value = True
         secondary.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="secondary")
+            MacroDataPoint(
+                code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="secondary"
+            )
         ]
 
         adapter = FailoverAdapter(adapters=[primary, secondary])
@@ -344,7 +353,9 @@ class TestFailoverAdapter:
         secondary.source_name = "secondary"
         secondary.supports.return_value = True
         secondary.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="secondary")
+            MacroDataPoint(
+                code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="secondary"
+            )
         ]
 
         adapter = FailoverAdapter(adapters=[primary, secondary])
@@ -358,6 +369,7 @@ class TestFailoverAdapter:
 # ============================================================================
 # Test MultiSourceAdapter
 # ============================================================================
+
 
 class TestMultiSourceAdapter:
     """测试 MultiSourceAdapter 多源聚合"""
@@ -373,16 +385,40 @@ class TestMultiSourceAdapter:
         source1.source_name = "source1"
         source1.supports.return_value = True
         source1.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=100.0, observed_at=date(2024, 1, 1), published_at=date(2024, 1, 2), source="source1"),
-            MacroDataPoint(code="TEST", value=101.0, observed_at=date(2024, 1, 2), published_at=date(2024, 1, 3), source="source1"),
+            MacroDataPoint(
+                code="TEST",
+                value=100.0,
+                observed_at=date(2024, 1, 1),
+                published_at=date(2024, 1, 2),
+                source="source1",
+            ),
+            MacroDataPoint(
+                code="TEST",
+                value=101.0,
+                observed_at=date(2024, 1, 2),
+                published_at=date(2024, 1, 3),
+                source="source1",
+            ),
         ]
 
         source2 = Mock(spec=MacroAdapterProtocol)
         source2.source_name = "source2"
         source2.supports.return_value = True
         source2.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=102.0, observed_at=date(2024, 1, 2), published_at=date(2024, 1, 4), source="source2"),
-            MacroDataPoint(code="TEST", value=103.0, observed_at=date(2024, 1, 3), published_at=date(2024, 1, 5), source="source2"),
+            MacroDataPoint(
+                code="TEST",
+                value=102.0,
+                observed_at=date(2024, 1, 2),
+                published_at=date(2024, 1, 4),
+                source="source2",
+            ),
+            MacroDataPoint(
+                code="TEST",
+                value=103.0,
+                observed_at=date(2024, 1, 3),
+                published_at=date(2024, 1, 5),
+                source="source2",
+            ),
         ]
 
         adapter = MultiSourceAdapter(adapters=[source1, source2])
@@ -406,7 +442,7 @@ class TestMultiSourceAdapter:
                 value=100.0,
                 observed_at=date(2024, 1, 1),
                 published_at=date(2024, 1, 2),  # 较早发布
-                source="source1"
+                source="source1",
             ),
         ]
 
@@ -419,7 +455,7 @@ class TestMultiSourceAdapter:
                 value=102.0,
                 observed_at=date(2024, 1, 1),
                 published_at=date(2024, 1, 5),  # 较晚发布
-                source="source2"
+                source="source2",
             ),
         ]
 
@@ -442,7 +478,9 @@ class TestMultiSourceAdapter:
         source2.source_name = "source2"
         source2.supports.return_value = True
         source2.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="source2"),
+            MacroDataPoint(
+                code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="source2"
+            ),
         ]
 
         adapter = MultiSourceAdapter(adapters=[source1, source2])
@@ -491,7 +529,9 @@ class TestMultiSourceAdapter:
         source2.source_name = "source2"
         source2.supports.return_value = True
         source2.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="source2"),
+            MacroDataPoint(
+                code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="source2"
+            ),
         ]
 
         adapter = MultiSourceAdapter(adapters=[source1, source2])
@@ -507,6 +547,7 @@ class TestMultiSourceAdapter:
 # Test Error Handling
 # ============================================================================
 
+
 class TestAdapterErrorHandling:
     """测试适配器错误处理"""
 
@@ -521,7 +562,9 @@ class TestAdapterErrorHandling:
         secondary.source_name = "secondary"
         secondary.supports.return_value = True
         secondary.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="secondary")
+            MacroDataPoint(
+                code="TEST", value=100.0, observed_at=date(2024, 1, 1), source="secondary"
+            )
         ]
 
         adapter = FailoverAdapter(adapters=[primary, secondary])
@@ -548,9 +591,7 @@ class TestAdapterErrorHandling:
         ]
 
         adapter = FailoverAdapter(
-            adapters=[primary, secondary],
-            validate_consistency=True,
-            tolerance=0.01
+            adapters=[primary, secondary], validate_consistency=True, tolerance=0.01
         )
         primary_data = primary.fetch.return_value
         secondary_data = secondary.fetch.return_value
@@ -571,13 +612,13 @@ class TestAdapterErrorHandling:
         secondary.source_name = "secondary"
         secondary.supports.return_value = True
         secondary.fetch.return_value = [
-            MacroDataPoint(code="TEST", value=101.0, observed_at=date(2024, 1, 2), source="secondary")
+            MacroDataPoint(
+                code="TEST", value=101.0, observed_at=date(2024, 1, 2), source="secondary"
+            )
         ]
 
         adapter = FailoverAdapter(
-            adapters=[primary, secondary],
-            validate_consistency=True,
-            tolerance=0.01
+            adapters=[primary, secondary], validate_consistency=True, tolerance=0.01
         )
         result = adapter.fetch("TEST", date(2024, 1, 1), date(2024, 1, 31))
 

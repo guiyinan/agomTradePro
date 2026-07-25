@@ -1207,6 +1207,21 @@ class StrategyInterfaceRepository:
         ).all()
         return queryset
 
+    def get_rule_condition_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> QuerySet[RuleConditionModel]:
+        """Return rule conditions visible to one owner or staff caller."""
+
+        queryset = self.get_rule_condition_queryset()
+        if include_all:
+            return queryset
+        if owner_profile_id is None:
+            return queryset.none()
+        return queryset.filter(strategy__created_by_id=owner_profile_id)
+
     def get_script_config_queryset(self) -> QuerySet[ScriptConfigModel]:
         queryset: QuerySet[ScriptConfigModel] = ScriptConfigModel._default_manager.select_related(
             "strategy"
@@ -1215,6 +1230,21 @@ class StrategyInterfaceRepository:
             "id",
         )
         return queryset
+
+    def get_script_config_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> QuerySet[ScriptConfigModel]:
+        """Return script configurations visible to one owner or staff caller."""
+
+        queryset = self.get_script_config_queryset()
+        if include_all:
+            return queryset
+        if owner_profile_id is None:
+            return queryset.none()
+        return queryset.filter(strategy__created_by_id=owner_profile_id)
 
     def get_ai_strategy_config_queryset(self) -> QuerySet[AIStrategyConfigModel]:
         queryset: QuerySet[AIStrategyConfigModel] = (
@@ -1241,6 +1271,28 @@ class StrategyInterfaceRepository:
         if owner_profile_id is None:
             return queryset.none()
         return queryset.filter(strategy__created_by_id=owner_profile_id)
+
+    def strategy_is_accessible(
+        self,
+        *,
+        strategy_id: int,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> bool:
+        """Return whether one caller may configure the selected strategy."""
+
+        return self.get_strategy_queryset_for_access(
+            owner_profile_id=owner_profile_id,
+            include_all=include_all,
+        ).filter(pk=strategy_id).exists()
+
+    def strategy_is_active(self, strategy_id: int) -> bool:
+        """Return whether the strategy exists and is enabled for execution."""
+
+        return StrategyModel._default_manager.filter(
+            pk=strategy_id,
+            is_active=True,
+        ).exists()
 
     def get_assignment_queryset(
         self,
@@ -1393,6 +1445,24 @@ class StrategyInterfaceRepository:
         )
         return queryset
 
+    def get_execution_log_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> QuerySet[StrategyExecutionLogModel]:
+        """Return logs only when both strategy and portfolio belong to the caller."""
+
+        queryset = self.get_execution_log_queryset()
+        if include_all:
+            return queryset
+        if owner_profile_id is None:
+            return queryset.none()
+        return queryset.filter(
+            strategy__created_by_id=owner_profile_id,
+            portfolio__user__account_profile__id=owner_profile_id,
+        )
+
     def list_execution_logs_by_strategy(
         self,
         strategy_id: int,
@@ -1403,6 +1473,23 @@ class StrategyInterfaceRepository:
         )
         return logs
 
+    def list_execution_logs_by_strategy_for_access(
+        self,
+        *,
+        strategy_id: int,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+        limit: int = 100,
+    ) -> list[StrategyExecutionLogModel]:
+        """Return owner-scoped logs for one strategy."""
+
+        return list(
+            self.get_execution_log_queryset_for_access(
+                owner_profile_id=owner_profile_id,
+                include_all=include_all,
+            ).filter(strategy_id=strategy_id)[:limit]
+        )
+
     def list_execution_logs_by_portfolio(
         self,
         portfolio_id: int,
@@ -1412,3 +1499,20 @@ class StrategyInterfaceRepository:
             self.get_execution_log_queryset().filter(portfolio_id=portfolio_id)[:limit]
         )
         return logs
+
+    def list_execution_logs_by_portfolio_for_access(
+        self,
+        *,
+        portfolio_id: int,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+        limit: int = 100,
+    ) -> list[StrategyExecutionLogModel]:
+        """Return owner-scoped logs for one portfolio."""
+
+        return list(
+            self.get_execution_log_queryset_for_access(
+                owner_profile_id=owner_profile_id,
+                include_all=include_all,
+            ).filter(portfolio_id=portfolio_id)[:limit]
+        )

@@ -47,6 +47,7 @@ def _create_default_fee_config(config_name: str) -> None:
     FeeConfigModel.objects.create(
         config_name=config_name,
         asset_type="all",
+        min_commission=5.0,
         is_default=True,
     )
 
@@ -301,6 +302,7 @@ class TestPositionSizing(TestCase):
         FeeConfigModel.objects.create(
             config_name="仓位测试默认费率",
             asset_type="equity",
+            min_commission=5.0,
             is_default=True,
         )
 

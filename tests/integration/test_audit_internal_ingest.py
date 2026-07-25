@@ -54,6 +54,8 @@ class TestAuditInternalIngest:
             "action": "CREATE",
             "mcp_tool_name": "create_signal",
             "request_params": {"password": "secret", "asset_code": "000001.SH"},
+            "response_text": '{"authorization":"Bearer raw-token"}',
+            "exception_traceback": "postgresql://user:db-secret@internal/db",
             "response_status": 200,
         }
         ts = str(int(time.time()))
@@ -78,6 +80,8 @@ class TestAuditInternalIngest:
         assert log.request_id == "req-internal-001"
         assert log.mcp_tool_name == "create_signal"
         assert log.request_params["password"] == "***"
+        assert "raw-token" not in log.response_text
+        assert "db-secret" not in log.exception_traceback
 
     def test_ingest_does_not_use_general_anonymous_throttle(self) -> None:
         """Signed internal audit traffic must not consume the public anon bucket."""

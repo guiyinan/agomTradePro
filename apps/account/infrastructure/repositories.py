@@ -846,24 +846,6 @@ class TransactionCostConfigRepository:
         except TransactionCostConfigModel.DoesNotExist:
             return None
 
-    def get_default_cost_config(self, market: str, asset_class: str) -> TransactionCostConfigRecord:
-        """
-        Get default cost configuration.
-
-        Returns:
-            Dict with default values
-        """
-        return {
-            "market": market,
-            "asset_class": asset_class,
-            "commission_rate": Decimal("0.0003"),
-            "slippage_rate": Decimal("0.0002"),
-            "stamp_duty_rate": Decimal("0.001"),
-            "transfer_fee_rate": Decimal("0.00001"),
-            "min_commission": Decimal("5.00"),
-            "cost_warning_threshold": 0.005,
-        }
-
 
 class SystemSettingsRepository:
     """系统设置仓储。"""
@@ -959,12 +941,65 @@ class MacroSizingConfigRepository:
         payload.pop("updated_at", None)
         payload["version"] = (current.version + 1) if current is not None else 1
         payload["is_active"] = True
+        self._validate_config_payload(payload)
 
         with transaction.atomic():
             MacroSizingConfigModel._default_manager.filter(is_active=True).update(is_active=False)
             created = MacroSizingConfigModel._default_manager.create(**payload)
 
         return self._serialize_model(created)
+
+    def _validate_config_payload(self, payload: Mapping[str, Any]) -> None:
+        """Build the Domain value object before changing the active version."""
+
+        self._build_config(
+            regime_tiers=self._require_tier_rows(payload, "regime_tiers_json"),
+            pulse_tiers=self._require_tier_rows(payload, "pulse_tiers_json"),
+            warning_factor=float(payload["warning_factor"]),
+            drawdown_tiers=self._require_tier_rows(payload, "drawdown_tiers_json"),
+            market_temperature_tiers=[
+                {
+                    "band": "cold",
+                    "factor": payload["market_temperature_cold_factor"],
+                    "block_new_position": False,
+                },
+                {
+                    "band": "warm",
+                    "factor": payload["market_temperature_warm_factor"],
+                    "block_new_position": False,
+                },
+                {
+                    "band": "hot",
+                    "factor": payload["market_temperature_hot_factor"],
+                    "block_new_position": False,
+                },
+                {
+                    "band": "overheat",
+                    "factor": payload["market_temperature_overheat_factor"],
+                    "block_new_position": False,
+                },
+                {
+                    "band": "extreme",
+                    "factor": payload["market_temperature_extreme_factor"],
+                    "block_new_position": payload["block_new_position_on_extreme"],
+                },
+            ],
+            version=int(payload["version"]),
+        )
+
+    @staticmethod
+    def _require_tier_rows(
+        payload: Mapping[str, Any],
+        field_name: str,
+    ) -> list[dict[str, Any]]:
+        """Return a non-empty list of object-shaped sizing tiers."""
+
+        value = payload.get(field_name)
+        if not isinstance(value, list) or not value:
+            raise ValueError(f"{field_name} 必须是非空对象数组")
+        if not all(isinstance(item, dict) for item in value):
+            raise ValueError(f"{field_name} 每一项都必须是对象")
+        return [dict(item) for item in value]
 
     def _get_active_model(self) -> MacroSizingConfigModel | None:
         try:
@@ -1081,12 +1116,23 @@ class MacroSizingConfigRepository:
                 MarketTemperatureTier(
                     band=str(item["band"]),
                     factor=float(item["factor"]),
-                    block_new_position=bool(item.get("block_new_position", False)),
+                    block_new_position=self._require_bool(
+                        item.get("block_new_position", False),
+                        field_name="block_new_position",
+                    ),
                 )
                 for item in market_temperature_tiers
             ],
             version=version,
         )
+
+    @staticmethod
+    def _require_bool(value: Any, *, field_name: str) -> bool:
+        """Reject truthy strings in persisted configuration JSON."""
+
+        if not isinstance(value, bool):
+            raise ValueError(f"{field_name} 必须是布尔值")
+        return value
 
 
 __all__ = [

@@ -47,7 +47,6 @@ from apps.alpha.application.repository_provider import (
     get_alpha_pool_data_repository,
     get_alpha_score_cache_repository,
 )
-from apps.alpha.application.repository_provider import get_default_metrics as _get_default_metrics
 from apps.alpha.application.repository_provider import (
     get_qlib_data_latest_date as _get_qlib_data_latest_date,
 )
@@ -63,6 +62,9 @@ from apps.alpha.application.repository_provider import (
 from apps.alpha.application.repository_provider import make_json_safe as _make_json_safe_runtime
 from apps.alpha.application.repository_provider import (
     normalize_calendar_date as _normalize_calendar_date,
+)
+from apps.alpha.application.repository_provider import (
+    normalize_qlib_feature_set_id as _normalize_qlib_feature_set_id,
 )
 from apps.alpha.application.repository_provider import (
     normalize_qlib_instrument_code as _normalize_qlib_instrument_code,
@@ -110,7 +112,6 @@ __all__ = [
     "_execute_qlib_prediction",
     "_extract_model_filename",
     "_find_broader_qlib_cache_for_scope",
-    "_get_default_metrics",
     "_get_qlib_data_latest_date",
     "_get_runtime_qlib_config",
     "_install_qlib_pandas_compat",
@@ -560,9 +561,9 @@ def qlib_train_model(
             activate_after_train = bool(train_config.get("activate", False))
         else:
             activate_after_train = bool(runtime_qlib.get("allow_auto_activate", False))
-        feature_set_id = train_config.get("feature_set_id") or runtime_qlib.get(
-            "default_feature_set_id",
-            "v1",
+        feature_set_id = _normalize_qlib_feature_set_id(
+            train_config.get("feature_set_id")
+            or runtime_qlib.get("default_feature_set_id", "alpha360")
         )
         label_id = train_config.get("label_id") or runtime_qlib.get(
             "default_label_id",
@@ -578,11 +579,17 @@ def qlib_train_model(
 
         # 2. 训练模型
         logger.info(f"  训练模型 ({model_type})...")
-        model = _train_qlib_model(model_type, train_config)
+        effective_train_config = {
+            **train_config,
+            "universe": universe,
+            "feature_set_id": feature_set_id,
+            "label_id": label_id,
+        }
+        model = _train_qlib_model(model_type, effective_train_config)
 
         # 3. 评估指标
         logger.info("  评估模型...")
-        metrics = _evaluate_model_metrics(model, universe)
+        metrics = _evaluate_model_metrics(model, universe, effective_train_config)
 
         # 4. 生成 artifact hash
         artifact_hash = _calculate_artifact_hash(
@@ -596,7 +603,7 @@ def qlib_train_model(
             model_name=model_name,
             artifact_hash=artifact_hash,
             model_path=model_path,
-            train_config=train_config,
+            train_config=effective_train_config,
             metrics=metrics,
         )
 
@@ -607,7 +614,7 @@ def qlib_train_model(
             artifact_hash=artifact_hash,
             model_type=model_type,
             universe=universe,
-            train_config=train_config,
+            train_config=effective_train_config,
             feature_set_id=feature_set_id,
             label_id=label_id,
             data_version=data_version,
@@ -629,7 +636,7 @@ def qlib_train_model(
                 run_id=training_run_id,
                 result_model_name=model_name,
                 result_artifact_hash=artifact_hash,
-                result_metrics=metrics,
+                result_metrics=dict(metrics),
                 registry_result={
                     "artifact_hash": artifact_hash,
                     "activated": activate_after_train,

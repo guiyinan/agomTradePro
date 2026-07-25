@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Any
 
-def get_numpy():
+
+def get_numpy() -> Any:
     """Return the numpy module."""
 
     import numpy as np
@@ -11,9 +13,9 @@ def get_numpy():
     return np
 
 
-def get_pandas():
+def get_pandas() -> Any:
     """Return the pandas module."""
 
-    import pandas as pd
+    import pandas as pd  # type: ignore[import-untyped]
 
     return pd

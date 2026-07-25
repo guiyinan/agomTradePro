@@ -224,6 +224,8 @@ python manage.py train_qlib_model --name lgb_csi300 --type LGBModel --async
 celery -A core inspect active
 ```
 
+同步与异步 CLI 都调用同一个 `qlib_train_model` 任务主体：训练参数、真实标签评估、原子 artifact、Registry 写入和可选激活不存在第二套实现。`--learning-rate` / `--epochs` 会按模型类型转换到 Qlib `model_params`（LightGBM 使用 `learning_rate` / `num_boost_round`，神经网络使用 `lr` / `n_epochs`）；省略股票池、特征集、标签或模型目录时读取 Config Center。旧 `v1` 特征集标识仅作为 Alpha360 兼容别名，持久化时统一记录为 `alpha360`。`--force` 不再允许覆盖不可变 artifact。
+
 ---
 
 ## 4. 模型评估
@@ -235,6 +237,8 @@ celery -A core inspect active
 | IC | Information Coefficient | 预测值与真实值的相关系数 | > 0.05 |
 | ICIR | Information Coefficient IR | IC 的均值/标准差 | > 0.5 |
 | Rank IC | 排名相关性 | 排序预测与真实排序的相关性 | > 0.04 |
+
+这些指标只从独立验证区间中可按“日期 + 证券代码”对齐的真实标签计算。每个横截面至少需要 10 只有效证券；标签缺失、索引无法对齐或样本不足时训练任务会失败并保留错误证据，不会用预测分数的离散程度推算或填充 IC/ICIR。
 
 ### 4.2 查看模型列表
 
@@ -285,6 +289,8 @@ python apps/alpha/management/commands/backtest_model.py \
 ---
 
 ## 5. 生产部署
+
+训练产物按 `<QLIB_MODEL_PATH>/<model_name>/<artifact_hash>/` 保存。目录发布是不可覆盖的原子操作，包含 `model.pkl`、训练配置、真实评估指标、实际特征集/标签标识、数据版本和 `manifest.json`。`manifest.json` 记录每个文件的 SHA-256 与字节数；同一版本目录已存在时训练任务拒绝覆盖。
 
 ### 5.1 激活模型
 

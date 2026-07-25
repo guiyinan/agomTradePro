@@ -2,6 +2,7 @@
 
 import json
 import logging
+import secrets
 from collections.abc import Mapping
 from typing import Any
 
@@ -12,6 +13,7 @@ from django.utils import timezone
 
 from apps.account.infrastructure.backup_service import (
     generate_backup_archive,
+    hash_download_nonce,
     validate_download_token,
 )
 from apps.account.infrastructure.models import (
@@ -419,21 +421,47 @@ class AccountInterfaceAdministrationRepositoryMixin:
         system_settings.save()
 
     def build_backup_download_payload(self, token: str) -> dict[str, Any]:
-        """Validate the download token and return a generated backup payload."""
+        """Atomically consume one current backup token and generate its archive."""
 
-        config = SystemSettingsModel.get_settings()
-        max_age_seconds = max(config.backup_link_ttl_days, 1) * 86400
+        with transaction.atomic():
+            config = SystemSettingsModel._default_manager.select_for_update().get(pk=1)
+            max_age_seconds = max(config.backup_link_ttl_days, 1) * 86400
 
-        try:
-            payload = validate_download_token(token, max_age_seconds=max_age_seconds)
-        except Exception as exc:
-            raise LookupError("备份链接无效或已过期") from exc
+            try:
+                payload = validate_download_token(token, max_age_seconds=max_age_seconds)
+            except Exception as exc:
+                raise LookupError("备份链接无效或已过期") from exc
 
-        if payload.get("settings_id") != config.pk or payload.get("email") != config.backup_email:
-            raise LookupError("备份链接无效")
+            if payload["settings_id"] != config.pk or payload["email"] != config.backup_email:
+                raise LookupError("备份链接无效")
+            if not config.backup_enabled:
+                raise ValueError("数据库备份邮件功能未启用")
 
-        if not config.backup_enabled:
-            raise ValueError("数据库备份邮件功能未启用")
+            expected_digest = config.backup_download_token_digest
+            supplied_digest = hash_download_nonce(payload["nonce"])
+            expires_at = config.backup_download_token_expires_at
+            consumed_at = timezone.now()
+            if (
+                not expected_digest
+                or not secrets.compare_digest(supplied_digest, expected_digest)
+                or expires_at is None
+                or expires_at <= consumed_at
+                or config.backup_download_consumed_at is not None
+            ):
+                raise LookupError("备份链接无效或已使用")
+
+            claimed = SystemSettingsModel._default_manager.filter(
+                pk=config.pk,
+                backup_download_token_digest=expected_digest,
+                backup_download_token_expires_at__gt=consumed_at,
+                backup_download_consumed_at__isnull=True,
+            ).update(
+                backup_download_consumed_at=consumed_at,
+                updated_at=consumed_at,
+            )
+            if claimed != 1:
+                raise LookupError("备份链接无效或已使用")
+            config.backup_download_consumed_at = consumed_at
 
         archive = generate_backup_archive(config)
         return {

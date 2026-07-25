@@ -3,15 +3,23 @@
 
 测试 Domain 层 TradingCostConfig 实体的费用计算逻辑。
 """
+
+from inspect import Parameter, signature
+from math import inf, nan
+
 import pytest
 
 from apps.account.domain.entities import TradingCostConfig
+from apps.account.infrastructure.models import (
+    TradingCostConfigModel,
+    TransactionCostConfigModel,
+)
 
 
 @pytest.fixture
 def default_config():
     """默认费率配置（万2.5佣金、千1印花税）"""
-    return TradingCostConfig(id=1, portfolio_id=1)
+    return TradingCostConfig(id=1, portfolio_id=1, min_commission=5.0)
 
 
 @pytest.fixture
@@ -25,6 +33,50 @@ def vip_config():
         stamp_duty_rate=0.001,
         transfer_fee_rate=0.00002,
     )
+
+
+def test_minimum_commission_has_no_domain_or_orm_default():
+    domain_parameter = signature(TradingCostConfig).parameters["min_commission"]
+
+    assert domain_parameter.default is Parameter.empty
+    assert TradingCostConfigModel._meta.get_field("min_commission").has_default() is False
+    assert TransactionCostConfigModel._meta.get_field("min_commission").has_default() is False
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("commission_rate", nan),
+        ("commission_rate", inf),
+        ("min_commission", nan),
+        ("stamp_duty_rate", -inf),
+        ("transfer_fee_rate", inf),
+    ],
+)
+def test_trading_cost_config_rejects_nonfinite_values(
+    field_name: str,
+    invalid_value: float,
+) -> None:
+    values = {
+        "id": 1,
+        "portfolio_id": 1,
+        "commission_rate": 0.00025,
+        "min_commission": 5.0,
+        "stamp_duty_rate": 0.001,
+        "transfer_fee_rate": 0.00002,
+    }
+    values[field_name] = invalid_value
+
+    with pytest.raises(ValueError):
+        TradingCostConfig(**values)
+
+
+@pytest.mark.parametrize("amount", [0.0, -1.0, nan, inf, -inf, True])
+def test_trading_cost_calculation_rejects_invalid_notional(amount: float) -> None:
+    config = TradingCostConfig(id=1, portfolio_id=1, min_commission=5.0)
+
+    with pytest.raises(ValueError, match="amount"):
+        config.calculate_buy_cost(amount)
 
 
 class TestTradingCostConfigBuyCost:

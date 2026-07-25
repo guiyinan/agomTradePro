@@ -14,10 +14,10 @@ from decimal import Decimal
 from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
-from django.conf import settings  # type: ignore[import-untyped]
-from django.contrib.auth.models import User  # type: ignore[import-untyped]
-from django.core.exceptions import ValidationError  # type: ignore[import-untyped]
-from django.db import models  # type: ignore[import-untyped]
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.db import models
 
 from apps.account.application.rbac import ROLE_CHOICES
 
@@ -40,7 +40,7 @@ def _build_app_fernet() -> Fernet:
 # 账户与组合模型
 
 
-class AccountProfileModel(models.Model):  # type: ignore[misc]
+class AccountProfileModel(models.Model):
     """
     用户账户配置表
 
@@ -143,7 +143,7 @@ class AccountProfileModel(models.Model):  # type: ignore[misc]
         return f"{self.user.username} - {self.display_name}"
 
 
-class UserAccessTokenModel(models.Model):  # type: ignore[misc]
+class UserAccessTokenModel(models.Model):
     """支持多 Token 的 MCP/SDK 访问凭证。"""
 
     ACCESS_LEVEL_READ_ONLY = "read_only"
@@ -232,11 +232,17 @@ class UserAccessTokenModel(models.Model):  # type: ignore[misc]
     def preview(self) -> str:
         if not self.key:
             return "-"
-        return f"{self.key[:8]}...{self.key[-6:]}"
+        return f"sha256:{self.key[:12]}"
 
     @classmethod
     def generate_key(cls) -> str:
         return secrets.token_hex(20)
+
+    @staticmethod
+    def hash_key(raw_key: str) -> str:
+        """Return the deterministic lookup fingerprint for a raw token."""
+
+        return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
 
     @classmethod
     def create_token(
@@ -252,7 +258,7 @@ class UserAccessTokenModel(models.Model):  # type: ignore[misc]
         token = cls._default_manager.create(
             user=user,
             name=raw_name,
-            key=raw_key,
+            key=cls.hash_key(raw_key),
             key_encrypted=_build_app_fernet().encrypt(raw_key.encode("utf-8")).decode("utf-8"),
             created_by=created_by,
             access_level=access_level,
@@ -284,7 +290,7 @@ class UserAccessTokenModel(models.Model):  # type: ignore[misc]
 # ============================================================
 
 
-class PortfolioObserverGrantModel(models.Model):  # type: ignore[misc]
+class PortfolioObserverGrantModel(models.Model):
     """
     投资组合观察员授权表
 

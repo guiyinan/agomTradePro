@@ -62,9 +62,11 @@ class AccountProfileSerializer(serializers.ModelSerializer[Any]):
 class AccountProfileUpdateSerializer(serializers.ModelSerializer[Any]):
     """账户配置更新序列化器"""
 
+    email = serializers.EmailField(required=False, write_only=True)
+
     class Meta:
         model = AccountProfileModel
-        fields = ["display_name", "risk_tolerance"]
+        fields = ["display_name", "risk_tolerance", "email"]
 
 
 # ==================== Portfolio ====================
@@ -558,22 +560,22 @@ class TradingCostConfigCreateSerializer(serializers.ModelSerializer[Any]):
         return attrs
 
     def validate_commission_rate(self, value: float) -> float:
-        if value < 0 or value > 0.01:
+        if not math.isfinite(value) or value < 0 or value > 0.01:
             raise serializers.ValidationError("佣金率应在 0 ~ 0.01（万0 ~ 万10）之间")
         return value
 
     def validate_min_commission(self, value: float) -> float:
-        if value < 0:
-            raise serializers.ValidationError("最低佣金不能为负数")
+        if not math.isfinite(value) or value < 0:
+            raise serializers.ValidationError("最低佣金必须是非负有限数")
         return value
 
     def validate_stamp_duty_rate(self, value: float) -> float:
-        if value < 0 or value > 0.01:
+        if not math.isfinite(value) or value < 0 or value > 0.01:
             raise serializers.ValidationError("印花税率应在 0 ~ 0.01 之间")
         return value
 
     def validate_transfer_fee_rate(self, value: float) -> float:
-        if value < 0 or value > 0.001:
+        if not math.isfinite(value) or value < 0 or value > 0.001:
             raise serializers.ValidationError("过户费率应在 0 ~ 0.001 之间")
         return value
 
@@ -586,6 +588,13 @@ class TradingCostCalculationSerializer(serializers.Serializer[dict[str, Any]]):
     action = serializers.ChoiceField(choices=ACTION_CHOICES)
     amount = serializers.FloatField(min_value=0.01)
     is_shanghai = serializers.BooleanField(required=False, default=False)
+
+    def validate_amount(self, value: float) -> float:
+        """Reject NaN and infinity before Domain fee calculation."""
+
+        if not math.isfinite(value) or value <= 0:
+            raise serializers.ValidationError("成交金额必须是正有限数")
+        return value
 
 
 class MacroSizingConfigSerializer(serializers.Serializer[dict[str, Any]]):
@@ -644,6 +653,31 @@ class MacroSizingConfigUpdateSerializer(serializers.Serializer[dict[str, Any]]):
     )
     block_new_position_on_extreme = serializers.BooleanField(required=False)
 
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Reject non-finite top-level sizing factors."""
+
+        factor_fields = (
+            "warning_factor",
+            "market_temperature_cold_factor",
+            "market_temperature_warm_factor",
+            "market_temperature_hot_factor",
+            "market_temperature_overheat_factor",
+            "market_temperature_extreme_factor",
+        )
+        errors: dict[str, str] = {}
+        for field_name in factor_fields:
+            value = attrs.get(field_name)
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or not 0 <= float(value) <= 1
+            ):
+                errors[field_name] = "必须是 0 到 1 之间的有限数"
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
+
     def validate_regime_tiers_json(self, value: Any) -> Any:
         self._validate_tiers(
             value,
@@ -683,6 +717,37 @@ class MacroSizingConfigUpdateSerializer(serializers.Serializer[dict[str, Any]]):
             missing = [key for key in required_keys if key not in item]
             if missing:
                 raise serializers.ValidationError(f"{field_name} 缺少字段: {', '.join(missing)}")
+            numeric_keys = set(required_keys)
+            if "max_composite" in item:
+                numeric_keys.add("max_composite")
+            for key in numeric_keys:
+                raw_value = item[key]
+                if (
+                    isinstance(raw_value, bool)
+                    or not isinstance(raw_value, (int, float))
+                    or not math.isfinite(float(raw_value))
+                ):
+                    raise serializers.ValidationError(
+                        f"{field_name}.{key} 必须是有限数"
+                    )
+            factor = float(item["factor"])
+            if not 0 <= factor <= 1:
+                raise serializers.ValidationError(
+                    f"{field_name}.factor 必须在 0 到 1 之间"
+                )
+            for bounded_key in ("min_confidence", "min_drawdown"):
+                if bounded_key in item and not 0 <= float(item[bounded_key]) <= 1:
+                    raise serializers.ValidationError(
+                        f"{field_name}.{bounded_key} 必须在 0 到 1 之间"
+                    )
+            if (
+                "min_composite" in item
+                and "max_composite" in item
+                and float(item["min_composite"]) > float(item["max_composite"])
+            ):
+                raise serializers.ValidationError(
+                    f"{field_name} 的 min_composite 不能大于 max_composite"
+                )
 
 
 class MCPTokenAccessLevelChoiceSerializer(serializers.Serializer[dict[str, Any]]):

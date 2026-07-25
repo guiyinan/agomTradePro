@@ -56,6 +56,7 @@ class ProviderListItemDTO:
     is_active: bool
     priority: int
     base_url: str
+    api_key_configured: bool
     default_model: str
     api_mode: str
     fallback_enabled: bool

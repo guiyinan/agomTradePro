@@ -4,6 +4,7 @@ Base protocol and exceptions for Data Center macro-source adapters.
 Infrastructure layer - defines the interface that all adapters must implement.
 """
 
+import math
 from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
@@ -13,17 +14,20 @@ from core.integration.runtime_settings import get_runtime_macro_publication_lags
 
 class DataSourceUnavailableError(Exception):
     """数据源不可用异常"""
+
     pass
 
 
 class DataValidationError(Exception):
     """数据验证异常"""
+
     pass
 
 
 @dataclass
 class PublicationLag:
     """发布延迟配置"""
+
     days: int
     description: str
 
@@ -47,6 +51,7 @@ def get_publication_lags() -> dict[str, PublicationLag]:
 @dataclass
 class MacroDataPoint:
     """宏观数据点"""
+
     code: str
     value: float
     observed_at: date
@@ -55,13 +60,14 @@ class MacroDataPoint:
     unit: str = ""
     original_unit: str = ""  # 原始单位（数据源返回的单位）
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """自动填充发布时间和计算延迟"""
         if self.published_at is None:
             # 如果未指定发布时间，根据配置延迟计算
             lag = get_publication_lags().get(self.code)
             if lag:
                 from datetime import timedelta
+
                 self.published_at = self.observed_at + timedelta(days=lag.days)
 
 
@@ -86,12 +92,7 @@ class MacroAdapterProtocol(Protocol):
         """
         ...
 
-    def fetch(
-        self,
-        indicator_code: str,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch(self, indicator_code: str, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """
         获取指定指标的数据
 
@@ -123,12 +124,7 @@ class BaseMacroAdapter:
         """默认实现：子类应覆盖"""
         return False
 
-    def fetch(
-        self,
-        indicator_code: str,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch(self, indicator_code: str, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """默认实现：子类必须覆盖"""
         raise NotImplementedError
 
@@ -148,6 +144,9 @@ class BaseMacroAdapter:
         if not isinstance(point.value, int | float):
             raise DataValidationError(f"指标值必须是数值类型: {type(point.value)}")
 
+        if not math.isfinite(float(point.value)):
+            raise DataValidationError(f"指标值必须是有限数值: {point.value!r}")
+
         if point.value < 0 and point.code not in ["CN_M2", "SHIBOR", "LPR"]:
             # 某些指标允许负值
             pass
@@ -155,10 +154,7 @@ class BaseMacroAdapter:
         if not isinstance(point.observed_at, date):
             raise DataValidationError(f"观测日期必须是 date 类型: {type(point.observed_at)}")
 
-    def _sort_and_deduplicate(
-        self,
-        data_points: list[MacroDataPoint]
-    ) -> list[MacroDataPoint]:
+    def _sort_and_deduplicate(self, data_points: list[MacroDataPoint]) -> list[MacroDataPoint]:
         """
         排序并去重
 

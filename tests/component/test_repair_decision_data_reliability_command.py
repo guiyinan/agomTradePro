@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -53,6 +53,53 @@ def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
     assert "indicator_unit_rule_repo" in captured
     assert captured["request"].macro_indicator_codes == ["CN_NEW_CREDIT"]
     assert captured["request"].portfolio_id == 135
+
+
+def test_command_normalizes_and_bounds_code_options() -> None:
+    assert command_module._split_codes(
+        " 000300.sh,000300.SH, cn_new_credit ",
+        (),
+        option_name="--asset-codes",
+    ) == ["000300.SH", "CN_NEW_CREDIT"]
+
+    with pytest.raises(CommandError, match="non-empty"):
+        command_module._split_codes("", (), option_name="--asset-codes")
+    with pytest.raises(CommandError, match="invalid code"):
+        command_module._split_codes("000300.SH;DROP", (), option_name="--asset-codes")
+    with pytest.raises(CommandError, match="at most"):
+        command_module._split_codes(
+            ",".join(f"CODE_{index}" for index in range(command_module.MAX_REPAIR_CODES + 1)),
+            (),
+            option_name="--asset-codes",
+        )
+
+
+@pytest.mark.django_db
+def test_command_rejects_invalid_scope_and_freshness_options() -> None:
+    command = command_module.Command()
+
+    for value in (True, 0, -1):
+        with pytest.raises(CommandError, match="positive integer"):
+            command._optional_positive_id(value, "--portfolio-id")
+    for value in (True, 0, -1.0, float("nan"), float("inf")):
+        with pytest.raises(CommandError, match="positive finite"):
+            command._positive_finite_float(value, "--quote-max-age-hours")
+    with pytest.raises(CommandError, match="Active user not found"):
+        command._resolve_user(2_147_483_647)
+
+    with pytest.raises(CommandError, match="cannot be in the future"):
+        command.handle(
+            target_date=(date.today() + timedelta(days=1)).isoformat(),
+            portfolio_id=None,
+            user_id=None,
+            asset_codes=None,
+            macro_indicator_codes=None,
+            strict=False,
+            quote_max_age_hours=4.0,
+            skip_pulse=True,
+            skip_alpha=True,
+            sync_alpha=False,
+        )
 
 
 def test_alpha_refresher_skips_qlib_rebuild_when_check_passes(monkeypatch):

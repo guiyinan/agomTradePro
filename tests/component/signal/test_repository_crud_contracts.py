@@ -8,6 +8,20 @@ from apps.signal.domain.entities import SignalStatus
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
+def _invalidation_rule(indicator_code: str, threshold: float) -> dict[str, object]:
+    return {
+        "logic": "AND",
+        "conditions": [
+            {
+                "indicator_code": indicator_code,
+                "indicator_type": "macro",
+                "operator": "lt",
+                "threshold": threshold,
+            }
+        ],
+    }
+
+
 @pytest.mark.django_db
 def test_signal_repository_crud_filters_metadata_and_status_transitions() -> None:
     """Repository public CRUD methods preserve filters and invalidation timestamps."""
@@ -19,8 +33,8 @@ def test_signal_repository_crud_filters_metadata_and_status_transitions() -> Non
         logic_desc="PMI recovery",
         invalidation_logic="PMI below 50",
         invalidation_threshold=50.0,
-        invalidation_rules={"indicator": "PMI"},
-        invalidation_rule_json={"logic": "and", "conditions": []},
+        invalidation_rules=None,
+        invalidation_rule_json=_invalidation_rule("PMI", 50.0),
         target_regime="Recovery",
         status="pending",
         rejection_reason="",
@@ -79,8 +93,8 @@ def test_signal_repository_invalidation_queries_and_outcomes() -> None:
         logic_desc="credit improves",
         invalidation_logic="spread widens",
         invalidation_threshold=1.0,
-        invalidation_rules={"indicator": "SPREAD"},
-        invalidation_rule_json={"logic": "and", "conditions": [{"indicator": "SPREAD"}]},
+        invalidation_rules=None,
+        invalidation_rule_json=_invalidation_rule("SPREAD", 1.0),
         target_regime="Recovery",
         status="pending",
         rejection_reason="",
@@ -92,8 +106,8 @@ def test_signal_repository_invalidation_queries_and_outcomes() -> None:
         logic_desc="growth",
         invalidation_logic="PMI falls",
         invalidation_threshold=50.0,
-        invalidation_rules={"indicator": "PMI"},
-        invalidation_rule_json={"logic": "and", "conditions": [{"indicator": "PMI"}]},
+        invalidation_rules=None,
+        invalidation_rule_json=_invalidation_rule("PMI", 50.0),
         target_regime="Recovery",
         status="approved",
         rejection_reason="",

@@ -7,8 +7,10 @@ Beta Gate Event Handlers
 import logging
 
 from apps.events.domain.entities import DomainEvent, EventHandler, EventType
+from apps.events.domain.services import EventBus
 
 from ..domain.entities import get_default_configs
+from ..domain.services import GateConfigSelector, VisibilityUniverseBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,12 @@ class BetaGateEventHandler(EventHandler):
         >>> handler.can_handle(EventType.REGIME_CHANGED)  # True
     """
 
-    def __init__(self, universe_builder=None, config_selector=None, event_bus=None):
+    def __init__(
+        self,
+        universe_builder: VisibilityUniverseBuilder | None = None,
+        config_selector: GateConfigSelector | None = None,
+        event_bus: EventBus | None = None,
+    ) -> None:
         """
         初始化处理器
 
@@ -38,8 +45,6 @@ class BetaGateEventHandler(EventHandler):
             config_selector: 配置选择器（可选）
             event_bus: 事件总线（可选）
         """
-        from ..domain.services import GateConfigSelector, VisibilityUniverseBuilder
-
         self.universe_builder = universe_builder or VisibilityUniverseBuilder()
         self.config_selector = config_selector or GateConfigSelector(get_default_configs())
         self.event_bus = event_bus
@@ -78,7 +83,7 @@ class BetaGateEventHandler(EventHandler):
         except Exception as e:
             logger.error(f"Error in BetaGateEventHandler: {e}", exc_info=True)
 
-    def _handle_regime_changed(self, event: DomainEvent):
+    def _handle_regime_changed(self, event: DomainEvent) -> None:
         """处理 Regime 变化事件"""
         old_regime = event.get_payload_value("old_regime")
         new_regime = event.get_payload_value("new_regime")
@@ -105,7 +110,7 @@ class BetaGateEventHandler(EventHandler):
             )
             self.event_bus.publish(update_event)
 
-    def _handle_policy_changed(self, event: DomainEvent):
+    def _handle_policy_changed(self, event: DomainEvent) -> None:
         """处理 Policy 变化事件"""
         old_level = event.get_payload_value("old_level")
         new_level = event.get_payload_value("new_level")
@@ -128,7 +133,7 @@ class BetaGateEventHandler(EventHandler):
             )
             self.event_bus.publish(update_event)
 
-    def _handle_confidence_low(self, event: DomainEvent):
+    def _handle_confidence_low(self, event: DomainEvent) -> None:
         """处理置信度过低事件"""
         confidence = event.get_payload_value("confidence", 0.0)
         threshold = event.get_payload_value("threshold", 0.3)
@@ -167,15 +172,13 @@ class GateInvalidationHandler(EventHandler):
         config_selector: 配置选择器
     """
 
-    def __init__(self, config_selector=None):
+    def __init__(self, config_selector: GateConfigSelector | None = None) -> None:
         """
         初始化处理器
 
         Args:
             config_selector: 配置选择器（可选）
         """
-        from ..domain.services import GateConfigSelector
-
         self.config_selector = config_selector or GateConfigSelector(get_default_configs())
 
     def can_handle(self, event_type: EventType) -> bool:

@@ -2,7 +2,13 @@ from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from apps.data_center.application.price_service import UnifiedPriceService
+import pytest
+
+from apps.data_center.application.price_service import (
+    PriceLookupResult,
+    UnifiedPriceService,
+)
+from apps.data_center.domain.entities import FundNavFact, PriceBar, QuoteSnapshot
 from core.exceptions import DataFetchError
 
 
@@ -155,3 +161,92 @@ def test_realtime_quote_failure_returns_none_and_logs_debug(caplog):
 
     assert result is None
     assert "Realtime quote lookup failed" in caplog.text
+
+
+@pytest.mark.parametrize("invalid_price", [0.0, -1.0, float("nan"), float("inf"), True])
+def test_invalid_realtime_price_falls_back_to_valid_close(invalid_price):
+    service = UnifiedPriceService()
+    service._dc_quote_repo = Mock()
+    service._dc_quote_repo.get_latest.return_value = SimpleNamespace(
+        current_price=invalid_price,
+        source="realtime",
+    )
+    service._dc_price_repo = Mock()
+    service._dc_price_repo.get_latest.return_value = SimpleNamespace(
+        close=4.95,
+        bar_date=date(2026, 3, 20),
+        source="daily_close",
+    )
+
+    result = service.get_price_result("510300")
+
+    assert result is not None
+    assert result.price == 4.95
+    assert result.source == "daily_close"
+    assert result.freshness == "close_fallback"
+
+
+def test_unattributed_price_is_not_exposed_to_business_modules():
+    service = UnifiedPriceService()
+    service._dc_quote_repo = Mock()
+    service._dc_quote_repo.get_latest.return_value = SimpleNamespace(
+        current_price=2.18,
+        source=" ",
+    )
+    service._dc_price_repo = Mock()
+    service._dc_price_repo.get_latest.return_value = None
+
+    assert service.get_latest_price("159915") is None
+    with pytest.raises(DataFetchError, match="无法获取"):
+        service.require_latest_price("159915")
+
+
+@pytest.mark.parametrize("invalid_price", [0.0, -1.0, float("nan"), float("inf"), True])
+def test_canonical_price_entities_reject_nonpositive_or_nonfinite_values(
+    invalid_price,
+):
+    with pytest.raises(ValueError):
+        PriceBar(
+            asset_code="510300.SH",
+            bar_date=date(2026, 3, 20),
+            open=1.0,
+            high=1.0,
+            low=1.0,
+            close=invalid_price,
+            source="test",
+        )
+    with pytest.raises(ValueError):
+        QuoteSnapshot(
+            asset_code="510300.SH",
+            snapshot_at=datetime(2026, 3, 20, tzinfo=UTC),
+            current_price=invalid_price,
+            source="test",
+        )
+    with pytest.raises(ValueError):
+        FundNavFact(
+            fund_code="110011",
+            nav_date=date(2026, 3, 20),
+            nav=invalid_price,
+            source="test",
+        )
+
+
+def test_price_lookup_result_enforces_executable_price_invariants():
+    with pytest.raises(ValueError, match="正有限数"):
+        PriceLookupResult(
+            requested_code="510300",
+            normalized_code="510300.SH",
+            price=float("nan"),
+            as_of=date(2026, 3, 20),
+            source="test",
+            freshness="historical",
+        )
+    with pytest.raises(ValueError, match="数据来源"):
+        PriceLookupResult(
+            requested_code="510300",
+            normalized_code="510300.SH",
+            price=4.95,
+            as_of=date(2026, 3, 20),
+            source="",
+            freshness="historical",
+        )

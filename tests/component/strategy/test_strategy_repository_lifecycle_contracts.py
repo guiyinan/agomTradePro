@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 
 from apps.account.infrastructure.models import AccountProfileModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
@@ -22,7 +23,14 @@ from apps.strategy.domain.entities import (
     StrategyExecutionResult,
     StrategyType,
 )
-from apps.strategy.infrastructure.models import PortfolioStrategyAssignmentModel
+from apps.strategy.infrastructure.models import (
+    AIStrategyConfigModel,
+    PortfolioStrategyAssignmentModel,
+    PositionManagementRuleModel,
+    RuleConditionModel,
+    StrategyExecutionLogModel,
+    StrategyModel,
+)
 from apps.strategy.infrastructure.repositories import (
     DjangoRuleConditionRepository,
     DjangoStrategyExecutionLogRepository,
@@ -178,3 +186,70 @@ def test_execution_log_and_parameter_repository_contracts() -> None:
     assert params.get_active_params(strategy_id) == {}
     assert params.save_params(999999999, {}, version=1, set_as_active=False) is None
     assert params.rollback_to_version(strategy_id, 999) is False
+
+
+@pytest.mark.django_db
+def test_strategy_numeric_invariants_survive_direct_orm_updates() -> None:
+    """Database constraints protect risk controls from ORM validation bypasses."""
+
+    profile, portfolio = _owner_and_portfolio()
+    strategy = StrategyModel.objects.create(
+        name=f"Invariant strategy {uuid4().hex[:8]}",
+        strategy_type="rule_based",
+        created_by=profile,
+    )
+    position_rule = PositionManagementRuleModel.objects.create(
+        strategy=strategy,
+        name="Invariant position rule",
+        buy_price_expr="current_price",
+        sell_price_expr="current_price",
+        stop_loss_expr="current_price",
+        take_profit_expr="current_price",
+        position_size_expr="1",
+    )
+    rule = RuleConditionModel.objects.create(
+        strategy=strategy,
+        rule_name="Invariant rule",
+        rule_type="macro",
+        condition_json={"field": "PMI", "operator": "gt", "value": 50},
+        action="buy",
+        weight=0.5,
+    )
+    ai_config = AIStrategyConfigModel.objects.create(strategy=strategy)
+    assignment = PortfolioStrategyAssignmentModel.objects.create(
+        portfolio=portfolio,
+        strategy=strategy,
+        assigned_by=profile,
+    )
+    execution_log = StrategyExecutionLogModel.objects.create(
+        strategy=strategy,
+        portfolio=portfolio,
+        execution_duration_ms=1,
+        execution_result={"status": "completed"},
+        signals_generated=[],
+    )
+
+    invalid_updates = [
+        (StrategyModel, strategy.pk, {"max_position_pct": -1}),
+        (
+            PositionManagementRuleModel,
+            position_rule.pk,
+            {"price_precision": 9},
+        ),
+        (RuleConditionModel, rule.pk, {"weight": 1.1}),
+        (AIStrategyConfigModel, ai_config.pk, {"max_tokens": 0}),
+        (
+            PortfolioStrategyAssignmentModel,
+            assignment.pk,
+            {"override_stop_loss_pct": 101},
+        ),
+        (
+            StrategyExecutionLogModel,
+            execution_log.pk,
+            {"execution_duration_ms": -1},
+        ),
+    ]
+
+    for model, object_id, update_values in invalid_updates:
+        with pytest.raises(IntegrityError), transaction.atomic():
+            model.objects.filter(pk=object_id).update(**update_values)

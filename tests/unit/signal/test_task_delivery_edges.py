@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from apps.signal.application import tasks
+from core.exceptions import BusinessLogicError, DataFetchError
 
 
 def test_signal_tasks_check_cleanup_and_daily_summary(monkeypatch) -> None:
@@ -73,17 +76,25 @@ def test_signal_notification_formats_details_and_handles_delivery_outcomes(monke
         "invalidated_signals": 1,
         "total_approved": 3,
     }
-    new = [{"asset_code": "000001.SZ", "logic_desc": "recovery"}]
+    new = [
+        {
+            "asset_code": "000001.SZ",
+            "logic_desc": "<script>alert('x')</script>",
+        }
+    ]
     invalidated = [
         {
             "id": 2,
             "asset_code": "000002.SZ",
-            "invalidation_details": {"reason": "PMI below threshold"},
+            "invalidation_details": {"reason": "<b>PMI below threshold</b>"},
         }
     ]
     assert tasks._send_signal_summary_notification(summary, new, invalidated) is True
     assert "000001.SZ" in str(captured["body"])
     assert "PMI below threshold" in str(captured["html_body"])
+    assert "<script>" not in str(captured["html_body"])
+    assert "&lt;script&gt;" in str(captured["html_body"])
+    assert "<b>PMI" not in str(captured["html_body"])
 
     monkeypatch.setattr(tasks, "_get_signal_notification_recipients", lambda: [])
     assert tasks._send_signal_summary_notification(summary, [], []) is True
@@ -103,3 +114,78 @@ def test_signal_notification_recipient_merge_and_deduplication(monkeypatch, sett
         "ops@example.test",
         "admin@example.test",
     }
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        None,
+        {},
+        {
+            "checked": 1,
+            "invalidated": 1,
+            "rejected": 0,
+            "invalidated_ids": [],
+            "rejected_ids": [],
+        },
+        {
+            "checked": 0,
+            "invalidated": 1,
+            "rejected": 0,
+            "invalidated_ids": [1],
+            "rejected_ids": [],
+        },
+    ],
+)
+def test_invalidation_batch_result_rejects_false_success(
+    result: object,
+) -> None:
+    with pytest.raises(BusinessLogicError):
+        tasks._validated_batch_result(result)
+
+
+@pytest.mark.parametrize("signal_id", [0, -1, True])
+def test_single_invalidation_rejects_invalid_signal_id(
+    signal_id: int,
+) -> None:
+    with pytest.raises(BusinessLogicError, match="signal_id"):
+        tasks.check_single_signal_invalidation.run(signal_id)
+
+
+@pytest.mark.parametrize("days", [0, -1, 3651, True])
+def test_cleanup_rejects_unbounded_days(days: int) -> None:
+    with pytest.raises(BusinessLogicError, match="days"):
+        tasks.cleanup_old_invalidated_signals.run(days)
+
+
+def test_daily_summary_fails_when_notification_is_not_delivered(
+    monkeypatch,
+) -> None:
+    repository = SimpleNamespace(
+        count_by_status=lambda _status: 4,
+        get_signals_created_between=lambda _start, _end: [],
+        get_signals_invalidated_between=lambda _start, _end: [],
+    )
+    monkeypatch.setattr(tasks, "get_signal_repository", lambda: repository)
+    monkeypatch.setattr(
+        tasks,
+        "_send_signal_summary_notification",
+        lambda _summary, _new, _invalidated: False,
+    )
+
+    with pytest.raises(DataFetchError, match="delivery failed"):
+        tasks.send_daily_signal_summary.run()
+
+
+def test_recipient_string_is_treated_as_one_address(
+    monkeypatch,
+    settings,
+) -> None:
+    settings.SIGNAL_NOTIFICATION_EMAILS = "OPS@EXAMPLE.TEST"
+    monkeypatch.setattr(
+        tasks,
+        "get_user_repository",
+        lambda: SimpleNamespace(get_staff_emails=lambda: []),
+    )
+
+    assert tasks._get_signal_notification_recipients() == ["ops@example.test"]

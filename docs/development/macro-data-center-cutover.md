@@ -54,6 +54,12 @@ python manage.py normalize_macro_fact_units --check
 - `normalize_macro_fact_units` 不只修数值和单位，也会回填 `matched_rule_id`、`display_unit`、`dimension_key`、`publication_lag_days` 等治理元信息
 - 脏数据修复流程固定为：先修 fetcher / 规则，再走 `SyncMacroUseCase` 重刷事实，最后执行 `python manage.py normalize_macro_fact_units` 并要求 dry-run 为 `updated=0`
 
+## 2026-07-25 其他宏观事实口径修复
+
+- `CN_UNEMPLOYMENT` 固定读取 AKShare 的 `date/item/value` 契约及“全国城镇调查失业率”指标项；0 值按上游缺失占位隔离，不再发布伪造的 0% 失业率。
+- `CN_NEW_HOUSE_PRICE` 明确为“北京新建商品住宅价格同比变动”，不再用泛中国名称掩盖单城市样本。
+- `CN_OIL_PRICE` 保留上游“汽油价格”的原始元/吨口径；运行时代码删除固定 1360 升/吨的密度换算假设，历史 AKShare 元/升事实可逆还原为元/吨。
+
 ## 2026-07-19 Regime CPI 读取口径修复
 
 - `CN_CPI_NATIONAL_YOY` 的 canonical storage unit 是 `%`，数值直接表示百分比点；例如 `0.1` 表示 `0.1%`，读取链不得再按数值大小猜测口径并乘以 100。
@@ -83,8 +89,9 @@ python manage.py normalize_macro_fact_units --check
   - `CN_EXPORT_YOY`
   - `CN_IMPORT_YOY`
 - 进出口 canonical 语义已纠正：
-  - `CN_EXPORTS` / `CN_IMPORTS` = 当月金额口径，display unit `亿美元`
+  - `CN_EXPORTS` / `CN_IMPORTS` = 当月金额口径；AKShare 原始单位为 `千美元`，统一规则转换后 display unit 为 `亿美元`
   - `CN_EXPORT_YOY` / `CN_IMPORT_YOY` = 当月金额同比增速
+  - `CN_TRADE_BALANCE` = 同月出口额减同月进口额，不再把第三方发布日期当作统计月份
 - `CN_CPI_YOY` 当前只保留为兼容 alias；治理真源优先读 `CN_CPI_NATIONAL_YOY`
 - 截至 `2026-05-03`，治理台真实缺口已清零，只剩兼容 alias 提示项。
 - `apps/macro/application/indicator_service.py` 中已移除 `CN_EXPORT_YOY -> CN_EXPORTS`、`CN_IMPORT_YOY -> CN_IMPORTS`、`CN_RETAIL_SALES_YOY -> CN_RETAIL_SALES` 这类危险回退，避免同比指标再被误映射到绝对额序列。

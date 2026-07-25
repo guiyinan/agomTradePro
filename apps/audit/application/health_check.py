@@ -11,9 +11,10 @@ Features:
 """
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Protocol
 
 from apps.audit.domain.interfaces import AuditRepositoryProtocol
 
@@ -22,7 +23,27 @@ from .repository_provider import get_audit_failure_counter, get_audit_repository
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+class FailureStatsProtocol(Protocol):
+    """Failure aggregates required by the health checker."""
+
+    @property
+    def total_count(self) -> int: ...
+
+    @property
+    def by_component(self) -> Mapping[str, int]: ...
+
+
+class FailureCounterProtocol(Protocol):
+    """Failure counter surface required by the health checker."""
+
+    def get_failure_stats(self) -> FailureStatsProtocol: ...
+
+    def get_failure_count(self) -> int: ...
+
+    def reset(self) -> None: ...
+
+
+@dataclass(frozen=True)
 class HealthCheckResult:
     """
     健康检查结果
@@ -34,6 +55,7 @@ class HealthCheckResult:
         details: 详细信息
         checked_at: 检查时间
     """
+
     component: str
     status: str  # OK, WARNING, ERROR
     message: str
@@ -55,7 +77,7 @@ class HealthCheckResult:
         }
 
 
-@dataclass
+@dataclass(frozen=True)
 class AuditHealthReport:
     """
     审计模块健康报告
@@ -66,6 +88,7 @@ class AuditHealthReport:
         metrics: 审计模块指标
         generated_at: 生成时间
     """
+
     overall_status: str  # OK, WARNING, ERROR
     checks: list[HealthCheckResult]
     metrics: dict[str, Any]
@@ -106,8 +129,8 @@ class AuditHealthChecker:
         warning_threshold: int | None = None,
         error_threshold: int | None = None,
         audit_repo: AuditRepositoryProtocol | None = None,
-        failure_counter: Any | None = None,
-    ):
+        failure_counter: FailureCounterProtocol | None = None,
+    ) -> None:
         """
         初始化健康检查器
 
@@ -117,8 +140,26 @@ class AuditHealthChecker:
             audit_repo: 审计仓储协议实现
             failure_counter: 失败计数器实现
         """
-        self.warning_threshold = warning_threshold or self.DEFAULT_FAILURE_WARNING_THRESHOLD
-        self.error_threshold = error_threshold or self.DEFAULT_FAILURE_ERROR_THRESHOLD
+        self.warning_threshold = (
+            self.DEFAULT_FAILURE_WARNING_THRESHOLD
+            if warning_threshold is None
+            else warning_threshold
+        )
+        self.error_threshold = (
+            self.DEFAULT_FAILURE_ERROR_THRESHOLD if error_threshold is None else error_threshold
+        )
+        if (
+            isinstance(self.warning_threshold, bool)
+            or not isinstance(self.warning_threshold, int)
+            or self.warning_threshold < 0
+        ):
+            raise ValueError("warning_threshold must be a non-negative integer")
+        if (
+            isinstance(self.error_threshold, bool)
+            or not isinstance(self.error_threshold, int)
+            or self.error_threshold <= self.warning_threshold
+        ):
+            raise ValueError("error_threshold must be an integer greater than warning_threshold")
         self.audit_repo = audit_repo or get_audit_repository()
         self.failure_counter = failure_counter or get_audit_failure_counter()
 
@@ -140,11 +181,21 @@ class AuditHealthChecker:
         # 3. 检查审计表可访问性
         checks.append(self._check_audit_tables_accessible())
 
-        # 计算总体状态
-        overall_status = self._calculate_overall_status(checks)
-
         # 获取审计模块指标
         metrics = self._get_audit_metrics()
+        if not metrics.get("available", False):
+            checks.append(
+                HealthCheckResult(
+                    component="audit_metrics",
+                    status="ERROR",
+                    message="Audit metrics are unavailable",
+                    details={"error_type": metrics.get("error_type", "UnknownError")},
+                    checked_at=datetime.now(UTC),
+                )
+            )
+
+        # 计算总体状态
+        overall_status = self._calculate_overall_status(checks)
 
         return AuditHealthReport(
             overall_status=overall_status,
@@ -184,21 +235,24 @@ class AuditHealthChecker:
                 message=message,
                 details={
                     "total_failures": total_failures,
-                    "by_component": failure_stats.by_component,
-                    "recent_failures": [f.to_dict() for f in failure_stats.recent_failures],
+                    "by_component": dict(failure_stats.by_component),
                     "warning_threshold": self.warning_threshold,
                     "error_threshold": self.error_threshold,
                 },
                 checked_at=datetime.now(UTC),
             )
 
-        except Exception as e:
-            logger.error(f"Failed to check failure counter: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Failed to check failure counter: %s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             return HealthCheckResult(
                 component="audit_failure_counter",
                 status="ERROR",
-                message=f"Failed to check failure counter: {e}",
-                details={"error": str(e)},
+                message="Failed to check audit failure counter",
+                details={"error_type": type(exc).__name__},
                 checked_at=datetime.now(UTC),
             )
 
@@ -210,23 +264,27 @@ class AuditHealthChecker:
             检查结果
         """
         try:
-            database_health = self.audit_repo.get_database_health()
+            self.audit_repo.get_database_health()
 
             return HealthCheckResult(
                 component="audit_database_connection",
                 status="OK",
                 message="Database connection is healthy",
-                details=database_health,
+                details={"probe": "passed"},
                 checked_at=datetime.now(UTC),
             )
 
-        except Exception as e:
-            logger.error(f"Database connection check failed: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Database connection check failed: %s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             return HealthCheckResult(
                 component="audit_database_connection",
                 status="ERROR",
-                message=f"Database connection failed: {e}",
-                details={"error": str(e)},
+                message="Database connection check failed",
+                details={"error_type": type(exc).__name__},
                 checked_at=datetime.now(UTC),
             )
 
@@ -239,25 +297,27 @@ class AuditHealthChecker:
         """
         try:
             # 尝试查询审计表
-            count = self.audit_repo.count_operation_logs()
+            self.audit_repo.count_operation_logs()
 
             return HealthCheckResult(
                 component="audit_tables_accessible",
                 status="OK",
-                message=f"Audit tables are accessible, {count} records found",
-                details={
-                    "operation_log_count": count,
-                },
+                message="Audit tables are accessible",
+                details={"probe": "passed"},
                 checked_at=datetime.now(UTC),
             )
 
-        except Exception as e:
-            logger.error(f"Audit tables accessibility check failed: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Audit tables accessibility check failed: %s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             return HealthCheckResult(
                 component="audit_tables_accessible",
                 status="ERROR",
-                message=f"Cannot access audit tables: {e}",
-                details={"error": str(e)},
+                message="Audit tables are not accessible",
+                details={"error_type": type(exc).__name__},
                 checked_at=datetime.now(UTC),
             )
 
@@ -296,21 +356,27 @@ class AuditHealthChecker:
             failure_stats = self.failure_counter.get_failure_stats()
 
             return {
+                "available": True,
                 "total_operation_logs": total_logs,
                 "total_failures": failure_stats.total_count,
                 "failure_rate": (
-                    failure_stats.total_count / total_logs if total_logs > 0 else 0
+                    failure_stats.total_count / (total_logs + failure_stats.total_count)
+                    if total_logs + failure_stats.total_count > 0
+                    else 0.0
                 ),
-                "failures_by_component": failure_stats.by_component,
+                "failures_by_component": dict(failure_stats.by_component),
             }
 
-        except Exception as e:
-            logger.error(f"Failed to get audit metrics: {e}", exc_info=True)
-            return {"error": str(e)}
-
-
-# 全局健康检查器单例
-_health_checker: AuditHealthChecker | None = None
+        except Exception as exc:
+            logger.error(
+                "Failed to get audit metrics: %s",
+                type(exc).__name__,
+                exc_info=True,
+            )
+            return {
+                "available": False,
+                "error_type": type(exc).__name__,
+            }
 
 
 def get_health_checker(
@@ -318,7 +384,7 @@ def get_health_checker(
     error_threshold: int | None = None,
 ) -> AuditHealthChecker:
     """
-    获取健康检查器单例
+    获取按本次阈值构建的健康检查器
 
     Args:
         warning_threshold: WARNING 状态阈值
@@ -327,15 +393,10 @@ def get_health_checker(
     Returns:
         健康检查器
     """
-    global _health_checker
-
-    if _health_checker is None:
-        _health_checker = AuditHealthChecker(
-            warning_threshold=warning_threshold,
-            error_threshold=error_threshold,
-        )
-
-    return _health_checker
+    return AuditHealthChecker(
+        warning_threshold=warning_threshold,
+        error_threshold=error_threshold,
+    )
 
 
 def check_audit_health(

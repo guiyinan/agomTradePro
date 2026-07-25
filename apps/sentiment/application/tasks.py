@@ -5,10 +5,12 @@ Sentiment 模块 - Application 层 Celery 任务
 """
 
 import logging
+import math
 from datetime import date, datetime
-from typing import Any
 
-from celery import shared_task
+from apps.data_center.domain.entities import NewsFact
+from core.exceptions import AIServiceError
+from shared.infrastructure.celery_typing import BoundTask, typed_shared_task
 
 logger = logging.getLogger(__name__)
 
@@ -16,21 +18,36 @@ logger = logging.getLogger(__name__)
 def _normalize_news_sentiment_score(raw_score: float) -> float:
     """Normalize data-center news score into the sentiment [-3, 3] scale."""
 
+    if isinstance(raw_score, bool):
+        raise ValueError("news sentiment score must be a finite number")
     score = float(raw_score)
+    if not math.isfinite(score):
+        raise ValueError("news sentiment score must be a finite number")
     if -1.0 <= score <= 1.0:
         score *= 3.0
     return max(-3.0, min(3.0, score))
 
 
-def _build_news_text(news_item) -> str:
+def _build_news_text(news_item: NewsFact) -> str:
     """Build analyzable text from a market news fact."""
 
-    title = str(getattr(news_item, "title", "") or "")
-    summary = str(getattr(news_item, "summary", "") or "")
+    title = str(news_item.title or "")
+    summary = str(news_item.summary or "")
     return f"{title}\n{summary}".strip()
 
 
-@shared_task(
+def _parse_target_date(target_date: str | None) -> date:
+    """Parse an optional task date without retrying permanent input errors."""
+
+    if target_date is None or not target_date.strip():
+        return date.today()
+    try:
+        return datetime.strptime(target_date, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ValueError("target_date must use YYYY-MM-DD format") from exc
+
+
+@typed_shared_task(
     name="sentiment.calculate_daily_sentiment_index",
     bind=True,
     max_retries=3,
@@ -38,7 +55,10 @@ def _build_news_text(news_item) -> str:
     time_limit=900,
     soft_time_limit=850,
 )
-def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, Any]:
+def calculate_daily_sentiment_index(
+    self: BoundTask,
+    target_date: str | None = None,
+) -> dict[str, object]:
     """
     每日计算综合情绪指数
 
@@ -50,7 +70,7 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
     Returns:
         执行结果字典
     """
-    from apps.ai_provider.application.client_provider import get_ai_provider_repository
+    from apps.ai_provider.application.repository_provider import get_ai_provider_repository
     from apps.policy.application.repository_provider import get_current_policy_repository
     from apps.sentiment.application.repository_provider import (
         get_market_news_for_sentiment,
@@ -58,13 +78,9 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
     )
     from apps.sentiment.application.services import SentimentAnalyzer, SentimentIndexCalculator
 
-    try:
-        # 解析日期
-        if target_date:
-            target_date_obj = datetime.strptime(target_date, "%Y-%m-%d").date()
-        else:
-            target_date_obj = date.today()
+    target_date_obj = _parse_target_date(target_date)
 
+    try:
         logger.info(f"开始计算 {target_date_obj} 的情绪指数")
 
         # 1. 获取当日政策事件
@@ -78,11 +94,19 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
         analyzer = SentimentAnalyzer(ai_provider_repo)
 
         # 3. 分析政策情感
-        policy_scores = []
+        policy_scores: list[float] = []
+        ai_failure_count = 0
         for event in policy_events:
             try:
                 text = f"{event.title}\n{event.description or ''}"
                 result = analyzer.analyze_text(text)
+                if result.error_message is not None:
+                    ai_failure_count += 1
+                    logger.warning(
+                        "政策事件 %s 情感分析不可用，不计入指数",
+                        event.title,
+                    )
+                    continue
                 policy_scores.append(result.sentiment_score)
                 logger.info(
                     "政策事件 %s (%s) 情感评分: %s",
@@ -90,37 +114,57 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
                     event.event_date,
                     result.sentiment_score,
                 )
-            except Exception as e:
+            except Exception as exc:
+                ai_failure_count += 1
                 logger.error(
                     "分析政策事件 %s (%s) 失败: %s",
                     event.title,
                     event.event_date,
-                    e,
+                    exc,
                 )
                 continue
 
         # 4. 获取当日市场新闻并分析
         news_items = get_market_news_for_sentiment(target_date_obj, limit=50)
         logger.info(f"找到 {len(news_items)} 条市场新闻")
-        news_scores = []
+        news_scores: list[float] = []
         for news_item in news_items:
-            try:
-                if getattr(news_item, "sentiment_score", None) is not None:
-                    news_scores.append(_normalize_news_sentiment_score(news_item.sentiment_score))
-                    continue
+            stored_score = news_item.sentiment_score
+            if stored_score is not None:
+                try:
+                    news_scores.append(_normalize_news_sentiment_score(stored_score))
+                except (TypeError, ValueError) as exc:
+                    logger.error(
+                        "新闻 %s 的已存情绪评分无效，已跳过: %s",
+                        news_item.external_id or news_item.url,
+                        exc,
+                    )
+                continue
 
+            try:
                 text = _build_news_text(news_item)
                 if not text:
                     continue
                 result = analyzer.analyze_text(text)
+                if result.error_message is not None:
+                    ai_failure_count += 1
+                    logger.warning(
+                        "新闻 %s 情感分析不可用，不计入指数",
+                        news_item.external_id or news_item.url,
+                    )
+                    continue
                 news_scores.append(result.sentiment_score)
-            except Exception as e:
+            except Exception as exc:
+                ai_failure_count += 1
                 logger.error(
                     "分析新闻 %s 失败: %s",
-                    getattr(news_item, "external_id", None) or getattr(news_item, "url", ""),
-                    e,
+                    news_item.external_id or news_item.url,
+                    exc,
                 )
                 continue
+
+        if ai_failure_count:
+            raise AIServiceError(f"{ai_failure_count} sentiment analyses failed")
 
         # 5. 计算综合指数（权重从配置读取）
         calculator = SentimentIndexCalculator()
@@ -147,12 +191,12 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
             "status": "success",
         }
 
-    except Exception as e:
-        logger.error(f"计算情绪指数失败: {e}", exc_info=True)
-        raise  # 重新抛出异常以触发重试
+    except Exception as exc:
+        logger.exception("计算情绪指数失败")
+        raise self.retry(exc=exc, countdown=300) from exc
 
 
-@shared_task(
+@typed_shared_task(
     name="sentiment.analyze_policy_event",
     bind=True,
     max_retries=2,
@@ -160,7 +204,10 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
     time_limit=300,
     soft_time_limit=280,
 )
-def analyze_policy_event_sentiment(self, event_id: int) -> dict[str, Any]:
+def analyze_policy_event_sentiment(
+    self: BoundTask,
+    event_id: int,
+) -> dict[str, object]:
     """
     分析单个政策事件的情感
 
@@ -170,9 +217,12 @@ def analyze_policy_event_sentiment(self, event_id: int) -> dict[str, Any]:
     Returns:
         分析结果字典
     """
-    from apps.ai_provider.application.client_provider import get_ai_provider_repository
+    from apps.ai_provider.application.repository_provider import get_ai_provider_repository
     from apps.policy.application.repository_provider import get_current_policy_repository
     from apps.sentiment.application.services import SentimentAnalyzer
+
+    if isinstance(event_id, bool) or not isinstance(event_id, int) or event_id <= 0:
+        raise ValueError("event_id must be a positive integer")
 
     try:
         # 获取政策事件
@@ -188,6 +238,8 @@ def analyze_policy_event_sentiment(self, event_id: int) -> dict[str, Any]:
 
         text = f"{event.title}\n{event.description or ''}"
         result = analyzer.analyze_text(text)
+        if result.error_message is not None:
+            raise AIServiceError("policy-event sentiment analysis failed")
 
         logger.info(f"政策事件 {event_id} 情感分析完成: {result.sentiment_score}")
 
@@ -200,12 +252,12 @@ def analyze_policy_event_sentiment(self, event_id: int) -> dict[str, Any]:
             "status": "success",
         }
 
-    except Exception as e:
-        logger.error(f"分析政策事件 {event_id} 情感失败: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
+    except Exception as exc:
+        logger.exception("分析政策事件 %s 情感失败", event_id)
+        raise self.retry(exc=exc, countdown=60) from exc
 
 
-@shared_task(
+@typed_shared_task(
     name="sentiment.batch_analyze_texts",
     bind=True,
     max_retries=3,
@@ -216,7 +268,10 @@ def analyze_policy_event_sentiment(self, event_id: int) -> dict[str, Any]:
     time_limit=900,
     soft_time_limit=850,
 )
-def batch_analyze_texts(self, texts: list) -> list:
+def batch_analyze_texts(
+    self: BoundTask,
+    texts: list[str],
+) -> list[dict[str, object]]:
     """
     批量分析文本情感
 
@@ -226,16 +281,21 @@ def batch_analyze_texts(self, texts: list) -> list:
     Returns:
         分析结果列表
     """
-    from apps.ai_provider.application.client_provider import get_ai_provider_repository
+    from apps.ai_provider.application.repository_provider import get_ai_provider_repository
     from apps.sentiment.application.services import SentimentAnalyzer
 
     ai_provider_repo = get_ai_provider_repository()
     analyzer = SentimentAnalyzer(ai_provider_repo)
 
-    results = []
+    if any(not isinstance(text, str) for text in texts):
+        raise ValueError("texts must contain only strings")
+
+    results: list[dict[str, object]] = []
     for text in texts:
         try:
             result = analyzer.analyze_text(text)
+            if result.error_message is not None:
+                raise AIServiceError("batch sentiment analysis failed")
             results.append(
                 {
                     "text": text[:100] + "..." if len(text) > 100 else text,
@@ -244,19 +304,21 @@ def batch_analyze_texts(self, texts: list) -> list:
                     "confidence": result.confidence,
                 }
             )
-        except Exception as e:
-            logger.error(f"分析文本失败: {e}")
+        except AIServiceError:
+            raise
+        except Exception as exc:
+            logger.error("分析文本失败: %s", exc)
             results.append(
                 {
                     "text": text[:100] + "..." if len(text) > 100 else text,
-                    "error": str(e),
+                    "error": str(exc),
                 }
             )
 
     return results
 
 
-@shared_task(
+@typed_shared_task(
     name="sentiment.check_data_freshness",
     bind=True,
     max_retries=2,
@@ -264,7 +326,7 @@ def batch_analyze_texts(self, texts: list) -> list:
     time_limit=300,
     soft_time_limit=280,
 )
-def check_sentiment_data_freshness(self) -> dict[str, Any]:
+def check_sentiment_data_freshness(self: BoundTask) -> dict[str, object]:
     """
     检查情绪数据新鲜度
 
@@ -284,9 +346,7 @@ def check_sentiment_data_freshness(self) -> dict[str, Any]:
 
         # 检查数据是否是最新的
         today = date.today()
-        latest_date = (
-            latest.index_date.date() if hasattr(latest.index_date, "date") else latest.index_date
-        )
+        latest_date = latest.index_date.date()
 
         if latest_date == today:
             return {
@@ -303,9 +363,6 @@ def check_sentiment_data_freshness(self) -> dict[str, Any]:
                 "latest_date": str(latest_date),
             }
 
-    except Exception as e:
-        logger.error(f"检查情绪数据新鲜度失败: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "message": str(e),
-        }
+    except Exception as exc:
+        logger.exception("检查情绪数据新鲜度失败")
+        raise self.retry(exc=exc, countdown=60) from exc

@@ -8,10 +8,66 @@ Phase 2: Master data (AssetMasterModel, IndicatorCatalogModel) and eight fact ta
           NewsFactModel, CapitalFlowFactModel) plus RawAuditModel.
 """
 
+from typing import Any
+
 from django.conf import settings
 from django.db import models
 
+from apps.data_center.domain.entities import (
+    DataProviderSettings,
+    MarketThermometerComponentScore,
+    MarketThermometerConfig,
+    MarketThermometerSnapshot,
+    MarketThermometerThresholds,
+    MarketThermometerUserOverride,
+    ProductionCoverageUniverseConfig,
+    ProviderConfig,
+    PublisherCatalog,
+)
+from shared.numeric import safe_float
+
 from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
+
+
+def _optional_json_float(value: object, field_name: str) -> float | None:
+    """Parse a nullable finite number from persisted JSON."""
+
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a finite number")
+    parsed = safe_float(value)
+    if parsed is None:
+        raise ValueError(f"{field_name} must be a finite number")
+    return parsed
+
+
+def _required_json_float(value: object, field_name: str) -> float:
+    """Parse a required finite number from persisted JSON."""
+
+    parsed = _optional_json_float(value, field_name)
+    if parsed is None:
+        raise ValueError(f"{field_name} is required")
+    return parsed
+
+
+def _json_bool(value: object, field_name: str) -> bool:
+    """Require real booleans instead of truthy strings from persisted JSON."""
+
+    if not isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a boolean")
+    return value
+
+
+def _optional_json_nonnegative_int(value: object, field_name: str) -> int | None:
+    """Parse a nullable non-negative integer from persisted JSON."""
+
+    if value is None:
+        return None
+    parsed = _optional_json_float(value, field_name)
+    if parsed is None or not parsed.is_integer() or parsed < 0:
+        raise ValueError(f"{field_name} must be a non-negative integer")
+    return int(parsed)
 
 
 class ProviderConfigModel(models.Model):
@@ -80,9 +136,8 @@ class ProviderConfigModel(models.Model):
     def __str__(self) -> str:
         return f"{self.name} ({self.get_source_type_display()}, priority={self.priority})"
 
-    def to_domain(self):
+    def to_domain(self) -> ProviderConfig:
         """Convert to domain ProviderConfig value object."""
-        from apps.data_center.domain.entities import ProviderConfig
 
         return ProviderConfig(
             id=self.pk,
@@ -140,7 +195,7 @@ class DataProviderSettingsModel(models.Model):
     def __str__(self) -> str:
         return f"Default source: {self.get_default_source_display()}"
 
-    def save(self, *args, **kwargs) -> None:  # type: ignore[override]
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Enforce singleton — always use pk=1."""
         self.pk = self._SINGLETON_PK
         super().save(*args, **kwargs)
@@ -172,9 +227,8 @@ class DataProviderSettingsModel(models.Model):
             failover_tolerance=0.01,
         )
 
-    def to_domain(self):
+    def to_domain(self) -> DataProviderSettings:
         """Convert to domain DataProviderSettings value object."""
-        from apps.data_center.domain.entities import DataProviderSettings
 
         return DataProviderSettings(
             default_source=self.default_source,
@@ -223,7 +277,7 @@ class ProductionCoverageUniverseConfigModel(models.Model):
     def __str__(self) -> str:
         return f"{self.universe_id}: {','.join(self.normalized_exchanges())}"
 
-    def save(self, *args, **kwargs) -> None:  # type: ignore[override]
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Persist the singleton config at primary key 1."""
 
         self.pk = self._SINGLETON_PK
@@ -261,10 +315,8 @@ class ProductionCoverageUniverseConfigModel(models.Model):
                 normalized.append(exchange)
         return normalized or ["SSE", "SZSE", "BSE"]
 
-    def to_domain(self):
+    def to_domain(self) -> ProductionCoverageUniverseConfig:
         """Convert to domain ProductionCoverageUniverseConfig value object."""
-
-        from apps.data_center.domain.entities import ProductionCoverageUniverseConfig
 
         return ProductionCoverageUniverseConfig(
             universe_id=self.universe_id,
@@ -428,9 +480,8 @@ class PublisherCatalogModel(models.Model):
     def __str__(self) -> str:
         return f"{self.code} — {self.canonical_name}"
 
-    def to_domain(self):
+    def to_domain(self) -> PublisherCatalog:
         """Convert to domain PublisherCatalog value object."""
-        from apps.data_center.domain.entities import PublisherCatalog
 
         return PublisherCatalog(
             code=self.code,
@@ -676,9 +727,25 @@ class PriceBarModel(models.Model):
         ordering = ["-bar_date"]
         verbose_name = "Price Bar"
         verbose_name_plural = "Price Bars"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(close__gt=0)
+                    & ~models.Q(asset_code="")
+                    & ~models.Q(source="")
+                ),
+                name="dc_price_bar_executable_price",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.asset_code} {self.bar_date} C={self.close}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Validate canonical price invariants before persisting a bar."""
+
+        self.validate_constraints()
+        super().save(*args, **kwargs)
 
 
 class QuoteSnapshotModel(models.Model):
@@ -711,9 +778,25 @@ class QuoteSnapshotModel(models.Model):
         ordering = ["-snapshot_at"]
         verbose_name = "Quote Snapshot"
         verbose_name_plural = "Quote Snapshots"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(current_price__gt=0)
+                    & ~models.Q(asset_code="")
+                    & ~models.Q(source="")
+                ),
+                name="dc_quote_executable_price",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.asset_code} @ {self.snapshot_at} = {self.current_price}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Validate canonical price invariants before persisting a quote."""
+
+        self.validate_constraints()
+        super().save(*args, **kwargs)
 
 
 class FundNavFactModel(models.Model):
@@ -750,9 +833,25 @@ class FundNavFactModel(models.Model):
         ordering = ["-nav_date"]
         verbose_name = "Fund NAV Fact"
         verbose_name_plural = "Fund NAV Facts"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(nav__gt=0)
+                    & ~models.Q(fund_code="")
+                    & ~models.Q(source="")
+                ),
+                name="dc_fund_nav_executable_price",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.fund_code} {self.nav_date} NAV={self.nav}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Validate canonical price invariants before persisting a fund NAV."""
+
+        self.validate_constraints()
+        super().save(*args, **kwargs)
 
 
 class FinancialFactModel(models.Model):
@@ -1025,7 +1124,7 @@ class MarketThermometerConfigModel(models.Model):
         verbose_name = "Market Thermometer Config"
         verbose_name_plural = "Market Thermometer Config"
 
-    def save(self, *args, **kwargs) -> None:  # type: ignore[override]
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Persist the singleton config at primary key 1."""
 
         self.pk = self._SINGLETON_PK
@@ -1050,13 +1149,8 @@ class MarketThermometerConfigModel(models.Model):
         )
         return obj
 
-    def to_domain(self):
+    def to_domain(self) -> MarketThermometerConfig:
         """Convert to domain MarketThermometerConfig value object."""
-
-        from apps.data_center.domain.entities import (
-            MarketThermometerConfig,
-            MarketThermometerThresholds,
-        )
 
         return MarketThermometerConfig(
             short_window=self.short_window,
@@ -1096,13 +1190,8 @@ class MarketThermometerUserOverrideModel(models.Model):
         verbose_name = "Market Thermometer User Override"
         verbose_name_plural = "Market Thermometer User Overrides"
 
-    def to_domain(self):
+    def to_domain(self) -> MarketThermometerUserOverride:
         """Convert to domain MarketThermometerUserOverride value object."""
-
-        from apps.data_center.domain.entities import (
-            MarketThermometerThresholds,
-            MarketThermometerUserOverride,
-        )
 
         return MarketThermometerUserOverride(
             user_id=int(self.user_id),
@@ -1143,15 +1232,10 @@ class MarketThermometerSnapshotModel(models.Model):
             models.Index(fields=["band", "observed_at"]),
         ]
 
-    def to_domain(self):
+    def to_domain(self) -> MarketThermometerSnapshot:
         """Convert to domain MarketThermometerSnapshot value object."""
 
-        from apps.data_center.domain.entities import (
-            MarketThermometerComponentScore,
-            MarketThermometerSnapshot,
-        )
-
-        components = []
+        components: list[MarketThermometerComponentScore] = []
         for item in self.components or []:
             if isinstance(item, dict):
                 components.append(
@@ -1159,38 +1243,37 @@ class MarketThermometerSnapshotModel(models.Model):
                         component_key=str(item.get("component_key", "")),
                         label=str(item.get("label", "")),
                         indicator_code=str(item.get("indicator_code", "")),
-                        score=float(item.get("score", 0.0) or 0.0),
-                        weight=float(item.get("weight", 0.0) or 0.0),
-                        current_value=(
-                            float(item.get("current_value"))
-                            if item.get("current_value") is not None
-                            else None
+                        score=_required_json_float(
+                            item.get("score", 0.0), "component.score"
+                        ),
+                        weight=_required_json_float(
+                            item.get("weight", 0.0), "component.weight"
+                        ),
+                        current_value=_optional_json_float(
+                            item.get("current_value"), "component.current_value"
                         ),
                         unit=str(item.get("unit", "")),
-                        growth_score=(
-                            float(item.get("growth_score"))
-                            if item.get("growth_score") is not None
-                            else None
+                        growth_score=_optional_json_float(
+                            item.get("growth_score"), "component.growth_score"
                         ),
-                        percentile_score=(
-                            float(item.get("percentile_score"))
-                            if item.get("percentile_score") is not None
-                            else None
+                        percentile_score=_optional_json_float(
+                            item.get("percentile_score"), "component.percentile_score"
                         ),
-                        sentiment_score=(
-                            float(item.get("sentiment_score"))
-                            if item.get("sentiment_score") is not None
-                            else None
+                        sentiment_score=_optional_json_float(
+                            item.get("sentiment_score"), "component.sentiment_score"
                         ),
-                        positive_ratio_score=(
-                            float(item.get("positive_ratio_score"))
-                            if item.get("positive_ratio_score") is not None
-                            else None
+                        positive_ratio_score=_optional_json_float(
+                            item.get("positive_ratio_score"),
+                            "component.positive_ratio_score",
                         ),
-                        is_stale=bool(item.get("is_stale", False)),
-                        is_missing=bool(item.get("is_missing", False)),
-                        age_days=(
-                            int(item.get("age_days")) if item.get("age_days") is not None else None
+                        is_stale=_json_bool(
+                            item.get("is_stale", False), "component.is_stale"
+                        ),
+                        is_missing=_json_bool(
+                            item.get("is_missing", False), "component.is_missing"
+                        ),
+                        age_days=_optional_json_nonnegative_int(
+                            item.get("age_days"), "component.age_days"
                         ),
                         reason=str(item.get("reason", "")),
                     )

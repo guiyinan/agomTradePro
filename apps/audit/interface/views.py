@@ -770,6 +770,7 @@ class OperationLogExportView(APIView):
             end_date=end,
             mcp_client_id=mcp_client_id,
             format=export_format,
+            is_admin=IsAuditAdmin().has_permission(request, self),
         )
 
         if not response["success"]:
@@ -842,6 +843,7 @@ class OperationLogStatsView(APIView):
             start_date=start,
             end_date=end,
             group_by=group_by,
+            is_admin=IsAuditAdmin().has_permission(request, self),
         )
 
         if not response["success"]:
@@ -1084,25 +1086,26 @@ class AuditHealthCheckView(APIView):
         raw_warning_threshold = request.query_params.get("warning_threshold")
         raw_error_threshold = request.query_params.get("error_threshold")
 
-        # 转换参数类型
-        warning_threshold: int | None = None
-        if raw_warning_threshold:
-            try:
-                warning_threshold = int(raw_warning_threshold)
-            except ValueError:
-                warning_threshold = None
-        error_threshold: int | None = None
-        if raw_error_threshold:
-            try:
-                error_threshold = int(raw_error_threshold)
-            except ValueError:
-                error_threshold = None
-
-        # 执行健康检查
-        report = check_audit_health(
-            warning_threshold=warning_threshold,
-            error_threshold=error_threshold,
-        )
+        try:
+            warning_threshold = (
+                int(str(raw_warning_threshold)) if raw_warning_threshold not in (None, "") else None
+            )
+            error_threshold = (
+                int(str(raw_error_threshold)) if raw_error_threshold not in (None, "") else None
+            )
+            report = check_audit_health(
+                warning_threshold=warning_threshold,
+                error_threshold=error_threshold,
+            )
+        except ValueError:
+            return Response(
+                {
+                    "error": (
+                        "warning_threshold must be non-negative and error_threshold must be greater"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # 根据 overall_status 设置 HTTP 状态码
         http_status: int = status.HTTP_200_OK

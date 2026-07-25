@@ -40,7 +40,9 @@ def test_init_macro_indicator_governance_repairs_metadata_for_target_codes():
 
     assert power_gen.extra["series_semantics"] == "monthly_level"
     assert power_gen.extra["chart_policy"] == "period_bar"
-    assert "月度值作为发电量代理序列" in power_gen.description
+    assert power_gen.extra["governance_sync_supported"] is False
+    assert power_gen.extra["governance_status"] == "unsupported_proxy"
+    assert "全社会用电量不能作为发电量事实发布" in power_gen.description
 
     assert export_alias.extra["series_semantics"] == "monthly_level"
     assert export_alias.extra["paired_indicator_code"] == "CN_EXPORT_YOY"

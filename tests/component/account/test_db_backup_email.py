@@ -16,7 +16,7 @@ from apps.account.infrastructure.backup_service import (
 from apps.account.infrastructure.models import SystemSettingsModel
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_system_settings_can_roundtrip_backup_password():
     settings_obj = SystemSettingsModel.get_settings()
 
@@ -28,7 +28,7 @@ def test_system_settings_can_roundtrip_backup_password():
     assert settings_obj.get_backup_smtp_password() == "smtp-secret"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_generate_backup_archive_returns_encrypted_package():
     settings_obj = SystemSettingsModel.get_settings()
     settings_obj.set_backup_password("secret-123")
@@ -39,7 +39,7 @@ def test_generate_backup_archive_returns_encrypted_package():
     assert archive.content.startswith(BACKUP_FILE_MAGIC)
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     APP_BASE_URL="http://testserver",
@@ -69,7 +69,7 @@ def test_backup_email_task_sends_download_link(client):
     assert "http://testserver/admin/db-backup/" in mail.outbox[0].body
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_backup_download_view_returns_file(client):
     settings_obj = SystemSettingsModel.get_settings()
     settings_obj.backup_enabled = True
@@ -88,9 +88,64 @@ def test_backup_download_view_returns_file(client):
 
     assert response.status_code == 200
     assert response["Content-Type"] == "application/octet-stream"
+    response.close()
+
+    replay = client.get(reverse("admin-db-backup-download", kwargs={"token": token}))
+    assert replay.status_code == 404
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
+def test_generating_new_backup_link_revokes_previous_link(client):
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.backup_enabled = True
+    settings_obj.backup_email = "admin@example.com"
+    settings_obj.backup_app_base_url = "http://testserver"
+    settings_obj.backup_mail_from_email = "noreply@example.com"
+    settings_obj.backup_link_ttl_days = 2
+    settings_obj.backup_smtp_host = "smtp.example.com"
+    settings_obj.backup_smtp_port = 587
+    settings_obj.set_backup_password("secret-123")
+    settings_obj.set_backup_smtp_password("smtp-secret")
+    settings_obj.save()
+
+    old_token = generate_download_token(settings_obj)
+    current_token = generate_download_token(settings_obj)
+
+    old_response = client.get(
+        reverse("admin-db-backup-download", kwargs={"token": old_token})
+    )
+    assert old_response.status_code == 404
+
+    current_response = client.get(
+        reverse("admin-db-backup-download", kwargs={"token": current_token})
+    )
+    assert current_response.status_code == 200
+    current_response.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_persisted_backup_link_expiry_is_enforced(client):
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.backup_enabled = True
+    settings_obj.backup_email = "admin@example.com"
+    settings_obj.backup_app_base_url = "http://testserver"
+    settings_obj.backup_mail_from_email = "noreply@example.com"
+    settings_obj.backup_link_ttl_days = 2
+    settings_obj.backup_smtp_host = "smtp.example.com"
+    settings_obj.backup_smtp_port = 587
+    settings_obj.set_backup_password("secret-123")
+    settings_obj.set_backup_smtp_password("smtp-secret")
+    settings_obj.save()
+    token = generate_download_token(settings_obj)
+    settings_obj.backup_download_token_expires_at = timezone.now() - timedelta(seconds=1)
+    settings_obj.save(update_fields=["backup_download_token_expires_at", "updated_at"])
+
+    response = client.get(reverse("admin-db-backup-download", kwargs={"token": token}))
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db(transaction=True)
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend")
 def test_backup_email_connection_uses_runtime_admin_config():
     settings_obj = SystemSettingsModel.get_settings()

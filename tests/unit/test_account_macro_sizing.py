@@ -77,6 +77,39 @@ def build_default_config() -> MacroSizingConfig:
     )
 
 
+@pytest.mark.parametrize(
+    "factory",
+    [
+        lambda: RegimeTier(min_confidence=float("nan"), factor=1.0),
+        lambda: RegimeTier(min_confidence=0.5, factor=1.1),
+        lambda: PulseTier(min_composite=1.0, max_composite=0.0, factor=0.5),
+        lambda: DrawdownTier(min_drawdown=-0.1, factor=1.0),
+        lambda: MarketTemperatureTier(band="", factor=1.0),
+        lambda: MarketTemperatureTier(band="hot", factor=float("inf")),
+    ],
+)
+def test_macro_sizing_tiers_reject_invalid_values(factory) -> None:
+    with pytest.raises(ValueError):
+        factory()
+
+
+def test_macro_sizing_config_rejects_empty_tier_sets() -> None:
+    with pytest.raises(ValueError, match="regime_tiers"):
+        MacroSizingConfig(
+            regime_tiers=[],
+            pulse_tiers=[
+                PulseTier(min_composite=-1, max_composite=1, factor=1),
+            ],
+            warning_factor=0.5,
+            drawdown_tiers=[
+                DrawdownTier(min_drawdown=0, factor=1),
+            ],
+            market_temperature_tiers=[
+                MarketTemperatureTier(band="cold", factor=1),
+            ],
+        )
+
+
 def build_position(
     *,
     asset_code: str = "000001.SH",
@@ -472,7 +505,11 @@ class TestAccountDomainEntities:
         assert time_based.calculate_stop_price(100, 95, 120) == 0.0
 
     def test_trading_cost_and_take_profit_config_helpers(self):
-        trading_cost = TradingCostConfig(id=1, portfolio_id=1)
+        trading_cost = TradingCostConfig(
+            id=1,
+            portfolio_id=1,
+            min_commission=5.0,
+        )
 
         buy = trading_cost.calculate_buy_cost(amount=10000, is_shanghai=True)
         sell = trading_cost.calculate_sell_cost(amount=10000, is_shanghai=True)

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -24,10 +28,27 @@ from .serializers import (
 UserModel = get_user_model()
 
 
-def _base_url(request) -> str:
+def _base_url(request: Request) -> str:
     """Return one normalized external base URL for prompt payloads."""
 
-    return request.build_absolute_uri("/").rstrip("/")
+    return str(request.build_absolute_uri("/")).rstrip("/")
+
+
+def _request_user_id(request: Request) -> int:
+    """Return one valid authenticated actor id."""
+
+    user_id = getattr(request.user, "id", None)
+    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
+        raise PermissionDenied("用户身份无效")
+    return user_id
+
+
+def _positive_path_id(value: int, *, field_name: str) -> int:
+    """Reject zero or malformed identifiers before mutation services run."""
+
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValidationError({field_name: "必须是正整数"})
+    return value
 
 
 def _token_access_level_choices() -> list[dict[str, str]]:
@@ -66,7 +87,7 @@ def _admin_user_detail_payload(*, user_id: int, base_url: str) -> dict[str, obje
 
 def _created_agent_prompt(
     *,
-    token_payload: dict[str, object] | None,
+    token_payload: Mapping[str, object] | None,
     base_url: str,
     default_account_id: object | None,
 ) -> dict[str, object] | None:
@@ -89,8 +110,11 @@ class MCPSelfServiceView(APIView):
 
     permission_classes = [IsAuthenticated, GeneralPermission]
 
-    def get(self, request):
-        payload = _self_service_payload(user_id=request.user.id, base_url=_base_url(request))
+    def get(self, request: Request) -> Response:
+        payload = _self_service_payload(
+            user_id=_request_user_id(request),
+            base_url=_base_url(request),
+        )
         return Response(MCPSelfServicePayloadSerializer(payload).data)
 
 
@@ -99,7 +123,8 @@ class MCPSelfTokenCreateView(APIView):
 
     permission_classes = [IsAuthenticated, GeneralPermission]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
+        user_id = _request_user_id(request)
         serializer = MCPTokenCreateRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         token_name = _resolve_token_name(
@@ -108,21 +133,21 @@ class MCPSelfTokenCreateView(APIView):
         )
         try:
             outcome = interface_services.create_self_token(
-                request.user.id,
+                user_id,
                 token_name=token_name,
                 access_level=str(serializer.validated_data["access_level"]),
             )
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        refreshed = _self_service_payload(user_id=request.user.id, base_url=_base_url(request))
+        refreshed = _self_service_payload(user_id=user_id, base_url=_base_url(request))
         payload = {
             "success": True,
             "message": outcome.message,
             "token_payload": outcome.payload,
             "created_agent_prompt": _created_agent_prompt(
                 token_payload=outcome.payload,
-                base_url=refreshed["base_url"],
+                base_url=str(refreshed["base_url"]),
                 default_account_id=refreshed.get("default_account_id"),
             ),
             "self_service": refreshed,
@@ -135,12 +160,14 @@ class MCPSelfTokenRevokeView(APIView):
 
     permission_classes = [IsAuthenticated, GeneralPermission]
 
-    def post(self, request, token_id: int):
+    def post(self, request: Request, token_id: int) -> Response:
+        user_id = _request_user_id(request)
+        token_id = _positive_path_id(token_id, field_name="token_id")
         try:
-            outcome = interface_services.revoke_self_token(request.user.id, token_id)
+            outcome = interface_services.revoke_self_token(user_id, token_id)
         except LookupError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
-        refreshed = _self_service_payload(user_id=request.user.id, base_url=_base_url(request))
+        refreshed = _self_service_payload(user_id=user_id, base_url=_base_url(request))
         payload = {
             "success": True,
             "message": outcome.message,
@@ -155,7 +182,7 @@ class MCPAdminUsersView(APIView):
 
     permission_classes = [IsAdminUser]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         serializer = MCPAdminUsersQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         payload = interface_services.build_admin_mcp_users_payload(
@@ -170,7 +197,8 @@ class MCPAdminUserDetailView(APIView):
 
     permission_classes = [IsAdminUser]
 
-    def get(self, request, user_id: int):
+    def get(self, request: Request, user_id: int) -> Response:
+        user_id = _positive_path_id(user_id, field_name="user_id")
         try:
             payload = _admin_user_detail_payload(user_id=user_id, base_url=_base_url(request))
         except LookupError as exc:
@@ -183,7 +211,9 @@ class MCPAdminUserTokenCreateView(APIView):
 
     permission_classes = [IsAdminUser]
 
-    def post(self, request, user_id: int):
+    def post(self, request: Request, user_id: int) -> Response:
+        actor_user_id = _request_user_id(request)
+        user_id = _positive_path_id(user_id, field_name="user_id")
         serializer = MCPTokenCreateRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         token_name = _resolve_token_name(
@@ -192,7 +222,7 @@ class MCPAdminUserTokenCreateView(APIView):
         )
         try:
             outcome = interface_services.rotate_user_token(
-                actor_user_id=request.user.id,
+                actor_user_id=actor_user_id,
                 target_user_id=user_id,
                 token_name=token_name,
                 access_level=str(serializer.validated_data["access_level"]),
@@ -224,7 +254,8 @@ class MCPAdminUserTokensRevokeView(APIView):
 
     permission_classes = [IsAdminUser]
 
-    def post(self, request, user_id: int):
+    def post(self, request: Request, user_id: int) -> Response:
+        user_id = _positive_path_id(user_id, field_name="user_id")
         try:
             result = interface_services.revoke_user_tokens(user_id)
             refreshed = _admin_user_detail_payload(user_id=user_id, base_url=_base_url(request))
@@ -243,7 +274,8 @@ class MCPAdminTokenRevokeView(APIView):
 
     permission_classes = [IsAdminUser]
 
-    def post(self, request, token_id: int):
+    def post(self, request: Request, token_id: int) -> Response:
+        token_id = _positive_path_id(token_id, field_name="token_id")
         try:
             outcome = interface_services.revoke_access_token(token_id)
         except LookupError as exc:
@@ -261,7 +293,8 @@ class MCPAdminUserToggleView(APIView):
 
     permission_classes = [IsAdminUser]
 
-    def post(self, request, user_id: int):
+    def post(self, request: Request, user_id: int) -> Response:
+        user_id = _positive_path_id(user_id, field_name="user_id")
         try:
             outcome = interface_services.toggle_user_mcp(user_id)
             refreshed = _admin_user_detail_payload(user_id=user_id, base_url=_base_url(request))

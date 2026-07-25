@@ -2,7 +2,11 @@
 
 import pytest
 
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, PublisherCatalogModel
+from apps.data_center.infrastructure.models import (
+    IndicatorCatalogModel,
+    IndicatorUnitRuleModel,
+    PublisherCatalogModel,
+)
 
 
 @pytest.mark.django_db
@@ -14,6 +18,41 @@ def test_indicator_catalog_seed_contains_core_phase2_codes():
     )
 
     assert codes == {"CN_GDP", "CN_PMI", "CN_CPI", "CN_M2", "CN_SHIBOR"}
+
+
+@pytest.mark.django_db
+def test_akshare_m2_raw_unit_rule_uses_canonical_currency_storage():
+    rule = IndicatorUnitRuleModel.objects.get(
+        indicator_code="CN_M2",
+        source_type="akshare",
+        original_unit="亿元",
+    )
+
+    assert rule.storage_unit == "元"
+    assert rule.display_unit == "万亿元"
+    assert float(rule.multiplier_to_storage) == 100_000_000.0
+    assert rule.is_active is True
+
+
+@pytest.mark.django_db
+def test_manual_pmi_subitems_publish_official_file_provenance():
+    indicators = IndicatorCatalogModel.objects.filter(
+        code__in=[
+            "CN_PMI_NEW_ORDER",
+            "CN_PMI_INVENTORY",
+            "CN_PMI_RAW_MAT",
+            "CN_PMI_PURCHASE",
+            "CN_PMI_PRODUCTION",
+            "CN_PMI_EMPLOYMENT",
+        ]
+    )
+
+    assert indicators.count() == 6
+    for indicator in indicators:
+        assert indicator.extra["provenance_class"] == "official"
+        assert indicator.extra["publisher_code"] == "NBS"
+        assert indicator.extra["publisher_codes"] == ["NBS"]
+        assert indicator.extra["access_channel"] == "manual_file"
 
 
 @pytest.mark.django_db
@@ -300,17 +339,22 @@ def test_indicator_catalog_seed_covers_representative_runtime_chart_policies():
 
     assert power_gen.extra["series_semantics"] == "monthly_level"
     assert power_gen.extra["chart_policy"] == "period_bar"
+    assert power_gen.extra["governance_sync_supported"] is False
+    assert power_gen.extra["governance_status"] == "unsupported_proxy"
 
     assert blast_furnace.extra["series_semantics"] == "index_level"
     assert blast_furnace.extra["chart_policy"] == "continuous_line"
+    assert blast_furnace.extra["governance_sync_supported"] is False
+    assert blast_furnace.extra["governance_status"] == "unsupported_proxy"
 
     assert export_alias.extra["series_semantics"] == "monthly_level"
     assert export_alias.extra["alias_of_indicator_code"] == "CN_EXPORTS"
     assert export_alias.extra["governance_scope"] == "macro_compat_alias"
     assert export_alias.extra["chart_policy"] == "period_bar"
 
-    assert rmb_deposit.extra["series_semantics"] == "balance_level"
-    assert rmb_deposit.extra["chart_policy"] == "continuous_line"
+    assert rmb_deposit.name_cn == "新增人民币存款"
+    assert rmb_deposit.extra["series_semantics"] == "flow_level"
+    assert rmb_deposit.extra["chart_policy"] == "period_bar"
 
     assert rmb_loan.extra["series_semantics"] == "flow_level"
     assert rmb_loan.extra["chart_policy"] == "period_bar"

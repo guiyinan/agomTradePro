@@ -15,6 +15,8 @@ from apps.strategy.infrastructure.models import (
     AIStrategyConfigModel,
     PortfolioStrategyAssignmentModel,
     PositionManagementRuleModel,
+    RuleConditionModel,
+    ScriptConfigModel,
     StrategyExecutionLogModel,
     StrategyModel,
 )
@@ -324,6 +326,166 @@ def test_ai_strategy_config_api_is_owner_scoped_read_only_with_staff_override(
 
 
 @pytest.mark.django_db
+def test_script_config_api_is_owner_scoped_and_rejects_cross_owner_writes(
+    authenticated_client,
+    auth_user,
+):
+    own_strategy = StrategyModel.objects.create(
+        name="Owner Script Strategy",
+        strategy_type="script_based",
+        created_by=auth_user.account_profile,
+    )
+    own_config = ScriptConfigModel.objects.create(
+        strategy=own_strategy,
+        script_code="result = []",
+        script_hash="a" * 64,
+    )
+    other_user = get_user_model().objects.create_user(
+        username="strategy_script_other",
+        password="testpass123",
+    )
+    other_strategy = StrategyModel.objects.create(
+        name="Other Script Strategy",
+        strategy_type="script_based",
+        created_by=other_user.account_profile,
+    )
+    other_config = ScriptConfigModel.objects.create(
+        strategy=other_strategy,
+        script_code="result = []",
+        script_hash="b" * 64,
+    )
+    other_write_strategy = StrategyModel.objects.create(
+        name="Other Script Write Target",
+        strategy_type="script_based",
+        created_by=other_user.account_profile,
+    )
+
+    list_response = authenticated_client.get("/api/strategy/script-configs/")
+    rows = list_response.json().get("results", list_response.json())
+    cross_create = authenticated_client.post(
+        "/api/strategy/script-configs/",
+        {"strategy": other_write_strategy.id, "script_code": "result = [1]"},
+        format="json",
+    )
+    cross_update = authenticated_client.patch(
+        f"/api/strategy/script-configs/{own_config.id}/",
+        {"strategy": other_write_strategy.id},
+        format="json",
+    )
+
+    assert list_response.status_code == 200
+    assert {row["id"] for row in rows} == {own_config.id}
+    assert (
+        authenticated_client.get(f"/api/strategy/script-configs/{other_config.id}/").status_code
+        == 404
+    )
+    assert cross_create.status_code == 403
+    assert cross_update.status_code == 403
+    own_config.refresh_from_db()
+    assert own_config.strategy_id == own_strategy.id
+
+
+@pytest.mark.django_db
+def test_ai_config_api_rejects_cross_owner_creation(
+    authenticated_client,
+):
+    other_user = get_user_model().objects.create_user(
+        username="strategy_ai_write_other",
+        password="testpass123",
+    )
+    other_strategy = StrategyModel.objects.create(
+        name="Other AI Write Strategy",
+        strategy_type="ai_driven",
+        created_by=other_user.account_profile,
+    )
+
+    response = authenticated_client.post(
+        "/api/strategy/ai-configs/",
+        {"strategy": other_strategy.id, "approval_mode": "auto"},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert not AIStrategyConfigModel.objects.filter(strategy=other_strategy).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query",
+    [
+        {"offset": "not-an-int"},
+        {"offset": -1},
+        {"limit": 0},
+        {"limit": 201},
+        {"unknown": "value"},
+    ],
+)
+def test_strategy_execution_logs_reject_invalid_or_unbounded_pagination(
+    authenticated_client,
+    auth_user,
+    query,
+):
+    strategy = StrategyModel.objects.create(
+        name=f"Pagination Guard {query}",
+        strategy_type="rule_based",
+        created_by=auth_user.account_profile,
+    )
+
+    response = authenticated_client.get(
+        f"/api/strategy/strategies/{strategy.id}/execution_logs/",
+        query,
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_strategy_activation_does_not_report_success_when_update_fails(
+    authenticated_client,
+    auth_user,
+):
+    strategy = StrategyModel.objects.create(
+        name="Activation Truthfulness",
+        strategy_type="rule_based",
+        is_active=False,
+        created_by=auth_user.account_profile,
+    )
+
+    with patch(
+        "apps.strategy.interface.strategy_api_views.set_strategy_active",
+        return_value=None,
+    ):
+        response = authenticated_client.post(f"/api/strategy/strategies/{strategy.id}/activate/")
+
+    assert response.status_code == 404
+    strategy.refresh_from_db()
+    assert strategy.is_active is False
+
+
+@pytest.mark.django_db
+def test_inactive_strategy_cannot_execute_through_sdk_action(
+    authenticated_client,
+    auth_user,
+):
+    strategy = StrategyModel.objects.create(
+        name="Inactive Execution Guard",
+        strategy_type="rule_based",
+        is_active=False,
+        created_by=auth_user.account_profile,
+    )
+
+    response = authenticated_client.post(
+        f"/api/strategy/strategies/{strategy.id}/execute/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+    assert "inactive" in response.json()["error"]
+
+
+@pytest.mark.django_db
 def test_position_rule_api_is_owner_scoped_read_only_with_staff_override(
     authenticated_client,
     auth_user,
@@ -481,6 +643,212 @@ def test_position_rule_calculations_are_owner_scoped_and_side_effect_free(
     assert staff_response.status_code == 200
     assert staff_response.json()["position_size"] == 1000.0
     assert _strategy_table_counts() == before
+
+
+@pytest.mark.django_db
+def test_rule_conditions_are_owner_scoped_and_reject_cross_owner_writes(
+    authenticated_client,
+    auth_user,
+):
+    own_strategy = StrategyModel.objects.create(
+        name="Owner Rule Conditions",
+        strategy_type="rule_based",
+        created_by=auth_user.account_profile,
+    )
+    own_rule = RuleConditionModel.objects.create(
+        strategy=own_strategy,
+        rule_name="Owner Macro Guard",
+        rule_type="macro",
+        condition_json={"operator": "and", "conditions": []},
+        action="hold",
+    )
+    other_user = get_user_model().objects.create_user(
+        username="strategy_condition_other",
+        password="testpass123",
+    )
+    other_strategy = StrategyModel.objects.create(
+        name="Other Rule Conditions",
+        strategy_type="rule_based",
+        created_by=other_user.account_profile,
+    )
+    other_rule = RuleConditionModel.objects.create(
+        strategy=other_strategy,
+        rule_name="Other Macro Guard",
+        rule_type="macro",
+        condition_json={"operator": "and", "conditions": []},
+        action="hold",
+    )
+
+    list_response = authenticated_client.get("/api/strategy/rules/")
+    rows = list_response.json().get("results", list_response.json())
+    cross_create = authenticated_client.post(
+        "/api/strategy/rules/",
+        {
+            "strategy": other_strategy.id,
+            "rule_name": "Injected",
+            "rule_type": "macro",
+            "condition_json": {"operator": "and", "conditions": []},
+            "action": "hold",
+        },
+        format="json",
+    )
+    cross_update = authenticated_client.patch(
+        f"/api/strategy/rules/{own_rule.id}/",
+        {"strategy": other_strategy.id},
+        format="json",
+    )
+
+    assert list_response.status_code == 200
+    assert {row["id"] for row in rows} == {own_rule.id}
+    assert authenticated_client.get(f"/api/strategy/rules/{other_rule.id}/").status_code == 404
+    assert (
+        authenticated_client.post(f"/api/strategy/rules/{other_rule.id}/disable/").status_code
+        == 404
+    )
+    assert cross_create.status_code == 403
+    assert cross_update.status_code == 403
+    own_rule.refresh_from_db()
+    assert own_rule.strategy_id == own_strategy.id
+
+
+@pytest.mark.django_db
+def test_position_rule_creation_rejects_cross_owner_strategy(
+    authenticated_client,
+):
+    other_user = get_user_model().objects.create_user(
+        username="strategy_position_write_other",
+        password="testpass123",
+    )
+    other_strategy = StrategyModel.objects.create(
+        name="Other Position Rule Write",
+        strategy_type="rule_based",
+        created_by=other_user.account_profile,
+    )
+
+    response = authenticated_client.post(
+        "/api/strategy/position-rules/",
+        {
+            "strategy": other_strategy.id,
+            "name": "Injected Position Rule",
+            "buy_price_expr": "current_price",
+            "sell_price_expr": "current_price",
+            "stop_loss_expr": "current_price * 0.9",
+            "take_profit_expr": "current_price * 1.1",
+            "position_size_expr": "100",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert not PositionManagementRuleModel.objects.filter(strategy=other_strategy).exists()
+
+
+@pytest.mark.django_db
+def test_execution_logs_require_both_strategy_and_portfolio_ownership(
+    authenticated_client,
+    auth_user,
+):
+    own_strategy = StrategyModel.objects.create(
+        name="Owner Execution Log",
+        strategy_type="rule_based",
+        created_by=auth_user.account_profile,
+    )
+    own_account = SimulatedAccountModel.objects.create(
+        user=auth_user,
+        account_name="Owner Execution Account",
+        initial_capital=100_000,
+        current_cash=100_000,
+        total_value=100_000,
+    )
+    own_log = StrategyExecutionLogModel.objects.create(
+        strategy=own_strategy,
+        portfolio=own_account,
+        execution_duration_ms=10,
+        execution_result={"status": "completed"},
+        signals_generated=[],
+        is_success=True,
+    )
+    other_user = get_user_model().objects.create_user(
+        username="strategy_log_other",
+        password="testpass123",
+    )
+    other_strategy = StrategyModel.objects.create(
+        name="Other Execution Log",
+        strategy_type="rule_based",
+        created_by=other_user.account_profile,
+    )
+    other_account = SimulatedAccountModel.objects.create(
+        user=other_user,
+        account_name="Other Execution Account",
+        initial_capital=100_000,
+        current_cash=100_000,
+        total_value=100_000,
+    )
+    other_log = StrategyExecutionLogModel.objects.create(
+        strategy=other_strategy,
+        portfolio=other_account,
+        execution_duration_ms=10,
+        execution_result={"status": "completed"},
+        signals_generated=[],
+        is_success=True,
+    )
+    cross_owned_log = StrategyExecutionLogModel.objects.create(
+        strategy=own_strategy,
+        portfolio=other_account,
+        execution_duration_ms=10,
+        execution_result={"status": "completed"},
+        signals_generated=[],
+        is_success=True,
+    )
+
+    list_response = authenticated_client.get("/api/strategy/execution-logs/")
+    rows = list_response.json().get("results", list_response.json())
+    by_other_strategy = authenticated_client.get(
+        "/api/strategy/execution-logs/by_strategy/",
+        {"strategy_id": other_strategy.id},
+    )
+    by_other_portfolio = authenticated_client.get(
+        "/api/strategy/execution-logs/by_portfolio/",
+        {"portfolio_id": other_account.id},
+    )
+
+    assert list_response.status_code == 200
+    assert {row["id"] for row in rows} == {own_log.id}
+    assert other_log.id not in {row["id"] for row in rows}
+    assert cross_owned_log.id not in {row["id"] for row in rows}
+    assert by_other_strategy.status_code == 200
+    assert by_other_strategy.json() == []
+    assert by_other_portfolio.status_code == 200
+    assert by_other_portfolio.json() == []
+    assert (
+        authenticated_client.get(f"/api/strategy/execution-logs/{other_log.id}/").status_code == 404
+    )
+
+    auth_user.is_staff = True
+    auth_user.save(update_fields=["is_staff"])
+    assert (
+        authenticated_client.get(f"/api/strategy/execution-logs/{other_log.id}/").status_code == 200
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("endpoint", "query"),
+    [
+        ("/api/strategy/execution-logs/by_strategy/", {}),
+        ("/api/strategy/execution-logs/by_strategy/", {"strategy_id": "bad"}),
+        ("/api/strategy/execution-logs/by_strategy/", {"strategy_id": -1}),
+        ("/api/strategy/execution-logs/by_portfolio/", {"unknown": 1}),
+    ],
+)
+def test_execution_log_scopes_reject_invalid_query(
+    authenticated_client,
+    endpoint,
+    query,
+):
+    response = authenticated_client.get(endpoint, query)
+
+    assert response.status_code == 400
 
 
 @pytest.mark.django_db

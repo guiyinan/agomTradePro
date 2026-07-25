@@ -5,13 +5,22 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from apps.ai_provider.application.client_provider import get_ai_provider_repository
+from apps.ai_provider.application.repository_provider import get_ai_provider_repository
 from apps.sentiment.application.repository_provider import (
     get_sentiment_analysis_log_repository,
     get_sentiment_cache_repository,
     get_sentiment_index_repository,
 )
 from apps.sentiment.application.services import SentimentAnalyzer
+from apps.sentiment.domain.entities import SentimentAnalysisResult
+from core.exceptions import AIServiceError
+
+
+def _require_successful_analysis(result: SentimentAnalysisResult) -> None:
+    """Reject degraded AI results before they are cached or exposed as neutral data."""
+
+    if result.error_message is not None:
+        raise AIServiceError("舆情 AI 分析暂时不可用")
 
 
 def analyze_sentiment_text(*, text: str, use_cache: bool = True) -> dict[str, Any]:
@@ -26,14 +35,16 @@ def analyze_sentiment_text(*, text: str, use_cache: bool = True) -> dict[str, An
     analyzer = SentimentAnalyzer(provider_repository=get_ai_provider_repository())
     result = analyzer.analyze_text(text)
 
-    if use_cache:
-        cache_repository.set(text, result)
-
     get_sentiment_analysis_log_repository().log(
         source_type="manual",
         input_text=text,
         result=result,
     )
+    _require_successful_analysis(result)
+
+    if use_cache:
+        cache_repository.set(text, result)
+
     return result.to_dict()
 
 
@@ -42,6 +53,8 @@ def analyze_sentiment_batch(*, texts: list[str]) -> dict[str, Any]:
 
     analyzer = SentimentAnalyzer(provider_repository=get_ai_provider_repository())
     results = analyzer.analyze_batch(texts)
+    for result in results:
+        _require_successful_analysis(result)
     return {
         "results": [result.to_dict() for result in results],
         "total": len(results),

@@ -1,9 +1,28 @@
+from inspect import Parameter, signature
 from unittest.mock import patch
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.modules.account import AccountModule
 
 
 class TestAccountModuleUnifiedAliases:
+    def test_create_trading_cost_config_requires_minimum_commission(self):
+        parameter = signature(AccountModule.create_trading_cost_config).parameters["min_commission"]
+
+        assert parameter.default is Parameter.empty
+
+    def test_create_trading_cost_config_sends_explicit_minimum_commission(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(client, "post", return_value={"id": 8}) as mock_post:
+            result = client.account.create_trading_cost_config(
+                portfolio_id=3,
+                min_commission=2.5,
+            )
+
+        assert result == {"id": 8}
+        assert mock_post.call_args.kwargs["json"]["min_commission"] == 2.5
+
     def test_list_accounts_uses_unified_account_endpoint(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
 

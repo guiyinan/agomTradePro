@@ -438,7 +438,7 @@ class StrategyExecutionLogListSerializer(serializers.ModelSerializer[Any]):
 
     strategy_name = serializers.CharField(source="strategy.name", read_only=True)
     portfolio_name = serializers.CharField(source="portfolio.account_name", read_only=True)
-    signals_count = serializers.IntegerField(source="signals_generated.__len__", read_only=True)
+    signals_count = serializers.SerializerMethodField()
 
     class Meta:
         model = StrategyExecutionLogModel
@@ -451,6 +451,15 @@ class StrategyExecutionLogListSerializer(serializers.ModelSerializer[Any]):
             "strategy_name",
             "portfolio_name",
         ]
+
+    @schema_int_field
+    def get_signals_count(self, obj: Any) -> int:
+        """Return a real count only for list-shaped persisted signal JSON."""
+
+        signals = getattr(obj, "signals_generated", None)
+        if not isinstance(signals, list):
+            raise serializers.ValidationError("signals_generated 必须是列表")
+        return len(signals)
 
 
 class StrictStrategySerializer(serializers.Serializer[dict[str, Any]]):
@@ -514,6 +523,30 @@ class StrategyHistoryQuerySerializer(StrategyPerformanceQuerySerializer):
         min_value=1,
         max_value=500,
     )
+
+
+class StrategyExecutionLogQuerySerializer(StrictStrategySerializer):
+    """Validate bounded execution-log pagination."""
+
+    offset = serializers.IntegerField(required=False, default=0, min_value=0)
+    limit = serializers.IntegerField(
+        required=False,
+        default=20,
+        min_value=1,
+        max_value=200,
+    )
+
+
+class StrategyExecutionLogByStrategyQuerySerializer(StrictStrategySerializer):
+    """Validate an execution-log strategy scope."""
+
+    strategy_id = serializers.IntegerField(min_value=1)
+
+
+class StrategyExecutionLogByPortfolioQuerySerializer(StrictStrategySerializer):
+    """Validate an execution-log portfolio scope."""
+
+    portfolio_id = serializers.IntegerField(min_value=1)
 
 
 class StrategyEmptyQuerySerializer(StrictStrategySerializer):

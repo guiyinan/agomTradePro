@@ -6,11 +6,35 @@ Celery Event Bus
 """
 
 import logging
+from typing import Any, Protocol, cast
 
 from ..domain.entities import DomainEvent
 from ..domain.services import InMemoryEventBus
 
 logger = logging.getLogger(__name__)
+
+
+class _PublishEventTaskProtocol(Protocol):
+    def delay(
+        self,
+        *,
+        event_type: str,
+        payload: dict[str, Any],
+        metadata: dict[str, Any],
+        event_id: str,
+        occurred_at: str,
+        correlation_id: str | None,
+        causation_id: str | None,
+    ) -> object: ...
+
+
+def _optional_metadata_string(event: DomainEvent, key: str) -> str | None:
+    value = event.get_metadata_value(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be a string")
+    return value
 
 
 class CeleryEventBus(InMemoryEventBus):
@@ -31,21 +55,20 @@ class CeleryEventBus(InMemoryEventBus):
         try:
             from ..application.tasks import publish_event_async
 
-            publish_event_async.delay(
+            task = cast(_PublishEventTaskProtocol, publish_event_async)
+            task.delay(
                 event_type=event.event_type.value,
                 payload=event.payload,
                 metadata=event.metadata,
                 event_id=event.event_id,
-                occurred_at=event.occurred_at.isoformat() if event.occurred_at else None,
-                correlation_id=event.correlation_id,
-                causation_id=event.causation_id,
+                occurred_at=event.occurred_at.isoformat(),
+                correlation_id=_optional_metadata_string(event, "correlation_id"),
+                causation_id=_optional_metadata_string(event, "causation_id"),
             )
             logger.debug(f"Event queued for async publish: {event.event_id}")
 
         except Exception as exc:
-            logger.warning(
-                f"Celery async publish failed, falling back to sync: {exc}"
-            )
+            logger.warning("Celery async publish failed, falling back to sync: %s", exc)
             # 降级为同步发布
             self.publish(event)
 
@@ -54,6 +77,7 @@ def is_celery_available() -> bool:
     """检查 Celery 是否可用"""
     try:
         from celery import current_app
+
         # 检查 broker 是否配置
         return bool(current_app.conf.broker_url)
     except Exception:

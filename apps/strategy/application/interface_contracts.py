@@ -141,8 +141,24 @@ class StrategyInterfaceRepositoryProtocol(Protocol):
     def get_rule_condition_queryset(self) -> Any:
         """Return the ORM queryset boundary for rule conditions."""
 
+    def get_rule_condition_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> Any:
+        """Return rule conditions visible to one caller."""
+
     def get_script_config_queryset(self) -> Any:
         """Return the ORM queryset boundary for script configurations."""
+
+    def get_script_config_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> Any:
+        """Return script configurations visible to one caller."""
 
     def get_ai_strategy_config_queryset(self) -> Any:
         """Return the ORM queryset boundary for AI configurations."""
@@ -154,6 +170,18 @@ class StrategyInterfaceRepositoryProtocol(Protocol):
         include_all: bool = False,
     ) -> Any:
         """Return AI configurations visible to one caller."""
+
+    def strategy_is_accessible(
+        self,
+        *,
+        strategy_id: int,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> bool:
+        """Return whether one caller may bind configuration to a strategy."""
+
+    def strategy_is_active(self, strategy_id: int) -> bool:
+        """Return whether the strategy exists and is enabled for execution."""
 
     def get_assignment_queryset(self) -> Any:
         """Return the ORM queryset boundary for assignments."""
@@ -208,6 +236,14 @@ class StrategyInterfaceRepositoryProtocol(Protocol):
     def get_execution_log_queryset(self) -> Any:
         """Return the ORM queryset boundary for execution logs."""
 
+    def get_execution_log_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ) -> Any:
+        """Return execution logs visible through both linked owners."""
+
     def list_execution_logs_by_strategy(
         self,
         strategy_id: int,
@@ -215,12 +251,32 @@ class StrategyInterfaceRepositoryProtocol(Protocol):
     ) -> list[StrategyExecutionLogView]:
         """Return recent execution logs for one strategy."""
 
+    def list_execution_logs_by_strategy_for_access(
+        self,
+        *,
+        strategy_id: int,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+        limit: int = 100,
+    ) -> list[StrategyExecutionLogView]:
+        """Return owner-scoped recent logs for one strategy."""
+
     def list_execution_logs_by_portfolio(
         self,
         portfolio_id: int,
         limit: int = 100,
     ) -> list[StrategyExecutionLogView]:
         """Return recent execution logs for one portfolio."""
+
+    def list_execution_logs_by_portfolio_for_access(
+        self,
+        *,
+        portfolio_id: int,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+        limit: int = 100,
+    ) -> list[StrategyExecutionLogView]:
+        """Return owner-scoped recent logs for one portfolio."""
 
 
 class StrategyExecutionRunnerProtocol(Protocol):

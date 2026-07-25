@@ -12,7 +12,7 @@ class StrategyConfig(AppConfig):
     name = "apps.strategy"
     verbose_name = "投资组合策略系统"
 
-    def ready(self):
+    def ready(self) -> None:
         from apps.strategy.application.prompt_gateway import (
             register_strategy_prompt_gateway,
         )

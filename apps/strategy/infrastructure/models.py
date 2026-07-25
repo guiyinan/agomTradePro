@@ -6,6 +6,8 @@ Infrastructure层:
 - 对应Domain层的实体
 - 包含索引优化和约束
 """
+from typing import Any
+
 from django.apps import apps as django_apps
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -73,8 +75,26 @@ class StrategyModel(models.Model):
             models.Index(fields=['strategy_type', 'is_active']),
             models.Index(fields=['created_by', '-created_at']),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(max_position_pct__gte=0)
+                    & models.Q(max_position_pct__lte=100)
+                    & models.Q(max_total_position_pct__gte=0)
+                    & models.Q(max_total_position_pct__lte=100)
+                    & (
+                        models.Q(stop_loss_pct__isnull=True)
+                        | (
+                            models.Q(stop_loss_pct__gte=0)
+                            & models.Q(stop_loss_pct__lte=100)
+                        )
+                    )
+                ),
+                name="strategy_risk_pct_ranges",
+            ),
+        ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name} v{self.version} ({self.get_strategy_type_display()})"
 
 
@@ -151,8 +171,14 @@ class PositionManagementRuleModel(models.Model):
             models.Index(fields=['strategy', 'is_active']),
             models.Index(fields=['is_active', '-updated_at']),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(price_precision__lte=8),
+                name="position_rule_precision_lte_8",
+            ),
+        ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.strategy.name} - {self.name}"
 
 
@@ -229,8 +255,17 @@ class RuleConditionModel(models.Model):
             models.Index(fields=['strategy', '-priority']),
             models.Index(fields=['rule_type', 'is_enabled']),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(weight__isnull=True)
+                    | (models.Q(weight__gte=0) & models.Q(weight__lte=1))
+                ),
+                name="rule_condition_weight_range",
+            ),
+        ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.rule_name} ({self.get_rule_type_display()})"
 
 
@@ -285,7 +320,7 @@ class ScriptConfigModel(models.Model):
         verbose_name = "脚本配置"
         verbose_name_plural = "脚本配置"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.strategy.name} 脚本配置 v{self.version}"
 
 
@@ -368,8 +403,20 @@ class AIStrategyConfigModel(models.Model):
         db_table = 'ai_strategy_config'
         verbose_name = "AI策略配置"
         verbose_name_plural = "AI策略配置"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(temperature__gte=0)
+                    & models.Q(temperature__lte=2)
+                    & models.Q(max_tokens__gte=1)
+                    & models.Q(confidence_threshold__gte=0)
+                    & models.Q(confidence_threshold__lte=1)
+                ),
+                name="ai_strategy_numeric_ranges",
+            ),
+        ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         provider_name = self.ai_provider.name if self.ai_provider else "未配置"
         return f"{self.strategy.name} AI配置 ({provider_name})"
 
@@ -430,8 +477,29 @@ class PortfolioStrategyAssignmentModel(models.Model):
             models.Index(fields=['portfolio', 'is_active']),
             models.Index(fields=['strategy', 'is_active']),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(override_max_position_pct__isnull=True)
+                        | (
+                            models.Q(override_max_position_pct__gte=0)
+                            & models.Q(override_max_position_pct__lte=100)
+                        )
+                    )
+                    & (
+                        models.Q(override_stop_loss_pct__isnull=True)
+                        | (
+                            models.Q(override_stop_loss_pct__gte=0)
+                            & models.Q(override_stop_loss_pct__lte=100)
+                        )
+                    )
+                ),
+                name="portfolio_strategy_pct_ranges",
+            ),
+        ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         status = "激活" if self.is_active else "未激活"
         return f"{self.portfolio.account_name} → {self.strategy.name} ({status})"
 
@@ -481,8 +549,14 @@ class StrategyExecutionLogModel(models.Model):
             models.Index(fields=['portfolio', '-execution_time']),
             models.Index(fields=['is_success', '-execution_time']),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(execution_duration_ms__gte=0),
+                name="strategy_execution_duration_gte_0",
+            ),
+        ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         status = "成功" if self.is_success else "失败"
         return f"{self.strategy.name} @ {self.portfolio.account_name} - {status}"
 
@@ -555,12 +629,12 @@ class StrategyParamVersionModel(models.Model):
             models.Index(fields=['-created_at']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         status = "激活" if self.is_active else "未激活"
         return f"{self.strategy.name} 参数版本 v{self.version} ({status})"
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     """Resolve the portfolio-owned order intent for legacy imports."""
 
     if name == "OrderIntentModel":

@@ -28,55 +28,44 @@ def register_subscribers() -> None:
 
     在 Django app ready() 时自动调用此方法。
     """
-    try:
-        registry = get_event_subscriber_registry()
+    registry = get_event_subscriber_registry()
 
-        # 注册 Alpha 触发器主处理器 - 响应信号创建/批准和宏观变化
-        registry.register(
-            module_name="alpha_trigger",
-            event_type=EventType.SIGNAL_CREATED,
-            handler_factory=_create_alpha_trigger_handler,
-            priority=80,
-            description="Auto-create alpha triggers from signals",
-        )
-
-        registry.register(
-            module_name="alpha_trigger",
-            event_type=EventType.SIGNAL_APPROVED,
-            handler_factory=_create_alpha_trigger_handler,
-            priority=80,
-            description="Activate triggers when signals approved",
-        )
-
-        registry.register(
-            module_name="alpha_trigger",
-            event_type=EventType.REGIME_CHANGED,
-            handler_factory=_create_alpha_trigger_handler,
-            priority=80,
-            description="Evaluate regime-based triggers",
-        )
-
-        registry.register(
-            module_name="alpha_trigger",
-            event_type=EventType.POLICY_LEVEL_CHANGED,
-            handler_factory=_create_alpha_trigger_handler,
-            priority=80,
-            description="Evaluate policy-based triggers",
-        )
-
-        # 注册候选晋升处理器 - 响应触发器发射事件
-        registry.register(
-            module_name="alpha_trigger",
-            event_type=EventType.ALPHA_TRIGGER_FIRED,
-            handler_factory=_create_candidate_promotion_handler,
-            priority=70,
-            description="Promote candidates based on trigger strength",
-        )
-
-        logger.debug("Alpha Trigger subscribers registered successfully")
-
-    except Exception as e:
-        logger.error(f"Failed to register Alpha Trigger subscribers: {e}")
+    registry.register(
+        module_name="alpha_trigger",
+        event_type=EventType.SIGNAL_CREATED,
+        handler_factory=_create_alpha_trigger_handler,
+        priority=80,
+        description="Auto-create alpha triggers from signals",
+    )
+    registry.register(
+        module_name="alpha_trigger",
+        event_type=EventType.SIGNAL_APPROVED,
+        handler_factory=_create_alpha_trigger_handler,
+        priority=80,
+        description="Activate triggers when signals approved",
+    )
+    registry.register(
+        module_name="alpha_trigger",
+        event_type=EventType.REGIME_CHANGED,
+        handler_factory=_create_alpha_trigger_handler,
+        priority=80,
+        description="Evaluate regime-based triggers",
+    )
+    registry.register(
+        module_name="alpha_trigger",
+        event_type=EventType.POLICY_LEVEL_CHANGED,
+        handler_factory=_create_alpha_trigger_handler,
+        priority=80,
+        description="Evaluate policy-based triggers",
+    )
+    registry.register(
+        module_name="alpha_trigger",
+        event_type=EventType.ALPHA_TRIGGER_FIRED,
+        handler_factory=_create_candidate_promotion_handler,
+        priority=70,
+        description="Promote candidates based on trigger strength",
+    )
+    logger.debug("Alpha Trigger subscribers registered successfully")
 
 
 def _create_alpha_trigger_handler() -> EventHandler:
