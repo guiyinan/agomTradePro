@@ -3479,3 +3479,18 @@
 - Agent Runtime facade 回归 `28 passed`，context repository 与 MCP 资源回归 `25 passed`，覆盖 fetch 异常隔离、错误详情脱敏和其他来源继续可用。
 - 6 个 context facade 文件增量 mypy 清零；同时传播清除 facade factory 的未类型调用债务，全仓基线从 `1948 errors / 484 files` 收紧为 `1938 errors / 482 files`，净减少 `10 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十七批
+
+- 按“数据中台公共 API 输入可靠性 × 市场温度用户边界 × Provider 健康数据真实性”收口 Data Center API views。
+- 行情新鲜度小时数除正数外必须为有限值；`NaN`、`Inf` 和 `-Inf` 在进入报价用例前返回稳定 400，不再绕过比较并污染决策新鲜度。
+- 市场温度个人阈值布尔开关、历史天数和指标/发布机构 active filter 的非法查询值统一返回带正确字段名的 400，不再由未捕获 `ValueError` 形成 500 或误报为其他参数。
+- 个人市场温度 override 的 GET、写入和删除统一从认证请求提取已持久化的正整数用户 ID；缺少有效身份时失败关闭，不再向 Application 传递可空 ID。
+- Provider 健康快照的持久化延迟和连续失败数使用共享安全数值解析；非数字、非有限、负数和非整数遥测不再导致状态 API 500 或发布非法数值。
+- Provider 配置列表/创建 serializer 分离变量，健康快照和 provider payload 使用明确 JSON 边界类型；接口动态用户对象只在 composition 边界保留 `Any`。
+
+## 第二百三十七批验证结果
+
+- Data Center route cleanup 与市场温度 API 回归 `39 passed`，覆盖非有限新鲜度、非法布尔/天数、损坏的 provider 遥测和个人 override CRUD。
+- Data Center API views 增量 mypy 清零；全仓基线从 `1938 errors / 482 files` 收紧为 `1925 errors / 481 files`，净减少 `13 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

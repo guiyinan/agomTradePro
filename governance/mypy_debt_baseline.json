@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1938,
-    "files_with_errors": 482
+    "errors": 1925,
+    "files_with_errors": 481
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -722,13 +722,6 @@
     },
     "apps/data_center/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/data_center/interface/api_views.py": {
-      "arg-type": 6,
-      "assignment": 1,
-      "no-untyped-def": 1,
-      "type-arg": 4,
-      "var-annotated": 1
     },
     "apps/data_center/management/commands/audit_macro_fact_consistency.py": {
       "arg-type": 4,
