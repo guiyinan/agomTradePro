@@ -89,8 +89,9 @@ python manage.py normalize_macro_fact_units --check
   - `CN_EXPORT_YOY`
   - `CN_IMPORT_YOY`
 - 进出口 canonical 语义已纠正：
-  - `CN_EXPORTS` / `CN_IMPORTS` = 当月金额口径，display unit `亿美元`
+  - `CN_EXPORTS` / `CN_IMPORTS` = 当月金额口径；AKShare 原始单位为 `千美元`，统一规则转换后 display unit 为 `亿美元`
   - `CN_EXPORT_YOY` / `CN_IMPORT_YOY` = 当月金额同比增速
+  - `CN_TRADE_BALANCE` = 同月出口额减同月进口额，不再把第三方发布日期当作统计月份
 - `CN_CPI_YOY` 当前只保留为兼容 alias；治理真源优先读 `CN_CPI_NATIONAL_YOY`
 - 截至 `2026-05-03`，治理台真实缺口已清零，只剩兼容 alias 提示项。
 - `apps/macro/application/indicator_service.py` 中已移除 `CN_EXPORT_YOY -> CN_EXPORTS`、`CN_IMPORT_YOY -> CN_IMPORTS`、`CN_RETAIL_SALES_YOY -> CN_RETAIL_SALES` 这类危险回退，避免同比指标再被误映射到绝对额序列。

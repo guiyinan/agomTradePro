@@ -429,8 +429,14 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
     ),
     "CN_TRADE_BALANCE": _row(
         name_cn="贸易差额",
-        description="月度贸易差额口径，属于当期流量值，不应与累计值或同比序列混用。",
+        description="同月海关出口额减进口额的月度贸易差额，基础金额原始单位为千美元。",
         semantics="flow_level",
+        extra={
+            "derivation_method": (
+                "AKShare 当月出口额-金额 minus 当月进口额-金额 on the same month"
+            ),
+            "upstream_indicator_codes": ["CN_EXPORTS", "CN_IMPORTS"],
+        },
     ),
     "CN_UNEMPLOYMENT": _row(
         name_cn="城镇调查失业率",

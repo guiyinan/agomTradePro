@@ -2821,3 +2821,20 @@
 - Other Fetcher、Macro Fetcher Resilience、目录治理命令与语义修复迁移回归共 `37 passed`；新增覆盖正式 AKShare 列契约、全国指标项筛选、0/缺失值拒绝、北京/上海隔离、schema 漂移、油价原始单位和历史事实修复。
 - Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
 - 完整 governance consistency 的两项既有大文件阻断未发生变化。
+
+## 第一百九十三批
+
+- 按“海关贸易事实 × 增长判断与外需输入影响面”收口 Data Center Trade Fetcher。
+- 出口额、出口同比、进口额、进口同比统一使用当前 AKShare 海关数据的“月份/当月出口额-金额/当月出口额-同比增长/当月进口额-金额/当月进口额-同比增长”显式列契约；删除所有列序号回退。
+- 月份标签改为完整匹配并校验 1..12；schema 漂移明确失败，单行缺失标记或畸形金额只跳过该行，不再中断同批有效月份。
+- 出口和进口金额删除运行时 `/100000` 硬编码换算，按上游原始“千美元”值发布；新增三条 `akshare + 千美元` 单位规则，由统一治理链路按 1000 转换为 canonical 元存储并按亿美元展示。
+- 贸易差额不再读取 Jin10 发布日接口并把发布日期误作 reporting period；现在从同一海关 DataFrame、同一统计月份的当月出口额减当月进口额派生，目录补齐 derivation method 和上下游指标。
+- 数据迁移将历史 AKShare 贸易差额事实标记为 `error` 并保留原质量和错位原因，等待同月海关口径重同步；单位规则、目录 metadata 和事实质量均支持精确回滚。
+- Trade Fetcher 的第三方模块、回调、动态行、数据点列表与返回边界补齐精确类型，仅在 pandas 外部库边界保留定点 `import-untyped` 注释。
+
+## 第一百九十三批验证结果
+
+- Trade Fetcher 增量 mypy 清零；全仓基线从 `2678 errors / 557 files` 收紧为 `2671 errors / 556 files`，净减少 `7 errors / 1 file`。
+- Trade Fetcher、Macro Fetcher Resilience、目录治理命令与海关单位迁移回归共 `40 passed`；新增覆盖当前列契约、原始千美元、同月贸易差额、schema 漂移、单行错误隔离、三条单位规则、历史事实隔离和反向迁移。
+- Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。

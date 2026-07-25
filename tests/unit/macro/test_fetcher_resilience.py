@@ -186,6 +186,27 @@ def _sort(points):
 
 @pytest.fixture(autouse=True)
 def governed_macro_runtime_metadata(monkeypatch) -> None:
+    class _ThousandUsdRule:
+        original_unit = "千美元"
+        storage_unit = "元"
+        display_unit = "亿美元"
+
+    class _UnitRuleRepository:
+        @staticmethod
+        def resolve_active_rule(
+            indicator_code,
+            *,
+            source_type="",
+            original_unit="",
+        ):
+            if (
+                indicator_code in {"CN_EXPORTS", "CN_IMPORTS", "CN_TRADE_BALANCE"}
+                and source_type == "akshare"
+                and original_unit == "千美元"
+            ):
+                return _ThousandUsdRule()
+            return None
+
     monkeypatch.setattr(
         "apps.data_center.infrastructure.macro_sources.fetchers.common.get_runtime_macro_index_metadata_map",
         lambda: {
@@ -226,6 +247,10 @@ def governed_macro_runtime_metadata(monkeypatch) -> None:
                 "governance_scope": "macro_console",
             },
         },
+    )
+    monkeypatch.setattr(
+        "apps.data_center.composition.get_indicator_unit_rule_repository",
+        lambda: _UnitRuleRepository(),
     )
 
 
@@ -378,8 +403,8 @@ def test_fetch_exports_accepts_current_value_column() -> None:
 
     assert len(points) == 1
     assert points[0].code == "CN_EXPORTS"
-    assert points[0].value == pytest.approx(3210.3265274)
-    assert points[0].unit == "亿美元"
+    assert points[0].value == pytest.approx(321032652.74)
+    assert points[0].unit == "千美元"
     assert points[0].observed_at == date(2025, 3, 1)
 
 
@@ -401,8 +426,8 @@ def test_fetch_imports_accepts_amount_column() -> None:
 
     assert len(points) == 1
     assert points[0].code == "CN_IMPORTS"
-    assert points[0].value == pytest.approx(2699.0356006)
-    assert points[0].unit == "亿美元"
+    assert points[0].value == pytest.approx(269903560.06)
+    assert points[0].unit == "千美元"
 
 
 def test_fetch_import_yoy_uses_monthly_growth_column() -> None:
@@ -414,6 +439,62 @@ def test_fetch_import_yoy_uses_monthly_growth_column() -> None:
     assert points[0].code == "CN_IMPORT_YOY"
     assert points[0].value == 27.8
     assert points[0].unit == "%"
+
+
+def test_fetch_trade_balance_is_derived_from_same_month_customs_amounts() -> None:
+    fetcher = TradeIndicatorFetcher(_NoOpAK(), "akshare", _validate, _sort)
+
+    points = fetcher.fetch_trade_balance(date(2025, 1, 1), date(2025, 12, 31))
+
+    assert len(points) == 1
+    assert points[0].code == "CN_TRADE_BALANCE"
+    assert points[0].value == pytest.approx(51129092.68)
+    assert points[0].unit == "千美元"
+    assert points[0].observed_at == date(2025, 3, 1)
+
+
+class _DriftedTradeAK(_NoOpAK):
+    def macro_china_hgjck(self):
+        return pd.DataFrame(
+            {
+                "月份": ["2025年03月份"],
+                "出口": [321032652.74],
+                "进口": [269903560.06],
+            }
+        )
+
+
+class _PartiallyInvalidTradeAK(_NoOpAK):
+    def macro_china_hgjck(self):
+        return pd.DataFrame(
+            {
+                "月份": ["2025年01月份", "2025年02月份", "2025年03月份"],
+                "当月出口额-金额": ["--", 0.0, 321032652.74],
+                "当月进口额-金额": [250000000.0, 250000000.0, 269903560.06],
+            }
+        )
+
+
+def test_fetch_trade_balance_rejects_schema_drift() -> None:
+    fetcher = TradeIndicatorFetcher(_DriftedTradeAK(), "akshare", _validate, _sort)
+
+    with pytest.raises(DataValidationError, match="CN_TRADE_BALANCE 数据缺少必需列"):
+        fetcher.fetch_trade_balance(date(2025, 1, 1), date(2025, 12, 31))
+
+
+def test_fetch_trade_balance_skips_invalid_row_and_keeps_valid_month() -> None:
+    fetcher = TradeIndicatorFetcher(
+        _PartiallyInvalidTradeAK(),
+        "akshare",
+        _validate,
+        _sort,
+    )
+
+    points = fetcher.fetch_trade_balance(date(2025, 1, 1), date(2025, 12, 31))
+
+    assert len(points) == 1
+    assert points[0].observed_at == date(2025, 3, 1)
+    assert points[0].value == pytest.approx(51129092.68)
 
 
 def test_fetch_retail_sales_uses_monthly_level_column() -> None:
