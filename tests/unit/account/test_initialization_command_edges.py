@@ -55,6 +55,9 @@ def test_init_all_executes_required_steps_and_tolerates_optional_failure(monkeyp
     assert skipped["success"] == ["Required"]
     assert len(skipped["skipped"]) == 2
 
+    with pytest.raises(CommandError, match="Unknown or ambiguous"):
+        command._execute_steps({"step": "does-not-exist"})
+
 
 def test_init_all_confirmation_database_and_handle_paths(monkeypatch) -> None:
     """Interactive cancellation and non-interactive completion remain deterministic."""
@@ -74,6 +77,20 @@ def test_init_all_confirmation_database_and_handle_paths(monkeypatch) -> None:
     monkeypatch.setattr(command, "_show_next_steps", lambda: events.append("next"))
     command.handle(force=False, yes=True, skip_macro=True, step=None)
     assert events == ["database", "plan", "summary", "next"]
+
+    events.clear()
+    monkeypatch.setattr(
+        command,
+        "_execute_steps",
+        lambda options: {
+            "success": [],
+            "skipped": [],
+            "failed": ["Required: broken"],
+        },
+    )
+    with pytest.raises(CommandError, match="failed in 1 required step"):
+        command.handle(force=False, yes=True, skip_macro=True, step=None)
+    assert events == ["database", "plan", "summary"]
 
     monkeypatch.setattr(command, "_confirm", lambda message: False)
     events.clear()
@@ -449,6 +466,7 @@ def test_mcp_handle_reports_each_seed_count(monkeypatch) -> None:
     )
 
 
+@pytest.mark.django_db
 def test_init_all_renders_plan_summary_database_and_next_steps() -> None:
     """Human-readable initialization output includes every execution outcome."""
     command = init_all.Command(stdout=StringIO())

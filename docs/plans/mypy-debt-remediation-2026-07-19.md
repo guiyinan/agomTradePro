@@ -2685,3 +2685,19 @@
 - Account Cold-Start Bootstrap Command 增量 mypy 清零；全仓基线从 `2795 errors / 568 files` 收紧为 `2782 errors / 567 files`，净减少 `13 errors / 1 file`。
 - Initialization Command Edge 与 Scheduler Initialization 回归共 `29 passed`；新增覆盖必需步骤失败中止、可选 MCP seed 跳过、非法环境、Top N 与非有限行情年龄，并保留完整幂等编排。
 - Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百八十五批
+
+- 按“全量初始化入口退出真实性 × 多数据库部署影响面”收口 Account `init_all` Command。
+- 必需初始化步骤失败仍先进入结构化 summary，但随后抛出 `CommandError` 产生非零退出状态；命令不再继续展示启动服务、访问后台等误导性下一步。
+- 可选网络宏观同步仍可失败后记录 skip，不阻断离线初始化；必需/可选语义与下层 cold-start 命令保持一致。
+- `--step` 改为解析唯一的完整命令名或短别名；未知、空白、非字符串或歧义选择在任何子命令副作用前拒绝，不再静默跳过全部步骤并返回成功。
+- 计划展示和真实执行复用同一个 target command 解析结果，避免 UI 显示范围与实际执行范围漂移。
+- 数据库状态检查不再查询 SQLite 专属 `sqlite_master`，改用 Django connection introspection，兼容正式生产 PostgreSQL。
+- Initialization Step/Results 使用 TypedDict 固定必需字段和 optional 策略；CommandParser、options、确认、计划、执行、summary 与 next-step 边界补齐类型。
+
+## 第一百八十五批验证结果
+
+- Account `init_all` Command 增量 mypy 清零；全仓基线从 `2782 errors / 567 files` 收紧为 `2760 errors / 566 files`，净减少 `22 errors / 1 file`。
+- Initialization Command Edge 回归共 `13 passed`；新增覆盖未知 step 拒绝、必需失败非零退出且不展示下一步，并验证 Django introspection 输出。
+- Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。

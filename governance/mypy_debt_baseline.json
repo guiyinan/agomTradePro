@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2782,
-    "files_with_errors": 567
+    "errors": 2760,
+    "files_with_errors": 566
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -78,13 +78,6 @@
     },
     "apps/account/management/commands/bootstrap_mcp_cold_start.py": {
       "no-untyped-def": 1
-    },
-    "apps/account/management/commands/init_all.py": {
-      "attr-defined": 2,
-      "index": 4,
-      "no-untyped-call": 6,
-      "no-untyped-def": 9,
-      "var-annotated": 1
     },
     "apps/account/management/commands/init_classification.py": {
       "no-untyped-def": 1

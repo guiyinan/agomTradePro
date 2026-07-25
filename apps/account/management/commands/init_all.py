@@ -11,17 +11,38 @@ Usage:
     python manage.py init_all --yes           # Skip interactive confirmation
 """
 
+from collections.abc import Mapping
+from typing import Any, NotRequired, TypedDict
+
 from django.core import management
-from django.core.management.base import BaseCommand
-from django.db import connection
+from django.core.management.base import BaseCommand, CommandError, CommandParser
+from django.db import DatabaseError, connection
+
+
+class InitializationStep(TypedDict):
+    """One ordered initialization command and its execution policy."""
+
+    name: str
+    command: str
+    description: str
+    module: str
+    optional: NotRequired[bool]
+
+
+class InitializationResults(TypedDict):
+    """Executed, intentionally skipped, and failed initialization steps."""
+
+    success: list[str]
+    skipped: list[str]
+    failed: list[str]
 
 
 class Command(BaseCommand):
     help = 'Initialize all AgomTradePro system data (one-click setup)'
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.init_steps = [
+        self.init_steps: list[InitializationStep] = [
             # Order matters! Dependencies must be initialized first.
             {
                 'name': 'Asset Classification & Currencies',
@@ -80,7 +101,7 @@ class Command(BaseCommand):
             },
         ]
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             '--skip-macro',
             action='store_true',
@@ -103,7 +124,7 @@ class Command(BaseCommand):
             help='Run only a specific step (e.g., --step classification)'
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: object, **options: Any) -> None:
         """Execute the initialization"""
         self.stdout.write(self.style.SUCCESS('=' * 70))
         self.stdout.write(self.style.SUCCESS('AgomTradePro System - Complete Initialization'))
@@ -128,35 +149,40 @@ class Command(BaseCommand):
         # Summary
         self._show_summary(results)
 
+        if results["failed"]:
+            raise CommandError(
+                f"Initialization failed in {len(results['failed'])} required step(s)"
+            )
+
         # Next steps
         self._show_next_steps()
 
-    def _show_database_info(self):
+    def _show_database_info(self) -> None:
         """Show current database status"""
         self.stdout.write('Database Status:')
         try:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-                tables = cursor.fetchall()
+                tables = connection.introspection.table_names(cursor)
                 self.stdout.write(f'  Tables: {len(tables)}')
-        except Exception as e:
-            self.stdout.write(self.style.WARNING(f'  Unable to read database: {e}'))
+        except DatabaseError as exc:
+            self.stdout.write(self.style.WARNING(f'  Unable to read database: {exc}'))
         self.stdout.write('')
 
-    def _show_plan(self, options):
+    def _show_plan(self, options: Mapping[str, object]) -> None:
         """Show initialization plan"""
+        target_command = self._resolve_target_command(options.get("step"))
         self.stdout.write('Initialization Plan:')
         for i, step in enumerate(self.init_steps, 1):
             if step.get('optional') and options.get('skip_macro'):
                 status = '[SKIP]'
-            elif options.get('step') and options['step'].lower() not in step['command'].lower():
+            elif target_command and target_command != step['command']:
                 status = '[SKIP]'
             else:
                 status = '[EXECUTE]'
             self.stdout.write(f'  {i}. {status} {step["name"]}: {step["description"]}')
         self.stdout.write('')
 
-    def _confirm(self, message):
+    def _confirm(self, message: str) -> bool:
         """Ask for user confirmation"""
         try:
             response = input(f'{message} (y/N): ')
@@ -164,16 +190,38 @@ class Command(BaseCommand):
         except (EOFError, KeyboardInterrupt):
             return False
 
-    def _execute_steps(self, options):
+    def _resolve_target_command(self, raw_step: object) -> str:
+        """Resolve one exact command/short alias or reject an unknown selection."""
+
+        if raw_step is None or raw_step == "":
+            return ""
+        if not isinstance(raw_step, str) or not raw_step.strip():
+            raise CommandError("--step must be a non-empty string")
+        normalized = raw_step.strip().lower()
+        matches = [
+            step["command"]
+            for step in self.init_steps
+            if normalized
+            in {
+                step["command"].lower(),
+                step["command"].lower().removeprefix("init_"),
+                "macro" if step["command"] == "sync_macro_data" else "",
+            }
+        ]
+        if len(matches) != 1:
+            raise CommandError(f"Unknown or ambiguous initialization step: {raw_step}")
+        return matches[0]
+
+    def _execute_steps(self, options: Mapping[str, object]) -> InitializationResults:
         """Execute all initialization steps"""
-        results = {
+        results: InitializationResults = {
             'success': [],
             'skipped': [],
             'failed': []
         }
 
-        target_step = (options.get('step') or '').lower()
-        skip_macro = options.get('skip_macro', False)
+        target_command = self._resolve_target_command(options.get("step"))
+        skip_macro = options.get('skip_macro') is True
 
         for step in self.init_steps:
             step_name = step['name']
@@ -181,7 +229,7 @@ class Command(BaseCommand):
             is_optional = step.get('optional', False)
 
             # Skip if specific step requested
-            if target_step and target_step not in command.lower():
+            if target_command and target_command != command:
                 results['skipped'].append(f'{step_name} (not selected)')
                 continue
 
@@ -216,7 +264,7 @@ class Command(BaseCommand):
 
         return results
 
-    def _show_summary(self, results):
+    def _show_summary(self, results: InitializationResults) -> None:
         """Show initialization summary"""
         self.stdout.write('')
         self.stdout.write('=' * 70)
@@ -241,7 +289,7 @@ class Command(BaseCommand):
         self.stdout.write('')
         self.stdout.write('=' * 70)
 
-    def _show_next_steps(self):
+    def _show_next_steps(self) -> None:
         """Show recommended next steps"""
         self.stdout.write('')
         self.stdout.write('Recommended Next Steps:')
