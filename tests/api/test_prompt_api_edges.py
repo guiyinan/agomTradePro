@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.prompt.application.dtos import GenerateSignalResponse
 from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
 
 
@@ -249,6 +250,36 @@ def test_prompt_chain_mutations_require_staff(authenticated_client):
     )
 
     assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_signal_generation_returns_unprocessable_for_non_actionable_result(
+    authenticated_client,
+):
+    with patch("apps.prompt.interface.views.build_generate_signal_use_case") as build_use_case:
+        build_use_case.return_value.execute.return_value = GenerateSignalResponse(
+            asset_code="510300.SH",
+            direction="",
+            logic_desc="",
+            invalidation_logic="",
+            invalidation_threshold=None,
+            target_regime="",
+            confidence=0.0,
+            success=False,
+            must_not_use_for_decision=True,
+            error_code="signal_output_invalid",
+        )
+        response = authenticated_client.post(
+            "/api/prompt/signals/generate",
+            {"asset_code": "510300.SH", "analysis_context": {}},
+            format="json",
+        )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["success"] is False
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["error_code"] == "signal_output_invalid"
     assert not ChainConfigORM.objects.filter(name="Unauthorized Chain").exists()
 
 

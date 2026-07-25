@@ -259,7 +259,10 @@ class SignalGenerationView(APIView):
 
         # 返回结果
         response_serializer = GenerateSignalResponseSerializer(result)
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
+        response_status = (
+            status.HTTP_200_OK if result.success else status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+        return Response(response_serializer.data, status=response_status)
 
 
 class ChatView(APIView):

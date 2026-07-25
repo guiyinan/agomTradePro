@@ -3559,3 +3559,19 @@
 - Prompt 核心执行与最终输出回归 `5 passed`，Prompt API、装配、Domain 与初始化一致性回归 `81 passed`，覆盖零温度、成功链返回、结构化末步、异常脱敏和按名称解析链。
 - Prompt use cases 增量 mypy 清零，并传播清除 AI Capability、Prompt interface services 与 Terminal chat/service 的隐式 AI factory 属性债务；全仓基线从 `1874 errors / 475 files` 收紧为 `1853 errors / 474 files`，净减少 `21 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百四十二批
+
+- 按“AI 生成信号真实性 × 证伪逻辑硬约束 × 非法输出失败关闭”收口 Prompt GenerateSignal 链路。
+- 删除无论 AI 输出内容都固定发布 `NEUTRAL / 待完善 / MD / 0.5` 的伪信号逻辑；信号字段只从链中真实的结构化 `parsed_output` 获取。
+- 有效结果必须同时满足 LONG/SHORT/NEUTRAL 方向、非空投资逻辑、非占位证伪逻辑、有限证伪阈值、canonical 四象限 Regime 和 `[0, 1]` 置信度。
+- 链失败、缺少结构化输出、证伪逻辑为“待完善”、非有限/缺失阈值、非法 Regime 或越界置信度统一失败关闭；不再用业务默认值补造可行动信号。
+- GenerateSignal 响应新增 `success`、`must_not_use_for_decision` 和稳定 `error_code`；失败时发布空业务字段、零占位置信度并明确禁止用于决策。
+- API 对不可行动结果返回 422，不再以 200 表示生成成功；成功结果继续返回 200。
+- Chain step 序列化保留真实 `parsed_output` 和步骤错误码，GenerateSignal 不依赖最终自然语言文本反向猜测结构。
+
+## 第二百四十二批验证结果
+
+- GenerateSignal、Prompt execution 与 Prompt API 回归 `28 passed`，Prompt serializer、装配、Domain 和初始化一致性回归 `64 passed`。
+- Data DTO、Application、serializer 和 view 增量 mypy 清零且无新增债务；全仓基线保持 `1853 errors / 474 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

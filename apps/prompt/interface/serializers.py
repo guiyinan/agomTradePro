@@ -487,6 +487,9 @@ class GenerateSignalResponseSerializer(serializers.Serializer[GenerateSignalResp
     invalidation_threshold = serializers.FloatField(allow_null=True, required=False)
     target_regime = serializers.CharField()
     confidence = serializers.FloatField()
+    success = serializers.BooleanField()
+    must_not_use_for_decision = serializers.BooleanField()
+    error_code = serializers.CharField(allow_null=True)
 
 
 class ChatRequestSerializer(serializers.Serializer[dict[str, Any]]):

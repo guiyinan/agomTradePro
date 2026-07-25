@@ -9,11 +9,13 @@ from apps.prompt.application.dtos import (
     ExecutePromptRequest,
     ExecutePromptResponse,
     GenerateReportRequest,
+    GenerateSignalRequest,
 )
 from apps.prompt.application.use_cases import (
     ExecuteChainUseCase,
     ExecutePromptUseCase,
     GenerateReportUseCase,
+    GenerateSignalUseCase,
 )
 from apps.prompt.domain.entities import (
     ChainConfig,
@@ -152,3 +154,64 @@ def test_generate_report_resolves_chain_by_configured_name() -> None:
     assert result.report == "report"
     chain_use_case.execute_named.assert_called_once()
     assert chain_use_case.execute_named.call_args.kwargs["chain_name"] == "investment_report_chain"
+
+
+def test_generate_signal_uses_validated_structured_output() -> None:
+    chain_use_case = Mock()
+    chain_use_case.execute_named.return_value = SimpleNamespace(
+        success=True,
+        step_results={
+            "step_generate": {
+                "parsed_output": {
+                    "direction": "long",
+                    "logic_desc": "PMI 连续回升",
+                    "invalidation_logic": "PMI 跌破 50",
+                    "invalidation_threshold": "50",
+                    "target_regime": "recovery",
+                    "confidence": "0.8",
+                }
+            }
+        },
+    )
+
+    result = GenerateSignalUseCase(chain_use_case).execute(
+        GenerateSignalRequest(asset_code="510300.SH", analysis_context={})
+    )
+
+    assert result.success is True
+    assert result.must_not_use_for_decision is False
+    assert result.direction == "LONG"
+    assert result.invalidation_logic == "PMI 跌破 50"
+    assert result.invalidation_threshold == 50.0
+    assert result.target_regime == "Recovery"
+    assert result.confidence == 0.8
+
+
+def test_generate_signal_fails_closed_without_invalidation_logic() -> None:
+    chain_use_case = Mock()
+    chain_use_case.execute_named.return_value = SimpleNamespace(
+        success=True,
+        step_results={
+            "step_generate": {
+                "parsed_output": {
+                    "direction": "LONG",
+                    "logic_desc": "PMI 连续回升",
+                    "invalidation_logic": "待完善",
+                    "invalidation_threshold": 50,
+                    "target_regime": "Recovery",
+                    "confidence": 0.8,
+                }
+            }
+        },
+    )
+
+    result = GenerateSignalUseCase(chain_use_case).execute(
+        GenerateSignalRequest(asset_code="510300.SH", analysis_context={})
+    )
+
+    assert result.success is False
+    assert result.must_not_use_for_decision is True
+    assert result.error_code == "signal_output_invalid"
+    assert result.direction == ""
+    assert result.target_regime == ""
+    assert result.confidence == 0.0

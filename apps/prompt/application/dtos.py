@@ -13,6 +13,7 @@ from typing import Any
 @dataclass
 class TemplateCreateRequest:
     """创建模板请求"""
+
     name: str
     category: str
     template_content: str
@@ -26,6 +27,7 @@ class TemplateCreateRequest:
 @dataclass
 class TemplateUpdateRequest:
     """更新模板请求"""
+
     template_id: int
     name: str
     category: str
@@ -41,6 +43,7 @@ class TemplateUpdateRequest:
 @dataclass
 class TemplateResponse:
     """模板响应"""
+
     id: str
     name: str
     category: str
@@ -58,6 +61,7 @@ class TemplateResponse:
 @dataclass
 class ChainCreateRequest:
     """创建链配置请求"""
+
     name: str
     category: str
     description: str
@@ -69,6 +73,7 @@ class ChainCreateRequest:
 @dataclass
 class ChainResponse:
     """链配置响应"""
+
     id: str
     name: str
     category: str
@@ -83,6 +88,7 @@ class ChainResponse:
 @dataclass
 class ExecutePromptRequest:
     """执行Prompt的请求DTO"""
+
     template_id: int
     placeholder_values: dict[str, Any]
     provider_ref: Any | None = None
@@ -96,6 +102,7 @@ class ExecutePromptRequest:
 @dataclass
 class ExecutePromptResponse:
     """执行Prompt的响应DTO"""
+
     success: bool
     content: str
     provider_used: str
@@ -113,6 +120,7 @@ class ExecutePromptResponse:
 @dataclass
 class ExecuteChainRequest:
     """执行链式的请求DTO"""
+
     chain_id: int
     placeholder_values: dict[str, Any]
     provider_ref: Any | None = None
@@ -124,6 +132,7 @@ class ExecuteChainRequest:
 @dataclass
 class ExecuteChainResponse:
     """执行链式的响应DTO"""
+
     success: bool
     chain_name: str
     execution_mode: str
@@ -138,6 +147,7 @@ class ExecuteChainResponse:
 @dataclass
 class GenerateReportRequest:
     """生成投资分析报告的请求DTO"""
+
     as_of_date: date
     include_regime: bool = True
     include_policy: bool = True
@@ -152,6 +162,7 @@ class GenerateReportRequest:
 @dataclass
 class GenerateReportResponse:
     """生成投资分析报告的响应DTO"""
+
     report: str
     metadata: dict[str, Any]
 
@@ -159,6 +170,7 @@ class GenerateReportResponse:
 @dataclass
 class GenerateSignalRequest:
     """生成投资信号的请求DTO"""
+
     asset_code: str
     analysis_context: dict[str, Any]
     provider_ref: Any | None = None
@@ -169,6 +181,7 @@ class GenerateSignalRequest:
 @dataclass
 class GenerateSignalResponse:
     """生成投资信号的响应DTO"""
+
     asset_code: str
     direction: str
     logic_desc: str
@@ -176,11 +189,15 @@ class GenerateSignalResponse:
     invalidation_threshold: float | None
     target_regime: str
     confidence: float
+    success: bool = True
+    must_not_use_for_decision: bool = False
+    error_code: str | None = None
 
 
 @dataclass
 class ChatRequest:
     """聊天请求"""
+
     message: str
     session_id: str | None = None
     context: dict[str, Any] | None = None
@@ -192,6 +209,7 @@ class ChatRequest:
 @dataclass
 class ChatResponse:
     """聊天响应"""
+
     reply: str
     session_id: str
     metadata: dict[str, Any]
@@ -200,6 +218,7 @@ class ChatResponse:
 @dataclass
 class ValidationErrorResponse:
     """验证错误响应"""
+
     field: str
     message: str
     code: str
@@ -208,6 +227,7 @@ class ValidationErrorResponse:
 @dataclass
 class ListTemplatesRequest:
     """列出模板请求"""
+
     category: str | None = None
     is_active: bool = True
     page: int = 1
@@ -217,6 +237,7 @@ class ListTemplatesRequest:
 @dataclass
 class ListTemplatesResponse:
     """列出模板响应"""
+
     templates: list[TemplateResponse]
     total: int
     page: int
@@ -226,6 +247,7 @@ class ListTemplatesResponse:
 @dataclass
 class ListChainsRequest:
     """列出链配置请求"""
+
     category: str | None = None
     is_active: bool = True
     page: int = 1
@@ -235,6 +257,7 @@ class ListChainsRequest:
 @dataclass
 class ListChainsResponse:
     """列出链配置响应"""
+
     chains: list[ChainResponse]
     total: int
     page: int
@@ -244,6 +267,7 @@ class ListChainsResponse:
 @dataclass
 class ExecutionLogResponse:
     """执行日志响应"""
+
     id: str
     execution_id: str
     template_name: str | None
@@ -262,6 +286,7 @@ class ExecutionLogResponse:
 @dataclass
 class ListLogsRequest:
     """列出日志请求"""
+
     template_id: int | None = None
     chain_id: int | None = None
     execution_id: str | None = None
@@ -272,5 +297,6 @@ class ListLogsRequest:
 @dataclass
 class ListLogsResponse:
     """列出日志响应"""
+
     logs: list[ExecutionLogResponse]
     total: int

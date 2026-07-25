@@ -13,6 +13,8 @@ from typing import Any
 
 from apps.ai_provider.application.chat_completion import AIClientFactoryProtocol
 from apps.ai_provider.application.client_provider import get_ai_client_factory
+from apps.regime.domain.services_v2 import RegimeType
+from shared.numeric import safe_float
 
 from ..domain.entities import (
     ChainConfig,
@@ -699,6 +701,8 @@ class ExecuteChainUseCase:
                 "total_tokens": r.total_tokens,
                 "estimated_cost": r.estimated_cost,
                 "response_time_ms": r.response_time_ms,
+                "error_message": r.error_message,
+                "parsed_output": r.parsed_output,
             }
             for step_id, r in step_results.items()
         }
@@ -776,17 +780,72 @@ class GenerateSignalUseCase:
             provider_ref=request.provider_ref or request.provider_name,
             user_id=request.user_id,
         )
+        if not chain_result.success:
+            return self._failed_signal(request.asset_code, "signal_chain_failed")
 
-        # 解析输出
-        parsed = chain_result.final_output or "{}"
+        parsed_output: dict[str, Any] | None = None
+        for step_result in chain_result.step_results.values():
+            candidate = step_result.get("parsed_output")
+            if isinstance(candidate, dict):
+                parsed_output = candidate
+                break
+        if parsed_output is None:
+            return self._failed_signal(request.asset_code, "signal_output_invalid")
 
-        # 简化解析
+        direction = str(parsed_output.get("direction") or "").strip().upper()
+        logic_desc = str(parsed_output.get("logic_desc") or "").strip()
+        invalidation_logic = str(parsed_output.get("invalidation_logic") or "").strip()
+        invalidation_threshold = safe_float(parsed_output.get("invalidation_threshold"))
+        confidence = safe_float(parsed_output.get("confidence"))
+        regime_lookup = {regime.value.casefold(): regime.value for regime in RegimeType}
+        target_regime = regime_lookup.get(
+            str(parsed_output.get("target_regime") or "").strip().casefold()
+        )
+        invalidation_placeholder = invalidation_logic.casefold() in {
+            "",
+            "none",
+            "n/a",
+            "待完善",
+            "无",
+        }
+
+        if (
+            direction not in {"LONG", "SHORT", "NEUTRAL"}
+            or not logic_desc
+            or invalidation_placeholder
+            or invalidation_threshold is None
+            or confidence is None
+            or not 0 <= confidence <= 1
+            or target_regime is None
+        ):
+            return self._failed_signal(request.asset_code, "signal_output_invalid")
+
         return GenerateSignalResponse(
             asset_code=request.asset_code,
-            direction="NEUTRAL",
-            logic_desc=parsed[:200] if isinstance(parsed, str) else "",
-            invalidation_logic="待完善",
+            direction=direction,
+            logic_desc=logic_desc,
+            invalidation_logic=invalidation_logic,
+            invalidation_threshold=invalidation_threshold,
+            target_regime=target_regime,
+            confidence=confidence,
+            success=True,
+            must_not_use_for_decision=False,
+            error_code=None,
+        )
+
+    @staticmethod
+    def _failed_signal(asset_code: str, error_code: str) -> GenerateSignalResponse:
+        """Return a non-actionable signal response without fabricated values."""
+
+        return GenerateSignalResponse(
+            asset_code=asset_code,
+            direction="",
+            logic_desc="",
+            invalidation_logic="",
             invalidation_threshold=None,
-            target_regime="MD",
-            confidence=0.5,
+            target_regime="",
+            confidence=0.0,
+            success=False,
+            must_not_use_for_decision=True,
+            error_code=error_code,
         )
