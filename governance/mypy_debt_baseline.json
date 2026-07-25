@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2357,
-    "files_with_errors": 521
+    "errors": 2331,
+    "files_with_errors": 519
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -407,27 +407,14 @@
       "no-untyped-def": 4
     },
     "apps/audit/application/health_check.py": {
-      "attr-defined": 2,
-      "no-any-return": 1,
-      "no-untyped-call": 3
+      "attr-defined": 2
     },
     "apps/audit/application/indicator_use_cases.py": {
       "arg-type": 1,
       "assignment": 1
     },
-    "apps/audit/application/interface_services.py": {
-      "arg-type": 3,
-      "attr-defined": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 6,
-      "no-untyped-def": 6
-    },
     "apps/audit/application/operation_log_use_cases.py": {
       "type-arg": 4
-    },
-    "apps/audit/application/repository_provider.py": {
-      "no-untyped-def": 4,
-      "type-arg": 1
     },
     "apps/audit/domain/attribution_services.py": {
       "no-any-return": 2,

@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from apps.audit.infrastructure.providers import DjangoAuditRepository as DjangoAuditRepository
+
+if TYPE_CHECKING:
+    from apps.audit.infrastructure.failure_counter import AuditFailureCounter
 
 
 def get_audit_repository() -> DjangoAuditRepository:
@@ -11,7 +16,7 @@ def get_audit_repository() -> DjangoAuditRepository:
     return DjangoAuditRepository()
 
 
-def record_audit_write_success(**kwargs) -> None:
+def record_audit_write_success(**kwargs: Any) -> None:
     """Record a successful audit write lazily."""
 
     from apps.audit.infrastructure.metrics import record_audit_write_success as _impl
@@ -19,7 +24,7 @@ def record_audit_write_success(**kwargs) -> None:
     _impl(**kwargs)
 
 
-def record_audit_write_failure(**kwargs) -> None:
+def record_audit_write_failure(**kwargs: Any) -> None:
     """Record a failed audit write lazily."""
 
     from apps.audit.infrastructure.metrics import record_audit_write_failure as _impl
@@ -27,7 +32,7 @@ def record_audit_write_failure(**kwargs) -> None:
     _impl(**kwargs)
 
 
-def record_audit_failure(**kwargs) -> None:
+def record_audit_failure(**kwargs: Any) -> None:
     """Record a failure counter event lazily."""
 
     from apps.audit.infrastructure.failure_counter import record_audit_failure as _impl
@@ -35,7 +40,7 @@ def record_audit_failure(**kwargs) -> None:
     _impl(**kwargs)
 
 
-def get_audit_failure_counter():
+def get_audit_failure_counter() -> AuditFailureCounter:
     """Return the shared audit failure counter."""
 
     from apps.audit.infrastructure.failure_counter import get_audit_failure_counter as _impl
@@ -43,7 +48,7 @@ def get_audit_failure_counter():
     return _impl()
 
 
-def get_audit_metrics_summary() -> dict:
+def get_audit_metrics_summary() -> dict[str, object]:
     """Return the current audit metrics summary."""
 
     from apps.audit.infrastructure.metrics import get_audit_metrics_summary as _impl

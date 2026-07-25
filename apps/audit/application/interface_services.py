@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import json
+import math
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 from apps.account.application.manual_trade_sync import ManualTradeReviewSummaryUseCase
-from apps.backtest.application.repository_provider import get_backtest_repository
+from apps.audit.application.attribution_use_cases import BacktestRepositoryProtocol
+from apps.backtest.application.repository_provider import (
+    DjangoBacktestRepository,
+    get_backtest_repository,
+)
 from core.integration.decision_execution_links import list_decision_execution_links
 
 from .repository_provider import (
@@ -20,6 +25,7 @@ from .use_cases import (
     ExportOperationLogsRequest,
     ExportOperationLogsUseCase,
     GenerateAttributionReportRequest,
+    GenerateAttributionReportResponse,
     GenerateAttributionReportUseCase,
     GetAuditSummaryRequest,
     GetAuditSummaryUseCase,
@@ -32,11 +38,12 @@ from .use_cases import (
     QueryOperationLogsRequest,
     QueryOperationLogsUseCase,
     ValidateThresholdsRequest,
+    ValidateThresholdsResponse,
     ValidateThresholdsUseCase,
 )
 
 
-def _get_backtest_repository():
+def _get_backtest_repository() -> DjangoBacktestRepository:
     return get_backtest_repository()
 
 
@@ -48,6 +55,9 @@ def build_manual_trade_review_context_payload(user_id: int) -> dict[str, Any]:
 
 def generate_attribution_report_payload(backtest_id: int) -> dict[str, Any]:
     """Generate an attribution report and return the serialized payload."""
+    if isinstance(backtest_id, bool) or backtest_id <= 0:
+        return {"success": False, "error": "backtest_id must be positive", "report": None}
+
     audit_repo = get_audit_repository()
     response = GenerateAttributionReportUseCase(
         audit_repository=audit_repo,
@@ -55,17 +65,30 @@ def generate_attribution_report_payload(backtest_id: int) -> dict[str, Any]:
     ).execute(GenerateAttributionReportRequest(backtest_id=backtest_id))
     if not response.success:
         return {"success": False, "error": response.error, "report": None}
+    if response.report_id is None:
+        return {
+            "success": False,
+            "error": "归因报告未返回有效 ID",
+            "report": None,
+        }
 
     report = audit_repo.get_attribution_report(response.report_id)
-    if report:
-        report["loss_analyses"] = audit_repo.get_loss_analyses(response.report_id)
-        report["experience_summaries"] = audit_repo.get_experience_summaries(response.report_id)
+    if report is None:
+        return {
+            "success": False,
+            "error": "归因报告已生成但无法读取",
+            "report": None,
+        }
+    report["loss_analyses"] = audit_repo.get_loss_analyses(response.report_id)
+    report["experience_summaries"] = audit_repo.get_experience_summaries(response.report_id)
     return {"success": True, "error": None, "report": report}
 
 
 def preview_attribution_report_generation(*, backtest_id: int) -> dict[str, Any]:
     """Describe one attribution report generation without external I/O or writes."""
 
+    if isinstance(backtest_id, bool) or backtest_id <= 0:
+        raise ValueError("backtest_id must be positive")
     backtest = _get_backtest_repository().get_backtest_by_id(backtest_id)
     if backtest is None:
         raise LookupError(f"backtest {backtest_id} does not exist")
@@ -93,9 +116,17 @@ def preview_attribution_report_generation(*, backtest_id: int) -> dict[str, Any]
     }
 
 
-def generate_attribution_report_for_backtest(backtest_id: int, backtest_repository):
+def generate_attribution_report_for_backtest(
+    backtest_id: int,
+    backtest_repository: BacktestRepositoryProtocol,
+) -> GenerateAttributionReportResponse:
     """Generate an attribution report using the provided backtest repository."""
 
+    if isinstance(backtest_id, bool) or backtest_id <= 0:
+        return GenerateAttributionReportResponse(
+            success=False,
+            error="backtest_id must be positive",
+        )
     return GenerateAttributionReportUseCase(
         audit_repository=get_audit_repository(),
         backtest_repository=backtest_repository,
@@ -104,6 +135,8 @@ def generate_attribution_report_for_backtest(backtest_id: int, backtest_reposito
 
 def get_attribution_chart_data_payload(report_id: int) -> dict[str, Any] | None:
     """Return chart-ready data for a single attribution report."""
+    if isinstance(report_id, bool) or report_id <= 0:
+        return None
     audit_repo = get_audit_repository()
     report = audit_repo.get_attribution_report(report_id)
     if report is None:
@@ -116,8 +149,8 @@ def get_attribution_chart_data_payload(report_id: int) -> dict[str, Any] | None:
         "interaction_pnl": report.get("interaction_pnl", 0),
         "regime_accuracy": report.get("regime_accuracy", 0),
         "period_attributions": report.get("period_attributions", []),
-        "loss_analyses": report.get("loss_analyses", []),
-        "experience_summaries": report.get("experience_summaries", []),
+        "loss_analyses": audit_repo.get_loss_analyses(report_id),
+        "experience_summaries": audit_repo.get_experience_summaries(report_id),
     }
 
 
@@ -271,8 +304,10 @@ def run_threshold_validation(
     start_date: date,
     end_date: date,
     use_shadow_mode: bool,
-):
+) -> ValidateThresholdsResponse:
     """Execute threshold validation through the application use case."""
+    if start_date > end_date:
+        raise ValueError("start_date must not be after end_date")
     return ValidateThresholdsUseCase(audit_repository=get_audit_repository()).execute(
         ValidateThresholdsRequest(
             start_date=start_date,
@@ -285,6 +320,8 @@ def run_threshold_validation(
 def preview_threshold_validation(*, start_date: date, end_date: date) -> dict[str, Any]:
     """Return validation targets and write impact without running validation."""
 
+    if start_date > end_date:
+        raise ValueError("start_date must not be after end_date")
     configs = get_audit_repository().get_active_threshold_configs_by_codes(indicator_codes=None)
     indicator_codes = [
         str(config.get("indicator_code") or "").strip()
@@ -307,6 +344,11 @@ def update_indicator_threshold_levels(
     level_high: float,
 ) -> bool:
     """Persist threshold level changes for a single indicator."""
+    _validate_threshold_levels(
+        indicator_code=indicator_code,
+        level_low=level_low,
+        level_high=level_high,
+    )
     return get_audit_repository().update_threshold_config_levels(
         indicator_code,
         level_low=level_low,
@@ -322,6 +364,11 @@ def preview_indicator_threshold_levels(
 ) -> dict[str, Any]:
     """Return current and target levels without changing persisted configuration."""
 
+    _validate_threshold_levels(
+        indicator_code=indicator_code,
+        level_low=level_low,
+        level_high=level_high,
+    )
     config = get_audit_repository().get_threshold_config_by_indicator(indicator_code)
     if config is None:
         raise LookupError(f"indicator {indicator_code} threshold config does not exist")
@@ -344,13 +391,37 @@ def preview_indicator_threshold_levels(
     }
 
 
+def _validate_threshold_levels(
+    *,
+    indicator_code: str,
+    level_low: float,
+    level_high: float,
+) -> None:
+    """Validate threshold values for HTTP and non-HTTP application callers."""
+
+    if not indicator_code.strip():
+        raise ValueError("indicator_code must be non-empty")
+    if (
+        isinstance(level_low, bool)
+        or isinstance(level_high, bool)
+        or not math.isfinite(level_low)
+        or not math.isfinite(level_high)
+    ):
+        raise ValueError("threshold levels must be finite numbers")
+    if level_low >= level_high:
+        raise ValueError("level_low must be less than level_high")
+
+
 def build_audit_overview_context() -> dict[str, Any]:
     """Build the audit overview page context."""
     audit_repo = get_audit_repository()
     backtest_repo = _get_backtest_repository()
     recent_reports = audit_repo.list_attribution_report_records(limit=5)
     for report in recent_reports:
-        report.loss_analyses_count = len(audit_repo.get_loss_analysis_records(report.id))
+        report_with_context = cast(Any, report)
+        report_with_context.loss_analyses_count = len(
+            audit_repo.get_loss_analysis_records(report.id)
+        )
 
     report_backtest_ids = audit_repo.get_reported_backtest_ids()
     completed_backtests = backtest_repo.get_backtests_by_status("completed")[:50]
@@ -375,15 +446,18 @@ def build_manual_trade_review_context(user_id: int) -> dict[str, Any]:
 
 def build_report_list_context(method_filter: str) -> dict[str, Any]:
     """Build the attribution report list page context."""
+    normalized_filter = method_filter.strip().lower()
+    if normalized_filter not in {"", "heuristic", "brinson"}:
+        normalized_filter = ""
     audit_repo = get_audit_repository()
     backtest_repo = _get_backtest_repository()
     existing_backtest_ids = audit_repo.get_reported_backtest_ids()
     return {
         "reports": audit_repo.list_attribution_report_records(
-            attribution_method=method_filter or None,
+            attribution_method=normalized_filter or None,
             limit=50,
         ),
-        "method_filter": method_filter,
+        "method_filter": normalized_filter,
         "total_count": audit_repo.count_attribution_reports(),
         "backtests": backtest_repo.get_backtests_by_status("completed")[:50],
         "existing_backtest_ids": existing_backtest_ids,
@@ -530,7 +604,7 @@ def build_threshold_validation_page_context() -> dict[str, Any]:
     }
 
 
-def query_operation_logs_payload(**kwargs) -> dict[str, Any]:
+def query_operation_logs_payload(**kwargs: Any) -> dict[str, Any]:
     """Query operation logs for the interface layer."""
     response = QueryOperationLogsUseCase(audit_repository=get_audit_repository()).execute(
         QueryOperationLogsRequest(**kwargs)
@@ -604,7 +678,7 @@ def get_operation_stats_payload(
     return {"success": response.success, "stats": response.stats, "error": response.error}
 
 
-def log_operation_payload(**kwargs) -> dict[str, Any]:
+def log_operation_payload(**kwargs: Any) -> dict[str, Any]:
     """Persist an operation log via the application use case."""
     response = LogOperationUseCase(audit_repository=get_audit_repository()).execute(
         LogOperationRequest(**kwargs)
@@ -669,7 +743,10 @@ def list_execution_links_payload(
 
 def get_audit_failure_stats() -> dict[str, Any]:
     """Return the current audit failure counter snapshot."""
-    return get_audit_failure_counter().get_failure_stats().to_dict()
+    return cast(
+        dict[str, Any],
+        get_audit_failure_counter().get_failure_stats().to_dict(),
+    )
 
 
 def reset_audit_failure_counter() -> None:

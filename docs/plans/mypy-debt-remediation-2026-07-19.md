@@ -3123,3 +3123,18 @@
 - Audit Application/Domain 回归 `86 passed`，新增归因真实性与 Application 回归 `43 passed`，Audit 数据库 workflow、实际 Regime、治理与 API integration 回归 `50 passed`；分组存在既有测试重叠，均独立通过。
 - Attribution application use case 增量 mypy 清零；全仓基线从 `2372 errors / 522 files` 收紧为 `2357 errors / 521 files`，净减少 `15 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百一十三批
+
+- 按“归因结果可读取性 × 阈值写入防绕过”收口 Audit interface services 与 repository provider。
+- 归因生成 payload 只有在 use case 明确成功、返回有效 report ID 且报告能够立即读回时才返回成功；修复缺少 ID 或写后读不到记录仍发布 `success=true` 的错误语义。
+- 归因图表 payload 通过 repository 实际查询 LossAnalysis 与 ExperienceSummary，不再因为主报告 serializer 不含 nested 字段而固定返回两个空列表。
+- 归因生成、预览与图表入口拒绝非正 ID；报告方法过滤器只接受空值、heuristic 或 brinson，未知值规范化为空过滤器，不把任意字符串下传数据库。
+- 阈值更新和预览在 Application 边界再次校验非空指标、有限数与 `level_low < level_high`；直接 use case/内部调用不能绕过 DRF Serializer 写入 `NaN`、无穷值或反向区间。验证预览与执行同步拒绝反向日期范围。
+- Backtest repository、阈值响应、动态 ORM 页面上下文和 Audit failure counter/provider 补齐精确返回类型；provider 类型传播同时清除 Audit health check 的既有未类型调用。
+
+## 第二百一十三批验证结果
+
+- Audit interface invariants 与 manual trade helper 回归 `11 passed`；Audit API endpoints、归因治理、验证 API 和阈值配置 API integration 回归 `42 passed`。
+- 两个改动 Application 文件增量 mypy 清零；全仓基线从 `2357 errors / 521 files` 收紧为 `2331 errors / 519 files`，净减少 `26 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
