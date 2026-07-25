@@ -54,8 +54,8 @@ class ProviderResponse:
     source_type: str
     is_active: bool
     priority: int
-    api_key: str
-    api_secret: str
+    has_api_key: bool
+    has_api_secret: bool
     http_url: str
     api_endpoint: str
     extra_config: dict[str, Any]
@@ -68,8 +68,8 @@ class ProviderResponse:
             "source_type": self.source_type,
             "is_active": self.is_active,
             "priority": self.priority,
-            "api_key": self.api_key,
-            "api_secret": self.api_secret,
+            "has_api_key": self.has_api_key,
+            "has_api_secret": self.has_api_secret,
             "http_url": self.http_url,
             "api_endpoint": self.api_endpoint,
             "extra_config": self.extra_config,

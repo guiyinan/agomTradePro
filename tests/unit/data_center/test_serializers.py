@@ -26,6 +26,18 @@ def test_provider_config_list_masks_nested_credentials() -> None:
     }
 
 
+def test_provider_config_list_accepts_application_credential_flags() -> None:
+    serializer = ProviderConfigListSerializer()
+    provider = {
+        "has_api_key": True,
+        "has_api_secret": False,
+        "extra_config": {},
+    }
+
+    assert serializer.get_has_api_key(provider) is True
+    assert serializer.get_has_api_secret(provider) is False
+
+
 def test_capital_flow_query_rejects_unknown_parameters() -> None:
     serializer = CapitalFlowQuerySerializer(data={"asset_code": "000001.SZ", "period": "5d"})
 

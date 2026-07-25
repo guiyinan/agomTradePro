@@ -3065,3 +3065,16 @@
 - Data Center Phase 3 sync、结构预算、按需同步回归共 `12 passed`，Data Center API integration 共 `6 passed`。
 - Data Center sync use cases 目标 mypy 清零；全仓基线从 `2453 errors / 533 files` 收紧为 `2445 errors / 532 files`，净减少 `8 errors / 1 file`。
 - Django system check、架构 delta、结构预算、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百零九批
+
+- 按“Data Center Provider Response 最小披露 × 分层安全契约”收口 Provider 配置响应 DTO。
+- `ProviderResponse` 删除原始 `api_key/api_secret` 字段与 `to_dict()` 输出，改为只携带 `has_api_key/has_api_secret`；Application 调用者、任务和日志即使绕过 Interface Serializer，也无法从响应对象取得凭据。
+- Provider catalog use case 在 Domain 配置进入响应边界时立即折叠为布尔状态，不再把秘密一路传到 Interface 后才删除。
+- Provider List Serializer 原生消费 Application 布尔状态，同时保留对旧字典输入的兼容读取；nested extra_config 的 token/secret/password 递归清理保持不变。
+
+## 第二百零九批验证结果
+
+- Data Center Provider 应用与 Serializer 回归共 `39 passed`，Provider connection governance 与 API integration 共 `9 passed`；覆盖 Application Response 不含秘密、HTTP 创建/详情不回显凭据及嵌套配置脱敏。
+- 三个改动生产文件增量 mypy 清零；全仓 debt ceiling 保持 `2445 errors / 532 files`，本批未抬高债务。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。

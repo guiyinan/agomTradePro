@@ -81,10 +81,10 @@ class ProviderConfigListSerializer(serializers.Serializer[Any]):
     description = serializers.CharField()
 
     def get_has_api_key(self, obj: dict[str, Any]) -> bool:
-        return bool(obj.get("api_key"))
+        return bool(obj.get("has_api_key", obj.get("api_key")))
 
     def get_has_api_secret(self, obj: dict[str, Any]) -> bool:
-        return bool(obj.get("api_secret"))
+        return bool(obj.get("has_api_secret", obj.get("api_secret")))
 
     def get_extra_config(self, obj: dict[str, Any]) -> dict[str, Any]:
         sanitized = _sanitize_provider_config_value(obj.get("extra_config") or {})
