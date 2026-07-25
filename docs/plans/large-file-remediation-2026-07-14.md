@@ -24,7 +24,7 @@ This stage applies behavior-preserving refactoring to the initial four highest-r
 
 The remaining allowances are not refactored in this stage. Their authoritative backlog is `large_file_remediation` in the governance baseline:
 
-- AI Capability application orchestration and Simulated Trading unified-ledger persistence entered the P1 backlog on 2026-07-23 after crossing the repository-wide limit; both require responsibility-based decomposition that preserves their current facade and repository contracts.
+- AI Capability application orchestration is the only remaining allowance. It entered the P1 backlog on 2026-07-23 and requires responsibility-based decomposition that preserves its current public use-case facade.
 - P1 items must be reviewed by 2026-09-30.
 - P2 items must be reviewed by 2026-12-31.
 - A reached review date fails governance CI until the file is remediated or its metadata is deliberately revised through review.
@@ -174,3 +174,20 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - Focused Broker Execution and Strategy repository tests, architecture/governance checks, incremental mypy, formatting, and import sorting are required before merge.
 - The full repository test suite remains outside this responsibility-only refactor.
 - Roll back the Broker and Strategy splits together with the CI headroom guard and paired machine-baseline update. No model, migration, API, route, or payload change is intended.
+
+## 2026-07-26 Simulated Trading repository closure
+
+### Completed
+
+- Replaced the unified simulated-ledger repository file with a bounded compatibility facade.
+- Moved account, position/mutation, trade, daily-net-value, fee-config, and inspection persistence into six focused owner modules, with one small shared persistence helper.
+- Preserved the ten legacy repository and Mapper exports by object identity through the original `repositories` module and the existing wildcard provider surface.
+- Preserved all original class and helper ASTs, including transaction boundaries, QuerySet ordering, Decimal handling, and ORM conversion behavior.
+- Added owner-specific line budgets and reverse-import checks.
+- Removed the Simulated Trading allowance and remediation metadata from the machine baseline. AI Capability is now the only remaining approved large Python file.
+
+### Verification and rollback
+
+- Focused integration coverage includes account, position, trade, fee, daily-net-value, performance-curve, and strategy auto-trading consumers.
+- Formatting, import sorting, architecture/governance checks, and incremental mypy are required before merge.
+- Roll back the facade and all owner modules together with the structure contract and paired baseline removal. No model, migration, API, route, or payload change is part of this split.
