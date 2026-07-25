@@ -8,10 +8,11 @@ Application 层依赖 Domain 层和 Infrastructure 层的接口。
 import json
 import logging
 import re
+from typing import Any, Protocol
 
 from django.utils import timezone
 
-from apps.ai_provider.application.client_provider import build_openai_compatible_adapter
+from apps.ai_provider.application.repository_provider import build_openai_compatible_adapter
 from apps.sentiment.application.repository_provider import (
     get_sentiment_alert_repository,
     get_sentiment_config_repository,
@@ -30,6 +31,44 @@ DEFAULT_NEWS_WEIGHT = 0.4
 DEFAULT_POLICY_WEIGHT = 0.6
 
 
+class AIProviderConfigProtocol(Protocol):
+    """Configured provider fields required by the sentiment analyzer."""
+
+    base_url: str
+    default_model: str
+    extra_config: dict[str, Any] | None
+
+
+class AIProviderRepositoryProtocol(Protocol):
+    """Provider repository operations required by sentiment analysis."""
+
+    def get_active_configured_system_providers(
+        self,
+    ) -> list[AIProviderConfigProtocol]: ...
+
+    def get_api_key(self, provider: AIProviderConfigProtocol) -> str: ...
+
+
+class AIAdapterProtocol(Protocol):
+    """Narrow chat completion contract used by the sentiment analyzer."""
+
+    def chat_completion(
+        self,
+        *,
+        messages: list[dict[str, str]],
+        temperature: float,
+        max_tokens: int,
+    ) -> dict[str, Any]: ...
+
+
+class SentimentConfigRepositoryProtocol(Protocol):
+    """Runtime weight reads required by the sentiment index calculator."""
+
+    def get_news_weight(self, default: float) -> float: ...
+
+    def get_policy_weight(self, default: float) -> float: ...
+
+
 class SentimentAnalyzer:
     """
     情感分析服务（调用 AI API）
@@ -37,7 +76,7 @@ class SentimentAnalyzer:
     使用系统 AI API（apps/ai_provider）进行金融舆情情感分析。
     """
 
-    def __init__(self, provider_repository):
+    def __init__(self, provider_repository: AIProviderRepositoryProtocol) -> None:
         """
         初始化情感分析器
 
@@ -45,7 +84,7 @@ class SentimentAnalyzer:
             provider_repository: AI 提供商仓储
         """
         self.provider_repo = provider_repository
-        self._adapter_cache = {}
+        self._adapter_cache: AIAdapterProtocol | None = None
 
     def analyze_text(self, text: str) -> SentimentAnalysisResult:
         """
@@ -76,7 +115,8 @@ class SentimentAnalyzer:
         # 4. 解析结果
         if response["status"] != "success":
             # AI 调用失败，返回中性结果并发送告警
-            self._send_ai_failure_alert(text, response.get("error", "Unknown error"))
+            error_message = str(response.get("error", "Unknown error"))
+            self._send_ai_failure_alert(text, error_message)
             return SentimentAnalysisResult(
                 text=text,
                 sentiment_score=0.0,
@@ -84,13 +124,14 @@ class SentimentAnalyzer:
                 category=SentimentCategory.NEUTRAL,
                 keywords=[],
                 analyzed_at=timezone.now(),
-                error_message=f"AI 调用失败: {response.get('error', 'Unknown error')}",
+                error_message=f"AI 调用失败: {error_message}",
             )
 
-        sentiment_score = self._parse_sentiment_score(response["content"])
+        response_content = str(response["content"])
+        sentiment_score = self._parse_sentiment_score(response_content)
         confidence = self._estimate_confidence(response, sentiment_score)
         category = self._categorize_sentiment(sentiment_score)
-        keywords = self._extract_keywords(text, response["content"])
+        keywords = self._extract_keywords(text, response_content)
 
         return SentimentAnalysisResult(
             text=text,
@@ -129,9 +170,9 @@ class SentimentAnalyzer:
         # 将来源信息添加到结果中（通过自定义字段）
         return result
 
-    def _get_ai_adapter(self):
+    def _get_ai_adapter(self) -> AIAdapterProtocol:
         """获取 AI 适配器（带缓存）"""
-        if not self._adapter_cache:
+        if self._adapter_cache is None:
             # 获取激活的提供商
             providers = self.provider_repo.get_active_configured_system_providers()
 
@@ -215,7 +256,11 @@ class SentimentAnalyzer:
         # 默认返回中性
         return 0.0
 
-    def _estimate_confidence(self, response: dict, sentiment_score: float) -> float:
+    def _estimate_confidence(
+        self,
+        response: dict[str, Any],
+        sentiment_score: float,
+    ) -> float:
         """
         估算置信度
 
@@ -282,6 +327,7 @@ class SentimentAnalyzer:
                 keywords = data.get("keywords", [])
                 if isinstance(keywords, list):
                     return keywords[:5]  # 最多返回 5 个
+                keywords = []
         except (json.JSONDecodeError, ValueError):
             pass
 
@@ -346,7 +392,10 @@ class SentimentIndexCalculator:
     负责根据多个情感分析结果计算综合情绪指数。
     """
 
-    def __init__(self, config_repository=None):
+    def __init__(
+        self,
+        config_repository: SentimentConfigRepositoryProtocol | None = None,
+    ) -> None:
         self.config_repository = config_repository or get_sentiment_config_repository()
 
     def calculate_index(
