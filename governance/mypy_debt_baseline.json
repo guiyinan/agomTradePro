@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2106,
-    "files_with_errors": 497
+    "errors": 2101,
+    "files_with_errors": 496
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -886,10 +886,6 @@
     },
     "apps/equity/infrastructure/config_loader.py": {
       "no-any-return": 1
-    },
-    "apps/equity/infrastructure/valuation_repair_repositories.py": {
-      "no-untyped-def": 1,
-      "type-arg": 4
     },
     "apps/equity/interface/__init__.py": {
       "no-untyped-call": 3,

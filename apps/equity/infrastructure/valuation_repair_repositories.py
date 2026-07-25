@@ -5,15 +5,24 @@ and the valuation quality-flag/snapshot builders. The compatibility facade in
 `repositories.py` remains the stable import surface; do not import it here.
 """
 
+from collections.abc import Sequence
 from datetime import date
 
-from .models import ValuationDataQualitySnapshotModel, ValuationModel
+from apps.equity.domain.entities_valuation_repair import ValuationRepairStatus
+
+from .models import (
+    ValuationDataQualitySnapshotModel,
+    ValuationModel,
+    ValuationRepairTrackingModel,
+)
 
 
 class DjangoValuationRepairRepository:
     """Django ORM 估值修复仓储"""
 
-    def upsert_snapshot(self, status, source_universe: str = "all_active") -> None:
+    def upsert_snapshot(
+        self, status: ValuationRepairStatus, source_universe: str = "all_active"
+    ) -> None:
         """
         保存或更新估值修复快照
 
@@ -21,8 +30,6 @@ class DjangoValuationRepairRepository:
             status: ValuationRepairStatus 实体
             source_universe: 来源股票池
         """
-        from .models import ValuationRepairTrackingModel
-
         ValuationRepairTrackingModel._default_manager.update_or_create(
             stock_code=status.stock_code,
             source_universe=source_universe,
@@ -60,15 +67,13 @@ class DjangoValuationRepairRepository:
             stock_code: 股票代码
             source_universe: 来源股票池
         """
-        from .models import ValuationRepairTrackingModel
-
         ValuationRepairTrackingModel._default_manager.filter(
             stock_code=stock_code, source_universe=source_universe
         ).update(is_active=False)
 
     def list_active_snapshots(
         self, source_universe: str = "all_active", phase: str | None = None, limit: int = 50
-    ) -> list:
+    ) -> list[ValuationRepairTrackingModel]:
         """
         列出活跃的估值修复快照
 
@@ -80,8 +85,6 @@ class DjangoValuationRepairRepository:
         Returns:
             ORM Model 列表
         """
-        from .models import ValuationRepairTrackingModel
-
         queryset = ValuationRepairTrackingModel._default_manager.filter(
             source_universe=source_universe, is_active=True
         )
@@ -102,8 +105,6 @@ class DjangoValuationRepairRepository:
         Returns:
             ORM Model 或 None
         """
-        from .models import ValuationRepairTrackingModel
-
         try:
             return ValuationRepairTrackingModel._default_manager.get(
                 stock_code=stock_code, source_universe=source_universe, is_active=True
@@ -111,13 +112,11 @@ class DjangoValuationRepairRepository:
         except ValuationRepairTrackingModel.DoesNotExist:
             return None
 
-    def get_snapshot_map(self, stock_codes: list[str]) -> dict[str, dict]:
+    def get_snapshot_map(self, stock_codes: list[str]) -> dict[str, dict[str, object]]:
         """批量获取估值修复快照映射。"""
         normalized_codes = [str(code).upper() for code in stock_codes if code]
         if not normalized_codes:
             return {}
-
-        from .models import ValuationRepairTrackingModel
 
         rows = ValuationRepairTrackingModel._default_manager.filter(
             stock_code__in=normalized_codes,
@@ -153,9 +152,12 @@ class DjangoValuationRepairRepository:
 class DjangoValuationDataQualityRepository:
     """估值数据质量快照仓储"""
 
-    def upsert_snapshot(self, snapshot: dict) -> None:
+    def upsert_snapshot(self, snapshot: dict[str, object]) -> None:
+        snapshot_date = snapshot.get("as_of_date")
+        if not isinstance(snapshot_date, date):
+            raise ValueError("snapshot as_of_date must be a date")
         ValuationDataQualitySnapshotModel._default_manager.update_or_create(
-            as_of_date=snapshot["as_of_date"],
+            as_of_date=snapshot_date,
             defaults=snapshot,
         )
 
@@ -206,25 +208,35 @@ def compute_valuation_quality_flag(
 def build_quality_snapshot(
     as_of_date: date,
     expected_stock_count: int,
-    valuations: list[ValuationModel],
+    valuations: Sequence[ValuationModel],
     primary_source: str = "akshare",
-) -> dict:
+) -> dict[str, object]:
     """根据指定日期估值记录构建质量快照。"""
-    synced_stock_count = len(valuations)
-    valid_stock_count = sum(1 for item in valuations if item.is_valid)
-    missing_pb_count = sum(1 for item in valuations if item.quality_flag == "missing_pb")
-    invalid_pb_count = sum(1 for item in valuations if item.quality_flag == "invalid_pb")
-    missing_pe_count = sum(1 for item in valuations if item.quality_flag == "missing_pe")
-    jump_alert_count = sum(1 for item in valuations if item.quality_flag == "jump_alert")
+    if expected_stock_count < 0:
+        raise ValueError("expected_stock_count cannot be negative")
+    normalized_source = primary_source.strip()
+    if not normalized_source:
+        raise ValueError("primary_source cannot be empty")
+
+    unique_valuations = {item.stock_code.upper(): item for item in valuations}
+    synced_stock_count = len(unique_valuations)
+    valuation_rows = unique_valuations.values()
+    valid_stock_count = sum(1 for item in valuation_rows if item.is_valid)
+    missing_pb_count = sum(1 for item in valuation_rows if item.quality_flag == "missing_pb")
+    invalid_pb_count = sum(1 for item in valuation_rows if item.quality_flag == "invalid_pb")
+    missing_pe_count = sum(1 for item in valuation_rows if item.quality_flag == "missing_pe")
+    jump_alert_count = sum(1 for item in valuation_rows if item.quality_flag == "jump_alert")
     source_deviation_count = sum(
-        1 for item in valuations if item.quality_flag == "source_deviation"
+        1 for item in valuation_rows if item.quality_flag == "source_deviation"
     )
-    fallback_used_count = sum(1 for item in valuations if item.source_provider != primary_source)
+    fallback_used_count = sum(
+        1 for item in valuation_rows if item.source_provider != normalized_source
+    )
 
     coverage_ratio = (synced_stock_count / expected_stock_count) if expected_stock_count else 0.0
     valid_ratio = (valid_stock_count / synced_stock_count) if synced_stock_count else 0.0
 
-    gate_reasons = []
+    gate_reasons: list[str] = []
     if coverage_ratio < 0.95:
         gate_reasons.append("coverage<0.95")
     if valid_ratio < 0.90:
@@ -249,7 +261,7 @@ def build_quality_snapshot(
         "missing_pe_count": missing_pe_count,
         "jump_alert_count": jump_alert_count,
         "source_deviation_count": source_deviation_count,
-        "primary_source": primary_source,
+        "primary_source": normalized_source,
         "fallback_used_count": fallback_used_count,
         "is_gate_passed": not gate_reasons,
         "gate_reason": ", ".join(gate_reasons),

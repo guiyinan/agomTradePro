@@ -3277,3 +3277,16 @@
 - 估值修复 API、配置集成、同步任务及新增真实性不变量回归 `42 passed`。
 - 估值修复 Application 用例及其主要调用方增量 mypy 清零；全仓基线从 `2119 errors / 498 files` 收紧为 `2106 errors / 497 files`，净减少 `13 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十三批
+
+- 按“质量覆盖率真实性 × ORM 边界完整性”收口 Equity 估值修复与质量快照仓储。
+- 质量快照按股票代码去重后计算同步数、有效数、异常数和主备来源数，同一股票重复记录不再虚增覆盖率或改变质量 gate。
+- 质量快照拒绝负预期股票数、空主来源和缺失或错误类型的快照日期；主来源去除首尾空白后再持久化和比较。
+- 修复状态写入使用明确 Domain 实体，修复快照列表使用具体 ORM Model，质量 payload 与批量快照映射补齐键值类型；移除仓储内部重复的延迟 model import。
+
+## 第二百二十三批验证结果
+
+- 估值质量、修复用例和修复 API 相关回归 `31 passed`，覆盖重复股票不重复计数。
+- 估值修复仓储及主要调用方增量 mypy 清零；全仓基线从 `2106 errors / 497 files` 收紧为 `2101 errors / 496 files`，净减少 `5 errors / 1 file`。
+- 改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
