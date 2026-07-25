@@ -91,7 +91,7 @@ class TestUnavailablePlaceholder:
         result = _unavailable("regime", "connection timeout")
         assert result["status"] == "unavailable"
         assert result["source"] == "regime"
-        assert result["error"] == "connection timeout"
+        assert result["error"] == "source_fetch_failed"
 
 
 class TestBaseContextFacade:
@@ -100,15 +100,31 @@ class TestBaseContextFacade:
     @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_regime_summary")
     @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_policy_summary")
     @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_portfolio_summary")
-    @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_active_signals_summary")
-    @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_open_decisions_summary")
-    @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_risk_alerts_summary")
-    @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_task_health_summary")
-    @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_data_freshness_summary")
+    @patch(
+        "apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_active_signals_summary"
+    )
+    @patch(
+        "apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_open_decisions_summary"
+    )
+    @patch(
+        "apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_risk_alerts_summary"
+    )
+    @patch(
+        "apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_task_health_summary"
+    )
+    @patch(
+        "apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_data_freshness_summary"
+    )
     def test_build_snapshot_all_ok(
         self,
-        mock_freshness, mock_task, mock_risk, mock_decisions,
-        mock_signals, mock_portfolio, mock_policy, mock_regime,
+        mock_freshness,
+        mock_task,
+        mock_risk,
+        mock_decisions,
+        mock_signals,
+        mock_portfolio,
+        mock_policy,
+        mock_regime,
     ):
         """Snapshot is built when all sources succeed."""
         mock_regime.return_value = {"status": "ok", "dominant_regime": "Recovery"}
@@ -132,15 +148,31 @@ class TestBaseContextFacade:
     @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_regime_summary")
     @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_policy_summary")
     @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_portfolio_summary")
-    @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_active_signals_summary")
-    @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_open_decisions_summary")
-    @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_risk_alerts_summary")
-    @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_task_health_summary")
-    @patch("apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_data_freshness_summary")
+    @patch(
+        "apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_active_signals_summary"
+    )
+    @patch(
+        "apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_open_decisions_summary"
+    )
+    @patch(
+        "apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_risk_alerts_summary"
+    )
+    @patch(
+        "apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_task_health_summary"
+    )
+    @patch(
+        "apps.agent_runtime.application.facades.base.BaseContextFacade.fetch_data_freshness_summary"
+    )
     def test_build_snapshot_partial_failure(
         self,
-        mock_freshness, mock_task, mock_risk, mock_decisions,
-        mock_signals, mock_portfolio, mock_policy, mock_regime,
+        mock_freshness,
+        mock_task,
+        mock_risk,
+        mock_decisions,
+        mock_signals,
+        mock_portfolio,
+        mock_policy,
+        mock_regime,
     ):
         """Snapshot degrades gracefully when some sources fail."""
         mock_regime.return_value = {"status": "ok", "dominant_regime": "Recovery"}
@@ -166,6 +198,53 @@ class TestBaseContextFacade:
         # Still returns a valid DTO
         d = snapshot.to_dict()
         assert d["domain"] == "test"
+
+    def test_build_snapshot_isolates_fetch_exceptions(self):
+        repository = MagicMock()
+        repository.fetch_regime_summary.side_effect = RuntimeError("database password leaked")
+        repository.fetch_policy_summary.return_value = {
+            "status": "ok",
+            "current_gear": "neutral",
+        }
+        repository.fetch_portfolio_summary.return_value = {"status": "no_data"}
+        repository.fetch_active_signals_summary.return_value = {"status": "no_data"}
+        repository.fetch_open_decisions_summary.return_value = {"status": "no_data"}
+        repository.fetch_risk_alerts_summary.return_value = {"status": "no_data"}
+        repository.fetch_task_health_summary.return_value = {"status": "no_data"}
+        repository.fetch_data_freshness_summary.return_value = {"status": "no_data"}
+
+        snapshot = BaseContextFacade(context_repository=repository).build_snapshot()
+
+        assert snapshot.regime_summary == {
+            "status": "unavailable",
+            "source": "regime",
+            "error": "source_fetch_failed",
+        }
+        assert snapshot.policy_summary["status"] == "ok"
+        assert "database password leaked" not in str(snapshot.to_dict())
+
+    def test_build_snapshot_sanitizes_repository_error_details(self):
+        repository = MagicMock()
+        repository.fetch_regime_summary.return_value = {
+            "status": "unavailable",
+            "source": "regime",
+            "error": "connection to db.internal.example refused",
+        }
+        for method_name in (
+            "fetch_policy_summary",
+            "fetch_portfolio_summary",
+            "fetch_active_signals_summary",
+            "fetch_open_decisions_summary",
+            "fetch_risk_alerts_summary",
+            "fetch_task_health_summary",
+            "fetch_data_freshness_summary",
+        ):
+            getattr(repository, method_name).return_value = {"status": "no_data"}
+
+        snapshot = BaseContextFacade(context_repository=repository).build_snapshot()
+
+        assert snapshot.regime_summary["error"] == "source_fetch_failed"
+        assert "db.internal.example" not in str(snapshot.to_dict())
 
 
 class TestResearchFacade:

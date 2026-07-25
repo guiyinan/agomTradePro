@@ -3465,3 +3465,17 @@
 - Equity Pool API、API edge、用例和模块结构回归 `43 passed`，覆盖普通用户禁止刷新、未知字段拒绝、空筛选保留旧池、配置数量不硬编码和缺失指标发布为空。
 - Equity pool actions 增量 mypy 清零；全仓基线从 `1958 errors / 485 files` 收紧为 `1948 errors / 484 files`，净减少 `10 errors / 1 file`。
 - Django system check、架构规则、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百三十六批
+
+- 按“Agent Runtime 公共快照可用性 × 单源故障隔离 × 内部错误最小披露”收口 context facade 基类。
+- Application 层新增完整的 context snapshot repository Protocol；基类构造函数、八项公共读取和各领域扩展仓储能力不再通过未类型动态对象传播 `Any`。
+- 快照构建对 Regime、Policy、组合、信号、决策、风险、任务健康和数据新鲜度逐项隔离；任一 fetch 抛异常只将对应摘要降级，不再中断整个 Agent 上下文。
+- 仓储返回的 `unavailable` / `unsupported` 摘要在 facade 出口统一替换为稳定错误码 `source_fetch_failed`；数据库地址、连接错误和其他内部异常正文只进入服务端日志。
+- fetch 返回非字典结构时失败关闭为该来源不可用，避免异常动态结果直接进入 API/MCP 快照。
+
+## 第二百三十六批验证结果
+
+- Agent Runtime facade 回归 `28 passed`，context repository 与 MCP 资源回归 `25 passed`，覆盖 fetch 异常隔离、错误详情脱敏和其他来源继续可用。
+- 6 个 context facade 文件增量 mypy 清零；同时传播清除 facade factory 的未类型调用债务，全仓基线从 `1948 errors / 484 files` 收紧为 `1938 errors / 482 files`，净减少 `10 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1948,
-    "files_with_errors": 484
+    "errors": 1938,
+    "files_with_errors": 482
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -98,13 +98,6 @@
     },
     "apps/agent_runtime/application/dtos.py": {
       "attr-defined": 1
-    },
-    "apps/agent_runtime/application/facades/__init__.py": {
-      "no-untyped-call": 1
-    },
-    "apps/agent_runtime/application/facades/base.py": {
-      "no-any-return": 8,
-      "no-untyped-def": 1
     },
     "apps/agent_runtime/application/services/audit_service.py": {
       "no-untyped-call": 1,
