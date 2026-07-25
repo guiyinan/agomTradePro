@@ -236,6 +236,8 @@ celery -A core inspect active
 | ICIR | Information Coefficient IR | IC 的均值/标准差 | > 0.5 |
 | Rank IC | 排名相关性 | 排序预测与真实排序的相关性 | > 0.04 |
 
+这些指标只从独立验证区间中可按“日期 + 证券代码”对齐的真实标签计算。每个横截面至少需要 10 只有效证券；标签缺失、索引无法对齐或样本不足时训练任务会失败并保留错误证据，不会用预测分数的离散程度推算或填充 IC/ICIR。
+
 ### 4.2 查看模型列表
 
 ```bash
@@ -285,6 +287,8 @@ python apps/alpha/management/commands/backtest_model.py \
 ---
 
 ## 5. 生产部署
+
+训练产物按 `<QLIB_MODEL_PATH>/<model_name>/<artifact_hash>/` 保存。目录发布是不可覆盖的原子操作，包含 `model.pkl`、训练配置、真实评估指标、实际特征集/标签标识、数据版本和 `manifest.json`。`manifest.json` 记录每个文件的 SHA-256 与字节数；同一版本目录已存在时训练任务拒绝覆盖。
 
 ### 5.1 激活模型
 

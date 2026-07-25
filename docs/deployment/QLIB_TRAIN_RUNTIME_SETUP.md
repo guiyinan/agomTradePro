@@ -315,7 +315,10 @@ config.json
 metrics.json
 feature_schema.json
 data_version.txt
+manifest.json
 ```
+
+其中 `feature_schema.json` 只记录实际训练配置中的特征集、标签和显式特征列，不生成示例特征；`manifest.json` 记录其余产物的 SHA-256 与字节数。系统先在同级临时目录写完全部文件、最后发布清单并原子改名；目标 artifact 目录已存在时拒绝覆盖。
 
 并注册到：
 

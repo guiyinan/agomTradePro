@@ -20,7 +20,6 @@ from apps.alpha.infrastructure.providers import (
 from apps.alpha.infrastructure.qlib_artifact_runtime import (
     calculate_artifact_hash,
     evaluate_model_metrics,
-    get_default_metrics,
     save_model_artifact,
     train_qlib_model,
 )
@@ -80,7 +79,6 @@ __all__ = [
     "get_alpha_alert_repository",
     "get_alpha_pool_data_repository",
     "get_alpha_score_cache_repository",
-    "get_default_metrics",
     "get_numpy",
     "get_pandas",
     "get_qlib_data_latest_date",

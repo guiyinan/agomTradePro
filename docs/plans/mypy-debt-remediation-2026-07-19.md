@@ -2917,3 +2917,18 @@
 - Prompt Infrastructure 边界、Interface Serializer、Prompt API edge、Evaluation Gate 与初始化命令一致性回归共 `31 passed`。
 - Prompt Infrastructure package 增量 mypy 清零；全仓基线从 `2601 errors / 545 files` 收紧为 `2577 errors / 544 files`，净减少 `24 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百九十九批
+
+- 按“Alpha 质量指标真实性 × Qlib 工件可复现性”收口 Qlib artifact/training/evaluation runtime。
+- 模型评估只从独立验证区间内按日期和证券代码对齐的真实标签计算横截面 Rank IC；每个横截面至少要求 10 只有效证券。标签缺失、索引无法对齐或样本不足时失败关闭，不再根据预测分数变异系数编造 IC、ICIR 和 Rank IC。
+- 删除已弃用且返回虚构指标的 `get_default_metrics` 生产导出，训练运行记录和模型注册表只接收真实评估结果。
+- `Alpha158` / `Alpha360` 改为显式支持列表，未知特征集直接拒绝；LightGBM 专属默认参数不再注入 GRU、LSTM 和 MLP，日期范围和独立验证集划分在训练前校验。
+- 模型工件改为不可覆盖的原子目录发布；先写同级临时目录，写入模型、配置、真实指标、实际特征/标签 metadata 与数据版本后，最后生成含逐文件 SHA-256 和字节数的 `manifest.json` 并原子改名。路径逃逸和同版本覆盖均失败关闭。
+- 删除与实际 Alpha158/Alpha360 不一致的硬编码示例特征和标签；`feature_schema.json` 只发布本次训练配置中真实存在的 feature set、label 和显式 feature columns。
+
+## 第一百九十九批验证结果
+
+- Qlib runtime、Alpha infrastructure edge、task structure 与 training component 回归共 `48 passed`；覆盖真实标签指标、标签缺失失败、工件清单哈希、不可覆盖和实际 schema。
+- Qlib artifact/scientific runtime 及其 Application 导出增量 mypy 清零；全仓基线从 `2577 errors / 544 files` 收紧为 `2553 errors / 542 files`，净减少 `24 errors / 2 files`。
+- Django system check、迁移漂移检查、架构 delta、改动文件 Ruff、diff check 与增量 mypy 通过。

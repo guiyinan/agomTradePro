@@ -152,13 +152,12 @@ def test_qlib_training_and_evaluation_use_runtime_contract(monkeypatch) -> None:
             raise RuntimeError("labels unavailable")
 
     sys.modules["qlib.data.dataset"].DatasetH = _FallbackDataset
-    simplified = artifacts._evaluate_model_metrics(
-        model,
-        "csi300",
-        {"start_date": "2026-01-01", "end_date": "2026-07-24"},
-    )
-    assert simplified["evaluation_method"] == "simplified"
-    assert simplified["ic"] >= 0
+    with pytest.raises(RuntimeError, match="labels unavailable"):
+        artifacts._evaluate_model_metrics(
+            model,
+            "csi300",
+            {"start_date": "2026-01-01", "end_date": "2026-07-24"},
+        )
 
 
 def test_runtime_helpers_normalize_resolve_and_explain_failures(monkeypatch, tmp_path) -> None:

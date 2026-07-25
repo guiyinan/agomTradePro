@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult, StockScore
 from apps.alpha.infrastructure.adapters.qlib_adapter import (
@@ -48,12 +50,32 @@ def test_qlib_calendar_normalization_and_artifact_round_trip(tmp_path) -> None:
         model_name="contract-model",
         artifact_hash="abc123",
         model_path=str(tmp_path),
-        train_config={"end_date": "2026-07-23"},
+        train_config={
+            "end_date": "2026-07-23",
+            "feature_set_id": "alpha158",
+            "label_id": "return_5d",
+        },
         metrics={"ic": 0.12},
     )
     assert (artifact / "model.pkl").exists()
-    assert '"ic": 0.12' in (artifact / "metrics.json").read_text()
-    assert (artifact / "data_version.txt").read_text() == "2026-07-23"
+    assert '"ic": 0.12' in (artifact / "metrics.json").read_text(encoding="utf-8")
+    assert (artifact / "data_version.txt").read_text(encoding="utf-8").strip() == "2026-07-23"
+    schema = json.loads((artifact / "feature_schema.json").read_text(encoding="utf-8"))
+    assert schema == {"feature_set_id": "alpha158", "label_id": "return_5d"}
+    manifest = json.loads((artifact / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["files"]["model.pkl"]["sha256"] == _calculate_artifact_hash(
+        str(artifact / "model.pkl")
+    )
+
+    with pytest.raises(FileExistsError, match="禁止覆盖"):
+        _save_model_artifact(
+            model={"weight": 2.0},
+            model_name="contract-model",
+            artifact_hash="abc123",
+            model_path=str(tmp_path),
+            train_config={"end_date": "2026-07-24"},
+            metrics={"ic": 0.20},
+        )
 
 
 def test_qlib_provider_cache_miss_statuses_and_inline_boundaries(monkeypatch) -> None:

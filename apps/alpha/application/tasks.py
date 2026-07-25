@@ -47,7 +47,6 @@ from apps.alpha.application.repository_provider import (
     get_alpha_pool_data_repository,
     get_alpha_score_cache_repository,
 )
-from apps.alpha.application.repository_provider import get_default_metrics as _get_default_metrics
 from apps.alpha.application.repository_provider import (
     get_qlib_data_latest_date as _get_qlib_data_latest_date,
 )
@@ -110,7 +109,6 @@ __all__ = [
     "_execute_qlib_prediction",
     "_extract_model_filename",
     "_find_broader_qlib_cache_for_scope",
-    "_get_default_metrics",
     "_get_qlib_data_latest_date",
     "_get_runtime_qlib_config",
     "_install_qlib_pandas_compat",
@@ -629,7 +627,7 @@ def qlib_train_model(
                 run_id=training_run_id,
                 result_model_name=model_name,
                 result_artifact_hash=artifact_hash,
-                result_metrics=metrics,
+                result_metrics=dict(metrics),
                 registry_result={
                     "artifact_hash": artifact_hash,
                     "activated": activate_after_train,
