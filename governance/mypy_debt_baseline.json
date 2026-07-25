@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2728,
-    "files_with_errors": 563
+    "errors": 2717,
+    "files_with_errors": 562
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -872,11 +872,6 @@
       "arg-type": 1,
       "import-untyped": 1,
       "no-any-return": 1
-    },
-    "apps/data_center/infrastructure/macro_sources/fetchers/economic_fetchers.py": {
-      "import-untyped": 1,
-      "no-any-return": 9,
-      "no-untyped-def": 1
     },
     "apps/data_center/infrastructure/macro_sources/fetchers/high_frequency_fetchers.py": {
       "import-untyped": 1,

@@ -3,7 +3,10 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from apps.data_center.infrastructure.macro_sources.base import MacroDataPoint
+from apps.data_center.infrastructure.macro_sources.base import (
+    DataValidationError,
+    MacroDataPoint,
+)
 from apps.data_center.infrastructure.macro_sources.fetchers.base_fetchers import (
     BaseIndicatorFetcher,
 )
@@ -21,6 +24,16 @@ from apps.data_center.infrastructure.macro_sources.fetchers.trade_fetchers impor
 
 
 class _NoOpAK:
+    def macro_china_gyzjz(self):
+        return pd.DataFrame(
+            {
+                "发布时间": ["2025-04-16"],
+                "月份": ["2025年03月份"],
+                "同比增长": [6.2],
+                "累计增长": [6.5],
+            }
+        )
+
     def macro_china_gdp(self):
         return pd.DataFrame(
             {
@@ -144,6 +157,10 @@ def governed_macro_runtime_metadata(monkeypatch) -> None:
         lambda: {
             "CN_GDP": {"default_unit": "亿元", "governance_scope": "macro_console"},
             "CN_GDP_YOY": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_VALUE_ADDED": {
+                "default_unit": "%",
+                "governance_scope": "macro_console",
+            },
             "CN_M2_YOY": {"default_unit": "%", "governance_scope": "macro_console"},
             "CN_EXPORTS": {"default_unit": "亿美元", "governance_scope": "macro_console"},
             "CN_EXPORT_YOY": {"default_unit": "%", "governance_scope": "macro_console"},
@@ -177,6 +194,8 @@ def governed_macro_runtime_metadata(monkeypatch) -> None:
 def test_parse_chinese_quarter_supports_cumulative_quarter_labels() -> None:
     assert parse_chinese_quarter("2025年第1-4季度") == "2025-12-01"
     assert parse_chinese_quarter("2025年第1-3季度") == "2025-09-01"
+    assert parse_chinese_quarter("2025年第5季度") == "2025年第5季度"
+    assert parse_chinese_quarter("2025年第4-1季度") == "2025年第4-1季度"
 
 
 def test_resolve_indicator_units_prefers_runtime_metadata(monkeypatch) -> None:
@@ -271,6 +290,35 @@ def test_fetch_gdp_yoy_uses_named_growth_column() -> None:
     assert points[0].value == 5.0
     assert points[0].unit == "%"
     assert points[0].observed_at == date(2025, 12, 1)
+
+
+def test_fetch_value_added_uses_named_yoy_column() -> None:
+    fetcher = EconomicIndicatorFetcher(_NoOpAK(), "akshare", _validate, _sort)
+
+    points = fetcher.fetch_value_added(date(2025, 1, 1), date(2025, 12, 31))
+
+    assert len(points) == 1
+    assert points[0].code == "CN_VALUE_ADDED"
+    assert points[0].value == 6.2
+    assert points[0].unit == "%"
+    assert points[0].observed_at == date(2025, 3, 1)
+
+
+class _DriftedGdpAK(_NoOpAK):
+    def macro_china_gdp(self):
+        return pd.DataFrame(
+            {
+                "unknown_period": ["2025年第1-4季度"],
+                "unknown_value": [1349084.0],
+            }
+        )
+
+
+def test_fetch_gdp_rejects_schema_drift_instead_of_guessing_position() -> None:
+    fetcher = EconomicIndicatorFetcher(_DriftedGdpAK(), "akshare", _validate, _sort)
+
+    with pytest.raises(DataValidationError, match="CN_GDP 数据缺少必需列"):
+        fetcher.fetch_gdp(date(2025, 1, 1), date(2025, 12, 31))
 
 
 def test_fetch_m2_yoy_uses_named_growth_column() -> None:
@@ -374,6 +422,38 @@ def test_fetch_fixed_investment_yoy_derives_from_cumulative_values() -> None:
     assert points[0].unit == "%"
 
 
+@pytest.mark.parametrize(
+    ("prior_value", "current_value"),
+    [(0.0, 112000.0), (-100000.0, 112000.0), (100000.0, -112000.0)],
+)
+def test_fetch_fixed_investment_yoy_skips_non_positive_cumulative_values(
+    prior_value,
+    current_value,
+) -> None:
+    class _NonPositiveInvestmentAK(_NoOpAK):
+        def macro_china_gdzctz(self):
+            return pd.DataFrame(
+                {
+                    "月份": ["2024年03月份", "2025年03月份"],
+                    "自年初累计": [prior_value, current_value],
+                }
+            )
+
+    fetcher = EconomicIndicatorFetcher(
+        _NonPositiveInvestmentAK(),
+        "akshare",
+        _validate,
+        _sort,
+    )
+
+    points = fetcher.fetch_fixed_investment_yoy(
+        date(2025, 1, 1),
+        date(2025, 12, 31),
+    )
+
+    assert points == []
+
+
 def test_fetch_social_financing_uses_monthly_flow_column() -> None:
     fetcher = EconomicIndicatorFetcher(_NoOpAK(), "akshare", _validate, _sort)
 
@@ -407,7 +487,9 @@ class _NegativeBaseSocialFinancingAK(_NoOpAK):
 
 
 def test_fetch_social_financing_yoy_skips_non_positive_prior_flow_base() -> None:
-    fetcher = EconomicIndicatorFetcher(_NegativeBaseSocialFinancingAK(), "akshare", _validate, _sort)
+    fetcher = EconomicIndicatorFetcher(
+        _NegativeBaseSocialFinancingAK(), "akshare", _validate, _sort
+    )
 
     points = fetcher.fetch_social_financing_yoy(date(2025, 1, 1), date(2025, 12, 31))
 

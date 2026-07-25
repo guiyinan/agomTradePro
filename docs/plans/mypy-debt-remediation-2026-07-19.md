@@ -2737,3 +2737,19 @@
 - Financial Fetcher、Macro Fetcher Resilience、公共 Adapter、迁移和指标治理回归共 `82 passed`；新增覆盖当前 AKShare 列契约、RRR 生效后值、人民币存款总额、非法日期、schema 漂移、无效数值跳过和历史事实可逆隔离。
 - Django system check、迁移漂移检查、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
 - 完整 governance consistency 仍被本批未修改的 `broker_execution/infrastructure/repositories.py` 大文件增长和 `strategy/infrastructure/repositories.py` 缺少大文件基线两项阻断，留待对应模块拆分/治理批次处理。
+
+## 第一百八十八批
+
+- 按“增长与融资宏观事实 × Regime/Pulse 公共输入影响面”收口 Data Center Economic Fetcher。
+- 工业增加值、社零当月值及同比、GDP 累计值及同比、固定资产投资累计值及派生同比、社会融资增量及派生同比统一改用显式语义列契约；第三方列漂移时失败关闭，不再按位置猜测并误用其他指标列。
+- 工业增加值明确读取“同比增长”，社零明确区分“当月”和“同比增长”，GDP 明确区分累计绝对值和同比增长，固定资产投资只使用“自年初累计”，社会融资只使用“社会融资规模增量”。
+- 中文月度和季度标签改为完整匹配；非法月份、第五季度、倒置季度区间和带尾随垃圾的标签不再被部分正则接受或默认映射到第四季度。
+- 固定资产投资派生同比要求当前和上年同月累计值均为正数；零或负累计基数不再产生失真同比。
+- 所有经济指标数值统一通过必需数值解析与公共有限性校验，Fetcher 的第三方模块、校验回调、排序回调、数据点列表与返回边界补齐精确类型。
+
+## 第一百八十八批验证结果
+
+- Economic Fetcher 增量 mypy 清零；全仓基线从 `2728 errors / 563 files` 收紧为 `2717 errors / 562 files`，净减少 `11 errors / 1 file`。
+- Macro Fetcher Resilience 回归共 `29 passed`；新增覆盖工业增加值命名列、GDP schema 漂移拒绝、非法季度标签和固定资产投资非正累计值跳过，保留 GDP、社零、社融及派生口径回归。
+- Django system check、架构 delta、diff check、改动文件 Ruff、增量 mypy 与全仓 debt ceiling 通过。
+- 完整 governance consistency 的两项既有大文件阻断未发生变化。
