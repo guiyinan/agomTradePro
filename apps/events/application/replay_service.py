@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Protocol
 
 from apps.events.application.replay_registry import ReplayTargetRegistry
-from apps.events.domain.entities import DomainEvent
+from apps.events.domain.entities import DomainEvent, EventType
 from apps.events.domain.replay import (
     ReplayEventResult,
     ReplayFilter,
@@ -30,14 +31,30 @@ class ReplayInProgressError(RuntimeError):
 class EventStoreProtocol(Protocol):
     """Read boundary required by controlled replay."""
 
-    def get_events(self, **kwargs: Any) -> list[DomainEvent]:
+    def get_events(
+        self,
+        event_type: EventType | None = None,
+        event_types: list[EventType] | None = None,
+        correlation_id: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int = 100,
+    ) -> list[DomainEvent]:
         """Return bounded stored events matching the supplied filters."""
 
 
 class ReplayRunRepositoryProtocol(Protocol):
     """Durable reservation boundary required by controlled replay."""
 
-    def reserve(self, **kwargs: Any) -> ReplayRunReservation:
+    def reserve(
+        self,
+        *,
+        requester_id: int,
+        target_key: str,
+        normalized_request: dict[str, Any],
+        request_fingerprint: str,
+        idempotency_key: str,
+    ) -> ReplayRunReservation:
         """Atomically reserve or resolve an idempotent replay run."""
 
     def complete(self, run_id: int, result: dict[str, Any]) -> None:

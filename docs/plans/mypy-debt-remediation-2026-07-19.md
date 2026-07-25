@@ -2885,3 +2885,20 @@
 - Event Bus Domain、初始化器、异步 task、Alpha/Beta/Decision Rhythm 订阅 wiring、决策执行 handler 与 Events API 回归共 `83 passed`；启动日志确认完整注册 `18 handlers`，并显式覆盖 Beta Gate 订阅存在、全局实例同一性、幂等、reset 重建和构造失败不安装。
 - Event Bus、Beta Gate 启动链路及相关 Domain 增量 mypy 清零；全仓基线从 `2665 errors / 555 files` 收紧为 `2626 errors / 549 files`，净减少 `39 errors / 6 files`。
 - Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第一百九十七批
+
+- 按“异步事件不丢投递 × 健康状态真实性”收口 Events Celery task、health checker、Celery adapter 与受控重放 composition contract。
+- 单事件异步发布严格解析 timezone-aware ISO 时间；显式非法或 naive 时间直接失败，不再记录 warning 后改用当前时间，避免事件发生时间被静默篡改。
+- Celery 重试在持久化前按 `event_id` 查询：已存在且内容一致的事件继续完成投递，修复 worker 在“已入库、尚未 publish”窗口失败后永久丢投递的问题；同 ID 不同 payload、metadata、类型或显式时间失败关闭。
+- 批量发布的 `success` 改为只在零失败时为 true，并校验事件类型、payload、metadata、ID 与时间边界；初始化 event store/bus 失败走 Celery 重试，不再返回假成功。
+- Replay 的 since/until 必须含时区且顺序有效，limit 必须大于零；无效 handler 路径和类型属于确定性输入错误，不消耗基础设施重试。
+- Events/Snapshot 清理、指标采集和健康任务补齐真实重试契约；非法保留期和批大小直接拒绝，数据库等瞬时故障在达到 max retries 后返回失败证据。
+- 健康计算修复空闲总线 `0 failed < 0 processed` 被误判 unhealthy 的问题；现在以实际失败率计算，并要求总线运行、订阅数大于零。无 handler 或缺失决策批准/执行成功/执行失败关键 handler 均为 ERROR，不再降级为 WARNING。
+- Celery adapter 从 DomainEvent metadata 读取 correlation/causation ID，修复访问不存在实体属性的运行时错误；受控 Replay Protocol 改为与 concrete store/repository 一致的精确签名。
+
+## 第一百九十七批验证结果
+
+- Event task、health checker、Celery transport、受控 replay、Domain bus、初始化器、决策执行 handler 与 Events API 回归共 `91 passed`；覆盖 naive 时间拒绝、已持久化重试续投、ID 冲突、批量失败状态、清理失败、空闲健康和零订阅不健康。
+- Events async/health/adapter/composition 增量 mypy 清零；全仓基线从 `2626 errors / 549 files` 收紧为 `2601 errors / 545 files`，净减少 `25 errors / 4 files`。
+- Django system check、架构 delta、改动文件 Ruff、diff check、增量 mypy 与全仓 debt ceiling 通过。

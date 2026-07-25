@@ -101,6 +101,10 @@ class EventBus:
         """停止事件总线。"""
         raise NotImplementedError
 
+    def is_running(self) -> bool:
+        """Return whether the bus currently accepts publications."""
+        raise NotImplementedError
+
 
 class InMemoryEventBus(EventBus):
     """
@@ -485,6 +489,11 @@ class InMemoryEventBus(EventBus):
                 self._executor_shutdown = False
             self._stopped = False
             logger.debug("Event bus started")
+
+    def is_running(self) -> bool:
+        """Return whether publications are currently accepted."""
+        with self._lock:
+            return not self._stopped
 
     def replay_events(self, event_type: EventType | None = None) -> int:
         """

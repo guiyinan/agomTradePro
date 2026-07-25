@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2626,
-    "files_with_errors": 549
+    "errors": 2601,
+    "files_with_errors": 545
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1129,24 +1129,9 @@
     "apps/events/application/dtos.py": {
       "no-untyped-def": 2
     },
-    "apps/events/application/health_check.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 1,
-      "valid-type": 5
-    },
-    "apps/events/application/tasks.py": {
-      "misc": 7,
-      "no-untyped-def": 7
-    },
-    "apps/events/composition.py": {
-      "arg-type": 2
-    },
     "apps/events/domain/registry.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 2
-    },
-    "apps/events/infrastructure/celery_event_bus.py": {
-      "attr-defined": 2
     },
     "apps/events/infrastructure/models.py": {
       "no-untyped-def": 1

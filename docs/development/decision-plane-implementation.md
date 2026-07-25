@@ -800,6 +800,12 @@ GET  /api/decision-rhythm/quota/weekly
 各自创建第二条总线。订阅 ID 稳定且初始化幂等；registry 写入、handler 构造或总线注册
 任一失败都必须阻止 Django 启动，禁止以缺失风控/执行一致性 handler 的状态继续服务。
 
+异步发布必须携带 timezone-aware `occurred_at`；调用方显式提供非法或 naive 时间时失败
+关闭，不得回退到当前时间污染事件审计。Celery 重试以 `event_id` 为幂等键：已持久化且
+内容一致的事件继续完成投递，同 ID 不同内容明确拒绝。批量发布只在全部成功时返回
+`success=true`。健康检查允许“尚无事件”的空闲状态，但必须同时确认总线正在运行、
+至少存在一个订阅，并且决策批准、执行成功、执行失败三个关键 handler 均已注册。
+
 ### 8.2 与现有 Signal 模块集成
 
 ```python
