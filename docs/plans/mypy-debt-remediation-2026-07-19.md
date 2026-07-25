@@ -3510,3 +3510,19 @@
 - Fund Tushare adapter 增量 mypy 清零；全仓基线从 `1925 errors / 481 files` 收紧为 `1910 errors / 480 files`，净减少 `15 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
 - 扩展运行整个 `test_phase3_provider_adapters.py` 时，既有 CPI 细分测试因测试帧列名被规范化为 `column_0...` 而失败；单独复跑同样失败，调用栈不经过本批基金适配器，未混入本批修复。
+
+## 第二百三十九批
+
+- 按“全局任务运维授权 × 查询输入边界 × 内部异常最小披露”收口 Task Monitor API。
+- 任务状态、列表、统计、Celery 健康和 Dashboard 都读取全局任务/基础设施状态，且任务记录没有用户归属字段；权限由普通登录收紧为 staff-only，避免普通账户枚举全局任务运行信息。
+- 列表 `limit` 和统计 `days` 严格要求正整数；`failures_only` 仅接受明确布尔值，`status` 仅接受 Domain 已定义的七种任务状态，非法输入稳定返回 400。
+- 状态、列表、统计和 Dashboard 的意外异常正文不再复制到 API；服务端保留异常堆栈，对外统一稳定 `INTERNAL_ERROR`。Celery 健康降级继续返回 503 结构化状态，但错误字段固定为 `health_check_failed`。
+- 五个 handler 补齐 DRF Request/Response 类型；OpenAPI 类型从正式 `drf_spectacular.types` 入口导入，Dashboard schema 不再使用裸 `dict`。
+- Application provider 的 repository/health checker 等四项能力改为显式同名 re-export，Task Monitor 调用方不再依赖隐式模块属性。
+
+## 第二百三十九批验证结果
+
+- Task Monitor API 回归 `26 passed`，覆盖普通用户禁止访问、非法 limit/days/status/boolean、内部异常脱敏和 Dashboard/Celery 正常契约。
+- Task Monitor views 的 `attr-defined` 与未类型 handler 债务清零，并传播清除 query service 的隐式 provider 属性债务；全仓基线从 `1910 errors / 480 files` 收紧为 `1902 errors / 479 files`，净减少 `8 errors / 1 file`。
+- 全仓口径仍保留该 views 文件 `5` 项 DRF decorator `misc` 历史债务；本批未通过宽泛 ignore 掩盖，后续结合 serializer 泛型治理处理。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

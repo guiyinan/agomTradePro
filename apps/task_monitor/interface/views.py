@@ -6,10 +6,12 @@ DRF 视图定义。
 
 import logging
 
-from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.task_monitor.application.provider import (
@@ -31,6 +33,47 @@ from apps.task_monitor.interface.serializers import (
 
 logger = logging.getLogger(__name__)
 
+_TASK_STATUS_VALUES = frozenset(
+    {"pending", "started", "success", "failure", "retry", "revoked", "timeout"}
+)
+
+
+def _parse_positive_int(raw_value: str | None, *, field_name: str, default: int) -> int:
+    """Parse a positive integer query parameter."""
+
+    if raw_value is None or raw_value == "":
+        return default
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be an integer") from exc
+    if value <= 0:
+        raise ValueError(f"{field_name} must be greater than 0")
+    return value
+
+
+def _parse_bool(raw_value: str | None, *, field_name: str, default: bool) -> bool:
+    """Parse a strict boolean query parameter."""
+
+    if raw_value is None or raw_value == "":
+        return default
+    normalized = raw_value.strip().lower()
+    if normalized in {"true", "1"}:
+        return True
+    if normalized in {"false", "0"}:
+        return False
+    raise ValueError(f"{field_name} must be a boolean")
+
+
+def _internal_error(operation: str) -> Response:
+    """Log the active exception and return a stable public error."""
+
+    logger.exception("Task monitor operation failed: %s", operation)
+    return Response(
+        {"error": "Task monitor operation failed", "code": "INTERNAL_ERROR"},
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
 
 @extend_schema(
     tags=["Task Monitor"],
@@ -42,8 +85,8 @@ logger = logging.getLogger(__name__)
     },
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_task_status(request, task_id: str) -> Response:
+@permission_classes([IsAdminUser])
+def get_task_status(request: Request, task_id: str) -> Response:
     """
     获取任务状态
 
@@ -56,18 +99,14 @@ def get_task_status(request, task_id: str) -> Response:
         if not result:
             return Response(
                 {"error": "Task not found", "code": "TASK_NOT_FOUND"},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         serializer = TaskStatusSerializer(result)
         return Response(serializer.data)
 
-    except Exception as e:
-        logger.error(f"Failed to get task status: {e}")
-        return Response(
-            {"error": str(e), "code": "INTERNAL_ERROR"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    except Exception:
+        return _internal_error("get_task_status")
 
 
 @extend_schema(
@@ -107,8 +146,8 @@ def get_task_status(request, task_id: str) -> Response:
     responses={200: TaskListSerializer},
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def list_tasks(request) -> Response:
+@permission_classes([IsAdminUser])
+def list_tasks(request: Request) -> Response:
     """
     列出任务
 
@@ -117,8 +156,21 @@ def list_tasks(request) -> Response:
     try:
         task_name = request.query_params.get("task_name")
         status_filter = request.query_params.get("status")
-        limit = int(request.query_params.get("limit", 100))
-        failures_only = request.query_params.get("failures_only", "false").lower() == "true"
+        if status_filter and status_filter not in _TASK_STATUS_VALUES:
+            return Response(
+                {"error": "status is invalid", "code": "INVALID_PARAMETER"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        limit = _parse_positive_int(
+            request.query_params.get("limit"),
+            field_name="limit",
+            default=100,
+        )
+        failures_only = _parse_bool(
+            request.query_params.get("failures_only"),
+            field_name="failures_only",
+            default=False,
+        )
 
         use_case = ListTasksUseCase(repository=get_task_record_repository())
         result = use_case.execute(
@@ -131,12 +183,13 @@ def list_tasks(request) -> Response:
         serializer = TaskListSerializer(result)
         return Response(serializer.data)
 
-    except Exception as e:
-        logger.error(f"Failed to list tasks: {e}")
+    except ValueError as exc:
         return Response(
-            {"error": str(e), "code": "INTERNAL_ERROR"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": str(exc), "code": "INVALID_PARAMETER"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
+    except Exception:
+        return _internal_error("list_tasks")
 
 
 @extend_schema(
@@ -165,8 +218,8 @@ def list_tasks(request) -> Response:
     },
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_task_statistics(request) -> Response:
+@permission_classes([IsAdminUser])
+def get_task_statistics(request: Request) -> Response:
     """
     获取任务统计
 
@@ -177,10 +230,14 @@ def get_task_statistics(request) -> Response:
         if not task_name:
             return Response(
                 {"error": "task_name is required", "code": "MISSING_PARAMETER"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        days = int(request.query_params.get("days", 7))
+        days = _parse_positive_int(
+            request.query_params.get("days"),
+            field_name="days",
+            default=7,
+        )
 
         use_case = GetTaskStatisticsUseCase(repository=get_task_record_repository())
         result = use_case.execute(task_name=task_name, days=days)
@@ -188,18 +245,19 @@ def get_task_statistics(request) -> Response:
         if not result:
             return Response(
                 {"error": "No statistics found for this task", "code": "NO_STATISTICS"},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         serializer = TaskStatisticsSerializer(result)
         return Response(serializer.data)
 
-    except Exception as e:
-        logger.error(f"Failed to get task statistics: {e}")
+    except ValueError as exc:
         return Response(
-            {"error": str(e), "code": "INTERNAL_ERROR"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": str(exc), "code": "INVALID_PARAMETER"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
+    except Exception:
+        return _internal_error("get_task_statistics")
 
 
 @extend_schema(
@@ -209,8 +267,8 @@ def get_task_statistics(request) -> Response:
     responses={200: HealthCheckSerializer},
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def health_check(request) -> Response:
+@permission_classes([IsAdminUser])
+def health_check(request: Request) -> Response:
     """
     Celery 健康检查
 
@@ -223,31 +281,34 @@ def health_check(request) -> Response:
         serializer = HealthCheckSerializer(result)
         return Response(serializer.data)
 
-    except Exception as e:
-        logger.error(f"Failed to check Celery health: {e}")
+    except Exception:
+        logger.exception("Task monitor operation failed: health_check")
         # 即使健康检查失败，也返回一个健康状态对象
-        return Response({
-            "is_healthy": False,
-            "broker_reachable": False,
-            "backend_reachable": False,
-            "active_workers": [],
-            "active_tasks_count": 0,
-            "pending_tasks_count": 0,
-            "scheduled_tasks_count": 0,
-            "last_check": None,
-            "error": str(e),
-        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(
+            {
+                "is_healthy": False,
+                "broker_reachable": False,
+                "backend_reachable": False,
+                "active_workers": [],
+                "active_tasks_count": 0,
+                "pending_tasks_count": 0,
+                "scheduled_tasks_count": 0,
+                "last_check": None,
+                "error": "health_check_failed",
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
 
 @extend_schema(
     tags=["Task Monitor"],
     summary="任务监控概览",
     description="获取任务监控的概览信息（最近失败的任务、活跃的 Worker 等）",
-    responses={200: dict},
+    responses={200: OpenApiTypes.OBJECT},
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def dashboard(request) -> Response:
+@permission_classes([IsAdminUser])
+def dashboard(request: Request) -> Response:
     """
     任务监控概览
 
@@ -262,24 +323,22 @@ def dashboard(request) -> Response:
         health_use_case = CheckCeleryHealthUseCase(health_checker=get_celery_health_checker())
         health = health_use_case.execute()
 
-        return Response({
-            "recent_failures": {
-                "count": failures.total,
-                "items": TaskStatusSerializer(failures.items, many=True).data,
-            },
-            "celery_health": {
-                "is_healthy": health.is_healthy,
-                "broker_reachable": health.broker_reachable,
-                "backend_reachable": health.backend_reachable,
-                "active_workers_count": len(health.active_workers),
-                "active_tasks_count": health.active_tasks_count,
-                "pending_tasks_count": health.pending_tasks_count,
-            },
-        })
-
-    except Exception as e:
-        logger.error(f"Failed to get dashboard: {e}")
         return Response(
-            {"error": str(e), "code": "INTERNAL_ERROR"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {
+                "recent_failures": {
+                    "count": failures.total,
+                    "items": TaskStatusSerializer(failures.items, many=True).data,
+                },
+                "celery_health": {
+                    "is_healthy": health.is_healthy,
+                    "broker_reachable": health.broker_reachable,
+                    "backend_reachable": health.backend_reachable,
+                    "active_workers_count": len(health.active_workers),
+                    "active_tasks_count": health.active_tasks_count,
+                    "pending_tasks_count": health.pending_tasks_count,
+                },
+            }
         )
+
+    except Exception:
+        return _internal_error("dashboard")

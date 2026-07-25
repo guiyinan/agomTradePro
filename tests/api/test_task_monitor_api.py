@@ -46,6 +46,12 @@ def authenticated_client(api_client, auth_user):
     return api_client
 
 
+@pytest.fixture
+def staff_client(api_client, staff_user):
+    api_client.force_authenticate(user=staff_user)
+    return api_client
+
+
 def _readiness_monitor_payload():
     return {
         "status": "in_progress",
@@ -208,7 +214,7 @@ def _readiness_monitor_payload():
 
 
 @pytest.mark.django_db
-def test_get_task_status_returns_serialized_task(authenticated_client):
+def test_get_task_status_returns_serialized_task(staff_client):
     now = timezone.now()
     TaskExecutionModel.objects.create(
         task_id="task-123",
@@ -226,7 +232,7 @@ def test_get_task_status_returns_serialized_task(authenticated_client):
         worker="worker@node",
     )
 
-    response = authenticated_client.get("/api/system/status/task-123/")
+    response = staff_client.get("/api/system/status/task-123/")
 
     assert response.status_code == 200
     assert response["Content-Type"].startswith("application/json")
@@ -239,8 +245,53 @@ def test_get_task_status_returns_serialized_task(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_get_task_statistics_requires_task_name(authenticated_client):
-    response = authenticated_client.get("/api/system/statistics/")
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/system/status/task-123/",
+        "/api/system/list/",
+        "/api/system/statistics/?task_name=demo.task",
+        "/api/system/celery/health/",
+        "/api/system/dashboard/",
+    ],
+)
+def test_task_monitor_operational_apis_require_staff(authenticated_client, path):
+    response = authenticated_client.get(path)
+
+    assert response.status_code == 403
+    assert response["Content-Type"].startswith("application/json")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query",
+    [
+        "limit=0",
+        "limit=not-a-number",
+        "failures_only=unknown",
+        "status=not-a-task-status",
+    ],
+)
+def test_task_list_rejects_invalid_filters(staff_client, query):
+    response = staff_client.get(f"/api/system/list/?{query}")
+
+    assert response.status_code == 400
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json()["code"] == "INVALID_PARAMETER"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("days", ["0", "-1", "not-a-number"])
+def test_task_statistics_rejects_invalid_days(staff_client, days):
+    response = staff_client.get(f"/api/system/statistics/?task_name=demo.task&days={days}")
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "INVALID_PARAMETER"
+
+
+@pytest.mark.django_db
+def test_get_task_statistics_requires_task_name(staff_client):
+    response = staff_client.get("/api/system/statistics/")
 
     assert response.status_code == 400
     assert response.json() == {
@@ -250,7 +301,7 @@ def test_get_task_statistics_requires_task_name(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_get_task_statistics_returns_summary(authenticated_client):
+def test_get_task_statistics_returns_summary(staff_client):
     now = timezone.now()
     TaskExecutionModel.objects.create(
         task_id="success-1",
@@ -279,7 +330,7 @@ def test_get_task_statistics_returns_summary(authenticated_client):
         priority="normal",
     )
 
-    response = authenticated_client.get("/api/system/statistics/?task_name=stats.task&days=7")
+    response = staff_client.get("/api/system/statistics/?task_name=stats.task&days=7")
 
     assert response.status_code == 200
     payload = response.json()
@@ -293,12 +344,12 @@ def test_get_task_statistics_returns_summary(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_health_check_returns_service_unavailable_payload_on_exception(authenticated_client):
+def test_health_check_returns_service_unavailable_payload_on_exception(staff_client):
     with patch(
         "apps.task_monitor.interface.views.CheckCeleryHealthUseCase.execute",
         side_effect=RuntimeError("broker offline"),
     ):
-        response = authenticated_client.get("/api/system/celery/health/")
+        response = staff_client.get("/api/system/celery/health/")
 
     assert response.status_code == 503
     payload = response.json()
@@ -306,11 +357,27 @@ def test_health_check_returns_service_unavailable_payload_on_exception(authentic
     assert payload["broker_reachable"] is False
     assert payload["backend_reachable"] is False
     assert payload["active_workers"] == []
-    assert payload["error"] == "broker offline"
+    assert payload["error"] == "health_check_failed"
 
 
 @pytest.mark.django_db
-def test_dashboard_aggregates_recent_failures_and_health(authenticated_client):
+def test_task_status_internal_error_does_not_leak_details(staff_client):
+    with patch(
+        "apps.task_monitor.interface.views.GetTaskStatusUseCase.execute",
+        side_effect=RuntimeError("postgresql://secret@internal-db"),
+    ):
+        response = staff_client.get("/api/system/status/task-123/")
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "error": "Task monitor operation failed",
+        "code": "INTERNAL_ERROR",
+    }
+    assert "secret@internal-db" not in response.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+def test_dashboard_aggregates_recent_failures_and_health(staff_client):
     now = timezone.now()
     failures = SimpleNamespace(
         total=1,
@@ -355,7 +422,7 @@ def test_dashboard_aggregates_recent_failures_and_health(authenticated_client):
             return_value=health,
         ) as mock_health,
     ):
-        response = authenticated_client.get("/api/system/dashboard/")
+        response = staff_client.get("/api/system/dashboard/")
 
     assert response.status_code == 200
     payload = response.json()
