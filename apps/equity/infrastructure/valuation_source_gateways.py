@@ -15,6 +15,7 @@ from datetime import date
 from decimal import Decimal
 
 from apps.data_center.composition import get_valuation_fact_repository
+from apps.data_center.domain.entities import ValuationFact
 from apps.equity.domain.entities import ValuationMetrics
 from apps.equity.infrastructure.repositories import compute_valuation_quality_flag
 
@@ -34,6 +35,13 @@ class _BaseValuationGateway:
     def __init__(self) -> None:
         self._valuation_repo = get_valuation_fact_repository()
 
+    @staticmethod
+    def _fact_provider_name(row: ValuationFact) -> str:
+        """Resolve the configured provider preserved in canonical fact metadata."""
+
+        provider_name = row.extra.get("provider_name")
+        return str(provider_name or row.source).strip()
+
     def fetch(self, stock_code: str, start_date: date, end_date: date) -> ValuationSyncBatch:
         rows = list(
             reversed(
@@ -45,12 +53,16 @@ class _BaseValuationGateway:
             )
         )
         if self.provider_name:
-            rows = [row for row in rows if self.provider_name in (row.source or "").lower()]
+            expected_provider = self.provider_name.casefold()
+            rows = [
+                row for row in rows if self._fact_provider_name(row).casefold() == expected_provider
+            ]
         previous_pb: float | None = None
         previous_pe: float | None = None
         records: list[ValuationMetrics] = []
 
         for row in rows:
+            provider_name = self._fact_provider_name(row)
             pb = float(row.pb) if row.pb is not None else None
             pe_static = float(row.pe_static) if row.pe_static is not None else None
             pe_ttm = float(row.pe_ttm) if row.pe_ttm is not None else None
@@ -68,6 +80,7 @@ class _BaseValuationGateway:
                         "stock_code": stock_code,
                         "trade_date": row.val_date.isoformat(),
                         "source": row.source,
+                        "provider_name": provider_name,
                         "pe_ttm": pe_ttm,
                         "pe_static": pe_static,
                         "pb": pb,
@@ -87,7 +100,7 @@ class _BaseValuationGateway:
                     total_mv=Decimal(str(row.market_cap or 0)),
                     circ_mv=Decimal(str(row.float_market_cap or row.market_cap or 0)),
                     dividend_yield=dv_ratio,
-                    source_provider=row.source,
+                    source_provider=provider_name,
                     source_updated_at=row.fetched_at,
                     fetched_at=row.fetched_at,
                     pe_type="ttm" if row.pe_ttm is not None else "dynamic",
@@ -113,12 +126,23 @@ class AKShareValuationGateway(_BaseValuationGateway):
     provider_name = "akshare"
 
 
+class ConfiguredValuationGateway(_BaseValuationGateway):
+    """Read canonical valuation facts for one database-configured provider."""
+
+    def __init__(self, provider_name: str) -> None:
+        normalized = provider_name.strip()
+        if not normalized:
+            raise ValueError("provider_name cannot be empty")
+        self.provider_name = normalized
+        super().__init__()
+
+
 class TushareValuationGateway(_BaseValuationGateway):
     """Tushare compatibility gateway backed by data_center valuation facts."""
 
     provider_name = "tushare"
 
-    def __init__(self, token: str, http_url: str | None = None):
+    def __init__(self, token: str, http_url: str | None = None) -> None:
         super().__init__()
         self.token = token
         self.http_url = http_url

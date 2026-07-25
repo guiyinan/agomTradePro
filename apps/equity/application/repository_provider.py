@@ -23,10 +23,11 @@ from apps.equity.infrastructure.providers import (
     EquityBootstrapConfigRepository,
     ScoringWeightConfigRepository,
     ValuationRepairConfigRepository,
-    build_quality_snapshot,  # noqa: F401
 )
+from apps.equity.infrastructure.providers import build_quality_snapshot as build_quality_snapshot
 from apps.equity.infrastructure.valuation_source_gateways import (
     AKShareValuationGateway,
+    ConfiguredValuationGateway,
 )
 from apps.equity.infrastructure.valuation_source_gateways import (
     TushareValuationGateway as TushareValuationGateway,
@@ -146,6 +147,12 @@ def build_akshare_valuation_gateway() -> AKShareValuationGateway:
     """Build the AKShare valuation gateway."""
 
     return AKShareValuationGateway()
+
+
+def build_equity_valuation_source_gateway(*, provider_name: str) -> ConfiguredValuationGateway:
+    """Build a valuation fact reader for one configured provider."""
+
+    return ConfiguredValuationGateway(provider_name=provider_name)
 
 
 def build_tushare_valuation_gateway(

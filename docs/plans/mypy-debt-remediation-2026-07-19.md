@@ -3246,3 +3246,19 @@
 - Equity API edge 与 serializer contract 回归 `34 passed`，覆盖六类分析端点的未知输入拒绝。
 - Equity analysis action 增量 mypy 清零；全仓基线从 `2152 errors / 500 files` 收紧为 `2137 errors / 499 files`，净减少 `15 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百二十一批
+
+- 按“估值来源真实性 × 同步结果真实性 × 质量门禁影响面”收口 Equity 估值同步与质量链路。
+- Data Center provider 选择服务同时返回数据库 provider ID 与实际配置名称；估值读取按 canonical fact 的 `extra.provider_name` 精确匹配，不再把动态配置名称误当固定 `akshare` / `tushare` 来源，也不再因 canonical `source_type` 覆盖名称而读不到已同步数据。
+- 估值同步根据数据库启用的 provider 动态构造读取 gateway；主备来源配置缺失、名称非法或相同均失败关闭，不在业务代码硬编码 provider 目录。
+- 显式空股票列表不再被扩展为全部活跃股票；股票代码、日期区间、未来日期和 `days_back` 在 Application 边界统一校验。
+- 单股失败只发布稳定错误文案，底层异常仅以类型进入日志；零写入和回填中任一批次失败均返回失败，不再把“全部失败”或“部分失败”包装成成功。
+- 质量快照记录实际 provider 名称；新鲜度检查只接受估值日期当天的质量证据，旧快照和未来估值日期均失败关闭，避免用过期质量结果放行当前数据。
+- 估值仓储只读 Protocol 改用协变 `Sequence`，正式 ORM 仓储与管理命令调用进入类型检查；同步、质量、回填 DTO 与内部集合补齐精确类型。
+
+## 第二百二十一批验证结果
+
+- 估值同步、质量门禁、来源 gateway、任务、修复 API、管理命令和 Data Center provider 选择相关合并回归 `58 passed`；格式后核心不变量定点复核 `19 passed`。
+- 七个关联生产文件增量 mypy 清零；全仓基线从 `2137 errors / 499 files` 收紧为 `2119 errors / 498 files`，净减少 `18 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、diff check、增量 mypy 与全仓 debt ceiling 通过。

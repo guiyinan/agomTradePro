@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2137,
-    "files_with_errors": 499
+    "errors": 2119,
+    "files_with_errors": 498
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -865,13 +865,6 @@
       "type-arg": 5,
       "var-annotated": 1
     },
-    "apps/equity/application/use_cases_valuation_sync.py": {
-      "attr-defined": 1,
-      "index": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 6,
-      "type-arg": 6
-    },
     "apps/equity/apps.py": {
       "no-untyped-def": 1
     },
@@ -930,7 +923,6 @@
       "no-untyped-def": 12
     },
     "apps/equity/management/commands/backfill_equity_valuation.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 2
     },
     "apps/equity/management/commands/init_equity_config.py": {
@@ -950,12 +942,10 @@
       "no-untyped-def": 2
     },
     "apps/equity/management/commands/sync_equity_valuation.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 2,
       "union-attr": 1
     },
     "apps/equity/management/commands/validate_equity_valuation_quality.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 2
     },
     "apps/events/application/decision_execution_handlers.py": {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from typing import Any, Protocol, cast
@@ -583,8 +584,10 @@ def _build_alpha_refresher(
         quote_sync_result = _sync_scope_quotes(
             list(getattr(resolved.scope, "instrument_codes", ()) or ())
         )
-        from kombu.exceptions import (  # type: ignore[import-untyped]
-            OperationalError as KombuOperationalError,
+        kombu_exceptions = importlib.import_module("kombu.exceptions")
+        KombuOperationalError = cast(
+            type[Exception],
+            kombu_exceptions.OperationalError,
         )
 
         try:
@@ -938,14 +941,25 @@ def make_sync_financial_use_case() -> SyncFinancialUseCase:
     )
 
 
-def get_active_provider_id_by_source(source_type: str) -> int | None:
-    """Return the highest-priority active provider id for a source type."""
+def get_active_provider_selection_by_source(
+    source_type: str,
+) -> tuple[int, str] | None:
+    """Return the highest-priority active provider id and configured name."""
 
     providers = _make_provider_repo().get_active_by_type(source_type)
     if not providers:
         return None
-    provider_id = providers[0].id
-    return int(provider_id) if provider_id is not None else None
+    provider = providers[0]
+    if provider.id is None or not provider.name.strip():
+        return None
+    return int(provider.id), provider.name.strip()
+
+
+def get_active_provider_id_by_source(source_type: str) -> int | None:
+    """Return the highest-priority active provider id for a source type."""
+
+    selection = get_active_provider_selection_by_source(source_type)
+    return selection[0] if selection is not None else None
 
 
 def make_sync_valuation_use_case() -> SyncValuationUseCase:
