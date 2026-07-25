@@ -224,6 +224,8 @@ python manage.py train_qlib_model --name lgb_csi300 --type LGBModel --async
 celery -A core inspect active
 ```
 
+同步与异步 CLI 都调用同一个 `qlib_train_model` 任务主体：训练参数、真实标签评估、原子 artifact、Registry 写入和可选激活不存在第二套实现。`--learning-rate` / `--epochs` 会按模型类型转换到 Qlib `model_params`（LightGBM 使用 `learning_rate` / `num_boost_round`，神经网络使用 `lr` / `n_epochs`）；省略股票池、特征集、标签或模型目录时读取 Config Center。旧 `v1` 特征集标识仅作为 Alpha360 兼容别名，持久化时统一记录为 `alpha360`。`--force` 不再允许覆盖不可变 artifact。
+
 ---
 
 ## 4. 模型评估

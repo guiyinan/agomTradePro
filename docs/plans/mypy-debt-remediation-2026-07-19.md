@@ -2947,3 +2947,19 @@
 - Alpha/Qlib runtime contracts 与 Alpha monitoring integration 回归共 `48 passed`；覆盖真实覆盖率分母、IC 历史排除当前值、队列 unavailable 不写假 0、reserved 计数和非法保留期拒绝。
 - Alpha monitoring tasks 增量 mypy 清零；全仓基线从 `2553 errors / 542 files` 收紧为 `2535 errors / 541 files`，净减少 `18 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、diff check 与增量 mypy 通过。
+
+## 第二百零一批
+
+- 按“Qlib 训练入口唯一性 × 新模型指标归属真实性”收口 `train_qlib_model` management command 与 canonical task 配置。
+- 删除 CLI 内独立的 Qlib 初始化、训练、评估、pickle 保存和 ORM Registry 写入实现；同步执行与异步投递现在都调用 `qlib_train_model` canonical task，统一使用真实标签评估、原子不可变 artifact、manifest 和 repository 写入。
+- 删除“新模型真实评估失败后读取另一旧模型缓存 IC/ICIR 并写入新 Registry”的错误回填路径；评估异常现在使训练失败，不再跨模型冒用质量指标。
+- canonical task 将本次训练的日期、股票池、特征集和标签组成 effective config，同时传给训练、评估、artifact 和 Registry；修复此前评估使用默认日期/Alpha360、而训练使用另一配置的错位。
+- CLI `learning-rate/epochs` 改为模型专属 `model_params`：LightGBM 使用 `learning_rate/num_boost_round`，GRU/LSTM/MLP 使用 `lr/n_epochs`；非正数、非有限数和非法轮数在任务投递前拒绝。
+- 股票池、特征集、标签与模型目录省略时交由 Config Center 提供，不再由 CLI 硬编码运行时默认值；历史 `v1` 特征集别名规范化为真实 `alpha360`，未知特征集失败关闭。
+- `--force` 不再伪装为可用选项；不可变 artifact 禁止覆盖，显式使用时返回 CommandError。
+
+## 第二百零一批验证结果
+
+- Qlib runtime contracts、training component 与 mock fallback remediation 回归共 `48 passed`；覆盖同步/异步同配置、模型专属参数、v1 规范化、真实评估 effective config 和影子保存器移除。
+- Qlib training command 及相关 task/runtime 增量 mypy 清零；全仓基线从 `2535 errors / 541 files` 收紧为 `2517 errors / 540 files`，净减少 `18 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、diff check 与增量 mypy 通过。

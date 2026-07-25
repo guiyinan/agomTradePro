@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2535,
-    "files_with_errors": 541
+    "errors": 2517,
+    "files_with_errors": 540
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -345,13 +345,6 @@
     "apps/alpha/management/commands/rollback_model.py": {
       "arg-type": 2,
       "no-untyped-def": 5
-    },
-    "apps/alpha/management/commands/train_qlib_model.py": {
-      "import-untyped": 1,
-      "misc": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 8,
-      "type-arg": 7
     },
     "apps/asset_analysis/application/asset_name_service.py": {
       "attr-defined": 5

@@ -315,10 +315,21 @@ def _resolve_qlib_handler_class(feature_set_id: str | None) -> type[Any]:
         alpha158 = Alpha158Fallback
         alpha360 = Alpha360Fallback
 
-    normalized = str(feature_set_id or "").strip().lower()
-    if normalized in {"alpha158", "158", "v158"}:
+    normalized = _normalize_qlib_feature_set_id(feature_set_id)
+    if normalized == "alpha158":
         return alpha158
     return alpha360
+
+
+def _normalize_qlib_feature_set_id(feature_set_id: object) -> str:
+    """Normalize supported aliases to the actual Qlib handler identifier."""
+
+    normalized = str(feature_set_id or "alpha360").strip().lower()
+    if normalized in {"alpha158", "158", "v158"}:
+        return "alpha158"
+    if normalized in {"alpha360", "360", "v360", "v1"}:
+        return "alpha360"
+    raise ValueError(f"不支持的 Qlib 特征集: {feature_set_id}")
 
 
 def _make_json_safe(value: object) -> JsonValue:
@@ -352,6 +363,7 @@ normalize_qlib_region = _normalize_qlib_region
 normalize_calendar_date = _normalize_calendar_date
 normalize_qlib_instrument_code = _normalize_qlib_instrument_code
 normalize_qlib_instrument_list = _normalize_qlib_instrument_list
+normalize_qlib_feature_set_id = _normalize_qlib_feature_set_id
 install_qlib_pandas_compat = _install_qlib_pandas_compat
 get_qlib_data_latest_date = _get_qlib_data_latest_date
 build_outdated_qlib_reason = _build_outdated_qlib_reason

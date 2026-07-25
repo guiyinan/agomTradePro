@@ -116,6 +116,11 @@ class TestQlibTrainingTasks:
         assert run.status == QlibTrainingRunModel.STATUS_SUCCEEDED
         assert run.result_artifact_hash == result["artifact_hash"]
         assert run.result_metrics["ic"] == 0.05
+        effective_config = mock_train.call_args.args[1]
+        assert effective_config["feature_set_id"] == "alpha360"
+        assert effective_config["label_id"] == "return_5d"
+        assert mock_evaluate.call_args.args[2] == effective_config
+        assert mock_save.call_args.kwargs["train_config"] == effective_config
 
     @patch("apps.alpha.application.tasks._train_qlib_model")
     def test_qlib_train_model_failure(self, mock_train):

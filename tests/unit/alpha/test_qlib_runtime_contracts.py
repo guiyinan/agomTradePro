@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 from django.contrib.admin.sites import AdminSite
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management.base import CommandError
 
 from apps.alpha import admin as alpha_admin
 from apps.alpha.infrastructure import qlib_artifact_runtime as artifacts
@@ -107,6 +108,11 @@ def _install_fake_qlib(monkeypatch) -> None:
 
 def test_qlib_training_and_evaluation_use_runtime_contract(monkeypatch) -> None:
     """Training selects the configured handler/model and evaluation returns real correlations."""
+    assert runtime._normalize_qlib_feature_set_id("v1") == "alpha360"
+    assert runtime._normalize_qlib_feature_set_id("v158") == "alpha158"
+    with pytest.raises(ValueError, match="不支持"):
+        runtime._normalize_qlib_feature_set_id("custom-unknown")
+
     _install_fake_qlib(monkeypatch)
     monkeypatch.setattr(
         artifacts,
@@ -570,31 +576,15 @@ def test_qlib_adapter_cache_trigger_and_model_loading_contract(monkeypatch, tmp_
     assert missing_provider.health_check().value == "unavailable"
 
 
-def test_train_command_orchestrates_async_sync_and_artifacts(monkeypatch, tmp_path) -> None:
-    """Management command keeps async and sync outcomes observable and reproducible."""
+def test_train_command_routes_sync_and_async_through_canonical_task(monkeypatch) -> None:
+    """CLI options become model-specific task config without a shadow training path."""
     command = train_command.Command(stdout=StringIO())
-    monkeypatch.setattr(command, "_check_qlib_installed", lambda: False)
-    command.handle(
-        **{
-            "name": "model",
-            "model_type": "LGBModel",
-            "universe": "csi300",
-            "start_date": None,
-            "end_date": None,
-            "learning_rate": 0.01,
-            "epochs": 10,
-            "activate": False,
-            "force": False,
-            "async": False,
-            "model_path": str(tmp_path),
-        }
-    )
-    assert "未安装" in command.stdout.getvalue()
-
-    command.stdout = StringIO()
-    monkeypatch.setattr(command, "_check_qlib_installed", lambda: True)
+    captured_sync: dict[str, object] = {}
     monkeypatch.setattr(
-        command, "_train_sync", lambda **kwargs: {"success": False, "error": "bad data"}
+        train_command.qlib_train_model,
+        "run",
+        lambda **kwargs: captured_sync.update(kwargs)
+        or {"artifact_hash": "hash", "ic": 0.2, "icir": 1.1},
     )
     command.handle(
         **{
@@ -603,141 +593,61 @@ def test_train_command_orchestrates_async_sync_and_artifacts(monkeypatch, tmp_pa
             "universe": "csi300",
             "start_date": "2026-01-01",
             "end_date": "2026-07-24",
-            "learning_rate": 0.01,
+            "feature_set_id": "alpha158",
+            "label_id": "return_5d",
+            "learning_rate": 0.1,
+            "epochs": 50,
+            "activate": True,
+            "force": False,
+            "async_mode": False,
+            "model_path": "/models",
+        }
+    )
+    sync_config = captured_sync["train_config"]
+    assert isinstance(sync_config, dict)
+    assert sync_config["model_params"] == {
+        "learning_rate": 0.1,
+        "num_boost_round": 50,
+    }
+    assert sync_config["feature_set_id"] == "alpha158"
+    assert sync_config["activate"] is True
+
+    captured_async: dict[str, object] = {}
+    monkeypatch.setattr(
+        train_command.qlib_train_model,
+        "apply_async",
+        lambda **kwargs: captured_async.update(kwargs) or SimpleNamespace(id="task-3"),
+    )
+    command.handle(
+        **{
+            "name": "neural-model",
+            "model_type": "LSTMModel",
+            "universe": None,
+            "start_date": "2026-01-01",
+            "end_date": "2026-07-24",
+            "feature_set_id": None,
+            "label_id": None,
+            "learning_rate": 0.001,
             "epochs": 10,
             "activate": False,
             "force": False,
-            "async": False,
-            "model_path": str(tmp_path),
+            "async_mode": True,
+            "model_path": None,
         }
     )
-    assert "bad data" in command.stdout.getvalue()
+    assert captured_async["queue"] == "qlib_train"
+    async_kwargs = captured_async["kwargs"]
+    assert isinstance(async_kwargs, dict)
+    async_config = async_kwargs["train_config"]
+    assert async_config["model_params"] == {"lr": 0.001, "n_epochs": 10}
 
-    config = command._prepare_train_config(
-        {
-            "start_date": "2026-01-01",
-            "end_date": "2026-07-24",
-            "learning_rate": 0.1,
-            "epochs": 5,
-            "model_path": str(tmp_path),
-        }
-    )
-    path = command._save_model(
-        model={"weight": 1},
-        name="model",
-        artifact_hash="hash",
-        config={**config, "model_type": "LGBModel"},
-        metrics={"ic": 0.2},
-    )
-    assert (tmp_path / "model" / "hash" / "model.pkl").exists()
-    assert path.endswith("hash")
-
-
-def test_train_command_executes_task_contract_and_metric_fallbacks(monkeypatch) -> None:
-    """Training command validates model types and never invents evaluation metrics."""
-    command = train_command.Command(stdout=StringIO())
-    from apps.alpha.application import tasks as alpha_tasks
-
-    monkeypatch.setattr(alpha_tasks, "_calculate_artifact_hash", lambda value: "hash")
-    trained = _Model()
-    monkeypatch.setattr(alpha_tasks, "_train_qlib_model", lambda **kwargs: trained)
-    model, artifact_hash = command._execute_training(
-        "model",
-        "LGBModel",
-        "csi300",
-        {
-            "start_date": "2026-01-01",
-            "end_date": "2026-07-24",
-            "learning_rate": 0.1,
-            "epochs": 5,
-        },
-    )
-    assert model is trained
-    assert artifact_hash == "hash"
-    with pytest.raises(ValueError, match="不支持"):
-        command._execute_training(
-            "model",
-            "Unknown",
-            "csi300",
-            {"start_date": "2026-01-01", "end_date": "2026-07-24"},
+    with pytest.raises(CommandError, match="不可覆盖"):
+        command.handle(
+            name="model",
+            model_type="LGBModel",
+            force=True,
         )
 
-    monkeypatch.setattr(
-        alpha_tasks,
-        "_evaluate_model_metrics",
-        lambda model, universe: {"ic": 0.2, "icir": 1.1, "rank_ic": 0.18},
-    )
-    assert command._evaluate_model(trained, "csi300")["ic"] == 0.2
-    monkeypatch.setattr(
-        alpha_tasks,
-        "_evaluate_model_metrics",
-        lambda *args: (_ for _ in ()).throw(RuntimeError("unavailable")),
-    )
-    from apps.alpha.infrastructure import models as alpha_models
-
-    monkeypatch.setattr(
-        alpha_models,
-        "AlphaScoreCacheModel",
-        SimpleNamespace(
-            objects=SimpleNamespace(
-                filter=lambda **kwargs: SimpleNamespace(
-                    order_by=lambda *args: SimpleNamespace(first=lambda: None)
-                )
-            )
-        ),
-    )
-    assert command._evaluate_model(trained, "csi300") == {
-        "ic": None,
-        "icir": None,
-        "rank_ic": None,
-    }
-
-    _install_fake_qlib(monkeypatch)
-    monkeypatch.setattr(
-        command,
-        "_execute_training",
-        lambda **kwargs: (trained, "hash"),
-    )
-    monkeypatch.setattr(command, "_evaluate_model", lambda model, universe: {"ic": 0.2})
-    monkeypatch.setattr(command, "_save_model", lambda **kwargs: "/models/hash")
-    registry = SimpleNamespace(activate=lambda activated_by: None)
-    monkeypatch.setattr(command, "_save_to_registry", lambda **kwargs: registry)
-    from django.conf import settings
-
-    settings.QLIB_SETTINGS = {"provider_uri": ".", "region": "cn"}
-    result = command._train_sync(
-        name="model",
-        model_type="LGBModel",
-        universe="csi300",
-        start_date="2026-01-01",
-        end_date="2026-07-24",
-        learning_rate=0.1,
-        epochs=5,
-        activate=True,
-        force=False,
-        model_path="/models",
-    )
-    assert result["success"] is True
-    assert result["artifact_hash"] == "hash"
-
-    delayed: dict[str, object] = {}
-    monkeypatch.setattr(
-        alpha_tasks.qlib_train_model,
-        "delay",
-        lambda **kwargs: delayed.update(kwargs) or SimpleNamespace(id="task-3"),
-    )
-    command._train_async(
-        name="model",
-        model_type="LGBModel",
-        universe="csi300",
-        start_date="2026-01-01",
-        end_date="2026-07-24",
-        learning_rate=0.1,
-        epochs=5,
-        activate=False,
-        model_path="/models",
-    )
-    assert delayed["model_name"] == "model"
     parser = command.create_parser("manage.py", "train_qlib_model")
     parsed = parser.parse_args(["--name", "sample"])
     assert parsed.name == "sample"

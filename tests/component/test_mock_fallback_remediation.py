@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import json
-import shutil
-import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 from django.conf import settings
@@ -252,23 +248,8 @@ def test_bootstrap_mcp_cold_start_allows_test_env(monkeypatch, settings):
     command._assert_dev_only_environment()
 
 
-def test_train_command_save_model_writes_real_metrics():
+def test_train_command_has_no_shadow_artifact_writer():
     from apps.alpha.management.commands.train_qlib_model import Command
 
-    command = Command()
-    temp_dir = tempfile.mkdtemp()
-    try:
-        artifact_dir = command._save_model(
-            model={"ok": True},
-            name="demo",
-            artifact_hash="abc123",
-            config={"model_path": str(temp_dir), "model_type": "LGBModel"},
-            metrics={"ic": None, "icir": None, "rank_ic": None},
-        )
-
-        metrics_payload = json.loads(
-            (Path(artifact_dir) / "metrics.json").read_text(encoding="utf-8")
-        )
-        assert metrics_payload == {"ic": None, "icir": None, "rank_ic": None}
-    finally:
-        shutil.rmtree(temp_dir)
+    assert not hasattr(Command(), "_save_model")
+    assert not hasattr(Command(), "_evaluate_model")

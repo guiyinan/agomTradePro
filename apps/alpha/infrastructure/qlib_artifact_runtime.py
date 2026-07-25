@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from apps.alpha.infrastructure.qlib_runtime_init import (
     _get_runtime_qlib_config,
+    _normalize_qlib_feature_set_id,
     _normalize_qlib_region,
     _resolve_qlib_stock_list,
 )
@@ -190,12 +191,10 @@ def _select_handler(
 ) -> type[Any]:
     """Select only a supported, explicit Qlib feature handler."""
 
-    normalized = str(feature_set_id or "alpha360").strip().lower()
-    if normalized in {"alpha158", "158", "v158"}:
+    normalized = _normalize_qlib_feature_set_id(feature_set_id)
+    if normalized == "alpha158":
         return alpha158
-    if normalized in {"alpha360", "360", "v360"}:
-        return alpha360
-    raise ValueError(f"不支持的 Qlib 特征集: {feature_set_id}")
+    return alpha360
 
 
 def _train_qlib_model(
