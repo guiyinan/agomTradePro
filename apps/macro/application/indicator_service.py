@@ -5,7 +5,8 @@ Dynamic indicator metadata and unit services backed by data_center.
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+import math
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from django.utils import timezone
@@ -16,6 +17,7 @@ from apps.data_center.composition import (
 )
 from apps.macro.application.repository_provider import get_macro_read_repository
 from apps.macro.domain.entities import convert_currency_value
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,8 @@ class UnitDisplayService:
         storage_unit: str,
         original_unit: str,
     ) -> tuple[float, str]:
+        if not math.isfinite(stored_value):
+            raise ValueError("stored_value must be finite")
         if not original_unit:
             return stored_value, storage_unit
         if storage_unit == original_unit:
@@ -42,7 +46,7 @@ class UnitDisplayService:
         )
         if converted_unit == original_unit:
             return converted_value, converted_unit
-        return stored_value, original_unit or storage_unit
+        return stored_value, storage_unit
 
     @classmethod
     def format_for_display(
@@ -52,6 +56,12 @@ class UnitDisplayService:
         original_unit: str,
         precision: int = 2,
     ) -> str:
+        if (
+            isinstance(precision, bool)
+            or not isinstance(precision, int)
+            or not 0 <= precision <= 10
+        ):
+            raise ValueError("precision must be an integer from 0 to 10")
         display_value, display_unit = cls.convert_for_display(
             stored_value,
             storage_unit,
@@ -60,11 +70,15 @@ class UnitDisplayService:
         return f"{display_value:.{precision}f} {display_unit}".strip()
 
     @classmethod
-    def get_indicator_config(cls, indicator_code: str, source: str = None) -> dict | None:
+    def get_indicator_config(
+        cls,
+        indicator_code: str,
+        source: str | None = None,
+    ) -> dict[str, Any] | None:
         return cls.read_repository.get_indicator_unit_config(indicator_code, source)
 
     @classmethod
-    def get_original_unit(cls, indicator_code: str, source: str = None) -> str:
+    def get_original_unit(cls, indicator_code: str, source: str | None = None) -> str:
         config = cls.get_indicator_config(indicator_code, source)
         if config:
             return str(config.get("original_unit", "") or "")
@@ -94,11 +108,17 @@ class IndicatorUnitRuleService:
 
     @classmethod
     def get_normalized_unit_and_value(cls, indicator_code: str, value: float) -> tuple[float, str]:
+        if not math.isfinite(value):
+            raise ValueError("indicator value must be finite")
         rule = cls._get_default_rule(indicator_code)
         if not rule:
             return value, ""
-        multiplier = float(rule.get("multiplier_to_storage") or 1.0)
+        multiplier = safe_float(rule.get("multiplier_to_storage"))
         storage_unit = str(rule.get("storage_unit") or "")
+        if multiplier is None or multiplier <= 0:
+            raise ValueError("unit multiplier must be finite and positive")
+        if not storage_unit:
+            raise ValueError("unit rule storage_unit cannot be empty")
         return value * multiplier, storage_unit
 
 
@@ -123,28 +143,35 @@ class IndicatorService:
     )
 
     @classmethod
-    def get_indicator_metadata_map(cls) -> dict[str, dict]:
+    def get_indicator_metadata_map(cls) -> dict[str, dict[str, Any]]:
         catalog_repo = get_indicator_catalog_repository()
         unit_rule_repo = get_indicator_unit_rule_repository()
-        metadata: dict[str, dict] = {}
+        metadata: dict[str, dict[str, Any]] = {}
         for catalog in catalog_repo.list_all():
             rule = unit_rule_repo.resolve_active_rule(catalog.code)
             unit = ""
             if rule is not None:
                 unit = rule.display_unit or rule.original_unit or rule.storage_unit
             metadata[catalog.code] = {
+                **dict(catalog.extra or {}),
                 "name": catalog.name_cn,
                 "name_en": catalog.name_en or catalog.code,
                 "category": catalog.category or "其他",
                 "unit": unit,
                 "description": catalog.description or "",
-                **(catalog.extra or {}),
             }
         return metadata
 
     @classmethod
-    def _classify_measure_kind(cls, code: str) -> str:
-        metadata = cls.get_indicator_metadata_map().get(code, {})
+    def _classify_measure_kind(
+        cls,
+        code: str,
+        metadata_map: dict[str, dict[str, Any]] | None = None,
+    ) -> str:
+        resolved_metadata = (
+            metadata_map if metadata_map is not None else cls.get_indicator_metadata_map()
+        )
+        metadata = resolved_metadata.get(code, {})
         series_semantics = str(metadata.get("series_semantics") or "")
         if series_semantics in {"yoy_rate", "mom_rate", "rate"}:
             return "rate"
@@ -169,11 +196,16 @@ class IndicatorService:
         return "other"
 
     @classmethod
-    def _is_safe_alias_fallback(cls, requested_code: str, candidate_code: str) -> bool:
+    def _is_safe_alias_fallback(
+        cls,
+        requested_code: str,
+        candidate_code: str,
+        metadata_map: dict[str, dict[str, Any]],
+    ) -> bool:
         if requested_code == candidate_code:
             return True
-        requested_kind = cls._classify_measure_kind(requested_code)
-        candidate_kind = cls._classify_measure_kind(candidate_code)
+        requested_kind = cls._classify_measure_kind(requested_code, metadata_map)
+        candidate_kind = cls._classify_measure_kind(candidate_code, metadata_map)
         if (
             requested_kind != "other"
             and candidate_kind != "other"
@@ -215,7 +247,7 @@ class IndicatorService:
         ordered: list[str] = []
         for item in aliases:
             if item and item not in seen:
-                if not cls._is_safe_alias_fallback(code, item):
+                if not cls._is_safe_alias_fallback(code, item, metadata_map):
                     logger.warning("Blocked unsafe macro indicator fallback: %s -> %s", code, item)
                     continue
                 seen.add(item)
@@ -223,7 +255,10 @@ class IndicatorService:
         return ordered
 
     @classmethod
-    def get_available_indicators(cls, include_stats: bool = True) -> list[dict]:
+    def get_available_indicators(
+        cls,
+        include_stats: bool = True,
+    ) -> list[dict[str, Any]]:
         metadata_map = cls.get_indicator_metadata_map()
         distinct_codes = cls.read_repository.list_distinct_codes()
         indicators: list[dict[str, Any]] = []
@@ -232,6 +267,11 @@ class IndicatorService:
             latest = cls.read_repository.get_latest_indicator(code)
             if not latest:
                 continue
+            latest_value = cls._extract_display_value(latest)
+            latest_date = cls._extract_reporting_period(latest)
+            if latest_value is None or latest_date is None:
+                logger.warning("Skipping invalid latest macro indicator: %s", code)
+                continue
             metadata = metadata_map.get(code, {})
             avg_value = max_value = min_value = None
             if include_stats:
@@ -239,9 +279,9 @@ class IndicatorService:
                     code=code,
                     start_date=timezone.now().date() - timedelta(days=365),
                 )
-                avg_value = stats["avg_value"]
-                max_value = stats["max_value"]
-                min_value = stats["min_value"]
+                avg_value = safe_float(stats.get("avg_value"))
+                max_value = safe_float(stats.get("max_value"))
+                min_value = safe_float(stats.get("min_value"))
 
             indicators.append(
                 {
@@ -253,8 +293,8 @@ class IndicatorService:
                     "description": metadata.get("description", ""),
                     "series_semantics": metadata.get("series_semantics", ""),
                     "paired_indicator_code": metadata.get("paired_indicator_code", ""),
-                    "latest_value": float(latest.get("display_value", latest["value"])),
-                    "latest_date": latest["reporting_period"].isoformat(),
+                    "latest_value": latest_value,
+                    "latest_date": latest_date.isoformat(),
                     "period_type": latest["period_type"],
                     "threshold_bullish": metadata.get("threshold_bullish"),
                     "threshold_bearish": metadata.get("threshold_bearish"),
@@ -268,9 +308,13 @@ class IndicatorService:
         return indicators
 
     @classmethod
-    def get_indicator_by_code(cls, code: str) -> dict | None:
+    def get_indicator_by_code(cls, code: str) -> dict[str, Any] | None:
         latest = cls.read_repository.get_latest_indicator(code)
         if not latest:
+            return None
+        latest_value = cls._extract_display_value(latest)
+        latest_date = cls._extract_reporting_period(latest)
+        if latest_value is None or latest_date is None:
             return None
         metadata = cls.get_indicator_metadata_map().get(code, {})
         return {
@@ -282,13 +326,19 @@ class IndicatorService:
             "description": metadata.get("description", ""),
             "series_semantics": metadata.get("series_semantics", ""),
             "paired_indicator_code": metadata.get("paired_indicator_code", ""),
-            "latest_value": float(latest.get("display_value", latest["value"])),
-            "latest_date": latest["reporting_period"].isoformat(),
+            "latest_value": latest_value,
+            "latest_date": latest_date.isoformat(),
             "period_type": latest["period_type"],
         }
 
     @classmethod
-    def get_indicator_history(cls, code: str, periods: int = 12) -> list[dict]:
+    def get_indicator_history(
+        cls,
+        code: str,
+        periods: int = 12,
+    ) -> list[dict[str, Any]]:
+        if isinstance(periods, bool) or not isinstance(periods, int) or not 1 <= periods <= 1200:
+            raise ValueError("periods must be an integer from 1 to 1200")
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=periods * 35)
         data_points = cls.read_repository.get_indicator_history(
@@ -297,18 +347,43 @@ class IndicatorService:
             end_date=end_date,
             limit=periods,
         )
-        return [
-            {
-                "date": d["reporting_period"].isoformat(),
-                "value": float(d.get("display_value", d["value"])),
-                "unit": d.get("display_unit") or d.get("original_unit") or d.get("unit") or "",
-                "period_type": d["period_type"],
-            }
-            for d in data_points
-        ]
+        history: list[dict[str, Any]] = []
+        for data_point in data_points:
+            value = cls._extract_display_value(data_point)
+            reporting_period = cls._extract_reporting_period(data_point)
+            if value is None or reporting_period is None:
+                continue
+            history.append(
+                {
+                    "date": reporting_period.isoformat(),
+                    "value": value,
+                    "unit": data_point.get("display_unit")
+                    or data_point.get("original_unit")
+                    or data_point.get("unit")
+                    or "",
+                    "period_type": data_point["period_type"],
+                }
+            )
+        return history
+
+    @staticmethod
+    def _extract_display_value(payload: dict[str, Any]) -> float | None:
+        raw_value = payload.get("display_value")
+        if raw_value is None:
+            raw_value = payload.get("value")
+        return safe_float(raw_value)
+
+    @staticmethod
+    def _extract_reporting_period(payload: dict[str, Any]) -> date | None:
+        value = payload.get("reporting_period")
+        if isinstance(value, datetime):
+            return value.date()
+        return value if isinstance(value, date) else None
 
 
-def get_available_indicators_for_frontend(include_stats: bool = False) -> list[dict]:
+def get_available_indicators_for_frontend(
+    include_stats: bool = False,
+) -> list[dict[str, Any]]:
     indicators = IndicatorService.get_available_indicators(include_stats=include_stats)
     if include_stats:
         return [

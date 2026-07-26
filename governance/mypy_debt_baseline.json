@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1365,
-    "files_with_errors": 423
+    "errors": 1356,
+    "files_with_errors": 422
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -863,10 +863,6 @@
       "assignment": 1,
       "no-any-return": 1,
       "no-untyped-def": 3
-    },
-    "apps/macro/application/indicator_service.py": {
-      "assignment": 2,
-      "type-arg": 7
     },
     "apps/macro/application/use_cases.py": {
       "arg-type": 1,

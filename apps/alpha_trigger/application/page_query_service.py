@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
-from typing import Any, cast
+from typing import Any
 
 from django.utils import timezone
 
@@ -216,7 +216,7 @@ class AlphaTriggerPageQueryService:
             )
 
             indicators = get_available_indicators_for_frontend(include_stats=False)[:50]
-            return cast(list[dict[str, Any]], indicators)
+            return indicators
         except Exception:
             return []
 

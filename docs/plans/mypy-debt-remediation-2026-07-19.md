@@ -4126,3 +4126,21 @@
 - Asset Pool Domain、Application、Repository 与 API 回归 `21 passed`；覆盖数据库种子阈值真实生效、重复/缺失配置、未知类别、类别错配、`NaN` 评分、非法阈值和稳定 503 契约。
 - pool service、Domain pool 与 pool views 增量 mypy 清零；全仓基线从 `1382 errors / 426 files` 收紧为 `1365 errors / 423 files`，净减少 `17 errors / 3 files`。
 - Django system check、迁移一致性、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百七十六批
+
+- 按“宏观单位转换真实性 × 元数据真源保护 × 非有限观测失败关闭”收口 Macro indicator service。
+- catalog `extra` 先合并，正式名称、中英文名、分类、单位和描述后覆盖；动态扩展字段不再反向篡改核心指标身份与量纲。
+- 单位转换统一拒绝非有限存储值；转换失败时保留真实 storage unit，不再把未转换数值标成请求的 original unit。
+- 展示精度只接受 0-10 的非布尔整数；单位规则 multiplier 必须有限正数且 storage unit 非空，零、负数、`NaN/Inf` 与缺失量纲失败关闭。
+- 指标归一化输入必须有限；删除 `multiplier or 1.0` 让零倍率被静默解释为 1 的错误。
+- available、detail 与 history 输出通过 `safe_float` 收窄；`NaN/Inf` 最新值不再发布，非有限统计降为 unavailable，坏历史值或非日期报告期被剔除。
+- 历史 periods 限制为 1-1200 的非布尔整数，避免负窗口、空窗口和无界查询进入 Repository。
+- alias 安全检查在一次 metadata snapshot 上完成；同次请求不再为每个候选重复查询 catalog，避免性能放大与配置切换期间语义不一致。
+- Macro indicator 的 metadata、配置、列表、详情、历史与前端投影补齐精确泛型；精确返回类型同步消除 Alpha Trigger 下游已经冗余的 cast，不接受新增债务。
+
+## 第二百七十六批验证结果
+
+- Macro indicator 数值/单位真值与既有服务回归 `17 passed`；Macro facade、策略消费者与系统配置组件回归 `22 passed`。
+- `indicator_service.py` 增量 mypy 清零，Alpha Trigger 消费者保持清零；全仓基线从 `1365 errors / 423 files` 收紧为 `1356 errors / 422 files`，净减少 `9 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
