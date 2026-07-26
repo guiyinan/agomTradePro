@@ -3765,3 +3765,20 @@
 - Decision execution handlers 与 EventBus 初始化回归 `24 passed`，新增畸形候选集合、非法 execution_ref 和异常 candidate_id 失败关闭覆盖；健康检查隔离回归 `1 passed`。
 - Decision execution handlers 增量 mypy 清零；全仓基线从 `1636 errors / 455 files` 收紧为 `1626 errors / 454 files`，净减少 `10 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百五十五批
+
+- 按“Filter 页面 GET 无副作用 × 指标/滤波器严格选择 × 图表金融数值真实性”收口 Filter dashboard view。
+- 页面增加登录保护；匿名访问不能再触发指标查询、滤波计算或结果写入。
+- 删除页面层 legacy Repository compatibility wrapper，直接使用 Application provider 暴露的正式仓储契约；Application UseCase 不再收到错误的 wrapper 类型。
+- 可用指标完全来自数据库；没有指标时明确提示先配置数据中心，不再硬编码 `CN_PMI` 作为虚假默认。请求的指标不在当前可用集合时失败关闭。
+- `filter_type` 只接受 `hp` / `kalman`；未知值不再静默映射为 Kalman。
+- 页面 GET 在缺少已保存结果时只执行 `save_results=False` 的只读回退计算；不再因打开页面删除/重写滤波结果或 Kalman 状态。
+- 图表输出要求 dates、原值、滤波值和 slope 长度一致，并拒绝 `NaN` / `Inf`；JSON 序列化禁用非标准非有限值。
+- Repository、UseCase 或图表异常只在服务端记录堆栈，对用户返回稳定错误文案，不再展示数据库、数据源或算法异常正文。
+
+## 第二百五十五批验证结果
+
+- Filter 页面与 API 回归 `15 passed`，图表数值/序列边界回归 `7 passed`；覆盖认证、未知滤波器、GET 不持久化、异常脱敏、NaN/Inf 和错位序列。
+- Filter dashboard view 增量 mypy 清零；全仓基线从 `1626 errors / 454 files` 收紧为 `1614 errors / 453 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1626,
-    "files_with_errors": 454
+    "errors": 1614,
+    "files_with_errors": 453
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -894,14 +894,6 @@
     },
     "apps/filter/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/filter/interface/views.py": {
-      "arg-type": 2,
-      "index": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 6,
-      "type-arg": 1
     },
     "apps/fund/apps.py": {
       "no-untyped-def": 1

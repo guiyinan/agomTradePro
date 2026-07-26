@@ -1,108 +1,174 @@
-"""
-Interface Views for Filter Dashboard.
+"""Page views for the filter dashboard."""
 
-Page views for filter operations.
-"""
+from __future__ import annotations
 
 import json
+import logging
+import math
+from typing import Any
 
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
-from ..application.repository_provider import get_filter_repository
-from ..application.use_cases import (
+from apps.filter.application.repository_provider import (
+    DjangoFilterRepository,
+    get_filter_repository,
+)
+from apps.filter.application.use_cases import (
     ApplyFilterRequest,
     ApplyFilterUseCase,
     GetFilterDataRequest,
+    GetFilterDataResponse,
     GetFilterDataUseCase,
 )
-from ..domain.entities import FilterType
+from apps.filter.domain.entities import FilterSeries, FilterType
+
+logger = logging.getLogger(__name__)
 
 
-class DjangoFilterRepository:
-    """Compatibility wrapper kept for legacy interface tests."""
+def _get_available_indicators(
+    repository: DjangoFilterRepository,
+) -> list[dict[str, Any]]:
+    """Return database-configured indicators available for filtering."""
 
-    def __init__(self):
-        self._repository = get_filter_repository()
-
-    def get_filter_config(self, indicator_code: str):
-        return self._repository.get_filter_config(indicator_code)
-
-    def __getattr__(self, item):
-        return getattr(self._repository, item)
+    return [
+        {str(key): value for key, value in item.items()}
+        for item in repository.get_available_indicators()
+        if isinstance(item, dict)
+    ]
 
 
-def filter_dashboard_view(request):
-    """趋势滤波器仪表板页面"""
-    repository = DjangoFilterRepository()
-    apply_use_case = ApplyFilterUseCase(repository)
-    get_use_case = GetFilterDataUseCase(repository)
+def _validated_numeric_series(values: list[float], *, field_name: str) -> list[float]:
+    """Reject non-finite chart values instead of emitting invalid JSON."""
 
-    # 获取可用指标列表
-    available_indicators = _get_available_indicators(repository)
+    if not all(isinstance(value, (int, float)) and math.isfinite(value) for value in values):
+        raise ValueError(f"{field_name} contains invalid values")
+    return [float(value) for value in values]
 
-    # 获取查询参数（默认使用第一个可用指标的代码）
-    default_indicator = available_indicators[0]['code'] if available_indicators else 'CN_PMI'
-    indicator = request.GET.get('indicator', default_indicator)
-    filter_type_str = request.GET.get('filter_type', 'hp')
-    filter_type = FilterType.HP if filter_type_str == 'hp' else FilterType.KALMAN
 
-    context = {
-        'current_indicator': indicator,
-        'current_filter_type': filter_type_str,
-        'available_indicators': available_indicators,
-        'error': None,
-        'chart_data': None,
+def _prepare_chart_data(
+    *,
+    dates: list[str],
+    original_values: list[float],
+    filtered_values: list[float],
+    slopes: list[float | None],
+) -> dict[str, Any]:
+    """Prepare a finite, aligned chart payload."""
+
+    if not (len(dates) == len(original_values) == len(filtered_values) == len(slopes)):
+        raise ValueError("filter chart series lengths are inconsistent")
+    normalized_original = _validated_numeric_series(
+        original_values,
+        field_name="original_values",
+    )
+    normalized_filtered = _validated_numeric_series(
+        filtered_values,
+        field_name="filtered_values",
+    )
+    normalized_slopes = [
+        None if value is None else _validated_numeric_series([value], field_name="slopes")[0]
+        for value in slopes
+    ]
+    return {
+        "dates": dates,
+        "original_values": normalized_original,
+        "filtered_values": normalized_filtered,
+        "slopes": normalized_slopes,
+        "dates_json": json.dumps(dates, ensure_ascii=False, allow_nan=False),
+        "original_values_json": json.dumps(normalized_original, allow_nan=False),
+        "filtered_values_json": json.dumps(normalized_filtered, allow_nan=False),
+        "slopes_json": json.dumps(normalized_slopes, allow_nan=False),
     }
 
-    try:
-        # 尝试获取已保存的滤波结果
-        get_response = get_use_case.execute(GetFilterDataRequest(
-            indicator_code=indicator,
-            filter_type=filter_type,
-        ))
 
-        if get_response.success:
-            context['chart_data'] = _prepare_chart_data(get_response)
-        else:
-            # 如果没有保存的结果，尝试计算
-            apply_response = apply_use_case.execute(ApplyFilterRequest(
+def _chart_from_saved_response(response: GetFilterDataResponse) -> dict[str, Any]:
+    return _prepare_chart_data(
+        dates=response.dates,
+        original_values=response.original_values,
+        filtered_values=response.filtered_values,
+        slopes=response.slopes,
+    )
+
+
+def _chart_from_series(series: FilterSeries) -> dict[str, Any]:
+    return _prepare_chart_data(
+        dates=[value.isoformat() for value in series.dates],
+        original_values=series.original_values,
+        filtered_values=series.filtered_values,
+        slopes=series.slopes,
+    )
+
+
+@login_required(login_url="/account/login/")
+def filter_dashboard_view(request: HttpRequest) -> HttpResponse:
+    """Render filter data without mutating persisted results from a GET request."""
+
+    context: dict[str, Any] = {
+        "current_indicator": "",
+        "current_filter_type": "",
+        "available_indicators": [],
+        "error": None,
+        "chart_data": None,
+    }
+    try:
+        repository = get_filter_repository()
+        available_indicators = _get_available_indicators(repository)
+        context["available_indicators"] = available_indicators
+        if not available_indicators:
+            context["error"] = "当前没有可用指标，请先在数据中心配置并同步指标。"
+            return render(request, "filter/dashboard.html", context)
+
+        available_codes = {str(item.get("code") or "").strip() for item in available_indicators}
+        available_codes.discard("")
+        default_indicator = str(available_indicators[0].get("code") or "").strip()
+        indicator = str(request.GET.get("indicator") or default_indicator).strip()
+        if indicator not in available_codes:
+            context["error"] = "请求的指标当前不可用。"
+            return render(request, "filter/dashboard.html", context)
+
+        filter_type_value = str(request.GET.get("filter_type") or "hp").strip().casefold()
+        filter_type_map = {
+            "hp": FilterType.HP,
+            "kalman": FilterType.KALMAN,
+        }
+        filter_type = filter_type_map.get(filter_type_value)
+        context["current_indicator"] = indicator
+        context["current_filter_type"] = filter_type_value
+        if filter_type is None:
+            context["error"] = "不支持的滤波器类型。"
+            return render(request, "filter/dashboard.html", context)
+
+        get_response = GetFilterDataUseCase(repository).execute(
+            GetFilterDataRequest(
                 indicator_code=indicator,
                 filter_type=filter_type,
-                save_results=True,
-            ))
+            )
+        )
+        if get_response.success:
+            context["chart_data"] = _chart_from_saved_response(get_response)
+            return render(request, "filter/dashboard.html", context)
 
-            if apply_response.success:
-                # 重新获取数据
-                get_response = get_use_case.execute(GetFilterDataRequest(
-                    indicator_code=indicator,
-                    filter_type=filter_type,
-                ))
-                if get_response.success:
-                    context['chart_data'] = _prepare_chart_data(get_response)
-                    context['warnings'] = apply_response.warnings
-            else:
-                context['error'] = apply_response.error
+        apply_response = ApplyFilterUseCase(repository).execute(
+            ApplyFilterRequest(
+                indicator_code=indicator,
+                filter_type=filter_type,
+                save_results=False,
+            )
+        )
+        if apply_response.success and apply_response.series is not None:
+            context["chart_data"] = _chart_from_series(apply_response.series)
+            context["warnings"] = apply_response.warnings
+        else:
+            logger.warning(
+                "Filter dashboard calculation unavailable: indicator=%s type=%s error=%s",
+                indicator,
+                filter_type.value,
+                apply_response.error,
+            )
+            context["error"] = "滤波计算暂不可用，请稍后重试。"
+    except Exception:
+        logger.exception("Failed to build filter dashboard")
+        context["error"] = "滤波页面暂不可用，请稍后重试。"
 
-    except Exception as e:
-        context['error'] = str(e)
-
-    return render(request, 'filter/dashboard.html', context)
-
-
-def _get_available_indicators(repository) -> list[str]:
-    """获取可用的指标列表（从数据库动态获取）"""
-    return repository.get_available_indicators()
-
-
-def _prepare_chart_data(response) -> dict:
-    """准备图表数据"""
-    return {
-        'dates': response.dates,
-        'original_values': response.original_values,
-        'filtered_values': response.filtered_values,
-        'slopes': response.slopes,
-        'dates_json': json.dumps(response.dates),
-        'original_values_json': json.dumps(response.original_values),
-        'filtered_values_json': json.dumps(response.filtered_values),
-        'slopes_json': json.dumps(response.slopes) if response.slopes else '[]',
-    }
+    return render(request, "filter/dashboard.html", context)
