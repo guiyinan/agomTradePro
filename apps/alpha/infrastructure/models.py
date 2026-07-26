@@ -5,7 +5,11 @@ Alpha 评分缓存和模型注册的数据持久化模型。
 Domain 层实体映射到数据库表结构。
 """
 
+from __future__ import annotations
+
 import logging
+from datetime import date
+from typing import Self
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -19,59 +23,65 @@ logger = logging.getLogger(__name__)
 # QuerySet Classes (must be defined before Managers and Models)
 # ============================================================================
 
-class AlphaScoreCacheQuerySet(models.QuerySet):
+
+class AlphaScoreCacheQuerySet(models.QuerySet["AlphaScoreCacheModel"]):
     """AlphaScoreCache 查询集扩展"""
 
-    def for_universe(self, universe_id: str):
+    def for_universe(self, universe_id: str) -> Self:
         """按股票池过滤"""
         return self.filter(universe_id=universe_id)
 
-    def for_scope_hash(self, scope_hash: str):
+    def for_scope_hash(self, scope_hash: str) -> Self:
         """按账户驱动 scope hash 过滤。"""
         return self.filter(scope_hash=scope_hash)
 
-    def for_date(self, trade_date):
+    def for_date(self, trade_date: date) -> Self:
         """按交易日期过滤"""
         return self.filter(intended_trade_date=trade_date)
 
-    def from_provider(self, provider: str):
+    def from_provider(self, provider: str) -> Self:
         """按提供者过滤"""
         return self.filter(provider_source=provider)
 
-    def available(self):
+    def available(self) -> Self:
         """获取可用的缓存"""
         return self.filter(status="available")
 
-    def active_models(self):
+    def active_models(self) -> Self:
         """获取来自激活模型的缓存"""
         # Simple filter for qlib provider - avoid circular reference
         return self.filter(provider_source="qlib")
 
-    def latest_for_universe_and_date(self, universe_id: str, trade_date):
+    def latest_for_universe_and_date(
+        self,
+        universe_id: str,
+        trade_date: date,
+    ) -> AlphaScoreCacheModel | None:
         """获取指定股票池和日期的最新缓存"""
-        return self.filter(
-            universe_id=universe_id,
-            intended_trade_date=trade_date
-        ).order_by("-created_at").first()
+        return (
+            self.filter(universe_id=universe_id, intended_trade_date=trade_date)
+            .order_by("-created_at")
+            .first()
+        )
 
 
-class QlibModelRegistryQuerySet(models.QuerySet):
+class QlibModelRegistryQuerySet(models.QuerySet["QlibModelRegistryModel"]):
     """QlibModelRegistry 查询集扩展"""
 
-    def active(self):
+    def active(self) -> Self:
         """获取激活的模型"""
         return self.filter(is_active=True)
 
-    def for_universe(self, universe: str):
+    def for_universe(self, universe: str) -> Self:
         """按股票池过滤"""
         return self.filter(universe=universe)
 
-    def by_type(self, model_type: str):
+    def by_type(self, model_type: str) -> Self:
         """按模型类型过滤"""
         return self.filter(model_type=model_type)
 
-    def latest(self):
-        """获取最新模型"""
+    def latest_registered(self) -> QlibModelRegistryModel | None:
+        """Return the most recently registered model, or None when empty."""
         return self.order_by("-created_at").first()
 
 
@@ -86,6 +96,7 @@ QlibModelRegistryManager = models.Manager.from_queryset(QlibModelRegistryQuerySe
 # ============================================================================
 # Model Classes
 # ============================================================================
+
 
 class AlphaScoreCacheModel(models.Model):
     """
@@ -138,106 +149,49 @@ class AlphaScoreCacheModel(models.Model):
     ]
 
     # 主键信息
-    universe_id = models.CharField(
-        max_length=50,
-        db_index=True,
-        help_text="股票池标识"
-    )
+    universe_id = models.CharField(max_length=50, db_index=True, help_text="股票池标识")
 
     scope_hash = models.CharField(
-        max_length=32,
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="账户驱动股票池 scope hash"
+        max_length=32, null=True, blank=True, db_index=True, help_text="账户驱动股票池 scope hash"
     )
 
     scope_label = models.CharField(
-        max_length=200,
-        null=True,
-        blank=True,
-        help_text="账户驱动股票池展示名称"
+        max_length=200, null=True, blank=True, help_text="账户驱动股票池展示名称"
     )
 
-    scope_metadata = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="账户驱动股票池元数据"
-    )
+    scope_metadata = models.JSONField(null=True, blank=True, help_text="账户驱动股票池元数据")
 
-    intended_trade_date = models.DateField(
-        db_index=True,
-        help_text="计划交易日期"
-    )
+    intended_trade_date = models.DateField(db_index=True, help_text="计划交易日期")
 
     provider_source = models.CharField(
-        max_length=20,
-        choices=PROVIDER_CHOICES,
-        db_index=True,
-        help_text="提供者来源"
+        max_length=20, choices=PROVIDER_CHOICES, db_index=True, help_text="提供者来源"
     )
 
     # 时间对齐字段（审计必需）
-    asof_date = models.DateField(
-        db_index=True,
-        help_text="信号真实生成日期"
-    )
+    asof_date = models.DateField(db_index=True, help_text="信号真实生成日期")
 
     # 模型版本信息（可追溯）
-    model_id = models.CharField(
-        max_length=200,
-        null=True,
-        blank=True,
-        help_text="模型标识"
-    )
+    model_id = models.CharField(max_length=200, null=True, blank=True, help_text="模型标识")
 
     model_artifact_hash = models.CharField(
-        max_length=64,
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="模型文件哈希"
+        max_length=64, null=True, blank=True, db_index=True, help_text="模型文件哈希"
     )
 
-    feature_set_id = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
-        help_text="特征集标识"
-    )
+    feature_set_id = models.CharField(max_length=50, null=True, blank=True, help_text="特征集标识")
 
-    label_id = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
-        help_text="标签标识"
-    )
+    label_id = models.CharField(max_length=50, null=True, blank=True, help_text="标签标识")
 
-    data_version = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
-        help_text="数据版本"
-    )
+    data_version = models.CharField(max_length=50, null=True, blank=True, help_text="数据版本")
 
     # 评分结果
-    scores = models.JSONField(
-        help_text="评分结果 [{code, score, rank, factors, confidence}, ...]"
-    )
+    scores = models.JSONField(help_text="评分结果 [{code, score, rank, factors, confidence}, ...]")
 
     # 质量指标
     status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default=STATUS_AVAILABLE,
-        help_text="状态"
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_AVAILABLE, help_text="状态"
     )
 
-    metrics_snapshot = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="指标快照"
-    )
+    metrics_snapshot = models.JSONField(null=True, blank=True, help_text="指标快照")
 
     # 用户隔离（None = 系统级，全局可见；非 None = 用户个人，仅本人和 admin 可见）
     user = models.ForeignKey(
@@ -250,16 +204,9 @@ class AlphaScoreCacheModel(models.Model):
     )
 
     # 审计字段
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
     class Meta:
         app_label = "alpha"
@@ -278,22 +225,20 @@ class AlphaScoreCacheModel(models.Model):
             models.Index(fields=["asof_date"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.universe_id}@{self.intended_trade_date} ({self.provider_source})"
 
-    def clean(self):
+    def clean(self) -> None:
         """验证模型"""
         super().clean()
 
         # 验证日期逻辑
         if self.asof_date and self.intended_trade_date:
             if self.asof_date > self.intended_trade_date:
-                raise ValidationError({
-                    "asof_date": "信号生成日期不能晚于交易日期"
-                })
+                raise ValidationError({"asof_date": "信号生成日期不能晚于交易日期"})
 
         # 验证 scores 格式
-        if self.scores and not isinstance(self.scores, list):
+        if not isinstance(self.scores, list):
             raise ValidationError({"scores": "scores 必须是列表"})
 
     def is_stale(self, max_days: int = 2) -> bool:
@@ -306,13 +251,11 @@ class AlphaScoreCacheModel(models.Model):
         Returns:
             是否过期
         """
-        if not self.asof_date:
-            return True
+        if max_days < 0:
+            raise ValueError("max_days must be non-negative")
 
-        # 使用当前日期（本地时区）而非 UTC 日期
-        from datetime import date
-        current_date = date.today()
-        staleness = (current_date - self.asof_date).days
+        current_date = timezone.localdate()
+        staleness = max(0, (current_date - self.asof_date).days)
         return staleness > max_days
 
     def get_staleness_days(self) -> int:
@@ -322,13 +265,8 @@ class AlphaScoreCacheModel(models.Model):
         Returns:
             陈旧天数
         """
-        if not self.asof_date:
-            return 999
-
-        # 使用当前日期（本地时区）而非 UTC 日期
-        from datetime import date
-        current_date = date.today()
-        return (current_date - self.asof_date).days
+        current_date = timezone.localdate()
+        return max(0, (current_date - self.asof_date).days)
 
 
 class AlphaMonitoringArchiveModel(models.Model):
@@ -358,7 +296,7 @@ class AlphaMonitoringArchiveModel(models.Model):
             models.Index(fields=["archive_type", "cutoff_date"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.archive_type}@{self.cutoff_date} ({self.row_count})"
 
 
@@ -404,107 +342,51 @@ class QlibModelRegistryModel(models.Model):
     ]
 
     # 模型标识
-    model_name = models.CharField(
-        max_length=100,
-        db_index=True,
-        help_text="模型名称"
-    )
+    model_name = models.CharField(max_length=100, db_index=True, help_text="模型名称")
 
     artifact_hash = models.CharField(
-        max_length=64,
-        unique=True,
-        primary_key=True,
-        help_text="模型文件哈希"
+        max_length=64, unique=True, primary_key=True, help_text="模型文件哈希"
     )
 
     # 训练配置
-    model_type = models.CharField(
-        max_length=30,
-        choices=MODEL_TYPE_CHOICES,
-        help_text="模型类型"
-    )
+    model_type = models.CharField(max_length=30, choices=MODEL_TYPE_CHOICES, help_text="模型类型")
 
-    universe = models.CharField(
-        max_length=20,
-        help_text="股票池"
-    )
+    universe = models.CharField(max_length=20, help_text="股票池")
 
-    train_config = models.JSONField(
-        help_text="训练配置"
-    )
+    train_config = models.JSONField(help_text="训练配置")
 
     # 特征和标签
-    feature_set_id = models.CharField(
-        max_length=50,
-        help_text="特征集标识"
-    )
+    feature_set_id = models.CharField(max_length=50, help_text="特征集标识")
 
-    label_id = models.CharField(
-        max_length=50,
-        help_text="标签标识"
-    )
+    label_id = models.CharField(max_length=50, help_text="标签标识")
 
-    data_version = models.CharField(
-        max_length=50,
-        help_text="数据版本"
-    )
+    data_version = models.CharField(max_length=50, help_text="数据版本")
 
     # 评估指标
     ic = models.DecimalField(
-        max_digits=10,
-        decimal_places=6,
-        null=True,
-        blank=True,
-        help_text="IC 值"
+        max_digits=10, decimal_places=6, null=True, blank=True, help_text="IC 值"
     )
 
     icir = models.DecimalField(
-        max_digits=10,
-        decimal_places=6,
-        null=True,
-        blank=True,
-        help_text="ICIR 值"
+        max_digits=10, decimal_places=6, null=True, blank=True, help_text="ICIR 值"
     )
 
     rank_ic = models.DecimalField(
-        max_digits=10,
-        decimal_places=6,
-        null=True,
-        blank=True,
-        help_text="Rank IC 值"
+        max_digits=10, decimal_places=6, null=True, blank=True, help_text="Rank IC 值"
     )
 
     # 模型存储
-    model_path = models.CharField(
-        max_length=500,
-        help_text="模型文件路径"
-    )
+    model_path = models.CharField(max_length=500, help_text="模型文件路径")
 
     # 状态
-    is_active = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="是否激活"
-    )
+    is_active = models.BooleanField(default=False, db_index=True, help_text="是否激活")
 
     # 审计
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
-    activated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="激活时间"
-    )
+    activated_at = models.DateTimeField(null=True, blank=True, help_text="激活时间")
 
-    activated_by = models.CharField(
-        max_length=100,
-        null=True,
-        blank=True,
-        help_text="激活者"
-    )
+    activated_by = models.CharField(max_length=100, null=True, blank=True, help_text="激活者")
 
     class Meta:
         app_label = "alpha"
@@ -517,8 +399,15 @@ class QlibModelRegistryModel(models.Model):
             models.Index(fields=["universe"]),
             models.Index(fields=["model_type"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["is_active"],
+                condition=models.Q(is_active=True),
+                name="alpha_single_active_qlib_model",
+            ),
+        ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         active_flag = "ACTIVE" if self.is_active else "INACTIVE"
         return f"{self.model_name}@{self.artifact_hash[:8]} ({active_flag})"
 
@@ -532,21 +421,26 @@ class QlibModelRegistryModel(models.Model):
             activated_by: 激活者标识
         """
         with transaction.atomic():
-            # 取消其他激活模型（全局只允许一个激活模型）
-            QlibModelRegistryModel._default_manager.filter(
-                is_active=True
-            ).update(is_active=False)
+            QlibModelRegistryModel._default_manager.select_for_update().filter(
+                is_active=True,
+            ).exclude(pk=self.pk).update(is_active=False)
 
             # 激活当前模型
             self.is_active = True
             self.activated_at = timezone.now()
             self.activated_by = activated_by
-            self.save()
+            self.save(
+                update_fields=[
+                    "is_active",
+                    "activated_at",
+                    "activated_by",
+                ]
+            )
 
     def deactivate(self) -> None:
         """取消激活"""
         self.is_active = False
-        self.save()
+        self.save(update_fields=["is_active"])
 
 
 class AlphaAlertModel(models.Model):
@@ -593,10 +487,7 @@ class AlphaAlertModel(models.Model):
     ]
 
     alert_type = models.CharField(
-        max_length=50,
-        choices=ALERT_TYPE_CHOICES,
-        db_index=True,
-        help_text="告警类型"
+        max_length=50, choices=ALERT_TYPE_CHOICES, db_index=True, help_text="告警类型"
     )
 
     severity = models.CharField(
@@ -604,41 +495,20 @@ class AlphaAlertModel(models.Model):
         choices=SEVERITY_CHOICES,
         default=SEVERITY_WARNING,
         db_index=True,
-        help_text="严重程度"
+        help_text="严重程度",
     )
 
-    title = models.CharField(
-        max_length=255,
-        help_text="告警标题"
-    )
+    title = models.CharField(max_length=255, help_text="告警标题")
 
-    message = models.TextField(
-        help_text="告警详情"
-    )
+    message = models.TextField(help_text="告警详情")
 
-    metadata = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="元数据"
-    )
+    metadata = models.JSONField(null=True, blank=True, help_text="元数据")
 
-    is_resolved = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="是否已解决"
-    )
+    is_resolved = models.BooleanField(default=False, db_index=True, help_text="是否已解决")
 
-    resolved_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="解决时间"
-    )
+    resolved_at = models.DateTimeField(null=True, blank=True, help_text="解决时间")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="创建时间")
 
     class Meta:
         app_label = "alpha"
@@ -651,7 +521,7 @@ class AlphaAlertModel(models.Model):
             models.Index(fields=["severity", "is_resolved"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"[{self.severity.upper()}] {self.title}"
 
     def resolve(self) -> None:

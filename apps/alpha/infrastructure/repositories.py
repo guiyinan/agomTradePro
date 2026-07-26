@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from datetime import date, timedelta
-from typing import Any
+from datetime import date, datetime, timedelta
+from typing import Any, cast
 
 from apps.alpha.domain.entities import normalize_stock_code
 from apps.data_center.infrastructure.models import AssetMasterModel, PriceBarModel
@@ -182,7 +182,7 @@ class QlibModelRegistryRepository:
             .order_by("created_at")
             .values("created_at", "ic", "icir", "rank_ic")
         )
-        return list(rows)
+        return [cast(dict[str, Any], row) for row in rows]
 
     def get_by_artifact_hash(self, artifact_hash: str) -> Any:
         from .models import QlibModelRegistryModel
@@ -293,7 +293,12 @@ class AlphaScoreCacheRepository:
             "updated_at": row.updated_at.isoformat() if row.updated_at else None,
         }
 
-    def list_recent_provider_caches(self, *, provider: str, since) -> list[Any]:
+    def list_recent_provider_caches(
+        self,
+        *,
+        provider: str,
+        since: datetime,
+    ) -> list[Any]:
         """Return recent cache rows for one provider."""
 
         from .models import AlphaScoreCacheModel
@@ -305,7 +310,12 @@ class AlphaScoreCacheRepository:
             )
         )
 
-    def get_latest_cache_for_universe(self, *, universe_id: str, since) -> Any | None:
+    def get_latest_cache_for_universe(
+        self,
+        *,
+        universe_id: str,
+        since: datetime,
+    ) -> Any | None:
         """Return the latest cache row for one universe since a cutoff."""
 
         from .models import AlphaScoreCacheModel
@@ -341,11 +351,11 @@ class AlphaScoreCacheRepository:
 
         from .models import AlphaScoreCacheModel
 
-        return list(
-            AlphaScoreCacheModel._default_manager.filter(created_at__date=target_date).values(
-                "provider_source", "status"
-            )
+        rows = AlphaScoreCacheModel._default_manager.filter(created_at__date=target_date).values(
+            "provider_source",
+            "status",
         )
+        return [cast(dict[str, Any], row) for row in rows]
 
     def list_recent_qlib_caches(self, *, limit: int = 20) -> list[Any]:
         """Return recent qlib cache rows for operational inspection."""
@@ -403,7 +413,7 @@ class AlphaScoreCacheRepository:
             normalized_codes.append(normalized)
         return normalized_codes
 
-    def get_earliest_trade_date(self):
+    def get_earliest_trade_date(self) -> date | None:
         """Return the earliest intended trade date present in alpha score cache."""
 
         from .models import AlphaScoreCacheModel

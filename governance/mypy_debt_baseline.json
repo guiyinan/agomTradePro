@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1799,
-    "files_with_errors": 468
+    "errors": 1776,
+    "files_with_errors": 466
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -266,19 +266,11 @@
       "no-untyped-call": 1,
       "var-annotated": 1
     },
-    "apps/alpha/infrastructure/models.py": {
-      "no-untyped-def": 17,
-      "override": 1,
-      "type-arg": 2
-    },
     "apps/alpha/infrastructure/qlib_builder.py": {
       "attr-defined": 5,
       "import-untyped": 1,
       "no-untyped-def": 2,
       "var-annotated": 3
-    },
-    "apps/alpha/infrastructure/repositories.py": {
-      "no-untyped-def": 3
     },
     "apps/alpha/interface/score_upload_api_views.py": {
       "no-untyped-def": 1

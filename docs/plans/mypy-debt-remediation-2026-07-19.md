@@ -3607,3 +3607,19 @@
 - Regime 仓储、Navigator、编排与 API edge 回归 `28 passed`，覆盖越界/重复替换集不删除历史、非有限快照拒绝、非法分页和 Navigator 异常脱敏。
 - Regime repository 与 Navigator history 增量 mypy 清零，并传播清除重算命令的未类型调用债务；全仓基线从 `1819 errors / 470 files` 收紧为 `1799 errors / 468 files`，净减少 `20 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百四十五批
+
+- 按“Qlib 激活模型唯一性 × Alpha 缓存新鲜度真实性 × QuerySet 公共契约”收口 Alpha 核心 ORM 模型与仓储。
+- Qlib 模型注册表新增条件唯一约束，数据库强制全局最多一个 `is_active=True`；迁移先确定性保留最新激活模型并关闭其余历史脏数据，再建立约束。
+- 模型激活在事务内锁定并关闭其他 active 记录，随后只更新激活审计字段；不再仅依赖无约束的批量更新承诺唯一性。
+- Alpha 缓存新鲜度改用 Django `timezone.localdate()`，与项目配置时区一致；未来日期年龄钳制为零，负 `max_days` 明确拒绝，不再产生负陈旧天数或反向阈值。
+- `scores` 即使为空也必须是列表，空字典不能绕过模型验证进入评分缓存。
+- Qlib QuerySet 不再覆写 Django `latest(*fields)` 并改变其异常契约；新增语义明确的 `latest_registered()` 返回可空最新注册模型，标准 ORM `latest("created_at")` 保持可用。
+- 两个自定义 QuerySet、四个 Alpha ORM 模型和缓存仓储日期/轻量行查询补齐精确类型；TypedDict ORM 投影在仓储边界显式收窄。
+
+## 第二百四十五批验证结果
+
+- Alpha 新增模型不变量回归 `7 passed`，既有 Qlib 注册、激活/回滚和缓存新鲜度回归 `14 passed`；覆盖数据库双 active 拒绝、本地日期、负阈值、空字典 scores 与 Django latest 契约。
+- `makemigrations --check --dry-run` 无漂移；Alpha models 与 repositories 增量 mypy 清零。全仓基线从 `1799 errors / 468 files` 收紧为 `1776 errors / 466 files`，净减少 `23 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
