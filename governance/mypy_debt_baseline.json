@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1726,
-    "files_with_errors": 463
+    "errors": 1709,
+    "files_with_errors": 462
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -543,10 +543,6 @@
     },
     "apps/dashboard/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/dashboard/interface/dashboard_regime_context.py": {
-      "no-untyped-def": 9,
-      "type-arg": 8
     },
     "apps/dashboard/interface/macro_views.py": {
       "no-untyped-call": 4,

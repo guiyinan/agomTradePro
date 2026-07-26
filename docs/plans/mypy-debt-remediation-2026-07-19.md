@@ -3657,3 +3657,19 @@
 - Share repository、API edge、Domain 与依赖边界回归 `27 passed`，覆盖访问额度不超限、撤销链接拒绝、快照版本递增、未知字段和缺失所有者身份失败关闭、公开字段过滤。
 - Share serializers 与 repositories 增量 mypy 清零且无跨层回归；全仓基线从 `1756 errors / 465 files` 收紧为 `1726 errors / 463 files`，净减少 `30 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百四十八批
+
+- 按“首页宏观状态失败关闭 × 阻断行动不可执行 × 外部数值边界可靠性”收口 Dashboard Regime 上下文。
+- Regime、Pulse 或联合行动建议缺失时明确发布不可用于决策状态；不再把缺失 Pulse 伪装为 `moderate`，也不再把缺失行动建议标成未阻断。
+- 联合行动建议已阻断时清空资产权重、风险预算和单仓上限；Regime 资产指引不再绕过阻断状态回填可执行风险预算。
+- 风险预算、仓位上限、权重和置信度统一验证为有限且位于 `[0, 1]` 的比例；非法值不再作为百分比进入首页。
+- 市场温度分数、变化值和组件贡献统一使用安全数值解析；`NaN`、`Inf`、非法字符串、未知温度档位及异常组件结构失败关闭，不再触发比较或排序异常。
+- 无转折预警时关闭浏览器通知开关；不再发布“已启用但 payload 为空”的矛盾状态。
+- Dashboard Macro 组件、DTO、Domain entity、市场温度 payload 与页面 context 补齐精确类型，消除裸容器和未类型函数边界。
+
+## 第二百四十八批验证结果
+
+- Dashboard 失败关闭新增回归与结构测试 `8 passed`，Dashboard 主回归 `47 passed`；覆盖缺失组件、阻断行动、非有限分数、非法市场温度变化值和空通知。
+- Dashboard Regime context 增量 mypy 清零；全仓基线从 `1726 errors / 463 files` 收紧为 `1709 errors / 462 files`，净减少 `17 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
