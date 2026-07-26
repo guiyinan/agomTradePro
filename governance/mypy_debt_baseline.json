@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1391,
-    "files_with_errors": 427
+    "errors": 1382,
+    "files_with_errors": 426
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -242,12 +242,6 @@
     },
     "apps/alpha/domain/interfaces.py": {
       "no-untyped-def": 1
-    },
-    "apps/alpha/infrastructure/adapters/qlib_adapter.py": {
-      "import-untyped": 4,
-      "no-any-return": 1,
-      "no-untyped-def": 2,
-      "type-arg": 2
     },
     "apps/alpha/infrastructure/cache_evaluation.py": {
       "no-untyped-call": 1,

@@ -476,7 +476,7 @@ def test_qlib_adapter_health_queue_inline_factors_and_prediction(monkeypatch, tm
 
     factors = provider.get_factor_exposure("S00", date(2026, 7, 24))
     assert factors["momentum_1d"] == pytest.approx(0.1)
-    assert provider.get_universe_stocks("missing") == []
+    assert provider.get_universe_stocks("../missing") == []
     assert provider.get_universe_stocks("csi300") == ["S00", "S01"]
 
     provider._model = _Model()
@@ -786,7 +786,7 @@ def test_alpha_monitoring_tasks_publish_metrics_drift_reports_and_cleanup(monkey
     monkeypatch.setattr(monitoring_tasks, "get_alpha_metrics", lambda: metric_runtime)
     monkeypatch.setattr(
         monitoring_tasks,
-        "AlertManager",
+        "get_alpha_runtime_alert_manager",
         lambda: SimpleNamespace(evaluate_all=lambda: ["IC drift"]),
     )
     assert monitoring_tasks.evaluate_alerts.run()["count"] == 1

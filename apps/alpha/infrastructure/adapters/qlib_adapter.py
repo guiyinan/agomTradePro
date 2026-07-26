@@ -6,33 +6,62 @@ Qlib Alpha Provider
 """
 
 import logging
+import math
 import pickle
+import re
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from importlib import import_module
 from pathlib import Path
+from typing import TypedDict
 
 from celery import current_app
 from django.core.cache import cache
 
 from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore, normalize_stock_code
 from ...domain.interfaces import AlphaProviderStatus
+from ..scientific_runtime import get_pandas
 from .base import BaseAlphaProvider, provider_safe, qlib_safe
 
 logger = logging.getLogger(__name__)
 
 
-def _normalize_calendar_date(value) -> date | None:
+class ActiveModelInfo(TypedDict, total=False):
+    model_name: str
+    artifact_hash: str
+    model_type: str
+    model_path: str
+    feature_set_id: str
+    label_id: str
+    data_version: str
+    ic: float | None
+    icir: float | None
+
+
+def _normalize_calendar_date(value: object) -> date | None:
     """Convert qlib calendar entries to Python dates."""
     if value is None:
         return None
-    if hasattr(value, "date"):
+    if isinstance(value, datetime):
         return value.date()
     if isinstance(value, date):
         return value
+    date_method = getattr(value, "date", None)
+    if callable(date_method):
+        candidate = date_method()
+        if isinstance(candidate, date):
+            return candidate
     try:
         return date.fromisoformat(str(value)[:10])
-    except ValueError:
+    except (TypeError, ValueError):
         return None
+
+
+def _normalize_universe_id(value: object) -> str | None:
+    normalized = str(value or "").strip().lower()
+    if re.fullmatch(r"[a-z0-9][a-z0-9_-]{1,63}", normalized) is None:
+        return None
+    return normalized
 
 
 class QlibAlphaProvider(BaseAlphaProvider):
@@ -65,8 +94,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
         self,
         provider_uri: str = "",
         model_path: str = "",
-        region: str = "CN"
-    ):
+        region: str = "CN",
+    ) -> None:
         """
         初始化 Qlib Provider
 
@@ -78,6 +107,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
         super().__init__()
         if not provider_uri or not model_path:
             from django.conf import settings
+
             qlib_settings = settings.QLIB_SETTINGS
             provider_uri = provider_uri or qlib_settings.get("provider_uri", "")
             model_path = model_path or qlib_settings.get("model_path", "")
@@ -85,8 +115,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
         self._model_path = Path(model_path)
         self._region = region
         self._qlib_initialized = False
-        self._model = None
-        self._active_model_info = None
+        self._model: object | None = None
+        self._active_model_info: ActiveModelInfo | None = None
 
     @property
     def name(self) -> str:
@@ -130,7 +160,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
             return AlphaProviderStatus.UNAVAILABLE
 
         # 检查模型文件（active_model 是字典）
-        model_file_path = Path(active_model['model_path'])
+        model_file_path = Path(active_model["model_path"])
         if not model_file_path.exists():
             logger.warning(f"模型文件不存在: {model_file_path}")
             self._last_health_message = f"模型文件不存在: {model_file_path}"
@@ -162,7 +192,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
         intended_trade_date: date,
         top_n: int = 30,
         pool_scope: AlphaPoolScope | None = None,
-        user=None,
+        user: object | None = None,
     ) -> AlphaResult:
         """
         获取股票评分
@@ -181,6 +211,14 @@ class QlibAlphaProvider(BaseAlphaProvider):
             AlphaResult
         """
         start_time = time.time()
+        normalized_universe = _normalize_universe_id(universe_id)
+        if normalized_universe is None:
+            return self._create_error_result("Invalid universe ID")
+        if isinstance(top_n, bool) or not isinstance(top_n, int) or not 1 <= top_n <= 500:
+            return self._create_error_result("top_n must be from 1 to 500")
+        if pool_scope is not None and pool_scope.trade_date != intended_trade_date:
+            return self._create_error_result("Pool scope trade date mismatch")
+        universe_id = normalized_universe
 
         # 1. 快路径：读缓存
         cached = self._get_from_cache(
@@ -276,10 +314,10 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 "scope_hash": pool_scope.scope_hash if pool_scope else None,
                 "scope_label": pool_scope.display_label if pool_scope else None,
                 "scope_metadata": pool_scope.to_dict() if pool_scope else {},
-            }
+            },
         )
 
-    def _get_active_model(self) -> dict | None:
+    def _get_active_model(self) -> ActiveModelInfo | None:
         """
         获取激活的模型信息
 
@@ -289,9 +327,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
         try:
             from ...infrastructure.models import QlibModelRegistryModel
 
-            active_model = QlibModelRegistryModel._default_manager.filter(
-                is_active=True
-            ).first()
+            active_model = QlibModelRegistryModel._default_manager.filter(is_active=True).first()
 
             if not active_model:
                 return None
@@ -307,8 +343,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 "ic": float(active_model.ic) if active_model.ic else None,
                 "icir": float(active_model.icir) if active_model.icir else None,
             }
-        except Exception as e:
-            logger.error(f"获取激活模型失败: {e}")
+        except Exception as exc:
+            logger.error("获取激活模型失败: %s", type(exc).__name__)
             return None
 
     def _get_from_cache(
@@ -347,9 +383,11 @@ class QlibAlphaProvider(BaseAlphaProvider):
             if pool_scope is not None:
                 cache_filter["scope_hash"] = pool_scope.scope_hash
 
-            cache = AlphaScoreCacheModel._default_manager.filter(
-                **cache_filter
-            ).order_by("-created_at").first()
+            cache = (
+                AlphaScoreCacheModel._default_manager.filter(**cache_filter)
+                .order_by("-created_at")
+                .first()
+            )
 
             if not cache:
                 return None
@@ -376,19 +414,21 @@ class QlibAlphaProvider(BaseAlphaProvider):
             )
 
             # 添加审计信息
+            enriched_scores: list[StockScore] = []
             for score in scores:
                 # 创建新的 StockScore 实例（frozen）
                 object_dict = score.to_dict()
-                object_dict.update({
-                    "model_id": cache.model_id,
-                    "model_artifact_hash": cache.model_artifact_hash,
-                    "feature_set_id": cache.feature_set_id,
-                    "label_id": cache.label_id,
-                    "data_version": cache.data_version,
-                })
-                # 更新列表中的元素
-                idx = scores.index(score)
-                scores[idx] = StockScore.from_dict(object_dict)
+                object_dict.update(
+                    {
+                        "model_id": cache.model_id,
+                        "model_artifact_hash": cache.model_artifact_hash,
+                        "feature_set_id": cache.feature_set_id,
+                        "label_id": cache.label_id,
+                        "data_version": cache.data_version,
+                    }
+                )
+                enriched_scores.append(StockScore.from_dict(object_dict))
+            scores = enriched_scores
 
             metrics_snapshot = cache.metrics_snapshot or {}
 
@@ -412,16 +452,16 @@ class QlibAlphaProvider(BaseAlphaProvider):
                     "scope_metadata": cache.scope_metadata or {},
                     "metrics_snapshot": metrics_snapshot,
                     **metrics_snapshot,
-                }
+                },
             )
 
-        except Exception as e:
-            logger.error(f"读取 Qlib 缓存失败: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error("读取 Qlib 缓存失败: %s", type(exc).__name__)
             return None
 
     def _parse_scores(
         self,
-        raw_scores: list,
+        raw_scores: list[object],
         top_n: int,
         default_asof_date: date | None = None,
         default_intended_trade_date: date | None = None,
@@ -436,21 +476,67 @@ class QlibAlphaProvider(BaseAlphaProvider):
         Returns:
             StockScore 列表
         """
-        scores = []
+        scores: list[StockScore] = []
         for item in raw_scores[:top_n]:
             try:
+                if not isinstance(item, dict):
+                    continue
                 payload = dict(item)
                 normalized_code = normalize_stock_code(payload.get("code"))
-                if normalized_code:
-                    payload["code"] = normalized_code
+                if normalized_code is None:
+                    continue
+                payload["code"] = normalized_code
+                raw_score = payload.get("score")
+                raw_rank = payload.get("rank")
+                raw_confidence = payload.get("confidence", 0.5)
+                if (
+                    raw_score is None
+                    or raw_rank is None
+                    or isinstance(raw_score, bool)
+                    or isinstance(raw_rank, bool)
+                    or isinstance(raw_confidence, bool)
+                ):
+                    continue
+                score_value = float(raw_score)
+                rank_value = int(raw_rank)
+                confidence_value = float(raw_confidence)
+                if (
+                    not math.isfinite(score_value)
+                    or not -1 <= score_value <= 1
+                    or rank_value <= 0
+                    or not math.isfinite(confidence_value)
+                    or not 0 <= confidence_value <= 1
+                ):
+                    continue
+                payload["score"] = score_value
+                payload["rank"] = rank_value
+                payload["confidence"] = confidence_value
+                raw_factors = payload.get("factors", {})
+                if not isinstance(raw_factors, dict):
+                    continue
+                factors: dict[str, float] = {}
+                for raw_name, raw_value in raw_factors.items():
+                    if isinstance(raw_value, bool):
+                        continue
+                    factor_value = float(raw_value)
+                    if math.isfinite(factor_value):
+                        factors[str(raw_name)] = factor_value
+                payload["factors"] = factors
                 payload.setdefault("source", "qlib")
                 if default_asof_date and not payload.get("asof_date"):
                     payload["asof_date"] = default_asof_date.isoformat()
                 if default_intended_trade_date:
                     payload["intended_trade_date"] = default_intended_trade_date.isoformat()
-                scores.append(StockScore.from_dict(payload))
-            except Exception as e:
-                logger.warning(f"解析评分失败: {item}, error: {e}")
+                score = StockScore.from_dict(payload)
+                if (
+                    score.asof_date is not None
+                    and score.intended_trade_date is not None
+                    and score.asof_date > score.intended_trade_date
+                ):
+                    continue
+                scores.append(score)
+            except (KeyError, TypeError, ValueError) as exc:
+                logger.warning("解析 Qlib 评分失败: %s", type(exc).__name__)
                 continue
 
         return scores
@@ -468,23 +554,21 @@ class QlibAlphaProvider(BaseAlphaProvider):
             cutoff_date = date.today() - timedelta(days=10)
 
             has_cache = AlphaScoreCacheModel._default_manager.filter(
-                provider_source="qlib",
-                intended_trade_date__gte=cutoff_date
+                provider_source="qlib", intended_trade_date__gte=cutoff_date
             ).exists()
 
             return has_cache
-        except Exception as e:
-            logger.error(f"检查缓存失败: {e}")
+        except Exception as exc:
+            logger.error("检查缓存失败: %s", type(exc).__name__)
             return False
 
     def _get_latest_data_date(self) -> date | None:
         """Return the latest trading date available in the local qlib dataset."""
         try:
-            import qlib
-            from qlib.data import D
-
             from core.integration.runtime_settings import get_runtime_qlib_config
 
+            qlib = import_module("qlib")
+            data_api = import_module("qlib.data").D
             qlib_config = get_runtime_qlib_config()
             provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
             region = qlib_config.get("region", "CN")
@@ -496,12 +580,12 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 )
                 self._qlib_initialized_for_calendar = True
 
-            calendar = D.calendar(start_time="2000-01-01", end_time="2100-12-31")
+            calendar = data_api.calendar(start_time="2000-01-01", end_time="2100-12-31")
             if len(calendar) == 0:
                 return None
             return _normalize_calendar_date(calendar[-1])
         except Exception as exc:
-            logger.debug("读取本地 Qlib 数据最新日期失败: %s", exc)
+            logger.debug("读取本地 Qlib 数据最新日期失败: %s", type(exc).__name__)
             return None
 
     def _trigger_infer_task(
@@ -550,7 +634,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 kwargs={
                     "scope_payload": pool_scope.to_dict() if pool_scope else None,
                 },
-                queue=queue_name
+                queue=queue_name,
             )
 
             logger.info(
@@ -561,10 +645,15 @@ class QlibAlphaProvider(BaseAlphaProvider):
             cache.set(throttle_key, result.id, timeout=180)
             return "queued"
 
-        except Exception as e:
-            logger.error(f"触发推理任务失败: {e}", exc_info=True)
+        except Exception as exc:
+            error_type = type(exc).__name__
+            logger.error("触发推理任务失败: %s", error_type)
             # 发送告警通知
-            self._send_inference_failure_alert(universe_id, intended_trade_date, str(e))
+            self._send_inference_failure_alert(
+                universe_id,
+                intended_trade_date,
+                error_type,
+            )
             return "failed"
 
     def _resolve_inference_queue(self) -> str:
@@ -593,12 +682,10 @@ class QlibAlphaProvider(BaseAlphaProvider):
             if preferred_queue in queue_names:
                 return preferred_queue
             if fallback_queue in queue_names:
-                logger.info(
-                    "未检测到 qlib_infer 消费者，回退到默认 celery 队列投递 Qlib 推理任务"
-                )
+                logger.info("未检测到 qlib_infer 消费者，回退到默认 celery 队列投递 Qlib 推理任务")
                 return fallback_queue
         except Exception as exc:
-            logger.debug("检查 Celery 队列时出错: %s", exc)
+            logger.debug("检查 Celery 队列时出错: %s", type(exc).__name__)
 
         return None
 
@@ -646,33 +733,46 @@ class QlibAlphaProvider(BaseAlphaProvider):
             failed = bool(getattr(task_result, "failed", lambda: False)())
             if failed:
                 logger.info(
-                    "Qlib 同步推理任务失败: universe=%s, date=%s, result=%s",
+                    "Qlib 同步推理任务失败: universe=%s, date=%s",
                     universe_id,
                     intended_trade_date,
-                    payload,
                 )
                 return {
                     "status": "failed",
-                    "result": str(payload),
+                    "error_code": "inline_inference_failed",
                 }
             return {
                 "status": "completed",
-                "result": payload if isinstance(payload, dict) else str(payload),
+                "result": self._summarize_inline_payload(payload),
             }
         except Exception as exc:
             logger.error(
-                "Qlib 同步推理执行失败: universe=%s, date=%s, error=%s",
+                "Qlib 同步推理执行失败: universe=%s, date=%s, error_type=%s",
                 universe_id,
                 intended_trade_date,
-                exc,
-                exc_info=True,
+                type(exc).__name__,
             )
             return {
                 "status": "failed",
-                "error": str(exc),
+                "error_code": "inline_inference_exception",
             }
         finally:
             cache.delete(lock_key)
+
+    @staticmethod
+    def _summarize_inline_payload(payload: object) -> dict[str, object] | None:
+        """Expose only stable, non-sensitive inline task outcome fields."""
+        if not isinstance(payload, dict):
+            return None
+        summary: dict[str, object] = {}
+        status = payload.get("status")
+        if status in {"success", "completed", "skipped"}:
+            summary["status"] = status
+        for key in ("count", "scores_count"):
+            value = payload.get(key)
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                summary[key] = value
+        return summary or None
 
     def _can_run_inline_inference(self, pool_scope: AlphaPoolScope | None) -> bool:
         """Only small scoped pools are safe to run inside the request process."""
@@ -701,7 +801,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
         self,
         universe_id: str,
         intended_trade_date: date,
-        error_message: str
+        error_type: str,
     ) -> None:
         """
         发送推理失败告警
@@ -709,7 +809,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
         Args:
             universe_id: 股票池标识
             intended_trade_date: 计划交易日期
-            error_message: 错误信息
+            error_type: 异常类型
         """
         try:
             # 创建告警记录到数据库
@@ -719,24 +819,20 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 alert_type="inference_failure",
                 severity="warning",
                 title=f"Qlib 推理任务触发失败: {universe_id}@{intended_trade_date}",
-                message=f"无法触发异步推理任务，将使用降级数据源。\n错误: {error_message}",
+                message="无法触发异步推理任务，将使用降级数据源。",
                 metadata={
                     "universe_id": universe_id,
                     "intended_trade_date": intended_trade_date.isoformat(),
-                    "error": error_message,
+                    "error_type": error_type,
                     "provider": "qlib",
-                }
+                },
             )
             logger.warning(f"已创建推理失败告警: {universe_id}@{intended_trade_date}")
-        except Exception as e:
+        except Exception as exc:
             # 告警失败不应影响主流程
-            logger.error(f"发送推理失败告警时出错: {e}")
+            logger.error("发送推理失败告警时出错: %s", type(exc).__name__)
 
-    def get_factor_exposure(
-        self,
-        stock_code: str,
-        trade_date: date
-    ) -> dict[str, float]:
+    def get_factor_exposure(self, stock_code: str, trade_date: date) -> dict[str, float]:
         """
         获取因子暴露（带异常保护）
 
@@ -748,27 +844,33 @@ class QlibAlphaProvider(BaseAlphaProvider):
             因子暴露字典
         """
         try:
-            import pandas as pd
-            from qlib.data import D
+            pd = get_pandas()
+            data_api = import_module("qlib.data").D
+            normalized_code = normalize_stock_code(stock_code)
+            if normalized_code is None:
+                return {}
 
             # Qlib 使用 D.features 获取因子值
             trade_date_str = trade_date.strftime("%Y-%m-%d")
-            instruments = [stock_code]
+            instruments = [normalized_code]
 
             # Alpha360 常用因子列表
             factor_names = [
-                "$close/Ref($close, 1) - 1",   # 日收益率 (momentum_1d)
-                "$close/Ref($close, 5) - 1",   # 5日动量 (momentum_5d)
+                "$close/Ref($close, 1) - 1",  # 日收益率 (momentum_1d)
+                "$close/Ref($close, 5) - 1",  # 5日动量 (momentum_5d)
                 "$close/Ref($close, 20) - 1",  # 20日动量 (momentum_20d)
                 "$volume/Ref($volume, 1) - 1",  # 量比 (volume_ratio)
-                "Std($close, 20)/$close",        # 20日波动率 (volatility_20d)
+                "Std($close, 20)/$close",  # 20日波动率 (volatility_20d)
             ]
             factor_labels = [
-                "momentum_1d", "momentum_5d", "momentum_20d",
-                "volume_ratio", "volatility_20d",
+                "momentum_1d",
+                "momentum_5d",
+                "momentum_20d",
+                "volume_ratio",
+                "volatility_20d",
             ]
 
-            df = D.features(
+            df = data_api.features(
                 instruments=instruments,
                 fields=factor_names,
                 start_time=trade_date_str,
@@ -785,15 +887,17 @@ class QlibAlphaProvider(BaseAlphaProvider):
             for i, label in enumerate(factor_labels):
                 val = row.iloc[i]
                 if pd.notna(val):
-                    result[label] = float(val)
+                    numeric_value = float(val)
+                    if math.isfinite(numeric_value):
+                        result[label] = numeric_value
 
             return result
 
         except ImportError:
             logger.debug("Qlib 未安装，无法获取因子暴露")
             return {}
-        except Exception as e:
-            logger.error(f"获取因子暴露失败: {e}")
+        except Exception as exc:
+            logger.error("获取因子暴露失败: %s", type(exc).__name__)
             return {}
 
     def get_universe_stocks(self, universe_id: str) -> list[str]:
@@ -806,41 +910,40 @@ class QlibAlphaProvider(BaseAlphaProvider):
         Returns:
             股票代码列表
         """
-        # 股票池映射
-        universe_map = {
-            "csi300": "csi300",
-            "csi500": "csi500",
-            "sse50": "sse50",
-            "csi1000": "csi1000",
-        }
-
-        qlib_universe = universe_map.get(universe_id)
-        if not qlib_universe:
+        qlib_universe = _normalize_universe_id(universe_id)
+        if qlib_universe is None:
             logger.warning(f"不支持的股票池: {universe_id}")
             return []
 
         try:
-            from qlib.data import D
+            data_api = import_module("qlib.data").D
 
-            instruments = D.instruments(market=qlib_universe)
+            instruments = data_api.instruments(market=qlib_universe)
             # D.instruments 返回的可能是 Instruments 对象，需要 list_instruments 解析
-            if hasattr(instruments, '__iter__') and not isinstance(instruments, str):
+            if hasattr(instruments, "__iter__") and not isinstance(instruments, str):
                 stock_list = list(instruments)
             else:
                 # 使用 D.list_instruments 获取具体股票列表
-                stock_list = D.list_instruments(
+                stock_list = data_api.list_instruments(
                     instruments=instruments,
                     as_list=True,
                 )
 
-            logger.info(f"获取股票池 {qlib_universe}: {len(stock_list)} 只股票")
-            return stock_list
+            normalized_stocks = sorted(
+                {
+                    normalized
+                    for raw_code in stock_list
+                    if (normalized := normalize_stock_code(raw_code)) is not None
+                }
+            )
+            logger.info(f"获取股票池 {qlib_universe}: {len(normalized_stocks)} 只股票")
+            return normalized_stocks
 
         except ImportError:
             logger.debug("Qlib 未安装，无法获取股票池")
             return []
-        except Exception as e:
-            logger.error(f"获取股票池失败: {e}")
+        except Exception as exc:
+            logger.error("获取股票池失败: %s", type(exc).__name__)
             return []
 
     def load_model(self, model_path: str) -> bool:
@@ -867,15 +970,11 @@ class QlibAlphaProvider(BaseAlphaProvider):
             logger.info(f"成功加载模型: {model_path}")
             return True
 
-        except Exception as e:
-            logger.error(f"加载模型失败: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error("加载模型失败: %s", type(exc).__name__)
             return False
 
-    def predict(
-        self,
-        universe_id: str,
-        trade_date: date
-    ) -> dict[str, float]:
+    def predict(self, universe_id: str, trade_date: date) -> dict[str, float]:
         """
         执行预测（同步方法，用于测试）
 
@@ -891,18 +990,20 @@ class QlibAlphaProvider(BaseAlphaProvider):
             return {}
 
         try:
-            import pandas as pd
-            from qlib.data import D
-            from qlib.data.dataset import DatasetH
-
             from apps.alpha.application.tasks import _resolve_qlib_handler_class
 
+            pd = get_pandas()
+            data_api = import_module("qlib.data").D
+            dataset_class = import_module("qlib.data.dataset").DatasetH
+            normalized_universe = _normalize_universe_id(universe_id)
+            if normalized_universe is None:
+                return {}
             trade_date_str = trade_date.strftime("%Y-%m-%d")
             # 需要几天的历史数据给 Alpha360 做特征
             lookback_start = (trade_date - timedelta(days=60)).strftime("%Y-%m-%d")
 
             # 获取股票池
-            instruments = D.instruments(market=universe_id)
+            instruments = data_api.instruments(market=normalized_universe)
 
             handler_cls = _resolve_qlib_handler_class(
                 self._active_model_info.get("feature_set_id") if self._active_model_info else None
@@ -915,12 +1016,15 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 instruments=instruments,
             )
 
-            dataset = DatasetH(
+            dataset = dataset_class(
                 handler=handler,
                 segments={"test": (pd.Timestamp(trade_date_str), pd.Timestamp(trade_date_str))},
             )
 
-            pred = self._model.predict(dataset)
+            predict_method = getattr(self._model, "predict", None)
+            if not callable(predict_method):
+                return {}
+            pred = predict_method(dataset)
 
             # pred 可能是 Series 或 DataFrame，统一转为 {stock_code: score}
             if isinstance(pred, pd.DataFrame):
@@ -940,11 +1044,19 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 scores = {}
 
             # 确保值为 float
-            return {str(k): float(v) for k, v in scores.items() if pd.notna(v)}
+            normalized_scores: dict[str, float] = {}
+            for raw_code, raw_score in scores.items():
+                normalized_code = normalize_stock_code(raw_code)
+                if normalized_code is None or not pd.notna(raw_score):
+                    continue
+                numeric_score = float(raw_score)
+                if math.isfinite(numeric_score):
+                    normalized_scores[normalized_code] = numeric_score
+            return normalized_scores
 
         except ImportError:
             logger.debug("Qlib 未安装，无法执行预测")
             return {}
-        except Exception as e:
-            logger.error(f"预测失败: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error("预测失败: %s", type(exc).__name__)
             return {}

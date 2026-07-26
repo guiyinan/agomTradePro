@@ -6,7 +6,6 @@ Alpha 提供者的基类实现，包含通用功能和装饰器。
 
 import logging
 import time
-import traceback
 from collections.abc import Callable
 from datetime import date
 from functools import wraps
@@ -43,11 +42,11 @@ def qlib_safe(default_return: R) -> Callable[[Callable[P, R]], Callable[P, R]]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
                 return func(*args, **kwargs)
-            except ImportError as e:
-                logger.error(f"Qlib 未安装或导入失败: {e}")
+            except ImportError as exc:
+                logger.error("Qlib 未安装或导入失败: %s", type(exc).__name__)
                 return default_return
-            except Exception as e:
-                logger.error(f"Qlib 调用失败: {e}\n{traceback.format_exc()}", exc_info=True)
+            except Exception as exc:
+                logger.error("Qlib 调用失败: %s", type(exc).__name__)
                 return default_return
 
         return wrapper
@@ -81,8 +80,8 @@ def provider_safe(
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
                 return func(*args, **kwargs)
-            except Exception as e:
-                logger.error(f"Provider 调用失败: {e}\n{traceback.format_exc()}", exc_info=True)
+            except Exception as exc:
+                logger.error("Provider 调用失败: %s", type(exc).__name__)
                 # 获取 self 作为第一个参数（实例方法）
                 if args:
                     provider = args[0]

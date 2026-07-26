@@ -4088,3 +4088,22 @@
 - Qlib builder 与 Config Center Alpha universe API 回归 `21 passed`，管理命令、Alpha 运维 API 与运行时刷新调用链回归 `10 passed`；覆盖数据库指数映射、超过 60 天的季度权重、配置归一化、非法代码/路径、未来日期、资源上限、越界/串码/坏 OHLC、非有限复权因子和异常脱敏。
 - `qlib_builder.py` 增量 mypy 清零，Config Center 新增 facade 与改动生产文件保持清零；全仓基线从 `1402 errors / 428 files` 收紧为 `1391 errors / 427 files`，净减少 `11 errors / 1 file`。
 - Django system check、迁移一致性、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百七十四批
+
+- 按“Qlib 推理信号真实性 × 异常最小披露 × 动态股票池契约”收口 Alpha Qlib adapter 与 Provider 通用安全装饰器。
+- 缓存评分统一拒绝布尔、非有限或超出 `[-1, 1]` 的分数、非法排名、非有限或越界置信度；因子字典仅保留有限数值。
+- 缓存信号 `asof_date` 晚于计划交易日时失败关闭，不再让未来信号进入 Alpha 结果；模型审计字段改为一次性构造新 frozen `StockScore`，删除列表内查找替换。
+- 因子暴露与同步预测丢弃 `NaN/Inf`；预测股票代码统一规范化，动态 pandas/Qlib 返回边界不再直接混入 Domain 结果。
+- 删除 `csi300/csi500/sse50/csi1000` 身份映射；安全 universe ID 直接交给 Qlib 本地市场目录解析，支持 Config Center 新增股票池而无需修改 adapter。
+- universe ID、`top_n` 与 scoped pool 交易日期在缓存和任务前验证；路径型 ID、非正或超限数量、scope 日期错配保持零缓存与零任务副作用。
+- 异步投递、同步推理、活动模型、缓存、日历、队列、因子、股票池、模型加载和预测异常日志仅记录异常类型；通用 `qlib_safe/provider_safe` 删除原始正文、traceback 与 `exc_info`。
+- 推理失败告警不再持久化原始异常正文；内联任务失败只发布稳定错误码，成功结果只白名单发布 status/count，Celery 动态 payload 不再直接进入结果 metadata。
+- 活动模型改为精确 `TypedDict`，日历输入、原始评分、模型状态与同步预测容器补齐类型；Qlib/pandas 通过动态第三方边界加载，删除四条无类型直接导入。
+- 同步更新批次 272 后遗留测试，使告警调度断言使用正式 `get_alpha_runtime_alert_manager` provider factory。
+
+## 第二百七十四批验证结果
+
+- Qlib adapter 金融真实性、既有契约、Provider 集成、基础边界与降级日志回归 `30 passed`；完整 Qlib runtime contracts `14 passed`，仅保留 pandas 未来弃用警告。
+- `qlib_adapter.py` 增量 mypy 清零，通用 adapter base 保持清零；全仓基线从 `1391 errors / 427 files` 收紧为 `1382 errors / 426 files`，净减少 `9 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
