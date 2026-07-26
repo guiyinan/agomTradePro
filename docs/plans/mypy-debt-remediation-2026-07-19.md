@@ -4336,3 +4336,22 @@
 - 个人 readiness 窗口校验完整回归 `29 passed`，覆盖正向连续窗口、缺失/失败证据、日历回退、形式化证据质量、非法窗口及重复目标日。
 - `readiness_window_validation_core.py` 增量 mypy 清零；全仓基线从 `1248 errors / 408 files` 收紧为 `1242 errors / 407 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百八十九批
+
+- 按“决策到成交追溯真实性 × 推荐匹配数值边界 × 跨表写入一致性”收口统一推荐执行关联 bridge。
+- 用精确 Repository Protocol 替代两个 recorder 中的 `Any` 依赖；匹配、用户动作更新、执行关联写入及返回 payload 在跨 App 边界显式收窄。
+- 模拟盘与导入成交统一验证正整数 transaction/account ID、非空证券代码和 timezone-aware 成交时间；非法标识或 naive datetime 不再进入推荐时间窗匹配。
+- 证券代码在匹配和持久化前去空白并转为大写；实际动作仍只接受 `buy/sell`，不扩大现有业务枚举。
+- 修复 `match_confidence or 0.85` 覆盖合法 `0.0` 的问题；缺失值才使用默认匹配置信度，布尔、非数值、`NaN/Inf` 及 `[0, 1]` 外数值失败关闭。
+- 匹配推荐必须提供非空 recommendation ID；用户动作更新返回“推荐不存在”时不再继续写入孤立执行关联。
+- 已匹配成交的“标记 ADOPTED + 写执行关联”放入同一数据库原子块；后一步失败时不再遗留只有采纳状态、没有成交证据的半完成记录。
+- Repository 返回值必须为映射，执行关联列表必须为字典列表；动态对象不再直接作为公共审计 payload 返回。
+- 模拟盘记录失败日志只发布 transaction ID 和异常类型，不再记录 recommendation ID、数据库连接信息或原始异常正文。
+- 审计列表入口验证 1–200 的非布尔 limit，过滤参数统一去空白；非管理员无有效用户身份或请求越权账户时继续返回空列表。
+
+## 第二百八十九批验证结果
+
+- 决策执行关联 Domain bridge 回归 `13 passed`；Audit execution-link 与券商导入集成回归 `2 passed`。
+- `decision_execution_links.py` 增量 mypy 清零；全仓基线从 `1242 errors / 407 files` 收紧为 `1236 errors / 406 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
