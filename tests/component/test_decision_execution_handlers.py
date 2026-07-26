@@ -73,6 +73,21 @@ class TestDecisionApprovedHandler:
         # 执行（不应抛出异常）
         handler.handle(event)
 
+    def test_handle_rejects_malformed_candidate_collection_without_partial_write(self):
+        mock_repo = Mock()
+        handler = DecisionApprovedHandler(alpha_candidate_repo=mock_repo)
+        event = create_event(
+            event_type=EventType.DECISION_APPROVED,
+            payload={
+                "request_id": "request_456",
+                "candidate_ids": ["candidate_123", 456],
+            },
+        )
+
+        handler.handle(event)
+
+        mock_repo.update_last_decision_request_id.assert_not_called()
+
     def test_handle_does_not_raise_on_error(self):
         """测试错误时不抛出异常（主事务成功优先）"""
         handler = DecisionApprovedHandler()
@@ -156,6 +171,28 @@ class TestDecisionExecutedHandler:
         # 执行（不应抛出异常）
         handler.handle(event)
 
+    def test_handle_rejects_non_object_execution_reference(self):
+        mock_request_repo = Mock()
+        mock_candidate_repo = Mock()
+        mock_sync_repo = Mock()
+        handler = DecisionExecutedHandler(
+            decision_request_repo=mock_request_repo,
+            alpha_candidate_repo=mock_candidate_repo,
+            decision_execution_sync_repo=mock_sync_repo,
+        )
+        event = create_event(
+            event_type=EventType.DECISION_EXECUTED,
+            payload={
+                "request_id": "request_456",
+                "candidate_id": "candidate_123",
+                "execution_ref": ["trade_789"],
+            },
+        )
+
+        handler.handle(event)
+
+        mock_sync_repo.sync_executed.assert_not_called()
+
     def test_get_handler_id(self):
         """测试获取处理器 ID"""
         handler = DecisionExecutedHandler()
@@ -228,6 +265,27 @@ class TestDecisionExecutionFailedHandler:
 
             # 验证 status 未被修改
             assert mock_candidate.status == "ACTIONABLE"
+
+    def test_handle_rejects_non_string_candidate_id(self):
+        mock_request_repo = Mock()
+        mock_candidate_repo = Mock()
+        mock_sync_repo = Mock()
+        handler = DecisionExecutionFailedHandler(
+            decision_request_repo=mock_request_repo,
+            alpha_candidate_repo=mock_candidate_repo,
+            decision_execution_sync_repo=mock_sync_repo,
+        )
+        event = create_event(
+            event_type=EventType.DECISION_EXECUTION_FAILED,
+            payload={
+                "request_id": "request_456",
+                "candidate_id": {"unexpected": "object"},
+            },
+        )
+
+        handler.handle(event)
+
+        mock_sync_repo.sync_failed.assert_not_called()
 
     def test_get_handler_id(self):
         """测试获取处理器 ID"""

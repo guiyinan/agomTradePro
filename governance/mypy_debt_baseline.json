@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1636,
-    "files_with_errors": 455
+    "errors": 1626,
+    "files_with_errors": 454
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -844,10 +844,6 @@
     },
     "apps/equity/management/commands/validate_equity_valuation_quality.py": {
       "no-untyped-def": 2
-    },
-    "apps/events/application/decision_execution_handlers.py": {
-      "no-untyped-call": 6,
-      "no-untyped-def": 4
     },
     "apps/events/application/dtos.py": {
       "no-untyped-def": 2

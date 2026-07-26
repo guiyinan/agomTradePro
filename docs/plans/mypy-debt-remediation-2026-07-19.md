@@ -3750,3 +3750,18 @@
 - 覆盖跨用户列表/详情/删除隔离、创建 owner 传递、内部异常脱敏、重跑非虚假成功、非法参数、PIT 失败关闭和完整执行链。
 - Backtest views、use cases 与 decision replay 增量 mypy 清零；全仓基线从 `1657 errors / 458 files` 收紧为 `1636 errors / 455 files`，净减少 `21 errors / 3 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百五十四批
+
+- 按“决策执行事件负载完整性 × 跨模型写入失败关闭 × Provider 边界类型化”收口 Events decision execution handlers。
+- `request_id`、单个/批量 `candidate_id` 统一要求非空且长度受限的字符串；批量候选只要包含一个异常元素，整条事件在任何写入前失败关闭，不再发生部分候选已更新、后续候选才报错。
+- `execution_ref` 只接受字符串键 JSON object；数组、字符串或非字符串键不再进入 DecisionRequest 执行引用。失败事件的 `error_message` 同样拒绝动态容器。
+- Approved、Rejected、Executed 和 ExecutionFailed 四类 handler 统一使用已验证 payload；缺失或畸形请求标识不再通过 truthy/隐式转换进入 Repository。
+- 三个默认 Repository provider 通过精确 Callable/Protocol boundary 组装；四个 handler 构造函数补齐 event bus 和返回类型。
+- 修正故障注入健康检查“只启动空 EventBus 却声称已初始化”的测试前置条件；测试现在通过正式 `EventBusInitializer` 注册关键 handler 后再验收。
+
+## 第二百五十四批验证结果
+
+- Decision execution handlers 与 EventBus 初始化回归 `24 passed`，新增畸形候选集合、非法 execution_ref 和异常 candidate_id 失败关闭覆盖；健康检查隔离回归 `1 passed`。
+- Decision execution handlers 增量 mypy 清零；全仓基线从 `1636 errors / 455 files` 收紧为 `1626 errors / 454 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

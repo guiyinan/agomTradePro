@@ -15,7 +15,8 @@ Decision Execution Event Handlers
 """
 
 import logging
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import Any, cast
 
 from ..domain.entities import DomainEvent, EventHandler, EventType
 from ..domain.interfaces import (
@@ -30,6 +31,101 @@ from .repository_provider import (
 )
 
 logger = logging.getLogger(__name__)
+_MAX_EVENT_IDENTIFIER_LENGTH = 128
+
+
+def _optional_identifier(event: DomainEvent, key: str) -> str | None:
+    """Read one validated identifier from an event payload."""
+
+    raw_value = event.get_payload_value(key)
+    if raw_value is None:
+        return None
+    if not isinstance(raw_value, str):
+        raise ValueError(f"{key} must be a string")
+    value = raw_value.strip()
+    if not value or len(value) > _MAX_EVENT_IDENTIFIER_LENGTH:
+        raise ValueError(f"{key} is invalid")
+    return value
+
+
+def _required_identifier(event: DomainEvent, key: str) -> str:
+    """Read one required validated identifier from an event payload."""
+
+    value = _optional_identifier(event, key)
+    if value is None:
+        raise ValueError(f"{key} is required")
+    return value
+
+
+def _candidate_identifiers(event: DomainEvent) -> set[str]:
+    """Normalize singular/plural candidate identifiers without partial writes."""
+
+    identifiers: set[str] = set()
+    candidate_id = _optional_identifier(event, "candidate_id")
+    if candidate_id is not None:
+        identifiers.add(candidate_id)
+
+    raw_candidate_ids = event.get_payload_value("candidate_ids", [])
+    if raw_candidate_ids is None:
+        raw_candidate_ids = []
+    if not isinstance(raw_candidate_ids, (list, tuple, set)):
+        raise ValueError("candidate_ids must be a collection")
+    for raw_candidate_id in raw_candidate_ids:
+        if not isinstance(raw_candidate_id, str):
+            raise ValueError("candidate_ids must contain strings")
+        normalized = raw_candidate_id.strip()
+        if not normalized or len(normalized) > _MAX_EVENT_IDENTIFIER_LENGTH:
+            raise ValueError("candidate_ids contains an invalid identifier")
+        identifiers.add(normalized)
+    return identifiers
+
+
+def _execution_reference(event: DomainEvent) -> dict[str, Any] | None:
+    """Normalize the optional execution reference to a JSON object."""
+
+    raw_reference = event.get_payload_value("execution_ref")
+    if raw_reference is None:
+        return None
+    if not isinstance(raw_reference, Mapping):
+        raise ValueError("execution_ref must be an object")
+    if not all(isinstance(key, str) for key in raw_reference):
+        raise ValueError("execution_ref keys must be strings")
+    return dict(raw_reference)
+
+
+def _optional_error_message(event: DomainEvent) -> str | None:
+    """Read an optional execution error message without coercing containers."""
+
+    raw_message = event.get_payload_value("error_message")
+    if raw_message is None:
+        return None
+    if not isinstance(raw_message, str):
+        raise ValueError("error_message must be a string")
+    return raw_message.strip() or None
+
+
+def _default_alpha_candidate_repository() -> AlphaCandidateRepositoryProtocol:
+    factory = cast(
+        Callable[[], AlphaCandidateRepositoryProtocol],
+        get_alpha_candidate_repository,
+    )
+    return factory()
+
+
+def _default_decision_request_repository() -> DecisionRequestRepositoryProtocol:
+    factory = cast(
+        Callable[[], DecisionRequestRepositoryProtocol],
+        get_decision_request_repository,
+    )
+    return factory()
+
+
+def _default_decision_execution_sync_repository() -> DecisionExecutionSyncRepositoryProtocol:
+    factory = cast(
+        Callable[[], DecisionExecutionSyncRepositoryProtocol],
+        get_decision_execution_sync_repository,
+    )
+    return factory()
 
 
 class _RepositoryBackedDecisionExecutionSyncRepository:
@@ -57,9 +153,7 @@ class _RepositoryBackedDecisionExecutionSyncRepository:
         )
         candidate_updated = True
         if candidate_id:
-            candidate_updated = self._alpha_candidate_repo.update_status_to_executed(
-                candidate_id
-            )
+            candidate_updated = self._alpha_candidate_repo.update_status_to_executed(candidate_id)
         return request_updated and candidate_updated
 
     def sync_failed(
@@ -69,9 +163,7 @@ class _RepositoryBackedDecisionExecutionSyncRepository:
         candidate_id: str | None,
         error_message: str | None,
     ) -> bool:
-        request_updated = self._decision_request_repo.update_execution_status_to_failed(
-            request_id
-        )
+        request_updated = self._decision_request_repo.update_execution_status_to_failed(request_id)
         candidate_updated = True
         if candidate_id:
             candidate_updated = self._alpha_candidate_repo.update_execution_status_to_failed(
@@ -103,9 +195,9 @@ class DecisionApprovedHandler(EventHandler):
 
     def __init__(
         self,
-        event_bus=None,
+        event_bus: object | None = None,
         alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
-    ):
+    ) -> None:
         """
         初始化处理器
 
@@ -116,7 +208,7 @@ class DecisionApprovedHandler(EventHandler):
         self.event_bus = event_bus
 
         if alpha_candidate_repo is None:
-            alpha_candidate_repo = get_alpha_candidate_repository()
+            alpha_candidate_repo = _default_alpha_candidate_repository()
 
         self._alpha_candidate_repo = alpha_candidate_repo
 
@@ -136,18 +228,8 @@ class DecisionApprovedHandler(EventHandler):
         try:
             # 从事件负载中提取数据
             # 支持两种格式：candidate_id（单个）或 candidate_ids（多个）
-            candidate_id = event.get_payload_value("candidate_id")
-            candidate_ids = event.get_payload_value("candidate_ids", [])
-            request_id = event.get_payload_value("request_id")
-
-            if not request_id:
-                logger.debug(f"Event {event.event_id} missing request_id, skipping")
-                return
-
-            # 合并 candidate_id 和 candidate_ids
-            all_candidate_ids = set(candidate_ids or [])
-            if candidate_id:
-                all_candidate_ids.add(candidate_id)
+            request_id = _required_identifier(event, "request_id")
+            all_candidate_ids = _candidate_identifiers(event)
 
             if not all_candidate_ids:
                 logger.debug(f"Event {event.event_id} has no candidate_ids, skipping")
@@ -207,9 +289,9 @@ class DecisionRejectedHandler(EventHandler):
 
     def __init__(
         self,
-        event_bus=None,
+        event_bus: object | None = None,
         alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
-    ):
+    ) -> None:
         """
         初始化处理器
 
@@ -220,7 +302,7 @@ class DecisionRejectedHandler(EventHandler):
         self.event_bus = event_bus
 
         if alpha_candidate_repo is None:
-            alpha_candidate_repo = get_alpha_candidate_repository()
+            alpha_candidate_repo = _default_alpha_candidate_repository()
 
         self._alpha_candidate_repo = alpha_candidate_repo
 
@@ -239,18 +321,8 @@ class DecisionRejectedHandler(EventHandler):
         """
         try:
             # 从事件负载中提取数据
-            candidate_id = event.get_payload_value("candidate_id")
-            candidate_ids = event.get_payload_value("candidate_ids", [])
-            request_id = event.get_payload_value("request_id")
-
-            if not request_id:
-                logger.debug(f"Event {event.event_id} missing request_id, skipping")
-                return
-
-            # 合并 candidate_id 和 candidate_ids
-            all_candidate_ids = set(candidate_ids or [])
-            if candidate_id:
-                all_candidate_ids.add(candidate_id)
+            request_id = _required_identifier(event, "request_id")
+            all_candidate_ids = _candidate_identifiers(event)
 
             if not all_candidate_ids:
                 logger.debug(f"Event {event.event_id} has no candidate_ids, skipping")
@@ -311,11 +383,11 @@ class DecisionExecutedHandler(EventHandler):
 
     def __init__(
         self,
-        event_bus=None,
+        event_bus: object | None = None,
         decision_request_repo: DecisionRequestRepositoryProtocol | None = None,
         alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
         decision_execution_sync_repo: DecisionExecutionSyncRepositoryProtocol | None = None,
-    ):
+    ) -> None:
         """
         初始化处理器
 
@@ -332,22 +404,19 @@ class DecisionExecutedHandler(EventHandler):
         )
 
         if decision_request_repo is None:
-            decision_request_repo = get_decision_request_repository()
+            decision_request_repo = _default_decision_request_repository()
 
         if alpha_candidate_repo is None:
-            alpha_candidate_repo = get_alpha_candidate_repository()
+            alpha_candidate_repo = _default_alpha_candidate_repository()
 
         self._decision_request_repo = decision_request_repo
         self._alpha_candidate_repo = alpha_candidate_repo
-        self._decision_execution_sync_repo = (
-            decision_execution_sync_repo
-            or (
-                get_decision_execution_sync_repository()
-                if use_default_sync_repo
-                else _RepositoryBackedDecisionExecutionSyncRepository(
+        self._decision_execution_sync_repo = decision_execution_sync_repo or (
+            _default_decision_execution_sync_repository()
+            if use_default_sync_repo
+            else _RepositoryBackedDecisionExecutionSyncRepository(
                 decision_request_repo=self._decision_request_repo,
                 alpha_candidate_repo=self._alpha_candidate_repo,
-                )
             )
         )
 
@@ -366,13 +435,9 @@ class DecisionExecutedHandler(EventHandler):
         """
         try:
             # 从事件负载中提取数据
-            request_id = event.get_payload_value("request_id")
-            candidate_id = event.get_payload_value("candidate_id")
-            execution_ref = event.get_payload_value("execution_ref")
-
-            if not request_id:
-                logger.warning(f"Event {event.event_id} missing request_id, skipping")
-                return
+            request_id = _required_identifier(event, "request_id")
+            candidate_id = _optional_identifier(event, "candidate_id")
+            execution_ref = _execution_reference(event)
 
             success = self._decision_execution_sync_repo.sync_executed(
                 request_id=request_id,
@@ -426,11 +491,11 @@ class DecisionExecutionFailedHandler(EventHandler):
 
     def __init__(
         self,
-        event_bus=None,
+        event_bus: object | None = None,
         decision_request_repo: DecisionRequestRepositoryProtocol | None = None,
         alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
         decision_execution_sync_repo: DecisionExecutionSyncRepositoryProtocol | None = None,
-    ):
+    ) -> None:
         """
         初始化处理器
 
@@ -447,22 +512,19 @@ class DecisionExecutionFailedHandler(EventHandler):
         )
 
         if decision_request_repo is None:
-            decision_request_repo = get_decision_request_repository()
+            decision_request_repo = _default_decision_request_repository()
 
         if alpha_candidate_repo is None:
-            alpha_candidate_repo = get_alpha_candidate_repository()
+            alpha_candidate_repo = _default_alpha_candidate_repository()
 
         self._decision_request_repo = decision_request_repo
         self._alpha_candidate_repo = alpha_candidate_repo
-        self._decision_execution_sync_repo = (
-            decision_execution_sync_repo
-            or (
-                get_decision_execution_sync_repository()
-                if use_default_sync_repo
-                else _RepositoryBackedDecisionExecutionSyncRepository(
-                    decision_request_repo=self._decision_request_repo,
-                    alpha_candidate_repo=self._alpha_candidate_repo,
-                )
+        self._decision_execution_sync_repo = decision_execution_sync_repo or (
+            _default_decision_execution_sync_repository()
+            if use_default_sync_repo
+            else _RepositoryBackedDecisionExecutionSyncRepository(
+                decision_request_repo=self._decision_request_repo,
+                alpha_candidate_repo=self._alpha_candidate_repo,
             )
         )
 
@@ -481,13 +543,9 @@ class DecisionExecutionFailedHandler(EventHandler):
         """
         try:
             # 从事件负载中提取数据
-            request_id = event.get_payload_value("request_id")
-            candidate_id = event.get_payload_value("candidate_id")
-            error_message = event.get_payload_value("error_message")
-
-            if not request_id:
-                logger.warning(f"Event {event.event_id} missing request_id, skipping")
-                return
+            request_id = _required_identifier(event, "request_id")
+            candidate_id = _optional_identifier(event, "candidate_id")
+            error_message = _optional_error_message(event)
 
             success = self._decision_execution_sync_repo.sync_failed(
                 request_id=request_id,

@@ -430,14 +430,13 @@ class TestHealthCheckIntegration:
 
     def test_health_check_passes_after_initialization(self):
         """测试初始化后健康检查通过"""
+        from apps.events.application.event_bus_initializer import EventBusInitializer
         from apps.events.application.health_check import check_event_bus_health
-        from apps.events.domain.services import get_event_bus, reset_event_bus
+        from apps.events.domain.services import reset_event_bus
 
         # 重置并初始化事件总线
         reset_event_bus()
-
-        event_bus = get_event_bus()
-        event_bus.start()
+        EventBusInitializer().initialize()
 
         # 执行健康检查
         report = check_event_bus_health()
