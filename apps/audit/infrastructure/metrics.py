@@ -24,44 +24,83 @@ Audit Module Prometheus Metrics
 """
 
 import logging
+import math
+from collections.abc import Sequence
+from typing import NotRequired, TypedDict
 
 from prometheus_client import REGISTRY, CollectorRegistry, Counter, Histogram, generate_latest
 
 logger = logging.getLogger(__name__)
 
 
-def _safe_counter(name: str, description: str, labelnames: list) -> Counter:
+class AuditMetricsSummary(TypedDict):
+    """Stable public summary of audit write metrics."""
+
+    success_total: float
+    failure_total: float
+    operations_total: float
+    failure_rate: float
+    error: NotRequired[str]
+
+
+def _safe_counter(
+    name: str,
+    description: str,
+    labelnames: Sequence[str],
+) -> Counter:
     """Safely create a Counter, returning existing one if already registered."""
     try:
         return Counter(name, description, labelnames)
     except ValueError:
         # Already registered - retrieve existing collector from registry
         for collector in REGISTRY._names_to_collectors.values():
-            if hasattr(collector, '_name') and collector._name == name:
+            if isinstance(collector, Counter) and collector._name == name:
                 return collector
         # Fallback: re-raise if we can't find it
         raise
 
 
-def _safe_histogram(name: str, description: str, labelnames: list, buckets=None) -> Histogram:
+def _safe_histogram(
+    name: str,
+    description: str,
+    labelnames: Sequence[str],
+    buckets: Sequence[float] | None = None,
+) -> Histogram:
     """Safely create a Histogram, returning existing one if already registered."""
     try:
-        kwargs = {"buckets": buckets} if buckets else {}
-        return Histogram(name, description, labelnames, **kwargs)
+        if buckets is None:
+            return Histogram(name, description, labelnames)
+        return Histogram(name, description, labelnames, buckets=buckets)
     except ValueError:
         # Already registered - retrieve existing collector from registry
         for collector in REGISTRY._names_to_collectors.values():
-            if hasattr(collector, '_name') and collector._name == name:
+            if isinstance(collector, Histogram) and collector._name == name:
                 return collector
         # Fallback: re-raise if we can't find it
         raise
+
+
+def _observe_latency(
+    *,
+    module: str,
+    source: str,
+    latency_seconds: float,
+) -> None:
+    """Observe a finite non-negative latency without polluting metric state."""
+    if not math.isfinite(latency_seconds) or latency_seconds < 0:
+        logger.warning("Skipped invalid audit latency metric")
+        return
+    audit_write_latency_seconds.labels(
+        module=module or "unknown",
+        source=source or "unknown",
+    ).observe(latency_seconds)
 
 
 # 审计写入成功次数（按模块和操作类型分组）
 audit_write_success_total = _safe_counter(
     "audit_write_success_total",
     "Total number of successful audit write operations",
-    ["module", "action", "source"]
+    ["module", "action", "source"],
 )
 
 
@@ -69,7 +108,7 @@ audit_write_success_total = _safe_counter(
 audit_write_failure_total = _safe_counter(
     "audit_write_failure_total",
     "Total number of failed audit write operations",
-    ["module", "error_type", "source"]
+    ["module", "error_type", "source"],
 )
 
 
@@ -78,7 +117,7 @@ audit_write_latency_seconds = _safe_histogram(
     "audit_write_latency_seconds",
     "Audit write operation latency in seconds",
     ["module", "source"],
-    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
 )
 
 
@@ -86,7 +125,7 @@ audit_write_latency_seconds = _safe_histogram(
 audit_write_operations_total = _safe_counter(
     "audit_write_operations_total",
     "Total audit write operations by status",
-    ["module", "status", "source"]
+    ["module", "status", "source"],
 )
 
 
@@ -94,7 +133,7 @@ def record_audit_write_success(
     module: str,
     action: str,
     source: str = "unknown",
-    latency_seconds: float = None,
+    latency_seconds: float | None = None,
 ) -> None:
     """
     记录审计写入成功
@@ -107,33 +146,33 @@ def record_audit_write_success(
     """
     try:
         audit_write_success_total.labels(
-            module=module or "unknown",
-            action=action or "unknown",
-            source=source or "unknown"
+            module=module or "unknown", action=action or "unknown", source=source or "unknown"
         ).inc()
 
         audit_write_operations_total.labels(
-            module=module or "unknown",
-            status="success",
-            source=source or "unknown"
+            module=module or "unknown", status="success", source=source or "unknown"
         ).inc()
 
         if latency_seconds is not None:
-            audit_write_latency_seconds.labels(
+            _observe_latency(
                 module=module or "unknown",
-                source=source or "unknown"
-            ).observe(latency_seconds)
+                source=source or "unknown",
+                latency_seconds=latency_seconds,
+            )
 
-    except Exception as e:
+    except Exception as exc:
         # 指标记录失败不应影响业务
-        logger.warning(f"Failed to record audit success metric: {e}")
+        logger.warning(
+            "Failed to record audit success metric (error_type=%s)",
+            type(exc).__name__,
+        )
 
 
 def record_audit_write_failure(
     module: str,
     error_type: str,
     source: str = "unknown",
-    latency_seconds: float = None,
+    latency_seconds: float | None = None,
 ) -> None:
     """
     记录审计写入失败
@@ -148,24 +187,26 @@ def record_audit_write_failure(
         audit_write_failure_total.labels(
             module=module or "unknown",
             error_type=error_type or "unknown",
-            source=source or "unknown"
+            source=source or "unknown",
         ).inc()
 
         audit_write_operations_total.labels(
-            module=module or "unknown",
-            status="failure",
-            source=source or "unknown"
+            module=module or "unknown", status="failure", source=source or "unknown"
         ).inc()
 
         if latency_seconds is not None:
-            audit_write_latency_seconds.labels(
+            _observe_latency(
                 module=module or "unknown",
-                source=source or "unknown"
-            ).observe(latency_seconds)
+                source=source or "unknown",
+                latency_seconds=latency_seconds,
+            )
 
-    except Exception as e:
+    except Exception as exc:
         # 指标记录失败不应影响业务
-        logger.warning(f"Failed to record audit failure metric: {e}")
+        logger.warning(
+            "Failed to record audit failure metric (error_type=%s)",
+            type(exc).__name__,
+        )
 
 
 def record_audit_write_latency(
@@ -182,17 +223,21 @@ def record_audit_write_latency(
         source: 数据来源（MCP/SDK/API）
     """
     try:
-        audit_write_latency_seconds.labels(
+        _observe_latency(
             module=module or "unknown",
-            source=source or "unknown"
-        ).observe(latency_seconds)
+            source=source or "unknown",
+            latency_seconds=latency_seconds,
+        )
 
-    except Exception as e:
+    except Exception as exc:
         # 指标记录失败不应影响业务
-        logger.warning(f"Failed to record audit latency metric: {e}")
+        logger.warning(
+            "Failed to record audit latency metric (error_type=%s)",
+            type(exc).__name__,
+        )
 
 
-def get_audit_metrics_summary() -> dict:
+def get_audit_metrics_summary() -> AuditMetricsSummary:
     """
     获取审计指标摘要
 
@@ -201,10 +246,11 @@ def get_audit_metrics_summary() -> dict:
     """
     try:
         # 获取所有指标的当前值
-        summary = {
-            "success_total": 0,
-            "failure_total": 0,
-            "operations_total": 0,
+        summary: AuditMetricsSummary = {
+            "success_total": 0.0,
+            "failure_total": 0.0,
+            "operations_total": 0.0,
+            "failure_rate": 0.0,
         }
 
         # 遍历所有标签组合获取总数
@@ -227,18 +273,18 @@ def get_audit_metrics_summary() -> dict:
         total_operations = summary["success_total"] + summary["failure_total"]
         if total_operations > 0:
             summary["failure_rate"] = summary["failure_total"] / total_operations
-        else:
-            summary["failure_rate"] = 0.0
-
         return summary
 
-    except Exception as e:
-        logger.error(f"Failed to get audit metrics summary: {e}", exc_info=True)
+    except Exception as exc:
+        logger.error(
+            "Failed to get audit metrics summary (error_type=%s)",
+            type(exc).__name__,
+        )
         return {
-            "error": str(e),
-            "success_total": 0,
-            "failure_total": 0,
-            "operations_total": 0,
+            "error": "metrics_unavailable",
+            "success_total": 0.0,
+            "failure_total": 0.0,
+            "operations_total": 0.0,
             "failure_rate": 0.0,
         }
 
@@ -263,8 +309,14 @@ def export_metrics() -> str:
         ):
             registry.register(collector)
 
-        return generate_latest(registry).decode("utf-8")
+        payload: object = generate_latest(registry)
+        if not isinstance(payload, bytes):
+            raise TypeError("Prometheus metrics payload must be bytes")
+        return payload.decode("utf-8")
 
-    except Exception as e:
-        logger.error(f"Failed to export audit metrics: {e}", exc_info=True)
-        return f"# Error exporting metrics: {e}\n"
+    except Exception as exc:
+        logger.error(
+            "Failed to export audit metrics (error_type=%s)",
+            type(exc).__name__,
+        )
+        return "# Audit metrics export unavailable\n"

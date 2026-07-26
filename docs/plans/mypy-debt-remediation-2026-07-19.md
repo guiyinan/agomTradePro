@@ -4206,3 +4206,19 @@
 - Account 模型结构与手工券商交易同步回归 `10 passed`。
 - `portfolio_models.py` 增量 mypy 清零；全仓基线从 `1324 errors / 418 files` 收紧为 `1314 errors / 417 files`，净减少 `10 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百八十一批
+
+- 按“审计监控真实性 × Prometheus 类型安全 × 异常最小披露”收口 Audit metrics。
+- Counter/Histogram 重复注册只复用名称和 collector 类型同时匹配的实例；同名 Gauge 等错误类型不再被当作目标指标返回。
+- 审计延迟只接受有限非负秒数；负值与 `NaN/Inf` 被跳过，不再污染 Histogram bucket、sum 和后续告警。
+- Histogram buckets 与 label names 补齐精确 Sequence 契约；可选延迟显式使用 `float | None`。
+- 指标摘要使用稳定 TypedDict 和浮点计数口径；Application provider 在跨层边界显式转换为普通字典。
+- 摘要、导出与记录失败只发布稳定错误码或异常类型，不再把数据库、registry 等原始异常正文写入响应或普通日志。
+- Prometheus 导出显式验证第三方结果必须为 bytes，再按 UTF-8 解码；异常返回稳定不可用注释。
+
+## 第二百八十一批验证结果
+
+- Audit metrics 非法延迟、collector 冲突、异常脱敏与导出边界回归 `9 passed`；Prometheus AuditMetrics 集成与 API 端点回归 `4 passed`。
+- `metrics.py` 与 Application provider 增量 mypy 清零；全仓基线从 `1314 errors / 417 files` 收紧为 `1305 errors / 416 files`，净减少 `9 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

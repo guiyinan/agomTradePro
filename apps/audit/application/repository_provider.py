@@ -53,7 +53,7 @@ def get_audit_metrics_summary() -> dict[str, object]:
 
     from apps.audit.infrastructure.metrics import get_audit_metrics_summary as _impl
 
-    return _impl()
+    return dict(_impl())
 
 
 def export_audit_metrics() -> str:

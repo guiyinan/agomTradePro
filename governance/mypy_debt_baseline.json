@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1314,
-    "files_with_errors": 417
+    "errors": 1305,
+    "files_with_errors": 416
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -337,12 +337,6 @@
     "apps/audit/infrastructure/failure_counter.py": {
       "type-arg": 2,
       "valid-type": 1
-    },
-    "apps/audit/infrastructure/metrics.py": {
-      "assignment": 4,
-      "no-any-return": 1,
-      "no-untyped-def": 1,
-      "type-arg": 3
     },
     "apps/audit/infrastructure/validation_repositories.py": {
       "type-arg": 6
