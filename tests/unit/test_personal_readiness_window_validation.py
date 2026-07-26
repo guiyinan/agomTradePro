@@ -775,6 +775,44 @@ def test_validate_personal_readiness_window_rejects_failed_day_in_current_streak
     assert payload["blocking_issues"][0]["reason"] == "qlib_status is warning"
 
 
+@pytest.mark.parametrize("required_days", [0, -1, True])
+def test_validate_personal_readiness_window_rejects_non_positive_or_boolean_window(
+    tmp_path,
+    required_days,
+):
+    with pytest.raises(ValueError, match="required_days must be a positive integer"):
+        command_module.validate_personal_readiness_window(
+            output_dir=tmp_path,
+            required_days=required_days,
+            calendar_source="weekday",
+        )
+
+
+def test_validate_personal_readiness_window_blocks_duplicate_target_date(tmp_path):
+    _write_evidence(tmp_path, date(2026, 7, 1), status="ok")
+    canonical_path = tmp_path / "2026-07-01-personal-readiness.json"
+    duplicate_path = tmp_path / "duplicate-2026-07-01.json"
+    duplicate_path.write_bytes(canonical_path.read_bytes())
+
+    payload = command_module.validate_personal_readiness_window(
+        output_dir=tmp_path,
+        required_days=1,
+        calendar_source="weekday",
+        expected_latest_date=date(2026, 7, 1),
+    )
+
+    assert payload["status"] == "in_progress"
+    assert payload["accepted_days"] == 0
+    assert payload["remaining_days"] == 1
+    assert payload["blocking_issues"] == [
+        {
+            "target_date": "2026-07-01",
+            "path": f"{canonical_path}, {duplicate_path}",
+            "reason": "duplicate evidence records",
+        }
+    ]
+
+
 def test_validate_personal_readiness_window_strict_raises_when_incomplete(monkeypatch, tmp_path):
     _write_evidence(tmp_path, date(2026, 6, 30), status="ok")
     command = command_module.Command()

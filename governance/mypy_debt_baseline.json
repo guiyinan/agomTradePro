@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1248,
-    "files_with_errors": 408
+    "errors": 1242,
+    "files_with_errors": 407
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -900,10 +900,6 @@
     },
     "apps/operational_readiness/infrastructure/readiness_status_evidence.py": {
       "no-any-return": 1
-    },
-    "apps/operational_readiness/infrastructure/readiness_window_validation_core.py": {
-      "arg-type": 3,
-      "union-attr": 3
     },
     "apps/operational_readiness/management/commands/inspect_personal_readiness_evidence.py": {
       "assignment": 2,

@@ -41,10 +41,13 @@ def validate_personal_readiness_window(
 ) -> dict[str, Any]:
     """Validate readiness evidence files against the continuous-run acceptance gate."""
 
+    if isinstance(required_days, bool) or required_days <= 0:
+        raise ValueError("required_days must be a positive integer")
+
     project_root = Path(base_dir) if base_dir is not None else Path(settings.BASE_DIR)
     root = project_root / output_dir if not output_dir.is_absolute() else output_dir
-    records = [_load_evidence_record(path) for path in sorted(root.glob("*.json"))]
-    records = [record for record in records if record is not None]
+    loaded_records = [_load_evidence_record(path) for path in sorted(root.glob("*.json"))]
+    records: list[_EvidenceRecord] = [record for record in loaded_records if record is not None]
     calendar = _resolve_trading_calendar(
         source=calendar_source,
         trading_calendar=trading_calendar,
@@ -155,7 +158,9 @@ def _continuous_window(
     if latest is None:
         return [], []
 
-    records_by_date = {record.target_date: record for record in records}
+    records_by_date: dict[date, list[_EvidenceRecord]] = {}
+    for record in records:
+        records_by_date.setdefault(record.target_date, []).append(record)
     if not records_by_date:
         return [], [
             {
@@ -170,8 +175,8 @@ def _continuous_window(
     current = latest
 
     while current >= earliest and len(accepted) < required_days:
-        record = records_by_date.get(current)
-        if record is None:
+        dated_records = records_by_date.get(current, [])
+        if not dated_records:
             blocking.append(
                 {
                     "target_date": current.isoformat(),
@@ -180,6 +185,16 @@ def _continuous_window(
                 }
             )
             break
+        if len(dated_records) > 1:
+            blocking.append(
+                {
+                    "target_date": current.isoformat(),
+                    "path": ", ".join(str(record.path) for record in dated_records),
+                    "reason": "duplicate evidence records",
+                }
+            )
+            break
+        record = dated_records[0]
         if not record.accepted:
             blocking.append(
                 {

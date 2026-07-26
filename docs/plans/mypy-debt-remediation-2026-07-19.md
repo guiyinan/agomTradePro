@@ -4321,3 +4321,18 @@
 - Core Metrics 边界与 Prometheus 集成回归 `20 passed`，覆盖非有限延迟、原始重试原因、未知状态、4xx 总数、摘要异常脱敏及 resolver route 标签。
 - `core/metrics.py` 增量 mypy 清零；全仓基线从 `1253 errors / 409 files` 收紧为 `1248 errors / 408 files`，净减少 `5 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百八十八批
+
+- 按“生产 readiness 验收真实性 × 连续窗口唯一性 × 可空证据边界”收口个人 readiness 窗口核心校验器。
+- 证据文件加载结果先保留可空边界，再显式收窄为 `_EvidenceRecord` 列表；交易日过滤、连续窗口、质量摘要与清单构建不再传播可空记录。
+- `required_days` 必须为正整数；零、负数和布尔值在读取证据及计算投影前失败关闭，不再因 `remaining_days == 0` 形成虚假的 `accepted` 状态。
+- 连续窗口按交易日聚合证据记录；同一目标日存在多份有效 JSON 时不再由字典覆盖顺序任意选择一份，而是发布 `duplicate evidence records` 阻断项并保持窗口 `in_progress`。
+- 重复日阻断项保留目标日和全部冲突文件路径，便于运维人员定位并清理证据，同时不把任一冲突记录纳入 accepted evidence、质量统计或验收清单。
+- 缺失日、失败日、交易日历推进及 scheduler clean suffix 的既有连续窗口语义保持不变。
+
+## 第二百八十八批验证结果
+
+- 个人 readiness 窗口校验完整回归 `29 passed`，覆盖正向连续窗口、缺失/失败证据、日历回退、形式化证据质量、非法窗口及重复目标日。
+- `readiness_window_validation_core.py` 增量 mypy 清零；全仓基线从 `1248 errors / 408 files` 收紧为 `1242 errors / 407 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
