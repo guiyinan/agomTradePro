@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1150,
-    "files_with_errors": 391
+    "errors": 1142,
+    "files_with_errors": 390
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1091,12 +1091,6 @@
     },
     "apps/research/composition.py": {
       "arg-type": 3
-    },
-    "apps/sector/application/tasks.py": {
-      "assignment": 1,
-      "attr-defined": 1,
-      "misc": 2,
-      "no-untyped-def": 4
     },
     "apps/sector/apps.py": {
       "no-untyped-def": 1

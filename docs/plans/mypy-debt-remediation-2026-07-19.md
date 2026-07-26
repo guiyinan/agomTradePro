@@ -4574,3 +4574,19 @@
 - 结构化日志、Trace middleware、Celery/Development 日志配置回归 `48 passed`。
 - `core/logging_utils.py` 增量 mypy 清零；全仓基线从 `1155 errors / 392 files` 收紧为 `1150 errors / 391 files`，净减少 `5 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百零四批
+
+- 按“板块定时任务可重试性 × Application 依赖边界 × 异步结果稳定契约”收口 Sector Celery 任务。
+- 两个任务改为通过 Application provider factory 获取仓储与行情适配器，不再从 provider 模块导入并直接构造 Infrastructure 实现。
+- 新增类型化 Celery decorator 边界、任务返回 TypedDict 及板块评分 payload，补齐参数、可空 Regime 和返回类型；任务文件增量 mypy 清零。
+- 更新任务在访问仓储或行情源前构造并验证请求，非法板块级别不再触发外部依赖；最近七日窗口继续以同一业务日期计算。
+- 移除吞掉所有异常并返回底层异常正文的任务级捕获；provider/组装异常现在可到达既有 `autoretry_for`，恢复 Celery 自动重试并避免把数据库或数据源异常细节写入任务结果。
+- 更新与轮动分析统一返回稳定字段；业务失败保留 `error_code`、状态、数据来源及 warning 诊断，成功结果也携带完整 provenance。
+- 新增 provider factory 组装、非法输入短路、基础设施异常传播、成功排名序列化和业务失败诊断回归。
+
+## 第三百零四批验证结果
+
+- Sector 相关单元、API、集成与依赖边界回归 `80 passed`。
+- `apps/sector/application/tasks.py` 增量 mypy 清零；全仓基线从 `1150 errors / 391 files` 收紧为 `1142 errors / 390 files`，净减少 `8 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
