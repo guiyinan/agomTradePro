@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1324,
-    "files_with_errors": 418
+    "errors": 1314,
+    "files_with_errors": 417
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -45,9 +45,6 @@
     "apps/account/infrastructure/notification_service.py": {
       "no-untyped-def": 1,
       "type-arg": 2
-    },
-    "apps/account/infrastructure/portfolio_models.py": {
-      "unused-ignore": 10
     },
     "apps/account/infrastructure/portfolio_repository.py": {
       "arg-type": 1,

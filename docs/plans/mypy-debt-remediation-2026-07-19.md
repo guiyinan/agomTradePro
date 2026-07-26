@@ -4193,3 +4193,16 @@
 - Macro 期间显示、期限分类、日期别名、Application/汇率边界与配置持久化回归 `27 passed`。
 - `models.py` 增量 mypy 清零；全仓基线从 `1334 errors / 419 files` 收紧为 `1324 errors / 418 files`，净减少 `10 errors / 1 file`。
 - Django system check、迁移一致性、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百八十批
+
+- 按“账户组合核心持久化边界 × 抑制项真实性”收口 Portfolio、Position、Transaction、资金流水与券商导入模型。
+- 审查确认该文件 10 项债务全部来自已失效的 Django `type: ignore`，当前类型桩已能正确识别 User、ORM、聚合函数和七个模型基类。
+- 删除失效的 import/misc 抑制，不用宽泛忽略掩盖未来真实回归。
+- 本批不改动持仓数量、成本、市值、盈亏、交易金额、费用、快照或资金流水的任何计算和持久化语义。
+
+## 第二百八十批验证结果
+
+- Account 模型结构与手工券商交易同步回归 `10 passed`。
+- `portfolio_models.py` 增量 mypy 清零；全仓基线从 `1324 errors / 418 files` 收紧为 `1314 errors / 417 files`，净减少 `10 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

@@ -7,9 +7,9 @@
 
 from decimal import Decimal
 
-from django.contrib.auth.models import User  # type: ignore[import-untyped]
-from django.db import models  # type: ignore[import-untyped]
-from django.db.models import Sum  # type: ignore[import-untyped]
+from django.contrib.auth.models import User
+from django.db import models
+from django.db.models import Sum
 
 from .classification_models import AssetMetadataModel
 
@@ -27,7 +27,7 @@ __all__ = [
 # 账户与组合模型
 
 
-class PortfolioModel(models.Model):  # type: ignore[misc]
+class PortfolioModel(models.Model):
     """
     投资组合表
 
@@ -103,7 +103,7 @@ class PortfolioModel(models.Model):  # type: ignore[misc]
 # 持仓与交易模型
 
 
-class PositionModel(models.Model):  # type: ignore[misc]
+class PositionModel(models.Model):
     """
     持仓记录表
 
@@ -197,7 +197,7 @@ class PositionModel(models.Model):  # type: ignore[misc]
         return f"{self.portfolio.name} - {self.asset_code} - {self.shares}股"
 
 
-class TransactionModel(models.Model):  # type: ignore[misc]
+class TransactionModel(models.Model):
     """
     交易记录表
 
@@ -308,7 +308,7 @@ class TransactionModel(models.Model):  # type: ignore[misc]
         return f"{self.action.upper()} {self.asset_code} {self.shares}@{self.price}"
 
 
-class BrokerTradeImportBatchModel(models.Model):  # type: ignore[misc]
+class BrokerTradeImportBatchModel(models.Model):
     """One manual broker trade import attempt."""
 
     STATUS_CHOICES = [
@@ -374,7 +374,7 @@ class BrokerTradeImportBatchModel(models.Model):  # type: ignore[misc]
 # 信号扩展（关联到持仓）
 
 
-class PositionSignalLogModel(models.Model):  # type: ignore[misc]
+class PositionSignalLogModel(models.Model):
     """
     持仓信号关联表
 
@@ -395,7 +395,7 @@ class PositionSignalLogModel(models.Model):  # type: ignore[misc]
         verbose_name_plural = "持仓信号日志"
 
 
-class PortfolioDailySnapshotModel(models.Model):  # type: ignore[misc]
+class PortfolioDailySnapshotModel(models.Model):
     """
     投资组合日快照表
 
@@ -439,7 +439,7 @@ class PortfolioDailySnapshotModel(models.Model):  # type: ignore[misc]
         return f"{self.portfolio.name} @ {self.snapshot_date}: ¥{self.total_value}"
 
 
-class CapitalFlowModel(models.Model):  # type: ignore[misc]
+class CapitalFlowModel(models.Model):
     """
     资金流水表
 
