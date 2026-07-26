@@ -164,12 +164,53 @@ def test_ai_classifier_success_thresholds_failures_and_response_parsing(monkeypa
         "model": "fake-model",
     }
     failed = classifier.classify_rss_item(_rss_item())
-    assert failed.success is False and "timeout" in (failed.error_message or "")
+    assert failed.success is False
+    assert failed.error_message == "AI policy classification unavailable"
+    assert "timeout" not in failed.error_message
+    assert failed.processing_metadata["error_code"] == "ai_policy_provider_unavailable"
 
     assert classifier._parse_ai_response('```json\n{"confidence": 0.5}\n```') == {"confidence": 0.5}
     assert classifier._parse_ai_response('prefix {"confidence": 0.4} suffix') == {"confidence": 0.4}
-    assert classifier._parse_ai_response("not-json")["info_category"] == "other"
+    with pytest.raises(ValueError, match="not valid JSON"):
+        classifier._parse_ai_response("not-json")
     assert len(classifier.batch_classify([(_rss_item(), None)])) == 1
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"confidence": float("nan")},
+        {"confidence": 1.1},
+        {"info_category": "invented"},
+        {"risk_impact": "invented"},
+        {"structured_data": []},
+        {"structured_data": {"affected_sectors": ["银行", 1]}},
+        {"structured_data": {"sentiment_score": float("inf")}},
+    ],
+)
+def test_ai_classifier_rejects_untrusted_model_output(override: dict[str, object]) -> None:
+    """Malformed model output must not create a successful policy classification."""
+    payload: dict[str, object] = {
+        "info_category": "macro",
+        "confidence": 0.8,
+        "risk_impact": "medium_risk",
+        "structured_data": {},
+    }
+    payload.update(override)
+    helper = SimpleNamespace(
+        chat_completion_with_failover=lambda **kwargs: {
+            "status": "success",
+            "content": json.dumps(payload),
+            "model": "fake-model",
+        }
+    )
+
+    result = AIPolicyClassifier(helper).classify_rss_item(_rss_item())
+
+    assert result.success is False
+    assert result.error_message == "AI policy response invalid"
+    assert result.processing_metadata["error_code"] == "ai_policy_response_invalid"
+    assert "raw_response" not in result.processing_metadata
 
 
 class _FeedEntry(dict[str, object]):

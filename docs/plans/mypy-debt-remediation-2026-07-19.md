@@ -3782,3 +3782,20 @@
 - Filter 页面与 API 回归 `15 passed`，图表数值/序列边界回归 `7 passed`；覆盖认证、未知滤波器、GET 不持久化、异常脱敏、NaN/Inf 和错位序列。
 - Filter dashboard view 增量 mypy 清零；全仓基线从 `1626 errors / 454 files` 收紧为 `1614 errors / 453 files`，净减少 `12 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百五十六批
+
+- 按“AI 政策分类失败关闭 × 非有限金融数值拒绝 × Provider 异常最小披露”收口 Policy AI classifier。
+- AI 响应无法解析为 JSON object 时不再伪造 `other`、`confidence=0.3` 并返回成功；统一返回稳定失败结果，避免虚假政策分类进入审核队列。
+- `info_category`、`risk_impact` 和可选 `policy_level` 必须匹配 Domain 枚举；未知枚举不再被默认值或忽略逻辑掩盖。
+- `confidence` 必须是 `[0, 1]` 内有限数值；可选情绪分数一旦提供，必须是 `[-1, 1]` 内有限数值。`NaN`、`Inf`、非法字符串和越界值全部失败关闭。
+- `structured_data` 必须是 JSON object；字符串字段、字符串列表和受影响行业/股票等动态数据在构造 Domain entity 前完成结构收窄。
+- 自动通过和拒绝阈值限制在 `[0, 1]`，且拒绝阈值必须低于通过阈值；异常运行时配置回退到安全默认阈值。
+- Provider 失败与解析失败不再向调用方返回 SDK/网络异常正文或原始 AI 输出；仅发布稳定错误文案和机器错误码，详细异常保留在服务端日志。
+- AI Provider、usage repository、failover helper compatibility factory 和使用日志入口补齐返回类型，JSON 解析结果在 Infrastructure 边界显式收窄。
+
+## 第二百五十六批验证结果
+
+- Policy adapter 与 AI failover 定向回归 `14 passed`；覆盖 Provider 异常脱敏、无效 JSON、未知枚举、异常容器、非字符串列表、`NaN`/`Inf` 和越界置信度失败关闭。
+- Policy AI classifier 增量 mypy 清零；全仓基线从 `1614 errors / 453 files` 收紧为 `1603 errors / 452 files`，净减少 `11 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

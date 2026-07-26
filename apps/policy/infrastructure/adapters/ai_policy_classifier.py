@@ -8,6 +8,7 @@ AI Policy Classifier - 政策AI分类服务
 import json
 import logging
 import re
+from collections.abc import Mapping
 from typing import Any
 
 from django.utils import timezone
@@ -29,23 +30,24 @@ from apps.policy.domain.entities import (
 )
 from apps.policy.domain.interfaces import PolicyClassifierProtocol
 from apps.regime.infrastructure.config_helper import ConfigHelper, ConfigKeys
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
 
-def AIProviderRepository():
+def AIProviderRepository() -> Any:
     """Compatibility factory for tests and policy infrastructure callers."""
 
     return get_ai_provider_repository()
 
 
-def AIUsageRepository():
+def AIUsageRepository() -> Any:
     """Compatibility factory for tests and policy infrastructure callers."""
 
     return get_ai_usage_repository()
 
 
-def AIFailoverHelper(providers: list[dict[str, Any]]):
+def AIFailoverHelper(providers: list[dict[str, Any]]) -> Any:
     """Compatibility factory for tests and policy infrastructure callers."""
 
     return build_ai_failover_helper(providers)
@@ -78,15 +80,31 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
     @property
     def auto_approve_threshold(self) -> float:
         """获取自动通过阈值（从配置读取）"""
-        return ConfigHelper.get_float(
-            ConfigKeys.AI_AUTO_APPROVE_THRESHOLD, self.DEFAULT_AUTO_APPROVE_THRESHOLD
+        value = safe_float(
+            ConfigHelper.get_float(
+                ConfigKeys.AI_AUTO_APPROVE_THRESHOLD,
+                self.DEFAULT_AUTO_APPROVE_THRESHOLD,
+            )
+        )
+        return (
+            value
+            if value is not None and 0.0 <= value <= 1.0
+            else self.DEFAULT_AUTO_APPROVE_THRESHOLD
         )
 
     @property
     def auto_reject_threshold(self) -> float:
         """获取自动拒绝阈值（从配置读取）"""
-        return ConfigHelper.get_float(
-            ConfigKeys.AI_AUTO_REJECT_THRESHOLD, self.DEFAULT_AUTO_REJECT_THRESHOLD
+        value = safe_float(
+            ConfigHelper.get_float(
+                ConfigKeys.AI_AUTO_REJECT_THRESHOLD,
+                self.DEFAULT_AUTO_REJECT_THRESHOLD,
+            )
+        )
+        return (
+            value
+            if value is not None and 0.0 <= value <= 1.0
+            else self.DEFAULT_AUTO_REJECT_THRESHOLD
         )
 
     def classify_rss_item(
@@ -108,9 +126,10 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
         messages = self._build_classification_prompt(item, content)
 
         # 调用AI
-        ai_result = self.ai_helper.chat_completion_with_failover(
+        raw_ai_result = self.ai_helper.chat_completion_with_failover(
             messages=messages, temperature=0.3, max_tokens=2000  # 降低温度以获得更一致的结果
         )
+        ai_result = dict(raw_ai_result) if isinstance(raw_ai_result, Mapping) else {}
 
         processing_time_ms = int((timezone.now() - start_time).total_seconds() * 1000)
 
@@ -121,39 +140,57 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
         if ai_result.get("status") != "success":
             return AIClassificationResult(
                 success=False,
-                error_message=f"AI调用失败: {ai_result.get('error_message', 'Unknown error')}",
+                error_message="AI policy classification unavailable",
                 processing_metadata={
                     "ai_model_used": ai_result.get("model", "unknown"),
                     "ai_processing_time_ms": processing_time_ms,
-                    "ai_error": ai_result.get("error_message"),
+                    "error_code": "ai_policy_provider_unavailable",
                 },
             )
 
         # 解析AI返回结果
         try:
             parsed_data = self._parse_ai_response(ai_result.get("content", ""))
+            structured_payload = parsed_data.get("structured_data")
+            if not isinstance(structured_payload, Mapping):
+                raise ValueError("structured_data must be an object")
+            structured_data_payload = {str(key): value for key, value in structured_payload.items()}
+            confidence = safe_float(parsed_data.get("confidence"))
+            if confidence is None or not 0.0 <= confidence <= 1.0:
+                raise ValueError("confidence must be finite and in [0, 1]")
+            info_category = InfoCategory(str(parsed_data.get("info_category") or ""))
+            risk_impact = RiskImpact(str(parsed_data.get("risk_impact") or ""))
+            sentiment_score = safe_float(structured_data_payload.get("sentiment_score"))
+            if "sentiment_score" in structured_data_payload and sentiment_score is None:
+                raise ValueError("sentiment_score must be finite")
+            if sentiment_score is not None and not -1.0 <= sentiment_score <= 1.0:
+                raise ValueError("sentiment_score must be in [-1, 1]")
 
             # 构建结构化数据
             structured_data = StructuredPolicyData(
-                policy_subject=parsed_data.get("structured_data", {}).get("policy_subject"),
-                policy_object=parsed_data.get("structured_data", {}).get("policy_object"),
-                effective_date=parsed_data.get("structured_data", {}).get("effective_date"),
-                expiry_date=parsed_data.get("structured_data", {}).get("expiry_date"),
-                conditions=parsed_data.get("structured_data", {}).get("conditions", []),
-                impact_scope=parsed_data.get("structured_data", {}).get("impact_scope"),
-                affected_sectors=parsed_data.get("structured_data", {}).get("affected_sectors", []),
-                affected_stocks=parsed_data.get("structured_data", {}).get("affected_stocks", []),
-                sentiment=parsed_data.get("structured_data", {}).get("sentiment"),
-                sentiment_score=parsed_data.get("structured_data", {}).get("sentiment_score"),
-                keywords=parsed_data.get("structured_data", {}).get("keywords", []),
-                summary=parsed_data.get("structured_data", {}).get("summary"),
+                policy_subject=self._optional_string(structured_data_payload, "policy_subject"),
+                policy_object=self._optional_string(structured_data_payload, "policy_object"),
+                effective_date=self._optional_string(structured_data_payload, "effective_date"),
+                expiry_date=self._optional_string(structured_data_payload, "expiry_date"),
+                conditions=self._string_list(structured_data_payload, "conditions"),
+                impact_scope=self._optional_string(structured_data_payload, "impact_scope"),
+                affected_sectors=self._string_list(structured_data_payload, "affected_sectors"),
+                affected_stocks=self._string_list(structured_data_payload, "affected_stocks"),
+                sentiment=self._optional_string(structured_data_payload, "sentiment"),
+                sentiment_score=sentiment_score,
+                keywords=self._string_list(structured_data_payload, "keywords"),
+                summary=self._optional_string(structured_data_payload, "summary"),
             )
 
             # 确定审核状态
-            confidence = parsed_data.get("confidence", 0.5)
-            if confidence >= self.auto_approve_threshold:
+            approve_threshold = self.auto_approve_threshold
+            reject_threshold = self.auto_reject_threshold
+            if reject_threshold >= approve_threshold:
+                approve_threshold = self.DEFAULT_AUTO_APPROVE_THRESHOLD
+                reject_threshold = self.DEFAULT_AUTO_REJECT_THRESHOLD
+            if confidence >= approve_threshold:
                 audit_status = AuditStatus.AUTO_APPROVED
-            elif confidence < self.auto_reject_threshold:
+            elif confidence < reject_threshold:
                 audit_status = AuditStatus.REJECTED
             else:
                 audit_status = AuditStatus.PENDING_REVIEW
@@ -162,19 +199,16 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
             policy_level_str = parsed_data.get("policy_level")
             policy_level = None
             if policy_level_str:
-                try:
-                    policy_level = PolicyLevel(policy_level_str)
-                except ValueError:
-                    logger.warning(f"Invalid policy_level from AI: {policy_level_str}")
+                policy_level = PolicyLevel(str(policy_level_str))
 
             return AIClassificationResult(
                 success=True,
-                info_category=InfoCategory(parsed_data.get("info_category", "macro")),
+                info_category=info_category,
                 audit_status=audit_status,
                 ai_confidence=confidence,
                 policy_level=policy_level,
                 structured_data=structured_data,
-                risk_impact=RiskImpact(parsed_data.get("risk_impact", "unknown")),
+                risk_impact=risk_impact,
                 processing_metadata={
                     "ai_model_used": ai_result.get("model"),
                     "ai_provider_used": ai_result.get("provider_used"),
@@ -188,11 +222,11 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
             logger.error(f"Failed to parse AI response: {e}", exc_info=True)
             return AIClassificationResult(
                 success=False,
-                error_message=f"解析AI响应失败: {str(e)}",
+                error_message="AI policy response invalid",
                 processing_metadata={
                     "ai_model_used": ai_result.get("model"),
                     "ai_processing_time_ms": processing_time_ms,
-                    "raw_response": ai_result.get("content", "")[:500],
+                    "error_code": "ai_policy_response_invalid",
                 },
             )
 
@@ -214,7 +248,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
             results.append(result)
         return results
 
-    def _log_ai_usage(self, ai_result: dict[str, Any], request_type: str):
+    def _log_ai_usage(self, ai_result: dict[str, Any], request_type: str) -> None:
         """记录AI使用日志"""
         try:
             # 获取提供商
@@ -347,13 +381,18 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
         # 尝试提取JSON
         try:
             # 尝试直接解析
-            return json.loads(response)
+            parsed = json.loads(response)
+            if not isinstance(parsed, dict):
+                raise ValueError("AI response must be a JSON object")
+            return {str(key): value for key, value in parsed.items()}
         except json.JSONDecodeError:
             # 尝试提取JSON块
             json_match = re.search(r"```json\s*(.*?)\s*```", response, re.DOTALL)
             if json_match:
                 try:
-                    return json.loads(json_match.group(1))
+                    parsed = json.loads(json_match.group(1))
+                    if isinstance(parsed, dict):
+                        return {str(key): value for key, value in parsed.items()}
                 except json.JSONDecodeError:
                     pass
 
@@ -361,18 +400,32 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
             brace_match = re.search(r"\{.*\}", response, re.DOTALL)
             if brace_match:
                 try:
-                    return json.loads(brace_match.group(0))
+                    parsed = json.loads(brace_match.group(0))
+                    if isinstance(parsed, dict):
+                        return {str(key): value for key, value in parsed.items()}
                 except json.JSONDecodeError:
                     pass
 
-            # 都失败了，返回默认值
-            logger.warning(f"Could not parse AI response as JSON: {response[:200]}")
-            return {
-                "info_category": "other",
-                "confidence": 0.3,
-                "risk_impact": "unknown",
-                "structured_data": {},
-            }
+            logger.warning("Could not parse AI response as JSON")
+            raise ValueError("AI response is not valid JSON") from None
+
+    @staticmethod
+    def _optional_string(payload: Mapping[str, Any], key: str) -> str | None:
+        value = payload.get(key)
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError(f"{key} must be a string or null")
+        return value.strip() or None
+
+    @staticmethod
+    def _string_list(payload: Mapping[str, Any], key: str) -> list[str]:
+        value = payload.get(key, [])
+        if value is None:
+            return []
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ValueError(f"{key} must be a list of strings")
+        return [item.strip() for item in value if item.strip()]
 
 
 def create_ai_policy_classifier() -> AIPolicyClassifier | None:

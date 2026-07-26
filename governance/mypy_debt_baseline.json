@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1614,
-    "files_with_errors": 453
+    "errors": 1603,
+    "files_with_errors": 452
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1069,11 +1069,6 @@
     },
     "apps/policy/domain/interfaces.py": {
       "type-arg": 4
-    },
-    "apps/policy/infrastructure/adapters/ai_policy_classifier.py": {
-      "no-any-return": 3,
-      "no-untyped-call": 4,
-      "no-untyped-def": 4
     },
     "apps/policy/infrastructure/adapters/news_adapter.py": {
       "var-annotated": 1
