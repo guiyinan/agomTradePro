@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1236,
-    "files_with_errors": 406
+    "errors": 1229,
+    "files_with_errors": 405
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -526,12 +526,6 @@
       "assignment": 1,
       "call-overload": 2,
       "type-var": 2,
-      "var-annotated": 1
-    },
-    "apps/data_center/infrastructure/macro_sources/failover_adapter.py": {
-      "arg-type": 1,
-      "assignment": 3,
-      "misc": 2,
       "var-annotated": 1
     },
     "apps/data_center/infrastructure/macro_sources/tushare_adapter.py": {

@@ -5,6 +5,8 @@ Infrastructure layer - provides automatic failover between multiple data sources
 """
 
 import logging
+import math
+from collections.abc import Sequence
 from datetime import date
 
 from apps.data_center.domain.rules import macro_series_are_consistent
@@ -30,10 +32,10 @@ class FailoverAdapter(MacroAdapterProtocol):
 
     def __init__(
         self,
-        adapters: list[MacroAdapterProtocol],
+        adapters: Sequence[MacroAdapterProtocol],
         validate_consistency: bool = True,
         tolerance: float = 0.01,
-    ):
+    ) -> None:
         """
         Args:
             adapters: 数据源适配器列表（按优先级排序）
@@ -42,10 +44,17 @@ class FailoverAdapter(MacroAdapterProtocol):
         """
         if not adapters:
             raise ValueError("至少需要一个适配器")
+        if (
+            isinstance(tolerance, bool)
+            or not isinstance(tolerance, (int, float))
+            or not math.isfinite(float(tolerance))
+            or not 0.0 <= float(tolerance) <= 1.0
+        ):
+            raise ValueError("tolerance must be finite and between 0 and 1")
 
-        self.adapters = adapters
+        self.adapters = tuple(adapters)
         self.validate_consistency = validate_consistency
-        self.tolerance = tolerance
+        self.tolerance = float(tolerance)
 
     def supports(self, indicator_code: str) -> bool:
         """检查是否支持指定指标（任一适配器支持即可）"""
@@ -66,9 +75,12 @@ class FailoverAdapter(MacroAdapterProtocol):
         Raises:
             DataSourceUnavailableError: 所有数据源都失败
         """
-        last_error = None
-        successful_data = None
-        successful_source = None
+        last_error: Exception | None = None
+        successful_data: list[MacroDataPoint] | None = None
+        successful_source: str | None = None
+        successful_index: int | None = None
+        fallback_validation_attempted = False
+        fallback_validation_failed = False
 
         # 按优先级尝试每个适配器
         for i, adapter in enumerate(self.adapters):
@@ -76,52 +88,91 @@ class FailoverAdapter(MacroAdapterProtocol):
                 continue
 
             try:
-                logger.info(f"尝试使用 {adapter.source_name} 获取 {indicator_code} 数据...")
+                logger.info(
+                    "尝试使用 %s 获取 %s 数据...",
+                    adapter.source_name,
+                    indicator_code,
+                )
                 data = adapter.fetch(indicator_code, start_date, end_date)
 
                 if not data:
-                    logger.warning(f"{adapter.source_name} 返回空数据")
+                    logger.warning("%s 返回空数据", adapter.source_name)
                     continue
 
                 # 第一个成功的数据源
                 if successful_data is None:
                     successful_data = data
                     successful_source = adapter.source_name
-                    logger.info(f"成功从 {adapter.source_name} 获取 {len(data)} 条数据")
+                    successful_index = i
+                    logger.info(
+                        "成功从 %s 获取 %s 条数据",
+                        adapter.source_name,
+                        len(data),
+                    )
 
                     # 如果不校验一致性，直接返回
-                    if not self.validate_consistency or i == len(self.adapters) - 1:
+                    if not self.validate_consistency:
                         return data
 
                 else:
                     # 校验与主数据源的一致性
-                    if self._validate_consistency(successful_data, data):
-                        logger.info(f"备用源 {adapter.source_name} 数据一致性校验通过")
+                    consistent = self._validate_consistency(successful_data, data)
+                    if successful_index is not None and successful_index > 0:
+                        fallback_validation_attempted = True
+                    if consistent:
+                        logger.info(
+                            "备用源 %s 数据一致性校验通过",
+                            adapter.source_name,
+                        )
                     else:
                         logger.warning(
-                            f"备用源 {adapter.source_name} 与主源 {successful_source} "
-                            f"数据差异超过容差 ({self.tolerance*100}%)，"
-                            f"建议使用主源数据"
+                            "备用源 %s 与已选源 %s 无法通过一致性校验，" "容差为 %.2f%%",
+                            adapter.source_name,
+                            successful_source,
+                            self.tolerance * 100,
                         )
+                        if successful_index is not None and successful_index > 0:
+                            fallback_validation_failed = True
+                            break
 
-            except DataSourceUnavailableError as e:
-                last_error = e
-                logger.warning(f"{adapter.source_name} 获取数据失败: {e}")
+            except DataSourceUnavailableError as exc:
+                last_error = exc
+                logger.warning(
+                    "%s 获取数据失败 (error_type=%s)",
+                    adapter.source_name,
+                    type(exc).__name__,
+                )
                 continue
 
-            except Exception as e:
-                last_error = e
-                logger.error(f"{adapter.source_name} 发生异常: {e}")
+            except Exception as exc:
+                last_error = exc
+                logger.error(
+                    "%s 发生异常 (error_type=%s)",
+                    adapter.source_name,
+                    type(exc).__name__,
+                )
                 continue
 
-        if successful_data:
+        if fallback_validation_failed:
+            raise DataSourceUnavailableError("fallback source failed consistency validation")
+        if successful_data is not None:
+            if (
+                self.validate_consistency
+                and successful_index is not None
+                and successful_index > 0
+                and not fallback_validation_attempted
+            ):
+                logger.warning(
+                    "切换到备用源 %s，但没有其他可用数据源执行交叉校验",
+                    successful_source,
+                )
             return successful_data
 
         # 所有适配器都失败
-        error_msg = f"所有数据源均无法获取 {indicator_code} 数据"
-        if last_error:
-            error_msg += f": {last_error}"
-        raise DataSourceUnavailableError(error_msg)
+        error_type = type(last_error).__name__ if last_error is not None else "none"
+        raise DataSourceUnavailableError(
+            f"所有数据源均无法获取 {indicator_code} 数据 (error_type={error_type})"
+        )
 
     def _validate_consistency(
         self, primary_data: list[MacroDataPoint], backup_data: list[MacroDataPoint]
@@ -137,31 +188,42 @@ class FailoverAdapter(MacroAdapterProtocol):
             bool: 是否在容差范围内
         """
         if not primary_data or not backup_data:
-            return True
-
-        # 找到相同日期的数据点进行比较
-        primary_dict = {(p.code, p.observed_at): p.value for p in primary_data}
-        backup_dict = {(b.code, b.observed_at): b.value for b in backup_data}
-
-        # 比较共同的数据点
-        common_keys = set(primary_dict.keys()) & set(backup_dict.keys())
-
-        if not common_keys:
-            return True
-
-        is_consistent, max_diff_ratio = macro_series_are_consistent(
-            {key: primary_dict[key] for key in common_keys},
-            {key: backup_dict[key] for key in common_keys},
-            tolerance=self.tolerance,
-        )
-        if not is_consistent:
-            logger.warning(
-                f"数据一致性校验失败: "
-                f"最大差异比例 {(max_diff_ratio or 0.0)*100:.2f}% "
-                f"> 容差 {self.tolerance*100:.2f}%"
-            )
+            logger.warning("数据一致性校验失败: 主备数据至少一侧为空")
             return False
 
+        primary_by_code: dict[str, dict[date, float]] = {}
+        backup_by_code: dict[str, dict[date, float]] = {}
+        for point in primary_data:
+            if not math.isfinite(float(point.value)):
+                return False
+            primary_by_code.setdefault(point.code, {})[point.observed_at] = float(point.value)
+        for point in backup_data:
+            if not math.isfinite(float(point.value)):
+                return False
+            backup_by_code.setdefault(point.code, {})[point.observed_at] = float(point.value)
+
+        compared = False
+        for code in set(primary_by_code) & set(backup_by_code):
+            is_consistent, max_diff_ratio = macro_series_are_consistent(
+                primary_by_code[code],
+                backup_by_code[code],
+                tolerance=self.tolerance,
+            )
+            if max_diff_ratio is None:
+                continue
+            compared = True
+            if not is_consistent:
+                logger.warning(
+                    "数据一致性校验失败: code=%s 最大差异比例 %.2f%% > 容差 %.2f%%",
+                    code,
+                    max_diff_ratio * 100,
+                    self.tolerance * 100,
+                )
+                return False
+
+        if not compared:
+            logger.warning("数据一致性校验失败: 主备数据没有可比较的同指标同日期点")
+            return False
         return True
 
 
@@ -175,7 +237,7 @@ class MultiSourceAdapter(MacroAdapterProtocol):
 
     source_name = "multi_source"
 
-    def __init__(self, adapters: list[MacroAdapterProtocol]):
+    def __init__(self, adapters: Sequence[MacroAdapterProtocol]) -> None:
         """
         Args:
             adapters: 数据源适配器列表
@@ -183,7 +245,7 @@ class MultiSourceAdapter(MacroAdapterProtocol):
         if not adapters:
             raise ValueError("至少需要一个适配器")
 
-        self.adapters = adapters
+        self.adapters = tuple(adapters)
 
     def supports(self, indicator_code: str) -> bool:
         """检查是否支持指定指标（任一适配器支持即可）"""
@@ -201,7 +263,7 @@ class MultiSourceAdapter(MacroAdapterProtocol):
         Returns:
             List[MacroDataPoint]: 合并去重后的数据点列表
         """
-        all_data = []
+        all_data: list[MacroDataPoint] = []
 
         for adapter in self.adapters:
             if not adapter.supports(indicator_code):
@@ -212,19 +274,26 @@ class MultiSourceAdapter(MacroAdapterProtocol):
                 all_data.extend(data)
                 logger.info(f"从 {adapter.source_name} 获取 {len(data)} 条数据")
 
-            except Exception as e:
-                logger.warning(f"{adapter.source_name} 获取数据失败: {e}")
+            except Exception as exc:
+                logger.warning(
+                    "%s 获取数据失败 (error_type=%s)",
+                    adapter.source_name,
+                    type(exc).__name__,
+                )
                 continue
 
         if not all_data:
             raise DataSourceUnavailableError(f"所有数据源均无法获取 {indicator_code} 数据")
 
         # 去重（保留最新的）
-        seen = {}
+        seen: dict[tuple[str, date], MacroDataPoint] = {}
         for point in all_data:
             key = (point.code, point.observed_at)
             # 优先保留发布时间较新的
-            if key not in seen or point.published_at > seen[key].published_at:
+            current = seen.get(key)
+            if current is None or (point.published_at or date.min) > (
+                current.published_at or date.min
+            ):
                 seen[key] = point
 
         merged_data = list(seen.values())
@@ -278,22 +347,28 @@ def create_default_adapter(
             enable_failover = True
             tolerance = 0.01
             logger.warning("Django 未配置，使用默认数据源设置")
-    except Exception as e:
+    except Exception as exc:
         # 数据库未初始化或其他错误，使用默认值
         default_source = "akshare"
         enable_failover = True
         tolerance = 0.01
-        logger.warning(f"无法从数据库读取设置，使用默认值: {e}")
+        logger.warning(
+            "无法从数据库读取设置，使用默认值 (error_type=%s)",
+            type(exc).__name__,
+        )
 
     # 初始化适配器
-    akshare_adapter = None
-    tushare_adapter = None
+    akshare_adapter: MacroAdapterProtocol | None = None
+    tushare_adapter: MacroAdapterProtocol | None = None
 
     try:
         akshare_adapter = AKShareAdapter()
         logger.info("已初始化 AKShare 适配器")
-    except Exception as e:
-        logger.warning(f"AKShare 适配器初始化失败: {e}")
+    except Exception as exc:
+        logger.warning(
+            "AKShare 适配器初始化失败 (error_type=%s)",
+            type(exc).__name__,
+        )
 
     try:
         tushare_adapter = TushareAdapter(
@@ -301,8 +376,11 @@ def create_default_adapter(
             http_url=tushare_http_url,
         )
         logger.info("已初始化 Tushare 适配器")
-    except Exception as e:
-        logger.warning(f"Tushare 适配器初始化失败: {e}")
+    except Exception as exc:
+        logger.warning(
+            "Tushare 适配器初始化失败 (error_type=%s)",
+            type(exc).__name__,
+        )
 
     # 根据设置返回适配器
     if default_source == "akshare":
@@ -323,7 +401,9 @@ def create_default_adapter(
         return primary
 
     # 构建适配器列表
-    adapters = [a for a in [primary, backup] if a is not None]
+    adapters: list[MacroAdapterProtocol] = [
+        adapter for adapter in (primary, backup) if adapter is not None
+    ]
     if not adapters:
         raise DataSourceUnavailableError("无法初始化任何数据源适配器")
 

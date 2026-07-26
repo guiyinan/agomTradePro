@@ -4355,3 +4355,22 @@
 - 决策执行关联 Domain bridge 回归 `13 passed`；Audit execution-link 与券商导入集成回归 `2 passed`。
 - `decision_execution_links.py` 增量 mypy 清零；全仓基线从 `1242 errors / 407 files` 收紧为 `1236 errors / 406 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百九十批
+
+- 按“宏观数据源切换真实性 × 主备一致性验证 × 异常最小披露”收口 Data Center macro-source failover 与多源合并适配器。
+- Failover/MultiSource 构造器改用协变 `Sequence[MacroAdapterProtocol]` 并固化为 tuple；容差必须为有限、非布尔且位于 `[0, 1]`。
+- 数据源成功结果、失败异常、已选来源和适配器索引补齐精确类型；不同具体适配器不再通过可变 list 推断互相冲突的类型。
+- 删除“最后一个适配器成功即直接返回”的捷径；主源失败后选中备用源时会继续尝试后续来源执行交叉验证。
+- 主源成功但备用源不一致时保留主源并明确告警，不发生静默切换；主源失败且多个备用源不一致时失败关闭，不使用无法确认的宏观数据。
+- 只有一个备用源可用时仍保持自动 failover，但明确发布“没有其他可用数据源执行交叉校验”告警，不再把未验证切换描述为一致性通过。
+- 一致性校验按指标代码分组、按观测日期比较；不同指标或没有共同日期的数据不再被错误判定为一致。
+- 主备数据中的非有限值直接判为不可验证；最大差异比例继续使用 Domain 对称相对误差与运行时配置容差。
+- MultiSource 去重容器补齐 `(code, observed_at)` 键类型；`published_at=None` 使用稳定最小日期比较，不再在多源合并时触发 `None > date`。
+- 数据源读取、抓取及初始化失败日志只记录来源和异常类型；Token、HTTP URL、数据库错误正文不再进入普通日志或最终不可用异常。
+
+## 第二百九十批验证结果
+
+- Macro failover、MultiSource 与一致性 Domain 规则回归 `44 passed`，覆盖非法容差、主备偏差、单备用源未验证切换、多备用源冲突、无重叠序列及空发布时间。
+- `failover_adapter.py` 增量 mypy 清零；全仓基线从 `1236 errors / 406 files` 收紧为 `1229 errors / 405 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
