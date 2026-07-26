@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1167,
-    "files_with_errors": 395
+    "errors": 1160,
+    "files_with_errors": 393
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1330,9 +1330,6 @@
       "no-untyped-def": 1,
       "type-arg": 2
     },
-    "core/middleware/security.py": {
-      "no-untyped-def": 3
-    },
     "core/settings/development.py": {
       "attr-defined": 2,
       "index": 1
@@ -1342,9 +1339,6 @@
     },
     "core/settings/playwright.py": {
       "index": 1
-    },
-    "core/settings/production.py": {
-      "import-not-found": 4
     },
     "core/staticfiles.py": {
       "override": 2

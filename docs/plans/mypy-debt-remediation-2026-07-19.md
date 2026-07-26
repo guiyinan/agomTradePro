@@ -4524,3 +4524,19 @@
 - Core Security 与认证强化 Guardrail 回归 `13 passed`。
 - `core/security.py` 增量 mypy 清零；全仓基线从 `1172 errors / 396 files` 收紧为 `1167 errors / 395 files`，净减少 `5 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百零一批
+
+- 按“全局 HTTPS 强制 × 内部服务豁免真实性 × Host/XFF 欺骗防护”收口选择性 SSL redirect middleware 与生产安全配置。
+- HTTPS 豁免不再只匹配客户端可控 Host；请求必须同时满足白名单 Host、无 XFF 转发链、来源 IP 位于内部 CIDR，才能通过容器内 HTTP 自调用。
+- Host 改用 Django `request.get_host()` 解析并执行 ALLOWED_HOSTS 校验；DisallowedHost、空 Host、非字符串和格式损坏来源一律不豁免。
+- 默认内部网段显式限定为 IPv4 loopback/RFC1918 与 IPv6 loopback/ULA；生产环境可通过 `SECURE_SSL_REDIRECT_EXEMPT_NETWORKS` 收紧，非法网段配置被忽略并发布稳定告警。
+- 外部来源伪装 `Host: web`、经反向代理携带 XFF 的公网请求、未进入配置网段的容器来源均继续执行 HTTPS redirect。
+- Host 与网段配置在 middleware 初始化时规范为不可变集合/tuple；无效配置类型不再传播到请求热路径。
+- Middleware 构造器、请求处理和内部判定补齐 Django request/response 契约；生产设置中的可选 Sentry imports 使用精确第三方缺失边界抑制。
+
+## 第三百零一批验证结果
+
+- 内部 SSL redirect、生产设置、Core Security 与认证强化 Guardrail 回归 `31 passed`。
+- `core/middleware/security.py` 与 `core/settings/production.py` 增量 mypy 清零；全仓基线从 `1167 errors / 395 files` 收紧为 `1160 errors / 393 files`，净减少 `7 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

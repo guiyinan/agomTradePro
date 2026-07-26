@@ -25,24 +25,24 @@ def _validate_secret_key() -> str:
     Raises:
         ImproperlyConfigured: If SECRET_KEY is missing or contains insecure patterns.
     """
-    secret_key = os.environ.get('SECRET_KEY', '')
+    secret_key = os.environ.get("SECRET_KEY", "")
 
     # Insecure patterns that indicate development/default keys
     insecure_patterns = [
-        'django-insecure',
-        'change-this',
-        'dev-only',
-        'test-only',
-        'xxx',
-        'example',
-        'placeholder',
+        "django-insecure",
+        "change-this",
+        "dev-only",
+        "test-only",
+        "xxx",
+        "example",
+        "placeholder",
     ]
 
     if not secret_key:
         raise ImproperlyConfigured(
             "SECRET_KEY environment variable is required in production. "
             "Generate a secure key using: "
-            "python -c \"import secrets; print(secrets.token_urlsafe(50))\""
+            'python -c "import secrets; print(secrets.token_urlsafe(50))"'
         )
 
     secret_key_lower = secret_key.lower()
@@ -51,7 +51,7 @@ def _validate_secret_key() -> str:
             raise ImproperlyConfigured(
                 f"SECRET_KEY contains insecure pattern '{pattern}'. "
                 "Generate a secure key using: "
-                "python -c \"import secrets; print(secrets.token_urlsafe(50))\""
+                'python -c "import secrets; print(secrets.token_urlsafe(50))"'
             )
 
     # Minimum length check (50 characters is a reasonable minimum for production)
@@ -59,7 +59,7 @@ def _validate_secret_key() -> str:
         raise ImproperlyConfigured(
             f"SECRET_KEY is too short ({len(secret_key)} characters). "
             "Generate a secure key using: "
-            "python -c \"import secrets; print(secrets.token_urlsafe(50))\""
+            'python -c "import secrets; print(secrets.token_urlsafe(50))"'
         )
 
     return secret_key
@@ -76,7 +76,7 @@ if not env("REDIS_URL", default=""):
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 # Keep environment-specific mutations isolated from the shared base module.
 MIDDLEWARE = list(MIDDLEWARE)
@@ -120,12 +120,8 @@ allow_sqlite_migration = env.bool(
     "AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION",
     default=False,
 )
-if (
-    not database_url.startswith(("postgres://", "postgresql://"))
-    and not (
-        allow_sqlite_migration
-        and database_url.startswith("sqlite:")
-    )
+if not database_url.startswith(("postgres://", "postgresql://")) and not (
+    allow_sqlite_migration and database_url.startswith("sqlite:")
 ):
     raise ImproperlyConfigured(
         "Production DATABASE_URL must use PostgreSQL; SQLite is only supported "
@@ -134,10 +130,10 @@ if (
 
 # Database - PostgreSQL is mandatory for production concurrency.
 DATABASES = {
-    'default': {
+    "default": {
         **env.db_url_config(database_url),
-        'CONN_MAX_AGE': env.int('DB_CONN_MAX_AGE', default=600),
-        'CONN_HEALTH_CHECKS': True,  # Django 4.1+ auto-detect broken connections
+        "CONN_MAX_AGE": env.int("DB_CONN_MAX_AGE", default=600),
+        "CONN_HEALTH_CHECKS": True,  # Django 4.1+ auto-detect broken connections
     }
 }
 
@@ -146,25 +142,40 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # HTTPS settings - secure by default in production
-SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
 SECURE_SSL_REDIRECT_EXEMPT_HOSTS = tuple(
     host.strip().lower()
     for host in env.list(
-        'SECURE_SSL_REDIRECT_EXEMPT_HOSTS',
-        default=['127.0.0.1', 'localhost', 'web'],
+        "SECURE_SSL_REDIRECT_EXEMPT_HOSTS",
+        default=["127.0.0.1", "localhost", "web"],
     )
     if host.strip()
 )
-SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=True)
-CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=True)
-SECURE_REFERRER_POLICY = env('SECURE_REFERRER_POLICY', default='strict-origin-when-cross-origin')
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT_EXEMPT_NETWORKS = tuple(
+    network.strip()
+    for network in env.list(
+        "SECURE_SSL_REDIRECT_EXEMPT_NETWORKS",
+        default=[
+            "127.0.0.0/8",
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "::1/128",
+            "fc00::/7",
+        ],
+    )
+    if network.strip()
+)
+SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=True)
+CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=True)
+SECURE_REFERRER_POLICY = env("SECURE_REFERRER_POLICY", default="strict-origin-when-cross-origin")
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # HSTS settings - only enable when using HTTPS
 if SECURE_SSL_REDIRECT:
-    SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=31536000)
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=True)
-    SECURE_HSTS_PRELOAD = env.bool('SECURE_HSTS_PRELOAD', default=True)
+    SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+    SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=True)
 else:
     # COOP is only meaningful on potentially trustworthy origins (HTTPS/localhost).
     # Disable it for plain HTTP deployments to avoid browser warnings like:
@@ -173,178 +184,178 @@ else:
 
 # CORS and CSRF trusted origins for production
 # Allow VPS IP and configured domains
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
-CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=False)
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
+CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=False)
 
-CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
-    f'http://{host}' for host in ALLOWED_HOSTS
-])
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
-    f'http://{host}' for host in ALLOWED_HOSTS
-])
+CORS_ALLOWED_ORIGINS = env.list(
+    "CORS_ALLOWED_ORIGINS", default=[f"http://{host}" for host in ALLOWED_HOSTS]
+)
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS", default=[f"http://{host}" for host in ALLOWED_HOSTS]
+)
 
 # If using HTTPS, add https:// versions
 if SECURE_SSL_REDIRECT:
-    CORS_ALLOWED_ORIGINS.extend([f'https://{host}' for host in ALLOWED_HOSTS])
-    CSRF_TRUSTED_ORIGINS.extend([f'https://{host}' for host in ALLOWED_HOSTS])
+    CORS_ALLOWED_ORIGINS.extend([f"https://{host}" for host in ALLOWED_HOSTS])
+    CSRF_TRUSTED_ORIGINS.extend([f"https://{host}" for host in ALLOWED_HOSTS])
 
 # Logging configuration
 # 结构化日志配置 - 生产环境默认使用 JSON 格式
-LOG_TO_FILE = env.bool('LOG_TO_FILE', default=False)
-USE_JSON_LOGGING = env.bool('USE_JSON_LOGGING', default=True)
+LOG_TO_FILE = env.bool("LOG_TO_FILE", default=False)
+USE_JSON_LOGGING = env.bool("USE_JSON_LOGGING", default=True)
 CELERY_WORKER_LOG_FILE = get_celery_worker_log_path(BASE_DIR)
 CELERY_BEAT_LOG_FILE = get_celery_beat_log_path(BASE_DIR)
 CELERY_LOG_MAX_BYTES = get_celery_log_max_bytes()
 CELERY_LOG_BACKUP_COUNT = get_celery_log_backup_count()
 
 handlers = {
-    'console': {
-        'class': 'logging.StreamHandler',
-        'formatter': 'structured' if USE_JSON_LOGGING else 'verbose',
-        'filters': ['trace_context'],
+    "console": {
+        "class": "logging.StreamHandler",
+        "formatter": "structured" if USE_JSON_LOGGING else "verbose",
+        "filters": ["trace_context"],
     },
-    'console_json': {
-        'class': 'logging.StreamHandler',
-        'formatter': 'structured',
-        'filters': ['trace_context'],
+    "console_json": {
+        "class": "logging.StreamHandler",
+        "formatter": "structured",
+        "filters": ["trace_context"],
     },
-    'in_memory': {
-        'class': 'core.logging_handlers.InMemoryLogHandler',
-        'formatter': 'simple',
-        'filters': ['trace_context'],
+    "in_memory": {
+        "class": "core.logging_handlers.InMemoryLogHandler",
+        "formatter": "simple",
+        "filters": ["trace_context"],
     },
-    'celery_worker_file': {
-        'class': 'logging.handlers.RotatingFileHandler',
-        'filename': str(CELERY_WORKER_LOG_FILE),
-        'maxBytes': CELERY_LOG_MAX_BYTES,
-        'backupCount': CELERY_LOG_BACKUP_COUNT,
-        'formatter': 'structured' if USE_JSON_LOGGING else 'simple_with_trace',
-        'filters': ['trace_context'],
+    "celery_worker_file": {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": str(CELERY_WORKER_LOG_FILE),
+        "maxBytes": CELERY_LOG_MAX_BYTES,
+        "backupCount": CELERY_LOG_BACKUP_COUNT,
+        "formatter": "structured" if USE_JSON_LOGGING else "simple_with_trace",
+        "filters": ["trace_context"],
     },
-    'celery_beat_file': {
-        'class': 'logging.handlers.RotatingFileHandler',
-        'filename': str(CELERY_BEAT_LOG_FILE),
-        'maxBytes': CELERY_LOG_MAX_BYTES,
-        'backupCount': CELERY_LOG_BACKUP_COUNT,
-        'formatter': 'structured' if USE_JSON_LOGGING else 'simple_with_trace',
-        'filters': ['trace_context'],
+    "celery_beat_file": {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": str(CELERY_BEAT_LOG_FILE),
+        "maxBytes": CELERY_LOG_MAX_BYTES,
+        "backupCount": CELERY_LOG_BACKUP_COUNT,
+        "formatter": "structured" if USE_JSON_LOGGING else "simple_with_trace",
+        "filters": ["trace_context"],
     },
 }
 
-django_handlers = ['console', 'in_memory']
-celery_worker_handlers = ['console', 'in_memory', 'celery_worker_file']
-celery_beat_handlers = ['console', 'in_memory', 'celery_beat_file']
+django_handlers = ["console", "in_memory"]
+celery_worker_handlers = ["console", "in_memory", "celery_worker_file"]
+celery_beat_handlers = ["console", "in_memory", "celery_beat_file"]
 
 if LOG_TO_FILE:
-    os.makedirs('/var/log/agomtradepro', exist_ok=True)
-    handlers['file'] = {
-        'class': 'logging.handlers.RotatingFileHandler',
-        'filename': '/var/log/agomtradepro/django.log',
-        'maxBytes': 1024 * 1024 * 100,
-        'backupCount': 10,
-        'formatter': 'structured',
-        'filters': ['trace_context'],
+    os.makedirs("/var/log/agomtradepro", exist_ok=True)
+    handlers["file"] = {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": "/var/log/agomtradepro/django.log",
+        "maxBytes": 1024 * 1024 * 100,
+        "backupCount": 10,
+        "formatter": "structured",
+        "filters": ["trace_context"],
     }
-    handlers['file_json'] = {
-        'class': 'logging.handlers.RotatingFileHandler',
-        'filename': '/var/log/agomtradepro/django.json.log',
-        'maxBytes': 1024 * 1024 * 100,
-        'backupCount': 10,
-        'formatter': 'structured',
-        'filters': ['trace_context'],
+    handlers["file_json"] = {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": "/var/log/agomtradepro/django.json.log",
+        "maxBytes": 1024 * 1024 * 100,
+        "backupCount": 10,
+        "formatter": "structured",
+        "filters": ["trace_context"],
     }
-    django_handlers.extend(['file', 'file_json'])
-    celery_worker_handlers.extend(['file', 'file_json'])
-    celery_beat_handlers.extend(['file', 'file_json'])
+    django_handlers.extend(["file", "file_json"])
+    celery_worker_handlers.extend(["file", "file_json"])
+    celery_beat_handlers.extend(["file", "file_json"])
 
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'filters': {
-        'trace_context': {
-            '()': 'core.logging_utils.TraceContextFilter',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "trace_context": {
+            "()": "core.logging_utils.TraceContextFilter",
         },
     },
-    'formatters': {
+    "formatters": {
         # 结构化 JSON 格式（生产环境推荐）
-        'structured': {
-            '()': 'core.logging_utils.StructuredFormatter',
+        "structured": {
+            "()": "core.logging_utils.StructuredFormatter",
         },
         # 详细结构化 JSON 格式
-        'structured_verbose': {
-            '()': 'core.logging_utils.StructuredFormatterVerbose',
+        "structured_verbose": {
+            "()": "core.logging_utils.StructuredFormatterVerbose",
         },
         # 文本格式（备用）
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
         },
-        'simple': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
+        "simple": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
         },
         # 带 trace_id 的文本格式
-        'simple_with_trace': {
-            'format': '{levelname} {asctime} {module} [trace_id={trace_id}] {message}',
-            'style': '{',
+        "simple_with_trace": {
+            "format": "{levelname} {asctime} {module} [trace_id={trace_id}] {message}",
+            "style": "{",
         },
     },
-    'handlers': handlers,
-    'root': {
-        'handlers': ['console', 'in_memory'],
-        'level': 'INFO',
+    "handlers": handlers,
+    "root": {
+        "handlers": ["console", "in_memory"],
+        "level": "INFO",
     },
-    'loggers': {
-        'django': {
-            'handlers': django_handlers,
-            'level': 'INFO',
-            'propagate': False,
+    "loggers": {
+        "django": {
+            "handlers": django_handlers,
+            "level": "INFO",
+            "propagate": False,
         },
-        'django.request': {
-            'handlers': django_handlers,
-            'level': 'WARNING',
-            'propagate': False,
+        "django.request": {
+            "handlers": django_handlers,
+            "level": "WARNING",
+            "propagate": False,
         },
-        'django.db.backends': {
-            'handlers': ['console'],
-            'level': 'WARNING',
-            'propagate': False,
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
         },
-        'apps': {
-            'handlers': django_handlers,
-            'level': 'INFO',
-            'propagate': False,
+        "apps": {
+            "handlers": django_handlers,
+            "level": "INFO",
+            "propagate": False,
         },
-        'core': {
-            'handlers': django_handlers,
-            'level': 'INFO',
-            'propagate': False,
+        "core": {
+            "handlers": django_handlers,
+            "level": "INFO",
+            "propagate": False,
         },
         # Celery 日志
-        'celery': {
-            'handlers': celery_worker_handlers,
-            'level': 'INFO',
-            'propagate': False,
+        "celery": {
+            "handlers": celery_worker_handlers,
+            "level": "INFO",
+            "propagate": False,
         },
-        'celery.task': {
-            'handlers': celery_worker_handlers,
-            'level': 'INFO',
-            'propagate': False,
+        "celery.task": {
+            "handlers": celery_worker_handlers,
+            "level": "INFO",
+            "propagate": False,
         },
-        'celery.worker': {
-            'handlers': celery_worker_handlers,
-            'level': 'INFO',
-            'propagate': False,
+        "celery.worker": {
+            "handlers": celery_worker_handlers,
+            "level": "INFO",
+            "propagate": False,
         },
-        'celery.app.trace': {
-            'handlers': celery_worker_handlers,
-            'level': 'INFO',
-            'propagate': False,
+        "celery.app.trace": {
+            "handlers": celery_worker_handlers,
+            "level": "INFO",
+            "propagate": False,
         },
-        'celery.beat': {
-            'handlers': celery_beat_handlers,
-            'level': 'INFO',
-            'propagate': False,
+        "celery.beat": {
+            "handlers": celery_beat_handlers,
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }
@@ -352,12 +363,18 @@ LOGGING = {
 # ---------------------
 # Sentry Error Tracking
 # ---------------------
-_sentry_dsn = os.environ.get('SENTRY_DSN', '')
+_sentry_dsn = os.environ.get("SENTRY_DSN", "")
 if _sentry_dsn:
-    import sentry_sdk
-    from sentry_sdk.integrations.celery import CeleryIntegration
-    from sentry_sdk.integrations.django import DjangoIntegration
-    from sentry_sdk.integrations.logging import LoggingIntegration
+    import sentry_sdk  # type: ignore[import-not-found]
+    from sentry_sdk.integrations.celery import (  # type: ignore[import-not-found]
+        CeleryIntegration,
+    )
+    from sentry_sdk.integrations.django import (  # type: ignore[import-not-found]
+        DjangoIntegration,
+    )
+    from sentry_sdk.integrations.logging import (  # type: ignore[import-not-found]
+        LoggingIntegration,
+    )
 
     sentry_sdk.init(
         dsn=_sentry_dsn,
@@ -366,14 +383,14 @@ if _sentry_dsn:
             CeleryIntegration(),
             LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
         ],
-        traces_sample_rate=float(os.environ.get('SENTRY_TRACES_RATE', '0.1')),
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_RATE", "0.1")),
         send_default_pii=False,
-        environment=os.environ.get('SENTRY_ENVIRONMENT', 'production'),
-        release=os.environ.get('SENTRY_RELEASE', ''),
+        environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+        release=os.environ.get("SENTRY_RELEASE", ""),
     )
 
 # Celery Beat settings (use database scheduler)
-CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers.DatabaseScheduler"
 PRODUCTION_STRICT_READINESS = env.bool("PRODUCTION_STRICT_READINESS", default=True)
 
 # 注意: 定时任务配置通过 Django Admin 或 setup_celery_beat.py 脚本配置
