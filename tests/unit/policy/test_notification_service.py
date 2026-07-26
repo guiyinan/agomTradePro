@@ -58,6 +58,23 @@ class TestNotificationMessage:
         assert msg.recipients == ["user@example.com"]
         assert msg.metadata == {"key": "value"}
 
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("title", ""),
+            ("content", ""),
+            ("channel", "sms"),
+            ("priority", "warning"),
+            ("recipients", [" "]),
+        ],
+    )
+    def test_rejects_invalid_message_contract(self, field, value):
+        payload = {"title": "Alert", "content": "Content"}
+        payload[field] = value
+
+        with pytest.raises(ValueError):
+            NotificationMessage(**payload)
+
 
 class TestLoggingNotificationService:
     """测试日志通知服务"""
@@ -67,13 +84,22 @@ class TestLoggingNotificationService:
         return LoggingNotificationService(enabled=True)
 
     def test_send_logs_message(self, service, caplog):
-        """测试发送消息记录日志"""
-        msg = NotificationMessage(title="Test Alert", content="Test content", priority="high")
+        """Log delivery records metadata without leaking notification contents."""
+        msg = NotificationMessage(
+            title="Secret title",
+            content="Sensitive policy content",
+            priority="high",
+            recipients=["private@example.com"],
+        )
 
         result = service.send(msg)
 
         assert result is True
-        assert "Test Alert" in caplog.text
+        assert "channel=in_app" in caplog.text
+        assert "recipient_count=1" in caplog.text
+        assert "Secret title" not in caplog.text
+        assert "Sensitive policy content" not in caplog.text
+        assert "private@example.com" not in caplog.text
 
     def test_send_disabled(self, caplog):
         """测试禁用状态"""
@@ -82,7 +108,7 @@ class TestLoggingNotificationService:
 
         result = service.send(msg)
 
-        assert result is True
+        assert result is False
         # 不应该有日志
         assert "Test" not in caplog.text
 
@@ -153,29 +179,33 @@ class TestEmailNotificationService:
 
         result = service.send(msg)
 
-        assert result is True
+        assert result is False
 
-    def test_send_fallback_to_logging(self, service, caplog):
-        """测试邮件发送失败时降级到日志"""
+    def test_send_failure_is_not_reported_as_delivery(self, service, caplog):
+        """SMTP failure remains a failed delivery and does not log content."""
         caplog.set_level(logging.DEBUG)
         msg = NotificationMessage(
-            title="Test", content="Content", channel=NotificationChannel.EMAIL
+            title="Secret title",
+            content="Sensitive content",
+            channel=NotificationChannel.EMAIL,
         )
 
         with patch("apps.policy.infrastructure.notification_service.send_mail") as mock_send:
             mock_send.side_effect = Exception("SMTP error")
             result = service.send(msg)
 
-            # 应该降级到日志
-            assert result is True
-            # 检查日志中包含通知信息（可能是 INFO 级别）
-            assert "Test" in caplog.text or "[Notification]" in caplog.text
+            assert result is False
+            assert "Secret title" not in caplog.text
+            assert "Sensitive content" not in caplog.text
 
-    def test_send_batch_merges_email(self, service):
-        """测试批量发送合并邮件"""
+    def test_send_batch_preserves_recipient_isolation(self, service):
+        """Batch messages are sent separately instead of to a recipient union."""
         messages = [
             NotificationMessage(
-                title=f"Msg {i}", content=f"Content {i}", channel=NotificationChannel.EMAIL
+                title=f"Msg {i}",
+                content=f"Content {i}",
+                channel=NotificationChannel.EMAIL,
+                recipients=[f"user{i}@example.com"],
             )
             for i in range(3)
         ]
@@ -185,8 +215,12 @@ class TestEmailNotificationService:
             result = service.send_batch(messages)
 
             assert result["success"] == 3
-            # 应该只发送一封合并邮件
-            assert mock_send.call_count == 1
+            assert mock_send.call_count == 3
+            assert [call.kwargs["recipient_list"] for call in mock_send.call_args_list] == [
+                ["user0@example.com"],
+                ["user1@example.com"],
+                ["user2@example.com"],
+            ]
 
     def test_get_priority_prefix(self, service):
         """测试优先级前缀"""
@@ -196,34 +230,34 @@ class TestEmailNotificationService:
         assert service._get_priority_prefix("low") == "[LOW]"
 
 
+@pytest.mark.django_db
 class TestInAppNotificationService:
     """测试站内通知服务"""
 
     @pytest.fixture
     def service(self):
-        return InAppNotificationService(enabled=True)
+        return InAppNotificationService(enabled=True, manager=Mock())
 
     def test_send_with_recipients(self, service):
         """测试发送给指定用户"""
         msg = NotificationMessage(title="Test", content="Content", recipients=["user1", "user2"])
 
-        with patch("apps.policy.infrastructure.models.InAppNotification.objects") as mock_manager:
-            result = service.send(msg)
+        result = service.send(msg)
 
-            assert result is True
-            # 应该为每个用户创建通知
-            assert mock_manager.create.call_count == 2
+        assert result is True
+        records = service.manager.bulk_create.call_args.args[0]
+        assert [record.recipient_username for record in records] == ["user1", "user2"]
 
     def test_send_global_notification(self, service):
         """测试发送全局通知"""
         msg = NotificationMessage(title="Global Alert", content="Important")
 
-        with patch("apps.policy.infrastructure.models.InAppNotification.objects") as mock_manager:
-            result = service.send(msg)
+        result = service.send(msg)
 
-            assert result is True
-            call_kwargs = mock_manager.create.call_args[1]
-            assert call_kwargs["is_global"] is True
+        assert result is True
+        records = service.manager.bulk_create.call_args.args[0]
+        assert len(records) == 1
+        assert records[0].is_global is True
 
     def test_send_disabled(self):
         """测试禁用状态"""
@@ -232,16 +266,43 @@ class TestInAppNotificationService:
 
         result = service.send(msg)
 
-        assert result is True
+        assert result is False
 
     def test_send_batch(self, service):
         """测试批量发送"""
         messages = [NotificationMessage(title=f"Msg {i}", content=f"Content {i}") for i in range(3)]
 
-        with patch("apps.policy.infrastructure.models.InAppNotification.objects"):
-            result = service.send_batch(messages)
+        result = service.send_batch(messages)
 
-            assert result["success"] == 3
+        assert result["success"] == 3
+        assert len(service.manager.bulk_create.call_args.args[0]) == 3
+
+    def test_send_batch_failure_reports_zero_success(self, service):
+        messages = [
+            NotificationMessage(title="One", content="Content"),
+            NotificationMessage(title="Two", content="Content"),
+        ]
+        service.manager.bulk_create.side_effect = RuntimeError("database detail")
+        result = service.send_batch(messages)
+
+        assert result == {
+            "success": 0,
+            "failed": 2,
+            "errors": ["in_app_batch_persistence_failed"],
+        }
+
+    def test_direct_recipients_are_normalized_without_becoming_global(self, service):
+        message = NotificationMessage(
+            title="Direct",
+            content="Content",
+            recipients=[" valid-user ", "valid-user"],
+        )
+
+        assert service.send(message) is True
+        records = service.manager.bulk_create.call_args.args[0]
+        assert len(records) == 1
+        assert records[0].recipient_username == "valid-user"
+        assert records[0].is_global is False
 
 
 class TestPolicyAlertService:
@@ -319,7 +380,7 @@ class TestPolicyAlertService:
         assert result is True
 
         email_msg = mock_email_service.send.call_args[0][0]
-        assert email_msg.priority == "warning"
+        assert email_msg.priority == "high"
 
     def test_send_generic_alert(self, service, mock_email_service, mock_in_app_service):
         """Generic use-case alerts are delivered to every configured channel."""
@@ -339,6 +400,12 @@ class TestPolicyAlertService:
         assert email_message.channel == NotificationChannel.EMAIL
         assert in_app_message.channel == NotificationChannel.IN_APP
         assert email_message.metadata == {"event_id": 7}
+
+    def test_send_without_configured_channels_fails(self):
+        service = PolicyAlertService()
+
+        assert service.send_alert("high", "title", "content") is False
+        assert service.send_sla_alert(1, 0) is False
 
     def test_send_transition_summary(self, service, mock_email_service, mock_in_app_service):
         """测试发送变更摘要"""
@@ -364,6 +431,15 @@ class TestPolicyAlertService:
         mock_email_service.send.assert_not_called()
         mock_in_app_service.send.assert_not_called()
 
+    def test_send_transition_summary_rejects_malformed_change(
+        self, service, mock_email_service, mock_in_app_service
+    ):
+        result = service.send_transition_summary([{"date": "2026-03-04", "from": "P0", "to": "P2"}])
+
+        assert result is False
+        mock_email_service.send.assert_not_called()
+        mock_in_app_service.send.assert_not_called()
+
     def test_send_sla_alert(self, service, mock_email_service, mock_in_app_service):
         """测试发送 SLA 告警"""
         mock_email_service.send.return_value = True
@@ -386,6 +462,13 @@ class TestPolicyAlertService:
         result = service.send_sla_alert(p23_count=0, normal_count=0)
 
         assert result is True
+        mock_email_service.send.assert_not_called()
+        mock_in_app_service.send.assert_not_called()
+
+    def test_send_sla_alert_rejects_negative_counts(
+        self, service, mock_email_service, mock_in_app_service
+    ):
+        assert service.send_sla_alert(p23_count=-1, normal_count=0) is False
         mock_email_service.send.assert_not_called()
         mock_in_app_service.send.assert_not_called()
 

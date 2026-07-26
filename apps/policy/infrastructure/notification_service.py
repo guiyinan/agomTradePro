@@ -9,17 +9,23 @@ Infrastructure Layer - Notification Service Implementations
 """
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import transaction
+from django.db.models import Manager
 
 from ..domain.entities import PolicyEvent, PolicyLevel
 from ..domain.interfaces import (
+    NotificationBatchResult,
     NotificationChannel,
     NotificationMessage,
     PolicyAlertServicePort,
+    PolicyTransitionChange,
 )
+from .models import InAppNotification
 
 logger = logging.getLogger(__name__)
 
@@ -36,35 +42,36 @@ class LoggingNotificationService:
     同时作为其他服务的基类，提供日志记录能力。
     """
 
-    def __init__(self, enabled: bool = True):
+    def __init__(self, enabled: bool = True) -> None:
         self.enabled = enabled
 
     def send(self, message: NotificationMessage) -> bool:
         """记录通知到日志"""
         if not self.enabled:
-            return True
+            return False
 
         log_level = self._get_log_level(message.priority)
         log_func = getattr(logger, log_level)
 
         log_func(
-            f"[Notification] {message.channel}:{message.priority} - {message.title}\n"
-            f"Recipients: {message.recipients}\n"
-            f"Content: {message.content[:200]}..."
+            "[Notification] channel=%s priority=%s recipient_count=%d",
+            message.channel,
+            message.priority,
+            len(message.recipients),
         )
 
         return True
 
-    def send_batch(self, messages: list[NotificationMessage]) -> dict:
+    def send_batch(self, messages: list[NotificationMessage]) -> NotificationBatchResult:
         """批量记录通知"""
         success_count = 0
-        errors = []
+        errors: list[str] = []
 
-        for msg in messages:
+        for index, msg in enumerate(messages):
             if self.send(msg):
                 success_count += 1
             else:
-                errors.append(f"Failed to send: {msg.title}")
+                errors.append(f"message_{index}_not_logged")
 
         return {"success": success_count, "failed": len(errors), "errors": errors}
 
@@ -90,26 +97,31 @@ class EmailNotificationService(LoggingNotificationService):
         self,
         enabled: bool = True,
         default_recipients: list[str] | None = None,
-    ):
+    ) -> None:
         super().__init__(enabled)
-        self.default_recipients = default_recipients or getattr(settings, "POLICY_ALERT_EMAILS", [])
+        configured_recipients = (
+            default_recipients
+            if default_recipients is not None
+            else getattr(settings, "POLICY_ALERT_EMAILS", [])
+        )
+        self.default_recipients = self._normalize_recipients(configured_recipients)
 
     def send(self, message: NotificationMessage) -> bool:
         """发送邮件通知"""
         if not self.enabled:
-            logger.debug(f"Email notification disabled, skipping: {message.title}")
-            return True
+            logger.debug("Email notification disabled")
+            return False
 
         # 确定收件人
-        recipients = message.recipients or self.default_recipients
+        recipients = self._normalize_recipients(message.recipients or self.default_recipients)
         if not recipients:
-            logger.info("Skipping email notification without recipients: %s", message.title)
-            return True
+            logger.warning("Email notification has no valid recipients")
+            return False
 
         # 检查邮件配置
         if not getattr(settings, "EMAIL_BACKEND", None):
-            logger.warning("EMAIL_BACKEND not configured, falling back to logging")
-            return super().send(message)
+            logger.warning("EMAIL_BACKEND is not configured")
+            return False
 
         try:
             # 构建邮件主题
@@ -117,7 +129,7 @@ class EmailNotificationService(LoggingNotificationService):
             subject = f"{prefix} {message.title}"
 
             # 发送邮件
-            send_mail(
+            delivered_count = send_mail(
                 subject=subject,
                 message=message.content,
                 from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com"),
@@ -125,47 +137,47 @@ class EmailNotificationService(LoggingNotificationService):
                 fail_silently=False,
             )
 
-            logger.info(f"Email sent successfully to {len(recipients)} recipients: {subject}")
+            if delivered_count != 1:
+                logger.error(
+                    "Email backend did not confirm delivery",
+                    extra={"recipient_count": len(recipients)},
+                )
+                return False
+            logger.info(
+                "Policy email delivered",
+                extra={"recipient_count": len(recipients)},
+            )
             return True
 
-        except Exception as e:
-            logger.error(f"Failed to send email: {e}", exc_info=True)
-            # 降级到日志记录
-            return super().send(message)
+        except Exception:
+            logger.error("Failed to send policy email", exc_info=True)
+            return False
 
-    def send_batch(self, messages: list[NotificationMessage]) -> dict:
-        """批量发送邮件（合并发送）"""
-        if not messages:
-            return {"success": 0, "failed": 0, "errors": []}
+    def send_batch(self, messages: list[NotificationMessage]) -> NotificationBatchResult:
+        """Send messages separately to preserve recipient isolation."""
 
-        # 合并所有邮件内容
-        all_content = []
-        for msg in messages:
-            prefix = self._get_priority_prefix(msg.priority)
-            all_content.append(f"{prefix} {msg.title}\n{msg.content}\n")
-            all_content.append("-" * 50 + "\n")
-
-        # 合并收件人
-        all_recipients = set()
-        for msg in messages:
-            all_recipients.update(msg.recipients or self.default_recipients)
-        all_recipients = list(all_recipients)
-
-        # 发送合并邮件
-        merged_message = NotificationMessage(
-            title=f"Policy Notifications ({len(messages)} items)",
-            content="\n".join(all_content),
-            channel=NotificationChannel.EMAIL,
-            priority="high",
-            recipients=all_recipients,
-        )
-
-        success = self.send(merged_message)
+        success_count = 0
+        errors: list[str] = []
+        for index, message in enumerate(messages):
+            if self.send(message):
+                success_count += 1
+            else:
+                errors.append(f"message_{index}_delivery_failed")
         return {
-            "success": len(messages) if success else 0,
-            "failed": 0 if success else len(messages),
-            "errors": [],
+            "success": success_count,
+            "failed": len(errors),
+            "errors": errors,
         }
+
+    @staticmethod
+    def _normalize_recipients(values: object) -> list[str]:
+        if not isinstance(values, (list, tuple, set, frozenset)):
+            return []
+        return list(
+            dict.fromkeys(
+                value.strip() for value in values if isinstance(value, str) and value.strip()
+            )
+        )
 
     def _get_priority_prefix(self, priority: str) -> str:
         """获取优先级前缀"""
@@ -184,22 +196,71 @@ class InAppNotificationService:
     将通知存储到数据库，供用户在界面查看。
     """
 
-    def __init__(self, enabled: bool = True):
+    def __init__(
+        self,
+        enabled: bool = True,
+        manager: Manager[InAppNotification] | None = None,
+    ) -> None:
         self.enabled = enabled
+        self.manager = manager or InAppNotification._default_manager
 
     def send(self, message: NotificationMessage) -> bool:
         """创建站内通知记录"""
         if not self.enabled:
-            return True
+            return False
 
         try:
-            # 导入模型（延迟导入避免循环依赖）
-            from .models import InAppNotification
+            records = self._build_records(message)
+            with transaction.atomic():
+                self.manager.bulk_create(records)
+            logger.debug(
+                "In-app policy notification persisted",
+                extra={"record_count": len(records)},
+            )
+            return True
 
-            # 为每个收件人创建通知
-            if not message.recipients:
-                # 如果没有指定收件人，创建全局通知
-                InAppNotification.objects.create(
+        except Exception:
+            logger.error("Failed to persist in-app policy notification", exc_info=True)
+            return False
+
+    def send_batch(self, messages: list[NotificationMessage]) -> NotificationBatchResult:
+        """Persist an entire message batch atomically."""
+
+        if not messages:
+            return {"success": 0, "failed": 0, "errors": []}
+        if not self.enabled:
+            return {
+                "success": 0,
+                "failed": len(messages),
+                "errors": ["in_app_notifications_disabled"],
+            }
+        try:
+            records = [record for message in messages for record in self._build_records(message)]
+            with transaction.atomic():
+                self.manager.bulk_create(records)
+            return {"success": len(messages), "failed": 0, "errors": []}
+        except Exception:
+            logger.error("Failed to persist in-app notification batch", exc_info=True)
+            return {
+                "success": 0,
+                "failed": len(messages),
+                "errors": ["in_app_batch_persistence_failed"],
+            }
+
+    @staticmethod
+    def _build_records(message: NotificationMessage) -> list[InAppNotification]:
+        recipients = list(
+            dict.fromkeys(
+                recipient.strip()
+                for recipient in message.recipients
+                if isinstance(recipient, str) and recipient.strip()
+            )
+        )
+        if message.recipients and not recipients:
+            raise ValueError("direct notification has no valid recipients")
+        if not recipients:
+            return [
+                InAppNotification(
                     title=message.title,
                     content=message.content,
                     channel=message.channel,
@@ -207,38 +268,19 @@ class InAppNotificationService:
                     metadata=message.metadata,
                     is_global=True,
                 )
-            else:
-                # 为每个用户创建通知
-                for recipient in message.recipients:
-                    InAppNotification.objects.create(
-                        title=message.title,
-                        content=message.content,
-                        channel=message.channel,
-                        priority=message.priority,
-                        recipient_username=recipient,
-                        metadata=message.metadata,
-                        is_global=False,
-                    )
-
-            logger.debug(f"In-app notification created: {message.title}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to create in-app notification: {e}", exc_info=True)
-            return False
-
-    def send_batch(self, messages: list[NotificationMessage]) -> dict:
-        """批量创建站内通知"""
-        success_count = 0
-        errors = []
-
-        for msg in messages:
-            if self.send(msg):
-                success_count += 1
-            else:
-                errors.append(f"Failed to create: {msg.title}")
-
-        return {"success": success_count, "failed": len(errors), "errors": errors}
+            ]
+        return [
+            InAppNotification(
+                title=message.title,
+                content=message.content,
+                channel=message.channel,
+                priority=message.priority,
+                recipient_username=recipient,
+                metadata=message.metadata,
+                is_global=False,
+            )
+            for recipient in recipients
+        ]
 
 
 # ========================================
@@ -270,7 +312,10 @@ class PolicyAlertService(PolicyAlertServicePort):
     ) -> bool:
         """Send a generic policy alert through every configured channel."""
 
+        if self.email_service is None and self.in_app_service is None:
+            return False
         alert_metadata = metadata or {}
+        priority = self._normalize_priority(level)
         email_sent = True
         if self.email_service:
             email_sent = self.email_service.send(
@@ -278,7 +323,7 @@ class PolicyAlertService(PolicyAlertServicePort):
                     title=title,
                     content=message,
                     channel=NotificationChannel.EMAIL,
-                    priority=level,
+                    priority=priority,
                     metadata=alert_metadata,
                 )
             )
@@ -290,21 +335,23 @@ class PolicyAlertService(PolicyAlertServicePort):
                     title=title,
                     content=message,
                     channel=NotificationChannel.IN_APP,
-                    priority=level,
+                    priority=priority,
                     metadata=alert_metadata,
                 )
             )
 
         return email_sent and in_app_sent
 
-    def send_policy_alert(self, level: PolicyLevel, event: PolicyEvent, status: Any) -> bool:
+    def send_policy_alert(self, level: PolicyLevel, event: PolicyEvent, status: object) -> bool:
         """发送政策档位告警
 
         构建告警消息并通过配置的渠道发送。
         """
         try:
+            if self.email_service is None and self.in_app_service is None:
+                return False
             # 确定告警级别
-            alert_level = "critical" if level == PolicyLevel.P3 else "warning"
+            alert_level = "critical" if level == PolicyLevel.P3 else "high"
 
             # 构建消息内容
             title = f"政策状态告警: {level.value} - {getattr(status, 'level_name', level.value)}"
@@ -348,18 +395,21 @@ class PolicyAlertService(PolicyAlertServicePort):
 
             return success
 
-        except Exception as e:
-            logger.error(f"Failed to send policy alert: {e}", exc_info=True)
+        except Exception:
+            logger.error("Failed to send policy alert", exc_info=True)
             return False
 
-    def send_transition_summary(self, changes: list[dict]) -> bool:
+    def send_transition_summary(self, changes: list[dict[str, str]]) -> bool:
         """发送档位变更摘要"""
         if not changes:
             return True
 
         try:
+            if self.email_service is None and self.in_app_service is None:
+                return False
+            normalized_changes = self._normalize_transition_changes(changes)
             title = f"政策档位变更摘要 ({len(changes)} 项)"
-            content = self._build_transition_content(changes)
+            content = self._build_transition_content(normalized_changes)
 
             # 发送邮件
             email_sent = True
@@ -386,16 +436,28 @@ class PolicyAlertService(PolicyAlertServicePort):
 
             return email_sent and in_app_sent
 
-        except Exception as e:
-            logger.error(f"Failed to send transition summary: {e}", exc_info=True)
+        except (TypeError, ValueError):
+            logger.warning("Invalid policy transition summary payload", exc_info=True)
+            return False
+        except Exception:
+            logger.error("Failed to send transition summary", exc_info=True)
             return False
 
     def send_sla_alert(self, p23_count: int, normal_count: int) -> bool:
         """发送SLA超时告警"""
+        if (
+            isinstance(p23_count, bool)
+            or isinstance(normal_count, bool)
+            or p23_count < 0
+            or normal_count < 0
+        ):
+            return False
         if p23_count == 0 and normal_count == 0:
             return True
 
         try:
+            if self.email_service is None and self.in_app_service is None:
+                return False
             title = "SLA 超时告警"
             content = f"""SLA 超时警告
 
@@ -430,41 +492,51 @@ P2/P3 超时: {p23_count} 项
 
             return email_sent and in_app_sent
 
-        except Exception as e:
-            logger.error(f"Failed to send SLA alert: {e}", exc_info=True)
+        except Exception:
+            logger.error("Failed to send SLA alert", exc_info=True)
             return False
 
     def _build_alert_content(
-        self, level: PolicyLevel, event: PolicyEvent, status: Any, alert_level: str
+        self, level: PolicyLevel, event: PolicyEvent, status: object, alert_level: str
     ) -> str:
         """构建告警消息内容"""
+        del alert_level
+        level_name = self._string_attribute(status, "level_name", level.value)
+        response_config = getattr(status, "response_config", None)
+        cash_adjustment = self._string_attribute(response_config, "cash_adjustment", "0")
+        market_action = getattr(response_config, "market_action", None)
+        market_action_value = self._string_attribute(market_action, "value", "N/A")
+        signal_pause_hours = getattr(response_config, "signal_pause_hours", None)
+        raw_recommendations = getattr(status, "recommendations", [])
+        recommendations = (
+            [item for item in raw_recommendations if isinstance(item, str)]
+            if isinstance(raw_recommendations, list)
+            else []
+        )
         content = f"""**政策状态告警**
 
-档位: {level.value} - {getattr(status, 'level_name', level.value)}
+档位: {level.value} - {level_name}
 标题: {event.title}
 描述: {event.description}
 日期: {event.event_date}
 
 **响应措施**:
-- 现金调整: +{getattr(status.response_config, 'cash_adjustment', 0)}%
-- 行动: {getattr(status.response_config, 'market_action', 'N/A').value if hasattr(getattr(status, 'response_config', None), 'market_action') else 'N/A'}
+- 现金调整: +{cash_adjustment}%
+- 行动: {market_action_value}
 """
 
-        if hasattr(status, "response_config") and hasattr(
-            status.response_config, "signal_pause_hours"
-        ):
-            if status.response_config.signal_pause_hours:
-                content += f"- 信号暂停: {status.response_config.signal_pause_hours} 小时\n"
+        if signal_pause_hours:
+            content += f"- 信号暂停: {signal_pause_hours} 小时\n"
 
         content += f"""
 **建议**:
-{chr(10).join(f'- {r}' for r in getattr(status, 'recommendations', []))}
+{chr(10).join(f'- {recommendation}' for recommendation in recommendations)}
 
 证据: {event.evidence_url}
 """
         return content
 
-    def _build_transition_content(self, changes: list[dict]) -> str:
+    def _build_transition_content(self, changes: list[PolicyTransitionChange]) -> str:
         """构建变更摘要内容"""
         content = "**政策档位变更摘要**\n\n"
 
@@ -475,6 +547,49 @@ P2/P3 超时: {p23_count} 项
 """
 
         return content
+
+    @staticmethod
+    def _normalize_transition_changes(
+        changes: list[dict[str, str]],
+    ) -> list[PolicyTransitionChange]:
+        normalized: list[PolicyTransitionChange] = []
+        required_fields = ("date", "from", "to", "title")
+        for change in changes:
+            if not isinstance(change, Mapping):
+                raise TypeError("transition change must be an object")
+            values: dict[str, str] = {}
+            for field in required_fields:
+                value = change.get(field)
+                if not isinstance(value, str) or not value.strip():
+                    raise ValueError(f"transition {field} must be a non-empty string")
+                values[field] = value.strip()
+            normalized.append(
+                {
+                    "date": values["date"],
+                    "from": values["from"],
+                    "to": values["to"],
+                    "title": values["title"],
+                }
+            )
+        return normalized
+
+    @staticmethod
+    def _string_attribute(instance: object, name: str, default: str) -> str:
+        value = getattr(instance, name, default)
+        if isinstance(value, (str, int, float)):
+            return str(value)
+        return default
+
+    @staticmethod
+    def _normalize_priority(level: str) -> str:
+        normalized = level.strip().lower()
+        aliases = {
+            "warning": "high",
+            "warn": "high",
+            "error": "critical",
+        }
+        normalized = aliases.get(normalized, normalized)
+        return normalized if normalized in {"low", "normal", "high", "critical"} else "normal"
 
 
 # ========================================
@@ -496,8 +611,6 @@ class NotificationServiceFactory:
     def get_email_service(cls) -> EmailNotificationService:
         """获取邮件通知服务（单例）"""
         if cls._email_service is None:
-            from django.conf import settings
-
             default_recipients = getattr(settings, "POLICY_ALERT_EMAILS", [])
             enabled = getattr(settings, "POLICY_EMAIL_NOTIFICATIONS_ENABLED", True)
             cls._email_service = EmailNotificationService(
@@ -509,8 +622,6 @@ class NotificationServiceFactory:
     def get_in_app_service(cls) -> InAppNotificationService:
         """获取站内通知服务（单例）"""
         if cls._in_app_service is None:
-            from django.conf import settings
-
             enabled = getattr(settings, "POLICY_IN_APP_NOTIFICATIONS_ENABLED", True)
             cls._in_app_service = InAppNotificationService(enabled=enabled)
         return cls._in_app_service
@@ -526,7 +637,7 @@ class NotificationServiceFactory:
         return cls._alert_service
 
     @classmethod
-    def reset(cls):
+    def reset(cls) -> None:
         """重置单例（主要用于测试）"""
         cls._email_service = None
         cls._in_app_service = None

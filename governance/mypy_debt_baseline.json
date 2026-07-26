@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1592,
-    "files_with_errors": 450
+    "errors": 1578,
+    "files_with_errors": 448
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1062,9 +1062,6 @@
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1
     },
-    "apps/policy/domain/interfaces.py": {
-      "type-arg": 4
-    },
     "apps/policy/infrastructure/adapters/news_adapter.py": {
       "var-annotated": 1
     },
@@ -1075,14 +1072,6 @@
       "attr-defined": 3,
       "no-untyped-def": 3,
       "type-arg": 6
-    },
-    "apps/policy/infrastructure/notification_service.py": {
-      "arg-type": 1,
-      "assignment": 1,
-      "no-untyped-def": 1,
-      "type-arg": 5,
-      "union-attr": 1,
-      "var-annotated": 1
     },
     "apps/policy/interface/audit_api_views.py": {
       "no-untyped-def": 4

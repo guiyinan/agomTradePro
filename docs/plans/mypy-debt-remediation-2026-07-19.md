@@ -3818,3 +3818,22 @@
 - Policy 全模块回归 `155 passed`，对冲定向回归 `7 passed`；覆盖配置驱动计算、未知政策/非法敞口、跨用户执行与分析拒绝、无效行情零写入、非有限成本失败关闭和 portfolio-scoped Beta 回写。
 - Policy hedging Application 与 repository 增量 mypy 清零；全仓基线从 `1603 errors / 452 files` 收紧为 `1592 errors / 450 files`，净减少 `11 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百五十八批
+
+- 按“通知送达状态真实性 × 批量收件人隔离 × 站内信事务一致性”收口 Policy notification Domain contract 与 Infrastructure service。
+- 邮件服务禁用、无有效收件人、未配置 `EMAIL_BACKEND`、SMTP 异常或后端未确认送达时统一返回失败；不再降级到日志后把“仅写日志”伪装成邮件成功。
+- 邮件批量发送不再把所有内容合并后发给收件人并集；每条消息保持独立收件人集合，避免定向政策内容跨用户泄露。
+- 通知日志只记录渠道、优先级和收件人数；标题、正文、邮箱/用户名及 Provider 异常正文不再写入普通日志。
+- 站内信单条定向通知使用一次 `bulk_create`，批量消息在同一事务内统一持久化；任一数据库失败时整批返回零成功，不再留下部分通知。
+- 站内信 Manager 改为构造注入，Factory 统一使用模块级 settings；避免只读 `_default_manager` 测试替换和内部重复 import 绕过配置注入。
+- `NotificationMessage` 改为 frozen Domain value object，严格验证标题、正文、渠道、正式优先级和收件人；收件人去空白并去重，提供了定向对象但无有效收件人时不再误转为全局通知。
+- P2 告警优先级从模型不支持的 `warning` 统一为 `high`；通用 `warning/warn/error` 在 Infrastructure 边界映射到正式优先级。
+- 未配置任何通知渠道时不再返回成功；SLA 数量拒绝布尔值和负数，档位变更摘要要求完整非空字符串字段。
+- Batch result、transition payload、消息 metadata、服务方法和 Factory reset 补齐精确 TypedDict/容器/返回类型。
+
+## 第二百五十八批验证结果
+
+- Policy 通知定向回归 `40 passed`，Policy 全模块回归 `165 passed`；覆盖 SMTP 失败、缺少收件人、内容日志脱敏、批量收件人隔离、站内批量零部分成功、消息契约、无渠道告警和非法 SLA/档位变更。
+- Policy notification Domain interfaces 与 Infrastructure service 增量 mypy 清零；全仓基线从 `1592 errors / 450 files` 收紧为 `1578 errors / 448 files`，净减少 `14 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
