@@ -3837,3 +3837,23 @@
 - Policy 通知定向回归 `40 passed`，Policy 全模块回归 `165 passed`；覆盖 SMTP 失败、缺少收件人、内容日志脱敏、批量收件人隔离、站内批量零部分成功、消息契约、无渠道告警和非法 SLA/档位变更。
 - Policy notification Domain interfaces 与 Infrastructure service 增量 mypy 清零；全仓基线从 `1592 errors / 450 files` 收紧为 `1578 errors / 448 files`，净减少 `14 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百五十九批
+
+- 按“人工审核双重授权 × 审核写入审计完整性 × API 输入与异常最小披露”收口 Policy event/audit Application、Repository 与 API。
+- 审核队列、单条审核、批量审核和自动分配 API 全部改为 `IsAdminUser`；普通登录用户不再能读取审核队列、改变政策审核状态或触发全局任务分配。
+- Application 再次要求审核主体具有持久化正整数 ID、active 与 staff 状态；不依赖 Interface 权限作为唯一防线。
+- Repository 在事务内锁定“仍为 pending 且明确分配给当前审核人”的队列项；未分配、分配给他人、已完成或并发失效的条目统一拒绝，不再仅凭全局 `policy_log_id` 审核。
+- 审核状态更新与 `GateActionAuditLog` 写入、队列删除处于同一事务；审计日志失败时政策状态和队列完整回滚。
+- 审核日志记录操作前后状态、operator、approve/reject action 和原因；旧审核入口不再绕开正式操作审计链。
+- 新增严格 DRF serializers：审核状态/优先级、limit、approved、notes、modifications、批量 ID 数量/唯一性和自动分配上限在进入 Application/Repository 前验证，未知 mutation 字段拒绝。
+- 批量审核限制为 1-200 个唯一正整数 ID，并真实发布部分失败状态；不再无条件返回顶层 `success=True`。
+- API 的 ValidationError 返回稳定 400，内部数据库/Repository 异常返回稳定机器错误码；异常正文不再进入客户端响应。
+- Policy event 创建在保存前完成纯规则计算，避免已写入事件却因后续规则异常返回整体失败；当前政策查询、创建和更新失败响应移除数据库/Provider 异常正文。
+- Policy event DTO 使用 `default_factory`，更新路径增加正式事件字段和正整数 ID 校验；Generic history 空集合补齐精确实体类型。
+
+## 第二百五十九批验证结果
+
+- Policy 审核、Repository、事件与 API 安全定向回归 `21 passed`，Policy 全模块回归 `172 passed`；覆盖普通用户 403、非法请求写入前 400、内部异常脱敏、跨审核人拒绝、审计日志生成及审计写入失败原子回滚。
+- Policy event/audit Application 与 audit API 增量 mypy 清零；全仓基线从 `1578 errors / 448 files` 收紧为 `1565 errors / 445 files`，净减少 `13 errors / 3 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

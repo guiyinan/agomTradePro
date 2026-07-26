@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 from django.contrib.auth.models import User
 
-from apps.policy.infrastructure.models import PolicyAuditQueue, PolicyLog
+from apps.policy.infrastructure.models import GateActionAuditLog, PolicyAuditQueue, PolicyLog
 from apps.policy.infrastructure.workbench_repositories import WorkbenchRepository
 
 
@@ -68,6 +68,83 @@ def test_event_state_rolls_back_when_audit_log_write_fails() -> None:
     event.refresh_from_db()
     assert event.audit_status == "pending_review"
     assert event.gate_effective is False
+
+
+@pytest.mark.django_db
+def test_review_policy_item_requires_assignment_and_writes_audit_log() -> None:
+    assigned_reviewer = User._default_manager.create_user(
+        username="assigned_policy_reviewer",
+        is_staff=True,
+    )
+    other_reviewer = User._default_manager.create_user(
+        username="other_policy_reviewer",
+        is_staff=True,
+    )
+    event = _pending_event("Assigned review")
+    PolicyAuditQueue._default_manager.create(
+        policy_log=event,
+        priority="high",
+        assigned_to=assigned_reviewer,
+    )
+    repository = WorkbenchRepository()
+
+    denied = repository.review_policy_item(
+        policy_log_id=event.id,
+        approved=True,
+        reviewer_id=other_reviewer.id,
+    )
+    event.refresh_from_db()
+    assert denied is None
+    assert event.audit_status == "pending_review"
+
+    reviewed = repository.review_policy_item(
+        policy_log_id=event.id,
+        approved=False,
+        reviewer_id=assigned_reviewer.id,
+        notes="Evidence is insufficient",
+    )
+    event.refresh_from_db()
+
+    assert reviewed == {"id": event.id, "audit_status": "rejected"}
+    assert event.audit_status == "rejected"
+    assert not PolicyAuditQueue._default_manager.filter(policy_log=event).exists()
+    audit_log = GateActionAuditLog._default_manager.get(event=event)
+    assert audit_log.action == "reject"
+    assert audit_log.operator_id == assigned_reviewer.id
+    assert audit_log.before_state["audit_status"] == "pending_review"
+    assert audit_log.after_state["audit_status"] == "rejected"
+
+
+@pytest.mark.django_db
+def test_review_policy_item_rolls_back_when_audit_log_fails() -> None:
+    reviewer = User._default_manager.create_user(
+        username="atomic_policy_reviewer",
+        is_staff=True,
+    )
+    event = _pending_event("Atomic legacy review")
+    PolicyAuditQueue._default_manager.create(
+        policy_log=event,
+        assigned_to=reviewer,
+    )
+    repository = WorkbenchRepository()
+
+    with (
+        patch.object(
+            repository,
+            "_create_audit_log",
+            side_effect=RuntimeError("audit storage unavailable"),
+        ),
+        pytest.raises(RuntimeError, match="audit storage unavailable"),
+    ):
+        repository.review_policy_item(
+            policy_log_id=event.id,
+            approved=True,
+            reviewer_id=reviewer.id,
+        )
+
+    event.refresh_from_db()
+    assert event.audit_status == "pending_review"
+    assert PolicyAuditQueue._default_manager.filter(policy_log=event).exists()
 
 
 def test_ingestion_config_rejects_unknown_fields_before_database_access() -> None:

@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
+from django.db import DatabaseError
 
 from apps.policy.application.event_use_cases import (
     CreatePolicyEventInput,
@@ -176,7 +177,27 @@ def test_policy_queries_return_default_status_and_recoverable_errors(monkeypatch
         )
     ).execute()
     assert failed.success is False
-    assert failed.error == "invalid state"
+    assert failed.error == "policy_state_unavailable"
+
+
+def test_create_policy_event_redacts_persistence_failures() -> None:
+    store = SimpleNamespace(
+        get_latest_event=lambda before_date=None: None,
+        save_event=lambda event: (_ for _ in ()).throw(DatabaseError("database-secret-detail")),
+    )
+    output = CreatePolicyEventUseCase(store).execute(
+        CreatePolicyEventInput(
+            event_date=date(2026, 7, 24),
+            level=PolicyLevel.P2,
+            title="Formal intervention",
+            description="Evidence-backed policy intervention description",
+            evidence_url="https://evidence.test/intervention",
+        )
+    )
+
+    assert output.success is False
+    assert output.errors == ["政策事件保存失败"]
+    assert "database-secret-detail" not in " ".join(output.errors)
 
 
 def test_policy_level_matcher_scores_keywords_and_returns_explainable_details() -> None:

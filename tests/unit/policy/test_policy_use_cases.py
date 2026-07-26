@@ -124,7 +124,7 @@ def test_get_audit_queue_use_case_reads_from_workbench_repository():
         workbench_repo=_FakeWorkbenchRepository(),
     )
 
-    reviewer = SimpleNamespace(id=7)
+    reviewer = SimpleNamespace(id=7, username="reviewer", is_active=True, is_staff=True)
     items = use_case.execute(user=reviewer, priority="urgent", limit=10)
 
     assert len(items) == 1
@@ -138,7 +138,12 @@ def test_review_policy_item_use_case_uses_workbench_repository():
         workbench_repo=workbench_repo,
     )
 
-    reviewer = SimpleNamespace(id=9, username="reviewer")
+    reviewer = SimpleNamespace(
+        id=9,
+        username="reviewer",
+        is_active=True,
+        is_staff=True,
+    )
     output = use_case.execute(
         ReviewPolicyItemInput(
             policy_log_id=12,
@@ -160,6 +165,32 @@ def test_review_policy_item_use_case_uses_workbench_repository():
             "modifications": {"summary": "updated"},
         }
     ]
+
+
+def test_review_policy_item_rejects_non_staff_before_repository_write():
+    workbench_repo = _FakeWorkbenchRepository()
+    use_case = ReviewPolicyItemUseCase(
+        policy_repository=_FakePolicyRepository(),
+        workbench_repo=workbench_repo,
+    )
+    reviewer = SimpleNamespace(
+        id=9,
+        username="ordinary-user",
+        is_active=True,
+        is_staff=False,
+    )
+
+    output = use_case.execute(
+        ReviewPolicyItemInput(
+            policy_log_id=12,
+            approved=True,
+            reviewer=reviewer,
+        )
+    )
+
+    assert output.success is False
+    assert output.errors == ["active staff reviewer required"]
+    assert workbench_repo.review_calls == []
 
 
 def test_auto_assign_audits_use_case_uses_repository_round_robin():

@@ -724,3 +724,74 @@ class WorkbenchFetchOutputSerializer(serializers.Serializer[dict[str, Any]]):
         fields = super().get_fields()
         fields["errors"] = serializers.ListField(child=serializers.CharField())
         return fields
+
+
+class StrictAuditInputSerializer(serializers.Serializer[dict[str, Any]]):
+    """Reject unknown fields on policy-audit mutation inputs."""
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        if not isinstance(data, Mapping):
+            return cast(dict[str, Any], super().to_internal_value(data))
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
+            )
+        return cast(dict[str, Any], super().to_internal_value(data))
+
+
+class AuditQueueQuerySerializer(serializers.Serializer[dict[str, Any]]):
+    """Validated audit queue filters."""
+
+    status = serializers.ChoiceField(
+        choices=("pending_review", "auto_approved", "manual_approved", "rejected"),
+        required=False,
+        default="pending_review",
+    )
+    priority = serializers.ChoiceField(
+        choices=("urgent", "high", "normal", "low"),
+        required=False,
+        allow_null=True,
+    )
+    limit = serializers.IntegerField(required=False, default=50, min_value=1, max_value=500)
+
+
+class ReviewPolicyItemRequestSerializer(StrictAuditInputSerializer):
+    """Validated single-item policy review input."""
+
+    approved = serializers.BooleanField()
+    notes = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+    modifications = serializers.DictField(
+        child=serializers.JSONField(),
+        required=False,
+        allow_null=True,
+    )
+
+
+class BulkReviewRequestSerializer(StrictAuditInputSerializer):
+    """Validated bounded bulk-review input."""
+
+    approved = serializers.BooleanField()
+    notes = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+    policy_log_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+        min_length=1,
+        max_length=200,
+    )
+
+    def validate_policy_log_ids(self, value: list[int]) -> list[int]:
+        if len(set(value)) != len(value):
+            raise serializers.ValidationError("policy_log_ids must be unique")
+        return value
+
+
+class AutoAssignAuditsRequestSerializer(StrictAuditInputSerializer):
+    """Validated audit auto-assignment input."""
+
+    max_per_user = serializers.IntegerField(
+        required=False,
+        default=10,
+        min_value=1,
+        max_value=1000,
+    )

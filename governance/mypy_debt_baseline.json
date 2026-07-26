@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1578,
-    "files_with_errors": 448
+    "errors": 1565,
+    "files_with_errors": 445
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1048,17 +1048,6 @@
     "apps/operational_readiness/management/commands/validate_personal_readiness_window.py": {
       "no-untyped-def": 2
     },
-    "apps/policy/application/audit_use_cases.py": {
-      "assignment": 1,
-      "attr-defined": 1,
-      "no-untyped-def": 1,
-      "operator": 2
-    },
-    "apps/policy/application/event_use_cases.py": {
-      "assignment": 2,
-      "no-untyped-def": 1,
-      "var-annotated": 1
-    },
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1
     },
@@ -1072,9 +1061,6 @@
       "attr-defined": 3,
       "no-untyped-def": 3,
       "type-arg": 6
-    },
-    "apps/policy/interface/audit_api_views.py": {
-      "no-untyped-def": 4
     },
     "apps/policy/interface/forms.py": {
       "no-untyped-def": 5,

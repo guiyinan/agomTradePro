@@ -518,12 +518,22 @@ class WorkbenchRepository:
         notes: str = "",
         modifications: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
-        """Approve or reject one pending policy item and clear its audit queue rows."""
-        event = self._model._default_manager.filter(id=policy_log_id).first()
-        if event is None:
-            return None
-
+        """Review one pending item assigned to the reviewer and write an audit log."""
         with transaction.atomic():
+            queue_item = (
+                PolicyAuditQueue._default_manager.select_for_update()
+                .select_related("policy_log")
+                .filter(
+                    policy_log_id=policy_log_id,
+                    assigned_to_id=reviewer_id,
+                    policy_log__audit_status="pending_review",
+                )
+                .first()
+            )
+            if queue_item is None:
+                return None
+            event = queue_item.policy_log
+            before_state = self._get_event_state(event)
             update_fields = ["audit_status", "reviewed_by_id", "reviewed_at", "review_notes"]
             event.reviewed_by_id = reviewer_id
             event.reviewed_at = timezone.now()
@@ -541,7 +551,15 @@ class WorkbenchRepository:
                 event.review_notes = notes or "人工拒绝"
 
             event.save(update_fields=update_fields)
-            PolicyAuditQueue._default_manager.filter(policy_log_id=event.id).delete()
+            self._create_audit_log(
+                event=event,
+                action="approve" if approved else "reject",
+                operator_id=reviewer_id,
+                before_state=before_state,
+                after_state=self._get_event_state(event),
+                reason=event.review_notes,
+            )
+            queue_item.delete()
 
         return {"id": event.id, "audit_status": event.audit_status}
 

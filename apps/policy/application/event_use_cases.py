@@ -7,7 +7,7 @@ modules.
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Protocol
 
@@ -99,18 +99,30 @@ class GetCurrentPolicyUseCase:
             # Known external/data errors - log warning and return error response
             logger.warning(f"GetCurrentPolicyUseCase: data fetch error: {e}")
             record_exception(e, module="policy", is_handled=True)
-            return GetCurrentPolicyResponse(success=False, policy_level=None, error=str(e))
+            return GetCurrentPolicyResponse(
+                success=False,
+                policy_level=None,
+                error="policy_state_unavailable",
+            )
         except DatabaseError as e:
             # Database error - convert to DataFetchError
             logger.exception(f"GetCurrentPolicyUseCase: database error: {e}")
-            exc = DataFetchError(f"Failed to fetch policy level from database: {e}")
+            exc = DataFetchError("Failed to fetch policy level from database")
             record_exception(exc, module="policy", is_handled=True)
-            return GetCurrentPolicyResponse(success=False, policy_level=None, error=str(exc))
+            return GetCurrentPolicyResponse(
+                success=False,
+                policy_level=None,
+                error="policy_state_unavailable",
+            )
         except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             # Unexpected error - log with full context
             logger.exception(f"GetCurrentPolicyUseCase: unexpected error: {e}")
             record_exception(e, module="policy", is_handled=False)
-            return GetCurrentPolicyResponse(success=False, policy_level=None, error=str(e))
+            return GetCurrentPolicyResponse(
+                success=False,
+                policy_level=None,
+                error="policy_state_unavailable",
+            )
 
 
 # Protocol 定义 - 用于依赖注入
@@ -153,15 +165,9 @@ class CreatePolicyEventOutput:
 
     success: bool
     event: PolicyEvent | None = None
-    errors: list[str] = None
-    warnings: list[str] = None
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     alert_triggered: bool = False
-
-    def __post_init__(self):
-        if self.errors is None:
-            self.errors = []
-        if self.warnings is None:
-            self.warnings = []
 
 
 @dataclass
@@ -253,11 +259,7 @@ class CreatePolicyEventUseCase:
             previous_event = self.event_store.get_latest_event(before_date=input.event_date)
             previous_level = previous_event.level if previous_event else None
 
-            # 4. 保存事件
-            saved_event = self.event_store.save_event(event)
-            output.event = saved_event
-
-            # 5. 分析档位变更
+            # 4. 在写入前完成纯规则计算，避免写入后才报告整体失败
             if previous_level != input.level:
                 transition = analyze_policy_transition(previous_level, input.level)
                 output.warnings.append(
@@ -267,23 +269,29 @@ class CreatePolicyEventUseCase:
                 if transition.is_upgrade:
                     output.warnings.append("⚠️ 档位升级，请注意风险")
 
-            # 6. 触发告警（如需要）
-            if should_trigger_alert(input.level):
-                alert_triggered = self._send_alert(event=saved_event, previous_level=previous_level)
-
-            # 7. 添加建议
             recommendations = get_recommendations_for_level(input.level)
             output.warnings.extend(recommendations)
 
+            # 5. 保存事件
+            saved_event = self.event_store.save_event(event)
+            output.event = saved_event
             output.success = True
+
+            # 6. 保存成功后按需触发告警；告警失败不回滚已持久化事件
+            if should_trigger_alert(input.level):
+                alert_triggered = self._send_alert(event=saved_event, previous_level=previous_level)
+
             output.alert_triggered = alert_triggered
 
-            logger.info(f"Policy event created successfully: {input.level.value} - {input.title}")
+            logger.info(
+                "Policy event created successfully",
+                extra={"policy_level": input.level.value},
+            )
 
         except (DataFetchError, DataValidationError) as e:
             # Known data/validation errors - record and continue
-            output.errors.append(f"数据处理错误: {str(e)}")
-            logger.error(f"Data error creating policy event: {e}", exc_info=True)
+            output.errors.append("政策事件数据处理失败")
+            logger.error("Data error creating policy event", exc_info=True)
             record_exception(e, module="policy", is_handled=True)
         except IntegrityError as e:
             # Database integrity error
@@ -292,13 +300,13 @@ class CreatePolicyEventUseCase:
             record_exception(e, module="policy", is_handled=True)
         except DatabaseError as e:
             # General database error
-            output.errors.append(f"数据库错误: {str(e)}")
-            logger.error(f"Database error creating policy event: {e}", exc_info=True)
+            output.errors.append("政策事件保存失败")
+            logger.error("Database error creating policy event", exc_info=True)
             record_exception(e, module="policy", is_handled=True)
         except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             # Unexpected error
-            output.errors.append(f"系统错误: {str(e)}")
-            logger.exception(f"Unexpected error creating policy event: {e}")
+            output.errors.append("政策事件处理失败")
+            logger.exception("Unexpected error creating policy event")
             record_exception(e, module="policy", is_handled=False)
 
         return output
@@ -360,11 +368,11 @@ class CreatePolicyEventUseCase:
                 logger.info(f"Alert sent for policy level {event.level.value}")
             return success
         except ExternalServiceError as e:
-            logger.warning(f"External service error sending alert: {e}")
+            logger.warning("External service error sending policy alert")
             record_exception(e, module="policy", is_handled=True, service_name="alert")
             return False
         except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
-            logger.error(f"Failed to send alert: {e}")
+            logger.error("Failed to send policy alert", exc_info=True)
             record_exception(e, module="policy", is_handled=True)
             return False
 
@@ -477,7 +485,7 @@ class GetPolicyHistoryUseCase:
             events = repo.get_events_in_range(start_date, end_date)
         else:
             # 通用仓储
-            all_events = []
+            all_events: list[PolicyEvent] = []
             # 注意：这里需要仓储支持范围查询，否则需要遍历
             events = all_events
 
@@ -532,9 +540,24 @@ class UpdatePolicyEventUseCase:
         Returns:
             CreatePolicyEventOutput: 输出结果
         """
+        output = CreatePolicyEventOutput(success=False)
+        if event_id is not None and (
+            isinstance(event_id, bool) or not isinstance(event_id, int) or event_id <= 0
+        ):
+            output.errors.append("event_id 必须是正整数")
+            return output
+        is_valid, validation_errors = validate_policy_event(
+            level=level,
+            title=title,
+            description=description,
+            evidence_url=evidence_url,
+        )
+        if not is_valid:
+            output.errors.extend(validation_errors)
+            return output
+
         # 对 Django 仓储走明确更新路径，避免与”同日多事件”安全策略冲突
         if isinstance(self.event_store, DjangoPolicyRepository):
-            output = CreatePolicyEventOutput(success=False, errors=[], warnings=[])
             try:
                 # 使用 Repository 方法而非直接 ORM 访问
                 existing = self.event_store.get_existing_for_update(
@@ -564,9 +587,9 @@ class UpdatePolicyEventUseCase:
                 output.event = saved
                 output.warnings.append("⚠️ 政策事件已更新")
                 return output
-            except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
-                output.errors.append(f"更新失败: {str(e)}")
-                logger.error(f"Failed to update policy event on {event_date}: {e}", exc_info=True)
+            except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS:
+                output.errors.append("政策事件更新失败")
+                logger.error("Failed to update policy event", exc_info=True)
                 return output
 
         # 非 Django 仓储保持原流程
