@@ -10,11 +10,13 @@ from typing import Any
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.events.application.dtos import (
     EventPublishRequestDTO,
+    dto_to_event_publish_request,
     metrics_to_dto,
 )
 from apps.events.application.replay_service import (
@@ -110,9 +112,10 @@ class EventPublishView(BaseAPIView):
 
     POST /api/events/publish/
     """
+
     permission_classes = [IsAdminUser]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """
         发布事件
 
@@ -139,16 +142,17 @@ class EventPublishView(BaseAPIView):
                 payload=data["payload"],
                 metadata=data.get("metadata"),
                 event_id=data.get("event_id"),
-                occurred_at=data.get("occurred_at").isoformat() if data.get("occurred_at") else None,
+                occurred_at=(
+                    data.get("occurred_at").isoformat() if data.get("occurred_at") else None
+                ),
                 correlation_id=data.get("correlation_id"),
                 causation_id=data.get("causation_id"),
             )
 
             # 执行用例
             use_case = PublishEventUseCase()
-            from apps.events.application.dtos import dto_to_event_publish_request
-            use_case_request = dto_to_event_publish_request(use_case_request)
-            use_case_response = use_case.execute(use_case_request)
+            publish_request = dto_to_event_publish_request(use_case_request)
+            use_case_response = use_case.execute(publish_request)
 
             if use_case_response.success:
                 return self.success_response(
@@ -163,20 +167,32 @@ class EventPublishView(BaseAPIView):
                 error_status = (
                     status.HTTP_409_CONFLICT
                     if use_case_response.error_code == "EVENT_ALREADY_EXISTS"
-                    else status.HTTP_500_INTERNAL_SERVER_ERROR
-                    if use_case_response.error_code == "EVENT_PERSISTENCE_FAILED"
-                    else status.HTTP_400_BAD_REQUEST
+                    else (
+                        status.HTTP_500_INTERNAL_SERVER_ERROR
+                        if use_case_response.error_code == "EVENT_PERSISTENCE_FAILED"
+                        else status.HTTP_400_BAD_REQUEST
+                    )
+                )
+                public_message = {
+                    "EVENT_ALREADY_EXISTS": "Event already exists.",
+                    "EVENT_PERSISTENCE_FAILED": "Event could not be persisted.",
+                }.get(
+                    use_case_response.error_code or "",
+                    "Failed to publish event.",
                 )
                 return self.error_response(
-                    message=use_case_response.error_message or "Failed to publish event",
+                    message=public_message,
                     error_code=use_case_response.error_code or "PUBLISH_FAILED",
                     http_status=error_status,
                 )
 
-        except Exception as e:
-            logger.error(f"Error in EventPublishView: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Event publish request failed",
+                extra={"exception_type": type(exc).__name__},
+            )
             return self.error_response(
-                message=str(e),
+                message="Event publication failed.",
                 error_code="INTERNAL_ERROR",
                 http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -191,9 +207,10 @@ class EventQueryView(BaseAPIView):
 
     GET /api/events/query/
     """
+
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """
         查询事件
 
@@ -225,6 +242,7 @@ class EventQueryView(BaseAPIView):
 
             # 创建用例请求
             from apps.events.application.use_cases import QueryEventsRequest
+
             use_case_request = QueryEventsRequest(
                 event_type=event_type,
                 event_types=event_types,
@@ -264,14 +282,18 @@ class EventQueryView(BaseAPIView):
                 )
             else:
                 return self.error_response(
-                    message=use_case_response.error_message or "Failed to query events",
+                    message="Failed to query events.",
                     error_code="QUERY_FAILED",
+                    http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-        except Exception as e:
-            logger.error(f"Error in EventQueryView: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Event query request failed",
+                extra={"exception_type": type(exc).__name__},
+            )
             return self.error_response(
-                message=str(e),
+                message="Event query failed.",
                 error_code="INTERNAL_ERROR",
                 http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -286,9 +308,10 @@ class EventMetricsView(BaseAPIView):
 
     GET /api/events/metrics/
     """
+
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """
         获取事件指标
 
@@ -323,10 +346,13 @@ class EventMetricsView(BaseAPIView):
                 },
             )
 
-        except Exception as e:
-            logger.error(f"Error in EventMetricsView: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Event metrics request failed",
+                extra={"exception_type": type(exc).__name__},
+            )
             return self.error_response(
-                message=str(e),
+                message="Event metrics are unavailable.",
                 error_code="INTERNAL_ERROR",
                 http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -341,9 +367,10 @@ class EventBusStatusView(BaseAPIView):
 
     GET /api/events/status/
     """
+
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """
         获取事件总线状态
 
@@ -361,18 +388,27 @@ class EventBusStatusView(BaseAPIView):
 
             return self.success_response(
                 data={
-                    "is_running": not event_bus._stopped if hasattr(event_bus, "_stopped") else True,
+                    "is_running": (
+                        not event_bus._stopped if hasattr(event_bus, "_stopped") else True
+                    ),
                     "total_subscribers": metrics.total_subscribers,
-                    "queue_size": len(event_bus._event_queue) if hasattr(event_bus, "_event_queue") else 0,
-                    "last_event_at": metrics.last_event_at.isoformat() if metrics.last_event_at else None,
+                    "queue_size": (
+                        len(event_bus._event_queue) if hasattr(event_bus, "_event_queue") else 0
+                    ),
+                    "last_event_at": (
+                        metrics.last_event_at.isoformat() if metrics.last_event_at else None
+                    ),
                     "uptime_seconds": 0,  # 暂不跟踪运行时间
                 },
             )
 
-        except Exception as e:
-            logger.error(f"Error in EventBusStatusView: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Event bus status request failed",
+                extra={"exception_type": type(exc).__name__},
+            )
             return self.error_response(
-                message=str(e),
+                message="Event bus status is unavailable.",
                 error_code="INTERNAL_ERROR",
                 http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
@@ -398,13 +434,26 @@ class _ControlledReplayView(BaseAPIView):
     def _exception_response(self, exc: Exception) -> Response:
         if isinstance(exc, ReplayDisabledError):
             return self.error_response(
-                str(exc), "REPLAY_DISABLED", status.HTTP_503_SERVICE_UNAVAILABLE
+                "Controlled replay is disabled.",
+                "REPLAY_DISABLED",
+                status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         if isinstance(exc, ReplayConflictError | ReplayInProgressError):
-            return self.error_response(str(exc), "REPLAY_CONFLICT", status.HTTP_409_CONFLICT)
+            return self.error_response(
+                "Controlled replay is already in progress.",
+                "REPLAY_CONFLICT",
+                status.HTTP_409_CONFLICT,
+            )
         if isinstance(exc, ValueError | KeyError):
-            return self.error_response(str(exc), "INVALID_REPLAY", status.HTTP_400_BAD_REQUEST)
-        logger.exception("Controlled event replay failed")
+            return self.error_response(
+                "Invalid controlled replay request.",
+                "INVALID_REPLAY",
+                status.HTTP_400_BAD_REQUEST,
+            )
+        logger.error(
+            "Controlled event replay failed",
+            extra={"exception_type": type(exc).__name__},
+        )
         return self.error_response(
             "Controlled replay failed.",
             "INTERNAL_ERROR",
@@ -415,7 +464,7 @@ class _ControlledReplayView(BaseAPIView):
 class EventReplayPreviewView(_ControlledReplayView):
     """Preview a registered replay target without invoking it."""
 
-    def post(self, request: Any) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = EventReplayPreviewRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -433,16 +482,23 @@ class EventReplayPreviewView(_ControlledReplayView):
 class EventReplayCommitView(_ControlledReplayView):
     """Commit an idempotent replay against one approved target."""
 
-    def post(self, request: Any) -> Response:
+    def post(self, request: Request) -> Response:
         serializer = EventReplayCommitRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         data = serializer.validated_data
+        requester_id = request.user.pk
+        if requester_id is None:
+            return self.error_response(
+                "Authenticated requester identity is required.",
+                "INVALID_REQUESTER",
+                status.HTTP_403_FORBIDDEN,
+            )
         try:
             result = build_replay_service().commit(
                 data["target_key"],
                 self._filter(data),
-                requester_id=request.user.pk,
+                requester_id=requester_id,
                 idempotency_key=data["idempotency_key"],
             )
             return Response(

@@ -3857,3 +3857,20 @@
 - Policy 审核、Repository、事件与 API 安全定向回归 `21 passed`，Policy 全模块回归 `172 passed`；覆盖普通用户 403、非法请求写入前 400、内部异常脱敏、跨审核人拒绝、审计日志生成及审计写入失败原子回滚。
 - Policy event/audit Application 与 audit API 增量 mypy 清零；全仓基线从 `1578 errors / 448 files` 收紧为 `1565 errors / 445 files`，净减少 `13 errors / 3 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百六十批
+
+- 按“事件入口失败关闭 × 查询契约无歧义 × 内部异常最小披露”收口 Events serializers 与 API views。
+- 发布、查询、订阅和受控重放请求统一拒绝未声明字段；非对象请求不再进入字段解析。
+- 管理员发布入口不再允许主动创建 `UNKNOWN` 事件；`UNKNOWN` 继续仅作为未知外部事件的安全归类值，避免人为发布不可解释的业务事件。
+- 事件 payload 与 metadata 必须是可序列化的有限 JSON object，分别限制为 256 KiB 和 64 KiB；`NaN`、`Inf`、动态对象和超限负载在进入 Application/Event Store 前拒绝。
+- 查询接口拒绝同时提供 `event_type` 与 `event_types`、空集合、重复事件类型、反向时间窗口、空白或超长 correlation ID，避免歧义条件进入仓储。
+- 受控重放拒绝 `UNKNOWN` 和反向时间窗口；提交前确认认证主体具有持久化主键，不再把可空用户 ID 传给重放审计链。
+- 发布、查询、指标、总线状态和重放异常统一返回稳定错误文案；UseCase、Provider、注册目标和底层异常正文不再进入客户端响应，视图日志仅记录异常类型。
+- Events 请求/响应 serializers、APIView handler 和 DTO 转换边界补齐精确泛型、请求与返回类型。
+
+## 第二百六十批验证结果
+
+- Events Domain、受控重放、API 边界与集成契约回归 `82 passed`；覆盖未知字段、歧义查询、反向时间窗口、`UNKNOWN` 发布、非有限 JSON、权限、幂等发布、重放和内部异常脱敏。
+- Events serializers 与 views 增量 mypy 清零；全仓基线从 `1565 errors / 445 files` 收紧为 `1546 errors / 443 files`，净减少 `19 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
