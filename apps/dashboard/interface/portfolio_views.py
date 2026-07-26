@@ -2,30 +2,44 @@
 
 from __future__ import annotations
 
-from django.http import JsonResponse
+from types import ModuleType
+from typing import Any
+
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 
 from apps.dashboard.interface.api_auth import dashboard_api_view
+from shared.numeric import safe_float
 
 
-def _dashboard_views():
+def _dashboard_views() -> ModuleType:
     from apps.dashboard.interface import views as dashboard_views
 
     return dashboard_views
 
 
-def _generate_allocation_from_positions(positions: list[dict]) -> dict[str, float]:
+def _generate_allocation_from_positions(
+    positions: list[dict[str, Any]],
+) -> dict[str, float]:
     """Generate allocation chart data from position dicts, grouped by asset class."""
 
     allocation: dict[str, float] = {}
     for pos in positions:
-        asset_class = pos.get("asset_class_display") or pos.get("asset_class", "其他")
-        allocation[asset_class] = allocation.get(asset_class, 0) + pos.get("market_value", 0)
+        raw_asset_class = pos.get("asset_class_display") or pos.get("asset_class")
+        asset_class = (
+            raw_asset_class.strip()
+            if isinstance(raw_asset_class, str) and raw_asset_class.strip()
+            else "其他"
+        )
+        market_value = safe_float(pos.get("market_value"))
+        if market_value is None or market_value < 0:
+            raise ValueError("position_market_value_invalid")
+        allocation[asset_class] = allocation.get(asset_class, 0.0) + market_value
     return allocation
 
 
 @dashboard_api_view(["GET"])
-def position_detail_htmx(request, asset_code: str):
+def position_detail_htmx(request: HttpRequest, asset_code: str) -> HttpResponse:
     """Render one position detail modal for HTMX requests."""
 
     context = (
@@ -40,7 +54,7 @@ def position_detail_htmx(request, asset_code: str):
 
 
 @dashboard_api_view(["GET"])
-def positions_list_htmx(request):
+def positions_list_htmx(request: HttpRequest) -> HttpResponse:
     """Render the holdings table partial with optional account and sort filters."""
 
     dashboard_views = _dashboard_views()
@@ -98,7 +112,7 @@ def positions_list_htmx(request):
 
 
 @dashboard_api_view(["GET"])
-def positions_json(request):
+def positions_json(request: HttpRequest) -> HttpResponse:
     """Return the authenticated user's persisted simulated positions as JSON."""
     positions = _dashboard_views()._load_simulated_positions_fallback(request.user.id)
     return JsonResponse(
@@ -113,7 +127,7 @@ def positions_json(request):
 
 
 @dashboard_api_view(["GET"])
-def allocation_chart_htmx(request):
+def allocation_chart_htmx(request: HttpRequest) -> HttpResponse:
     """Return allocation chart payload for one account or the aggregated portfolio."""
 
     dashboard_views = _dashboard_views()
@@ -130,16 +144,34 @@ def allocation_chart_htmx(request):
         request.user.id,
         account_id=account_id,
     )
+    try:
+        allocation = _generate_allocation_from_positions(positions)
+    except ValueError:
+        dashboard_views.logger.error(
+            "Dashboard allocation unavailable because a position has invalid market value: "
+            "user_id=%s account_id=%s",
+            request.user.id,
+            account_id,
+        )
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "资产配置数据暂不可用，请先检查持仓市值。",
+                "error_code": "allocation_data_unavailable",
+                "must_not_use_for_decision": True,
+            },
+            status=503,
+        )
     return JsonResponse(
         {
             "success": True,
-            "data": _generate_allocation_from_positions(positions),
+            "data": allocation,
         }
     )
 
 
 @dashboard_api_view(["GET"])
-def performance_chart_htmx(request):
+def performance_chart_htmx(request: HttpRequest) -> HttpResponse:
     """Return performance chart payload for one account or the aggregated portfolio."""
 
     dashboard_views = _dashboard_views()

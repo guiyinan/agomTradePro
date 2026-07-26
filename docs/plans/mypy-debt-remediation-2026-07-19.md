@@ -3688,3 +3688,17 @@
 - Dashboard Alpha 手动刷新局部回归 `10 passed`，完整 Alpha views 回归 `48 passed`；覆盖同步/异步刷新、重复任务锁、账户专属池和内部异常脱敏。
 - Dashboard Alpha stock views 增量 mypy 清零；全仓基线从 `1709 errors / 462 files` 收紧为 `1695 errors / 461 files`，净减少 `14 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百五十批
+
+- 按“资产配置图数值真实性 × 非法持仓数据失败关闭 × 组合入口类型完整性”收口 Dashboard Portfolio views。
+- 资产配置聚合统一通过安全数值解析读取持仓市值，拒绝缺失、非法字符串、`NaN`、`Inf` 和负市值；不再让异常金融数值进入 JSON 或图表比例。
+- 任一持仓市值无效时，配置图整体返回稳定 503 `allocation_data_unavailable` 和 `must_not_use_for_decision=True`；不再静默忽略问题持仓并发布低估的部分资产配置。
+- 资产类别仅接受非空字符串，缺失或异常类别统一进入“其他”，避免不可哈希动态值破坏聚合。
+- 持仓详情、列表、JSON、配置图和业绩图入口补齐精确 HttpRequest/HttpResponse 类型；动态 Dashboard facade 边界显式收窄。
+
+## 第二百五十批验证结果
+
+- Dashboard Portfolio 数值边界回归 `7 passed`，Dashboard 全模块及相关组件回归 `115 passed`；覆盖正常聚合、字符串数值、缺失/非法/非有限/负市值和配置图失败关闭。
+- Dashboard Portfolio views 增量 mypy 清零；全仓基线从 `1695 errors / 461 files` 收紧为 `1682 errors / 460 files`，净减少 `13 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
