@@ -21,6 +21,7 @@ from django.test import RequestFactory
 from core.logging_utils import (
     StructuredFormatter,
     StructuredFormatterVerbose,
+    StructuredLoggerAdapter,
     bind_logger,
     clear_trace_id,
     generate_full_trace_id,
@@ -136,6 +137,34 @@ class TestStructuredFormatter:
         assert log_data["extra"]["user_id"] == 123
         assert log_data["extra"]["action"] == "login"
 
+    def test_format_redacts_nested_sensitive_extra_fields(self):
+        formatter = StructuredFormatter()
+        record = logging.LogRecord(
+            name="test.logger",
+            level=logging.INFO,
+            pathname="test.py",
+            lineno=42,
+            msg="Sensitive extra",
+            args=(),
+            exc_info=None,
+        )
+        record.api_key = "sk-secret"
+        record.payload = {
+            "access_token": "token-secret",
+            "token_count": 3,
+            "nested": {"database_password": "db-secret"},
+        }
+
+        log_data = json.loads(formatter.format(record))
+
+        assert log_data["extra"]["api_key"] == "***"
+        assert log_data["extra"]["payload"]["access_token"] == "***"
+        assert log_data["extra"]["payload"]["token_count"] == 3
+        assert log_data["extra"]["payload"]["nested"]["database_password"] == "***"
+        assert "sk-secret" not in json.dumps(log_data)
+        assert "token-secret" not in json.dumps(log_data)
+        assert "db-secret" not in json.dumps(log_data)
+
     def test_format_with_exception(self):
         """测试带异常信息的日志格式化"""
         formatter = StructuredFormatter()
@@ -201,6 +230,14 @@ class TestTraceIDManagement:
     def test_generate_default_trace_id(self):
         """测试自动生成 trace_id"""
         clear_trace_id()
+
+    @pytest.mark.parametrize(
+        "trace_id",
+        ["", "contains spaces", "contains/slash", "x" * 129],
+    )
+    def test_rejects_invalid_trace_id(self, trace_id):
+        with pytest.raises(ValueError, match="trace_id"):
+            set_trace_id(trace_id)
 
         trace_id = set_trace_id()
         assert trace_id is not None
@@ -421,17 +458,28 @@ class TestBindLogger:
 
         try:
             logger = bind_logger(request_id="req-456")
+            assert isinstance(logger, StructuredLoggerAdapter)
 
             with caplog.at_level(logging.INFO):
                 logger.info("Test message")
 
             # 验证 trace_id 和绑定的字段都存在
             assert len(caplog.records) == 1
-            caplog.records[0]
-            # trace_id 应该从线程上下文获取
-            assert get_trace_id() == "trace-123"
+            assert caplog.records[0].trace_id == "trace-123"
+            assert caplog.records[0].request_id == "req-456"
         finally:
             clear_trace_id()
+
+    def test_adapter_merges_extra_without_mutating_caller_mapping(self):
+        logger = bind_logger(user_id=123)
+        call_extra = {"action": "update"}
+        kwargs = {"extra": call_extra}
+
+        _, processed = logger.process("message", kwargs)
+
+        assert processed["extra"] == {"user_id": 123, "action": "update"}
+        assert kwargs == {"extra": call_extra}
+        assert call_extra == {"action": "update"}
 
 
 class TestIntegration:

@@ -4556,3 +4556,21 @@
 - Context processor 专项、TUI mode、系统设置视觉与路由文档回归 `26 passed`。
 - `core/context_processors.py` 增量 mypy 清零；全仓基线从 `1160 errors / 393 files` 收紧为 `1155 errors / 392 files`，净减少 `5 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百零三批
+
+- 按“全局结构化日志 × Trace 上下文真实性 × Extra 敏感字段脱敏”收口 Core logging utilities。
+- `StructuredLoggerAdapter` 使用精确 Logger 泛型和标准 MutableMapping process 契约；绑定字段、调用级 extra 与线程 trace_id 在新映射中合并，不再原地修改调用方 kwargs 或嵌套 extra。
+- `bind_logger` 改为返回正式 StructuredLoggerAdapter，线程 trace_id 现在真实进入 LogRecord；调用级字段覆盖同名绑定字段，线程 trace_id 保持权威。
+- StructuredFormatter 对 extra 中 password、secret、token、API/encryption/private key、credential、authorization 和 cookie 后缀字段递归遮蔽；嵌套 mapping/collection 支持循环与深度上限。
+- `token_count` 等非敏感统计键保持可观测，不因包含普通 token 单词前缀被误遮蔽。
+- Thread-local trace ID 读取显式收窄为非空字符串；手工设置只接受 1–128 位字母、数字、连字符或下划线，空白、斜线、空格和超长值失败关闭。
+- Structured logger 检测现有 handler 时包含祖先链，避免根 logger 已配置时重复添加 StreamHandler。
+- 日志级别只接受标准 Python level 名称；未知环境值回退规范化 default，default 也非法时回退 INFO，避免 logging 配置启动失败。
+- 新增敏感 extra、非法 trace ID、Adapter 上下文合并无副作用及非法日志级别回归。
+
+## 第三百零三批验证结果
+
+- 结构化日志、Trace middleware、Celery/Development 日志配置回归 `48 passed`。
+- `core/logging_utils.py` 增量 mypy 清零；全仓基线从 `1155 errors / 392 files` 收紧为 `1150 errors / 391 files`，净减少 `5 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

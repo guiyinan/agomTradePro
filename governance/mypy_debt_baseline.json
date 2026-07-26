@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1155,
-    "files_with_errors": 392
+    "errors": 1150,
+    "files_with_errors": 391
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1289,11 +1289,6 @@
     "core/log_buffer.py": {
       "type-arg": 1,
       "var-annotated": 1
-    },
-    "core/logging_utils.py": {
-      "no-untyped-def": 1,
-      "override": 1,
-      "type-arg": 3
     },
     "core/management/commands/celery_beat_windows.py": {
       "no-untyped-def": 2
