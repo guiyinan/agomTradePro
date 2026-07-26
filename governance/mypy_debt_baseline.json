@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1415,
-    "files_with_errors": 429
+    "errors": 1402,
+    "files_with_errors": 428
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -248,13 +248,6 @@
       "no-any-return": 1,
       "no-untyped-def": 2,
       "type-arg": 2
-    },
-    "apps/alpha/infrastructure/alerts.py": {
-      "import-untyped": 1,
-      "index": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 6,
-      "type-arg": 3
     },
     "apps/alpha/infrastructure/cache_evaluation.py": {
       "no-untyped-call": 1,

@@ -4051,3 +4051,22 @@
 - ETF PIT、评分与配置真源新增回归及既有 adapter 契约 `12 passed`；Alpha Provider、ETF 集成和服务注册完整回归 `40 passed`。
 - `etf_adapter.py` 增量 mypy 清零；全仓基线从 `1427 errors / 430 files` 收紧为 `1415 errors / 429 files`，净减少 `12 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百七十二批
+
+- 按“Alpha 告警逐标签真实性 × 持续状态可达 × 单事件通知去重”收口 Alpha monitoring 告警链。
+- 定时任务不再每次构造新的通用 `AlertManager`；通过 Application provider factory 获取进程内稳定的 Alpha Manager，使告警持续时间能跨周期累计，9 条 Alpha 专用规则真实进入调度链。
+- 指标注册表新增逐序列读取接口；告警按 Provider、队列等 labels 分别评估，不再把同名指标相加后让健康 Provider 掩盖故障 Provider。
+- 非有限指标不再参与规则比较，并清除对应待确认状态；`NaN`、`Inf` 不会形成虚假告警或把旧事件延续到后续有效观测。
+- 每个规则/labels 组合在一次连续异常期间只通知一次；指标恢复后清理首次触发与已通知状态，再次恶化才形成新事件。
+- `AlphaAlertConfig.get_all_rules()` 每次返回独立规则副本；测试或运行时修改 duration 不再污染后续 Manager。
+- 支持通过 `ALPHA_ALERT_RULE_OVERRIDES` 覆盖 threshold、duration 和 severity；非有限阈值、布尔 duration、负 duration 和非法严重级别失败关闭并回退正式 catalog。
+- 删除未接入运行链、依赖无类型 `django-environ` 且会制造配置已生效错觉的 `AlertThresholds` 死代码。
+- 告警通知改为 frozen value object，要求有限指标、非空标识和 timezone-aware 时间；通知保留规范化 labels，摘要按标签发布真实序列。
+- 通知 handler 失败日志只记录异常类型；底层渠道异常正文、凭据和完整堆栈不再进入普通日志。
+
+## 第二百七十二批验证结果
+
+- Alpha 告警新增边界与既有配置/通知/调度定向回归 `20 passed`；完整 monitoring、stress 和 full-flow 告警回归 `35 passed`。
+- `alerts.py` 增量 mypy 清零，Application monitoring、provider factory 与共享 metrics 保持清零；全仓基线从 `1415 errors / 429 files` 收紧为 `1402 errors / 428 files`，净减少 `13 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

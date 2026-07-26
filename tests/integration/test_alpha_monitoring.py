@@ -5,7 +5,7 @@ Integration Tests for Alpha Monitoring (Phase 4)
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
@@ -447,7 +447,7 @@ class TestAlertNotification:
             metric_name="test_metric",
             current_value=10.0,
             threshold=5.0,
-            timestamp=datetime.now()
+            timestamp=timezone.now(),
         )
 
         data = notification.to_dict()

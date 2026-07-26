@@ -13,12 +13,13 @@ from django.utils import timezone
 
 from apps.alpha.application.repository_provider import (
     calculate_rolling_metrics,
+    get_alpha_runtime_alert_manager,
     get_alpha_score_cache_repository,
     get_qlib_model_registry_repository,
 )
 from apps.alpha.domain.entities import AlphaResult
 from shared.infrastructure.celery_typing import typed_shared_task
-from shared.infrastructure.metrics import AlertManager, AlphaMetrics, get_alpha_metrics
+from shared.infrastructure.metrics import AlphaMetrics, get_alpha_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ def _record_coverage_if_resolvable(
 def evaluate_alerts() -> dict[str, Any]:
     """Evaluate all configured Alpha alert rules."""
 
-    alert_manager = AlertManager()
+    alert_manager = get_alpha_runtime_alert_manager()
     alerts = alert_manager.evaluate_all()
     timestamp = timezone.now().isoformat()
     if alerts:

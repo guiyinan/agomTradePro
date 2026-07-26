@@ -264,6 +264,13 @@ class MetricsRegistry:
 
         return None
 
+    def get_metrics(self, name: str) -> list[MetricValue]:
+        """Return every labeled gauge/counter series for one metric name."""
+
+        gauge_values = list(self._gauges[name].values())
+        counter_values = list(self._counters[name].values())
+        return [*gauge_values, *counter_values]
+
     def to_prometheus(self) -> str:
         """导出所有指标为 Prometheus 格式"""
         lines: list[str] = []

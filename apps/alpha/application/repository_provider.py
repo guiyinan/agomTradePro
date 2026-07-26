@@ -56,6 +56,7 @@ from apps.alpha.infrastructure.qlib_runtime_init import (
     resolve_qlib_stock_list,
 )
 from apps.alpha.infrastructure.scientific_runtime import get_numpy, get_pandas
+from shared.infrastructure.metrics import AlertManager
 
 __all__ = [
     "AlphaAlertRepository",
@@ -78,6 +79,7 @@ __all__ = [
     "extract_model_filename",
     "find_broader_qlib_cache_for_scope",
     "get_alpha_alert_repository",
+    "get_alpha_runtime_alert_manager",
     "get_alpha_pool_data_repository",
     "get_alpha_score_cache_repository",
     "get_numpy",
@@ -129,6 +131,14 @@ def get_alpha_alert_repository() -> AlphaAlertRepository:
     from apps.alpha.infrastructure.providers import AlphaAlertRepository  # noqa: F811
 
     return AlphaAlertRepository()
+
+
+def get_alpha_runtime_alert_manager() -> AlertManager:
+    """Return the process-stable Alpha monitoring alert manager."""
+
+    from apps.alpha.infrastructure.alerts import get_alpha_alert_manager
+
+    return get_alpha_alert_manager()
 
 
 def get_alpha_pool_data_repository() -> AlphaPoolDataRepository:
