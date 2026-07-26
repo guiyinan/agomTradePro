@@ -4,7 +4,10 @@
 使用 Django REST Framework 定义 API 视图。
 """
 
+from typing import Any
+
 from rest_framework import status
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -14,6 +17,7 @@ from apps.asset_analysis.application.interface_services import (
     get_current_weight_config,
     get_weight_configs,
 )
+from apps.asset_analysis.domain.value_objects import ScoreContext
 from apps.asset_analysis.interface.serializers import (
     ScreenRequestSerializer,
     ScreenResponseSerializer,
@@ -28,7 +32,7 @@ class MultiDimScreenAPIView(APIView):
     POST /api/asset-analysis/multidim-screen/
     """
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         """
         处理多维度筛选请求
 
@@ -45,16 +49,17 @@ class MultiDimScreenAPIView(APIView):
         if not request_serializer.is_valid():
             return Response(
                 {"success": False, "message": "请求参数错误", "errors": request_serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         validated_data = request_serializer.validated_data
 
         # 2. 构建评分上下文（从实际系统获取数据）
-        context = self._build_score_context(request)
+        context = self._build_score_context(validated_data)
 
         # 3. 构建请求 DTO
         from apps.asset_analysis.application.dtos import ScreenRequest
+
         request_dto = ScreenRequest(
             asset_type=validated_data["asset_type"],
             filters=validated_data.get("filters", {}),
@@ -67,20 +72,21 @@ class MultiDimScreenAPIView(APIView):
 
         # 5. 返回响应
         response_serializer = ScreenResponseSerializer(response_dto.to_dict())
-        http_status = status.HTTP_200_OK if response_dto.success else status.HTTP_500_INTERNAL_SERVER_ERROR
+        http_status = (
+            status.HTTP_200_OK if response_dto.success else status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
         return Response(response_serializer.data, status=http_status)
 
-    def _build_score_context(self, request):
+    def _build_score_context(self, validated_data: dict[str, Any]) -> ScoreContext:
         """
         构建评分上下文
 
         从系统中获取实际的 Regime、Policy、Sentiment 数据。
         """
         payload = build_asset_pool_context(
-            regime_override=request.data.get("regime"),
-            policy_level_override=request.data.get("policy_level"),
-            sentiment_index_override=request.data.get("sentiment_index"),
-            active_signals_override=request.data.get("active_signals"),
+            regime_override=validated_data.get("regime"),
+            policy_level_override=validated_data.get("policy_level"),
+            sentiment_index_override=validated_data.get("sentiment_index"),
         )
         return payload.score_context
 
@@ -92,7 +98,7 @@ class WeightConfigsAPIView(APIView):
     GET /api/asset-analysis/weight-configs/
     """
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """
         获取所有权重配置
 
@@ -118,7 +124,7 @@ class CurrentWeightAPIView(APIView):
     GET /api/asset-analysis/current-weight/?asset_type=fund
     """
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """
         获取当前生效的权重配置
 
@@ -129,9 +135,6 @@ class CurrentWeightAPIView(APIView):
         asset_type = request.query_params.get("asset_type")
         market_condition = request.query_params.get("market_condition")
 
-        result = get_current_weight_config(
-            asset_type=asset_type,
-            market_condition=market_condition
-        )
+        result = get_current_weight_config(asset_type=asset_type, market_condition=market_condition)
 
         return Response(result, status=status.HTTP_200_OK)

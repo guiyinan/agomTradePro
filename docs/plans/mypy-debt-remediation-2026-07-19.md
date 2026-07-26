@@ -4255,3 +4255,20 @@
 - Share 用例安全与 API 边界回归 `22 passed`；ShareLink 既有用例及管理页主题/密码更新回归 `33 passed`；扩展 Share views/API 回归 `26 passed`。
 - `use_cases.py`、`interface_services.py` 与 Share views 增量 mypy 清零；全仓基线从 `1291 errors / 414 files` 收紧为 `1283 errors / 413 files`，净减少 `8 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百八十四批
+
+- 按“资产评分输入真实性 × 情景覆盖边界 × 响应 DTO 一致性”收口 Asset Analysis Serializer 与 multidim-screen API。
+- 请求只接受正式字段；未知字段失败关闭，客户端不再能通过未声明的 `active_signals` 伪造系统信号上下文。
+- Regime、Policy 与 Sentiment 情景覆盖纳入 Serializer 正式契约；视图只读取 `validated_data`，不再从原始 `request.data` 绕过验证。
+- 权重键必须完整等于 `regime/policy/sentiment/signal`；每项必须为非布尔、有限且位于 `[0, 1]`，总和使用 `math.fsum/isclose` 验证为 1。
+- Sentiment 覆盖必须为有限数值且位于 `[-3, 3]`；布尔、`NaN/Inf` 不再进入 `ScoreContext`。
+- 修复响应 DTO 与 Serializer 长期错位：DTO 发布嵌套 `scores`，Serializer 不再读取不存在的扁平 `regime_score/.../total_score`。
+- 嵌套评分及自定义评分在输出边界再次验证有限性；非有限内部结果失败关闭，不发布非法 JSON 数值。
+- 六个 Serializer 补齐精确泛型，DRF `style/context` 同名基类边界显式收窄；三个 API handler 与上下文构建器补齐请求、响应和 Domain 返回类型。
+
+## 第二百八十四批验证结果
+
+- Asset Analysis Serializer 安全契约与 multidim-screen API 回归 `19 passed`，覆盖真实嵌套评分序列化、情景覆盖、未知字段及非有限权重。
+- `serializers.py` 与 `views.py` 增量 mypy 清零；全仓基线从 `1283 errors / 413 files` 收紧为 `1269 errors / 411 files`，净减少 `14 errors / 2 files`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

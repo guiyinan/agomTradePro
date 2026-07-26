@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1283,
-    "files_with_errors": 413
+    "errors": 1269,
+    "files_with_errors": 411
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -316,16 +316,7 @@
       "no-untyped-def": 3,
       "type-arg": 4
     },
-    "apps/asset_analysis/interface/serializers.py": {
-      "assignment": 2,
-      "no-untyped-def": 1,
-      "type-arg": 6
-    },
     "apps/asset_analysis/interface/urls.py": {
-      "no-untyped-def": 4
-    },
-    "apps/asset_analysis/interface/views.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 4
     },
     "apps/audit/domain/performance_services.py": {
