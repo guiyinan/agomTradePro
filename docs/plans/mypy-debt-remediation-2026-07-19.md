@@ -3702,3 +3702,18 @@
 - Dashboard Portfolio 数值边界回归 `7 passed`，Dashboard 全模块及相关组件回归 `115 passed`；覆盖正常聚合、字符串数值、缺失/非法/非有限/负市值和配置图失败关闭。
 - Dashboard Portfolio views 增量 mypy 清零；全仓基线从 `1695 errors / 461 files` 收紧为 `1682 errors / 460 files`，净减少 `13 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百五十一批
+
+- 按“Alpha 指标首页可见性 × 动态指标结构失败关闭 × IC 查询资源上限”收口 Dashboard Alpha metrics views。
+- 指标查询统一返回强类型 `AlphaVisualizationData`；Provider 状态、覆盖率、IC 趋势及元数据在进入页面/API 前分别收窄为字符串键映射或 JSON 行列表。
+- 修复 Dashboard 上下文只接受 Mapping、把正常 dataclass 和降级对象吞成空字典的问题；DTO 现在通过受控公开字段归一化，首页可以稳定读取 Provider、覆盖率和 IC 状态。
+- Provider、覆盖率或 IC 元数据结构异常时整体降级到明确 fallback 数据；不再以默认 `available/live` 掩盖畸形查询结果。
+- IC 趋势查询天数拒绝布尔值、动态容器、非正数和超过 3650 天的无界请求，避免异常或超大历史查询进入 Application。
+- 三个指标 API handler、query factory Protocol 和动态 payload 补齐精确类型。
+
+## 第二百五十一批验证结果
+
+- Alpha metrics 映射契约与资源边界回归 `3 passed`，首页兼容回归 `1 passed`，Dashboard 全模块及相关组件回归 `118 passed`。
+- Dashboard Alpha metrics views 增量 mypy 清零，Dashboard Alpha context 保持零回归；全仓基线从 `1682 errors / 460 files` 收紧为 `1669 errors / 459 files`，净减少 `13 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

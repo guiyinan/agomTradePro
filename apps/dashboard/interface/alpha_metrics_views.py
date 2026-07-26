@@ -3,38 +3,70 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-from types import SimpleNamespace
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import Any, Protocol
 
-from django.http import JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 
-from apps.dashboard.application.queries import get_alpha_visualization_query
+from apps.dashboard.application.queries import (
+    AlphaVisualizationData,
+    get_alpha_visualization_query,
+)
 from apps.dashboard.interface.api_auth import dashboard_api_view
 
 logger = logging.getLogger(__name__)
+_MAX_ALPHA_IC_DAYS = 3650
+
+
+class AlphaMetricsQuery(Protocol):
+    """Query capability required by the metrics-only dashboard path."""
+
+    def execute_metrics(self, ic_days: int = 30) -> AlphaVisualizationData: ...
+
+
+AlphaMetricsQueryFactory = Callable[[], AlphaMetricsQuery]
 
 
 def _parse_positive_int_param(
-    raw_value: Any,
+    raw_value: object,
     *,
     field_name: str,
     default: int,
 ) -> int:
     value = default if raw_value in (None, "") else raw_value
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise ValueError(f"{field_name} must be a positive integer")
     try:
         parsed = int(value)
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{field_name} must be a positive integer") from exc
     if parsed <= 0:
         raise ValueError(f"{field_name} must be a positive integer")
+    if parsed > _MAX_ALPHA_IC_DAYS:
+        raise ValueError(f"{field_name} must not exceed {_MAX_ALPHA_IC_DAYS}")
     return parsed
 
 
-def get_empty_alpha_metrics_data() -> SimpleNamespace:
+def _json_object(value: object) -> dict[str, Any]:
+    """Normalize a dynamic payload to a string-key mapping."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _json_rows(value: object) -> list[dict[str, Any]]:
+    """Normalize a dynamic collection to JSON object rows."""
+
+    if not isinstance(value, list):
+        return []
+    return [_json_object(item) for item in value if isinstance(item, Mapping)]
+
+
+def get_empty_alpha_metrics_data() -> AlphaVisualizationData:
     """Return empty Alpha metrics for degraded dashboard rendering."""
 
-    return SimpleNamespace(
+    return AlphaVisualizationData(
         stock_scores=[],
         stock_scores_meta={},
         provider_status={
@@ -66,16 +98,27 @@ def get_empty_alpha_metrics_data() -> SimpleNamespace:
 def get_alpha_metrics_data(
     *,
     ic_days: int = 30,
-    query_factory: Callable[[], Any] | None = None,
-):
+    query_factory: AlphaMetricsQueryFactory | None = None,
+) -> AlphaVisualizationData:
     """Return Alpha dashboard metrics without reloading stock recommendations."""
 
     try:
         factory = query_factory or get_alpha_visualization_query
-        query = factory()
-        if hasattr(query, "execute_metrics"):
-            return query.execute_metrics(ic_days=ic_days)
-        return query.execute(top_n=0, ic_days=ic_days, user=None)
+        data = factory().execute_metrics(ic_days=ic_days)
+        provider_status = _json_object(data.provider_status)
+        coverage_metrics = _json_object(data.coverage_metrics)
+        ic_trends = _json_rows(data.ic_trends)
+        ic_trends_meta = _json_object(data.ic_trends_meta)
+        if not provider_status or not coverage_metrics or not ic_trends_meta:
+            raise ValueError("alpha_metrics_payload_invalid")
+        return AlphaVisualizationData(
+            stock_scores=_json_rows(data.stock_scores),
+            stock_scores_meta=_json_object(data.stock_scores_meta),
+            provider_status=provider_status,
+            coverage_metrics=coverage_metrics,
+            ic_trends=ic_trends,
+            ic_trends_meta=ic_trends_meta,
+        )
     except Exception as exc:
         logger.warning("Failed to get alpha metrics data: %s", exc)
         return get_empty_alpha_metrics_data()
@@ -83,8 +126,8 @@ def get_alpha_metrics_data(
 
 def get_alpha_provider_status(
     *,
-    user=None,
-    query_factory: Callable[[], Any] | None = None,
+    user: object | None = None,
+    query_factory: AlphaMetricsQueryFactory | None = None,
 ) -> dict[str, Any]:
     """Return dashboard Alpha provider status payload."""
 
@@ -98,8 +141,8 @@ def get_alpha_provider_status(
 
 def get_alpha_coverage_metrics(
     *,
-    user=None,
-    query_factory: Callable[[], Any] | None = None,
+    user: object | None = None,
+    query_factory: AlphaMetricsQueryFactory | None = None,
 ) -> dict[str, Any]:
     """Return dashboard Alpha coverage metrics."""
 
@@ -114,8 +157,8 @@ def get_alpha_coverage_metrics(
 def get_alpha_ic_trends_payload(
     *,
     days: int = 30,
-    user=None,
-    query_factory: Callable[[], Any] | None = None,
+    user: object | None = None,
+    query_factory: AlphaMetricsQueryFactory | None = None,
 ) -> dict[str, Any]:
     """Return dashboard Alpha IC trend payload."""
 
@@ -140,16 +183,21 @@ def get_alpha_ic_trends_payload(
 def get_alpha_ic_trends(
     *,
     days: int = 30,
-    user=None,
-    query_factory: Callable[[], Any] | None = None,
+    user: object | None = None,
+    query_factory: AlphaMetricsQueryFactory | None = None,
 ) -> list[dict[str, Any]]:
     """Return only the IC trend items."""
 
-    return get_alpha_ic_trends_payload(days=days, user=user, query_factory=query_factory)["items"]
+    items = get_alpha_ic_trends_payload(
+        days=days,
+        user=user,
+        query_factory=query_factory,
+    ).get("items")
+    return _json_rows(items)
 
 
 @dashboard_api_view(["GET"])
-def alpha_provider_status_htmx(request):
+def alpha_provider_status_htmx(request: HttpRequest) -> HttpResponse:
     """Return provider health for the dashboard Alpha panel."""
 
     provider_status = get_alpha_provider_status(user=request.user)
@@ -165,7 +213,7 @@ def alpha_provider_status_htmx(request):
 
 
 @dashboard_api_view(["GET"])
-def alpha_coverage_htmx(request):
+def alpha_coverage_htmx(request: HttpRequest) -> HttpResponse:
     """Return coverage metrics for the dashboard Alpha panel."""
 
     coverage = get_alpha_coverage_metrics(user=request.user)
@@ -181,7 +229,7 @@ def alpha_coverage_htmx(request):
 
 
 @dashboard_api_view(["GET"])
-def alpha_ic_trends_htmx(request):
+def alpha_ic_trends_htmx(request: HttpRequest) -> HttpResponse:
     """Return IC trend series for the dashboard Alpha panel."""
 
     try:

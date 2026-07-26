@@ -121,11 +121,11 @@ def _clone_dashboard_item(item: object) -> JsonObject:
 
 
 def _as_json_object(value: object) -> JsonObject:
-    """Normalize a dynamic application payload to a string-keyed JSON object."""
+    """Normalize a mapping or DTO payload to a string-keyed JSON object."""
 
-    if not isinstance(value, Mapping):
-        return {}
-    return {str(key): item for key, item in value.items()}
+    if isinstance(value, Mapping):
+        return {str(key): item for key, item in value.items()}
+    return _clone_dashboard_item(value)
 
 
 def _as_json_object_list(value: object) -> JsonObjectList:
