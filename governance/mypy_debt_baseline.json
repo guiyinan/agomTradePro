@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1603,
-    "files_with_errors": 452
+    "errors": 1592,
+    "files_with_errors": 450
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1059,11 +1059,6 @@
       "no-untyped-def": 1,
       "var-annotated": 1
     },
-    "apps/policy/application/hedging_use_cases.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 6,
-      "type-arg": 3
-    },
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1
     },
@@ -1080,9 +1075,6 @@
       "attr-defined": 3,
       "no-untyped-def": 3,
       "type-arg": 6
-    },
-    "apps/policy/infrastructure/hedge_position_repository.py": {
-      "no-untyped-def": 1
     },
     "apps/policy/infrastructure/notification_service.py": {
       "arg-type": 1,

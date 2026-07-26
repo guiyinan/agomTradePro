@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from .models import HedgePositionModel
@@ -17,14 +19,14 @@ class HedgePositionRepository:
         instrument_code: str,
         instrument_type: str,
         hedge_ratio: float,
-        hedge_value,
+        hedge_value: Decimal,
         policy_level: str,
         status: str,
         notes: str,
-        execution_price=None,
-        opening_cost=None,
-        total_cost=None,
-        executed_at=None,
+        execution_price: Decimal | None = None,
+        opening_cost: Decimal | None = None,
+        total_cost: Decimal | None = None,
+        executed_at: datetime | None = None,
     ) -> dict[str, Any]:
         """Create one hedge position row and return a lightweight snapshot."""
         hedge = HedgePositionModel._default_manager.create(
@@ -89,11 +91,18 @@ class HedgePositionRepository:
         self,
         *,
         hedge_id: int,
+        portfolio_id: int,
         beta_before: float,
         beta_after: float,
     ) -> bool:
         """Persist computed beta metrics for one hedge position."""
-        return HedgePositionModel._default_manager.filter(id=hedge_id).update(
-            beta_before=beta_before,
-            beta_after=beta_after,
-        ) > 0
+        return (
+            HedgePositionModel._default_manager.filter(
+                id=hedge_id,
+                portfolio_id=portfolio_id,
+            ).update(
+                beta_before=beta_before,
+                beta_after=beta_after,
+            )
+            > 0
+        )

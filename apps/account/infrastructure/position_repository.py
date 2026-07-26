@@ -34,6 +34,14 @@ logger = logging.getLogger(__name__)
 class PositionRepository:
     """持仓仓储"""
 
+    def user_owns_portfolio(self, *, portfolio_id: int, user_id: int) -> bool:
+        """Return whether a portfolio belongs to the given user."""
+
+        return PortfolioModel._default_manager.filter(
+            id=portfolio_id,
+            user_id=user_id,
+        ).exists()
+
     def get_user_positions(
         self,
         user_id: int,

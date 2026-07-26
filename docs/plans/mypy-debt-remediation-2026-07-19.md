@@ -3799,3 +3799,22 @@
 - Policy adapter 与 AI failover 定向回归 `14 passed`；覆盖 Provider 异常脱敏、无效 JSON、未知枚举、异常容器、非字符串列表、`NaN`/`Inf` 和越界置信度失败关闭。
 - Policy AI classifier 增量 mypy 清零；全仓基线从 `1614 errors / 453 files` 收紧为 `1603 errors / 452 files`，净减少 `11 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百五十七批
+
+- 按“对冲金融规则归位 × 组合所有者隔离 × 无有效行情零写入”收口 Policy hedging calculation、execution 与 effectiveness analysis。
+- 对冲比例、工具代码、工具类型和估算费率从 Application 硬编码迁出；Domain 只接受外部配置提供的 `HedgePolicyConfig`，不再内置过期的 `IF2312` 合约或固定费率。
+- 对冲计算金融逻辑迁入纯 Domain；政策档位必须匹配正式枚举且不能处于待分类状态，缺少唯一规则时失败关闭。
+- 组合总值必须为有限正数，权益敞口必须为有限非负数且不超过组合总值；比例和成本费率同样执行有限值及范围校验。
+- 对冲执行和效果分析都要求正整数 `user_id`，并在读取行情、查询对冲记录或写入前通过 Account-owned repository 验证组合归属；跨用户访问统一拒绝。
+- 行情缺失、非正、`NaN` 或 `Inf` 时不再创建 `pending` 记录并返回带当前时间的伪执行结果；现在保持零写入并明确失败。
+- 对冲记录持久化真实政策档位与配置提供的工具类型；执行结果与数据库记录共用同一 `executed_at`，不再产生两个不同时间点。
+- Beta 回写同时按 `hedge_id + portfolio_id` 限定，避免只凭全局主键更新；回写失败不再被当成成功分析。
+- 成本、收益、Beta 和对冲比例统一拒绝非有限值，成本额外要求非负；仓位数据缺失时不再伪造 `beta_before=beta_after=1.0`。
+- Application 的 Account、Realtime 与 Hedge repository 边界改为精确 Protocol/TypedDict，Hedge repository 的 Decimal/datetime 参数补齐类型。
+
+## 第二百五十七批验证结果
+
+- Policy 全模块回归 `155 passed`，对冲定向回归 `7 passed`；覆盖配置驱动计算、未知政策/非法敞口、跨用户执行与分析拒绝、无效行情零写入、非有限成本失败关闭和 portfolio-scoped Beta 回写。
+- Policy hedging Application 与 repository 增量 mypy 清零；全仓基线从 `1603 errors / 452 files` 收紧为 `1592 errors / 450 files`，净减少 `11 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
