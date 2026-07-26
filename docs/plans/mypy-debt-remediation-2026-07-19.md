@@ -4144,3 +4144,22 @@
 - Macro indicator 数值/单位真值与既有服务回归 `17 passed`；Macro facade、策略消费者与系统配置组件回归 `22 passed`。
 - `indicator_service.py` 增量 mypy 清零，Alpha Trigger 消费者保持清零；全仓基线从 `1365 errors / 423 files` 收紧为 `1356 errors / 422 files`，净减少 `9 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百七十七批
+
+- 按“HP 趋势语义正确性 × Filter 持久化保真 × 宏观输入失败关闭”收口 Filter repository 与数值 adapter。
+- 修复 statsmodels `hpfilter` 返回 `(cycle, trend)` 却被反向解包的错误；此前扩张窗口实际把周期项发布为趋势，现在只写入真实 trend。
+- HP lambda 必须有限非负，全部观测必须有限；`NaN/Inf` 不再进入 statsmodels 或被写成趋势结果。
+- Filter result 保存和读取统一用 `is not None` 判断 slope；合法零斜率不再被误写/误读为缺失值。
+- Filter config 更新在保存前执行 `full_clean`；即使非 API 调用绕过 serializer，ORM 字段约束仍在持久化边界执行。
+- 宏观事实查询统一验证非空指标代码、正向日期窗口和 1-2000 的非布尔 limit；修复 limit=0 因 `[-0:]` 意外返回全量数据的问题。
+- Data Center 多源一致性选择前通过正式 Protocol 收窄 ORM fact；选中结果仅发布有限数值，不一致来源继续失败关闭。
+- 指标目录查询只物化一次规范化 code 列表，并使用 `_default_manager`；空代码不再进入 catalog 查询或结果。
+- 删除无类型 statsmodels 直接导入，使用动态第三方边界与精确 callable Protocol；宏观点位用 `MacroIndicatorPoint` TypedDict 在进入 Application 前收窄日期和值。
+- Kalman state 直接从 ORM 精确构造 Domain entity，不再调用无类型 model helper；repository 参数、返回容器和 adapter 状态补齐精确类型。
+
+## 第二百七十七批验证结果
+
+- Filter repository、UseCase 与 API 定向回归 `38 passed`；完整 Filter Dashboard、Domain、UseCase、Repository 与 API 回归 `83 passed`。
+- `repositories.py` 增量 mypy 清零，Filter use cases 保持清零；全仓基线从 `1356 errors / 422 files` 收紧为 `1346 errors / 421 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1356,
-    "files_with_errors": 422
+    "errors": 1346,
+    "files_with_errors": 421
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -803,14 +803,6 @@
     "apps/filter/infrastructure/models.py": {
       "no-untyped-def": 7,
       "type-arg": 1
-    },
-    "apps/filter/infrastructure/repositories.py": {
-      "import-untyped": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 1,
-      "type-arg": 5,
-      "type-var": 1
     },
     "apps/filter/interface/deprecation.py": {
       "misc": 1
