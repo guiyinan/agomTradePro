@@ -4304,3 +4304,20 @@
 - Celery 指标边界与 Prometheus 集成回归 `21 passed`，覆盖空任务 ID、reserved-only worker、异常与重试原因脱敏、任务名上限及装饰器返回契约。
 - `core/celery_metrics.py` 增量 mypy 清零；全仓基线从 `1261 errors / 410 files` 收紧为 `1253 errors / 409 files`，净减少 `8 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百八十七批
+
+- 按“统一监控统计真实性 × Prometheus 标签基数 × 指标异常最小披露”收口 Core Metrics 统一入口。
+- API、Celery 与 Audit 记录器统一验证有限非负时长；负数、布尔值和 `NaN/Inf` 不再进入 Histogram，计数指标仍按合法标签记录。
+- API 方法、端点、视图名、任务名、状态、模块及来源标签统一去空白并限制长度；未知 Celery 状态归一为 `unknown`，非标识符形式的原始重试正文归一为 `other`。
+- API 装饰器优先使用 Django `resolver_match.route`，动态资源 ID 不再直接形成 Prometheus endpoint 标签；缺少路由信息时保留有界 path 回退。
+- 修复指标摘要漏计 4xx 的问题：`api_requests.total` 现在统计全部 API 请求，错误量继续由 `api_error_total` 独立累计。
+- 摘要和三个子域使用稳定 TypedDict 与浮点计数口径；Prometheus sample 值显式转换后聚合，不再因整型初始化变量接收浮点值产生契约错位。
+- Metrics 记录与摘要失败只记录异常类型；摘要返回稳定 `metrics_summary_unavailable`，不再向健康检查响应或日志发布数据库、Redis 等底层异常正文。
+- API 与 Celery 装饰器使用 `ParamSpec + TypeVar` 保持被装饰函数的参数和返回类型，异常路径继续原样抛出，不改变业务控制流。
+
+## 第二百八十七批验证结果
+
+- Core Metrics 边界与 Prometheus 集成回归 `20 passed`，覆盖非有限延迟、原始重试原因、未知状态、4xx 总数、摘要异常脱敏及 resolver route 标签。
+- `core/metrics.py` 增量 mypy 清零；全仓基线从 `1253 errors / 409 files` 收紧为 `1248 errors / 408 files`，净减少 `5 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
