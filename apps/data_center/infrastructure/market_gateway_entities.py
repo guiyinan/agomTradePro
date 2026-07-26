@@ -7,6 +7,7 @@ Data Center 网关层标准实体
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -37,7 +38,7 @@ class QuoteSnapshot:
         if self.price < 0:
             raise ValueError(f"price 不能为负数: {self.price}")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "stock_code": self.stock_code,
@@ -79,7 +80,7 @@ class CapitalFlowSnapshot:
         if not self.stock_code:
             raise ValueError("stock_code 不能为空")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "stock_code": self.stock_code,
@@ -125,7 +126,7 @@ class StockNewsItem:
             return f"{self.title}\n{self.content}"
         return self.title
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "stock_code": self.stock_code,
@@ -170,7 +171,7 @@ class TechnicalSnapshot:
         if not self.stock_code:
             raise ValueError("stock_code 不能为空")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "stock_code": self.stock_code,
@@ -218,7 +219,7 @@ class HistoricalPriceBar:
         if self.close < 0:
             raise ValueError(f"close 不能为负数: {self.close}")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "asset_code": self.asset_code,
@@ -248,7 +249,7 @@ class ProviderStatus:
     circuit_open_until: datetime | None = None
     avg_latency_ms: float | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "provider_name": self.provider_name,
@@ -273,7 +274,7 @@ class RawPayload:
     request_type: str
     stock_code: str
     provider_name: str
-    payload: dict
+    payload: dict[str, Any]
     parse_status: str = "success"
     error_message: str = ""
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))

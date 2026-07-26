@@ -4390,3 +4390,17 @@
 - Terminal 页面、组件与 API 边界回归 `31 passed`；项目固定 TUI workbench 与 Terminal Agent 最小回归包 `208 passed`。
 - `views.py` 增量 mypy 清零；全仓基线从 `1229 errors / 405 files` 收紧为 `1221 errors / 404 files`，净减少 `8 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百九十二批
+
+- 按“多数据源共享契约 × 标准行情序列化 × 原始载荷动态边界”收口 Data Center 市场网关标准实体。
+- 行情、资金流、新闻、技术指标、历史 K 线与 Provider 状态的 `to_dict` 返回值统一声明为 `dict[str, object]`；调用方不再接收缺失键值类型的裸字典。
+- `RawPayload.payload` 将动态类型限制在外部 Provider 原始响应边界，并显式声明为 `dict[str, Any]`；动态数据不再由无参数容器类型向其他标准 DTO 扩散。
+- 保持现有价格、资金流、指标和 Provider 健康状态业务语义不变，本批不引入未经正式规则确认的行情取值约束。
+- 补齐技术指标 Decimal 序列化、历史 OHLCV 标准字段与嵌套原始 Provider 载荷回归，覆盖此前缺少测试的共享 DTO。
+
+## 第二百九十二批验证结果
+
+- 市场网关实体与 Provider 回归 `44 passed`。
+- `market_gateway_entities.py` 增量 mypy 清零；全仓基线从 `1221 errors / 404 files` 收紧为 `1214 errors / 403 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

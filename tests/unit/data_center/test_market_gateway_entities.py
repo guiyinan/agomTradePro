@@ -9,8 +9,10 @@ import pytest
 
 from apps.data_center.infrastructure.market_gateway_entities import (
     CapitalFlowSnapshot,
+    HistoricalPriceBar,
     ProviderStatus,
     QuoteSnapshot,
+    RawPayload,
     StockNewsItem,
     TechnicalSnapshot,
 )
@@ -164,6 +166,48 @@ class TestTechnicalSnapshot:
                 close=Decimal("10.0"),
             )
 
+    def test_to_dict_serializes_decimal_values(self):
+        snap = TechnicalSnapshot(
+            stock_code="000001.SZ",
+            trade_date=date(2026, 3, 1),
+            close=Decimal("15.50"),
+            ma5=Decimal("15.25"),
+        )
+
+        payload = snap.to_dict()
+
+        assert payload["close"] == "15.50"
+        assert payload["ma5"] == "15.25"
+
+
+class TestHistoricalPriceBar:
+    def test_to_dict_preserves_standard_ohlcv_fields(self):
+        bar = HistoricalPriceBar(
+            asset_code="000001.SZ",
+            trade_date=date(2026, 3, 1),
+            open=15.0,
+            high=16.0,
+            low=14.5,
+            close=15.5,
+            volume=1000,
+            amount=15500.0,
+            source="test",
+        )
+
+        payload = bar.to_dict()
+
+        assert payload == {
+            "asset_code": "000001.SZ",
+            "trade_date": "2026-03-01",
+            "open": 15.0,
+            "high": 16.0,
+            "low": 14.5,
+            "close": 15.5,
+            "volume": 1000,
+            "amount": 15500.0,
+            "source": "test",
+        }
+
 
 class TestProviderStatus:
     def test_to_dict(self):
@@ -177,3 +221,17 @@ class TestProviderStatus:
         assert d["provider_name"] == "eastmoney"
         assert d["is_healthy"] is True
 
+
+class TestRawPayload:
+    def test_accepts_dynamic_provider_payload(self):
+        raw = RawPayload(
+            request_type="realtime_quote",
+            stock_code="000001.SZ",
+            provider_name="eastmoney",
+            payload={
+                "data": {"price": 15.5},
+                "items": [1, "two", None],
+            },
+        )
+
+        assert raw.payload["data"] == {"price": 15.5}

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1221,
-    "files_with_errors": 404
+    "errors": 1214,
+    "files_with_errors": 403
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -535,9 +535,6 @@
     },
     "apps/data_center/infrastructure/market_breadth_repositories.py": {
       "misc": 1
-    },
-    "apps/data_center/infrastructure/market_gateway_entities.py": {
-      "type-arg": 7
     },
     "apps/data_center/infrastructure/parsers/eastmoney_capital_flow_parser.py": {
       "import-untyped": 1,
