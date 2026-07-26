@@ -65,12 +65,8 @@ DECISION_WORKSPACE_V2_ENABLED = env.bool("DECISION_WORKSPACE_V2_ENABLED", defaul
 
 # Research integrity cutover flags. Defaults preserve legacy read paths while
 # all new evidence is recorded; production enables each gate after shadowing.
-RESEARCH_PIT_REQUIRED_FOR_PROMOTION = env.bool(
-    "RESEARCH_PIT_REQUIRED_FOR_PROMOTION", default=False
-)
-PORTFOLIO_CANONICAL_PLANNER_ENABLED = env.bool(
-    "PORTFOLIO_CANONICAL_PLANNER_ENABLED", default=False
-)
+RESEARCH_PIT_REQUIRED_FOR_PROMOTION = env.bool("RESEARCH_PIT_REQUIRED_FOR_PROMOTION", default=False)
+PORTFOLIO_CANONICAL_PLANNER_ENABLED = env.bool("PORTFOLIO_CANONICAL_PLANNER_ENABLED", default=False)
 DECISION_SNAPSHOT_REQUIRED = env.bool("DECISION_SNAPSHOT_REQUIRED", default=False)
 PROMPT_EVAL_GATE_ENABLED = env.bool("PROMPT_EVAL_GATE_ENABLED", default=False)
 SIGNAL_FORECAST_LEDGER_ENABLED = env.bool("SIGNAL_FORECAST_LEDGER_ENABLED", default=False)
@@ -268,6 +264,10 @@ AUTHENTICATION_BACKENDS = [
 # Login lockout settings
 LOGIN_LOCKOUT_MAX_ATTEMPTS = env.int("LOGIN_LOCKOUT_MAX_ATTEMPTS", default=5)
 LOGIN_LOCKOUT_WINDOW_SECONDS = env.int("LOGIN_LOCKOUT_WINDOW_SECONDS", default=900)
+LOGIN_LOCKOUT_TRUST_X_FORWARDED_FOR = env.bool(
+    "LOGIN_LOCKOUT_TRUST_X_FORWARDED_FOR",
+    default=False,
+)
 
 # Internationalization
 LANGUAGE_CODE = "zh-hans"

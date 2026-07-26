@@ -4507,3 +4507,20 @@
 - AI Capability Domain 专项回归 `27 passed`；完整 AI Capability 单元与组件回归 `681 passed`。
 - `entities.py` 增量 mypy 清零；全仓基线从 `1175 errors / 397 files` 收紧为 `1172 errors / 396 files`，净减少 `3 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百批
+
+- 按“全局登录防爆破 × 客户端 IP 信任边界 × 缓存计数原子性”收口 Core lockout authentication backend。
+- 客户端 IP 默认只使用连接的 `REMOTE_ADDR`；仅当 `LOGIN_LOCKOUT_TRUST_X_FORWARDED_FOR=True` 时读取首个 XFF，直连客户端不再通过伪造转发头轮换锁定键。
+- 新增环境配置示例并明确只有公共流量全部经过会覆盖 XFF 的可信代理时才可开启。
+- 用户名在生成锁定键前执行 NFKC 归一化和去空白；不会把兼容 Unicode 写法拆成不同计数键，同时保留大小写语义。
+- 最大尝试次数和窗口必须为正整数；布尔、非数字、零和负数回退 `5 / 900` 安全默认值，不再形成全员立即锁定或无效过期窗口。
+- 首次失败使用缓存原子 `add` 建立带 TTL 的计数，已有键再执行 `incr`；并发首批失败不再因多个 `set(1)` 相互覆盖而漏计。
+- 缓存计数只接受非负整数或整数字符串，布尔、负数和异常结构按零处理；Redis 读取、递增和删除失败日志只发布异常类型，不泄露连接串或认证信息。
+- Authentication backend 补齐 Django request、用户名、密码、动态 kwargs 与默认 User 返回契约；可选 Redis 异常类型不再依赖宽泛 ignore。
+
+## 第三百批验证结果
+
+- Core Security 与认证强化 Guardrail 回归 `13 passed`。
+- `core/security.py` 增量 mypy 清零；全仓基线从 `1172 errors / 396 files` 收紧为 `1167 errors / 395 files`，净减少 `5 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

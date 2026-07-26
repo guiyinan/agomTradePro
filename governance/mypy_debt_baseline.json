@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1172,
-    "files_with_errors": 396
+    "errors": 1167,
+    "files_with_errors": 395
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1332,11 +1332,6 @@
     },
     "core/middleware/security.py": {
       "no-untyped-def": 3
-    },
-    "core/security.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 3,
-      "unused-ignore": 1
     },
     "core/settings/development.py": {
       "attr-defined": 2,
