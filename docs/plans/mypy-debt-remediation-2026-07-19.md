@@ -3731,3 +3731,22 @@
 - Alpha history 局部回归 `4 passed`，Dashboard 全模块及相关组件回归 `119 passed`；覆盖历史筛选、用户隔离参数、详情快照和非法 run ID 查询前拒绝。
 - Dashboard Alpha history views 增量 mypy 清零；全仓基线从 `1669 errors / 459 files` 收紧为 `1657 errors / 458 files`，净减少 `12 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百五十三批
+
+- 按“回测所有者隔离 × 创建归属原子性 × 失败响应真实性”收口 Backtest 公共页面、API、Application 与 Repository。
+- 回测列表、详情、统计、删除和重跑检查统一传递当前认证用户 ID；普通用户不能再读取、统计或删除其他用户及系统级回测。
+- 页面列表、创建和详情增加登录保护，详情查询按所有者过滤；独立统计 API 改用 DRF 认证，Token/API 调用与 Session 调用均保持受保护。
+- 普通回测创建在首次数据库写入时直接保存 `user_id`；不再先创建无主记录。Decision replay 同样改为原子绑定所有者，不再创建后二次更新。
+- Repository 的单条查询、状态列表、全部列表、删除和统计新增可选 owner scope；收益率最大值、最小值和均值也使用同一用户过滤后的 QuerySet。
+- 修复 ViewSet create 未移除 serializer 默认 `run_async=False`、导致同步回测构造请求时出现未知参数并失败的问题；参数现在在统一 Application boundary 清理。
+- 回测执行失败不再把数据库、Provider、PIT 或引擎异常原文返回客户端；统一发布稳定 `backtest_execution_failed`。Decision replay 失败同样返回稳定错误码。
+- 尚未实现的 rerun 不再返回“Rerun initiated”虚假成功，改为明确 501 `backtest_rerun_not_implemented`。
+- limit、path ID 和认证用户 ID 统一要求正整数，列表 limit 上限为 500；非法参数在进入 Application/ORM 前返回 400。
+
+## 第二百五十三批验证结果
+
+- Backtest API 安全与契约回归 `9 passed`，Application/Repository 定向回归 `27 passed`，API、Domain 与执行扩展回归 `41 passed`。
+- 覆盖跨用户列表/详情/删除隔离、创建 owner 传递、内部异常脱敏、重跑非虚假成功、非法参数、PIT 失败关闭和完整执行链。
+- Backtest views、use cases 与 decision replay 增量 mypy 清零；全仓基线从 `1657 errors / 458 files` 收紧为 `1636 errors / 455 files`，净减少 `21 errors / 3 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

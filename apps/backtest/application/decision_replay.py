@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from apps.backtest.application.repository_provider import (
     get_backtest_repository,
@@ -16,14 +16,15 @@ from apps.backtest.domain.entities import BacktestConfig
 from core.integration.decision_recommendations import build_decision_recommendation_plan_reader
 
 
-def get_manual_trade_sync_repository():
+def get_manual_trade_sync_repository() -> Any:
     """Return the account-owned manual trade sync repository."""
 
     from apps.account.application.repository_provider import (
         get_manual_trade_sync_repository as _get_manual_trade_sync_repository,
     )
 
-    return _get_manual_trade_sync_repository()
+    repository_factory = cast(Callable[[], Any], _get_manual_trade_sync_repository)
+    return repository_factory()
 
 
 @dataclass(frozen=True)
@@ -51,9 +52,9 @@ class DecisionReplayBacktestUseCase:
     def __init__(
         self,
         *,
-        trade_repo=None,
-        backtest_repo=None,
-        recommendation_repo=None,
+        trade_repo: Any | None = None,
+        backtest_repo: Any | None = None,
+        recommendation_repo: Any | None = None,
         price_series_reader: Callable[[str, date, date], list[tuple[date, float]]] | None = None,
     ) -> None:
         self.trade_repo = trade_repo or get_manual_trade_sync_repository()
@@ -81,9 +82,8 @@ class DecisionReplayBacktestUseCase:
         model = self.backtest_repo.create_backtest(
             name=f"Decision replay {request.branch_type} {request.start_date}..{request.end_date}",
             config=config,
+            user_id=request.user_id,
         )
-        model.user_id = request.user_id
-        model.save(update_fields=["user"])
 
         transactions = self.trade_repo.list_imported_transactions_for_portfolio(
             user_id=request.user_id,
@@ -103,7 +103,9 @@ class DecisionReplayBacktestUseCase:
             return DecisionReplayBacktestResponse(success=True, backtest_id=model.id)
         except Exception as exc:
             model.mark_failed(str(exc))
-            return DecisionReplayBacktestResponse(success=False, backtest_id=model.id, error=str(exc))
+            return DecisionReplayBacktestResponse(
+                success=False, backtest_id=model.id, error=str(exc)
+            )
 
     def _simulate(
         self,
@@ -181,9 +183,7 @@ class DecisionReplayBacktestUseCase:
 
         final_capital = self._portfolio_value(cash, positions, last_price)
         total_return = (
-            float((final_capital - initial_capital) / initial_capital)
-            if initial_capital
-            else 0.0
+            float((final_capital - initial_capital) / initial_capital) if initial_capital else 0.0
         )
         equity_values = [Decimal(str(point["value"])) for point in equity_curve]
         max_drawdown = self._max_drawdown(equity_values)

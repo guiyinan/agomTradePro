@@ -30,7 +30,13 @@ class DjangoBacktestRepository:
         self._model = BacktestResultModel
         self._trade_model = BacktestTradeModel
 
-    def create_backtest(self, name: str, config: BacktestConfig) -> BacktestResultModel:
+    def create_backtest(
+        self,
+        name: str,
+        config: BacktestConfig,
+        *,
+        user_id: int | None = None,
+    ) -> BacktestResultModel:
         """
         创建回测记录
 
@@ -42,6 +48,7 @@ class DjangoBacktestRepository:
             BacktestResultModel: 创建的 ORM 模型实例
         """
         return self._model.objects.create(
+            user_id=user_id,
             name=name,
             status="pending",
             start_date=config.start_date,
@@ -60,7 +67,12 @@ class DjangoBacktestRepository:
             decision_snapshot_id=config.decision_snapshot_id,
         )
 
-    def get_backtest_by_id(self, backtest_id: int) -> BacktestResultModel | None:
+    def get_backtest_by_id(
+        self,
+        backtest_id: int,
+        *,
+        user_id: int | None = None,
+    ) -> BacktestResultModel | None:
         """
         按 ID 获取回测记录
 
@@ -71,11 +83,19 @@ class DjangoBacktestRepository:
             Optional[BacktestResultModel]: 回测 ORM 模型，不存在则返回 None
         """
         try:
-            return self._model.objects.get(id=backtest_id)
+            filters: dict[str, int] = {"id": backtest_id}
+            if user_id is not None:
+                filters["user_id"] = user_id
+            return self._model.objects.get(**filters)
         except self._model.DoesNotExist:
             return None
 
-    def get_backtests_by_status(self, status: str) -> list[BacktestResultModel]:
+    def get_backtests_by_status(
+        self,
+        status: str,
+        *,
+        user_id: int | None = None,
+    ) -> list[BacktestResultModel]:
         """
         按状态获取回测列表
 
@@ -85,9 +105,17 @@ class DjangoBacktestRepository:
         Returns:
             List[BacktestResultModel]: 回测 ORM 模型列表
         """
-        return list(self._model.objects.filter(status=status).order_by("-created_at"))
+        queryset = self._model.objects.filter(status=status)
+        if user_id is not None:
+            queryset = queryset.filter(user_id=user_id)
+        return list(queryset.order_by("-created_at"))
 
-    def get_all_backtests(self, limit: int | None = None) -> list[BacktestResultModel]:
+    def get_all_backtests(
+        self,
+        limit: int | None = None,
+        *,
+        user_id: int | None = None,
+    ) -> list[BacktestResultModel]:
         """
         获取所有回测记录
 
@@ -97,7 +125,10 @@ class DjangoBacktestRepository:
         Returns:
             List[BacktestResultModel]: 回测 ORM 模型列表
         """
-        query = self._model.objects.all().order_by("-created_at")
+        query = self._model.objects.all()
+        if user_id is not None:
+            query = query.filter(user_id=user_id)
+        query = query.order_by("-created_at")
         if limit:
             return list(query[:limit])
         return list(query)
@@ -180,7 +211,12 @@ class DjangoBacktestRepository:
         except self._model.DoesNotExist:
             return False
 
-    def delete_backtest(self, backtest_id: int) -> bool:
+    def delete_backtest(
+        self,
+        backtest_id: int,
+        *,
+        user_id: int | None = None,
+    ) -> bool:
         """
         删除回测记录
 
@@ -190,7 +226,10 @@ class DjangoBacktestRepository:
         Returns:
             bool: 是否成功删除
         """
-        count, _ = self._model.objects.filter(id=backtest_id).delete()
+        queryset = self._model.objects.filter(id=backtest_id)
+        if user_id is not None:
+            queryset = queryset.filter(user_id=user_id)
+        count, _ = queryset.delete()
         return count > 0
 
     def delete_completed_before(self, cutoff: datetime) -> int:
@@ -204,27 +243,30 @@ class DjangoBacktestRepository:
         queryset.delete()
         return backtest_count
 
-    def get_statistics(self) -> dict[str, Any]:
+    def get_statistics(self, *, user_id: int | None = None) -> dict[str, Any]:
         """
         获取回测统计信息
 
         Returns:
             Dict: 统计信息字典
         """
-        total = self._model.objects.count()
+        queryset = self._model.objects.all()
+        if user_id is not None:
+            queryset = queryset.filter(user_id=user_id)
+        total = queryset.count()
 
         # 按状态统计
         status_stats = {}
         for status_choice in self._model.STATUS_CHOICES:
             status_value = status_choice[0]
-            count = self._model.objects.filter(status=status_value).count()
+            count = queryset.filter(status=status_value).count()
             status_stats[status_value] = {
                 "count": count,
                 "percentage": count / total if total > 0 else 0,
             }
 
         # 计算平均收益率（仅针对已完成的回测）
-        completed = self._model.objects.filter(status="completed", total_return__isnull=False)
+        completed = queryset.filter(status="completed", total_return__isnull=False)
         if completed.exists():
             avg_result = completed.aggregate(avg=Avg("total_return"))
             avg_return = avg_result["avg"] or 0

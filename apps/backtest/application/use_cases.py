@@ -48,6 +48,7 @@ class RunBacktestRequest:
     engine_version: str = "backtest-v1"
     research_trial_id: str | None = None
     decision_snapshot_id: str | None = None
+    user_id: int | None = None
 
 
 @dataclass
@@ -78,7 +79,7 @@ class RunBacktestUseCase:
     def __init__(
         self,
         repository: DjangoBacktestRepository,
-        get_regime_func: Callable[[date], dict | None],
+        get_regime_func: Callable[[date], dict[str, object] | None],
         get_asset_price_func: Callable[[str, date], float | None],
         pit_data_view: PITDataView | None = None,
         get_decision_snapshot_func: Callable[[str], Any] | None = None,
@@ -105,7 +106,7 @@ class RunBacktestUseCase:
         Returns:
             RunBacktestResponse: 回测结果
         """
-        errors = []
+        errors: list[str] = []
         warnings = []
         backtest_id = None  # 初始化以避免异常处理时 UnboundLocalError
 
@@ -129,7 +130,14 @@ class RunBacktestUseCase:
             )
 
             # 2. 创建回测记录
-            backtest_model = self.repository.create_backtest(request.name, config)
+            if request.user_id is None:
+                backtest_model = self.repository.create_backtest(request.name, config)
+            else:
+                backtest_model = self.repository.create_backtest(
+                    request.name,
+                    config,
+                    user_id=request.user_id,
+                )
             backtest_id = backtest_model.id
 
             # 3. 标记为运行中
@@ -226,13 +234,16 @@ class RunBacktestUseCase:
     @staticmethod
     def _build_pit_readers(
         pit_data_view: PITDataView,
-    ) -> tuple[Callable[[date], dict | None], Callable[[str, date], float | None]]:
+    ) -> tuple[
+        Callable[[date], dict[str, object] | None],
+        Callable[[str, date], float | None],
+    ]:
         """Adapt the canonical PIT view to the legacy engine callback contract."""
 
         def as_of(day: date) -> datetime:
             return datetime.combine(day, time.max, tzinfo=UTC)
 
-        def get_regime(day: date) -> dict | None:
+        def get_regime(day: date) -> dict[str, object] | None:
             rows = pit_data_view.query("regime_state", as_of(day), "public", {})
             return dict(rows[0].payload) if rows else None
 
@@ -256,6 +267,7 @@ class GetBacktestResultRequest:
     """获取回测结果的请求 DTO"""
 
     backtest_id: int
+    user_id: int | None = None
 
 
 @dataclass
@@ -291,7 +303,14 @@ class GetBacktestResultUseCase:
         Returns:
             GetBacktestResultResponse: 回测结果
         """
-        backtest = self.repository.get_backtest_by_id(request.backtest_id)
+        backtest = (
+            self.repository.get_backtest_by_id(request.backtest_id)
+            if request.user_id is None
+            else self.repository.get_backtest_by_id(
+                request.backtest_id,
+                user_id=request.user_id,
+            )
+        )
 
         if not backtest:
             return GetBacktestResultResponse(
@@ -329,6 +348,7 @@ class ListBacktestsRequest:
 
     status: str | None = None
     limit: int | None = None
+    user_id: int | None = None
 
 
 @dataclass
@@ -362,9 +382,23 @@ class ListBacktestsUseCase:
             ListBacktestsResponse: 回测列表
         """
         if request.status:
-            backtests = self.repository.get_backtests_by_status(request.status)
+            backtests = (
+                self.repository.get_backtests_by_status(request.status)
+                if request.user_id is None
+                else self.repository.get_backtests_by_status(
+                    request.status,
+                    user_id=request.user_id,
+                )
+            )
         else:
-            backtests = self.repository.get_all_backtests(request.limit)
+            backtests = (
+                self.repository.get_all_backtests(request.limit)
+                if request.user_id is None
+                else self.repository.get_all_backtests(
+                    request.limit,
+                    user_id=request.user_id,
+                )
+            )
 
         return ListBacktestsResponse(
             backtests=[
@@ -388,6 +422,7 @@ class DeleteBacktestRequest:
     """删除回测的请求 DTO"""
 
     backtest_id: int
+    user_id: int | None = None
 
 
 @dataclass
@@ -420,7 +455,14 @@ class DeleteBacktestUseCase:
         Returns:
             DeleteBacktestResponse: 删除结果
         """
-        success = self.repository.delete_backtest(request.backtest_id)
+        success = (
+            self.repository.delete_backtest(request.backtest_id)
+            if request.user_id is None
+            else self.repository.delete_backtest(
+                request.backtest_id,
+                user_id=request.user_id,
+            )
+        )
 
         if not success:
             return DeleteBacktestResponse(
@@ -435,7 +477,7 @@ class GetBacktestStatisticsResponse:
     """获取回测统计的响应 DTO"""
 
     total: int
-    by_status: dict[str, dict]
+    by_status: dict[str, dict[str, int | float]]
     avg_return: float
     max_return: float
     min_return: float
@@ -453,14 +495,18 @@ class GetBacktestStatisticsUseCase:
         """
         self.repository = repository
 
-    def execute(self) -> GetBacktestStatisticsResponse:
+    def execute(self, *, user_id: int | None = None) -> GetBacktestStatisticsResponse:
         """
         执行获取统计
 
         Returns:
             GetBacktestStatisticsResponse: 统计数据
         """
-        stats = self.repository.get_statistics()
+        stats = (
+            self.repository.get_statistics()
+            if user_id is None
+            else self.repository.get_statistics(user_id=user_id)
+        )
 
         return GetBacktestStatisticsResponse(
             total=stats["total"],

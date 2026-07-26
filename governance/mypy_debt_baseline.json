@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1657,
-    "files_with_errors": 458
+    "errors": 1636,
+    "files_with_errors": 455
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -424,14 +424,6 @@
     "apps/audit/templatetags/audit_filters.py": {
       "no-untyped-def": 2
     },
-    "apps/backtest/application/decision_replay.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 2
-    },
-    "apps/backtest/application/use_cases.py": {
-      "type-arg": 4,
-      "var-annotated": 1
-    },
     "apps/backtest/domain/alpha_backtest.py": {
       "assignment": 2,
       "no-untyped-def": 3,
@@ -469,9 +461,6 @@
       "arg-type": 1,
       "no-untyped-def": 3,
       "type-arg": 7
-    },
-    "apps/backtest/interface/views.py": {
-      "no-untyped-def": 13
     },
     "apps/beta_gate/interface/api_urls.py": {
       "no-untyped-def": 1

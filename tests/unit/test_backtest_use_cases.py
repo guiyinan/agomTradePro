@@ -95,3 +95,49 @@ def test_pit_verified_backtest_fails_closed_without_decision_snapshot_reader() -
     assert response.status == "failed"
     assert "decision snapshot reader" in response.errors[0]
 
+
+def test_run_backtest_binds_record_to_request_user(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class Repository:
+        def create_backtest(self, name, config, *, user_id=None):
+            captured["user_id"] = user_id
+            return SimpleNamespace(id=73)
+
+        def update_status(self, *args):
+            return True
+
+        def save_result(self, *args):
+            return True
+
+    monkeypatch.setattr(
+        "apps.backtest.application.use_cases.BacktestEngine",
+        lambda **kwargs: SimpleNamespace(
+            run=lambda: SimpleNamespace(
+                warnings=[],
+                to_summary_dict=lambda: {"total_return": 0.0},
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        "apps.backtest.application.use_cases.generate_attribution_report_for_backtest",
+        lambda **kwargs: SimpleNamespace(success=True, report_id=1, error=None),
+    )
+    use_case = RunBacktestUseCase(
+        repository=Repository(),
+        get_regime_func=lambda _: None,
+        get_asset_price_func=lambda *_: None,
+    )
+
+    response = use_case.execute(
+        RunBacktestRequest(
+            name="owned",
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 1, 31),
+            initial_capital=100000.0,
+            user_id=19,
+        )
+    )
+
+    assert response.status == "completed"
+    assert captured["user_id"] == 19

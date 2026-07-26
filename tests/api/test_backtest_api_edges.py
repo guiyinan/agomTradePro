@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -45,7 +46,7 @@ def test_backtest_list_success_contract(authenticated_client):
         ],
         "total_count": 1,
     }
-    mock_list.assert_called_once_with(status_filter="completed", limit=10)
+    mock_list.assert_called_once_with(user_id=1, status_filter="completed", limit=10)
 
 
 @pytest.mark.django_db
@@ -80,7 +81,7 @@ def test_backtest_detail_success_contract(authenticated_client):
             "sharpe_ratio": 1.4,
         },
     }
-    mock_detail.assert_called_once_with(17)
+    mock_detail.assert_called_once_with(17, user_id=1)
 
 
 @pytest.mark.django_db
@@ -139,7 +140,7 @@ def test_backtest_list_rejects_non_integer_limit(authenticated_client):
     response = authenticated_client.get("/api/backtest/backtests/?limit=bad")
 
     assert response.status_code == 400
-    assert response.json()["error"] == "limit must be an integer"
+    assert response.json()["error"] == "limit must be a positive integer"
 
 
 @pytest.mark.django_db
@@ -166,3 +167,102 @@ def test_backtest_rerun_returns_404_for_missing_backtest(authenticated_client):
 
     assert response.status_code == 404
     assert response.json()["error"] == "Backtest not found"
+
+
+@pytest.mark.django_db
+def test_backtest_list_and_detail_are_owner_scoped(authenticated_client, auth_user):
+    other_user = get_user_model().objects.create_user(
+        username="other_backtest_user",
+        password="testpass123",
+    )
+    own = BacktestResultModel.objects.create(
+        user=auth_user,
+        name="Own backtest",
+        status="completed",
+        start_date="2026-01-01",
+        end_date="2026-01-31",
+        initial_capital=100000.0,
+        rebalance_frequency="monthly",
+    )
+    other = BacktestResultModel.objects.create(
+        user=other_user,
+        name="Other backtest",
+        status="completed",
+        start_date="2026-01-01",
+        end_date="2026-01-31",
+        initial_capital=100000.0,
+        rebalance_frequency="monthly",
+    )
+
+    list_response = authenticated_client.get("/api/backtest/backtests/")
+    detail_response = authenticated_client.get(f"/api/backtest/backtests/{other.id}/")
+    delete_response = authenticated_client.delete(f"/api/backtest/backtests/{other.id}/")
+
+    assert list_response.status_code == 200
+    assert [item["id"] for item in list_response.json()["backtests"]] == [own.id]
+    assert detail_response.status_code == 404
+    assert delete_response.status_code == 404
+    assert BacktestResultModel.objects.filter(id=other.id).exists()
+
+
+@pytest.mark.django_db
+def test_backtest_create_passes_owner_and_redacts_internal_failure(
+    authenticated_client,
+    auth_user,
+):
+    secret = "postgresql://internal-user:secret@database/backtest"
+    failed = SimpleNamespace(
+        status="failed",
+        errors=[secret],
+        warnings=[],
+        backtest_id=None,
+        result=None,
+    )
+    request_payload = {
+        "name": "Owner-scoped run",
+        "start_date": "2026-01-01",
+        "end_date": "2026-01-31",
+        "initial_capital": 100000,
+        "rebalance_frequency": "monthly",
+    }
+
+    with patch(
+        "apps.backtest.interface.views.run_backtest_payload",
+        return_value=failed,
+    ) as mock_run:
+        response = authenticated_client.post(
+            "/api/backtest/backtests/",
+            request_payload,
+            format="json",
+        )
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "error": "Backtest failed",
+        "error_code": "backtest_execution_failed",
+        "warnings": [],
+    }
+    assert secret not in response.content.decode()
+    assert mock_run.call_args.kwargs["user_id"] == auth_user.id
+
+
+@pytest.mark.django_db
+def test_backtest_rerun_does_not_report_false_success(authenticated_client, auth_user):
+    backtest = BacktestResultModel.objects.create(
+        user=auth_user,
+        name="Existing backtest",
+        status="completed",
+        start_date="2026-01-01",
+        end_date="2026-01-31",
+        initial_capital=100000.0,
+        rebalance_frequency="monthly",
+    )
+
+    response = authenticated_client.post(
+        f"/api/backtest/backtests/{backtest.id}/rerun/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 501
+    assert response.json()["error_code"] == "backtest_rerun_not_implemented"
