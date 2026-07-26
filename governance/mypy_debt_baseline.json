@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1452,
-    "files_with_errors": 433
+    "errors": 1448,
+    "files_with_errors": 432
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -423,10 +423,6 @@
     },
     "apps/audit/templatetags/audit_filters.py": {
       "no-untyped-def": 2
-    },
-    "apps/backtest/domain/stock_selection_backtest.py": {
-      "type-arg": 2,
-      "var-annotated": 2
     },
     "apps/backtest/infrastructure/adapters/base.py": {
       "no-untyped-def": 1

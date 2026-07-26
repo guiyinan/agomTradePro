@@ -3986,3 +3986,20 @@
 - Alpha 回测金融不变量与 Backtest Domain 回归 `29 passed`，Alpha 回测集成与 Backtest API 回归 `19 passed`；覆盖资本/费率边界、PIT、缺失退出价、双边佣金、最终净值、服务不可用和异常脱敏。
 - `alpha_backtest.py` 增量 mypy 清零；全仓基线从 `1464 errors / 434 files` 收紧为 `1452 errors / 433 files`，净减少 `12 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百六十八批
+
+- 按“通用股票回测持仓守恒 × 真实成交表现 × 日历与风险配置可信”收口 `StockSelectionBacktestEngine`，并同步保持 Alpha 子类契约一致。
+- 修复通用引擎与 Alpha 相同的先删仓后读退出行情问题；持仓退出、估值或最终清算价格缺失、非正或非有限时失败关闭，不再发布资产凭空消失的收益结果。
+- 最终持仓统一持有到请求结束日，双边佣金、最终清算交易数、实际再平衡次数和终端净值进入同一结果口径。
+- 内部逐笔表现记录改为精确 TypedDict，持久保留真实入场/退出日期、价格、收益率和持有天数；删除固定持有 30 天、固定退出价 100 和用 entry price 冒充 entry date 的伪造整理逻辑。
+- 配置统一验证起止日期、有限正本金、正持仓上限、正式权重方法、佣金/滑点和年化无风险利率；夏普计算从配置读取无风险利率，不再在算法内硬编码 3%。
+- 月度与季度再平衡使用日历安全的月份推进；1 月 31 日等月末日期会按目标月末收敛，不再因不存在的 2 月 31 日抛错。
+- 缺失 Regime、缺失对应筛选规则或全程无可执行观测时失败关闭，不再默认假设 Recovery 或发布零收益的伪有效回测。
+- 市值权重只接受有限正市值；风险指标在仅有一个收益观测时返回零波动，不再调用样本标准差触发异常。
+
+## 第二百六十八批验证结果
+
+- 通用/Alpha 回测金融不变量与 Backtest Domain 回归 `40 passed`，完整回测指标、Alpha 集成与 Backtest API 回归 `27 passed`。
+- `stock_selection_backtest.py` 增量 mypy 清零，Alpha 子类保持清零；全仓基线从 `1452 errors / 433 files` 收紧为 `1448 errors / 432 files`，净减少 `4 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

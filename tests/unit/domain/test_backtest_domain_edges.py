@@ -264,7 +264,27 @@ def test_stock_selection_helper_fallbacks_are_explicit() -> None:
     assert volatility > 0
     assert drawdown == pytest.approx(0.1)
     assert sharpe != 0
-    assert engine._calculate_win_loss_stats({"A": [{"return": 0.2}, {"return": -0.1}]}) == (
+    performance_records = {
+        "A": [
+            {
+                "entry_date": date(2024, 1, 1),
+                "entry_price": Decimal("100"),
+                "exit_date": date(2024, 1, 2),
+                "exit_price": Decimal("120"),
+                "return_rate": 0.2,
+                "holding_days": 1,
+            },
+            {
+                "entry_date": date(2024, 1, 2),
+                "entry_price": Decimal("100"),
+                "exit_date": date(2024, 1, 3),
+                "exit_price": Decimal("90"),
+                "return_rate": -0.1,
+                "holding_days": 1,
+            },
+        ]
+    }
+    assert engine._calculate_win_loss_stats(performance_records) == (
         0.5,
         0.2,
         -0.1,
@@ -279,9 +299,10 @@ def test_stock_selection_helper_fallbacks_are_explicit() -> None:
         Decimal("100"),
     )
     assert engine._calculate_turnover_rate([empty_record]) == 0.0
-    assert (
-        engine._organize_stock_performances({"A": [{"entry_date": None, "exit_date": None}]}) == []
-    )
+    organized = engine._organize_stock_performances(performance_records)
+    assert organized[0].entry_price == Decimal("100")
+    assert organized[0].exit_price == Decimal("120")
+    assert organized[0].holding_days == 1
 
 
 class RepositoryFake:

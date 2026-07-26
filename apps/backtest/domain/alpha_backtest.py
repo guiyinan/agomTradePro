@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import Any, Protocol, TypeGuard
 
 from .stock_selection_backtest import (
+    PerformanceRecord,
     RebalanceFrequency,
     RebalanceRecord,
     StockPerformance,
@@ -114,24 +115,13 @@ class AlphaBacktestConfig(StockSelectionBacktestConfig):
     def __post_init__(self) -> None:
         """Validate all financial parameters before a backtest can start."""
 
-        if self.start_date > self.end_date:
-            raise ValueError("start_date must not be after end_date")
-        if not self.initial_capital.is_finite() or self.initial_capital <= 0:
-            raise ValueError("initial_capital must be finite and positive")
+        super().__post_init__()
         if (
             isinstance(self.min_score, bool)
             or not math.isfinite(self.min_score)
             or not -1.0 <= self.min_score <= 1.0
         ):
             raise ValueError("min_score must be finite and between -1 and 1")
-        if isinstance(self.max_positions, bool) or self.max_positions <= 0:
-            raise ValueError("max_positions must be a positive integer")
-        for name, rate in (
-            ("commission_rate", self.commission_rate),
-            ("slippage_rate", self.slippage_rate),
-        ):
-            if isinstance(rate, bool) or not math.isfinite(rate) or not 0.0 <= rate < 1.0:
-                raise ValueError(f"{name} must be finite and in [0, 1)")
 
 
 @dataclass
@@ -421,9 +411,21 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
         )
 
         # 计算持仓统计
-        win_rate, avg_win, avg_loss = self._calculate_win_loss_stats(
-            {sp.stock_code: [{"return": sp.return_rate}] for sp in stock_performances}
-        )
+        performance_records: dict[str, list[PerformanceRecord]] = {}
+        for item in stock_performances:
+            if item.exit_date is None or item.exit_price is None or item.return_rate is None:
+                continue
+            performance_records.setdefault(item.stock_code, []).append(
+                {
+                    "entry_date": item.entry_date,
+                    "entry_price": item.entry_price,
+                    "exit_date": item.exit_date,
+                    "exit_price": item.exit_price,
+                    "return_rate": item.return_rate,
+                    "holding_days": item.holding_days,
+                }
+            )
+        win_rate, avg_win, avg_loss = self._calculate_win_loss_stats(performance_records)
 
         # 计算平均覆盖率
         avg_coverage = (

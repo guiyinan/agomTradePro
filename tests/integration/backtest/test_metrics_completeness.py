@@ -47,8 +47,14 @@ class TestOldWeightsCalculation:
             return {
                 "dominant_regime": "Recovery",
                 "confidence": 0.6,
-                "distribution": {"Recovery": 0.6, "Overheat": 0.2, "Stagflation": 0.1, "Deflation": 0.1},
+                "distribution": {
+                    "Recovery": 0.6,
+                    "Overheat": 0.2,
+                    "Stagflation": 0.1,
+                    "Deflation": 0.1,
+                },
             }
+
         return _get_regime
 
     @pytest.fixture
@@ -64,6 +70,7 @@ class TestOldWeightsCalculation:
 
         def _get_price(asset_class, as_of_date):
             return prices.get(asset_class)
+
         return _get_price
 
     def test_old_weights_in_rebalance_result(self, config, mock_get_regime, mock_get_price):
@@ -80,8 +87,9 @@ class TestOldWeightsCalculation:
         assert result is not None, "再平衡应该成功"
         assert isinstance(result.old_weights, dict), "旧权重应该是字典"
         # 第一次再平衡，旧权重应该只包含现金（权重100%）
-        assert "CASH" in result.old_weights or len(result.old_weights) == 0, \
-            "第一次再平衡时旧权重应该只有现金或为空"
+        assert (
+            "CASH" in result.old_weights or len(result.old_weights) == 0
+        ), "第一次再平衡时旧权重应该只有现金或为空"
 
     def test_old_weights_change_over_time(self, config, mock_get_regime, mock_get_price):
         """测试旧权重随时间变化"""
@@ -146,7 +154,7 @@ class TestTurnoverRateCalculation:
                 selected_stocks=["000001", "000002", "000003"],
                 sold_stocks=[],
                 bought_stocks=[("000001", Decimal(100))],
-                portfolio_value=Decimal(100000)
+                portfolio_value=Decimal(100000),
             ),
             RebalanceRecord(
                 rebalance_date=date(2020, 2, 1),
@@ -154,8 +162,8 @@ class TestTurnoverRateCalculation:
                 selected_stocks=["000001", "000004", "000005"],
                 sold_stocks=[("000002", 0.1)],
                 bought_stocks=[("000004", Decimal(100))],
-                portfolio_value=Decimal(100000)
-            )
+                portfolio_value=Decimal(100000),
+            ),
         ]
 
         turnover = engine._calculate_turnover_rate(records)
@@ -174,13 +182,18 @@ class TestICIRCalculation:
         )
 
         # 创建 mock engine
-        engine = type('MockEngine', (), {
-            'alpha_config': config,
-            'get_benchmark_price_func': lambda dt: 100.0,
-        })()
+        engine = type(
+            "MockEngine",
+            (),
+            {
+                "alpha_config": config,
+                "get_benchmark_price_func": lambda dt: 100.0,
+            },
+        )()
 
         # 添加方法到 mock engine
         from apps.backtest.domain.alpha_backtest import AlphaBacktestEngine
+
         engine._calculate_icir = AlphaBacktestEngine._calculate_icir.__get__(engine, type(engine))
 
         # 测试稳定的 IC 值
@@ -287,19 +300,42 @@ class TestStockPerformancesOrganization:
 
         stock_performances = {
             "000001": [
-                {'entry_date': Decimal('100'), 'exit_date': date(2020, 2, 1), 'return': 0.1},
-                {'entry_date': Decimal('105'), 'exit_date': date(2020, 3, 1), 'return': 0.05},
+                {
+                    "entry_date": date(2020, 1, 1),
+                    "entry_price": Decimal("100"),
+                    "exit_date": date(2020, 2, 1),
+                    "exit_price": Decimal("110"),
+                    "return_rate": 0.1,
+                    "holding_days": 31,
+                },
+                {
+                    "entry_date": date(2020, 2, 1),
+                    "entry_price": Decimal("105"),
+                    "exit_date": date(2020, 3, 1),
+                    "exit_price": Decimal("110.25"),
+                    "return_rate": 0.05,
+                    "holding_days": 29,
+                },
             ],
             "000002": [
-                {'entry_date': Decimal('50'), 'exit_date': date(2020, 2, 1), 'return': -0.05},
-            ]
+                {
+                    "entry_date": date(2020, 1, 1),
+                    "entry_price": Decimal("50"),
+                    "exit_date": date(2020, 2, 1),
+                    "exit_price": Decimal("47.5"),
+                    "return_rate": -0.05,
+                    "holding_days": 31,
+                },
+            ],
         }
 
         organized = engine._organize_stock_performances(stock_performances)
 
         assert isinstance(organized, list), "整理后应该是列表"
         assert len(organized) == 3, "应该有 3 条表现记录"
-        assert all(isinstance(sp, StockPerformance) for sp in organized), "所有元素应该是 StockPerformance 类型"
+        assert all(
+            isinstance(sp, StockPerformance) for sp in organized
+        ), "所有元素应该是 StockPerformance 类型"
 
         # 验证数据内容
         assert organized[0].stock_code == "000001"
@@ -326,7 +362,12 @@ class TestBacktestMetricsIntegration:
             return {
                 "dominant_regime": "Recovery",
                 "confidence": 0.6,
-                "distribution": {"Recovery": 0.6, "Overheat": 0.2, "Stagflation": 0.1, "Deflation": 0.1},
+                "distribution": {
+                    "Recovery": 0.6,
+                    "Overheat": 0.2,
+                    "Stagflation": 0.1,
+                    "Deflation": 0.1,
+                },
             }
 
         def mock_get_price(asset_class, dt):
@@ -341,11 +382,11 @@ class TestBacktestMetricsIntegration:
         result = engine.run()
 
         # 验证基本指标
-        assert hasattr(result, 'final_value'), "结果应包含 final_value"
-        assert hasattr(result, 'total_return'), "结果应包含 total_return"
-        assert hasattr(result, 'annualized_return'), "结果应包含 annualized_return"
-        assert hasattr(result, 'sharpe_ratio'), "结果应包含 sharpe_ratio"
-        assert hasattr(result, 'max_drawdown'), "结果应包含 max_drawdown"
+        assert hasattr(result, "final_value"), "结果应包含 final_value"
+        assert hasattr(result, "total_return"), "结果应包含 total_return"
+        assert hasattr(result, "annualized_return"), "结果应包含 annualized_return"
+        assert hasattr(result, "sharpe_ratio"), "结果应包含 sharpe_ratio"
+        assert hasattr(result, "max_drawdown"), "结果应包含 max_drawdown"
 
         # 验证再平衡记录包含 old_weights
         for _history_item in result.regime_history:
@@ -424,12 +465,12 @@ class TestAlphaBacktestMetricsCompleteness:
         result = engine.run()
 
         # 验证 Alpha 特有指标
-        assert hasattr(result, 'turnover_rate'), "结果应包含 turnover_rate"
-        assert hasattr(result, 'avg_ic'), "结果应包含 avg_ic"
-        assert hasattr(result, 'avg_rank_ic'), "结果应包含 avg_rank_ic"
-        assert hasattr(result, 'icir'), "结果应包含 icir"
-        assert hasattr(result, 'coverage_ratio'), "结果应包含 coverage_ratio"
-        assert hasattr(result, 'provider_usage'), "结果应包含 provider_usage"
+        assert hasattr(result, "turnover_rate"), "结果应包含 turnover_rate"
+        assert hasattr(result, "avg_ic"), "结果应包含 avg_ic"
+        assert hasattr(result, "avg_rank_ic"), "结果应包含 avg_rank_ic"
+        assert hasattr(result, "icir"), "结果应包含 icir"
+        assert hasattr(result, "coverage_ratio"), "结果应包含 coverage_ratio"
+        assert hasattr(result, "provider_usage"), "结果应包含 provider_usage"
 
         # 验证换手率是有效值
         assert result.turnover_rate >= 0, "换手率应该非负"
@@ -438,7 +479,7 @@ class TestAlphaBacktestMetricsCompleteness:
 class TestStockSelectionBacktestMetricsCompleteness:
     """测试股票筛选回测指标完整性"""
 
-    def test_stock_selection_backtest_metrics(self):
+    def test_stock_selection_backtest_metrics(self, monkeypatch):
         """测试股票筛选回测结果包含所有必要指标"""
         config = StockSelectionBacktestConfig(
             start_date=date(2020, 1, 1),
@@ -452,7 +493,7 @@ class TestStockSelectionBacktestMetricsCompleteness:
             return "Recovery"
 
         def mock_get_stock_data(dt):
-            return []
+            return [object()]
 
         def mock_get_price(stock, dt):
             return Decimal(100)
@@ -467,27 +508,27 @@ class TestStockSelectionBacktestMetricsCompleteness:
             get_price_func=mock_get_price,
             get_benchmark_price_func=mock_get_benchmark_price,
         )
+        monkeypatch.setattr(
+            "apps.backtest.domain.stock_selection_backtest.StockScreener.screen",
+            lambda self, stocks, rule: ["000001"],
+        )
 
         # 创建空的筛选规则（需要 regime 和 name 参数）
         from apps.equity.domain.rules import StockScreeningRule
-        screening_rules = {
-            "Recovery": StockScreeningRule(
-                regime="Recovery",
-                name="测试规则"
-            )
-        }
+
+        screening_rules = {"Recovery": StockScreeningRule(regime="Recovery", name="测试规则")}
 
         result = engine.run(screening_rules)
 
         # 验证所有必要指标存在
-        assert hasattr(result, 'total_return'), "应包含 total_return"
-        assert hasattr(result, 'annualized_return'), "应包含 annualized_return"
-        assert hasattr(result, 'volatility'), "应包含 volatility"
-        assert hasattr(result, 'max_drawdown'), "应包含 max_drawdown"
-        assert hasattr(result, 'sharpe_ratio'), "应包含 sharpe_ratio"
-        assert hasattr(result, 'turnover_rate'), "应包含 turnover_rate"
-        assert hasattr(result, 'avg_holding_period'), "应包含 avg_holding_period"
-        assert hasattr(result, 'stock_performances'), "应包含 stock_performances"
+        assert hasattr(result, "total_return"), "应包含 total_return"
+        assert hasattr(result, "annualized_return"), "应包含 annualized_return"
+        assert hasattr(result, "volatility"), "应包含 volatility"
+        assert hasattr(result, "max_drawdown"), "应包含 max_drawdown"
+        assert hasattr(result, "sharpe_ratio"), "应包含 sharpe_ratio"
+        assert hasattr(result, "turnover_rate"), "应包含 turnover_rate"
+        assert hasattr(result, "avg_holding_period"), "应包含 avg_holding_period"
+        assert hasattr(result, "stock_performances"), "应包含 stock_performances"
 
         # 验证换手率和持仓天数是有效值
         assert result.turnover_rate >= 0, "换手率应该非负"
