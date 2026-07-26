@@ -4590,3 +4590,20 @@
 - Sector 相关单元、API、集成与依赖边界回归 `80 passed`。
 - `apps/sector/application/tasks.py` 增量 mypy 清零；全仓基线从 `1150 errors / 391 files` 收紧为 `1142 errors / 390 files`，净减少 `8 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百零五批
+
+- 按“Regime 核心调度契约 × 宏观状态数据真实性 × 健康监控失败关闭”收口 Regime 计算、变更通知与健康检查 Celery 任务。
+- 三个任务统一使用类型化 Celery decorator、Mapping 输入边界及专用 TypedDict 结果，补齐任务参数、返回值和动态字段收窄；任务文件增量 mypy 清零。
+- 上游同步状态只接受真实布尔值；同步失败时不再把可能含数据源异常或凭据的完整 payload 回写任务结果和日志。
+- 日期、`use_pit`、Regime 名称及置信度在访问计算器或仓储前验证；布尔伪装、空名称、非法日期、`NaN/Inf` 及区间外置信度失败关闭。
+- Regime 计算结果中的增长、通胀动量 Z 值改为透传统一解析器真实结果，不再固定伪造为 `0.0`；distribution 与 warnings 在序列化时隔离复制。
+- 变更通知先验证完整成功契约再读取历史快照，日志不再拼接任意上游错误正文；历史置信度也执行有限概率校验。
+- 健康检查为快照缺失和非法置信度提供稳定 `error_code`，并保留陈旧、低置信度和最新日期等可观测字段。
+- 补充上游错误脱敏、异常状态类型、非法日期前置短路、通知字段验证和持久化 `NaN` 置信度回归。
+
+## 第三百零五批验证结果
+
+- Regime 相关单元、组件、API、集成与跨模块依赖回归 `251 passed`。
+- `apps/regime/application/tasks.py` 增量 mypy 清零；全仓基线从 `1142 errors / 390 files` 收紧为 `1135 errors / 389 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

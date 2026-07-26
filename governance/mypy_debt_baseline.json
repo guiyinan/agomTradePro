@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1142,
-    "files_with_errors": 390
+    "errors": 1135,
+    "files_with_errors": 389
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1033,11 +1033,6 @@
     },
     "apps/regime/application/interface_services.py": {
       "no-untyped-def": 2
-    },
-    "apps/regime/application/tasks.py": {
-      "misc": 3,
-      "no-untyped-def": 1,
-      "type-arg": 3
     },
     "apps/regime/domain/action_mapper.py": {
       "type-arg": 1
