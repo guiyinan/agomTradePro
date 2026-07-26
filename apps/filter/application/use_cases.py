@@ -4,6 +4,7 @@ Use Cases for Filter Operations.
 Application layer orchestrating filter workflows.
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
@@ -13,6 +14,7 @@ from ..domain.entities import (
     FilterResult,
     FilterSeries,
     FilterType,
+    HPFilterParams,
     KalmanFilterParams,
 )
 from .repository_provider import (
@@ -20,6 +22,8 @@ from .repository_provider import (
     HPFilterAdapter,
     KalmanFilterAdapter,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -41,6 +45,7 @@ class ApplyFilterResponse:
     success: bool
     series: FilterSeries | None = None
     error: str | None = None
+    error_code: str | None = None
     warnings: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -64,6 +69,7 @@ class GetFilterDataResponse:
     success: bool
     results: list[FilterResult] = field(default_factory=list)
     error: str | None = None
+    error_code: str | None = None
     # 可序列化的数据
     dates: list[str] = field(default_factory=list)
     original_values: list[float] = field(default_factory=list)
@@ -89,6 +95,7 @@ class CompareFiltersResponse:
     hp_results: dict[str, Any] | None = None
     kalman_results: dict[str, Any] | None = None
     error: str | None = None
+    error_code: str | None = None
 
 
 class ApplyFilterUseCase:
@@ -131,7 +138,11 @@ class ApplyFilterUseCase:
             )
 
             if not data:
-                return ApplyFilterResponse(success=False, error=f"无数据: {request.indicator_code}")
+                return ApplyFilterResponse(
+                    success=False,
+                    error="No data available for the requested indicator.",
+                    error_code="FILTER_DATA_NOT_FOUND",
+                )
 
             dates = [d["date"] for d in data]
             values = [d["value"] for d in data]
@@ -149,7 +160,9 @@ class ApplyFilterUseCase:
                 )
             else:
                 return ApplyFilterResponse(
-                    success=False, error=f"不支持的滤波器类型: {request.filter_type}"
+                    success=False,
+                    error="Unsupported filter type.",
+                    error_code="UNSUPPORTED_FILTER_TYPE",
                 )
 
             # 4. 保存结果
@@ -158,8 +171,16 @@ class ApplyFilterUseCase:
 
             return ApplyFilterResponse(success=True, series=series, warnings=[])
 
-        except Exception as e:
-            return ApplyFilterResponse(success=False, error=str(e))
+        except Exception as exc:
+            logger.error(
+                "Filter calculation failed",
+                extra={"exception_type": type(exc).__name__},
+            )
+            return ApplyFilterResponse(
+                success=False,
+                error="Filter calculation failed.",
+                error_code="FILTER_EXECUTION_FAILED",
+            )
 
     def _apply_hp_filter(
         self, indicator_code: str, dates: list[date], values: list[float], config: dict[str, Any]
@@ -167,9 +188,9 @@ class ApplyFilterUseCase:
         """应用 HP 滤波"""
         adapter_factory = cast(Callable[[], HPFilterAdapter], HPFilterAdapter)
         adapter = adapter_factory()
-        lamb = config.get("hp_lambda", 129600.0)
+        params = HPFilterParams(lamb=config.get("hp_lambda", 129600.0))
 
-        filtered_values = adapter.filter_expanding(values, lamb)
+        filtered_values = adapter.filter_expanding(values, params.lamb)
 
         results = [
             FilterResult(
@@ -185,7 +206,7 @@ class ApplyFilterUseCase:
         return FilterSeries(
             indicator_code=indicator_code,
             filter_type=FilterType.HP,
-            params={"lamb": lamb},
+            params={"lamb": params.lamb},
             results=results,
             calculated_at=date.today(),
         )
@@ -274,7 +295,8 @@ class GetFilterDataUseCase:
             if not results:
                 return GetFilterDataResponse(
                     success=False,
-                    error=f"无滤波结果: {request.indicator_code} ({request.filter_type.value})",
+                    error="No saved filter data.",
+                    error_code="FILTER_RESULT_NOT_FOUND",
                 )
 
             return GetFilterDataResponse(
@@ -286,8 +308,16 @@ class GetFilterDataUseCase:
                 slopes=[r.slope for r in results],
             )
 
-        except Exception as e:
-            return GetFilterDataResponse(success=False, error=str(e))
+        except Exception as exc:
+            logger.error(
+                "Filter data query failed",
+                extra={"exception_type": type(exc).__name__},
+            )
+            return GetFilterDataResponse(
+                success=False,
+                error="Filter data query failed.",
+                error_code="FILTER_QUERY_FAILED",
+            )
 
 
 class CompareFiltersUseCase:
@@ -340,10 +370,19 @@ class CompareFiltersUseCase:
                     self._serialize_series(kalman_series) if kalman_series is not None else None
                 ),
                 error=hp_response.error or kalman_response.error,
+                error_code=hp_response.error_code or kalman_response.error_code,
             )
 
-        except Exception as e:
-            return CompareFiltersResponse(success=False, error=str(e))
+        except Exception as exc:
+            logger.error(
+                "Filter comparison failed",
+                extra={"exception_type": type(exc).__name__},
+            )
+            return CompareFiltersResponse(
+                success=False,
+                error="Filter comparison failed.",
+                error_code="FILTER_COMPARISON_FAILED",
+            )
 
     def _serialize_series(self, series: FilterSeries) -> dict[str, Any]:
         """序列化滤波序列为字典"""

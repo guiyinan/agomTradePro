@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import (
     AllowAny,
     BasePermission,
@@ -18,10 +19,10 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..application.repository_provider import DjangoFilterRepository as ApplicationFilterRepository
 from ..application.repository_provider import (
-    DjangoFilterRepository as ApplicationFilterRepository,
+    get_filter_repository,
 )
-from ..application.repository_provider import get_filter_repository
 from ..application.use_cases import (
     ApplyFilterRequest,
     ApplyFilterUseCase,
@@ -39,6 +40,71 @@ from .serializers import (
     GetFilterDataRequestSerializer,
     UpdateFilterConfigRequestSerializer,
 )
+
+_FILTER_PUBLIC_ERRORS: dict[str, tuple[str, int]] = {
+    "FILTER_DATA_NOT_FOUND": (
+        "No data available for the requested indicator.",
+        status.HTTP_404_NOT_FOUND,
+    ),
+    "FILTER_RESULT_NOT_FOUND": (
+        "No saved filter data.",
+        status.HTTP_404_NOT_FOUND,
+    ),
+    "UNSUPPORTED_FILTER_TYPE": (
+        "Unsupported filter type.",
+        status.HTTP_400_BAD_REQUEST,
+    ),
+    "FILTER_EXECUTION_FAILED": (
+        "Filter calculation failed.",
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+    ),
+    "FILTER_QUERY_FAILED": (
+        "Filter data query failed.",
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+    ),
+    "FILTER_COMPARISON_FAILED": (
+        "Filter comparison failed.",
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+    ),
+    "FILTER_EMPTY_RESULT": (
+        "Filter calculation returned no series.",
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+    ),
+}
+
+
+def _filter_failure_response(
+    error_code: str | None,
+    *,
+    fallback_code: str,
+) -> Response:
+    """Return one stable Filter API failure without exposing internal details."""
+
+    public_code = error_code if error_code in _FILTER_PUBLIC_ERRORS else fallback_code
+    message, http_status = _FILTER_PUBLIC_ERRORS[public_code]
+    return Response(
+        {
+            "success": False,
+            "error": message,
+            "error_code": public_code,
+        },
+        status=http_status,
+    )
+
+
+def _normalize_indicator_code(indicator_code: str | None) -> str:
+    """Validate one path indicator code against the persisted field contract."""
+
+    if indicator_code is None:
+        raise ValidationError({"indicator_code": ["This field is required."]})
+    normalized = indicator_code.strip()
+    if not normalized:
+        raise ValidationError({"indicator_code": ["This field may not be blank."]})
+    if len(normalized) > 50:
+        raise ValidationError(
+            {"indicator_code": ["Ensure this field has no more than 50 characters."]}
+        )
+    return normalized
 
 
 class DjangoFilterRepository:
@@ -148,12 +214,9 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
 
         if response.success:
             if response.series is None:
-                return Response(
-                    {
-                        "success": False,
-                        "error": "Filter calculation returned no series.",
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                return _filter_failure_response(
+                    "FILTER_EMPTY_RESULT",
+                    fallback_code="FILTER_EMPTY_RESULT",
                 )
             response_data = {
                 "success": True,
@@ -161,10 +224,10 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
                 "warnings": response.warnings,
             }
             return Response(response_data)
-        else:
-            return Response(
-                {"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST
-            )
+        return _filter_failure_response(
+            response.error_code,
+            fallback_code="FILTER_EXECUTION_FAILED",
+        )
 
     @action(detail=False, methods=["POST"], url_path="get-data")
     def get_data(self, request: Request) -> Response:
@@ -206,10 +269,10 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
                     "slopes": response.slopes,
                 }
             )
-        else:
-            return Response(
-                {"success": False, "error": response.error}, status=status.HTTP_404_NOT_FOUND
-            )
+        return _filter_failure_response(
+            response.error_code,
+            fallback_code="FILTER_QUERY_FAILED",
+        )
 
     @action(detail=False, methods=["POST"], url_path="compare")
     def compare(self, request: Request) -> Response:
@@ -248,11 +311,10 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
                     "kalman_results": response.kalman_results,
                 }
             )
-        else:
-            return Response(
-                {"success": False, "error": response.error},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        return _filter_failure_response(
+            response.error_code,
+            fallback_code="FILTER_COMPARISON_FAILED",
+        )
 
     @action(detail=False, methods=["GET"], url_path="indicators")
     def indicators(self, request: Request) -> Response:
@@ -280,11 +342,7 @@ class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
 
         GET /api/filter/config/PMI/
         """
-        if not indicator_code:
-            return Response(
-                {"success": False, "error": "Missing indicator_code"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        indicator_code = _normalize_indicator_code(indicator_code)
 
         config = self.repository.get_filter_config(indicator_code)
         config["indicator_code"] = indicator_code
@@ -328,24 +386,22 @@ class FilterConfigDetailView(FilterDeprecationHeaderMixin, APIView):
         return [IsAuthenticated()]
 
     def get(self, request: Request, indicator_code: str) -> Response:
+        indicator_code = _normalize_indicator_code(indicator_code)
         config = self.repository.get_filter_config(indicator_code)
         config["indicator_code"] = indicator_code
         serializer = FilterConfigSerializer(config)
         return Response({"success": True, "config": serializer.data})
 
     def patch(self, request: Request, indicator_code: str) -> Response:
+        indicator_code = _normalize_indicator_code(indicator_code)
         serializer = UpdateFilterConfigRequestSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        if not serializer.validated_data:
-            return Response(
-                {"success": False, "error": "No config fields provided."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         config = self.repository.update_filter_config(indicator_code, serializer.validated_data)
         response_serializer = FilterConfigSerializer(config)
         return Response({"success": True, "config": response_serializer.data})
 
     def delete(self, request: Request, indicator_code: str) -> Response:
+        indicator_code = _normalize_indicator_code(indicator_code)
         deleted = self.repository.delete_filter_config(indicator_code)
         if not deleted:
             return Response(

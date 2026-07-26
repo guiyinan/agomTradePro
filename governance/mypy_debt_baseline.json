@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1535,
-    "files_with_errors": 442
+    "errors": 1523,
+    "files_with_errors": 441
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -874,9 +874,6 @@
     },
     "apps/filter/interface/deprecation.py": {
       "misc": 1
-    },
-    "apps/filter/interface/serializers.py": {
-      "type-arg": 12
     },
     "apps/filter/interface/urls.py": {
       "no-untyped-def": 1

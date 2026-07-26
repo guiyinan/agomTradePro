@@ -3889,3 +3889,20 @@
 - Backtest API 边界回归 `16 passed`，Backtest API、Application、Domain、tasks 与报告回归 `77 passed`；覆盖未知字段零执行、零本金、布尔/非有限金融值、非正组合 ID、所有者隔离、失败脱敏和执行配置。
 - Backtest serializers 增量 mypy 清零，调用 views 保持零回归；全仓基线从 `1546 errors / 443 files` 收紧为 `1535 errors / 442 files`，净减少 `11 errors / 1 file`。
 - Django system check、架构边界、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百六十二批
+
+- 按“滤波参数金融有效性 × API 请求失败关闭 × Provider 异常最小披露”收口 Filter Domain、Application、serializers 与 API views。
+- 应用滤波、读取结果、对比和配置更新请求统一拒绝未声明字段；拼错的 lambda、方差或查询参数不再被 DRF 静默忽略。
+- 三类滤波请求统一拒绝反向日期窗口；Compare limit 收紧到 1-1000，和 Apply 的资源上限保持一致。
+- HP lambda、Kalman 方差和配置写入值拒绝布尔、负数、`NaN` 与 `Inf`；观测方差必须严格大于零，避免零噪声参数进入矩阵更新。
+- Domain 的 `HPFilterParams`、`KalmanFilterParams` 和 `FilterResult` 增加有限值不变量；即使历史数据库配置或非 API 调用绕过 serializer，异常参数和非有限滤波结果仍会失败关闭。
+- 配置 PATCH 拒绝空请求和未知字段；配置路径 indicator code 在 ORM 前执行非空和 50 字符长度校验。
+- Apply、Get 和 Compare 的无数据、查询、计算与比较失败发布稳定机器错误码；数据库、Provider 和算法异常正文不再进入客户端响应，视图按失败类型返回 404、400 或 500。
+- Filter 请求/响应 serializers、有限浮点字段、日期验证和配置响应补齐精确泛型与返回类型。
+
+## 第二百六十二批验证结果
+
+- Filter API、Application、Domain 与 Dashboard 回归 `75 passed`；覆盖未知字段零执行、反向日期、Compare 资源上限、空/非法配置更新、非有限参数、历史坏配置、Domain 结果不变量和异常脱敏。
+- Filter serializers 增量 mypy 清零，Application、Domain 与 API views 保持零回归；全仓基线从 `1535 errors / 442 files` 收紧为 `1523 errors / 441 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构边界、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

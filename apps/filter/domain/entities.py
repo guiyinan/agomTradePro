@@ -4,6 +4,7 @@ Domain Entities for Filter Operations.
 Pure data classes using only Python standard library.
 """
 
+import math
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -12,6 +13,7 @@ from typing import Any
 
 class FilterType(Enum):
     """滤波器类型"""
+
     HP = "HP"  # Hodrick-Prescott 滤波
     KALMAN = "KALMAN"  # Kalman 滤波
 
@@ -19,7 +21,14 @@ class FilterType(Enum):
 @dataclass(frozen=True)
 class HPFilterParams:
     """HP 滤波参数配置"""
+
     lamb: float = 129600  # 月度数据推荐值
+
+    def __post_init__(self) -> None:
+        """Require a finite, non-negative smoothing parameter."""
+
+        if isinstance(self.lamb, bool) or not math.isfinite(self.lamb) or self.lamb < 0:
+            raise ValueError("HP lambda must be finite and non-negative")
 
     @classmethod
     def for_monthly_data(cls) -> "HPFilterParams":
@@ -40,11 +49,33 @@ class HPFilterParams:
 @dataclass(frozen=True)
 class KalmanFilterParams:
     """Kalman 滤波参数配置"""
+
     level_variance: float = 0.01
     slope_variance: float = 0.001
     observation_variance: float = 1.0
     initial_level: float | None = None
     initial_slope: float = 0.0
+
+    def __post_init__(self) -> None:
+        """Require mathematically valid finite covariance parameters."""
+
+        variances = (
+            self.level_variance,
+            self.slope_variance,
+            self.observation_variance,
+        )
+        if any(
+            isinstance(value, bool) or not math.isfinite(value) or value < 0 for value in variances
+        ):
+            raise ValueError("Kalman variances must be finite and non-negative")
+        if self.observation_variance == 0:
+            raise ValueError("Kalman observation variance must be greater than zero")
+        states = (self.initial_level, self.initial_slope)
+        if any(
+            value is not None and (isinstance(value, bool) or not math.isfinite(value))
+            for value in states
+        ):
+            raise ValueError("Kalman initial state must be finite")
 
     @classmethod
     def for_monthly_macro(cls) -> "KalmanFilterParams":
@@ -59,16 +90,33 @@ class KalmanFilterParams:
 @dataclass(frozen=True)
 class FilterResult:
     """滤波结果（单个时点）"""
+
     date: date
     original_value: float
     filtered_value: float
     trend: float | None = None  # 仅 Kalman 有
     slope: float | None = None  # 仅 Kalman 有
 
+    def __post_init__(self) -> None:
+        """Reject non-finite observations and calculated values."""
+
+        values = (
+            self.original_value,
+            self.filtered_value,
+            self.trend,
+            self.slope,
+        )
+        if any(
+            value is not None and (isinstance(value, bool) or not math.isfinite(value))
+            for value in values
+        ):
+            raise ValueError("Filter result values must be finite")
+
 
 @dataclass(frozen=True)
 class FilterSeries:
     """滤波序列结果"""
+
     indicator_code: str  # 指标代码 (e.g., "PMI", "CPI")
     filter_type: FilterType
     params: dict[str, Any]
@@ -99,6 +147,7 @@ class FilterSeries:
 @dataclass(frozen=True)
 class KalmanFilterState:
     """Kalman 滤波器状态（可持久化）"""
+
     level: float
     slope: float
     level_variance: float

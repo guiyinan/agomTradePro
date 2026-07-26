@@ -55,3 +55,49 @@ def test_kalman_persistence_saves_state_and_results_together():
     assert response.success is True
     repository.save_kalman_state.assert_called_once()
     repository.save_filter_results.assert_called_once_with(response.series)
+
+
+def test_filter_execution_failure_is_redacted():
+    repository = Mock()
+    repository.get_filter_config.side_effect = RuntimeError(
+        "postgresql://secret-user:secret-password@database/filter"
+    )
+
+    response = ApplyFilterUseCase(repository).execute(
+        ApplyFilterRequest(
+            indicator_code="PMI",
+            filter_type=FilterType.HP,
+            save_results=False,
+        )
+    )
+
+    assert response.success is False
+    assert response.error == "Filter calculation failed."
+    assert response.error_code == "FILTER_EXECUTION_FAILED"
+    assert "secret" not in response.error
+
+
+def test_invalid_persisted_kalman_config_fails_before_filter_execution():
+    repository = Mock()
+    repository.get_filter_config.return_value = {
+        "kalman_level_variance": -0.05,
+        "kalman_slope_variance": 0.005,
+        "kalman_observation_variance": 0.5,
+    }
+    repository.get_macro_indicator_data.return_value = [
+        {"date": date(2026, 1, 1), "value": 50.0},
+        {"date": date(2026, 2, 1), "value": 50.5},
+    ]
+
+    response = ApplyFilterUseCase(repository).execute(
+        ApplyFilterRequest(
+            indicator_code="PMI",
+            filter_type=FilterType.KALMAN,
+            save_results=False,
+        )
+    )
+
+    assert response.success is False
+    assert response.error_code == "FILTER_EXECUTION_FAILED"
+    repository.save_kalman_state.assert_not_called()
+    repository.save_filter_results.assert_not_called()

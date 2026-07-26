@@ -26,6 +26,46 @@ from apps.filter.domain.services import (
 )
 
 
+@pytest.mark.parametrize("value", [-1.0, float("nan"), float("inf"), True])
+def test_hp_filter_params_reject_invalid_lambda(value):
+    with pytest.raises(ValueError, match="HP lambda"):
+        HPFilterParams(lamb=value)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"level_variance": -0.1},
+        {"slope_variance": float("nan")},
+        {"observation_variance": 0.0},
+        {"observation_variance": float("inf")},
+        {"initial_level": float("nan")},
+        {"initial_slope": True},
+    ],
+)
+def test_kalman_filter_params_reject_invalid_covariance_or_state(kwargs):
+    with pytest.raises(ValueError, match="Kalman"):
+        KalmanFilterParams(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ["original_value", "filtered_value", "trend", "slope"],
+)
+def test_filter_result_rejects_non_finite_values(field_name):
+    values = {
+        "date": date(2026, 1, 1),
+        "original_value": 50.0,
+        "filtered_value": 49.9,
+        "trend": 49.9,
+        "slope": 0.1,
+    }
+    values[field_name] = float("nan")
+
+    with pytest.raises(ValueError, match="must be finite"):
+        FilterResult(**values)
+
+
 class TestHPFilterService:
     """测试 HP 滤波服务"""
 
@@ -142,10 +182,7 @@ class TestKalmanFilterService:
 
     def test_init_custom_params(self):
         """测试使用自定义参数初始化"""
-        params = KalmanFilterParams(
-            level_variance=0.1,
-            observation_variance=0.5
-        )
+        params = KalmanFilterParams(level_variance=0.1, observation_variance=0.5)
         service = KalmanFilterService(params)
         assert service.params.level_variance == 0.1
         assert service.params.observation_variance == 0.5
@@ -199,7 +236,9 @@ class TestDetectTurningPoints:
             FilterResult(date=date(2024, 1, 2), original_value=12.0, filtered_value=12.0),
             FilterResult(date=date(2024, 1, 3), original_value=14.0, filtered_value=14.0),
             FilterResult(date=date(2024, 1, 4), original_value=16.0, filtered_value=16.0),
-            FilterResult(date=date(2024, 1, 5), original_value=18.0, filtered_value=15.0),  # 峰值后下降
+            FilterResult(
+                date=date(2024, 1, 5), original_value=18.0, filtered_value=15.0
+            ),  # 峰值后下降
             FilterResult(date=date(2024, 1, 6), original_value=20.0, filtered_value=14.0),
             FilterResult(date=date(2024, 1, 7), original_value=22.0, filtered_value=13.0),
             FilterResult(date=date(2024, 1, 8), original_value=24.0, filtered_value=12.0),
@@ -276,7 +315,9 @@ class TestDetectTurningPoints:
     def test_detect_turning_points_monotonic_decreasing(self):
         """测试单调递减序列（无转折点）"""
         results = [
-            FilterResult(date=date(2024, 1, i), original_value=float(10-i), filtered_value=float(10-i))
+            FilterResult(
+                date=date(2024, 1, i), original_value=float(10 - i), filtered_value=float(10 - i)
+            )
             for i in range(1, 11)
         ]
 
@@ -308,11 +349,7 @@ class TestFilterEntities:
 
     def test_filter_result_immutable(self):
         """测试 FilterResult 是不可变的"""
-        result = FilterResult(
-            date=date(2024, 1, 1),
-            original_value=10.0,
-            filtered_value=12.0
-        )
+        result = FilterResult(date=date(2024, 1, 1), original_value=10.0, filtered_value=12.0)
 
         with pytest.raises(FrozenInstanceError):  # frozen=True
             result.original_value = 15.0
@@ -329,7 +366,7 @@ class TestFilterEntities:
             filter_type=FilterType.HP,
             params={"lamb": 129600},
             results=results,
-            calculated_at=date.today()
+            calculated_at=date.today(),
         )
 
         assert series.indicator_code == "TEST"
