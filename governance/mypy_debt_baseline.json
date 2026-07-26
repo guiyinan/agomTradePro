@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1188,
-    "files_with_errors": 399
+    "errors": 1182,
+    "files_with_errors": 398
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1253,10 +1253,6 @@
     },
     "apps/terminal/apps.py": {
       "no-untyped-def": 1
-    },
-    "apps/terminal/domain/entities.py": {
-      "no-untyped-def": 2,
-      "type-arg": 4
     },
     "apps/terminal/infrastructure/models.py": {
       "arg-type": 1,

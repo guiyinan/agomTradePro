@@ -4461,3 +4461,17 @@
 - Terminal 确认令牌局部回归 `3 passed`；连同固定 TUI Workbench 与 Terminal Agent 最小回归包共 `211 passed`。
 - `confirmation.py` 增量 mypy 清零；全仓基线从 `1192 errors / 400 files` 收紧为 `1188 errors / 399 files`，净减少 `4 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百九十七批
+
+- 按“Terminal Domain 共享契约 × JSON 持久化边界 × 实体可变状态隔离”收口命令与参数实体。
+- 参数和命令的生命周期钩子补齐返回类型；JSON 序列化与反序列化统一使用字符串键动态值字典，动态参数默认值被限制在正式持久化边界。
+- 缺失参数临时集合补齐 `CommandParameter` 元素类型，命令路由不再依赖空列表推断。
+- 参数 `options` 与命令 `tags` 在序列化时返回副本；调用方修改持久化/API payload 不再反向篡改领域实体内部列表。
+- 补齐公共序列化方法文档，并新增参数选项隔离、标签隔离及命令参数/治理字段 round-trip 回归。
+
+## 第二百九十七批验证结果
+
+- Terminal Domain 新增测试与治理组件回归 `68 passed`；固定 TUI Workbench 与 Terminal Agent 最小回归包连同新增测试 `211 passed`。
+- `entities.py` 增量 mypy 清零；全仓基线从 `1188 errors / 399 files` 收紧为 `1182 errors / 398 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
