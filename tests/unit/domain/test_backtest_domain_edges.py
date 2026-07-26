@@ -373,7 +373,12 @@ def test_alpha_backtest_use_case_handles_unavailable_success_and_persistence_fai
     ).execute(_request())
     assert failed.status == "failed"
     assert failed.backtest_id == 7
-    assert failing_repository.statuses[-1] == (7, "failed", "save failed")
+    assert failing_repository.statuses[-1] == (
+        7,
+        "failed",
+        "Alpha backtest execution failed.",
+    )
+    assert failed.errors == ["Alpha backtest execution failed."]
 
 
 def test_alpha_service_import_failure_is_cached() -> None:
@@ -386,5 +391,5 @@ def test_alpha_service_import_failure_is_cached() -> None:
         alpha_service_factory=lambda: (_ for _ in ()).throw(ImportError("optional")),
     )
 
-    assert use_case.alpha_service is False
-    assert use_case.alpha_service is False
+    assert use_case.alpha_service is None
+    assert use_case.alpha_service is None

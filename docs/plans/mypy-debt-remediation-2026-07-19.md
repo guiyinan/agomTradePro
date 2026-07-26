@@ -3969,3 +3969,20 @@
 - Alpha 历史原子替换测试与此前失败的 Dashboard 真实页面回归 `2 passed`；覆盖坏快照写入、旧快照保留、外层事务可继续查询和待处理队列正常渲染。
 - Dashboard history repository 增量 mypy 保持清零；本批为运行时安全修复，全仓基线保持 `1464 errors / 434 files`，未虚报债务下降。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort 与增量 mypy 通过。
+
+## 第二百六十七批
+
+- 按“Alpha 回测持仓守恒 × PIT 信号完整性 × 最终清算口径一致”收口 Backtest Alpha Domain 与执行用例。
+- 修复卖出路径先从 portfolio 删除、后读取退出价格的问题；持仓退出行情缺失、非正或非有限时整次回测失败关闭，不再让仓位凭空消失且没有现金回款。
+- 持仓估值和最终清算同样要求有限正价格；候选股票买入行情无效时保持零交易，已持有资产行情无效时不发布不完整收益结果。
+- 最终持仓改为持有到请求 `end_date` 后清算，不再在最后一次再平衡日提前退出；最终卖出佣金、最终卖出笔数、真实持有天数和末端净值统一进入结果。
+- 净值曲线末点与最终资金保持一致；`total_rebalances` 统计实际执行记录而非计划日期，`avg_holding_period` 使用逐笔真实持有天数，不再固定报告 30 天。
+- Alpha 分数要求有限且位于 `[-1, 1]`，股票代码非空；`asof_date` 必须存在且不晚于再平衡日，`intended_trade_date` 必须与交易日一致，缺失或前视信号不得进入历史决策。
+- 初始资金必须有限正数，评分阈值、最大持仓数、佣金率和滑点率执行正式范围校验；起止基准价格缺失、非正或非有限时不再伪造零基准收益。
+- Alpha service、score/result 和 repository 改为精确 Protocol；可选服务初始化不再用布尔值混入依赖类型，异常响应与持久化失败状态统一脱敏。
+
+## 第二百六十七批验证结果
+
+- Alpha 回测金融不变量与 Backtest Domain 回归 `29 passed`，Alpha 回测集成与 Backtest API 回归 `19 passed`；覆盖资本/费率边界、PIT、缺失退出价、双边佣金、最终净值、服务不可用和异常脱敏。
+- `alpha_backtest.py` 增量 mypy 清零；全仓基线从 `1464 errors / 434 files` 收紧为 `1452 errors / 433 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

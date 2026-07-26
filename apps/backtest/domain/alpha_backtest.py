@@ -5,11 +5,13 @@ Integration layer for using Alpha signals in backtesting.
 """
 
 import logging
-from collections.abc import Callable
+import math
+import statistics
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol, TypeGuard
 
 from .stock_selection_backtest import (
     RebalanceFrequency,
@@ -20,25 +22,122 @@ from .stock_selection_backtest import (
     StockSelectionBacktestResult,
 )
 
-AlphaService = None
-
-
 logger = logging.getLogger(__name__)
+
+
+class AlphaScoreProtocol(Protocol):
+    """Point-in-time Alpha score consumed by the backtest."""
+
+    code: str
+    score: float
+    asof_date: date | None
+    intended_trade_date: date | None
+
+
+class AlphaResultProtocol(Protocol):
+    """Alpha result fields required by the backtest."""
+
+    success: bool
+    scores: Sequence[AlphaScoreProtocol]
+    source: str
+    error_message: str | None
+
+
+class AlphaServiceProtocol(Protocol):
+    """Alpha scoring dependency used by the engine."""
+
+    def get_stock_scores(
+        self,
+        *,
+        universe_id: str,
+        intended_trade_date: date,
+        top_n: int,
+    ) -> AlphaResultProtocol: ...
+
+
+class BacktestRecordProtocol(Protocol):
+    """Persisted backtest identity."""
+
+    id: int | None
+
+
+class AlphaBacktestRepositoryProtocol(Protocol):
+    """Persistence operations required by the Alpha backtest use case."""
+
+    def create_backtest(
+        self,
+        name: str,
+        config: "AlphaBacktestConfig",
+    ) -> BacktestRecordProtocol: ...
+
+    def update_status(
+        self,
+        backtest_id: int,
+        status: str,
+        error_message: str | None = None,
+    ) -> object: ...
+
+    def save_result(
+        self,
+        backtest_id: int,
+        result: "AlphaBacktestResult",
+    ) -> object: ...
+
+
+AlphaService: Callable[[], AlphaServiceProtocol] | None = None
+
+
+def _is_valid_price(value: Decimal | None) -> TypeGuard[Decimal]:
+    """Return whether a market price is finite and strictly positive."""
+
+    return value is not None and value.is_finite() and value > 0
+
+
+def _require_valid_benchmark_price(value: float | None, *, label: str) -> float:
+    """Return one finite positive benchmark price or fail closed."""
+
+    if value is None or isinstance(value, bool) or not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{label} benchmark price is unavailable or invalid")
+    return value
 
 
 @dataclass
 class AlphaBacktestConfig(StockSelectionBacktestConfig):
     """Alpha 回测配置"""
+
     universe_id: str = "csi300"  # 股票池
     alpha_provider: str = "qlib"  # 优先使用的 Alpha Provider
     min_score: float = 0.6  # 最低评分阈值
     max_positions: int = 30  # 最大持仓数
     rebalance_frequency: RebalanceFrequency = RebalanceFrequency.MONTHLY
 
+    def __post_init__(self) -> None:
+        """Validate all financial parameters before a backtest can start."""
+
+        if self.start_date > self.end_date:
+            raise ValueError("start_date must not be after end_date")
+        if not self.initial_capital.is_finite() or self.initial_capital <= 0:
+            raise ValueError("initial_capital must be finite and positive")
+        if (
+            isinstance(self.min_score, bool)
+            or not math.isfinite(self.min_score)
+            or not -1.0 <= self.min_score <= 1.0
+        ):
+            raise ValueError("min_score must be finite and between -1 and 1")
+        if isinstance(self.max_positions, bool) or self.max_positions <= 0:
+            raise ValueError("max_positions must be a positive integer")
+        for name, rate in (
+            ("commission_rate", self.commission_rate),
+            ("slippage_rate", self.slippage_rate),
+        ):
+            if isinstance(rate, bool) or not math.isfinite(rate) or not 0.0 <= rate < 1.0:
+                raise ValueError(f"{name} must be finite and in [0, 1)")
+
 
 @dataclass
 class AlphaBacktestResult(StockSelectionBacktestResult):
     """Alpha 回测结果"""
+
     # Alpha 特有指标
     avg_ic: float = 0.0  # 平均 IC
     avg_rank_ic: float = 0.0  # 平均 Rank IC
@@ -61,8 +160,8 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
         get_regime_func: Callable[[date], str | None],
         get_price_func: Callable[[str, date], Decimal | None],
         get_benchmark_price_func: Callable[[date], float | None],
-        alpha_service,
-    ):
+        alpha_service: AlphaServiceProtocol,
+    ) -> None:
         """
         初始化 Alpha 回测引擎
 
@@ -79,14 +178,14 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             get_regime_func=get_regime_func,
             get_stock_data_func=lambda d: [],  # 不使用，由 Alpha 替代
             get_price_func=get_price_func,
-            get_benchmark_price_func=get_benchmark_price_func
+            get_benchmark_price_func=get_benchmark_price_func,
         )
 
         self.alpha_config = config
         self.alpha_service = alpha_service
-        self.provider_usage = {}  # 记录各 Provider 使用次数
+        self.provider_usage: dict[str, int] = {}  # 记录各 Provider 使用次数
 
-    def run(self) -> AlphaBacktestResult:
+    def run(self, screening_rules: object | None = None) -> AlphaBacktestResult:
         """
         运行 Alpha 回测
 
@@ -95,20 +194,23 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
         """
         # 初始化
         capital = self.config.initial_capital
-        portfolio = {}  # {stock_code: (shares, entry_price)}
-        rebalance_records = []
-        stock_performances = []
-        equity_curve = []
+        portfolio: dict[str, tuple[int, Decimal, date]] = {}
+        rebalance_records: list[RebalanceRecord] = []
+        stock_performances: list[StockPerformance] = []
+        equity_curve: list[tuple[date, Decimal]] = []
 
         # IC 统计
-        ics = []
-        rank_ics = []
+        ics: list[float] = []
+        rank_ics: list[float] = []
 
         # 生成再平衡日期
         rebalance_dates = self._generate_rebalance_dates()
 
         # 初始基准
-        initial_benchmark_price = self.get_benchmark_price_func(self.config.start_date)
+        initial_benchmark_price = _require_valid_benchmark_price(
+            self.get_benchmark_price_func(self.config.start_date),
+            label="initial",
+        )
 
         logger.info(f"开始 Alpha 回测: {self.config.start_date} ~ {self.config.end_date}")
         logger.info(f"再平衡次数: {len(rebalance_dates)}")
@@ -121,12 +223,13 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             alpha_result = self.alpha_service.get_stock_scores(
                 universe_id=self.alpha_config.universe_id,
                 intended_trade_date=rebalance_date,
-                top_n=self.alpha_config.max_positions
+                top_n=self.alpha_config.max_positions,
             )
 
             if not alpha_result.success:
                 logger.warning(
-                    f"日期 {rebalance_date}: Alpha 评分失败 - {alpha_result.error_message}"
+                    "Alpha scores unavailable for rebalance_date=%s",
+                    rebalance_date,
                 )
                 continue
 
@@ -135,89 +238,115 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             self.provider_usage[provider] = self.provider_usage.get(provider, 0) + 1
 
             # 筛选高分股票
-            selected_stocks = [
-                stock.code for stock in alpha_result.scores
-                if stock.score >= self.alpha_config.min_score
-            ]
+            selected_stocks: list[str] = []
+            for stock in alpha_result.scores:
+                if (
+                    isinstance(stock.score, bool)
+                    or not math.isfinite(stock.score)
+                    or not -1.0 <= stock.score <= 1.0
+                ):
+                    raise ValueError("Alpha score must be finite and between -1 and 1")
+                if stock.asof_date is None or stock.asof_date > rebalance_date:
+                    raise ValueError("Alpha score violates point-in-time availability")
+                if stock.intended_trade_date != rebalance_date:
+                    raise ValueError("Alpha score trade date does not match rebalance date")
+                code = stock.code.strip().upper()
+                if not code:
+                    raise ValueError("Alpha score stock code must not be blank")
+                if stock.score >= self.alpha_config.min_score:
+                    selected_stocks.append(code)
+            selected_stocks = list(dict.fromkeys(selected_stocks))
 
             if not selected_stocks:
                 logger.warning(f"日期 {rebalance_date}: 没有符合条件的股票")
                 continue
 
             # 限制持仓数量
-            selected_stocks = selected_stocks[:self.alpha_config.max_positions]
-
-            # 计算覆盖率（如果有目标股票数量）
-            len(selected_stocks) / self.alpha_config.max_positions
+            selected_stocks = selected_stocks[: self.alpha_config.max_positions]
 
             # 3. 卖出不在新股票池中的股票
-            sold_stocks = []
+            sold_stocks: list[tuple[str, float]] = []
             for stock_code in list(portfolio.keys()):
                 if stock_code not in selected_stocks:
-                    shares, entry_price = portfolio.pop(stock_code)
+                    shares, entry_price, entry_date = portfolio[stock_code]
 
                     # 获取当前价格
                     current_price = self.get_price_func(stock_code, rebalance_date)
-                    if current_price:
-                        # 计算收益
-                        return_rate = float((current_price - entry_price) / entry_price)
+                    if not _is_valid_price(current_price):
+                        raise ValueError(f"Missing valid exit price for {stock_code}")
+                    portfolio.pop(stock_code)
+                    return_rate = float((current_price - entry_price) / entry_price)
 
-                        # 记录表现
-                        stock_performances.append(StockPerformance(
+                    stock_performances.append(
+                        StockPerformance(
                             stock_code=stock_code,
                             stock_name=stock_code,
-                            entry_date=rebalance_date - timedelta(days=30),  # 估算
+                            entry_date=entry_date,
                             entry_price=entry_price,
                             exit_date=rebalance_date,
                             exit_price=current_price,
                             return_rate=return_rate,
-                            holding_days=30
-                        ))
+                            holding_days=(rebalance_date - entry_date).days,
+                        )
+                    )
 
-                        # 更新资金
-                        capital += shares * current_price * Decimal(1 - self.config.commission_rate)
-                        sold_stocks.append((stock_code, return_rate))
+                    commission_multiplier = Decimal("1") - Decimal(str(self.config.commission_rate))
+                    capital += shares * current_price * commission_multiplier
+                    sold_stocks.append((stock_code, return_rate))
 
             # 4. 计算新股票池权重（等权重）
             weights = {code: 1.0 / len(selected_stocks) for code in selected_stocks}
 
             # 5. 买入新股票
-            bought_stocks = []
+            bought_stocks: list[tuple[str, Decimal]] = []
             for stock_code in selected_stocks:
                 if stock_code not in portfolio:
                     weight = weights.get(stock_code, 1.0 / len(selected_stocks))
-                    target_value = capital * Decimal(weight)
+                    target_value = capital * Decimal(str(weight))
 
                     # 获取价格
                     price = self.get_price_func(stock_code, rebalance_date)
-                    if price:
+                    if _is_valid_price(price):
                         # 计算买入股数（考虑滑点）
-                        actual_price = price * Decimal(1 + self.config.slippage_rate)
+                        actual_price = price * (
+                            Decimal("1") + Decimal(str(self.config.slippage_rate))
+                        )
                         shares = int(target_value / actual_price)
 
                         if shares > 0:
-                            cost = shares * actual_price * Decimal(1 + self.config.commission_rate)
+                            cost = (
+                                shares
+                                * actual_price
+                                * (Decimal("1") + Decimal(str(self.config.commission_rate)))
+                            )
                             if cost <= capital:
-                                portfolio[stock_code] = (shares, actual_price)
+                                portfolio[stock_code] = (
+                                    shares,
+                                    actual_price,
+                                    rebalance_date,
+                                )
                                 capital -= cost
                                 bought_stocks.append((stock_code, actual_price))
 
             # 6. 计算当前组合价值
             portfolio_value = capital
-            for stock_code, (shares, _) in portfolio.items():
+            for stock_code, (shares, _, _) in portfolio.items():
                 price = self.get_price_func(stock_code, rebalance_date)
-                if price:
-                    portfolio_value += shares * price
+                if not _is_valid_price(price):
+                    raise ValueError(f"Missing valid valuation price for {stock_code}")
+                portfolio_value += shares * price
 
             # 7. 记录
-            rebalance_records.append(RebalanceRecord(
-                rebalance_date=rebalance_date,
-                regime=regime,
-                selected_stocks=selected_stocks,
-                sold_stocks=sold_stocks,
-                bought_stocks=bought_stocks,
-                portfolio_value=portfolio_value
-            ))
+            rebalance_records.append(
+                RebalanceRecord(
+                    rebalance_date=rebalance_date,
+                    regime=regime,
+                    selected_stocks=selected_stocks,
+                    sold_stocks=sold_stocks,
+                    bought_stocks=bought_stocks,
+                    portfolio_value=portfolio_value,
+                )
+            )
 
             # 8. 记录净值
             equity_curve.append((rebalance_date, portfolio_value))
@@ -230,33 +359,49 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             )
 
         # 最后再平衡后清空持仓
-        final_date = rebalance_dates[-1] if rebalance_dates else self.config.end_date
-        for stock_code, (shares, entry_price) in portfolio.items():
+        final_date = self.config.end_date
+        final_liquidation_count = len(portfolio)
+        for stock_code, (shares, entry_price, entry_date) in portfolio.items():
             current_price = self.get_price_func(stock_code, final_date)
-            if current_price:
-                return_rate = float((current_price - entry_price) / entry_price)
-                stock_performances.append(StockPerformance(
+            if not _is_valid_price(current_price):
+                raise ValueError(f"Missing valid final price for {stock_code}")
+            return_rate = float((current_price - entry_price) / entry_price)
+            stock_performances.append(
+                StockPerformance(
                     stock_code=stock_code,
                     stock_name=stock_code,
-                    entry_date=final_date - timedelta(days=30),
+                    entry_date=entry_date,
                     entry_price=entry_price,
                     exit_date=final_date,
                     exit_price=current_price,
                     return_rate=return_rate,
-                    holding_days=30
-                ))
-                capital += shares * current_price
+                    holding_days=(final_date - entry_date).days,
+                )
+            )
+            final_commission_multiplier = Decimal("1") - Decimal(str(self.config.commission_rate))
+            capital += shares * current_price * final_commission_multiplier
+
+        if not equity_curve:
+            raise ValueError("Alpha backtest has no executable rebalance observations")
+        if equity_curve[-1][0] == final_date:
+            equity_curve[-1] = (final_date, capital)
+        else:
+            equity_curve.append((final_date, capital))
 
         # 计算最终结果
         final_value = capital
-        total_return = float((final_value - self.config.initial_capital) / self.config.initial_capital)
+        total_return = float(
+            (final_value - self.config.initial_capital) / self.config.initial_capital
+        )
 
         # 计算基准收益
-        final_benchmark_price = self.get_benchmark_price_func(self.config.end_date)
-        if initial_benchmark_price and final_benchmark_price:
-            benchmark_return = (final_benchmark_price - initial_benchmark_price) / initial_benchmark_price
-        else:
-            benchmark_return = 0.0
+        final_benchmark_price = _require_valid_benchmark_price(
+            self.get_benchmark_price_func(self.config.end_date),
+            label="final",
+        )
+        benchmark_return = (
+            final_benchmark_price - initial_benchmark_price
+        ) / initial_benchmark_price
 
         excess_return = total_return - benchmark_return
 
@@ -266,26 +411,27 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
 
         # 计算风险指标
         volatility, max_drawdown, sharpe_ratio = self._calculate_risk_metrics(
-            equity_curve,
-            annualized_return
+            equity_curve, annualized_return
         )
 
         # 计算交易统计
-        total_trades = sum(
-            len(record.sold_stocks) + len(record.bought_stocks)
-            for record in rebalance_records
+        total_trades = (
+            sum(len(record.sold_stocks) + len(record.bought_stocks) for record in rebalance_records)
+            + final_liquidation_count
         )
 
         # 计算持仓统计
         win_rate, avg_win, avg_loss = self._calculate_win_loss_stats(
-            {sp.stock_code: [{'return': sp.return_rate}] for sp in stock_performances}
+            {sp.stock_code: [{"return": sp.return_rate}] for sp in stock_performances}
         )
 
         # 计算平均覆盖率
-        avg_coverage = sum(
-            len(r.selected_stocks) / self.alpha_config.max_positions
-            for r in rebalance_records
-        ) / len(rebalance_records) if rebalance_records else 0
+        avg_coverage = (
+            sum(len(r.selected_stocks) / self.alpha_config.max_positions for r in rebalance_records)
+            / len(rebalance_records)
+            if rebalance_records
+            else 0
+        )
 
         # 计算换手率
         turnover_rate = self._calculate_turnover_rate(rebalance_records)
@@ -304,11 +450,19 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             max_drawdown=max_drawdown,
             sharpe_ratio=sharpe_ratio,
             calmar_ratio=annualized_return / max_drawdown if max_drawdown != 0 else 0,
-            total_rebalances=len(rebalance_dates),
+            total_rebalances=len(rebalance_records),
             total_trades=total_trades,
-            avg_holding_period=30.0,  # 简化假设
+            avg_holding_period=(
+                sum(item.holding_days for item in stock_performances) / len(stock_performances)
+                if stock_performances
+                else 0.0
+            ),
             turnover_rate=turnover_rate,
-            avg_positions=sum(len(r.selected_stocks) for r in rebalance_records) / len(rebalance_records) if rebalance_records else 0,
+            avg_positions=(
+                sum(len(r.selected_stocks) for r in rebalance_records) / len(rebalance_records)
+                if rebalance_records
+                else 0
+            ),
             win_rate=win_rate,
             avg_win=avg_win,
             avg_loss=avg_loss,
@@ -322,10 +476,7 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             provider_usage=self.provider_usage,
         )
 
-    def _calculate_turnover_rate(
-        self,
-        rebalance_records: list[RebalanceRecord]
-    ) -> float:
+    def _calculate_turnover_rate(self, rebalance_records: list[RebalanceRecord]) -> float:
         """
         计算换手率
 
@@ -340,7 +491,7 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
         if not rebalance_records:
             return 0.0
 
-        turnover_rates = []
+        turnover_rates: list[float] = []
 
         for record in rebalance_records:
             # 换手率 = (卖出数量 + 买入数量) / (2 * 持仓数量)
@@ -375,8 +526,6 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
         if len(ics) < 2:
             return 0.0
 
-        import statistics
-
         mean_ic = statistics.mean(ics)
 
         try:
@@ -394,6 +543,7 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
 @dataclass
 class RunAlphaBacktestRequest:
     """运行 Alpha 回测的请求"""
+
     name: str
     start_date: date
     end_date: date
@@ -409,6 +559,7 @@ class RunAlphaBacktestRequest:
 @dataclass
 class RunAlphaBacktestResponse:
     """运行 Alpha 回测的响应"""
+
     backtest_id: int | None
     status: str
     result: dict[str, Any] | None
@@ -429,12 +580,12 @@ class RunAlphaBacktestUseCase:
 
     def __init__(
         self,
-        repository,
+        repository: AlphaBacktestRepositoryProtocol,
         get_regime_func: Callable[[date], str | None],
         get_price_func: Callable[[str, date], Decimal | None],
         get_benchmark_price_func: Callable[[date], float | None],
-        alpha_service_factory: Callable[[], Any] | None = None,
-    ):
+        alpha_service_factory: Callable[[], AlphaServiceProtocol] | None = None,
+    ) -> None:
         """
         Args:
             repository: 回测仓储
@@ -449,12 +600,14 @@ class RunAlphaBacktestUseCase:
         self._alpha_service_factory = alpha_service_factory
 
         # 延迟初始化 Alpha 服务
-        self._alpha_service = None
+        self._alpha_service: AlphaServiceProtocol | None = None
+        self._alpha_service_initialized = False
 
     @property
-    def alpha_service(self):
+    def alpha_service(self) -> AlphaServiceProtocol | None:
         """获取 Alpha 服务（延迟初始化）"""
-        if self._alpha_service is None:
+        if not self._alpha_service_initialized:
+            self._alpha_service_initialized = True
             try:
                 if self._alpha_service_factory is not None:
                     self._alpha_service = self._alpha_service_factory()
@@ -462,10 +615,8 @@ class RunAlphaBacktestUseCase:
                     self._alpha_service = AlphaService()
                 else:
                     logger.warning("Alpha service factory not configured")
-                    self._alpha_service = False
             except ImportError:
                 logger.warning("Alpha 模块不可用")
-                self._alpha_service = False
         return self._alpha_service
 
     def execute(self, request: RunAlphaBacktestRequest) -> RunAlphaBacktestResponse:
@@ -478,19 +629,23 @@ class RunAlphaBacktestUseCase:
         Returns:
             RunAlphaBacktestResponse: 回测结果
         """
-        errors = []
-        warnings = []
-        backtest_id = None
+        errors: list[str] = []
+        warnings: list[str] = []
+        backtest_id: int | None = None
 
         try:
+            if not request.name.strip():
+                raise ValueError("backtest name must not be blank")
+
             # 1. 验证 Alpha 服务可用
-            if not self.alpha_service:
+            alpha_service = self.alpha_service
+            if alpha_service is None:
                 return RunAlphaBacktestResponse(
                     backtest_id=None,
-                    status='failed',
+                    status="failed",
                     result=None,
-                    errors=['Alpha 服务不可用'],
-                    warnings=[]
+                    errors=["Alpha 服务不可用"],
+                    warnings=[],
                 )
 
             # 2. 创建回测配置
@@ -510,9 +665,11 @@ class RunAlphaBacktestUseCase:
             # 3. 创建回测记录
             backtest_model = self.repository.create_backtest(request.name, config)
             backtest_id = backtest_model.id
+            if backtest_id is None or backtest_id <= 0:
+                raise RuntimeError("Backtest persistence did not return a valid identity")
 
             # 4. 标记为运行中
-            self.repository.update_status(backtest_id, 'running')
+            self.repository.update_status(backtest_id, "running")
 
             # 5. 创建并运行回测引擎
             engine = AlphaBacktestEngine(
@@ -520,11 +677,10 @@ class RunAlphaBacktestUseCase:
                 get_regime_func=self.get_regime,
                 get_price_func=self.get_price,
                 get_benchmark_price_func=self.get_benchmark_price,
-                alpha_service=self.alpha_service,
+                alpha_service=alpha_service,
             )
 
             result = engine.run()
-            warnings.extend([])  # 可以添加警告信息
 
             # 6. 保存结果
             self.repository.save_result(backtest_id, result)
@@ -533,24 +689,31 @@ class RunAlphaBacktestUseCase:
 
             return RunAlphaBacktestResponse(
                 backtest_id=backtest_id,
-                status='completed',
+                status="completed",
                 result=self._result_to_dict(result),
                 errors=errors,
                 warnings=warnings,
             )
 
-        except Exception as e:
-            logger.exception(f"Alpha Backtest failed: {e}")
+        except Exception as exc:
+            logger.error(
+                "Alpha backtest failed; exception_type=%s",
+                type(exc).__name__,
+            )
 
             # 如果已经创建了记录，标记为失败
-            if backtest_id:
-                self.repository.update_status(backtest_id, 'failed', str(e))
+            if backtest_id is not None:
+                self.repository.update_status(
+                    backtest_id,
+                    "failed",
+                    "Alpha backtest execution failed.",
+                )
 
             return RunAlphaBacktestResponse(
-                backtest_id=backtest_id if 'backtest_id' in locals() else None,
-                status='failed',
+                backtest_id=backtest_id,
+                status="failed",
                 result=None,
-                errors=[str(e)],
+                errors=["Alpha backtest execution failed."],
                 warnings=warnings,
             )
 
@@ -558,25 +721,24 @@ class RunAlphaBacktestUseCase:
     def _result_to_dict(result: AlphaBacktestResult) -> dict[str, Any]:
         """将结果转换为字典"""
         return {
-            'total_return': result.total_return,
-            'annualized_return': result.annualized_return,
-            'benchmark_return': result.benchmark_return,
-            'excess_return': result.excess_return,
-            'volatility': result.volatility,
-            'max_drawdown': result.max_drawdown,
-            'sharpe_ratio': result.sharpe_ratio,
-            'calmar_ratio': result.calmar_ratio,
-            'total_rebalances': result.total_rebalances,
-            'total_trades': result.total_trades,
-            'avg_positions': result.avg_positions,
-            'win_rate': result.win_rate,
-            'avg_ic': result.avg_ic,
-            'avg_rank_ic': result.avg_rank_ic,
-            'icir': result.icir,
-            'coverage_ratio': result.coverage_ratio,
-            'provider_usage': result.provider_usage,
-            'equity_curve': [
-                {'date': d.isoformat(), 'value': float(v)}
-                for d, v in result.equity_curve
+            "total_return": result.total_return,
+            "annualized_return": result.annualized_return,
+            "benchmark_return": result.benchmark_return,
+            "excess_return": result.excess_return,
+            "volatility": result.volatility,
+            "max_drawdown": result.max_drawdown,
+            "sharpe_ratio": result.sharpe_ratio,
+            "calmar_ratio": result.calmar_ratio,
+            "total_rebalances": result.total_rebalances,
+            "total_trades": result.total_trades,
+            "avg_positions": result.avg_positions,
+            "win_rate": result.win_rate,
+            "avg_ic": result.avg_ic,
+            "avg_rank_ic": result.avg_rank_ic,
+            "icir": result.icir,
+            "coverage_ratio": result.coverage_ratio,
+            "provider_usage": result.provider_usage,
+            "equity_curve": [
+                {"date": d.isoformat(), "value": float(v)} for d, v in result.equity_curve
             ],
         }
