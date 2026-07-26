@@ -7,6 +7,10 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
 from apps.backtest.infrastructure.models import BacktestResultModel
+from apps.backtest.interface.serializers import (
+    DecisionReplayBacktestSerializer,
+    RunBacktestSerializer,
+)
 
 
 @pytest.mark.django_db
@@ -159,6 +163,86 @@ def test_backtest_run_rejects_invalid_date_order(authenticated_client):
 
     assert response.status_code == 400
     assert "start_date must be before end_date" in str(response.json()["errors"])
+
+
+@pytest.mark.django_db
+def test_backtest_run_rejects_unknown_fields_before_execution(authenticated_client):
+    with patch("apps.backtest.interface.views.run_backtest_payload") as mock_run:
+        response = authenticated_client.post(
+            "/api/backtest/run/",
+            {
+                "name": "unknown-field",
+                "start_date": "2026-01-01",
+                "end_date": "2026-02-01",
+                "initial_capital": 100000,
+                "rebalance_frequency": "monthly",
+                "transaction_cost": 0,
+            },
+            format="json",
+        )
+
+    assert response.status_code == 400
+    assert "Unknown fields: transaction_cost" in str(response.json()["errors"])
+    mock_run.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_backtest_run_rejects_zero_capital_before_execution(authenticated_client):
+    with patch("apps.backtest.interface.views.run_backtest_payload") as mock_run:
+        response = authenticated_client.post(
+            "/api/backtest/run/",
+            {
+                "name": "zero-capital",
+                "start_date": "2026-01-01",
+                "end_date": "2026-02-01",
+                "initial_capital": 0,
+            },
+            format="json",
+        )
+
+    assert response.status_code == 400
+    assert "greater than zero" in str(response.json()["errors"])
+    mock_run.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("initial_capital", float("nan")),
+        ("initial_capital", float("inf")),
+        ("initial_capital", True),
+        ("transaction_cost_bps", float("-inf")),
+    ],
+)
+def test_backtest_run_serializer_rejects_non_finite_financial_values(
+    field_name,
+    value,
+):
+    payload = {
+        "name": "invalid-financial-value",
+        "start_date": "2026-01-01",
+        "end_date": "2026-02-01",
+        "initial_capital": 100000,
+    }
+    payload[field_name] = value
+    serializer = RunBacktestSerializer(data=payload)
+
+    assert serializer.is_valid() is False
+    assert field_name in serializer.errors
+
+
+def test_decision_replay_serializer_rejects_non_positive_portfolio_id():
+    serializer = DecisionReplayBacktestSerializer(
+        data={
+            "portfolio_id": 0,
+            "start_date": "2026-01-01",
+            "end_date": "2026-02-01",
+            "branch_type": "actual",
+        }
+    )
+
+    assert serializer.is_valid() is False
+    assert "portfolio_id" in serializer.errors
 
 
 @pytest.mark.django_db

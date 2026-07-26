@@ -3874,3 +3874,18 @@
 - Events Domain、受控重放、API 边界与集成契约回归 `82 passed`；覆盖未知字段、歧义查询、反向时间窗口、`UNKNOWN` 发布、非有限 JSON、权限、幂等发布、重放和内部异常脱敏。
 - Events serializers 与 views 增量 mypy 清零；全仓基线从 `1565 errors / 445 files` 收紧为 `1546 errors / 443 files`，净减少 `19 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百六十一批
+
+- 按“回测金融输入真实性 × 未知参数失败关闭 × 请求边界类型完整性”收口 Backtest serializers。
+- 回测配置、运行和决策重放请求统一拒绝未声明字段；拼错或过期参数不再被 DRF 静默丢弃后按默认值执行。
+- 本金和交易成本字段拒绝布尔值、`NaN` 与 `Inf`；本金必须严格大于零，交易成本保持 Domain 已有的有限非负规则，不在 Interface 新增业务费率或默认值。
+- 决策重放 `portfolio_id` 必须为正整数，初始本金必须是有限正 Decimal；无效标识和金额在进入 Application 与组合查询前拒绝。
+- PIT verified 的 manifest、配置哈希、代码提交、引擎版本、研究试验和决策快照要求统一由共享校验函数执行，避免配置与运行入口规则漂移。
+- 动态 ORM model、请求 serializers、统计响应和三个 validate handler 补齐精确 Model、Application DTO、泛型容器与返回类型。
+
+## 第二百六十一批验证结果
+
+- Backtest API 边界回归 `16 passed`，Backtest API、Application、Domain、tasks 与报告回归 `77 passed`；覆盖未知字段零执行、零本金、布尔/非有限金融值、非正组合 ID、所有者隔离、失败脱敏和执行配置。
+- Backtest serializers 增量 mypy 清零，调用 views 保持零回归；全仓基线从 `1546 errors / 443 files` 收紧为 `1535 errors / 442 files`，净减少 `11 errors / 1 file`。
+- Django system check、架构边界、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

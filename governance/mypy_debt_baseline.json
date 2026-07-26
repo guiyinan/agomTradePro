@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1546,
-    "files_with_errors": 443
+    "errors": 1535,
+    "files_with_errors": 442
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -456,11 +456,6 @@
     },
     "apps/backtest/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/backtest/interface/serializers.py": {
-      "arg-type": 1,
-      "no-untyped-def": 3,
-      "type-arg": 7
     },
     "apps/beta_gate/interface/api_urls.py": {
       "no-untyped-def": 1
