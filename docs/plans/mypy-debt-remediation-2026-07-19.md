@@ -4163,3 +4163,19 @@
 - Filter repository、UseCase 与 API 定向回归 `38 passed`；完整 Filter Dashboard、Domain、UseCase、Repository 与 API 回归 `83 passed`。
 - `repositories.py` 增量 mypy 清零，Filter use cases 保持清零；全仓基线从 `1356 errors / 422 files` 收紧为 `1346 errors / 421 files`，净减少 `10 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百七十八批
+
+- 按“Regime 状态展示真源 × 风险参数空值保真 × ORM 类型边界”收口 Regime 核心配置模型。
+- 删除与 Django choices 自动方法冲突的自定义 `get_dominant_regime_display`；四种 Regime 的中文名称改由字段 choices 原生标签发布，模板调用契约保持不变。
+- 新增状态迁移同步 choices 标签；不修改数据库存储值，`Recovery/Overheat/Stagflation/Deflation` 规范代码及既有约束保持不变。
+- 风险参数 JSON 判断改为显式 `is not None`；合法空对象 `{}` 与空数组 `[]` 不再被误判成“未配置”。
+- 所有 Regime 模型字符串表示、约束验证与风险参数取值补齐精确返回类型；JSONField 的动态值在 ORM 边界收窄，不向调用方泄漏 `Any`。
+- `validate_constraints` 使用与 Django 基类一致的 `Collection[str] | None` 契约；激活配置切换的既有约束豁免与事务行为不变。
+- 精确的 `get_value` 签名同步消除 `config_helper.py` 的下游无类型调用债务。
+
+## 第二百七十八批验证结果
+
+- Regime 原生中文显示、空 JSON 配置、仓储安全与激活一致性回归 `13 passed`；Regime API、重算命令与财务配置回归 `18 passed`，合计 `31 passed`。
+- `models.py` 增量 mypy 清零，并同步清除 `config_helper.py` 下游债务；全仓基线从 `1346 errors / 421 files` 收紧为 `1334 errors / 419 files`，净减少 `12 errors / 2 files`。
+- Django system check、迁移一致性、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

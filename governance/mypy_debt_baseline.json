@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1346,
-    "files_with_errors": 421
+    "errors": 1334,
+    "files_with_errors": 419
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1126,15 +1126,8 @@
       "no-untyped-def": 7,
       "type-arg": 3
     },
-    "apps/regime/infrastructure/config_helper.py": {
-      "no-untyped-call": 1
-    },
     "apps/regime/infrastructure/fixtures/system_config.py": {
       "misc": 4
-    },
-    "apps/regime/infrastructure/models.py": {
-      "no-redef": 1,
-      "no-untyped-def": 10
     },
     "apps/regime/infrastructure/views.py": {
       "no-untyped-def": 1
