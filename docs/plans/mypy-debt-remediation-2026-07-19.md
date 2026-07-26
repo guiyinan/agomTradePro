@@ -4020,3 +4020,17 @@
 - Alpha 运行时新增边界回归 `7 passed`；Alpha 查询、视图、首页结构与 API 边界完整回归 `101 passed`。
 - `alpha_homepage_runtime.py` 与调用入口增量 mypy 清零；全仓基线从 `1448 errors / 432 files` 收紧为 `1436 errors / 431 files`，净减少 `12 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百七十批
+
+- 按“Dashboard 宏观局部视图契约 × 用户作用域失败关闭 × 兼容导出面类型完整性”收口 Regime、Pulse、行动建议和今日关注四个 HTMX 入口。
+- 主 Dashboard 兼容模块通过精确 Protocol 描述宏观组件加载、上下文构造、Dashboard DTO 和持仓补全方法；局部视图不再依赖无类型动态模块调用。
+- 四个入口补齐 `HttpRequest`、`HttpResponse` 和模板上下文类型；局部 typed decorator 在 DRF 动态装饰器边界恢复函数签名，不扩大通用认证装饰器的类型假设。
+- 今日关注入口要求认证主体具有非布尔的正整数持久化 ID；匿名态之外的未保存用户、零值、负值和字符串 ID 不再进入 Dashboard 数据与持仓查询链。
+- 保持现有 `apps.dashboard.interface.views` monkeypatch/兼容导出面不变，避免破坏已有测试、插件和 Dashboard 内部调用者。
+
+## 第二百七十批验证结果
+
+- 宏观局部视图新增契约回归 `10 passed`；真实宏观路由、静态读认证、Regime/Pulse 端到端和 Dashboard 兼容回归 `35 passed`。
+- `macro_views.py` 增量 mypy 清零；全仓基线从 `1436 errors / 431 files` 收紧为 `1427 errors / 430 files`，净减少 `9 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

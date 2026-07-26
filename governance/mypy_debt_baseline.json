@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1436,
-    "files_with_errors": 431
+    "errors": 1427,
+    "files_with_errors": 430
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -501,10 +501,6 @@
     },
     "apps/dashboard/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/dashboard/interface/macro_views.py": {
-      "no-untyped-call": 4,
-      "no-untyped-def": 5
     },
     "apps/dashboard/interface/workflow_views.py": {
       "no-untyped-call": 1,
