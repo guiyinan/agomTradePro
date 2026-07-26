@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1160,
-    "files_with_errors": 393
+    "errors": 1155,
+    "files_with_errors": 392
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1279,10 +1279,6 @@
     },
     "core/asgi.py": {
       "import-untyped": 3
-    },
-    "core/context_processors.py": {
-      "dict-item": 1,
-      "no-untyped-def": 4
     },
     "core/integration/alpha_cache.py": {
       "no-untyped-def": 1

@@ -4540,3 +4540,19 @@
 - 内部 SSL redirect、生产设置、Core Security 与认证强化 Guardrail 回归 `31 passed`。
 - `core/middleware/security.py` 与 `core/settings/production.py` 增量 mypy 清零；全仓基线从 `1167 errors / 395 files` 收紧为 `1160 errors / 393 files`，净减少 `7 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百零二批
+
+- 按“全局模板上下文 × 告警数据真实性 × 请求热路径开销”收口 Core context processors。
+- UI mode、认证页默认视觉、市场视觉和全局告警入口补齐 Django request 与精确返回契约；告警使用包含布尔 dismissible 的稳定 TypedDict，不再误声明为纯字符串字典。
+- 同一页面请求内 Decision Rhythm 与 Alpha Trigger alert service 各只构造一次，再分别隔离各查询失败；原实现的重复 factory 调用被消除。
+- 配额百分比通过统一 `safe_float` 收窄，`NaN/Inf` 不再触发告警；计数只接受非布尔非负整数，布尔、负数和异常动态值按零处理。
+- 匿名请求在加载任何业务告警服务前直接返回空列表；认证用户的单项服务失败仍不阻断其他告警或页面渲染。
+- 市场视觉、配额、冷却期、候选、触发器、高优先级请求和 Beta Gate 失败日志统一只记录操作名与异常类型，不再发布数据库 URL、认证信息、底层异常正文或 traceback。
+- 新增匿名短路、服务单次复用、非法计数、非有限配额和日志脱敏回归。
+
+## 第三百零二批验证结果
+
+- Context processor 专项、TUI mode、系统设置视觉与路由文档回归 `26 passed`。
+- `core/context_processors.py` 增量 mypy 清零；全仓基线从 `1160 errors / 393 files` 收紧为 `1155 errors / 392 files`，净减少 `5 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
