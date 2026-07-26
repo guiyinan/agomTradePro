@@ -3941,3 +3941,18 @@
 - Sentiment API、Application、Domain、页面与实体回归 `129 passed`，新增边界小回归 `41 passed`；覆盖未知字段、重复付费工作、倒置日期、非法 days、畸形 AI 输出、`NaN/Inf`、异常配置与错误脱敏。
 - Sentiment serializers 与 views 增量 mypy 清零；全仓基线从 `1499 errors / 437 files` 收紧为 `1482 errors / 435 files`，净减少 `17 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百六十五批
+
+- 按“Dashboard 用户配置输入失败关闭 × 布局标识唯一性 × Serializer 类型契约”收口 Dashboard serializers。
+- 用户偏好、卡片可见性、卡片折叠和强制刷新四类 mutation 请求统一拒绝未知字段；拼错或过期字段不再被 DRF 静默丢弃后返回表面成功。
+- 用户偏好空请求明确拒绝；刷新周期要求正整数，避免无操作写入和非正定时周期进入持久化边界。
+- 隐藏卡片、折叠卡片、卡片排序和指定刷新组件统一拒绝重复标识，避免同一卡片或组件在一次请求中形成歧义状态。
+- 9 个 Domain/Service result serializer、4 个动态 ModelSerializer 和 5 个请求/响应 serializer 补齐精确泛型；动态 Django model 仅在 ORM serializer 边界收窄为 `Model`。
+
+## 第二百六十五批验证结果
+
+- Dashboard serializer 新契约回归 `11 passed`；Dashboard API、页面结构与回归护栏组合包 `37 passed, 1 failed`。
+- 唯一失败为既有 Dashboard Alpha 历史写入在 `alpha_score=None` 时触发 NOT NULL，随后污染测试事务；失败链不经过本批 serializers，留作下一独立高优先级批次处理。
+- Dashboard serializers 增量 mypy 清零；全仓基线从 `1482 errors / 435 files` 收紧为 `1464 errors / 434 files`，净减少 `18 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

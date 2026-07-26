@@ -4,8 +4,11 @@ Dashboard Interface Serializers
 仪表盘 DRF 序列化器定义。
 """
 
+from collections.abc import Mapping
+from typing import Any, cast
 
 from django.apps import apps as django_apps
+from django.db.models import Model
 from rest_framework import serializers
 
 DashboardAlertModel = django_apps.get_model("dashboard", "DashboardAlertModel")
@@ -16,8 +19,33 @@ DashboardUserConfigModel = django_apps.get_model("dashboard", "DashboardUserConf
 # ========== Domain Entity Serializers ==========
 
 
-class MetricCardSerializer(serializers.Serializer):
+class StrictFieldsSerializer(serializers.Serializer[dict[str, Any]]):
+    """Reject fields outside published Dashboard mutation contracts."""
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Validate the request key set before normal field conversion."""
+
+        if not isinstance(data, Mapping):
+            raise serializers.ValidationError("Expected an object payload.")
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
+            )
+        return cast(dict[str, Any], super().to_internal_value(data))
+
+
+def _validate_unique_ids(values: list[str]) -> list[str]:
+    """Reject repeated dashboard identifiers while preserving request order."""
+
+    if len(set(values)) != len(values):
+        raise serializers.ValidationError("Duplicate identifiers are not allowed.")
+    return values
+
+
+class MetricCardSerializer(serializers.Serializer[dict[str, Any]]):
     """指标卡片序列化器"""
+
     title = serializers.CharField()
     value = serializers.FloatField(allow_null=True)
     unit = serializers.CharField(allow_null=True, required=False)
@@ -38,8 +66,9 @@ class MetricCardSerializer(serializers.Serializer):
     formatted_value = serializers.CharField(read_only=True)
 
 
-class ChartConfigSerializer(serializers.Serializer):
+class ChartConfigSerializer(serializers.Serializer[dict[str, Any]]):
     """图表配置序列化器"""
+
     chart_type = serializers.CharField()
     data_type = serializers.CharField(required=False)
     title = serializers.CharField(allow_null=True, required=False)
@@ -55,8 +84,9 @@ class ChartConfigSerializer(serializers.Serializer):
     options = serializers.DictField(required=False)
 
 
-class DashboardWidgetSerializer(serializers.Serializer):
+class DashboardWidgetSerializer(serializers.Serializer[dict[str, Any]]):
     """仪表盘组件序列化器"""
+
     widget_id = serializers.CharField()
     widget_type = serializers.CharField()
     title = serializers.CharField(allow_null=True, required=False)
@@ -72,8 +102,9 @@ class DashboardWidgetSerializer(serializers.Serializer):
     cache_key = serializers.CharField(read_only=True)
 
 
-class DashboardCardSerializer(serializers.Serializer):
+class DashboardCardSerializer(serializers.Serializer[dict[str, Any]]):
     """仪表盘卡片序列化器"""
+
     card_id = serializers.CharField()
     card_type = serializers.CharField()
     title = serializers.CharField(allow_null=True, required=False)
@@ -90,8 +121,9 @@ class DashboardCardSerializer(serializers.Serializer):
     metadata = serializers.DictField(required=False)
 
 
-class DashboardLayoutSerializer(serializers.Serializer):
+class DashboardLayoutSerializer(serializers.Serializer[dict[str, Any]]):
     """仪表盘布局序列化器"""
+
     layout_id = serializers.CharField()
     name = serializers.CharField()
     description = serializers.CharField(allow_null=True, required=False)
@@ -103,8 +135,9 @@ class DashboardLayoutSerializer(serializers.Serializer):
     metadata = serializers.DictField(required=False)
 
 
-class AlertConfigSerializer(serializers.Serializer):
+class AlertConfigSerializer(serializers.Serializer[dict[str, Any]]):
     """告警配置序列化器"""
+
     alert_id = serializers.CharField()
     name = serializers.CharField()
     description = serializers.CharField(allow_null=True, required=False)
@@ -118,8 +151,9 @@ class AlertConfigSerializer(serializers.Serializer):
     metadata = serializers.DictField(required=False)
 
 
-class DashboardPreferencesSerializer(serializers.Serializer):
+class DashboardPreferencesSerializer(serializers.Serializer[dict[str, Any]]):
     """用户偏好序列化器"""
+
     user_id = serializers.IntegerField()
     layout_id = serializers.CharField()
     hidden_cards = serializers.ListField(child=serializers.CharField(), required=False)
@@ -135,8 +169,9 @@ class DashboardPreferencesSerializer(serializers.Serializer):
 # ========== Service Result Serializers ==========
 
 
-class MetricCalculationResultSerializer(serializers.Serializer):
+class MetricCalculationResultSerializer(serializers.Serializer[dict[str, Any]]):
     """指标计算结果序列化器"""
+
     metric_name = serializers.CharField()
     value = serializers.FloatField(allow_null=True)
     formatted_value = serializers.CharField()
@@ -147,8 +182,9 @@ class MetricCalculationResultSerializer(serializers.Serializer):
     metadata = serializers.DictField(required=False)
 
 
-class LayoutResolutionResultSerializer(serializers.Serializer):
+class LayoutResolutionResultSerializer(serializers.Serializer[dict[str, Any]]):
     """布局解析结果序列化器"""
+
     visible_cards = DashboardCardSerializer(many=True)
     visible_widgets = DashboardWidgetSerializer(many=True)
     hidden_count = serializers.IntegerField()
@@ -159,7 +195,7 @@ class LayoutResolutionResultSerializer(serializers.Serializer):
 # ========== Model Serializers ==========
 
 
-class DashboardConfigModelSerializer(serializers.ModelSerializer):
+class DashboardConfigModelSerializer(serializers.ModelSerializer[Model]):
     """仪表盘配置模型序列化器"""
 
     class Meta:
@@ -178,10 +214,13 @@ class DashboardConfigModelSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
 
-class DashboardUserConfigModelSerializer(serializers.ModelSerializer):
+class DashboardUserConfigModelSerializer(serializers.ModelSerializer[Model]):
     """用户仪表盘配置模型序列化器"""
+
     username = serializers.CharField(source="user.username", read_only=True)
-    dashboard_config_name = serializers.CharField(source="dashboard_config.name", read_only=True, allow_null=True)
+    dashboard_config_name = serializers.CharField(
+        source="dashboard_config.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = DashboardUserConfigModel
@@ -203,7 +242,7 @@ class DashboardUserConfigModelSerializer(serializers.ModelSerializer):
         read_only_fields = ["last_updated"]
 
 
-class DashboardCardModelSerializer(serializers.ModelSerializer):
+class DashboardCardModelSerializer(serializers.ModelSerializer[Model]):
     """仪表盘卡片模型序列化器"""
 
     class Meta:
@@ -231,8 +270,9 @@ class DashboardCardModelSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
 
-class DashboardAlertModelSerializer(serializers.ModelSerializer):
+class DashboardAlertModelSerializer(serializers.ModelSerializer[Model]):
     """仪表盘告警模型序列化器"""
+
     severity_display = serializers.CharField(source="get_severity_display", read_only=True)
 
     class Meta:
@@ -261,36 +301,68 @@ class DashboardAlertModelSerializer(serializers.ModelSerializer):
 # ========== Request/Response Serializers ==========
 
 
-class UpdatePreferencesRequestSerializer(serializers.Serializer):
+class UpdatePreferencesRequestSerializer(StrictFieldsSerializer):
     """更新偏好请求序列化器"""
+
     hidden_cards = serializers.ListField(child=serializers.CharField(), required=False)
     collapsed_cards = serializers.ListField(child=serializers.CharField(), required=False)
     card_order = serializers.ListField(child=serializers.CharField(), required=False)
     theme = serializers.CharField(required=False)
     refresh_enabled = serializers.BooleanField(required=False)
-    refresh_interval = serializers.IntegerField(required=False)
+    refresh_interval = serializers.IntegerField(required=False, min_value=1)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Reject no-op preference mutations."""
+
+        if not attrs:
+            raise serializers.ValidationError("At least one preference is required.")
+        return attrs
+
+    def validate_hidden_cards(self, value: list[str]) -> list[str]:
+        """Reject duplicate hidden-card identifiers."""
+
+        return _validate_unique_ids(value)
+
+    def validate_collapsed_cards(self, value: list[str]) -> list[str]:
+        """Reject duplicate collapsed-card identifiers."""
+
+        return _validate_unique_ids(value)
+
+    def validate_card_order(self, value: list[str]) -> list[str]:
+        """Reject duplicate card-order identifiers."""
+
+        return _validate_unique_ids(value)
 
 
-class ToggleCardVisibilityRequestSerializer(serializers.Serializer):
+class ToggleCardVisibilityRequestSerializer(StrictFieldsSerializer):
     """切换卡片可见性请求序列化器"""
+
     card_id = serializers.CharField()
     is_visible = serializers.BooleanField()
 
 
-class ToggleCardCollapseRequestSerializer(serializers.Serializer):
+class ToggleCardCollapseRequestSerializer(StrictFieldsSerializer):
     """切换卡片折叠状态请求序列化器"""
+
     card_id = serializers.CharField()
     is_collapsed = serializers.BooleanField()
 
 
-class RefreshDashboardRequestSerializer(serializers.Serializer):
+class RefreshDashboardRequestSerializer(StrictFieldsSerializer):
     """刷新仪表盘请求序列化器"""
+
     force_refresh = serializers.BooleanField(required=False)
     include_widgets = serializers.ListField(child=serializers.CharField(), required=False)
 
+    def validate_include_widgets(self, value: list[str]) -> list[str]:
+        """Reject duplicate widget refresh identifiers."""
 
-class DashboardResponseSerializer(serializers.Serializer):
+        return _validate_unique_ids(value)
+
+
+class DashboardResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """仪表盘响应序列化器"""
+
     layout = DashboardLayoutSerializer()
     preferences = DashboardPreferencesSerializer(required=False)
     alerts = AlertConfigSerializer(many=True, required=False)
