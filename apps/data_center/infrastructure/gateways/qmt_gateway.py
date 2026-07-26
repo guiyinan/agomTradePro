@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import importlib
 import logging
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, Protocol, cast
+
+import pandas as pd  # type: ignore[import-untyped]
 
 from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
@@ -31,26 +33,43 @@ _SUPPORTED = {
 }
 
 
+class _XtDataProtocol(Protocol):
+    """QMT 行情 SDK 当前使用到的最小动态接口。"""
+
+    def get_full_tick(self, stock_list: list[str]) -> object: ...
+
+    def get_market_data_ex(
+        self,
+        *,
+        field_list: list[str],
+        stock_list: list[str],
+        period: str,
+        start_time: str,
+        end_time: str,
+        count: int,
+        dividend_type: object,
+        fill_data: bool,
+    ) -> object: ...
+
+
 def _safe_decimal(value: object) -> Decimal | None:
     if value in (None, ""):
         return None
     try:
         decimal_value = Decimal(str(value))
-        return None if decimal_value != decimal_value else decimal_value
+        return decimal_value if decimal_value.is_finite() else None
     except (InvalidOperation, ValueError, TypeError):
         return None
 
 
 def _safe_int(value: object) -> int | None:
-    if value in (None, ""):
+    parsed_value = safe_float(value)
+    if parsed_value is None:
         return None
-    try:
-        return int(float(value))
-    except (ValueError, TypeError):
-        return None
+    return int(parsed_value)
 
 
-def _pick_value(payload: dict[str, Any], *keys: str) -> Any:
+def _pick_value(payload: dict[str, object], *keys: str) -> object | None:
     for key in keys:
         if key in payload and payload[key] not in (None, ""):
             return payload[key]
@@ -83,14 +102,15 @@ class QMTGateway(MarketGatewayProtocol):
     def supports(self, capability: DataCapability) -> bool:
         return capability in _SUPPORTED
 
-    def get_quote_snapshots(
-        self, stock_codes: list[str]
-    ) -> list[QuoteSnapshot]:
+    def get_quote_snapshots(self, stock_codes: list[str]) -> list[QuoteSnapshot]:
         """从 QMT 获取实时行情快照。"""
         try:
             xtdata = self._load_xtdata()
             qmt_codes = [self._to_qmt_code(code) for code in stock_codes]
-            raw_map = xtdata.get_full_tick(qmt_codes) or {}
+            raw_map = xtdata.get_full_tick(qmt_codes)
+            if not isinstance(raw_map, dict):
+                logger.warning("QMT 行情返回格式无效: %s", type(raw_map).__name__)
+                return []
 
             results: list[QuoteSnapshot] = []
             for stock_code, qmt_code in zip(stock_codes, qmt_codes, strict=False):
@@ -98,9 +118,7 @@ class QMTGateway(MarketGatewayProtocol):
                 if not isinstance(raw, dict):
                     continue
 
-                price = _safe_decimal(
-                    _pick_value(raw, "lastPrice", "last_price", "price")
-                )
+                price = _safe_decimal(_pick_value(raw, "lastPrice", "last_price", "price"))
                 if price is None or price <= 0:
                     continue
 
@@ -108,9 +126,7 @@ class QMTGateway(MarketGatewayProtocol):
                     _pick_value(raw, "lastClose", "last_close", "preClose", "pre_close")
                 )
                 change = _safe_decimal(_pick_value(raw, "change", "priceChange"))
-                change_pct = safe_float(
-                    _pick_value(raw, "changePercent", "change_pct", "pctChg")
-                )
+                change_pct = safe_float(_pick_value(raw, "changePercent", "change_pct", "pctChg"))
                 if change is None and pre_close is not None:
                     change = price - pre_close
                 if change_pct is None and change is not None and pre_close and pre_close > 0:
@@ -124,12 +140,8 @@ class QMTGateway(MarketGatewayProtocol):
                         change_pct=change_pct,
                         volume=_safe_int(_pick_value(raw, "volume", "vol")),
                         amount=_safe_decimal(_pick_value(raw, "amount", "amt")),
-                        turnover_rate=safe_float(
-                            _pick_value(raw, "turnoverRate", "turnover_rate")
-                        ),
-                        volume_ratio=safe_float(
-                            _pick_value(raw, "volumeRatio", "volume_ratio")
-                        ),
+                        turnover_rate=safe_float(_pick_value(raw, "turnoverRate", "turnover_rate")),
+                        volume_ratio=safe_float(_pick_value(raw, "volumeRatio", "volume_ratio")),
                         high=_safe_decimal(_pick_value(raw, "high", "highPrice")),
                         low=_safe_decimal(_pick_value(raw, "low", "lowPrice")),
                         open=_safe_decimal(_pick_value(raw, "open", "openPrice")),
@@ -144,9 +156,7 @@ class QMTGateway(MarketGatewayProtocol):
             logger.exception("QMT 行情获取失败")
             return []
 
-    def get_technical_snapshot(
-        self, stock_code: str
-    ) -> TechnicalSnapshot | None:
+    def get_technical_snapshot(self, stock_code: str) -> TechnicalSnapshot | None:
         snapshots = self.get_quote_snapshots([stock_code])
         if not snapshots:
             return None
@@ -217,14 +227,12 @@ class QMTGateway(MarketGatewayProtocol):
             logger.exception("QMT 历史 K 线获取失败: %s", asset_code)
             return []
 
-    def _load_xtdata(self):
+    def _load_xtdata(self) -> _XtDataProtocol:
         """延迟加载 xtdata，避免环境未安装时在 import 阶段失败。"""
         try:
             xtdata = importlib.import_module("xtquant.xtdata")
         except ImportError as exc:
-            raise RuntimeError(
-                "未安装 xtquant，QMT 行情通道不可用"
-            ) from exc
+            raise RuntimeError("未安装 xtquant，QMT 行情通道不可用") from exc
 
         data_dir = self._extra_config.get("data_dir")
         set_data_dir = getattr(xtdata, "set_data_dir", None)
@@ -242,12 +250,10 @@ class QMTGateway(MarketGatewayProtocol):
             except TypeError:
                 connect()
 
-        return xtdata
+        return cast(_XtDataProtocol, xtdata)
 
     @staticmethod
-    def _extract_history_frame(raw: Any, qmt_code: str):
-        import pandas as pd
-
+    def _extract_history_frame(raw: object, qmt_code: str) -> pd.DataFrame | None:
         if raw is None:
             return None
         if isinstance(raw, pd.DataFrame):
@@ -266,7 +272,7 @@ class QMTGateway(MarketGatewayProtocol):
         return None
 
     @staticmethod
-    def _parse_trade_date(raw_value: Any) -> date | None:
+    def _parse_trade_date(raw_value: object) -> date | None:
         if raw_value in (None, ""):
             return None
         if isinstance(raw_value, date) and not isinstance(raw_value, datetime):
@@ -285,10 +291,10 @@ class QMTGateway(MarketGatewayProtocol):
                     int(raw_text[4:6]),
                     int(raw_text[6:8]),
                 )
-            timestamp = int(raw_text)
+            timestamp = float(int(raw_text))
             if len(raw_text) >= 13:
                 timestamp /= 1000
-            return datetime.fromtimestamp(timestamp).date()
+            return datetime.fromtimestamp(timestamp, tz=UTC).date()
 
         try:
             return datetime.fromisoformat(raw_text.replace("/", "-")).date()

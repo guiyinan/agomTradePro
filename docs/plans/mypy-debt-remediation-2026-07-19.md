@@ -4418,3 +4418,18 @@
 - Data Center 市场网关实体、Provider 与解析器回归 `69 passed`。
 - `akshare_eastmoney_gateway.py` 增量 mypy 清零；全仓基线从 `1214 errors / 403 files` 收紧为 `1207 errors / 402 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百九十四批
+
+- 按“本地券商行情接入 × 动态 SDK 最小协议 × 历史交易日确定性”收口 QMT/XtQuant 市场数据 Gateway。
+- 为动态加载的 XtQuant 模块定义实时 Tick 与历史行情最小 Protocol；`_load_xtdata`、历史 DataFrame 提取和交易日解析补齐精确返回类型，下游连接探测不再调用无类型 Gateway。
+- 实时 Tick 顶层载荷必须为字典；SDK 返回列表等异常结构时发布稳定类型告警并安全返回空结果，不再依赖 `AttributeError` 进入宽泛异常路径。
+- 整数解析复用统一 `safe_float`，Decimal 解析显式拒绝 `NaN/Inf`；异常外部数值不再进入标准行情实体。
+- 数字时间戳使用浮点秒值并按 UTC 转换为交易日，消除服务器本地时区造成的日期漂移和整型变量接收浮点值的契约错位。
+- Pandas 无类型依赖只在模块导入边界精确抑制；原始历史载荷在递归转为 DataFrame 前保持 `object`，动态类型不再扩散到标准返回值。
+
+## 第二百九十四批验证结果
+
+- Data Center 市场网关实体、Provider 与解析器回归 `71 passed`。
+- `qmt_gateway.py` 增量 mypy 清零，并同步消除连接测试的一项无类型调用债务；全仓基线从 `1207 errors / 402 files` 收紧为 `1199 errors / 401 files`，净减少 `8 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

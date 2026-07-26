@@ -145,6 +145,29 @@ class TestQMTGateway:
         assert results[0].pre_close == Decimal("15.2")
         assert results[0].source == "qmt"
 
+    def test_numeric_helpers_reject_non_finite_values(self):
+        from apps.data_center.infrastructure.gateways.qmt_gateway import (
+            _safe_decimal,
+            _safe_int,
+        )
+
+        assert _safe_int(float("nan")) is None
+        assert _safe_int(float("inf")) is None
+        assert _safe_decimal("NaN") is None
+        assert _safe_decimal("-Infinity") is None
+
+    def test_get_quote_snapshots_rejects_invalid_sdk_payload(self):
+        from apps.data_center.infrastructure.gateways.qmt_gateway import QMTGateway
+
+        fake_xtdata = MagicMock()
+        fake_xtdata.get_full_tick.return_value = ["not", "a", "mapping"]
+
+        gw = QMTGateway()
+        with patch.object(gw, "_load_xtdata", return_value=fake_xtdata):
+            results = gw.get_quote_snapshots(["000001.SZ"])
+
+        assert results == []
+
     def test_get_historical_prices(self):
         from apps.data_center.infrastructure.gateways.qmt_gateway import QMTGateway
 
