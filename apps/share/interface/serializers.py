@@ -3,6 +3,10 @@ Share API Serializers
 
 DRF 序列化器定义。
 """
+
+from collections.abc import Mapping
+from typing import Any, cast
+
 from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
@@ -14,12 +18,27 @@ ShareLinkModel = django_apps.get_model("share", "ShareLinkModel")
 ShareSnapshotModel = django_apps.get_model("share", "ShareSnapshotModel")
 
 User = get_user_model()
+JsonPayload = dict[str, Any]
 
 
-class ShareLinkSerializer(serializers.ModelSerializer):
+class StrictFieldsSerializer(serializers.Serializer[JsonPayload]):
+    """Reject unknown request fields instead of silently ignoring them."""
+
+    def to_internal_value(self, data: Any) -> JsonPayload:
+        if isinstance(data, Mapping):
+            unknown_fields = set(data) - set(self.fields)
+            if unknown_fields:
+                raise serializers.ValidationError(
+                    {field: ["Unknown field."] for field in sorted(unknown_fields)}
+                )
+        return cast(JsonPayload, super().to_internal_value(data))
+
+
+class ShareLinkSerializer(serializers.ModelSerializer[Any]):
     """
     分享链接序列化器
     """
+
     owner_username = serializers.CharField(source="owner.username", read_only=True)
     has_password = serializers.SerializerMethodField()
     share_url = serializers.SerializerMethodField()
@@ -62,18 +81,18 @@ class ShareLinkSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
-    def get_has_password(self, obj) -> bool:
+    def get_has_password(self, obj: Any) -> bool:
         """是否设置了密码"""
         return bool(obj.password_hash)
 
-    def get_share_url(self, obj) -> str:
+    def get_share_url(self, obj: Any) -> str:
         """生成分享 URL"""
         request = self.context.get("request")
         if request:
-            return request.build_absolute_uri(f"/share/{obj.short_code}/")
+            return str(request.build_absolute_uri(f"/share/{obj.short_code}/"))
         return f"/share/{obj.short_code}/"
 
-    def get_visibility(self, obj) -> dict:
+    def get_visibility(self, obj: Any) -> dict[str, bool]:
         """获取可见性配置"""
         return {
             "amounts": obj.show_amounts,
@@ -85,10 +104,11 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         }
 
 
-class CreateShareLinkSerializer(serializers.Serializer):
+class CreateShareLinkSerializer(StrictFieldsSerializer):
     """
     创建分享链接请求序列化器
     """
+
     account_id = serializers.IntegerField(min_value=1)
     title = serializers.CharField(max_length=100)
     subtitle = serializers.CharField(max_length=200, required=False, allow_null=True)
@@ -100,7 +120,9 @@ class CreateShareLinkSerializer(serializers.Serializer):
         choices=["snapshot", "observer", "research"],
         default="snapshot",
     )
-    password = serializers.CharField(max_length=128, required=False, allow_null=True, allow_blank=True)
+    password = serializers.CharField(
+        max_length=128, required=False, allow_null=True, allow_blank=True
+    )
     expires_at = serializers.DateTimeField(required=False, allow_null=True)
     max_access_count = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     allow_indexing = serializers.BooleanField(default=False)
@@ -111,19 +133,23 @@ class CreateShareLinkSerializer(serializers.Serializer):
     show_decision_evidence = serializers.BooleanField(default=False)
     show_invalidation_logic = serializers.BooleanField(default=False)
 
-    def validate_account_id(self, value):
+    def validate_account_id(self, value: int) -> int:
         """验证账户存在且属于当前用户"""
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            if not validate_share_account_access(account_id=value, owner_id=request.user.id):
-                raise serializers.ValidationError("模拟账户不存在或无权分享此账户")
+        user = getattr(request, "user", None)
+        owner_id = getattr(user, "id", None)
+        if not getattr(user, "is_authenticated", False) or not isinstance(owner_id, int):
+            raise serializers.ValidationError("缺少有效的账户所有者身份")
+        if not validate_share_account_access(account_id=value, owner_id=owner_id):
+            raise serializers.ValidationError("模拟账户不存在或无权分享此账户")
         return value
 
 
-class UpdateShareLinkSerializer(serializers.Serializer):
+class UpdateShareLinkSerializer(StrictFieldsSerializer):
     """
     更新分享链接请求序列化器
     """
+
     title = serializers.CharField(max_length=100, required=False)
     subtitle = serializers.CharField(max_length=200, required=False, allow_null=True)
     theme = serializers.ChoiceField(
@@ -134,7 +160,9 @@ class UpdateShareLinkSerializer(serializers.Serializer):
         choices=["snapshot", "observer", "research"],
         required=False,
     )
-    password = serializers.CharField(max_length=128, required=False, allow_null=True, allow_blank=True)
+    password = serializers.CharField(
+        max_length=128, required=False, allow_null=True, allow_blank=True
+    )
     expires_at = serializers.DateTimeField(required=False, allow_null=True)
     max_access_count = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     allow_indexing = serializers.BooleanField(required=False)
@@ -146,10 +174,11 @@ class UpdateShareLinkSerializer(serializers.Serializer):
     show_invalidation_logic = serializers.BooleanField(required=False)
 
 
-class ShareSnapshotSerializer(serializers.ModelSerializer):
+class ShareSnapshotSerializer(serializers.ModelSerializer[Any]):
     """
     分享快照序列化器
     """
+
     class Meta:
         model = ShareSnapshotModel
         fields = [
@@ -171,10 +200,11 @@ class ShareSnapshotSerializer(serializers.ModelSerializer):
         ]
 
 
-class ShareAccessLogSerializer(serializers.ModelSerializer):
+class ShareAccessLogSerializer(serializers.ModelSerializer[Any]):
     """
     访问日志序列化器
     """
+
     share_link_title = serializers.CharField(source="share_link.title", read_only=True)
 
     class Meta:
@@ -196,19 +226,23 @@ class ShareAccessLogSerializer(serializers.ModelSerializer):
         ]
 
 
-class ShareAccessRequestSerializer(serializers.Serializer):
+class ShareAccessRequestSerializer(StrictFieldsSerializer):
     """
     访问分享链接请求序列化器
     """
-    password = serializers.CharField(max_length=128, required=False, allow_null=True, allow_blank=True)
+
+    password = serializers.CharField(
+        max_length=128, required=False, allow_null=True, allow_blank=True
+    )
 
 
-class PublicShareLinkSerializer(serializers.ModelSerializer):
+class PublicShareLinkSerializer(serializers.ModelSerializer[Any]):
     """
     公开分享链接序列化器（用于公开访问 API）
 
     只包含允许公开的信息。
     """
+
     visibility = serializers.SerializerMethodField()
 
     class Meta:
@@ -222,7 +256,7 @@ class PublicShareLinkSerializer(serializers.ModelSerializer):
             "last_snapshot_at",
         ]
 
-    def get_visibility(self, obj) -> dict:
+    def get_visibility(self, obj: Any) -> dict[str, bool]:
         """获取可见性配置"""
         return {
             "amounts": obj.show_amounts,
@@ -234,12 +268,13 @@ class PublicShareLinkSerializer(serializers.ModelSerializer):
         }
 
 
-class PublicShareSnapshotSerializer(serializers.Serializer):
+class PublicShareSnapshotSerializer(serializers.Serializer[JsonPayload]):
     """
     公开快照序列化器
 
     根据可见性配置过滤数据。
     """
+
     summary = serializers.DictField(read_only=True)
     performance = serializers.DictField(read_only=True, required=False)
     positions = serializers.DictField(read_only=True, required=False)

@@ -584,8 +584,13 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
                 return Response({"error": "密码错误"}, status=status.HTTP_401_UNAUTHORIZED)
             self._mark_password_verified(request, model)
 
+        if not increment_share_link_access_count(share_link_id=model.id):
+            self._log_access(model.id, request, "access_limit_reached", is_verified=False)
+            return Response(
+                {"error": "access_limit_reached"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         self._log_access(model.id, request, "success", is_verified=entity.requires_password())
-        increment_share_link_access_count(share_link_id=model.id)
         snapshot = get_live_share_snapshot(share_link_id=model.id)
         if snapshot:
             snapshot = self._filter_snapshot_by_visibility(snapshot, model)
@@ -612,8 +617,13 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
         if not snapshot:
             return Response({"error": "快照不存在"}, status=status.HTTP_404_NOT_FOUND)
 
+        if not increment_share_link_access_count(share_link_id=model.id):
+            self._log_access(model.id, request, "access_limit_reached", is_verified=False)
+            return Response(
+                {"error": "access_limit_reached"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         self._log_access(model.id, request, "success", is_verified=entity.requires_password())
-        increment_share_link_access_count(share_link_id=model.id)
         return Response(self._filter_snapshot_by_visibility(snapshot, model))
 
     @action(detail=False, methods=["get"], url_path="(?P<short_code>[^/.]+)/performance")

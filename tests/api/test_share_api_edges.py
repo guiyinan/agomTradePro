@@ -83,6 +83,31 @@ def test_share_create_rejects_foreign_account(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_share_create_rejects_unknown_fields(authenticated_client, auth_user):
+    account = SimulatedAccountModel.objects.create(
+        user=auth_user,
+        account_name="Owned Account",
+        account_type="simulated",
+        initial_capital=Decimal("100000.00"),
+        current_cash=Decimal("100000.00"),
+        total_value=Decimal("100000.00"),
+    )
+
+    response = authenticated_client.post(
+        "/api/share/links/",
+        {
+            "account_id": account.id,
+            "title": "Unknown Field",
+            "owner_id": 999,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["details"]["owner_id"] == ["Unknown field."]
+
+
+@pytest.mark.django_db
 def test_share_public_snapshot_hides_private_fields(api_client, auth_user):
     share_link = ShareLinkModel.objects.create(
         owner=auth_user,

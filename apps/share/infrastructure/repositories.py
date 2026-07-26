@@ -2,16 +2,25 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable, Iterable
+from datetime import date
+from typing import Any, cast
 
 from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.share.domain.account_gateway import EmptyShareAccountGateway, ShareAccountGateway
 from apps.share.domain.entities import ShareLevel, ShareLinkEntity, ShareStatus, ShareTheme
 from apps.share.domain.interfaces import (
+    ShareDecisionRequest,
+    ShareDisclaimerConfigView,
+    ShareLinkView,
+    ShareOwnedAccountSnapshot,
     ShareOwnedPositionSnapshot,
     ShareOwnedTradeSnapshot,
+    ShareSnapshotView,
 )
 from apps.share.infrastructure.models import (
     ShareAccessLogModel,
@@ -27,63 +36,99 @@ UserModel = get_user_model()
 class ShareInterfaceRepository:
     """Read/write helpers used by share interface services."""
 
-    def __init__(self, account_gateway: ShareAccountGateway | None = None):
+    def __init__(self, account_gateway: ShareAccountGateway | None = None) -> None:
         self._account_gateway = account_gateway or EmptyShareAccountGateway()
 
-    def get_share_link_queryset_for_owner(self, owner_id: int):
+    def get_share_link_queryset_for_owner(
+        self,
+        owner_id: int,
+    ) -> Iterable[ShareLinkView]:
         """Return owner-scoped share links ordered newest first."""
 
-        return (
+        queryset = (
             ShareLinkModel._default_manager.filter(owner_id=owner_id)
             .select_related("owner")
             .order_by("-created_at")
         )
+        return cast(Iterable[ShareLinkView], queryset)
 
-    def get_share_link_for_owner(self, *, owner_id: int, share_link_id: int):
+    def get_share_link_for_owner(
+        self,
+        *,
+        owner_id: int,
+        share_link_id: int,
+    ) -> ShareLinkView | None:
         """Return one owner-scoped share link when available."""
 
-        return (
+        model = (
             ShareLinkModel._default_manager.select_related("owner")
             .filter(id=share_link_id, owner_id=owner_id)
             .first()
         )
+        return cast(ShareLinkView | None, model)
 
-    def get_share_link_by_id(self, share_link_id: int):
+    def get_share_link_by_id(self, share_link_id: int) -> ShareLinkView | None:
         """Return one share link by id when available."""
 
-        return (
+        model = (
             ShareLinkModel._default_manager.select_related("owner").filter(id=share_link_id).first()
         )
+        return cast(ShareLinkView | None, model)
 
-    def get_share_link_by_code(self, short_code: str):
+    def get_share_link_by_code(self, short_code: str) -> ShareLinkView | None:
         """Return one share link by public short code when available."""
 
-        return (
+        model = (
             ShareLinkModel._default_manager.select_related("owner")
             .filter(short_code=short_code)
             .first()
         )
+        return cast(ShareLinkView | None, model)
 
-    def list_share_snapshots(self, *, share_link_id: int):
+    def list_share_snapshots(
+        self,
+        *,
+        share_link_id: int,
+    ) -> Iterable[ShareSnapshotView]:
         """Return snapshots for one share link, newest first."""
 
-        return ShareSnapshotModel._default_manager.filter(share_link_id=share_link_id).order_by(
+        queryset = ShareSnapshotModel._default_manager.filter(share_link_id=share_link_id).order_by(
             "-snapshot_version"
         )
+        return cast(Iterable[ShareSnapshotView], queryset)
 
-    def increment_share_link_access_count(self, *, share_link_id: int) -> None:
-        """Increment one share link access counter."""
+    def increment_share_link_access_count(self, *, share_link_id: int) -> bool:
+        """Atomically consume one access without exceeding the configured limit."""
 
-        model = ShareLinkModel._default_manager.filter(id=share_link_id).first()
-        if model is not None:
-            model.increment_access_count()
+        now = timezone.now()
+        updated = (
+            ShareLinkModel._default_manager.filter(
+                id=share_link_id,
+                status=ShareStatus.ACTIVE.value,
+            )
+            .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+            .filter(Q(max_access_count__isnull=True) | Q(access_count__lt=F("max_access_count")))
+            .update(
+                access_count=F("access_count") + 1,
+                last_accessed_at=now,
+            )
+        )
+        return updated == 1
 
-    def list_owner_accounts(self, owner_id: int):
+    def list_owner_accounts(
+        self,
+        owner_id: int,
+    ) -> list[ShareOwnedAccountSnapshot]:
         """Return owner accounts ordered newest first."""
 
         return self._account_gateway.list_owner_accounts(owner_id)
 
-    def get_owned_account_for_snapshot(self, *, owner_id: int, account_id: int):
+    def get_owned_account_for_snapshot(
+        self,
+        *,
+        owner_id: int,
+        account_id: int,
+    ) -> ShareOwnedAccountSnapshot | None:
         """Return one owner account with positions/trades prefetched."""
 
         return self._account_gateway.get_owned_account(owner_id=owner_id, account_id=account_id)
@@ -120,7 +165,12 @@ class ShareInterfaceRepository:
             owner_id=owner_id, account_id=account_id
         )
 
-    def list_decision_requests_for_account_assets(self, *, account_id: int, asset_codes: set[str]):
+    def list_decision_requests_for_account_assets(
+        self,
+        *,
+        account_id: int,
+        asset_codes: set[str],
+    ) -> list[ShareDecisionRequest]:
         """Return decision requests relevant to one account and asset set."""
 
         if not asset_codes:
@@ -132,10 +182,14 @@ class ShareInterfaceRepository:
             limit=12,
         )
 
-    def get_share_disclaimer_config(self):
+    def get_share_disclaimer_config(self) -> ShareDisclaimerConfigView:
         """Return the singleton share disclaimer config."""
 
-        return ShareDisclaimerConfigModel.get_solo()
+        getter = cast(
+            Callable[[], ShareDisclaimerConfigModel],
+            ShareDisclaimerConfigModel.get_solo,
+        )
+        return cast(ShareDisclaimerConfigView, getter())
 
     def has_share_disclaimer_config(self) -> bool:
         """Return whether the disclaimer config record already exists."""
@@ -150,10 +204,13 @@ class ShareInterfaceRepository:
         modal_title: str,
         modal_confirm_text: str,
         lines: list[str],
-    ):
+    ) -> ShareDisclaimerConfigView:
         """Persist the singleton share disclaimer config."""
 
-        config = self.get_share_disclaimer_config()
+        config = cast(
+            ShareDisclaimerConfigModel,
+            self.get_share_disclaimer_config(),
+        )
         config.is_enabled = is_enabled
         config.modal_enabled = modal_enabled
         config.modal_title = modal_title
@@ -169,7 +226,7 @@ class ShareInterfaceRepository:
                 "updated_at",
             ]
         )
-        return config
+        return cast(ShareDisclaimerConfigView, config)
 
     def get_owner_account_name_map(self, owner_id: int) -> dict[int, str]:
         """Return account id to account name mapping for one owner."""
@@ -286,35 +343,38 @@ class ShareApplicationRepository:
         positions_payload: dict[str, Any],
         transactions_payload: dict[str, Any],
         decision_payload: dict[str, Any],
-        source_range_start=None,
-        source_range_end=None,
+        source_range_start: date | None = None,
+        source_range_end: date | None = None,
     ) -> int | None:
         """Persist a snapshot and return its id when the share link exists."""
 
-        share_link = ShareLinkModel._default_manager.filter(id=share_link_id).first()
-        if share_link is None:
-            return None
+        with transaction.atomic():
+            share_link = (
+                ShareLinkModel._default_manager.select_for_update().filter(id=share_link_id).first()
+            )
+            if share_link is None:
+                return None
 
-        last_version = (
-            ShareSnapshotModel._default_manager.filter(share_link_id=share_link_id)
-            .order_by("-snapshot_version")
-            .values_list("snapshot_version", flat=True)
-            .first()
-        )
-        next_version = (last_version + 1) if last_version is not None else 1
-        snapshot = ShareSnapshotModel._default_manager.create(
-            share_link=share_link,
-            snapshot_version=next_version,
-            summary_payload=summary_payload or {},
-            performance_payload=performance_payload or {},
-            positions_payload=positions_payload or {},
-            transactions_payload=transactions_payload or {},
-            decision_payload=decision_payload or {},
-            source_range_start=source_range_start,
-            source_range_end=source_range_end,
-        )
-        share_link.last_snapshot_at = timezone.now()
-        share_link.save(update_fields=["last_snapshot_at"])
+            last_version = (
+                ShareSnapshotModel._default_manager.filter(share_link_id=share_link_id)
+                .order_by("-snapshot_version")
+                .values_list("snapshot_version", flat=True)
+                .first()
+            )
+            next_version = (last_version + 1) if last_version is not None else 1
+            snapshot = ShareSnapshotModel._default_manager.create(
+                share_link=share_link,
+                snapshot_version=next_version,
+                summary_payload=summary_payload or {},
+                performance_payload=performance_payload or {},
+                positions_payload=positions_payload or {},
+                transactions_payload=transactions_payload or {},
+                decision_payload=decision_payload or {},
+                source_range_start=source_range_start,
+                source_range_end=source_range_end,
+            )
+            share_link.last_snapshot_at = timezone.now()
+            share_link.save(update_fields=["last_snapshot_at"])
         return snapshot.id
 
     def get_latest_snapshot(self, share_link_id: int) -> dict[str, Any] | None:

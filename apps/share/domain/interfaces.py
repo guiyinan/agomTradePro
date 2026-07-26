@@ -287,8 +287,8 @@ class ShareInterfaceRepositoryProtocol(Protocol):
     def list_share_snapshots(self, *, share_link_id: int) -> Iterable[ShareSnapshotView]:
         """Return snapshots for one share link."""
 
-    def increment_share_link_access_count(self, *, share_link_id: int) -> None:
-        """Increment one share link access counter."""
+    def increment_share_link_access_count(self, *, share_link_id: int) -> bool:
+        """Atomically consume one allowed share-link access."""
 
     def list_owner_accounts(self, owner_id: int) -> list[ShareOwnedAccountSnapshot]:
         """Return owner accounts for share management screens."""

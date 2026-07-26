@@ -3641,3 +3641,19 @@
 - 固定 Terminal/TUI 最小回归包全部通过：TUI Workbench `197 passed`、Terminal Agent `11 passed`、SDK client `22 passed`、SSL redirect `2 passed`。
 - Terminal serializers 与 API views 增量 mypy 清零；全仓基线从 `1776 errors / 466 files` 收紧为 `1756 errors / 465 files`，净减少 `20 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百四十七批
+
+- 按“公开分享访问上限原子性 × 快照版本并发一致性 × 外部请求失败关闭”收口 Share serializer 与 repository。
+- 访问计数改为单条条件更新：仅 active、未过期且尚未达到 `max_access_count` 的链接才能原子消费一次访问；使用数据库 `F` 表达式避免并发丢计数或突破上限。
+- Public access 与 snapshot API 必须成功消费访问额度后才返回数据；并发竞争失败、撤销、过期或达到上限统一返回稳定 403 `access_limit_reached`，同时记录拒绝日志。
+- 快照创建在事务内锁定所属分享链接，再读取最新版本并创建下一版本；同一链接的并发快照不再共享“先查再加一”的无锁窗口。
+- 创建、更新和公开密码请求启用严格字段校验；`owner_id` 等未知或越权注入字段不再被 DRF 静默忽略。
+- 创建 serializer 缺少已认证 request/owner 时失败关闭，不再跳过账户归属校验；账户必须由 Application gateway 证明属于当前用户。
+- Share ModelSerializer、公开 payload、可见性映射、账户/决策 gateway、免责声明和 ORM QuerySet 全部补齐精确类型；Infrastructure 对 Application Protocol 的返回在边界显式收窄。
+
+## 第二百四十七批验证结果
+
+- Share repository、API edge、Domain 与依赖边界回归 `27 passed`，覆盖访问额度不超限、撤销链接拒绝、快照版本递增、未知字段和缺失所有者身份失败关闭、公开字段过滤。
+- Share serializers 与 repositories 增量 mypy 清零且无跨层回归；全仓基线从 `1756 errors / 465 files` 收紧为 `1726 errors / 463 files`，净减少 `30 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

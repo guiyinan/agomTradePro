@@ -296,10 +296,10 @@ def validate_share_account_access(*, account_id: int, owner_id: int) -> bool:
     return _repo().account_belongs_to_owner(owner_id=owner_id, account_id=account_id)
 
 
-def increment_share_link_access_count(*, share_link_id: int) -> None:
-    """Increment one share link access counter."""
+def increment_share_link_access_count(*, share_link_id: int) -> bool:
+    """Atomically consume one allowed share-link access."""
 
-    _repo().increment_share_link_access_count(share_link_id=share_link_id)
+    return _repo().increment_share_link_access_count(share_link_id=share_link_id)
 
 
 def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:

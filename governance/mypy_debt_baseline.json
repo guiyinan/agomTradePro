@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1756,
-    "files_with_errors": 465
+    "errors": 1726,
+    "files_with_errors": 463
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1428,18 +1428,9 @@
     "apps/share/infrastructure/models.py": {
       "no-untyped-def": 7
     },
-    "apps/share/infrastructure/repositories.py": {
-      "no-untyped-call": 3,
-      "no-untyped-def": 11
-    },
     "apps/share/interface/admin.py": {
       "no-untyped-def": 2,
       "type-arg": 4
-    },
-    "apps/share/interface/serializers.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 5,
-      "type-arg": 10
     },
     "apps/signal/infrastructure/diagnostic_queries.py": {
       "misc": 1
