@@ -4272,3 +4272,19 @@
 - Asset Analysis Serializer 安全契约与 multidim-screen API 回归 `19 passed`，覆盖真实嵌套评分序列化、情景覆盖、未知字段及非有限权重。
 - `serializers.py` 与 `views.py` 增量 mypy 清零；全仓基线从 `1283 errors / 413 files` 收紧为 `1269 errors / 411 files`，净减少 `14 errors / 2 files`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百八十五批
+
+- 按“Alpha 历史审计连续性 × 查询物化边界 × 异常最小披露”收口 Dashboard Alpha 首页历史 Application mixin。
+- 历史 Repository 与上下文 Repository 补齐显式依赖类型，运行列表通过只读 Protocol 在 Application 边界收窄，不向聚合逻辑传播 ORM 动态类型。
+- `scope` 与 `alpha_result` 使用正式 Domain 实体契约；历史持久化、列表序列化及临时容器补齐精确参数和返回类型。
+- 请求日和有效数据日兼容 `date` 或 ISO 日期字符串；格式损坏时不再导致整次历史记录静默丢失，而是将对应列置空并在历史元数据写入稳定字段名告警，原始 Alpha 元数据继续保留。
+- 历史详情只物化一次快照集合，避免同一请求重复执行 related-manager 查询；数据中心回填的非字符串名称在输出前统一规范为字符串。
+- 持久化失败日志只记录异常类型，不再写入底层异常正文或 traceback，避免数据库连接信息等敏感内容进入普通日志。
+- 历史运行主键在输出前验证为非布尔整数；未持久化的异常主键不再从 Application 返回。
+
+## 第二百八十五批验证结果
+
+- Dashboard Alpha 历史持久化、结构及事务回归 `5 passed`；历史 API 用户隔离、名称回填与只读契约回归 `3 passed`。
+- `alpha_homepage_history.py` 增量 mypy 清零；全仓基线从 `1269 errors / 411 files` 收紧为 `1261 errors / 410 files`，净减少 `8 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

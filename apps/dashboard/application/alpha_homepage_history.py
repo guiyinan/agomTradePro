@@ -3,16 +3,57 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import date
-from typing import Any
+from typing import Any, Protocol, cast
 
 from django.utils import timezone as django_timezone
+
+from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
+from apps.dashboard.application.repository_provider import (
+    AlphaRecommendationHistoryRepository,
+    DashboardAlphaContextRepository,
+)
 
 logger = logging.getLogger(__name__)
 
 
+class AlphaHistoryRunView(Protocol):
+    """Read-only history-run shape used by list serialization."""
+
+    id: int
+    portfolio_id: int | None
+    portfolio_name: str
+    trade_date: date
+    scope_label: str
+    source: str
+    provider_source: str
+    uses_cached_data: bool
+    effective_asof_date: date | None
+    cache_reason: str
+    meta: object
+
+
+def _parse_optional_history_date(value: object) -> tuple[date | None, bool]:
+    """Parse an optional ISO date and report malformed metadata."""
+
+    if value in (None, ""):
+        return None, False
+    if isinstance(value, date):
+        return value, False
+    if not isinstance(value, str):
+        return None, True
+    try:
+        return date.fromisoformat(value), False
+    except ValueError:
+        return None, True
+
+
 class AlphaHistoryMixin:
     """Private behavior shard for AlphaHomepageQuery."""
+
+    history_repo: AlphaRecommendationHistoryRepository
+    context_repo: DashboardAlphaContextRepository
 
     def list_history(
         self,
@@ -38,14 +79,17 @@ class AlphaHistoryMixin:
         run = self.history_repo.get_run_detail(user_id=user_id, run_id=run_id)
         if run is None:
             return None
+        run_snapshots = list(run.snapshots.all())
         snapshot_codes = [
-            str(snapshot.stock_code or "").strip().upper() for snapshot in run.snapshots.all()
+            str(snapshot.stock_code or "").strip().upper() for snapshot in run_snapshots
         ]
         stock_context = self.context_repo.load_stock_context(snapshot_codes, persist_names=False)
-        snapshots = []
-        for snapshot in run.snapshots.all():
+        snapshots: list[dict[str, Any]] = []
+        for snapshot in run_snapshots:
             snapshot_code = str(snapshot.stock_code or "").strip().upper()
-            fallback_name = (stock_context.get(snapshot_code) or {}).get("name") or snapshot_code
+            fallback_name = str(
+                (stock_context.get(snapshot_code) or {}).get("name") or snapshot_code
+            ).strip()
             stock_name = str(snapshot.stock_name or "").strip() or fallback_name
             if stock_name.upper() == snapshot_code:
                 stock_name = fallback_name
@@ -96,12 +140,29 @@ class AlphaHistoryMixin:
         user_id: int,
         portfolio_id: int | None,
         portfolio_name: str,
-        scope,
-        alpha_result,
+        scope: AlphaPoolScope,
+        alpha_result: AlphaResult,
         meta: dict[str, Any],
         snapshots: list[dict[str, Any]],
     ) -> int | None:
         try:
+            requested_trade_date, requested_date_invalid = _parse_optional_history_date(
+                meta.get("requested_trade_date")
+            )
+            effective_asof_date, effective_date_invalid = _parse_optional_history_date(
+                meta.get("effective_asof_date")
+            )
+            persisted_meta = dict(alpha_result.metadata)
+            invalid_date_fields = [
+                field_name
+                for field_name, is_invalid in (
+                    ("requested_trade_date", requested_date_invalid),
+                    ("effective_asof_date", effective_date_invalid),
+                )
+                if is_invalid
+            ]
+            if invalid_date_fields:
+                persisted_meta["history_parse_warnings"] = invalid_date_fields
             run = self.history_repo.upsert_run(
                 user_id=user_id,
                 portfolio_id=portfolio_id,
@@ -110,23 +171,15 @@ class AlphaHistoryMixin:
                 scope_hash=scope.scope_hash,
                 scope_label=scope.display_label,
                 scope_metadata=scope.to_dict(),
-                model_hash=meta.get("model_hash", ""),
-                source=meta.get("source", "none"),
-                provider_source=meta.get("provider_source", ""),
-                requested_trade_date=(
-                    date.fromisoformat(meta["requested_trade_date"])
-                    if meta.get("requested_trade_date")
-                    else None
-                ),
-                effective_asof_date=(
-                    date.fromisoformat(meta["effective_asof_date"])
-                    if meta.get("effective_asof_date")
-                    else None
-                ),
+                model_hash=str(meta.get("model_hash") or ""),
+                source=str(meta.get("source") or "none"),
+                provider_source=str(meta.get("provider_source") or ""),
+                requested_trade_date=requested_trade_date,
+                effective_asof_date=effective_asof_date,
                 uses_cached_data=bool(meta.get("uses_cached_data", False)),
                 cache_reason=str(meta.get("cache_reason") or ""),
                 fallback_reason=str(meta.get("fallback_reason") or ""),
-                meta=dict(getattr(alpha_result, "metadata", {}) or {}),
+                meta=persisted_meta,
             )
             self.history_repo.replace_snapshots(
                 run=run,
@@ -154,16 +207,21 @@ class AlphaHistoryMixin:
                     for item in snapshots
                 ],
             )
-            return run.id
+            run_id = run.id
+            return run_id if isinstance(run_id, int) and not isinstance(run_id, bool) else None
         except Exception as exc:
-            logger.warning("Failed to persist alpha homepage history: %s", exc, exc_info=True)
+            logger.warning(
+                "Failed to persist alpha homepage history (error_type=%s)",
+                type(exc).__name__,
+            )
             return None
 
-    def _serialize_recent_runs(self, runs) -> list[dict[str, Any]]:
-        payload = []
-        for run in runs:
+    def _serialize_recent_runs(self, runs: Iterable[object]) -> list[dict[str, Any]]:
+        payload: list[dict[str, Any]] = []
+        for raw_run in runs:
+            run = cast(AlphaHistoryRunView, raw_run)
             cache_reason = str(run.cache_reason or "")
-            meta = dict(getattr(run, "meta", {}) or {})
+            meta = dict(run.meta) if isinstance(run.meta, dict) else {}
             legacy_hardcoded_fallback = (
                 meta.get("fallback_mode") == "homepage_market_cache_fallback"
                 or "csi300 全局缓存" in cache_reason

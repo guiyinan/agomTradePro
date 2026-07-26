@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1269,
-    "files_with_errors": 411
+    "errors": 1261,
+    "files_with_errors": 410
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -399,11 +399,6 @@
     },
     "apps/dashboard/application/alpha_homepage_exit_watch.py": {
       "attr-defined": 2
-    },
-    "apps/dashboard/application/alpha_homepage_history.py": {
-      "attr-defined": 5,
-      "no-any-return": 1,
-      "no-untyped-def": 2
     },
     "apps/dashboard/application/auto_advisor_outputs.py": {
       "no-any-return": 1
