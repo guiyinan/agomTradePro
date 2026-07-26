@@ -170,7 +170,7 @@ class TestTerminalChatEndpoint:
         assert payload["selected_capability_key"] == "mcp_tool.sync_positions"
         assert payload["proposal_id"] == 41
 
-    def test_terminal_chat_returns_502_when_agent_raises(self, api_client, staff_user):
+    def test_terminal_chat_returns_redacted_502_when_agent_raises(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
 
         with patch(
@@ -184,7 +184,8 @@ class TestTerminalChatEndpoint:
             )
 
         assert response.status_code == 502
-        assert response.json()["error"] == "AI 调用异常: agent exploded"
+        assert response.json()["error"] == "terminal_agent_unavailable"
+        assert "agent exploded" not in response.content.decode("utf-8")
 
 
 @pytest.mark.django_db

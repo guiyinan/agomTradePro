@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1229,
-    "files_with_errors": 405
+    "errors": 1221,
+    "files_with_errors": 404
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1297,9 +1297,6 @@
     "apps/terminal/interface/permissions.py": {
       "no-any-return": 1,
       "no-untyped-def": 2
-    },
-    "apps/terminal/interface/views.py": {
-      "no-untyped-def": 8
     },
     "apps/terminal/management/commands/export_tui_django_contracts.py": {
       "no-untyped-def": 2

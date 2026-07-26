@@ -4,8 +4,12 @@ Terminal Interface Views.
 页面视图定义。
 """
 
+from collections.abc import Callable
+from functools import wraps
+from typing import Concatenate, ParamSpec, TypeVar, cast
+
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden
+from django.http import HttpRequest, HttpResponse, HttpResponseBase, HttpResponseForbidden
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -16,19 +20,27 @@ from apps.terminal.application.interface_services import (
 )
 from core.ui_modes import UI_MODE_TUI, set_ui_mode_cookie
 
+P = ParamSpec("P")
+ResponseT = TypeVar("ResponseT", bound=HttpResponseBase)
 
-def _staff_required(view_func):
+
+def _staff_required(
+    view_func: Callable[Concatenate[HttpRequest, P], ResponseT],
+) -> Callable[Concatenate[HttpRequest, P], HttpResponseBase]:
     """Decorator: login_required + staff/superuser check."""
 
+    @wraps(view_func)
     @login_required
-    def wrapper(request, *args, **kwargs):
+    def wrapper(
+        request: HttpRequest,
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> HttpResponseBase:
         if not (request.user.is_staff or request.user.is_superuser):
             return HttpResponseForbidden("Staff access required.")
         return view_func(request, *args, **kwargs)
 
-    wrapper.__name__ = view_func.__name__
-    wrapper.__doc__ = view_func.__doc__
-    return wrapper
+    return cast(Callable[Concatenate[HttpRequest, P], HttpResponseBase], wrapper)
 
 
 @method_decorator(login_required, name="dispatch")
@@ -39,7 +51,9 @@ class TerminalView(View):
     GET /terminal/
     """
 
-    def get(self, request):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        """Render the authenticated terminal page."""
+
         return render(request, "terminal/index.html", get_terminal_page_context())
 
 
@@ -51,7 +65,9 @@ class TerminalConfigView(View):
     GET /terminal/config/
     """
 
-    def get(self, request):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        """Render the staff-only command configuration page."""
+
         return render(request, "terminal/config.html", get_terminal_config_page_context())
 
 
@@ -63,8 +79,10 @@ class TuiWorkbenchView(View):
     GET /tui/
     """
 
-    def get(self, request):
-        context = {
+    def get(self, request: HttpRequest) -> HttpResponse:
+        """Render the authenticated TUI workbench and persist TUI mode."""
+
+        context: dict[str, str] = {
             "page_title": "TUI Workbench",
             "page_description": "API-native PC tools interface",
         }
@@ -74,18 +92,18 @@ class TuiWorkbenchView(View):
 
 # 函数式视图兼容
 @login_required
-def terminal_view(request):
+def terminal_view(request: HttpRequest) -> HttpResponseBase:
     """终端页面视图（函数式）"""
     return TerminalView.as_view()(request)
 
 
 @_staff_required
-def terminal_config_view(request):
+def terminal_config_view(request: HttpRequest) -> HttpResponseBase:
     """终端配置页面视图（函数式，仅 staff/admin）"""
     return TerminalConfigView.as_view()(request)
 
 
 @login_required
-def tui_workbench_view(request):
+def tui_workbench_view(request: HttpRequest) -> HttpResponseBase:
     """Standalone TUI workbench page."""
     return TuiWorkbenchView.as_view()(request)

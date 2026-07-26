@@ -4374,3 +4374,19 @@
 - Macro failover、MultiSource 与一致性 Domain 规则回归 `44 passed`，覆盖非法容差、主备偏差、单备用源未验证切换、多备用源冲突、无重叠序列及空发布时间。
 - `failover_adapter.py` 增量 mypy 清零；全仓基线从 `1236 errors / 406 files` 收紧为 `1229 errors / 405 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百九十一批
+
+- 按“Terminal 页面登录边界 × staff 配置权限 × TUI 模式持久化”收口 Terminal 页面 views。
+- `_staff_required` 使用 `ParamSpec + Concatenate` 保留被装饰视图的 request、位置参数、关键字参数与响应契约；`functools.wraps` 统一保留函数元数据。
+- staff 装饰器显式接收 `HttpRequest` 并返回 `HttpResponseBase`；匿名用户继续由 `login_required` 重定向，普通登录用户返回 403，staff 或 superuser 才能进入命令配置页。
+- Terminal、配置页、TUI workbench 三个 class-based GET handler 及三个函数式兼容入口补齐精确请求和响应类型。
+- TUI 模板 context 收窄为字符串字典；响应继续写入 `agom_ui_mode=tui`、一年 max-age 与 `SameSite=Lax`，不改变用户首屏或路由。
+- 新增真实客户端页面回归，覆盖三个匿名入口、普通用户 Terminal/TUI 访问、配置页拒绝、staff/superuser 配置访问及 TUI cookie。
+- 同步修正 Terminal chat 组件测试的过期异常契约：实现与 API 安全测试已返回稳定 `terminal_agent_unavailable`，组件测试不再要求把 Agent 原始异常正文反射给用户。
+
+## 第二百九十一批验证结果
+
+- Terminal 页面、组件与 API 边界回归 `31 passed`；项目固定 TUI workbench 与 Terminal Agent 最小回归包 `208 passed`。
+- `views.py` 增量 mypy 清零；全仓基线从 `1229 errors / 405 files` 收紧为 `1221 errors / 404 files`，净减少 `8 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
