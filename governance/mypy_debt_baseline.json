@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1334,
-    "files_with_errors": 419
+    "errors": 1324,
+    "files_with_errors": 418
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -876,10 +876,6 @@
     "apps/macro/infrastructure/exchange_rate_config.py": {
       "attr-defined": 1,
       "no-untyped-def": 1
-    },
-    "apps/macro/infrastructure/models.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 9
     },
     "apps/macro/interface/api_urls.py": {
       "type-arg": 1

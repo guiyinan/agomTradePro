@@ -4179,3 +4179,17 @@
 - Regime 原生中文显示、空 JSON 配置、仓储安全与激活一致性回归 `13 passed`；Regime API、重算命令与财务配置回归 `18 passed`，合计 `31 passed`。
 - `models.py` 增量 mypy 清零，并同步清除 `config_helper.py` 下游债务；全仓基线从 `1346 errors / 421 files` 收紧为 `1334 errors / 419 files`，净减少 `12 errors / 2 files`。
 - Django system check、迁移一致性、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百七十九批
+
+- 按“宏观期间语义 × 兼容日期契约 × ORM 类型边界”收口 Macro 历史持久化模型。
+- 期限数据识别从“任意以 M/Y 结尾的字符串”收紧为“数字期限 + M/Y”；`3M/10Y/24M/2Y` 保持期限数据，`CUSTOM/FAMILY` 不再被误分类。
+- 标准期间、扩展期间和未知期间的显示语义保持不变；未知值继续原样发布，不伪造业务标签。
+- `reporting_date` 与 `observed_at` 兼容别名显式返回 `date`，时点、期间和期限判断显式返回 `bool`。
+- Macro indicator、汇率和指标配置模型的字符串表示补齐精确返回类型，删除模型方法向调用链传播的无类型调用。
+
+## 第二百七十九批验证结果
+
+- Macro 期间显示、期限分类、日期别名、Application/汇率边界与配置持久化回归 `27 passed`。
+- `models.py` 增量 mypy 清零；全仓基线从 `1334 errors / 419 files` 收紧为 `1324 errors / 418 files`，净减少 `10 errors / 1 file`。
+- Django system check、迁移一致性、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
