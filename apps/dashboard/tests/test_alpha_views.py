@@ -1580,6 +1580,32 @@ def test_alpha_history_detail_api_returns_snapshot_detail(monkeypatch):
     assert payload["data"]["snapshots"][0]["stock_code"] == "000001.SZ"
 
 
+def test_alpha_history_detail_api_rejects_non_positive_run_id(monkeypatch):
+    request = RequestFactory().get("/api/dashboard/alpha/history/0/")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
+    query_called = False
+
+    class FakeQuery:
+        def get_history_detail(self, user_id: int, run_id: int):
+            nonlocal query_called
+            query_called = True
+            return None
+
+    monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
+
+    response = views.alpha_history_detail_api(request, run_id=0)
+    payload = _response_json_payload(response)
+
+    assert response.status_code == 400
+    assert payload == {
+        "success": False,
+        "error": "run_id must be a positive integer",
+    }
+    assert query_called is False
+
+
 @pytest.mark.django_db
 def test_dashboard_view_loads_homepage_alpha_payload_and_keeps_workflow_candidates(monkeypatch):
     captured: dict[str, int] = {

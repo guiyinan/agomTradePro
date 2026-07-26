@@ -3717,3 +3717,17 @@
 - Alpha metrics 映射契约与资源边界回归 `3 passed`，首页兼容回归 `1 passed`，Dashboard 全模块及相关组件回归 `118 passed`。
 - Dashboard Alpha metrics views 增量 mypy 清零，Dashboard Alpha context 保持零回归；全仓基线从 `1682 errors / 460 files` 收紧为 `1669 errors / 459 files`，净减少 `13 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百五十二批
+
+- 按“Alpha 历史用户隔离前置条件 × 非法详情标识失败关闭 × 历史入口类型完整性”收口 Dashboard Alpha history views。
+- 历史页面、列表和详情在调用 Application 前验证当前认证主体具有持久化正整数用户 ID；匿名、未保存或异常身份不再以可空 ID进入用户隔离查询。
+- 历史详情在访问仓储前拒绝非正 `run_id`，返回稳定 400；不再对无意义主键执行查询并混同为“记录不存在”。
+- 正整数参数解析拒绝布尔值和动态容器，避免 Python 隐式把 `True` 当作主键 `1`。
+- Alpha Homepage query factory、Dashboard compatibility facade 以及三个历史 handler 补齐精确类型；动态 singleton 调用在 Callable 边界显式收窄。
+
+## 第二百五十二批验证结果
+
+- Alpha history 局部回归 `4 passed`，Dashboard 全模块及相关组件回归 `119 passed`；覆盖历史筛选、用户隔离参数、详情快照和非法 run ID 查询前拒绝。
+- Dashboard Alpha history views 增量 mypy 清零；全仓基线从 `1669 errors / 459 files` 收紧为 `1657 errors / 458 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

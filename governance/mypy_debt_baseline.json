@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1669,
-    "files_with_errors": 459
+    "errors": 1657,
+    "files_with_errors": 458
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -527,10 +527,6 @@
       "type-arg": 5
     },
     "apps/dashboard/infrastructure/models.py": {
-      "no-untyped-def": 7
-    },
-    "apps/dashboard/interface/alpha_history_views.py": {
-      "no-untyped-call": 5,
       "no-untyped-def": 7
     },
     "apps/dashboard/interface/api_urls.py": {
