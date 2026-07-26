@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1175,
-    "files_with_errors": 397
+    "errors": 1172,
+    "files_with_errors": 396
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -144,9 +144,6 @@
     },
     "apps/ai_capability/apps.py": {
       "no-untyped-def": 1
-    },
-    "apps/ai_capability/domain/entities.py": {
-      "no-untyped-def": 3
     },
     "apps/ai_capability/infrastructure/semantic_governance_repository.py": {
       "arg-type": 1,

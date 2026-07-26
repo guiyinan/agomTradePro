@@ -4,6 +4,8 @@ Tests for AI Capability Catalog domain entities.
 
 from datetime import UTC, datetime
 
+import pytest
+
 from apps.ai_capability.domain.entities import (
     CapabilityDecision,
     CapabilityDefinition,
@@ -134,6 +136,40 @@ class TestCapabilityDefinition:
         assert summary["risk_level"] == "high"
         assert summary["requires_confirmation"] is True
 
+    def test_capability_payloads_are_isolated_from_mutable_state(self):
+        tags = ["market"]
+        schema = {"properties": {"symbol": {"type": "string"}}}
+        cap = CapabilityDefinition(
+            capability_key="test.cap",
+            source_type=SourceType.API,
+            source_ref="GET /api/test/",
+            name="Test",
+            summary="Test summary",
+            tags=tags,
+            input_schema=schema,
+        )
+        tags.append("mutated-input")
+        schema["properties"]["symbol"]["type"] = "number"
+
+        payload = cap.to_dict()
+        payload["tags"].append("mutated-output")
+        payload["input_schema"]["properties"]["symbol"]["type"] = "boolean"
+
+        assert cap.tags == ["market"]
+        assert cap.input_schema["properties"]["symbol"]["type"] == "string"
+
+    @pytest.mark.parametrize("priority_weight", [float("nan"), float("inf"), -0.1, True])
+    def test_capability_rejects_invalid_priority_weight(self, priority_weight):
+        with pytest.raises(ValueError, match="priority_weight"):
+            CapabilityDefinition(
+                capability_key="test.cap",
+                source_type=SourceType.API,
+                source_ref="GET /api/test/",
+                name="Test",
+                summary="Test summary",
+                priority_weight=priority_weight,
+            )
+
 
 class TestRoutingContext:
     """Tests for RoutingContext entity."""
@@ -183,6 +219,22 @@ class TestRoutingDecision:
         assert d["decision"] == "chat"
         assert d["reply"] == "Hello!"
 
+    @pytest.mark.parametrize("confidence", [float("nan"), float("inf"), -0.1, True])
+    def test_routing_decision_rejects_invalid_confidence(self, confidence):
+        with pytest.raises((TypeError, ValueError), match="confidence"):
+            RoutingDecision(
+                decision=CapabilityDecision.CHAT,
+                confidence=confidence,
+            )
+
+    def test_routing_decision_accepts_weighted_score_above_one(self):
+        decision = RoutingDecision(
+            decision=CapabilityDecision.CAPABILITY,
+            confidence=8.5,
+        )
+
+        assert decision.confidence == 8.5
+
 
 class TestCapabilityRoutingLog:
     """Tests for CapabilityRoutingLog entity."""
@@ -224,6 +276,34 @@ class TestCapabilitySyncLog:
         assert log.sync_type == "full"
         assert log.total_discovered == 100
         assert log.created_count == 50
+
+    def test_sync_log_rejects_naive_timestamps(self):
+        with pytest.raises(ValueError, match="started_at"):
+            CapabilitySyncLog(
+                sync_type="full",
+                started_at=datetime(2026, 7, 27),
+            )
+
+    def test_sync_log_rejects_negative_counts(self):
+        with pytest.raises(ValueError, match="error_count"):
+            CapabilitySyncLog(
+                sync_type="full",
+                started_at=datetime.now(UTC),
+                error_count=-1,
+            )
+
+    def test_sync_log_summary_payload_is_isolated(self):
+        summary = {"api": {"created": 1}}
+        log = CapabilitySyncLog(
+            sync_type="full",
+            started_at=datetime.now(UTC),
+            summary_payload=summary,
+        )
+        summary["api"]["created"] = 2
+        payload = log.to_dict()
+        payload["summary_payload"]["api"]["created"] = 3
+
+        assert log.summary_payload["api"]["created"] == 1
 
 
 class TestEnums:

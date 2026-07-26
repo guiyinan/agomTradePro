@@ -4491,3 +4491,19 @@
 - API Collector 专项回归 `4 passed`，AI Capability 单元目录 `508 passed`，API 边界回归 `17 passed`。
 - `api_collector.py` 增量 mypy 清零；全仓基线从 `1182 errors / 398 files` 收紧为 `1175 errors / 397 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百九十九批
+
+- 按“AI 能力值对象快照隔离 × 路由分值真实性 × 同步审计时间边界”收口 Capability Domain 实体。
+- Capability、RoutingLog 与 RoutingDecision 的枚举归一化钩子补齐返回类型；RoutingContext 和 SyncLog 增加显式初始化校验与快照处理。
+- Capability 构造时复制 tags、使用场景、示例、输入 schema 和执行目标；序列化时再次复制，调用方修改输入对象或输出 payload 不再回写能力目录实体。
+- RoutingLog、RoutingDecision、RoutingContext 与 SyncLog 同步隔离候选列表、上下文、答案链及汇总 payload 等可变值。
+- 路由 `confidence` 按实际“加权排序分值”契约验证为有限非负数，不错误限制在 `[0, 1]`；`NaN/Inf`、负数和布尔值失败关闭，合法权重分值可大于 1。
+- Capability priority weight 必须为有限非负数；Capability 审计时间、RoutingLog 创建时间及 SyncLog 起止时间必须 timezone-aware。
+- SyncLog 禁止结束时间早于开始时间，发现、创建、更新、禁用及错误计数必须为非布尔非负整数。
+
+## 第二百九十九批验证结果
+
+- AI Capability Domain 专项回归 `27 passed`；完整 AI Capability 单元与组件回归 `681 passed`。
+- `entities.py` 增量 mypy 清零；全仓基线从 `1175 errors / 397 files` 收紧为 `1172 errors / 396 files`，净减少 `3 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

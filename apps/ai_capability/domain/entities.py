@@ -5,6 +5,8 @@ System-level capability catalog for unified AI routing.
 Follows DDD principles - pure Python, no external dependencies.
 """
 
+import math
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -75,6 +77,18 @@ class CapabilityDecision(str, Enum):
     FALLBACK = "fallback"
 
 
+def _validate_confidence(value: float, *, field_name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{field_name} must be a number")
+    if not math.isfinite(value) or value < 0.0:
+        raise ValueError(f"{field_name} must be finite and non-negative")
+
+
+def _validate_aware_datetime(value: datetime | None, *, field_name: str) -> None:
+    if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+        raise ValueError(f"{field_name} must be timezone-aware")
+
+
 @dataclass(frozen=True)
 class CapabilityDefinition:
     """Capability definition entity (value object)
@@ -113,7 +127,7 @@ class CapabilityDefinition:
     updated_at: datetime | None = None
     last_synced_at: datetime | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if isinstance(self.source_type, str):
             object.__setattr__(self, "source_type", SourceType(self.source_type))
         if isinstance(self.route_group, str):
@@ -126,8 +140,25 @@ class CapabilityDefinition:
             object.__setattr__(self, "visibility", Visibility(self.visibility))
         if isinstance(self.review_status, str):
             object.__setattr__(self, "review_status", ReviewStatus(self.review_status))
+        if (
+            isinstance(self.priority_weight, bool)
+            or not isinstance(self.priority_weight, (int, float))
+            or not math.isfinite(self.priority_weight)
+            or self.priority_weight < 0
+        ):
+            raise ValueError("priority_weight must be a finite non-negative number")
+        _validate_aware_datetime(self.created_at, field_name="created_at")
+        _validate_aware_datetime(self.updated_at, field_name="updated_at")
+        _validate_aware_datetime(self.last_synced_at, field_name="last_synced_at")
+        object.__setattr__(self, "tags", list(self.tags))
+        object.__setattr__(self, "when_to_use", list(self.when_to_use))
+        object.__setattr__(self, "when_not_to_use", list(self.when_not_to_use))
+        object.__setattr__(self, "examples", list(self.examples))
+        object.__setattr__(self, "input_schema", deepcopy(self.input_schema))
+        object.__setattr__(self, "execution_target", deepcopy(self.execution_target))
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize without exposing mutable entity state."""
         return {
             "capability_key": self.capability_key,
             "source_type": self.source_type.value,
@@ -138,13 +169,13 @@ class CapabilityDefinition:
             "route_group": self.route_group.value,
             "category": self.category,
             "semantic_key": self.semantic_key,
-            "tags": self.tags,
-            "when_to_use": self.when_to_use,
-            "when_not_to_use": self.when_not_to_use,
-            "examples": self.examples,
-            "input_schema": self.input_schema,
+            "tags": list(self.tags),
+            "when_to_use": list(self.when_to_use),
+            "when_not_to_use": list(self.when_not_to_use),
+            "examples": list(self.examples),
+            "input_schema": deepcopy(self.input_schema),
             "execution_kind": self.execution_kind.value,
-            "execution_target": self.execution_target,
+            "execution_target": deepcopy(self.execution_target),
             "risk_level": self.risk_level.value,
             "requires_mcp": self.requires_mcp,
             "requires_confirmation": self.requires_confirmation,
@@ -160,6 +191,7 @@ class CapabilityDefinition:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "CapabilityDefinition":
+        """Build a capability from its JSON-compatible persistence payload."""
         return cls(
             capability_key=data["capability_key"],
             source_type=SourceType(data.get("source_type", "tool")),
@@ -224,17 +256,25 @@ class CapabilityRoutingLog:
     execution_result: str = ""
     created_at: datetime | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if isinstance(self.decision, str):
             object.__setattr__(self, "decision", CapabilityDecision(self.decision))
+        _validate_confidence(self.confidence, field_name="confidence")
+        _validate_aware_datetime(self.created_at, field_name="created_at")
+        object.__setattr__(
+            self,
+            "retrieved_candidates",
+            list(self.retrieved_candidates),
+        )
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize without exposing the candidate list."""
         return {
             "entrypoint": self.entrypoint,
             "user_id": self.user_id,
             "session_id": self.session_id,
             "raw_message": self.raw_message,
-            "retrieved_candidates": self.retrieved_candidates,
+            "retrieved_candidates": list(self.retrieved_candidates),
             "selected_capability_key": self.selected_capability_key,
             "confidence": self.confidence,
             "decision": self.decision.value,
@@ -260,7 +300,25 @@ class CapabilitySyncLog:
     error_count: int = 0
     summary_payload: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        _validate_aware_datetime(self.started_at, field_name="started_at")
+        _validate_aware_datetime(self.finished_at, field_name="finished_at")
+        if self.finished_at is not None and self.finished_at < self.started_at:
+            raise ValueError("finished_at cannot be earlier than started_at")
+        for field_name in (
+            "total_discovered",
+            "created_count",
+            "updated_count",
+            "disabled_count",
+            "error_count",
+        ):
+            value = getattr(self, field_name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{field_name} must be a non-negative integer")
+        object.__setattr__(self, "summary_payload", deepcopy(self.summary_payload))
+
     def to_dict(self) -> dict[str, Any]:
+        """Serialize without exposing the mutable summary payload."""
         return {
             "sync_type": self.sync_type,
             "started_at": self.started_at.isoformat() if self.started_at else None,
@@ -270,7 +328,7 @@ class CapabilitySyncLog:
             "updated_count": self.updated_count,
             "disabled_count": self.disabled_count,
             "error_count": self.error_count,
-            "summary_payload": self.summary_payload,
+            "summary_payload": deepcopy(self.summary_payload),
         }
 
 
@@ -290,6 +348,9 @@ class RoutingContext:
     model: str | None = None
     context: dict[str, Any] = field(default_factory=dict)
     answer_chain_enabled: bool = False
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "context", deepcopy(self.context))
 
 
 @dataclass(frozen=True)
@@ -313,19 +374,31 @@ class RoutingDecision:
     answer_chain: dict[str, Any] = field(default_factory=dict)
     result: Any = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if isinstance(self.decision, str):
             object.__setattr__(self, "decision", CapabilityDecision(self.decision))
+        _validate_confidence(self.confidence, field_name="confidence")
+        object.__setattr__(
+            self,
+            "candidate_capabilities",
+            deepcopy(self.candidate_capabilities),
+        )
+        object.__setattr__(self, "filled_params", deepcopy(self.filled_params))
+        object.__setattr__(self, "missing_params", list(self.missing_params))
+        object.__setattr__(self, "rejected_candidates", list(self.rejected_candidates))
+        object.__setattr__(self, "metadata", deepcopy(self.metadata))
+        object.__setattr__(self, "answer_chain", deepcopy(self.answer_chain))
 
     def to_response_dict(self) -> dict[str, Any]:
+        """Serialize without exposing mutable routing state."""
         return {
             "decision": self.decision.value,
             "selected_capability_key": self.selected_capability_key,
             "confidence": self.confidence,
-            "candidate_capabilities": self.candidate_capabilities,
+            "candidate_capabilities": deepcopy(self.candidate_capabilities),
             "requires_confirmation": self.requires_confirmation,
             "reply": self.reply,
-            "metadata": self.metadata,
-            "answer_chain": self.answer_chain,
+            "metadata": deepcopy(self.metadata),
+            "answer_chain": deepcopy(self.answer_chain),
             "result": self.result,
         }
