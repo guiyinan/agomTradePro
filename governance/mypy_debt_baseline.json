@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1776,
-    "files_with_errors": 466
+    "errors": 1756,
+    "files_with_errors": 465
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1552,12 +1552,6 @@
     "apps/terminal/interface/permissions.py": {
       "no-any-return": 1,
       "no-untyped-def": 2
-    },
-    "apps/terminal/interface/serializers.py": {
-      "assignment": 2,
-      "misc": 1,
-      "no-untyped-def": 3,
-      "type-arg": 14
     },
     "apps/terminal/interface/views.py": {
       "no-untyped-def": 8

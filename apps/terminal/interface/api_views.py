@@ -257,10 +257,10 @@ class TerminalChatView(APIView):
                 "selected_capability_key": response_dto.metadata.get("capability_key"),
                 "proposal_id": response_dto.metadata.get("proposal_id"),
             }
-        except Exception as exc:
+        except Exception:
             logger.exception("Terminal agent chat failed")
             return Response(
-                {"error": f"AI 调用异常: {str(exc)}"},
+                {"error": "terminal_agent_unavailable"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
@@ -285,13 +285,13 @@ class TerminalChatStreamView(APIView):
             try:
                 for event in use_case.execute(request_dto):
                     yield _format_sse_event(event.event_type, event.data)
-            except Exception as exc:
+            except Exception:
                 logger.exception("Terminal agent stream failed")
                 yield _format_sse_event(
                     "error",
                     {
                         "session_id": request_dto.session_id,
-                        "message": str(exc),
+                        "message": "terminal_agent_stream_failed",
                     },
                 )
 
@@ -416,7 +416,7 @@ class TerminalAuditView(APIView):
         )
 
         serializer = TerminalAuditEntrySerializer(
-            [e.__dict__ for e in entries],
+            cast(Any, [e.__dict__ for e in entries]),
             many=True,
         )
         return Response(

@@ -62,7 +62,52 @@ def test_terminal_stream_emits_error_event_when_use_case_fails(api_client, staff
 
     assert response.status_code == 200
     assert "event: error" in body
-    assert "stream exploded" in body
+    assert "terminal_agent_stream_failed" in body
+    assert "stream exploded" not in body
+
+
+@pytest.mark.django_db
+def test_terminal_chat_redacts_internal_service_errors(api_client, regular_user):
+    api_client.force_authenticate(user=regular_user)
+
+    with patch(
+        "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
+        side_effect=RuntimeError("postgresql://secret@internal/terminal"),
+    ):
+        response = api_client.post(
+            "/api/terminal/chat/",
+            {"message": "status"},
+            format="json",
+        )
+
+    assert response.status_code == 502
+    assert response.json() == {"error": "terminal_agent_unavailable"}
+    assert "secret" not in response.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"message": "hello", "context": ["not", "an", "object"]},
+        {"message": "hello", "unknown": "ignored-before"},
+        {
+            "message": "hello",
+            "provider_ref": "provider-a",
+            "provider_name": "provider-b",
+        },
+    ],
+)
+def test_terminal_chat_rejects_ambiguous_or_malformed_input(
+    api_client,
+    regular_user,
+    payload,
+):
+    api_client.force_authenticate(user=regular_user)
+
+    response = api_client.post("/api/terminal/chat/", payload, format="json")
+
+    assert response.status_code == 400
 
 
 @pytest.mark.django_db

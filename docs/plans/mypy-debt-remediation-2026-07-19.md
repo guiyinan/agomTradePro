@@ -3623,3 +3623,21 @@
 - Alpha 新增模型不变量回归 `7 passed`，既有 Qlib 注册、激活/回滚和缓存新鲜度回归 `14 passed`；覆盖数据库双 active 拒绝、本地日期、负阈值、空字典 scores 与 Django latest 契约。
 - `makemigrations --check --dry-run` 无漂移；Alpha models 与 repositories 增量 mypy 清零。全仓基线从 `1799 errors / 468 files` 收紧为 `1776 errors / 466 files`，净减少 `23 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百四十六批
+
+- 按“Terminal/Agent 输入结构可靠性 × 内部异常最小披露 × 响应字段真实性”收口 Terminal serializers 与 chat API。
+- Terminal chat 的 `context` 从任意 JSON 收紧为对象；数组等异常结构在进入 DTO 前返回 400，不再由 `dict(...)` 转换触发 500。
+- 活跃 chat 与 approval 请求使用严格字段校验，未知字段不再被 DRF 静默忽略；`provider_ref` 与兼容别名 `provider_name` 同时提交时明确拒绝，避免优先级不透明。
+- 消息、session、provider 和 model 字段增加技术性长度上限；超大消息在进入 Agent/Provider 前被拒绝。
+- provider reference 从任意 JSON 收紧为字符串边界，同时继续兼容数字输入由 DRF 规范化为字符串。
+- 非流式 Agent 异常固定返回 `terminal_agent_unavailable`，SSE 异常固定发布 `terminal_agent_stream_failed`；数据库地址、Provider SDK 和其他内部异常正文只进入服务端日志。
+- `param_count` 改为真实 `SerializerMethodField`，始终按 parameters 计算，不再信任调用方或缺省丢失；命令响应字段统一发布真实 `prompt_template_id`。
+- 全部 Terminal serializer 补齐 DRF 泛型、字段校验器和 schema decorator 类型；审计列表在 DRF many 边界局部收窄。
+
+## 第二百四十六批验证结果
+
+- Terminal serializer 与 API edge 回归 `9 passed`，覆盖计算参数数量、超长消息、非法 context、未知字段、Provider 别名冲突和普通/SSE 异常脱敏。
+- 固定 Terminal/TUI 最小回归包全部通过：TUI Workbench `197 passed`、Terminal Agent `11 passed`、SDK client `22 passed`、SSL redirect `2 passed`。
+- Terminal serializers 与 API views 增量 mypy 清零；全仓基线从 `1776 errors / 466 files` 收紧为 `1756 errors / 465 files`，净减少 `20 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
