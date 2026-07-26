@@ -4222,3 +4222,19 @@
 - Audit metrics 非法延迟、collector 冲突、异常脱敏与导出边界回归 `9 passed`；Prometheus AuditMetrics 集成与 API 端点回归 `4 passed`。
 - `metrics.py` 与 Application provider 增量 mypy 清零；全仓基线从 `1314 errors / 417 files` 收紧为 `1305 errors / 416 files`，净减少 `9 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百八十二批
+
+- 按“Regime 公共 API 输入真实性 × 查询资源边界 × 异常最小披露”收口八个 API handler 与五个 Serializer。
+- history 与 distribution 共用序列化日期验证；反向日期区间统一返回 400，不再进入 Repository。
+- distribution 将已解析的 `date` 传入 Application facade，修复此前把查询字符串直接传给 `date | None` 契约的类型与运行语义错位。
+- navigator history 的 months 严格限制为 1–120 的整数；非法文本、零、负数、小数和超限窗口不再静默回退或扩大查询。
+- navigator/action 的非法日期响应不再反射原始输入；所有 API 内部失败只返回稳定 `regime_service_unavailable` 错误码。
+- health 保留 503 unhealthy 契约，但不再发布底层数据库或服务异常正文；日志只记录 endpoint 与异常类型。
+- 八个 DRF handler 补齐 `Request -> Response` 契约；五个 Serializer 补齐载荷泛型，动态 `to_internal_value` 在 DRF 边界显式收窄。
+
+## 第二百八十二批验证结果
+
+- Regime 日期、分页、distribution、纯计算、导航窗口、异常脱敏、权限与宏观数据契约回归 `27 passed`。
+- `api_views.py` 与 `serializers.py` 增量 mypy 清零；全仓基线从 `1305 errors / 416 files` 收紧为 `1291 errors / 414 files`，净减少 `14 errors / 2 files`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

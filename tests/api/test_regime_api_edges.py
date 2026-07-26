@@ -184,9 +184,119 @@ def test_regime_distribution_returns_canonical_envelope(authenticated_client):
     payload = response.json()
     assert payload == distribution_payload
     mocked.assert_called_once_with(
-        start_date="2026-07-01",
-        end_date="2026-07-10",
+        start_date=date(2026, 7, 1),
+        end_date=date(2026, 7, 10),
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("endpoint", ["history", "distribution"])
+def test_regime_date_range_rejects_reverse_dates(
+    authenticated_client,
+    endpoint,
+):
+    response = authenticated_client.get(
+        f"/api/regime/{endpoint}/?start_date=2026-07-10&end_date=2026-07-01"
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["success"] is False
+    assert "start_date" in str(payload["error"])
+
+
+@pytest.mark.django_db
+def test_regime_distribution_rejects_malformed_date(authenticated_client):
+    response = authenticated_client.get("/api/regime/distribution/?start_date=2026/07/01")
+
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("months", ["abc", "0", "-1", "121", "1.5"])
+def test_regime_navigator_history_rejects_invalid_month_window(
+    authenticated_client,
+    months,
+):
+    with patch(
+        "apps.regime.application.navigator_use_cases.GetRegimeNavigatorHistoryUseCase.execute"
+    ) as execute:
+        response = authenticated_client.get(f"/api/regime/navigator/history/?months={months}")
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "Invalid months: expected an integer between 1 and 120"
+    execute.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("method", "path", "target", "expected_status"),
+    [
+        (
+            "get",
+            "/api/regime/current/",
+            "apps.regime.interface.api_views.get_regime_current_payload",
+            500,
+        ),
+        (
+            "post",
+            "/api/regime/calculate/",
+            "apps.regime.interface.api_views.calculate_regime_payload",
+            500,
+        ),
+        (
+            "get",
+            "/api/regime/history/",
+            "apps.regime.interface.api_views.get_regime_history_payload",
+            500,
+        ),
+        (
+            "get",
+            "/api/regime/distribution/",
+            "apps.regime.interface.api_views.get_regime_distribution_payload",
+            500,
+        ),
+        (
+            "get",
+            "/api/regime/health/",
+            "apps.regime.interface.api_views.get_regime_health_payload",
+            503,
+        ),
+        (
+            "get",
+            "/api/regime/navigator/",
+            "apps.regime.application.navigator_use_cases.BuildRegimeNavigatorUseCase.execute",
+            500,
+        ),
+        (
+            "get",
+            "/api/regime/action/",
+            "apps.regime.application.navigator_use_cases.GetActionRecommendationUseCase.execute",
+            500,
+        ),
+        (
+            "get",
+            "/api/regime/navigator/history/",
+            "apps.regime.application.navigator_use_cases.GetRegimeNavigatorHistoryUseCase.execute",
+            500,
+        ),
+    ],
+)
+def test_regime_internal_errors_are_redacted(
+    authenticated_client,
+    method,
+    path,
+    target,
+    expected_status,
+):
+    with patch(target, side_effect=RuntimeError("secret database address")):
+        response = getattr(authenticated_client, method)(path, {}, format="json")
+
+    assert response.status_code == expected_status
+    payload = response.json()
+    assert payload["error_code"] == "regime_service_unavailable"
+    assert "secret" not in response.content.decode("utf-8")
 
 
 @pytest.mark.django_db

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1305,
-    "files_with_errors": 416
+    "errors": 1291,
+    "files_with_errors": 414
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1124,13 +1124,6 @@
     },
     "apps/regime/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/regime/interface/api_views.py": {
-      "no-untyped-def": 8
-    },
-    "apps/regime/interface/serializers.py": {
-      "no-untyped-def": 1,
-      "type-arg": 5
     },
     "apps/regime/interface/urls.py": {
       "no-untyped-def": 1

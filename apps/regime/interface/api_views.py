@@ -8,11 +8,13 @@ DRF API Views for Regime Calculation.
 - 保持 API 完全兼容
 """
 
+import logging
 from datetime import date
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -31,6 +33,30 @@ from .serializers import (
     RegimeLogSerializer,
 )
 
+logger = logging.getLogger(__name__)
+
+
+def _log_endpoint_failure(endpoint: str, exc: Exception) -> None:
+    """Log only stable endpoint context and the exception type."""
+    logger.error(
+        "Regime API endpoint failed (endpoint=%s, error_type=%s)",
+        endpoint,
+        type(exc).__name__,
+    )
+
+
+def _service_unavailable_response(endpoint: str, exc: Exception) -> Response:
+    """Build a stable internal-error response without leaking exception text."""
+    _log_endpoint_failure(endpoint, exc)
+    return Response(
+        {
+            "success": False,
+            "error": "Regime service unavailable",
+            "error_code": "regime_service_unavailable",
+        },
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
 
 class RegimeViewSet(viewsets.ViewSet):
     """
@@ -45,7 +71,7 @@ class RegimeViewSet(viewsets.ViewSet):
     read_only_actions = frozenset({"calculate"})
 
     @action(detail=False, methods=["get"])
-    def current(self, request):
+    def current(self, request: Request) -> Response:
         """
         获取当前 Regime 状态
 
@@ -54,13 +80,11 @@ class RegimeViewSet(viewsets.ViewSet):
         try:
             return Response(get_regime_current_payload(as_of_date=date.today()))
 
-        except Exception as e:
-            return Response(
-                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        except Exception as exc:
+            return _service_unavailable_response("current", exc)
 
     @action(detail=False, methods=["post"])
-    def calculate(self, request):
+    def calculate(self, request: Request) -> Response:
         """
         计算 Regime 判定
 
@@ -75,12 +99,15 @@ class RegimeViewSet(viewsets.ViewSet):
         """
         request_serializer = RegimeCalculateRequestSerializer(data=request.data)
         request_serializer.is_valid(raise_exception=True)
-        payload = calculate_regime_payload(data=request_serializer.validated_data)
-        response_serializer = RegimeCalculateResponseSerializer(payload)
-        return Response(response_serializer.data)
+        try:
+            payload = calculate_regime_payload(data=request_serializer.validated_data)
+            response_serializer = RegimeCalculateResponseSerializer(payload)
+            return Response(response_serializer.data)
+        except Exception as exc:
+            return _service_unavailable_response("calculate", exc)
 
     @action(detail=False, methods=["get"])
-    def history(self, request):
+    def history(self, request: Request) -> Response:
         """
         获取 Regime 历史记录
 
@@ -116,42 +143,52 @@ class RegimeViewSet(viewsets.ViewSet):
                 {"success": False, "error": exc.detail},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
-            return Response(
-                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        except Exception as exc:
+            return _service_unavailable_response("history", exc)
 
     @action(detail=False, methods=["get"])
-    def distribution(self, request):
+    def distribution(self, request: Request) -> Response:
         """
         获取 Regime 分布统计
 
         GET /api/regime/distribution/?start_date=2024-01-01&end_date=2024-12-31
         """
         try:
+            query_serializer = RegimeHistoryQuerySerializer(data=request.query_params)
+            query_serializer.is_valid(raise_exception=True)
+            params = query_serializer.validated_data
             payload = get_regime_distribution_payload(
-                start_date=request.query_params.get("start_date"),
-                end_date=request.query_params.get("end_date"),
+                start_date=params.get("start_date"),
+                end_date=params.get("end_date"),
             )
             return Response(payload)
 
-        except Exception as e:
+        except ValidationError as exc:
             return Response(
-                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"success": False, "error": exc.detail},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+        except Exception as exc:
+            return _service_unavailable_response("distribution", exc)
 
 
 class RegimeHealthView(APIView):
     """Regime 服务健康检查"""
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """检查 Regime 服务健康状态"""
         try:
             return Response(get_regime_health_payload(), status=status.HTTP_200_OK)
 
-        except Exception as e:
+        except Exception as exc:
+            _log_endpoint_failure("health", exc)
             return Response(
-                {"status": "unhealthy", "service": "regime", "error": str(e)},
+                {
+                    "status": "unhealthy",
+                    "service": "regime",
+                    "error": "Regime service unavailable",
+                    "error_code": "regime_service_unavailable",
+                },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -162,7 +199,7 @@ class RegimeNavigatorView(APIView):
     GET /api/regime/navigator/
     """
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         try:
             from apps.regime.application.navigator_use_cases import BuildRegimeNavigatorUseCase
 
@@ -171,7 +208,7 @@ class RegimeNavigatorView(APIView):
                 as_of_date = date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
             except ValueError:
                 return Response(
-                    {"success": False, "error": f"Invalid as_of_date: {as_of_date_str}"},
+                    {"success": False, "error": "Invalid as_of_date"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -226,11 +263,8 @@ class RegimeNavigatorView(APIView):
 
             return Response({"success": True, "data": data})
 
-        except Exception as e:
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        except Exception as exc:
+            return _service_unavailable_response("navigator", exc)
 
 
 class RegimeActionView(APIView):
@@ -239,7 +273,7 @@ class RegimeActionView(APIView):
     GET /api/regime/action/
     """
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         try:
             from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
 
@@ -248,7 +282,7 @@ class RegimeActionView(APIView):
                 as_of_date = date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
             except ValueError:
                 return Response(
-                    {"success": False, "error": f"Invalid as_of_date: {as_of_date_str}"},
+                    {"success": False, "error": "Invalid as_of_date"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -298,11 +332,8 @@ class RegimeActionView(APIView):
 
             return Response({"success": True, "data": data})
 
-        except Exception as e:
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        except Exception as exc:
+            return _service_unavailable_response("action", exc)
 
 
 class RegimeNavigatorHistoryView(APIView):
@@ -311,7 +342,7 @@ class RegimeNavigatorHistoryView(APIView):
     GET /api/regime/navigator/history/?months=12
     """
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         try:
             from datetime import timedelta
 
@@ -320,8 +351,16 @@ class RegimeNavigatorHistoryView(APIView):
             months_str = request.query_params.get("months", "12")
             try:
                 months = int(months_str)
-            except ValueError:
-                months = 12
+            except (TypeError, ValueError):
+                months = 0
+            if not 1 <= months <= 120:
+                return Response(
+                    {
+                        "success": False,
+                        "error": "Invalid months: expected an integer between 1 and 120",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             end_date = date.today()
             start_date = end_date - timedelta(days=30 * months)
@@ -331,8 +370,5 @@ class RegimeNavigatorHistoryView(APIView):
 
             return Response({"success": True, "data": data})
 
-        except Exception as e:
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        except Exception as exc:
+            return _service_unavailable_response("navigator_history", exc)
