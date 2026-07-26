@@ -4475,3 +4475,19 @@
 - Terminal Domain 新增测试与治理组件回归 `68 passed`；固定 TUI Workbench 与 Terminal Agent 最小回归包连同新增测试 `211 passed`。
 - `entities.py` 增量 mypy 清零；全仓基线从 `1188 errors / 399 files` 收紧为 `1182 errors / 398 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百九十八批
+
+- 按“AI 能力目录真实性 × DRF 路由动作绑定 × 权限可见性优先级”收口 API Capability Collector。
+- ViewSet 方法发现改为优先读取当前 URL callback 的 `actions` 映射；列表路由不再虚构 DELETE，详情路由不再虚构 POST 等只存在于同类其他 URL 的能力。
+- callback 动作只接受已知 HTTP 方法、字符串 action 且 ViewSet 确实实现对应方法；输出方法排序稳定，能力同步不再受集合迭代顺序影响。
+- 无 View class 的安全路径在排除 unsafe 后直接启用路由，删除不可能成立的二次 unsafe 比较。
+- Permission class 收窄为类型列表，并按 Admin/Staff 高于 Authenticated 的顺序判断；混合权限声明不再因列表顺序把管理员接口降为 internal。
+- Tag 去重保持路径首次出现顺序；Serializer schema 使用显式 properties 字典，字段名和 help text 在动态边界收窄，检查失败只记录视图名与异常类型。
+- 补齐 Collector 临时容器、视图类、权限类、docstring 和 schema 返回契约，并新增列表/详情 action、权限优先级与稳定 tag 回归。
+
+## 第二百九十八批验证结果
+
+- API Collector 专项回归 `4 passed`，AI Capability 单元目录 `508 passed`，API 边界回归 `17 passed`。
+- `api_collector.py` 增量 mypy 清零；全仓基线从 `1182 errors / 398 files` 收紧为 `1175 errors / 397 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

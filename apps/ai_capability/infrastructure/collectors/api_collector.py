@@ -6,6 +6,7 @@ Auto-collects internal Django/DRF APIs and converts them to capabilities.
 
 import logging
 import re
+from collections.abc import Mapping
 from typing import Any
 
 from django.urls import get_resolver
@@ -89,7 +90,7 @@ class ApiCapabilityCollector:
 
     def collect(self) -> list[CapabilityDefinition]:
         """Collect all API capabilities from Django URL resolver."""
-        capabilities = []
+        capabilities: list[CapabilityDefinition] = []
         resolver = get_resolver()
 
         for pattern in resolver.url_patterns:
@@ -138,21 +139,19 @@ class ApiCapabilityCollector:
         callback: Any,
     ) -> list[CapabilityDefinition]:
         """Create capabilities from a view callback."""
-        capabilities = []
+        capabilities: list[CapabilityDefinition] = []
 
-        view_class = None
-        if hasattr(callback, "view_class"):
-            view_class = callback.view_class
-        elif hasattr(callback, "cls"):
-            view_class = callback.cls
-
+        view_class = getattr(callback, "view_class", None)
         if view_class is None:
+            view_class = getattr(callback, "cls", None)
+
+        if not isinstance(view_class, type):
             cap = self._create_capability_for_path(path, "GET")
             if cap:
                 capabilities.append(cap)
             return capabilities
 
-        methods = self._get_view_methods(view_class)
+        methods = self._get_view_methods(view_class, callback)
 
         for method in methods:
             cap = self._create_capability_for_view(path, method, view_class)
@@ -161,11 +160,23 @@ class ApiCapabilityCollector:
 
         return capabilities
 
-    def _get_view_methods(self, view_class: type) -> list[str]:
+    def _get_view_methods(self, view_class: type[object], callback: Any = None) -> list[str]:
         """Get allowed HTTP methods for a view class."""
-        methods = []
+        methods: list[str] = []
 
-        if isinstance(view_class, type) and issubclass(view_class, ViewSetMixin):
+        callback_actions = getattr(callback, "actions", None)
+        if isinstance(callback_actions, Mapping):
+            for raw_method, raw_action in callback_actions.items():
+                method = str(raw_method).upper()
+                if (
+                    method in self.READ_METHODS | self.WRITE_METHODS
+                    and isinstance(raw_action, str)
+                    and hasattr(view_class, raw_action)
+                ):
+                    methods.append(method)
+            return sorted(set(methods))
+
+        if issubclass(view_class, ViewSetMixin):
             actions = ["list", "create", "retrieve", "update", "partial_update", "destroy"]
             method_map = {
                 "list": "GET",
@@ -178,12 +189,12 @@ class ApiCapabilityCollector:
             for action in actions:
                 if hasattr(view_class, action):
                     methods.append(method_map[action])
-        elif isinstance(view_class, type) and issubclass(view_class, APIView):
+        elif issubclass(view_class, APIView):
             for method in self.READ_METHODS | self.WRITE_METHODS:
                 if hasattr(view_class, method.lower()):
                     methods.append(method)
 
-        return list(set(methods))
+        return sorted(set(methods))
 
     def _create_capability_for_path(
         self,
@@ -223,7 +234,7 @@ class ApiCapabilityCollector:
             risk_level=risk_level,
             requires_mcp=False,
             requires_confirmation=route_group == RouteGroup.WRITE_API,
-            enabled_for_routing=route_group != RouteGroup.UNSAFE_API,
+            enabled_for_routing=True,
             enabled_for_terminal=True,
             enabled_for_chat=False,
             enabled_for_agent=True,
@@ -236,7 +247,7 @@ class ApiCapabilityCollector:
         self,
         path: str,
         method: str,
-        view_class: type,
+        view_class: type[object],
     ) -> CapabilityDefinition | None:
         """Create a capability for a view with class information."""
         route_group = self._determine_route_group(path, method, view_class)
@@ -311,7 +322,7 @@ class ApiCapabilityCollector:
         self,
         path: str,
         method: str,
-        view_class: type | None,
+        view_class: type[object] | None,
     ) -> RouteGroup:
         """Determine route group based on path, method, and view."""
         if self._is_unsafe(path, method, view_class):
@@ -326,7 +337,7 @@ class ApiCapabilityCollector:
         self,
         path: str,
         method: str,
-        view_class: type | None,
+        view_class: type[object] | None,
     ) -> RiskLevel:
         """Determine risk level for the endpoint."""
         if self._is_unsafe(path, method, view_class):
@@ -341,7 +352,7 @@ class ApiCapabilityCollector:
         self,
         path: str,
         method: str,
-        view_class: type | None,
+        view_class: type[object] | None,
     ) -> bool:
         """Check if the endpoint is considered unsafe."""
         path_lower = path.lower()
@@ -366,37 +377,39 @@ class ApiCapabilityCollector:
             return parts[1]
         return "api"
 
-    def _determine_visibility(self, permission_classes: list) -> Visibility:
+    def _determine_visibility(self, permission_classes: list[type[object]]) -> Visibility:
         """Determine visibility from permission classes."""
-        for perm in permission_classes:
-            perm_name = perm.__name__ if hasattr(perm, "__name__") else str(perm)
-            if "admin" in perm_name.lower():
-                return Visibility.ADMIN
-            if "authenticated" in perm_name.lower():
-                return Visibility.INTERNAL
+        permission_names = [permission.__name__.lower() for permission in permission_classes]
+        if any("admin" in name or "staff" in name for name in permission_names):
+            return Visibility.ADMIN
+        if any("authenticated" in name for name in permission_names):
+            return Visibility.INTERNAL
         return Visibility.PUBLIC
 
-    def _get_docstring(self, view_class: type, method: str) -> str:
+    def _get_docstring(self, view_class: type[object], method: str) -> str:
         """Get docstring from view or method."""
         method_lower = method.lower()
 
         if hasattr(view_class, method_lower):
             method_func = getattr(view_class, method_lower)
-            if method_func.__doc__:
-                return method_func.__doc__.strip()
+            method_docstring = getattr(method_func, "__doc__", None)
+            if isinstance(method_docstring, str):
+                return method_docstring.strip()
 
-        if view_class.__doc__:
-            return view_class.__doc__.strip()
+        view_docstring = getattr(view_class, "__doc__", None)
+        if isinstance(view_docstring, str):
+            return view_docstring.strip()
 
         return ""
 
-    def _get_permission_classes(self, view_class: type) -> list:
+    def _get_permission_classes(self, view_class: type[object]) -> list[type[object]]:
         """Get permission classes from view."""
-        if hasattr(view_class, "permission_classes"):
-            return list(view_class.permission_classes)
-        return []
+        raw_permissions = getattr(view_class, "permission_classes", ())
+        if not isinstance(raw_permissions, (list, tuple)):
+            return []
+        return [permission for permission in raw_permissions if isinstance(permission, type)]
 
-    def _extract_tags(self, path: str, view_class: type) -> list[str]:
+    def _extract_tags(self, path: str, view_class: type[object]) -> list[str]:
         """Extract tags from path and view."""
         tags = ["api", "internal"]
 
@@ -405,23 +418,36 @@ class ApiCapabilityCollector:
             if not part.startswith("<") and not part.startswith("api"):
                 tags.append(part)
 
-        return list(set(tags))[:5]
+        return list(dict.fromkeys(tags))[:5]
 
-    def _extract_input_schema(self, view_class: type, method: str) -> dict:
+    def _extract_input_schema(
+        self,
+        view_class: type[object],
+        method: str,
+    ) -> dict[str, Any]:
         """Extract input schema from serializer if available."""
-        schema = {"type": "object", "properties": {}}
+        properties: dict[str, dict[str, str]] = {}
+        schema: dict[str, Any] = {"type": "object", "properties": properties}
 
-        if hasattr(view_class, "serializer_class"):
-            serializer = view_class.serializer_class
-            if hasattr(serializer, "get_fields"):
-                try:
-                    fields = serializer().get_fields()
-                    for field_name, field in fields.items():
-                        schema["properties"][field_name] = {
-                            "type": "string",
-                            "description": getattr(field, "help_text", ""),
-                        }
-                except Exception:
-                    pass
+        serializer = getattr(view_class, "serializer_class", None)
+        if serializer is not None and hasattr(serializer, "get_fields"):
+            try:
+                fields = serializer().get_fields()
+                if not isinstance(fields, Mapping):
+                    return schema
+                for field_name, field in fields.items():
+                    if not isinstance(field_name, str):
+                        continue
+                    help_text = getattr(field, "help_text", "")
+                    properties[field_name] = {
+                        "type": "string",
+                        "description": str(help_text) if help_text is not None else "",
+                    }
+            except Exception as exc:
+                logger.warning(
+                    "API capability serializer inspection failed: view=%s error_type=%s",
+                    view_class.__name__,
+                    type(exc).__name__,
+                )
 
         return schema
