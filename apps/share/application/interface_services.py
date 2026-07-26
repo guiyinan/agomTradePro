@@ -486,7 +486,7 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
         transactions_payload=transactions_payload,
         decision_payload=decision_payload,
         source_range_start=account.start_date,
-        source_range_end=timezone.now().date(),
+        source_range_end=timezone.localdate(),
     )
 
 

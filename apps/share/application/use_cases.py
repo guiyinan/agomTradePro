@@ -6,13 +6,89 @@ Share Application Use Cases
 
 from __future__ import annotations
 
-from datetime import date, datetime
+import json
+from datetime import UTC, date, datetime
+from typing import Any, TypeAlias
 
 from django.core.exceptions import ValidationError
 
 from apps.share.application.repository_provider import get_share_application_repository
-from apps.share.domain.entities import ShareLinkEntity
+from apps.share.domain.entities import (
+    AccessResultStatus,
+    ShareLevel,
+    ShareLinkEntity,
+    ShareTheme,
+)
 from apps.share.domain.interfaces import ShareApplicationRepositoryProtocol
+from apps.share.domain.services import validate_short_code
+
+JsonPayload: TypeAlias = dict[str, Any]
+
+
+class _UnsetType:
+    """Marker used to distinguish omitted updates from explicit null values."""
+
+
+_UNSET = _UnsetType()
+
+
+def _validate_title(title: str) -> str:
+    """Return a normalized non-empty public title within the storage limit."""
+    normalized = title.strip()
+    if not normalized or len(normalized) > 100:
+        raise ValidationError({"title": "标题必须为 1-100 个字符"})
+    return normalized
+
+
+def _validate_optional_text(
+    value: str | None,
+    *,
+    field_name: str,
+    max_length: int,
+) -> None:
+    """Validate an optional text field before persistence."""
+    if value is not None and len(value) > max_length:
+        raise ValidationError({field_name: f"长度不得超过 {max_length} 个字符"})
+
+
+def _validate_share_choices(*, theme: str, share_level: str) -> None:
+    """Validate public enum values before the repository mutates state."""
+    try:
+        ShareTheme(theme)
+    except ValueError as exc:
+        raise ValidationError({"theme": "不支持的页面风格"}) from exc
+    try:
+        ShareLevel(share_level)
+    except ValueError as exc:
+        raise ValidationError({"share_level": "不支持的分享级别"}) from exc
+
+
+def _validate_expiration(expires_at: datetime | None) -> None:
+    """Require a timezone-aware future expiration when configured."""
+    if expires_at is None:
+        return
+    if expires_at.utcoffset() is None:
+        raise ValidationError({"expires_at": "过期时间必须包含时区"})
+    if expires_at <= datetime.now(UTC):
+        raise ValidationError({"expires_at": "过期时间必须晚于当前时间"})
+
+
+def _validate_max_access_count(max_access_count: int | None) -> None:
+    """Require a positive non-boolean access limit when configured."""
+    if max_access_count is None:
+        return
+    if isinstance(max_access_count, bool) or max_access_count < 1:
+        raise ValidationError({"max_access_count": "最大访问次数必须为正整数"})
+
+
+def _validate_json_payload(payload: JsonPayload, *, field_name: str) -> None:
+    """Reject non-object, non-serializable, or non-finite public snapshot data."""
+    if not isinstance(payload, dict):
+        raise ValidationError({field_name: "快照数据必须为 JSON 对象"})
+    try:
+        json.dumps(payload, allow_nan=False)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError({field_name: "快照数据必须可序列化且不得包含 NaN/Inf"}) from exc
 
 
 class ShareLinkUseCases:
@@ -80,6 +156,13 @@ class ShareLinkUseCases:
         """
         from apps.share.domain.services import generate_short_code
 
+        title = _validate_title(title)
+        _validate_optional_text(subtitle, field_name="subtitle", max_length=200)
+        _validate_optional_text(password, field_name="password", max_length=128)
+        _validate_share_choices(theme=theme, share_level=share_level)
+        _validate_expiration(expires_at)
+        _validate_max_access_count(max_access_count)
+
         if not self._repository.user_exists(owner_id):
             raise ValidationError({"owner_id": "用户不存在"})
 
@@ -94,8 +177,11 @@ class ShareLinkUseCases:
                     break
             else:
                 raise ValidationError("无法生成唯一短码，请稍后重试")
-        elif self._repository.share_link_short_code_exists(short_code):
-            raise ValidationError({"short_code": "短码已存在"})
+        else:
+            if not validate_short_code(short_code, min_length=6, max_length=16):
+                raise ValidationError({"short_code": "短码必须为 6-16 位字母或数字"})
+            if self._repository.share_link_short_code_exists(short_code):
+                raise ValidationError({"short_code": "短码已存在"})
 
         password_hash = None
         if password:
@@ -180,12 +266,12 @@ class ShareLinkUseCases:
         share_link_id: int,
         owner_id: int,
         title: str | None = None,
-        subtitle: str | None = None,
+        subtitle: str | None | _UnsetType = _UNSET,
         theme: str | None = None,
         share_level: str | None = None,
         password: str | None = None,
-        expires_at: datetime | None = None,
-        max_access_count: int | None = None,
+        expires_at: datetime | None | _UnsetType = _UNSET,
+        max_access_count: int | None | _UnsetType = _UNSET,
         allow_indexing: bool | None = None,
         show_amounts: bool | None = None,
         show_positions: bool | None = None,
@@ -217,16 +303,27 @@ class ShareLinkUseCases:
 
         updates: dict[str, object] = {}
         if title is not None:
-            updates["title"] = title
-        if subtitle is not None:
+            updates["title"] = _validate_title(title)
+        if not isinstance(subtitle, _UnsetType):
+            _validate_optional_text(subtitle, field_name="subtitle", max_length=200)
             updates["subtitle"] = subtitle
         if theme is not None:
+            _validate_share_choices(
+                theme=theme,
+                share_level=share_level or existing.share_level.value,
+            )
             updates["theme"] = theme
         if share_level is not None:
+            _validate_share_choices(
+                theme=theme or existing.theme.value,
+                share_level=share_level,
+            )
             updates["share_level"] = share_level
-        if expires_at is not None:
+        if not isinstance(expires_at, _UnsetType):
+            _validate_expiration(expires_at)
             updates["expires_at"] = expires_at
-        if max_access_count is not None:
+        if not isinstance(max_access_count, _UnsetType):
+            _validate_max_access_count(max_access_count)
             updates["max_access_count"] = max_access_count
         if allow_indexing is not None:
             updates["allow_indexing"] = allow_indexing
@@ -244,6 +341,7 @@ class ShareLinkUseCases:
             updates["show_invalidation_logic"] = show_invalidation_logic
 
         if password is not None:
+            _validate_optional_text(password, field_name="password", max_length=128)
             if password == "":
                 updates["password_hash"] = None
             else:
@@ -328,11 +426,11 @@ class ShareSnapshotUseCases:
     def create_snapshot(
         self,
         share_link_id: int,
-        summary_payload: dict,
-        performance_payload: dict,
-        positions_payload: dict,
-        transactions_payload: dict,
-        decision_payload: dict,
+        summary_payload: JsonPayload,
+        performance_payload: JsonPayload,
+        positions_payload: JsonPayload,
+        transactions_payload: JsonPayload,
+        decision_payload: JsonPayload,
         source_range_start: date | None = None,
         source_range_end: date | None = None,
     ) -> int | None:
@@ -352,6 +450,21 @@ class ShareSnapshotUseCases:
         Returns:
             快照 ID 或 None
         """
+        payloads = {
+            "summary_payload": summary_payload,
+            "performance_payload": performance_payload,
+            "positions_payload": positions_payload,
+            "transactions_payload": transactions_payload,
+            "decision_payload": decision_payload,
+        }
+        for field_name, payload in payloads.items():
+            _validate_json_payload(payload, field_name=field_name)
+        if (
+            source_range_start is not None
+            and source_range_end is not None
+            and source_range_start > source_range_end
+        ):
+            raise ValidationError({"source_range_end": "数据结束日期不得早于起始日期"})
         return self._repository.create_snapshot(
             share_link_id=share_link_id,
             summary_payload=summary_payload,
@@ -363,7 +476,7 @@ class ShareSnapshotUseCases:
             source_range_end=source_range_end,
         )
 
-    def get_latest_snapshot(self, share_link_id: int) -> dict | None:
+    def get_latest_snapshot(self, share_link_id: int) -> JsonPayload | None:
         """
         获取最新快照
 
@@ -416,6 +529,10 @@ class ShareAccessUseCases:
         """
         import hashlib
 
+        try:
+            AccessResultStatus(result_status)
+        except ValueError as exc:
+            raise ValidationError({"result_status": "不支持的访问结果状态"}) from exc
         ip_hash = hashlib.sha256(ip_address.encode()).hexdigest()
         return self._repository.log_access(
             share_link_id=share_link_id,
@@ -430,7 +547,7 @@ class ShareAccessUseCases:
         self,
         share_link_id: int,
         limit: int = 100,
-    ) -> list[dict]:
+    ) -> list[JsonPayload]:
         """
         获取访问日志
 
@@ -441,12 +558,14 @@ class ShareAccessUseCases:
         Returns:
             日志列表
         """
+        if isinstance(limit, bool) or not 1 <= limit <= 1000:
+            raise ValidationError({"limit": "返回数量必须为 1-1000 的整数"})
         return self._repository.get_access_logs(
             share_link_id=share_link_id,
             limit=limit,
         )
 
-    def get_access_stats(self, share_link_id: int) -> dict:
+    def get_access_stats(self, share_link_id: int) -> dict[str, int]:
         """
         获取访问统计
 

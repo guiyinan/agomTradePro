@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1291,
-    "files_with_errors": 414
+    "errors": 1283,
+    "files_with_errors": 413
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1202,9 +1202,6 @@
     },
     "apps/setup_wizard/management/commands/bootstrap_local_env.py": {
       "no-untyped-def": 2
-    },
-    "apps/share/application/use_cases.py": {
-      "type-arg": 8
     },
     "apps/share/infrastructure/models.py": {
       "no-untyped-def": 7

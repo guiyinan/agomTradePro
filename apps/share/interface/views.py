@@ -468,20 +468,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet[Any]):
             entity = ShareLinkUseCases().update_share_link(
                 share_link_id=instance.id,
                 owner_id=_authenticated_user_id(request.user),
-                title=data.get("title"),
-                subtitle=data.get("subtitle"),
-                theme=data.get("theme"),
-                share_level=data.get("share_level"),
-                password=data.get("password"),
-                expires_at=data.get("expires_at"),
-                max_access_count=data.get("max_access_count"),
-                allow_indexing=data.get("allow_indexing"),
-                show_amounts=data.get("show_amounts"),
-                show_positions=data.get("show_positions"),
-                show_transactions=data.get("show_transactions"),
-                show_decision_summary=data.get("show_decision_summary"),
-                show_decision_evidence=data.get("show_decision_evidence"),
-                show_invalidation_logic=data.get("show_invalidation_logic"),
+                **data,
             )
         except Exception as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)

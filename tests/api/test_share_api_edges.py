@@ -1,7 +1,9 @@
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from apps.share.infrastructure.models import ShareLinkModel, ShareSnapshotModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
@@ -105,6 +107,59 @@ def test_share_create_rejects_unknown_fields(authenticated_client, auth_user):
 
     assert response.status_code == 400
     assert response.json()["details"]["owner_id"] == ["Unknown field."]
+
+
+@pytest.mark.django_db
+def test_share_update_distinguishes_omitted_and_explicit_null_fields(
+    authenticated_client,
+    auth_user,
+):
+    account = SimulatedAccountModel.objects.create(
+        user=auth_user,
+        account_name="Owned Account",
+        account_type="simulated",
+        initial_capital=Decimal("100000.00"),
+        current_cash=Decimal("100000.00"),
+        total_value=Decimal("100000.00"),
+    )
+    expires_at = timezone.now() + timedelta(days=7)
+    share_link = ShareLinkModel.objects.create(
+        owner=auth_user,
+        account_id=account.id,
+        short_code="nullable01",
+        title="Nullable Settings",
+        subtitle="keep until cleared",
+        expires_at=expires_at,
+        max_access_count=5,
+    )
+
+    omitted_response = authenticated_client.patch(
+        f"/api/share/links/{share_link.id}/",
+        {"theme": "monopoly"},
+        format="json",
+    )
+
+    assert omitted_response.status_code == 200
+    share_link.refresh_from_db()
+    assert share_link.subtitle == "keep until cleared"
+    assert share_link.expires_at == expires_at
+    assert share_link.max_access_count == 5
+
+    clear_response = authenticated_client.patch(
+        f"/api/share/links/{share_link.id}/",
+        {
+            "subtitle": None,
+            "expires_at": None,
+            "max_access_count": None,
+        },
+        format="json",
+    )
+
+    assert clear_response.status_code == 200
+    share_link.refresh_from_db()
+    assert share_link.subtitle is None
+    assert share_link.expires_at is None
+    assert share_link.max_access_count is None
 
 
 @pytest.mark.django_db

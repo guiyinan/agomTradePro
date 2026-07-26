@@ -4238,3 +4238,20 @@
 - Regime 日期、分页、distribution、纯计算、导航窗口、异常脱敏、权限与宏观数据契约回归 `27 passed`。
 - `api_views.py` 与 `serializers.py` 增量 mypy 清零；全仓基线从 `1305 errors / 416 files` 收紧为 `1291 errors / 414 files`，净减少 `14 errors / 2 files`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百八十三批
+
+- 按“公开分享副作用前验证 × 快照 JSON 真实性 × 可空更新契约 × 本地日期一致性”收口 Share Application 用例。
+- 创建公开链接在 Repository 写入前验证标题、主题、分享级别、密码长度、时区感知未来过期时间、正整数访问上限和 6–16 位字母数字短码。
+- 修复非法 theme/share level 先落库、随后实体枚举转换才失败的问题；自定义短码复用 Domain `validate_short_code`，路径字符不再进入公开路由键。
+- 五类快照 payload 必须为可序列化 JSON 对象且不得包含 `NaN/Inf`；数据来源结束日不得早于起始日。
+- 修复 Asia/Shanghai 午夜窗口：账户 `auto_now_add` 使用本地日期，快照结束日改用 `timezone.localdate()`，不再因 UTC 日期仍在前一天而阻断实时快照。
+- 访问日志结果必须属于正式 `AccessResultStatus`；日志查询 limit 限制为 1–1000 的非布尔整数。
+- Update 用显式未提供哨兵区分“字段省略”和“提交 null”；公开 API 只传实际提交字段，`subtitle/expires_at/max_access_count` 现可清空且省略时保持原值。
+- 快照、最新快照、访问日志和访问统计容器补齐精确泛型，删除八处裸 `dict` 债务。
+
+## 第二百八十三批验证结果
+
+- Share 用例安全与 API 边界回归 `22 passed`；ShareLink 既有用例及管理页主题/密码更新回归 `33 passed`；扩展 Share views/API 回归 `26 passed`。
+- `use_cases.py`、`interface_services.py` 与 Share views 增量 mypy 清零；全仓基线从 `1291 errors / 414 files` 收紧为 `1283 errors / 413 files`，净减少 `8 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
