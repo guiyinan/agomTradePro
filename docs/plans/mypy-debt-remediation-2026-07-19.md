@@ -4433,3 +4433,17 @@
 - Data Center 市场网关实体、Provider 与解析器回归 `71 passed`。
 - `qmt_gateway.py` 增量 mypy 清零，并同步消除连接测试的一项无类型调用债务；全仓基线从 `1207 errors / 402 files` 收紧为 `1199 errors / 401 files`，净减少 `8 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百九十五批
+
+- 按“Terminal 用户路由 × Regime 来源真实性 × 答案链权限展示”收口旧版 Terminal chat router。
+- 四类答案链步骤使用统一 TypedDict，管理员专属 `technical_details` 成为显式可选字符串列表；Router、readiness、Regime 与普通聊天链不再由字符串字典推断后接收列表值。
+- system-status chain 显式接收 readiness 检查映射；Regime chain 使用正式 `CurrentRegimeResult` 与 `PolicyLevel`，chat chain 使用精确意图决策参数。
+- 修复市场 Regime 用户响应读取不存在的 `source` 属性而长期显示 `N/A` 的问题；正文和管理员技术详情统一使用正式 `data_source` 字段。
+- 新增 Regime 响应来源及权限展示回归：普通用户答案链继续隐藏技术详情，管理员链显示正式 Regime 来源和政策档位。
+
+## 第二百九十五批验证结果
+
+- Terminal chat router 局部回归 `2 passed`；连同固定 TUI Workbench 与 Terminal Agent 最小回归包共 `210 passed`。
+- `chat_router.py` 增量 mypy 清零；全仓基线从 `1199 errors / 401 files` 收紧为 `1192 errors / 400 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

@@ -12,11 +12,12 @@ import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 from apps.ai_provider.application.client_provider import get_ai_client_factory
 from apps.policy.application.repository_provider import get_current_policy_repository
-from apps.regime.application.current_regime import resolve_current_regime
+from apps.policy.domain.entities import PolicyLevel
+from apps.regime.application.current_regime import CurrentRegimeResult, resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,15 @@ class TerminalIntentDecision:
     intent: str = "chat"
     confidence: float = 0.0
     reason: str = ""
+
+
+class _AnswerChainStep(TypedDict):
+    """One user-visible answer-chain step."""
+
+    title: str
+    summary: str
+    source: str
+    technical_details: NotRequired[list[str]]
 
 
 class TerminalChatRouterService:
@@ -262,11 +272,11 @@ class TerminalChatRouterService:
         reply = "\n".join(
             [
                 "## Current Market Regime",
-                f"- **Regime**: `{getattr(regime, 'dominant_regime', 'Unknown')}`",
-                f"- **Confidence**: `{(getattr(regime, 'confidence', 0) or 0) * 100:.1f}%`",
-                f"- **Source**: `{getattr(regime, 'source', 'N/A')}`",
-                f"- **Observed At**: `{getattr(regime, 'observed_at', 'N/A')}`",
-                f"- **Policy Level**: `{getattr(policy, 'value', 'N/A')}`",
+                f"- **Regime**: `{regime.dominant_regime}`",
+                f"- **Confidence**: `{regime.confidence * 100:.1f}%`",
+                f"- **Source**: `{regime.data_source}`",
+                f"- **Observed At**: `{regime.observed_at}`",
+                f"- **Policy Level**: `{policy.value}`",
             ]
         )
 
@@ -354,7 +364,7 @@ class TerminalChatRouterService:
         user_is_admin: bool,
         suggested_command: str,
     ) -> dict[str, Any]:
-        steps = [
+        steps: list[_AnswerChainStep] = [
             {
                 "title": "Intent classification",
                 "summary": f"Classified input as {decision.intent} with confidence {decision.confidence:.2f}.",
@@ -378,8 +388,13 @@ class TerminalChatRouterService:
             "steps": steps,
         }
 
-    def _build_system_status_chain(self, decision, checks, user_is_admin: bool) -> dict[str, Any]:
-        steps = [
+    def _build_system_status_chain(
+        self,
+        decision: TerminalIntentDecision,
+        checks: dict[str, dict[str, Any]],
+        user_is_admin: bool,
+    ) -> dict[str, Any]:
+        steps: list[_AnswerChainStep] = [
             {
                 "title": "Intent classification",
                 "summary": f"Recognized a system status query with confidence {decision.confidence:.2f}.",
@@ -409,8 +424,14 @@ class TerminalChatRouterService:
             "steps": steps,
         }
 
-    def _build_regime_chain(self, decision, regime, policy, user_is_admin: bool) -> dict[str, Any]:
-        steps = [
+    def _build_regime_chain(
+        self,
+        decision: TerminalIntentDecision,
+        regime: CurrentRegimeResult,
+        policy: PolicyLevel,
+        user_is_admin: bool,
+    ) -> dict[str, Any]:
+        steps: list[_AnswerChainStep] = [
             {
                 "title": "Intent classification",
                 "summary": f"Recognized a market regime query with confidence {decision.confidence:.2f}.",
@@ -429,10 +450,10 @@ class TerminalChatRouterService:
         ]
         if user_is_admin:
             steps[1]["technical_details"] = [
-                f"RegimeSnapshot.dominant_regime={getattr(regime, 'dominant_regime', 'Unknown')}",
-                f"RegimeSnapshot.confidence={getattr(regime, 'confidence', 0)}",
-                f"RegimeSnapshot.source={getattr(regime, 'source', 'N/A')}",
-                f"PolicyLevel.value={getattr(policy, 'value', 'N/A')}",
+                f"CurrentRegimeResult.dominant_regime={regime.dominant_regime}",
+                f"CurrentRegimeResult.confidence={regime.confidence}",
+                f"CurrentRegimeResult.data_source={regime.data_source}",
+                f"PolicyLevel.value={policy.value}",
             ]
         return {
             "label": "Answer chain",
@@ -441,9 +462,14 @@ class TerminalChatRouterService:
         }
 
     def _build_chat_chain(
-        self, *, decision, provider: str, model: str, user_is_admin: bool
+        self,
+        *,
+        decision: TerminalIntentDecision,
+        provider: str,
+        model: str,
+        user_is_admin: bool,
     ) -> dict[str, Any]:
-        steps = [
+        steps: list[_AnswerChainStep] = [
             {
                 "title": "Intent classification",
                 "summary": f"Classified the input as general chat with confidence {decision.confidence:.2f}.",

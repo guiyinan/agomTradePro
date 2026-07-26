@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1199,
-    "files_with_errors": 401
+    "errors": 1192,
+    "files_with_errors": 400
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1234,10 +1234,6 @@
     },
     "apps/terminal/application/ai_capability_gateway.py": {
       "no-untyped-call": 1
-    },
-    "apps/terminal/application/chat_router.py": {
-      "assignment": 4,
-      "no-untyped-def": 3
     },
     "apps/terminal/application/confirmation.py": {
       "type-arg": 4
