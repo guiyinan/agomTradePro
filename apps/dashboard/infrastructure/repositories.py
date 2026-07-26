@@ -9,7 +9,7 @@ from datetime import date
 from typing import Any
 
 from django.contrib.auth import get_user_model
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from django.utils import timezone
 
 from apps.dashboard.application.integration_gateways import (
@@ -892,12 +892,20 @@ class AlphaRecommendationHistoryRepository:
         )
         return run
 
+    @transaction.atomic
     def replace_snapshots(
         self,
         *,
         run: AlphaRecommendationRunModel,
         snapshots: list[dict[str, Any]],
     ) -> None:
+        """Replace one run's snapshots atomically.
+
+        The savepoint keeps a failed bulk insert from poisoning a surrounding
+        dashboard request or test transaction, and preserves the prior snapshot
+        set when any new row violates the persistence contract.
+        """
+
         AlphaRecommendationSnapshotModel._default_manager.filter(run=run).delete()
         AlphaRecommendationSnapshotModel._default_manager.bulk_create(
             [

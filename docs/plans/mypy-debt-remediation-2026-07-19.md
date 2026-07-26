@@ -3956,3 +3956,16 @@
 - 唯一失败为既有 Dashboard Alpha 历史写入在 `alpha_score=None` 时触发 NOT NULL，随后污染测试事务；失败链不经过本批 serializers，留作下一独立高优先级批次处理。
 - Dashboard serializers 增量 mypy 清零；全仓基线从 `1482 errors / 435 files` 收紧为 `1464 errors / 434 files`，净减少 `18 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百六十六批
+
+- 按“Dashboard Alpha 历史写入原子性 × 失败隔离 × 既有快照保全”修复批次 265 回归中暴露的事务污染。
+- `replace_snapshots` 在 Infrastructure Repository 内使用独立原子 savepoint；删除旧快照与批量创建新快照成为同一事务单元。
+- 任一新快照违反数据库契约时，局部事务完整回滚并恢复旧快照；调用方捕获异常后，外层 Dashboard 请求或测试事务仍可继续查询，不再连锁触发 `TransactionManagementError` 和页面 500。
+- Application 的既有失败降级语义保持不变；本批不伪造缺失 Alpha 分数，也不改变推荐结果，只隔离失败持久化副作用。
+
+## 第二百六十六批验证结果
+
+- Alpha 历史原子替换测试与此前失败的 Dashboard 真实页面回归 `2 passed`；覆盖坏快照写入、旧快照保留、外层事务可继续查询和待处理队列正常渲染。
+- Dashboard history repository 增量 mypy 保持清零；本批为运行时安全修复，全仓基线保持 `1464 errors / 434 files`，未虚报债务下降。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort 与增量 mypy 通过。
