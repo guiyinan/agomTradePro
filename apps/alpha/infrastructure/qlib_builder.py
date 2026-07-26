@@ -1,32 +1,35 @@
 from __future__ import annotations
 
 import logging
+import math
+import re
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any, Protocol, TypeVar, cast
 
 import numpy as np
-import pandas as pd
 
+from apps.alpha.infrastructure.scientific_runtime import get_pandas
+from apps.config_center.application import interface_services as config_center_services
+from apps.config_center.domain.entities import AlphaUniverseConfig
 from shared.infrastructure.tushare_client import create_tushare_pro_client
 
 logger = logging.getLogger(__name__)
+pd = get_pandas()
+_T = TypeVar("_T")
+PandasDataFrame = Any
+PandasSeries = Any
 
-UNIVERSE_INDEX_CODE_MAP: dict[str, str] = {
-    "csi300": "000300.SH",
-    "csi500": "000905.SH",
-    "sse50": "000016.SH",
-    "csi1000": "000852.SH",
-}
 
-INDEX_CODES_FOR_BUILD: tuple[str, ...] = (
-    "000016.SH",
-    "000300.SH",
-    "000852.SH",
-    "000905.SH",
-)
+class _TushareProClient(Protocol):
+    def trade_cal(self, **kwargs: object) -> Any: ...
+    def index_weight(self, **kwargs: object) -> Any: ...
+    def daily(self, **kwargs: object) -> Any: ...
+    def adj_factor(self, **kwargs: object) -> Any: ...
+    def index_daily(self, **kwargs: object) -> Any: ...
 
 
 @dataclass(frozen=True)
@@ -65,13 +68,19 @@ def inspect_latest_trade_date(provider_uri: str) -> date | None:
 
 def normalize_qlib_symbol(ts_code: str) -> str:
     """Convert tushare code into qlib instrument file symbol."""
-    market, code = ts_code.split(".", 1)[1], ts_code.split(".", 1)[0]
+    normalized = _normalize_tushare_code(ts_code)
+    if normalized is None:
+        raise ValueError("Invalid Tushare instrument code")
+    code, market = normalized.split(".", 1)
     return f"{market.upper()}{code}"
 
 
 def normalize_feature_symbol(ts_code: str) -> str:
     """Convert tushare code into qlib feature directory symbol."""
-    market, code = ts_code.split(".", 1)[1], ts_code.split(".", 1)[0]
+    normalized = _normalize_tushare_code(ts_code)
+    if normalized is None:
+        raise ValueError("Invalid Tushare instrument code")
+    code, market = normalized.split(".", 1)
     return f"{market.lower()}{code}"
 
 
@@ -85,6 +94,20 @@ def denormalize_qlib_symbol(symbol: str) -> str | None:
     if market not in {"SH", "SZ", "BJ"} or not code.isdigit():
         return None
     return f"{code}.{market}"
+
+
+def _normalize_tushare_code(raw_code: object) -> str | None:
+    normalized = str(raw_code or "").strip().upper()
+    if re.fullmatch(r"\d{6}\.(?:SH|SZ|BJ)", normalized) is None:
+        return None
+    return normalized
+
+
+def _normalize_universe_id(raw_universe_id: object) -> str | None:
+    normalized = str(raw_universe_id or "").strip().lower()
+    if re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", normalized) is None:
+        return None
+    return normalized
 
 
 def resolve_effective_trade_date(
@@ -125,7 +148,10 @@ class TushareQlibBuilder:
 
     def __init__(self, provider_uri: str, *, pro_client: object | None = None) -> None:
         self._provider_uri = Path(provider_uri).expanduser()
-        self._pro = pro_client or create_tushare_pro_client()
+        self._pro = cast(
+            _TushareProClient,
+            pro_client if pro_client is not None else create_tushare_pro_client(),
+        )
         self._calendar_path = _calendar_path(self._provider_uri)
         self._instrument_dir = self._provider_uri / "instruments"
         self._features_dir = self._provider_uri / "features"
@@ -138,17 +164,25 @@ class TushareQlibBuilder:
         lookback_days: int = 400,
     ) -> QlibBuildSummary:
         """Build recent daily qlib data for selected universes."""
-        normalized_universes = [
-            str(universe).strip().lower() for universe in universes if str(universe).strip()
-        ]
+        self._validate_build_window(target_date, lookback_days)
+        normalized_universes: list[str] = []
+        for universe in universes:
+            normalized = _normalize_universe_id(universe)
+            if normalized is None:
+                raise ValueError("Universe ID must use 1-64 lowercase letters, digits, _ or -")
+            normalized_universes.append(normalized)
         if not normalized_universes:
             raise ValueError("至少需要一个 universe")
 
-        universe_members = self._fetch_universe_members(normalized_universes, target_date)
+        universe_members, index_codes = self._fetch_universe_members(
+            sorted(set(normalized_universes)),
+            target_date,
+        )
         return self._build_recent_data_for_members(
             target_date=target_date,
             universe_members=universe_members,
             lookback_days=lookback_days,
+            index_codes=index_codes,
         )
 
     def build_recent_data_for_codes(
@@ -160,21 +194,38 @@ class TushareQlibBuilder:
         lookback_days: int = 120,
     ) -> QlibBuildSummary:
         """Build recent daily qlib data for an explicit stock-code scope."""
-        normalized_codes = sorted(
-            {
-                str(code).strip().upper()
-                for code in stock_codes
-                if str(code).strip() and "." in str(code).strip()
-            }
-        )
+        self._validate_build_window(target_date, lookback_days)
+        normalized_universe_id = _normalize_universe_id(universe_id)
+        if normalized_universe_id is None:
+            raise ValueError("Universe ID must use 1-64 lowercase letters, digits, _ or -")
+
+        normalized_codes: set[str] = set()
+        for code in stock_codes:
+            normalized_code = _normalize_tushare_code(code)
+            if normalized_code is None:
+                raise ValueError("Stock codes must use the 000001.SZ Tushare format")
+            normalized_codes.add(normalized_code)
         if not normalized_codes:
             raise ValueError("至少需要一个股票代码")
 
         return self._build_recent_data_for_members(
             target_date=target_date,
-            universe_members={str(universe_id).strip().lower(): normalized_codes},
+            universe_members={normalized_universe_id: sorted(normalized_codes)},
             lookback_days=lookback_days,
+            index_codes=(),
         )
+
+    @staticmethod
+    def _validate_build_window(target_date: date, lookback_days: int) -> None:
+        if target_date > date.today():
+            raise ValueError("Qlib build target_date cannot be in the future")
+        if (
+            isinstance(lookback_days, bool)
+            or not isinstance(lookback_days, int)
+            or lookback_days <= 0
+            or lookback_days > 3650
+        ):
+            raise ValueError("Qlib build lookback_days must be an integer from 1 to 3650")
 
     def _build_recent_data_for_members(
         self,
@@ -182,6 +233,7 @@ class TushareQlibBuilder:
         target_date: date,
         universe_members: dict[str, list[str]],
         lookback_days: int,
+        index_codes: Iterable[str],
     ) -> QlibBuildSummary:
         """Build qlib data for already-resolved universe members."""
         latest_before = inspect_latest_trade_date(str(self._provider_uri))
@@ -242,7 +294,7 @@ class TushareQlibBuilder:
             )
             feature_series_written += written
 
-        for index_code in INDEX_CODES_FOR_BUILD:
+        for index_code in sorted(set(index_codes)):
             index_frame = self._fetch_index_daily(
                 index_code, requested_start_date, effective_target_date
             )
@@ -297,8 +349,20 @@ class TushareQlibBuilder:
         )
         if df is None or df.empty:
             return []
+        if "cal_date" not in df.columns:
+            logger.warning("Invalid trade calendar schema returned by provider")
+            return []
         normalized = df.copy()
-        normalized["cal_date"] = pd.to_datetime(normalized["cal_date"], format="%Y%m%d")
+        normalized["cal_date"] = pd.to_datetime(
+            normalized["cal_date"],
+            format="%Y%m%d",
+            errors="coerce",
+        )
+        normalized = normalized.loc[
+            normalized["cal_date"].notna()
+            & (normalized["cal_date"] >= pd.Timestamp(start_date))
+            & (normalized["cal_date"] <= pd.Timestamp(end_date))
+        ]
         normalized = normalized.sort_values("cal_date")
         return [item.date() for item in normalized["cal_date"].tolist()]
 
@@ -306,82 +370,130 @@ class TushareQlibBuilder:
         self,
         universes: list[str],
         target_date: date,
-    ) -> dict[str, list[str]]:
-        start_date = (target_date - timedelta(days=60)).strftime("%Y%m%d")
-        end_date = target_date.strftime("%Y%m%d")
+    ) -> tuple[dict[str, list[str]], list[str]]:
         universe_members: dict[str, list[str]] = {}
+        index_codes: set[str] = set()
 
         for universe in universes:
-            index_code = UNIVERSE_INDEX_CODE_MAP.get(universe)
-            if not index_code:
-                members = self._resolve_custom_universe_members(universe)
-                if members:
-                    universe_members[universe] = members
-                    continue
+            try:
+                config = config_center_services.get_alpha_universe_config(universe)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to load qlib universe %s from Config Center: %s",
+                    universe,
+                    type(exc).__name__,
+                )
+                continue
+            if config is None:
                 logger.warning("Unsupported qlib universe for builder: %s", universe)
                 continue
 
-            try:
-                df = self._call_with_retry(
-                    self._pro.index_weight,
-                    index_code=index_code,
-                    start_date=start_date,
-                    end_date=end_date,
-                )
-            except Exception as exc:
-                logger.warning("Failed to fetch index_weight for %s: %s", universe, exc)
-                members = self._load_local_universe_members(universe)
+            if config.source_type != "tushare_index":
+                members = self._resolve_configured_universe_members(config)
                 if members:
-                    logger.warning(
-                        "Using local qlib instruments fallback for %s after index_weight failure: %s members",
-                        universe,
-                        len(members),
-                    )
-                    universe_members[universe] = members
-                continue
-            if df is None or df.empty:
-                logger.warning("No index_weight returned for %s", universe)
-                members = self._load_local_universe_members(universe)
-                if members:
-                    logger.warning(
-                        "Using local qlib instruments fallback for %s after empty index_weight: %s members",
-                        universe,
-                        len(members),
-                    )
                     universe_members[universe] = members
                 continue
 
-            normalized = df.copy()
-            normalized["trade_date"] = pd.to_datetime(normalized["trade_date"], format="%Y%m%d")
-            latest_weight_date = normalized["trade_date"].max()
-            members = (
-                normalized.loc[normalized["trade_date"] == latest_weight_date, "con_code"]
-                .dropna()
-                .astype(str)
-                .sort_values()
-                .unique()
-                .tolist()
+            index_code = _normalize_tushare_code(config.filters.get("index_code"))
+            if index_code is None:
+                logger.warning("Invalid index code configured for qlib universe %s", universe)
+                continue
+            index_codes.add(index_code)
+            members = self._fetch_index_weight_members(
+                universe=universe,
+                index_code=index_code,
+                target_date=target_date,
             )
-            universe_members[universe] = members
+            if not members:
+                members = self._load_local_universe_members(universe)
+                if members:
+                    logger.warning(
+                        "Using local qlib instruments fallback for %s: %s members",
+                        universe,
+                        len(members),
+                    )
+            if members:
+                universe_members[universe] = members
 
-        return universe_members
+        return universe_members, sorted(index_codes)
+
+    def _fetch_index_weight_members(
+        self,
+        *,
+        universe: str,
+        index_code: str,
+        target_date: date,
+    ) -> list[str]:
+        """Fetch the latest effective constituents for one configured index."""
+        try:
+            frame = self._call_with_retry(
+                self._pro.index_weight,
+                index_code=index_code,
+                start_date=(target_date - timedelta(days=140)).strftime("%Y%m%d"),
+                end_date=target_date.strftime("%Y%m%d"),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch index_weight for %s: %s",
+                universe,
+                type(exc).__name__,
+            )
+            return []
+        if frame is None or frame.empty:
+            logger.warning("No index_weight returned for %s", universe)
+            return []
+        if not {"trade_date", "con_code"}.issubset(frame.columns):
+            logger.warning("Invalid index_weight schema returned for %s", universe)
+            return []
+
+        normalized = frame.copy()
+        normalized["trade_date"] = pd.to_datetime(
+            normalized["trade_date"],
+            format="%Y%m%d",
+            errors="coerce",
+        )
+        normalized = normalized.loc[
+            normalized["trade_date"].notna()
+            & (normalized["trade_date"] <= pd.Timestamp(target_date))
+        ]
+        if normalized.empty:
+            return []
+        latest_weight_date = normalized["trade_date"].max()
+        members = {
+            code
+            for raw_code in normalized.loc[
+                normalized["trade_date"] == latest_weight_date,
+                "con_code",
+            ].tolist()
+            if (code := _normalize_tushare_code(raw_code)) is not None
+        }
+        return sorted(members)
 
     @staticmethod
-    def _resolve_custom_universe_members(universe: str) -> list[str]:
-        """Resolve a Config Center custom Alpha/Qlib universe."""
+    def _resolve_configured_universe_members(config: AlphaUniverseConfig) -> list[str]:
+        """Resolve a Config Center-managed non-index Alpha/Qlib universe."""
         try:
-            from apps.config_center.infrastructure.repositories import (
-                AlphaUniverseConfigRepository,
+            raw_members = config_center_services.resolve_alpha_universe_member_codes(
+                config.universe_id
             )
-
-            members = AlphaUniverseConfigRepository().resolve_member_codes(universe)
         except Exception as exc:
-            logger.warning("Failed to resolve custom qlib universe %s: %s", universe, exc)
+            logger.warning(
+                "Failed to resolve configured qlib universe %s: %s",
+                config.universe_id,
+                type(exc).__name__,
+            )
             return []
+        members = sorted(
+            {
+                code
+                for raw_code in raw_members
+                if (code := _normalize_tushare_code(raw_code)) is not None
+            }
+        )
         if members:
             logger.info(
                 "Resolved custom qlib universe %s from Config Center: %s members",
-                universe,
+                config.universe_id,
                 len(members),
             )
         return members
@@ -406,8 +518,8 @@ class TushareQlibBuilder:
         stock_codes: list[str],
         start_date: date,
         end_date: date,
-    ) -> pd.DataFrame:
-        rows: list[pd.DataFrame] = []
+    ) -> PandasDataFrame:
+        rows: list[PandasDataFrame] = []
         for ts_code in stock_codes:
             try:
                 df = self._call_with_retry(
@@ -417,12 +529,22 @@ class TushareQlibBuilder:
                     end_date=end_date.strftime("%Y%m%d"),
                 )
             except Exception as exc:
-                logger.warning("Failed to fetch daily for %s: %s", ts_code, exc)
+                logger.warning(
+                    "Failed to fetch daily for %s: %s",
+                    ts_code,
+                    type(exc).__name__,
+                )
                 continue
             if df is None or df.empty:
                 continue
-            normalized = df.copy()
-            normalized["trade_date"] = pd.to_datetime(normalized["trade_date"], format="%Y%m%d")
+            normalized = self._normalize_daily_frame(
+                df,
+                requested_code=ts_code,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if normalized.empty:
+                continue
             rows.append(normalized)
         if not rows:
             return pd.DataFrame()
@@ -433,8 +555,8 @@ class TushareQlibBuilder:
         stock_codes: list[str],
         start_date: date,
         end_date: date,
-    ) -> pd.DataFrame:
-        rows: list[pd.DataFrame] = []
+    ) -> PandasDataFrame:
+        rows: list[PandasDataFrame] = []
         for ts_code in stock_codes:
             try:
                 df = self._call_with_retry(
@@ -444,12 +566,38 @@ class TushareQlibBuilder:
                     end_date=end_date.strftime("%Y%m%d"),
                 )
             except Exception as exc:
-                logger.warning("Failed to fetch adj_factor for %s: %s", ts_code, exc)
+                logger.warning(
+                    "Failed to fetch adj_factor for %s: %s",
+                    ts_code,
+                    type(exc).__name__,
+                )
                 continue
             if df is None or df.empty:
                 continue
+            if not {"ts_code", "trade_date", "adj_factor"}.issubset(df.columns):
+                logger.warning("Invalid adj_factor schema returned for %s", ts_code)
+                continue
             normalized = df.copy()
-            normalized["trade_date"] = pd.to_datetime(normalized["trade_date"], format="%Y%m%d")
+            normalized["trade_date"] = pd.to_datetime(
+                normalized["trade_date"],
+                format="%Y%m%d",
+                errors="coerce",
+            )
+            normalized["adj_factor"] = pd.to_numeric(
+                normalized["adj_factor"],
+                errors="coerce",
+            )
+            normalized["ts_code"] = normalized["ts_code"].map(_normalize_tushare_code)
+            normalized = normalized.loc[
+                normalized["trade_date"].notna()
+                & (normalized["trade_date"] >= pd.Timestamp(start_date))
+                & (normalized["trade_date"] <= pd.Timestamp(end_date))
+                & (normalized["ts_code"] == ts_code)
+                & np.isfinite(normalized["adj_factor"])
+                & (normalized["adj_factor"] > 0)
+            ]
+            if normalized.empty:
+                continue
             rows.append(normalized)
         if not rows:
             return pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
@@ -460,7 +608,7 @@ class TushareQlibBuilder:
         index_code: str,
         start_date: date,
         end_date: date,
-    ) -> pd.DataFrame:
+    ) -> PandasDataFrame:
         try:
             df = self._call_with_retry(
                 self._pro.index_daily,
@@ -469,20 +617,79 @@ class TushareQlibBuilder:
                 end_date=end_date.strftime("%Y%m%d"),
             )
         except Exception as exc:
-            logger.warning("Failed to fetch index_daily for %s: %s", index_code, exc)
+            logger.warning(
+                "Failed to fetch index_daily for %s: %s",
+                index_code,
+                type(exc).__name__,
+            )
             return pd.DataFrame()
         if df is None or df.empty:
             return pd.DataFrame()
+        return self._normalize_daily_frame(
+            df,
+            requested_code=index_code,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
-        normalized = df.copy()
-        normalized["trade_date"] = pd.to_datetime(normalized["trade_date"], format="%Y%m%d")
-        return normalized
+    @staticmethod
+    def _normalize_daily_frame(
+        frame: PandasDataFrame,
+        *,
+        requested_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> PandasDataFrame:
+        """Validate provider daily rows before they affect Qlib availability."""
+        required_columns = {
+            "ts_code",
+            "trade_date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "vol",
+            "pct_chg",
+        }
+        if not required_columns.issubset(frame.columns):
+            logger.warning("Invalid daily schema returned for %s", requested_code)
+            return pd.DataFrame()
+
+        normalized = frame.copy()
+        normalized["ts_code"] = normalized["ts_code"].map(_normalize_tushare_code)
+        normalized["trade_date"] = pd.to_datetime(
+            normalized["trade_date"],
+            format="%Y%m%d",
+            errors="coerce",
+        )
+        numeric_columns = ["open", "high", "low", "close", "vol", "pct_chg"]
+        for column in numeric_columns:
+            normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
+
+        finite_prices = np.isfinite(normalized[["open", "high", "low", "close"]]).all(axis=1)
+        valid_prices = (
+            finite_prices
+            & (normalized[["open", "high", "low", "close"]] > 0).all(axis=1)
+            & (normalized["high"] >= normalized[["open", "low", "close"]].max(axis=1))
+            & (normalized["low"] <= normalized[["open", "high", "close"]].min(axis=1))
+        )
+        valid_volume = np.isfinite(normalized["vol"]) & (normalized["vol"] >= 0)
+        valid_change = np.isfinite(normalized["pct_chg"])
+        return normalized.loc[
+            normalized["trade_date"].notna()
+            & (normalized["trade_date"] >= pd.Timestamp(start_date))
+            & (normalized["trade_date"] <= pd.Timestamp(end_date))
+            & (normalized["ts_code"] == requested_code)
+            & valid_prices
+            & valid_volume
+            & valid_change
+        ].copy()
 
     @staticmethod
     def _merge_stock_frame(
-        stock_daily: pd.DataFrame,
-        stock_adj: pd.DataFrame,
-    ) -> pd.DataFrame:
+        stock_daily: PandasDataFrame,
+        stock_adj: PandasDataFrame,
+    ) -> PandasDataFrame:
         if stock_daily.empty:
             return pd.DataFrame()
 
@@ -498,29 +705,34 @@ class TushareQlibBuilder:
         self,
         *,
         ts_code: str,
-        frame: pd.DataFrame,
+        frame: PandasDataFrame,
         calendar_index: dict[date, int],
         scale_reference_adj_map: dict[str, float],
     ) -> int:
         factor_series = pd.to_numeric(frame["adj_factor"], errors="coerce")
+        factor_series = factor_series.where(np.isfinite(factor_series) & (factor_series > 0))
         if factor_series.notna().sum() == 0:
             return 0
 
         existing_scale = self._resolve_existing_stock_scale(ts_code, frame)
         if existing_scale is None:
             latest_adj_factor = float(factor_series.dropna().iloc[-1])
-            if latest_adj_factor == 0:
+            if not math.isfinite(latest_adj_factor) or latest_adj_factor <= 0:
                 return 0
             scale_values = factor_series / latest_adj_factor
         else:
+            if not math.isfinite(existing_scale) or existing_scale <= 0:
+                return 0
             reference_adj = scale_reference_adj_map.get(ts_code)
             if reference_adj is None:
                 overlap_mask = factor_series.notna()
                 if overlap_mask.sum() == 0:
                     return 0
                 reference_adj = float(factor_series.loc[overlap_mask].iloc[0])
+            if not math.isfinite(reference_adj) or reference_adj <= 0:
+                return 0
             base_denominator = reference_adj / existing_scale
-            if base_denominator == 0:
+            if not math.isfinite(base_denominator) or base_denominator <= 0:
                 return 0
             scale_values = factor_series / base_denominator
 
@@ -536,16 +748,24 @@ class TushareQlibBuilder:
         self,
         *,
         ts_code: str,
-        frame: pd.DataFrame,
+        frame: PandasDataFrame,
         calendar_index: dict[date, int],
     ) -> int:
         existing_scale = self._read_existing_factor_scale(ts_code)
         if existing_scale is None:
-            first_close = float(pd.to_numeric(frame["close"], errors="coerce").dropna().iloc[0])
-            if first_close == 0:
+            close_values = pd.to_numeric(frame["close"], errors="coerce")
+            close_values = close_values.where(
+                np.isfinite(close_values) & (close_values > 0)
+            ).dropna()
+            if close_values.empty:
+                return 0
+            first_close = float(close_values.iloc[0])
+            if not math.isfinite(first_close) or first_close <= 0:
                 return 0
             scale_values = pd.Series(1.0 / first_close, index=frame.index, dtype="float64")
         else:
+            if not math.isfinite(existing_scale) or existing_scale <= 0:
+                return 0
             scale_values = pd.Series(existing_scale, index=frame.index, dtype="float64")
 
         return self._write_feature_bundle(
@@ -560,8 +780,8 @@ class TushareQlibBuilder:
         self,
         *,
         ts_code: str,
-        frame: pd.DataFrame,
-        scale_values: pd.Series,
+        frame: PandasDataFrame,
+        scale_values: PandasSeries,
         calendar_index: dict[date, int],
         volume_multiplier: float,
     ) -> int:
@@ -578,7 +798,7 @@ class TushareQlibBuilder:
 
         bundle["calendar_idx"] = bundle["calendar_idx"].astype(int)
         bundle["scale"] = pd.to_numeric(scale_values.loc[bundle.index], errors="coerce")
-        bundle = bundle.dropna(subset=["scale"]).copy()
+        bundle = bundle.loc[np.isfinite(bundle["scale"]) & (bundle["scale"] > 0)].copy()
         if bundle.empty:
             return 0
 
@@ -615,7 +835,7 @@ class TushareQlibBuilder:
 
     @staticmethod
     def _build_feature_array(
-        frame: pd.DataFrame,
+        frame: PandasDataFrame,
         value_column: str,
         *,
         scale_column: str | None = None,
@@ -624,7 +844,7 @@ class TushareQlibBuilder:
         start_index = int(frame["calendar_idx"].min())
         end_index = int(frame["calendar_idx"].max())
         size = end_index - start_index + 1
-        values = np.full(size, np.nan, dtype=np.float32)
+        values: np.ndarray = np.full(size, np.nan, dtype=np.float32)
         relative_index = frame["calendar_idx"].to_numpy(dtype=np.int64) - start_index
         raw_values = frame[value_column].to_numpy(dtype=np.float64)
         scale_values = frame["scale"].to_numpy(dtype=np.float64)
@@ -634,6 +854,7 @@ class TushareQlibBuilder:
             raw_values = raw_values * scale_values
         elif post_process is not None:
             raw_values = post_process(raw_values, scale_values)
+        raw_values = np.where(np.isfinite(raw_values), raw_values, np.nan)
         values[relative_index] = raw_values.astype(np.float32)
         return values
 
@@ -651,7 +872,7 @@ class TushareQlibBuilder:
         self,
         *,
         universe_members: dict[str, list[str]],
-        stock_daily: pd.DataFrame,
+        stock_daily: PandasDataFrame,
         effective_target_date: date,
     ) -> int:
         written = 0
@@ -713,7 +934,7 @@ class TushareQlibBuilder:
     def _resolve_existing_stock_scale(
         self,
         ts_code: str,
-        frame: pd.DataFrame,
+        frame: PandasDataFrame,
     ) -> float | None:
         existing_scale = self._read_existing_factor_scale(ts_code)
         if existing_scale is None:
@@ -752,13 +973,17 @@ class TushareQlibBuilder:
         new_end_index = start_index + len(values) - 1
         merged_start = min(existing_start, start_index)
         merged_end = max(end_index, new_end_index)
-        merged = np.full(merged_end - merged_start + 1, np.nan, dtype=np.float32)
+        merged: np.ndarray = np.full(
+            merged_end - merged_start + 1,
+            np.nan,
+            dtype=np.float32,
+        )
 
         old_offset = existing_start - merged_start
         merged[old_offset : old_offset + len(existing_values)] = existing_values
 
         new_offset = start_index - merged_start
-        candidate = values.astype(np.float32, copy=False)
+        candidate: np.ndarray = values.astype(np.float32, copy=False)
         overwrite_mask = ~np.isnan(candidate)
         merged_slice = merged[new_offset : new_offset + len(candidate)]
         merged_slice[overwrite_mask] = candidate[overwrite_mask]
@@ -768,7 +993,18 @@ class TushareQlibBuilder:
         payload.astype("<f").tofile(path)
 
     @staticmethod
-    def _call_with_retry(func, /, *args, retries: int = 3, delay_seconds: float = 0.6, **kwargs):
+    def _call_with_retry(
+        func: Callable[..., _T],
+        /,
+        *args: object,
+        retries: int = 3,
+        delay_seconds: float = 0.6,
+        **kwargs: object,
+    ) -> _T:
+        if isinstance(retries, bool) or retries <= 0:
+            raise ValueError("retries must be a positive integer")
+        if not math.isfinite(delay_seconds) or delay_seconds < 0:
+            raise ValueError("delay_seconds must be finite and non-negative")
         last_error: Exception | None = None
         for attempt in range(1, retries + 1):
             try:

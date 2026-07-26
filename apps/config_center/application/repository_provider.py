@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from apps.config_center.domain.entities import AlphaUniverseConfig
+
 
 class ConfigCenterSettingsRepository(Protocol):
     def build_runtime_config_payload(self) -> dict[str, Any]: ...
@@ -50,6 +52,10 @@ class QlibTrainingRunRepository(Protocol):
 class AlphaUniverseConfigRepository(Protocol):
     def list_configs(self, *, include_inactive: bool = False) -> list[Any]: ...
     def get_by_universe_id(self, universe_id: str) -> Any: ...
+    def get_domain_by_universe_id(
+        self,
+        universe_id: str,
+    ) -> AlphaUniverseConfig | None: ...
     def save_config(self, config: Any) -> Any: ...
     def resolve_member_codes(self, universe_id: str) -> list[str]: ...
 

@@ -665,10 +665,12 @@ class AlphaUniverseConfigModel(models.Model):
     SOURCE_MANUAL = "manual"
     SOURCE_CSV = "csv"
     SOURCE_DATA_CENTER_FILTER = "data_center_filter"
+    SOURCE_TUSHARE_INDEX = "tushare_index"
     SOURCE_TYPE_CHOICES = [
         (SOURCE_MANUAL, "手工代码清单"),
         (SOURCE_CSV, "CSV 导入代码清单"),
         (SOURCE_DATA_CENTER_FILTER, "Data Center 条件生成"),
+        (SOURCE_TUSHARE_INDEX, "Tushare 指数成分"),
     ]
 
     universe_id = models.CharField(

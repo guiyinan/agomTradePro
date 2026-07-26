@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
@@ -74,8 +75,17 @@ class AlphaUniverseConfig:
             raise ValueError("AlphaUniverseConfig.universe_id cannot be empty")
         if not self.name:
             raise ValueError("AlphaUniverseConfig.name cannot be empty")
-        if self.source_type not in {"manual", "csv", "data_center_filter"}:
+        if self.source_type not in {
+            "manual",
+            "csv",
+            "data_center_filter",
+            "tushare_index",
+        }:
             raise ValueError(f"Unsupported Alpha universe source_type: {self.source_type}")
+        if self.source_type == "tushare_index":
+            index_code = str(self.filters.get("index_code") or "").strip().upper()
+            if re.fullmatch(r"\d{6}\.(?:SH|SZ|BJ)", index_code) is None:
+                raise ValueError("Tushare index universe requires a valid filters.index_code")
 
     def to_dict(self) -> dict[str, Any]:
         return {

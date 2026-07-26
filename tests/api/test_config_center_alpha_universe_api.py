@@ -34,6 +34,48 @@ def test_alpha_universe_api_saves_manual_codes(admin_client):
 
 
 @pytest.mark.django_db
+def test_alpha_universe_api_saves_normalized_tushare_index(admin_client):
+    response = admin_client.post(
+        "/api/system/config-center/qlib/alpha-universes/",
+        data={
+            "universe_id": "custom_index",
+            "name": "自定义指数池",
+            "source_type": "tushare_index",
+            "stock_codes": [],
+            "filters": {"index_code": "000300.sh"},
+            "is_active": True,
+            "description": "index source test",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    model = AlphaUniverseConfigModel.objects.get(universe_id="custom_index")
+    assert model.source_type == AlphaUniverseConfigModel.SOURCE_TUSHARE_INDEX
+    assert model.filters == {"index_code": "000300.SH"}
+    assert response.json()["data"]["member_count"] == 0
+
+
+@pytest.mark.django_db
+def test_alpha_universe_api_rejects_invalid_tushare_index(admin_client):
+    response = admin_client.post(
+        "/api/system/config-center/qlib/alpha-universes/",
+        data={
+            "universe_id": "invalid_index",
+            "name": "无效指数池",
+            "source_type": "tushare_index",
+            "stock_codes": [],
+            "filters": {"index_code": "../../secret"},
+            "is_active": True,
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert not AlphaUniverseConfigModel.objects.filter(universe_id="invalid_index").exists()
+
+
+@pytest.mark.django_db
 def test_alpha_universe_members_resolve_data_center_boards(admin_client):
     AssetMasterModel.objects.bulk_create(
         [
@@ -109,7 +151,8 @@ def test_alpha_universe_catalog_returns_named_records(admin_client):
     assert response["Content-Type"].startswith("application/json")
     payload = response.json()
     assert payload["success"] is True
-    assert payload["data"][0]["universe_id"] == "manual_core"
+    records = {item["universe_id"]: item for item in payload["data"]}
+    assert records["manual_core"]["stock_codes"] == ["600000.SH"]
 
 
 @pytest.mark.django_db
@@ -122,9 +165,7 @@ def test_qlib_training_profile_catalog_returns_serialized_profiles(admin_client)
         universe="csi300",
     )
 
-    response = admin_client.get(
-        "/api/system/config-center/qlib/training-profiles/"
-    )
+    response = admin_client.get("/api/system/config-center/qlib/training-profiles/")
 
     assert response.status_code == 200
     assert response["Content-Type"].startswith("application/json")

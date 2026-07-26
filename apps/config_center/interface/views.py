@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from django import forms
@@ -101,6 +102,7 @@ class AlphaUniverseConfigForm(forms.Form):
             ("manual", "手工代码清单"),
             ("csv", "CSV 导入代码清单"),
             ("data_center_filter", "Data Center 条件生成"),
+            ("tushare_index", "Tushare 指数成分"),
         ],
         label="来源类型",
     )
@@ -113,8 +115,11 @@ class AlphaUniverseConfigForm(forms.Form):
     filters_json = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={"rows": 5}),
-        label="Data Center 过滤 JSON",
-        help_text='示例 {"asset_type":"stock","exchanges":["SSE","SZSE","BSE"],"boards":["star_market"]}',
+        label="股票池来源配置 JSON",
+        help_text=(
+            'Data Center 示例 {"asset_type":"stock","exchanges":["SSE","SZSE"]}；'
+            'Tushare 指数示例 {"index_code":"000300.SH"}。'
+        ),
     )
     is_active = forms.BooleanField(required=False, initial=True, label="启用")
     description = forms.CharField(
@@ -152,6 +157,12 @@ class AlphaUniverseConfigForm(forms.Form):
             self.add_error("stock_codes_text", "手工或 CSV 股票池至少需要一个代码。")
         if source_type == "data_center_filter" and not filters:
             self.add_error("filters_json", "Data Center 条件生成需要填写 filters JSON。")
+        if source_type == "tushare_index":
+            index_code = str(filters.get("index_code") or "").strip().upper()
+            if re.fullmatch(r"\d{6}\.(?:SH|SZ|BJ)", index_code) is None:
+                self.add_error("filters_json", "Tushare 指数股票池需要合法的 index_code。")
+            else:
+                cleaned["filters_json"] = {**filters, "index_code": index_code}
         return cleaned
 
 

@@ -230,6 +230,13 @@ class AlphaUniverseConfigRepository:
             return None
         return AlphaUniverseConfigModel._default_manager.filter(universe_id=normalized).first()
 
+    def get_domain_by_universe_id(
+        self,
+        universe_id: str,
+    ) -> AlphaUniverseConfig | None:
+        model = self.get_by_universe_id(universe_id)
+        return model.to_domain() if model is not None and model.is_active else None
+
     def save_config(self, config: AlphaUniverseConfig) -> AlphaUniverseConfigModel:
         model, _created = AlphaUniverseConfigModel._default_manager.get_or_create(
             universe_id=config.universe_id.strip().lower(),
@@ -254,6 +261,8 @@ class AlphaUniverseConfigRepository:
             AlphaUniverseConfigModel.SOURCE_CSV,
         }:
             return normalize_alpha_universe_codes(list(model.stock_codes or []))
+        if model.source_type == AlphaUniverseConfigModel.SOURCE_TUSHARE_INDEX:
+            return []
         return self._resolve_data_center_filter_codes(dict(model.filters or {}))
 
     def _resolve_data_center_filter_codes(self, filters: dict[str, Any]) -> list[str]:

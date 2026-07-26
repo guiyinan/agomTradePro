@@ -130,6 +130,76 @@ class _RateLimitedIndexWeightClient(_MockTushareProClient):
         raise RuntimeError("您请求速度过快")
 
 
+class _CapturingIndexWeightClient(_MockTushareProClient):
+    def __init__(self) -> None:
+        self.index_weight_calls: list[tuple[str, str, str]] = []
+
+    def index_weight(self, index_code: str, start_date: str, end_date: str) -> pd.DataFrame:
+        self.index_weight_calls.append((index_code, start_date, end_date))
+        return pd.DataFrame(
+            [
+                {"trade_date": "20260101", "con_code": "600000.SH"},
+            ]
+        )
+
+
+class _SensitiveIndexWeightErrorClient(_MockTushareProClient):
+    def index_weight(self, index_code: str, start_date: str, end_date: str) -> pd.DataFrame:
+        raise RuntimeError("provider secret=do-not-log")
+
+
+class _NonFiniteFactorClient(_MockTushareProClient):
+    def adj_factor(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame:
+        frame = super().adj_factor(ts_code, start_date, end_date)
+        frame["adj_factor"] = np.inf
+        return frame
+
+
+class _UntrustedDailyRowsClient(_MockTushareProClient):
+    def daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame:
+        frame = super().daily(ts_code, start_date, end_date)
+        return pd.concat(
+            [
+                frame,
+                pd.DataFrame(
+                    [
+                        {
+                            "ts_code": ts_code,
+                            "trade_date": "20260407",
+                            "open": 10.0,
+                            "high": 10.2,
+                            "low": 9.9,
+                            "close": 10.1,
+                            "vol": 100.0,
+                            "pct_chg": 1.0,
+                        },
+                        {
+                            "ts_code": "000001.SZ",
+                            "trade_date": "20260403",
+                            "open": 10.0,
+                            "high": 10.2,
+                            "low": 9.9,
+                            "close": 10.1,
+                            "vol": 100.0,
+                            "pct_chg": 1.0,
+                        },
+                        {
+                            "ts_code": ts_code,
+                            "trade_date": "20260402",
+                            "open": 10.0,
+                            "high": 9.0,
+                            "low": 9.9,
+                            "close": 10.1,
+                            "vol": 100.0,
+                            "pct_chg": 1.0,
+                        },
+                    ]
+                ),
+            ],
+            ignore_index=True,
+        )
+
+
 def test_resolve_effective_trade_date_adjusts_to_latest_available() -> None:
     effective_date, metadata = resolve_effective_trade_date(
         requested_trade_date=date(2026, 4, 6),
@@ -159,6 +229,7 @@ def test_resolve_effective_trade_date_raises_when_gap_is_too_large() -> None:
         )
 
 
+@pytest.mark.django_db
 def test_tushare_qlib_builder_writes_recent_layout(tmp_path: Path) -> None:
     provider_uri = tmp_path / "cn_data"
     builder = TushareQlibBuilder(str(provider_uri), pro_client=_MockTushareProClient())
@@ -193,6 +264,7 @@ def test_tushare_qlib_builder_writes_recent_layout(tmp_path: Path) -> None:
     assert len(close_raw) == 5
 
 
+@pytest.mark.django_db
 def test_tushare_qlib_builder_falls_back_to_local_universe_members(tmp_path: Path) -> None:
     provider_uri = tmp_path / "cn_data"
     instrument_dir = provider_uri / "instruments"
@@ -258,3 +330,152 @@ def test_tushare_qlib_builder_resolves_custom_config_center_universe(tmp_path: P
     custom_txt = provider_uri / "instruments" / "custom_large_cap.txt"
     assert custom_txt.exists()
     assert "SH600000" in custom_txt.read_text(encoding="utf-8")
+
+
+@pytest.mark.django_db
+def test_tushare_qlib_builder_resolves_index_mapping_from_config_center(
+    tmp_path: Path,
+) -> None:
+    AlphaUniverseConfigModel.objects.create(
+        universe_id="custom_index",
+        name="自定义指数池",
+        source_type=AlphaUniverseConfigModel.SOURCE_TUSHARE_INDEX,
+        filters={"index_code": "000300.SH"},
+        is_active=True,
+    )
+    client = _CapturingIndexWeightClient()
+    builder = TushareQlibBuilder(str(tmp_path / "cn_data"), pro_client=client)
+
+    summary = builder.build_recent_data(
+        target_date=date(2026, 4, 6),
+        universes=["custom_index"],
+        lookback_days=30,
+    )
+
+    assert summary.stock_count == 1
+    assert client.index_weight_calls == [("000300.SH", "20251117", "20260406")]
+
+
+def test_tushare_qlib_builder_rejects_invalid_explicit_scope(tmp_path: Path) -> None:
+    builder = TushareQlibBuilder(
+        str(tmp_path / "cn_data"),
+        pro_client=_MockTushareProClient(),
+    )
+
+    with pytest.raises(ValueError, match="Tushare format"):
+        builder.build_recent_data_for_codes(
+            target_date=date(2026, 4, 6),
+            stock_codes=["600000.SH", "../../secret"],
+        )
+
+    with pytest.raises(ValueError, match="Universe ID"):
+        builder.build_recent_data_for_codes(
+            target_date=date(2026, 4, 6),
+            stock_codes=["600000.SH"],
+            universe_id="../outside",
+        )
+
+
+def test_tushare_qlib_builder_rejects_invalid_build_window(tmp_path: Path) -> None:
+    builder = TushareQlibBuilder(
+        str(tmp_path / "cn_data"),
+        pro_client=_MockTushareProClient(),
+    )
+
+    with pytest.raises(ValueError, match="1 to 3650"):
+        builder.build_recent_data_for_codes(
+            target_date=date(2026, 4, 6),
+            stock_codes=["600000.SH"],
+            lookback_days=0,
+        )
+
+    with pytest.raises(ValueError, match="1 to 3650"):
+        builder.build_recent_data_for_codes(
+            target_date=date(2026, 4, 6),
+            stock_codes=["600000.SH"],
+            lookback_days=3651,
+        )
+
+    with pytest.raises(ValueError, match="future"):
+        builder.build_recent_data_for_codes(
+            target_date=date.today().replace(year=date.today().year + 1),
+            stock_codes=["600000.SH"],
+        )
+
+
+@pytest.mark.django_db
+def test_tushare_qlib_builder_redacts_provider_error_detail(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    provider_uri = tmp_path / "cn_data"
+    instrument_dir = provider_uri / "instruments"
+    instrument_dir.mkdir(parents=True)
+    (instrument_dir / "csi300.txt").write_text(
+        "SH600000\t2005-01-01\t2026-05-06\n",
+        encoding="utf-8",
+    )
+    builder = TushareQlibBuilder(
+        str(provider_uri),
+        pro_client=_SensitiveIndexWeightErrorClient(),
+    )
+
+    with caplog.at_level("WARNING"):
+        builder.build_recent_data(
+            target_date=date(2026, 4, 6),
+            universes=["csi300"],
+            lookback_days=30,
+        )
+
+    assert "RuntimeError" in caplog.text
+    assert "do-not-log" not in caplog.text
+
+
+def test_tushare_qlib_builder_drops_non_finite_adjustment_factors(
+    tmp_path: Path,
+) -> None:
+    provider_uri = tmp_path / "cn_data"
+    builder = TushareQlibBuilder(
+        str(provider_uri),
+        pro_client=_NonFiniteFactorClient(),
+    )
+
+    summary = builder.build_recent_data_for_codes(
+        target_date=date(2026, 4, 6),
+        stock_codes=["600000.SH"],
+        lookback_days=30,
+    )
+
+    assert summary.feature_series_written == 0
+    assert not (provider_uri / "features" / "sh600000").exists()
+
+
+def test_tushare_qlib_builder_rejects_out_of_scope_and_invalid_daily_rows(
+    tmp_path: Path,
+) -> None:
+    provider_uri = tmp_path / "cn_data"
+    builder = TushareQlibBuilder(
+        str(provider_uri),
+        pro_client=_UntrustedDailyRowsClient(),
+    )
+
+    summary = builder.build_recent_data_for_codes(
+        target_date=date(2026, 4, 6),
+        stock_codes=["600000.SH"],
+        lookback_days=30,
+    )
+
+    assert summary.effective_target_date == date(2026, 4, 3)
+    close_raw = np.fromfile(
+        provider_uri / "features" / "sh600000" / "close.day.bin",
+        dtype="<f",
+    )
+    assert len(close_raw) == 5
+
+
+def test_tushare_qlib_builder_rejects_invalid_retry_policy() -> None:
+    with pytest.raises(ValueError, match="positive integer"):
+        TushareQlibBuilder._call_with_retry(lambda: None, retries=0)
+
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        TushareQlibBuilder._call_with_retry(lambda: None, delay_seconds=float("nan"))

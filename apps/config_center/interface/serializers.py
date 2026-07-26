@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, cast
 
 from rest_framework import serializers
 
-ALPHA_UNIVERSE_SOURCE_TYPES = {"manual", "csv", "data_center_filter"}
+ALPHA_UNIVERSE_SOURCE_TYPES = {
+    "manual",
+    "csv",
+    "data_center_filter",
+    "tushare_index",
+}
 
 
 class QlibRuntimeConfigSerializer(serializers.Serializer[dict[str, Any]]):
@@ -77,6 +83,13 @@ class AlphaUniverseConfigSerializer(serializers.Serializer[dict[str, Any]]):
             raise serializers.ValidationError({"stock_codes": "手工或 CSV 股票池至少需要一个代码"})
         if source_type == "data_center_filter" and not isinstance(filters, dict):
             raise serializers.ValidationError({"filters": "filters 必须是 JSON object"})
+        if source_type == "tushare_index":
+            index_code = str(filters.get("index_code") or "").strip().upper()
+            if re.fullmatch(r"\d{6}\.(?:SH|SZ|BJ)", index_code) is None:
+                raise serializers.ValidationError(
+                    {"filters": "Tushare 指数股票池需要合法的 index_code"}
+                )
+            attrs["filters"] = {**filters, "index_code": index_code}
         return attrs
 
 

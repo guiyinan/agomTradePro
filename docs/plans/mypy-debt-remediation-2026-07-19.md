@@ -4070,3 +4070,21 @@
 - Alpha 告警新增边界与既有配置/通知/调度定向回归 `20 passed`；完整 monitoring、stress 和 full-flow 告警回归 `35 passed`。
 - `alerts.py` 增量 mypy 清零，Application monitoring、provider factory 与共享 metrics 保持清零；全仓基线从 `1415 errors / 429 files` 收紧为 `1402 errors / 428 files`，净减少 `13 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百七十三批
+
+- 按“Qlib 股票池配置真源 × Provider 行情真实性 × 构建边界失败关闭”收口 Tushare Qlib builder 与 Config Center 股票池配置。
+- 删除构建器内 `csi300/csi500/sse50/csi1000` 到 Tushare 指数代码的硬编码映射；Config Center 新增 `tushare_index` 来源类型，并通过数据迁移初始化四个内置股票池的正式数据库配置。
+- Alpha Infrastructure 仅调用 Config Center Application facade 获取股票池定义与成员，不再直接实例化其他 App 的 Infrastructure repository。
+- 指数权重查询窗口从 60 天扩展到 140 天，覆盖季度调仓间隔；仅采用不晚于目标日的最新有效权重，缺列、坏日期和非法成分代码失败关闭。
+- universe ID、显式股票代码、目标日期、回看窗口和重试参数统一验证；路径型 ID、畸形 Tushare 代码、未来目标日、非正或超限窗口不再进入 Provider 或文件系统。
+- 股票与指数日线统一验证请求代码、日期窗口、有限正 OHLC、OHLC 关系、有限非负成交量和有限涨跌幅；Provider 返回的越界日期、串码和坏行情不再推进 Qlib 本地可用日期。
+- 复权因子要求有限正数；非有限 scale、价格和计算结果不再写入二进制特征，避免 `NaN/Inf` 或错误缩放污染训练与推理数据。
+- 股票池、日线、复权因子和指数行情异常日志只记录异常类型；Provider 原始错误正文与可能包含的凭据不再进入普通日志。
+- Tushare client、重试调用、NumPy 数组和动态 pandas 边界补齐精确 Protocol、泛型与第三方边界类型；删除无类型 pandas 直接导入。
+
+## 第二百七十三批验证结果
+
+- Qlib builder 与 Config Center Alpha universe API 回归 `21 passed`，管理命令、Alpha 运维 API 与运行时刷新调用链回归 `10 passed`；覆盖数据库指数映射、超过 60 天的季度权重、配置归一化、非法代码/路径、未来日期、资源上限、越界/串码/坏 OHLC、非有限复权因子和异常脱敏。
+- `qlib_builder.py` 增量 mypy 清零，Config Center 新增 facade 与改动生产文件保持清零；全仓基线从 `1402 errors / 428 files` 收紧为 `1391 errors / 427 files`，净减少 `11 errors / 1 file`。
+- Django system check、迁移一致性、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
