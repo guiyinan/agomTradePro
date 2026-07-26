@@ -3,6 +3,8 @@ from datetime import date
 from apps.sector.application.use_cases import (
     AnalyzeSectorRotationRequest,
     AnalyzeSectorRotationUseCase,
+    UpdateSectorDataRequest,
+    UpdateSectorDataUseCase,
 )
 from apps.sector.domain.entities import SectorIndex, SectorInfo
 
@@ -54,9 +56,7 @@ class _SingleSectorRepo:
                 change_pct=0.5 + idx,
                 turnover_rate=None,
             )
-            for idx, date_value in enumerate(
-                [date(2025, 3, 3), date(2025, 3, 4), date(2025, 3, 5)]
-            )
+            for idx, date_value in enumerate([date(2025, 3, 3), date(2025, 3, 4), date(2025, 3, 5)])
         ]
 
 
@@ -64,9 +64,7 @@ def test_analyze_sector_rotation_degrades_when_market_returns_are_unavailable(mo
     use_case = AnalyzeSectorRotationUseCase(_SingleSectorRepo())
     mocker.patch.object(use_case, "_get_market_returns", return_value=None)
 
-    result = use_case.execute(
-        AnalyzeSectorRotationRequest(regime="Recovery", level="SW1", top_n=5)
-    )
+    result = use_case.execute(AnalyzeSectorRotationRequest(regime="Recovery", level="SW1", top_n=5))
 
     assert result.success is True
     assert result.status == "degraded"
@@ -98,3 +96,55 @@ def test_get_market_returns_pads_one_missing_benchmark_observation(mocker) -> No
         end_date=date(2025, 3, 5),
         hydrate=False,
     )
+
+
+def test_get_market_returns_rejects_non_finite_provider_values(mocker) -> None:
+    use_case = AnalyzeSectorRotationUseCase(_SingleSectorRepo())
+    mock_adapter = mocker.Mock()
+    mock_adapter.get_index_daily_returns.return_value = {
+        date(2025, 3, 4): float("nan"),
+        date(2025, 3, 5): 0.01,
+    }
+    use_case.market_adapter = mock_adapter
+
+    returns = use_case._get_market_returns(
+        start_date=date(2025, 3, 3),
+        end_date=date(2025, 3, 5),
+        expected_length=2,
+    )
+
+    assert returns is None
+
+
+def test_sector_update_rejects_future_start_before_provider_or_write(mocker) -> None:
+    repository = mocker.Mock()
+    adapter = mocker.Mock()
+    result = UpdateSectorDataUseCase(repository, adapter).execute(
+        UpdateSectorDataRequest(
+            level="SW1",
+            start_date="2999-01-01",
+            end_date=None,
+        )
+    )
+
+    assert result.success is False
+    assert result.error_code == "INVALID_SECTOR_DATE_RANGE"
+    adapter.fetch_sw_industry_classify.assert_not_called()
+    repository.save_sector_info.assert_not_called()
+
+
+def test_sector_update_provider_failure_is_redacted(mocker) -> None:
+    repository = mocker.Mock()
+    adapter = mocker.Mock()
+    adapter.fetch_sw_industry_classify.side_effect = RuntimeError(
+        "https://secret-token@provider/sector"
+    )
+
+    result = UpdateSectorDataUseCase(repository, adapter).execute(
+        UpdateSectorDataRequest(level="SW1")
+    )
+
+    assert result.success is False
+    assert result.error == "Sector data update failed."
+    assert result.error_code == "SECTOR_UPDATE_FAILED"
+    assert "secret" not in result.error

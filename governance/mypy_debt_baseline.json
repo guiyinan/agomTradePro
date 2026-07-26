@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1523,
-    "files_with_errors": 441
+    "errors": 1499,
+    "files_with_errors": 437
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1242,19 +1242,11 @@
     "apps/research/composition.py": {
       "arg-type": 3
     },
-    "apps/sector/application/market_returns_gateway.py": {
-      "type-arg": 3
-    },
     "apps/sector/application/tasks.py": {
       "assignment": 1,
       "attr-defined": 1,
       "misc": 2,
       "no-untyped-def": 4
-    },
-    "apps/sector/application/use_cases.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 2,
-      "type-arg": 1
     },
     "apps/sector/apps.py": {
       "no-untyped-def": 1
@@ -1283,15 +1275,8 @@
     "apps/sector/interface/api_urls.py": {
       "no-untyped-def": 1
     },
-    "apps/sector/interface/serializers.py": {
-      "no-untyped-def": 3,
-      "type-arg": 6
-    },
     "apps/sector/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/sector/interface/views.py": {
-      "no-untyped-def": 8
     },
     "apps/sentiment/apps.py": {
       "no-untyped-def": 1

@@ -3906,3 +3906,21 @@
 - Filter API、Application、Domain 与 Dashboard 回归 `75 passed`；覆盖未知字段零执行、反向日期、Compare 资源上限、空/非法配置更新、非有限参数、历史坏配置、Domain 结果不变量和异常脱敏。
 - Filter serializers 增量 mypy 清零，Application、Domain 与 API views 保持零回归；全仓基线从 `1535 errors / 442 files` 收紧为 `1523 errors / 441 files`，净减少 `12 errors / 1 file`。
 - Django system check、架构边界、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百六十三批
+
+- 按“板块排名权重真实性 × 非有限输入失败关闭 × Provider 异常最小披露”收口 Sector Domain、Application、serializers 与 API views。
+- 修复 `rank_sectors_by_regime` 内局部板块适配值覆盖请求参数 `regime_weight` 的错误；此前总分实际使用板块适配值的平方，请求中的 Regime 权重未生效，现在三项请求权重按原始契约参与总分。
+- 三项评分权重统一要求有限、位于 `[0, 1]` 且总和为 1；`NaN` 不再利用浮点比较特性绕过校验，布尔、无穷、负值和错误总和全部失败关闭。
+- 持久化板块 Regime 适配值要求有限且位于 `[0, 1]`；评分归一化拒绝非有限输入，历史坏配置和异常行情不再生成可排序的伪分数。
+- Analyze、Rotation、Score 和数据更新请求统一拒绝未知字段；Regime 使用正式枚举，数据更新拒绝反向日期。
+- 数据更新先解析并验证完整日期窗口，再调用 Provider 或保存分类；仅提供 end date 时按该日期向前取一年，未来 start date 不再在部分分类写入后才失败。
+- 板块基准收益率拒绝布尔、`NaN` 与 `Inf`，无效 Provider 数据进入明确 fallback；Provider 异常日志只记录异常类型。
+- 分析和数据更新异常发布稳定机器错误码；数据库、行情 Provider、DataFrame 和适配器异常正文不再进入 API 响应。
+- Application 改用 Sector repository/adapter Protocol，不再依赖 concrete repository 类型；市场收益 gateway、UseCase、serializers 和 views 补齐精确泛型、请求、容器与返回类型。
+
+## 第二百六十三批验证结果
+
+- Sector API、Application、Domain、Adapter 与集成回归 `80 passed`；覆盖权重公式、`NaN/Inf`、异常适配值、未知 Regime/字段、反向日期、未来日期零 Provider/写入、行情 fallback 和异常脱敏。
+- Sector market gateway、use cases、serializers 与 views 增量 mypy 清零；全仓基线从 `1523 errors / 441 files` 收紧为 `1499 errors / 437 files`，净减少 `24 errors / 4 files`。
+- Django system check、架构边界、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

@@ -8,20 +8,56 @@
 """
 
 import logging
+import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import Any, Protocol, cast
 
 from apps.regime.application.query_services import get_latest_regime_diagnostic_payload
+from apps.regime.domain.services_v2 import RegimeType
 
-from ..domain.entities import SectorInfo, SectorRelativeStrength, SectorScore
-from ..domain.services import SectorRotationAnalyzer
+from ..domain.entities import SectorIndex, SectorInfo, SectorRelativeStrength, SectorScore
+from ..domain.services import SectorRotationAnalyzer, validate_rotation_weights
 from .market_returns_gateway import fetch_index_daily_returns
-from .repository_provider import DjangoSectorRepository
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+class SectorDataAdapter(Protocol):
+    """External sector data capability required by the update use case."""
+
+    def fetch_sw_industry_classify(self, *, level: str) -> Any: ...
+
+    def fetch_all_sector_index_daily(
+        self,
+        *,
+        sector_codes: list[str],
+        start_date: str,
+        end_date: str,
+    ) -> Any: ...
+
+
+class SectorRepository(Protocol):
+    """Persistence capability required by sector Application use cases."""
+
+    def get_sector_weights_by_regime(self, regime: str) -> dict[str, float]: ...
+
+    def get_all_sectors(self, level: str | None = None) -> list[SectorInfo]: ...
+
+    def get_sector_index_range(
+        self,
+        sector_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[SectorIndex]: ...
+
+    def save_sector_info(self, sector_info: SectorInfo) -> bool: ...
+
+    def batch_save_sector_indices(self, indices_df: Any) -> int: ...
+
+
+@dataclass(frozen=True)
 class AnalyzeSectorRotationRequest:
     """分析板块轮动请求
 
@@ -42,6 +78,26 @@ class AnalyzeSectorRotationRequest:
     regime_weight: float = 0.3
     level: str = "SW1"
     top_n: int = 10
+
+    def __post_init__(self) -> None:
+        """Validate direct Application callers before repository access."""
+
+        if self.regime is not None:
+            try:
+                RegimeType(self.regime)
+            except ValueError as exc:
+                raise ValueError("Unsupported regime") from exc
+        if isinstance(self.lookback_days, bool) or not 5 <= self.lookback_days <= 120:
+            raise ValueError("lookback_days must be between 5 and 120")
+        validate_rotation_weights(
+            self.momentum_weight,
+            self.rs_weight,
+            self.regime_weight,
+        )
+        if self.level not in {"SW1", "SW2", "SW3"}:
+            raise ValueError("Unsupported sector level")
+        if isinstance(self.top_n, bool) or not 1 <= self.top_n <= 1000:
+            raise ValueError("top_n must be between 1 and 1000")
 
 
 @dataclass
@@ -65,6 +121,7 @@ class SectorRotationResult:
     data_source: str = "live"
     warning_message: str | None = None
     warning_detail: str | None = None
+    error_code: str | None = None
 
 
 class AnalyzeSectorRotationUseCase:
@@ -79,10 +136,10 @@ class AnalyzeSectorRotationUseCase:
 
     def __init__(
         self,
-        sector_repo: DjangoSectorRepository,
-        regime_repo=None,
-        market_adapter=None,
-    ):
+        sector_repo: SectorRepository,
+        regime_repo: object | None = None,
+        market_adapter: object | None = None,
+    ) -> None:
         """初始化用例
 
         Args:
@@ -252,22 +309,27 @@ class AnalyzeSectorRotationUseCase:
                 ),
             )
 
-        except Exception as e:
+        except Exception as exc:
+            logger.error(
+                "Sector rotation analysis failed",
+                extra={"exception_type": type(exc).__name__},
+            )
             return SectorRotationResult(
                 success=False,
                 regime=regime if request.regime else "",
                 analysis_date=date.today(),
                 top_sectors=[],
-                error=str(e),
+                error="Sector rotation analysis failed.",
                 status="degraded",
                 data_source="fallback",
                 warning_message="sector_rotation_failed",
                 warning_detail="板块轮动分析执行异常，请检查板块指数与基准行情数据。",
+                error_code="SECTOR_ROTATION_FAILED",
             )
 
     def _get_market_returns(
         self, start_date: date, end_date: date, expected_length: int
-    ) -> list | None:
+    ) -> list[float] | None:
         """获取大盘指数收益率（沪深300）
 
         Args:
@@ -286,15 +348,19 @@ class AnalyzeSectorRotationUseCase:
                 return None
 
         try:
-            if hasattr(self.market_adapter, "get_index_daily_returns"):
-                returns_dict = self.market_adapter.get_index_daily_returns(
+            adapter = self.market_adapter
+            method = getattr(adapter, "get_index_daily_returns", None)
+            if callable(method):
+                typed_method = cast(Callable[..., dict[date, float]], method)
+                returns_dict = typed_method(
                     index_code="000300.SH",
                     start_date=start_date,
                     end_date=end_date,
                     hydrate=False,
                 )
-            elif callable(self.market_adapter):
-                returns_dict = self.market_adapter(
+            elif callable(adapter):
+                typed_adapter = cast(Callable[..., dict[date, float]], adapter)
+                returns_dict = typed_adapter(
                     index_code="000300.SH",
                     start_date=start_date,
                     end_date=end_date,
@@ -308,27 +374,39 @@ class AnalyzeSectorRotationUseCase:
                 return None
 
             # 按日期排序并提取收益率
-            sorted_returns = [v for _, v in sorted(returns_dict.items())]
+            sorted_returns = [value for _, value in sorted(returns_dict.items())]
+            if any(
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                for value in sorted_returns
+            ):
+                logger.warning("沪深300 收益率包含非法数值，大盘收益率 unavailable")
+                return None
+            finite_returns = [float(value) for value in sorted_returns]
 
             # 对齐到 expected_length
-            if len(sorted_returns) >= expected_length:
-                return sorted_returns[-expected_length:]
-            if len(sorted_returns) + 1 == expected_length:
-                return [0.0] + sorted_returns
+            if len(finite_returns) >= expected_length:
+                return finite_returns[-expected_length:]
+            if len(finite_returns) + 1 == expected_length:
+                return [0.0] + finite_returns
 
             logger.warning(
                 "沪深300 收益率数据不足: expected=%s actual=%s",
                 expected_length,
-                len(sorted_returns),
+                len(finite_returns),
             )
             return None
 
-        except Exception as e:
-            logger.warning(f"获取大盘收益率失败: {e}，大盘收益率 unavailable")
+        except Exception as exc:
+            logger.warning(
+                "获取大盘收益率失败，大盘收益率 unavailable",
+                extra={"exception_type": type(exc).__name__},
+            )
             return None
 
 
-@dataclass
+@dataclass(frozen=True)
 class UpdateSectorDataRequest:
     """更新板块数据请求
 
@@ -344,6 +422,21 @@ class UpdateSectorDataRequest:
     end_date: str | None = None
     force_update: bool = False
 
+    def __post_init__(self) -> None:
+        """Validate direct update callers before any provider request."""
+
+        if self.level not in {"SW1", "SW2", "SW3"}:
+            raise ValueError("Unsupported sector level")
+        if not isinstance(self.force_update, bool):
+            raise ValueError("force_update must be a boolean")
+        try:
+            start = date.fromisoformat(self.start_date) if self.start_date else None
+            end = date.fromisoformat(self.end_date) if self.end_date else None
+        except ValueError as exc:
+            raise ValueError("Sector update dates must use YYYY-MM-DD format") from exc
+        if start is not None and end is not None and start > end:
+            raise ValueError("Sector update start_date must not exceed end_date")
+
 
 @dataclass
 class UpdateSectorDataResult:
@@ -358,6 +451,7 @@ class UpdateSectorDataResult:
     success: bool
     updated_count: int
     error: str | None = None
+    error_code: str | None = None
 
 
 class UpdateSectorDataUseCase:
@@ -369,7 +463,11 @@ class UpdateSectorDataUseCase:
     3. 保存到数据库
     """
 
-    def __init__(self, sector_repo: DjangoSectorRepository, adapter=None):
+    def __init__(
+        self,
+        sector_repo: SectorRepository,
+        adapter: SectorDataAdapter | None = None,
+    ) -> None:
         """初始化用例
 
         Args:
@@ -391,7 +489,24 @@ class UpdateSectorDataUseCase:
         try:
             if self.adapter is None:
                 return UpdateSectorDataResult(
-                    success=False, updated_count=0, error="未提供数据适配器"
+                    success=False,
+                    updated_count=0,
+                    error="Sector data adapter is unavailable.",
+                    error_code="SECTOR_ADAPTER_UNAVAILABLE",
+                )
+
+            end_date = date.fromisoformat(request.end_date) if request.end_date else date.today()
+            start_date = (
+                date.fromisoformat(request.start_date)
+                if request.start_date
+                else end_date - timedelta(days=365)
+            )
+            if start_date > end_date:
+                return UpdateSectorDataResult(
+                    success=False,
+                    updated_count=0,
+                    error="Sector update date range is invalid.",
+                    error_code="INVALID_SECTOR_DATE_RANGE",
                 )
 
             # 1. 获取板块分类
@@ -399,7 +514,10 @@ class UpdateSectorDataUseCase:
 
             if classify_df.empty:
                 return UpdateSectorDataResult(
-                    success=False, updated_count=0, error=f"获取 {request.level} 板块分类失败"
+                    success=False,
+                    updated_count=0,
+                    error="Sector classification data is unavailable.",
+                    error_code="SECTOR_CLASSIFICATION_UNAVAILABLE",
                 )
 
             # 2. 保存板块分类
@@ -415,16 +533,6 @@ class UpdateSectorDataUseCase:
                     saved_count += 1
 
             # 3. 获取板块指数数据
-            # 如果未指定日期范围，默认获取最近一年
-            if not request.start_date:
-                end_date = date.today()
-                start_date = end_date - timedelta(days=365)
-            else:
-                start_date = date.fromisoformat(request.start_date)
-                end_date = (
-                    date.fromisoformat(request.end_date) if request.end_date else date.today()
-                )
-
             start_str = start_date.strftime("%Y%m%d")
             end_str = end_date.strftime("%Y%m%d")
 
@@ -439,5 +547,14 @@ class UpdateSectorDataUseCase:
 
             return UpdateSectorDataResult(success=True, updated_count=updated_count + saved_count)
 
-        except Exception as e:
-            return UpdateSectorDataResult(success=False, updated_count=0, error=str(e))
+        except Exception as exc:
+            logger.error(
+                "Sector data update failed",
+                extra={"exception_type": type(exc).__name__},
+            )
+            return UpdateSectorDataResult(
+                success=False,
+                updated_count=0,
+                error="Sector data update failed.",
+                error_code="SECTOR_UPDATE_FAILED",
+            )

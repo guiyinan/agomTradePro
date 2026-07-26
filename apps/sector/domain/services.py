@@ -7,9 +7,27 @@
 - 通过依赖注入接收数据
 """
 
+import math
 from datetime import date
 
 from .entities import SectorIndex, SectorInfo, SectorRelativeStrength, SectorScore
+
+
+def validate_rotation_weights(
+    momentum_weight: float,
+    rs_weight: float,
+    regime_weight: float,
+) -> None:
+    """Require finite [0, 1] scoring weights whose sum is one."""
+
+    weights = (momentum_weight, rs_weight, regime_weight)
+    if any(
+        isinstance(weight, bool) or not math.isfinite(weight) or not 0.0 <= weight <= 1.0
+        for weight in weights
+    ):
+        raise ValueError("Sector rotation weights must be finite values in [0, 1]")
+    if not math.isclose(sum(weights), 1.0, rel_tol=0.0, abs_tol=0.01):
+        raise ValueError("Sector rotation weights must sum to 1.0")
 
 
 class SectorRotationAnalyzer:
@@ -22,9 +40,7 @@ class SectorRotationAnalyzer:
     """
 
     def calculate_relative_strength(
-        self,
-        sector_returns: dict[date, float],
-        market_returns: dict[date, float]
+        self, sector_returns: dict[date, float], market_returns: dict[date, float]
     ) -> dict[date, float]:
         """计算板块相对强弱
 
@@ -53,11 +69,7 @@ class SectorRotationAnalyzer:
 
         return relative_strength
 
-    def calculate_momentum(
-        self,
-        sector_returns: list[float],
-        lookback_days: int = 20
-    ) -> float:
+    def calculate_momentum(self, sector_returns: list[float], lookback_days: int = 20) -> float:
         """计算板块动量
 
         Args:
@@ -78,12 +90,16 @@ class SectorRotationAnalyzer:
             return 0.0
 
         # 取最近的 N 天数据
-        recent_returns = sector_returns[-lookback_days:] if len(sector_returns) >= lookback_days else sector_returns
+        recent_returns = (
+            sector_returns[-lookback_days:]
+            if len(sector_returns) >= lookback_days
+            else sector_returns
+        )
 
         # 计算累计收益率：(1+r1)*(1+r2)*...*(1+rn) - 1
         cumulative_return = 1.0
         for r in recent_returns:
-            cumulative_return *= (1 + r)
+            cumulative_return *= 1 + r
 
         return (cumulative_return - 1.0) * 100
 
@@ -94,7 +110,7 @@ class SectorRotationAnalyzer:
         momentum_window: int = 20,
         momentum_weight: float = 0.3,
         rs_weight: float = 0.4,
-        regime_weight: float = 0.3
+        regime_weight: float = 0.3,
     ) -> list[SectorScore]:
         """基于 Regime 对板块进行综合评分和排名
 
@@ -120,6 +136,8 @@ class SectorRotationAnalyzer:
             ...     regime_weights
             ... )
         """
+        del momentum_window
+        validate_rotation_weights(momentum_weight, rs_weight, regime_weight)
         sector_scores = []
 
         for sector_info, sector_index, sector_rs in sectors_data:
@@ -134,26 +152,34 @@ class SectorRotationAnalyzer:
             rs_score = self._normalize_score(rs, -5.0, 5.0)
 
             # 3. Regime 适配度评分（从权重字典获取，已经是 0-1 范围）
-            regime_weight = regime_weights.get(sector_info.sector_code, 0.5)
-            regime_score = regime_weight * 100
+            sector_regime_weight = regime_weights.get(sector_info.sector_code, 0.5)
+            if (
+                isinstance(sector_regime_weight, bool)
+                or not math.isfinite(sector_regime_weight)
+                or not 0.0 <= sector_regime_weight <= 1.0
+            ):
+                raise ValueError("Sector regime fit weights must be finite values in [0, 1]")
+            regime_score = sector_regime_weight * 100
 
             # 4. 综合评分
             total_score = (
-                momentum_score * momentum_weight +
-                rs_score * rs_weight +
-                regime_score * regime_weight
+                momentum_score * momentum_weight
+                + rs_score * rs_weight
+                + regime_score * regime_weight
             )
 
-            sector_scores.append(SectorScore(
-                sector_code=sector_info.sector_code,
-                sector_name=sector_info.sector_name,
-                trade_date=sector_index.trade_date,
-                momentum_score=momentum_score,
-                relative_strength_score=rs_score,
-                regime_fit_score=regime_score,
-                total_score=total_score,
-                rank=0  # 排名稍后计算
-            ))
+            sector_scores.append(
+                SectorScore(
+                    sector_code=sector_info.sector_code,
+                    sector_name=sector_info.sector_name,
+                    trade_date=sector_index.trade_date,
+                    momentum_score=momentum_score,
+                    relative_strength_score=rs_score,
+                    regime_fit_score=regime_score,
+                    total_score=total_score,
+                    rank=0,  # 排名稍后计算
+                )
+            )
 
         # 按综合评分降序排序
         sector_scores.sort(key=lambda x: x.total_score, reverse=True)
@@ -161,7 +187,7 @@ class SectorRotationAnalyzer:
         # 更新排名
         for i, score in enumerate(sector_scores, 1):
             # 由于 dataclass 是 frozen 的，需要创建新对象
-            sector_scores[i-1] = SectorScore(
+            sector_scores[i - 1] = SectorScore(
                 sector_code=score.sector_code,
                 sector_name=score.sector_name,
                 trade_date=score.trade_date,
@@ -169,17 +195,12 @@ class SectorRotationAnalyzer:
                 relative_strength_score=score.relative_strength_score,
                 regime_fit_score=score.regime_fit_score,
                 total_score=score.total_score,
-                rank=i
+                rank=i,
             )
 
         return sector_scores
 
-    def _normalize_score(
-        self,
-        value: float,
-        min_val: float,
-        max_val: float
-    ) -> float:
+    def _normalize_score(self, value: float, min_val: float, max_val: float) -> float:
         """将值归一化到 0-100 范围
 
         Args:
@@ -197,17 +218,18 @@ class SectorRotationAnalyzer:
             >>> analyzer._normalize_score(-5.0, -10.0, 10.0)
             25.0
         """
+        if any(
+            isinstance(number, bool) or not math.isfinite(number)
+            for number in (value, min_val, max_val)
+        ):
+            raise ValueError("Sector score inputs must be finite")
         if max_val == min_val:
             return 50.0
 
         normalized = (value - min_val) / (max_val - min_val)
         return max(0.0, min(100.0, normalized * 100))
 
-    def calculate_beta(
-        self,
-        sector_returns: list[float],
-        market_returns: list[float]
-    ) -> float:
+    def calculate_beta(self, sector_returns: list[float], market_returns: list[float]) -> float:
         """计算板块贝塔系数（相对于大盘）
 
         Beta = Cov(sector, market) / Var(market)
@@ -235,15 +257,15 @@ class SectorRotationAnalyzer:
         avg_market = sum(market_returns) / n
 
         # 计算协方差和方差
-        covariance = sum(
-            (sector_returns[i] - avg_sector) * (market_returns[i] - avg_market)
-            for i in range(n)
-        ) / n
+        covariance = (
+            sum(
+                (sector_returns[i] - avg_sector) * (market_returns[i] - avg_market)
+                for i in range(n)
+            )
+            / n
+        )
 
-        variance = sum(
-            (market_returns[i] - avg_market) ** 2
-            for i in range(n)
-        ) / n
+        variance = sum((market_returns[i] - avg_market) ** 2 for i in range(n)) / n
 
         if variance == 0:
             return 1.0

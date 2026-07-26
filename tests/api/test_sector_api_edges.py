@@ -13,6 +13,7 @@ from apps.sector.infrastructure.models import (
     SectorPreferenceConfigModel,
     SectorRelativeStrengthModel,
 )
+from apps.sector.interface.serializers import AnalyzeSectorRotationRequestSerializer
 
 
 @pytest.fixture
@@ -58,8 +59,13 @@ def test_sector_analyze_maps_unavailable_result_to_200(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_sector_update_data_returns_400_on_failed_use_case(staff_client):
-    result = SimpleNamespace(success=False, updated_count=0, error="adapter failed")
+def test_sector_update_data_redacts_failed_use_case(staff_client):
+    result = SimpleNamespace(
+        success=False,
+        updated_count=0,
+        error="secret adapter detail",
+        error_code=None,
+    )
 
     with patch("apps.sector.interface.views.UpdateSectorDataUseCase.execute", return_value=result):
         response = staff_client.post(
@@ -68,8 +74,120 @@ def test_sector_update_data_returns_400_on_failed_use_case(staff_client):
             format="json",
         )
 
+    assert response.status_code == 500
+    assert response.json() == {
+        "success": False,
+        "error": "Sector data update failed.",
+        "error_code": "SECTOR_UPDATE_FAILED",
+    }
+
+
+@pytest.mark.django_db
+def test_sector_analyze_rejects_unknown_fields_before_use_case(authenticated_client):
+    with patch("apps.sector.interface.views.AnalyzeSectorRotationUseCase.execute") as mock_execute:
+        response = authenticated_client.post(
+            "/api/sector/analyze/",
+            {
+                "regime": "Recovery",
+                "momentum_weight": 0.3,
+                "rs_weight": 0.4,
+                "regime_weight": 0.3,
+                "legacy_weight": 0.5,
+            },
+            format="json",
+        )
+
     assert response.status_code == 400
-    assert response.json() == {"success": False, "error": "adapter failed"}
+    assert "Unknown fields: legacy_weight" in str(response.json())
+    mock_execute.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_sector_analyze_rejects_unknown_regime_before_use_case(authenticated_client):
+    with patch("apps.sector.interface.views.AnalyzeSectorRotationUseCase.execute") as mock_execute:
+        response = authenticated_client.post(
+            "/api/sector/analyze/",
+            {"regime": "UnknownRegime"},
+            format="json",
+        )
+
+    assert response.status_code == 400
+    mock_execute.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("momentum_weight", float("nan")),
+        ("rs_weight", float("inf")),
+        ("regime_weight", True),
+    ],
+)
+def test_sector_analyze_serializer_rejects_non_finite_weights(field_name, value):
+    payload = {
+        "momentum_weight": 0.3,
+        "rs_weight": 0.4,
+        "regime_weight": 0.3,
+    }
+    payload[field_name] = value
+    serializer = AnalyzeSectorRotationRequestSerializer(data=payload)
+
+    assert serializer.is_valid() is False
+    assert field_name in serializer.errors
+
+
+@pytest.mark.django_db
+def test_sector_update_rejects_invalid_request_before_use_case(staff_client):
+    with patch("apps.sector.interface.views.UpdateSectorDataUseCase.execute") as mock_execute:
+        unknown = staff_client.post(
+            "/api/sector/update-data/",
+            {"level": "SW1", "legacy": True},
+            format="json",
+        )
+        inverted = staff_client.post(
+            "/api/sector/update-data/",
+            {
+                "level": "SW1",
+                "start_date": "2026-02-01",
+                "end_date": "2026-01-01",
+            },
+            format="json",
+        )
+
+    assert unknown.status_code == 400
+    assert inverted.status_code == 400
+    mock_execute.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_sector_analysis_failure_is_redacted(authenticated_client):
+    result = SimpleNamespace(
+        success=False,
+        status="degraded",
+        regime="Recovery",
+        analysis_date="2026-04-02",
+        top_sectors=[],
+        error="postgresql://secret-user:secret@database/sector",
+        error_code=None,
+        data_source="fallback",
+        warning_message="sector_rotation_failed",
+        warning_detail="internal",
+    )
+
+    with patch(
+        "apps.sector.interface.views.AnalyzeSectorRotationUseCase.execute",
+        return_value=result,
+    ):
+        response = authenticated_client.post(
+            "/api/sector/analyze/",
+            {"regime": "Recovery"},
+            format="json",
+        )
+
+    assert response.status_code == 503
+    assert response.json()["error"] == "Sector rotation analysis failed."
+    assert response.json()["error_code"] == "SECTOR_ROTATION_FAILED"
+    assert "secret" not in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -219,4 +337,4 @@ def test_sector_rotation_rejects_unknown_query_parameters(authenticated_client):
         response = authenticated_client.get(path)
 
         assert response.status_code == 400
-        assert "Unknown query parameters: payload" in str(response.json())
+        assert "Unknown fields: payload" in str(response.json())

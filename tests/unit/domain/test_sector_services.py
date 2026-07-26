@@ -47,9 +47,7 @@ class TestCalculateRelativeStrength:
         assert result[d1] == pytest.approx(0.01)
         assert result[d2] == pytest.approx(0.005)
 
-    def test_missing_market_date_defaults_to_zero(
-        self, analyzer: SectorRotationAnalyzer
-    ) -> None:
+    def test_missing_market_date_defaults_to_zero(self, analyzer: SectorRotationAnalyzer) -> None:
         """When market has no data for a date, market return defaults to 0."""
         d1 = date(2024, 1, 2)
         sector_returns = {d1: 0.03}
@@ -64,9 +62,7 @@ class TestCalculateRelativeStrength:
         result = analyzer.calculate_relative_strength({}, {date(2024, 1, 2): 0.01})
         assert result == {}
 
-    def test_negative_relative_strength(
-        self, analyzer: SectorRotationAnalyzer
-    ) -> None:
+    def test_negative_relative_strength(self, analyzer: SectorRotationAnalyzer) -> None:
         """Sector underperforming market yields negative RS."""
         d1 = date(2024, 1, 2)
         sector_returns = {d1: -0.01}
@@ -150,9 +146,7 @@ class TestRankSectorsByRegime:
         )
         return (info, index, strength)
 
-    def test_single_sector_rank_is_one(
-        self, analyzer: SectorRotationAnalyzer
-    ) -> None:
+    def test_single_sector_rank_is_one(self, analyzer: SectorRotationAnalyzer) -> None:
         """A single sector always gets rank 1."""
         data = [self._make_sector_data("801010", "农林牧渔")]
         regime_weights = {"801010": 0.8}
@@ -162,9 +156,7 @@ class TestRankSectorsByRegime:
         assert len(scores) == 1
         assert scores[0].rank == 1
 
-    def test_multiple_sectors_ordered_by_score(
-        self, analyzer: SectorRotationAnalyzer
-    ) -> None:
+    def test_multiple_sectors_ordered_by_score(self, analyzer: SectorRotationAnalyzer) -> None:
         """Higher score sectors get lower rank numbers."""
         data = [
             self._make_sector_data("801010", "农林牧渔", rs=5.0, momentum=10.0),
@@ -183,9 +175,7 @@ class TestRankSectorsByRegime:
         scores = analyzer.rank_sectors_by_regime([], {})
         assert scores == []
 
-    def test_default_regime_weight_for_missing_code(
-        self, analyzer: SectorRotationAnalyzer
-    ) -> None:
+    def test_default_regime_weight_for_missing_code(self, analyzer: SectorRotationAnalyzer) -> None:
         """Missing sector code in regime_weights defaults to 0.5."""
         data = [self._make_sector_data("801099", "未知板块")]
         regime_weights: dict[str, float] = {}
@@ -207,6 +197,71 @@ class TestRankSectorsByRegime:
         assert 0.0 <= s.momentum_score <= 100.0
         assert 0.0 <= s.relative_strength_score <= 100.0
         assert s.regime_fit_score == pytest.approx(70.0)
+
+    def test_requested_regime_weight_controls_total_score(
+        self,
+        analyzer: SectorRotationAnalyzer,
+    ) -> None:
+        """The scoring weight must not be shadowed by the sector fit value."""
+
+        data = [
+            self._make_sector_data(
+                "801010",
+                "农林牧渔",
+                rs=0.0,
+                momentum=0.0,
+            )
+        ]
+
+        score = analyzer.rank_sectors_by_regime(
+            data,
+            {"801010": 0.8},
+            momentum_weight=0.2,
+            rs_weight=0.3,
+            regime_weight=0.5,
+        )[0]
+
+        assert score.momentum_score == pytest.approx(50.0)
+        assert score.relative_strength_score == pytest.approx(50.0)
+        assert score.regime_fit_score == pytest.approx(80.0)
+        assert score.total_score == pytest.approx(65.0)
+
+    @pytest.mark.parametrize(
+        "weights",
+        [
+            (float("nan"), 0.4, 0.6),
+            (float("inf"), 0.0, 0.0),
+            (-0.1, 0.6, 0.5),
+            (0.2, 0.2, 0.2),
+            (True, 0.0, 0.0),
+        ],
+    )
+    def test_invalid_scoring_weights_fail_closed(
+        self,
+        analyzer: SectorRotationAnalyzer,
+        weights: tuple[float, float, float],
+    ) -> None:
+        data = [self._make_sector_data("801010", "农林牧渔")]
+
+        with pytest.raises(ValueError, match="weights"):
+            analyzer.rank_sectors_by_regime(
+                data,
+                {"801010": 0.8},
+                momentum_weight=weights[0],
+                rs_weight=weights[1],
+                regime_weight=weights[2],
+            )
+
+    @pytest.mark.parametrize("regime_fit", [-0.1, 1.1, float("nan"), float("inf")])
+    def test_invalid_persisted_regime_fit_fails_closed(
+        self,
+        analyzer: SectorRotationAnalyzer,
+        regime_fit: float,
+    ) -> None:
+        data = [self._make_sector_data("801010", "农林牧渔")]
+
+        with pytest.raises(ValueError, match="regime fit"):
+            analyzer.rank_sectors_by_regime(data, {"801010": regime_fit})
 
 
 # ============================================================
@@ -244,9 +299,7 @@ class TestNormalizeScore:
 class TestCalculateBeta:
     """Tests for SectorRotationAnalyzer.calculate_beta"""
 
-    def test_identical_returns_beta_one(
-        self, analyzer: SectorRotationAnalyzer
-    ) -> None:
+    def test_identical_returns_beta_one(self, analyzer: SectorRotationAnalyzer) -> None:
         """When sector and market returns are identical, beta should be 1."""
         returns = [0.01, 0.02, -0.01, 0.03, 0.01]
         beta = analyzer.calculate_beta(returns, returns)
@@ -259,21 +312,15 @@ class TestCalculateBeta:
         beta = analyzer.calculate_beta(sector, market)
         assert beta == pytest.approx(2.0, abs=1e-6)
 
-    def test_mismatched_lengths_returns_default(
-        self, analyzer: SectorRotationAnalyzer
-    ) -> None:
+    def test_mismatched_lengths_returns_default(self, analyzer: SectorRotationAnalyzer) -> None:
         """Different-length lists return default beta of 1.0."""
         assert analyzer.calculate_beta([0.01, 0.02], [0.01]) == 1.0
 
-    def test_single_element_returns_default(
-        self, analyzer: SectorRotationAnalyzer
-    ) -> None:
+    def test_single_element_returns_default(self, analyzer: SectorRotationAnalyzer) -> None:
         """Less than 2 data points returns default beta of 1.0."""
         assert analyzer.calculate_beta([0.01], [0.01]) == 1.0
 
-    def test_zero_market_variance_returns_default(
-        self, analyzer: SectorRotationAnalyzer
-    ) -> None:
+    def test_zero_market_variance_returns_default(self, analyzer: SectorRotationAnalyzer) -> None:
         """Zero market variance (constant returns) returns default beta."""
         sector = [0.01, 0.02, 0.03, 0.04]
         market = [0.25, 0.25, 0.25, 0.25]
