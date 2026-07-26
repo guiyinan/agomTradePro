@@ -7,52 +7,58 @@
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
+from math import isfinite
 from typing import Any
 
 
 class PoolType(Enum):
     """资产池类型"""
-    INVESTABLE = "investable"    # 可投池 - 符合准入条件
-    PROHIBITED = "prohibited"    # 禁投池 - 不符合条件
-    WATCH = "watch"             # 观察池 - 边界状态，需持续观察
-    CANDIDATE = "candidate"      # 候选池 - 潜在投资标的
+
+    INVESTABLE = "investable"  # 可投池 - 符合准入条件
+    PROHIBITED = "prohibited"  # 禁投池 - 不符合条件
+    WATCH = "watch"  # 观察池 - 边界状态，需持续观察
+    CANDIDATE = "candidate"  # 候选池 - 潜在投资标的
 
 
 class PoolCategory(Enum):
     """资产分类"""
-    EQUITY = "equity"           # 股票
-    FUND = "fund"               # 基金
-    BOND = "bond"               # 债券
-    WEALTH = "wealth"           # 理财
-    COMMODITY = "commodity"     # 商品
-    INDEX = "index"             # 指数
+
+    EQUITY = "equity"  # 股票
+    FUND = "fund"  # 基金
+    BOND = "bond"  # 债券
+    WEALTH = "wealth"  # 理财
+    COMMODITY = "commodity"  # 商品
+    INDEX = "index"  # 指数
 
 
 class EntryReason(Enum):
     """入池原因"""
-    HIGH_SCORE = "high_score"           # 高评分
-    REGIME_MATCH = "regime_match"       # 匹配当前Regime
+
+    HIGH_SCORE = "high_score"  # 高评分
+    REGIME_MATCH = "regime_match"  # 匹配当前Regime
     POLICY_FAVORABLE = "policy_favorable"  # 政策友好
     SENTIMENT_POSITIVE = "sentiment_positive"  # 情绪正面
     SIGNAL_TRIGGERED = "signal_triggered"  # 信号触发
-    MANUAL_ADD = "manual_add"          # 手动添加
+    MANUAL_ADD = "manual_add"  # 手动添加
 
 
 class ExitReason(Enum):
     """出池原因"""
-    LOW_SCORE = "low_score"           # 低评分
+
+    LOW_SCORE = "low_score"  # 低评分
     REGIME_MISMATCH = "regime_mismatch"  # 不匹配当前Regime
     POLICY_UNFAVORABLE = "policy_unfavorable"  # 政策不友好
     SENTIMENT_NEGATIVE = "sentiment_negative"  # 情绪负面
     SIGNAL_INVALIDATED = "signal_invalidated"  # 信号失效
-    RISK_CONTROL = "risk_control"      # 风险控制
-    MANUAL_REMOVE = "manual_remove"    # 手动移除
-    SCORE_DECLINE = "score_decline"    # 评分下降
+    RISK_CONTROL = "risk_control"  # 风险控制
+    MANUAL_REMOVE = "manual_remove"  # 手动移除
+    SCORE_DECLINE = "score_decline"  # 评分下降
 
 
 @dataclass(frozen=True)
 class PoolEntry:
     """资产池条目"""
+
     asset_type: PoolCategory
     asset_code: str
     asset_name: str
@@ -86,7 +92,7 @@ class PoolEntry:
     # 元数据
     context: dict[str, Any] | None = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "asset_type": self.asset_type.value,
@@ -118,6 +124,7 @@ class PoolEntry:
 @dataclass
 class PoolStatistics:
     """资产池统计信息"""
+
     pool_type: PoolType
     asset_category: PoolCategory
     total_count: int = 0
@@ -131,7 +138,7 @@ class PoolStatistics:
     # 更新时间
     last_updated: date = field(default_factory=date.today)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "pool_type": self.pool_type.value,
@@ -148,6 +155,7 @@ class PoolStatistics:
 @dataclass
 class PoolConfig:
     """资产池配置"""
+
     pool_type: PoolType
     asset_category: PoolCategory
 
@@ -167,27 +175,61 @@ class PoolConfig:
 
     # 风险控制
     max_volatility: float | None = None  # 最大波动率
-    max_drawdown: float | None = None    # 最大回撤
+    max_drawdown: float | None = None  # 最大回撤
 
     # 其他限制
     min_market_cap: float | None = None  # 最小市值（元）
-    max_pe_ratio: float | None = None    # 最大PE
-    max_pb_ratio: float | None = None    # 最大PB
+    max_pe_ratio: float | None = None  # 最大PE
+    max_pb_ratio: float | None = None  # 最大PB
+
+    def __post_init__(self) -> None:
+        score_fields = (
+            "min_total_score",
+            "min_regime_score",
+            "min_policy_score",
+            "max_total_score",
+            "max_regime_score",
+            "max_policy_score",
+            "watch_min_score",
+            "watch_max_score",
+        )
+        for field_name in score_fields:
+            value = getattr(self, field_name)
+            if not isfinite(value) or not 0 <= value <= 100:
+                raise ValueError(f"{field_name} must be finite and from 0 to 100")
+        if self.max_total_score > self.min_total_score:
+            raise ValueError("max_total_score cannot exceed min_total_score")
+        if self.max_regime_score > self.min_regime_score:
+            raise ValueError("max_regime_score cannot exceed min_regime_score")
+        if self.max_policy_score > self.min_policy_score:
+            raise ValueError("max_policy_score cannot exceed min_policy_score")
+        if self.watch_min_score >= self.watch_max_score:
+            raise ValueError("watch_min_score must be lower than watch_max_score")
+        for field_name in (
+            "max_volatility",
+            "max_drawdown",
+            "min_market_cap",
+            "max_pe_ratio",
+            "max_pb_ratio",
+        ):
+            value = getattr(self, field_name)
+            if value is not None and (not isfinite(value) or value < 0):
+                raise ValueError(f"{field_name} must be finite and non-negative")
 
     def is_investable(self, total_score: float, regime_score: float, policy_score: float) -> bool:
         """判断是否可投"""
         return (
-            total_score >= self.min_total_score and
-            regime_score >= self.min_regime_score and
-            policy_score >= self.min_policy_score
+            total_score >= self.min_total_score
+            and regime_score >= self.min_regime_score
+            and policy_score >= self.min_policy_score
         )
 
     def is_prohibited(self, total_score: float, regime_score: float, policy_score: float) -> bool:
         """判断是否禁投"""
         return (
-            total_score <= self.max_total_score or
-            regime_score <= self.max_regime_score or
-            policy_score <= self.max_policy_score
+            total_score <= self.max_total_score
+            or regime_score <= self.max_regime_score
+            or policy_score <= self.max_policy_score
         )
 
     def is_watch(self, total_score: float) -> bool:

@@ -5,6 +5,7 @@
 """
 
 import logging
+import math
 from datetime import date
 
 from apps.asset_analysis.domain.entities import AssetScore, AssetType
@@ -28,63 +29,15 @@ class AssetPoolClassifier:
     根据评分结果将资产分类到不同的资产池。
     """
 
-    def _get_asset_code(self, asset) -> str:
-        """获取资产代码（兼容不同资产类型）"""
-        return getattr(asset, 'asset_code', None) or \
-               getattr(asset, 'stock_code', None) or \
-               getattr(asset, 'fund_code', None) or \
-               getattr(asset, 'bond_code', '')
-
-    def _get_asset_name(self, asset) -> str:
-        """获取资产名称（兼容不同资产类型）"""
-        return getattr(asset, 'asset_name', None) or \
-               getattr(asset, 'stock_name', None) or \
-               getattr(asset, 'fund_name', None) or \
-               getattr(asset, 'bond_name', '')
-
-    def __init__(self):
+    def __init__(self, configs: list[PoolConfig]) -> None:
         """初始化分类器"""
-        # 默认配置（可从数据库加载）
-        self.configs: dict[PoolCategory, PoolConfig] = {
-            PoolCategory.EQUITY: PoolConfig(
-                pool_type=PoolType.INVESTABLE,
-                asset_category=PoolCategory.EQUITY,
-                min_total_score=60.0,
-                min_regime_score=50.0,
-                min_policy_score=50.0,
-                max_total_score=30.0,
-                max_regime_score=40.0,
-                max_policy_score=40.0,
-                max_pe_ratio=50.0,
-                max_pb_ratio=10.0,
-            ),
-            PoolCategory.FUND: PoolConfig(
-                pool_type=PoolType.INVESTABLE,
-                asset_category=PoolCategory.FUND,
-                min_total_score=65.0,
-                min_regime_score=55.0,
-                min_policy_score=50.0,
-                max_total_score=35.0,
-                max_regime_score=40.0,
-                max_policy_score=40.0,
-            ),
-            PoolCategory.BOND: PoolConfig(
-                pool_type=PoolType.INVESTABLE,
-                asset_category=PoolCategory.BOND,
-                min_total_score=60.0,
-                min_regime_score=50.0,
-                min_policy_score=60.0,  # 债券对政策更敏感
-                max_total_score=30.0,
-                max_regime_score=40.0,
-                max_policy_score=40.0,
-            ),
-        }
+        self.configs: dict[PoolCategory, PoolConfig] = {}
+        for config in configs:
+            if config.asset_category in self.configs:
+                raise ValueError(f"Duplicate active pool config for {config.asset_category.value}")
+            self.configs[config.asset_category] = config
 
-    def classify(
-        self,
-        asset: AssetScore,
-        context: ScoreContext
-    ) -> PoolEntry:
+    def classify(self, asset: AssetScore, context: ScoreContext) -> PoolEntry:
         """
         将资产分类到合适的资产池
 
@@ -100,12 +53,10 @@ class AssetPoolClassifier:
 
         # 获取配置
         config = self.configs.get(category)
-        if not config:
-            # 使用默认配置
-            config = PoolConfig(
-                pool_type=PoolType.INVESTABLE,
-                asset_category=category
-            )
+        if config is None:
+            raise ValueError(f"Missing active pool config for {category.value}")
+
+        self._validate_asset(asset)
 
         # 判断资产池类型
         pool_type = self._determine_pool_type(asset, config)
@@ -115,8 +66,8 @@ class AssetPoolClassifier:
 
         return PoolEntry(
             asset_type=category,
-            asset_code=self._get_asset_code(asset),
-            asset_name=self._get_asset_name(asset),
+            asset_code=asset.asset_code,
+            asset_name=asset.asset_name,
             pool_type=pool_type,
             total_score=asset.total_score,
             regime_score=asset.regime_score,
@@ -125,32 +76,20 @@ class AssetPoolClassifier:
             signal_score=asset.signal_score,
             entry_reason=entry_reason,
             risk_level=asset.risk_level,
-            sector=getattr(asset, 'sector', None),
-            market_cap=getattr(asset, 'market_cap', None),
-            pe_ratio=getattr(asset, 'pe_ratio', None),
-            pb_ratio=getattr(asset, 'pb_ratio', None),
+            sector=asset.sector,
+            market_cap=asset.custom_scores.get("market_cap"),
+            pe_ratio=asset.custom_scores.get("pe_ratio"),
+            pb_ratio=asset.custom_scores.get("pb_ratio"),
             context={
-                'regime': context.current_regime,
-                'policy_level': context.policy_level,
-                'sentiment_index': context.sentiment_index,
+                "regime": context.current_regime,
+                "policy_level": context.policy_level,
+                "sentiment_index": context.sentiment_index,
             },
         )
 
-    def _get_category(self, asset_type) -> PoolCategory:
-        """将 AssetType 转换为 PoolCategory（支持enum和string）"""
-        # 处理字符串类型
-        if isinstance(asset_type, str):
-            type_mapping = {
-                'equity': PoolCategory.EQUITY,
-                'fund': PoolCategory.FUND,
-                'bond': PoolCategory.BOND,
-                'wealth': PoolCategory.WEALTH,
-                'commodity': PoolCategory.COMMODITY,
-                'index': PoolCategory.INDEX,
-            }
-            return type_mapping.get(asset_type.lower(), PoolCategory.EQUITY)
-
-        # 处理枚举类型
+    @staticmethod
+    def _get_category(asset_type: AssetType) -> PoolCategory:
+        """Convert a supported AssetType without silently changing categories."""
         mapping = {
             AssetType.EQUITY: PoolCategory.EQUITY,
             AssetType.FUND: PoolCategory.FUND,
@@ -158,24 +97,34 @@ class AssetPoolClassifier:
             AssetType.COMMODITY: PoolCategory.COMMODITY,
             AssetType.INDEX: PoolCategory.INDEX,
         }
-        return mapping.get(asset_type, PoolCategory.EQUITY)
+        category = mapping.get(asset_type)
+        if category is None:
+            raise ValueError(f"Unsupported pool asset type: {asset_type.value}")
+        return category
+
+    @staticmethod
+    def _validate_asset(asset: AssetScore) -> None:
+        if not asset.asset_code.strip() or not asset.asset_name.strip():
+            raise ValueError("Pool asset code and name cannot be empty")
+        for field_name in (
+            "total_score",
+            "regime_score",
+            "policy_score",
+            "sentiment_score",
+            "signal_score",
+        ):
+            value = getattr(asset, field_name)
+            if not math.isfinite(value) or not 0 <= value <= 100:
+                raise ValueError(f"{field_name} must be finite and from 0 to 100")
 
     def _determine_pool_type(self, asset: AssetScore, config: PoolConfig) -> PoolType:
         """确定资产池类型"""
         # 1. 检查是否禁投
-        if config.is_prohibited(
-            asset.total_score,
-            asset.regime_score,
-            asset.policy_score
-        ):
+        if config.is_prohibited(asset.total_score, asset.regime_score, asset.policy_score):
             return PoolType.PROHIBITED
 
         # 2. 检查是否可投
-        if config.is_investable(
-            asset.total_score,
-            asset.regime_score,
-            asset.policy_score
-        ):
+        if config.is_investable(asset.total_score, asset.regime_score, asset.policy_score):
             return PoolType.INVESTABLE
 
         # 3. 检查是否观察
@@ -190,7 +139,7 @@ class AssetPoolClassifier:
         if pool_type == PoolType.PROHIBITED:
             return None
 
-        reasons = []
+        reasons: list[EntryReason] = []
 
         # 高评分
         if asset.total_score >= 80:
@@ -226,15 +175,15 @@ class AssetPoolManager:
     负责资产池的创建、更新和统计。
     """
 
-    def __init__(self):
+    def __init__(self, configs: list[PoolConfig]) -> None:
         """初始化管理器"""
-        self.classifier = AssetPoolClassifier()
+        self.classifier = AssetPoolClassifier(configs)
 
     def create_pools(
         self,
         scored_assets: list[AssetScore],
         context: ScoreContext,
-        asset_category: PoolCategory
+        asset_category: PoolCategory,
     ) -> dict[PoolType, list[PoolEntry]]:
         """
         根据评分结果创建资产池
@@ -247,7 +196,7 @@ class AssetPoolManager:
         Returns:
             按资产池类型分组的资产字典
         """
-        pools = {
+        pools: dict[PoolType, list[PoolEntry]] = {
             PoolType.INVESTABLE: [],
             PoolType.PROHIBITED: [],
             PoolType.WATCH: [],
@@ -256,6 +205,11 @@ class AssetPoolManager:
 
         for asset in scored_assets:
             entry = self.classifier.classify(asset, context)
+            if entry.asset_type != asset_category:
+                raise ValueError(
+                    f"Asset category mismatch: expected {asset_category.value}, "
+                    f"got {entry.asset_type.value}"
+                )
             pools[entry.pool_type].append(entry)
 
         logger.info(
@@ -271,7 +225,7 @@ class AssetPoolManager:
     def calculate_statistics(
         self,
         pools: dict[PoolType, list[PoolEntry]],
-        asset_category: PoolCategory
+        asset_category: PoolCategory,
     ) -> list[PoolStatistics]:
         """
         计算资产池统计信息
@@ -283,7 +237,7 @@ class AssetPoolManager:
         Returns:
             统计信息列表
         """
-        stats = []
+        stats: list[PoolStatistics] = []
 
         for pool_type, entries in pools.items():
             if not entries:
@@ -295,28 +249,30 @@ class AssetPoolManager:
             avg_policy = sum(e.policy_score for e in entries) / len(entries)
 
             # 计算行业分布
-            sector_dist = {}
+            sector_dist: dict[str, int] = {}
             for entry in entries:
                 if entry.sector:
                     sector_dist[entry.sector] = sector_dist.get(entry.sector, 0) + 1
 
-            stats.append(PoolStatistics(
-                pool_type=pool_type,
-                asset_category=asset_category,
-                total_count=len(entries),
-                avg_score=avg_total,
-                avg_regime_score=avg_regime,
-                avg_policy_score=avg_policy,
-                sector_distribution=sector_dist,
-                last_updated=date.today(),
-            ))
+            stats.append(
+                PoolStatistics(
+                    pool_type=pool_type,
+                    asset_category=asset_category,
+                    total_count=len(entries),
+                    avg_score=avg_total,
+                    avg_regime_score=avg_regime,
+                    avg_policy_score=avg_policy,
+                    sector_distribution=sector_dist,
+                    last_updated=date.today(),
+                )
+            )
 
         return stats
 
     def get_pool_summary(
         self,
-        pools: dict[PoolType, list[PoolEntry]]
-    ) -> dict[str, any]:
+        pools: dict[PoolType, list[PoolEntry]],
+    ) -> dict[str, int]:
         """
         获取资产池摘要
 

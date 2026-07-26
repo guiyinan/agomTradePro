@@ -4107,3 +4107,22 @@
 - Qlib adapter 金融真实性、既有契约、Provider 集成、基础边界与降级日志回归 `30 passed`；完整 Qlib runtime contracts `14 passed`，仅保留 pandas 未来弃用警告。
 - `qlib_adapter.py` 增量 mypy 清零，通用 adapter base 保持清零；全仓基线从 `1391 errors / 427 files` 收紧为 `1382 errors / 426 files`，净减少 `9 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百七十五批
+
+- 按“资产池阈值数据库真源 × 类别一致性 × 非有限评分失败关闭”收口 Asset Pool Domain、Application、Repository 与 API。
+- 删除 `AssetPoolClassifier` 内股票、基金和债券阈值硬编码；分类器只接受 Infrastructure 从 `AssetPoolConfig` 读取的活动配置，不再出现数据库表存在但运行时完全不生效的双真源。
+- 新增数据迁移：仅当对应类别没有活动 investable 配置时初始化股票、基金和债券阈值；已有用户配置保持不变，阈值后续可通过数据库治理。
+- 同一类别存在多个活动配置时失败关闭并返回稳定 503；缺少类别配置同样不再回退 Domain 默认值，避免配置错误被静默掩盖。
+- `AssetType` 到 `PoolCategory` 使用正式枚举映射；不支持的 sector 不再静默当作 equity，批次声明类别与资产实际类别不一致时拒绝整批结果。
+- 分类前统一要求资产代码、名称非空，五项评分有限且位于 `[0, 100]`；`NaN/Inf` 和越界总分不再利用比较语义落入 candidate 池。
+- `PoolConfig` 增加阈值不变量：分数阈值有限且在正式区间，禁投阈值不得高于准入阈值，观察区间必须递增，可选风险/估值阈值必须有限非负。
+- Pool entry 直接使用 `AssetScore` 正式字段；市值、PE、PB 只从显式 `custom_scores` 读取，不再用不存在的动态属性制造配置已参与风控的错觉。
+- 评分上下文、筛选、配置和摘要异常响应统一为稳定文案与机器错误码；数据库、筛选器和配置异常正文不再进入 API 响应或普通日志。
+- Pool service、Domain `to_dict`、统计容器、摘要和 DRF handler 补齐精确类型；修复批内原有 `any` 误用与无类型列表/字典。
+
+## 第二百七十五批验证结果
+
+- Asset Pool Domain、Application、Repository 与 API 回归 `21 passed`；覆盖数据库种子阈值真实生效、重复/缺失配置、未知类别、类别错配、`NaN` 评分、非法阈值和稳定 503 契约。
+- pool service、Domain pool 与 pool views 增量 mypy 清零；全仓基线从 `1382 errors / 426 files` 收紧为 `1365 errors / 423 files`，净减少 `17 errors / 3 files`。
+- Django system check、迁移一致性、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

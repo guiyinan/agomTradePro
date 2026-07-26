@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1382,
-    "files_with_errors": 426
+    "errors": 1365,
+    "files_with_errors": 423
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -285,13 +285,6 @@
       "no-untyped-def": 2,
       "type-arg": 1
     },
-    "apps/asset_analysis/application/pool_service.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 5,
-      "return-value": 2,
-      "valid-type": 1,
-      "var-annotated": 2
-    },
     "apps/asset_analysis/application/repository_provider.py": {
       "type-arg": 1
     },
@@ -316,9 +309,6 @@
       "type-arg": 3,
       "valid-type": 1
     },
-    "apps/asset_analysis/domain/pool.py": {
-      "type-arg": 2
-    },
     "apps/asset_analysis/infrastructure/asset_name_resolver.py": {
       "arg-type": 1,
       "no-any-return": 1,
@@ -328,10 +318,6 @@
       "attr-defined": 1,
       "no-untyped-def": 3,
       "type-arg": 4
-    },
-    "apps/asset_analysis/interface/pool_views.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 3
     },
     "apps/asset_analysis/interface/serializers.py": {
       "assignment": 2,

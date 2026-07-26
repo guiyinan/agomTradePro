@@ -1,6 +1,10 @@
 import pytest
 
-from apps.asset_analysis.infrastructure.models import AssetPoolEntry, WeightConfigModel
+from apps.asset_analysis.infrastructure.models import (
+    AssetPoolConfig,
+    AssetPoolEntry,
+    WeightConfigModel,
+)
 
 
 @pytest.mark.django_db
@@ -163,3 +167,96 @@ def test_asset_pool_screen_rejects_unsupported_asset_type(authenticated_client, 
 
     assert response.status_code == 400
     assert "暂不支持 bond 资产类型" in response.json()["error"]
+
+
+@pytest.mark.django_db
+def test_asset_pool_screen_uses_database_thresholds(authenticated_client, monkeypatch):
+    from apps.asset_analysis.application.interface_services import AssetPoolContextPayload
+    from apps.asset_analysis.domain.entities import AssetScore, AssetType
+    from apps.asset_analysis.domain.value_objects import ScoreContext
+
+    score_context = ScoreContext(
+        current_regime="Recovery",
+        policy_level="P1",
+        sentiment_index=0.0,
+        active_signals=[],
+    )
+    monkeypatch.setattr(
+        "apps.asset_analysis.interface.pool_views.build_asset_pool_context",
+        lambda regime_override=None: AssetPoolContextPayload(
+            score_context=score_context,
+            current_regime="Recovery",
+            policy_level="P1",
+            sentiment_index=0.0,
+            active_signals=[],
+        ),
+    )
+    monkeypatch.setattr(
+        "apps.asset_analysis.interface.pool_views.screen_equity_assets",
+        lambda context, filters: [
+            AssetScore(
+                asset_type=AssetType.EQUITY,
+                asset_code="600000.SH",
+                asset_name="浦发银行",
+                total_score=80.0,
+                regime_score=80.0,
+                policy_score=80.0,
+                sentiment_score=70.0,
+                signal_score=70.0,
+            )
+        ],
+    )
+
+    response = authenticated_client.post(
+        "/api/asset-analysis/screen/equity/",
+        data={},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["pools_summary"]["investable_count"] == 1
+
+
+@pytest.mark.django_db
+def test_asset_pool_screen_rejects_ambiguous_active_config(
+    authenticated_client,
+    monkeypatch,
+):
+    from apps.asset_analysis.application.interface_services import AssetPoolContextPayload
+    from apps.asset_analysis.domain.value_objects import ScoreContext
+
+    score_context = ScoreContext(
+        current_regime="Recovery",
+        policy_level="P1",
+        sentiment_index=0.0,
+        active_signals=[],
+    )
+    monkeypatch.setattr(
+        "apps.asset_analysis.interface.pool_views.build_asset_pool_context",
+        lambda regime_override=None: AssetPoolContextPayload(
+            score_context=score_context,
+            current_regime="Recovery",
+            policy_level="P1",
+            sentiment_index=0.0,
+            active_signals=[],
+        ),
+    )
+    monkeypatch.setattr(
+        "apps.asset_analysis.interface.pool_views.screen_equity_assets",
+        lambda context, filters: [],
+    )
+    AssetPoolConfig.objects.create(
+        name="duplicate-active-equity",
+        pool_type="investable",
+        asset_category="equity",
+        is_active=True,
+    )
+
+    response = authenticated_client.post(
+        "/api/asset-analysis/screen/equity/",
+        data={},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error_code"] == "ASSET_POOL_CONFIG_INVALID"

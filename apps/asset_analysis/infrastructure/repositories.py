@@ -13,10 +13,11 @@ from apps.asset_analysis.domain.interfaces import (
     AssetRepositoryProtocol,
     WeightConfigRepositoryProtocol,
 )
-from apps.asset_analysis.domain.pool import PoolType
+from apps.asset_analysis.domain.pool import PoolCategory, PoolConfig, PoolType
 from apps.asset_analysis.domain.value_objects import WeightConfig
 from apps.asset_analysis.infrastructure.models import (
     AssetAnalysisAlert,
+    AssetPoolConfig,
     AssetPoolEntry,
     AssetScoreCache,
     AssetScoringLog,
@@ -296,6 +297,34 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
 
 class DjangoAssetPoolQueryRepository:
     """资产池只读查询仓储。"""
+
+    def list_active_pool_configs(self) -> list[PoolConfig]:
+        """Return active database-owned classification thresholds."""
+
+        rows = AssetPoolConfig._default_manager.filter(
+            is_active=True,
+            pool_type=PoolType.INVESTABLE.value,
+        ).order_by("asset_category", "-updated_at", "-id")
+        return [
+            PoolConfig(
+                pool_type=PoolType(row.pool_type),
+                asset_category=PoolCategory(row.asset_category),
+                min_total_score=row.min_total_score,
+                min_regime_score=row.min_regime_score,
+                min_policy_score=row.min_policy_score,
+                max_total_score=row.max_total_score,
+                max_regime_score=row.max_regime_score,
+                max_policy_score=row.max_policy_score,
+                watch_min_score=row.watch_min_score,
+                watch_max_score=row.watch_max_score,
+                max_volatility=row.max_volatility,
+                max_drawdown=row.max_drawdown,
+                min_market_cap=row.min_market_cap,
+                max_pe_ratio=row.max_pe_ratio,
+                max_pb_ratio=row.max_pb_ratio,
+            )
+            for row in rows
+        ]
 
     def list_investable_assets(
         self,
