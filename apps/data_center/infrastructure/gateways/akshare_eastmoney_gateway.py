@@ -10,11 +10,12 @@ import logging
 import os
 import re
 import time
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 import requests
 
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
@@ -126,10 +127,12 @@ def _to_secid(stock_code: str) -> str:
 
 
 def _safe_decimal(value: object, scale: int = 1) -> Decimal | None:
-    if value in (None, ""):
+    if value in (None, "") or scale == 0:
         return None
     try:
         decimal_value = Decimal(str(value))
+        if not decimal_value.is_finite():
+            return None
         if scale != 1:
             decimal_value /= Decimal(str(scale))
         return decimal_value
@@ -138,12 +141,10 @@ def _safe_decimal(value: object, scale: int = 1) -> Decimal | None:
 
 
 def _safe_int(value: object) -> int | None:
-    if value in (None, ""):
+    parsed_value = safe_float(value)
+    if parsed_value is None:
         return None
-    try:
-        return int(float(value))
-    except (ValueError, TypeError):
-        return None
+    return int(parsed_value)
 
 
 class AKShareEastMoneyGateway(MarketGatewayProtocol):
@@ -431,8 +432,13 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
             return self._fallback_historical_prices(asset_code, start_date, end_date)
 
     def _fetch_with_retries(
-        self, fetcher, *, asset_code: str, request_kind: str, attempts: int = 3
-    ):
+        self,
+        fetcher: Callable[[], pd.DataFrame],
+        *,
+        asset_code: str,
+        request_kind: str,
+        attempts: int = 3,
+    ) -> pd.DataFrame | None:
         last_error: Exception | None = None
         for attempt in range(1, attempts + 1):
             try:
@@ -491,8 +497,6 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
         source: str,
     ) -> list[HistoricalPriceBar]:
         """解析东方财富中文列名 DataFrame（fund_etf_hist_em / stock_zh_a_hist）"""
-        import pandas as pd
-
         date_col = "日期"
         if date_col not in df.columns:
             return []
@@ -529,8 +533,6 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
         source: str,
     ) -> list[HistoricalPriceBar]:
         """解析英文列名 DataFrame（stock_zh_index_daily）"""
-        import pandas as pd
-
         date_col = "date"
         if date_col not in df.columns:
             return []
@@ -678,7 +680,7 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
 
     @staticmethod
     def _build_quote_snapshot_from_ulist_row(
-        row: dict,
+        row: Mapping[str, object],
         *,
         requested_code: str | None,
     ) -> QuoteSnapshot | None:
@@ -732,7 +734,7 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
         return None
 
 
-def _to_tushare_code_from_eastmoney_row(row: dict) -> str:
+def _to_tushare_code_from_eastmoney_row(row: Mapping[str, object]) -> str:
     code = str(row.get("f12") or "").strip()
     market = str(row.get("f13") or "").strip()
     if market == "1":
@@ -743,7 +745,7 @@ def _to_tushare_code_from_eastmoney_row(row: dict) -> str:
 
 
 @contextmanager
-def _eastmoney_direct_network():
+def _eastmoney_direct_network() -> Iterator[None]:
     """Temporarily bypass local proxy settings for Eastmoney requests."""
     proxy_keys = (
         "HTTP_PROXY",

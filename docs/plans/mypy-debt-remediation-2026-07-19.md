@@ -4404,3 +4404,17 @@
 - 市场网关实体与 Provider 回归 `44 passed`。
 - `market_gateway_entities.py` 增量 mypy 清零；全仓基线从 `1221 errors / 404 files` 收紧为 `1214 errors / 403 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百九十三批
+
+- 按“东方财富主网关 × 外部数值可信边界 × 历史行情重试契约”收口 AKShare/EastMoney 市场数据 Gateway。
+- 历史 K 线 fetcher 使用精确 `Callable` 和 DataFrame 可空返回契约；直接网络上下文管理器补齐 `Iterator[None]`，批量行情行统一收窄为只读字符串键映射。
+- Pandas 无类型依赖只在模块导入边界使用精确抑制，并删除函数内重复导入；动态第三方类型不再造成生产函数签名缺失。
+- 整数解析复用统一 `safe_float`，外部源的空值、格式错误、`NaN/Inf` 不再触发整数转换异常；Decimal 解析同步拒绝非有限值和零缩放。
+- 保持行情请求、东方财富批量兜底、腾讯降级和历史 K 线解析流程不变，新增非有限数与零缩放回归。
+
+## 第二百九十三批验证结果
+
+- Data Center 市场网关实体、Provider 与解析器回归 `69 passed`。
+- `akshare_eastmoney_gateway.py` 增量 mypy 清零；全仓基线从 `1214 errors / 403 files` 收紧为 `1207 errors / 402 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1214,
-    "files_with_errors": 403
+    "errors": 1207,
+    "files_with_errors": 402
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -498,12 +498,6 @@
       "attr-defined": 1,
       "call-overload": 4,
       "no-untyped-def": 1
-    },
-    "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py": {
-      "arg-type": 1,
-      "import-untyped": 1,
-      "no-untyped-def": 3,
-      "type-arg": 2
     },
     "apps/data_center/infrastructure/gateways/akshare_general_gateway.py": {
       "arg-type": 1

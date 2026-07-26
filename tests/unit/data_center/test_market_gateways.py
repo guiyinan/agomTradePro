@@ -279,6 +279,24 @@ class TestCodeConversion:
 
 
 class TestAKShareEastMoneyGateway:
+    def test_numeric_helpers_reject_non_finite_values(self):
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            _safe_decimal,
+            _safe_int,
+        )
+
+        assert _safe_int(float("nan")) is None
+        assert _safe_int(float("inf")) is None
+        assert _safe_decimal("NaN") is None
+        assert _safe_decimal("Infinity") is None
+
+    def test_safe_decimal_rejects_zero_scale(self):
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            _safe_decimal,
+        )
+
+        assert _safe_decimal("1", scale=0) is None
+
     def test_single_quote_uses_eastmoney_price_precision_for_etf(self):
         from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
             AKShareEastMoneyGateway,
