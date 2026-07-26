@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
 from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
 from apps.dashboard.application.queries import (
@@ -15,6 +16,27 @@ from apps.equity.infrastructure.models import StockInfoModel
 from apps.rotation.infrastructure.models import AssetClassModel
 from apps.task_monitor.application.repository_provider import get_task_record_repository
 from apps.task_monitor.domain.entities import TaskStatus
+
+
+def _make_alpha_pool_scope(
+    *,
+    pool_mode: str,
+    trade_date: date,
+    display_label: str,
+    code: str = "000001.SZ",
+    portfolio_id: int | None = 7,
+) -> AlphaPoolScope:
+    return AlphaPoolScope(
+        pool_type="stock",
+        market="CN",
+        pool_mode=pool_mode,
+        instrument_codes=(code,),
+        selection_reason="dashboard alpha query test",
+        trade_date=trade_date,
+        display_label=display_label,
+        portfolio_id=portfolio_id,
+        portfolio_name="默认组合" if portfolio_id is not None else None,
+    )
 
 
 def test_alpha_visualization_query_passes_user_to_alpha_service(monkeypatch):
@@ -242,19 +264,21 @@ def test_alpha_homepage_query_does_not_use_hardcoded_market_fallback_when_scope_
         ):
             calls.append((provider_filter, universe_id, pool_scope is not None))
             if provider_filter == "cache" and pool_scope is not None:
-                return SimpleNamespace(
+                return AlphaResult(
                     success=False,
                     scores=[],
                     source="cache",
+                    timestamp="2026-04-18T00:00:00+00:00",
                     status="unavailable",
                     metadata={},
                     error_message="scope cache missing",
                 )
             if provider_filter == "simple" and pool_scope is not None:
-                return SimpleNamespace(
+                return AlphaResult(
                     success=False,
                     scores=[],
                     source="simple",
+                    timestamp="2026-04-18T00:00:00+00:00",
                     status="unavailable",
                     metadata={},
                     error_message="fresh quote data missing",
@@ -269,11 +293,10 @@ def test_alpha_homepage_query_does_not_use_hardcoded_market_fallback_when_scope_
         "poll_after_ms": 5000,
         "message": "账户池暂无可信 Alpha cache，已自动触发后台 Qlib 推理。",
     }
-    scope = SimpleNamespace(
-        universe_id="portfolio-7-deadbeef",
-        market="CN",
+    scope = _make_alpha_pool_scope(
+        pool_mode="market",
+        trade_date=date(2026, 4, 18),
         display_label="默认组合 · CN A-share 可交易池",
-        scope_hash="deadbeef",
     )
 
     result = query._fetch_alpha_result(
@@ -285,8 +308,8 @@ def test_alpha_homepage_query_does_not_use_hardcoded_market_fallback_when_scope_
 
     assert result.success is False
     assert calls == [
-        ("cache", "portfolio-7-deadbeef", True),
-        ("simple", "portfolio-7-deadbeef", True),
+        ("cache", scope.universe_id, True),
+        ("simple", scope.universe_id, True),
     ]
     assert result.status == "unavailable"
     assert result.metadata["hardcoded_fallback_used"] is False
@@ -568,7 +591,7 @@ def test_alpha_homepage_auto_trigger_skips_when_no_celery_worker(monkeypatch):
 
     assert status["refresh_triggered"] is False
     assert status["refresh_status"] == "skipped"
-    assert status["auto_refresh_error"] == "no_active_workers"
+    assert status["auto_refresh_error"] == "Alpha refresh worker is unavailable."
     assert "不自动触发后台推理" in status["message"]
 
 
@@ -617,7 +640,8 @@ def test_alpha_homepage_auto_trigger_releases_lock_when_queue_fails(monkeypatch)
 
     assert status["refresh_triggered"] is False
     assert status["refresh_status"] == "failed"
-    assert status["auto_refresh_error"] == "broker down"
+    assert status["auto_refresh_error"] == "Alpha refresh request failed."
+    assert "broker down" not in str(status)
     assert captured["deleted_key"] == captured["add_key"]
 
 
@@ -669,12 +693,10 @@ def test_alpha_homepage_query_triggers_scoped_refresh_when_using_broader_cache()
 
 def test_alpha_homepage_meta_marks_broader_cache_as_not_ready():
     query = object.__new__(AlphaHomepageQuery)
-    scope = SimpleNamespace(
-        scope_hash="deadbeef",
-        display_label="默认组合 · CN A-share 可交易池",
+    scope = _make_alpha_pool_scope(
         pool_mode="market",
-        pool_size=3200,
-        to_dict=lambda: {"scope_hash": "deadbeef"},
+        trade_date=date(2026, 4, 21),
+        display_label="默认组合 · CN A-share 可交易池",
     )
     result = SimpleNamespace(
         success=True,
@@ -702,12 +724,10 @@ def test_alpha_homepage_meta_marks_broader_cache_as_not_ready():
 
 def test_alpha_homepage_meta_allows_fresh_data_driven_simple_result():
     query = object.__new__(AlphaHomepageQuery)
-    scope = SimpleNamespace(
-        scope_hash="deadbeef",
-        display_label="默认组合 · 严格估值覆盖池",
+    scope = _make_alpha_pool_scope(
         pool_mode="strict_valuation",
-        pool_size=42,
-        to_dict=lambda: {"scope_hash": "deadbeef"},
+        trade_date=date(2026, 4, 21),
+        display_label="默认组合 · 严格估值覆盖池",
     )
     result = SimpleNamespace(
         success=True,
@@ -735,12 +755,11 @@ def test_alpha_homepage_meta_allows_fresh_data_driven_simple_result():
 
 def test_alpha_homepage_meta_blocks_broad_price_pool_as_research_only():
     query = object.__new__(AlphaHomepageQuery)
-    scope = SimpleNamespace(
-        scope_hash="price-scope",
-        display_label="默认组合 · 价格覆盖池",
+    scope = _make_alpha_pool_scope(
         pool_mode="price_covered",
-        pool_size=42,
-        to_dict=lambda: {"scope_hash": "price-scope"},
+        trade_date=date(2026, 5, 21),
+        display_label="默认组合 · 价格覆盖池",
+        code="600346.SH",
     )
     result = SimpleNamespace(
         success=True,
@@ -800,12 +819,10 @@ def test_alpha_homepage_meta_marks_general_scope_as_research_only():
 
 def test_alpha_homepage_meta_marks_trade_date_adjusted_cache_as_traceable_not_ready():
     query = object.__new__(AlphaHomepageQuery)
-    scope = SimpleNamespace(
-        scope_hash="deadbeef",
-        display_label="默认组合 · CN A-share 可交易池",
+    scope = _make_alpha_pool_scope(
         pool_mode="market",
-        pool_size=3200,
-        to_dict=lambda: {"scope_hash": "deadbeef"},
+        trade_date=date(2026, 4, 21),
+        display_label="默认组合 · CN A-share 可交易池",
     )
     result = SimpleNamespace(
         success=True,
@@ -835,18 +852,16 @@ def test_alpha_homepage_meta_marks_trade_date_adjusted_cache_as_traceable_not_re
     assert meta["result_age_days"] == 1
     assert meta["is_stale"] is True
     assert meta["trade_date_adjusted"] is True
-    assert meta["verified_scope_hash"] == "deadbeef"
+    assert meta["verified_scope_hash"] == scope.scope_hash
     assert meta["verified_asof_date"] == "2026-04-20"
 
 
 def test_alpha_homepage_meta_allows_weekend_request_latest_completed_session():
     query = object.__new__(AlphaHomepageQuery)
-    scope = SimpleNamespace(
-        scope_hash="weekend-scope",
-        display_label="默认组合 · 严格估值覆盖池",
+    scope = _make_alpha_pool_scope(
         pool_mode="strict_valuation",
-        pool_size=42,
-        to_dict=lambda: {"scope_hash": "weekend-scope"},
+        trade_date=date(2026, 4, 25),
+        display_label="默认组合 · 严格估值覆盖池",
     )
     result = SimpleNamespace(
         success=True,

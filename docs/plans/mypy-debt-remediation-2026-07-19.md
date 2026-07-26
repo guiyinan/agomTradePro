@@ -4003,3 +4003,20 @@
 - 通用/Alpha 回测金融不变量与 Backtest Domain 回归 `40 passed`，完整回测指标、Alpha 集成与 Backtest API 回归 `27 passed`。
 - `stock_selection_backtest.py` 增量 mypy 清零，Alpha 子类保持清零；全仓基线从 `1452 errors / 433 files` 收紧为 `1448 errors / 432 files`，净减少 `4 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百六十九批
+
+- 按“Dashboard Alpha 用户决策可信度 × 动态元数据边界收窄 × 后台异常最小披露”收口 Alpha 首页运行时。
+- Alpha service、候选池与结果边界改为精确 Protocol 和 Domain 实体契约；Provider 全部不可用时返回明确的 unavailable result，不再依赖隐式可空分支。
+- 元数据、可靠性提示和自动刷新状态统一先验证为 JSON object；畸形动态值不再触发首页渲染异常。
+- 日期解析先识别 `datetime` 再识别 `date`，统一返回普通日期；避免 Python 的继承关系让带时间值进入日期减法。
+- `staleness_days` 只接受非布尔的非负整数；布尔值、负数、字符串和非有限动态值不再被解释为有效陈旧天数。
+- 自动刷新轮询周期统一收敛到正整数；Worker 不可用、任务入队失败和 Celery 健康检查异常发布稳定状态，不再把 Broker、Provider 或凭据相关异常正文进入页面 metadata。
+- 生产日志只记录异常类型；缓存锁释放和 Celery 健康检查不再附带完整异常堆栈或敏感底层正文。
+- Dashboard Alpha 测试候选池与不可用结果改为真实 `AlphaPoolScope`、`AlphaResult`，避免不完整 `SimpleNamespace` 掩盖正式实体契约。
+
+## 第二百六十九批验证结果
+
+- Alpha 运行时新增边界回归 `7 passed`；Alpha 查询、视图、首页结构与 API 边界完整回归 `101 passed`。
+- `alpha_homepage_runtime.py` 与调用入口增量 mypy 清零；全仓基线从 `1448 errors / 432 files` 收紧为 `1436 errors / 431 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

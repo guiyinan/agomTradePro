@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
-from typing import Any
+from collections.abc import Mapping
+from datetime import date, datetime
+from typing import Any, Protocol
 
+from apps.alpha.application.pool_resolver import ResolvedAlphaPool
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
 from core.integration.runtime_imports import get_celery_health_checker, record_pending_task
 
@@ -15,11 +17,50 @@ ALPHA_SCOPE_GENERAL = "general"
 ALPHA_SCOPE_PORTFOLIO = "portfolio"
 
 
+class _AlphaServiceProtocol(Protocol):
+    """Alpha service surface consumed by the homepage runtime."""
+
+    def get_stock_scores(
+        self,
+        *,
+        universe_id: str,
+        intended_trade_date: date,
+        top_n: int,
+        user: object,
+        provider_filter: str,
+        pool_scope: AlphaPoolScope | None = None,
+    ) -> AlphaResult: ...
+
+
+def _json_object(value: object) -> dict[str, Any]:
+    """Normalize a dynamic metadata value to a string-key mapping."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _positive_int(value: object, *, default: int) -> int:
+    """Return a positive non-boolean integer or a stable default."""
+
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        return default
+    return value
+
+
 class AlphaRuntimeMixin:
     """Private behavior shard for AlphaHomepageQuery."""
 
-    def _fetch_general_alpha_result(self, *, user, trade_date: date, top_n: int):
-        result = None
+    alpha_service: _AlphaServiceProtocol
+
+    def _fetch_general_alpha_result(
+        self,
+        *,
+        user: object,
+        trade_date: date,
+        top_n: int,
+    ) -> AlphaResult:
+        result: AlphaResult | None = None
         for provider_name in ("qlib", "cache", "simple", "etf"):
             candidate = self.alpha_service.get_stock_scores(
                 universe_id="csi300",
@@ -41,8 +82,13 @@ class AlphaRuntimeMixin:
             metadata={},
         )
 
-    def _mark_general_research_only(self, *, result, trade_date: date) -> None:
-        metadata = dict(getattr(result, "metadata", {}) or {})
+    def _mark_general_research_only(
+        self,
+        *,
+        result: AlphaResult,
+        trade_date: date,
+    ) -> None:
+        metadata = _json_object(result.metadata)
         metadata.update(
             {
                 "alpha_scope": ALPHA_SCOPE_GENERAL,
@@ -75,9 +121,16 @@ class AlphaRuntimeMixin:
             portfolio_name="通用研究池",
         )
 
-    def _fetch_alpha_result(self, *, user, scope, trade_date: date, top_n: int):
-        result = None
-        broader_cache_candidate = None
+    def _fetch_alpha_result(
+        self,
+        *,
+        user: object,
+        scope: AlphaPoolScope,
+        trade_date: date,
+        top_n: int,
+    ) -> AlphaResult:
+        result: AlphaResult | None = None
+        broader_cache_candidate: AlphaResult | None = None
         for provider_name in ("cache", "simple"):
             candidate = self.alpha_service.get_stock_scores(
                 universe_id=scope.universe_id,
@@ -89,7 +142,7 @@ class AlphaRuntimeMixin:
             )
             result = candidate
             if candidate.success and candidate.scores:
-                metadata = dict(getattr(candidate, "metadata", {}) or {})
+                metadata = _json_object(candidate.metadata)
                 if metadata.get("derived_from_broader_cache"):
                     broader_cache_candidate = candidate
                     async_status = self._trigger_async_inference_if_needed(
@@ -103,7 +156,10 @@ class AlphaRuntimeMixin:
                             "refresh_triggered": bool(async_status.get("refresh_triggered", False)),
                             "refresh_status": async_status.get("refresh_status", ""),
                             "async_task_id": async_status.get("async_task_id", ""),
-                            "poll_after_ms": async_status.get("poll_after_ms", 5000),
+                            "poll_after_ms": _positive_int(
+                                async_status.get("poll_after_ms"),
+                                default=5000,
+                            ),
                             "auto_refresh_message": async_status.get("message", ""),
                             "auto_refresh_error": async_status.get("auto_refresh_error", ""),
                         }
@@ -125,28 +181,35 @@ class AlphaRuntimeMixin:
                 scope=scope,
                 async_status=async_status,
             )
-        return result
+        return result or AlphaResult(
+            success=False,
+            scores=[],
+            source="none",
+            timestamp=trade_date.isoformat(),
+            status="unavailable",
+            error_message="scoped_alpha_unavailable",
+            metadata={},
+        )
 
     def _trigger_async_inference_if_needed(
         self,
         *,
-        user,
-        scope,
+        user: object | None,
+        scope: AlphaPoolScope,
         trade_date: date,
         top_n: int,
     ) -> dict[str, Any]:
         """Queue scoped Qlib inference once per short window when verified cache is missing."""
-        if user is not None and not getattr(user, "is_authenticated", False):
+        if user is not None and not bool(getattr(user, "is_authenticated", False)):
             return {"refresh_status": "skipped", "message": "匿名用户不自动触发账户池推理。"}
 
         celery_health = self._get_async_refresh_celery_health()
         if not bool(celery_health.get("available", False)):
-            reason = str(celery_health.get("reason") or "unavailable")
             return {
                 "refresh_triggered": False,
                 "refresh_status": "skipped",
                 "poll_after_ms": 5000,
-                "auto_refresh_error": reason,
+                "auto_refresh_error": "Alpha refresh worker is unavailable.",
                 "message": "未检测到可用 Celery worker，首页不自动触发后台推理；请手动点击“立即推理刷新”。",
             }
 
@@ -157,7 +220,7 @@ class AlphaRuntimeMixin:
 
             lock_key = (
                 "dashboard:alpha:auto-refresh:"
-                f"{getattr(scope, 'scope_hash', '')}:{trade_date.isoformat()}:{top_n}"
+                f"{scope.scope_hash}:{trade_date.isoformat()}:{top_n}"
             )
             if not cache.add(lock_key, "queued", timeout=300):
                 return {
@@ -177,7 +240,7 @@ class AlphaRuntimeMixin:
                 scope_payload=scope.to_dict(),
             )
             record_pending_task(
-                task_id=task.id,
+                task_id=str(task.id),
                 task_name="apps.alpha.application.tasks.qlib_predict_scores",
                 args=(scope.universe_id, trade_date.isoformat(), top_n),
                 kwargs={"scope_payload": scope.to_dict()},
@@ -185,7 +248,7 @@ class AlphaRuntimeMixin:
             return {
                 "refresh_triggered": True,
                 "refresh_status": "queued",
-                "async_task_id": getattr(task, "id", ""),
+                "async_task_id": str(getattr(task, "id", "") or ""),
                 "poll_after_ms": 5000,
                 "message": "账户池暂无可信 Alpha cache，已自动触发后台 Qlib 推理。",
             }
@@ -196,13 +259,15 @@ class AlphaRuntimeMixin:
                 except Exception:
                     logger.debug(
                         "Failed to release homepage alpha auto-refresh lock after error.",
-                        exc_info=True,
                     )
-            logger.warning("Failed to auto trigger scoped Alpha inference: %s", exc, exc_info=True)
+            logger.warning(
+                "Failed to auto trigger scoped Alpha inference; exception_type=%s",
+                type(exc).__name__,
+            )
             return {
                 "refresh_triggered": False,
                 "refresh_status": "failed",
-                "auto_refresh_error": str(exc),
+                "auto_refresh_error": "Alpha refresh request failed.",
                 "message": "账户池 Alpha 推理自动触发失败，请手动重试。",
             }
 
@@ -219,25 +284,27 @@ class AlphaRuntimeMixin:
             return {"available": False, "active_workers": active_workers, "reason": "unhealthy"}
         except Exception as exc:
             logger.warning(
-                "Failed to inspect Celery health for homepage alpha auto refresh: %s", exc
+                "Failed to inspect Celery health for homepage alpha auto refresh; "
+                "exception_type=%s",
+                type(exc).__name__,
             )
             return {
                 "available": False,
                 "active_workers": [],
                 "reason": "health_check_failed",
-                "error": str(exc),
+                "error": "Celery health check failed.",
             }
 
     def _mark_no_verified_recommendation(
         self,
         *,
-        result,
-        scope,
+        result: AlphaResult,
+        scope: AlphaPoolScope,
         async_status: dict[str, Any] | None = None,
     ) -> None:
-        metadata = dict(getattr(result, "metadata", {}) or {})
-        async_status = dict(async_status or {})
-        scope_label = getattr(scope, "display_label", "") or "账户驱动 Alpha 池"
+        metadata = _json_object(result.metadata)
+        async_status = _json_object(async_status)
+        scope_label = scope.display_label or "账户驱动 Alpha 池"
         reason = (
             f"{scope_label} 暂无真实账户池 Alpha 推理或缓存结果；系统未使用硬编码股票池、"
             "默认 ETF 或静态名单生成推荐。请触发实时推理后再查看。"
@@ -253,12 +320,19 @@ class AlphaRuntimeMixin:
                 "refresh_triggered": bool(async_status.get("refresh_triggered", False)),
                 "refresh_status": async_status.get("refresh_status", ""),
                 "async_task_id": async_status.get("async_task_id", ""),
-                "poll_after_ms": async_status.get("poll_after_ms", 5000),
+                "poll_after_ms": _positive_int(
+                    async_status.get("poll_after_ms"),
+                    default=5000,
+                ),
                 "auto_refresh_message": async_status.get("message", ""),
-                "auto_refresh_error": async_status.get("auto_refresh_error", ""),
-                "scope_hash": getattr(scope, "scope_hash", ""),
+                "auto_refresh_error": (
+                    "Alpha refresh request failed."
+                    if async_status.get("auto_refresh_error")
+                    else ""
+                ),
+                "scope_hash": scope.scope_hash,
                 "scope_label": scope_label,
-                "scope_metadata": scope.to_dict() if hasattr(scope, "to_dict") else {},
+                "scope_metadata": scope.to_dict(),
                 "reliability_notice": {
                     "level": "warning",
                     "code": "no_verified_alpha_recommendation",
@@ -270,8 +344,13 @@ class AlphaRuntimeMixin:
         result.metadata = metadata
         result.status = "unavailable"
 
-    def _attach_scope_resolution_metadata(self, *, result, resolved_pool) -> None:
-        metadata = dict(getattr(result, "metadata", {}) or {})
+    def _attach_scope_resolution_metadata(
+        self,
+        *,
+        result: AlphaResult,
+        resolved_pool: ResolvedAlphaPool,
+    ) -> None:
+        metadata = _json_object(result.metadata)
         metadata.update(
             {
                 "requested_pool_mode": resolved_pool.requested_pool_mode,
@@ -296,6 +375,8 @@ class AlphaRuntimeMixin:
     def _parse_meta_date(value: Any) -> date | None:
         if value in (None, ""):
             return None
+        if isinstance(value, datetime):
+            return value.date()
         if isinstance(value, date):
             return value
         try:
@@ -304,11 +385,21 @@ class AlphaRuntimeMixin:
             return None
 
     def _build_readiness_fields(
-        self, *, alpha_result, scope, metadata: dict[str, Any]
+        self,
+        *,
+        alpha_result: AlphaResult,
+        scope: AlphaPoolScope,
+        metadata: dict[str, Any],
     ) -> dict[str, Any]:
         requested_trade_date = self._parse_meta_date(metadata.get("requested_trade_date"))
         effective_asof_date = self._parse_meta_date(metadata.get("effective_asof_date"))
-        result_age_days = getattr(alpha_result, "staleness_days", None)
+        result_age_days = alpha_result.staleness_days
+        if (
+            isinstance(result_age_days, bool)
+            or not isinstance(result_age_days, int)
+            or result_age_days < 0
+        ):
+            result_age_days = None
         if result_age_days is None and requested_trade_date and effective_asof_date:
             result_age_days = max((requested_trade_date - effective_asof_date).days, 0)
 
@@ -328,17 +419,15 @@ class AlphaRuntimeMixin:
         research_only = bool(metadata.get("research_only", False)) or (
             metadata.get("alpha_scope") == ALPHA_SCOPE_GENERAL
         )
-        broad_pool_research_only = not research_only and getattr(scope, "pool_mode", "") in {
+        broad_pool_research_only = not research_only and scope.pool_mode in {
             "market",
             "price_covered",
         }
         no_recommendation_reason = str(metadata.get("no_recommendation_reason") or "")
         fallback_mode = str(metadata.get("fallback_mode") or "")
-        scores = list(getattr(alpha_result, "scores", []) or [])
+        scores = list(alpha_result.scores)
         provider_source = (
-            str(metadata.get("provider_source") or getattr(alpha_result, "source", ""))
-            .strip()
-            .lower()
+            str(metadata.get("provider_source") or alpha_result.source).strip().lower()
         )
         data_driven_simple_result = (
             provider_source == "simple"
@@ -403,7 +492,7 @@ class AlphaRuntimeMixin:
         elif trade_date_adjusted and not adjusted_to_latest_completed_session:
             readiness_status = "blocked_trade_date_adjusted"
             blocked_reason = str(
-                ((metadata.get("reliability_notice") or {}).get("message"))
+                _json_object(metadata.get("reliability_notice")).get("message")
                 or "请求交易日的 Alpha 数据尚未落地，当前只拿到了最新可用交易日结果。"
             )
             recommendation_ready = False
@@ -428,7 +517,7 @@ class AlphaRuntimeMixin:
         elif is_degraded:
             readiness_status = "blocked_degraded"
             blocked_reason = str(
-                ((metadata.get("reliability_notice") or {}).get("message"))
+                _json_object(metadata.get("reliability_notice")).get("message")
                 or "当前 Alpha 结果处于 degraded 状态，不能作为决策推荐。"
             )
             recommendation_ready = False
@@ -440,7 +529,7 @@ class AlphaRuntimeMixin:
         verified_scope_hash = ""
         verified_asof_date = None
         if scores and scope_verification_status == "verified":
-            verified_scope_hash = getattr(scope, "scope_hash", "") or ""
+            verified_scope_hash = scope.scope_hash
             verified_asof_date = (
                 effective_asof_date.isoformat() if effective_asof_date is not None else None
             )
@@ -465,25 +554,30 @@ class AlphaRuntimeMixin:
             "verified_asof_date": verified_asof_date,
         }
 
-    def _build_meta(self, *, alpha_result, scope, resolved_pool=None) -> dict[str, Any]:
-        metadata = dict(getattr(alpha_result, "metadata", {}) or {})
-        scope_metadata = scope.to_dict() if hasattr(scope, "to_dict") else {}
+    def _build_meta(
+        self,
+        *,
+        alpha_result: AlphaResult,
+        scope: AlphaPoolScope,
+        resolved_pool: ResolvedAlphaPool | None = None,
+    ) -> dict[str, Any]:
+        metadata = _json_object(alpha_result.metadata)
+        scope_metadata = scope.to_dict()
         requested_pool_mode = metadata.get("requested_pool_mode")
         requested_pool_size = metadata.get("requested_pool_size")
         if resolved_pool is not None:
             requested_pool_mode = requested_pool_mode or resolved_pool.requested_pool_mode
             requested_pool_size = requested_pool_size or resolved_pool.requested_pool_size
         if requested_pool_mode is None:
-            requested_pool_mode = getattr(scope, "pool_mode", "")
+            requested_pool_mode = scope.pool_mode
         if requested_pool_size is None:
-            requested_pool_size = getattr(scope, "pool_size", 0)
+            requested_pool_size = scope.pool_size
         meta = {
             "alpha_scope": metadata.get("alpha_scope") or ALPHA_SCOPE_PORTFOLIO,
             "research_only": bool(metadata.get("research_only", False)),
-            "status": getattr(alpha_result, "status", "unavailable"),
-            "source": getattr(alpha_result, "source", "none"),
-            "provider_source": metadata.get("provider_source")
-            or getattr(alpha_result, "source", "none"),
+            "status": alpha_result.status,
+            "source": alpha_result.source,
+            "provider_source": metadata.get("provider_source") or alpha_result.source,
             "is_degraded": bool(metadata.get("is_degraded", False)),
             "uses_cached_data": bool(metadata.get("uses_cached_data", False)),
             "requested_trade_date": metadata.get("requested_trade_date"),
@@ -502,24 +596,24 @@ class AlphaRuntimeMixin:
             "hardcoded_fallback_used": bool(metadata.get("hardcoded_fallback_used", False)),
             "refresh_status": metadata.get("refresh_status") or "",
             "async_task_id": metadata.get("async_task_id") or "",
-            "poll_after_ms": metadata.get("poll_after_ms") or 5000,
+            "poll_after_ms": _positive_int(metadata.get("poll_after_ms"), default=5000),
             "auto_refresh_message": metadata.get("auto_refresh_message") or "",
-            "auto_refresh_error": metadata.get("auto_refresh_error") or "",
-            "warning_title": (metadata.get("reliability_notice") or {}).get("title"),
-            "warning_message": (metadata.get("reliability_notice") or {}).get("message"),
-            "warning_level": (metadata.get("reliability_notice") or {}).get("level"),
+            "auto_refresh_error": (
+                "Alpha refresh request failed." if metadata.get("auto_refresh_error") else ""
+            ),
+            "warning_title": _json_object(metadata.get("reliability_notice")).get("title"),
+            "warning_message": _json_object(metadata.get("reliability_notice")).get("message"),
+            "warning_level": _json_object(metadata.get("reliability_notice")).get("level"),
             "refresh_triggered": bool(metadata.get("refresh_triggered", False)),
             "requested_pool_mode": requested_pool_mode,
             "requested_pool_size": requested_pool_size,
-            "effective_pool_mode": metadata.get("effective_pool_mode")
-            or getattr(scope, "pool_mode", ""),
-            "effective_pool_size": metadata.get("effective_pool_size")
-            or getattr(scope, "pool_size", 0),
-            "scope_hash": getattr(scope, "scope_hash", ""),
-            "scope_label": getattr(scope, "display_label", ""),
+            "effective_pool_mode": metadata.get("effective_pool_mode") or scope.pool_mode,
+            "effective_pool_size": metadata.get("effective_pool_size") or scope.pool_size,
+            "scope_hash": scope.scope_hash,
+            "scope_label": scope.display_label,
             "scope_metadata": scope_metadata,
-            "universe_id": getattr(scope, "universe_id", ""),
-            "pool_mode": getattr(scope, "pool_mode", ""),
+            "universe_id": scope.universe_id,
+            "pool_mode": scope.pool_mode,
             "model_hash": metadata.get("model_artifact_hash", ""),
         }
         meta.update(
