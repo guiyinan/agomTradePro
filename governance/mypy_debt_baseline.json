@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1261,
-    "files_with_errors": 410
+    "errors": 1253,
+    "files_with_errors": 409
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1330,9 +1330,6 @@
     },
     "core/asgi.py": {
       "import-untyped": 3
-    },
-    "core/celery_metrics.py": {
-      "no-untyped-def": 8
     },
     "core/context_processors.py": {
       "dict-item": 1,

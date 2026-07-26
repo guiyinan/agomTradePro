@@ -4288,3 +4288,19 @@
 - Dashboard Alpha 历史持久化、结构及事务回归 `5 passed`；历史 API 用户隔离、名称回填与只读契约回归 `3 passed`。
 - `alpha_homepage_history.py` 增量 mypy 清零；全仓基线从 `1269 errors / 411 files` 收紧为 `1261 errors / 410 files`，净减少 `8 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百八十六批
+
+- 按“全局异步任务可观测性 × 指标标签有界性 × 运维异常最小披露”收口 Core Celery Prometheus signal handlers 与追踪装饰器。
+- 五个 Celery signal handler 补齐显式参数与返回类型；第三方无类型 signal decorator 只在精确边界使用 `misc` 抑制，不向业务函数扩散动态类型。
+- 任务 ID 为空时不再向全局开始时间表写入无效键；postrun 仅对有效 ID 执行 pop，避免无 ID 信号相互覆盖计时状态。
+- 动态任务名统一验证字符串、去除空白并限制为 200 字符；异常对象或空名称统一发布稳定 `unknown` 标签，重试原因仅发布类型名，避免原始错误正文造成敏感信息泄露和 Prometheus 标签基数无界增长。
+- 队列统计只接受 worker 到任务列表/元组的映射；异常 worker payload 不参与计数，仅有 reserved task 的在线 worker 也能被正确计入。
+- 队列指标读取失败只返回稳定 `queue_metrics_unavailable`，所有 handler 日志只记录异常类型，不再泄露 Redis URL、认证信息或 traceback。
+- Prometheus Gauge 更新前显式验证数值；错误字符串不再传入 `.set()`。追踪装饰器使用 `ParamSpec + TypeVar` 保持被装饰任务的参数和返回契约。
+
+## 第二百八十六批验证结果
+
+- Celery 指标边界与 Prometheus 集成回归 `21 passed`，覆盖空任务 ID、reserved-only worker、异常与重试原因脱敏、任务名上限及装饰器返回契约。
+- `core/celery_metrics.py` 增量 mypy 清零；全仓基线从 `1261 errors / 410 files` 收紧为 `1253 errors / 409 files`，净减少 `8 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

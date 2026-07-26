@@ -16,7 +16,9 @@ Celery Prometheus Metrics Signal Handlers
 
 import logging
 import time
-from typing import Any
+from collections.abc import Callable, Mapping
+from functools import wraps
+from typing import ParamSpec, TypeVar, cast
 
 from celery.exceptions import Retry, SoftTimeLimitExceeded, TimeLimitExceeded
 from celery.signals import (
@@ -32,9 +34,49 @@ logger = logging.getLogger(__name__)
 # 存储任务开始时间的字典
 _task_start_times: dict[str, float] = {}
 
+P = ParamSpec("P")
+R = TypeVar("R")
 
-@task_prerun.connect
-def task_prerun_handler(sender=None, task_id=None, task=None, **kwargs):
+
+def _stable_task_name(value: object, *, attribute: str) -> str:
+    """Return a bounded task label without trusting a dynamic Celery object."""
+
+    raw_name = getattr(value, attribute, None)
+    if not isinstance(raw_name, str):
+        return "unknown"
+    normalized = raw_name.strip()
+    return normalized[:200] if normalized else "unknown"
+
+
+def _count_worker_tasks(payload: object) -> tuple[int, int]:
+    """Count tasks and workers from a Celery inspect mapping."""
+
+    if not isinstance(payload, Mapping):
+        return 0, 0
+    task_count = 0
+    worker_count = 0
+    for worker_tasks in payload.values():
+        if not isinstance(worker_tasks, (list, tuple)):
+            continue
+        worker_count += 1
+        task_count += len(worker_tasks)
+    return task_count, worker_count
+
+
+def _metric_count(metrics: Mapping[str, int | str], key: str) -> float:
+    """Return one validated numeric queue metric for Prometheus."""
+
+    value = metrics.get(key, 0)
+    return float(value) if isinstance(value, int) and not isinstance(value, bool) else 0.0
+
+
+@task_prerun.connect  # type: ignore[misc]  # Celery signal decorator is untyped.
+def task_prerun_handler(
+    sender: object | None = None,
+    task_id: str | None = None,
+    task: object | None = None,
+    **kwargs: object,
+) -> None:
     """
     任务开始前记录开始时间
 
@@ -45,13 +87,23 @@ def task_prerun_handler(sender=None, task_id=None, task=None, **kwargs):
         **kwargs: 其他参数
     """
     try:
-        _task_start_times[task_id] = time.perf_counter()
-    except Exception as e:
-        logger.warning(f"Failed to record task start time: {e}")
+        if task_id:
+            _task_start_times[task_id] = time.perf_counter()
+    except Exception as exc:
+        logger.warning(
+            "Failed to record task start time (error_type=%s)",
+            type(exc).__name__,
+        )
 
 
-@task_postrun.connect
-def task_postrun_handler(sender=None, task_id=None, task=None, retval=None, **kwargs):
+@task_postrun.connect  # type: ignore[misc]  # Celery signal decorator is untyped.
+def task_postrun_handler(
+    sender: object | None = None,
+    task_id: str | None = None,
+    task: object | None = None,
+    retval: object = None,
+    **kwargs: object,
+) -> None:
     """
     任务完成后记录指标
 
@@ -71,10 +123,10 @@ def task_postrun_handler(sender=None, task_id=None, task=None, retval=None, **kw
         from core.metrics import celery_task_duration_seconds, celery_task_total
 
         # 获取任务名称
-        task_name = task.name if task else 'unknown'
+        task_name = _stable_task_name(task, attribute="name")
 
         # 计算执行时间
-        start_time = _task_start_times.pop(task_id, None)
+        start_time = _task_start_times.pop(task_id, None) if task_id else None
         duration = None
         if start_time is not None:
             duration = time.perf_counter() - start_time
@@ -82,27 +134,31 @@ def task_postrun_handler(sender=None, task_id=None, task=None, retval=None, **kw
         # 确定任务状态
         # retval 可能是 Exception 实例
         if isinstance(retval, Exception):
-            status = 'failure'
+            status = "failure"
         else:
-            status = 'success'
+            status = "success"
 
         # 记录指标
-        celery_task_total.labels(
-            task_name=task_name,
-            status=status
-        ).inc()
+        celery_task_total.labels(task_name=task_name, status=status).inc()
 
         if duration is not None:
-            celery_task_duration_seconds.labels(
-                task_name=task_name
-            ).observe(duration)
+            celery_task_duration_seconds.labels(task_name=task_name).observe(duration)
 
-    except Exception as e:
-        logger.warning(f"Failed to record task postrun metrics: {e}")
+    except Exception as exc:
+        logger.warning(
+            "Failed to record task postrun metrics (error_type=%s)",
+            type(exc).__name__,
+        )
 
 
-@task_retry.connect
-def task_retry_handler(sender=None, request=None, reason=None, einfo=None, **kwargs):
+@task_retry.connect  # type: ignore[misc]  # Celery signal decorator is untyped.
+def task_retry_handler(
+    sender: object | None = None,
+    request: object | None = None,
+    reason: object = None,
+    einfo: object | None = None,
+    **kwargs: object,
+) -> None:
     """
     任务重试时记录指标
 
@@ -121,34 +177,41 @@ def task_retry_handler(sender=None, request=None, reason=None, einfo=None, **kwa
         from core.metrics import celery_task_retry_total
 
         # 获取任务名称
-        task_name = request.task if request else 'unknown'
+        task_name = _stable_task_name(request, attribute="task")
 
         # 确定重试原因
-        retry_reason = 'unknown'
+        retry_reason = "unknown"
         if reason:
-            if isinstance(reason, Exception):
-                retry_reason = reason.__class__.__name__
-            else:
-                retry_reason = str(reason)
-        elif einfo and einfo.exception:
-            retry_reason = einfo.exception.__class__.__name__
+            retry_reason = type(reason).__name__
+        else:
+            exception = getattr(einfo, "exception", None)
+            if isinstance(exception, BaseException):
+                retry_reason = type(exception).__name__
 
         # 记录重试指标
-        celery_task_retry_total.labels(
-            task_name=task_name,
-            reason=retry_reason
-        ).inc()
+        celery_task_retry_total.labels(task_name=task_name, reason=retry_reason).inc()
 
         logger.debug(
-            f"Task {task_name} (id={request.id}) retrying: {retry_reason}"
+            "Task %s (id=%s) retrying: %s",
+            task_name,
+            getattr(request, "id", "unknown"),
+            retry_reason,
         )
 
-    except Exception as e:
-        logger.warning(f"Failed to record task retry metrics: {e}")
+    except Exception as exc:
+        logger.warning(
+            "Failed to record task retry metrics (error_type=%s)",
+            type(exc).__name__,
+        )
 
 
-@task_failure.connect
-def task_failure_handler(sender=None, task_id=None, exception=None, **kwargs):
+@task_failure.connect  # type: ignore[misc]  # Celery signal decorator is untyped.
+def task_failure_handler(
+    sender: object | None = None,
+    task_id: str | None = None,
+    exception: BaseException | None = None,
+    **kwargs: object,
+) -> None:
     """
     任务失败时记录指标
 
@@ -164,25 +227,33 @@ def task_failure_handler(sender=None, task_id=None, exception=None, **kwargs):
         from core.metrics import celery_task_total
 
         # 获取任务名称
-        task_name = sender.name if sender else 'unknown'
+        task_name = _stable_task_name(sender, attribute="name")
 
         # 记录失败指标
-        celery_task_total.labels(
-            task_name=task_name,
-            status='failure'
-        ).inc()
+        celery_task_total.labels(task_name=task_name, status="failure").inc()
 
         logger.debug(
-            f"Task {task_name} (id={task_id}) failed: "
-            f"{exception.__class__.__name__ if exception else 'unknown'}"
+            "Task %s (id=%s) failed: %s",
+            task_name,
+            task_id,
+            type(exception).__name__ if exception else "unknown",
         )
 
-    except Exception as e:
-        logger.warning(f"Failed to record task failure metrics: {e}")
+    except Exception as exc:
+        logger.warning(
+            "Failed to record task failure metrics (error_type=%s)",
+            type(exc).__name__,
+        )
 
 
-@task_revoked.connect
-def task_revoked_handler(sender=None, request=None, terminated=None, signum=None, **kwargs):
+@task_revoked.connect  # type: ignore[misc]  # Celery signal decorator is untyped.
+def task_revoked_handler(
+    sender: object | None = None,
+    request: object | None = None,
+    terminated: bool | None = None,
+    signum: int | None = None,
+    **kwargs: object,
+) -> None:
     """
     任务被撤销时记录指标
 
@@ -199,27 +270,32 @@ def task_revoked_handler(sender=None, request=None, terminated=None, signum=None
         from core.metrics import celery_task_total
 
         # 获取任务名称
-        task_name = request.task if request else 'unknown'
+        task_name = _stable_task_name(request, attribute="task")
 
         # 记录撤销指标
-        status = 'terminated' if terminated else 'revoked'
-        celery_task_total.labels(
-            task_name=task_name,
-            status=status
-        ).inc()
+        status = "terminated" if terminated else "revoked"
+        celery_task_total.labels(task_name=task_name, status=status).inc()
 
         logger.debug(
-            f"Task {task_name} (id={request.id}) {status} "
-            f"(terminated={terminated}, signum={signum})"
+            "Task %s (id=%s) %s (terminated=%s, signum=%s)",
+            task_name,
+            getattr(request, "id", "unknown"),
+            status,
+            terminated,
+            signum,
         )
 
-    except Exception as e:
-        logger.warning(f"Failed to record task revoked metrics: {e}")
+    except Exception as exc:
+        logger.warning(
+            "Failed to record task revoked metrics (error_type=%s)",
+            type(exc).__name__,
+        )
 
 
 # ==================== 辅助函数 ====================
 
-def get_task_queue_metrics() -> dict[str, Any]:
+
+def get_task_queue_metrics() -> dict[str, int | str]:
     """
     获取 Celery 队列指标
 
@@ -235,35 +311,29 @@ def get_task_queue_metrics() -> dict[str, Any]:
         reserved = inspect.reserved()
         inspect.stats()
 
-        # 统计活跃任务
-        active_count = 0
-        if active:
-            for worker_tasks in active.values():
-                active_count += len(worker_tasks)
-
-        # 统计预留任务
-        reserved_count = 0
-        if reserved:
-            for worker_tasks in reserved.values():
-                reserved_count += len(worker_tasks)
+        active_count, active_workers = _count_worker_tasks(active)
+        reserved_count, reserved_workers = _count_worker_tasks(reserved)
 
         return {
-            'active_tasks': active_count,
-            'reserved_tasks': reserved_count,
-            'workers': len(active) if active else 0,
+            "active_tasks": active_count,
+            "reserved_tasks": reserved_count,
+            "workers": max(active_workers, reserved_workers),
         }
 
-    except Exception as e:
-        logger.error(f"Failed to get queue metrics: {e}", exc_info=True)
+    except Exception as exc:
+        logger.error(
+            "Failed to get queue metrics (error_type=%s)",
+            type(exc).__name__,
+        )
         return {
-            'active_tasks': 0,
-            'reserved_tasks': 0,
-            'workers': 0,
-            'error': str(e),
+            "active_tasks": 0,
+            "reserved_tasks": 0,
+            "workers": 0,
+            "error": "queue_metrics_unavailable",
         }
 
 
-def update_queue_metrics():
+def update_queue_metrics() -> None:
     """
     更新队列指标到 Prometheus
 
@@ -275,26 +345,26 @@ def update_queue_metrics():
         metrics = get_task_queue_metrics()
 
         # 更新活跃工作线程数
-        celery_active_workers.labels(
-            worker_name='all'
-        ).set(metrics.get('workers', 0))
+        celery_active_workers.labels(worker_name="all").set(_metric_count(metrics, "workers"))
 
         # 更新队列长度
         # 注意：由于 Celery 默认队列，这里使用 'default' 队列名
-        total_pending = metrics.get('reserved_tasks', 0)
-        celery_queue_length.labels(
-            queue_name='default'
-        ).set(total_pending)
+        total_pending = _metric_count(metrics, "reserved_tasks")
+        celery_queue_length.labels(queue_name="default").set(total_pending)
 
         # 对于其他队列，可以通过 inspect.reserved() 按队列分组统计
 
-    except Exception as e:
-        logger.warning(f"Failed to update queue metrics: {e}")
+    except Exception as exc:
+        logger.warning(
+            "Failed to update queue metrics (error_type=%s)",
+            type(exc).__name__,
+        )
 
 
 # ==================== 装饰器 ====================
 
-def track_celery_task(func):
+
+def track_celery_task(func: Callable[P, R]) -> Callable[P, R]:
     """
     Celery 任务追踪装饰器（替代方案）
 
@@ -306,12 +376,10 @@ def track_celery_task(func):
         def my_task(arg1, arg2):
             ...
     """
-    from functools import wraps
-
     from core.metrics import celery_task_duration_seconds, celery_task_total
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         task_name = func.__name__
         start_time = time.perf_counter()
 
@@ -320,61 +388,41 @@ def track_celery_task(func):
 
             # 记录成功
             duration = time.perf_counter() - start_time
-            celery_task_total.labels(
-                task_name=task_name,
-                status='success'
-            ).inc()
+            celery_task_total.labels(task_name=task_name, status="success").inc()
 
             if duration is not None:
-                celery_task_duration_seconds.labels(
-                    task_name=task_name
-                ).observe(duration)
+                celery_task_duration_seconds.labels(task_name=task_name).observe(duration)
 
             return result
 
         except Retry:
             # 记录重试
             duration = time.perf_counter() - start_time
-            celery_task_total.labels(
-                task_name=task_name,
-                status='retry'
-            ).inc()
+            celery_task_total.labels(task_name=task_name, status="retry").inc()
 
             if duration is not None:
-                celery_task_duration_seconds.labels(
-                    task_name=task_name
-                ).observe(duration)
+                celery_task_duration_seconds.labels(task_name=task_name).observe(duration)
 
             raise
 
         except (SoftTimeLimitExceeded, TimeLimitExceeded):
             # 记录超时
             duration = time.perf_counter() - start_time
-            celery_task_total.labels(
-                task_name=task_name,
-                status='timeout'
-            ).inc()
+            celery_task_total.labels(task_name=task_name, status="timeout").inc()
 
             if duration is not None:
-                celery_task_duration_seconds.labels(
-                    task_name=task_name
-                ).observe(duration)
+                celery_task_duration_seconds.labels(task_name=task_name).observe(duration)
 
             raise
 
         except Exception:
             # 记录失败
             duration = time.perf_counter() - start_time
-            celery_task_total.labels(
-                task_name=task_name,
-                status='failure'
-            ).inc()
+            celery_task_total.labels(task_name=task_name, status="failure").inc()
 
             if duration is not None:
-                celery_task_duration_seconds.labels(
-                    task_name=task_name
-                ).observe(duration)
+                celery_task_duration_seconds.labels(task_name=task_name).observe(duration)
 
             raise
 
-    return wrapper
+    return cast(Callable[P, R], wrapper)
