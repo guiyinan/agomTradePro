@@ -4034,3 +4034,20 @@
 - 宏观局部视图新增契约回归 `10 passed`；真实宏观路由、静态读认证、Regime/Pulse 端到端和 Dashboard 兼容回归 `35 passed`。
 - `macro_views.py` 增量 mypy 清零；全仓基线从 `1436 errors / 431 files` 收紧为 `1427 errors / 430 files`，净减少 `9 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百七十一批
+
+- 按“ETF 降级信号 PIT 真实性 × Alpha 评分域一致 × 配置真源无硬编码”收口 Alpha ETF fallback adapter。
+- 本地持仓查询同时要求报告期不晚于计划交易日、且数据在该日期前已进入系统；今天导入的历史季报不再回填过去的 Alpha 推荐。
+- 历史计划交易日缺少本地 PIT 数据时禁止调用当前远端接口补数；远端持仓同样要求可解析报告期且不晚于计划交易日，避免未来季报进入历史决策。
+- ETF 持仓占比从百分数转换为 `[0, 1]` Alpha 分数，原始百分比只保留在 factor；`NaN`、`Inf`、非正和超过 100% 的持仓比例不再生成评分。
+- 删除代码内 `csi300/csi500/sse50/csi1000` 到具体 ETF 代码的默认映射；仅接受运行时正式配置或有真实持仓的基金自动发现，不再把资产代码沉积在 Provider 实现。
+- 健康检查不再无条件返回可用：存在真实本地持仓才为 available，仅有映射为 degraded，无数据且无映射为 unavailable。
+- 本地/远端读取与持久化异常日志只保留异常类型；底层 Provider、数据库或网络异常正文不再进入普通日志和失败结果。
+- ETF payload、成分股、元数据、候选池、用户参数和动态 DataFrame 边界补齐精确类型，非法 payload shape 与值失败关闭。
+
+## 第二百七十一批验证结果
+
+- ETF PIT、评分与配置真源新增回归及既有 adapter 契约 `12 passed`；Alpha Provider、ETF 集成和服务注册完整回归 `40 passed`。
+- `etf_adapter.py` 增量 mypy 清零；全仓基线从 `1427 errors / 430 files` 收紧为 `1415 errors / 429 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

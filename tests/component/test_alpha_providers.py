@@ -380,12 +380,12 @@ class TestETFFallbackProvider:
         assert provider.supports("csi300") is True
         assert provider.supports("unknown") is False
 
-    def test_health_check_always_available(self):
-        """测试健康检查总是可用"""
+    def test_health_check_requires_real_holdings_or_runtime_mapping(self):
+        """无真实持仓和运行时映射时不得宣称 Provider 可用。"""
         provider = ETFFallbackProvider()
         health = provider.health_check()
 
-        assert health == AlphaProviderStatus.AVAILABLE
+        assert health == AlphaProviderStatus.UNAVAILABLE
 
     @override_settings(ALPHA_UNIVERSE_ETF_MAP={"csi300": {"etf_code": "510300.SH"}})
     def test_get_stock_scores(self):
@@ -397,6 +397,8 @@ class TestETFFallbackProvider:
         assert result.success is True
         assert len(result.scores) == 2
         assert result.metadata["etf_code"] == "510300.SH"
+        assert result.scores[0].score == pytest.approx(0.045)
+        assert result.scores[0].factors["holding_ratio_pct"] == 4.5
 
     @override_settings(ALPHA_UNIVERSE_ETF_MAP={"csi300": {"etf_code": "510300.SH"}})
     def test_get_stock_scores_requires_real_holdings(self):

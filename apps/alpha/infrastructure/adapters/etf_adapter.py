@@ -13,18 +13,31 @@ ETF Fallback Alpha Provider
 
 import logging
 import re
+from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from typing import Any, TypedDict
 
 from django.conf import settings
+from django.utils import timezone
 
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+from shared.numeric import safe_float
 
-from ...domain.entities import AlphaResult
+from ...domain.entities import AlphaPoolScope, AlphaResult
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, create_stock_score, provider_safe
 
 logger = logging.getLogger(__name__)
+
+ETFConstituent = tuple[str, float]
+ETFConstituentsPayload = tuple[list[ETFConstituent], str | None, dict[str, str]]
+
+
+class _ETFInfo(TypedDict):
+    etf_code: str
+    etf_name: str
+    report_date: str | None
 
 
 class ETFFallbackProvider(BaseAlphaProvider):
@@ -49,7 +62,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         ...     print(f"Using ETF fallback, got {len(result.scores)} stocks")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化 ETF Provider"""
         super().__init__()
 
@@ -68,7 +81,11 @@ class ETFFallbackProvider(BaseAlphaProvider):
         """最大陈旧天数"""
         return 30
 
-    def supports(self, universe_id: str, pool_scope=None) -> bool:
+    def supports(
+        self,
+        universe_id: str,
+        pool_scope: AlphaPoolScope | None = None,
+    ) -> bool:
         """
         检查是否支持指定的股票池
 
@@ -86,12 +103,37 @@ class ETFFallbackProvider(BaseAlphaProvider):
         """
         健康检查
 
-        ETF Provider 总是可用，因为它使用静态配置。
+        仅在存在真实本地持仓时标记可用；仅有映射配置时标记降级。
 
         Returns:
             Provider 状态
         """
-        return AlphaProviderStatus.AVAILABLE
+        config_map = self._get_config_map()
+        try:
+            from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
+
+            configured_codes = {
+                str(config.get("etf_code") or "").split(".")[0]
+                for config in config_map.values()
+                if config.get("etf_code")
+            }
+            discoverable_codes = FundInfoModel._default_manager.filter(
+                is_active=True,
+                fund_name__icontains="ETF",
+            ).values_list("fund_code", flat=True)
+            holdings = FundHoldingModel._default_manager.all()
+            if configured_codes:
+                holdings = holdings.filter(fund_code__in=configured_codes)
+            else:
+                holdings = holdings.filter(fund_code__in=discoverable_codes)
+            if holdings.exists():
+                return AlphaProviderStatus.AVAILABLE
+        except Exception as exc:
+            logger.warning(
+                "ETF provider health query failed: %s",
+                type(exc).__name__,
+            )
+        return AlphaProviderStatus.DEGRADED if config_map else AlphaProviderStatus.UNAVAILABLE
 
     @provider_safe()
     def get_stock_scores(
@@ -99,8 +141,8 @@ class ETFFallbackProvider(BaseAlphaProvider):
         universe_id: str,
         intended_trade_date: date,
         top_n: int = 30,
-        pool_scope=None,
-        user=None,
+        pool_scope: AlphaPoolScope | None = None,
+        user: object | None = None,
     ) -> AlphaResult:
         """
         获取 ETF 成分股评分
@@ -119,11 +161,13 @@ class ETFFallbackProvider(BaseAlphaProvider):
         Returns:
             AlphaResult
         """
-        if not self.supports(universe_id):
+        if top_n <= 0:
             return self._create_error_result(
-                f"不支持的股票池: {universe_id}",
-                status="unavailable"
+                "top_n must be a positive integer",
+                status="unavailable",
             )
+        if not self.supports(universe_id):
+            return self._create_error_result(f"不支持的股票池: {universe_id}", status="unavailable")
 
         # 1. 获取 ETF 信息
         etf_info = self._resolve_etf_info(universe_id)
@@ -152,20 +196,22 @@ class ETFFallbackProvider(BaseAlphaProvider):
         # 3. 创建评分
         scores = []
         for i, (stock_code, holding_ratio_pct) in enumerate(constituents, 1):
-            # 直接使用持仓占比(%)作为降级评分，范围 0~100
-            score = max(0.0, min(100.0, float(holding_ratio_pct)))
+            # StockScore 的正式评分域为 [-1, 1]；持仓占比从百分数转为 [0, 1]。
+            score = holding_ratio_pct / 100.0
 
-            scores.append(create_stock_score(
-                code=stock_code,
-                score=score,
-                rank=i,
-                source="etf",
-                factors={"holding_ratio_pct": float(holding_ratio_pct)},
-                confidence=0.4,  # 低置信度，因为是降级方案
-                asof_date=intended_trade_date,
-                intended_trade_date=intended_trade_date,
-                universe_id=universe_id,
-            ))
+            scores.append(
+                create_stock_score(
+                    code=stock_code,
+                    score=score,
+                    rank=i,
+                    source="etf",
+                    factors={"holding_ratio_pct": holding_ratio_pct},
+                    confidence=0.4,
+                    asof_date=intended_trade_date,
+                    intended_trade_date=intended_trade_date,
+                    universe_id=universe_id,
+                )
+            )
 
         return self._create_success_result(
             scores=scores,
@@ -179,13 +225,13 @@ class ETFFallbackProvider(BaseAlphaProvider):
                     if etf_info.get("report_date") or constituents_metadata.get("report_date")
                     else "所有其他 Provider 不可用，但当前 ETF 无可用持仓报告"
                 ),
-            }
+            },
         )
 
     @staticmethod
     def _normalize_constituents_payload(
         payload: object,
-    ) -> tuple[list[tuple], str | None, dict[str, str]]:
+    ) -> ETFConstituentsPayload:
         """Accept legacy 2-tuple mocks and normalize to the current 3-tuple contract."""
         if not isinstance(payload, tuple):
             return [], "ETF constituents payload is invalid", {}
@@ -198,17 +244,30 @@ class ETFFallbackProvider(BaseAlphaProvider):
         else:
             return [], "ETF constituents payload has unsupported shape", {}
 
-        normalized_constituents = constituents if isinstance(constituents, list) else []
+        normalized_constituents: list[ETFConstituent] = []
+        if isinstance(constituents, list):
+            for item in constituents:
+                if not isinstance(item, (tuple, list)) or len(item) != 2:
+                    continue
+                stock_code = ETFFallbackProvider._normalize_stock_code(item[0])
+                ratio = safe_float(item[1])
+                if not stock_code or ratio is None or not 0.0 < ratio <= 100.0:
+                    continue
+                normalized_constituents.append((stock_code, ratio))
         normalized_error = str(error_message) if error_message else None
-        normalized_metadata = metadata if isinstance(metadata, dict) else {}
+        normalized_metadata = (
+            {str(key): str(value) for key, value in metadata.items() if value not in (None, "")}
+            if isinstance(metadata, Mapping)
+            else {}
+        )
         return normalized_constituents, normalized_error, normalized_metadata
 
     def _get_etf_constituents(
         self,
         etf_code: str,
         intended_trade_date: date,
-        top_n: int
-    ) -> tuple[list[tuple], str | None, dict[str, str]]:
+        top_n: int,
+    ) -> ETFConstituentsPayload:
         """
         获取 ETF 成分股（优先本地真实数据，不足时回退远端真实数据）
 
@@ -231,7 +290,11 @@ class ETFFallbackProvider(BaseAlphaProvider):
 
             # 获取最新报告日期
             latest_report = (
-                FundHoldingModel._default_manager.filter(fund_code=fund_code)
+                FundHoldingModel._default_manager.filter(
+                    fund_code=fund_code,
+                    report_date__lte=intended_trade_date,
+                    created_at__date__lte=intended_trade_date,
+                )
                 .order_by("-report_date")
                 .values_list("report_date", flat=True)
                 .first()
@@ -249,9 +312,10 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 FundHoldingModel._default_manager.filter(
                     fund_code=fund_code,
                     report_date=latest_report,
-                ).order_by("-holding_ratio", "-holding_value").values(
-                    "stock_code", "holding_ratio"
-                )[:top_n]
+                    created_at__date__lte=intended_trade_date,
+                )
+                .order_by("-holding_ratio", "-holding_value")
+                .values("stock_code", "holding_ratio")[:top_n]
             )
 
             if not holdings:
@@ -261,22 +325,31 @@ class ETFFallbackProvider(BaseAlphaProvider):
                     top_n,
                 )
 
-            result: list[tuple] = []
+            result: list[ETFConstituent] = []
             for row in holdings:
                 stock_code = row["stock_code"]
                 ratio = row["holding_ratio"]
-                ratio_value = float(ratio) if ratio is not None else 0.0
-                result.append((stock_code, ratio_value))
+                ratio_value = safe_float(ratio)
+                if ratio_value is None or not 0.0 < ratio_value <= 100.0:
+                    continue
+                result.append((self._normalize_stock_code(stock_code), ratio_value))
 
-            return result, None, {
-                "holdings_source": "database",
-                "report_date": latest_report.isoformat(),
-            }
+            return (
+                result,
+                None,
+                {
+                    "holdings_source": "database",
+                    "report_date": latest_report.isoformat(),
+                },
+            )
 
-        except ImportError as e:
-            return [], f"无法导入基金模型: {e}", {}
-        except Exception as e:
-            logger.warning("读取本地 ETF 持仓失败，尝试远端回退: %s", e)
+        except ImportError:
+            return [], "ETF holdings storage is unavailable", {}
+        except Exception as exc:
+            logger.warning(
+                "Local ETF holdings query failed; trying remote source: %s",
+                type(exc).__name__,
+            )
             return self._get_remote_etf_constituents(
                 etf_code,
                 intended_trade_date,
@@ -288,7 +361,13 @@ class ETFFallbackProvider(BaseAlphaProvider):
         etf_code: str,
         intended_trade_date: date,
         top_n: int,
-    ) -> tuple[list[tuple], str | None, dict[str, str]]:
+    ) -> ETFConstituentsPayload:
+        if intended_trade_date < timezone.localdate():
+            return (
+                [],
+                "Historical ETF holdings are unavailable from a point-in-time source",
+                {},
+            )
         fund_code = etf_code.split(".")[0]
         ak = get_akshare_module()
 
@@ -297,10 +376,10 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 frame = ak.fund_portfolio_hold_em(symbol=fund_code, date=str(year))
             except Exception as exc:
                 logger.warning(
-                    "远端 ETF 持仓拉取失败: %s year=%s error=%s",
+                    "Remote ETF holdings query failed: %s year=%s error_type=%s",
                     etf_code,
                     year,
-                    exc,
+                    type(exc).__name__,
                 )
                 continue
 
@@ -324,26 +403,32 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 continue
 
             latest_period = frame.sort_values("_period_rank", ascending=False).iloc[0][period_col]
+            report_date = self._parse_report_date(latest_period)
+            if report_date is None or report_date > intended_trade_date:
+                continue
             latest_rows = frame.loc[frame[period_col] == latest_period].copy()
             self._persist_remote_holdings(fund_code, latest_period, latest_rows)
             latest_rows = latest_rows.head(top_n)
 
-            result: list[tuple] = []
+            result: list[ETFConstituent] = []
             for _, row in latest_rows.iterrows():
                 stock_code = self._normalize_stock_code(row.get(code_col))
                 if not stock_code:
                     continue
-                try:
-                    ratio_value = float(row.get(ratio_col) or 0.0)
-                except (TypeError, ValueError):
-                    ratio_value = 0.0
+                ratio_value = safe_float(row.get(ratio_col))
+                if ratio_value is None or not 0.0 < ratio_value <= 100.0:
+                    continue
                 result.append((stock_code, ratio_value))
 
             if result:
-                return result, None, {
-                    "holdings_source": "eastmoney",
-                    "report_date": str(latest_period),
-                }
+                return (
+                    result,
+                    None,
+                    {
+                        "holdings_source": "eastmoney",
+                        "report_date": str(latest_period),
+                    },
+                )
 
         return [], f"ETF {etf_code} 没有持仓报告数据，请先同步基金持仓数据", {}
 
@@ -351,7 +436,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         self,
         fund_code: str,
         report_label: object,
-        rows,
+        rows: Any,
     ) -> None:
         report_date = self._parse_report_date(report_label)
         if report_date is None:
@@ -377,7 +462,10 @@ class ETFFallbackProvider(BaseAlphaProvider):
                     },
                 )
         except Exception as exc:
-            logger.warning("写入远端 ETF 持仓到本地库失败: %s", exc)
+            logger.warning(
+                "Remote ETF holdings persistence failed: %s",
+                type(exc).__name__,
+            )
 
     @staticmethod
     def _quarter_sort_key(raw_value: object) -> tuple[int, int] | None:
@@ -420,19 +508,13 @@ class ETFFallbackProvider(BaseAlphaProvider):
     def _parse_int(raw_value: object) -> int | None:
         if raw_value in (None, ""):
             return None
-        try:
-            return int(float(raw_value))
-        except (TypeError, ValueError):
-            return None
+        parsed = safe_float(raw_value)
+        return int(parsed) if parsed is not None else None
 
     @staticmethod
     def _parse_float(raw_value: object) -> float | None:
-        if raw_value in (None, ""):
-            return None
-        try:
-            return float(raw_value)
-        except (TypeError, ValueError):
-            return None
+        parsed: float | None = safe_float(raw_value)
+        return parsed
 
     @staticmethod
     def _parse_decimal(raw_value: object) -> Decimal | None:
@@ -443,7 +525,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         except (InvalidOperation, TypeError, ValueError):
             return None
 
-    def get_etf_for_universe(self, universe_id: str) -> dict[str, str]:
+    def get_etf_for_universe(self, universe_id: str) -> _ETFInfo | dict[str, str]:
         """
         获取股票池对应的 ETF
 
@@ -465,11 +547,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         config_map = self._get_config_map()
         return sorted(config_map.keys())
 
-    def get_factor_exposure(
-        self,
-        stock_code: str,
-        trade_date: date
-    ) -> dict[str, float]:
+    def get_factor_exposure(self, stock_code: str, trade_date: date) -> dict[str, float]:
         """
         获取因子暴露
 
@@ -484,14 +562,14 @@ class ETFFallbackProvider(BaseAlphaProvider):
         """
         return {}
 
-    def _resolve_etf_info(self, universe_id: str) -> dict[str, str] | None:
+    def _resolve_etf_info(self, universe_id: str) -> _ETFInfo | None:
         """优先使用 settings 映射，再尝试根据 universe_id 自动发现 ETF。"""
         config_map = self._get_config_map()
         mapped = config_map.get(universe_id)
         if mapped:
             mapped_code = mapped.get("etf_code", "")
             resolved_code = mapped_code if "." in mapped_code else f"{mapped_code}.SH"
-            etf_info = {
+            etf_info: _ETFInfo = {
                 "etf_code": resolved_code,
                 "etf_name": mapped.get("etf_name", resolved_code),
                 "report_date": None,
@@ -511,8 +589,11 @@ class ETFFallbackProvider(BaseAlphaProvider):
                     etf_info["etf_name"] = fund.fund_name
                 if latest_report:
                     etf_info["report_date"] = latest_report.isoformat()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Configured ETF metadata enrichment failed: %s",
+                    type(exc).__name__,
+                )
             return etf_info
 
         # 自动发现：在指数/ETF基金中找名字最匹配且有持仓数据的基金
@@ -522,7 +603,9 @@ class ETFFallbackProvider(BaseAlphaProvider):
         try:
             from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
 
-            query = FundInfoModel._default_manager.filter(is_active=True).filter(fund_name__icontains="ETF")
+            query = FundInfoModel._default_manager.filter(is_active=True).filter(
+                fund_name__icontains="ETF"
+            )
             if digits:
                 query = query.filter(fund_name__icontains=digits)
 
@@ -541,22 +624,29 @@ class ETFFallbackProvider(BaseAlphaProvider):
                         "etf_name": fund.fund_name,
                         "report_date": latest_report.isoformat(),
                     }
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug(
+                "ETF auto-discovery failed: %s",
+                type(exc).__name__,
+            )
         return None
 
     def _get_config_map(self) -> dict[str, dict[str, str]]:
         """获取股票池到 ETF 的映射配置"""
-        config_map = getattr(settings, "ALPHA_UNIVERSE_ETF_MAP", {}) or {}
-        merged = self.DEFAULT_UNIVERSE_ETF_MAP.copy()
-        merged.update(config_map)
-        return merged
-
-    # 股票池到 ETF 的默认映射（不含成分股数据）
-    # 成分股数据必须从 FundHoldingModel 获取
-    DEFAULT_UNIVERSE_ETF_MAP = {
-        "csi300": {"etf_code": "510300.SH", "etf_name": "沪深300ETF"},
-        "csi500": {"etf_code": "510500.SH", "etf_name": "中证500ETF"},
-        "sse50": {"etf_code": "510050.SH", "etf_name": "上证50ETF"},
-        "csi1000": {"etf_code": "512100.SH", "etf_name": "中证1000ETF"},
-    }
+        raw_map = getattr(settings, "ALPHA_UNIVERSE_ETF_MAP", {}) or {}
+        if not isinstance(raw_map, Mapping):
+            return {}
+        config_map: dict[str, dict[str, str]] = {}
+        for raw_universe_id, raw_config in raw_map.items():
+            universe_id = str(raw_universe_id).strip()
+            if not universe_id or not isinstance(raw_config, Mapping):
+                continue
+            etf_code = str(raw_config.get("etf_code") or "").strip().upper()
+            if not etf_code:
+                continue
+            etf_name = str(raw_config.get("etf_name") or etf_code).strip()
+            config_map[universe_id] = {
+                "etf_code": etf_code,
+                "etf_name": etf_name,
+            }
+        return config_map

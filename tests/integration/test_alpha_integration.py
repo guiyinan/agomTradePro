@@ -161,8 +161,9 @@ class TestETFProviderIntegration:
         assert provider.supports("sse50")
         assert not provider.supports("unknown")
 
-    def test_etf_provider_health_always_available(self):
-        """测试 ETF Provider 健康检查总是可用"""
+    def test_etf_provider_health_available_with_real_holdings(self):
+        """存在真实本地持仓时 ETF Provider 才标记为可用。"""
+        self._seed_etf_data()
         provider = ETFFallbackProvider()
         health = provider.health_check()
 

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1427,
-    "files_with_errors": 430
+    "errors": 1415,
+    "files_with_errors": 429
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -242,12 +242,6 @@
     },
     "apps/alpha/domain/interfaces.py": {
       "no-untyped-def": 1
-    },
-    "apps/alpha/infrastructure/adapters/etf_adapter.py": {
-      "arg-type": 2,
-      "no-untyped-def": 4,
-      "return-value": 1,
-      "type-arg": 5
     },
     "apps/alpha/infrastructure/adapters/qlib_adapter.py": {
       "import-untyped": 4,
