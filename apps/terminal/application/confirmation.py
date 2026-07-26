@@ -8,6 +8,8 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Mapping
+from typing import TypedDict
 
 from django.core.cache import cache
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
@@ -17,7 +19,17 @@ logger = logging.getLogger(__name__)
 _SALT = "terminal-confirm"
 _TOKEN_MAX_AGE = 120  # seconds
 _NONCE_CACHE_PREFIX = "terminal_nonce:"
+_NONCE_USED_CACHE_PREFIX = "terminal_nonce_used:"
 _NONCE_TTL = 300  # seconds
+
+
+class ConfirmationTokenDetails(TypedDict):
+    """Safe confirmation details returned alongside a signed token."""
+
+    command_name: str
+    risk_level: str
+    mode: str
+    params_summary: str
 
 
 class ConfirmationTokenService:
@@ -27,7 +39,7 @@ class ConfirmationTokenService:
         self._signer = TimestampSigner(salt=_SALT)
 
     @staticmethod
-    def _params_hash(params: dict) -> str:
+    def _params_hash(params: Mapping[str, object]) -> str:
         """生成参数的短 hash"""
         raw = json.dumps(params, sort_keys=True, default=str)
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
@@ -36,10 +48,10 @@ class ConfirmationTokenService:
         self,
         user_id: int,
         command_name: str,
-        params: dict,
+        params: Mapping[str, object],
         risk_level: str,
         mode: str,
-    ) -> tuple[str, dict]:
+    ) -> tuple[str, ConfirmationTokenDetails]:
         """创建确认令牌。
 
         Returns:
@@ -53,7 +65,7 @@ class ConfirmationTokenService:
         # 将 nonce 标记为未使用
         cache.set(f"{_NONCE_CACHE_PREFIX}{nonce}", "unused", _NONCE_TTL)
 
-        details = {
+        details: ConfirmationTokenDetails = {
             "command_name": command_name,
             "risk_level": risk_level,
             "mode": mode,
@@ -66,7 +78,7 @@ class ConfirmationTokenService:
         token: str,
         user_id: int,
         command_name: str,
-        params: dict,
+        params: Mapping[str, object],
         risk_level: str,
         mode: str,
     ) -> tuple[bool, str]:
@@ -108,6 +120,11 @@ class ConfirmationTokenService:
         if nonce_state == "used":
             return False, "Token already used"
 
-        # Mark as used
+        # Cache ``add`` is atomic for supported backends. It closes the replay
+        # window where concurrent requests could both observe the nonce as unused.
+        used_cache_key = f"{_NONCE_USED_CACHE_PREFIX}{t_nonce}"
+        if not cache.add(used_cache_key, "used", _NONCE_TTL):
+            return False, "Token already used"
+
         cache.set(cache_key, "used", _NONCE_TTL)
         return True, ""

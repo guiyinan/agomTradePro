@@ -4447,3 +4447,17 @@
 - Terminal chat router 局部回归 `2 passed`；连同固定 TUI Workbench 与 Terminal Agent 最小回归包共 `210 passed`。
 - `chat_router.py` 增量 mypy 清零；全仓基线从 `1199 errors / 401 files` 收紧为 `1192 errors / 400 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第二百九十六批
+
+- 按“Terminal 高风险确认 × 一次性令牌原子消费 × 参数摘要契约”收口确认令牌服务。
+- 参数哈希与令牌校验使用只读字符串键映射；令牌详情使用稳定 TypedDict，命令名、风险等级、模式和参数摘要不再通过裸字典传播。
+- 修复 nonce 的“读取 unused 后再写 used”并发重放窗口：校验通过字段绑定后使用缓存 `add` 原子创建独立消费标记，仅首个请求能够成功消费令牌。
+- 保留原 nonce 状态用于兼容已签发令牌和既有错误语义；原子消费标记失败时统一返回 `Token already used`，确认流程失败关闭。
+- 新增一次消费、身份不匹配不消费及陈旧 unused 状态并发窗口回归。
+
+## 第二百九十六批验证结果
+
+- Terminal 确认令牌局部回归 `3 passed`；连同固定 TUI Workbench 与 Terminal Agent 最小回归包共 `211 passed`。
+- `confirmation.py` 增量 mypy 清零；全仓基线从 `1192 errors / 400 files` 收紧为 `1188 errors / 399 files`，净减少 `4 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
