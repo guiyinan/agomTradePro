@@ -3673,3 +3673,18 @@
 - Dashboard 失败关闭新增回归与结构测试 `8 passed`，Dashboard 主回归 `47 passed`；覆盖缺失组件、阻断行动、非有限分数、非法市场温度变化值和空通知。
 - Dashboard Regime context 增量 mypy 清零；全仓基线从 `1726 errors / 463 files` 收紧为 `1709 errors / 462 files`，净减少 `17 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百四十九批
+
+- 按“Alpha 手动刷新异常最小披露 × 同步/异步刷新响应契约 × 用户入口类型完整性”收口 Dashboard Alpha 股票交互。
+- 手动刷新意外异常只在服务端日志保留堆栈，对外返回稳定 `alpha_refresh_failed`；数据库连接、Provider SDK 和任务异常正文不再进入响应。
+- 异常响应明确发布 `must_not_use_for_decision=True`，调用方不能把刷新失败误认作新评分结果。
+- 刷新失败后的锁释放增加独立异常保护；清理锁失败只记录服务端日志，不再覆盖原始失败响应。
+- Alpha 排名页、手动刷新、同步推理、股票列表、因子面板和退出观察面板补齐精确请求、日期、组合池与 HTTP 响应类型。
+- 动态 Dashboard compatibility facade 在模块边界显式收窄，冲突响应转换为正式 HTTP 契约，不再传播未类型调用。
+
+## 第二百四十九批验证结果
+
+- Dashboard Alpha 手动刷新局部回归 `10 passed`，完整 Alpha views 回归 `48 passed`；覆盖同步/异步刷新、重复任务锁、账户专属池和内部异常脱敏。
+- Dashboard Alpha stock views 增量 mypy 清零；全仓基线从 `1709 errors / 462 files` 收紧为 `1695 errors / 461 files`，净减少 `14 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

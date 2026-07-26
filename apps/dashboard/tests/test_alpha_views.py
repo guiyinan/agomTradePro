@@ -485,6 +485,34 @@ def test_alpha_refresh_portfolio_scope_requires_portfolio_id():
     assert "portfolio_id" in payload["error"]
 
 
+def test_alpha_refresh_htmx_redacts_unexpected_internal_error(monkeypatch):
+    request = RequestFactory().post(
+        "/api/dashboard/alpha/refresh/",
+        {"top_n": 10, "alpha_scope": "general"},
+    )
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
+    secret_error = "postgresql://internal-user:secret@database/alpha"
+
+    def _raise_internal_error():
+        raise RuntimeError(secret_error)
+
+    monkeypatch.setattr(views, "resolve_dashboard_alpha_trade_date", _raise_internal_error)
+
+    response = views.alpha_refresh_htmx(request)
+    payload = _response_json_payload(response)
+
+    assert response.status_code == 500
+    assert payload == {
+        "success": False,
+        "error": "触发 Alpha 实时刷新失败，请稍后重试。",
+        "error_code": "alpha_refresh_failed",
+        "must_not_use_for_decision": True,
+    }
+    assert secret_error not in response.content.decode()
+
+
 def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
     captured: dict[str, object] = {}
 

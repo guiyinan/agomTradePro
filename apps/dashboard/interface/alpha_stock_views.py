@@ -2,22 +2,27 @@
 
 from __future__ import annotations
 
+from datetime import date
+from types import ModuleType
+from typing import cast
+
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseNotAllowed, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
 
+from apps.alpha.application.pool_resolver import ResolvedAlphaPool
 from apps.dashboard.interface.api_auth import dashboard_api_view
 
 
-def _dashboard_views():
+def _dashboard_views() -> ModuleType:
     from apps.dashboard.interface import views as dashboard_views
 
     return dashboard_views
 
 
 @login_required(login_url="/account/login/")
-def alpha_ranking_page(request):
+def alpha_ranking_page(request: HttpRequest) -> HttpResponse:
     """Render a server-side Alpha ranking page with adjustable scope filters."""
 
     dashboard_views = _dashboard_views()
@@ -99,13 +104,14 @@ def alpha_ranking_page(request):
 
 
 @dashboard_api_view(["POST"])
-def alpha_refresh_htmx(request):
+def alpha_refresh_htmx(request: HttpRequest) -> HttpResponse:
     """Trigger a manual realtime Alpha refresh for today's dashboard universe."""
 
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
     dashboard_views = _dashboard_views()
+    lock_key: str | None = None
     try:
         target_date = dashboard_views.resolve_dashboard_alpha_trade_date()
         top_n = dashboard_views._parse_positive_int_param(
@@ -161,23 +167,28 @@ def alpha_refresh_htmx(request):
             pool_mode=resolved_pool.scope.pool_mode if resolved_pool is not None else pool_mode,
             scope_hash=scope_hash,
         )
-        lock_key = dashboard_views._build_alpha_refresh_lock_key(
-            alpha_scope=alpha_scope,
-            target_date=target_date,
-            top_n=top_n,
-            raw_universe_id=raw_universe_id,
-            resolved_pool=resolved_pool,
-        )
-        lock_meta = dashboard_views._resolve_existing_alpha_refresh_lock(lock_key)
-        if lock_meta is not None:
-            return dashboard_views._build_alpha_refresh_conflict_response(
+        lock_key = str(
+            dashboard_views._build_alpha_refresh_lock_key(
                 alpha_scope=alpha_scope,
                 target_date=target_date,
                 top_n=top_n,
-                universe_id=universe_id,
-                portfolio_id=portfolio_id,
-                pool_mode=pool_mode,
-                lock_meta=lock_meta,
+                raw_universe_id=raw_universe_id,
+                resolved_pool=resolved_pool,
+            )
+        )
+        lock_meta = dashboard_views._resolve_existing_alpha_refresh_lock(lock_key)
+        if lock_meta is not None:
+            return cast(
+                HttpResponse,
+                dashboard_views._build_alpha_refresh_conflict_response(
+                    alpha_scope=alpha_scope,
+                    target_date=target_date,
+                    top_n=top_n,
+                    universe_id=universe_id,
+                    portfolio_id=portfolio_id,
+                    pool_mode=pool_mode,
+                    lock_meta=lock_meta,
+                ),
             )
 
         if not use_sync:
@@ -213,14 +224,17 @@ def alpha_refresh_htmx(request):
                     "task_id": None,
                     "task_state": "PENDING",
                 }
-                return dashboard_views._build_alpha_refresh_conflict_response(
-                    alpha_scope=alpha_scope,
-                    target_date=target_date,
-                    top_n=top_n,
-                    universe_id=universe_id,
-                    portfolio_id=portfolio_id,
-                    pool_mode=pool_mode,
-                    lock_meta=lock_meta,
+                return cast(
+                    HttpResponse,
+                    dashboard_views._build_alpha_refresh_conflict_response(
+                        alpha_scope=alpha_scope,
+                        target_date=target_date,
+                        top_n=top_n,
+                        universe_id=universe_id,
+                        portfolio_id=portfolio_id,
+                        pool_mode=pool_mode,
+                        lock_meta=lock_meta,
+                    ),
                 )
             task = qlib_predict_scores.delay(raw_universe_id, target_date.isoformat(), top_n)
             dashboard_views.record_pending_task(
@@ -263,14 +277,17 @@ def alpha_refresh_htmx(request):
                     "task_id": None,
                     "task_state": "PENDING",
                 }
-                return dashboard_views._build_alpha_refresh_conflict_response(
-                    alpha_scope=alpha_scope,
-                    target_date=target_date,
-                    top_n=top_n,
-                    universe_id=universe_id,
-                    portfolio_id=portfolio_id,
-                    pool_mode=pool_mode,
-                    lock_meta=lock_meta,
+                return cast(
+                    HttpResponse,
+                    dashboard_views._build_alpha_refresh_conflict_response(
+                        alpha_scope=alpha_scope,
+                        target_date=target_date,
+                        top_n=top_n,
+                        universe_id=universe_id,
+                        portfolio_id=portfolio_id,
+                        pool_mode=pool_mode,
+                        lock_meta=lock_meta,
+                    ),
                 )
             task = qlib_predict_scores.delay(
                 resolved_pool.scope.universe_id,
@@ -306,15 +323,25 @@ def alpha_refresh_htmx(request):
     except ValueError as exc:
         return JsonResponse({"success": False, "error": str(exc)}, status=400)
     except Exception as exc:
-        if "lock_key" in locals():
-            dashboard_views.release_dashboard_alpha_refresh_lock(lock_key)
+        if lock_key is not None:
+            try:
+                dashboard_views.release_dashboard_alpha_refresh_lock(lock_key)
+            except Exception:
+                dashboard_views.logger.exception(
+                    "Failed to release dashboard Alpha refresh lock after request failure"
+                )
         dashboard_views.logger.error(
             "Failed to trigger alpha realtime refresh: %s",
             exc,
             exc_info=True,
         )
         return JsonResponse(
-            {"success": False, "error": f"触发 Alpha 实时刷新失败: {exc}"},
+            {
+                "success": False,
+                "error": "触发 Alpha 实时刷新失败，请稍后重试。",
+                "error_code": "alpha_refresh_failed",
+                "must_not_use_for_decision": True,
+            },
             status=500,
         )
 
@@ -322,15 +349,15 @@ def alpha_refresh_htmx(request):
 def _alpha_refresh_sync(
     *,
     lock_key: str,
-    target_date,
-    top_n,
-    raw_universe_id,
-    alpha_scope,
-    portfolio_id,
-    pool_mode,
-    resolved_pool,
+    target_date: date,
+    top_n: int,
+    raw_universe_id: str,
+    alpha_scope: str,
+    portfolio_id: int | None,
+    pool_mode: str,
+    resolved_pool: ResolvedAlphaPool | None,
     sync_reason: str | None = None,
-):
+) -> HttpResponse:
     """Run one scoped Qlib inference inline for dashboard manual refresh."""
 
     dashboard_views = _dashboard_views()
@@ -364,14 +391,17 @@ def _alpha_refresh_sync(
             "task_id": None,
             "task_state": "RUNNING",
         }
-        return dashboard_views._build_alpha_refresh_conflict_response(
-            alpha_scope=alpha_scope,
-            target_date=target_date,
-            top_n=top_n,
-            universe_id=universe_id,
-            portfolio_id=portfolio_id,
-            pool_mode=pool_mode,
-            lock_meta=lock_meta,
+        return cast(
+            HttpResponse,
+            dashboard_views._build_alpha_refresh_conflict_response(
+                alpha_scope=alpha_scope,
+                target_date=target_date,
+                top_n=top_n,
+                universe_id=universe_id,
+                portfolio_id=portfolio_id,
+                pool_mode=pool_mode,
+                lock_meta=lock_meta,
+            ),
         )
 
     try:
@@ -451,7 +481,7 @@ def _alpha_refresh_sync(
 
 @dashboard_api_view(["GET"])
 @never_cache
-def alpha_stocks_htmx(request):
+def alpha_stocks_htmx(request: HttpRequest) -> HttpResponse:
     """Return the dashboard Alpha stock table payload."""
 
     dashboard_views = _dashboard_views()
@@ -577,7 +607,7 @@ def alpha_stocks_htmx(request):
 
 
 @dashboard_api_view(["GET"])
-def alpha_factor_panel_htmx(request):
+def alpha_factor_panel_htmx(request: HttpRequest) -> HttpResponse:
     """HTMX factor panel for a selected alpha stock."""
 
     dashboard_views = _dashboard_views()
@@ -643,7 +673,7 @@ def alpha_factor_panel_htmx(request):
 
 
 @dashboard_api_view(["GET"])
-def alpha_exit_panel_htmx(request):
+def alpha_exit_panel_htmx(request: HttpRequest) -> HttpResponse:
     """HTMX sidebar detail panel for one exit-watchlist item."""
 
     dashboard_views = _dashboard_views()
