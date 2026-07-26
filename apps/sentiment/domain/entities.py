@@ -5,6 +5,7 @@ Sentiment 模块 - Domain 层实体
 Domain 层不依赖任何外部框架（如 Django），只使用 Python 标准库。
 """
 
+import math
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
@@ -13,9 +14,10 @@ from typing import Any
 
 class SentimentCategory(Enum):
     """情感分类"""
-    POSITIVE = "POSITIVE"      # 正面
-    NEGATIVE = "NEGATIVE"      # 负面
-    NEUTRAL = "NEUTRAL"        # 中性
+
+    POSITIVE = "POSITIVE"  # 正面
+    NEGATIVE = "NEGATIVE"  # 负面
+    NEUTRAL = "NEUTRAL"  # 中性
 
 
 @dataclass(frozen=True)
@@ -25,21 +27,28 @@ class SentimentAnalysisResult:
 
     存储单条文本的情感分析结果。
     """
-    text: str                                 # 原始文本
-    sentiment_score: float                    # 情感评分 (-3.0 ~ +3.0)
-    confidence: float                         # 置信度 (0.0 ~ 1.0)
-    category: SentimentCategory               # 情感分类
+
+    text: str  # 原始文本
+    sentiment_score: float  # 情感评分 (-3.0 ~ +3.0)
+    confidence: float  # 置信度 (0.0 ~ 1.0)
+    category: SentimentCategory  # 情感分类
     keywords: list[str] = field(default_factory=list)  # 关键词列表
     analyzed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    error_message: str | None = None       # 错误信息（AI 调用失败时）
+    error_message: str | None = None  # 错误信息（AI 调用失败时）
 
     def __post_init__(self) -> None:
         """验证数据有效性"""
         # 验证评分范围
+        if isinstance(self.sentiment_score, bool) or not math.isfinite(self.sentiment_score):
+            raise ValueError("sentiment_score 必须是有限数值")
         if not -3.0 <= self.sentiment_score <= 3.0:
-            raise ValueError(f"sentiment_score 必须在 -3.0 到 +3.0 之间，当前为 {self.sentiment_score}")
+            raise ValueError(
+                f"sentiment_score 必须在 -3.0 到 +3.0 之间，当前为 {self.sentiment_score}"
+            )
 
         # 验证置信度范围
+        if isinstance(self.confidence, bool) or not math.isfinite(self.confidence):
+            raise ValueError("confidence 必须是有限数值")
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError(f"confidence 必须在 0.0 到 1.0 之间，当前为 {self.confidence}")
 
@@ -62,25 +71,26 @@ class SentimentIndex:
 
     存储某日的综合情绪指数。
     """
-    index_date: datetime                      # 指数日期
+
+    index_date: datetime  # 指数日期
 
     # 情绪指数（-3.0 ~ +3.0）
-    news_sentiment: float = 0.0              # 新闻情绪
-    policy_sentiment: float = 0.0            # 政策情绪
-    composite_index: float = 0.0             # 综合指数
+    news_sentiment: float = 0.0  # 新闻情绪
+    policy_sentiment: float = 0.0  # 政策情绪
+    composite_index: float = 0.0  # 综合指数
 
     # 置信度
-    confidence_level: float = 0.0            # 综合置信度
+    confidence_level: float = 0.0  # 综合置信度
 
     # 数据充足性标记（区分"无数据"和"中性情绪"）
-    data_sufficient: bool = False            # 数据是否充足
+    data_sufficient: bool = False  # 数据是否充足
 
     # 分类情绪（按行业、资产类型等）
     sector_sentiment: dict[str, float] = field(default_factory=dict)
 
     # 数据来源统计
-    news_count: int = 0                      # 新闻数量
-    policy_events_count: int = 0             # 政策事件数量
+    news_count: int = 0  # 新闻数量
+    policy_events_count: int = 0  # 政策事件数量
 
     # 元信息
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -94,8 +104,26 @@ class SentimentIndex:
             ("policy_sentiment", self.policy_sentiment),
             ("composite_index", self.composite_index),
         ]:
+            if isinstance(value, bool) or not math.isfinite(value):
+                raise ValueError(f"{name} 必须是有限数值")
             if not -3.0 <= value <= 3.0:
                 raise ValueError(f"{name} 必须在 -3.0 到 +3.0 之间，当前为 {value}")
+
+        if isinstance(self.confidence_level, bool) or not math.isfinite(self.confidence_level):
+            raise ValueError("confidence_level 必须是有限数值")
+        if not 0.0 <= self.confidence_level <= 1.0:
+            raise ValueError("confidence_level 必须在 0.0 到 1.0 之间")
+
+        for sector, value in self.sector_sentiment.items():
+            if isinstance(value, bool) or not math.isfinite(value):
+                raise ValueError(f"sector_sentiment[{sector}] 必须是有限数值")
+            if not -3.0 <= value <= 3.0:
+                raise ValueError(f"sector_sentiment[{sector}] 必须在 -3.0 到 +3.0 之间")
+
+        if isinstance(self.news_count, bool) or self.news_count < 0:
+            raise ValueError("news_count 必须是非负整数")
+        if isinstance(self.policy_events_count, bool) or self.policy_events_count < 0:
+            raise ValueError("policy_events_count 必须是非负整数")
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
@@ -138,12 +166,13 @@ class SentimentSource:
 
     定义情感分析的数据来源。
     """
-    source_type: str                          # 数据源类型：news/policy/social
-    source_id: str                            # 数据源 ID
-    title: str                                # 标题
-    content: str                              # 内容
-    published_at: datetime                    # 发布时间
-    url: str | None = None                 # 链接
+
+    source_type: str  # 数据源类型：news/policy/social
+    source_id: str  # 数据源 ID
+    title: str  # 标题
+    content: str  # 内容
+    published_at: datetime  # 发布时间
+    url: str | None = None  # 链接
 
     # 扩展字段
     metadata: dict[str, Any] = field(default_factory=dict)  # 额外元数据

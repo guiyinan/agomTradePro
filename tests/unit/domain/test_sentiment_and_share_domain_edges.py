@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from apps.sentiment.domain.entities import SentimentCategory
+from apps.sentiment.domain.entities import SentimentCategory, SentimentIndex
 from apps.sentiment.domain.rules import (
     categorize_sentiment_score,
     clamp_sentiment_score,
@@ -70,6 +70,46 @@ def test_sentiment_result_clamps_score_confidence_and_uses_aware_time() -> None:
     assert negative.keywords == []
     assert negative.analyzed_at is analyzed_at
     assert negative.error_message == "degraded model"
+
+
+@pytest.mark.parametrize("invalid_value", [float("nan"), float("inf"), float("-inf")])
+def test_sentiment_domain_rejects_non_finite_financial_values(
+    invalid_value: float,
+) -> None:
+    """NaN and infinities cannot masquerade as valid sentiment data."""
+
+    with pytest.raises(ValueError, match="finite"):
+        build_sentiment_result(
+            text="invalid",
+            sentiment_score=invalid_value,
+            confidence=0.5,
+        )
+    with pytest.raises(ValueError, match="finite"):
+        build_sentiment_result(
+            text="invalid",
+            sentiment_score=0.0,
+            confidence=invalid_value,
+        )
+    with pytest.raises(ValueError, match="有限数值"):
+        SentimentIndex(
+            index_date=datetime(2026, 7, 24, tzinfo=UTC),
+            composite_index=invalid_value,
+        )
+
+
+def test_sentiment_index_rejects_invalid_confidence_sector_and_counts() -> None:
+    """Index metadata must preserve its documented financial invariants."""
+
+    index_date = datetime(2026, 7, 24, tzinfo=UTC)
+    with pytest.raises(ValueError, match="confidence_level"):
+        SentimentIndex(index_date=index_date, confidence_level=float("nan"))
+    with pytest.raises(ValueError, match=r"sector_sentiment\[technology\]"):
+        SentimentIndex(
+            index_date=index_date,
+            sector_sentiment={"technology": float("inf")},
+        )
+    with pytest.raises(ValueError, match="news_count"):
+        SentimentIndex(index_date=index_date, news_count=-1)
 
 
 def _link(

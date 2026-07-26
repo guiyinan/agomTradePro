@@ -3924,3 +3924,20 @@
 - Sector API、Application、Domain、Adapter 与集成回归 `80 passed`；覆盖权重公式、`NaN/Inf`、异常适配值、未知 Regime/字段、反向日期、未来日期零 Provider/写入、行情 fallback 和异常脱敏。
 - Sector market gateway、use cases、serializers 与 views 增量 mypy 清零；全仓基线从 `1523 errors / 441 files` 收紧为 `1499 errors / 437 files`，净减少 `24 errors / 4 files`。
 - Django system check、架构边界、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。
+
+## 第二百六十四批
+
+- 按“情绪金融数值真实性 × API 查询失败关闭 × AI/异常内容最小披露”收口 Sentiment Domain、Application、serializers 与 API views。
+- 情绪评分、综合指数、置信度和行业情绪统一拒绝布尔、`NaN` 与 `Inf`；指数置信度要求位于 `[0, 1]`，行业情绪要求位于 `[-3, 3]`，来源计数不得为负。
+- AI 返回缺失、畸形或非有限评分时不再伪造“中性 0 分”成功结果；本次分析明确标记为不可用，避免错误中性数据进入缓存、日志和决策链。
+- AI 失败告警不再持久化原始文本片段、Provider 错误正文或凭据相关信息；失败结果、API 响应和页面上下文仅发布稳定文案与机器错误码。
+- 情绪指数权重要求有限、非负且总和为 1；输入评分要求位于 Domain 正式区间，历史坏配置或异常数据不再生成可发布指数。
+- 单条、批量、单日、日期范围和最近天数请求统一使用严格 serializers；未知字段不再被静默丢弃，空批次、去空白后重复文本、倒置日期和 `days` 范围外参数在调用 Application/Repository 前拒绝。
+- 最近天数非法值不再静默改为 30 天；客户端收到 400 并可修正请求，避免实际查询窗口与用户意图不一致。
+- `drf-spectacular` schema 装饰器通过保持身份签名的类型包装器接入，APIView handler 同时满足 Django 基类覆盖契约与完整 mypy 门禁。
+
+## 第二百六十四批验证结果
+
+- Sentiment API、Application、Domain、页面与实体回归 `129 passed`，新增边界小回归 `41 passed`；覆盖未知字段、重复付费工作、倒置日期、非法 days、畸形 AI 输出、`NaN/Inf`、异常配置与错误脱敏。
+- Sentiment serializers 与 views 增量 mypy 清零；全仓基线从 `1499 errors / 437 files` 收紧为 `1482 errors / 435 files`，净减少 `17 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt ceiling 通过。

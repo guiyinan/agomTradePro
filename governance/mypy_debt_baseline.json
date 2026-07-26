@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1499,
-    "files_with_errors": 437
+    "errors": 1482,
+    "files_with_errors": 435
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1287,14 +1287,8 @@
     "apps/sentiment/interface/api_urls.py": {
       "no-untyped-def": 1
     },
-    "apps/sentiment/interface/serializers.py": {
-      "type-arg": 8
-    },
     "apps/sentiment/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/sentiment/interface/views.py": {
-      "no-untyped-def": 9
     },
     "apps/setup_wizard/apps.py": {
       "no-untyped-def": 1

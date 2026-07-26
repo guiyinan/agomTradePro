@@ -37,7 +37,11 @@ def test_sentiment_analyze_returns_503_when_ai_unavailable(authenticated_client)
         )
 
     assert response.status_code == 503
-    assert response.json()["error"] == "AI provider unavailable"
+    assert response.json() == {
+        "error": "Sentiment AI service is unavailable.",
+        "error_code": "SENTIMENT_AI_UNAVAILABLE",
+    }
+    assert "AI provider unavailable" not in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -45,7 +49,8 @@ def test_sentiment_index_rejects_invalid_date_format(authenticated_client):
     response = authenticated_client.get("/api/sentiment/index/?date=2026/04/02")
 
     assert response.status_code == 400
-    assert response.json()["error"] == "日期格式错误，应为 YYYY-MM-DD"
+    assert response.json()["error"] == "验证失败"
+    assert "date" in response.json()["details"]
 
 
 @pytest.mark.django_db
@@ -73,15 +78,15 @@ def test_sentiment_index_returns_canonical_payload(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_sentiment_recent_days_out_of_range_falls_back_to_default(authenticated_client):
+def test_sentiment_recent_days_out_of_range_is_rejected(authenticated_client):
     with patch(
         "apps.sentiment.interface.views.get_recent_sentiment_indices_payload"
     ) as mock_recent:
         mock_recent.return_value = {"indices": [], "total": 0}
         response = authenticated_client.get("/api/sentiment/index/recent/?days=999")
 
-    assert response.status_code == 200
-    mock_recent.assert_called_once_with(days=30)
+    assert response.status_code == 400
+    mock_recent.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -110,6 +115,60 @@ def test_sentiment_recent_returns_canonical_envelope(authenticated_client):
     assert response["Content-Type"].startswith("application/json")
     assert response.json() == payload
     mock_recent.assert_called_once_with(days=7)
+
+
+@pytest.mark.django_db
+def test_sentiment_analysis_rejects_unknown_and_duplicate_work(authenticated_client):
+    with patch("apps.sentiment.interface.views.analyze_sentiment_text") as mock_analyze:
+        response = authenticated_client.post(
+            "/api/sentiment/analyze/",
+            {"text": "市场情绪很强", "unexpected": "ignored-before"},
+            content_type="application/json",
+        )
+
+    assert response.status_code == 400
+    assert "Unknown fields: unexpected" in str(response.json()["details"])
+    mock_analyze.assert_not_called()
+
+    with patch("apps.sentiment.interface.views.analyze_sentiment_batch") as mock_batch:
+        duplicate_response = authenticated_client.post(
+            "/api/sentiment/batch-analyze/",
+            {"texts": ["同一文本", " 同一文本 "]},
+            content_type="application/json",
+        )
+
+    assert duplicate_response.status_code == 400
+    mock_batch.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_sentiment_range_rejects_inverted_dates_before_query(authenticated_client):
+    with patch("apps.sentiment.interface.views.get_sentiment_index_range_payload") as mock_range:
+        response = authenticated_client.get(
+            "/api/sentiment/index/range/?start_date=2026-07-11&end_date=2026-07-10"
+        )
+
+    assert response.status_code == 400
+    assert "end_date" in str(response.json()["details"])
+    mock_range.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_sentiment_internal_errors_are_redacted(authenticated_client):
+    secret = "provider-secret-token"
+    with patch(
+        "apps.sentiment.interface.views.analyze_sentiment_text",
+        side_effect=ValueError(secret),
+    ):
+        response = authenticated_client.post(
+            "/api/sentiment/analyze/",
+            {"text": "市场情绪很强"},
+            content_type="application/json",
+        )
+
+    assert response.status_code == 500
+    assert response.json()["error_code"] == "SENTIMENT_ANALYSIS_FAILED"
+    assert secret not in response.content.decode()
 
 
 @pytest.mark.django_db

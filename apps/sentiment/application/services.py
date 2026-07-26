@@ -25,6 +25,7 @@ from apps.sentiment.domain.entities import (
     SentimentIndex,
     SentimentSource,
 )
+from apps.sentiment.domain.rules import categorize_sentiment_score
 
 logger = logging.getLogger(__name__)
 
@@ -122,8 +123,13 @@ class SentimentAnalyzer:
             return self._build_ai_failure_result(text, "AI response content is empty")
 
         sentiment_score = self._parse_sentiment_score(content)
+        if sentiment_score is None:
+            return self._build_ai_failure_result(
+                text,
+                "AI response does not contain a valid sentiment score",
+            )
         confidence = self._estimate_confidence(response, sentiment_score)
-        category = self._categorize_sentiment(sentiment_score)
+        category = categorize_sentiment_score(sentiment_score)
         keywords = self._extract_keywords(text, content)
 
         return SentimentAnalysisResult(
@@ -142,8 +148,7 @@ class SentimentAnalyzer:
     ) -> SentimentAnalysisResult:
         """Build an explicit failed analysis that callers cannot mistake for neutral data."""
 
-        normalized_error = error_message.strip() or "Unknown error"
-        self._send_ai_failure_alert(text, normalized_error)
+        self._send_ai_failure_alert(text, error_message.strip() or "Unknown error")
         return SentimentAnalysisResult(
             text=text,
             sentiment_score=0.0,
@@ -151,7 +156,7 @@ class SentimentAnalyzer:
             category=SentimentCategory.NEUTRAL,
             keywords=[],
             analyzed_at=timezone.now(),
-            error_message=f"AI 调用失败: {normalized_error}",
+            error_message="AI provider request failed",
         )
 
     def analyze_batch(self, texts: list[str]) -> list[SentimentAnalysisResult]:
@@ -238,7 +243,7 @@ class SentimentAnalyzer:
 
 不要返回其他内容。"""
 
-    def _parse_sentiment_score(self, ai_response: str) -> float:
+    def _parse_sentiment_score(self, ai_response: str) -> float | None:
         """
         解析 AI 返回的情感评分
 
@@ -254,7 +259,10 @@ class SentimentAnalyzer:
             json_match = re.search(r"\{[^}]+\}", ai_response, re.DOTALL)
             if json_match:
                 data = json.loads(json_match.group())
-                score = float(data.get("score", 0))
+                raw_score = data.get("score")
+                if isinstance(raw_score, bool) or raw_score is None:
+                    return None
+                score = float(raw_score)
                 if math.isfinite(score):
                     return max(-3.0, min(3.0, score))
         except (json.JSONDecodeError, TypeError, ValueError):
@@ -267,8 +275,7 @@ class SentimentAnalyzer:
             if math.isfinite(score):
                 return max(-3.0, min(3.0, score))
 
-        # 默认返回中性
-        return 0.0
+        return None
 
     def _estimate_confidence(
         self,
@@ -319,12 +326,7 @@ class SentimentAnalyzer:
         Returns:
             SentimentCategory
         """
-        if score >= 0.5:
-            return SentimentCategory.POSITIVE
-        elif score <= -0.5:
-            return SentimentCategory.NEGATIVE
-        else:
-            return SentimentCategory.NEUTRAL
+        return categorize_sentiment_score(score)
 
     def _extract_keywords(self, text: str, ai_response: str) -> list[str]:
         """
@@ -389,7 +391,10 @@ class SentimentAnalyzer:
             text: 分析失败的文本
             error_message: 错误信息
         """
-        logger.warning(f"Sentiment AI 调用失败: {error_message}, 文本: {text[:50]}...")
+        logger.warning(
+            "Sentiment AI request failed; text_length=%d",
+            len(text),
+        )
 
         try:
             # 创建告警记录到数据库
@@ -397,15 +402,18 @@ class SentimentAnalyzer:
                 alert_type="ai_failure",
                 severity="warning",
                 title="Sentiment AI 调用失败",
-                message=f"情感分析 AI 调用失败，已降级为中性结果。\n错误: {error_message}",
+                message="情感分析 AI 调用失败，本次结果已标记为不可用。",
                 metadata={
-                    "text_preview": text[:200] if text else "",
-                    "error": error_message,
+                    "text_length": len(text),
+                    "error_type": "provider_failure",
                 },
             )
-        except Exception as e:
+        except Exception as exc:
             # 告警失败不应影响主流程
-            logger.error(f"发送 AI 失败告警时出错: {e}")
+            logger.error(
+                "Failed to emit sentiment AI alert; exception_type=%s",
+                type(exc).__name__,
+            )
 
 
 class SentimentIndexCalculator:
@@ -445,6 +453,14 @@ class SentimentIndexCalculator:
             news_weight = self.config_repository.get_news_weight(DEFAULT_NEWS_WEIGHT)
         if policy_weight is None:
             policy_weight = self.config_repository.get_policy_weight(DEFAULT_POLICY_WEIGHT)
+        for name, weight in (
+            ("news_weight", news_weight),
+            ("policy_weight", policy_weight),
+        ):
+            if isinstance(weight, bool) or not math.isfinite(weight) or weight < 0.0:
+                raise ValueError(f"{name} must be a finite non-negative number")
+        if not math.isclose(news_weight + policy_weight, 1.0, abs_tol=1e-9):
+            raise ValueError("sentiment index weights must sum to 1")
         # 计算新闻情绪
         news_sentiment = self._weighted_average(news_scores) if news_scores else 0.0
 
@@ -486,6 +502,11 @@ class SentimentIndexCalculator:
         """
         if not scores:
             return 0.0
+        if any(
+            isinstance(score, bool) or not math.isfinite(score) or not -3.0 <= score <= 3.0
+            for score in scores
+        ):
+            raise ValueError("sentiment scores must be finite values between -3 and 3")
 
         # 简单线性权重：最新的权重最高
         n = len(scores)

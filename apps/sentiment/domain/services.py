@@ -1,9 +1,13 @@
 """Sentiment domain services."""
 
+import math
 from datetime import UTC, datetime
 
 from apps.sentiment.domain.entities import SentimentAnalysisResult
-from apps.sentiment.domain.rules import categorize_sentiment_score, clamp_sentiment_score
+from apps.sentiment.domain.rules import (
+    categorize_sentiment_score,
+    clamp_sentiment_score,
+)
 
 
 def build_sentiment_result(
@@ -17,10 +21,13 @@ def build_sentiment_result(
 ) -> SentimentAnalysisResult:
     """Build a normalized sentiment analysis result."""
     normalized_score = clamp_sentiment_score(sentiment_score)
+    if isinstance(confidence, bool) or not math.isfinite(confidence):
+        raise ValueError("confidence must be a finite number")
+    normalized_confidence = max(0.0, min(1.0, confidence))
     return SentimentAnalysisResult(
         text=text,
         sentiment_score=normalized_score,
-        confidence=max(0.0, min(1.0, confidence)),
+        confidence=normalized_confidence,
         category=categorize_sentiment_score(normalized_score),
         keywords=keywords or [],
         analyzed_at=analyzed_at or datetime.now(UTC),

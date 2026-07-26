@@ -608,6 +608,18 @@ class TestSentimentAnalyzer:
         score = analyzer._parse_sentiment_score(plain_response)
         assert score == 2.0
 
+    def test_parse_sentiment_score_rejects_malformed_output(self):
+        """Malformed provider output cannot be recorded as neutral sentiment."""
+        from apps.sentiment.application.services import SentimentAnalyzer
+
+        class MockRepo:
+            pass
+
+        analyzer = SentimentAnalyzer(MockRepo())
+
+        assert analyzer._parse_sentiment_score('{"reasoning": "missing score"}') is None
+        assert analyzer._parse_sentiment_score('{"score": "NaN"}') is None
+
     def test_categorize_sentiment(self):
         """测试情感分类"""
         from apps.sentiment.application.services import SentimentAnalyzer
@@ -652,7 +664,7 @@ class TestSentimentAnalyzer:
 
         result = analyzer.analyze_text("测试")
 
-        assert result.error_message == "AI 调用失败: upstream timed out"
+        assert result.error_message == "AI provider request failed"
         assert result.confidence == 0.0
 
 

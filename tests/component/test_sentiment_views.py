@@ -255,22 +255,20 @@ class TestSentimentIndexRecentView(TestCase):
         mock_get_recent.assert_called_once_with(days=7)
 
     @patch("apps.sentiment.interface.views.get_recent_sentiment_indices_payload")
-    def test_get_recent_indices_clamps_days(self, mock_get_recent):
-        """Test that days parameter is clamped to valid range"""
+    def test_get_recent_indices_rejects_days_outside_contract(self, mock_get_recent):
+        """Invalid day counts fail closed instead of silently changing the query."""
         mock_get_recent.return_value = {"indices": [], "total": 0}
 
-        # Test exceeding maximum
         request = self.factory.get("/sentiment/api/index/recent/?days=400")
         force_authenticate(request, user=self.user)
         response = self.view(request)
-        assert response.status_code == status.HTTP_200_OK
-        mock_get_recent.assert_called_once_with(days=30)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-        # Test below minimum
         request2 = self.factory.get("/sentiment/api/index/recent/?days=0")
         force_authenticate(request2, user=self.user)
         response2 = self.view(request2)
-        assert response2.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_400_BAD_REQUEST
+        mock_get_recent.assert_not_called()
 
 
 class TestSentimentHealthView(TestCase):
