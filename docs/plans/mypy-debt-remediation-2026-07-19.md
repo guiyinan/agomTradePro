@@ -5455,3 +5455,19 @@
 - 扩展包中另有一个与本批无关的既有测试夹具失败：`test_macro_sizing_config_repository_returns_active_config` 在迁移已创建 active row 后再次直接创建 active row，触发 SQLite 唯一约束；单独重跑结果相同，本批未修改该模型、迁移或测试。
 - 新资产元数据 owner module 与兼容聚合仓储在联合及增量 mypy 口径均清零；全仓基线从 `711 errors / 323 files` 收紧为 `710 errors / 322 files`，净减少 `1 error / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、MCP、SDK 或部署实现。
+
+## 第三百五十七批
+
+- 按“Filter 参数可绕过 API 校验直写 × Kalman 负方差持久化 × float 默认值/状态转换精度漂移 × ORM 模型无类型边界”收口滤波配置与状态模型。
+- `FilterConfig` 的 HP lambda、Kalman level/slope variance 必须为非负有限数，observation variance 必须为正有限数；Model `clean()` 复用 Domain 参数实体执行同口径校验，Admin/ModelForm 与 Repository `full_clean()` 路径均失败关闭。
+- 新增六项数据库 CheckConstraint；即使调用方跳过 Model validation 直接 `objects.create/update`，负平滑参数、负过程方差和零/负观测方差也不能进入配置或 Kalman 状态表。
+- FilterConfig 四项 DecimalField 默认值改用 Decimal 真源，避免二进制 float 默认值进入迁移与 ORM；新增 `0003_filter_parameter_constraints`，`makemigrations filter --check --dry-run` 确认模型与迁移一致。
+- Kalman Domain state 转 ORM 时统一通过 `Decimal(str(value))` 收窄，复制 params 后执行完整模型校验；非 JSON 参数、非有限状态和负 variance 在删除/保存状态前拒绝，合法状态可无精度噪声往返。
+- 四个模型字符串方法、Domain 转换与 class factory 补齐精确参数/返回类型，裸 `dict` 改为 `dict[str, object]`，模型文件退出 mypy 债务清单。
+- 新增 Model/DB 双层非法参数拒绝、有效边界、Decimal 状态往返和直接 ORM 绕过阻断回归。
+
+## 第三百五十七批验证结果
+
+- Filter 模型与数据库约束专项 `10 passed`；Filter API、Domain 算法、Repository 财务真实性、UseCase 与 Dashboard 完整相关回归 `93 passed`。
+- `apps/filter/infrastructure/models.py` 在增量 mypy 口径清零；全仓基线从 `710 errors / 322 files` 收紧为 `702 errors / 321 files`，净减少 `8 errors / 1 file`。
+- Filter migration drift check、Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、MCP、SDK 或部署实现。

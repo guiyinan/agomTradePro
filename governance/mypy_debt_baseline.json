@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 710,
-    "files_with_errors": 322
+    "errors": 702,
+    "files_with_errors": 321
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -601,10 +601,6 @@
     },
     "apps/events/interface/urls.py": {
       "var-annotated": 1
-    },
-    "apps/filter/infrastructure/models.py": {
-      "no-untyped-def": 7,
-      "type-arg": 1
     },
     "apps/filter/interface/deprecation.py": {
       "misc": 1
