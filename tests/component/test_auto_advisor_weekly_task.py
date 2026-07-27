@@ -1,4 +1,5 @@
 import io
+import json
 from datetime import date
 
 import pytest
@@ -190,6 +191,85 @@ def test_setup_auto_advisor_weekly_report_rejects_invalid_account_ids():
             user_id=7,
             account_ids="101,not-a-number",
             stdout=io.StringIO(),
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"hour": 24}, "--hour"),
+        ({"minute": 60}, "--minute"),
+        ({"user_id": True}, "--user-id"),
+        ({"user_id": -1}, "--user-id"),
+        ({"user_id": 7, "account_ids": "101,-2"}, "positive integers"),
+        ({"day_of_week": " "}, "day-of-week"),
+    ],
+)
+def test_setup_auto_advisor_weekly_report_rejects_invalid_scope_before_writes(
+    kwargs,
+    message,
+):
+    """Dynamic argument coercion cannot create partial or overly broad schedules."""
+
+    options = {"hour": 18, "minute": 5, "day_of_week": "fri", **kwargs}
+    with pytest.raises(CommandError, match=message):
+        call_command("setup_auto_advisor_weekly_report", **options)
+    assert not PeriodicTask.objects.filter(name="dashboard-auto-advisor-weekly-report").exists()
+
+
+@pytest.mark.django_db
+def test_setup_auto_advisor_weekly_report_rejects_corrupt_existing_scope_until_explicit_clear():
+    """Corrupt persisted kwargs never silently broaden a scoped task to all accounts."""
+
+    call_command(
+        "setup_auto_advisor_weekly_report",
+        hour=18,
+        minute=5,
+        day_of_week="fri",
+        user_id=7,
+        account_ids="101,101,102",
+    )
+    task = PeriodicTask.objects.get(name="dashboard-auto-advisor-weekly-report")
+    assert json.loads(task.kwargs) == {"user_id": 7, "account_ids": [101, 102]}
+    task.kwargs = "{broken"
+    task.save(update_fields=["kwargs"])
+
+    with pytest.raises(CommandError, match="invalid JSON"):
+        call_command(
+            "setup_auto_advisor_weekly_report",
+            hour=19,
+            minute=5,
+            day_of_week="fri",
+        )
+    task.refresh_from_db()
+    assert task.kwargs == "{broken"
+    assert task.crontab is not None
+    assert task.crontab.hour == "18"
+
+    call_command(
+        "setup_auto_advisor_weekly_report",
+        hour=19,
+        minute=5,
+        day_of_week="fri",
+        clear_scope=True,
+    )
+    task.refresh_from_db()
+    assert task.kwargs == "{}"
+
+
+@pytest.mark.django_db
+def test_setup_auto_advisor_weekly_report_rejects_clear_scope_conflict():
+    """Scope clearing is explicit and cannot discard simultaneously supplied IDs."""
+
+    with pytest.raises(CommandError, match="cannot be combined"):
+        call_command(
+            "setup_auto_advisor_weekly_report",
+            hour=18,
+            minute=5,
+            day_of_week="fri",
+            clear_scope=True,
+            user_id=7,
         )
 
 

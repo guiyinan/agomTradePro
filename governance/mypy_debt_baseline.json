@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 960,
-    "files_with_errors": 365
+    "errors": 952,
+    "files_with_errors": 364
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -417,11 +417,6 @@
     "apps/dashboard/interface/workflow_views.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 2
-    },
-    "apps/dashboard/management/commands/setup_auto_advisor_weekly_report.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 3,
-      "type-arg": 4
     },
     "apps/dashboard/templatetags/dashboard_tags.py": {
       "no-untyped-def": 2

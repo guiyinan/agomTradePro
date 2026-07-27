@@ -4934,3 +4934,21 @@
 - Scheduler 初始化专项 `23 passed`；scheduler、macro periodic、personal readiness 与 task-monitor 回归 `128 passed`。
 - `apps/data_center/management/commands/setup_decision_quote_refresh.py` 增量 mypy 清零；全仓基线从 `969 errors / 366 files` 收紧为 `960 errors / 365 files`，净减少 `9 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百二十五批
+
+- 按“自动投顾账户范围防扩散 × 周报调度失败关闭 × 既有 scope 契约”收口 Dashboard `setup_auto_advisor_weekly_report` 管理命令。
+- 更新调度但未显式传 scope 时，既有 kwargs 必须是合法 JSON object，且只允许 `user_id/account_ids`；损坏 JSON、非对象、未知键、非正 ID、布尔伪装或无 user 的 account 列表直接失败，不再静默回退 `{}` 并扩大为全部活跃账户。
+- 只有显式 `--clear-scope` 才能清空账户范围；该参数与同时提供的 user/account scope 冲突时拒绝执行，避免操作意图含混导致误清除。
+- `user_id` 和 account IDs 只接受非布尔正整数；账户列表稳定去重，负数、零、非整数文本和没有 user 的账户列表在写入 Beat 表前失败关闭。
+- hour/minute 越界、空 day-of-week 及动态布尔伪装改为 `CommandError`，不再向 stderr 输出后成功退出；全部参数和现有 scope 在事务写入前验证。
+- 既有 PeriodicTask 使用 `select_for_update` 锁定，scope 解析、crontab 创建和任务 upsert 在同一事务；解析失败时原 kwargs 与原调度时间保持不变。
+- daily evidence 调度查询异常不再被宽泛吞掉并回退 16:10；数据库错误以异常类型失败关闭。crontab 单值同时校验小时/分钟上界，异常表达式才使用文档默认时间。
+- Beat timezone 使用项目 `TIME_ZONE`；kwargs JSON 禁止 NaN，django-celery-beat 经动态第三方边界加载，CommandParser、options、scope 容器和 handler 返回契约补齐。
+- 新增非法用户/账户/时间、scope clear 冲突、账户去重、损坏既有 kwargs 保留原任务及显式恢复为空范围回归。
+
+## 第三百二十五批验证结果
+
+- 自动投顾任务与调度专项 `15 passed`；scheduler、auto-advisor、personal readiness 与 task-monitor 回归 `141 passed`。
+- `apps/dashboard/management/commands/setup_auto_advisor_weekly_report.py` 增量 mypy 清零；全仓基线从 `960 errors / 365 files` 收紧为 `952 errors / 364 files`，净减少 `8 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
