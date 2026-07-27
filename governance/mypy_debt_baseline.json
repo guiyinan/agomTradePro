@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 944,
-    "files_with_errors": 363
+    "errors": 924,
+    "files_with_errors": 361
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1083,14 +1083,6 @@
     },
     "apps/task_monitor/interface/views.py": {
       "misc": 5
-    },
-    "apps/task_monitor/management/__init__.py": {
-      "misc": 5,
-      "no-untyped-def": 5
-    },
-    "apps/task_monitor/management/commands/__init__.py": {
-      "misc": 5,
-      "no-untyped-def": 5
     },
     "apps/task_monitor/management/commands/backup_database.py": {
       "unused-ignore": 2

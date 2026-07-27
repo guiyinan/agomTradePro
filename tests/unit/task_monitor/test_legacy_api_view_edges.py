@@ -1,4 +1,4 @@
-"""Legacy task-monitor API success and failure response contracts."""
+"""Task-monitor API success and failure response contracts."""
 
 from __future__ import annotations
 
@@ -6,22 +6,38 @@ from types import SimpleNamespace
 
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from apps.task_monitor.management import commands as views
+from apps.task_monitor.interface import views
 
 
 def _request(path: str = "/"):
     request = APIRequestFactory().get(path)
-    force_authenticate(request, user=SimpleNamespace(is_authenticated=True, pk=1))
+    force_authenticate(
+        request,
+        user=SimpleNamespace(is_authenticated=True, is_staff=True, pk=1),
+    )
     return request
 
 
 class _Serializer:
-    def __init__(self, value: object) -> None:
+    def __init__(self, value: object, **_kwargs: object) -> None:
         self.data = value
+
+
+def test_management_packages_do_not_publish_http_views() -> None:
+    """Management command discovery must not import or expose HTTP handlers."""
+
+    from apps.task_monitor import management
+    from apps.task_monitor.management import commands
+
+    for package in (management, commands):
+        assert not hasattr(package, "get_task_status")
+        assert not hasattr(package, "list_tasks")
+        assert not hasattr(package, "health_check")
 
 
 def test_task_status_list_and_statistics_response_boundaries(monkeypatch) -> None:
     """Task queries preserve not-found, validation, success, and exception mappings."""
+    monkeypatch.setattr(views, "get_task_record_repository", object)
     monkeypatch.setattr(views, "TaskStatusSerializer", _Serializer)
     monkeypatch.setattr(views, "TaskListSerializer", _Serializer)
     monkeypatch.setattr(views, "TaskStatisticsSerializer", _Serializer)
@@ -74,7 +90,10 @@ def test_task_status_list_and_statistics_response_boundaries(monkeypatch) -> Non
 
 def test_health_and_dashboard_success_and_failure_contracts(monkeypatch) -> None:
     """Health endpoints keep a structured degraded response when Celery is unavailable."""
+    monkeypatch.setattr(views, "get_task_record_repository", object)
+    monkeypatch.setattr(views, "get_celery_health_checker", object)
     monkeypatch.setattr(views, "HealthCheckSerializer", _Serializer)
+    monkeypatch.setattr(views, "TaskStatusSerializer", _Serializer)
     health = SimpleNamespace(
         is_healthy=True,
         broker_reachable=True,

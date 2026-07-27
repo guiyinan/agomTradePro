@@ -4969,3 +4969,17 @@
 - Cache warmup 专项 `7 passed`；Core、personal readiness status/evidence 与 evidence inspection 回归 `168 passed`。
 - `core/management/commands/warmup_cache.py` 增量 mypy 清零；全仓基线从 `952 errors / 364 files` 收紧为 `944 errors / 363 files`，净减少 `8 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百二十七批
+
+- 按“管理命令导入副作用 × Task Monitor 接口重复实现 × 正式路由唯一真源”收口 `task_monitor.management` 两个包初始化文件。
+- 删除 `apps/task_monitor/management/__init__.py` 与 `apps/task_monitor/management/commands/__init__.py` 中两份完全相同的旧 DRF views 副本；管理包初始化恢复为无副作用的包声明，不再因发现任一 Task Monitor 命令而加载 HTTP、serializer、repository 与 Celery 接口依赖。
+- 正式 HTTP 实现继续唯一归属 `apps/task_monitor/interface/views.py`，URL、管理员权限、参数严格校验、Application provider 装配与稳定脱敏错误契约均未改动。
+- 唯一仍从 management commands 包调用旧 views 的测试改为验证正式 Interface 路径，并补充管理包不得再次发布 HTTP handler 的回归断言。
+- Django 管理命令发现清单验证通过，证明删除错误位置副本未影响 `backup_database`、readiness、scheduler 等真实命令注册。
+
+## 第三百二十七批验证结果
+
+- Task Monitor API、组件、管理命令、personal readiness 与 scheduler 回归 `235 passed`；`python manage.py help --commands` 正常列出完整命令集。
+- 两个 Task Monitor management 包初始化文件增量 mypy 清零；全仓基线从 `944 errors / 363 files` 收紧为 `924 errors / 361 files`，净减少 `20 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
