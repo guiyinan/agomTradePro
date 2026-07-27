@@ -5026,3 +5026,21 @@
 - Alpha 模型命令专项 `5 passed`；Alpha 单元、模型训练组件与运维 API 回归 `87 passed`，仅有一条未改动 Qlib pandas 兼容层 `DataFrame.groupby(axis=...)` FutureWarning。
 - `apps/alpha/management/commands/rollback_model.py` 在 governed 与增量 mypy 两种口径均清零；全仓基线从 `914 errors / 359 files` 收紧为 `907 errors / 358 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百三十一批
+
+- 按“宏观一致性审计假干净 × 全表内存放大 × 部署门禁失败关闭”收口 Data Center `audit_macro_fact_consistency` 管理命令。
+- tolerance 统一执行 failover 契约的有限 `[0, 1]` 校验；负数、超过 100%、`NaN/Inf`、布尔伪装或不可解析值在查询前失败，不再让 `NaN` 比较把异常来源静默判成一致。
+- strict 只接受真实布尔值，max-examples 只接受非布尔非负整数；负数不再被静默钳为 0，动态调用者不能用字符串或浮点绕过 CLI 类型。
+- 宏观事实改为按 `indicator_code/reporting_period/id` 排序后分块迭代，每次只保留一个指标的事实；冲突总数完整累加，但每类证据最多保留 max-examples 条，内存占用从“全表事实 + 全部冲突”收敛为“单指标事实 + 有界证据”。
+- Catalog 与 Fact JSON metadata 必须是字符串键 object，指标代码、来源和数值必须非空且有限；损坏边界直接非零退出，不再被解释为未治理但无冲突的数据。
+- QuerySet 流式迭代器显式关闭，异常路径不会把 SQLite/数据库游标留到连接关闭后再清理；ORM 模型仅在局部边界 cast 到 Domain preference protocol。
+- 数据库、解析和 JSON 序列化失败只报告异常类型，JSON 输出禁止 NaN；strict 阻断范围继续保持“未治理跨源冲突或治理来源缺失”，未改变既有 canonical/legacy 报告语义。
+- 修复 `compute_rate_of_change` 对 previous `None` 的显式收窄，Domain rules 同步保持增量 mypy 零错误。
+- 新增 9 类非法参数前置短路、完整计数/有界证据、损坏 metadata 和数据库异常脱敏回归。
+
+## 第三百三十一批验证结果
+
+- Macro consistency 命令专项 `14 passed`；命令、选择规则与 Phase 2 rules 回归 `51 passed`；Data Center 全量 unit/component 回归 `369 passed`。
+- `apps/data_center/management/commands/audit_macro_fact_consistency.py` 与 `apps/data_center/domain/rules.py` 在跨层及增量 mypy 口径均清零；全仓基线从 `907 errors / 358 files` 收紧为 `899 errors / 356 files`，净减少 `8 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

@@ -391,7 +391,7 @@ def compute_rate_of_change(
 ) -> float | None:
     """Return fractional rate of change ``(current / previous) - 1``."""
 
-    if current_value is None or previous_value in (None, 0):
+    if current_value is None or previous_value is None or previous_value == 0:
         return None
     return (float(current_value) / float(previous_value)) - 1.0
 

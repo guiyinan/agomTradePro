@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 907,
-    "files_with_errors": 358
+    "errors": 899,
+    "files_with_errors": 356
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -433,9 +433,6 @@
     "apps/data_center/application/tasks.py": {
       "unused-ignore": 1
     },
-    "apps/data_center/domain/rules.py": {
-      "arg-type": 1
-    },
     "apps/data_center/infrastructure/_provider_adapter_base.py": {
       "no-any-return": 1
     },
@@ -493,11 +490,6 @@
     },
     "apps/data_center/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/data_center/management/commands/audit_macro_fact_consistency.py": {
-      "arg-type": 4,
-      "attr-defined": 1,
-      "no-untyped-def": 2
     },
     "apps/data_center/management/commands/audit_on_demand_coverage.py": {
       "attr-defined": 2,
