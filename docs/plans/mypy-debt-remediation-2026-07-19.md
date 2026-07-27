@@ -5300,3 +5300,19 @@
 - Task Monitor Admin 专项 `3 passed`；Task Monitor unit/component/API 扩展回归 `54 passed`。并发套件退出时一次 Windows 测试库文件锁 warning 对应备份测试单独重跑 `1 passed` 且无 warning。
 - `apps/task_monitor/interface/admin.py` 在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `783 errors / 339 files` 收紧为 `774 errors / 338 files`，净减少 `9 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百四十八批
+
+- 按“非法保留期扩大删除范围 × SQLite VACUUM 备份证据误判 × 无类型调度模型边界”收口 Task Monitor 留存清理仓储。
+- `cleanup_old_records` 在任何数据库状态迁移或删除前严格要求非布尔正整数保留天数；零、负数、字符串和布尔伪装全部失败关闭，不能通过未来 cutoff 扩大删除范围，也不会先把运行中任务改为超时。
+- SQLite 周期性 VACUUM 的备份前置只接受 26 小时内、非空的 `*.sqlite3` 或 `*.sqlite3.gz` 持久文件；零字节文件、临时文件、PostgreSQL SQL dump、过期文件和无法读取的文件均不能授权 VACUUM。
+- `settings.BASE_DIR` 动态边界先收窄为非空路径字符串或 `Path`；无效设置直接视为无备份，保持失败关闭。
+- `django-celery-beat` 无类型第三方模型改为 `importlib + Protocol + cast` 局部边界；Repository 的调度展示 helper 使用明确的只读结构契约，不恢复宽泛 `type: ignore`。
+- 删除本文件六处已经失效的 Django `import-untyped` 忽略，使真实第三方边界显式可见并让该生产文件退出 mypy 债务清单。
+- 新增非法保留期不得修改任何记录、SQLite 备份格式/大小/新鲜度筛选回归。
+
+## 第三百四十八批验证结果
+
+- 留存安全与既有分层清理定向回归 `8 passed`；Task Monitor unit/component/API 扩展回归 `60 passed`。完整套件退出时一次 Windows 测试库文件锁 warning 对应在线备份用例单独重跑 `1 passed` 且无 warning。
+- `apps/task_monitor/infrastructure/repositories.py` 在跨文件及增量 mypy 口径均清零；全仓基线从 `774 errors / 338 files` 收紧为 `768 errors / 337 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、增量 mypy 与全仓 debt baseline 刷新通过。

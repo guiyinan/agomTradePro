@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 774,
-    "files_with_errors": 338
+    "errors": 768,
+    "files_with_errors": 337
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -991,9 +991,6 @@
     "apps/task_monitor/infrastructure/maintenance_status.py": {
       "redundant-cast": 1,
       "unused-ignore": 2
-    },
-    "apps/task_monitor/infrastructure/repositories.py": {
-      "unused-ignore": 6
     },
     "apps/task_monitor/management/commands/backup_database.py": {
       "unused-ignore": 2

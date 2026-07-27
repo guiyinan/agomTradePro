@@ -4,22 +4,22 @@ Task Monitor Infrastructure Repositories
 任务监控仓储实现。
 """
 
+import importlib
 import json
 import logging
 import socket
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
-from django.core.management import call_command  # type: ignore[import-untyped]
-from django.core.serializers.json import DjangoJSONEncoder  # type: ignore[import-untyped]
-from django.db.models import Avg, Count  # type: ignore[import-untyped]
-from django.utils import timezone  # type: ignore[import-untyped]
-from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
+from django.core.management import call_command
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import Avg, Count
+from django.utils import timezone
 
 from apps.task_monitor.domain.entities import (
     CeleryHealthStatus,
@@ -44,6 +44,64 @@ from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 _PREFLIGHT_UNREACHABLE_CACHE: set[str] = set()
+
+
+class _CrontabScheduleLike(Protocol):
+    """Typed view of the django-celery-beat crontab fields we read."""
+
+    hour: str
+    minute: str
+    day_of_week: str
+    day_of_month: str
+    month_of_year: str
+    timezone: object
+
+
+class _IntervalScheduleLike(Protocol):
+    """Typed view of the django-celery-beat interval fields we read."""
+
+    every: int
+    period: str
+
+
+class _ClockedScheduleLike(Protocol):
+    """Typed view of the django-celery-beat clocked fields we read."""
+
+    clocked_time: datetime
+
+
+class _SolarScheduleLike(Protocol):
+    """Typed view of the django-celery-beat solar fields we read."""
+
+    event: str
+    latitude: object
+    longitude: object
+
+
+class _PeriodicTaskLike(Protocol):
+    """Typed view of a periodic task crossing the untyped package boundary."""
+
+    crontab_id: int | None
+    interval_id: int | None
+    clocked_id: int | None
+    solar_id: int | None
+    crontab: _CrontabScheduleLike | None
+    interval: _IntervalScheduleLike | None
+    clocked: _ClockedScheduleLike | None
+    solar: _SolarScheduleLike | None
+
+
+class _PeriodicTaskModelLike(Protocol):
+    """Typed model-class boundary for django-celery-beat's untyped manager."""
+
+    objects: Any
+
+
+_beat_models = importlib.import_module("django_celery_beat.models")
+_periodic_task_model = cast(
+    _PeriodicTaskModelLike,
+    _beat_models.PeriodicTask,
+)
 
 
 def _log_preflight_unreachable_once(channel: str, endpoint: str | None) -> None:
@@ -188,6 +246,8 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
 
     def cleanup_old_records(self, days_to_keep: int = 30) -> int:
         """Apply tiered retention in bounded batches and optimize SQLite metadata."""
+        if isinstance(days_to_keep, bool) or not isinstance(days_to_keep, int) or days_to_keep <= 0:
+            raise ValueError("days_to_keep must be a positive integer")
         now = timezone.now()
         stale_active_cutoff = now - timedelta(days=7)
         TaskExecutionModel.objects.filter(
@@ -226,22 +286,31 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         return deleted
 
     @staticmethod
-    def _has_fresh_database_backup(now: Any) -> bool:
+    def _has_fresh_database_backup(now: datetime) -> bool:
         """Only permit weekly VACUUM after a recent persistent backup."""
 
-        from django.conf import settings  # type: ignore[import-untyped]
+        from django.conf import settings
 
-        backup_dir = Path(settings.BASE_DIR) / "backups" / "database"
+        base_dir_value: object = getattr(settings, "BASE_DIR", "")
+        if not isinstance(base_dir_value, (str, Path)) or not base_dir_value:
+            return False
+        backup_dir = Path(base_dir_value) / "backups" / "database"
         cutoff = now.timestamp() - (26 * 3600)
-        return any(
-            path.is_file() and path.stat().st_mtime >= cutoff
-            for path in backup_dir.glob("db_backup_*")
-        )
+        for path in backup_dir.glob("db_backup_*"):
+            if not path.name.endswith((".sqlite3", ".sqlite3.gz")):
+                continue
+            try:
+                file_stat = path.stat()
+            except OSError:
+                continue
+            if path.is_file() and file_stat.st_size > 0 and file_stat.st_mtime >= cutoff:
+                return True
+        return False
 
     @staticmethod
     def _optimize_sqlite_storage(*, allow_vacuum: bool) -> None:
         """Run lightweight optimization and vacuum only with meaningful free space."""
-        from django.db import connection  # type: ignore[import-untyped]
+        from django.db import connection
 
         if connection.vendor != "sqlite":
             return
@@ -419,7 +488,7 @@ class DjangoSchedulerRepository(SchedulerRepositoryProtocol):
     """Read-only repository for database-backed periodic tasks."""
 
     def get_catalog_summary(self) -> SchedulerCatalogSummary:
-        queryset = PeriodicTask.objects.all()
+        queryset = _periodic_task_model.objects.all()
         return SchedulerCatalogSummary(
             total_tasks=queryset.count(),
             enabled_tasks=queryset.filter(enabled=True).count(),
@@ -431,9 +500,9 @@ class DjangoSchedulerRepository(SchedulerRepositoryProtocol):
 
     def list_periodic_tasks(self, limit: int = 100) -> list[ScheduledTaskRecord]:
         tasks = list(
-            PeriodicTask.objects.select_related("crontab", "interval", "clocked", "solar").order_by(
-                "enabled", "name"
-            )[:limit]
+            _periodic_task_model.objects.select_related(
+                "crontab", "interval", "clocked", "solar"
+            ).order_by("enabled", "name")[:limit]
         )
         task_paths = [task.task for task in tasks if task.task]
         latest_execution_map = self._latest_execution_map(task_paths)
@@ -472,7 +541,7 @@ class DjangoSchedulerRepository(SchedulerRepositoryProtocol):
         ]
 
     def get_crontab_task(self, task_name: str) -> ScheduledCrontabRecord:
-        task = PeriodicTask.objects.select_related("crontab").filter(name=task_name).first()
+        task = _periodic_task_model.objects.select_related("crontab").filter(name=task_name).first()
         if task is None:
             return ScheduledCrontabRecord(
                 name=task_name,
@@ -530,7 +599,7 @@ class DjangoSchedulerRepository(SchedulerRepositoryProtocol):
         return {str(row["task_name"]): int(row["total"]) for row in rows}
 
     @staticmethod
-    def _schedule_type(task: PeriodicTask) -> str:
+    def _schedule_type(task: _PeriodicTaskLike) -> str:
         if task.crontab_id:
             return "crontab"
         if task.interval_id:
@@ -542,7 +611,7 @@ class DjangoSchedulerRepository(SchedulerRepositoryProtocol):
         return "custom"
 
     @staticmethod
-    def _schedule_display(task: PeriodicTask) -> str:
+    def _schedule_display(task: _PeriodicTaskLike) -> str:
         if task.crontab_id and task.crontab:
             timezone_name = getattr(task.crontab, "timezone", None)
             timezone_suffix = f" ({timezone_name})" if timezone_name else ""
