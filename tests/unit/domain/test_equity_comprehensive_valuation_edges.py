@@ -1,5 +1,6 @@
 """Comprehensive valuation boundaries for the Equity Domain."""
 
+from dataclasses import FrozenInstanceError, replace
 from datetime import date
 from decimal import Decimal
 
@@ -69,6 +70,82 @@ def test_comprehensive_analysis_returns_all_methods_and_auditable_recommendation
     assert 0.0 <= result.confidence <= 1.0
 
 
+def test_comprehensive_score_normalizes_active_weights_to_true_hundred_point_scale() -> None:
+    """Removing the unavailable DCF method must not compress the theoretical score to 85."""
+
+    result = ComprehensiveValuationAnalyzer().analyze(
+        "000001.SZ",
+        _financial(revenue_growth=30, profit_growth=30, roe=20),
+        _valuation(pe=4, pb=0.4),
+        historical_pe=[10, 20, 30],
+        historical_pb=[1, 2, 3],
+        industry_avg_pe=20,
+        industry_avg_pb=2,
+    )
+
+    assert result.overall_score == pytest.approx(100.0)
+    assert result.overall_signal == "strong_buy"
+
+
+def test_comprehensive_analysis_rejects_cross_stock_fact_mixing() -> None:
+    """Financial and valuation facts for another stock cannot enter one result."""
+
+    with pytest.raises(ValueError, match="must match stock_code"):
+        ComprehensiveValuationAnalyzer().analyze(
+            "000001.SZ",
+            replace(_financial(), stock_code="000002.SZ"),
+            _valuation(),
+            historical_pe=[10],
+            historical_pb=[1],
+        )
+
+
+@pytest.mark.parametrize(
+    ("financial", "valuation", "kwargs", "field_name"),
+    [
+        (_financial(), _valuation(pe=float("nan")), {}, "valuation.pe"),
+        (replace(_financial(), roe=float("inf")), _valuation(), {}, "financial.roe"),
+        (_financial(), _valuation(), {"industry_avg_pb": float("-inf")}, "industry_avg_pb"),
+        (_financial(), _valuation(), {"risk_free_rate": float("nan")}, "risk_free_rate"),
+    ],
+)
+def test_comprehensive_analysis_rejects_non_finite_inputs(
+    financial: FinancialData,
+    valuation: ValuationMetrics,
+    kwargs: dict[str, float],
+    field_name: str,
+) -> None:
+    """NaN and infinity fail closed instead of contaminating scores and signals."""
+
+    with pytest.raises(ValueError, match=field_name):
+        ComprehensiveValuationAnalyzer().analyze(
+            "000001.SZ",
+            financial,
+            valuation,
+            historical_pe=[10],
+            historical_pb=[1],
+            **kwargs,
+        )
+
+
+def test_comprehensive_analysis_filters_non_finite_history_observations() -> None:
+    """Bad historical rows are excluded while valid point-in-time observations remain usable."""
+
+    analyzer = ComprehensiveValuationAnalyzer()
+    result = analyzer.analyze(
+        "000001.SZ",
+        _financial(),
+        _valuation(),
+        historical_pe=[float("nan"), float("inf"), -1, 10, 20],
+        historical_pb=[float("nan"), float("-inf"), 0, 1, 2],
+    )
+    expected = analyzer._analyze_pe_pb_percentile(_valuation(), [10, 20], [1, 2])
+
+    assert result.scores[0].details == expected.details
+    with pytest.raises(FrozenInstanceError):
+        result.overall_score = 0
+
+
 @pytest.mark.parametrize(
     ("ratio", "score", "signal"),
     [
@@ -99,6 +176,20 @@ def test_industry_relative_valuation_handles_invalid_benchmarks() -> None:
     )
     assert result.details["avg_ratio"] == 1.0
     assert result.score == 60
+
+
+def test_industry_relative_valuation_treats_non_positive_current_multiples_as_neutral() -> None:
+    """Loss-making or negative-equity multiples cannot be rewarded as deeply undervalued."""
+
+    result = ComprehensiveValuationAnalyzer()._analyze_vs_industry(
+        _valuation(pe=-10, pb=-1),
+        20,
+        2,
+    )
+
+    assert result.details["avg_ratio"] == 1.0
+    assert result.score == 60
+    assert result.signal == "fair"
 
 
 @pytest.mark.parametrize(
@@ -194,3 +285,4 @@ def test_recommendation_and_confidence_cover_consensus_and_unknown_signal() -> N
     assert "2种方法" in analyzer._generate_recommendation("strong_sell", overvalued)
     assert analyzer._generate_recommendation("unknown", undervalued) == "暂无明确建议"
     assert analyzer._calculate_confidence(overvalued) > analyzer._calculate_confidence(undervalued)
+    assert analyzer._calculate_confidence([]) == 0.0

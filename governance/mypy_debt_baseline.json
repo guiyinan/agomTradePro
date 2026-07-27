@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1065,
-    "files_with_errors": 378
+    "errors": 1060,
+    "files_with_errors": 377
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -636,10 +636,6 @@
     "apps/equity/domain/ports.py": {
       "type-arg": 2,
       "valid-type": 1
-    },
-    "apps/equity/domain/services_comprehensive_valuation.py": {
-      "arg-type": 4,
-      "type-arg": 1
     },
     "apps/equity/domain/services_technical.py": {
       "arg-type": 1

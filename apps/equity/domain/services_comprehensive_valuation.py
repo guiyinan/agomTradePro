@@ -5,27 +5,33 @@
 """
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import Literal
 
 from apps.equity.domain.entities import FinancialData, ValuationMetrics
 
+ValuationSignal = Literal["undervalued", "fair", "overvalued"]
+OverallValuationSignal = Literal["strong_buy", "buy", "hold", "sell", "strong_sell"]
 
-@dataclass
+
+@dataclass(frozen=True)
 class ValuationScore:
     """估值评分"""
+
     method: str  # 估值方法
     score: float  # 评分（0-100）
-    signal: Literal['undervalued', 'fair', 'overvalued']  # 信号
-    details: dict  # 详细信息
+    signal: ValuationSignal  # 信号
+    details: dict[str, object]  # 详细信息
 
 
-@dataclass
+@dataclass(frozen=True)
 class ComprehensiveValuationResult:
     """综合估值结果"""
+
     stock_code: str
     overall_score: float  # 综合评分（0-100）
-    overall_signal: Literal['strong_buy', 'buy', 'hold', 'sell', 'strong_sell']
-    scores: list[ValuationScore]
+    overall_signal: OverallValuationSignal
+    scores: tuple[ValuationScore, ...]
     recommendation: str
     confidence: float  # 置信度（0-1）
 
@@ -36,8 +42,8 @@ class ComprehensiveValuationAnalyzer:
 
     整合多种估值方法：
     1. 相对估值（PE/PB 百分位）
-    2. 绝对估值（DCF）
-    3. 相对估值（PEG）
+    2. 相对行业估值（PE/PB）
+    3. 成长估值（PEG）
     4. 质量评估（ROE、增长率等）
     """
 
@@ -50,39 +56,50 @@ class ComprehensiveValuationAnalyzer:
         historical_pb: list[float],
         industry_avg_pe: float = 20.0,
         industry_avg_pb: float = 2.0,
-        risk_free_rate: float = 0.03
+        risk_free_rate: float = 0.03,
     ) -> ComprehensiveValuationResult:
         """
         综合估值分析
 
         Args:
-            stock_code: �股票代码
+            stock_code: 股票代码
             financial: 财务数据
             valuation: 估值指标
             historical_pe: 历史 PE 列表
             historical_pb: 历史 PB 列表
             industry_avg_pe: 行业平均 PE
             industry_avg_pb: 行业平均 PB
-            risk_free_rate: 无风险利率（默认 3%）
+            risk_free_rate: 预留 DCF 无风险利率；当前四方法评分仅验证其为有限值
 
         Returns:
             综合估值结果
         """
 
-        scores = []
-        weights = []  # 各方法权重
+        self._validate_inputs(
+            stock_code=stock_code,
+            financial=financial,
+            valuation=valuation,
+            industry_avg_pe=industry_avg_pe,
+            industry_avg_pb=industry_avg_pb,
+            risk_free_rate=risk_free_rate,
+        )
+        valid_historical_pe = [value for value in historical_pe if isfinite(value) and value > 0]
+        valid_historical_pb = [value for value in historical_pb if isfinite(value) and value > 0]
+
+        scores: list[ValuationScore] = []
+        weights: list[float] = []  # 各方法权重
 
         # 1. PE/PB 百分位分析（权重：30%）
         pe_pb_score = self._analyze_pe_pb_percentile(
-            valuation, historical_pe, historical_pb
+            valuation,
+            valid_historical_pe,
+            valid_historical_pb,
         )
         scores.append(pe_pb_score)
         weights.append(0.3)
 
         # 2. 相对行业估值（权重：20%）
-        industry_score = self._analyze_vs_industry(
-            valuation, industry_avg_pe, industry_avg_pb
-        )
+        industry_score = self._analyze_vs_industry(valuation, industry_avg_pe, industry_avg_pb)
         scores.append(industry_score)
         weights.append(0.2)
 
@@ -96,13 +113,14 @@ class ComprehensiveValuationAnalyzer:
         scores.append(quality_score)
         weights.append(0.15)
 
-        # 5. DCF 绝对估值（权重：15%）
-        # dcf_score = self._analyze_dcf(financial, valuation, risk_free_rate)
-        # scores.append(dcf_score)
-        # weights.append(0.15)
-
-        # 计算加权综合评分
-        overall_score = sum(s.score * w for s, w in zip(scores, weights, strict=True))
+        # DCF 暂不可用时，按当前实际参与的方法权重重新归一化到 100 分制。
+        total_weight = sum(weights)
+        if total_weight <= 0:
+            raise ValueError("valuation method weights must have a positive sum")
+        overall_score = (
+            sum(score.score * weight for score, weight in zip(scores, weights, strict=True))
+            / total_weight
+        )
 
         # 确定信号
         overall_signal = self._determine_signal(overall_score)
@@ -117,16 +135,46 @@ class ComprehensiveValuationAnalyzer:
             stock_code=stock_code,
             overall_score=overall_score,
             overall_signal=overall_signal,
-            scores=scores,
+            scores=tuple(scores),
             recommendation=recommendation,
-            confidence=confidence
+            confidence=confidence,
         )
 
-    def _analyze_pe_pb_percentile(
-        self,
+    @staticmethod
+    def _validate_inputs(
+        *,
+        stock_code: str,
+        financial: FinancialData,
         valuation: ValuationMetrics,
-        historical_pe: list[float],
-        historical_pb: list[float]
+        industry_avg_pe: float,
+        industry_avg_pb: float,
+        risk_free_rate: float,
+    ) -> None:
+        """Reject mismatched identities and non-finite facts before scoring."""
+
+        normalized_code = stock_code.strip()
+        if not normalized_code:
+            raise ValueError("stock_code must not be empty")
+        if financial.stock_code != normalized_code or valuation.stock_code != normalized_code:
+            raise ValueError("financial and valuation facts must match stock_code")
+
+        finite_values = {
+            "valuation.pe": valuation.pe,
+            "valuation.pb": valuation.pb,
+            "industry_avg_pe": industry_avg_pe,
+            "industry_avg_pb": industry_avg_pb,
+            "risk_free_rate": risk_free_rate,
+            "financial.revenue_growth": financial.revenue_growth,
+            "financial.net_profit_growth": financial.net_profit_growth,
+            "financial.roe": financial.roe,
+            "financial.debt_ratio": financial.debt_ratio,
+        }
+        invalid_fields = [name for name, value in finite_values.items() if not isfinite(value)]
+        if invalid_fields:
+            raise ValueError("valuation inputs must be finite: " + ", ".join(invalid_fields))
+
+    def _analyze_pe_pb_percentile(
+        self, valuation: ValuationMetrics, historical_pe: list[float], historical_pb: list[float]
     ) -> ValuationScore:
         """PE/PB 百分位分析"""
         from apps.equity.domain.services import ValuationAnalyzer
@@ -143,34 +191,36 @@ class ComprehensiveValuationAnalyzer:
         score = (1 - avg_percentile) * 100
 
         # 确定信号
+        signal: ValuationSignal
         if avg_percentile < 0.2:
-            signal = 'undervalued'
+            signal = "undervalued"
         elif avg_percentile < 0.4:
-            signal = 'fair'
+            signal = "fair"
         else:
-            signal = 'overvalued'
+            signal = "overvalued"
 
         return ValuationScore(
-            method='PE/PB 百分位',
+            method="PE/PB 百分位",
             score=score,
             signal=signal,
             details={
-                'pe_percentile': pe_percentile,
-                'pb_percentile': pb_percentile,
-                'avg_percentile': avg_percentile
-            }
+                "pe_percentile": pe_percentile,
+                "pb_percentile": pb_percentile,
+                "avg_percentile": avg_percentile,
+            },
         )
 
     def _analyze_vs_industry(
-        self,
-        valuation: ValuationMetrics,
-        industry_avg_pe: float,
-        industry_avg_pb: float
+        self, valuation: ValuationMetrics, industry_avg_pe: float, industry_avg_pb: float
     ) -> ValuationScore:
         """相对行业估值分析"""
         # 计算相对比率
-        pe_ratio = valuation.pe / industry_avg_pe if industry_avg_pe > 0 else 1.0
-        pb_ratio = valuation.pb / industry_avg_pb if industry_avg_pb > 0 else 1.0
+        pe_ratio = (
+            valuation.pe / industry_avg_pe if valuation.pe > 0 and industry_avg_pe > 0 else 1.0
+        )
+        pb_ratio = (
+            valuation.pb / industry_avg_pb if valuation.pb > 0 and industry_avg_pb > 0 else 1.0
+        )
 
         # 平均比率
         avg_ratio = (pe_ratio + pb_ratio) / 2
@@ -188,29 +238,22 @@ class ComprehensiveValuationAnalyzer:
             score = 20
 
         # 确定信号
+        signal: ValuationSignal
         if avg_ratio < 0.8:
-            signal = 'undervalued'
+            signal = "undervalued"
         elif avg_ratio < 1.2:
-            signal = 'fair'
+            signal = "fair"
         else:
-            signal = 'overvalued'
+            signal = "overvalued"
 
         return ValuationScore(
-            method='相对行业',
+            method="相对行业",
             score=score,
             signal=signal,
-            details={
-                'pe_ratio': pe_ratio,
-                'pb_ratio': pb_ratio,
-                'avg_ratio': avg_ratio
-            }
+            details={"pe_ratio": pe_ratio, "pb_ratio": pb_ratio, "avg_ratio": avg_ratio},
         )
 
-    def _analyze_peg(
-        self,
-        financial: FinancialData,
-        valuation: ValuationMetrics
-    ) -> ValuationScore:
+    def _analyze_peg(self, financial: FinancialData, valuation: ValuationMetrics) -> ValuationScore:
         """PEG 估值分析（PE/增长率）"""
         # 计算增长率（取营收增长率和净利润增长率的平均）
         growth_rate = (financial.revenue_growth + financial.net_profit_growth) / 2
@@ -218,10 +261,10 @@ class ComprehensiveValuationAnalyzer:
         if growth_rate <= 0 or valuation.pe <= 0:
             # 负增长或无效 PE，无法使用 PEG
             return ValuationScore(
-                method='PEG',
+                method="PEG",
                 score=50,
-                signal='fair',
-                details={'peg': None, 'reason': '增长率或PE无效'}
+                signal="fair",
+                details={"peg": None, "reason": "增长率或PE无效"},
             )
 
         # 计算 PEG
@@ -240,28 +283,22 @@ class ComprehensiveValuationAnalyzer:
             score = 20
 
         # 确定信号
+        signal: ValuationSignal
         if peg < 0.8:
-            signal = 'undervalued'
+            signal = "undervalued"
         elif peg < 1.2:
-            signal = 'fair'
+            signal = "fair"
         else:
-            signal = 'overvalued'
+            signal = "overvalued"
 
         return ValuationScore(
-            method='PEG',
+            method="PEG",
             score=score,
             signal=signal,
-            details={
-                'peg': peg,
-                'pe': valuation.pe,
-                'growth_rate': growth_rate
-            }
+            details={"peg": peg, "pe": valuation.pe, "growth_rate": growth_rate},
         )
 
-    def _analyze_quality(
-        self,
-        financial: FinancialData
-    ) -> ValuationScore:
+    def _analyze_quality(self, financial: FinancialData) -> ValuationScore:
         """质量分析（基于财务指标）"""
         score = 50  # 基础分
 
@@ -299,66 +336,63 @@ class ComprehensiveValuationAnalyzer:
         score = max(0, min(100, score))
 
         # 确定信号
+        signal: ValuationSignal
         if score >= 80:
-            signal = 'undervalued'  # 质量好，隐含低估
+            signal = "undervalued"  # 质量好，隐含低估
         elif score >= 60:
-            signal = 'fair'
+            signal = "fair"
         else:
-            signal = 'overvalued'  # 质量差，隐含高估
+            signal = "overvalued"  # 质量差，隐含高估
 
         return ValuationScore(
-            method='质量评分',
+            method="质量评分",
             score=score,
             signal=signal,
             details={
-                'roe': financial.roe,
-                'revenue_growth': financial.revenue_growth,
-                'profit_growth': financial.net_profit_growth,
-                'debt_ratio': financial.debt_ratio
-            }
+                "roe": financial.roe,
+                "revenue_growth": financial.revenue_growth,
+                "profit_growth": financial.net_profit_growth,
+                "debt_ratio": financial.debt_ratio,
+            },
         )
 
     def _determine_signal(
         self,
-        overall_score: float
-    ) -> Literal['strong_buy', 'buy', 'hold', 'sell', 'strong_sell']:
+        overall_score: float,
+    ) -> OverallValuationSignal:
         """根据综合评分确定信号"""
         if overall_score >= 85:
-            return 'strong_buy'
+            return "strong_buy"
         elif overall_score >= 70:
-            return 'buy'
+            return "buy"
         elif overall_score >= 40:
-            return 'hold'
+            return "hold"
         elif overall_score >= 25:
-            return 'sell'
+            return "sell"
         else:
-            return 'strong_sell'
+            return "strong_sell"
 
-    def _generate_recommendation(
-        self,
-        overall_signal: str,
-        scores: list[ValuationScore]
-    ) -> str:
+    def _generate_recommendation(self, overall_signal: str, scores: list[ValuationScore]) -> str:
         """生成推荐建议"""
         # 统计各信号的数量
-        signal_counts = {'undervalued': 0, 'fair': 0, 'overvalued': 0}
+        signal_counts = {"undervalued": 0, "fair": 0, "overvalued": 0}
         for s in scores:
             signal_counts[s.signal] += 1
 
         # 生成建议文本
         recommendations = {
-            'strong_buy': f"强烈推荐买入。综合评分显示股票被显著低估，{signal_counts['undervalued']}种方法支持低估判断。",
-            'buy': "推荐买入。股票估值偏低，具有投资价值。",
-            'hold': "持有观望。估值处于合理区间，等待更好的入场时机。",
-            'sell': "建议减仓。股票估值偏高，注意风险。",
-            'strong_sell': f"强烈建议卖出。股票被显著高估，{signal_counts['overvalued']}种方法支持高估判断。"
+            "strong_buy": f"强烈推荐买入。综合评分显示股票被显著低估，{signal_counts['undervalued']}种方法支持低估判断。",
+            "buy": "推荐买入。股票估值偏低，具有投资价值。",
+            "hold": "持有观望。估值处于合理区间，等待更好的入场时机。",
+            "sell": "建议减仓。股票估值偏高，注意风险。",
+            "strong_sell": f"强烈建议卖出。股票被显著高估，{signal_counts['overvalued']}种方法支持高估判断。",
         }
 
         return recommendations.get(overall_signal, "暂无明确建议")
 
     def _calculate_confidence(
         self,
-        scores: list[ValuationScore]
+        scores: list[ValuationScore],
     ) -> float:
         """
         计算置信度（基于各方法的一致性）
@@ -366,8 +400,11 @@ class ComprehensiveValuationAnalyzer:
         如果所有方法的信号一致，置信度高
         如果信号不一致，置信度低
         """
+        if not scores:
+            return 0.0
+
         # 统计各信号的数量
-        signal_counts = {'undervalued': 0, 'fair': 0, 'overvalued': 0}
+        signal_counts = {"undervalued": 0, "fair": 0, "overvalued": 0}
         for s in scores:
             signal_counts[s.signal] += 1
 

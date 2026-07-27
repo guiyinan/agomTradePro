@@ -4774,3 +4774,21 @@
 - Policy 单元、组件、API 与集成回归 `366 passed`；精确 `format_html()` Django 6.0 warning-as-error 门禁通过。
 - `apps/policy/interface/admin.py` 增量 mypy 保持清零；删除旧 Admin 债务文件后，全仓基线从 `1077 errors / 379 files` 收紧为 `1065 errors / 378 files`，净减少 `12 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、重复入口引用零命中与全仓 debt baseline 刷新通过。
+
+## 第三百一十六批
+
+- 按“综合估值满分口径 × 异常倍数语义 × 跨股票事实隔离”收口 Equity comprehensive valuation Domain 服务。
+- DCF 方法实际未参与评分时，四个有效方法权重仅合计 `0.85`，原实现却直接按 100 分阈值解释加权和，理论满分被压缩为 85；现按实际参与权重归一化，恢复真实 `0-100` 综合分与信号阈值一致性。
+- 文档中的有效方法列表与运行时保持一致，不再把未实现的 DCF 描述成已参与评分；预留 risk-free rate 明确只做有限值边界验证。
+- 负 PE 与负 PB 不再因相对行业比率为负而获得 100 分“深度低估”，无法解释的非正倍数按中性比率处理。
+- public analyzer 在评分前验证 stock code 非空，且 FinancialData、ValuationMetrics 必须与目标股票一致，杜绝跨股票事实混合成一个估值结论。
+- PE/PB、行业基准、risk-free rate、增长率、ROE 与负债率拒绝 `NaN/Inf`；历史 PE/PB 中的非有限、零和负值被隔离，保留其余有效 PIT 观测。
+- `ValuationScore` 与 `ComprehensiveValuationResult` 改为 frozen Domain value object，score details 补齐 `dict[str, object]`，结果方法列表使用 tuple 防止事后增删。
+- 四处分支 signal 使用精确 Literal，综合信号别名与返回契约补齐；没有方法时置信度稳定为 `0.0`，避免除零。
+- 新增满分归一化、跨股票阻断、非有限输入、坏历史行隔离、负倍数中性语义和冻结结果回归。
+
+## 第三百一十六批验证结果
+
+- Equity Domain/Application 单元回归 `282 passed`；Equity ORM、API 与集成回归 `66 passed`，合计 `348 passed`。
+- `apps/equity/domain/services_comprehensive_valuation.py` 增量 mypy 清零；全仓基线从 `1065 errors / 378 files` 收紧为 `1060 errors / 377 files`，净减少 `5 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
