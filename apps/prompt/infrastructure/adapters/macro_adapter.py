@@ -5,10 +5,12 @@ This adapter fetches macroeconomic data and resolves placeholders
 in prompt templates.
 """
 
+from collections.abc import Callable
 from datetime import date, timedelta
 from typing import Any
 
 from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
+from shared.numeric import safe_float
 
 
 class MacroDataAdapter:
@@ -25,10 +27,10 @@ class MacroDataAdapter:
 
     # 默认指标列表
     DEFAULT_INDICATORS = [
-        "CN_PMI",    # PMI
-        "CN_CPI",    # CPI
-        "CN_PPI",    # PPI
-        "CN_M2",     # M2
+        "CN_PMI",  # PMI
+        "CN_CPI",  # CPI
+        "CN_PPI",  # PPI
+        "CN_M2",  # M2
     ]
 
     # 指标显示名称映射
@@ -43,13 +45,11 @@ class MacroDataAdapter:
         "SHIBOR": "SHIBOR",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.macro_repository = MacroRepositoryAdapter()
 
     def get_indicator_value(
-        self,
-        indicator_code: str,
-        as_of_date: date | None = None
+        self, indicator_code: str, as_of_date: date | None = None
     ) -> float | None:
         """获取单个指标最新值
 
@@ -60,28 +60,19 @@ class MacroDataAdapter:
         Returns:
             指标值，不存在返回None
         """
-        # 获取最新观测日期
-        latest_date = self.macro_repository.get_latest_observation_date(
-            indicator_code=indicator_code
-        )
-
-        if not latest_date:
-            return None
-
-        # 获取该日期的指标
-        indicator = self.macro_repository.get_by_code_and_date(
-            code=indicator_code,
-            observed_at=latest_date
-        )
-
+        if as_of_date is not None:
+            observations = self.macro_repository.get_series(
+                code=indicator_code,
+                end_date=as_of_date,
+                use_pit=True,
+            )
+            indicator = observations[-1] if observations else None
+        else:
+            indicator = self.macro_repository.get_latest_observation(indicator_code)
         return float(indicator.value) if indicator else None
 
     def get_indicator_series(
-        self,
-        indicator_code: str,
-        start_date: date,
-        end_date: date,
-        use_pit: bool = True
+        self, indicator_code: str, start_date: date, end_date: date, use_pit: bool = True
     ) -> list[dict[str, Any]]:
         """获取指标时序数据
 
@@ -99,25 +90,20 @@ class MacroDataAdapter:
             ]
         """
         indicators = self.macro_repository.get_series(
-            code=indicator_code,
-            start_date=start_date,
-            end_date=end_date,
-            use_pit=use_pit
+            code=indicator_code, start_date=start_date, end_date=end_date, use_pit=use_pit
         )
 
         return [
             {
                 "date": ind.reporting_period.isoformat(),
                 "value": float(ind.value),
-                "published_at": ind.published_at.isoformat() if ind.published_at else None
+                "published_at": ind.published_at.isoformat() if ind.published_at else None,
             }
             for ind in indicators
         ]
 
     def get_macro_summary(
-        self,
-        as_of_date: date | None = None,
-        indicators: list[str] | None = None
+        self, as_of_date: date | None = None, indicators: list[str] | None = None
     ) -> dict[str, Any]:
         """
         获取宏观指标摘要（用于{{MACRO_DATA}}占位符）
@@ -151,11 +137,7 @@ class MacroDataAdapter:
                 change, trend = self._calculate_change(code, as_of_date)
                 display_name = self.INDICATOR_NAMES.get(code, code)
 
-                indicator_data[display_name] = {
-                    "value": value,
-                    "change": change,
-                    "trend": trend
-                }
+                indicator_data[display_name] = {"value": value, "change": change, "trend": trend}
 
                 # 生成摘要文本
                 trend_text = "上升" if trend == "up" else "下降" if trend == "down" else "持平"
@@ -172,13 +154,71 @@ class MacroDataAdapter:
         return {
             "as_of_date": (as_of_date or date.today()).isoformat(),
             "indicators": indicator_data,
-            "summary": summary
+            "summary": summary,
+        }
+
+    def calculate_trend(
+        self,
+        indicator_code: str,
+        period: str = "3m",
+        as_of_date: date | None = None,
+    ) -> dict[str, Any]:
+        """Calculate a real trend from point-in-time macro observations."""
+
+        days_map = {
+            "1m": 30,
+            "3m": 90,
+            "6m": 180,
+            "1y": 365,
+            "2y": 730,
+            "5y": 1825,
+        }
+        days = days_map.get(period)
+        if days is None:
+            raise ValueError("unsupported trend period")
+        end_date = as_of_date or date.today()
+        series = self.get_indicator_series(
+            indicator_code,
+            end_date - timedelta(days=days),
+            end_date,
+        )
+        if len(series) < 2:
+            return self._unknown_trend(indicator_code, period)
+        start_value = safe_float(series[0].get("value"))
+        end_value = safe_float(series[-1].get("value"))
+        if start_value is None or end_value is None:
+            return self._unknown_trend(indicator_code, period)
+        change = end_value - start_value
+        change_pct = (change / start_value * 100) if start_value != 0 else 0.0
+        trend = "up" if change_pct > 1 else "down" if change_pct < -1 else "flat"
+        return {
+            "indicator": indicator_code,
+            "period": period,
+            "trend": trend,
+            "change": round(change, 2),
+            "change_pct": round(change_pct, 2),
+            "start_value": start_value,
+            "end_value": end_value,
+            "data_points": len(series),
+        }
+
+    @staticmethod
+    def _unknown_trend(indicator_code: str, period: str) -> dict[str, Any]:
+        """Return an explicit non-actionable trend when evidence is insufficient."""
+
+        return {
+            "indicator": indicator_code,
+            "period": period,
+            "trend": "unknown",
+            "change": None,
+            "change_pct": None,
+            "start_value": None,
+            "end_value": None,
+            "data_points": 0,
         }
 
     def resolve_placeholder(
-        self,
-        placeholder_name: str,
-        as_of_date: date | None = None
+        self, placeholder_name: str, as_of_date: date | None = None
     ) -> float | dict[str, Any] | None:
         """
         解析占位符
@@ -211,11 +251,7 @@ class MacroDataAdapter:
 
         return None
 
-    def _calculate_change(
-        self,
-        indicator_code: str,
-        as_of_date: date | None
-    ) -> tuple:
+    def _calculate_change(self, indicator_code: str, as_of_date: date | None) -> tuple[str, str]:
         """计算指标变化
 
         Returns:
@@ -224,8 +260,7 @@ class MacroDataAdapter:
         """
         # 获取当前值和上一期值
         current_date = self.macro_repository.get_latest_observation_date(
-            code=indicator_code,
-            as_of_date=as_of_date
+            indicator_code=indicator_code, as_of_date=as_of_date
         )
 
         if not current_date:
@@ -233,9 +268,7 @@ class MacroDataAdapter:
 
         # 获取最近两期数据
         series = self.get_indicator_series(
-            indicator_code,
-            start_date=current_date - timedelta(days=90),
-            end_date=current_date
+            indicator_code, start_date=current_date - timedelta(days=90), end_date=current_date
         )
 
         if len(series) < 2:
@@ -267,17 +300,13 @@ class FunctionExecutor:
     def __init__(self, macro_adapter: MacroDataAdapter):
         self.macro_adapter = macro_adapter
         # 趋势计算器将在Application层注入
-        self.trend_calculator = None
+        self.trend_calculator: Callable[..., Any] | None = None
 
-    def set_trend_calculator(self, calculator):
+    def set_trend_calculator(self, calculator: Callable[..., Any]) -> None:
         """设置趋势计算器"""
         self.trend_calculator = calculator
 
-    def execute_function(
-        self,
-        function_name: str,
-        params: dict[str, Any]
-    ) -> Any:
+    def execute_function(self, function_name: str, params: dict[str, Any]) -> Any:
         """
         执行函数
 
@@ -324,9 +353,7 @@ class FunctionExecutor:
         end_date = as_of_date or date.today()
         start_date = end_date - timedelta(days=days)
 
-        return self.macro_adapter.get_indicator_series(
-            indicator, start_date, end_date
-        )
+        return self.macro_adapter.get_indicator_series(indicator, start_date, end_date)
 
     def _execute_trend(self, params: dict[str, Any]) -> dict[str, Any]:
         """执行TREND函数"""
@@ -337,50 +364,4 @@ class FunctionExecutor:
         if not indicator:
             raise ValueError("TREND function requires 'indicator' parameter")
 
-        # 计算时间范围
-        days_map = {
-            "1m": 30, "3m": 90, "6m": 180, "1y": 365,
-            "2y": 730, "5y": 1825
-        }
-        days = days_map.get(period, 90)
-
-        end_date = as_of_date or date.today()
-        start_date = end_date - timedelta(days=days)
-
-        series = self.macro_adapter.get_indicator_series(
-            indicator, start_date, end_date
-        )
-
-        if len(series) < 2:
-            return {
-                "indicator": indicator,
-                "period": period,
-                "trend": "unknown",
-                "change": 0,
-                "start_value": None,
-                "end_value": None,
-            }
-
-        start_value = series[0]["value"]
-        end_value = series[-1]["value"]
-        change = end_value - start_value
-        change_pct = (change / start_value * 100) if start_value != 0 else 0
-
-        # 判断趋势
-        if change_pct > 1:
-            trend = "up"
-        elif change_pct < -1:
-            trend = "down"
-        else:
-            trend = "flat"
-
-        return {
-            "indicator": indicator,
-            "period": period,
-            "trend": trend,
-            "change": round(change, 2),
-            "change_pct": round(change_pct, 2),
-            "start_value": start_value,
-            "end_value": end_value,
-            "data_points": len(series),
-        }
+        return self.macro_adapter.calculate_trend(indicator, period, as_of_date)

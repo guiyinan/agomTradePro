@@ -5335,3 +5335,23 @@
 - 扩展回归仅保留既有 Qlib pandas `DataFrame.groupby(axis=...)` FutureWarning，与本批锁逻辑无关。
 - `apps/alpha/application/ops_locks.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `768 errors / 337 files` 收紧为 `761 errors / 336 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百五十批
+
+- 按“Prompt 工具注册多份真源 × 趋势结果伪造 × PIT 截止失效 × 工具异常泄密”收口 Prompt/Agent Function Registry 与宏观/Regime 内置工具。
+- 将 `FunctionRegistry`、`ToolDefinition`、内置工具 schema 与构造逻辑迁入纯 Domain `function_registry.py` 唯一真源；Domain 包根和 Infrastructure 旧路径仅做显式兼容导出，Application 直接依赖 Domain，不再维护两份行为不同的注册表。
+- ToolDefinition 校验 OpenAI 工具名、对象参数 schema、required/properties 勾稽和 callable，并对输入及输出 schema 深复制；调用方或 AI client 修改投影不能污染后续会话的注册定义。
+- 指标代码 schema 删除 PMI/CPI 等复制枚举，改由 Data Center 指标目录在实际查询边界治理；工具参数严格校验非空代码、ISO 日期、`1..3650` 天数、受控趋势周期和有界字符串列表，布尔/零/负数/错误 shape 在 provider 前拒绝。
+- `get_macro_series` 不再调用 MacroDataAdapter 中不存在的 `_calculate_series_range`；统一从显式 `as_of_date` 与 days 计算窗口。
+- `calculate_trend` 不再固定返回 `trend=up`，改为读取真实 PIT 宏观序列，拒绝非有限值并计算 change/change_pct；证据不足时返回 `unknown` 和空数值，不伪造方向。
+- 单点宏观查询的 `as_of_date` 改为 `use_pit=True` 的时序截止，同时约束 reporting period 与 published_at；未来才发布的数据不会进入历史 Prompt。
+- Regime adapter 查询异常时不再生成固定 `Recovery/复苏/0.65` 模拟状态；内置工具返回稳定 `REGIME_UNAVAILABLE`，避免 AI 基于伪造宏观象限继续判断。
+- FunctionRegistry、provider gateway 与 Agent Runtime 的异常结果统一脱敏，只保留稳定 error code、工具/方法名和异常类型；不再返回底层异常正文、原始参数或畸形 JSON，ToolCallRecord 对错误参数只记录稳定 shape 标记。
+- Agent structured output 仅接受 string-keyed JSON object，数组和标量不再从声明为 dict 的边界逸出。
+- 新增唯一导出身份、schema 隔离、非法参数、异常/Token 脱敏、PIT 发布时间截止、真实趋势和 Regime 失败关闭回归。
+
+## 第三百五十批验证结果
+
+- Prompt 工具注册、宏观 Data Center、Regime/Provider 失败关闭与 Agent Runtime 安全专项 `35 passed`；Prompt/Agent unit、component 与 API 扩展回归 `188 passed`。
+- Prompt Domain Registry、两个 Adapter、composition provider、tool execution 与 Agent Runtime 共八个生产文件在联合及增量 mypy 口径均清零；全仓基线从 `761 errors / 336 files` 收紧为 `739 errors / 330 files`，净减少 `22 errors / 6 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

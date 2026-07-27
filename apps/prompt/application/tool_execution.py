@@ -8,7 +8,7 @@ Tool Execution Service.
 import logging
 from typing import Any
 
-from .repository_provider import (
+from apps.prompt.domain.function_registry import (
     FunctionRegistry,
     ToolDefinition,
     create_builtin_tools,
@@ -83,9 +83,16 @@ class EnhancedToolRegistry:
         if whitelist is None:
             return all_tools
         whiteset = set(whitelist)
-        return [t for t in all_tools if t.get("function", {}).get("name") in whiteset]
+        filtered: list[dict[str, Any]] = []
+        for tool in all_tools:
+            function_schema = tool.get("function")
+            if isinstance(function_schema, dict) and function_schema.get("name") in whiteset:
+                filtered.append(tool)
+        return filtered
 
     def get_tool_names(self) -> list[str]:
+        """Return registered tool names."""
+
         return self._registry.get_tool_names()
 
 
@@ -199,7 +206,11 @@ def _safe_call(provider: Any, method_name: str, *args: Any, **kwargs: Any) -> An
     """安全调用 provider 方法，统一错误处理。"""
     fn = getattr(provider, method_name, None)
     if fn is None:
-        return {"error": f"Provider does not support method: {method_name}"}
+        return {
+            "error": "Tool provider method is unavailable",
+            "error_code": "TOOL_PROVIDER_METHOD_UNAVAILABLE",
+            "method": method_name,
+        }
     try:
         result = fn(*args, **kwargs)
         # 确保结果可 JSON 序列化
@@ -207,5 +218,14 @@ def _safe_call(provider: Any, method_name: str, *args: Any, **kwargs: Any) -> An
             return result.__dict__
         return result
     except Exception as exc:
-        logger.warning("Tool call %s failed: %s", method_name, exc)
-        return {"error": str(exc)}
+        logger.warning(
+            "Tool provider call failed: method=%s exception_type=%s",
+            method_name,
+            type(exc).__name__,
+        )
+        return {
+            "error": "Tool provider call failed",
+            "error_code": "TOOL_PROVIDER_CALL_FAILED",
+            "method": method_name,
+            "exception_type": type(exc).__name__,
+        }

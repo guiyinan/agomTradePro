@@ -13,7 +13,9 @@ import json
 import logging
 import time
 import uuid
-from typing import Any
+from typing import Any, Protocol
+
+from apps.prompt.domain.function_registry import FunctionRegistry
 
 from ..domain.agent_entities import (
     AgentExecutionRequest,
@@ -22,9 +24,15 @@ from ..domain.agent_entities import (
     ToolCallRecord,
 )
 from ..domain.context_entities import ContextBundle
-from .repository_provider import FunctionRegistry
 
 logger = logging.getLogger(__name__)
+
+
+class _ContextBuilderProtocol(Protocol):
+    """Build the context bundle consumed by Agent Runtime."""
+
+    def build(self, *, scope: list[str], params: dict[str, Any]) -> ContextBundle:
+        """Return the normalized context bundle."""
 
 
 class AgentRuntime:
@@ -37,11 +45,11 @@ class AgentRuntime:
 
     def __init__(
         self,
-        ai_client_factory,
+        ai_client_factory: Any,
         tool_registry: FunctionRegistry | None = None,
-        context_builder: Any | None = None,
+        context_builder: _ContextBuilderProtocol | None = None,
         execution_logger: Any | None = None,
-    ):
+    ) -> None:
         """
         Args:
             ai_client_factory: AIClientFactory 实例
@@ -337,10 +345,25 @@ class AgentRuntime:
                 records.append(
                     ToolCallRecord(
                         tool_name=tool_name,
-                        arguments={"raw": arguments_raw},
+                        arguments={"invalid_json": True},
                         success=False,
                         result=None,
-                        error_message=f"Invalid JSON arguments: {arguments_raw}",
+                        error_message="Invalid JSON tool arguments",
+                        duration_ms=int((time.time() - call_start) * 1000),
+                    )
+                )
+                continue
+
+            if not isinstance(arguments, dict) or any(
+                not isinstance(key, str) for key in arguments
+            ):
+                records.append(
+                    ToolCallRecord(
+                        tool_name=tool_name,
+                        arguments={"invalid_shape": True},
+                        success=False,
+                        result=None,
+                        error_message="Invalid tool parameter shape",
                         duration_ms=int((time.time() - call_start) * 1000),
                     )
                 )
@@ -374,7 +397,7 @@ class AgentRuntime:
                             arguments=arguments,
                             success=False,
                             result=result,
-                            error_message=result["error"],
+                            error_message=str(result["error"]),
                             duration_ms=duration_ms,
                         )
                     )
@@ -395,7 +418,7 @@ class AgentRuntime:
                         arguments=arguments,
                         success=False,
                         result=None,
-                        error_message=str(exc),
+                        error_message=("Tool registry execution failed: " f"{type(exc).__name__}"),
                         duration_ms=int((time.time() - call_start) * 1000),
                     )
                 )
@@ -470,7 +493,9 @@ class AgentRuntime:
         content = content.strip()
         # 尝试直接解析
         try:
-            return json.loads(content)
+            parsed: object = json.loads(content)
+            if isinstance(parsed, dict) and all(isinstance(key, str) for key in parsed):
+                return parsed
         except json.JSONDecodeError:
             pass
         # 尝试提取 ```json ... ``` 代码块
@@ -479,7 +504,11 @@ class AgentRuntime:
         match = re.search(r"```(?:json)?\s*\n?(.*?)\n?\s*```", content, re.DOTALL)
         if match:
             try:
-                return json.loads(match.group(1).strip())
+                parsed_block: object = json.loads(match.group(1).strip())
+                if isinstance(parsed_block, dict) and all(
+                    isinstance(key, str) for key in parsed_block
+                ):
+                    return parsed_block
             except json.JSONDecodeError:
                 pass
         return None

@@ -345,7 +345,8 @@ class TestAgentRuntimeToolErrors:
         assert response.success is True  # 最终仍然成功
         assert response.tool_calls is not None
         assert response.tool_calls[0].success is False
-        assert "tool error" in response.tool_calls[0].error_message
+        assert response.tool_calls[0].error_message == "Tool execution failed"
+        assert "tool error" not in str(response.tool_calls[0].result)
 
     def test_invalid_json_arguments(self):
         """工具参数 JSON 无效时记录错误。"""
@@ -356,7 +357,7 @@ class TestAgentRuntimeToolErrors:
                     {
                         "id": "call_1",
                         "tool_name": "get_test_data",
-                        "arguments": "not valid json{{{",
+                        "arguments": "not valid json token=must-not-leak{{{",
                     }
                 ],
                 finish_reason="tool_calls",
@@ -380,6 +381,8 @@ class TestAgentRuntimeToolErrors:
         response = runtime.execute(request)
         assert response.tool_calls[0].success is False
         assert "Invalid JSON" in response.tool_calls[0].error_message
+        assert response.tool_calls[0].arguments == {"invalid_json": True}
+        assert "must-not-leak" not in str(response.tool_calls[0])
 
 
 # ========== Tests: Context Providers ==========

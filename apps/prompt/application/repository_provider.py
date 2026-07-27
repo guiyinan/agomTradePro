@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.prompt.infrastructure.adapters.function_registry import (
+from apps.prompt.domain.function_registry import (
     FunctionRegistry,
     ToolDefinition,
     create_builtin_tools,

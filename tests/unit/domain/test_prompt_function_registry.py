@@ -12,6 +12,9 @@ from apps.prompt.domain import (
     create_builtin_tools,
     create_custom_function,
 )
+from apps.prompt.infrastructure.adapters.function_registry import (
+    FunctionRegistry as CompatibilityFunctionRegistry,
+)
 
 
 class MacroAdapterFake:
@@ -20,11 +23,6 @@ class MacroAdapterFake:
     def get_indicator_value(self, code: str, as_of: date | None) -> dict[str, Any]:
         """Return the normalized call arguments."""
         return {"code": code, "as_of": as_of}
-
-    def _calculate_series_range(self, kwargs: dict[str, Any]) -> dict[str, date]:
-        """Return a deterministic range consumed by get_indicator_series."""
-        assert kwargs["days"] == 10
-        return {"start_date": date(2024, 1, 1), "end_date": date(2024, 1, 10)}
 
     def get_indicator_series(
         self,
@@ -44,6 +42,16 @@ class MacroAdapterFake:
     ) -> dict[str, Any]:
         """Return the normalized summary call."""
         return {"as_of": as_of_date, "indicators": indicators}
+
+    def calculate_trend(
+        self,
+        indicator_code: str,
+        period: str = "3m",
+        as_of_date: date | None = None,
+    ) -> dict[str, Any]:
+        """Return a deterministic persisted-series trend result."""
+
+        return {"indicator": indicator_code, "period": period, "as_of": as_of_date}
 
 
 class RegimeAdapterFake:
@@ -91,6 +99,16 @@ def test_registry_lifecycle_and_openai_projection() -> None:
     assert registry.list_tools() == []
 
 
+def test_domain_registry_is_the_compatibility_export_and_schemas_are_isolated() -> None:
+    """Application and legacy imports share one class without mutable schema leakage."""
+
+    assert CompatibilityFunctionRegistry is FunctionRegistry
+    tool = _tool()
+    projected = tool.to_openai_format()
+    projected["function"]["parameters"]["properties"].clear()
+    assert tool.parameters["properties"]
+
+
 def test_registry_execution_maps_tool_errors_without_raising() -> None:
     """Tool failures become explicit error payloads while unknown tools remain caller errors."""
     registry = FunctionRegistry()
@@ -100,15 +118,18 @@ def test_registry_execution_maps_tool_errors_without_raising() -> None:
             name="explode",
             description="raise",
             parameters={},
-            function=lambda: (_ for _ in ()).throw(RuntimeError("boom")),
+            function=lambda **kwargs: (_ for _ in ()).throw(
+                RuntimeError(f"boom:{kwargs.get('token')}")
+            ),
         )
     )
 
     assert registry.execute("sum", {"left": 2, "right": 3}) == 5
-    assert registry.execute("explode", {}) == {
-        "error": "boom",
+    assert registry.execute("explode", {"token": "must-not-leak"}) == {
+        "error": "Tool execution failed",
+        "error_code": "TOOL_EXECUTION_FAILED",
         "tool": "explode",
-        "parameters": {},
+        "exception_type": "RuntimeError",
     }
     with pytest.raises(ValueError, match="Tool not found: missing"):
         registry.execute("missing", {})
@@ -136,7 +157,7 @@ def test_builtin_tools_forward_dates_ranges_and_defaults() -> None:
     }
     assert registry.execute(
         "get_macro_series",
-        {"indicator_code": "CN_PMI", "days": 10},
+        {"indicator_code": "CN_PMI", "days": 9, "as_of_date": "2024-01-10"},
     ) == {
         "code": "CN_PMI",
         "start": date(2024, 1, 1),
@@ -154,7 +175,23 @@ def test_builtin_tools_forward_dates_ranges_and_defaults() -> None:
     assert registry.execute("calculate_trend", {"indicator_code": "CN_PMI"}) == {
         "indicator": "CN_PMI",
         "period": "3m",
-        "trend": "up",
+        "as_of": None,
+    }
+    assert registry.execute(
+        "get_macro_series",
+        {"indicator_code": "CN_PMI", "days": 0, "token": "must-not-leak"},
+    ) == {
+        "error": "Invalid tool parameters",
+        "error_code": "INVALID_TOOL_PARAMETERS",
+        "tool": "get_macro_series",
+    }
+    assert registry.execute(
+        "get_regime_status",
+        {"as_of_date": "not-a-date"},
+    ) == {
+        "error": "Invalid tool parameters",
+        "error_code": "INVALID_TOOL_PARAMETERS",
+        "tool": "get_regime_status",
     }
 
 
@@ -168,6 +205,6 @@ def test_custom_function_and_parameter_schemas_are_reusable() -> None:
     )
 
     assert custom.function(value="ok") == "ok"
-    assert PARAMETER_SCHEMAS["indicator_code"]["enum"][0] == "CN_PMI"
+    assert "enum" not in PARAMETER_SCHEMAS["indicator_code"]
     assert PARAMETER_SCHEMAS["as_of_date"]["format"] == "date"
     assert "3m" in PARAMETER_SCHEMAS["period"]["enum"]

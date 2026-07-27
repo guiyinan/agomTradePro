@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 761,
-    "files_with_errors": 336
+    "errors": 739,
+    "files_with_errors": 330
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -776,41 +776,17 @@
       "no-untyped-def": 2,
       "type-arg": 1
     },
-    "apps/prompt/application/agent_runtime.py": {
-      "no-any-return": 3,
-      "no-untyped-call": 1,
-      "no-untyped-def": 1
-    },
     "apps/prompt/application/context_builders.py": {
       "no-untyped-def": 1
     },
     "apps/prompt/application/interface_services.py": {
       "no-untyped-call": 1
     },
-    "apps/prompt/application/repository_provider.py": {
-      "no-untyped-call": 2
-    },
     "apps/prompt/application/runtime_provider.py": {
-      "no-untyped-call": 2
-    },
-    "apps/prompt/application/tool_execution.py": {
       "no-untyped-call": 2
     },
     "apps/prompt/application/trace_logging.py": {
       "type-arg": 1
-    },
-    "apps/prompt/infrastructure/adapters/function_registry.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 4,
-      "type-arg": 2
-    },
-    "apps/prompt/infrastructure/adapters/macro_adapter.py": {
-      "call-arg": 1,
-      "no-untyped-def": 2,
-      "type-arg": 1
-    },
-    "apps/prompt/infrastructure/adapters/regime_adapter.py": {
-      "no-untyped-def": 2
     },
     "apps/prompt/infrastructure/fixtures/templates.py": {
       "no-untyped-def": 2

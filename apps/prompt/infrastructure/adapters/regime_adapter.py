@@ -31,7 +31,7 @@ class RegimeDataAdapter:
         "Unknown": "未知",
     }
 
-    def __init__(self, regime_repository=None):
+    def __init__(self, regime_repository: object | None = None) -> None:
         """
         初始化Regime适配器
 
@@ -40,14 +40,11 @@ class RegimeDataAdapter:
         """
         self.regime_repository = regime_repository
 
-    def set_regime_repository(self, repository):
+    def set_regime_repository(self, repository: object) -> None:
         """设置Regime仓储"""
         self.regime_repository = repository
 
-    def get_current_regime(
-        self,
-        as_of_date: date | None = None
-    ) -> dict[str, Any] | None:
+    def get_current_regime(self, as_of_date: date | None = None) -> dict[str, Any] | None:
         """
         获取当前Regime状态
 
@@ -73,8 +70,7 @@ class RegimeDataAdapter:
                 "as_of_date": current.observed_at.isoformat(),
                 "dominant_regime": current.dominant_regime,
                 "dominant_regime_name": self.REGIME_NAMES.get(
-                    current.dominant_regime,
-                    current.dominant_regime
+                    current.dominant_regime, current.dominant_regime
                 ),
                 "confidence": current.confidence,
                 "growth_z": 0.0,
@@ -82,12 +78,9 @@ class RegimeDataAdapter:
                 "distribution": {},
             }
         except Exception:
-            return self._get_mock_regime()
+            return None
 
-    def get_regime_distribution(
-        self,
-        as_of_date: date | None = None
-    ) -> dict[str, float] | None:
+    def get_regime_distribution(self, as_of_date: date | None = None) -> dict[str, float] | None:
         """
         获取Regime概率分布
 
@@ -104,9 +97,7 @@ class RegimeDataAdapter:
         return regime_data.get("distribution")
 
     def resolve_placeholder(
-        self,
-        placeholder_name: str,
-        as_of_date: date | None = None
+        self, placeholder_name: str, as_of_date: date | None = None
     ) -> Any | None:
         """
         解析占位符
@@ -144,20 +135,3 @@ class RegimeDataAdapter:
             return regime_data.get("confidence")
 
         return None
-
-    def _get_mock_regime(self) -> dict[str, Any]:
-        """
-        获取模拟Regime数据（用于测试）
-
-        Returns:
-            模拟的Regime状态
-        """
-        return {
-            "as_of_date": date.today().isoformat(),
-            "dominant_regime": "Recovery",
-            "dominant_regime_name": "复苏",
-            "confidence": 0.65,
-            "growth_z": 0.0,
-            "inflation_z": 0.0,
-            "distribution": {}
-        }
