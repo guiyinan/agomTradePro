@@ -93,7 +93,15 @@ def test_health_and_dashboard_success_and_failure_contracts(monkeypatch) -> None
     monkeypatch.setattr(views, "get_task_record_repository", object)
     monkeypatch.setattr(views, "get_celery_health_checker", object)
     monkeypatch.setattr(views, "HealthCheckSerializer", _Serializer)
-    monkeypatch.setattr(views, "TaskStatusSerializer", _Serializer)
+
+    class _TaskListSerializer:
+        def __init__(self, value: SimpleNamespace) -> None:
+            self.data = {
+                "total": value.total,
+                "items": value.items,
+            }
+
+    monkeypatch.setattr(views, "TaskListSerializer", _TaskListSerializer)
     health = SimpleNamespace(
         is_healthy=True,
         broker_reachable=True,

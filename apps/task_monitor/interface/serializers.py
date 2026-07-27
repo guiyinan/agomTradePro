@@ -6,9 +6,17 @@ DRF 序列化器定义。
 
 from rest_framework import serializers
 
+from apps.task_monitor.application.dtos import (
+    HealthCheckResponse,
+    TaskListResponse,
+    TaskStatisticsResponse,
+    TaskStatusResponse,
+)
 
-class TaskStatusSerializer(serializers.Serializer):
+
+class TaskStatusSerializer(serializers.Serializer[TaskStatusResponse]):
     """任务状态序列化器"""
+
     task_id = serializers.CharField(read_only=True)
     task_name = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
@@ -20,29 +28,29 @@ class TaskStatusSerializer(serializers.Serializer):
     is_failure = serializers.BooleanField(read_only=True)
 
 
-class TaskListSerializer(serializers.Serializer):
+class TaskListSerializer(serializers.Serializer[TaskListResponse]):
     """任务列表序列化器"""
+
     total = serializers.IntegerField(read_only=True)
     items = TaskStatusSerializer(many=True, read_only=True)
 
 
-class HealthCheckSerializer(serializers.Serializer):
+class HealthCheckSerializer(serializers.Serializer[HealthCheckResponse]):
     """健康检查序列化器"""
+
     is_healthy = serializers.BooleanField(read_only=True)
     broker_reachable = serializers.BooleanField(read_only=True)
     backend_reachable = serializers.BooleanField(read_only=True)
-    active_workers = serializers.ListField(
-        child=serializers.CharField(),
-        read_only=True
-    )
+    active_workers = serializers.ListField(child=serializers.CharField(), read_only=True)
     active_tasks_count = serializers.IntegerField(read_only=True)
     pending_tasks_count = serializers.IntegerField(read_only=True)
     scheduled_tasks_count = serializers.IntegerField(read_only=True)
     last_check = serializers.DateTimeField(read_only=True)
 
 
-class TaskStatisticsSerializer(serializers.Serializer):
+class TaskStatisticsSerializer(serializers.Serializer[TaskStatisticsResponse]):
     """任务统计序列化器"""
+
     task_name = serializers.CharField(read_only=True)
     total_executions = serializers.IntegerField(read_only=True)
     successful_executions = serializers.IntegerField(read_only=True)
@@ -53,6 +61,7 @@ class TaskStatisticsSerializer(serializers.Serializer):
     last_execution_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
 
-class TaskStatusRequestSerializer(serializers.Serializer):
+class TaskStatusRequestSerializer(serializers.Serializer[dict[str, str]]):
     """任务状态请求序列化器"""
+
     task_id = serializers.CharField(required=True)

@@ -328,6 +328,7 @@ def dashboard(request: Request) -> Response:
         # 获取最近的失败任务
         list_use_case = ListTasksUseCase(repository=get_task_record_repository())
         failures = list_use_case.execute(failures_only=True, limit=10)
+        failure_payload = TaskListSerializer(failures).data
 
         # 检查 Celery 健康状态
         health_use_case = CheckCeleryHealthUseCase(health_checker=get_celery_health_checker())
@@ -336,8 +337,8 @@ def dashboard(request: Request) -> Response:
         return Response(
             {
                 "recent_failures": {
-                    "count": failures.total,
-                    "items": TaskStatusSerializer(failures.items, many=True).data,
+                    "count": failure_payload["total"],
+                    "items": failure_payload["items"],
                 },
                 "celery_health": {
                     "is_healthy": health.is_healthy,

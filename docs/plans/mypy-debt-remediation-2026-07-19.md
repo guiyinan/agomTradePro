@@ -4996,3 +4996,17 @@
 - Task Monitor 正式接口、API 与组件回归 `47 passed`；并发运行时一次 Windows 测试库清理文件锁 warning 对应测试单独重跑 `1 passed` 且无 warning。
 - `apps/task_monitor/interface/views.py` 在 governed `follow-imports=skip` 与增量 `follow-imports=silent` 两种 mypy 口径均清零；全仓基线从 `924 errors / 361 files` 收紧为 `919 errors / 360 files`，净减少 `5 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百二十九批
+
+- 按“Task Monitor 响应 DTO 一致性 × Serializer 泛型边界 × 跨文件类型传播”收口 `apps/task_monitor/interface/serializers.py`。
+- Task status、list、health 与 statistics serializers 分别绑定对应 Application DTO；请求 serializer 绑定 `dict[str, str]`，清除五处裸 `Serializer` 泛型，同时避免把动态容器类型扩散到 API 边界。
+- dashboard 最近失败任务改为复用完整 `TaskListSerializer`，不再把 `list[TaskStatusResponse]` 作为单实例传给 `TaskStatusSerializer`；dashboard 与列表端点现在共享同一嵌套序列化契约。
+- 新增 Application DTO 输出序列化和 task ID 缺失/空白/有效输入校验回归，并更新 dashboard 单元替身以验证正式 list serializer 路径。
+- 单文件 mypy 清零后额外执行 DTO + serializer + view 跨文件检查；及时发现并消除只有全模块传播时才暴露的 list/single instance 参数错误，未将其写入债务基线。
+
+## 第三百二十九批验证结果
+
+- Task Monitor serializer 专项、正式 API、组件、管理命令、personal readiness 与 scheduler 最终回归 `237 passed`；跨文件 mypy 与增量 mypy 均清零。
+- `apps/task_monitor/interface/serializers.py` 退出债务清单，且 `apps/task_monitor/interface/views.py` 保持零错误；全仓基线从 `919 errors / 360 files` 收紧为 `914 errors / 359 files`，净减少 `5 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort 与全仓 debt baseline 刷新通过。
