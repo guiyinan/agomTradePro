@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 728,
-    "files_with_errors": 328
+    "errors": 724,
+    "files_with_errors": 327
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -432,10 +432,6 @@
     },
     "apps/data_center/infrastructure/gateways/tencent_gateway.py": {
       "arg-type": 1
-    },
-    "apps/data_center/infrastructure/gateways/tushare_gateway.py": {
-      "arg-type": 1,
-      "attr-defined": 3
     },
     "apps/data_center/infrastructure/macro_sources/tushare_adapter.py": {
       "assignment": 1,

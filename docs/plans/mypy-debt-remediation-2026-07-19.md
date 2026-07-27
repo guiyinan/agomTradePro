@@ -5386,3 +5386,20 @@
 - TUI Django contract 专项 `9 passed`；TUI workbench、Terminal Agent、SDK client、内部 SSL redirect 固定回归包合计 `245 passed`。
 - `apps/terminal/infrastructure/tui_contract_export.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `733 errors / 329 files` 收紧为 `728 errors / 328 files`，净减少 `5 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 MCP 或部署实现，无未验证固定链路。
+
+## 第三百五十三批
+
+- 按“Tushare 非有限行情污染 × 历史 K 线 OHLC 失真 × 非法 scope 触发外部调用 × 市场后缀丢失”收口 Data Center Tushare 市场网关。
+- Decimal 边界拒绝 bool、NaN 与正负 Infinity；整数边界通过共享 `safe_float` 收窄，只接受非负整数，负数、分数成交量和非有限值不再被截断后进入标准行情实体。
+- 历史查询在创建 Tushare/Tencent client 前严格校验六位证券代码、可选 `SH/SZ/BJ` 后缀、`YYYYMMDD` 日期及 `start <= end`；非法输入直接返回空结果，不再向任何外部 provider 发送畸形请求或触发无意义 failover。
+- Tushare SDK 动态 client 与 DataFrame/row 使用局部 Protocol 收窄，三类 daily endpoint 返回值不再以 Any 穿透网关。
+- 每条历史 bar 必须具备合法日期、有限正 OHLC，且 `high >= open/low/close`、`low <= open/high/close`；损坏行被逐条隔离，负 amount 转为空，合法行继续返回。
+- 历史结果的 `asset_code` 改为规范 Tushare code，保留市场后缀而不再退化成裸六位代码；无后缀北交所 `4/8/92` 代码补齐 `.BJ`，沪深股票和 ETF 规则保持不变。
+- 腾讯 failover 返回值重新验证为完整 `HistoricalPriceBar` 列表；第三方返回混合/错误 shape 时失败关闭。
+- 新增非有限/分数数值、北交所映射、非法 scope 无外部调用、损坏 OHLC 隔离和规范代码保持回归。
+
+## 第三百五十三批验证结果
+
+- Tushare/QMT gateway 与资产分类专项 `35 passed`；Data Center 全量单元回归 `298 passed`。
+- `apps/data_center/infrastructure/gateways/tushare_gateway.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `728 errors / 328 files` 收紧为 `724 errors / 327 files`，净减少 `4 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

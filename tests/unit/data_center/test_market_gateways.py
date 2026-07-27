@@ -32,6 +32,28 @@ class TestTushareGateway:
         assert not gw.supports(DataCapability.CAPITAL_FLOW)
         assert not gw.supports(DataCapability.STOCK_NEWS)
 
+    def test_numeric_helpers_reject_non_finite_fractional_and_negative_values(self):
+        from apps.data_center.infrastructure.gateways.tushare_gateway import (
+            _safe_decimal,
+            _safe_int,
+        )
+
+        assert _safe_decimal("Infinity") is None
+        assert _safe_decimal("-Infinity") is None
+        assert _safe_decimal("NaN") is None
+        assert _safe_decimal(True) is None
+        assert _safe_int("12") == 12
+        assert _safe_int("12.5") is None
+        assert _safe_int(-1) is None
+        assert _safe_int(float("inf")) is None
+
+    def test_market_code_normalization_includes_bse(self):
+        from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
+
+        assert TushareGateway._to_tushare_code("920992") == "920992.BJ"
+        assert TushareGateway._to_tushare_code("688111") == "688111.SH"
+        assert TushareGateway._to_tushare_code("300750") == "300750.SZ"
+
     @patch(
         "apps.data_center.infrastructure.gateways.tushare_gateway.TushareGateway.get_quote_snapshots"
     )
@@ -98,6 +120,65 @@ class TestTushareGateway:
         assert len(bars) == 1
         assert bars[0].source == "tencent"
         mock_tencent_history.assert_called_once_with("000001.SZ", "20260401", "20260419")
+
+    @patch("shared.infrastructure.tushare_client.create_tushare_pro_client")
+    def test_history_rejects_invalid_rows_and_preserves_canonical_code(self, mock_client_factory):
+        from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
+
+        fake_client = MagicMock()
+        fake_client.daily.return_value = pd.DataFrame(
+            [
+                {
+                    "trade_date": "20260401",
+                    "open": 10,
+                    "high": 12,
+                    "low": 9,
+                    "close": 11,
+                    "vol": 100,
+                    "amount": 1100,
+                },
+                {
+                    "trade_date": "20260402",
+                    "open": 10,
+                    "high": 9,
+                    "low": 8,
+                    "close": 11,
+                    "vol": 10.5,
+                    "amount": -1,
+                },
+                {
+                    "trade_date": "20260403",
+                    "open": "NaN",
+                    "high": 12,
+                    "low": 9,
+                    "close": 11,
+                    "vol": 100,
+                    "amount": 1100,
+                },
+            ]
+        )
+        mock_client_factory.return_value = fake_client
+
+        bars = TushareGateway().get_historical_prices("000001.SZ", "20260401", "20260403")
+
+        assert len(bars) == 1
+        assert bars[0].asset_code == "000001.SZ"
+        assert bars[0].trade_date.isoformat() == "2026-04-01"
+        assert bars[0].close == 11.0
+
+    @patch(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_historical_prices"
+    )
+    @patch("shared.infrastructure.tushare_client.create_tushare_pro_client")
+    def test_invalid_history_scope_does_not_call_any_provider(
+        self, mock_client_factory, mock_tencent_history
+    ):
+        from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
+
+        assert TushareGateway().get_historical_prices("bad-code", "20260419", "20260401") == []
+        assert TushareGateway().get_historical_prices("000001.SZ", "2026-04-01", "20260419") == []
+        mock_client_factory.assert_not_called()
+        mock_tencent_history.assert_not_called()
 
 
 class TestQMTGateway:
