@@ -1,13 +1,20 @@
+from pathlib import Path
+
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
 from django.test import RequestFactory
 
 from apps.policy.interface.admin import (
+    PolicyAuditQueueAdmin,
+    PolicyLevelKeywordAdmin,
     PolicyLogAdmin,
+    RSSFetchLogAdmin,
+    RSSHubGlobalConfigAdmin,
     RSSSourceConfigAdmin,
     _require_admin_user_id,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 def test_policy_admin_metadata_uses_supported_django_decorators() -> None:
@@ -17,6 +24,23 @@ def test_policy_admin_metadata_uses_supported_django_decorators() -> None:
     assert PolicyLogAdmin.level_badge.admin_order_field == "level"
     assert PolicyLogAdmin.approve_selected.short_description == "✅ 批量通过选中项"
     assert RSSSourceConfigAdmin.test_fetch.short_description == "🔄 测试抓取选中源"
+
+
+def test_policy_admin_uses_one_typed_registration_entry() -> None:
+    """Policy keeps one runtime Admin entry backed by the shared typed base."""
+
+    for admin_class in (
+        PolicyLogAdmin,
+        RSSHubGlobalConfigAdmin,
+        RSSSourceConfigAdmin,
+        PolicyLevelKeywordAdmin,
+        RSSFetchLogAdmin,
+        PolicyAuditQueueAdmin,
+    ):
+        assert issubclass(admin_class, TypedModelAdmin)
+
+    repository_root = Path(__file__).resolve().parents[2]
+    assert not (repository_root / "apps" / "policy" / "infrastructure" / "admin.py").exists()
 
 
 def test_policy_admin_action_rejects_anonymous_user() -> None:

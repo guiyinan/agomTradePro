@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1077,
-    "files_with_errors": 379
+    "errors": 1065,
+    "files_with_errors": 378
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -875,11 +875,6 @@
     },
     "apps/policy/infrastructure/adapters/rss_adapter.py": {
       "type-arg": 1
-    },
-    "apps/policy/infrastructure/admin.py": {
-      "attr-defined": 3,
-      "no-untyped-def": 3,
-      "type-arg": 6
     },
     "apps/policy/management/commands/init_authoritative_rss_sources.py": {
       "no-untyped-def": 2

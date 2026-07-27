@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 from django.contrib.admin.sites import AdminSite
+from django.test import RequestFactory
 
 from apps.policy.interface import admin as module
 
@@ -131,3 +133,61 @@ def test_rss_keyword_fetch_and_audit_admin_columns_cover_boundaries(monkeypatch)
     assert "P3" in str(queue_admin.policy_level(item))
     assert queue_admin.policy_category(item) == "宏观"
     assert "紧急" in str(queue_admin.priority_badge(item))
+
+
+def test_policy_admin_masks_stored_credentials_and_effective_url() -> None:
+    """Admin forms and URL previews must not return stored connection credentials."""
+
+    global_config = module.RSSHubGlobalConfig(
+        singleton_id=1,
+        access_key="stored-global-key",
+    )
+    global_form = module.RSSHubGlobalConfigAdminForm(instance=global_config)
+    assert "stored-global-key" not in str(global_form["access_key"])
+    global_form.cleaned_data = {"access_key": ""}
+    assert global_form.clean_access_key() == "stored-global-key"
+
+    source_config = module.RSSSourceConfigModel(
+        pk=7,
+        name="source",
+        url="https://example.test/feed",
+        rsshub_custom_access_key="stored-custom-key",
+        proxy_password="stored-proxy-password",
+    )
+    source_form = module.RSSSourceConfigAdminForm(instance=source_config)
+    rendered = str(source_form)
+    assert "stored-custom-key" not in rendered
+    assert "stored-proxy-password" not in rendered
+    source_form.cleaned_data = {
+        "rsshub_custom_access_key": "",
+        "proxy_password": "",
+    }
+    assert source_form.clean_rsshub_custom_access_key() == "stored-custom-key"
+    assert source_form.clean_proxy_password() == "stored-proxy-password"
+
+    source_admin = module.RSSSourceConfigAdmin(module.RSSSourceConfigModel, AdminSite())
+    preview = source_admin.effective_url_display(
+        SimpleNamespace(
+            get_effective_url=lambda: (
+                "https://user:password@example.test/feed?key=query-secret&token=other-secret"
+            )
+        )
+    )
+    assert "user" not in str(preview)
+    assert "password" not in str(preview)
+    assert "query-secret" not in str(preview)
+    assert "other-secret" not in str(preview)
+    assert "example.test" in str(preview)
+
+
+def test_rsshub_singleton_add_permission_preserves_django_model_permission(monkeypatch) -> None:
+    """Singleton availability cannot grant Admin add access to an unauthorized staff user."""
+
+    service = SimpleNamespace(has_rsshub_global_config=Mock(return_value=False))
+    monkeypatch.setattr(module, "_policy_admin_service", lambda: service)
+    request = RequestFactory().get("/admin/policy/rsshubglobalconfig/")
+    request.user = Mock(has_perm=Mock(return_value=False))
+    model_admin = module.RSSHubGlobalConfigAdmin(module.RSSHubGlobalConfig, AdminSite())
+
+    assert model_admin.has_add_permission(request) is False
+    service.has_rsshub_global_config.assert_not_called()

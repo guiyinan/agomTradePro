@@ -4756,3 +4756,21 @@
 - Policy 单元、组件、API 与集成回归 `363 passed`；另有 5 条来自未改动 Policy Admin `format_html()` 的 Django 6.0 deprecation warning，留待 Admin 专项收口。
 - `apps/policy/interface/forms.py` 增量 mypy 清零；全仓基线从 `1088 errors / 380 files` 收紧为 `1077 errors / 379 files`，净减少 `11 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百一十五批
+
+- 按“Policy Admin 唯一注册入口 × 凭据展示安全 × Django 6.0 兼容”收口 Policy 管理后台。
+- 删除未被 AppConfig 加载、与正式入口重复注册同一批模型的 `apps/policy/infrastructure/admin.py`；Policy 只保留 `apps/policy/interface/admin.py` 一个真实注册入口，消除误导性死实现及潜在 AlreadyRegistered 风险。
+- 正式入口的六个 Admin 全部直接继承 `TypedModelAdmin[ConcreteModel]`，移除 TYPE_CHECKING/runtime 双套裸 `ModelAdmin` alias；两个凭据表单使用 `TypedModelForm`。
+- RSSHub global access key、source custom access key 与 proxy password 改用不回显原值的 password widget；留空编辑保留既有值，非空输入才替换。
+- effective URL 预览在渲染前移除 URL user-info，并遮蔽 `key/token/access_key/api_key/password/secret` query value；访问密钥不再通过只读预览泄露。
+- RSSHub singleton 新增入口恢复 Django 模型权限前置判断；无 add 权限用户在查询 singleton 状态前直接失败关闭。
+- 5 处无参数 `format_html()` 改为正式 placeholder 调用，并以精确 warning-as-error 门禁验证 Django 6.0 兼容。
+- Policy 统计 HTML 对 catalog/status 展示名执行条件转义，再进入受控 markup，避免异常或遗留数据库值形成 Admin XSS。
+- 新增 typed 唯一入口、凭据不回显/保留、effective URL 脱敏和 singleton 权限短路回归。
+
+## 第三百一十五批验证结果
+
+- Policy 单元、组件、API 与集成回归 `366 passed`；精确 `format_html()` Django 6.0 warning-as-error 门禁通过。
+- `apps/policy/interface/admin.py` 增量 mypy 保持清零；删除旧 Admin 债务文件后，全仓基线从 `1077 errors / 379 files` 收紧为 `1065 errors / 378 files`，净减少 `12 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、重复入口引用零命中与全仓 debt baseline 刷新通过。

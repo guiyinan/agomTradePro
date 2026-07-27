@@ -4,15 +4,19 @@ Django Admin for Policy Events.
 增强的管理界面，提供统计、筛选和快速操作功能。
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from django import forms
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
-from django.utils.html import format_html
+from django.utils.html import conditional_escape, format_html
 from django.utils.safestring import mark_safe
+
+from shared.infrastructure.django_admin import TypedModelAdmin, TypedModelForm
 
 from ..application.interface_services import PolicyAdminInterfaceService
 from ..application.repository_provider import get_policy_admin_interface_service
@@ -25,20 +29,85 @@ from ..models import (
     RSSSourceConfigModel,
 )
 
-if TYPE_CHECKING:
-    PolicyLogAdminBase = admin.ModelAdmin[PolicyLog]
-    RSSHubGlobalConfigAdminBase = admin.ModelAdmin[RSSHubGlobalConfig]
-    RSSSourceConfigAdminBase = admin.ModelAdmin[RSSSourceConfigModel]
-    PolicyLevelKeywordAdminBase = admin.ModelAdmin[PolicyLevelKeywordModel]
-    RSSFetchLogAdminBase = admin.ModelAdmin[RSSFetchLog]
-    PolicyAuditQueueAdminBase = admin.ModelAdmin[PolicyAuditQueue]
-else:
-    PolicyLogAdminBase = admin.ModelAdmin
-    RSSHubGlobalConfigAdminBase = admin.ModelAdmin
-    RSSSourceConfigAdminBase = admin.ModelAdmin
-    PolicyLevelKeywordAdminBase = admin.ModelAdmin
-    RSSFetchLogAdminBase = admin.ModelAdmin
-    PolicyAuditQueueAdminBase = admin.ModelAdmin
+
+class RSSHubGlobalConfigAdminForm(TypedModelForm[RSSHubGlobalConfig]):
+    """Mask the singleton RSSHub access key on Admin edit pages."""
+
+    access_key = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(render_value=False),
+        help_text="留空以保留现有访问密钥。",
+    )
+
+    class Meta:
+        model = RSSHubGlobalConfig
+        fields = "__all__"
+
+    def clean_access_key(self) -> str:
+        """Preserve the current access key when the masked input stays blank."""
+
+        value = self.cleaned_data.get("access_key")
+        if isinstance(value, str) and value:
+            return value
+        return self.instance.access_key if self.instance.pk is not None else ""
+
+
+class RSSSourceConfigAdminForm(TypedModelForm[RSSSourceConfigModel]):
+    """Mask stored RSSHub and proxy credentials on Admin edit pages."""
+
+    rsshub_custom_access_key = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(render_value=False),
+        help_text="留空以保留现有 RSSHub 访问密钥。",
+    )
+    proxy_password = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(render_value=False),
+        help_text="留空以保留现有代理密码。",
+    )
+
+    class Meta:
+        model = RSSSourceConfigModel
+        fields = "__all__"
+
+    def clean_rsshub_custom_access_key(self) -> str:
+        """Preserve the current RSSHub key when the masked input stays blank."""
+
+        value = self.cleaned_data.get("rsshub_custom_access_key")
+        if isinstance(value, str) and value:
+            return value
+        return self.instance.rsshub_custom_access_key if self.instance.pk is not None else ""
+
+    def clean_proxy_password(self) -> str:
+        """Preserve the current proxy password when the masked input stays blank."""
+
+        value = self.cleaned_data.get("proxy_password")
+        if isinstance(value, str) and value:
+            return value
+        return self.instance.proxy_password if self.instance.pk is not None else ""
+
+
+def _redact_url_credentials(url: str) -> str:
+    """Mask sensitive query values and user-info before rendering an Admin URL."""
+
+    parsed = urlsplit(url)
+    hostname = parsed.hostname or ""
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    netloc = f"{hostname}:{port}" if port is not None else hostname
+    sensitive_keys = {"access_key", "api_key", "key", "password", "secret", "token"}
+    query = urlencode(
+        [
+            (key, "****" if key.lower() in sensitive_keys else value)
+            for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        ],
+        doseq=True,
+    )
+    return urlunsplit((parsed.scheme, netloc, parsed.path, query, parsed.fragment))
 
 
 def _policy_admin_service() -> PolicyAdminInterfaceService:
@@ -66,7 +135,7 @@ def _require_admin_user_id(request: HttpRequest) -> int:
 
 
 @admin.register(PolicyLog)
-class PolicyLogAdmin(PolicyLogAdminBase):
+class PolicyLogAdmin(TypedModelAdmin[PolicyLog]):
     """政策事件管理界面（增强版）"""
 
     # 列表页配置
@@ -336,7 +405,8 @@ class PolicyLogAdmin(PolicyLogAdminBase):
                 pct = (count / total * 100) if total > 0 else 0
                 colors = {"P0": "#6c757d", "P1": "#ffc107", "P2": "#fd7e14", "P3": "#dc3545"}
                 color = colors.get(level_code, "#6c757d")
-                stats_html += f'<tr><td style="padding: 4px;"><span style="color: {color};">●</span> {level_name}</td>'
+                safe_level_name = conditional_escape(level_name)
+                stats_html += f'<tr><td style="padding: 4px;"><span style="color: {color};">●</span> {safe_level_name}</td>'
                 stats_html += f'<td style="padding: 4px;"><strong>{count}</strong></td><td style="padding: 4px;">{pct:.1f}%</td></tr>'
             stats_html += "</table></div>"
 
@@ -344,8 +414,9 @@ class PolicyLogAdmin(PolicyLogAdminBase):
             stats_html += '<div style="flex: 1;"><h4>按分类</h4><table style="width: 100%;">'
             for cat_code, count in category_counts.items():
                 cat_name = dict(PolicyLog.INFO_CATEGORY_CHOICES).get(cat_code, cat_code)
+                safe_cat_name = conditional_escape(cat_name)
                 pct = (count / total * 100) if total > 0 else 0
-                stats_html += f'<tr><td style="padding: 4px;">{cat_name}</td>'
+                stats_html += f'<tr><td style="padding: 4px;">{safe_cat_name}</td>'
                 stats_html += f'<td style="padding: 4px;"><strong>{count}</strong></td><td style="padding: 4px;">{pct:.1f}%</td></tr>'
             stats_html += "</table></div>"
 
@@ -353,8 +424,9 @@ class PolicyLogAdmin(PolicyLogAdminBase):
             stats_html += '<div style="flex: 1;"><h4>审核状态</h4><table style="width: 100%;">'
             for status_code, count in audit_counts.items():
                 status_name = dict(PolicyLog.AUDIT_STATUS_CHOICES).get(status_code, status_code)
+                safe_status_name = conditional_escape(status_name)
                 pct = (count / total * 100) if total > 0 else 0
-                stats_html += f'<tr><td style="padding: 4px;">{status_name}</td>'
+                stats_html += f'<tr><td style="padding: 4px;">{safe_status_name}</td>'
                 stats_html += f'<td style="padding: 4px;"><strong>{count}</strong></td><td style="padding: 4px;">{pct:.1f}%</td></tr>'
             stats_html += "</table></div>"
 
@@ -412,12 +484,18 @@ class PolicyLogAdminSite(admin.AdminSite):
 
 
 @admin.register(RSSHubGlobalConfig)
-class RSSHubGlobalConfigAdmin(RSSHubGlobalConfigAdminBase):
+class RSSHubGlobalConfigAdmin(TypedModelAdmin[RSSHubGlobalConfig]):
     """RSSHub 全局配置管理（单例模式）"""
 
+    form = RSSHubGlobalConfigAdminForm
+
     def has_add_permission(self, request: HttpRequest) -> bool:
-        """禁止手动添加（单例模式）"""
-        return not _policy_admin_service().has_rsshub_global_config()
+        """Require model permission and allow only one singleton row."""
+
+        return (
+            super().has_add_permission(request)
+            and not _policy_admin_service().has_rsshub_global_config()
+        )
 
     def has_delete_permission(
         self, request: HttpRequest, obj: RSSHubGlobalConfig | None = None
@@ -456,11 +534,13 @@ class RSSHubGlobalConfigAdmin(RSSHubGlobalConfigAdminBase):
         if obj.enabled:
             return format_html(
                 '<span style="background-color: #28a745; color: white; '
-                'padding: 3px 8px; border-radius: 4px;">✅ 已启用</span>'
+                'padding: 3px 8px; border-radius: 4px;">{}</span>',
+                "✅ 已启用",
             )
         return format_html(
             '<span style="background-color: #6c757d; color: white; '
-            'padding: 3px 8px; border-radius: 4px;">❌ 未启用</span>'
+            'padding: 3px 8px; border-radius: 4px;">{}</span>',
+            "❌ 未启用",
         )
 
     @admin.display(description="鉴权")
@@ -469,11 +549,13 @@ class RSSHubGlobalConfigAdmin(RSSHubGlobalConfigAdminBase):
         if obj.access_key:
             return format_html(
                 '<span style="background-color: #007bff; color: white; '
-                'padding: 3px 8px; border-radius: 4px;">🔑 已配置</span>'
+                'padding: 3px 8px; border-radius: 4px;">{}</span>',
+                "🔑 已配置",
             )
         return format_html(
             '<span style="background-color: #ffc107; color: black; '
-            'padding: 3px 8px; border-radius: 4px;">⚠️ 未配置</span>'
+            'padding: 3px 8px; border-radius: 4px;">{}</span>',
+            "⚠️ 未配置",
         )
 
     def changelist_view(
@@ -490,8 +572,10 @@ class RSSHubGlobalConfigAdmin(RSSHubGlobalConfigAdminBase):
 
 
 @admin.register(RSSSourceConfigModel)
-class RSSSourceConfigAdmin(RSSSourceConfigAdminBase):
+class RSSSourceConfigAdmin(TypedModelAdmin[RSSSourceConfigModel]):
     """RSS源配置管理"""
+
+    form = RSSSourceConfigAdminForm
 
     list_display = [
         "name",
@@ -614,17 +698,19 @@ class RSSSourceConfigAdmin(RSSSourceConfigAdminBase):
         if obj.rsshub_enabled:
             return format_html(
                 '<span style="background-color: #6f42c1; color: white; '
-                'padding: 3px 8px; border-radius: 4px;">RSSHub</span>'
+                'padding: 3px 8px; border-radius: 4px;">{}</span>',
+                "RSSHub",
             )
         return format_html(
             '<span style="background-color: #e9ecef; color: #495057; '
-            'padding: 3px 8px; border-radius: 4px;">普通</span>'
+            'padding: 3px 8px; border-radius: 4px;">{}</span>',
+            "普通",
         )
 
     @admin.display(description="有效 URL（预览）")
     def effective_url_display(self, obj: RSSSourceConfigModel) -> str:
         """显示有效 URL（预览）"""
-        url = obj.get_effective_url()
+        url = _redact_url_credentials(obj.get_effective_url())
         if len(url) > 100:
             url = url[:97] + "..."
         return format_html(
@@ -680,7 +766,7 @@ class RSSSourceConfigAdmin(RSSSourceConfigAdminBase):
 
 
 @admin.register(PolicyLevelKeywordModel)
-class PolicyLevelKeywordAdmin(PolicyLevelKeywordAdminBase):
+class PolicyLevelKeywordAdmin(TypedModelAdmin[PolicyLevelKeywordModel]):
     """政策档位关键词规则管理"""
 
     list_display = [
@@ -722,7 +808,7 @@ class PolicyLevelKeywordAdmin(PolicyLevelKeywordAdminBase):
 
 
 @admin.register(RSSFetchLog)
-class RSSFetchLogAdmin(RSSFetchLogAdminBase):
+class RSSFetchLogAdmin(TypedModelAdmin[RSSFetchLog]):
     """RSS抓取日志管理"""
 
     list_display = [
@@ -796,7 +882,7 @@ class RSSFetchLogAdmin(RSSFetchLogAdminBase):
 
 
 @admin.register(PolicyAuditQueue)
-class PolicyAuditQueueAdmin(PolicyAuditQueueAdminBase):
+class PolicyAuditQueueAdmin(TypedModelAdmin[PolicyAuditQueue]):
     """政策审核队列管理"""
 
     list_display = [
