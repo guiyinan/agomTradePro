@@ -4738,3 +4738,21 @@
 - Data Center 单元、组件与 on-demand 回归 `363 passed`。
 - `apps/data_center/domain/protocols.py`、`apps/data_center/infrastructure/provider_registry.py` 与 `apps/data_center/provider_runtime.py` 增量 mypy 清零；全仓基线从 `1090 errors / 381 files` 收紧为 `1088 errors / 380 files`，净减少 `2 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百一十四批
+
+- 按“政策录入数据质量 × RSS 连接配置完整性 × 表单敏感字段防回显”收口 Policy management forms。
+- 三个表单补齐 typed instance Protocol、构造参数、清洗方法与 `dict[str, Any]` payload 返回契约；移除动态 `SimpleNamespace` 边界，并为 create 模板提供显式未保存实例标记。
+- Policy event、RSS source 与 keyword payload 改为逐字段写入白名单；即使 cleaned data 被动态注入额外键，也不会越权传播到 Application 写入入口。
+- RSSHub custom access key 与 proxy password 改用不回显原值的 password widget，编辑 initial 不再携带凭据；留空保存会保留既有密钥，非空输入才执行替换。
+- RSSHub 模式要求有效路由；路由必须以单个 `/` 开头，拒绝相对路径与 `//` network-path。禁用全局配置时必须提供 custom base URL，避免生成不可用或含混的抓取地址。
+- 启用代理时必须同时提供 host 与 port；不完整代理配置在进入 Application 前失败关闭。
+- keyword 输入兼容中文与英文逗号，IntegerField 权重的 HTML step 从错误的 `0.1` 修正为 `1`。
+- 修正一个陈旧 API 边界断言，使非法日期测试与当前统一 serializer 错误契约 `Invalid query parameters` 一致；生产 API 未改动。
+- 新增凭据不回显/留空保留/显式替换、RSSHub 路由与自定义基址、代理完整性、中文关键词及 payload 白名单回归。
+
+## 第三百一十四批验证结果
+
+- Policy 单元、组件、API 与集成回归 `363 passed`；另有 5 条来自未改动 Policy Admin `format_html()` 的 Django 6.0 deprecation warning，留待 Admin 专项收口。
+- `apps/policy/interface/forms.py` 增量 mypy 清零；全仓基线从 `1088 errors / 380 files` 收紧为 `1077 errors / 379 files`，净减少 `11 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

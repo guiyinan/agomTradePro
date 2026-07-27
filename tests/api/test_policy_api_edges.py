@@ -19,7 +19,7 @@ def test_policy_status_invalid_date_returns_400(authenticated_client):
 
     assert response.status_code == 400
     assert response["Content-Type"].startswith("application/json")
-    assert "Invalid date format" in response.json()["error"]
+    assert response.json()["error"] == "Invalid query parameters"
 
 
 @pytest.mark.django_db

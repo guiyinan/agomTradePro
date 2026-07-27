@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1088,
-    "files_with_errors": 380
+    "errors": 1077,
+    "files_with_errors": 379
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -880,11 +880,6 @@
       "attr-defined": 3,
       "no-untyped-def": 3,
       "type-arg": 6
-    },
-    "apps/policy/interface/forms.py": {
-      "no-untyped-def": 5,
-      "type-arg": 3,
-      "union-attr": 3
     },
     "apps/policy/management/commands/init_authoritative_rss_sources.py": {
       "no-untyped-def": 2
