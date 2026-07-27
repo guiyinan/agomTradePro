@@ -5267,3 +5267,20 @@
 - Pulse Admin 注册、权限与数值校验专项 `13 passed`；Pulse Domain、Provider、Application、管理命令、组件与 API 扩展回归 `71 passed`。
 - `apps/pulse/interface/admin.py`、根 bridge 与显式模型导出在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `795 errors / 341 files` 收紧为 `789 errors / 340 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百四十六批
+
+- 按“Prompt Admin 未被自动发现 × 活动模板绕过评估门禁 × 对话/执行证据可删除”收口 Prompt 后台治理。
+- 删除错误归属 `apps/prompt/infrastructure/admin.py`，实现迁移到 `apps/prompt/interface/admin.py` 并新增标准根 autodiscovery bridge；四个 legacy Prompt 模型现在只有一个正式注册入口。
+- 根 `models.py` 补显式 `__all__`，Interface Admin 通过 App 根模型导出取类型，不新增 Interface 对 Infrastructure 的直接依赖。
+- 四个 Admin 全部继承 `TypedModelAdmin[ConcreteModel]`；自定义 `PROMPT_EVAL_GATE_ENABLED` 经局部布尔边界读取，兼容严格 Settings stub 与运行时 override。
+- evaluation gate 开启时，legacy PromptTemplate Admin 禁止新增和修改，活动模板必须通过 PromptVersion evaluation/promotion 流程；门禁关闭时仍要求 Django 原生模型权限。模板始终禁止删除，避免破坏执行与决策引用。
+- PromptExecutionLog 和 ChatSession 全字段只读，并禁止新增、修改和删除；渲染 Prompt、AI 响应、错误、Token/成本、用户消息与上下文证据不能由管理员伪造或清除。
+- ChainConfig 继续按 Django 原生权限管理，未改变编排配置业务行为。
+- 新增四模型唯一 typed 注册、evaluation gate 开关权限组合和执行/会话证据全不可变回归。
+
+## 第三百四十六批验证结果
+
+- Prompt Admin 注册、门禁与证据权限专项 `3 passed`；Prompt Domain、Application、初始化、组件、API 与 AI owner 扩展回归 `116 passed`。
+- 新 Interface Admin、根 bridge 与显式模型导出在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；删除旧 Infrastructure Admin 后全仓基线从 `789 errors / 340 files` 收紧为 `783 errors / 339 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

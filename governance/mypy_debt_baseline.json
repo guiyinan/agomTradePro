@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 789,
-    "files_with_errors": 340
+    "errors": 783,
+    "files_with_errors": 339
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -814,10 +814,6 @@
     },
     "apps/prompt/infrastructure/adapters/regime_adapter.py": {
       "no-untyped-def": 2
-    },
-    "apps/prompt/infrastructure/admin.py": {
-      "no-untyped-def": 2,
-      "type-arg": 4
     },
     "apps/prompt/infrastructure/fixtures/templates.py": {
       "no-untyped-def": 2

@@ -8,3 +8,10 @@ from apps.prompt.infrastructure.models import (  # noqa: F401
     PromptExecutionLogORM,
     PromptTemplateORM,
 )
+
+__all__: tuple[str, ...] = (
+    "ChainConfigORM",
+    "ChatSessionORM",
+    "PromptExecutionLogORM",
+    "PromptTemplateORM",
+)
