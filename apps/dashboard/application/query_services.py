@@ -9,6 +9,24 @@ from typing import Any, Protocol
 from apps.dashboard.application.queries import get_alpha_homepage_query
 from apps.dashboard.application.repository_provider import get_auto_advisor_report_repository
 
+_MAX_ACCOUNT_ID = 2_147_483_647
+
+
+def _parse_optional_account_id(account_id: str | None) -> int | None:
+    """Parse an optional positive database account id before repository access."""
+
+    if account_id is None:
+        return None
+    normalized = account_id.strip()
+    if not normalized:
+        return None
+    if not normalized.isascii() or not normalized.isdecimal():
+        raise ValueError("account_id must be a positive integer")
+    parsed = int(normalized)
+    if not 1 <= parsed <= _MAX_ACCOUNT_ID:
+        raise ValueError("account_id must be a positive integer")
+    return parsed
+
 
 class AutoAdvisorSheetProviderProtocol(Protocol):
     """Read an account advisor sheet for dashboard console aggregation."""
@@ -252,7 +270,7 @@ def build_auto_advisor_weekly_report_history_payload(
     user_id = int(getattr(user, "id", 0) or 0)
     if user_id <= 0:
         raise ValueError("authenticated user is required")
-    normalized_account_id = int(account_id) if account_id not in {None, ""} else None
+    normalized_account_id = _parse_optional_account_id(account_id)
     bounded_limit = max(1, min(int(limit or 20), 100))
     reports = get_auto_advisor_report_repository().list_recent_reports(
         user_id=user_id,
@@ -277,7 +295,7 @@ def build_auto_advisor_notifications_payload(
     user_id = int(getattr(user, "id", 0) or 0)
     if user_id <= 0:
         raise ValueError("authenticated user is required")
-    normalized_account_id = int(account_id) if account_id not in {None, ""} else None
+    normalized_account_id = _parse_optional_account_id(account_id)
     bounded_limit = max(1, min(int(limit or 20), 100))
     notifications = get_auto_advisor_report_repository().list_recent_notifications(
         user_id=user_id,
@@ -447,7 +465,7 @@ def _answer_largest_risk(sheet: dict[str, Any]) -> dict[str, Any]:
 
 def _answer_reduce_reason(sheet: dict[str, Any]) -> dict[str, Any]:
     reduce_items = [item for item in _advisor_query_items(sheet) if _item_action(item) == "REDUCE"]
-    highlights = [
+    highlights: list[dict[str, Any]] = [
         {
             "asset_code": item.get("asset_code"),
             "asset_name": item.get("asset_name"),

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 688,
-    "files_with_errors": 319
+    "errors": 685,
+    "files_with_errors": 318
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -343,10 +343,6 @@
     "apps/dashboard/application/navigation.py": {
       "arg-type": 2,
       "comparison-overlap": 1
-    },
-    "apps/dashboard/application/query_services.py": {
-      "arg-type": 2,
-      "index": 1
     },
     "apps/dashboard/application/tasks.py": {
       "misc": 1

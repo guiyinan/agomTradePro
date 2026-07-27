@@ -5500,3 +5500,17 @@
 - Dashboard Query 安全与 Alpha 查询专项 `41 passed`；Dashboard API、组件 guardrail、SDK Alpha 与 MCP Dashboard 多消费者回归 `43 passed`。
 - `apps/dashboard/application/queries.py` 在增量 mypy 口径清零，并同步消除 `query_services.py` 对无类型首页 accessor 的一处调用错误；全仓基线从 `695 errors / 320 files` 收紧为 `688 errors / 319 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI 或部署实现，SDK/MCP 仅执行回归未改代码。
+
+## 第三百六十批
+
+- 按“Auto Advisor 可选账户 scope 松散强转 × 畸形输入触发共享仓储 × 减仓原因动态列表不可索引”收口 Dashboard TUI/runtime Query Services。
+- 周报历史与通知查询的可选 `account_id` 在 repository 获取前统一校验：仅接受 `1..2147483647` 的 ASCII 十进制整数；空白等价于未限定账户，负数、零、小数、非数字和越界值稳定失败。
+- 非法账户 scope 不再依赖 `int()` 的动态异常或进入共享报告仓储，API、CLI、TUI 与 MCP 复用同一 Application 边界语义。
+- 减仓 highlights 明确为 `list[dict[str, Any]]`，首项 reasons 的切片和拼接不再依赖不可索引 union/Any 推断。
+- 新增两类查询的非法 scope 无 repository I/O、空白 scope 归一化回归。
+
+## 第三百六十批验证结果
+
+- Dashboard Query Services 安全与 Auto Advisor 输出/控制台组件回归 `26 passed`。
+- `apps/dashboard/application/query_services.py` 在增量 mypy 口径清零；全仓基线从 `688 errors / 319 files` 收紧为 `685 errors / 318 files`，净减少 `3 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
