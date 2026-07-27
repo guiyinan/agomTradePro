@@ -3,11 +3,13 @@ Unit tests for field encryption service.
 
 Tests the FieldEncryptionService class from shared.infrastructure.crypto.
 """
+
 import os
 
 import pytest
 from cryptography.fernet import InvalidToken
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 
 from shared.infrastructure.crypto import (
     FieldEncryptionService,
@@ -32,14 +34,36 @@ class TestFieldEncryptionService:
         assert service is not None
         assert service.fernet is not None
 
+    def test_explicit_blank_key_does_not_fall_back_to_settings(self, settings):
+        """An explicitly blank key must fail closed."""
+
+        settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+
+        with pytest.raises(
+            ValueError,
+            match="AGOMTRADEPRO_ENCRYPTION_KEY not configured",
+        ):
+            FieldEncryptionService(encryption_key="   ")
+
+    def test_non_string_setting_fails_closed(self, settings):
+        """Dynamic settings values must be narrowed before key construction."""
+
+        settings.AGOMTRADEPRO_ENCRYPTION_KEY = 123
+
+        with pytest.raises(
+            ImproperlyConfigured,
+            match="AGOMTRADEPRO_ENCRYPTION_KEY must be a string",
+        ):
+            FieldEncryptionService()
+
     def test_init_without_key_raises_error(self):
         """Test initialization without key raises ValueError."""
         # Clear environment variable
-        original = os.environ.get('AGOMTRADEPRO_ENCRYPTION_KEY')
-        original_setting = getattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', None)
-        os.environ.pop('AGOMTRADEPRO_ENCRYPTION_KEY', None)
-        if hasattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY'):
-            delattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY')
+        original = os.environ.get("AGOMTRADEPRO_ENCRYPTION_KEY")
+        original_setting = getattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY", None)
+        os.environ.pop("AGOMTRADEPRO_ENCRYPTION_KEY", None)
+        if hasattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY"):
+            delattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY")
 
         try:
             with pytest.raises(ValueError, match="AGOMTRADEPRO_ENCRYPTION_KEY not configured"):
@@ -47,7 +71,7 @@ class TestFieldEncryptionService:
         finally:
             # Restore environment
             if original:
-                os.environ['AGOMTRADEPRO_ENCRYPTION_KEY'] = original
+                os.environ["AGOMTRADEPRO_ENCRYPTION_KEY"] = original
             if original_setting is not None:
                 settings.AGOMTRADEPRO_ENCRYPTION_KEY = original_setting
 
@@ -133,6 +157,34 @@ class TestFieldEncryptionService:
         assert service.decrypt(encrypted1) == plaintext
         assert service.decrypt(encrypted2) == plaintext
 
+    def test_encrypt_does_not_log_exception_text(self, mocker, caplog):
+        """Encryption logs expose only a stable exception type."""
+
+        service = FieldEncryptionService(FieldEncryptionService.generate_key())
+        mocker.patch.object(
+            service.fernet,
+            "encrypt",
+            side_effect=RuntimeError("credential=sk-should-not-leak"),
+        )
+
+        with caplog.at_level("ERROR"), pytest.raises(RuntimeError):
+            service.encrypt("sk-sensitive")
+
+        assert "sk-should-not-leak" not in caplog.text
+        assert any(
+            getattr(record, "exception_type", None) == "RuntimeError" for record in caplog.records
+        )
+
+    def test_crypto_backend_return_type_fails_closed(self, mocker):
+        """Unexpected dynamic library values never cross the string boundary."""
+
+        service = FieldEncryptionService(FieldEncryptionService.generate_key())
+        encrypted = service.encrypt("sk-sensitive")
+        mocker.patch.object(service.fernet, "decrypt", return_value="sk-sensitive")
+
+        with pytest.raises(TypeError, match="Fernet decryption must return bytes"):
+            service.decrypt(encrypted)
+
 
 class TestMaskApiKey:
     """Test suite for mask_api_key function."""
@@ -169,6 +221,21 @@ class TestMaskApiKey:
         assert masked.startswith("sk-1234567890ab")
         assert "*" in masked
 
+    @pytest.mark.parametrize("visible_chars", [-1, True])
+    def test_mask_rejects_invalid_visible_count(self, visible_chars):
+        """Invalid visibility controls must not expose credential fragments."""
+
+        with pytest.raises(ValueError, match="visible_chars"):
+            mask_api_key("sk-sensitive-value", visible_chars=visible_chars)
+
+    def test_zero_visible_chars_masks_entire_key(self):
+        """Zero visibility returns masking characters only."""
+
+        result = mask_api_key("sk-sensitive-value", visible_chars=0)
+
+        assert set(result) == {"*"}
+        assert "sensitive" not in result
+
 
 class TestGetEncryptionService:
     """Test suite for get_encryption_service function."""
@@ -176,10 +243,10 @@ class TestGetEncryptionService:
     def test_returns_service_when_key_configured(self):
         """Test that service is returned when key is configured."""
         key = FieldEncryptionService.generate_key()
-        os.environ['AGOMTRADEPRO_ENCRYPTION_KEY'] = key
+        os.environ["AGOMTRADEPRO_ENCRYPTION_KEY"] = key
 
         # Update Django settings
-        original_setting = getattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', None)
+        original_setting = getattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY", None)
         settings.AGOMTRADEPRO_ENCRYPTION_KEY = key
 
         try:
@@ -187,27 +254,27 @@ class TestGetEncryptionService:
             assert service is not None
             assert isinstance(service, FieldEncryptionService)
         finally:
-            os.environ.pop('AGOMTRADEPRO_ENCRYPTION_KEY', None)
+            os.environ.pop("AGOMTRADEPRO_ENCRYPTION_KEY", None)
             if original_setting is None:
-                delattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY')
+                delattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY")
             else:
                 settings.AGOMTRADEPRO_ENCRYPTION_KEY = original_setting
 
     def test_returns_none_when_key_not_configured(self):
         """Test that None is returned when key is not configured."""
-        original_env = os.environ.get('AGOMTRADEPRO_ENCRYPTION_KEY')
-        original_setting = getattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', None)
+        original_env = os.environ.get("AGOMTRADEPRO_ENCRYPTION_KEY")
+        original_setting = getattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY", None)
 
-        os.environ.pop('AGOMTRADEPRO_ENCRYPTION_KEY', None)
-        if hasattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY'):
-            delattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY')
+        os.environ.pop("AGOMTRADEPRO_ENCRYPTION_KEY", None)
+        if hasattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY"):
+            delattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY")
 
         try:
             service = get_encryption_service()
             assert service is None
         finally:
             if original_env:
-                os.environ['AGOMTRADEPRO_ENCRYPTION_KEY'] = original_env
+                os.environ["AGOMTRADEPRO_ENCRYPTION_KEY"] = original_env
             if original_setting:
                 settings.AGOMTRADEPRO_ENCRYPTION_KEY = original_setting
 
@@ -257,3 +324,50 @@ class TestFieldEncryptionServiceMask:
         assert result.startswith("sk-1234567...")
         assert result.endswith("klmnop")
         assert result == "sk-1234567...klmnop"
+
+    @pytest.mark.parametrize(
+        ("show_prefix", "show_suffix"),
+        [
+            (-1, 4),
+            (8, -1),
+            (True, 4),
+            (8, False),
+        ],
+    )
+    def test_mask_rejects_invalid_visibility_controls(
+        self,
+        show_prefix,
+        show_suffix,
+    ):
+        """Negative and boolean visibility controls fail before slicing."""
+
+        with pytest.raises(ValueError):
+            FieldEncryptionService.mask(
+                "sk-sensitive-value",
+                show_prefix=show_prefix,
+                show_suffix=show_suffix,
+            )
+
+    def test_mask_with_zero_suffix_does_not_reveal_full_value(self):
+        """Python's ``[-0:]`` edge case must not expose the complete secret."""
+
+        result = FieldEncryptionService.mask(
+            "sk-sensitive-value",
+            show_prefix=4,
+            show_suffix=0,
+        )
+
+        assert result == "sk-s..."
+        assert "sensitive" not in result
+
+    def test_mask_with_no_visible_characters_is_fully_masked(self):
+        """A zero/zero visibility policy must remain fail closed."""
+
+        assert (
+            FieldEncryptionService.mask(
+                "sk-sensitive-value",
+                show_prefix=0,
+                show_suffix=0,
+            )
+            == "****"
+        )

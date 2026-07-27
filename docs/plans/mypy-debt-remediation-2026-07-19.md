@@ -4624,3 +4624,20 @@
 - Pulse 相关单元、组件、API、集成与跨模块依赖回归 `61 passed`。
 - `apps/pulse/application/use_cases.py` 与 `apps/pulse/application/repository_provider.py` 增量 mypy 清零；全仓基线从 `1135 errors / 389 files` 收紧为 `1127 errors / 387 files`，净减少 `8 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百零七批
+
+- 按“字段级凭据加密 × 动态密码学边界 × 密钥掩码防泄露”收口共享 FieldEncryptionService。
+- 模块算法说明从错误的 AES-256-GCM 修正为实际 Fernet 契约（AES-128-CBC + HMAC-SHA256），避免运维与审计依据失真。
+- Django 动态 setting 只接受非空字符串；错误类型失败关闭，显式空 key 不再回退到其他配置来源，防止调用方以为禁用加密却使用了隐式密钥。
+- 保留既有非标准 key 的 SHA-256 确定性派生以兼容存量密文；有效 Fernet key、环境变量优先级及 `encrypted:v1:` 格式保持不变。
+- 对 `cryptography` 的 encrypt、decrypt、generate_key 动态返回值统一验证为 bytes，第三方边界异常不再以 Any 穿过字符串返回契约。
+- 加解密错误日志只发布稳定操作名与异常类型，不再拼接可能包含凭据、密文或底层响应的异常正文。
+- `FieldEncryptionService.mask` 和 `mask_api_key` 拒绝负数、布尔等非法可见长度；显式处理 `show_suffix=0` 的 Python `[-0:]` 全量切片陷阱，零可见策略始终完全遮蔽。
+- 新增空 key、错误 setting 类型、动态库错误返回、日志脱敏、非法可见长度、零后缀与零可见掩码回归。
+
+## 第三百零七批验证结果
+
+- Crypto、AI Provider 加密/路由/Admin 与 Dashboard 凭据降级回归 `66 passed`。
+- `shared/infrastructure/crypto.py` 增量及整仓上下文 mypy 清零；全仓基线从 `1127 errors / 387 files` 收紧为 `1123 errors / 386 files`，净减少 `4 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

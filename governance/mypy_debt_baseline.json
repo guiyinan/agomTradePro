@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1127,
-    "files_with_errors": 387
+    "errors": 1123,
+    "files_with_errors": 386
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1332,9 +1332,6 @@
     },
     "shared/infrastructure/calculators.py": {
       "import-untyped": 2
-    },
-    "shared/infrastructure/crypto.py": {
-      "no-any-return": 4
     },
     "shared/infrastructure/django_sdk_transport.py": {
       "attr-defined": 1,
