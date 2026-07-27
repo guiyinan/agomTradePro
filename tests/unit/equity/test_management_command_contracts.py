@@ -20,30 +20,87 @@ from apps.equity.management.commands import (
 )
 
 
-def test_equity_config_bootstrap_publishes_all_database_driven_defaults() -> None:
+def test_equity_config_bootstrap_publishes_all_database_driven_defaults(monkeypatch) -> None:
     """Bootstrap delegates every regime rule and preference to its repository."""
+    monkeypatch.setattr(init_equity_config.transaction, "atomic", nullcontext)
     calls: dict[str, list[dict[str, object]]] = {
         "rules": [],
         "sectors": [],
         "funds": [],
     }
+    overwrite_flags: list[bool] = []
+
+    def _record(
+        category: str,
+        payload: dict[str, object],
+        *,
+        overwrite: bool,
+    ) -> str:
+        calls[category].append(payload)
+        overwrite_flags.append(overwrite)
+        return "created"
+
     repository = SimpleNamespace(
-        upsert_stock_screening_rule=lambda payload: calls["rules"].append(payload),
-        upsert_sector_preference=lambda payload: calls["sectors"].append(payload),
-        upsert_fund_type_preference=lambda payload: calls["funds"].append(payload),
+        upsert_stock_screening_rule=lambda payload, *, overwrite: _record(
+            "rules", payload, overwrite=overwrite
+        ),
+        upsert_sector_preference=lambda payload, *, overwrite: _record(
+            "sectors", payload, overwrite=overwrite
+        ),
+        upsert_fund_type_preference=lambda payload, *, overwrite: _record(
+            "funds", payload, overwrite=overwrite
+        ),
     )
     command = init_equity_config.Command(stdout=StringIO())
-    command.bootstrap_repository = repository
-    command.handle()
+    command._get_repository = lambda: repository
+    command.handle(force=False)
     assert len(calls["rules"]) == 4
     assert len(calls["sectors"]) == 13
     assert len(calls["funds"]) == 7
+    assert overwrite_flags == [False] * 24
     assert {item["regime"] for item in calls["rules"]} == {
         "Recovery",
         "Overheat",
         "Stagflation",
         "Deflation",
     }
+    assert "created=24" in command.stdout.getvalue()
+
+
+def test_equity_config_bootstrap_rejects_non_boolean_force_before_repository() -> None:
+    """Dynamic callers cannot enable destructive overwrite with a truthy value."""
+
+    command = init_equity_config.Command(stdout=StringIO())
+    command._get_repository = lambda: pytest.fail("repository constructed")
+
+    with pytest.raises(CommandError, match="--force"):
+        command.handle(force="true")
+
+
+def test_equity_interface_package_does_not_publish_bootstrap_business_logic() -> None:
+    """The Interface package root remains free of management-command behavior."""
+
+    from apps.equity import interface
+
+    assert not hasattr(interface, "Command")
+    assert not hasattr(interface, "init_stock_screening_rules")
+
+
+def test_legacy_equity_config_script_delegates_to_management_command(monkeypatch) -> None:
+    """The compatibility script contains no independent bootstrap implementation."""
+
+    import django
+    from django.core import management
+
+    from scripts import init_equity_config as script
+
+    calls: list[str] = []
+    monkeypatch.setattr(django, "setup", lambda: None)
+    monkeypatch.setattr(management, "call_command", lambda name: calls.append(name))
+
+    script.main()
+
+    assert calls == ["init_equity_config"]
 
 
 class _ScoringManager:

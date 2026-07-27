@@ -6,7 +6,7 @@ import surface; do not import it here.
 """
 
 import logging
-from typing import Any
+from typing import Any, Literal
 
 from django.db import transaction
 from django.db.models import QuerySet
@@ -26,6 +26,8 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+BootstrapWriteStatus = Literal["created", "updated", "preserved"]
 
 
 class ScoringWeightConfigRepository:
@@ -137,11 +139,12 @@ class ValuationRepairConfigRepository:
     def get_queryset(self) -> QuerySet[ValuationRepairConfigModel]:
         """Return the config queryset ordered for admin/API use."""
 
-        return ValuationRepairConfigModel._default_manager.all().order_by(
-            "-is_active",
-            "-version",
-            "-created_at",
+        queryset: QuerySet[
+            ValuationRepairConfigModel
+        ] = ValuationRepairConfigModel._default_manager.all().order_by(
+            "-is_active", "-version", "-created_at"
         )
+        return queryset
 
     def get_active_model(self) -> ValuationRepairConfigModel | None:
         """Return the active config model if present."""
@@ -253,33 +256,78 @@ class ValuationRepairConfigRepository:
 class EquityBootstrapConfigRepository:
     """Persistence helpers for equity bootstrap configuration commands."""
 
-    def upsert_stock_screening_rule(self, rule_data: dict[str, Any]) -> None:
-        """Create or update one stock screening rule row."""
+    def upsert_stock_screening_rule(
+        self,
+        rule_data: dict[str, Any],
+        *,
+        overwrite: bool = True,
+    ) -> BootstrapWriteStatus:
+        """Create one rule, updating an existing row only when explicitly allowed."""
 
-        StockScreeningRuleConfigModel._default_manager.update_or_create(
-            regime=rule_data["regime"],
-            rule_name=rule_data["rule_name"],
+        return self._write_seed(
+            manager=StockScreeningRuleConfigModel._default_manager,
+            lookup={
+                "regime": rule_data["regime"],
+                "rule_name": rule_data["rule_name"],
+            },
             defaults=rule_data,
+            overwrite=overwrite,
         )
 
-    def upsert_sector_preference(self, preference: dict[str, Any]) -> None:
-        """Create or update one sector preference row."""
+    def upsert_sector_preference(
+        self,
+        preference: dict[str, Any],
+        *,
+        overwrite: bool = True,
+    ) -> BootstrapWriteStatus:
+        """Create one sector preference, optionally updating an existing row."""
 
-        SectorPreferenceConfigModel._default_manager.update_or_create(
-            regime=preference["regime"],
-            sector_name=preference["sector_name"],
+        return self._write_seed(
+            manager=SectorPreferenceConfigModel._default_manager,
+            lookup={
+                "regime": preference["regime"],
+                "sector_name": preference["sector_name"],
+            },
             defaults=preference,
+            overwrite=overwrite,
         )
 
-    def upsert_fund_type_preference(self, preference: dict[str, Any]) -> None:
-        """Create or update one fund-type preference row."""
+    def upsert_fund_type_preference(
+        self,
+        preference: dict[str, Any],
+        *,
+        overwrite: bool = True,
+    ) -> BootstrapWriteStatus:
+        """Create one fund preference, optionally updating an existing row."""
 
-        FundTypePreferenceConfigModel._default_manager.update_or_create(
-            regime=preference["regime"],
-            fund_type=preference["fund_type"],
-            style=preference["style"],
+        return self._write_seed(
+            manager=FundTypePreferenceConfigModel._default_manager,
+            lookup={
+                "regime": preference["regime"],
+                "fund_type": preference["fund_type"],
+                "style": preference["style"],
+            },
             defaults=preference,
+            overwrite=overwrite,
         )
+
+    @staticmethod
+    def _write_seed(
+        *,
+        manager: Any,
+        lookup: dict[str, Any],
+        defaults: dict[str, Any],
+        overwrite: bool,
+    ) -> BootstrapWriteStatus:
+        """Persist one seed row with explicit preserve-versus-overwrite semantics."""
+
+        if not isinstance(overwrite, bool):
+            raise ValueError("overwrite must be a boolean")
+        if overwrite:
+            _, created = manager.update_or_create(**lookup, defaults=defaults)
+            return "created" if created else "updated"
+        _, created = manager.get_or_create(**lookup, defaults=defaults)
+        return "created" if created else "preserved"
 
 
 __all__ = [

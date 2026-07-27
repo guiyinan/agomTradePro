@@ -5044,3 +5044,20 @@
 - Macro consistency 命令专项 `14 passed`；命令、选择规则与 Phase 2 rules 回归 `51 passed`；Data Center 全量 unit/component 回归 `369 passed`。
 - `apps/data_center/management/commands/audit_macro_fact_consistency.py` 与 `apps/data_center/domain/rules.py` 在跨层及增量 mypy 口径均清零；全仓基线从 `907 errors / 358 files` 收紧为 `899 errors / 356 files`，净减少 `8 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百三十二批
+
+- 按“数据库配置防覆盖 × 跨 App 初始化原子性 × 默认数据唯一代码真源”收口 Equity `init_equity_config` 管理命令。
+- 命令默认从 upsert 改为只创建缺失规则：匹配的股票筛选、板块偏好和基金类型偏好保留数据库现值；只有显式 `--force` 才重置为 bootstrap 默认，动态调用的 truthy 字符串等非布尔值在构造 Repository 前拒绝。
+- Repository 写入返回 `created/updated/preserved` 精确状态，并以显式 overwrite 参数区分初始化与治理更新；既有 Application interface service 保持 upsert 默认语义，避免无关调用面行为漂移。
+- 4 条股票规则、13 条板块偏好和 7 条基金偏好全部置于同一数据库事务；任一后续类别失败会回滚此前写入，命令仅报告数据库异常类型且不打印“初始化完成”。
+- 命令输出稳定的 total/created/updated/preserved 汇总，让冷启动补缺失与人工强制重置可审计，不再把“已存在且保留”混同为已重新初始化。
+- 删除 `apps/equity/interface/__init__.py` 中错误放置的完整管理命令副本，Interface 包根恢复无业务副作用；`scripts/init_equity_config.py` 改为只委托正式管理命令，不再维护第三份金融默认配置。
+- 缺失规则提示统一指向 `python manage.py init_equity_config`；默认 seed 仍只负责首次写入，运行时真源保持数据库/Admin 配置。
+- 新增默认保留、显式强制覆盖、三类计数、中途数据库失败整批回滚与脱敏、非布尔 force 前置短路、Interface 导入纯净和兼容脚本委托回归。
+
+## 第三百三十二批验证结果
+
+- Equity 初始化与 Repository 专项 `21 passed`；Equity 全模块、API、组件以及账户冷启动/调度初始化回归 `307 passed`。
+- `apps/equity/management/commands/init_equity_config.py` 与 `apps/equity/interface/__init__.py` 退出债务清单，其余改动生产文件保持两种 mypy 口径零错误；全仓基线从 `899 errors / 356 files` 收紧为 `884 errors / 354 files`，净减少 `15 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

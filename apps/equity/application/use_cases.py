@@ -270,7 +270,7 @@ class ScreenStocksUseCase:
             if not rule:
                 raise ValueError(
                     f"未找到 Regime '{regime}' 的筛选规则，"
-                    f"请在 Django Admin 中配置或运行 scripts/init_equity_config.py"
+                    "请在 Django Admin 中配置或运行 python manage.py init_equity_config"
                 )
 
             if request.custom_rule:

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 899,
-    "files_with_errors": 356
+    "errors": 884,
+    "files_with_errors": 354
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -602,10 +602,6 @@
     "apps/equity/infrastructure/config_loader.py": {
       "no-any-return": 1
     },
-    "apps/equity/interface/__init__.py": {
-      "no-untyped-call": 3,
-      "no-untyped-def": 4
-    },
     "apps/equity/interface/multidim_screen_views.py": {
       "no-untyped-def": 2
     },
@@ -617,10 +613,6 @@
     },
     "apps/equity/management/commands/backfill_equity_valuation.py": {
       "no-untyped-def": 2
-    },
-    "apps/equity/management/commands/init_equity_config.py": {
-      "no-untyped-call": 3,
-      "no-untyped-def": 5
     },
     "apps/equity/management/commands/init_scoring_weights.py": {
       "no-untyped-call": 1,
