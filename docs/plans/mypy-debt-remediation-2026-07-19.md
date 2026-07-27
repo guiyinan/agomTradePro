@@ -5140,3 +5140,18 @@
 - Hedge adapter、只读相关性和降级日志定向回归 `14 passed`；Hedge Domain、Application、组件、API 与 AI Capability catalog 扩展回归 `117 passed`。
 - `apps/hedge/infrastructure/adapters/__init__.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `856 errors / 349 files` 收紧为 `849 errors / 348 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百三十八批
+
+- 按“Dashboard Admin 未被自动发现 × 注册入口层级错误 × Admin 类型规范”收口 Dashboard 五个模型的后台入口。
+- 盘点确认全部 `@admin.register` 只存在于 `apps/dashboard/infrastructure/admin.py`，但 App 无根 `admin.py` 且 `AppConfig.ready()` 不导入该模块；Django Admin autodiscovery 因此不会加载这些注册。
+- 将唯一实现迁移到标准 `apps/dashboard/admin.py` 根入口并删除 Infrastructure Admin；Dashboard config、用户 config、card、alert 与 snapshot 五个模型现在均由 Django 正式发现且只注册一次。
+- 五个 Admin 全部继承 `TypedModelAdmin[ConcreteModel]`，handler 补齐精确模型、`HttpRequest` 与返回类型；严重级别和快照大小改用 `@admin.display`，删除动态 `short_description` 元数据。
+- Snapshot Admin 继续禁止手工创建和修改；severity badge、fieldsets、筛选、搜索、只读字段与其余运营行为保持不变。
+- 新增五模型根入口注册、typed Admin 继承和 Snapshot 不可变权限回归。
+
+## 第三百三十八批验证结果
+
+- Dashboard Admin 注册专项 `2 passed`；Dashboard Domain、组件与 API 扩展回归 `104 passed`。
+- 新根 `apps/dashboard/admin.py` 在 typed Admin 基座联合 governed mypy 与增量 mypy 口径均清零；删除旧债务入口后全仓基线从 `849 errors / 348 files` 收紧为 `838 errors / 347 files`，净减少 `11 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
