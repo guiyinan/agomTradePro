@@ -1,485 +1,512 @@
-"""
-Phase 0: 高频指标验证脚本
+"""Validate governed high-frequency macro indicators against Regime history."""
 
-验证新增高频指标的数据可用性和基本相关性。
+from __future__ import annotations
 
-参考文档: docs/development/regime-lag-improvement-plan.md
-
-Usage:
-    python manage.py validate_high_frequency_indicators
-    python manage.py validate_high_frequency_indicators --start-date=2018-01-01 --end-date=2024-12-31
-"""
-
-import logging
+import importlib
+import math
+import uuid
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import Protocol, cast
 
-import numpy as np
-import pandas as pd
-from django.core.management.base import BaseCommand
-from scipy import stats
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
-from apps.audit.infrastructure.models import (
-    ValidationSummaryModel,
-)
-from apps.data_center.infrastructure.models import MacroFactModel
+from apps.audit.infrastructure.models import ValidationSummaryModel
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.regime.infrastructure.models import RegimeLog
 
-logger = logging.getLogger(__name__)
+ValidationResult = dict[str, object]
+ValidationResults = dict[str, ValidationResult]
+ValidationReport = dict[str, object]
+
+
+class _PearsonResultProtocol(Protocol):
+    """SciPy correlation result compatibility surface."""
+
+    statistic: float
+    pvalue: float
+
+
+@dataclass(frozen=True)
+class ValidationThresholds:
+    """Validated thresholds controlling availability and association decisions."""
+
+    min_data_points: int = 100
+    min_correlation: float = 0.3
+    max_p_value: float = 0.05
+    min_years: float = 3.0
+
+    def __post_init__(self) -> None:
+        """Reject invalid thresholds before any database access."""
+
+        if isinstance(self.min_data_points, bool) or self.min_data_points <= 0:
+            raise ValueError("min_data_points must be a positive integer")
+        for name, value in (
+            ("min_correlation", self.min_correlation),
+            ("max_p_value", self.max_p_value),
+            ("min_years", self.min_years),
+        ):
+            if isinstance(value, bool) or not math.isfinite(value):
+                raise ValueError(f"{name} must be finite")
+        if not 0.0 <= self.min_correlation <= 1.0:
+            raise ValueError("min_correlation must be between 0 and 1")
+        if not 0.0 < self.max_p_value <= 1.0:
+            raise ValueError("max_p_value must be in (0, 1]")
+        if self.min_years < 0.0:
+            raise ValueError("min_years must be non-negative")
+
+
+def _pearsonr(left: list[float], right: list[float]) -> tuple[float, float]:
+    """Call SciPy through a typed optional-library boundary."""
+
+    stats_module = importlib.import_module("scipy.stats")
+    pearson: object = getattr(stats_module, "pearsonr", None)
+    if not callable(pearson):
+        raise ImportError("scipy.stats.pearsonr is unavailable")
+    raw_result: object = cast(Callable[[list[float], list[float]], object], pearson)(left, right)
+    if isinstance(raw_result, tuple) and len(raw_result) >= 2:
+        return float(raw_result[0]), float(raw_result[1])
+    result = cast(_PearsonResultProtocol, raw_result)
+    return float(result.statistic), float(result.pvalue)
+
+
+def _number(result: ValidationResult, key: str) -> float | None:
+    """Read a finite numeric result value without treating booleans as numbers."""
+
+    value = result.get(key)
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    parsed = float(value)
+    return parsed if math.isfinite(parsed) else None
+
+
+def _report_integer(report: ValidationReport, key: str) -> int:
+    """Read an integer report invariant before crossing into the ORM boundary."""
+
+    value = report.get(key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"report {key} must be an integer")
+    return value
 
 
 class IndicatorValidator:
-    """高频指标验证器
+    """Validate governed indicator availability and contemporaneous association."""
 
-    用于验证新增高频指标的数据可用性和预测能力。
-    """
+    ADVERSE_REGIMES = frozenset({"Deflation", "Stagflation"})
 
-    # 要验证的高频指标列表
-    HIGH_FREQ_INDICATORS = [
-        'CN_BOND_10Y',
-        'CN_BOND_1Y',
-        'CN_TERM_SPREAD_10Y1Y',
-        'CN_CREDIT_SPREAD',
-        'CN_NHCI',
-        'CN_FX_CENTER',
-        'US_BOND_10Y',
-        'USD_INDEX',
-        'VIX_INDEX',
-    ]
-
-    # 验证阈值（从配置读取，此处为默认值）
-    DEFAULT_THRESHOLDS = {
-        'min_data_points': 100,  # 最少数据点数
-        'min_correlation': 0.3,  # 最小相关系数
-        'max_p_value': 0.05,  # 最大 p 值
-        'min_years': 3,  # 最少年数
-    }
-
-    def __init__(self, start_date: date, end_date: date, thresholds: dict | None = None):
+    def __init__(
+        self,
+        start_date: date,
+        end_date: date,
+        indicator_codes: tuple[str, ...],
+        thresholds: ValidationThresholds | None = None,
+        term_spread_indicator: str | None = None,
+    ) -> None:
+        if start_date > end_date:
+            raise ValueError("start_date must not be after end_date")
+        normalized_codes = tuple(
+            dict.fromkeys(code.strip() for code in indicator_codes if code.strip())
+        )
+        if not normalized_codes:
+            raise ValueError("at least one indicator code is required")
+        if term_spread_indicator is not None and term_spread_indicator not in normalized_codes:
+            raise ValueError("term_spread_indicator must be included in indicator_codes")
         self.start_date = start_date
         self.end_date = end_date
-        self.thresholds = {**self.DEFAULT_THRESHOLDS, **(thresholds or {})}
-        self.validation_results: dict[str, dict] = {}
+        self.indicator_codes = normalized_codes
+        self.thresholds = thresholds or ValidationThresholds()
+        self.term_spread_indicator = term_spread_indicator
+        self.validation_results: ValidationResults = {}
 
-    def check_data_availability(self) -> dict[str, dict]:
-        """检查数据可用性"""
-        logger.info("检查数据可用性...")
+    def check_data_availability(self) -> ValidationResults:
+        """Classify data volume and time-span coverage for every governed indicator."""
 
-        for indicator_code in self.HIGH_FREQ_INDICATORS:
+        requested_days = max((self.end_date - self.start_date).days, 1)
+        for indicator_code in self.indicator_codes:
             try:
-                # 检查数据库中的数据
-                queryset = MacroFactModel._default_manager.filter(
-                    indicator_code=indicator_code,
-                    reporting_period__gte=self.start_date,
-                    reporting_period__lte=self.end_date
-                ).order_by('reporting_period')
-
-                data_points = list(queryset)
-
-                if not data_points:
-                    self.validation_results[indicator_code] = {
-                        'status': 'NO_DATA',
-                        'message': f'指标 {indicator_code} 无数据',
-                        'count': 0,
-                        'date_range': None,
-                    }
-                    logger.warning(f"指标 {indicator_code} 无数据")
-                    continue
-
-                count = len(data_points)
-                first_date = data_points[0].reporting_period
-                last_date = data_points[-1].reporting_period
-
-                # 计算数据覆盖率
-                expected_days = (self.end_date - self.start_date).days
-                actual_days = (last_date - first_date).days
-                coverage = actual_days / expected_days if expected_days > 0 else 0
-
-                self.validation_results[indicator_code] = {
-                    'status': 'OK' if count >= self.thresholds['min_data_points'] else 'INSUFFICIENT',
-                    'count': count,
-                    'first_date': first_date,
-                    'last_date': last_date,
-                    'coverage': coverage,
-                }
-
-                logger.info(
-                    f"指标 {indicator_code}: {count} 条数据 "
-                    f"({first_date} 至 {last_date}, 覆盖率 {coverage:.1%})"
+                rows = list(
+                    MacroFactModel._default_manager.filter(
+                        indicator_code=indicator_code,
+                        reporting_period__gte=self.start_date,
+                        reporting_period__lte=self.end_date,
+                    ).order_by("reporting_period")
                 )
-
-            except Exception as e:
-                logger.error(f"检查 {indicator_code} 数据可用性失败: {e}")
+            except Exception as exc:
                 self.validation_results[indicator_code] = {
-                    'status': 'ERROR',
-                    'message': str(e),
+                    "status": "ERROR",
+                    "message": f"availability query failed: {type(exc).__name__}",
                 }
-
-        return self.validation_results
-
-    def calculate_correlation_with_regime(self) -> dict[str, dict]:
-        """计算指标与 Regime 的相关性"""
-        logger.info("计算指标与 Regime 的相关性...")
-
-        # 获取 Regime 历史
-        regime_data = RegimeLog._default_manager.filter(
-            observed_at__gte=self.start_date,
-            observed_at__lte=self.end_date
-        ).order_by('observed_at')
-
-        if regime_data.count() < 10:
-            logger.warning("Regime 数据不足，无法计算相关性")
-            return {}
-
-        # 构建 Regime 时间序列
-        regime_df = pd.DataFrame([
-            {'date': r.observed_at, 'regime': r.dominant_regime}
-            for r in regime_data
-        ])
-
-        # 将 Regime 映射为数值（用于相关性计算）
-        regime_mapping = {
-            'Recovery': 1,   # 复苏
-            'Overheat': 2,   # 过热
-            'Stagflation': 3, # 滞胀
-            'Deflation': 4,   # 通缩
-        }
-        regime_df['regime_value'] = regime_df['regime'].map(regime_mapping)
-
-        for indicator_code in self.HIGH_FREQ_INDICATORS:
-            if indicator_code not in self.validation_results:
+                continue
+            if not rows:
+                self.validation_results[indicator_code] = {
+                    "status": "NO_DATA",
+                    "message": f"指标 {indicator_code} 无数据",
+                    "count": 0,
+                    "date_range": None,
+                }
                 continue
 
-            if self.validation_results[indicator_code].get('status') != 'OK':
-                continue
-
-            try:
-                # 获取指标数据
-                indicator_query = MacroFactModel._default_manager.filter(
-                    indicator_code=indicator_code,
-                    reporting_period__gte=self.start_date,
-                    reporting_period__lte=self.end_date
-                ).order_by('reporting_period')
-
-                indicator_df = pd.DataFrame([
-                    {'date': i.reporting_period, 'value': i.value}
-                    for i in indicator_query
-                ])
-
-                if indicator_df.empty:
-                    continue
-
-                # 合并数据
-                merged = pd.merge(
-                    regime_df,
-                    indicator_df,
-                    on='date',
-                    how='inner'
-                )
-
-                if len(merged) < 10:
-                    logger.warning(f"指标 {indicator_code} 合并后数据点不足")
-                    continue
-
-                # 计算相关性
-                correlation, p_value = stats.pearsonr(
-                    merged['regime_value'],
-                    merged['value']
-                )
-
-                self.validation_results[indicator_code].update({
-                    'correlation': correlation,
-                    'p_value': p_value,
-                    'correlation_significant': p_value < self.thresholds['max_p_value'],
-                })
-
-                logger.info(
-                    f"指标 {indicator_code}: 相关系数={correlation:.3f}, "
-                    f"p值={p_value:.4f} "
-                    f"({'显著' if p_value < self.thresholds['max_p_value'] else '不显著'})"
-                )
-
-            except Exception as e:
-                logger.error(f"计算 {indicator_code} 相关性失败: {e}")
-
+            first_date = rows[0].reporting_period
+            last_date = rows[-1].reporting_period
+            observed_days = max((last_date - first_date).days, 0)
+            observed_years = observed_days / 365.2425
+            count = len(rows)
+            enough_points = count >= self.thresholds.min_data_points
+            enough_years = observed_years >= self.thresholds.min_years
+            self.validation_results[indicator_code] = {
+                "status": "OK" if enough_points and enough_years else "INSUFFICIENT",
+                "count": count,
+                "first_date": first_date,
+                "last_date": last_date,
+                "coverage": min(observed_days / requested_days, 1.0),
+                "observed_years": observed_years,
+            }
         return self.validation_results
 
-    def event_study_term_spread(self) -> dict:
-        """期限利差事件研究：检查倒挂后是否出现衰退"""
-        logger.info("执行期限利差事件研究...")
-
-        indicator_code = 'CN_TERM_SPREAD_10Y1Y'
-
-        if indicator_code not in self.validation_results:
-            return {'status': 'NO_DATA'}
+    def calculate_correlation_with_regime(self) -> ValidationResults:
+        """Measure contemporaneous association with a binary adverse-Regime target."""
 
         try:
-            # 获取期限利差数据
-            spread_query = MacroFactModel._default_manager.filter(
-                indicator_code=indicator_code,
-                reporting_period__gte=self.start_date,
-                reporting_period__lte=self.end_date
-            ).order_by('reporting_period')
-
-            spread_df = pd.DataFrame([
-                {'date': s.reporting_period, 'spread': s.value}
-                for s in spread_query
-            ])
-
-            if spread_df.empty or len(spread_df) < 100:
-                return {'status': 'INSUFFICIENT_DATA'}
-
-            # 查找倒挂事件（spread < 0）
-            spread_df['inverted'] = spread_df['spread'] < 0
-
-            # 查找倒挂持续期间
-            spread_df['group'] = (spread_df['inverted'] != spread_df['inverted'].shift()).cumsum()
-
-            inversion_events = []
-            for _group_id, group_df in spread_df.groupby('group'):
-                if group_df['inverted'].iloc[0]:
-                    inversion_events.append({
-                        'start_date': group_df['date'].min(),
-                        'end_date': group_df['date'].max(),
-                        'duration_days': (group_df['date'].max() - group_df['date'].min()).days,
-                        'min_spread': group_df['spread'].min(),
-                    })
-
-            # 分析倒挂后的 Regime 变化
-            event_results = []
-            for event in inversion_events:
-                event_date = event['start_date']
-                # 检查倒挂后 6-18 个月内的 Regime 变化
-                future_date = event_date + timedelta(days=365)
-
-                future_regime = RegimeLog._default_manager.filter(
-                    observed_at__gt=event_date,
-                    observed_at__lte=future_date
-                ).order_by('observed_at')
-
-                if future_regime.exists():
-                    regime_values = [r.dominant_regime for r in future_regime]
-                    # 检查是否出现衰退（Deflation 或 Stagflation）
-                    recession_occurred = any(
-                        r in ['Deflation', 'Stagflation'] for r in regime_values
-                    )
-
-                    event_results.append({
-                        **event,
-                        'recession_occurred': recession_occurred,
-                    })
-
-            summary = {
-                'status': 'OK',
-                'total_inversions': len(inversion_events),
-                'events': event_results,
-                'prediction_accuracy': (
-                    sum(e['recession_occurred'] for e in event_results) / len(event_results)
-                    if event_results else 0
-                ),
-            }
-
-            self.validation_results[indicator_code]['event_study'] = summary
-
-            logger.info(
-                f"期限利差事件研究: {len(inversion_events)} 次倒挂, "
-                f"预测准确率 {summary['prediction_accuracy']:.1%}"
+            regime_rows = list(
+                RegimeLog._default_manager.filter(
+                    observed_at__gte=self.start_date,
+                    observed_at__lte=self.end_date,
+                ).order_by("observed_at")
             )
+        except Exception as exc:
+            for result in self.validation_results.values():
+                if result.get("status") == "OK":
+                    result["status"] = "ERROR"
+                    result["message"] = f"regime query failed: {type(exc).__name__}"
+            return self.validation_results
 
-            return summary
-
-        except Exception as e:
-            logger.error(f"期限利差事件研究失败: {e}")
-            return {'status': 'ERROR', 'message': str(e)}
-
-    def generate_validation_report(self) -> dict:
-        """生成验证报告"""
-        logger.info("生成验证报告...")
-
-        approved_indicators = []
-        rejected_indicators = []
-        pending_indicators = []
+        regime_by_date = {
+            row.observed_at: 1.0 if row.dominant_regime in self.ADVERSE_REGIMES else 0.0
+            for row in regime_rows
+        }
+        if len(regime_by_date) < 10:
+            for result in self.validation_results.values():
+                if result.get("status") == "OK":
+                    result["correlation_status"] = "NO_REGIME_DATA"
+            return self.validation_results
 
         for indicator_code, result in self.validation_results.items():
-            if result.get('status') == 'OK':
-                # 检查是否通过验证
-                is_approved = (
-                    result.get('correlation_significant', True) and
-                    result.get('count', 0) >= self.thresholds['min_data_points']
+            if result.get("status") != "OK":
+                continue
+            try:
+                indicator_rows = MacroFactModel._default_manager.filter(
+                    indicator_code=indicator_code,
+                    reporting_period__gte=self.start_date,
+                    reporting_period__lte=self.end_date,
+                ).order_by("reporting_period")
+                pairs = [
+                    (regime_by_date[row.reporting_period], float(row.value))
+                    for row in indicator_rows
+                    if row.reporting_period in regime_by_date and math.isfinite(float(row.value))
+                ]
+                if len(pairs) < 10:
+                    result["correlation_status"] = "INSUFFICIENT_OVERLAP"
+                    result["overlap_count"] = len(pairs)
+                    continue
+                correlation, p_value = _pearsonr(
+                    [pair[0] for pair in pairs],
+                    [pair[1] for pair in pairs],
                 )
+                if not math.isfinite(correlation) or not math.isfinite(p_value):
+                    result["correlation_status"] = "NON_FINITE"
+                    continue
+                result.update(
+                    {
+                        "correlation_status": "OK",
+                        "correlation": correlation,
+                        "p_value": p_value,
+                        "overlap_count": len(pairs),
+                        "correlation_significant": p_value <= self.thresholds.max_p_value,
+                        "correlation_meets_threshold": (
+                            abs(correlation) >= self.thresholds.min_correlation
+                        ),
+                    }
+                )
+            except Exception as exc:
+                result["status"] = "ERROR"
+                result["correlation_status"] = "ERROR"
+                result["message"] = f"correlation failed: {type(exc).__name__}"
+        return self.validation_results
 
-                if is_approved:
-                    approved_indicators.append(indicator_code)
+    def event_study_term_spread(self) -> ValidationResult:
+        """Study inversions only when a governed term-spread indicator is explicit."""
+
+        indicator_code = self.term_spread_indicator
+        if indicator_code is None:
+            return {"status": "SKIPPED", "message": "term spread indicator not configured"}
+        if self.validation_results.get(indicator_code, {}).get("status") != "OK":
+            return {"status": "INSUFFICIENT_DATA"}
+        try:
+            rows = list(
+                MacroFactModel._default_manager.filter(
+                    indicator_code=indicator_code,
+                    reporting_period__gte=self.start_date,
+                    reporting_period__lte=self.end_date,
+                ).order_by("reporting_period")
+            )
+            if len(rows) < self.thresholds.min_data_points:
+                return {"status": "INSUFFICIENT_DATA"}
+
+            inversion_events: list[ValidationResult] = []
+            current_rows: list[MacroFactModel] = []
+            for row in rows:
+                if float(row.value) < 0:
+                    current_rows.append(row)
+                elif current_rows:
+                    inversion_events.append(self._build_inversion_event(current_rows))
+                    current_rows = []
+            if current_rows:
+                inversion_events.append(self._build_inversion_event(current_rows))
+
+            event_results: list[ValidationResult] = []
+            for event in inversion_events:
+                event_date = event.get("start_date")
+                if not isinstance(event_date, date):
+                    continue
+                future_regimes = RegimeLog._default_manager.filter(
+                    observed_at__gt=event_date,
+                    observed_at__lte=event_date + timedelta(days=365),
+                ).order_by("observed_at")
+                regime_values = [row.dominant_regime for row in future_regimes]
+                if regime_values:
+                    event_results.append(
+                        {
+                            **event,
+                            "recession_occurred": any(
+                                regime in self.ADVERSE_REGIMES for regime in regime_values
+                            ),
+                        }
+                    )
+            accuracy = (
+                sum(1 for event in event_results if event.get("recession_occurred") is True)
+                / len(event_results)
+                if event_results
+                else 0.0
+            )
+            summary: ValidationResult = {
+                "status": "OK",
+                "total_inversions": len(inversion_events),
+                "events": event_results,
+                "prediction_accuracy": accuracy,
+            }
+            self.validation_results[indicator_code]["event_study"] = summary
+            return summary
+        except Exception as exc:
+            return {"status": "ERROR", "message": f"event study failed: {type(exc).__name__}"}
+
+    @staticmethod
+    def _build_inversion_event(rows: list[MacroFactModel]) -> ValidationResult:
+        """Build one inversion event from consecutive inverted observations."""
+
+        start_date = min(row.reporting_period for row in rows)
+        end_date = max(row.reporting_period for row in rows)
+        return {
+            "start_date": start_date,
+            "end_date": end_date,
+            "duration_days": (end_date - start_date).days,
+            "min_spread": min(float(row.value) for row in rows),
+        }
+
+    def generate_validation_report(self) -> ValidationReport:
+        """Generate an honest availability/association report without fabricated F1 metrics."""
+
+        approved: list[str] = []
+        rejected: list[str] = []
+        pending: list[str] = []
+        for indicator_code, result in self.validation_results.items():
+            status = result.get("status")
+            if status == "OK":
+                correlation = _number(result, "correlation")
+                p_value = _number(result, "p_value")
+                if (
+                    result.get("correlation_status") == "OK"
+                    and correlation is not None
+                    and p_value is not None
+                    and abs(correlation) >= self.thresholds.min_correlation
+                    and p_value <= self.thresholds.max_p_value
+                ):
+                    approved.append(indicator_code)
                 else:
-                    pending_indicators.append(indicator_code)
+                    pending.append(indicator_code)
             else:
-                rejected_indicators.append(indicator_code)
+                rejected.append(indicator_code)
 
-        # 计算平均 F1 分数（占位，实际需要历史回测）
-        avg_f1_score = None
-        avg_stability_score = None
-
-        if approved_indicators or pending_indicators:
-            # 简化的评分逻辑
-            scores = []
-            for indicator in approved_indicators + pending_indicators:
-                result = self.validation_results[indicator]
-                # 基于相关性和数据覆盖率的简化评分
-                correlation = result.get('correlation', 0)
-                coverage = result.get('coverage', 0)
-                score = (abs(correlation) * 0.7 + coverage * 0.3)
-                scores.append(score)
-
-            avg_f1_score = np.mean(scores) if scores else None
-            avg_stability_score = np.std(scores) if scores else None
-
-        # 生成总体建议
-        total = len(self.HIGH_FREQ_INDICATORS)
-        approved = len(approved_indicators)
-        rejected = len(rejected_indicators)
-
-        if approved / total >= 0.6:
+        total = len(self.indicator_codes)
+        approval_ratio = len(approved) / total
+        if approval_ratio >= 0.6:
             recommendation = "建议进入 Phase 1 开发阶段"
-        elif approved / total >= 0.3:
+        elif approval_ratio >= 0.3:
             recommendation = "建议有条件进入 Phase 1，仅部署通过验证的指标"
         else:
             recommendation = "建议重新评估指标选择或数据源"
-
-        report = {
-            'validation_run_id': f'phase0_{self.start_date}_{self.end_date}',
-            'total_indicators': total,
-            'approved_indicators': approved,
-            'rejected_indicators': rejected,
-            'pending_indicators': len(pending_indicators),
-            'avg_f1_score': avg_f1_score,
-            'avg_stability_score': avg_stability_score,
-            'overall_recommendation': recommendation,
-            'detailed_results': self.validation_results,
+        return {
+            "validation_run_id": (
+                f"phase0_{self.start_date}_{self.end_date}_{uuid.uuid4().hex[:8]}"
+            ),
+            "total_indicators": total,
+            "approved_indicators": len(approved),
+            "rejected_indicators": len(rejected),
+            "pending_indicators": len(pending),
+            "avg_f1_score": None,
+            "avg_stability_score": None,
+            "overall_recommendation": recommendation,
+            "detailed_results": self.validation_results,
         }
-
-        return report
 
 
 class Command(BaseCommand):
-    help = '验证高频指标的数据可用性和预测能力'
+    """Run governed high-frequency availability and association validation."""
 
-    def add_arguments(self, parser):
+    help = "验证高频指标的数据可用性和与逆风 Regime 的同期关联"
+
+    def add_arguments(self, parser: CommandParser) -> None:
+        """Register validation command options."""
+
+        parser.add_argument("--start-date", type=str, default="2018-01-01")
+        parser.add_argument("--end-date", type=str, default=str(date.today()))
+        parser.add_argument("--min-data-points", type=int, default=100)
+        parser.add_argument("--min-correlation", type=float, default=0.3)
+        parser.add_argument("--max-p-value", type=float, default=0.05)
+        parser.add_argument("--min-years", type=float, default=3.0)
         parser.add_argument(
-            '--start-date',
+            "--indicators",
             type=str,
-            default='2018-01-01',
-            help='验证起始日期 (YYYY-MM-DD)'
+            default=None,
+            help="Comma-separated governed indicator codes; defaults to active D/W catalog rows",
         )
-        parser.add_argument(
-            '--end-date',
-            type=str,
-            default=str(date.today()),
-            help='验证结束日期 (YYYY-MM-DD)'
-        )
-        parser.add_argument(
-            '--min-data-points',
-            type=int,
-            default=100,
-            help='最少数据点数'
-        )
-        parser.add_argument(
-            '--min-correlation',
-            type=float,
-            default=0.3,
-            help='最小相关系数'
-        )
-        parser.add_argument(
-            '--save-report',
-            action='store_true',
-            help='保存验证报告到数据库'
-        )
+        parser.add_argument("--term-spread-indicator", type=str, default=None)
+        parser.add_argument("--save-report", action="store_true")
 
-    def handle(self, *args, **options):
-        start_date = pd.to_datetime(options['start_date']).date()
-        end_date = pd.to_datetime(options['end_date']).date()
+    def handle(self, *args: object, **options: object) -> None:
+        """Validate inputs, run checks, and optionally persist the summary."""
 
-        thresholds = {
-            'min_data_points': options['min_data_points'],
-            'min_correlation': options['min_correlation'],
-        }
+        del args
+        try:
+            start_date = date.fromisoformat(self._required_string(options, "start_date"))
+            end_date = date.fromisoformat(self._required_string(options, "end_date"))
+            thresholds = ValidationThresholds(
+                min_data_points=self._required_int(options, "min_data_points"),
+                min_correlation=self._required_float(options, "min_correlation"),
+                max_p_value=self._required_float(options, "max_p_value"),
+                min_years=self._required_float(options, "min_years"),
+            )
+            indicator_codes = self._resolve_indicator_codes(options.get("indicators"))
+            term_spread = self._optional_string(options.get("term_spread_indicator"))
+            save_report = options.get("save_report", False)
+            if not isinstance(save_report, bool):
+                raise ValueError("save_report must be a boolean")
+            validator = IndicatorValidator(
+                start_date,
+                end_date,
+                indicator_codes,
+                thresholds,
+                term_spread,
+            )
+        except (ValueError, TypeError) as exc:
+            raise CommandError(str(exc)) from exc
 
-        save_report = options.get('save_report', False)
-
-        self.stdout.write('Phase 0 高频指标验证')
-        self.stdout.write(f'验证期间: {start_date} 至 {end_date}')
-        self.stdout.write('=' * 50)
-
-        # 创建验证器
-        validator = IndicatorValidator(start_date, end_date, thresholds)
-
-        # 1. 检查数据可用性
-        self.stdout.write('\n[1/3] 检查数据可用性...')
+        self.stdout.write("Phase 0 高频指标验证")
+        self.stdout.write(f"验证期间: {start_date} 至 {end_date}")
+        self.stdout.write(f"指标数量: {len(indicator_codes)}")
         validator.check_data_availability()
-
-        # 2. 计算相关性
-        self.stdout.write('\n[2/3] 计算与 Regime 的相关性...')
         validator.calculate_correlation_with_regime()
-
-        # 3. 事件研究
-        self.stdout.write('\n[3/3] 执行期限利差事件研究...')
-        validator.event_study_term_spread()
-
-        # 4. 生成报告
-        self.stdout.write('\n生成验证报告...')
+        event_study = validator.event_study_term_spread()
         report = validator.generate_validation_report()
+        self._write_report(report, event_study)
+        if save_report:
+            self._save_report(report, start_date, end_date)
+        self.stdout.write(self.style.SUCCESS("Phase 0 验证完成"))
 
-        # 输出结果
-        self.stdout.write('\n' + '=' * 50)
-        self.stdout.write('验证结果摘要:')
+    @staticmethod
+    def _required_string(options: dict[str, object], key: str) -> str:
+        value = options.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{key} must be a non-empty string")
+        return value.strip()
+
+    @staticmethod
+    def _optional_string(value: object) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("optional string must be non-empty")
+        return value.strip()
+
+    @staticmethod
+    def _required_int(options: dict[str, object], key: str) -> int:
+        value = options.get(key)
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(f"{key} must be an integer")
+        return value
+
+    @staticmethod
+    def _required_float(options: dict[str, object], key: str) -> float:
+        value = options.get(key)
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            raise ValueError(f"{key} must be numeric")
+        return float(value)
+
+    @staticmethod
+    def _resolve_indicator_codes(raw_value: object) -> tuple[str, ...]:
+        """Resolve explicit codes or active governed daily/weekly catalog rows."""
+
+        if raw_value is not None:
+            if not isinstance(raw_value, str):
+                raise ValueError("indicators must be a comma-separated string")
+            codes = tuple(
+                dict.fromkeys(part.strip() for part in raw_value.split(",") if part.strip())
+            )
+            if not codes:
+                raise ValueError("indicators must contain at least one code")
+            return codes
+
+        rows = IndicatorCatalogModel._default_manager.filter(
+            is_active=True,
+            default_period_type__in=("D", "W"),
+        ).values_list("code", "extra")
+        codes = tuple(
+            str(code)
+            for code, extra in rows
+            if not (isinstance(extra, dict) and extra.get("governance_sync_supported") is False)
+        )
+        if not codes:
+            raise ValueError("no active governed daily/weekly indicators are configured")
+        return codes
+
+    def _write_report(self, report: ValidationReport, event_study: ValidationResult) -> None:
+        """Write a compact command summary without pretending association is F1."""
+
         self.stdout.write(f'  总指标数: {report["total_indicators"]}')
         self.stdout.write(f'  通过指标: {report["approved_indicators"]}')
         self.stdout.write(f'  拒绝指标: {report["rejected_indicators"]}')
         self.stdout.write(f'  待定指标: {report["pending_indicators"]}')
-        if report['avg_f1_score']:
-            self.stdout.write(f'  平均 F1 分数: {report["avg_f1_score"]:.3f}')
-        self.stdout.write(f'\n总体建议: {report["overall_recommendation"]}')
+        self.stdout.write(f'  事件研究: {event_study.get("status", "UNKNOWN")}')
+        self.stdout.write(f'总体建议: {report["overall_recommendation"]}')
 
-        # 详细结果
-        self.stdout.write('\n' + '=' * 50)
-        self.stdout.write('详细结果:')
-        for indicator, result in report['detailed_results'].items():
-            status = result.get('status', 'UNKNOWN')
-            self.stdout.write(f'\n{indicator}: {status}')
-            if status == 'OK':
-                self.stdout.write(f'  数据点数: {result.get("count")}')
-                self.stdout.write(f'  数据覆盖率: {result.get("coverage", 0):.1%}')
-                if 'correlation' in result:
-                    self.stdout.write(f'  相关系数: {result["correlation"]:.3f} (p={result["p_value"]:.4f})')
-            else:
-                self.stdout.write(f'  说明: {result.get("message", "未知原因")}')
+    def _save_report(self, report: ValidationReport, start_date: date, end_date: date) -> None:
+        """Persist the completed summary or fail the command visibly."""
 
-        # 保存报告到数据库
-        if save_report:
-            self.stdout.write('\n保存验证报告到数据库...')
-            try:
-                summary = ValidationSummaryModel._default_manager.create(
-                    validation_run_id=report['validation_run_id'],
-                    evaluation_period_start=start_date,
-                    evaluation_period_end=end_date,
-                    total_indicators=report['total_indicators'],
-                    approved_indicators=report['approved_indicators'],
-                    rejected_indicators=report['rejected_indicators'],
-                    pending_indicators=report['pending_indicators'],
-                    avg_f1_score=report['avg_f1_score'],
-                    avg_stability_score=report['avg_stability_score'],
-                    overall_recommendation=report['overall_recommendation'],
-                    status='completed',
-                    is_shadow_mode=True,
-                )
-                self.stdout.write(
-                    self.style.SUCCESS(f'报告已保存: {summary.validation_run_id}')
-                )
-            except Exception as e:
-                self.stdout.write(
-                    self.style.ERROR(f'保存报告失败: {e}')
-                )
-
-        self.stdout.write('\n' + '=' * 50)
-        self.stdout.write(
-            self.style.SUCCESS('Phase 0 验证完成!')
-        )
-
+        try:
+            summary = ValidationSummaryModel._default_manager.create(
+                validation_run_id=str(report["validation_run_id"]),
+                evaluation_period_start=start_date,
+                evaluation_period_end=end_date,
+                total_indicators=_report_integer(report, "total_indicators"),
+                approved_indicators=_report_integer(report, "approved_indicators"),
+                rejected_indicators=_report_integer(report, "rejected_indicators"),
+                pending_indicators=_report_integer(report, "pending_indicators"),
+                avg_f1_score=None,
+                avg_stability_score=None,
+                overall_recommendation=str(report["overall_recommendation"]),
+                status="completed",
+                is_shadow_mode=True,
+            )
+        except Exception as exc:
+            raise CommandError(f"保存验证报告失败: {type(exc).__name__}") from exc
+        self.stdout.write(self.style.SUCCESS(f"报告已保存: {summary.validation_run_id}"))

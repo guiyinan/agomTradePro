@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 979,
-    "files_with_errors": 367
+    "errors": 969,
+    "files_with_errors": 366
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -337,11 +337,6 @@
     },
     "apps/audit/management/commands/init_indicator_thresholds.py": {
       "no-untyped-def": 2
-    },
-    "apps/audit/management/commands/validate_high_frequency_indicators.py": {
-      "import-untyped": 2,
-      "no-untyped-def": 2,
-      "type-arg": 6
     },
     "apps/audit/templatetags/audit_filters.py": {
       "no-untyped-def": 2

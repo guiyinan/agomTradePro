@@ -4897,3 +4897,22 @@
 - Alpha 管理命令专项 `4 passed`；Alpha 单元与 API 回归 `65 passed`，另有 1 条来自未改动 Qlib pandas 兼容层 `DataFrame.groupby(axis=...)` 的 FutureWarning。
 - `apps/alpha/management/commands/init_qlib_data.py` 增量 mypy 清零；全仓基线从 `989 errors / 368 files` 收紧为 `979 errors / 367 files`，净减少 `10 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百二十三批
+
+- 按“高频指标假审批 × 统计标签真实性 × 数据中心指标真源”收口 Audit 高频指标验证命令。
+- 删除把 Recovery/Overheat/Stagflation/Deflation 任意编码为 `1-4` 后做 Pearson 的伪序关系；改为按日期与二元逆风 Regime（Deflation/Stagflation）目标精确对齐，报告明确为同期关联而非预测因果。
+- 指标只有在相关性与 p 值均存在且有限、`abs(correlation) >= min_correlation`、`p_value <= max_p_value` 时才通过；缺少 Regime、重叠样本不足、非有限结果或尚未计算相关性时一律待定，不再以 `correlation_significant=True` 默认放行。
+- `min_correlation` 正式进入审批判定；`min_data_points` 与 `min_years` 同时约束数据可用性，零、负数、布尔、非有限或越界阈值在数据库访问前失败关闭。
+- 删除将 `0.7 * abs(correlation) + 0.3 * coverage` 冒充 F1、将其标准差冒充稳定性分数的逻辑；命令未执行真实分类回测时，`avg_f1_score` 与 `avg_stability_score` 明确保留 `None`。
+- 默认指标范围从 Data Center 活动日频/周频 Indicator Catalog 加载，并排除 `governance_sync_supported=false` 条目；`--indicators` 允许显式受控覆盖，不再在 Audit 命令内维护业务指标代码列表。
+- 期限利差事件研究仅在显式 `--term-spread-indicator` 且该代码属于本次目录时运行，不再在通用验证器中硬编码某个期限利差代码。
+- 可用性、Regime 查询、相关性和事件研究异常写入稳定 `ERROR` 状态及异常类型；报告保存失败抛出 `CommandError` 且不回显底层异常正文，命令不再打印错误后继续显示完成。
+- validation run ID 增加随机后缀，重复验证同一日期区间不再因唯一键固定冲突；pandas/numpy 依赖被纯日期对齐与列表运算替代，SciPy 仅通过 importlib/Protocol 动态边界调用。
+- 新增缺失相关性不审批、最小相关阈值生效、Data Center 目录治理过滤、伪 F1 清除、保存失败关闭与错误脱敏回归。
+
+## 第三百二十三批验证结果
+
+- Audit 高频验证专项 `4 passed`；Audit 单元、Application、组件、API 与集成回归 `171 passed`。
+- `apps/audit/management/commands/validate_high_frequency_indicators.py` 增量 mypy 清零；全仓基线从 `979 errors / 367 files` 收紧为 `969 errors / 366 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
