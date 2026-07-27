@@ -3,6 +3,10 @@
 """
 
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
+from django.db.models import QuerySet
+from django.http import HttpRequest
+from django.utils import timezone
 
 from apps.asset_analysis.models import (
     AssetAnalysisAlert,
@@ -10,10 +14,11 @@ from apps.asset_analysis.models import (
     AssetScoringLog,
     WeightConfigModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 @admin.register(WeightConfigModel)
-class WeightConfigAdmin(admin.ModelAdmin):
+class WeightConfigAdmin(TypedModelAdmin[WeightConfigModel]):
     """权重配置管理"""
 
     list_display = ["name", "asset_type", "market_condition", "is_active", "priority", "created_at"]
@@ -34,7 +39,7 @@ class WeightConfigAdmin(admin.ModelAdmin):
 
 
 @admin.register(AssetScoreCache)
-class AssetScoreCacheAdmin(admin.ModelAdmin):
+class AssetScoreCacheAdmin(TypedModelAdmin[AssetScoreCache]):
     """资产评分缓存管理"""
 
     list_display = [
@@ -73,7 +78,7 @@ class AssetScoreCacheAdmin(admin.ModelAdmin):
 
 
 @admin.register(AssetScoringLog)
-class AssetScoringLogAdmin(admin.ModelAdmin):
+class AssetScoringLogAdmin(TypedModelAdmin[AssetScoringLog]):
     """评分日志管理"""
 
     list_display = [
@@ -116,17 +121,23 @@ class AssetScoringLogAdmin(admin.ModelAdmin):
         ("元信息", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """禁止手动添加日志"""
+        del request
         return False
 
-    def has_change_permission(self, request, obj=None):
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: AssetScoringLog | None = None,
+    ) -> bool:
         """禁止修改日志"""
+        del request, obj
         return False
 
 
 @admin.register(AssetAnalysisAlert)
-class AssetAnalysisAlertAdmin(admin.ModelAdmin):
+class AssetAnalysisAlertAdmin(TypedModelAdmin[AssetAnalysisAlert]):
     """告警管理"""
 
     list_display = [
@@ -153,15 +164,19 @@ class AssetAnalysisAlertAdmin(admin.ModelAdmin):
 
     actions = ["mark_as_resolved"]
 
-    def mark_as_resolved(self, request, queryset):
-        """批量标记为已解决"""
-        from django.utils import timezone
+    @admin.action(description="标记为已解决")
+    def mark_as_resolved(
+        self,
+        request: HttpRequest,
+        queryset: QuerySet[AssetAnalysisAlert],
+    ) -> None:
+        """Transition only unresolved alerts using an authenticated operator ID."""
 
-        count = queryset.update(
+        if not request.user.is_authenticated or request.user.pk is None:
+            raise PermissionDenied("Authenticated operator with a persisted ID is required")
+        count = queryset.filter(is_resolved=False).update(
             is_resolved=True,
             resolved_at=timezone.now(),
-            resolved_by=request.user.id if request.user.is_authenticated else None,
+            resolved_by=request.user.pk,
         )
         self.message_user(request, f"已标记 {count} 条告警为已解决")
-
-    mark_as_resolved.short_description = "标记为已解决"

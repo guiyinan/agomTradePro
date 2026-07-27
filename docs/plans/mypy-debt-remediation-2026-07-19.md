@@ -5203,3 +5203,19 @@
 - Hybrid Fund adapter 专项 `11 passed`；Fund Domain、Adapter、Application、组件与 API 扩展回归 `123 passed`，此前对象 repr 缓存键 warning 不再出现。
 - `apps/fund/infrastructure/adapters/hybrid_fund_adapter.py` 在 resilience 基座联合 governed mypy 与增量 mypy 口径均清零；全仓基线从 `822 errors / 345 files` 收紧为 `816 errors / 344 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百四十二批
+
+- 按“Asset Analysis Admin 未被自动发现 × 告警重复解决覆盖审计证据 × 操作者身份失败开放”收口资产分析后台。
+- 盘点确认四组 `@admin.register` 仅存在于 `apps/asset_analysis/interface/admin.py`，但 App 无根 `admin.py` 且 `AssetAnalysisConfig.ready()` 未导入；新增标准根 autodiscovery bridge，权重配置、评分缓存、评分日志与分析告警现在由 Interface 唯一实现注册。
+- 四个 Admin 全部继承 `TypedModelAdmin[ConcreteModel]`；评分日志权限 handler 补齐 `HttpRequest`、精确可空模型与 bool 返回类型，继续禁止人工新增和修改。
+- 告警批量动作使用 `@admin.action`、`HttpRequest` 与 `QuerySet[AssetAnalysisAlert]` 精确契约；删除动态 `short_description`。
+- 动作必须由已认证且具有非空持久化主键的操作者执行，否则抛出 `PermissionDenied`；`resolved_by` 不再允许匿名/临时身份写入空审计标识。
+- 更新范围收紧为 `is_resolved=False`，重复操作不会覆盖终态告警原始 `resolved_at/resolved_by`，提示数量只统计本次真实状态迁移。
+- 新增四模型唯一 typed 注册、未解决告警单次迁移、终态审计字段保持以及匿名/无主键操作者拒绝回归。
+
+## 第三百四十二批验证结果
+
+- Asset Analysis Admin 注册、身份与状态迁移专项 `4 passed`；Asset Analysis Domain、Application、组件与 API 扩展回归 `76 passed`。
+- `apps/asset_analysis/interface/admin.py` 与根 autodiscovery bridge 在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `816 errors / 344 files` 收紧为 `808 errors / 343 files`，净减少 `8 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

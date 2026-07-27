@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 816,
-    "files_with_errors": 344
+    "errors": 808,
+    "files_with_errors": 343
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -282,11 +282,6 @@
       "arg-type": 1,
       "no-any-return": 1,
       "type-arg": 2
-    },
-    "apps/asset_analysis/interface/admin.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 3,
-      "type-arg": 4
     },
     "apps/asset_analysis/interface/urls.py": {
       "no-untyped-def": 4
