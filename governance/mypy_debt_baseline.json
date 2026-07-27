@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 739,
-    "files_with_errors": 330
+    "errors": 733,
+    "files_with_errors": 329
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -426,11 +426,6 @@
     },
     "apps/data_center/infrastructure/connection_tester.py": {
       "no-any-return": 1
-    },
-    "apps/data_center/infrastructure/diagnostic_queries.py": {
-      "attr-defined": 1,
-      "call-overload": 4,
-      "no-untyped-def": 1
     },
     "apps/data_center/infrastructure/gateways/akshare_general_gateway.py": {
       "arg-type": 1

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import TypedDict
 
+from django.db import models
 from django.db.models import Q
 
+from apps.data_center.domain.entities import ProductionCoverageUniverseConfig
 from apps.data_center.infrastructure.models import (
     AssetMasterModel,
     FinancialFactModel,
@@ -17,6 +20,28 @@ from apps.data_center.infrastructure.models import (
 from apps.data_center.infrastructure.repositories import (
     ProductionCoverageUniverseConfigRepository,
 )
+
+
+class _FactDomainSummary(TypedDict):
+    """Typed coverage summary for one persisted fact domain."""
+
+    covered_count: int
+    missing_count: int
+    latest_date: str | None
+    status: str
+
+
+class _UniverseQualitySummary(TypedDict):
+    """Typed quality result for the configured production universe."""
+
+    status: str
+    minimum_active_a_share_count: int
+    minimum_star_market_count: int
+    minimum_chinext_count: int
+    minimum_bse_count: int
+    exchange_counts: dict[str, int]
+    board_counts: dict[str, int]
+    issues: list[str]
 
 
 class DataCenterDiagnosticRepository:
@@ -36,9 +61,7 @@ class DataCenterDiagnosticRepository:
     def macro_fact_exists_on_or_before(self, reporting_period: date) -> bool:
         """Return whether a macro fact exists on or before the reporting period."""
 
-        return bool(
-            MacroFactModel.objects.filter(reporting_period__lte=reporting_period).exists()
-        )
+        return bool(MacroFactModel.objects.filter(reporting_period__lte=reporting_period).exists())
 
     def get_active_stock_fact_coverage_summary(self) -> dict[str, object]:
         """Return production data coverage for active stock facts."""
@@ -52,9 +75,9 @@ class DataCenterDiagnosticRepository:
             universe_queryset = universe_queryset.filter(
                 Q(is_active=True) | Q(is_active__isnull=True)
             )
-        active_codes = list(universe_queryset.values_list("code", flat=True))
+        active_codes = [str(code) for code in universe_queryset.values_list("code", flat=True)]
         asset_count = len(active_codes)
-        universe_quality = self._active_stock_universe_quality(active_codes, config.to_dict())
+        universe_quality = self._active_stock_universe_quality(active_codes, config)
         domains = {
             "price": self._fact_domain_summary(
                 active_codes,
@@ -72,7 +95,7 @@ class DataCenterDiagnosticRepository:
                 date_field="period_end",
             ),
         }
-        facts_ready = asset_count and all(
+        facts_ready = asset_count > 0 and all(
             domain["covered_count"] == asset_count for domain in domains.values()
         )
         return {
@@ -87,16 +110,14 @@ class DataCenterDiagnosticRepository:
     def _active_stock_universe_quality(
         self,
         active_codes: list[str],
-        config: dict[str, object],
-    ) -> dict[str, object]:
+        config: ProductionCoverageUniverseConfig,
+    ) -> _UniverseQualitySummary:
         board_counts = {
             "star_market": sum(
-                code.startswith(("688", "689")) and code.endswith(".SH")
-                for code in active_codes
+                code.startswith(("688", "689")) and code.endswith(".SH") for code in active_codes
             ),
             "chinext": sum(
-                code.startswith(("300", "301")) and code.endswith(".SZ")
-                for code in active_codes
+                code.startswith(("300", "301")) and code.endswith(".SZ") for code in active_codes
             ),
             "bse": sum(code.endswith(".BJ") for code in active_codes),
             "sh_main": sum(
@@ -108,7 +129,7 @@ class DataCenterDiagnosticRepository:
                 for code in active_codes
             ),
         }
-        configured_exchanges = [str(value) for value in config.get("exchanges", [])]
+        configured_exchanges = list(config.exchanges)
         exchange_counts = dict.fromkeys(configured_exchanges, 0)
         for code in active_codes:
             if code.endswith(".SH"):
@@ -119,10 +140,10 @@ class DataCenterDiagnosticRepository:
                 exchange_counts["BSE"] = exchange_counts.get("BSE", 0) + 1
 
         issues: list[str] = []
-        min_active = int(config.get("min_active_asset_count") or 0)
-        min_star = int(config.get("min_star_market_count") or 0)
-        min_chinext = int(config.get("min_chinext_count") or 0)
-        min_bse = int(config.get("min_bse_count") or 0)
+        min_active = config.min_active_asset_count
+        min_star = config.min_star_market_count
+        min_chinext = config.min_chinext_count
+        min_bse = config.min_bse_count
         if len(active_codes) < min_active:
             issues.append("active_a_share_universe_too_narrow")
         if board_counts["star_market"] < min_star:
@@ -147,9 +168,9 @@ class DataCenterDiagnosticRepository:
         self,
         active_codes: list[str],
         *,
-        model,
+        model: type[models.Model],
         date_field: str,
-    ) -> dict[str, object]:
+    ) -> _FactDomainSummary:
         if not active_codes:
             return {
                 "covered_count": 0,
@@ -158,13 +179,16 @@ class DataCenterDiagnosticRepository:
                 "status": "empty",
             }
 
-        queryset = model.objects.filter(asset_code__in=active_codes)
+        queryset = model._default_manager.filter(asset_code__in=active_codes)
         covered_count = queryset.values("asset_code").distinct().count()
-        latest = queryset.order_by(f"-{date_field}").values_list(date_field, flat=True).first()
+        latest_value: object = (
+            queryset.order_by(f"-{date_field}").values_list(date_field, flat=True).first()
+        )
+        latest_date = latest_value.isoformat() if isinstance(latest_value, date) else None
         missing_count = len(active_codes) - covered_count
         return {
             "covered_count": covered_count,
             "missing_count": missing_count,
-            "latest_date": latest.isoformat() if latest else None,
-            "status": "ok" if missing_count == 0 else "incomplete",
+            "latest_date": latest_date,
+            "status": "ok" if missing_count == 0 and latest_date is not None else "incomplete",
         }

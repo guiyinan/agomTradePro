@@ -5355,3 +5355,17 @@
 - Prompt 工具注册、宏观 Data Center、Regime/Provider 失败关闭与 Agent Runtime 安全专项 `35 passed`；Prompt/Agent unit、component 与 API 扩展回归 `188 passed`。
 - Prompt Domain Registry、两个 Adapter、composition provider、tool execution 与 Agent Runtime 共八个生产文件在联合及增量 mypy 口径均清零；全仓基线从 `761 errors / 336 files` 收紧为 `739 errors / 330 files`，净减少 `22 errors / 6 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百五十一批
+
+- 按“生产覆盖 readiness 配置类型丢失 × truthy/int 强转 × 动态 ORM 日期假阳性”收口 Data Center 诊断查询仓储。
+- 活跃股票覆盖质量直接接收已经由 Domain 校验的 `ProductionCoverageUniverseConfig`，不再先降级为 `dict[str, object]` 后对 exchanges 做不可迭代访问或对阈值执行 `int(value or 0)`；零阈值和合法配置语义原样保留。
+- 交易所集合与四项最小覆盖阈值从冻结配置实体精确读取；返回的 universe quality 与 fact domain 使用局部 TypedDict，覆盖数量、状态、日期和问题列表不再依赖松散 object。
+- 活跃证券代码从 ORM 字符字段显式收窄为字符串；`facts_ready` 固定为 bool，不再在空资产池时产生整数 `0` 的隐式真假值。
+- 三类动态 fact model 统一收窄到 Django Model class 并通过 `_default_manager` 查询；latest date 只有真实 `date` 才序列化，无有效日期时即使计数异常也保持 `incomplete`，避免 readiness 把无日期证据标为完成。
+
+## 第三百五十一批验证结果
+
+- Data Center repository 与生产覆盖 universe API 扩展回归 `24 passed`。
+- `apps/data_center/infrastructure/diagnostic_queries.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `739 errors / 330 files` 收紧为 `733 errors / 329 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
