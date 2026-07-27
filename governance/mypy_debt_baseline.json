@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 733,
-    "files_with_errors": 329
+    "errors": 728,
+    "files_with_errors": 328
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -995,10 +995,6 @@
     "apps/terminal/infrastructure/models.py": {
       "arg-type": 1,
       "no-untyped-def": 1
-    },
-    "apps/terminal/infrastructure/tui_contract_export.py": {
-      "arg-type": 2,
-      "union-attr": 3
     },
     "apps/terminal/interface/permissions.py": {
       "no-any-return": 1,

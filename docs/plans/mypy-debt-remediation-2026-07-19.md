@@ -5369,3 +5369,20 @@
 - Data Center repository 与生产覆盖 universe API 扩展回归 `24 passed`。
 - `apps/data_center/infrastructure/diagnostic_queries.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `739 errors / 330 files` 收紧为 `733 errors / 329 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百五十二批
+
+- 按“TUI 编译期合同范围失真 × 动态对象类型误判 × 反向关系误导出 × 非受控 JSON 缩进”收口 Terminal Django contract exporter。
+- `app_labels/model_paths/domain_class_paths` 仅在参数为 `None` 时使用默认范围；调用方显式传入空列表时现在得到真正空的模型/聚合合同，不再被 truthy fallback 偷换回 Terminal 默认集合。
+- 三类路径统一要求非空字符串、trim 并稳定去重；重复模型或 Domain class 不再生成重复合同节点。
+- 动态 model path 必须解析为 Django Model 子类，Domain path 必须解析为 dataclass class；tuple、实例和其他非类型对象在访问 `_meta/__name__` 前以稳定 TypeError 失败关闭。
+- Django `_meta.get_fields()` 结果先用真实 `models.Field` 收窄，反向 `ForeignObjectRel` 不再进入普通字段序列化；关系目标仅接受 Django Model class，避免 string/None related model 触发错误合同。
+- choices 使用 Django `flatchoices` 输出，分组选项不会被错误序列化为组名和值列表字符串。
+- JSON indent 严格限制为非布尔 `0..8` 整数，并在创建目录/文件前校验；负数、布尔和超大缩进不能产生异常或放大的编译产物。
+- 新增显式空范围、非模型/非 dataclass 路径、重复路径与非法 indent 不落盘回归。
+
+## 第三百五十二批验证结果
+
+- TUI Django contract 专项 `9 passed`；TUI workbench、Terminal Agent、SDK client、内部 SSL redirect 固定回归包合计 `245 passed`。
+- `apps/terminal/infrastructure/tui_contract_export.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `733 errors / 329 files` 收紧为 `728 errors / 328 files`，净减少 `5 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 MCP 或部署实现，无未验证固定链路。

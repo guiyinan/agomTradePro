@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import types as python_types
+from collections.abc import Sequence
 from dataclasses import MISSING, fields, is_dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from pathlib import Path
-from typing import Any, Union, get_args, get_origin, get_type_hints
+from typing import Any, Union, cast, get_args, get_origin, get_type_hints
 
 from django.apps import apps
 from django.db import models
@@ -30,10 +31,17 @@ def export_tui_django_contract_manifest(
 ) -> dict[str, Any]:
     """Return one machine-readable contract manifest derived from Django code."""
 
-    effective_app_labels = list(app_labels or DEFAULT_TUI_CONTRACT_APP_LABELS)
-    effective_model_paths = list(model_paths or [])
-    effective_domain_class_paths = list(
-        domain_class_paths or DEFAULT_TUI_DOMAIN_CLASS_PATHS
+    effective_app_labels = _normalize_paths(
+        DEFAULT_TUI_CONTRACT_APP_LABELS if app_labels is None else app_labels,
+        field_name="app_labels",
+    )
+    effective_model_paths = _normalize_paths(
+        [] if model_paths is None else model_paths,
+        field_name="model_paths",
+    )
+    effective_domain_class_paths = _normalize_paths(
+        DEFAULT_TUI_DOMAIN_CLASS_PATHS if domain_class_paths is None else domain_class_paths,
+        field_name="domain_class_paths",
     )
     model_classes = _resolve_model_classes(
         app_labels=effective_app_labels,
@@ -45,8 +53,7 @@ def export_tui_django_contract_manifest(
         "app_labels": effective_app_labels,
         "models": [_serialize_model_contract(model_class) for model_class in model_classes],
         "aggregates": [
-            _serialize_dataclass_contract(path)
-            for path in effective_domain_class_paths
+            _serialize_dataclass_contract(path) for path in effective_domain_class_paths
         ],
     }
 
@@ -61,6 +68,8 @@ def write_tui_django_contract_manifest(
 ) -> dict[str, Any]:
     """Write one JSON contract manifest to disk and return the payload."""
 
+    if isinstance(indent, bool) or not isinstance(indent, int) or not 0 <= indent <= 8:
+        raise ValueError("indent must be an integer between 0 and 8")
     payload = export_tui_django_contract_manifest(
         app_labels=app_labels,
         model_paths=model_paths,
@@ -74,6 +83,19 @@ def write_tui_django_contract_manifest(
     return payload
 
 
+def _normalize_paths(values: list[str] | tuple[str, ...], *, field_name: str) -> list[str]:
+    """Validate configured app labels and dotted object paths without truthy fallback."""
+
+    normalized: list[str] = []
+    for value in values:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{field_name} must contain non-empty strings")
+        path = value.strip()
+        if path not in normalized:
+            normalized.append(path)
+    return normalized
+
+
 def _resolve_model_classes(
     *,
     app_labels: list[str],
@@ -82,16 +104,18 @@ def _resolve_model_classes(
     if model_paths:
         resolved: list[type[models.Model]] = []
         for path in model_paths:
-            model_class = import_string(path)
-            if not issubclass(model_class, models.Model):
+            resolved_object: object = import_string(path)
+            if not isinstance(resolved_object, type) or not issubclass(
+                resolved_object, models.Model
+            ):
                 raise TypeError(f"Resolved object is not a Django model: {path}")
-            resolved.append(model_class)
+            resolved.append(resolved_object)
         return resolved
 
     resolved = []
     for app_label in app_labels:
         app_config = apps.get_app_config(app_label)
-        resolved.extend(list(app_config.get_models()))
+        resolved.extend(app_config.get_models())
     return resolved
 
 
@@ -102,12 +126,18 @@ def _serialize_model_contract(model_class: type[models.Model]) -> dict[str, Any]
         "model": str(model_meta.object_name),
         "module": f"{model_class.__module__}.{model_class.__name__}",
         "db_table": str(model_meta.db_table),
-        "fields": [
-            _serialize_model_field(field)
-            for field in model_meta.get_fields()
-            if _should_export_model_field(field)
-        ],
+        "fields": _serialize_model_fields(model_meta.get_fields()),
     }
+
+
+def _serialize_model_fields(field_candidates: Sequence[object]) -> list[dict[str, Any]]:
+    """Export concrete Django fields while excluding reverse relation descriptors."""
+
+    return [
+        _serialize_model_field(field)
+        for field in field_candidates
+        if isinstance(field, models.Field) and _should_export_model_field(field)
+    ]
 
 
 def _should_export_model_field(field: models.Field[Any, Any]) -> bool:
@@ -142,28 +172,30 @@ def _serialize_model_field(field: models.Field[Any, Any]) -> dict[str, Any]:
     max_digits = getattr(field, "max_digits", None)
     if max_digits is not None:
         payload["max_digits"] = int(max_digits)
-    choices = list(getattr(field, "choices", []) or [])
+    choices = list(getattr(field, "flatchoices", []) or [])
     if choices:
         payload["choices"] = [
-            {"value": _json_safe_scalar(value), "label": str(label)}
-            for value, label in choices
+            {"value": _json_safe_scalar(value), "label": str(label)} for value, label in choices
         ]
-    if getattr(field, "is_relation", False) and getattr(field, "related_model", None):
-        related_model = field.related_model
-        payload["related_model"] = (
-            f"{related_model._meta.app_label}.{related_model.__name__}"
-        )
+    related_model: object = getattr(field, "related_model", None)
+    if (
+        getattr(field, "is_relation", False)
+        and isinstance(related_model, type)
+        and issubclass(related_model, models.Model)
+    ):
+        payload["related_model"] = f"{related_model._meta.app_label}.{related_model.__name__}"
     return payload
 
 
 def _serialize_dataclass_contract(path: str) -> dict[str, Any]:
-    cls = import_string(path)
-    if not is_dataclass(cls):
+    resolved_object: object = import_string(path)
+    if not isinstance(resolved_object, type) or not is_dataclass(resolved_object):
         raise TypeError(f"Configured aggregate contract is not a dataclass: {path}")
+    cls = cast(type[Any], resolved_object)
 
     hints = get_type_hints(cls)
-    payload_fields = []
-    for dataclass_field in fields(cls):
+    payload_fields: list[dict[str, Any]] = []
+    for dataclass_field in fields(cast(Any, cls)):
         annotation = hints.get(dataclass_field.name, dataclass_field.type)
         normalized_type, required, options = _normalize_annotation(annotation)
         field_payload: dict[str, Any] = {
