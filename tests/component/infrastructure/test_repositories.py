@@ -200,6 +200,57 @@ class TestDataCenterMacroRepository:
         by_source = repository.get_series("TEST_SERIES", source="test")
         assert len(by_source) == 10
 
+    def test_get_series_pit_excludes_late_and_unknown_publications(self) -> None:
+        """PIT reads expose only facts known by the requested as-of date."""
+
+        repository = DataCenterMacroRepository()
+        _seed_indicator_rule(code="TEST_PIT_SERIES", original_unit="指数")
+        for reporting_period, published_at, value in (
+            (date(2024, 1, 1), date(2024, 1, 6), 1.0),
+            (date(2024, 1, 15), date(2024, 2, 5), 2.0),
+            (date(2024, 1, 20), None, 3.0),
+        ):
+            repository.save_indicator(
+                MacroIndicator(
+                    code="TEST_PIT_SERIES",
+                    value=value,
+                    reporting_period=reporting_period,
+                    period_type=PeriodType.DAY,
+                    unit="指数",
+                    original_unit="指数",
+                    published_at=published_at,
+                    source="test",
+                )
+            )
+
+        non_pit = repository.get_series(
+            "TEST_PIT_SERIES",
+            end_date=date(2024, 1, 31),
+            source="test",
+        )
+        pit = repository.get_series(
+            "TEST_PIT_SERIES",
+            end_date=date(2024, 1, 31),
+            use_pit=True,
+            source="test",
+        )
+
+        assert [indicator.value for indicator in non_pit] == [1.0, 2.0, 3.0]
+        assert [indicator.value for indicator in pit] == [1.0]
+
+    @pytest.mark.parametrize("use_pit", [1, "true", None])
+    def test_get_series_rejects_non_boolean_pit_flag(self, use_pit: object) -> None:
+        """Dynamic callers cannot enable PIT with truthy non-boolean values."""
+
+        with pytest.raises(ValueError, match="use_pit must be a boolean"):
+            DataCenterMacroRepository().get_series("TEST_PIT_SERIES", use_pit=use_pit)
+
+    def test_get_series_requires_as_of_date_for_pit(self) -> None:
+        """PIT mode fails closed when no publication cutoff is provided."""
+
+        with pytest.raises(ValueError, match="end_date is required"):
+            DataCenterMacroRepository().get_series("TEST_PIT_SERIES", use_pit=True)
+
     def test_get_latest_observation(self):
         """测试获取最新观测值"""
         repository = DataCenterMacroRepository()

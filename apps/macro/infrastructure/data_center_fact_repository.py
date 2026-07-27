@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date
+from collections.abc import Mapping
+from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Any
 
 from django.db import transaction
@@ -22,6 +24,37 @@ from apps.data_center.infrastructure.models import (
 )
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from shared.numeric import safe_float
+
+
+@dataclass
+class _MacroFactSelectionCandidate:
+    """Typed selection projection retaining its originating ORM model."""
+
+    model: MacroFactModel
+    indicator_code: str
+    reporting_period: date
+    value: float
+    source: str
+    revision_number: int
+    published_at: date | None
+    fetched_at: datetime
+    extra: Mapping[str, object]
+
+    @classmethod
+    def from_model(cls, model: MacroFactModel) -> _MacroFactSelectionCandidate:
+        """Project ORM field values into the canonical selection protocol."""
+
+        return cls(
+            model=model,
+            indicator_code=model.indicator_code,
+            reporting_period=model.reporting_period,
+            value=float(model.value),
+            source=model.source,
+            revision_number=model.revision_number,
+            published_at=model.published_at,
+            fetched_at=model.fetched_at,
+            extra=dict(model.extra or {}),
+        )
 
 
 def _get_period_type_display(period_type: str) -> str:
@@ -60,13 +93,12 @@ def _select_governed_facts(
 
     catalog = _get_indicator_catalog(code)
     selection = select_macro_fact_series(
-        facts,
+        [_MacroFactSelectionCandidate.from_model(fact) for fact in facts],
         preferred_source=(
-            preferred_source
-            or configured_macro_source(catalog.extra if catalog else {})
+            preferred_source or configured_macro_source(catalog.extra if catalog else {})
         ),
     )
-    return selection.facts if selection.is_consistent else []
+    return [candidate.model for candidate in selection.facts] if selection.is_consistent else []
 
 
 def _get_indicator_unit_rule(
@@ -99,7 +131,7 @@ def _get_indicator_unit_rule(
             .first()
         )
         if config:
-            return config
+            return dict(config)
 
     config = (
         queryset.filter(source_type="")
@@ -117,7 +149,7 @@ def _get_indicator_unit_rule(
         )
         .first()
     )
-    return config
+    return dict(config) if config is not None else None
 
 
 def _resolve_indicator_unit_rule(
@@ -142,15 +174,20 @@ def _resolve_indicator_unit_rule(
 def _resolve_period_type(
     fact: MacroFactModel,
     catalog: IndicatorCatalogModel | None = None,
-) -> str:
+) -> PeriodType:
     extra = fact.extra or {}
     period_type = extra.get("period_type")
-    valid_period_types = {item.value for item in PeriodType}
-    if isinstance(period_type, str) and period_type in valid_period_types:
-        return period_type
+    if isinstance(period_type, str):
+        try:
+            return PeriodType(period_type)
+        except ValueError:
+            pass
     if catalog and catalog.default_period_type:
-        return str(catalog.default_period_type)
-    return "M"
+        try:
+            return PeriodType(str(catalog.default_period_type))
+        except ValueError:
+            pass
+    return PeriodType.MONTH
 
 
 def _resolve_original_unit_from_fact(
@@ -233,6 +270,7 @@ def _serialize_fact_row(
 ) -> dict[str, Any]:
     resolved_catalog = catalog or _get_indicator_catalog(fact.indicator_code)
     period_type = _resolve_period_type(fact, resolved_catalog)
+    period_type_value = period_type.value
     display_value, display_unit, original_unit, multiplier_to_storage = _resolve_display_fields(
         fact,
         resolved_catalog,
@@ -249,8 +287,8 @@ def _serialize_fact_row(
         "dimension_key": extra.get("dimension_key", ""),
         "multiplier_to_storage": multiplier_to_storage,
         "reporting_period": fact.reporting_period,
-        "period_type": period_type,
-        "period_type_display": _get_period_type_display(period_type),
+        "period_type": period_type_value,
+        "period_type_display": _get_period_type_display(period_type_value),
         "observed_at": fact.reporting_period,
         "published_at": fact.published_at,
         "source": fact.source,
@@ -410,11 +448,21 @@ class DataCenterMacroRepository:
         use_pit: bool = False,
         source: str | None = None,
     ) -> list[MacroIndicator]:
+        if not isinstance(use_pit, bool):
+            raise ValueError("use_pit must be a boolean")
+        if use_pit and end_date is None:
+            raise ValueError("end_date is required when use_pit is enabled")
+
         queryset = MacroFactModel.objects.filter(indicator_code=code)
         if start_date:
             queryset = queryset.filter(reporting_period__gte=start_date)
         if end_date:
             queryset = queryset.filter(reporting_period__lte=end_date)
+        if use_pit:
+            queryset = queryset.filter(
+                published_at__isnull=False,
+                published_at__lte=end_date,
+            )
         if source:
             queryset = queryset.filter(source=source)
         facts = _select_governed_facts(
@@ -806,7 +854,7 @@ class DataCenterMacroReadRepository:
         self,
         indicator_code: str,
         source: str | None = None,
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         return _get_indicator_unit_rule(indicator_code, source_type=source)
 
     def list_distinct_codes(self) -> list[str]:

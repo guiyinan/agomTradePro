@@ -4689,3 +4689,19 @@
 - Data Center 单元、组件与 on-demand 回归 `352 passed`。
 - `apps/data_center/interface/admin.py` 增量 mypy 清零；全仓基线从 `1111 errors / 384 files` 收紧为 `1097 errors / 383 files`，净减少 `14 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百一十一批
+
+- 按“宏观 canonical fact 跨模块读取 × PIT 后视偏差 × PeriodType 领域契约”收口 Macro 的 Data Center fact repository。
+- `use_pit=True` 不再是无效参数：必须提供 `end_date` 作为 as-of 截止日，并同时要求 `published_at` 非空且不晚于截止日；报告期在范围内但事后发布或发布日期未知的事实不再进入历史 Regime/回测链路。
+- PIT 开关只接受真实布尔值；整数、字符串和空值等动态伪装在 ORM 查询前失败关闭，缺少 as-of 日期同样拒绝执行。
+- 新增 Infrastructure 内部 typed projection，将 Data Center ORM 字段值安全投影到 canonical selection Protocol，再映射回原模型；跨 App 读取不再让 Django field descriptor 穿透领域泛型。
+- 单位规则 ORM TypedDict 显式复制为稳定 `dict[str, Any]`，读仓储裸 dict 返回契约补齐键值类型。
+- period type 解析改为返回 `PeriodType`；事实 metadata 和 catalog 仅接受真实枚举值，非法扩展周期回退受治理的 catalog 周期，catalog 也非法时稳定回退月度。
+- 新增 PIT 晚发布/未知发布时间隔离、非法开关、缺失截止日回归；既有非 PIT 实时查询保持不变。
+
+## 第三百一十一批验证结果
+
+- Macro 单元、组件、Application 用例与 Data Center canonical selection 回归 `233 passed`。
+- `apps/macro/infrastructure/data_center_fact_repository.py` 增量 mypy 清零；全仓基线从 `1097 errors / 383 files` 收紧为 `1092 errors / 382 files`，净减少 `5 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
