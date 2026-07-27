@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 862,
-    "files_with_errors": 350
+    "errors": 856,
+    "files_with_errors": 349
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -169,9 +169,6 @@
     },
     "apps/ai_capability/interface/views.py": {
       "arg-type": 1
-    },
-    "apps/ai_capability/management/__init__.py": {
-      "assignment": 6
     },
     "apps/ai_capability/management/commands/govern_ai_capability_catalog.py": {
       "no-untyped-def": 2

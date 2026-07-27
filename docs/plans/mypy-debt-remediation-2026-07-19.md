@@ -5111,3 +5111,16 @@
 - Prompt 初始化与包边界定向回归 `12 passed`，Adapters 依赖边界专项 `9 passed`；Prompt Domain、Application、组件、API、初始化与 AI owner 扩展回归 `125 passed`。
 - `apps/prompt/interface/__init__.py`、`apps/prompt/infrastructure/adapters/__init__.py` 与正式初始化命令在 governed 及增量 mypy 口径均清零；全仓基线从 `875 errors / 352 files` 收紧为 `862 errors / 350 files`，净减少 `13 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；实际 dry-run 因当前工作树本地数据库尚未执行 Prompt 两个 migration 而按预期非零失败，测试数据库已验证真实事务回滚。
+
+## 第三百三十六批
+
+- 按“管理命令导入 HTTP 副作用 × MCP 页面重复实现 × 正式 Interface 唯一入口”收口 `apps.ai_capability.management` 包初始化文件。
+- 删除 management 包根中误放的旧 MCP tools 页面、同步与开关 handler；Django 导入任一 AI Capability 管理命令时不再加载消息框架、认证 decorators、账户 Interface、Capability ORM 与页面查询逻辑。
+- 正式页面继续唯一归属 `apps.ai_capability.interface.views`，Core 路由、Application context/query service、治理同步、管理员权限、稳定提示与开关行为均未改动。
+- 新增 management 包不得导出 HTTP handler、正式 Interface handler 归属和四个 AI Capability 管理命令仍可发现的边界回归。
+
+## 第三百三十六批验证结果
+
+- Management 包、MCP tools 页面、权限与命令发现定向回归 `9 passed`；AI Capability Domain、Application、MCP catalog、组件、API 与页面扩展回归 `716 passed`。
+- `apps/ai_capability/management/__init__.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `862 errors / 350 files` 收紧为 `856 errors / 349 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
