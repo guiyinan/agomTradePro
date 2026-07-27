@@ -5219,3 +5219,19 @@
 - Asset Analysis Admin 注册、身份与状态迁移专项 `4 passed`；Asset Analysis Domain、Application、组件与 API 扩展回归 `76 passed`。
 - `apps/asset_analysis/interface/admin.py` 与根 autodiscovery bridge 在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `816 errors / 344 files` 收紧为 `808 errors / 343 files`，净减少 `8 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百四十三批
+
+- 按“Terminal Admin 未被自动发现 × Runtime Settings 权限绕过 × 审计日志可删除”收口 Terminal 后台治理入口。
+- 盘点确认三组注册仅存在于 `apps/terminal/interface/admin.py`，但 App 无根 `admin.py` 且 `TerminalConfig.ready()` 未导入；新增标准 autodiscovery bridge，命令配置、审计日志与 runtime singleton 现在由 Interface 唯一实现注册。
+- 三个 Admin 全部继承 `TypedModelAdmin[ConcreteModel]`，权限 handler 补齐 `HttpRequest`、精确可空模型与 bool 返回类型。
+- Terminal Audit Log 继续禁止人工新增和修改，并新增 `has_delete_permission=False`；运维人员不能通过 Admin 删除 Terminal 命令执行、确认、结果与错误审计证据。
+- Runtime Settings `has_add_permission` 先执行 Django 原生模型 add permission，再检查 singleton 是否缺失；普通 staff 即使当前无配置也不能绕过授权创建系统级聊天范围配置。
+- Runtime Settings singleton 继续禁止删除；已有用户仍按 Django change 权限修改，不扩大操作权限。
+- 新增三模型唯一 typed 注册、审计记录全不可变、无 add 权限 staff 拒绝、superuser + singleton 状态组合回归。
+
+## 第三百四十三批验证结果
+
+- Terminal Admin 注册与权限专项 `3 passed`；TUI workbench 与 Terminal Agent 固定最小回归包 `208 passed`。
+- `apps/terminal/interface/admin.py` 与根 autodiscovery bridge 在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `808 errors / 343 files` 收紧为 `801 errors / 342 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未触碰 MCP、SDK 或部署实现，无额外未验证固定链路。

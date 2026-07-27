@@ -5,6 +5,7 @@ Django Admin配置。
 """
 
 from django.contrib import admin
+from django.http import HttpRequest
 
 from apps.terminal.application.interface_services import can_create_terminal_runtime_settings
 from apps.terminal.models import (
@@ -12,10 +13,11 @@ from apps.terminal.models import (
     TerminalCommandORM,
     TerminalRuntimeSettingsORM,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 @admin.register(TerminalCommandORM)
-class TerminalCommandAdmin(admin.ModelAdmin):
+class TerminalCommandAdmin(TypedModelAdmin[TerminalCommandORM]):
     """终端命令Admin"""
 
     list_display = [
@@ -67,7 +69,7 @@ class TerminalCommandAdmin(admin.ModelAdmin):
 
 
 @admin.register(TerminalAuditLogORM)
-class TerminalAuditLogAdmin(admin.ModelAdmin):
+class TerminalAuditLogAdmin(TypedModelAdmin[TerminalAuditLogORM]):
     """终端审计日志Admin"""
 
     list_display = [
@@ -99,15 +101,35 @@ class TerminalAuditLogAdmin(admin.ModelAdmin):
         "created_at",
     ]
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Prevent operators from fabricating audit records."""
+
+        del request
         return False
 
-    def has_change_permission(self, request, obj=None):
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: TerminalAuditLogORM | None = None,
+    ) -> bool:
+        """Keep persisted Terminal audit evidence immutable."""
+
+        del request, obj
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: TerminalAuditLogORM | None = None,
+    ) -> bool:
+        """Prevent deletion of Terminal audit evidence through Admin."""
+
+        del request, obj
         return False
 
 
 @admin.register(TerminalRuntimeSettingsORM)
-class TerminalRuntimeSettingsAdmin(admin.ModelAdmin):
+class TerminalRuntimeSettingsAdmin(TypedModelAdmin[TerminalRuntimeSettingsORM]):
     """Terminal runtime settings admin."""
 
     list_display = ["singleton_key", "answer_chain_enabled", "updated_at"]
@@ -124,8 +146,17 @@ class TerminalRuntimeSettingsAdmin(admin.ModelAdmin):
         ("时间", {"fields": ("created_at", "updated_at")}),
     )
 
-    def has_add_permission(self, request):
-        return can_create_terminal_runtime_settings()
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Require Django add permission before checking singleton availability."""
 
-    def has_delete_permission(self, request, obj=None):
+        return super().has_add_permission(request) and can_create_terminal_runtime_settings()
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: TerminalRuntimeSettingsORM | None = None,
+    ) -> bool:
+        """Prevent deleting the active runtime settings singleton."""
+
+        del request, obj
         return False
