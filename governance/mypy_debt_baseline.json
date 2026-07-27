@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 884,
-    "files_with_errors": 354
+    "errors": 882,
+    "files_with_errors": 353
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1146,9 +1146,6 @@
       "no-untyped-def": 1
     },
     "core/management/commands/healthcheck.py": {
-      "no-untyped-def": 2
-    },
-    "core/management/commands/init_production.py": {
       "no-untyped-def": 2
     },
     "core/middleware/logging.py": {

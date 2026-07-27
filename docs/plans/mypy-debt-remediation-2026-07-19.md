@@ -5061,3 +5061,19 @@
 - Equity 初始化与 Repository 专项 `21 passed`；Equity 全模块、API、组件以及账户冷启动/调度初始化回归 `307 passed`。
 - `apps/equity/management/commands/init_equity_config.py` 与 `apps/equity/interface/__init__.py` 退出债务清单，其余改动生产文件保持两种 mypy 口径零错误；全仓基线从 `899 errors / 356 files` 收紧为 `884 errors / 354 files`，净减少 `15 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百三十三批
+
+- 按“生产初始化假成功 × legacy import 副作用 × 正式冷启动编排唯一入口”收口 Core `init_production` 管理命令。
+- 盘点确认原命令列出的 11 个 `scripts/init_*` 模块均只在 `__main__` 分支调用初始化函数；import/reload 不执行任何步骤，但原命令仍逐项累计 succeeded 并输出完成。
+- 删除把模块可导入误当成初始化完成的循环，`init_production` 现在只委托已有 `bootstrap_cold_start`；正式编排器按数据库 readiness 检查逐项 apply/skip，并传播必需步骤失败，同时覆盖当前账户、Regime、Audit、Equity、Prompt、Scheduler、RSS、宏观治理、Rotation、Hedge、Factor 与决策参数配置。
+- `--dry-run` 改为展示实际将执行的 `python manage.py bootstrap_cold_start` 且不调用任何初始化；动态非布尔值前置拒绝。
+- legacy `--skip` 无法安全映射到 readiness 编排，非空值明确失败并引导直接使用正式命令，不再以部分 import 制造虚假成功；错误类型和空值同样在委托前校验。
+- 子命令 `CommandError` 原样非零传播，只有真实 bootstrap 返回后才打印 `Production initialization complete`。
+- 新增单次委托、dry-run 零副作用、非法动态参数、legacy skip 拒绝和下游失败不得打印成功回归。
+
+## 第三百三十三批验证结果
+
+- Production init、账户 cold-start 与 scheduler 初始化专项 `42 passed`；Core、初始化链路和 Equity bootstrap 扩展回归 `95 passed`。
+- 实际执行 `python manage.py init_production --dry-run` 只输出正式 bootstrap 命令且零退出；`core/management/commands/init_production.py` 两种 mypy 口径均清零。
+- 全仓基线从 `884 errors / 354 files` 收紧为 `882 errors / 353 files`，净减少 `2 errors / 1 file`；Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
