@@ -5403,3 +5403,21 @@
 - Tushare/QMT gateway 与资产分类专项 `35 passed`；Data Center 全量单元回归 `298 passed`。
 - `apps/data_center/infrastructure/gateways/tushare_gateway.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `728 errors / 328 files` 收紧为 `724 errors / 327 files`，净减少 `4 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百五十四批
+
+- 按“跨模块资产名称缓存污染 × 来源越界返回 × 代码大小写分裂 × 异常信息泄露”收口 Asset Analysis 公共名称解析链。
+- 所有输入代码统一 trim/uppercase、限制长度并拒绝内嵌空白，再按首次出现顺序去重；大小写或首尾空格差异不再形成多个查询、缓存 key 或返回键。
+- equity/fund/rotation/fund-holding/index resolver 返回值统一经过边界验证：只接受本次请求 scope 内的规范代码和非空、长度受控字符串名称；额外代码、空名称、非字符串值与同一规范代码的冲突名称全部拒绝。
+- 名称缓存升级为 `asset_names:v5`，payload 显式包含 version、排序后的精确 scope 与 names；旧裸 dict、scope 不匹配、额外代码、损坏 shape 均不能命中，避免跨批次或伪造缓存向 TUI/Dashboard/Signal 扩散。
+- `resolve_asset_names_read_only` 在损坏 cache miss 后仍只查来源、不执行 cache set；普通解析写入隔离副本，调用方修改返回 mapping 不会改变已保存 payload。
+- 单代码解析和 enrichment 统一使用规范键；原有名称字段继续优先保留，缺失名称使用规范资产代码回退。
+- cache/provider 异常日志只记录异常类型，不再包含数据库、远端响应或凭据正文。
+- Application repository provider 补齐精确返回类型与显式公共导出，asset-name facade 不再依赖 mypy 隐式 re-export。
+- 新增来源 scope/shape、代码规范化、损坏缓存、精确缓存 payload、只读不写入和异常脱敏回归。
+
+## 第三百五十四批验证结果
+
+- 资产名称缓存与来源边界专项及既有组件回归 `15 passed`；Asset Analysis、Dashboard guardrail、Signal 与 TUI workbench 扩展回归 `255 passed`。
+- 名称 resolver、Application repository provider 与公共 facade 三个生产文件在联合及增量 mypy 口径均清零；全仓基线从 `724 errors / 327 files` 收紧为 `714 errors / 324 files`，净减少 `10 errors / 3 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal Agent、MCP、SDK 或部署实现。

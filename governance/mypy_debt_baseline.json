@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 724,
-    "files_with_errors": 327
+    "errors": 714,
+    "files_with_errors": 324
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -240,18 +240,12 @@
     "apps/alpha/management/commands/list_models.py": {
       "no-untyped-def": 2
     },
-    "apps/asset_analysis/application/asset_name_service.py": {
-      "attr-defined": 5
-    },
     "apps/asset_analysis/application/dtos.py": {
       "no-untyped-def": 1,
       "type-arg": 3
     },
     "apps/asset_analysis/application/logging_service.py": {
       "no-untyped-def": 2,
-      "type-arg": 1
-    },
-    "apps/asset_analysis/application/repository_provider.py": {
       "type-arg": 1
     },
     "apps/asset_analysis/application/services.py": {
@@ -274,11 +268,6 @@
     "apps/asset_analysis/domain/interfaces.py": {
       "type-arg": 3,
       "valid-type": 1
-    },
-    "apps/asset_analysis/infrastructure/asset_name_resolver.py": {
-      "arg-type": 1,
-      "no-any-return": 1,
-      "type-arg": 2
     },
     "apps/asset_analysis/interface/urls.py": {
       "no-untyped-def": 4

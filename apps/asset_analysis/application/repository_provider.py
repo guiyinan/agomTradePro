@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from apps.asset_analysis.domain.pool import PoolCategory
 from apps.asset_analysis.infrastructure.asset_name_resolver import (  # noqa: F401
     AssetNameResolver,
@@ -43,7 +45,14 @@ def list_investable_asset_categories() -> tuple[str, ...]:
 def resolve_index_asset_names(codes: list[str]) -> dict[str, str]:
     """Resolve asset names from asset-pool entries for index-like assets."""
 
-    return get_asset_pool_query_repository().resolve_asset_names(codes)
+    raw_names: object = get_asset_pool_query_repository().resolve_asset_names(codes)
+    if not isinstance(raw_names, dict):
+        return {}
+    return {
+        code.strip().upper(): name.strip()
+        for code, name in raw_names.items()
+        if isinstance(code, str) and code.strip() and isinstance(name, str) and name.strip()
+    }
 
 
 def get_registered_pool_screener(asset_type: str) -> AssetPoolScreener:
@@ -57,13 +66,16 @@ def list_latest_scored_assets(
     *,
     min_score: float,
     limit: int,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Return latest score-cache assets for consumers that need a legacy fallback."""
 
-    return get_asset_pool_query_repository().list_latest_scored_assets(
-        asset_type=asset_type,
-        min_score=min_score,
-        limit=limit,
+    return cast(
+        list[dict[str, Any]],
+        get_asset_pool_query_repository().list_latest_scored_assets(
+            asset_type=asset_type,
+            min_score=min_score,
+            limit=limit,
+        ),
     )
 
 
@@ -77,3 +89,24 @@ def get_weight_config_repository() -> DjangoWeightConfigRepository:
     """Return the default weight config repository."""
 
     return DjangoWeightConfigRepository()
+
+
+__all__ = [
+    "AssetAnalysisLogRepository",
+    "AssetNameResolver",
+    "DjangoAssetPoolQueryRepository",
+    "DjangoAssetRepository",
+    "DjangoWeightConfigRepository",
+    "enrich_with_asset_names",
+    "get_asset_analysis_log_repository",
+    "get_asset_pool_query_repository",
+    "get_asset_repository",
+    "get_registered_pool_screener",
+    "get_weight_config_repository",
+    "list_investable_asset_categories",
+    "list_latest_scored_assets",
+    "resolve_asset_name",
+    "resolve_asset_names",
+    "resolve_asset_names_read_only",
+    "resolve_index_asset_names",
+]
