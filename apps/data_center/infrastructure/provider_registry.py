@@ -31,6 +31,12 @@ _CIRCUIT_OPEN_DURATION_SEC = 300
 _PROVIDER_BUILD_EXCEPTIONS = (LookupError, RuntimeError, TypeError, ValueError)
 
 
+def _is_empty_list(value: object) -> bool:
+    """Return whether a provider result is a valid but empty collection."""
+
+    return isinstance(value, list) and not value
+
+
 class _ProviderState:
     """Runtime state for one provider and capability slot."""
 
@@ -126,24 +132,35 @@ class ProviderRegistry:
         self,
         repository: ProviderConfigRepositoryProtocol,
     ) -> None:
-        """Replace runtime state with the repository's active providers."""
-        self.clear()
-        for config in repository.list_active():
+        """Stage active providers and replace runtime state only after a viable build."""
+
+        configs = repository.list_active()
+        staged = ProviderRegistry(builder=self._builder)
+        built_count = 0
+        for config in configs:
             try:
                 provider = self._builder(config)
-            except _PROVIDER_BUILD_EXCEPTIONS:
+            except _PROVIDER_BUILD_EXCEPTIONS as exc:
                 logger.warning(
-                    "Failed to build Data Center provider %s (%s)",
+                    "Failed to build Data Center provider %s (%s): %s",
                     config.name,
                     config.source_type,
-                    exc_info=True,
+                    type(exc).__name__,
                 )
                 continue
-            self.register(
+            staged.register(
                 provider,
                 priority=config.priority,
                 provider_id=config.id,
             )
+            built_count += 1
+
+        if configs and built_count == 0:
+            raise RuntimeError("No active Data Center provider could be built")
+
+        self._registry = staged._registry
+        self._providers_by_id = staged._providers_by_id
+        self._providers_by_name = staged._providers_by_name
 
     def clear(self) -> None:
         """Clear configured providers and all accumulated health state."""
@@ -196,9 +213,7 @@ class ProviderRegistry:
     def get_providers(self, capability: DataCapability) -> list[ProviderProtocol]:
         """Return available providers in priority order."""
         return [
-            state.provider
-            for state in self._registry.get(capability, [])
-            if state.is_available
+            state.provider for state in self._registry.get(capability, []) if state.is_available
         ]
 
     def call_with_failover(
@@ -214,24 +229,33 @@ class ProviderRegistry:
             started = time.monotonic()
             try:
                 result = fn(provider)
-            except Exception:
+            except Exception as exc:
                 state.record_failure()
                 logger.warning(
-                    "Provider '%s' raised an exception for '%s'; trying next",
+                    "Provider '%s' raised %s for '%s'; trying next",
                     provider.provider_name(),
+                    type(exc).__name__,
                     capability.value,
-                    exc_info=True,
                 )
                 continue
-            if result is None or (isinstance(result, list) and not result):
+            latency_ms = (time.monotonic() - started) * 1000
+            if result is None:
                 state.record_failure()
                 logger.info(
-                    "Provider '%s' returned empty result for '%s'; trying next",
+                    "Provider '%s' violated the '%s' result contract; trying next",
                     provider.provider_name(),
                     capability.value,
                 )
                 continue
-            state.record_success((time.monotonic() - started) * 1000)
+            if _is_empty_list(result):
+                state.record_success(latency_ms)
+                logger.info(
+                    "Provider '%s' returned no data for '%s'; trying next",
+                    provider.provider_name(),
+                    capability.value,
+                )
+                continue
+            state.record_success(latency_ms)
             return result
         logger.error("All providers failed for capability '%s'", capability.value)
         return None
@@ -255,11 +279,7 @@ class ProviderRegistry:
 
     def get_all_statuses(self) -> list[ProviderHealthSnapshot]:
         """Return health snapshots for every provider-capability slot."""
-        return [
-            state.to_snapshot()
-            for states in self._registry.values()
-            for state in states
-        ]
+        return [state.to_snapshot() for states in self._registry.values() for state in states]
 
     def _find_state(
         self,

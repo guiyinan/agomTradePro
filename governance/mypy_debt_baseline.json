@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1090,
-    "files_with_errors": 381
+    "errors": 1088,
+    "files_with_errors": 380
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -515,10 +515,6 @@
     },
     "apps/data_center/infrastructure/pit_repository.py": {
       "misc": 2
-    },
-    "apps/data_center/infrastructure/provider_registry.py": {
-      "attr-defined": 1,
-      "return-value": 1
     },
     "apps/data_center/interface/api_urls.py": {
       "no-untyped-def": 1

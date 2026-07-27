@@ -2,7 +2,11 @@
 Unit tests for ProviderRegistry — priority, failover, circuit-breaker.
 """
 
+import logging
 
+import pytest
+
+from apps.data_center import provider_runtime
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.domain.enums import DataCapability, ProviderHealthStatus
 from apps.data_center.infrastructure.provider_registry import (
@@ -13,6 +17,7 @@ from apps.data_center.infrastructure.provider_registry import (
 # ---------------------------------------------------------------------------
 # Stub provider for testing
 # ---------------------------------------------------------------------------
+
 
 class _StubProvider:
     def __init__(self, name: str, capabilities: list[DataCapability]) -> None:
@@ -37,6 +42,7 @@ class _ProviderConfigRepository:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestProviderRegistryPriority:
     def test_repository_build_registers_real_provider_for_lookup_and_routing(self):
@@ -118,9 +124,7 @@ class TestProviderRegistryFailover:
         p = _StubProvider("p", [DataCapability.HISTORICAL_PRICE])
         reg.register(p, priority=10)
 
-        result = reg.call_with_failover(
-            DataCapability.HISTORICAL_PRICE, lambda _: None
-        )
+        result = reg.call_with_failover(DataCapability.HISTORICAL_PRICE, lambda _: None)
         assert result is None
 
     def test_empty_list_result_treated_as_failure(self):
@@ -135,6 +139,112 @@ class TestProviderRegistryFailover:
             lambda prov: [] if prov.provider_name() == "empty" else ["row"],
         )
         assert result == ["row"]
+
+    def test_empty_list_does_not_open_provider_circuit(self):
+        """A valid no-data response triggers fallback without degrading health."""
+
+        reg = ProviderRegistry()
+        provider = _StubProvider("empty", [DataCapability.MACRO])
+        reg.register(provider, priority=10)
+
+        for _ in range(_CIRCUIT_OPEN_THRESHOLD):
+            assert reg.call_with_failover(DataCapability.MACRO, lambda _: []) is None
+
+        assert reg.get_provider(DataCapability.MACRO) is provider
+        snapshot = reg.get_all_statuses()[0]
+        assert snapshot.status is ProviderHealthStatus.HEALTHY
+        assert snapshot.consecutive_failures == 0
+
+    def test_none_result_opens_provider_circuit(self):
+        """A None result violates the provider contract and remains a health failure."""
+
+        reg = ProviderRegistry()
+        reg.register(_StubProvider("invalid", [DataCapability.MACRO]), priority=10)
+
+        for _ in range(_CIRCUIT_OPEN_THRESHOLD):
+            assert reg.call_with_failover(DataCapability.MACRO, lambda _: None) is None
+
+        assert reg.get_provider(DataCapability.MACRO) is None
+
+    def test_provider_exception_log_does_not_disclose_error_text(self, caplog):
+        """Provider failures retain exception type but suppress credential-bearing text."""
+
+        reg = ProviderRegistry()
+        reg.register(_StubProvider("bad", [DataCapability.MACRO]), priority=10)
+
+        def fail(_provider):
+            raise RuntimeError("api_key=should-not-appear")
+
+        with caplog.at_level(logging.WARNING):
+            assert reg.call_with_failover(DataCapability.MACRO, fail) is None
+
+        assert "RuntimeError" in caplog.text
+        assert "should-not-appear" not in caplog.text
+
+
+class TestProviderRegistryRefresh:
+    def test_failed_staged_refresh_preserves_existing_provider(self):
+        """All adapter build failures leave the last viable runtime state intact."""
+
+        existing = _StubProvider("existing", [DataCapability.MACRO])
+
+        def fail_builder(_config):
+            raise RuntimeError("build failed")
+
+        reg = ProviderRegistry(builder=fail_builder)
+        reg.register(existing, priority=10)
+        config = ProviderConfig(
+            id=8,
+            name="replacement",
+            source_type="tushare",
+            is_active=True,
+            priority=5,
+            api_key="",
+            api_secret="",
+            http_url="",
+            api_endpoint="",
+            extra_config={},
+            description="",
+        )
+
+        with pytest.raises(RuntimeError, match="No active Data Center provider"):
+            reg.refresh_from_repository(_ProviderConfigRepository([config]))
+
+        assert reg.get_provider(DataCapability.MACRO) is existing
+
+    def test_global_refresh_failure_keeps_existing_registry_and_sanitizes_log(
+        self,
+        monkeypatch,
+        caplog,
+    ):
+        """A repository outage cannot replace the process registry with an empty one."""
+
+        existing_registry = ProviderRegistry()
+        existing = _StubProvider("existing", [DataCapability.MACRO])
+        existing_registry.register(existing, priority=10)
+        monkeypatch.setattr(provider_runtime, "_global_registry", existing_registry)
+        monkeypatch.setattr(
+            provider_runtime,
+            "get_provider_config_repository",
+            lambda: object(),
+        )
+
+        def fail_refresh(_cls, _repository):
+            raise RuntimeError("password=should-not-appear")
+
+        monkeypatch.setattr(
+            provider_runtime.ProviderRegistry,
+            "from_repository",
+            classmethod(fail_refresh),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            refreshed = provider_runtime.refresh_registry()
+
+        assert refreshed is existing_registry
+        assert refreshed.get_provider(DataCapability.MACRO) is existing
+        assert "RuntimeError" in caplog.text
+        assert "should-not-appear" not in caplog.text
 
 
 class TestProviderRegistryCircuitBreaker:

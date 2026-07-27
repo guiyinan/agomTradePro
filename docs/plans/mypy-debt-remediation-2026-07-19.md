@@ -4721,3 +4721,20 @@
 - Data Center 单元、组件与 on-demand 回归 `358 passed`。
 - `apps/data_center/infrastructure/cache_warmup_queries.py` 增量 mypy 清零；全仓基线从 `1092 errors / 382 files` 收紧为 `1090 errors / 381 files`，净减少 `2 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百一十三批
+
+- 按“统一 provider 路由 × failover 健康语义 × registry 刷新可用性”收口 Data Center provider registry 与 process-wide runtime。
+- Provider config repository Protocol 补齐真实存在且 registry 必需的 `list_active` 契约；运行时不再依赖协议外属性。
+- failover 将 `None` 视为违反 provider 列表返回契约并累计故障；合法空列表改为一次健康的“无数据”响应，在继续尝试备用源的同时重置连续故障，不再因连续查询无数据错误熔断整个 capability。
+- 泛型结果的空列表判定下沉到 object 边界 helper，保持返回 `T | None` 精确契约，不使用 cast 或 ignore。
+- repository 刷新先在候选 registry 中构造全部可用 adapter；有活动配置却一个也无法构造时拒绝替换，现有健康 provider 与熔断状态不再被预先清空。
+- process-wide refresh 只在候选 registry 成功后替换全局引用；仓储或构造异常保留上一版可用 registry，首次启动失败则安全降级为空 registry。
+- provider 构造、调用和全局刷新异常日志仅保留稳定操作、provider/capability 与异常类型，不再写入可能包含 token、URL 或响应正文的 traceback/异常文本。
+- 新增空数据不熔断、`None` 契约失败熔断、刷新失败保留旧 provider、全局 refresh 失败保留引用及日志脱敏回归。
+
+## 第三百一十三批验证结果
+
+- Data Center 单元、组件与 on-demand 回归 `363 passed`。
+- `apps/data_center/domain/protocols.py`、`apps/data_center/infrastructure/provider_registry.py` 与 `apps/data_center/provider_runtime.py` 增量 mypy 清零；全仓基线从 `1090 errors / 381 files` 收紧为 `1088 errors / 380 files`，净减少 `2 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
