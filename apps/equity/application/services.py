@@ -4,9 +4,13 @@ Equity 模块 - Application 层服务（资产分析框架集成）
 本模块提供个股多维度评分的服务，集成通用资产分析框架。
 """
 
+from collections.abc import Mapping
 from dataclasses import replace
+from math import isfinite
+from types import MappingProxyType
+from typing import ClassVar, Protocol, TypedDict
 
-from apps.asset_analysis.domain.entities import AssetType
+from apps.asset_analysis.domain.entities import AssetScore, AssetType
 from apps.asset_analysis.domain.services import (
     PolicyMatcher,
     RegimeMatcher,
@@ -14,8 +18,28 @@ from apps.asset_analysis.domain.services import (
     SignalMatcher,
 )
 from apps.asset_analysis.domain.value_objects import ScoreContext
-from apps.equity.application.repository_provider import DjangoEquityAssetRepository
+from apps.equity.application.repository_provider import get_equity_asset_repository
 from apps.equity.domain.entities import EquityAssetScore
+
+
+class EquityAssetRepositoryProtocol(Protocol):
+    """Equity asset reads required by multi-dimensional scoring."""
+
+    def get_assets_by_filter(
+        self,
+        asset_type: str,
+        filters: dict[str, object],
+        max_count: int = 100,
+    ) -> list[EquityAssetScore]: ...
+
+
+class EquityScreenResult(TypedDict):
+    """Stable multi-dimensional equity-screen response."""
+
+    success: bool
+    count: int
+    message: str
+    stocks: list[dict[str, object]]
 
 
 class EquityMultiDimScorer:
@@ -25,7 +49,19 @@ class EquityMultiDimScorer:
     整合通用资产分析框架和个股特有的评分逻辑。
     """
 
-    def __init__(self, asset_repository: DjangoEquityAssetRepository):
+    SCORE_WEIGHTS: ClassVar[Mapping[str, float]] = MappingProxyType(
+        {
+            "regime": 0.30,
+            "policy": 0.20,
+            "sentiment": 0.20,
+            "signal": 0.10,
+            "technical": 0.10,
+            "fundamental": 0.10,
+            "valuation": 0.10,
+        }
+    )
+
+    def __init__(self, asset_repository: EquityAssetRepositoryProtocol) -> None:
         """
         初始化评分服务
 
@@ -50,8 +86,13 @@ class EquityMultiDimScorer:
             评分后的个股列表（已排序并设置排名）
         """
         # 1. 计算每个个股的通用维度得分
-        scored_stocks = []
+        stock_codes = [stock.stock_code for stock in stocks]
+        if len(stock_codes) != len(set(stock_codes)):
+            raise ValueError("stocks must contain unique stock_code values")
+
+        scored_stocks: list[EquityAssetScore] = []
         for stock in stocks:
+            self._validate_custom_scores(stock)
             # 转换为通用 AssetScore 格式计算
             asset_score = self._to_asset_score(stock)
 
@@ -62,14 +103,21 @@ class EquityMultiDimScorer:
             signal_score = SignalMatcher.match(asset_score, context.active_signals)
 
             # 计算综合得分（使用个股专用权重）
+            components = {
+                "regime": regime_score,
+                "policy": policy_score,
+                "sentiment": sentiment_score,
+                "signal": signal_score,
+                "technical": stock.technical_score,
+                "fundamental": stock.fundamental_score,
+                "valuation": stock.valuation_score,
+            }
+            total_weight = sum(self.SCORE_WEIGHTS.values())
+            if not isfinite(total_weight) or total_weight <= 0:
+                raise ValueError("equity multi-dimensional weights must have a positive sum")
             total_score = (
-                regime_score * 0.30  # equity 专用权重
-                + policy_score * 0.20
-                + sentiment_score * 0.20
-                + signal_score * 0.10
-                + stock.technical_score * 0.10  # 技术面
-                + stock.fundamental_score * 0.10  # 基本面
-                + stock.valuation_score * 0.10  # 估值
+                sum(components[name] * weight for name, weight in self.SCORE_WEIGHTS.items())
+                / total_weight
             )
 
             # 更新个股得分
@@ -84,7 +132,7 @@ class EquityMultiDimScorer:
             scored_stocks.append(scored_stock)
 
         # 2. 按综合得分排序
-        scored_stocks.sort(key=lambda x: x.total_score, reverse=True)
+        scored_stocks.sort(key=lambda stock: (-stock.total_score, stock.stock_code))
 
         # 3. 设置排名和推荐比例
         for rank, stock in enumerate(scored_stocks, start=1):
@@ -110,10 +158,10 @@ class EquityMultiDimScorer:
 
     def screen_stocks(
         self,
-        filters: dict,
+        filters: Mapping[str, object],
         context: ScoreContext,
         max_count: int = 30,
-    ) -> dict:
+    ) -> EquityScreenResult:
         """
         多维度筛选个股
 
@@ -125,16 +173,20 @@ class EquityMultiDimScorer:
         Returns:
             筛选结果字典
         """
+        if isinstance(max_count, bool) or not isinstance(max_count, int) or max_count <= 0:
+            raise ValueError("max_count must be a positive integer")
+
         # 1. 获取符合条件的个股
         stocks = self.asset_repo.get_assets_by_filter(
             asset_type="equity",
-            filters=filters,
+            filters=dict(filters),
             max_count=max_count * 2,  # 多取一些，筛选后再截断
         )
 
         if not stocks:
             return {
                 "success": False,
+                "count": 0,
                 "message": "未找到符合条件的个股",
                 "stocks": [],
             }
@@ -149,13 +201,14 @@ class EquityMultiDimScorer:
         return {
             "success": True,
             "count": len(scored_stocks),
+            "message": "",
             "stocks": [stock.to_dict() for stock in scored_stocks],
         }
 
     @staticmethod
-    def _to_asset_score(stock: EquityAssetScore):
+    def _to_asset_score(stock: EquityAssetScore) -> AssetScore:
         """将 EquityAssetScore 转换为通用 AssetScore 格式"""
-        from apps.asset_analysis.domain.entities import AssetScore, AssetSize, AssetStyle
+        from apps.asset_analysis.domain.entities import AssetSize, AssetStyle
 
         # 映射风格
         style_map = {
@@ -183,6 +236,25 @@ class EquityMultiDimScorer:
             sector=stock.sector,
             custom_scores=stock.get_custom_scores(),
         )
+
+    @staticmethod
+    def _validate_custom_scores(stock: EquityAssetScore) -> None:
+        """Reject non-finite or out-of-range stock-specific scores."""
+
+        scores = {
+            "technical_score": stock.technical_score,
+            "fundamental_score": stock.fundamental_score,
+            "valuation_score": stock.valuation_score,
+        }
+        invalid = [
+            name
+            for name, value in scores.items()
+            if not isfinite(value) or not 0.0 <= value <= 100.0
+        ]
+        if invalid:
+            raise ValueError(
+                "equity custom scores must be finite in [0, 100]: " + ", ".join(invalid)
+            )
 
     @staticmethod
     def _calculate_risk_level(stock: EquityAssetScore) -> str:
@@ -232,12 +304,15 @@ class EquityMultiDimScorer:
         return base_risk
 
 
-def screen_equity_assets_for_pool(context, filters: dict) -> list[EquityAssetScore]:
+def screen_equity_assets_for_pool(
+    context: ScoreContext,
+    filters: Mapping[str, object],
+) -> list[EquityAssetScore]:
     """Screen and score equity assets for the shared asset-pool workflow."""
-    repo = DjangoEquityAssetRepository()
+    repo = get_equity_asset_repository()
     scorer = EquityMultiDimScorer(repo)
 
-    filter_dict: dict = {}
+    filter_dict: dict[str, object] = {}
     if filters.get("sector"):
         filter_dict["sector"] = filters["sector"]
     if filters.get("market"):

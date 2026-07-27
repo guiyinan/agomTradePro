@@ -4792,3 +4792,21 @@
 - Equity Domain/Application 单元回归 `282 passed`；Equity ORM、API 与集成回归 `66 passed`，合计 `348 passed`。
 - `apps/equity/domain/services_comprehensive_valuation.py` 增量 mypy 清零；全仓基线从 `1065 errors / 378 files` 收紧为 `1060 errors / 377 files`，净减少 `5 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百一十七批
+
+- 按“多维筛选评分口径 × Application 仓储边界 × 空结果稳定契约”收口 Equity Application services。
+- 七项 Equity 多维得分权重原本合计 `1.10` 并直接相加，总分可突破 100；现将既有权重固化为不可变 Mapping，并按实际权重总和归一化，恢复 `0-100` 评分语义。
+- Application 定义 consumer-owned `EquityAssetRepositoryProtocol`，构造函数不再依赖具体 Django repository 类型；共享资产池入口改由 Application provider factory 组装实现，不再直接构造 Infrastructure 仓储。
+- `screen_stocks` 使用 `Mapping[str, object]` 输入和稳定 TypedDict 输出；成功与无结果均固定包含 `success/count/message/stocks`。无结果不再因 API 无条件读取缺失的 `count` 而转成 500。
+- `max_count` 只接受非布尔正整数，并在仓储读取前失败关闭，避免负切片、布尔伪装与无意义查询。
+- technical、fundamental、valuation 三项个股特有得分必须为有限 `0-100`；`NaN/Inf` 与越界值不再污染排序。
+- 同一批次拒绝重复 stock code，避免一个标的占用多个名次；同分时增加 stock code 次级排序，保证跨查询顺序稳定。
+- `_to_asset_score`、pool context/filter、screen result 与生产函数返回契约补齐精确类型。
+- 新增权重归一化、重复代码、非有限得分、空结果稳定结构与非法 max_count 前置短路回归。
+
+## 第三百一十七批验证结果
+
+- Equity 多维筛选、共享 asset-analysis API、Application 注册与 Domain matcher 回归 `107 passed`。
+- `apps/equity/application/services.py` 增量 mypy 清零；全仓基线从 `1060 errors / 377 files` 收紧为 `1053 errors / 376 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

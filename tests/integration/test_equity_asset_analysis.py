@@ -4,6 +4,7 @@ Equity 模块集成测试（通用资产分析框架）
 测试 Equity 模块与 asset_analysis 模块的集成。
 """
 
+from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -342,6 +343,7 @@ class TestEquityMultiDimScorer:
 
     def test_score_batch_empty(self):
         """测试空列表评分"""
+
         # Mock repo
         class MockRepo:
             pass
@@ -361,6 +363,7 @@ class TestEquityMultiDimScorer:
 
     def test_score_single_stock(self):
         """测试单个股票评分"""
+
         class MockRepo:
             pass
 
@@ -392,7 +395,73 @@ class TestEquityMultiDimScorer:
         assert len(result) == 1
         assert result[0].regime_score > 0  # Recovery + 股票应该得分
         assert result[0].total_score > 0
+        assert result[0].total_score <= 100
+        expected_score = (
+            result[0].regime_score * 0.30
+            + result[0].policy_score * 0.20
+            + result[0].sentiment_score * 0.20
+            + result[0].signal_score * 0.10
+            + stock.technical_score * 0.10
+            + stock.fundamental_score * 0.10
+            + stock.valuation_score * 0.10
+        ) / 1.10
+        assert result[0].total_score == pytest.approx(expected_score)
         assert result[0].rank == 1
+
+    def test_score_batch_rejects_duplicate_codes_and_invalid_custom_scores(self):
+        """One ranking cannot contain duplicate identities or non-finite component scores."""
+
+        class MockRepo:
+            pass
+
+        scorer = EquityMultiDimScorer(MockRepo())
+        stock = EquityAssetScore(
+            stock_code="000001",
+            stock_name="平安银行",
+            sector="银行",
+            market="SZ",
+            list_date=date(1991, 4, 3),
+        )
+        context = ScoreContext(
+            current_regime="Recovery",
+            policy_level="P0",
+            sentiment_index=0.0,
+            active_signals=[],
+        )
+
+        with pytest.raises(ValueError, match="unique stock_code"):
+            scorer.score_batch([stock, stock], context)
+        with pytest.raises(ValueError, match="technical_score"):
+            scorer.score_batch([replace(stock, technical_score=float("nan"))], context)
+
+    def test_screen_stocks_empty_result_has_stable_shape_and_validates_limit(self):
+        """No-match screens remain a 404-ready payload instead of raising on missing count."""
+
+        class MockRepo:
+            calls = 0
+
+            def get_assets_by_filter(self, **_kwargs):
+                self.calls += 1
+                return []
+
+        repo = MockRepo()
+        scorer = EquityMultiDimScorer(repo)
+        context = ScoreContext(
+            current_regime="Recovery",
+            policy_level="P0",
+            sentiment_index=0.0,
+            active_signals=[],
+        )
+
+        assert scorer.screen_stocks({}, context) == {
+            "success": False,
+            "count": 0,
+            "message": "未找到符合条件的个股",
+            "stocks": [],
+        }
+        with pytest.raises(ValueError, match="max_count must be a positive integer"):
+            scorer.screen_stocks({}, context, max_count=True)
+        assert repo.calls == 1
 
     def test_calculate_risk_level(self):
         """测试风险等级计算"""
@@ -406,8 +475,7 @@ class TestEquityMultiDimScorer:
             size="large",
         )
 
-        scorer = EquityMultiDimScorer(None)
-        risk = scorer._calculate_risk_level(bank_stock)
+        risk = EquityMultiDimScorer._calculate_risk_level(bank_stock)
 
         assert risk == "中低风险"  # 银行大盘股
 
@@ -421,7 +489,7 @@ class TestEquityMultiDimScorer:
             size="small",
         )
 
-        risk = scorer._calculate_risk_level(tech_stock)
+        risk = EquityMultiDimScorer._calculate_risk_level(tech_stock)
 
         # 电子行业基准是"中高风险"，小盘保持不变
         assert risk == "中高风险"

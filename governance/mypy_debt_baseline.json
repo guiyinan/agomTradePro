@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1060,
-    "files_with_errors": 377
+    "errors": 1053,
+    "files_with_errors": 376
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -624,11 +624,6 @@
     },
     "apps/equity/application/sector_market_gateway.py": {
       "type-arg": 1
-    },
-    "apps/equity/application/services.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 2,
-      "type-arg": 4
     },
     "apps/equity/apps.py": {
       "no-untyped-def": 1
