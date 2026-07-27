@@ -4705,3 +4705,19 @@
 - Macro 单元、组件、Application 用例与 Data Center canonical selection 回归 `233 passed`。
 - `apps/macro/infrastructure/data_center_fact_repository.py` 增量 mypy 清零；全仓基线从 `1097 errors / 383 files` 收紧为 `1092 errors / 382 files`，净减少 `5 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百一十二批
+
+- 按“部署缓存预热 × canonical 来源一致性 × ORM 查询放大”收口 Data Center macro cache warmup repository。
+- 最新指标预热从“1 次代码列表 + 每个指标 3 次查询”的线性 N+1 改为固定 3 次批量查询：指标代码、各指标最新报告期全部来源事实、对应 catalog；50 个指标的理论查询数由约 151 降为 3。
+- 最新报告期使用 correlated subquery 在数据库侧筛选，同时保留该期所有来源与修订供 canonical selection 判断，不因查询优化绕过治理源优先或 1% 跨源一致性阻断。
+- 新增 typed ORM projection 并从正式 enums 模块导入 `DataQualityStatus`；Django field descriptor 不再穿透 Domain selection Protocol，质量枚举映射恢复显式契约。
+- ORM JSON metadata 显式复制，缓存实体不再与模型 JSONField 共享可变对象。
+- limit 拒绝布尔、字符串与浮点等动态伪装；零和负数保持为不访问数据库的显式空预热。
+- 新增固定三查询、治理源优先、不一致来源阻断、质量状态与非法 limit 前置短路回归。
+
+## 第三百一十二批验证结果
+
+- Data Center 单元、组件与 on-demand 回归 `358 passed`。
+- `apps/data_center/infrastructure/cache_warmup_queries.py` 增量 mypy 清零；全仓基线从 `1092 errors / 382 files` 收紧为 `1090 errors / 381 files`，净减少 `2 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

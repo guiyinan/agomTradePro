@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1092,
-    "files_with_errors": 382
+    "errors": 1090,
+    "files_with_errors": 381
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -472,10 +472,6 @@
     },
     "apps/data_center/infrastructure/alpha_price_coverage_sync.py": {
       "type-arg": 1
-    },
-    "apps/data_center/infrastructure/cache_warmup_queries.py": {
-      "attr-defined": 1,
-      "type-var": 1
     },
     "apps/data_center/infrastructure/connection_tester.py": {
       "no-any-return": 1
