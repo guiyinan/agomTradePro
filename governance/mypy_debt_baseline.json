@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1053,
-    "files_with_errors": 376
+    "errors": 1046,
+    "files_with_errors": 374
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -608,13 +608,6 @@
     "apps/decision_rhythm/management/commands/setup_workspace_snapshot_refresh.py": {
       "import-untyped": 1,
       "no-untyped-def": 2
-    },
-    "apps/equity/application/config.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 1
-    },
-    "apps/equity/application/interface_services.py": {
-      "no-untyped-call": 5
     },
     "apps/equity/application/market_sessions.py": {
       "no-untyped-def": 1

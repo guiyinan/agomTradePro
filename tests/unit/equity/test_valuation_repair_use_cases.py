@@ -10,7 +10,10 @@ from apps.equity.application.use_cases_valuation_repair import (
     ScanValuationRepairsRequest,
     ScanValuationRepairsUseCase,
 )
-from apps.equity.domain.entities_valuation_repair import ValuationRepairPhase
+from apps.equity.domain.entities_valuation_repair import (
+    DEFAULT_VALUATION_REPAIR_CONFIG,
+    ValuationRepairPhase,
+)
 
 
 def test_status_rejects_invalid_inputs_before_repository_access() -> None:
@@ -38,6 +41,10 @@ def test_percentile_history_preserves_zero_valuation(monkeypatch) -> None:
     monkeypatch.setattr(
         "apps.equity.application.use_cases_valuation_repair.build_percentile_series",
         fake_build,
+    )
+    monkeypatch.setattr(
+        "apps.equity.application.use_cases_valuation_repair.get_valuation_repair_config",
+        lambda **_kwargs: DEFAULT_VALUATION_REPAIR_CONFIG,
     )
 
     response = GetValuationPercentileHistoryUseCase(repository).execute(

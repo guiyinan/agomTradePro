@@ -31,53 +31,46 @@ _CONFIG_CACHE_TIMEOUT = 300  # 5 分钟缓存
 
 
 # Settings 配置名到实体字段的映射
-_SETTINGS_MAPPING = {
+_SETTINGS_MAPPING: dict[str, str] = {
     # 历史数据要求
-    'EQUITY_VALUATION_MIN_HISTORY_POINTS': 'min_history_points',
-    'EQUITY_VALUATION_DEFAULT_LOOKBACK_DAYS': 'default_lookback_days',
-
+    "EQUITY_VALUATION_MIN_HISTORY_POINTS": "min_history_points",
+    "EQUITY_VALUATION_DEFAULT_LOOKBACK_DAYS": "default_lookback_days",
     # 修复确认参数
-    'EQUITY_VALUATION_CONFIRM_WINDOW': 'confirm_window',
-    'EQUITY_VALUATION_MIN_REBOUND': 'min_rebound',
-
+    "EQUITY_VALUATION_CONFIRM_WINDOW": "confirm_window",
+    "EQUITY_VALUATION_MIN_REBOUND": "min_rebound",
     # 停滞检测参数
-    'EQUITY_VALUATION_STALL_WINDOW': 'stall_window',
-    'EQUITY_VALUATION_STALL_MIN_PROGRESS': 'stall_min_progress',
-
+    "EQUITY_VALUATION_STALL_WINDOW": "stall_window",
+    "EQUITY_VALUATION_STALL_MIN_PROGRESS": "stall_min_progress",
     # 阶段判定阈值
-    'EQUITY_VALUATION_TARGET_PERCENTILE': 'target_percentile',
-    'EQUITY_VALUATION_UNDERVALUED_THRESHOLD': 'undervalued_threshold',
-    'EQUITY_VALUATION_NEAR_TARGET_THRESHOLD': 'near_target_threshold',
-    'EQUITY_VALUATION_OVERVALUED_THRESHOLD': 'overvalued_threshold',
-
+    "EQUITY_VALUATION_TARGET_PERCENTILE": "target_percentile",
+    "EQUITY_VALUATION_UNDERVALUED_THRESHOLD": "undervalued_threshold",
+    "EQUITY_VALUATION_NEAR_TARGET_THRESHOLD": "near_target_threshold",
+    "EQUITY_VALUATION_OVERVALUED_THRESHOLD": "overvalued_threshold",
     # 复合百分位权重
-    'EQUITY_VALUATION_PE_WEIGHT': 'pe_weight',
-    'EQUITY_VALUATION_PB_WEIGHT': 'pb_weight',
-
+    "EQUITY_VALUATION_PE_WEIGHT": "pe_weight",
+    "EQUITY_VALUATION_PB_WEIGHT": "pb_weight",
     # 置信度计算参数
-    'EQUITY_VALUATION_CONFIDENCE_BASE': 'confidence_base',
-    'EQUITY_VALUATION_CONFIDENCE_SAMPLE_THRESHOLD': 'confidence_sample_threshold',
-    'EQUITY_VALUATION_CONFIDENCE_SAMPLE_BONUS': 'confidence_sample_bonus',
-    'EQUITY_VALUATION_CONFIDENCE_BLEND_BONUS': 'confidence_blend_bonus',
-    'EQUITY_VALUATION_CONFIDENCE_REPAIR_START_BONUS': 'confidence_repair_start_bonus',
-    'EQUITY_VALUATION_CONFIDENCE_NOT_STALLED_BONUS': 'confidence_not_stalled_bonus',
-
+    "EQUITY_VALUATION_CONFIDENCE_BASE": "confidence_base",
+    "EQUITY_VALUATION_CONFIDENCE_SAMPLE_THRESHOLD": "confidence_sample_threshold",
+    "EQUITY_VALUATION_CONFIDENCE_SAMPLE_BONUS": "confidence_sample_bonus",
+    "EQUITY_VALUATION_CONFIDENCE_BLEND_BONUS": "confidence_blend_bonus",
+    "EQUITY_VALUATION_CONFIDENCE_REPAIR_START_BONUS": "confidence_repair_start_bonus",
+    "EQUITY_VALUATION_CONFIDENCE_NOT_STALLED_BONUS": "confidence_not_stalled_bonus",
     # 其他阈值
-    'EQUITY_VALUATION_REPAIRING_THRESHOLD': 'repairing_threshold',
-    'EQUITY_VALUATION_ETA_MAX_DAYS': 'eta_max_days',
+    "EQUITY_VALUATION_REPAIRING_THRESHOLD": "repairing_threshold",
+    "EQUITY_VALUATION_ETA_MAX_DAYS": "eta_max_days",
 }
 
 
 def _get_config_from_db() -> ValuationRepairConfig | None:
     """从数据库获取激活的配置"""
-    try:
-        db_config = get_equity_valuation_repair_config_repository().get_active_domain_config()
-        if db_config:
-            logger.debug("Using active DB valuation repair config")
-            return db_config
-    except Exception as e:
-        logger.warning(f"Failed to get config from DB: {e}")
-    return None
+
+    db_config = (
+        get_equity_valuation_repair_config_repository().get_active_domain_config_if_available()
+    )
+    if db_config:
+        logger.debug("Using active DB valuation repair config")
+    return db_config
 
 
 def _get_config_from_settings() -> ValuationRepairConfig:
@@ -106,11 +99,20 @@ def get_valuation_repair_config(use_cache: bool = True) -> ValuationRepairConfig
     Returns:
         ValuationRepairConfig 实例
     """
+    if not isinstance(use_cache, bool):
+        raise ValueError("use_cache must be a boolean")
+
     # 1. 尝试从缓存获取
     if use_cache:
-        cached = cache.get(_CONFIG_CACHE_KEY)
-        if cached is not None:
+        cached: object = cache.get(_CONFIG_CACHE_KEY)
+        if isinstance(cached, ValuationRepairConfig):
             return cached
+        if cached is not None:
+            cache.delete(_CONFIG_CACHE_KEY)
+            logger.warning(
+                "Discarded invalid valuation repair config cache value: %s",
+                type(cached).__name__,
+            )
 
     # 2. 尝试从数据库获取
     db_config = _get_config_from_db()
@@ -135,12 +137,11 @@ def get_valuation_repair_config_summary(use_cache: bool = True) -> dict[str, Any
     active_version = 0
     source = "settings"
 
-    try:
-        active_version = get_equity_valuation_repair_config_repository().get_active_version()
-        if active_version:
-            source = "database"
-    except Exception as e:
-        logger.warning(f"Failed to get config summary from DB: {e}")
+    active_version = (
+        get_equity_valuation_repair_config_repository().get_active_version_if_available()
+    )
+    if active_version:
+        source = "database"
 
     if active_version == 0 and runtime_config == DEFAULT_VALUATION_REPAIR_CONFIG:
         source = "default"
@@ -159,7 +160,7 @@ def get_valuation_repair_config_summary(use_cache: bool = True) -> dict[str, Any
     }
 
 
-def clear_config_cache():
+def clear_config_cache() -> None:
     """清除配置缓存
 
     在更新配置后调用，确保下次请求获取最新配置。

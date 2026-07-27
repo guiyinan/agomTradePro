@@ -5,10 +5,12 @@ helpers. The compatibility facade in `repositories.py` remains the stable
 import surface; do not import it here.
 """
 
+import logging
 from typing import Any
 
 from django.db import transaction
 from django.db.models import QuerySet
+from django.db.utils import OperationalError, ProgrammingError
 from django.utils import timezone
 
 from apps.equity.domain.entities import ScoringWeightConfig
@@ -22,6 +24,8 @@ from .models import (
     StockScreeningRuleConfigModel,
     ValuationRepairConfigModel,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ScoringWeightConfigRepository:
@@ -124,14 +128,38 @@ class ValuationRepairConfigRepository:
 
         return self.get_queryset().filter(is_active=True).first()
 
+    def get_active_model_if_available(self) -> ValuationRepairConfigModel | None:
+        """Return the active model, or None while its table is unavailable."""
+
+        try:
+            return self.get_active_model()
+        except (OperationalError, ProgrammingError) as exc:
+            logger.warning(
+                "Valuation repair config model is unavailable: %s",
+                type(exc).__name__,
+            )
+            return None
+
     def get_active_domain_config(self) -> ValuationRepairConfig | None:
         """Return the active config as a domain config object if present."""
         model = self.get_active_model()
         return model.to_domain_config() if model else None
 
+    def get_active_domain_config_if_available(self) -> ValuationRepairConfig | None:
+        """Return the active Domain config without leaking schema exceptions upward."""
+
+        model = self.get_active_model_if_available()
+        return model.to_domain_config() if model else None
+
     def get_active_version(self) -> int:
         """Return the active config version, or 0 if missing."""
         model = self.get_active_model()
+        return int(getattr(model, "version", 0) or 0)
+
+    def get_active_version_if_available(self) -> int:
+        """Return the active version, or zero while its table is unavailable."""
+
+        model = self.get_active_model_if_available()
         return int(getattr(model, "version", 0) or 0)
 
     def list_models(self) -> list[ValuationRepairConfigModel]:

@@ -1,10 +1,16 @@
+import logging
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from django.db import IntegrityError, transaction
 from django.db.utils import OperationalError
 
+from apps.equity.application import config as config_module
+from apps.equity.application import interface_services
 from apps.equity.domain.entities import ScoringWeightConfig
+from apps.equity.domain.entities_valuation_repair import DEFAULT_VALUATION_REPAIR_CONFIG
 from apps.equity.infrastructure.config_repositories import (
     ScoringWeightConfigRepository,
     ValuationRepairConfigRepository,
@@ -91,3 +97,71 @@ def test_valuation_repair_repository_activation_switches_single_active_row() -> 
     assert second.effective_from is not None
     assert second.effective_from <= datetime.now(UTC)
     assert ValuationRepairConfigModel._default_manager.filter(is_active=True).count() == 1
+
+
+def test_valuation_repair_repository_schema_fallback_sanitizes_error_log(
+    mocker,
+    caplog,
+) -> None:
+    """Schema compatibility fallback stays in Infrastructure and hides DB error text."""
+
+    repository = ValuationRepairConfigRepository()
+    mocker.patch.object(
+        repository,
+        "get_active_model",
+        side_effect=OperationalError("password=should-not-appear"),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        assert repository.get_active_model_if_available() is None
+
+    assert "OperationalError" in caplog.text
+    assert "should-not-appear" not in caplog.text
+
+
+def test_runtime_config_discards_wrong_cache_type_before_fallback(monkeypatch) -> None:
+    """A poisoned or stale cache object cannot cross into the Domain return contract."""
+
+    cache = SimpleNamespace(
+        get=Mock(return_value={"not": "a config"}),
+        delete=Mock(),
+        set=Mock(),
+    )
+    repository = SimpleNamespace(get_active_domain_config_if_available=lambda: None)
+    monkeypatch.setattr(config_module, "cache", cache)
+    monkeypatch.setattr(
+        config_module,
+        "get_equity_valuation_repair_config_repository",
+        lambda: repository,
+    )
+
+    result = config_module.get_valuation_repair_config()
+
+    assert isinstance(result, type(DEFAULT_VALUATION_REPAIR_CONFIG))
+    cache.delete.assert_called_once_with("equity:valuation_repair_config")
+    cache.set.assert_called_once()
+
+
+@pytest.mark.parametrize("use_cache", [1, "true", None])
+def test_runtime_config_rejects_non_boolean_cache_flag(use_cache: object) -> None:
+    """Dynamic callers cannot switch cache behavior with truthy non-booleans."""
+
+    with pytest.raises(ValueError, match="use_cache must be a boolean"):
+        config_module.get_valuation_repair_config(use_cache=use_cache)
+
+
+def test_bootstrap_interface_reuses_one_repository_per_batch(monkeypatch) -> None:
+    """Bootstrap batches do not rebuild the same repository for every row."""
+
+    repository = SimpleNamespace(upsert_stock_screening_rule=Mock())
+    factory = Mock(return_value=repository)
+    monkeypatch.setattr(interface_services, "get_equity_bootstrap_config_repository", factory)
+    rules = [
+        {"regime": "Recovery", "rule_name": "one"},
+        {"regime": "Deflation", "rule_name": "two"},
+    ]
+
+    interface_services.init_stock_screening_rules(rules=rules)
+
+    factory.assert_called_once_with()
+    assert repository.upsert_stock_screening_rule.call_count == 2

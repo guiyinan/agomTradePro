@@ -4810,3 +4810,21 @@
 - Equity 多维筛选、共享 asset-analysis API、Application 注册与 Domain matcher 回归 `107 passed`。
 - `apps/equity/application/services.py` 增量 mypy 清零；全仓基线从 `1060 errors / 377 files` 收紧为 `1053 errors / 376 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百一十八批
+
+- 按“估值修复配置可用性 × 缓存类型安全 × Application/Infrastructure 异常边界”收口 Equity valuation repair config runtime。
+- 数据表尚未迁移或暂不可用时，只在 Infrastructure repository 捕获 `OperationalError` / `ProgrammingError`，Application 通过明确的可用性方法降级到 settings/default；不再用宽泛 `Exception` 吞掉编程错误。
+- 数据库降级日志只记录异常类型，不再输出可能携带连接信息或凭据的异常正文。
+- 配置缓存命中后验证实际 Domain 类型；陈旧或污染值会先删除再回源，不再让动态对象穿透强类型返回契约。
+- `use_cache` 仅接受真实布尔值；整数、字符串和空值不再以 truthy/falsy 语义悄然改变运行路径。
+- 配置摘要复用 repository 的安全版本查询；清缓存函数补齐精确返回类型。
+- 三组 bootstrap 批量初始化各自只构造一次 repository，避免随配置行数重复执行 provider factory。
+- 修正一个曾被宽泛异常隐蔽的单元测试数据库依赖，通过显式注入默认 Domain 配置保持测试隔离，不恢复异常吞噬。
+- 新增 schema 不可用降级与日志脱敏、非法缓存淘汰、非法缓存开关和批量 repository 复用回归。
+
+## 第三百一十八批验证结果
+
+- Equity 配置专项回归 `14 passed`；Equity 单元、API edge 与组件回归 `224 passed`。
+- `apps/equity/application/config.py`、`apps/equity/application/interface_services.py` 与 `apps/equity/infrastructure/config_repositories.py` 增量 mypy 清零；全仓基线从 `1053 errors / 376 files` 收紧为 `1046 errors / 374 files`，净减少 `7 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
