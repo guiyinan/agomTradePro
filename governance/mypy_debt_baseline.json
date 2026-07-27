@@ -10,15 +10,12 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 714,
-    "files_with_errors": 324
+    "errors": 711,
+    "files_with_errors": 323
   },
   "modules": {
     "apps/account/application/tasks.py": {
       "arg-type": 1
-    },
-    "apps/account/application/use_cases.py": {
-      "unused-ignore": 1
     },
     "apps/account/apps.py": {
       "no-untyped-def": 1
@@ -39,9 +36,6 @@
     "apps/account/infrastructure/documentation_models.py": {
       "unused-ignore": 2
     },
-    "apps/account/infrastructure/market_price_service.py": {
-      "assignment": 3
-    },
     "apps/account/infrastructure/notification_service.py": {
       "no-untyped-def": 1,
       "type-arg": 2
@@ -49,6 +43,9 @@
     "apps/account/infrastructure/portfolio_repository.py": {
       "arg-type": 1,
       "type-arg": 1
+    },
+    "apps/account/infrastructure/repositories.py": {
+      "operator": 1
     },
     "apps/account/infrastructure/signals.py": {
       "no-untyped-def": 1

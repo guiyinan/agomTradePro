@@ -11,9 +11,10 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Protocol
 
-from django.utils import timezone  # type: ignore[import-untyped]
+from django.utils import timezone
 
 from apps.account.application.business_provider_gateway import get_backtest_repository
+from apps.account.application.market_price_contracts import MarketPriceServiceProtocol
 from apps.account.application.repository_provider import (
     AccountRepository,
     AssetMetadataRepository,
@@ -43,12 +44,6 @@ from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.repository_provider import get_signal_repository
 
 logger = logging.getLogger(__name__)
-
-
-class MarketPriceServiceProtocol(Protocol):
-    """Price lookup boundary required by account position use cases."""
-
-    def get_price_with_metadata(self, asset_code: str) -> dict[str, Any] | None: ...
 
 
 class SignalSnapshotRepositoryProtocol(Protocol):

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import Any, TypeVar
 
+from apps.account.application.market_price_contracts import MarketPriceProvider
 from apps.account.application.portfolio_api_contracts import (
     PortfolioApiRepository,
     UnifiedPositionService,
@@ -15,7 +16,7 @@ _ProviderT = TypeVar("_ProviderT")
 
 _portfolio_repository_factory: Callable[[], PortfolioApiRepository] | None = None
 _position_service_factory: Callable[[], UnifiedPositionService] | None = None
-_price_provider_factory: Callable[[int], Any] | None = None
+_price_provider_factory: Callable[[int], MarketPriceProvider] | None = None
 _default_accounts_provisioner: Callable[[Any, Decimal], None] | None = None
 _investment_accounts_reader: Callable[[int], list[dict[str, Any]]] | None = None
 _portfolio_account_resolver: Callable[[int], int | None] | None = None
@@ -26,7 +27,7 @@ def configure_simulated_trading_gateway(
     *,
     portfolio_repository_factory: Callable[[], PortfolioApiRepository],
     position_service_factory: Callable[[], UnifiedPositionService],
-    price_provider_factory: Callable[[int], Any],
+    price_provider_factory: Callable[[int], MarketPriceProvider],
     default_accounts_provisioner: Callable[[Any, Decimal], None],
     investment_accounts_reader: Callable[[int], list[dict[str, Any]]],
     portfolio_account_resolver: Callable[[int], int | None],
@@ -72,7 +73,7 @@ def get_unified_position_service() -> UnifiedPositionService:
     return factory()
 
 
-def build_market_price_provider(cache_ttl_minutes: int) -> Any:
+def build_market_price_provider(cache_ttl_minutes: int) -> MarketPriceProvider:
     """Build the trading price provider used by Account compatibility services."""
 
     factory = _require(_price_provider_factory, "price_provider")

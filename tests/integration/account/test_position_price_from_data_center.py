@@ -16,6 +16,7 @@ from unittest.mock import Mock
 import pytest
 from django.contrib.auth.models import User
 
+from apps.account.application.market_price_contracts import MarketPriceResult
 from apps.account.application.use_cases import (
     CreatePositionFromSignalUseCase,
     CreatePositionInput,
@@ -31,6 +32,24 @@ from apps.account.infrastructure.repositories import (
 from apps.signal.infrastructure.models import InvestmentSignalModel
 
 
+def _price_result(
+    price: float,
+    *,
+    asset_code: str = "000001.SZ",
+    source: str = "test_quote",
+) -> MarketPriceResult:
+    """Build a valid canonical quote for Account integration tests."""
+
+    return MarketPriceResult(
+        normalized_code=asset_code,
+        price=price,
+        as_of=None,
+        source=source,
+        freshness="realtime",
+        is_fallback=False,
+    )
+
+
 @pytest.fixture
 def market_price_service():
     """市场价格服务 fixture"""
@@ -41,6 +60,7 @@ def market_price_service():
 def test_user(db):
     """创建测试用户（每个测试独立）"""
     import uuid
+
     unique_id = str(uuid.uuid4())[:8]
     username = f"testuser_{unique_id}"
 
@@ -48,22 +68,23 @@ def test_user(db):
     user, created = User.objects.get_or_create(
         username=username,
         defaults={
-            'password': 'testpass123',  # Note: This needs to be hashed properly
-        }
+            "password": "testpass123",  # Note: This needs to be hashed properly
+        },
     )
     if created:
-        user.set_password('testpass123')
+        user.set_password("testpass123")
         user.save()
 
     # 使用 get_or_create 创建账户配置
     from apps.account.infrastructure.models import AccountProfileModel
+
     profile, created = AccountProfileModel.objects.get_or_create(
         user=user,
         defaults={
-            'display_name': '测试用户',
-            'initial_capital': Decimal("1000000.00"),
-            'risk_tolerance': 'moderate',
-        }
+            "display_name": "测试用户",
+            "initial_capital": Decimal("1000000.00"),
+            "risk_tolerance": "moderate",
+        },
     )
     return user
 
@@ -102,6 +123,7 @@ class TestMarketPriceService:
         """测试北京股票代码规范化"""
         assert market_price_service._normalize_asset_code("832566") == "832566.BJ"
         assert market_price_service._normalize_asset_code("430047") == "430047.BJ"
+        assert market_price_service._normalize_asset_code("920001") == "920001.BJ"
 
     def test_normalize_asset_code_already_formatted(self, market_price_service):
         """测试已格式化的代码保持不变"""
@@ -113,18 +135,18 @@ class TestMarketPriceService:
         """测试从行情接口获取价格（使用 mock）"""
         # Mock DataCenterPriceProvider
         mock_provider = Mock()
-        mock_provider.get_price.return_value = 12.50
+        mock_provider.get_price_result.return_value = _price_result(12.50)
         market_price_service._provider = mock_provider
 
         price = market_price_service.get_current_price("000001.SZ")
 
         assert price == Decimal("12.50")
-        mock_provider.get_price.assert_called_once_with("000001.SZ", None)
+        mock_provider.get_price_result.assert_called_once_with("000001.SZ", None)
 
     def test_get_current_price_failure(self, market_price_service):
         """测试获取价格失败的情况"""
         mock_provider = Mock()
-        mock_provider.get_price.return_value = None
+        mock_provider.get_price_result.return_value = None
         market_price_service._provider = mock_provider
 
         price = market_price_service.get_current_price("999999.SZ")
@@ -134,7 +156,10 @@ class TestMarketPriceService:
     def test_get_price_with_metadata(self, market_price_service):
         """测试获取价格及元数据"""
         mock_provider = Mock()
-        mock_provider.get_price.return_value = 15.75
+        mock_provider.get_price_result.return_value = _price_result(
+            15.75,
+            source="integration_quote",
+        )
         market_price_service._provider = mock_provider
 
         result = market_price_service.get_price_with_metadata("000001.SZ")
@@ -142,14 +167,18 @@ class TestMarketPriceService:
         assert result is not None
         assert result["price"] == Decimal("15.75")
         assert result["asset_code"] == "000001.SZ"
-        assert result["source"] == "DataCenterPriceProvider"
+        assert result["source"] == "integration_quote"
         assert "timestamp" in result
         assert "trade_date" in result
 
     def test_get_prices_batch(self, market_price_service):
         """测试批量获取价格"""
         mock_provider = Mock()
-        mock_provider.get_price.side_effect = [12.50, 25.30, 10.80]
+        mock_provider.get_price_result.side_effect = [
+            _price_result(12.50),
+            _price_result(25.30, asset_code="600001.SH"),
+            _price_result(10.80, asset_code="300001.SZ"),
+        ]
         market_price_service._provider = mock_provider
 
         codes = ["000001.SZ", "600001.SH", "300001.SZ"]
@@ -193,7 +222,7 @@ class TestCreatePositionWithMarketPrice:
         """测试使用行情价格创建持仓"""
         # Mock 行情价格
         mock_provider = Mock()
-        mock_provider.get_price.return_value = 18.50
+        mock_provider.get_price_result.return_value = _price_result(18.50)
         market_price_service._provider = mock_provider
 
         input_data = CreatePositionInput(
@@ -212,7 +241,7 @@ class TestCreatePositionWithMarketPrice:
         assert output.notional == Decimal("18500.00")
 
         # 验证调用了行情接口
-        mock_provider.get_price.assert_called_once()
+        mock_provider.get_price_result.assert_called_once()
 
     def test_create_position_with_explicit_price(self, use_case, test_user, market_price_service):
         """测试使用显式指定价格创建持仓（不调用行情接口）"""
@@ -231,13 +260,15 @@ class TestCreatePositionWithMarketPrice:
         assert output.position.avg_cost == Decimal("20.00")
 
         # 验证没有调用行情接口
-        mock_provider.get_price.assert_not_called()
+        mock_provider.get_price_result.assert_not_called()
 
-    def test_create_position_market_price_failure_raises_error(self, use_case, test_user, market_price_service):
+    def test_create_position_market_price_failure_raises_error(
+        self, use_case, test_user, market_price_service
+    ):
         """测试行情接口失败时抛出异常"""
         # Mock 行情接口失败
         mock_provider = Mock()
-        mock_provider.get_price.return_value = None
+        mock_provider.get_price_result.return_value = None
         market_price_service._provider = mock_provider
 
         input_data = CreatePositionInput(
@@ -250,17 +281,19 @@ class TestCreatePositionWithMarketPrice:
         with pytest.raises(ValueError, match="无法获取资产.*的价格"):
             use_case.execute(input_data)
 
-    def test_create_position_auto_calculate_shares_with_market_price(self, use_case, test_user, market_price_service):
+    def test_create_position_auto_calculate_shares_with_market_price(
+        self, use_case, test_user, market_price_service
+    ):
         """测试使用行情价格自动计算持仓数量"""
         mock_provider = Mock()
-        mock_provider.get_price.return_value = 10.0
+        mock_provider.get_price_result.return_value = _price_result(10.0)
         market_price_service._provider = mock_provider
 
         input_data = CreatePositionInput(
             user_id=test_user.id,
             asset_code="000001.SZ",
             shares=None,  # 自动计算
-            price=None,   # 从行情获取
+            price=None,  # 从行情获取
         )
 
         output = use_case.execute(input_data)
@@ -290,7 +323,7 @@ class TestCreatePositionFromSignalWithMarketPrice:
         """测试从信号创建持仓时使用行情价格"""
         # Mock 行情价格
         mock_provider = Mock()
-        mock_provider.get_price.return_value = 15.80
+        mock_provider.get_price_result.return_value = _price_result(15.80)
         market_price_service._provider = mock_provider
 
         output = use_case.execute(
@@ -305,14 +338,14 @@ class TestCreatePositionFromSignalWithMarketPrice:
         assert output.position.source == PositionSource.SIGNAL
 
         # 验证调用了行情接口
-        mock_provider.get_price.assert_called_once()
+        mock_provider.get_price_result.assert_called_once()
 
     def test_create_position_from_signal_market_price_failure_raises_error(
         self, use_case, test_user, test_signal, market_price_service
     ):
         """测试行情接口失败时抛出异常"""
         mock_provider = Mock()
-        mock_provider.get_price.return_value = None
+        mock_provider.get_price_result.return_value = None
         market_price_service._provider = mock_provider
 
         with pytest.raises(ValueError, match="无法获取资产.*的价格"):
@@ -330,7 +363,11 @@ class TestPriceSourceTraceability:
     def test_price_metadata_contains_source(self, market_price_service):
         """测试价格元数据包含来源信息"""
         mock_provider = Mock()
-        mock_provider.get_price.return_value = 22.50
+        mock_provider.get_price_result.return_value = _price_result(
+            22.50,
+            asset_code="600001.SH",
+            source="stored_close",
+        )
         market_price_service._provider = mock_provider
 
         metadata = market_price_service.get_price_with_metadata("600001.SH")
@@ -342,7 +379,7 @@ class TestPriceSourceTraceability:
         assert "trade_date" in metadata
 
         # 验证价格可追溯到数据源
-        assert metadata["source"] == "DataCenterPriceProvider"
+        assert metadata["source"] == "stored_close"
         assert isinstance(metadata["timestamp"], datetime)
 
     def test_price_service_singleton(self):
@@ -352,6 +389,7 @@ class TestPriceSourceTraceability:
         from apps.account.infrastructure.market_price_service import (
             get_market_price_service,
         )
+
         mps_module._price_service_instance = None
 
         service1 = get_market_price_service()
@@ -377,7 +415,7 @@ class TestMarketPriceIntegration:
 
         # Mock 行情价格
         mock_provider = Mock()
-        mock_provider.get_price.return_value = 16.88
+        mock_provider.get_price_result.return_value = _price_result(16.88)
         market_price_service._provider = mock_provider
 
         # 创建持仓
@@ -399,6 +437,7 @@ class TestMarketPriceIntegration:
 
         # 验证持仓已保存到数据库
         from apps.account.infrastructure.models import PositionModel
+
         position_model = PositionModel.objects.get(id=output.position.id)
         assert position_model.avg_cost == Decimal("16.88")
         assert position_model.current_price == Decimal("16.88")

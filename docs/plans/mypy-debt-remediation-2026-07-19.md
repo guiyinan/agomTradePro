@@ -5421,3 +5421,21 @@
 - 资产名称缓存与来源边界专项及既有组件回归 `15 passed`；Asset Analysis、Dashboard guardrail、Signal 与 TUI workbench 扩展回归 `255 passed`。
 - 名称 resolver、Application repository provider 与公共 facade 三个生产文件在联合及增量 mypy 口径均清零；全仓基线从 `724 errors / 327 files` 收紧为 `714 errors / 324 files`，净减少 `10 errors / 3 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal Agent、MCP、SDK 或部署实现。
+
+## 第三百五十五批
+
+- 按“伪造价格来源/日期 × 非有限或非正价格进入建仓 × 畸形代码触发数据查询 × 硬编码资产健康探测”收口 Account 市场价格服务。
+- 新增 Account 自有 `MarketPriceResult`、`MarketPriceMetadata` 与 provider/service Protocol；Account Application 不再以 `Any` 接收 Simulated Trading provider，也不直接依赖 Data Center 具体结果类，避免 Django autodiscovery 循环导入。
+- Simulated Trading adapter 将 Data Center 已验证的 canonical result 映射为 Account DTO，真实保留 `source/as_of/freshness/is_fallback`；Account metadata 不再硬编码 `DataCenterPriceProvider` 或用当天日期冒充行情日期，`timestamp` 只表达本次获取时间。
+- provider 返回必须是请求范围内的 Account canonical result；代码不匹配、历史日期不匹配、错误 shape、非正或非有限价格全部失败关闭。来源必须非空、长度受控且无换行，provider 异常日志只保留异常类型，不泄露底层错误正文。
+- 缓存 TTL 必须为非布尔正整数；资产代码在任何 provider I/O 前完成严格格式校验和市场规范化，补齐 `92xxxx.BJ`，拒绝未知后缀与任意字符串。
+- 批量查询限制为最多 500 项，先验证完整 scope，再按规范代码稳定去重；同一资产的裸代码、大小写和空格变体只查询一次，同时保留请求键映射。
+- `is_available` 改为无行情请求的 provider 配置就绪检查，不再依赖硬编码 `000001.SZ` 及实时数据是否恰好存在。
+- 新增 TTL、NaN/Inf/零/负数、来源审计、畸形 scope 无 I/O、跨资产结果隔离、批量去重、异常脱敏和 Data Center 元数据无损映射回归。
+
+## 第三百五十五批验证结果
+
+- Account 市场价格与 Simulated Trading adapter 专项 `51 passed`；持仓价格 Data Center 集成链 `19 passed`；Unified Price 与持仓失效检查扩展回归 `25 passed`。
+- Account 全量单元回归除既有仓储结构预算外 `108 passed`；唯一失败为未改动的 `apps/account/infrastructure/repositories.py` 已有 `1040` 个非空行，超过既有 `1000` 行预算，与本批价格链改动无关，留待独立仓储拆分批次处理。
+- 新 Account 价格合同、gateway、价格服务、Simulated Trading adapter/account gateway 与 Account use case 在联合及增量 mypy 口径均清零；全仓基线从 `714 errors / 324 files` 收紧为 `711 errors / 323 files`，净减少 `3 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、MCP、SDK 或部署实现。

@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from django.db import transaction
 
+from apps.account.application.market_price_contracts import MarketPriceProvider
 from apps.account.application.portfolio_api_contracts import (
     PortfolioApiRepository as PortfolioApiRepositoryProtocol,
 )
@@ -31,7 +32,7 @@ def _get_unified_position_service() -> UnifiedPositionServiceProtocol:
     return cast(UnifiedPositionServiceProtocol, UnifiedPositionService.default())
 
 
-def _build_price_provider(cache_ttl_minutes: int) -> Any:
+def _build_price_provider(cache_ttl_minutes: int) -> MarketPriceProvider:
     from apps.simulated_trading.infrastructure.price_provider import DataCenterPriceProvider
 
     return DataCenterPriceProvider(cache_ttl_minutes=cache_ttl_minutes)

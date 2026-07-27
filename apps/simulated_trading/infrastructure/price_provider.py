@@ -5,8 +5,13 @@
 """
 
 from datetime import date
+from typing import cast
 
-from apps.data_center.application.price_service import UnifiedPriceService
+from apps.account.application.market_price_contracts import (
+    MarketPriceResult,
+    PriceFreshness,
+)
+from apps.data_center.application.price_service import PriceLookupResult, UnifiedPriceService
 
 
 class DataCenterPriceProvider:
@@ -18,6 +23,28 @@ class DataCenterPriceProvider:
 
     def get_price(self, asset_code: str, trade_date: date | None = None) -> float | None:
         return self._price_service.get_price(asset_code=asset_code, trade_date=trade_date)
+
+    def get_price_result(
+        self,
+        asset_code: str,
+        trade_date: date | None = None,
+    ) -> MarketPriceResult | None:
+        """Return the canonical price together with its real provenance."""
+
+        result: PriceLookupResult | None = self._price_service.get_price_result(
+            asset_code=asset_code,
+            trade_date=trade_date,
+        )
+        if result is None:
+            return None
+        return MarketPriceResult(
+            normalized_code=result.normalized_code,
+            price=result.price,
+            as_of=result.as_of,
+            source=result.source,
+            freshness=cast(PriceFreshness, result.freshness),
+            is_fallback=result.is_fallback,
+        )
 
     def get_latest_price(self, asset_code: str) -> float | None:
         return self._price_service.get_latest_price(asset_code=asset_code)
