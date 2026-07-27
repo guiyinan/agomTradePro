@@ -5,6 +5,8 @@ DRF 视图定义。
 """
 
 import logging
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -33,9 +35,17 @@ from apps.task_monitor.interface.serializers import (
 
 logger = logging.getLogger(__name__)
 
+ViewMethod = TypeVar("ViewMethod", bound=Callable[..., object])
+
 _TASK_STATUS_VALUES = frozenset(
     {"pending", "started", "success", "failure", "retry", "revoked", "timeout"}
 )
+
+
+def typed_schema(*args: Any, **kwargs: Any) -> Callable[[ViewMethod], ViewMethod]:
+    """Narrow drf-spectacular's dynamic decorator at the third-party boundary."""
+
+    return cast(Callable[[ViewMethod], ViewMethod], extend_schema(*args, **kwargs))
 
 
 def _parse_positive_int(raw_value: str | None, *, field_name: str, default: int) -> int:
@@ -75,7 +85,7 @@ def _internal_error(operation: str) -> Response:
     )
 
 
-@extend_schema(
+@typed_schema(
     tags=["Task Monitor"],
     summary="获取任务状态",
     description="根据任务 ID 获取任务的执行状态",
@@ -109,7 +119,7 @@ def get_task_status(request: Request, task_id: str) -> Response:
         return _internal_error("get_task_status")
 
 
-@extend_schema(
+@typed_schema(
     tags=["Task Monitor"],
     summary="列出任务",
     description="列出任务执行记录，支持按任务名称、状态过滤",
@@ -192,7 +202,7 @@ def list_tasks(request: Request) -> Response:
         return _internal_error("list_tasks")
 
 
-@extend_schema(
+@typed_schema(
     tags=["Task Monitor"],
     summary="获取任务统计",
     description="获取指定任务的统计信息（成功率、平均运行时长等）",
@@ -260,7 +270,7 @@ def get_task_statistics(request: Request) -> Response:
         return _internal_error("get_task_statistics")
 
 
-@extend_schema(
+@typed_schema(
     tags=["Task Monitor"],
     summary="Celery 健康检查",
     description="检查 Celery 服务的健康状态（Broker 连接、Backend 连接、Worker 状态等）",
@@ -300,7 +310,7 @@ def health_check(request: Request) -> Response:
         )
 
 
-@extend_schema(
+@typed_schema(
     tags=["Task Monitor"],
     summary="任务监控概览",
     description="获取任务监控的概览信息（最近失败的任务、活跃的 Worker 等）",

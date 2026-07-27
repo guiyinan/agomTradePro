@@ -4983,3 +4983,16 @@
 - Task Monitor API、组件、管理命令、personal readiness 与 scheduler 回归 `235 passed`；`python manage.py help --commands` 正常列出完整命令集。
 - 两个 Task Monitor management 包初始化文件增量 mypy 清零；全仓基线从 `944 errors / 363 files` 收紧为 `924 errors / 361 files`，净减少 `20 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百二十八批
+
+- 按“正式 Task Monitor API 类型契约 × OpenAPI 装饰器动态边界 × 运行时零行为变更”收口 `apps/task_monitor/interface/views.py`。
+- 为 drf-spectacular `extend_schema` 增加局部泛型 façade，明确装饰器保持被包装 handler 的精确签名；`Any` 仅停留在第三方动态参数边界，不扩散到 Request、Response、Application use case 或业务 payload。
+- 五个正式 Task Monitor handler 全部切换到 typed schema 装饰器，清除全仓 `follow-imports=skip` 口径下的 5 个 untyped decorator 错误。
+- URL、`IsAdminUser` 权限、严格查询参数校验、provider 装配、序列化与稳定脱敏错误响应均保持不变。
+
+## 第三百二十八批验证结果
+
+- Task Monitor 正式接口、API 与组件回归 `47 passed`；并发运行时一次 Windows 测试库清理文件锁 warning 对应测试单独重跑 `1 passed` 且无 warning。
+- `apps/task_monitor/interface/views.py` 在 governed `follow-imports=skip` 与增量 `follow-imports=silent` 两种 mypy 口径均清零；全仓基线从 `924 errors / 361 files` 收紧为 `919 errors / 360 files`，净减少 `5 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

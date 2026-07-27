@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 924,
-    "files_with_errors": 361
+    "errors": 919,
+    "files_with_errors": 360
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1080,9 +1080,6 @@
     },
     "apps/task_monitor/interface/serializers.py": {
       "type-arg": 5
-    },
-    "apps/task_monitor/interface/views.py": {
-      "misc": 5
     },
     "apps/task_monitor/management/commands/backup_database.py": {
       "unused-ignore": 2
