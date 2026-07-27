@@ -5284,3 +5284,19 @@
 - Prompt Admin 注册、门禁与证据权限专项 `3 passed`；Prompt Domain、Application、初始化、组件、API 与 AI owner 扩展回归 `116 passed`。
 - 新 Interface Admin、根 bridge 与显式模型导出在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；删除旧 Infrastructure Admin 后全仓基线从 `789 errors / 340 files` 收紧为 `783 errors / 339 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百四十七批
+
+- 按“Task Monitor 运维证据可篡改/删除 × 动态 Admin 元数据 × 无效查询放大”收口任务监控后台。
+- TaskExecution 与 TaskAlert Admin 全部继承 `TypedModelAdmin[ConcreteModel]`，所有 ORM 字段只读，禁止新增、修改和删除；任务参数、结果、异常/traceback、状态、重试、Worker、告警发送结果与 metadata 只能由运行时/Repository 写入。
+- TaskExecution 删除自定义 `get_queryset().select_related().annotate(Count(id))`；模型无关联字段且每行 Count 恒为 1，该查询只增加无业务价值的聚合开销。
+- 状态、优先级与告警级别展示改用 `@admin.display(description=..., ordering=...)` 和 `SafeString` 精确返回类型，删除动态 `short_description/admin_order_field`。
+- badge 继续通过 `format_html` 转义动态 display label，颜色和排序字段保持不变；管理员仍可检索和查看运维证据。
+- 删除操作明确引导使用 Repository 分层、有界 retention，不允许通过 Admin 绕过备份前置和分级保留策略。
+- 新增两个模型唯一 typed 注册、全不可变权限、HTML 转义和 display ordering metadata 回归。
+
+## 第三百四十七批验证结果
+
+- Task Monitor Admin 专项 `3 passed`；Task Monitor unit/component/API 扩展回归 `54 passed`。并发套件退出时一次 Windows 测试库文件锁 warning 对应备份测试单独重跑 `1 passed` 且无 warning。
+- `apps/task_monitor/interface/admin.py` 在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `783 errors / 339 files` 收紧为 `774 errors / 338 files`，净减少 `9 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

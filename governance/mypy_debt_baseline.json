@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 783,
-    "files_with_errors": 339
+    "errors": 774,
+    "files_with_errors": 338
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -994,11 +994,6 @@
     },
     "apps/task_monitor/infrastructure/repositories.py": {
       "unused-ignore": 6
-    },
-    "apps/task_monitor/interface/admin.py": {
-      "attr-defined": 6,
-      "no-untyped-def": 1,
-      "type-arg": 2
     },
     "apps/task_monitor/management/commands/backup_database.py": {
       "unused-ignore": 2

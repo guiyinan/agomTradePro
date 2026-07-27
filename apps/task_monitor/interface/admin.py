@@ -5,14 +5,16 @@ Django Admin 配置。
 """
 
 from django.contrib import admin
-from django.db.models import Count
+from django.http import HttpRequest
 from django.utils.html import format_html
+from django.utils.safestring import SafeString
 
 from apps.task_monitor.models import TaskAlertModel, TaskExecutionModel
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 @admin.register(TaskExecutionModel)
-class TaskExecutionAdmin(admin.ModelAdmin):
+class TaskExecutionAdmin(TypedModelAdmin[TaskExecutionModel]):
     """任务执行记录 Admin"""
 
     list_display = [
@@ -28,7 +30,7 @@ class TaskExecutionAdmin(admin.ModelAdmin):
     ]
     list_filter = ["status", "priority", "queue", "created_at"]
     search_fields = ["task_id", "task_name", "exception"]
-    readonly_fields = ["created_at", "updated_at"]
+    readonly_fields = [field.name for field in TaskExecutionModel._meta.fields]
     date_hierarchy = "created_at"
 
     fieldsets = (
@@ -40,7 +42,8 @@ class TaskExecutionAdmin(admin.ModelAdmin):
         ("元数据", {"fields": ("created_at", "updated_at")}),
     )
 
-    def status_colored(self, obj: TaskExecutionModel) -> str:
+    @admin.display(description="状态", ordering="status")
+    def status_colored(self, obj: TaskExecutionModel) -> SafeString:
         """带颜色的状态显示"""
         colors = {
             "pending": "gray",
@@ -58,10 +61,8 @@ class TaskExecutionAdmin(admin.ModelAdmin):
             obj.get_status_display(),
         )
 
-    status_colored.short_description = "状态"
-    status_colored.admin_order_field = "status"
-
-    def priority_colored(self, obj: TaskExecutionModel) -> str:
+    @admin.display(description="优先级", ordering="priority")
+    def priority_colored(self, obj: TaskExecutionModel) -> SafeString:
         """带颜色的优先级显示"""
         colors = {
             "low": "gray",
@@ -76,17 +77,35 @@ class TaskExecutionAdmin(admin.ModelAdmin):
             obj.get_priority_display(),
         )
 
-    priority_colored.short_description = "优先级"
-    priority_colored.admin_order_field = "priority"
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Prevent operators from fabricating task execution evidence."""
 
-    def get_queryset(self, request):
-        """优化查询性能"""
-        qs = super().get_queryset(request)
-        return qs.select_related().annotate(_status_count=Count("id"))
+        del request
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: TaskExecutionModel | None = None,
+    ) -> bool:
+        """Keep task state, result, exception, and timing evidence immutable."""
+
+        del request, obj
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: TaskExecutionModel | None = None,
+    ) -> bool:
+        """Require bounded repository retention instead of ad-hoc Admin deletion."""
+
+        del request, obj
+        return False
 
 
 @admin.register(TaskAlertModel)
-class TaskAlertAdmin(admin.ModelAdmin):
+class TaskAlertAdmin(TypedModelAdmin[TaskAlertModel]):
     """任务告警记录 Admin"""
 
     list_display = [
@@ -98,7 +117,7 @@ class TaskAlertAdmin(admin.ModelAdmin):
     ]
     list_filter = ["level", "is_sent", "triggered_at"]
     search_fields = ["task_id", "task_name", "title", "message"]
-    readonly_fields = ["triggered_at", "sent_at"]
+    readonly_fields = [field.name for field in TaskAlertModel._meta.fields]
     date_hierarchy = "triggered_at"
 
     fieldsets = (
@@ -110,7 +129,8 @@ class TaskAlertAdmin(admin.ModelAdmin):
         ("时间信息", {"fields": ("triggered_at",)}),
     )
 
-    def level_colored(self, obj: TaskAlertModel) -> str:
+    @admin.display(description="级别", ordering="level")
+    def level_colored(self, obj: TaskAlertModel) -> SafeString:
         """带颜色的级别显示"""
         colors = {
             "info": "blue",
@@ -124,5 +144,28 @@ class TaskAlertAdmin(admin.ModelAdmin):
             obj.get_level_display(),
         )
 
-    level_colored.short_description = "级别"
-    level_colored.admin_order_field = "level"
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Prevent operators from fabricating task alerts."""
+
+        del request
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: TaskAlertModel | None = None,
+    ) -> bool:
+        """Keep alert delivery and exception evidence immutable."""
+
+        del request, obj
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: TaskAlertModel | None = None,
+    ) -> bool:
+        """Prevent ad-hoc deletion of task alert evidence through Admin."""
+
+        del request, obj
+        return False
