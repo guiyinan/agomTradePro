@@ -110,6 +110,26 @@ class ScoringWeightConfigRepository:
             queryset = queryset.exclude(pk=exclude_pk)
         queryset.update(is_active=False)
 
+    def activate_config(self, config_id: int) -> str:
+        """Atomically activate one persisted scoring-weight candidate."""
+
+        if isinstance(config_id, bool) or not isinstance(config_id, int) or config_id <= 0:
+            raise ValueError("config_id must be a positive integer")
+        with transaction.atomic():
+            config = ScoringWeightConfigModel._default_manager.select_for_update().get(pk=config_id)
+            list(
+                ScoringWeightConfigModel._default_manager.select_for_update()
+                .filter(is_active=True)
+                .exclude(pk=config.pk)
+                .values_list("pk", flat=True)
+            )
+            ScoringWeightConfigModel._default_manager.filter(is_active=True).exclude(
+                pk=config.pk
+            ).update(is_active=False)
+            config.is_active = True
+            config.save(update_fields=["is_active", "updated_at"])
+        return str(config.name)
+
 
 class ValuationRepairConfigRepository:
     """估值修复配置仓储。"""

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1004,
-    "files_with_errors": 369
+    "errors": 989,
+    "files_with_errors": 368
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -639,11 +639,6 @@
     "apps/equity/interface/__init__.py": {
       "no-untyped-call": 3,
       "no-untyped-def": 4
-    },
-    "apps/equity/interface/admin.py": {
-      "attr-defined": 4,
-      "no-untyped-def": 6,
-      "type-arg": 5
     },
     "apps/equity/interface/multidim_screen_views.py": {
       "no-untyped-def": 2

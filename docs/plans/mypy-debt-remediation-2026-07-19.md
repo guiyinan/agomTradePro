@@ -4864,3 +4864,19 @@
 - Regime 单元、Domain、组件与 API 回归 `176 passed`。
 - Regime Admin/Application/Infrastructure 与共享 typed Admin 基座的 6 个生产文件增量 mypy 清零；全仓基线从 `1024 errors / 373 files` 收紧为 `1004 errors / 369 files`，净减少 `20 errors / 4 files`。
 - Django system check、架构 delta、唯一 Admin/旧 GET 路由引用核对、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百二十一批
+
+- 按“股票评分权重发布原子性 × 活动配置不可变性 × Equity Admin 类型边界”收口 Equity Admin。
+- 评分权重不再通过编辑页勾选 `is_active` 时先停用旧配置、后保存新配置；新建配置固定保存为未激活候选，发布改为 Django Admin 标准单选 POST action。
+- repository 在同一数据库事务内锁定候选与当前活动权重，再切换唯一活动状态；候选保存失败时整笔回滚，旧活动权重不会被提前停用而形成运行时配置真空。
+- 活动权重配置不可直接修改或删除，必须编辑未激活候选并显式发布；Admin action 验证已认证持久化用户、change 权限、单选数量和有效主键。
+- 五组 Equity Admin 全部迁移到 `TypedModelAdmin[ConcreteModel]`，handler、QuerySet、ModelForm、HTTP response、Decimal 展示和 display metadata 补齐精确类型，移除动态 `short_description`。
+- 日线涨跌幅只以开盘价是否为零作为除法条件，收盘价为零时正确显示 `-100%`；零市值按真实 `0万` 展示，不再与缺失值混为 `-`。
+- 新增评分权重原子切换、失败回滚、单选 action、活动配置只读和新建候选强制未激活回归。
+
+## 第三百二十一批验证结果
+
+- Equity 权重发布专项 `15 passed`；Equity 单元、API edge、配置组件与 Admin 回归 `228 passed`。
+- `apps/equity/interface/admin.py` 增量 mypy 清零；全仓基线从 `1004 errors / 369 files` 收紧为 `989 errors / 368 files`，净减少 `15 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort 与增量 mypy 通过；全仓 baseline 写入阶段完成后命令进程超时退出，随后只读 debt ceiling 门禁通过并确认最终基线。
