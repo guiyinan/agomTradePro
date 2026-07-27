@@ -1,52 +1,26 @@
-"""
-Hedge Module Infrastructure Layer - Data Adapters
+"""Validated persisted-price and last-known-good adapters for hedge analytics."""
 
-Data source adapters with failover support for hedge portfolio management.
-Follows the failover pattern: Primary (Tushare) → Secondary (Mock/Cache)
-"""
+from __future__ import annotations
 
+import hashlib
 import logging
-from datetime import date, timedelta
+import math
+from datetime import date, datetime, timedelta
+from typing import Protocol, TypedDict
 
+from django.core.cache import cache
+
+from apps.data_center.domain.protocols import PriceBarRepositoryProtocol
 from apps.data_center.infrastructure.repositories import PriceBarRepository
 
 logger = logging.getLogger(__name__)
 
-
-class HedgeDataSource:
-    """Protocol for hedge data sources"""
-
-    def get_asset_prices(
-        self,
-        asset_code: str,
-        end_date: date,
-        days: int = 60,
-        *,
-        cache_result: bool = True,
-    ) -> list[float] | None:
-        """
-        Get historical prices for an asset.
-
-        Args:
-            asset_code: Asset code (ETF code like '510300')
-            end_date: End date for price data
-            days: Number of days of history to fetch
-
-        Returns:
-            List of closing prices (oldest to newest) or None if unavailable
-        """
-        raise NotImplementedError
+HEDGE_PRICE_CACHE_PREFIX = "hedge:prices:v2"
+HEDGE_PRICE_CACHE_TIMEOUT = 86400
 
 
-class TushareHedgeAdapter(HedgeDataSource):
-    """
-    Tushare data source for ETF price data.
-
-    Primary data source for hedge module.
-    """
-
-    def __init__(self):
-        self._repo = PriceBarRepository()
+class HedgeDataSource(Protocol):
+    """Historical price-series contract consumed by hedge calculations."""
 
     def get_asset_prices(
         self,
@@ -56,107 +30,160 @@ class TushareHedgeAdapter(HedgeDataSource):
         *,
         cache_result: bool = True,
     ) -> list[float] | None:
-        """Get ETF prices from persisted price bars."""
-        try:
-            ts_code = self._convert_to_ts_code(asset_code)
-            start_date = end_date - timedelta(days=days * 2)
-            bars = list(reversed(self._repo.get_bars(ts_code, start=start_date, end=end_date, limit=days * 4)))
-            if not bars:
-                return None
-            prices = [float(bar.close) for bar in bars]
-            return prices[-days:] if len(prices) >= days else prices
+        """Return real historical closes in ascending date order when available."""
 
-        except Exception as e:
-            logger.warning(f"Tushare price fetch failed for {asset_code}: {e}")
+
+class _CachedPricePayload(TypedDict):
+    asset_code: str
+    end_date: str
+    days: int
+    prices: list[float]
+
+
+def _validate_request(asset_code: object, end_date: object, days: object) -> tuple[str, date, int]:
+    """Validate the persistence/cache request boundary before any I/O."""
+
+    if not isinstance(asset_code, str) or not asset_code.strip():
+        raise ValueError("asset_code must be a non-empty string")
+    if not isinstance(end_date, date) or isinstance(end_date, datetime):
+        raise ValueError("end_date must be a date")
+    if isinstance(days, bool) or not isinstance(days, int) or days <= 1:
+        raise ValueError("days must be an integer greater than one")
+    return asset_code.strip().upper(), end_date, days
+
+
+def _normalize_prices(value: object, *, days: int) -> list[float] | None:
+    """Narrow an external/cache value to finite positive historical closes."""
+
+    if not isinstance(value, (list, tuple)) or not value or len(value) > days:
+        return None
+    prices: list[float] = []
+    for item in value:
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
             return None
-
-    def _convert_to_ts_code(self, asset_code: str) -> str:
-        """Convert asset code to Tushare format"""
-        # If already has suffix, return as-is
-        if '.' in asset_code:
-            return asset_code
-
-        # Add appropriate suffix based on code
-        if asset_code.startswith('5') or asset_code.startswith('6'):
-            return f"{asset_code}.SH"  # Shanghai
-        elif asset_code.startswith('0') or asset_code.startswith('1') or asset_code.startswith('3'):
-            return f"{asset_code}.SZ"  # Shenzhen
-        else:
-            return asset_code
-
-
-class AkshareHedgeAdapter(HedgeDataSource):
-    """
-    Akshare data source for ETF price data.
-
-    Secondary data source for hedge module.
-    """
-
-    def __init__(self):
-        self._repo = PriceBarRepository()
-
-    def get_asset_prices(
-        self,
-        asset_code: str,
-        end_date: date,
-        days: int = 60,
-        *,
-        cache_result: bool = True,
-    ) -> list[float] | None:
-        """Get ETF prices from persisted price bars."""
-        try:
-            symbol = self._convert_to_symbol(asset_code)
-            start_date = end_date - timedelta(days=days * 2)
-            bars = list(reversed(self._repo.get_bars(symbol, start=start_date, end=end_date, limit=days * 4)))
-            if not bars:
-                return None
-            prices = [float(bar.close) for bar in bars]
-            return prices[-days:] if len(prices) >= days else prices
-
-        except Exception as e:
-            logger.warning(f"Akshare price fetch failed for {asset_code}: {e}")
+        price = float(item)
+        if not math.isfinite(price) or price <= 0:
             return None
-
-    def _convert_to_symbol(self, asset_code: str) -> str:
-        """Convert asset code to Akshare symbol format"""
-        # Akshare uses different format - may need mapping
-        # For now, return as-is and handle in fetch
-        return asset_code
+        prices.append(price)
+    return prices
 
 
-HEDGE_PRICE_CACHE_PREFIX = "hedge:prices"
-HEDGE_PRICE_CACHE_TIMEOUT = 86400  # 24 hours
+def _cache_key(asset_code: str, end_date: date, days: int) -> str:
+    """Build a backend-safe key scoped to the exact historical request."""
+
+    scope = f"{asset_code}|{end_date.isoformat()}|{days}"
+    digest = hashlib.blake2s(scope.encode("utf-8"), digest_size=12).hexdigest()
+    return f"{HEDGE_PRICE_CACHE_PREFIX}:{digest}"
 
 
-def _cache_hedge_prices(asset_code: str, prices: list[float]) -> None:
-    """Cache successfully fetched prices for fallback use"""
+def _cache_hedge_prices(
+    asset_code: str,
+    end_date: date,
+    days: int,
+    prices: list[float],
+) -> None:
+    """Store and verify one exact-scope last-known-good historical series."""
+
+    normalized_code, normalized_date, normalized_days = _validate_request(
+        asset_code, end_date, days
+    )
+    normalized_prices = _normalize_prices(prices, days=normalized_days)
+    if normalized_prices is None:
+        raise ValueError("prices must contain finite positive historical closes")
+    key = _cache_key(normalized_code, normalized_date, normalized_days)
+    payload: _CachedPricePayload = {
+        "asset_code": normalized_code,
+        "end_date": normalized_date.isoformat(),
+        "days": normalized_days,
+        "prices": normalized_prices,
+    }
     try:
-        from django.core.cache import cache
-        cache_key = f"{HEDGE_PRICE_CACHE_PREFIX}:{asset_code}"
-        cache.set(cache_key, prices, timeout=HEDGE_PRICE_CACHE_TIMEOUT)
-    except Exception as e:
-        logger.debug(f"Failed to cache hedge prices for {asset_code}: {e}")
+        cache.set(key, payload, timeout=HEDGE_PRICE_CACHE_TIMEOUT)
+        verified = _parse_cached_payload(
+            cache.get(key),
+            asset_code=normalized_code,
+            end_date=normalized_date,
+            days=normalized_days,
+        )
+        if verified != normalized_prices:
+            cache.delete(key)
+            logger.warning("Hedge historical price cache verification failed")
+    except Exception as exc:
+        logger.warning(
+            "Hedge historical price cache write failed: error_type=%s",
+            type(exc).__name__,
+        )
 
 
-def _get_cached_hedge_prices(asset_code: str) -> list[float] | None:
-    """Retrieve cached prices from a previous successful fetch"""
+def _parse_cached_payload(
+    value: object,
+    *,
+    asset_code: str,
+    end_date: date,
+    days: int,
+) -> list[float] | None:
+    """Validate cache metadata and series before hedge analytics consume it."""
+
+    if not isinstance(value, dict):
+        return None
+    if (
+        value.get("asset_code") != asset_code
+        or value.get("end_date") != end_date.isoformat()
+        or value.get("days") != days
+    ):
+        return None
+    return _normalize_prices(value.get("prices"), days=days)
+
+
+def _get_cached_hedge_prices(
+    asset_code: str,
+    end_date: date,
+    days: int,
+) -> list[float] | None:
+    """Return only an exact-scope, validated last-known-good historical series."""
+
+    normalized_code, normalized_date, normalized_days = _validate_request(
+        asset_code, end_date, days
+    )
+    key = _cache_key(normalized_code, normalized_date, normalized_days)
     try:
-        from django.core.cache import cache
-        cache_key = f"{HEDGE_PRICE_CACHE_PREFIX}:{asset_code}"
-        return cache.get(cache_key)
-    except Exception as e:
-        logger.debug(f"Failed to read cached hedge prices for {asset_code}: {e}")
+        return _parse_cached_payload(
+            cache.get(key),
+            asset_code=normalized_code,
+            end_date=normalized_date,
+            days=normalized_days,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Hedge historical price cache read failed: error_type=%s",
+            type(exc).__name__,
+        )
         return None
 
 
-class CachedHedgeAdapter(HedgeDataSource):
-    """
-    Cached data source for hedge module.
+class _PersistedPriceAdapter:
+    """Base adapter for governed Data Center price bars."""
 
-    Reads last-known-good prices from Django cache (written by Tushare/Akshare
-    on successful fetches). Falls back to realtime price cache if no historical
-    data is available.
-    """
+    def __init__(self, repository: PriceBarRepositoryProtocol | None = None) -> None:
+        self._repo = repository if repository is not None else PriceBarRepository()
+
+    def _load_prices(self, asset_code: str, end_date: date, days: int) -> list[float] | None:
+        normalized_code, normalized_date, normalized_days = _validate_request(
+            asset_code, end_date, days
+        )
+        start_date = normalized_date - timedelta(days=normalized_days * 2)
+        bars = self._repo.get_bars(
+            normalized_code,
+            start=start_date,
+            end=normalized_date,
+            limit=normalized_days * 4,
+        )
+        prices = [float(bar.close) for bar in reversed(bars)]
+        return _normalize_prices(prices[-normalized_days:], days=normalized_days)
+
+
+class TushareHedgeAdapter(_PersistedPriceAdapter):
+    """Read governed price bars using a Tushare-style canonical asset code."""
 
     def get_asset_prices(
         self,
@@ -166,48 +193,27 @@ class CachedHedgeAdapter(HedgeDataSource):
         *,
         cache_result: bool = True,
     ) -> list[float] | None:
-        """Return cached prices from previous successful fetches"""
-        # 1. Try Django cache (last-known-good from Tushare/Akshare)
-        cached = _get_cached_hedge_prices(asset_code)
-        if cached and len(cached) > 0:
-            logger.info(f"Returning cached prices for {asset_code} ({len(cached)} data points)")
-            return cached[-days:] if len(cached) >= days else cached
+        """Return persisted historical closes without fabricating missing periods."""
 
-        # 2. Try realtime price cache (single latest price)
-        latest_price = self._get_realtime_price(asset_code)
-        if latest_price is not None:
-            logger.info(f"Using realtime price for {asset_code}: {latest_price}")
-            return [latest_price] * days
-
-        return None
+        del cache_result
+        return self._load_prices(self._convert_to_ts_code(asset_code), end_date, days)
 
     @staticmethod
-    def _get_realtime_price(asset_code: str) -> float | None:
-        """Try to get latest price from realtime cache"""
-        try:
-            from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
-            repo = RedisRealtimePriceRepository()
-            price_data = repo.get_latest_price(asset_code)
-            if price_data and price_data.price > 0:
-                return float(price_data.price)
-        except Exception:
-            pass
-        return None
+    def _convert_to_ts_code(asset_code: str) -> str:
+        """Convert a bare mainland security code to its exchange suffix."""
+
+        normalized = asset_code.strip().upper()
+        if "." in normalized:
+            return normalized
+        if normalized.startswith(("5", "6")):
+            return f"{normalized}.SH"
+        if normalized.startswith(("0", "1", "3")):
+            return f"{normalized}.SZ"
+        return normalized
 
 
-class FailoverHedgeAdapter(HedgeDataSource):
-    """
-    Failover adapter for hedge data sources.
-
-    Tries sources in order: Tushare → Akshare → Cached
-    """
-
-    def __init__(self):
-        self.sources = [
-            TushareHedgeAdapter(),
-            AkshareHedgeAdapter(),
-            CachedHedgeAdapter(),
-        ]
+class AkshareHedgeAdapter(_PersistedPriceAdapter):
+    """Read governed price bars using the supplied Data Center asset code."""
 
     def get_asset_prices(
         self,
@@ -217,42 +223,95 @@ class FailoverHedgeAdapter(HedgeDataSource):
         *,
         cache_result: bool = True,
     ) -> list[float] | None:
-        """Get prices with automatic failover and caching"""
-        last_error = None
+        """Return persisted historical closes without fabricating missing periods."""
 
-        for i, source in enumerate(self.sources):
+        del cache_result
+        return self._load_prices(asset_code, end_date, days)
+
+
+class CachedHedgeAdapter:
+    """Read an exact-scope last-known-good historical series from cache."""
+
+    def get_asset_prices(
+        self,
+        asset_code: str,
+        end_date: date,
+        days: int = 60,
+        *,
+        cache_result: bool = True,
+    ) -> list[float] | None:
+        """Return validated history; a single realtime quote is never expanded."""
+
+        del cache_result
+        return _get_cached_hedge_prices(asset_code, end_date, days)
+
+
+class FailoverHedgeAdapter:
+    """Try governed persisted readers, then exact-scope cached history."""
+
+    def __init__(self, sources: list[HedgeDataSource] | None = None) -> None:
+        self.sources: list[HedgeDataSource] = (
+            list(sources)
+            if sources is not None
+            else [TushareHedgeAdapter(), AkshareHedgeAdapter(), CachedHedgeAdapter()]
+        )
+
+    def get_asset_prices(
+        self,
+        asset_code: str,
+        end_date: date,
+        days: int = 60,
+        *,
+        cache_result: bool = True,
+    ) -> list[float] | None:
+        """Return the first validated real historical series, with safe caching."""
+
+        normalized_code, normalized_date, normalized_days = _validate_request(
+            asset_code, end_date, days
+        )
+        last_error_type: str | None = None
+        for index, source in enumerate(self.sources):
             try:
-                prices = source.get_asset_prices(asset_code, end_date, days)
-
-                if prices and len(prices) > 0:
-                    if i > 0:
-                        logger.info(f"Using fallback source {i+1} for {asset_code}")
-
-                    # Cache successful results from primary sources (not CachedHedgeAdapter)
-                    if cache_result and not isinstance(source, CachedHedgeAdapter):
-                        _cache_hedge_prices(asset_code, prices)
-
-                    return prices
-
-            except Exception as e:
-                last_error = e
-                logger.warning(f"Source {i+1} failed for {asset_code}: {e}")
-                continue
-
-        if last_error is not None:
-            logger.warning(f"All data sources failed for {asset_code}, last error: {last_error}")
+                candidate = source.get_asset_prices(
+                    normalized_code,
+                    normalized_date,
+                    normalized_days,
+                )
+                prices = _normalize_prices(candidate, days=normalized_days)
+                if prices is None:
+                    continue
+                if index > 0:
+                    logger.info("Using hedge historical price fallback source %s", index + 1)
+                if cache_result and not isinstance(source, CachedHedgeAdapter):
+                    _cache_hedge_prices(
+                        normalized_code,
+                        normalized_date,
+                        normalized_days,
+                        prices,
+                    )
+                return prices
+            except Exception as exc:
+                last_error_type = type(exc).__name__
+                logger.warning(
+                    "Hedge historical price source failed: source=%s error_type=%s",
+                    index + 1,
+                    last_error_type,
+                )
+        if last_error_type is not None:
+            logger.warning(
+                "All hedge historical price sources failed: error_type=%s",
+                last_error_type,
+            )
         return None
 
 
-# Singleton instance for use in the application
-_hedge_adapter_instance = None
+_hedge_adapter_instance: HedgeDataSource | None = None
 
 
 def get_hedge_adapter() -> HedgeDataSource:
-    """Get the singleton hedge data adapter"""
-    global _hedge_adapter_instance
+    """Return the process-local hedge price adapter singleton."""
 
+    global _hedge_adapter_instance
     if _hedge_adapter_instance is None:
         _hedge_adapter_instance = FailoverHedgeAdapter()
-
     return _hedge_adapter_instance

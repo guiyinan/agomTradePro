@@ -5124,3 +5124,19 @@
 - Management 包、MCP tools 页面、权限与命令发现定向回归 `9 passed`；AI Capability Domain、Application、MCP catalog、组件、API 与页面扩展回归 `716 passed`。
 - `apps/ai_capability/management/__init__.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `862 errors / 350 files` 收紧为 `856 errors / 349 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百三十七批
+
+- 按“实时单价伪造历史 × 对冲相关性输入污染 × 缓存跨范围串用”收口 Hedge 历史价格 adapter 与 failover。
+- 删除 `CachedHedgeAdapter` 把单个实时价格重复 N 次充当历史序列的逻辑；缺少真实历史或精确 last-known-good 缓存时返回 `None`，由相关性、beta、有效性与绩效用例按既有契约失败关闭。
+- 缓存键升级为资产代码、截止日与窗口长度的稳定 hash 精确范围；payload 同时保存并核验 scope metadata，旧裸 list、范围不匹配、损坏结构、布尔、非数值、非有限、零或负价格全部拒绝。
+- last-known-good 写入执行 round-trip 校验，回读不一致时删除当前键；缓存异常只记录异常类型且不阻断已经取得的真实持久化价格。
+- Tushare/Akshare 兼容 adapter 统一读取 Data Center `PriceBarRepositoryProtocol`，按日期升序返回真实收盘价；Repository 可注入，资产、纯 `date` 截止日和大于 1 的窗口在 I/O 前严格校验。
+- Failover 对每个来源返回值再次执行有限正数序列收窄，非法来源结果不能进入计算或缓存；日志不再回显底层异常正文，singleton 与各构造函数补齐精确类型。
+- 新增缓存范围隔离、旧/损坏缓存拒绝、非法来源跳过、真实 bars 顺序和动态参数前置拒绝回归。
+
+## 第三百三十七批验证结果
+
+- Hedge adapter、只读相关性和降级日志定向回归 `14 passed`；Hedge Domain、Application、组件、API 与 AI Capability catalog 扩展回归 `117 passed`。
+- `apps/hedge/infrastructure/adapters/__init__.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `856 errors / 349 files` 收紧为 `849 errors / 348 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

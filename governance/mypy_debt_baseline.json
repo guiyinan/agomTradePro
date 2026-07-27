@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 856,
-    "files_with_errors": 349
+    "errors": 849,
+    "files_with_errors": 348
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -680,11 +680,6 @@
       "no-untyped-def": 1
     },
     "apps/fund/management/commands/prepare_fund_research_data.py": {
-      "no-untyped-def": 3
-    },
-    "apps/hedge/infrastructure/adapters/__init__.py": {
-      "no-any-return": 1,
-      "no-untyped-call": 3,
       "no-untyped-def": 3
     },
     "apps/hedge/interface/api_urls.py": {
