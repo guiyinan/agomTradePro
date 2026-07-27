@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 832,
-    "files_with_errors": 346
+    "errors": 822,
+    "files_with_errors": 345
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -660,11 +660,6 @@
     },
     "apps/fund/infrastructure/models.py": {
       "no-untyped-def": 7
-    },
-    "apps/fund/interface/admin.py": {
-      "attr-defined": 2,
-      "no-untyped-def": 2,
-      "type-arg": 6
     },
     "apps/fund/interface/api_urls.py": {
       "no-untyped-def": 1

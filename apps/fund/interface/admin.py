@@ -12,10 +12,11 @@ from apps.fund.models import (
     FundPerformanceModel,
     FundSectorAllocationModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 @admin.register(FundInfoModel)
-class FundInfoAdmin(admin.ModelAdmin):
+class FundInfoAdmin(TypedModelAdmin[FundInfoModel]):
     """Admin interface for FundInfo"""
 
     list_display = [
@@ -41,7 +42,8 @@ class FundInfoAdmin(admin.ModelAdmin):
         ("时间戳", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
 
-    def fund_scale_display(self, obj):
+    @admin.display(description="基金规模", ordering="fund_scale")
+    def fund_scale_display(self, obj: FundInfoModel) -> str:
         """格式化基金规模显示"""
         if obj.fund_scale:
             if obj.fund_scale >= 100000000:
@@ -49,11 +51,9 @@ class FundInfoAdmin(admin.ModelAdmin):
             return f"{obj.fund_scale / 10000:.0f}万"
         return "-"
 
-    fund_scale_display.short_description = "基金规模"
-
 
 @admin.register(FundManagerModel)
-class FundManagerAdmin(admin.ModelAdmin):
+class FundManagerAdmin(TypedModelAdmin[FundManagerModel]):
     """Admin interface for FundManager"""
 
     list_display = [
@@ -80,7 +80,7 @@ class FundManagerAdmin(admin.ModelAdmin):
 
 
 @admin.register(FundNetValueModel)
-class FundNetValueAdmin(admin.ModelAdmin):
+class FundNetValueAdmin(TypedModelAdmin[FundNetValueModel]):
     """Admin interface for FundNetValue"""
 
     list_display = ["fund_code", "nav_date", "unit_nav", "accum_nav", "daily_return"]
@@ -97,7 +97,7 @@ class FundNetValueAdmin(admin.ModelAdmin):
 
 
 @admin.register(FundHoldingModel)
-class FundHoldingAdmin(admin.ModelAdmin):
+class FundHoldingAdmin(TypedModelAdmin[FundHoldingModel]):
     """Admin interface for FundHolding"""
 
     list_display = [
@@ -130,7 +130,8 @@ class FundHoldingAdmin(admin.ModelAdmin):
         ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
 
-    def holding_value_display(self, obj):
+    @admin.display(description="持仓市值", ordering="holding_value")
+    def holding_value_display(self, obj: FundHoldingModel) -> str:
         """格式化持仓市值显示"""
         if obj.holding_value:
             if obj.holding_value >= 100000000:
@@ -138,11 +139,9 @@ class FundHoldingAdmin(admin.ModelAdmin):
             return f"{obj.holding_value / 10000:.0f}万"
         return "-"
 
-    holding_value_display.short_description = "持仓市值"
-
 
 @admin.register(FundSectorAllocationModel)
-class FundSectorAllocationAdmin(admin.ModelAdmin):
+class FundSectorAllocationAdmin(TypedModelAdmin[FundSectorAllocationModel]):
     """Admin interface for FundSectorAllocation"""
 
     list_display = ["fund_code", "report_date", "sector_name", "allocation_ratio"]
@@ -159,7 +158,7 @@ class FundSectorAllocationAdmin(admin.ModelAdmin):
 
 
 @admin.register(FundPerformanceModel)
-class FundPerformanceAdmin(admin.ModelAdmin):
+class FundPerformanceAdmin(TypedModelAdmin[FundPerformanceModel]):
     """Admin interface for FundPerformance"""
 
     list_display = [

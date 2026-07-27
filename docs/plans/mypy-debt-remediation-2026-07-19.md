@@ -5172,3 +5172,18 @@
 - Confidence 配置与财务配置命令定向回归 `7 passed`；Audit Domain、Application、组件与 API 扩展回归 `337 passed`。
 - `apps/audit/management/commands/init_confidence_config.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `838 errors / 347 files` 收紧为 `832 errors / 346 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百四十批
+
+- 按“Fund Admin 未被自动发现 × 六模型运营入口缺失 × Admin 类型规范”收口 Fund 后台注册。
+- 盘点确认六组 `@admin.register` 仅存在于 `apps/fund/interface/admin.py`，但 App 无根 `admin.py` 且 `FundConfig.ready()` 不导入 Interface Admin；Django autodiscovery 不会加载基金基本信息、经理、净值、持仓、行业配置与业绩后台。
+- 新增标准 `apps/fund/admin.py` 纯副作用桥接作为唯一自动发现入口，正式实现继续归属 Interface 层；未复制注册类，也未在 Infrastructure 新增第二入口。
+- 六个 Admin 全部继承 `TypedModelAdmin[ConcreteModel]`；基金规模与持仓市值 handler 补齐精确模型和字符串返回类型，并使用 `@admin.display(description=..., ordering=...)` 删除动态 `short_description`。
+- 金额展示继续以模型 canonical 元单位“元”换算为万/亿，仅修复注册可达性与类型契约，不改变列表、筛选、搜索、fieldsets 或数据库字段。
+- 新增六模型已注册、唯一 typed Admin owner 与元单位展示回归。
+
+## 第三百四十批验证结果
+
+- Fund Admin 注册与金额显示专项 `2 passed`；Fund Domain、Adapter、Application、组件与 API 扩展回归 `117 passed`，仅保留未改动 Hybrid adapter 对象 repr 缓存键 `CacheKeyWarning` 作为后续独立候选。
+- `apps/fund/interface/admin.py` 与根 autodiscovery bridge 在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `832 errors / 346 files` 收紧为 `822 errors / 345 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
