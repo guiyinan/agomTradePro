@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 795,
-    "files_with_errors": 341
+    "errors": 789,
+    "files_with_errors": 340
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -840,10 +840,6 @@
     "apps/pulse/infrastructure/data_provider.py": {
       "type-arg": 2,
       "type-var": 1
-    },
-    "apps/pulse/interface/admin.py": {
-      "attr-defined": 3,
-      "type-arg": 3
     },
     "apps/pulse/interface/api_urls.py": {
       "no-untyped-def": 1

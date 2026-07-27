@@ -5251,3 +5251,19 @@
 - Share Admin 注册与权限专项 `3 passed`；Share Domain、Application、模型、页面、组件与 API 扩展回归 `191 passed`。
 - `apps/share/interface/admin.py` 与根 autodiscovery bridge 在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `801 errors / 342 files` 收紧为 `795 errors / 341 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百四十五批
+
+- 按“Pulse Admin 未被自动发现 × 行内配置绕过校验 × 计算日志可篡改”收口 Pulse 运行时配置后台。
+- 新增标准根 autodiscovery bridge，Pulse snapshot、指标配置与 Navigator 资产配置现在由 Interface 唯一实现注册；根 `models.py` 补显式 `__all__`，严格模式与 Django 模型发现共享同一导出契约。
+- 三个 Admin 全部继承 `TypedModelAdmin[ConcreteModel]`；指标与 Navigator 使用 `TypedModelForm[ConcreteModel]`，不依赖裸 ModelAdmin/ModelForm。
+- 删除指标 `weight/is_active` 和 Navigator `risk_budget/is_active` 的 `list_editable`，禁止 changelist 批量保存绕过专用表单验证与变更审阅。
+- 指标权重必须为有限正数，拒绝零、负数、NaN、Inf 与布尔伪装；Navigator 风险预算必须为有限 `[0,1]` 比例，非法值在 Admin 保存前失败。
+- PulseLog 全字段只读且禁止新增、修改和删除；计算快照、指标明细、转折原因与来源证据不能由管理员伪造或清除。
+- 新增三模型唯一 typed 注册、日志全不可变、非法权重/风险预算拒绝和有效边界接受回归。
+
+## 第三百四十五批验证结果
+
+- Pulse Admin 注册、权限与数值校验专项 `13 passed`；Pulse Domain、Provider、Application、管理命令、组件与 API 扩展回归 `71 passed`。
+- `apps/pulse/interface/admin.py`、根 bridge 与显式模型导出在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `795 errors / 341 files` 收紧为 `789 errors / 340 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

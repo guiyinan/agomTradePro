@@ -5,3 +5,9 @@ from apps.pulse.infrastructure.models import (  # noqa: F401
     PulseIndicatorConfigModel,
     PulseLog,
 )
+
+__all__: tuple[str, ...] = (
+    "NavigatorAssetConfigModel",
+    "PulseIndicatorConfigModel",
+    "PulseLog",
+)
