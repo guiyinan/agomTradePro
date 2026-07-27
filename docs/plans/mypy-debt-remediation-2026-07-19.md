@@ -4846,3 +4846,21 @@
 - Alpha 单元、Admin 组件与 API 回归 `68 passed`；另有 1 条来自未改动 Qlib pandas 兼容层 `DataFrame.groupby(axis=...)` 的 FutureWarning。
 - `apps/alpha/admin.py` 增量 mypy 清零；全仓基线从 `1046 errors / 374 files` 收紧为 `1024 errors / 373 files`，净减少 `22 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百二十批
+
+- 按“Regime 阈值发布原子性 × Admin 写操作语义 × 活动配置不可变性”收口 Regime threshold governance Admin。
+- Regime Admin 注册统一到 `apps/regime/interface/admin.py`；删除旧 `infrastructure/admin.py`、仅为其 GET 激活入口服务的 `infrastructure/views.py` 以及 Infrastructure package 的隐式 Admin 导入，AppConfig 只加载一个真实入口。
+- 删除会改变生产阈值状态的行内 GET 激活链接和自定义 URL；激活改用 Django Admin 标准 action，只接受带 CSRF 的 POST、要求 change 权限且每次必须且只能选择一个候选配置。
+- 激活编排通过 Application facade 调用 Infrastructure repository；repository 在同一事务内锁定候选与活动配置、切换唯一活动状态，并仅在提交成功后失效 Regime runtime cache。
+- 当前活动配置及其阈值在 Admin 中不可直接变更或删除；新建配置固定先保存为未激活候选，单独阈值表单也拒绝向活动配置追加记录，避免绕过发布流程修改线上判定参数。
+- 候选激活前验证指标代码非空且唯一、上下阈值完整/有限/有序；所需指标集合从当前活动配置数据库记录派生，缺项时保持旧配置激活，不新增 PMI/CPI 等指标代码硬编码。
+- 阈值摘要改用 `format_html_join` 对数据库内容逐项转义，关闭 `mark_safe` 拼接形成的 Admin XSS；列表查询预取 thresholds，避免数量与摘要列形成逐行重复查询。
+- 新增通用双泛型 `TypedTabularInline[ChildModel, ParentModel]`；三个 Regime Admin、inline、Application facade、repository 和 dashboard helper 返回契约补齐精确类型。
+- 新增原子切换与回滚、提交后缓存失效、旧 GET 路由移除、单选 POST action、动态指标完整性、活动配置/阈值不可变及摘要 XSS 转义回归。
+
+## 第三百二十批验证结果
+
+- Regime 单元、Domain、组件与 API 回归 `176 passed`。
+- Regime Admin/Application/Infrastructure 与共享 typed Admin 基座的 6 个生产文件增量 mypy 清零；全仓基线从 `1024 errors / 373 files` 收紧为 `1004 errors / 369 files`，净减少 `20 errors / 4 files`。
+- Django system check、架构 delta、唯一 Admin/旧 GET 路由引用核对、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

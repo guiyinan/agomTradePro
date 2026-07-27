@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1024,
-    "files_with_errors": 373
+    "errors": 1004,
+    "files_with_errors": 369
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -963,9 +963,6 @@
     "apps/pulse/management/commands/show_pulse_config.py": {
       "no-untyped-def": 1
     },
-    "apps/regime/application/interface_services.py": {
-      "no-untyped-def": 2
-    },
     "apps/regime/domain/action_mapper.py": {
       "type-arg": 1
     },
@@ -984,19 +981,8 @@
     "apps/regime/domain/services_v2.py": {
       "arg-type": 2
     },
-    "apps/regime/infrastructure/admin.py": {
-      "attr-defined": 6,
-      "no-untyped-def": 7,
-      "type-arg": 3
-    },
     "apps/regime/infrastructure/fixtures/system_config.py": {
       "misc": 4
-    },
-    "apps/regime/infrastructure/views.py": {
-      "no-untyped-def": 1
-    },
-    "apps/regime/interface/admin.py": {
-      "type-arg": 1
     },
     "apps/regime/interface/api_urls.py": {
       "no-untyped-def": 1

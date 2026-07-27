@@ -9,6 +9,7 @@ from django.contrib import admin
 from django.db.models import Model
 
 AdminModelT = TypeVar("AdminModelT", bound=Model)
+AdminParentModelT = TypeVar("AdminParentModelT", bound=Model)
 
 if TYPE_CHECKING:
 
@@ -18,6 +19,12 @@ if TYPE_CHECKING:
     class TypedModelForm(forms.ModelForm[AdminModelT], Generic[AdminModelT]):
         """Expose django-stubs' generic ModelForm contract to type checkers."""
 
+    class TypedTabularInline(
+        admin.TabularInline[AdminModelT, AdminParentModelT],
+        Generic[AdminModelT, AdminParentModelT],
+    ):
+        """Expose django-stubs' generic TabularInline contract to type checkers."""
+
 else:
 
     class TypedModelAdmin(admin.ModelAdmin, Generic[AdminModelT]):
@@ -26,5 +33,8 @@ else:
     class TypedModelForm(forms.ModelForm, Generic[AdminModelT]):
         """Keep ModelForm subscriptable without requiring django-stubs at runtime."""
 
+    class TypedTabularInline(admin.TabularInline, Generic[AdminModelT, AdminParentModelT]):
+        """Keep TabularInline subscriptable without requiring django-stubs at runtime."""
 
-__all__ = ["TypedModelAdmin", "TypedModelForm"]
+
+__all__ = ["TypedModelAdmin", "TypedModelForm", "TypedTabularInline"]

@@ -1,5 +1,3 @@
-# Infrastructure Layer - ORM, repositories
-default_app_config = 'apps.regime.apps.RegimeConfig'
+"""Regime Infrastructure layer for ORM and repository implementations."""
 
-# 导入 admin 配置
-from . import admin  # noqa
+default_app_config = "apps.regime.apps.RegimeConfig"

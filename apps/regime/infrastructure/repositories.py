@@ -11,9 +11,16 @@ from typing import Any
 from django.db import transaction
 from django.db.models import Count, Max, Min, QuerySet
 
+from shared.infrastructure.cache_service import CacheService
+
 from ..domain.entities import RegimeSnapshot
 from .config_helper import ConfigHelper, ConfigKeys
-from .models import ActionRecommendationLog, RegimeLog
+from .models import (
+    ActionRecommendationLog,
+    RegimeIndicatorThreshold,
+    RegimeLog,
+    RegimeThresholdConfig,
+)
 
 
 class RegimeRepositoryError(Exception):
@@ -532,3 +539,70 @@ class RegimeConfigRepository:
             ConfigKeys.REGIME_CONFLICT_CONFIDENCE_BOOST,
             default,
         )
+
+    def activate_threshold_config(self, config_id: int) -> str:
+        """Atomically activate one threshold config and invalidate runtime cache on commit."""
+
+        if isinstance(config_id, bool) or not isinstance(config_id, int) or config_id <= 0:
+            raise ValueError("config_id must be a positive integer")
+        with transaction.atomic():
+            config = RegimeThresholdConfig._default_manager.select_for_update().get(pk=config_id)
+            active_configs = list(
+                RegimeThresholdConfig._default_manager.select_for_update()
+                .filter(is_active=True)
+                .exclude(pk=config.pk)
+            )
+            candidate_thresholds = list(
+                RegimeIndicatorThreshold._default_manager.select_for_update().filter(config=config)
+            )
+            self._validate_activation_candidate(
+                candidate_thresholds=candidate_thresholds,
+                active_configs=active_configs,
+            )
+            RegimeThresholdConfig._default_manager.exclude(pk=config.pk).filter(
+                is_active=True
+            ).update(is_active=False)
+            config.is_active = True
+            config.save(update_fields=["is_active", "updated_at"])
+            transaction.on_commit(CacheService.invalidate_regime)
+        return str(config.name)
+
+    @staticmethod
+    def _validate_activation_candidate(
+        *,
+        candidate_thresholds: list[RegimeIndicatorThreshold],
+        active_configs: list[RegimeThresholdConfig],
+    ) -> None:
+        """Reject incomplete, duplicate, non-finite, or reversed candidate thresholds."""
+
+        if not candidate_thresholds:
+            raise ValueError("candidate config must contain threshold rows")
+        candidate_codes = [threshold.indicator_code.strip() for threshold in candidate_thresholds]
+        if any(not code for code in candidate_codes) or len(candidate_codes) != len(
+            set(candidate_codes)
+        ):
+            raise ValueError("candidate indicator codes must be non-empty and unique")
+        for threshold in candidate_thresholds:
+            level_low = threshold.level_low
+            level_high = threshold.level_high
+            if (
+                level_low is None
+                or level_high is None
+                or not math.isfinite(level_low)
+                or not math.isfinite(level_high)
+                or level_low > level_high
+            ):
+                raise ValueError("candidate thresholds must be finite and ordered")
+
+        required_codes: set[str] = set()
+        for active_config in active_configs:
+            required_codes.update(
+                code.strip()
+                for code in RegimeIndicatorThreshold._default_manager.select_for_update()
+                .filter(config=active_config)
+                .values_list("indicator_code", flat=True)
+                if code.strip()
+            )
+        missing_codes = required_codes.difference(candidate_codes)
+        if missing_codes:
+            raise ValueError("candidate config is missing active indicator codes")
