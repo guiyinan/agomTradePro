@@ -1,157 +1,191 @@
-"""
-Rollback Qlib Model Management Command
+"""Rollback an active Qlib model with atomic, fail-closed state transitions."""
 
-回滚 Qlib 模型的 Django 管理命令。
-"""
+from __future__ import annotations
 
-import logging
+from django.core.management.base import BaseCommand, CommandError, CommandParser
+from django.db import DatabaseError, transaction
+from django.db.models import CharField
 
-from django.core.management.base import BaseCommand, CommandError
+from apps.alpha.infrastructure.models import QlibModelRegistryModel
 
-logger = logging.getLogger(__name__)
+ROLLBACK_ACTOR = "rollback_command"
+
+
+def _model_field_max_length(field_name: str) -> int:
+    """Read a bounded text limit from the registry schema truth source."""
+
+    field = QlibModelRegistryModel._meta.get_field(field_name)
+    if not isinstance(field, CharField) or field.max_length is None:
+        raise RuntimeError(f"{field_name} must be a bounded text field")
+    return field.max_length
+
+
+MODEL_NAME_MAX_LENGTH = _model_field_max_length("model_name")
+ARTIFACT_HASH_MAX_LENGTH = _model_field_max_length("artifact_hash")
 
 
 class Command(BaseCommand):
-    """
-    回滚 Qlib 模型命令
+    """Atomically activate an explicit or chronologically previous model version."""
 
-    用法:
-        python manage.py rollback_model [options]
+    help = "Rollback to a previous Qlib model version"
 
-    选项:
-        --to: 回滚到指定的 artifact hash
-        --prev: 回滚到上一个版本
-        --model-name: 模型名称（必需）
-    """
+    def add_arguments(self, parser: CommandParser) -> None:
+        """Register an explicit exclusive rollback target."""
 
-    help = 'Rollback to a previous Qlib model version'
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            '--to',
+        target = parser.add_mutually_exclusive_group()
+        target.add_argument(
+            "--to",
             type=str,
-            dest='to_hash',
-            help='Rollback to specific artifact hash',
+            dest="to_hash",
+            help="Rollback to a specific artifact hash",
+        )
+        target.add_argument(
+            "--prev",
+            action="store_true",
+            dest="prev",
+            help="Rollback to the previous chronological version",
         )
         parser.add_argument(
-            '--prev',
-            action='store_true',
-            dest='prev',
-            help='Rollback to previous version',
-        )
-        parser.add_argument(
-            '--model-name',
+            "--model-name",
             type=str,
             required=True,
-            dest='model_name',
-            help='Model name (required)',
+            dest="model_name",
+            help="Model name (required)",
         )
 
-    def handle(self, *args, **options):
-        """执行命令"""
-        to_hash = options.get('to_hash')
-        prev = options.get('prev', False)
-        model_name = options.get('model_name')
+    def handle(self, *args: object, **options: object) -> None:
+        """Validate the requested transition and execute it atomically."""
 
-        self.stdout.write(f'回滚模型: {model_name}')
+        del args
+        model_name = self._required_text(
+            options.get("model_name"),
+            option="--model-name",
+            max_length=MODEL_NAME_MAX_LENGTH,
+        )
+        to_hash = self._optional_text(
+            options.get("to_hash"),
+            option="--to",
+            max_length=ARTIFACT_HASH_MAX_LENGTH,
+        )
+        prev = options.get("prev", False)
+        if not isinstance(prev, bool):
+            raise CommandError("--prev must be a boolean")
+        if to_hash is not None and prev:
+            raise CommandError("--to and --prev are mutually exclusive")
+        if to_hash is None and not prev:
+            raise CommandError("exactly one of --to or --prev is required")
 
-        if to_hash:
+        self.stdout.write(f"回滚模型: {model_name}")
+        if to_hash is not None:
             self._rollback_to_hash(model_name, to_hash)
-        elif prev:
-            self._rollback_to_prev(model_name)
-        else:
-            self.stdout.write(
-                self.style.ERROR('  ✗ 请指定 --to 或 --prev')
-            )
+            return
+        self._rollback_to_prev(model_name)
 
-    def _rollback_to_hash(self, model_name: str, artifact_hash: str):
-        """回滚到指定版本"""
-        from apps.alpha.infrastructure.models import QlibModelRegistryModel
+    @staticmethod
+    def _required_text(raw_value: object, *, option: str, max_length: int) -> str:
+        """Return a trimmed bounded non-empty option value."""
 
-        self.stdout.write(f'  回滚到: {artifact_hash[:8]}...')
+        if not isinstance(raw_value, str) or not raw_value.strip():
+            raise CommandError(f"{option} must be a non-empty string")
+        value = raw_value.strip()
+        if len(value) > max_length:
+            raise CommandError(f"{option} must be at most {max_length} characters")
+        return value
+
+    @classmethod
+    def _optional_text(
+        cls,
+        raw_value: object,
+        *,
+        option: str,
+        max_length: int,
+    ) -> str | None:
+        """Return a validated optional string without truthy coercion."""
+
+        if raw_value is None:
+            return None
+        return cls._required_text(raw_value, option=option, max_length=max_length)
+
+    def _rollback_to_hash(self, model_name: str, artifact_hash: str) -> None:
+        """Lock and atomically activate one explicit model version."""
+
+        self.stdout.write(f"  回滚到: {artifact_hash[:8]}...")
+        try:
+            with transaction.atomic():
+                target_model = QlibModelRegistryModel._default_manager.select_for_update().get(
+                    model_name=model_name,
+                    artifact_hash=artifact_hash,
+                )
+                self._activate_locked_target(target_model)
+        except QlibModelRegistryModel.DoesNotExist:
+            raise CommandError(f"模型不存在: {artifact_hash}") from None
+        except DatabaseError as exc:
+            raise CommandError(f"模型回滚失败: {type(exc).__name__}") from exc
+
+    def _rollback_to_prev(self, model_name: str) -> None:
+        """Lock the active model and atomically activate its previous version."""
 
         try:
-            # 查找目标模型
-            target_model = QlibModelRegistryModel._default_manager.get(
-                model_name=model_name,
-                artifact_hash=artifact_hash
-            )
-
-            # 取消当前激活的模型
-            current_active = QlibModelRegistryModel._default_manager.filter(
-                model_name=model_name,
-                is_active=True
-            ).first()
-
-            if current_active:
-                current_active.deactivate()
-                self.stdout.write(
-                    self.style.WARNING(
-                        f'  ⚠ 已取消激活: {current_active.artifact_hash[:8]}...'
-                    )
+            with transaction.atomic():
+                current_active = (
+                    QlibModelRegistryModel._default_manager.select_for_update()
+                    .filter(model_name=model_name, is_active=True)
+                    .first()
                 )
+                if current_active is None:
+                    raise CommandError("没有激活的模型")
 
-            # 激活目标模型
-            target_model.activate(activated_by='rollback_command')
+                previous_model = (
+                    QlibModelRegistryModel._default_manager.select_for_update()
+                    .filter(
+                        model_name=model_name,
+                        created_at__lt=current_active.created_at,
+                    )
+                    .order_by("-created_at", "-artifact_hash")
+                    .first()
+                )
+                if previous_model is None:
+                    raise CommandError("没有找到上一个版本")
 
-            self.stdout.write(
-                self.style.SUCCESS(f'  ✓ 已回滚到: {artifact_hash[:8]}...')
-            )
+                self.stdout.write(
+                    self.style.SUCCESS(f"  上一个版本: {previous_model.artifact_hash[:8]}...")
+                )
+                self.stdout.write(f"    创建时间: {previous_model.created_at}")
+                self._activate_locked_target(previous_model)
+        except DatabaseError as exc:
+            raise CommandError(f"模型回滚失败: {type(exc).__name__}") from exc
 
-        except QlibModelRegistryModel.DoesNotExist:
-            self.stdout.write(
-                self.style.ERROR(f'  ✗ 模型不存在: {artifact_hash}')
-            )
-            raise CommandError(f'模型不存在: {artifact_hash}') from None
+    def _activate_locked_target(self, target_model: QlibModelRegistryModel) -> None:
+        """Activate a locked target and report the displaced global model."""
 
-    def _rollback_to_prev(self, model_name: str):
-        """回滚到上一个版本"""
-        from apps.alpha.infrastructure.models import QlibModelRegistryModel
-
-        # 获取当前激活的模型
-        current_active = QlibModelRegistryModel._default_manager.filter(
-            model_name=model_name,
-            is_active=True
-        ).first()
-
-        if not current_active:
-            self.stdout.write(
-                self.style.ERROR('  ✗ 没有激活的模型')
-            )
+        if target_model.is_active:
+            self.stdout.write(self.style.WARNING("  目标模型已经处于激活状态"))
             return
 
-        # 查找上一个版本
-        prev_model = QlibModelRegistryModel._default_manager.filter(
-            model_name=model_name,
-            created_at__lt=current_active.created_at
-        ).order_by('-created_at').first()
-
-        if not prev_model:
-            self.stdout.write(
-                self.style.ERROR('  ✗ 没有找到上一个版本')
-            )
-            return
-
-        self.stdout.write(
-            self.style.SUCCESS(f'  上一个版本: {prev_model.artifact_hash[:8]}...')
+        current_active = (
+            QlibModelRegistryModel._default_manager.select_for_update()
+            .filter(is_active=True)
+            .exclude(pk=target_model.pk)
+            .first()
         )
-        self.stdout.write(f'    创建时间: {prev_model.created_at}')
+        target_model.activate(activated_by=ROLLBACK_ACTOR)
 
-        # 执行回滚
-        self._rollback_to_hash(model_name, prev_model.artifact_hash)
-
-    def _list_versions(self, model_name: str):
-        """列出所有版本"""
-        from apps.alpha.infrastructure.models import QlibModelRegistryModel
-
-        models = QlibModelRegistryModel._default_manager.filter(
-            model_name=model_name
-        ).order_by('-created_at')
-
-        self.stdout.write('  版本列表:')
-        for model in models:
-            active_flag = ' [ACTIVE]' if model.is_active else ''
+        if current_active is not None:
             self.stdout.write(
-                f'    {model.artifact_hash[:8]}... - {model.created_at}{active_flag}'
+                self.style.WARNING(
+                    "  已取消激活: "
+                    f"{current_active.model_name}@{current_active.artifact_hash[:8]}..."
+                )
             )
+        self.stdout.write(self.style.SUCCESS(f"  已回滚到: {target_model.artifact_hash[:8]}..."))
 
+    def _list_versions(self, model_name: str) -> None:
+        """List registered versions for operational diagnostics."""
+
+        models = QlibModelRegistryModel._default_manager.filter(model_name=model_name).order_by(
+            "-created_at", "-artifact_hash"
+        )
+        self.stdout.write("  版本列表:")
+        for model in models:
+            active_flag = " [ACTIVE]" if model.is_active else ""
+            self.stdout.write(f"    {model.artifact_hash[:8]}... - {model.created_at}{active_flag}")

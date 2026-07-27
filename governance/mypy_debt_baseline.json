@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 914,
-    "files_with_errors": 359
+    "errors": 907,
+    "files_with_errors": 358
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -245,10 +245,6 @@
     },
     "apps/alpha/management/commands/list_models.py": {
       "no-untyped-def": 2
-    },
-    "apps/alpha/management/commands/rollback_model.py": {
-      "arg-type": 2,
-      "no-untyped-def": 5
     },
     "apps/asset_analysis/application/asset_name_service.py": {
       "attr-defined": 5

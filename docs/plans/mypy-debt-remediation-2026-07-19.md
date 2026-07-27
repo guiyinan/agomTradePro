@@ -5010,3 +5010,19 @@
 - Task Monitor serializer 专项、正式 API、组件、管理命令、personal readiness 与 scheduler 最终回归 `237 passed`；跨文件 mypy 与增量 mypy 均清零。
 - `apps/task_monitor/interface/serializers.py` 退出债务清单，且 `apps/task_monitor/interface/views.py` 保持零错误；全仓基线从 `919 errors / 360 files` 收紧为 `914 errors / 359 files`，净减少 `5 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort 与全仓 debt baseline 刷新通过。
+
+## 第三百三十批
+
+- 按“生产模型回滚原子性 × 活动模型连续可用 × 运维参数失败关闭”收口 Alpha `rollback_model` 管理命令。
+- `--to` 与 `--prev` 改为 CLI 互斥且动态调用同样要求恰好选择一个；缺失目标、同时选择、非布尔 `prev`、空白或超长模型名/制品 hash 在数据库访问前抛出 `CommandError`，长度上限直接读取 Registry 模型字段元数据，不复制 schema 数字，也不再打印错误后成功退出。
+- 显式目标按模型名与 hash 精确查询并加行锁；previous 模式同时锁定当前活动模型和按创建时间确定的前一版本，无活动模型或无前一版本均失败关闭。
+- 删除命令层“先单独停用当前模型、再尝试激活目标”的非原子窗口；完整选择和激活置于外层事务，复用模型自身原子 `activate()`，数据库异常会回滚全部状态，不会留下零活动模型。
+- 活动模型按全局唯一约束检查并锁定；成功后才报告被替换模型，显式回滚到已活动目标作为幂等成功处理。
+- 数据库失败只报告异常类型，不回显连接信息或底层错误正文；新增模拟后端停用旧模型后抛错的事务回滚与脱敏回归。
+- 新增缺失/冲突/空白参数、无活动模型、无前一版本和原子失败恢复测试，并将既有宽松成功契约收紧为非零失败契约。
+
+## 第三百三十批验证结果
+
+- Alpha 模型命令专项 `5 passed`；Alpha 单元、模型训练组件与运维 API 回归 `87 passed`，仅有一条未改动 Qlib pandas 兼容层 `DataFrame.groupby(axis=...)` FutureWarning。
+- `apps/alpha/management/commands/rollback_model.py` 在 governed 与增量 mypy 两种口径均清零；全仓基线从 `914 errors / 359 files` 收紧为 `907 errors / 358 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

@@ -6,6 +6,8 @@ from io import StringIO
 
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.db import DatabaseError
 
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
 
@@ -79,15 +81,14 @@ def test_rollback_model_command_handles_hash_previous_and_missing_paths() -> Non
     newer = _model("d" * 64)
     newer.activate("test")
 
-    output = StringIO()
-    call_command(
-        "rollback_model",
-        model_name="contract-model",
-        to_hash=None,
-        prev=False,
-        stdout=output,
-    )
-    assert "请指定 --to 或 --prev" in output.getvalue()
+    with pytest.raises(CommandError, match="exactly one"):
+        call_command(
+            "rollback_model",
+            model_name="contract-model",
+            to_hash=None,
+            prev=False,
+            stdout=StringIO(),
+        )
 
     call_command(
         "rollback_model",
@@ -112,7 +113,7 @@ def test_rollback_model_command_handles_hash_previous_and_missing_paths() -> Non
     older.refresh_from_db()
     assert older.is_active is True
 
-    with pytest.raises(Exception, match="模型不存在"):
+    with pytest.raises(CommandError, match="模型不存在"):
         call_command(
             "rollback_model",
             model_name="contract-model",
@@ -122,12 +123,95 @@ def test_rollback_model_command_handles_hash_previous_and_missing_paths() -> Non
         )
 
     QlibModelRegistryModel.objects.update(is_active=False)
-    output = StringIO()
-    call_command(
-        "rollback_model",
-        model_name="contract-model",
-        to_hash=None,
-        prev=True,
-        stdout=output,
-    )
-    assert "没有激活的模型" in output.getvalue()
+    with pytest.raises(CommandError, match="没有激活的模型"):
+        call_command(
+            "rollback_model",
+            model_name="contract-model",
+            to_hash=None,
+            prev=True,
+            stdout=StringIO(),
+        )
+
+
+@pytest.mark.django_db
+def test_rollback_model_rejects_ambiguous_or_invalid_targets() -> None:
+    """Direct callers cannot bypass exclusive and bounded option validation."""
+
+    target = _model("e" * 64)
+
+    with pytest.raises(CommandError, match="mutually exclusive"):
+        call_command(
+            "rollback_model",
+            model_name="contract-model",
+            to_hash=target.artifact_hash,
+            prev=True,
+            stdout=StringIO(),
+        )
+    with pytest.raises(CommandError, match="--model-name"):
+        call_command(
+            "rollback_model",
+            model_name="   ",
+            to_hash=target.artifact_hash,
+            prev=False,
+            stdout=StringIO(),
+        )
+    with pytest.raises(CommandError, match="--to"):
+        call_command(
+            "rollback_model",
+            model_name="contract-model",
+            to_hash="   ",
+            prev=False,
+            stdout=StringIO(),
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_rollback_model_restores_active_state_when_activation_fails(monkeypatch) -> None:
+    """A failed activation cannot leave the registry without its prior active model."""
+
+    current = _model("f" * 64)
+    target = _model("g" * 64)
+    current.activate("test")
+
+    def _fail_after_deactivation(
+        self: QlibModelRegistryModel,
+        activated_by: str = "system",
+    ) -> None:
+        assert activated_by == "rollback_command"
+        QlibModelRegistryModel.objects.filter(is_active=True).update(is_active=False)
+        raise DatabaseError("postgres://secret-host")
+
+    monkeypatch.setattr(QlibModelRegistryModel, "activate", _fail_after_deactivation)
+    with pytest.raises(CommandError, match="DatabaseError") as exc_info:
+        call_command(
+            "rollback_model",
+            model_name="contract-model",
+            to_hash=target.artifact_hash,
+            prev=False,
+            stdout=StringIO(),
+        )
+
+    assert "secret-host" not in str(exc_info.value)
+    current.refresh_from_db()
+    target.refresh_from_db()
+    assert current.is_active is True
+    assert target.is_active is False
+
+
+@pytest.mark.django_db
+def test_rollback_model_requires_a_previous_version() -> None:
+    """Previous-version rollback fails closed when the active row is the oldest."""
+
+    only = _model("h" * 64)
+    only.activate("test")
+
+    with pytest.raises(CommandError, match="没有找到上一个版本"):
+        call_command(
+            "rollback_model",
+            model_name="contract-model",
+            to_hash=None,
+            prev=True,
+            stdout=StringIO(),
+        )
+    only.refresh_from_db()
+    assert only.is_active is True
