@@ -5235,3 +5235,19 @@
 - Terminal Admin 注册与权限专项 `3 passed`；TUI workbench 与 Terminal Agent 固定最小回归包 `208 passed`。
 - `apps/terminal/interface/admin.py` 与根 autodiscovery bridge 在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `808 errors / 343 files` 收紧为 `801 errors / 342 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未触碰 MCP、SDK 或部署实现，无额外未验证固定链路。
+
+## 第三百四十四批
+
+- 按“Share Admin 未被自动发现 × 公开访问审计可篡改/删除 × singleton 权限绕过”收口分享后台治理。
+- 盘点确认四组注册仅存在于 `apps/share/interface/admin.py`，但 App 无根 `admin.py` 且 `ShareConfig` 不导入；新增标准 autodiscovery bridge，分享链接、快照、访问日志和免责声明配置现在由 Interface 唯一实现注册。
+- 删除动态 `django_apps.get_model` 类型边界，改用 App 根模型导出并让四个 Admin 继承 `TypedModelAdmin[ConcreteModel]`，不新增 Interface 对 Infrastructure 的越层 import。
+- 分享链接禁止从 Admin 新建，确保 short code、账户范围和密码始终经过 Application 用例；禁止删除以防级联清除快照与访问日志，`password_hash` 改为只读避免直接写入明文或无效 hash。
+- 分享快照与访问日志全部字段只读，并禁止新增、修改和删除；管理员只能查看系统生成的公开分享内容及匿名访问审计证据。
+- 免责声明 singleton 新建先执行 Django 原生模型 add permission，再检查配置是否已存在；普通 staff 不能利用空表绕过授权，singleton 继续禁止删除。
+- 新增四模型唯一 typed 注册、分享链接创建/删除阻断、密码哈希只读、快照/日志全不可变和免责声明权限组合回归。
+
+## 第三百四十四批验证结果
+
+- Share Admin 注册与权限专项 `3 passed`；Share Domain、Application、模型、页面、组件与 API 扩展回归 `191 passed`。
+- `apps/share/interface/admin.py` 与根 autodiscovery bridge 在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `801 errors / 342 files` 收紧为 `795 errors / 341 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
