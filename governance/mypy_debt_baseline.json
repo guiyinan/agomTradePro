@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 702,
-    "files_with_errors": 321
+    "errors": 695,
+    "files_with_errors": 320
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -365,9 +365,6 @@
     "apps/dashboard/domain/services.py": {
       "assignment": 1,
       "var-annotated": 1
-    },
-    "apps/dashboard/infrastructure/models.py": {
-      "no-untyped-def": 7
     },
     "apps/dashboard/interface/api_urls.py": {
       "no-untyped-def": 1

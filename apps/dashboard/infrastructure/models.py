@@ -8,6 +8,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.db.models import F
 from django.utils import timezone
 
 from apps.dashboard.domain.entities import (
@@ -39,53 +40,24 @@ class DashboardConfigModel(models.Model):
     """
 
     config_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="配置唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="配置唯一标识符"
     )
 
-    name = models.CharField(
-        max_length=100,
-        help_text="配置名称"
-    )
+    name = models.CharField(max_length=100, help_text="配置名称")
 
-    description = models.TextField(
-        blank=True,
-        help_text="描述"
-    )
+    description = models.TextField(blank=True, help_text="描述")
 
-    layout_config = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="布局配置"
-    )
+    layout_config = models.JSONField(default=dict, blank=True, help_text="布局配置")
 
-    card_configs = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="卡片配置列表"
-    )
+    card_configs = models.JSONField(default=list, blank=True, help_text="卡片配置列表")
 
-    is_default = models.BooleanField(
-        default=False,
-        help_text="是否默认配置"
-    )
+    is_default = models.BooleanField(default=False, help_text="是否默认配置")
 
-    is_active = models.BooleanField(
-        default=True,
-        help_text="是否激活"
-    )
+    is_active = models.BooleanField(default=True, help_text="是否激活")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
     class Meta:
         db_table = "dashboard_config"
@@ -93,7 +65,7 @@ class DashboardConfigModel(models.Model):
         verbose_name_plural = "仪表盘配置"
         ordering = ["-is_default", "name"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"DashboardConfig({self.name})"
 
 
@@ -117,10 +89,7 @@ class DashboardUserConfigModel(models.Model):
     """
 
     user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name="dashboard_config",
-        help_text="关联用户"
+        User, on_delete=models.CASCADE, related_name="dashboard_config", help_text="关联用户"
     )
 
     dashboard_config = models.ForeignKey(
@@ -129,53 +98,24 @@ class DashboardUserConfigModel(models.Model):
         null=True,
         blank=True,
         related_name="user_configs",
-        help_text="仪表盘配置"
+        help_text="仪表盘配置",
     )
 
-    hidden_cards = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="隐藏的卡片ID列表"
-    )
+    hidden_cards = models.JSONField(default=list, blank=True, help_text="隐藏的卡片ID列表")
 
-    collapsed_cards = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="折叠的卡片ID列表"
-    )
+    collapsed_cards = models.JSONField(default=list, blank=True, help_text="折叠的卡片ID列表")
 
-    card_order = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="卡片顺序"
-    )
+    card_order = models.JSONField(default=list, blank=True, help_text="卡片顺序")
 
-    custom_card_config = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="自定义卡片配置"
-    )
+    custom_card_config = models.JSONField(default=dict, blank=True, help_text="自定义卡片配置")
 
-    theme = models.CharField(
-        max_length=20,
-        default="light",
-        help_text="主题"
-    )
+    theme = models.CharField(max_length=20, default="light", help_text="主题")
 
-    refresh_enabled = models.BooleanField(
-        default=True,
-        help_text="是否启用自动刷新"
-    )
+    refresh_enabled = models.BooleanField(default=True, help_text="是否启用自动刷新")
 
-    refresh_interval = models.IntegerField(
-        default=60,
-        help_text="刷新间隔（秒）"
-    )
+    refresh_interval = models.IntegerField(default=60, help_text="刷新间隔（秒）")
 
-    last_updated = models.DateTimeField(
-        auto_now=True,
-        help_text="最后更新时间"
-    )
+    last_updated = models.DateTimeField(auto_now=True, help_text="最后更新时间")
 
     class Meta:
         db_table = "dashboard_user_config"
@@ -183,7 +123,7 @@ class DashboardUserConfigModel(models.Model):
         verbose_name_plural = "用户仪表盘配置"
         unique_together = [["user", "dashboard_config"]]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"DashboardUserConfig({self.user.username})"
 
 
@@ -214,99 +154,42 @@ class DashboardCardModel(models.Model):
     """
 
     card_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="卡片唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="卡片唯一标识符"
     )
 
     card_type = models.CharField(
-        max_length=20,
-        choices=[(t.value, t.name) for t in CardType],
-        help_text="卡片类型"
+        max_length=20, choices=[(t.value, t.name) for t in CardType], help_text="卡片类型"
     )
 
-    title = models.CharField(
-        max_length=100,
-        blank=True,
-        help_text="卡片标题"
-    )
+    title = models.CharField(max_length=100, blank=True, help_text="卡片标题")
 
-    description = models.TextField(
-        blank=True,
-        help_text="描述"
-    )
+    description = models.TextField(blank=True, help_text="描述")
 
-    widget_config = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="组件配置"
-    )
+    widget_config = models.JSONField(default=dict, blank=True, help_text="组件配置")
 
-    data_source = models.CharField(
-        max_length=200,
-        blank=True,
-        help_text="数据源"
-    )
+    data_source = models.CharField(max_length=200, blank=True, help_text="数据源")
 
-    visibility_conditions = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="可见性条件"
-    )
+    visibility_conditions = models.JSONField(default=dict, blank=True, help_text="可见性条件")
 
-    position = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="位置配置"
-    )
+    position = models.JSONField(default=dict, blank=True, help_text="位置配置")
 
-    size = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="尺寸配置"
-    )
+    size = models.JSONField(default=dict, blank=True, help_text="尺寸配置")
 
-    is_visible = models.BooleanField(
-        default=True,
-        help_text="是否可见"
-    )
+    is_visible = models.BooleanField(default=True, help_text="是否可见")
 
-    is_collapsible = models.BooleanField(
-        default=True,
-        help_text="是否可折叠"
-    )
+    is_collapsible = models.BooleanField(default=True, help_text="是否可折叠")
 
-    is_draggable = models.BooleanField(
-        default=True,
-        help_text="是否可拖动"
-    )
+    is_draggable = models.BooleanField(default=True, help_text="是否可拖动")
 
-    is_resizable = models.BooleanField(
-        default=True,
-        help_text="是否可调整大小"
-    )
+    is_resizable = models.BooleanField(default=True, help_text="是否可调整大小")
 
-    dependencies = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="依赖的卡片ID列表"
-    )
+    dependencies = models.JSONField(default=list, blank=True, help_text="依赖的卡片ID列表")
 
-    display_order = models.IntegerField(
-        default=0,
-        help_text="显示顺序"
-    )
+    display_order = models.IntegerField(default=0, help_text="显示顺序")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
     class Meta:
         db_table = "dashboard_card"
@@ -314,7 +197,7 @@ class DashboardCardModel(models.Model):
         verbose_name_plural = "仪表盘卡片"
         ordering = ["display_order", "card_id"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"DashboardCard({self.card_id}, {self.title})"
 
 
@@ -342,83 +225,39 @@ class DashboardAlertModel(models.Model):
     """
 
     alert_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="告警唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="告警唯一标识符"
     )
 
-    name = models.CharField(
-        max_length=100,
-        help_text="告警名称"
-    )
+    name = models.CharField(max_length=100, help_text="告警名称")
 
-    description = models.TextField(
-        blank=True,
-        help_text="描述"
-    )
+    description = models.TextField(blank=True, help_text="描述")
 
-    metric = models.CharField(
-        max_length=100,
-        blank=True,
-        help_text="监控指标"
-    )
+    metric = models.CharField(max_length=100, blank=True, help_text="监控指标")
 
-    condition = models.CharField(
-        max_length=50,
-        blank=True,
-        help_text="告警条件"
-    )
+    condition = models.CharField(max_length=50, blank=True, help_text="告警条件")
 
     severity = models.CharField(
         max_length=20,
         choices=[(s.value, s.name) for s in AlertSeverity],
         default=AlertSeverity.WARNING.value,
-        help_text="告警级别"
+        help_text="告警级别",
     )
 
-    threshold = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="阈值"
-    )
+    threshold = models.FloatField(null=True, blank=True, help_text="阈值")
 
-    notification_channels = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="通知渠道"
-    )
+    notification_channels = models.JSONField(default=list, blank=True, help_text="通知渠道")
 
-    is_enabled = models.BooleanField(
-        default=True,
-        help_text="是否启用"
-    )
+    is_enabled = models.BooleanField(default=True, help_text="是否启用")
 
-    cooldown = models.IntegerField(
-        default=300,
-        help_text="冷却时间（秒）"
-    )
+    cooldown = models.IntegerField(default=300, help_text="冷却时间（秒）")
 
-    last_triggered_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="最后触发时间"
-    )
+    last_triggered_at = models.DateTimeField(null=True, blank=True, help_text="最后触发时间")
 
-    trigger_count = models.IntegerField(
-        default=0,
-        help_text="触发次数"
-    )
+    trigger_count = models.IntegerField(default=0, help_text="触发次数")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
     class Meta:
         db_table = "dashboard_alert"
@@ -426,14 +265,23 @@ class DashboardAlertModel(models.Model):
         verbose_name_plural = "仪表盘告警"
         ordering = ["severity", "name"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"DashboardAlert({self.alert_id}, {self.name})"
 
     def update_trigger(self) -> None:
-        """更新触发信息"""
-        self.last_triggered_at = timezone.now()
-        self.trigger_count += 1
-        self.save(update_fields=["last_triggered_at", "trigger_count"])
+        """Atomically record one trigger without losing concurrent increments."""
+
+        if self.pk is None:
+            raise ValueError("Dashboard alert must be persisted before triggering")
+        triggered_at = timezone.now()
+        updated_count = DashboardAlertModel._default_manager.filter(pk=self.pk).update(
+            last_triggered_at=triggered_at,
+            trigger_count=F("trigger_count") + 1,
+        )
+        if updated_count != 1:
+            raise RuntimeError("Dashboard alert disappeared during trigger update")
+        self.last_triggered_at = triggered_at
+        self.refresh_from_db(fields=["trigger_count"])
 
 
 class DashboardSnapshotModel(models.Model):
@@ -449,21 +297,12 @@ class DashboardSnapshotModel(models.Model):
     """
 
     user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="dashboard_snapshots",
-        help_text="关联用户"
+        User, on_delete=models.CASCADE, related_name="dashboard_snapshots", help_text="关联用户"
     )
 
-    snapshot_data = models.JSONField(
-        help_text="快照数据"
-    )
+    snapshot_data = models.JSONField(help_text="快照数据")
 
-    captured_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="捕获时间"
-    )
+    captured_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="捕获时间")
 
     class Meta:
         db_table = "dashboard_snapshot"
@@ -471,7 +310,7 @@ class DashboardSnapshotModel(models.Model):
         verbose_name_plural = "仪表盘快照"
         ordering = ["-captured_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"DashboardSnapshot({self.user.username}, {self.captured_at})"
 
 
@@ -510,7 +349,7 @@ class AutoAdvisorWeeklyReportModel(models.Model):
         ]
         unique_together = [["user", "account_id", "report_date"]]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"AutoAdvisorWeeklyReport(user={self.user_id}, account={self.account_id}, date={self.report_date})"
 
 
@@ -553,7 +392,7 @@ class AutoAdvisorNotificationModel(models.Model):
             models.Index(fields=["channel", "created_at"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"AutoAdvisorNotification(user={self.user_id}, account={self.account_id}, status={self.delivery_status})"
 
 

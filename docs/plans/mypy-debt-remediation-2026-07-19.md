@@ -5471,3 +5471,17 @@
 - Filter 模型与数据库约束专项 `10 passed`；Filter API、Domain 算法、Repository 财务真实性、UseCase 与 Dashboard 完整相关回归 `93 passed`。
 - `apps/filter/infrastructure/models.py` 在增量 mypy 口径清零；全仓基线从 `710 errors / 322 files` 收紧为 `702 errors / 321 files`，净减少 `8 errors / 1 file`。
 - Filter migration drift check、Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、MCP、SDK 或部署实现。
+
+## 第三百五十八批
+
+- 按“Dashboard 告警并发触发丢计数 × 模型公共方法缺少类型合同”收口仪表盘模型。
+- `DashboardAlertModel.update_trigger()` 不再读取实例旧值执行 `trigger_count += 1` 后覆盖保存；改由数据库 `F(trigger_count) + 1` 原子更新，同一告警被多个持有陈旧实例的 worker 触发时不会丢事件。
+- 原子更新要求模型已持久化且目标行仍存在；无主键实例和更新期间被删除的行明确失败，不制造内存成功假象。更新后实例刷新真实计数，`last_triggered_at` 使用 timezone-aware 时间。
+- Dashboard 配置、用户偏好、卡片、告警、快照、自动投顾周报与通知七个模型的字符串方法补齐精确 `str` 返回类型，模型文件退出 mypy 债务清单。
+- 新增陈旧双 worker 累计触发与未保存告警拒绝回归。
+
+## 第三百五十八批验证结果
+
+- Dashboard 告警模型、偏好仓储与 API 边界回归 `18 passed`。
+- `apps/dashboard/infrastructure/models.py` 在增量 mypy 口径清零；全仓基线从 `702 errors / 321 files` 收紧为 `695 errors / 320 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、MCP、SDK 或部署实现。
