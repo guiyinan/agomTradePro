@@ -4674,3 +4674,18 @@
 - Data Center 单元、组件与 on-demand 回归 `346 passed`。
 - `apps/data_center/infrastructure/macro_fact_repositories.py` 增量 mypy 清零；全仓基线从 `1117 errors / 385 files` 收紧为 `1111 errors / 384 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百一十批
+
+- 按“中央数据治理入口 × Django 模型权限 × Provider 凭据防回显”收口 Data Center Admin。
+- 六组 Admin 全部迁移到 `TypedModelAdmin[ConcreteModel]`；Provider 配置表单使用 `TypedModelForm[ProviderConfigModel]`，Admin handler 补齐 `HttpRequest`、具体模型可空参数和精确返回类型，移除失效 ignore。
+- 两个 singleton Admin 的新增权限恢复 Django 原生模型权限前置判断；无 add 权限的 staff 现在直接失败关闭，并在查询 singleton 是否存在前短路，不再因当前无记录绕过权限。
+- Provider API key 与 secret 改用不回显原值的 password widget；编辑表单留空会保留已有凭据，避免浏览器 HTML 暴露存量密钥，也避免常规编辑误清空凭据。
+- Provider settings 与 production coverage universe 的全局 singleton 继续禁止 Admin 删除。
+- 新增凭据不回显、留空保留、无权限短路及禁止删除回归。
+
+## 第三百一十批验证结果
+
+- Data Center 单元、组件与 on-demand 回归 `352 passed`。
+- `apps/data_center/interface/admin.py` 增量 mypy 清零；全仓基线从 `1111 errors / 384 files` 收紧为 `1097 errors / 383 files`，净减少 `14 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
