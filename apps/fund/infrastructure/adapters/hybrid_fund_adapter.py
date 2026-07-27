@@ -1,15 +1,15 @@
-"""
-混合基金数据适配器
+"""Validated multi-source fund adapter with backend-safe shared cache keys."""
 
-支持多数据源自动切换和降级策略
-"""
+from __future__ import annotations
 
+import importlib
 import logging
-
-import pandas as pd
+import re
+from typing import Protocol, cast
 
 from shared.infrastructure.resilience import (
     DataSourceUnavailable,
+    HealthStatus,
     _health_manager,
     cached,
     retry_on_error,
@@ -17,37 +17,98 @@ from shared.infrastructure.resilience import (
 
 logger = logging.getLogger(__name__)
 
+_FUND_CODE_PATTERN = re.compile(r"\d{6}(?:\.(?:OF|SH|SZ))?\Z")
 
-class HybridFundAdapter:
-    """混合基金数据适配器 - 自动切换数据源"""
 
-    def __init__(self, tushare_token: str | None = None, tushare_http_url: str | None = None):
-        """
-        初始化混合适配器
-
-        Args:
-            tushare_token: Tushare API token（可选）
-        """
-        self.tushare_token = tushare_token
-        self.tushare_http_url = tushare_http_url
-        self._akshare_adapter = None
-        self._tushare_adapter = None
+class FundDataFrame(Protocol):
+    """Narrow pandas DataFrame behavior required at this provider boundary."""
 
     @property
-    def akshare(self):
-        """延迟初始化 AKShare 适配器"""
+    def empty(self) -> bool:
+        """Return whether the frame contains no rows."""
+
+
+class _PandasModule(Protocol):
+    def DataFrame(self, data: object = None) -> FundDataFrame:
+        """Construct an empty or populated frame."""
+
+
+class _AkShareFundAdapter(Protocol):
+    def fetch_fund_list_em(self) -> FundDataFrame: ...
+
+    def fetch_fund_info_em(self, fund_code: str) -> FundDataFrame: ...
+
+    def fetch_fund_nav_em(self, fund_code: str) -> FundDataFrame: ...
+
+
+class _TushareFundAdapter(Protocol):
+    def fetch_fund_list(self, market: str = "E") -> FundDataFrame: ...
+
+
+pd = cast(_PandasModule, importlib.import_module("pandas"))
+
+
+def _fund_list_cache_key(_adapter: object) -> str:
+    """Return a process-independent, Memcached-safe fund list cache key."""
+
+    return "fund:list:em:v1"
+
+
+def _normalize_fund_code(fund_code: object) -> str:
+    """Validate a dynamic fund code before provider or cache access."""
+
+    if not isinstance(fund_code, str):
+        raise ValueError("fund_code must be a string")
+    normalized = fund_code.strip().upper()
+    if not _FUND_CODE_PATTERN.fullmatch(normalized):
+        raise ValueError("fund_code must be a six-digit mainland fund code")
+    return normalized
+
+
+def _fund_info_cache_key(fund_code: str) -> str:
+    """Return the stable exact-fund information cache key."""
+
+    return f"fund:info:em:v1:{_normalize_fund_code(fund_code)}"
+
+
+def _fund_nav_cache_key(fund_code: str) -> str:
+    """Return the stable exact-fund NAV cache key."""
+
+    return f"fund:nav:em:v1:{_normalize_fund_code(fund_code)}"
+
+
+class HybridFundAdapter:
+    """Fetch fund data through healthy providers with deterministic degradation."""
+
+    def __init__(
+        self,
+        tushare_token: str | None = None,
+        tushare_http_url: str | None = None,
+    ) -> None:
+        self.tushare_token = tushare_token
+        self.tushare_http_url = tushare_http_url
+        self._akshare_adapter: _AkShareFundAdapter | None = None
+        self._tushare_adapter: _TushareFundAdapter | None = None
+
+    @property
+    def akshare(self) -> _AkShareFundAdapter:
+        """Lazily construct the AKShare provider adapter."""
+
         if self._akshare_adapter is None:
             from .akshare_fund_adapter import AkShareFundAdapter
+
             self._akshare_adapter = AkShareFundAdapter()
         return self._akshare_adapter
 
     @property
-    def tushare(self):
-        """延迟初始化 Tushare 适配器"""
+    def tushare(self) -> _TushareFundAdapter:
+        """Lazily construct the configured Tushare provider adapter."""
+
         if self._tushare_adapter is None:
             if not self.tushare_token:
-                raise ValueError("Tushare token 未配置")
+                raise ValueError("Tushare token is not configured")
             from .tushare_fund_adapter import TushareFundAdapter
+
             self._tushare_adapter = TushareFundAdapter(
                 token=self.tushare_token,
                 http_url=self.tushare_http_url,
@@ -58,99 +119,84 @@ class HybridFundAdapter:
         max_retries=3,
         initial_delay=1.0,
         backoff_factor=2.0,
-        exceptions=(ConnectionError, TimeoutError, Exception)
+        exceptions=(ConnectionError, TimeoutError, DataSourceUnavailable),
     )
-    @cached(ttl=7200)  # 缓存2小时
-    def fetch_fund_list_em(self) -> pd.DataFrame:
-        """
-        获取全部基金列表（带缓存和重试）
+    @cached(ttl=7200, key_func=_fund_list_cache_key)
+    def fetch_fund_list_em(self) -> FundDataFrame:
+        """Return the complete fund list from the first healthy non-empty source."""
 
-        Returns:
-            DataFrame: 基金列表
-        """
-        # 优先使用 AKShare
         try:
-            if _health_manager.is_healthy('akshare_fund'):
-                logger.info("使用 AKShare 获取基金列表")
-                df = self.akshare.fetch_fund_list_em()
-                if df is not None and not df.empty:
-                    _health_manager.record_success('akshare_fund')
-                    return df
-                else:
-                    _health_manager.record_failure('akshare_fund', '返回空数据')
-        except Exception as e:
-            _health_manager.record_failure('akshare_fund', str(e))
-            logger.warning(f"AKShare 获取基金列表失败: {e}")
+            if _health_manager.is_healthy("akshare_fund"):
+                logger.info("Fetching fund list from AKShare")
+                frame = self.akshare.fetch_fund_list_em()
+                if not frame.empty:
+                    _health_manager.record_success("akshare_fund")
+                    return frame
+                _health_manager.record_failure("akshare_fund", "EmptyData")
+        except Exception as exc:
+            error_type = type(exc).__name__
+            _health_manager.record_failure("akshare_fund", error_type)
+            logger.warning("AKShare fund list failed: error_type=%s", error_type)
 
-        # 降级到 Tushare
-        if self.tushare_token and _health_manager.is_healthy('tushare_fund'):
+        if self.tushare_token and _health_manager.is_healthy("tushare_fund"):
             try:
-                logger.info("降级使用 Tushare 获取基金列表")
-                df = self.tushare.fetch_fund_list()
-                if not df.empty:
-                    _health_manager.record_success('tushare_fund')
-                    return df
-            except Exception as e:
-                _health_manager.record_failure('tushare_fund', str(e))
-                logger.warning(f"Tushare 获取基金列表失败: {e}")
+                logger.info("Falling back to Tushare fund list")
+                frame = self.tushare.fetch_fund_list()
+                if not frame.empty:
+                    _health_manager.record_success("tushare_fund")
+                    return frame
+                _health_manager.record_failure("tushare_fund", "EmptyData")
+            except Exception as exc:
+                error_type = type(exc).__name__
+                _health_manager.record_failure("tushare_fund", error_type)
+                logger.warning("Tushare fund list failed: error_type=%s", error_type)
 
-        raise DataSourceUnavailable("所有数据源均不可用")
+        raise DataSourceUnavailable("No healthy fund list source returned data")
 
-    def fetch_fund_info_em(self, fund_code: str) -> pd.DataFrame:
-        """
-        获取单个基金详细信息
+    def fetch_fund_info_em(self, fund_code: str) -> FundDataFrame:
+        """Return one fund's AKShare information using a stable exact-code cache."""
 
-        Args:
-            fund_code: 基金代码
+        normalized_code = _normalize_fund_code(fund_code)
 
-        Returns:
-            DataFrame: 基金信息
-        """
-        @cached(ttl=1800, key_func=lambda code: f'fund_info_{code}')
-        def _fetch(code: str) -> pd.DataFrame:
-            # 尝试 AKShare
+        @cached(ttl=1800, key_func=_fund_info_cache_key)
+        def _fetch(code: str) -> FundDataFrame:
             try:
-                if _health_manager.is_healthy('akshare_fund'):
-                    df = self.akshare.fetch_fund_info_em(code)
-                    if df is not None and not df.empty:
-                        _health_manager.record_success('akshare_fund')
-                        return df
-            except Exception as e:
-                _health_manager.record_failure('akshare_fund', str(e))
-
+                if _health_manager.is_healthy("akshare_fund"):
+                    frame = self.akshare.fetch_fund_info_em(code)
+                    if not frame.empty:
+                        _health_manager.record_success("akshare_fund")
+                        return frame
+                    _health_manager.record_failure("akshare_fund", "EmptyData")
+            except Exception as exc:
+                _health_manager.record_failure("akshare_fund", type(exc).__name__)
             return pd.DataFrame()
 
-        return _fetch(fund_code)
+        return _fetch(normalized_code)
 
-    def fetch_fund_nav_em(self, fund_code: str) -> pd.DataFrame:
-        """
-        获取基金净值历史数据
+    def fetch_fund_nav_em(self, fund_code: str) -> FundDataFrame:
+        """Return one fund's NAV history using a stable exact-code cache."""
 
-        Args:
-            fund_code: 基金代码
+        normalized_code = _normalize_fund_code(fund_code)
 
-        Returns:
-            DataFrame: 净值数据
-        """
-        @cached(ttl=300, key_func=lambda code: f'fund_nav_{code}')
-        def _fetch(code: str) -> pd.DataFrame:
-            # 尝试 AKShare
+        @cached(ttl=300, key_func=_fund_nav_cache_key)
+        def _fetch(code: str) -> FundDataFrame:
             try:
-                if _health_manager.is_healthy('akshare_fund'):
-                    df = self.akshare.fetch_fund_nav_em(code)
-                    if df is not None and not df.empty:
-                        _health_manager.record_success('akshare_fund')
-                        return df
-            except Exception as e:
-                _health_manager.record_failure('akshare_fund', str(e))
-
+                if _health_manager.is_healthy("akshare_fund"):
+                    frame = self.akshare.fetch_fund_nav_em(code)
+                    if not frame.empty:
+                        _health_manager.record_success("akshare_fund")
+                        return frame
+                    _health_manager.record_failure("akshare_fund", "EmptyData")
+            except Exception as exc:
+                _health_manager.record_failure("akshare_fund", type(exc).__name__)
             return pd.DataFrame()
 
-        return _fetch(fund_code)
+        return _fetch(normalized_code)
 
-    def get_health_status(self) -> dict:
-        """获取所有数据源的健康状态"""
+    def get_health_status(self) -> dict[str, HealthStatus]:
+        """Return bounded health snapshots for both configured provider slots."""
+
         return {
-            'akshare_fund': _health_manager.get_health_status('akshare_fund'),
-            'tushare_fund': _health_manager.get_health_status('tushare_fund'),
+            "akshare_fund": _health_manager.get_health_status("akshare_fund"),
+            "tushare_fund": _health_manager.get_health_status("tushare_fund"),
         }

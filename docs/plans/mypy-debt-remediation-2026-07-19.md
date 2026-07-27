@@ -5187,3 +5187,19 @@
 - Fund Admin 注册与金额显示专项 `2 passed`；Fund Domain、Adapter、Application、组件与 API 扩展回归 `117 passed`，仅保留未改动 Hybrid adapter 对象 repr 缓存键 `CacheKeyWarning` 作为后续独立候选。
 - `apps/fund/interface/admin.py` 与根 autodiscovery bridge 在 typed Admin 基座联合 governed mypy 及增量 mypy 口径均清零；全仓基线从 `832 errors / 346 files` 收紧为 `822 errors / 345 files`，净减少 `10 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百四十一批
+
+- 按“Fund 缓存键含对象 repr × 跨进程缓存失效 × provider 异常信息泄露”收口 `HybridFundAdapter`。
+- 基金列表缓存从 generic decorator 自动拼接 `self` 的对象 repr 改为固定版本化 key `fund:list:em:v1`；key 不再包含内存地址、尖括号或空格，可被 Memcached 接受并由不同 Adapter 实例/进程共享。
+- 基金详情与净值缓存使用经严格验证、trim/uppercase 后的六位基金代码构造稳定 exact-code key；空白、路径字符、长度错误、空格和布尔伪装在 provider/cache 前失败关闭。
+- pandas 改为 importlib 第三方边界并用局部 DataFrame/Module Protocol 收窄；AKShare/Tushare lazy adapters 使用精确 Protocol，消除动态属性 `Any` 与 untyped import 扩散。
+- AKShare/Tushare 返回空 DataFrame 时显式记录 `EmptyData` failure；provider 异常只向健康状态和日志传递异常类型，不再保存或打印可能包含 Token、URL 的原始正文。
+- 重试范围从包含冗余裸 `Exception` 收紧为连接、超时与明确的 `DataSourceUnavailable`；健康快照返回 `dict[str, HealthStatus]` 精确契约。
+- 新增稳定 key 跨实例命中、Memcached warning 消失和非法基金代码前置拒绝回归。
+
+## 第三百四十一批验证结果
+
+- Hybrid Fund adapter 专项 `11 passed`；Fund Domain、Adapter、Application、组件与 API 扩展回归 `123 passed`，此前对象 repr 缓存键 warning 不再出现。
+- `apps/fund/infrastructure/adapters/hybrid_fund_adapter.py` 在 resilience 基座联合 governed mypy 与增量 mypy 口径均清零；全仓基线从 `822 errors / 345 files` 收紧为 `816 errors / 344 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

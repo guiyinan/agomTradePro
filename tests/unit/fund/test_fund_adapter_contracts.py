@@ -1,12 +1,16 @@
 """Deterministic adapter contracts for fund data-source boundaries."""
 
+import warnings
 from types import SimpleNamespace
+from typing import cast
 
 import pandas as pd
 import pytest
+from django.core.cache.backends.base import CacheKeyWarning
 
 from apps.fund.infrastructure.adapters.hybrid_fund_adapter import HybridFundAdapter
 from apps.fund.infrastructure.adapters.tushare_fund_adapter import TushareFundAdapter
+from shared.infrastructure.resilience import _cache_manager
 
 
 class _FakeTusharePro:
@@ -115,3 +119,52 @@ def test_hybrid_fund_adapter_uses_healthy_sources_and_exposes_health(
     assert adapter.fetch_fund_nav_em("510300").iloc[0]["净值"] == 1.2
     assert adapter.get_health_status()["akshare_fund"]["healthy"] is True
     assert ("success", "akshare_fund") in calls
+
+
+def test_hybrid_fund_list_cache_key_is_backend_safe_and_cross_instance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fund-list cache scope excludes object repr and remains reusable across workers."""
+
+    _cache_manager.clear()
+    provider_calls: list[bool] = []
+    monkeypatch.setattr(
+        "apps.fund.infrastructure.adapters.hybrid_fund_adapter._health_manager.is_healthy",
+        lambda source: True,
+    )
+    monkeypatch.setattr(
+        "apps.fund.infrastructure.adapters.hybrid_fund_adapter._health_manager.record_success",
+        lambda source: None,
+    )
+
+    def fetch() -> pd.DataFrame:
+        provider_calls.append(True)
+        return pd.DataFrame([{"代码": "510300"}])
+
+    first = HybridFundAdapter()
+    second = HybridFundAdapter()
+    first._akshare_adapter = SimpleNamespace(fetch_fund_list_em=fetch)
+    second._akshare_adapter = SimpleNamespace(fetch_fund_list_em=fetch)
+
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        assert first.fetch_fund_list_em().iloc[0]["代码"] == "510300"
+        assert second.fetch_fund_list_em().iloc[0]["代码"] == "510300"
+
+    assert provider_calls == [True]
+    assert not [item for item in captured if issubclass(item.category, CacheKeyWarning)]
+
+
+@pytest.mark.parametrize("fund_code", ["", "../secret", "51030", "510300 OF", True])
+def test_hybrid_fund_detail_rejects_invalid_codes_before_provider(
+    fund_code: object,
+) -> None:
+    """Malformed dynamic codes cannot enter provider calls or cache keys."""
+
+    adapter = HybridFundAdapter()
+    adapter._akshare_adapter = SimpleNamespace(
+        fetch_fund_info_em=lambda code: pytest.fail("provider must not be called")
+    )
+
+    with pytest.raises(ValueError, match="fund_code"):
+        adapter.fetch_fund_info_em(cast(str, fund_code))
