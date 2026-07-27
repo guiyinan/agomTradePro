@@ -4880,3 +4880,20 @@
 - Equity 权重发布专项 `15 passed`；Equity 单元、API edge、配置组件与 Admin 回归 `228 passed`。
 - `apps/equity/interface/admin.py` 增量 mypy 清零；全仓基线从 `1004 errors / 369 files` 收紧为 `989 errors / 368 files`，净减少 `15 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort 与增量 mypy 通过；全仓 baseline 写入阶段完成后命令进程超时退出，随后只读 debt ceiling 门禁通过并确认最终基线。
+
+## 第三百二十二批
+
+- 按“Qlib 初始化假成功 × 配置中心真源 × 第三方动态边界”收口 Alpha `init_qlib_data` 管理命令。
+- Qlib 未安装不再打印错误后以成功状态返回；完整性检查失败、股票池为空、交易日历为空、行情窗口为空、数据准备异常或空结果全部抛出 `CommandError`，命令不再误报“初始化完成”。
+- `--universe` 默认值改为 `None`，未显式传参时读取配置中心 `default_universe`；缺失或错误类型直接失败关闭，不再由命令行默认 `csi300` 覆盖运行时配置。
+- `region` 与 `provider_uri` 同样要求 CLI 覆盖值或配置中心值为非空字符串；region 贯穿完整性检查、数据准备和下载，不再在 Qlib init 时硬编码为 `cn`。
+- `days` 只接受非布尔正整数，download/check 只接受真实布尔值；动态调用者的零、负数、字符串和布尔伪装在加载 Qlib 前被拒绝。
+- Qlib、`qlib.data.D` 与 downloader 改由 `importlib` 加载并通过 Protocol 收窄；移除 3 个 untyped import、裸容器/返回类型和无实现的初始化脚本占位函数。
+- 第三方 import、下载、完整性和 feature 读取失败只输出异常类型，不再把可能包含路径、token 或底层响应内容的异常正文写入运维输出。
+- 新增依赖缺失非零退出、配置中心默认股票池、非法参数前置短路、完整性/准备失败关闭、region 传递和空 feature 拒绝回归。
+
+## 第三百二十二批验证结果
+
+- Alpha 管理命令专项 `4 passed`；Alpha 单元与 API 回归 `65 passed`，另有 1 条来自未改动 Qlib pandas 兼容层 `DataFrame.groupby(axis=...)` 的 FutureWarning。
+- `apps/alpha/management/commands/init_qlib_data.py` 增量 mypy 清零；全仓基线从 `989 errors / 368 files` 收紧为 `979 errors / 367 files`，净减少 `10 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

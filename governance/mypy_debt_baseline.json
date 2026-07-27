@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 989,
-    "files_with_errors": 368
+    "errors": 979,
+    "files_with_errors": 367
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -242,11 +242,6 @@
       "arg-type": 2,
       "no-untyped-def": 2,
       "union-attr": 1
-    },
-    "apps/alpha/management/commands/init_qlib_data.py": {
-      "arg-type": 2,
-      "import-untyped": 3,
-      "no-untyped-def": 5
     },
     "apps/alpha/management/commands/list_models.py": {
       "no-untyped-def": 2
