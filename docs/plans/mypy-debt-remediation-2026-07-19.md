@@ -5485,3 +5485,18 @@
 - Dashboard 告警模型、偏好仓储与 API 边界回归 `18 passed`。
 - `apps/dashboard/infrastructure/models.py` 在增量 mypy 口径清零；全仓基线从 `702 errors / 321 files` 收紧为 `695 errors / 320 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、MCP、SDK 或部署实现。
+
+## 第三百五十九批
+
+- 按“Dashboard 公共查询结果无类型 × 损坏 Alpha metadata 中断多消费者 × provider 异常泄露到日志/响应”收口 Dashboard Query Services。
+- Alpha provider 尝试、fallback 注解和可靠性 metadata 统一使用真实 `AlphaResult`；Dashboard 首页懒加载单例补齐 `AlphaHomepageQuery` 精确类型，页面/API/SDK/MCP 调用链不再从无类型 accessor 取得 Any。
+- 动态 provider metadata 只接受 string-keyed mapping；损坏的 `reliability_notice` 列表/字符串降级为空结构，不再触发 `.get()` 异常。用户 fallback 原因只采用有界单行的显式 reliability notice，否则生成稳定“实时 Qlib 未就绪/已触发异步推理”文案。
+- 原始 `AlphaResult.error_message` 不再进入 Dashboard fallback metadata；查询层所有降级日志只记录异常类型，Regime warning 与持仓详情错误返回稳定文案，不再暴露数据库、provider、凭据或远端响应正文。
+- 删除全仓无调用的动态 `_assign_names_from_rows` helper；证券名称解析保留当前规范化、批量查询和无 N+1 行为。
+- 新增损坏嵌套 metadata、provider error 脱敏、持仓详情脱敏与 Regime 降级稳定性回归。
+
+## 第三百五十九批验证结果
+
+- Dashboard Query 安全与 Alpha 查询专项 `41 passed`；Dashboard API、组件 guardrail、SDK Alpha 与 MCP Dashboard 多消费者回归 `43 passed`。
+- `apps/dashboard/application/queries.py` 在增量 mypy 口径清零，并同步消除 `query_services.py` 对无类型首页 accessor 的一处调用错误；全仓基线从 `695 errors / 320 files` 收紧为 `688 errors / 319 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI 或部署实现，SDK/MCP 仅执行回归未改代码。

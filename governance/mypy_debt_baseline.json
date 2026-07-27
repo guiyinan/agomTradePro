@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 695,
-    "files_with_errors": 320
+    "errors": 688,
+    "files_with_errors": 319
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -344,14 +344,9 @@
       "arg-type": 2,
       "comparison-overlap": 1
     },
-    "apps/dashboard/application/queries.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 5
-    },
     "apps/dashboard/application/query_services.py": {
       "arg-type": 2,
-      "index": 1,
-      "no-untyped-call": 1
+      "index": 1
     },
     "apps/dashboard/application/tasks.py": {
       "misc": 1

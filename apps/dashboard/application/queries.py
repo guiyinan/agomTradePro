@@ -9,19 +9,26 @@ Application 层查询服务，为 Dashboard 视图提供数据聚合。
 - 提供简化的 API 给视图层使用
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
 from django.utils import timezone as django_timezone
 
+from apps.alpha.domain.entities import AlphaResult
 from apps.dashboard.application.repository_provider import (
     get_dashboard_alpha_context_repository,
     get_dashboard_query_repository,
 )
+
+if TYPE_CHECKING:
+    from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +44,25 @@ DEGRADED_DASHBOARD_QUERY_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+
+
+def _string_keyed_mapping(value: object) -> dict[str, Any]:
+    """Copy only string-keyed mapping data from dynamic provider metadata."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    return {key: item for key, item in value.items() if isinstance(key, str)}
+
+
+def _bounded_text(value: object, *, default: str, max_length: int = 500) -> str:
+    """Return bounded single-line user-facing metadata or a stable fallback."""
+
+    if not isinstance(value, str):
+        return default
+    normalized = value.strip()
+    if not normalized or len(normalized) > max_length or "\n" in normalized or "\r" in normalized:
+        return default
+    return normalized
 
 
 # ============================================================================
@@ -119,7 +145,7 @@ class AlphaVisualizationQuery:
 
             service = AlphaService()
             result = None
-            attempts: list[tuple[str, Any]] = []
+            attempts: list[tuple[str, AlphaResult]] = []
             for provider_name in ("qlib", "cache", "simple", "etf"):
                 candidate = service.get_stock_scores(
                     universe_id="csi300",
@@ -172,8 +198,8 @@ class AlphaVisualizationQuery:
                     }
                 ),
             }
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get alpha stock scores: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning("Failed to get alpha stock scores: error_type=%s", type(exc).__name__)
             return {
                 "items": [],
                 "meta": {
@@ -187,13 +213,13 @@ class AlphaVisualizationQuery:
 
     def _annotate_dashboard_alpha_result(
         self,
-        result,
+        result: AlphaResult,
         *,
         selected_provider: str,
-        attempts: list[tuple[str, Any]],
-    ):
+        attempts: list[tuple[str, AlphaResult]],
+    ) -> AlphaResult:
         """Attach dashboard-specific freshness hints when the page falls back from realtime qlib."""
-        metadata = dict(getattr(result, "metadata", {}) or {})
+        metadata = _string_keyed_mapping(result.metadata)
         qlib_attempt = next(
             (candidate for provider, candidate in attempts if provider == "qlib"), None
         )
@@ -202,13 +228,18 @@ class AlphaVisualizationQuery:
             and qlib_attempt is not None
             and not getattr(qlib_attempt, "success", False)
         ):
-            qlib_metadata = dict(getattr(qlib_attempt, "metadata", {}) or {})
-            fallback_reason = (
-                getattr(qlib_attempt, "error_message", None)
-                or qlib_metadata.get("reliability_notice", {}).get("message")
-                or "实时 Qlib 结果尚未就绪"
-            )
+            qlib_metadata = _string_keyed_mapping(qlib_attempt.metadata)
+            qlib_notice = _string_keyed_mapping(qlib_metadata.get("reliability_notice"))
             refresh_triggered = bool(qlib_metadata.get("async_task_triggered"))
+            stable_reason = (
+                "实时 Qlib 结果尚未就绪，系统已触发异步推理任务"
+                if refresh_triggered
+                else "实时 Qlib 结果尚未就绪"
+            )
+            fallback_reason = _bounded_text(
+                qlib_notice.get("message"),
+                default=stable_reason,
+            )
             asof_date = metadata.get("asof_date") or metadata.get("cache_date")
 
             metadata.setdefault("fallback_from", "qlib")
@@ -242,10 +273,10 @@ class AlphaVisualizationQuery:
         result.metadata = metadata
         return result
 
-    def _build_stock_scores_meta(self, result) -> dict[str, Any]:
+    def _build_stock_scores_meta(self, result: AlphaResult) -> dict[str, Any]:
         """Build template/API-friendly metadata for Alpha score reliability."""
-        metadata = dict(getattr(result, "metadata", {}) or {})
-        notice = metadata.get("reliability_notice") or {}
+        metadata = _string_keyed_mapping(result.metadata)
+        notice = _string_keyed_mapping(metadata.get("reliability_notice"))
         return {
             "status": getattr(result, "status", "available"),
             "source": getattr(result, "source", "none"),
@@ -277,15 +308,15 @@ class AlphaVisualizationQuery:
 
         try:
             from apps.asset_analysis.application.asset_name_service import resolve_asset_names
-        except (ImportError, ImproperlyConfigured) as e:
-            logger.debug(f"Failed to import asset name resolver: {e}")
+        except (ImportError, ImproperlyConfigured) as exc:
+            logger.debug("Failed to import asset name resolver: error_type=%s", type(exc).__name__)
             return {}
 
         lookup_codes = sorted({alias for aliases in code_aliases.values() for alias in aliases})
         try:
             resolved_lookup_map = resolve_asset_names(lookup_codes)
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.debug(f"Failed to resolve security names: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.debug("Failed to resolve security names: error_type=%s", type(exc).__name__)
             return {}
 
         name_map: dict[str, str] = {}
@@ -314,26 +345,6 @@ class AlphaVisualizationQuery:
 
             aliases[original] = code_aliases
         return aliases
-
-    def _assign_names_from_rows(
-        self,
-        *,
-        name_map: dict[str, str],
-        code_aliases: dict[str, set[str]],
-        rows,
-        code_field: str,
-        name_field: str,
-    ) -> None:
-        """Assign names back to the original request codes by matching lookup aliases."""
-        for row in rows:
-            resolved_code = str(row.get(code_field) or "").strip().upper()
-            resolved_name = row.get(name_field) or ""
-            if not resolved_code or not resolved_name:
-                continue
-
-            for requested_code, aliases in code_aliases.items():
-                if requested_code not in name_map and resolved_code in aliases:
-                    name_map[requested_code] = resolved_name
 
     def _get_provider_status(self) -> dict[str, Any]:
         """获取 Alpha Provider 状态"""
@@ -367,8 +378,8 @@ class AlphaVisualizationQuery:
                 "data_source": "live",
                 "warning_message": None,
             }
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get alpha provider status: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning("Failed to get alpha provider status: error_type=%s", type(exc).__name__)
             return {
                 "providers": {},
                 "metrics": {},
@@ -413,8 +424,11 @@ class AlphaVisualizationQuery:
                 "data_source": "registry",
                 "warning_message": None,
             }
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get lightweight alpha provider status: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning(
+                "Failed to get lightweight alpha provider status: error_type=%s",
+                type(exc).__name__,
+            )
             return {
                 "providers": {},
                 "metrics": {},
@@ -444,8 +458,10 @@ class AlphaVisualizationQuery:
                 "data_source": "live",
                 "warning_message": None,
             }
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get alpha coverage metrics: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning(
+                "Failed to get alpha coverage metrics: error_type=%s", type(exc).__name__
+            )
             return {
                 "coverage_ratio": 0.0,
                 "total_requests": 0,
@@ -464,8 +480,8 @@ class AlphaVisualizationQuery:
                 return trends
             return self._empty_ic_data(days)
 
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get alpha IC trends: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning("Failed to get alpha IC trends: error_type=%s", type(exc).__name__)
             return self._empty_ic_data(days)
 
     def _empty_ic_data(self, days: int) -> list[dict[str, Any]]:
@@ -606,8 +622,10 @@ class DecisionPlaneQuery:
             if allowed_classes:
                 return ", ".join(allowed_classes[:3])
             return "全部"
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get beta gate visible classes: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning(
+                "Failed to get beta gate visible classes: error_type=%s", type(exc).__name__
+            )
             return "-"
 
     def _get_alpha_status_count(self, status: str) -> int:
@@ -624,8 +642,8 @@ class DecisionPlaneQuery:
                 "ACTIONABLE": "alpha_actionable_count",
             }
             return int(summary.get(key_by_status.get(status, ""), 0))
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get alpha status count for {status}: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning("Failed to get alpha status count: error_type=%s", type(exc).__name__)
             return 0
 
     def _get_quota_total(self) -> int:
@@ -718,8 +736,11 @@ class DecisionPlaneQuery:
             from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 
             name_map = resolve_asset_names(list(lookup_codes))
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to resolve asset names for workflow panel: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning(
+                "Failed to resolve asset names for workflow panel: error_type=%s",
+                type(exc).__name__,
+            )
             return items
 
         for item in items:
@@ -745,8 +766,8 @@ class DecisionPlaneQuery:
             context_repo = get_dashboard_alpha_context_repository()
             candidates = context_repo.load_actionable_candidates(max_count=max_count)
             return self._attach_asset_names(candidates)
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get actionable candidates: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning("Failed to get actionable candidates: error_type=%s", type(exc).__name__)
             return []
 
     def _get_pending_requests(self, max_count: int | None) -> list[Any]:
@@ -770,8 +791,8 @@ class DecisionPlaneQuery:
                     break
 
             return self._attach_asset_names(deduped)
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get pending requests: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning("Failed to get pending requests: error_type=%s", type(exc).__name__)
             return []
 
 
@@ -1153,8 +1174,8 @@ class RegimeSummaryQuery:
                 regime_warnings=["No regime data available"],
             )
 
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get regime summary: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning("Failed to get regime summary: error_type=%s", type(exc).__name__)
             return RegimeSummaryData(
                 current_regime="Unknown",
                 regime_date=None,
@@ -1165,15 +1186,15 @@ class RegimeSummaryQuery:
                 cpi_value=None,
                 regime_distribution={},
                 regime_data_health=False,
-                regime_warnings=[str(e)],
+                regime_warnings=["Regime data unavailable"],
             )
 
     def _get_latest_macro_value(self, indicator_code: str) -> float | None:
         """获取最新宏观指标值"""
         try:
             return get_dashboard_query_repository().get_latest_macro_indicator_value(indicator_code)
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.debug(f"Failed to get macro value for {indicator_code}: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.debug("Failed to get macro value: error_type=%s", type(exc).__name__)
             return None
 
 
@@ -1187,8 +1208,8 @@ class DashboardDetailQuery:
                 user_id=user_id,
                 asset_code=asset_code,
             )
-        except ValueError as e:
-            position_error = str(e)
+        except ValueError as exc:
+            position_error = str(exc)
             if "position not found" in position_error.lower():
                 return {
                     "position": None,
@@ -1196,20 +1217,20 @@ class DashboardDetailQuery:
                     "asset_code": asset_code,
                     "error": f"未找到持仓 {asset_code}",
                 }
-            logger.warning(f"Failed to get position detail for {asset_code}: {e}")
+            logger.warning("Failed to get position detail: error_type=%s", type(exc).__name__)
             return {
                 "position": None,
                 "related_signals": [],
                 "asset_code": asset_code,
-                "error": position_error,
+                "error": "持仓详情暂不可用",
             }
-        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
-            logger.warning(f"Failed to get position detail for {asset_code}: {e}")
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as exc:
+            logger.warning("Failed to get position detail: error_type=%s", type(exc).__name__)
             return {
                 "position": None,
                 "related_signals": [],
                 "asset_code": asset_code,
-                "error": str(e),
+                "error": "持仓详情暂不可用",
             }
 
     def generate_alpha_candidates(self) -> dict[str, int]:
@@ -1284,7 +1305,7 @@ class DashboardDetailQuery:
 _alpha_visualization_query: AlphaVisualizationQuery | None = None
 _decision_plane_query: DecisionPlaneQuery | None = None
 _alpha_decision_chain_query: AlphaDecisionChainQuery | None = None
-_alpha_homepage_query = None
+_alpha_homepage_query: AlphaHomepageQuery | None = None
 _regime_summary_query: RegimeSummaryQuery | None = None
 _dashboard_detail_query: DashboardDetailQuery | None = None
 
@@ -1313,7 +1334,7 @@ def get_alpha_decision_chain_query() -> AlphaDecisionChainQuery:
     return _alpha_decision_chain_query
 
 
-def get_alpha_homepage_query():
+def get_alpha_homepage_query() -> AlphaHomepageQuery:
     """获取 Alpha 首页候选查询服务单例。"""
     global _alpha_homepage_query
     if _alpha_homepage_query is None:
