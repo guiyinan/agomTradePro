@@ -8,7 +8,6 @@ from decimal import Decimal
 from typing import Any, cast
 
 from django.db import transaction
-from django.db.models import Q
 from django.db.utils import OperationalError, ProgrammingError
 from django.utils import timezone
 
@@ -21,7 +20,6 @@ from apps.account.domain.entities import (
     Transaction,
 )
 from apps.account.domain.transaction_cost_contracts import (
-    AssetMetadataRecord,
     TransactionCostConfigRecord,
     TransactionCostRecord,
 )
@@ -34,8 +32,10 @@ from apps.account.infrastructure.account_profile_repository import (
 from apps.account.infrastructure.account_profile_repository import (
     AccountRepository as AccountRepository,
 )
+from apps.account.infrastructure.asset_metadata_repository import (
+    AssetMetadataRepository as AssetMetadataRepository,
+)
 from apps.account.infrastructure.models import (
-    AssetMetadataModel,
     BrokerTradeImportBatchModel,
     MacroSizingConfigModel,
     PortfolioDailySnapshotModel,
@@ -343,137 +343,6 @@ class ManualTradeSyncRepository:
             .select_related("portfolio", "import_batch")
             .order_by("traded_at", "id")
         )
-
-
-class AssetMetadataRepository:
-    """资产元数据仓储"""
-
-    def get_or_create_asset(
-        self,
-        asset_code: str,
-        name: str,
-        asset_class: str = "equity",
-        region: str = "CN",
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """获取或创建资产元数据"""
-        asset, created = AssetMetadataModel._default_manager.get_or_create(
-            asset_code=asset_code,
-            defaults={"name": name, "asset_class": asset_class, "region": region, **kwargs},
-        )
-        return {
-            "id": asset.id,
-            "asset_code": asset.asset_code,
-            "name": asset.name,
-            "asset_class": asset.asset_class,
-            "region": asset.region,
-            "created": created,
-        }
-
-    def search_assets(
-        self,
-        query: str,
-        asset_class: str | None = None,
-        region: str | None = None,
-    ) -> list[dict[str, Any]]:
-        """搜索资产"""
-        queryset = AssetMetadataModel._default_manager.all()
-
-        if query:
-            queryset = queryset.filter(Q(asset_code__icontains=query) | Q(name__icontains=query))
-
-        if asset_class:
-            queryset = queryset.filter(asset_class=asset_class)
-
-        if region:
-            queryset = queryset.filter(region=region)
-
-        return [
-            {
-                "asset_code": a.asset_code,
-                "name": a.name,
-                "asset_class": a.asset_class,
-                "region": a.region,
-            }
-            for a in queryset[:20]
-        ]
-
-    def update_position_prices(self, user_id: int) -> int:
-        """
-        批量更新用户持仓的当前价格
-
-        从行情接口获取最新价格并更新持仓记录。
-        如果行情接口不可用，则使用当前价格（成本价作为后备）。
-
-        Args:
-            user_id: 用户ID
-
-        Returns:
-            int: 更新的持仓数量
-        """
-        from .market_price_service import get_market_price_service
-
-        # 获取用户所有活跃持仓
-        positions = PositionModel._default_manager.filter(
-            portfolio__user_id=user_id, is_closed=False
-        )
-
-        updated_count = 0
-        price_service = get_market_price_service()
-
-        for position in positions:
-            try:
-                # 从行情接口获取价格
-                price_metadata = price_service.get_price_with_metadata(position.asset_code)
-                if price_metadata and price_metadata["price"] is not None:
-                    new_price = price_metadata["price"]
-                    # 更新持仓价格
-                    position.current_price = new_price
-                    position.market_value = Decimal(str(position.shares * float(new_price)))
-                    # 计算盈亏
-                    pnl = (new_price - position.avg_cost) * position.shares
-                    position.unrealized_pnl = pnl
-                    position.unrealized_pnl_pct = float((new_price / position.avg_cost - 1) * 100)
-                    position.save(
-                        update_fields=[
-                            "current_price",
-                            "market_value",
-                            "unrealized_pnl",
-                            "unrealized_pnl_pct",
-                        ]
-                    )
-                    updated_count += 1
-                else:
-                    # 行情接口不可用时，保持当前价格不变
-                    logger.warning(
-                        f"无法获取持仓 {position.id} ({position.asset_code}) 的价格，"
-                        f"使用现有价格 {position.current_price}"
-                    )
-            except Exception as e:
-                logger.error(f"更新持仓 {position.id} ({position.asset_code}) 价格失败: {e}")
-                # 继续处理其他持仓
-
-        return updated_count
-
-    def get_asset_by_code(self, asset_code: str) -> AssetMetadataRecord | None:
-        """
-        Get asset metadata by code.
-
-        Returns:
-            Dict with asset_class, region, etc., or None
-        """
-        try:
-            asset = AssetMetadataModel._default_manager.get(asset_code=asset_code)
-            return {
-                "asset_code": asset.asset_code,
-                "name": asset.name,
-                "asset_class": asset.asset_class,
-                "region": asset.region,
-                "cross_border": asset.cross_border,
-                "style": asset.style,
-            }
-        except AssetMetadataModel.DoesNotExist:
-            return None
 
 
 class StopLossRepository:

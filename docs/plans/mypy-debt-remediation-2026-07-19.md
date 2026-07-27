@@ -5439,3 +5439,19 @@
 - Account 全量单元回归除既有仓储结构预算外 `108 passed`；唯一失败为未改动的 `apps/account/infrastructure/repositories.py` 已有 `1040` 个非空行，超过既有 `1000` 行预算，与本批价格链改动无关，留待独立仓储拆分批次处理。
 - 新 Account 价格合同、gateway、价格服务、Simulated Trading adapter/account gateway 与 Account use case 在联合及增量 mypy 口径均清零；全仓基线从 `714 errors / 324 files` 收紧为 `711 errors / 323 files`，净减少 `3 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、MCP、SDK 或部署实现。
+
+## 第三百五十六批
+
+- 按“Account 仓储聚合文件超预算 × 价格重估混用 Decimal/float × 单行异常泄露底层正文”收口资产元数据仓储。
+- 将 `AssetMetadataRepository` 从兼容聚合文件迁入独立 `asset_metadata_repository.py` owner module；旧 `repositories.py` 继续保持同一类对象的兼容导出，既有 Application、组件和测试导入路径无需迁移。
+- 仓储结构契约新增 owner identity 和 300 行模块预算；聚合文件从 `1040` 降至 `927` 个非空行，新 owner module 为 `127` 行，关闭既有 1000 行预算失败并保留单向依赖。
+- 持仓重估将 ORM `FloatField` shares 在边界转换为 Decimal，市值、未实现盈亏和收益率全部使用 Decimal 完成计算后再为 FloatField 收窄；不再执行运行时会失败的 `Decimal * float`。
+- 价格、份额和平均成本必须为正有限数；损坏持仓只隔离当前行，不写入部分估值。价格不可用或单行异常日志只记录 position id 与异常类型，不再输出底层异常正文或资产数据。
+- 新增精确估值、非有限份额拒绝、逐行异常脱敏、owner 导出身份和模块预算回归。
+
+## 第三百五十六批验证结果
+
+- 仓储结构与资产重估专项 `6 passed`；Account 全量单元回归 `123 passed`；Data Center 建仓、手工成交同步、Dashboard 与宏观配置兼容扩展包 `40 passed`。
+- 扩展包中另有一个与本批无关的既有测试夹具失败：`test_macro_sizing_config_repository_returns_active_config` 在迁移已创建 active row 后再次直接创建 active row，触发 SQLite 唯一约束；单独重跑结果相同，本批未修改该模型、迁移或测试。
+- 新资产元数据 owner module 与兼容聚合仓储在联合及增量 mypy 口径均清零；全仓基线从 `711 errors / 323 files` 收紧为 `710 errors / 322 files`，净减少 `1 error / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、MCP、SDK 或部署实现。

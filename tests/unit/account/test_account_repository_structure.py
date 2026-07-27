@@ -16,6 +16,7 @@ OWNER_MODULES = {
     "PortfolioRepository": "apps.account.infrastructure.portfolio_repository",
     "PositionRepository": "apps.account.infrastructure.position_repository",
     "PortfolioApiRepository": "apps.account.infrastructure.portfolio_api_repository",
+    "AssetMetadataRepository": "apps.account.infrastructure.asset_metadata_repository",
     "AccountInterfaceRepository": ("apps.account.infrastructure.account_interface_repository"),
 }
 
@@ -25,6 +26,7 @@ MODULE_BUDGETS = {
     "apps/account/infrastructure/portfolio_repository.py": 800,
     "apps/account/infrastructure/position_repository.py": 800,
     "apps/account/infrastructure/portfolio_api_repository.py": 800,
+    "apps/account/infrastructure/asset_metadata_repository.py": 300,
     "apps/account/infrastructure/account_interface_repository.py": 200,
     "apps/account/infrastructure/account_interface_registration_repository.py": 800,
     "apps/account/infrastructure/account_interface_portfolio_repository.py": 800,
