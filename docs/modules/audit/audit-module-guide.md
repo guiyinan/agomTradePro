@@ -393,8 +393,14 @@ python manage.py init_indicator_thresholds --refresh
 
 Initialize confidence configuration:
 ```bash
+# Create the missing active configuration; preserve an existing governed row.
 python manage.py init_confidence_config
+
+# Explicitly reset the sole active row to validated ORM schema defaults.
+python manage.py init_confidence_config --refresh
 ```
+
+Confidence initialization is atomic and requires exactly zero or one active row. Multiple active rows, invalid schema defaults, validation failures, or database errors return a non-zero status without partial updates or raw database error text.
 
 Validate high-frequency indicators:
 ```bash

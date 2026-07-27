@@ -5155,3 +5155,20 @@
 - Dashboard Admin 注册专项 `2 passed`；Dashboard Domain、组件与 API 扩展回归 `104 passed`。
 - 新根 `apps/dashboard/admin.py` 在 typed Admin 基座联合 governed mypy 与增量 mypy 口径均清零；删除旧债务入口后全仓基线从 `849 errors / 348 files` 收紧为 `838 errors / 347 files`，净减少 `11 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百三十九批
+
+- 按“置信度默认值多份真源 × 多活动配置歧义 × 刷新部分写入”收口 Audit `init_confidence_config` 管理命令。
+- 删除命令内复制的 16 项默认配置数值，初始化和显式 refresh 统一从 `ConfidenceConfigModel` 字段默认值派生；模型 schema 成为 bootstrap 默认唯一代码真源，数据库活动行继续作为运行时真源。
+- schema 默认在数据库访问前验证：系数/加成/阈值必须有限且处于业务范围，新鲜度系数必须非递增，日/月混合权重必须合计为 1，持续天数必须为非布尔正整数，改进奖励必须位于受控范围。
+- 默认调用只创建缺失配置并保留既有活动行；只有显式 `--refresh` 才重置唯一活动配置，动态 truthy 字符串等非布尔参数在 seed 构造与数据库访问前拒绝。
+- 活动配置查询加入事务与行锁；发现两个及以上活动行时失败关闭，不再由 `.get()` 暴露不稳定底层异常或随机选择治理真源。
+- 创建与 refresh 均执行 `full_clean` 并在同一事务提交；校验或数据库异常整笔回滚，只报告异常类型且不输出成功文案或底层连接/凭据正文。
+- Django model metadata 的 Field/Relation 动态联合通过局部 Protocol 收窄，`Any` 不扩散到配置 payload；输出只在事务成功后读取已持久化模型。
+- 新增 schema 默认派生、多活动配置拒绝、写后数据库异常回滚与脱敏、动态 refresh 前置拒绝回归。
+
+## 第三百三十九批验证结果
+
+- Confidence 配置与财务配置命令定向回归 `7 passed`；Audit Domain、Application、组件与 API 扩展回归 `337 passed`。
+- `apps/audit/management/commands/init_confidence_config.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `838 errors / 347 files` 收紧为 `832 errors / 346 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

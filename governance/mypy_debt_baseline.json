@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 838,
-    "files_with_errors": 347
+    "errors": 832,
+    "files_with_errors": 346
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -322,11 +322,6 @@
     },
     "apps/audit/management/commands/cleanup_operation_logs.py": {
       "no-untyped-def": 2
-    },
-    "apps/audit/management/commands/init_confidence_config.py": {
-      "assignment": 1,
-      "no-untyped-def": 4,
-      "type-arg": 1
     },
     "apps/audit/management/commands/init_indicator_thresholds.py": {
       "no-untyped-def": 2
