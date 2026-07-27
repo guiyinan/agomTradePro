@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 import requests
 
 from apps.data_center.domain.entities import ProviderConfig
@@ -101,11 +102,10 @@ def test_akshare_macro_source_failure_is_recoverable_connection_error(monkeypatc
 
 
 def test_cpi_detailed_string_and_numeric_percentages_have_identical_scale(monkeypatch):
-    columns = [f"column_{index}" for index in range(12)]
-
     def fetch(value):
-        row = ["2026年6月", 0, value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        ak = SimpleNamespace(macro_china_cpi=lambda: pd.DataFrame([row], columns=columns))
+        ak = SimpleNamespace(
+            macro_china_cpi=lambda: pd.DataFrame([{"月份": "2026年6月", "全国-同比增长": value}])
+        )
         fetcher = BaseIndicatorFetcher(
             ak,
             "akshare",
@@ -176,9 +176,7 @@ def test_tushare_unified_provider_adapter_builds_typed_financial_facts(monkeypat
         revenue_growth=-13.53,
         net_profit_growth=-74.65,
     )
-    gateway = SimpleNamespace(
-        fetch=lambda asset_code, periods: SimpleNamespace(records=[record])
-    )
+    gateway = SimpleNamespace(fetch=lambda asset_code, periods: SimpleNamespace(records=[record]))
     monkeypatch.setattr(
         "apps.data_center.infrastructure._provider_adapter_tushare.build_tushare_financial_gateway",
         lambda **kwargs: gateway,
@@ -575,9 +573,69 @@ def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):
     assert by_metric["debt_ratio"].value == 67.5
     assert by_metric["total_assets"].value == 564_032_300_000.0 / 0.675
     assert by_metric["equity"].value == by_metric["total_assets"].value - 564_032_300_000.0
+    assert (
+        by_metric["total_assets"].extra["derived_from"] == "total_liabilities_divided_by_debt_ratio"
+    )
+    assert by_metric["equity"].extra["derived_from"] == "total_assets_minus_total_liabilities"
     assert by_metric["revenue"].source == "akshare"
     assert by_metric["revenue"].extra["provider_name"] == "AKShare Public"
     assert by_metric["revenue"].extra["source_type"] == "akshare"
+    assert by_metric["revenue"].report_date is None
+
+
+def test_akshare_financials_preserve_partial_metrics_and_notice_date(monkeypatch):
+    """Missing ratios must not erase valid facts or create synthetic zeroes."""
+
+    class _FakeAkshare:
+        def stock_financial_analysis_indicator_em(self, symbol, indicator):
+            return pd.DataFrame(
+                [
+                    {
+                        "REPORT_DATE": "2025-12-31 00:00:00",
+                        "NOTICE_DATE": "2026-03-31 00:00:00",
+                        "TOTALOPERATEREVE": 1_000_000.0,
+                    }
+                ]
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _FakeAkshare(),
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_financials("001979.SZ")
+
+    assert [(fact.metric_code, fact.value) for fact in facts] == [("revenue", 1_000_000.0)]
+    assert facts[0].period_end == date(2025, 12, 31)
+    assert facts[0].report_date == date(2026, 3, 31)
+    assert "derived_from" not in facts[0].extra
+
+
+@pytest.mark.parametrize("periods", [0, -1, True])
+def test_akshare_financials_reject_invalid_periods_before_provider_access(
+    monkeypatch,
+    periods,
+):
+    """Invalid fetch bounds fail before loading the external SDK."""
+
+    provider_calls = 0
+
+    def get_provider():
+        nonlocal provider_calls
+        provider_calls += 1
+        return object()
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        get_provider,
+    )
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+
+    with pytest.raises(ValueError, match="periods must be a positive integer"):
+        adapter.fetch_financials("001979.SZ", periods=periods)
+
+    assert provider_calls == 0
 
 
 def test_akshare_unified_provider_adapter_fetches_market_turnover(monkeypatch):

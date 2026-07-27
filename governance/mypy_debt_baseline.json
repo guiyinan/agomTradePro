@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1123,
-    "files_with_errors": 386
+    "errors": 1117,
+    "files_with_errors": 385
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -460,9 +460,6 @@
     },
     "apps/data_center/domain/rules.py": {
       "arg-type": 1
-    },
-    "apps/data_center/infrastructure/_provider_adapter_akshare.py": {
-      "arg-type": 6
     },
     "apps/data_center/infrastructure/_provider_adapter_base.py": {
       "no-any-return": 1

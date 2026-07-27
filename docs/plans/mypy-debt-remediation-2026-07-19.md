@@ -4641,3 +4641,20 @@
 - Crypto、AI Provider 加密/路由/Admin 与 Dashboard 凭据降级回归 `66 passed`。
 - `shared/infrastructure/crypto.py` 增量及整仓上下文 mypy 清零；全仓基线从 `1127 errors / 387 files` 收紧为 `1123 errors / 386 files`，净减少 `4 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百零八批
+
+- 按“AKShare 财务事实真实性 × 缺失值语义 × 公告日期可审计性”收口 Data Center 统一 AKShare provider adapter。
+- 财务事实改为逐字段显式构造，不再通过 `dict[str, object]` 展开到强类型实体；FinancialFact 参数边界和整仓 mypy 清零。
+- `periods` 只接受非布尔正整数，并在加载外部 SDK 前验证；零、负数和布尔值不再形成 Python 负切片或无意义远端调用。
+- 收入、利润、增长率、ROE、ROA 与负债率按各自可用性独立产出；缺少 ROE 或负债率不再丢弃同一报告期全部有效收入/利润数据。
+- 缺失 total_assets、total_liabilities、equity 不再被伪造为真实 `0.0`；仅在恒等关系数据充分时推导，并在 fact extra 中记录稳定 `derived_from` 依据。
+- 报告期继续写入 `period_end`；实际 `NOTICE_DATE / 公告日期 / 公告日` 单独写入代表发布日期的 `report_date`，来源未提供时保持 `None`，不再用报告期冒充公告日。
+- 更新 CPI 同尺度测试夹具为当前正式 AKShare 列名契约，保持生产端必需列失败关闭，不恢复位置列猜测。
+- 新增部分财务指标保留、无伪零、公告日期、推导来源和非法 periods 前置短路回归。
+
+## 第三百零八批验证结果
+
+- Data Center 单元、组件、on-demand 财务与 provider adapter 回归 `341 passed`。
+- `apps/data_center/infrastructure/_provider_adapter_akshare.py` 增量及整仓上下文 mypy 清零；全仓基线从 `1123 errors / 386 files` 收紧为 `1117 errors / 385 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

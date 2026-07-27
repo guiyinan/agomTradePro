@@ -49,6 +49,7 @@ from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
+
 class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     """Standardized AKShare provider wrapper."""
 
@@ -123,13 +124,16 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     amount_rows = sh_df[sh_df["单日情况"].astype(str) == "成交金额"]
                     if not amount_rows.empty:
                         amount_row = amount_rows.iloc[0]
-                        sh_amount = sum(
-                            value or 0.0
-                            for value in (
-                                safe_float(amount_row.get("主板A")),
-                                safe_float(amount_row.get("科创板")),
+                        sh_amount = (
+                            sum(
+                                value or 0.0
+                                for value in (
+                                    safe_float(amount_row.get("主板A")),
+                                    safe_float(amount_row.get("科创板")),
+                                )
                             )
-                        ) * 100_000_000.0
+                            * 100_000_000.0
+                        )
 
                 sz_amount = 0.0
                 if sz_df is not None and not sz_df.empty:
@@ -451,6 +455,9 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     def fetch_financials(self, asset_code: str, periods: int = 8) -> list[FinancialFact]:
         from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 
+        if isinstance(periods, bool) or not isinstance(periods, int) or periods <= 0:
+            raise ValueError("periods must be a positive integer")
+
         ak = get_akshare_module()
         canonical_asset_code = normalize_asset_code(asset_code, "akshare")
         df = ak.stock_financial_analysis_indicator_em(
@@ -465,6 +472,14 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             period_end = _safe_date(_first_present(row, "REPORT_DATE", "报告期"))
             if period_end is None:
                 continue
+            report_date = _safe_date(
+                _first_present(
+                    row,
+                    "NOTICE_DATE",
+                    "公告日期",
+                    "公告日",
+                )
+            )
 
             revenue = safe_float(_first_present(row, "TOTALOPERATEREVE", "营业总收入"))
             net_profit = safe_float(_first_present(row, "PARENTNETPROFIT", "归母净利润"))
@@ -472,24 +487,24 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             debt_ratio = safe_float(_first_present(row, "ZCFZL", "资产负债率"))
             total_liabilities = safe_float(_first_present(row, "LIABILITY", "负债合计"))
             total_assets = safe_float(_first_present(row, "TOTAL_ASSETS", "总资产"))
-            if total_assets is None and total_liabilities is not None and debt_ratio:
+            derived_metrics: dict[str, str] = {}
+            if (
+                total_assets is None
+                and total_liabilities is not None
+                and debt_ratio is not None
+                and debt_ratio != 0.0
+            ):
                 total_assets = total_liabilities / (debt_ratio / 100)
+                derived_metrics["total_assets"] = "total_liabilities_divided_by_debt_ratio"
+            if total_liabilities is None and total_assets is not None and debt_ratio is not None:
+                total_liabilities = total_assets * debt_ratio / 100
+                derived_metrics["total_liabilities"] = "total_assets_multiplied_by_debt_ratio"
             equity = safe_float(_first_present(row, "TOTAL_EQUITY", "股东权益合计"))
             if equity is None and total_assets is not None and total_liabilities is not None:
                 equity = total_assets - total_liabilities
+                derived_metrics["equity"] = "total_assets_minus_total_liabilities"
 
-            if revenue is None or net_profit is None or roe is None or debt_ratio is None:
-                continue
-
-            common = {
-                "asset_code": canonical_asset_code,
-                "period_end": period_end,
-                "period_type": _period_type_from_period_end(period_end),
-                "source": self.provider_source(),
-                "report_date": period_end,
-                "extra": self._provider_extra(),
-            }
-            metric_values = {
+            metric_values: dict[str, tuple[float | None, str]] = {
                 "revenue": (revenue, "元"),
                 "net_profit": (net_profit, "元"),
                 "revenue_growth": (
@@ -500,9 +515,9 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     safe_float(_first_present(row, "PARENTNETPROFITTZ", "归母净利润同比")),
                     "%",
                 ),
-                "total_assets": (total_assets or 0.0, "元"),
-                "total_liabilities": (total_liabilities or 0.0, "元"),
-                "equity": (equity or 0.0, "元"),
+                "total_assets": (total_assets, "元"),
+                "total_liabilities": (total_liabilities, "元"),
+                "equity": (equity, "元"),
                 "roe": (roe, "%"),
                 "roa": (safe_float(_first_present(row, "JROA", "ZZCJLL", "总资产收益率")), "%"),
                 "debt_ratio": (debt_ratio, "%"),
@@ -511,7 +526,21 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 if value is None:
                     continue
                 facts.append(
-                    FinancialFact(metric_code=metric_code, value=value, unit=unit, **common)
+                    FinancialFact(
+                        asset_code=canonical_asset_code,
+                        period_end=period_end,
+                        period_type=_period_type_from_period_end(period_end),
+                        metric_code=metric_code,
+                        value=value,
+                        unit=unit,
+                        source=self.provider_source(),
+                        report_date=report_date,
+                        extra=self._provider_extra(
+                            {"derived_from": derived_metrics[metric_code]}
+                            if metric_code in derived_metrics
+                            else None
+                        ),
+                    )
                 )
         return facts
 
