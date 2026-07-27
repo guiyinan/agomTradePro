@@ -207,6 +207,66 @@ def test_macro_fact_repository_rejects_ungoverned_write(monkeypatch):
         )
 
 
+def test_macro_fact_repository_validates_entire_batch_before_writing(monkeypatch):
+    """One invalid fact must prevent earlier facts from being persisted."""
+
+    writes: list[dict] = []
+    monkeypatch.setattr(
+        MacroFactModel.objects,
+        "update_or_create",
+        lambda **kwargs: writes.append(kwargs),
+    )
+    valid = MacroFact(
+        indicator_code="CN_VALID_FIRST",
+        reporting_period=date(2026, 7, 1),
+        value=1.0,
+        unit="%",
+        source="akshare",
+        extra=_governed_extra(),
+    )
+    invalid = MacroFact(
+        indicator_code="CN_INVALID_SECOND",
+        reporting_period=date(2026, 7, 1),
+        value=2.0,
+        unit="%",
+        source="akshare",
+    )
+
+    with pytest.raises(ValueError, match="missing governance metadata"):
+        MacroFactRepository().bulk_upsert([valid, invalid])
+
+    assert writes == []
+
+
+@pytest.mark.parametrize("limit", [0, -1, True])
+@pytest.mark.django_db
+def test_macro_fact_repository_rejects_invalid_series_limit(limit):
+    """Invalid query limits fail before ORM slicing."""
+
+    with pytest.raises(ValueError, match="limit must be a positive integer"):
+        MacroFactRepository().get_series("CN_IMPORT_YOY", limit=limit)
+
+
+def test_macro_fact_repository_detaches_domain_extra_from_orm_model():
+    """Mutable JSON metadata must not alias the ORM model after mapping."""
+
+    model = MacroFactModel(
+        indicator_code="CN_EXTRA_COPY",
+        reporting_period=date(2026, 7, 1),
+        value="1.000000",
+        unit="%",
+        source="akshare",
+        revision_number=0,
+        quality="valid",
+        extra={"source_type": "akshare"},
+    )
+
+    fact = MacroFactRepository._from_model(model)
+    fact.extra["source_type"] = "mutated"
+
+    assert model.extra == {"source_type": "akshare"}
+
+
 @pytest.mark.django_db
 def test_publisher_catalog_repository_persists_aliases():
     PublisherCatalogModel.objects.create(

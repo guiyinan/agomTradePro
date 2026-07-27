@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1117,
-    "files_with_errors": 385
+    "errors": 1111,
+    "files_with_errors": 384
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -494,12 +494,6 @@
     "apps/data_center/infrastructure/gateways/tushare_gateway.py": {
       "arg-type": 1,
       "attr-defined": 3
-    },
-    "apps/data_center/infrastructure/macro_fact_repositories.py": {
-      "assignment": 1,
-      "call-overload": 2,
-      "type-var": 2,
-      "var-annotated": 1
     },
     "apps/data_center/infrastructure/macro_sources/tushare_adapter.py": {
       "assignment": 1,

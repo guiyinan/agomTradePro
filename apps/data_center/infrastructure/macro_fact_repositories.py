@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date
+from collections.abc import Mapping
+from dataclasses import dataclass
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -23,6 +25,37 @@ from apps.data_center.infrastructure.models import (
     ProviderConfigModel,
 )
 from apps.data_center.infrastructure.orm_retry import retry_macro_fact_upsert
+
+
+@dataclass
+class _MacroFactModelCandidate:
+    """Typed domain-selection projection retaining its originating model."""
+
+    model: MacroFactModel
+    indicator_code: str
+    reporting_period: date
+    value: float
+    source: str
+    revision_number: int
+    published_at: date | None
+    fetched_at: datetime
+    extra: Mapping[str, object]
+
+    @classmethod
+    def from_model(cls, model: MacroFactModel) -> _MacroFactModelCandidate:
+        """Project ORM field values into the domain selection protocol."""
+
+        return cls(
+            model=model,
+            indicator_code=model.indicator_code,
+            reporting_period=model.reporting_period,
+            value=float(model.value),
+            source=model.source,
+            revision_number=model.revision_number,
+            published_at=model.published_at,
+            fetched_at=model.fetched_at,
+            extra=dict(model.extra or {}),
+        )
 
 
 class MacroFactRepository:
@@ -52,7 +85,7 @@ class MacroFactRepository:
             published_at=m.published_at,
             quality=DataQualityStatus(m.quality),
             fetched_at=m.fetched_at,
-            extra=m.extra or {},
+            extra=dict(m.extra or {}),
         )
 
     def get_series(
@@ -62,6 +95,8 @@ class MacroFactRepository:
         end: date | None = None,
         limit: int = 500,
     ) -> list[MacroFact]:
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+            raise ValueError("limit must be a positive integer")
         qs = MacroFactModel.objects.filter(indicator_code=indicator_code)
         if start:
             qs = qs.filter(reporting_period__gte=start)
@@ -70,12 +105,14 @@ class MacroFactRepository:
         models = list(qs.order_by("-reporting_period", "-id")[: max(limit * 4, limit)])
         catalog = IndicatorCatalogModel.objects.filter(code=indicator_code).only("extra").first()
         selection = select_macro_fact_series(
-            models,
+            [_MacroFactModelCandidate.from_model(model) for model in models],
             preferred_source=configured_macro_source(catalog.extra if catalog else {}),
         )
         if not selection.is_consistent:
             return []
-        return [self._from_model(m) for m in reversed(selection.facts[-limit:])]
+        return [
+            self._from_model(candidate.model) for candidate in reversed(selection.facts[-limit:])
+        ]
 
     def get_latest(self, indicator_code: str) -> MacroFact | None:
         latest_period = (
@@ -94,10 +131,14 @@ class MacroFactRepository:
         )
         catalog = IndicatorCatalogModel.objects.filter(code=indicator_code).only("extra").first()
         selection = select_macro_fact_series(
-            models,
+            [_MacroFactModelCandidate.from_model(model) for model in models],
             preferred_source=configured_macro_source(catalog.extra if catalog else {}),
         )
-        return self._from_model(selection.facts[-1]) if selection.is_consistent and selection.facts else None
+        return (
+            self._from_model(selection.facts[-1].model)
+            if selection.is_consistent and selection.facts
+            else None
+        )
 
     @classmethod
     def _validate_governance(cls, fact: MacroFact) -> None:
@@ -120,12 +161,12 @@ class MacroFactRepository:
             )
 
     def bulk_upsert(self, facts: list[MacroFact]) -> int:
-        count = 0
+        for fact in facts:
+            self._validate_governance(fact)
+
         for f in facts:
-            self._validate_governance(f)
             retry_macro_fact_upsert(MacroFactModel.objects, f)
-            count += 1
-        return count
+        return len(facts)
 
 
 class MacroGovernanceRepository:
@@ -192,9 +233,9 @@ class MacroGovernanceRepository:
             item.code: item
             for item in IndicatorCatalogModel.objects.filter(code__in=indicator_codes)
         }
-        aggregates = {
-            row["indicator_code"]: row
-            for row in (
+        aggregates: dict[str, dict[str, Any]] = {
+            str(aggregate_row["indicator_code"]): dict(aggregate_row)
+            for aggregate_row in (
                 MacroFactModel.objects.filter(indicator_code__in=indicator_codes)
                 .values("indicator_code")
                 .annotate(
@@ -205,7 +246,7 @@ class MacroGovernanceRepository:
             )
         }
         source_rows: dict[str, list[dict[str, Any]]] = {}
-        for row in (
+        for source_aggregate_row in (
             MacroFactModel.objects.filter(indicator_code__in=indicator_codes)
             .values("indicator_code", "source")
             .annotate(
@@ -214,11 +255,14 @@ class MacroGovernanceRepository:
             )
             .order_by("indicator_code", "source")
         ):
-            source_rows.setdefault(str(row["indicator_code"]), []).append(
+            source_rows.setdefault(
+                str(source_aggregate_row["indicator_code"]),
+                [],
+            ).append(
                 {
-                    "source": str(row["source"]),
-                    "row_count": int(row["row_count"]),
-                    "latest_period": row["latest_period"],
+                    "source": str(source_aggregate_row["source"]),
+                    "row_count": int(source_aggregate_row["row_count"]),
+                    "latest_period": source_aggregate_row["latest_period"],
                 }
             )
 
@@ -241,7 +285,7 @@ class MacroGovernanceRepository:
                 continue
             legacy_source_codes.add(str(fact.indicator_code))
             key = (source_name, canonical_source)
-            row = alias_row_map.setdefault(
+            alias_row = alias_row_map.setdefault(
                 key,
                 {
                     "from_source": source_name,
@@ -250,10 +294,10 @@ class MacroGovernanceRepository:
                     "latest_period": fact.reporting_period,
                 },
             )
-            row["row_count"] = int(row["row_count"]) + 1
-            latest_period = row.get("latest_period")
+            alias_row["row_count"] = int(alias_row["row_count"]) + 1
+            latest_period = alias_row.get("latest_period")
             if latest_period is None or fact.reporting_period > latest_period:
-                row["latest_period"] = fact.reporting_period
+                alias_row["latest_period"] = fact.reporting_period
 
         indicator_rows: list[dict[str, Any]] = []
         healthy_count = 0
@@ -265,7 +309,7 @@ class MacroGovernanceRepository:
 
         for code in indicator_codes:
             catalog = catalogs.get(code)
-            aggregate = aggregates.get(code, {})
+            aggregate: dict[str, Any] = aggregates.get(code, {})
             extra = dict((catalog.extra if catalog is not None else {}) or {})
             paired_code = str(extra.get("paired_indicator_code") or "")
             alias_of_code = str(extra.get("alias_of_indicator_code") or "")

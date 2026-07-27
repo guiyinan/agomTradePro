@@ -4658,3 +4658,19 @@
 - Data Center 单元、组件、on-demand 财务与 provider adapter 回归 `341 passed`。
 - `apps/data_center/infrastructure/_provider_adapter_akshare.py` 增量及整仓上下文 mypy 清零；全仓基线从 `1123 errors / 386 files` 收紧为 `1117 errors / 385 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百零九批
+
+- 按“宏观事实读取真源 × 批量写入原子前置校验 × ORM/Domain 类型边界”收口 Data Center canonical macro fact repository。
+- 新增 Infrastructure 内部 typed projection，将 Django ORM 字段值投影到 Domain selection Protocol，并保留原始模型映射；不再让 ORM descriptor 穿透领域选择泛型，也未弱化纯 Domain 协议。
+- `get_series` 在发起 ORM 查询前拒绝布尔、零和负数 limit，避免无效切片与无意义数据库读取。
+- `bulk_upsert` 改为先校验整批事实的治理元数据，再执行第一笔写入；后项非法时不再留下前项已持久化的部分批次。
+- ORM JSONField 到 Domain entity 的 `extra` 显式复制，调用方修改领域对象不再反向污染 ORM 实例。
+- 宏观治理快照聚合补齐精确容器类型并拆分重用局部变量，保持现有分组聚合与 iterator 查询形态，不引入 N+1。
+- 新增整批前置校验、非法 limit 前置短路及 JSON metadata 去别名回归。
+
+## 第三百零九批验证结果
+
+- Data Center 单元、组件与 on-demand 回归 `346 passed`。
+- `apps/data_center/infrastructure/macro_fact_repositories.py` 增量 mypy 清零；全仓基线从 `1117 errors / 385 files` 收紧为 `1111 errors / 384 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
