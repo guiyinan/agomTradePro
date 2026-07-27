@@ -4916,3 +4916,21 @@
 - Audit 高频验证专项 `4 passed`；Audit 单元、Application、组件、API 与集成回归 `171 passed`。
 - `apps/audit/management/commands/validate_high_frequency_indicators.py` 增量 mypy 清零；全仓基线从 `979 errors / 367 files` 收紧为 `969 errors / 366 files`，净减少 `10 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百二十四批
+
+- 按“决策行情调度假成功 × Beat 原子配置 × 动态设置边界”收口 Data Center `setup_decision_quote_refresh` 管理命令。
+- readiness 小时/分钟越界不再向 stderr 写一句后成功返回；非法时间直接抛出 `CommandError`，并在进入事务前完成全部校验，四个 Beat 任务不会留下部分写入。
+- pre-readiness 刷新必须严格晚于 15:20 post-close 刷新，阻止直接调用命令绕过 readiness Application 用例后配置出先验时序错误。
+- `quote_max_age_hours` 不再用 truthy `or` 回退：显式 `0` 不会被悄然替换为 settings 值；布尔、字符串、零、负数、`NaN/Inf` 全部失败关闭。
+- `DECISION_READINESS_ASSET_CODES` 必须为字符串 list/tuple；单个字符串不再被误当可迭代字符序列。CLI/设置代码统一 trim、uppercase、按首次出现顺序去重，空资产池禁止发布任务。
+- Beat crontab timezone 改为使用项目 `TIME_ZONE`，不再硬编码 `Asia/Shanghai`；缺失或错误类型在写库前拒绝。
+- task kwargs 使用 `dict[str, object]` 且 JSON 序列化显式 `allow_nan=False`，所有四个任务始终获得同一份受验证资产池与新鲜度阈值。
+- django-celery-beat 通过动态第三方边界加载，CommandParser、动态 options、crontab 返回值和 task upsert handler 补齐精确类型，移除 9 个历史 mypy 错误。
+- 新增越界/先于收盘时间、零与非有限行情年龄、字符串设置资产池、时区继承、代码归一去重及写入前零副作用回归。
+
+## 第三百二十四批验证结果
+
+- Scheduler 初始化专项 `23 passed`；scheduler、macro periodic、personal readiness 与 task-monitor 回归 `128 passed`。
+- `apps/data_center/management/commands/setup_decision_quote_refresh.py` 增量 mypy 清零；全仓基线从 `969 errors / 366 files` 收紧为 `960 errors / 365 files`，净减少 `9 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

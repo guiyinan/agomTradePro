@@ -5,6 +5,7 @@ from io import StringIO
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.test import override_settings
 from django_celery_beat.models import PeriodicTask
 
 from apps.account.management.commands.bootstrap_cold_start import (
@@ -231,6 +232,56 @@ def test_setup_decision_quote_refresh_accepts_custom_pre_readiness_time():
     assert task.crontab.hour == "16"
     assert task.crontab.minute == "5"
     assert "decision-quote-pre-readiness-refresh: enabled @ weekdays 16:05" in output.getvalue()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"pre_readiness_hour": 24}, "pre-readiness-hour"),
+        ({"pre_readiness_minute": 60}, "pre-readiness-minute"),
+        ({"pre_readiness_hour": 15, "pre_readiness_minute": 20}, "after post-close"),
+        ({"quote_max_age_hours": 0.0}, "finite and positive"),
+        ({"quote_max_age_hours": float("nan")}, "finite and positive"),
+    ],
+)
+def test_setup_decision_quote_refresh_rejects_invalid_values_before_writes(
+    kwargs,
+    message,
+):
+    """Invalid scheduling and freshness values fail without partial Beat rows."""
+
+    with pytest.raises(CommandError, match=message):
+        call_command("setup_decision_quote_refresh", **kwargs)
+
+    assert not PeriodicTask.objects.filter(name__startswith="decision-quote-").exists()
+
+
+@pytest.mark.django_db
+@override_settings(DECISION_READINESS_ASSET_CODES="510300.SH", TIME_ZONE="UTC")
+def test_setup_decision_quote_refresh_rejects_string_settings_asset_codes():
+    """A string setting cannot be misread as an iterable of asset codes."""
+
+    with pytest.raises(CommandError, match="string list"):
+        call_command("setup_decision_quote_refresh")
+
+    assert not PeriodicTask.objects.filter(name__startswith="decision-quote-").exists()
+
+
+@pytest.mark.django_db
+@override_settings(
+    DECISION_READINESS_ASSET_CODES=[" 510300.sh ", "510300.SH", "000300.sh"],
+    TIME_ZONE="UTC",
+)
+def test_setup_decision_quote_refresh_uses_typed_settings_timezone_and_deduped_codes():
+    """Beat rows use project timezone and stable normalized asset-code kwargs."""
+
+    call_command("setup_decision_quote_refresh")
+
+    task = PeriodicTask.objects.get(name="decision-quote-pre-readiness-refresh")
+    assert task.crontab is not None
+    assert str(task.crontab.timezone) == "UTC"
+    assert json.loads(task.kwargs)["asset_codes"] == ["510300.SH", "000300.SH"]
 
 
 def test_configure_readiness_schedule_rejects_daily_evidence_before_safe_close():

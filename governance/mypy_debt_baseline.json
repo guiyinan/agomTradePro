@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 969,
-    "files_with_errors": 366
+    "errors": 960,
+    "files_with_errors": 365
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -527,13 +527,6 @@
     },
     "apps/data_center/management/commands/normalize_macro_fact_units.py": {
       "no-untyped-def": 2
-    },
-    "apps/data_center/management/commands/setup_decision_quote_refresh.py": {
-      "arg-type": 1,
-      "assignment": 1,
-      "import-untyped": 1,
-      "no-untyped-def": 5,
-      "type-arg": 1
     },
     "apps/data_center/management/commands/sync_a_share_universe.py": {
       "no-untyped-def": 2
