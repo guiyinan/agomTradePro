@@ -4607,3 +4607,20 @@
 - Regime 相关单元、组件、API、集成与跨模块依赖回归 `251 passed`。
 - `apps/regime/application/tasks.py` 增量 mypy 清零；全仓基线从 `1142 errors / 390 files` 收紧为 `1135 errors / 389 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百零六批
+
+- 按“Pulse 核心计算边界 × 快照可靠性参数 × 异常日志脱敏”收口 Pulse Application 用例及 provider factory。
+- 在 Pulse Application 定义数据读取与快照仓储 Protocol，provider factory 补齐精确返回契约；用例不再从无类型 factory 接收 Any。
+- Consumer-owned Regime gateway 新增最小 `PulseRegimeContext` Protocol，动态注册器和解析入口不再向 Pulse 用例传播 Any，同时保持跨 App 依赖由 gateway 隔离。
+- 当前 Regime 解析、Pulse 计算、最新快照读取与持久化返回值完成类型收窄；`use_cases.py` 与 `repository_provider.py` 增量 mypy 清零。
+- `require_reliable`、`refresh_if_stale` 必须为真实布尔值，`max_age_days` 必须为非布尔非负整数；非法可靠性控制在仓储访问及按需重算前失败关闭。
+- Data Center 修复、指标 provider、计算与仓储异常日志只记录操作和异常类型，不再拼接可能包含数据库 URL、Token 或底层响应的异常正文。
+- Pulse 成功日志改为参数化结构，保留 composite、strength 与 transition warning 可观测字段；既有“不可用返回 None”契约保持不变。
+- 新增可靠性参数前置短路及 provider 凭据异常脱敏回归。
+
+## 第三百零六批验证结果
+
+- Pulse 相关单元、组件、API、集成与跨模块依赖回归 `61 passed`。
+- `apps/pulse/application/use_cases.py` 与 `apps/pulse/application/repository_provider.py` 增量 mypy 清零；全仓基线从 `1135 errors / 389 files` 收紧为 `1127 errors / 387 files`，净减少 `8 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

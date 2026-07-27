@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1135,
-    "files_with_errors": 389
+    "errors": 1127,
+    "files_with_errors": 387
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -982,17 +982,9 @@
       "no-untyped-def": 1
     },
     "apps/pulse/application/query_services.py": {
-      "no-untyped-call": 1
-    },
-    "apps/pulse/application/repository_provider.py": {
-      "no-untyped-def": 2
+      "attr-defined": 1
     },
     "apps/pulse/application/tasks.py": {
-      "no-untyped-def": 1
-    },
-    "apps/pulse/application/use_cases.py": {
-      "no-any-return": 2,
-      "no-untyped-call": 3,
       "no-untyped-def": 1
     },
     "apps/pulse/domain/services.py": {

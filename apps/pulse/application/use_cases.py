@@ -7,7 +7,10 @@ from typing import Any
 
 from apps.data_center.application.dtos import DecisionReliabilityRepairRequest
 from apps.data_center.application.interface_services import make_decision_repair_use_case
-from apps.pulse.application.regime_gateway import resolve_current_regime
+from apps.pulse.application.regime_gateway import (
+    PulseRegimeContext,
+    resolve_current_regime,
+)
 from apps.pulse.application.repository_provider import (
     get_pulse_data_provider,
     get_pulse_repository,
@@ -27,7 +30,7 @@ PULSE_MACRO_SYNC_INDICATORS = (
 )
 
 
-def resolve_current_regime_for_pulse(*, as_of_date: date):
+def resolve_current_regime_for_pulse(*, as_of_date: date) -> PulseRegimeContext:
     """Resolve the current regime through the owning regime module."""
 
     return resolve_current_regime(as_of_date=as_of_date)
@@ -83,7 +86,26 @@ def _refresh_macro_inputs_for_pulse(target_date: date) -> None:
             asset_codes=("000300.SH",),
         )
     except Exception as exc:
-        logger.warning("Failed to refresh Pulse Data Center inputs: %s", exc)
+        logger.warning(
+            "Failed to refresh Pulse Data Center inputs",
+            extra={"exception_type": type(exc).__name__},
+        )
+
+
+def _validate_snapshot_request(
+    *,
+    require_reliable: bool,
+    refresh_if_stale: bool,
+    max_age_days: int,
+) -> None:
+    """Validate reliability controls before accessing the Pulse repository."""
+
+    if not isinstance(require_reliable, bool):
+        raise ValueError("require_reliable must be a boolean")
+    if not isinstance(refresh_if_stale, bool):
+        raise ValueError("refresh_if_stale must be a boolean")
+    if isinstance(max_age_days, bool) or not isinstance(max_age_days, int) or max_age_days < 0:
+        raise ValueError("max_age_days must be a non-negative integer")
 
 
 class CalculatePulseUseCase:
@@ -136,14 +158,18 @@ class CalculatePulseUseCase:
             repo.save_snapshot(snapshot)
 
             logger.info(
-                f"Pulse calculated: composite={snapshot.composite_score:.3f}, "
-                f"strength={snapshot.regime_strength}, "
-                f"warning={snapshot.transition_warning}"
+                "Pulse calculated: composite=%.3f strength=%s warning=%s",
+                snapshot.composite_score,
+                snapshot.regime_strength,
+                snapshot.transition_warning,
             )
             return snapshot
 
-        except Exception as e:
-            logger.exception(f"Error calculating pulse: {e}")
+        except Exception as exc:
+            logger.error(
+                "Error calculating Pulse",
+                extra={"exception_type": type(exc).__name__},
+            )
             return None
 
 
@@ -159,6 +185,11 @@ class GetLatestPulseUseCase:
         max_age_days: int = DEFAULT_MAX_SNAPSHOT_AGE_DAYS,
     ) -> PulseSnapshot | None:
         """获取最新快照，并在需要时触发按需重算。"""
+        _validate_snapshot_request(
+            require_reliable=require_reliable,
+            refresh_if_stale=refresh_if_stale,
+            max_age_days=max_age_days,
+        )
         target_date = as_of_date or date.today()
         try:
             repo = get_pulse_repository()
@@ -193,6 +224,9 @@ class GetLatestPulseUseCase:
             if require_reliable:
                 return None
             return refreshed or snapshot
-        except Exception as e:
-            logger.exception(f"Error getting latest pulse: {e}")
+        except Exception as exc:
+            logger.error(
+                "Error getting latest Pulse",
+                extra={"exception_type": type(exc).__name__},
+            )
             return None
