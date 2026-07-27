@@ -286,6 +286,12 @@ python manage.py init_prompt_templates --templates-only
 - Prompt 链配置
 - 默认参数设置
 
+**执行契约**:
+- Prompt 模板与链配置在同一数据库事务内写入；任一记录失败时整批回滚并非零退出。
+- `--chains-only` 与 `--templates-only` 互斥；动态调用的布尔参数也执行严格校验。
+- `scripts/init_prompt_templates.py` 仅作为兼容入口委托本命令，不再维护另一份默认模板。
+- `apps.prompt.interface` 只承载 HTTP 接口，不导出或初始化管理命令与 ORM。
+
 **Admin 路径**: `/admin/prompt/`
 
 ---

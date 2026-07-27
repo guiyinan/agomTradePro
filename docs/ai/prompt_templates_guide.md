@@ -33,6 +33,8 @@ python manage.py init_prompt_templates --chains-only
 python manage.py init_prompt_templates --dry-run
 ```
 
+模板和链配置按一次原子初始化执行：任一写入失败会回滚本次全部变更并返回非零状态，不会留下部分初始化结果。`--force` 仍原地更新既有记录；默认模式保留已存在配置。旧的 `scripts/init_prompt_templates.py` 只委托上述正式命令，预置内容唯一真源位于 Prompt fixtures。
+
 ### 2.2 访问管理界面
 
 启动服务后，访问：`http://127.0.0.1:8000/prompt/manage/`

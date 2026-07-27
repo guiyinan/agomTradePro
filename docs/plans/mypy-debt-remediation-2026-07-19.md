@@ -5094,3 +5094,20 @@
 - Events 仓储与同步定向回归 `28 passed`；Events Application、任务、决策执行工作流、组件与 API 扩展回归 `98 passed`。
 - `apps/events/application/event_retry.py` 与 `apps/events/infrastructure/repositories.py` 在跨文件及增量 mypy 口径均清零；全仓基线从 `882 errors / 353 files` 收紧为 `875 errors / 352 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百三十五批
+
+- 按“Prompt 冷启动假成功 × 跨类别部分写入 × 默认模板多份真源”收口 Prompt 初始化链路。
+- 正式 `init_prompt_templates` 命令将模板与链配置写入置于同一数据库事务；任一 fixture、查询或 Repository 写入失败时整批回滚并抛出脱敏 `CommandError`，不再逐条打印原始异常后继续报告初始化完成。
+- Repository 更新返回 `None` 或持久化对象缺少主键时视为拒绝写入并失败关闭；默认模式继续保留数据库既有记录，`--force` 继续原地更新，不恢复删除重建行为。
+- `force/chains_only/templates_only/dry_run` 对动态调用执行严格布尔校验，两个 only 参数同时启用时在数据库访问前拒绝；模板与链配置分别报告 loaded/skipped，链跳过数不再误计入模板汇总。
+- 删除 `apps.prompt.interface` 包根对管理命令、fixtures、Repository 与 ORM 的兼容导出，HTTP interface 导入恢复无管理副作用；测试与调用统一指向正式 management command。
+- 删除 `apps.prompt.infrastructure.adapters.__init__` 中误复制的 39KB 完整 fixtures；导入任一外部 adapter 不再执行模板构造代码，预置模板唯一真源保持 `infrastructure/fixtures/templates.py`。
+- `scripts/init_prompt_templates.py` 删除第三份硬编码默认模板与直接 ORM upsert，只在显式执行时初始化 Django 并以 `force=True` 委托正式管理命令。
+- 新增严格参数、互斥 scope、异常脱敏、不得打印成功、模板更新后链失败整批回滚、Interface/Adapters 包纯净和兼容脚本委托回归。
+
+## 第三百三十五批验证结果
+
+- Prompt 初始化与包边界定向回归 `12 passed`，Adapters 依赖边界专项 `9 passed`；Prompt Domain、Application、组件、API、初始化与 AI owner 扩展回归 `125 passed`。
+- `apps/prompt/interface/__init__.py`、`apps/prompt/infrastructure/adapters/__init__.py` 与正式初始化命令在 governed 及增量 mypy 口径均清零；全仓基线从 `875 errors / 352 files` 收紧为 `862 errors / 350 files`，净减少 `13 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；实际 dry-run 因当前工作树本地数据库尚未执行 Prompt 两个 migration 而按预期非零失败，测试数据库已验证真实事务回滚。

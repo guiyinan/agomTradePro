@@ -16,7 +16,8 @@ Options:
 
 from typing import Any
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand, CommandError, CommandParser
+from django.db import transaction
 
 from apps.prompt.infrastructure.fixtures.templates import (
     get_predefined_chains,
@@ -56,43 +57,47 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: object, **options: Any) -> None:
-        """执行初始化"""
+        """Validate options and initialize the selected fixtures atomically."""
+
+        del args
+        force = self._boolean_option(options, "force")
+        chains_only = self._boolean_option(options, "chains_only")
+        templates_only = self._boolean_option(options, "templates_only")
+        dry_run = self._boolean_option(options, "dry_run")
+        if chains_only and templates_only:
+            raise CommandError("--chains-only and --templates-only are mutually exclusive")
+
         self.stdout.write(self.style.SUCCESS("\n========================================"))
         self.stdout.write(self.style.SUCCESS("  AgomTradePro Prompt模板初始化工具"))
         self.stdout.write(self.style.SUCCESS("========================================\n"))
 
-        force = options.get("force", False)
-        chains_only = options.get("chains_only", False)
-        templates_only = options.get("templates_only", False)
-        dry_run = options.get("dry_run", False)
-
         if dry_run:
             self.stdout.write(self.style.WARNING("DRY RUN 模式 - 不会实际写入数据库\n"))
 
-        # 统计变量
         template_count = 0
         chain_count = 0
-        skipped_count = 0
+        template_skipped = 0
+        chain_skipped = 0
+        try:
+            with transaction.atomic():
+                if not chains_only:
+                    self.stdout.write(">>> 加载Prompt模板...")
+                    template_count, template_skipped = self.load_templates(force, dry_run)
+                if not templates_only:
+                    self.stdout.write(">>> 加载链配置...")
+                    chain_count, chain_skipped = self.load_chains(force, dry_run)
+        except Exception as exc:
+            raise CommandError(f"Prompt initialization failed ({type(exc).__name__})") from exc
 
-        # 加载Prompt模板
-        if not chains_only:
-            self.stdout.write(">>> 加载Prompt模板...")
-            template_count, skipped_count = self.load_templates(force, dry_run)
-
-        # 加载链配置
-        if not templates_only:
-            self.stdout.write(">>> 加载链配置...")
-            chain_count, chain_skipped = self.load_chains(force, dry_run)
-            skipped_count += chain_skipped
-
-        # 打印结果
         self.stdout.write("\n" + "=" * 40)
         self.stdout.write(self.style.SUCCESS("初始化完成!"))
         self.stdout.write("=" * 40)
         if not chains_only:
-            self.stdout.write(f"  Prompt模板: {template_count} 个已加载, {skipped_count} 个已跳过")
+            self.stdout.write(
+                f"  Prompt模板: {template_count} 个已加载, {template_skipped} 个已跳过"
+            )
         if not templates_only:
-            self.stdout.write(f"  链配置: {chain_count} 个已加载")
+            self.stdout.write(f"  链配置: {chain_count} 个已加载, {chain_skipped} 个已跳过")
         self.stdout.write("=" * 40 + "\n")
 
         if not dry_run:
@@ -103,75 +108,84 @@ class Command(BaseCommand):
             )
         self.stdout.write("")
 
+    @staticmethod
+    def _boolean_option(options: dict[str, Any], name: str) -> bool:
+        """Return one strict boolean management option."""
+
+        value = options.get(name, False)
+        if not isinstance(value, bool):
+            raise CommandError(f"{name} must be a boolean")
+        return value
+
     def load_templates(self, force: bool, dry_run: bool) -> tuple[int, int]:
-        """加载Prompt模板"""
+        """Create, update, preview, or preserve governed prompt templates."""
+
         templates = get_predefined_templates()
         repository = DjangoPromptRepository()
         count = 0
         skipped = 0
 
         for template in templates:
-            try:
-                # 检查是否已存在（使用ORM）
-                existing_orm = PromptTemplateORM._default_manager.filter(name=template.name).first()
-
-                if existing_orm:
-                    if force:
-                        if dry_run:
-                            self.stdout.write(f"  [FORCE] {template.name} - 将覆盖")
-                            count += 1
-                        else:
-                            repository.update_template(existing_orm.id, template)
-                            self.stdout.write(self.style.SUCCESS(f"  [更新] {template.name}"))
-                            count += 1
-                    else:
-                        self.stdout.write(f"  [跳过] {template.name} - 已存在")
-                        skipped += 1
-                else:
+            existing_orm = PromptTemplateORM._default_manager.filter(name=template.name).first()
+            if existing_orm:
+                if force:
                     if dry_run:
-                        self.stdout.write(f"  [新建] {template.name}")
+                        self.stdout.write(f"  [FORCE] {template.name} - 将覆盖")
                     else:
-                        repository.create_template(template)
-                        self.stdout.write(self.style.SUCCESS(f"  [新建] {template.name}"))
+                        template_id = existing_orm.pk
+                        if (
+                            template_id is None
+                            or repository.update_template(int(template_id), template) is None
+                        ):
+                            raise RuntimeError("prompt template update was rejected")
+                        self.stdout.write(self.style.SUCCESS(f"  [更新] {template.name}"))
                     count += 1
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f"  [错误] {template.name}: {e}"))
+                else:
+                    self.stdout.write(f"  [跳过] {template.name} - 已存在")
+                    skipped += 1
+            else:
+                if dry_run:
+                    self.stdout.write(f"  [新建] {template.name}")
+                else:
+                    repository.create_template(template)
+                    self.stdout.write(self.style.SUCCESS(f"  [新建] {template.name}"))
+                count += 1
 
         return count, skipped
 
     def load_chains(self, force: bool, dry_run: bool) -> tuple[int, int]:
-        """加载链配置"""
+        """Create, update, preview, or preserve governed prompt chains."""
+
         chains = get_predefined_chains()
         repository = DjangoChainRepository()
         count = 0
         skipped = 0
 
         for chain in chains:
-            try:
-                # 检查是否已存在（使用ORM）
-                existing_orm = ChainConfigORM._default_manager.filter(name=chain.name).first()
-
-                if existing_orm:
-                    if force:
-                        if dry_run:
-                            self.stdout.write(f"  [FORCE] {chain.name} - 将覆盖")
-                            count += 1
-                        else:
-                            repository.update_chain(existing_orm.id, chain)
-                            self.stdout.write(self.style.SUCCESS(f"  [更新] {chain.name}"))
-                            count += 1
-                    else:
-                        self.stdout.write(f"  [跳过] {chain.name} - 已存在")
-                        skipped += 1
-                else:
+            existing_orm = ChainConfigORM._default_manager.filter(name=chain.name).first()
+            if existing_orm:
+                if force:
                     if dry_run:
-                        self.stdout.write(f"  [新建] {chain.name}")
+                        self.stdout.write(f"  [FORCE] {chain.name} - 将覆盖")
                     else:
-                        repository.create_chain(chain)
-                        self.stdout.write(self.style.SUCCESS(f"  [新建] {chain.name}"))
+                        chain_id = existing_orm.pk
+                        if (
+                            chain_id is None
+                            or repository.update_chain(int(chain_id), chain) is None
+                        ):
+                            raise RuntimeError("prompt chain update was rejected")
+                        self.stdout.write(self.style.SUCCESS(f"  [更新] {chain.name}"))
                     count += 1
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f"  [错误] {chain.name}: {e}"))
+                else:
+                    self.stdout.write(f"  [跳过] {chain.name} - 已存在")
+                    skipped += 1
+            else:
+                if dry_run:
+                    self.stdout.write(f"  [新建] {chain.name}")
+                else:
+                    repository.create_chain(chain)
+                    self.stdout.write(self.style.SUCCESS(f"  [新建] {chain.name}"))
+                count += 1
 
         return count, skipped
 

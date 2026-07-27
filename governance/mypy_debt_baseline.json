@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 875,
-    "files_with_errors": 352
+    "errors": 862,
+    "files_with_errors": 350
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -836,9 +836,6 @@
     "apps/prompt/application/trace_logging.py": {
       "type-arg": 1
     },
-    "apps/prompt/infrastructure/adapters/__init__.py": {
-      "no-untyped-def": 2
-    },
     "apps/prompt/infrastructure/adapters/function_registry.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 4,
@@ -861,11 +858,6 @@
     },
     "apps/prompt/infrastructure/models.py": {
       "no-untyped-def": 5
-    },
-    "apps/prompt/interface/__init__.py": {
-      "attr-defined": 8,
-      "no-untyped-def": 1,
-      "type-arg": 2
     },
     "apps/prompt/interface/api_urls.py": {
       "no-untyped-def": 1
