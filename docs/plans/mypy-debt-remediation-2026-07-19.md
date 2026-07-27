@@ -4828,3 +4828,21 @@
 - Equity 配置专项回归 `14 passed`；Equity 单元、API edge 与组件回归 `224 passed`。
 - `apps/equity/application/config.py`、`apps/equity/application/interface_services.py` 与 `apps/equity/infrastructure/config_repositories.py` 增量 mypy 清零；全仓基线从 `1053 errors / 376 files` 收紧为 `1046 errors / 374 files`，净减少 `7 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百一十九批
+
+- 按“模型制品导入安全 × 激活写操作语义 × 注册表权限边界”收口 Alpha Qlib model Admin。
+- pickle 模型导入、验证、注册表新增/变更/删除及模型激活统一限制为超级用户；普通 staff 即使被单独授予 model add/change/delete 权限，也不能上传可执行制品、改写 `model_path` 或删除审计记录。
+- 模型验证页的 `GET ?activate=1` 不再改变模型状态；激活改为验证通过后由带 CSRF token 的显式 `POST` 确认，关闭只读请求触发生产状态切换的旁路。
+- 批量动作改为每次必须且只能选择一个模型，并在激活前执行完整验证；不再按创建时间静默选择最后一条生效。
+- 导入表单移除“导入后立即激活”，将制品落库与生产激活拆成两个明确步骤。
+- `model_name` 仅允许稳定标识字符，并拒绝路径穿越、尾随点和 Windows 保留设备名；存储层再次校验模型名与 SHA-256 digest，并验证解析后的制品目录始终位于配置根目录内。
+- pickle、Qlib import、运行配置和真实推理失败详情只展示异常类型，不再把可能含 token、路径上下文或第三方响应正文的异常文本写入 Admin 页面。
+- 三个 Admin 迁移到 `TypedModelAdmin[ConcreteModel]`；表单 JSON、上传文件、settings、验证结果、QuerySet、URL 与 HTTP handler 补齐精确边界类型。
+- 新增超级用户导入限制、注册表变更/删除限制、GET 只读、CSRF POST 激活、路径穿越/保留名称和错误详情脱敏回归。
+
+## 第三百一十九批验证结果
+
+- Alpha 单元、Admin 组件与 API 回归 `68 passed`；另有 1 条来自未改动 Qlib pandas 兼容层 `DataFrame.groupby(axis=...)` 的 FutureWarning。
+- `apps/alpha/admin.py` 增量 mypy 清零；全仓基线从 `1046 errors / 374 files` 收紧为 `1024 errors / 373 files`，净减少 `22 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

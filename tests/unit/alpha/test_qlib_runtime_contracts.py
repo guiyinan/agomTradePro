@@ -684,6 +684,34 @@ def test_alpha_admin_forms_artifact_storage_and_validation(monkeypatch, settings
     )
     assert malformed.is_valid() is False
     assert "JSON 解析失败" in str(malformed.errors["train_config"])
+    unsafe_name = alpha_admin.QlibModelImportForm(
+        data={
+            "model_name": "../outside",
+            "model_type": "LGBModel",
+            "universe": "csi300",
+            "feature_set_id": "v1",
+            "label_id": "return_5d",
+            "data_version": "2026-07-24",
+            "train_config": "{}",
+        },
+        files={"model_file": SimpleUploadedFile("model.pkl", b"bad")},
+    )
+    assert unsafe_name.is_valid() is False
+    assert "model_name" in unsafe_name.errors
+    reserved_name = alpha_admin.QlibModelImportForm(
+        data={
+            "model_name": "NUL.pkl",
+            "model_type": "LGBModel",
+            "universe": "csi300",
+            "feature_set_id": "v1",
+            "label_id": "return_5d",
+            "data_version": "2026-07-24",
+            "train_config": "{}",
+        },
+        files={"model_file": SimpleUploadedFile("model.pkl", b"bad")},
+    )
+    assert reserved_name.is_valid() is False
+    assert "model_name" in reserved_name.errors
 
     train_form = alpha_admin.QlibModelTrainForm(
         data={
@@ -734,6 +762,8 @@ def test_alpha_admin_forms_artifact_storage_and_validation(monkeypatch, settings
     uploaded = SimpleUploadedFile("model.pkl", payload)
     digest = admin_instance._hash_uploaded_file(uploaded)
     stored = admin_instance._store_uploaded_model(uploaded, "sample", digest)
+    with pytest.raises(ValueError, match="model_name"):
+        admin_instance._store_uploaded_model(uploaded, "../outside", digest)
     admin_instance._write_metadata_files(
         stored,
         "sample",
@@ -765,6 +795,23 @@ def test_alpha_admin_forms_artifact_storage_and_validation(monkeypatch, settings
     )
     assert result["passed"] is True, result
     assert result["sample_scores"][0]["code"] == "S00"
+
+    monkeypatch.setattr(
+        alpha_admin.pickle,
+        "load",
+        lambda _file: (_ for _ in ()).throw(ValueError("token=should-not-appear")),
+    )
+    failed_result = admin_instance._run_validation(
+        SimpleNamespace(
+            model_path=str(stored),
+            universe="csi300",
+        )
+    )
+    pickle_detail = next(
+        check["detail"] for check in failed_result["checks"] if check["label"] == "pickle 加载"
+    )
+    assert "ValueError" in pickle_detail
+    assert "should-not-appear" not in pickle_detail
 
 
 def test_alpha_monitoring_tasks_publish_metrics_drift_reports_and_cleanup(monkeypatch) -> None:

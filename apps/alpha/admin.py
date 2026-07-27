@@ -1,17 +1,24 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import pickle
+import re
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any, TypedDict, cast
 
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
-from django.http import HttpRequest, HttpResponseRedirect
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.uploadedfile import UploadedFile
+from django.db.models import QuerySet
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import path, reverse
+from django.urls.resolvers import URLPattern
 from django.utils import timezone
 
 from apps.alpha.application.tasks import _execute_qlib_prediction
@@ -26,7 +33,74 @@ from apps.config_center.application.use_cases import (
     TriggerQlibTrainingUseCase,
     ValidationFailureError,
 )
-from core.integration.runtime_settings import get_runtime_qlib_config
+from core.integration import runtime_settings
+from shared.infrastructure.django_admin import TypedModelAdmin
+
+_SAFE_MODEL_NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,99}\Z")
+_ARTIFACT_HASH_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
+_WINDOWS_RESERVED_NAMES = {
+    "AUX",
+    "CON",
+    "NUL",
+    "PRN",
+    *(f"COM{index}" for index in range(1, 10)),
+    *(f"LPT{index}" for index in range(1, 10)),
+}
+
+
+class ModelValidationCheck(TypedDict):
+    """One stable model-validation check for the Admin template."""
+
+    label: str
+    ok: bool
+    detail: str
+
+
+class ModelValidationResult(TypedDict):
+    """Typed result returned by the Qlib model validation workflow."""
+
+    passed: bool
+    checks: list[ModelValidationCheck]
+    sample_scores: list[dict[str, object]]
+    activation_message: str
+
+
+def _validate_model_name(value: object) -> str:
+    """Return a path-safe model identifier or raise form validation error."""
+
+    if not isinstance(value, str) or _SAFE_MODEL_NAME_PATTERN.fullmatch(value) is None:
+        raise ValidationError("模型名称仅允许字母、数字、点、下划线和连字符。")
+    if value in {".", ".."} or value.endswith("."):
+        raise ValidationError("模型名称不能是相对目录标记或以点结尾。")
+    if value.split(".", maxsplit=1)[0].upper() in _WINDOWS_RESERVED_NAMES:
+        raise ValidationError("模型名称不能使用系统保留名称。")
+    return value
+
+
+def _parse_json_object(value: object, *, label: str) -> dict[str, object]:
+    """Parse a form JSON object and narrow it at the dynamic JSON boundary."""
+
+    if not isinstance(value, str):
+        raise ValidationError(f"{label}必须是 JSON object。")
+    raw = value.strip()
+    if not raw:
+        return {}
+    try:
+        parsed: object = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValidationError(f"{label} JSON 解析失败。") from exc
+    if not isinstance(parsed, dict):
+        raise ValidationError(f"{label}必须是 JSON object。")
+    return cast(dict[str, object], parsed)
+
+
+def _qlib_settings_mapping() -> Mapping[str, object]:
+    """Return Qlib settings through a typed dynamic-settings boundary."""
+
+    raw_settings: object = getattr(settings, "QLIB_SETTINGS", {})
+    if not isinstance(raw_settings, Mapping):
+        return {}
+    return cast(Mapping[str, object], raw_settings)
 
 
 class QlibModelImportForm(forms.Form):
@@ -57,29 +131,27 @@ class QlibModelImportForm(forms.Form):
         label="训练配置 JSON",
         help_text="可选。用于记录模型来源、训练参数等。",
     )
-    activate_now = forms.BooleanField(
-        required=False,
-        initial=True,
-        label="导入后立即激活",
-    )
 
-    def clean_model_file(self):
-        uploaded = self.cleaned_data["model_file"]
-        if not uploaded.name.lower().endswith(".pkl"):
+    def clean_model_file(self) -> UploadedFile:
+        """Accept only a Django uploaded pickle artifact."""
+
+        uploaded: object = self.cleaned_data.get("model_file")
+        if not isinstance(uploaded, UploadedFile):
+            raise ValidationError("请选择有效的模型文件。")
+        filename = uploaded.name or ""
+        if not filename.lower().endswith(".pkl"):
             raise ValidationError("只支持上传 .pkl 模型文件。")
         return uploaded
 
-    def clean_train_config(self):
-        raw = self.cleaned_data.get("train_config", "").strip()
-        if not raw:
-            return {}
-        try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ValidationError(f"训练配置 JSON 解析失败: {exc}") from exc
-        if not isinstance(parsed, dict):
-            raise ValidationError("训练配置必须是 JSON object。")
-        return parsed
+    def clean_model_name(self) -> str:
+        """Reject path separators and traversal markers in model names."""
+
+        return _validate_model_name(self.cleaned_data.get("model_name"))
+
+    def clean_train_config(self) -> dict[str, object]:
+        """Return the imported model metadata as a JSON object."""
+
+        return _parse_json_object(self.cleaned_data.get("train_config", ""), label="训练配置")
 
 
 class QlibModelTrainForm(forms.Form):
@@ -110,33 +182,27 @@ class QlibModelTrainForm(forms.Form):
     )
     activate_now = forms.BooleanField(required=False, initial=False, label="训练完成后自动激活")
 
-    def clean_model_params(self):
-        raw = self.cleaned_data.get("model_params", "").strip()
-        if not raw:
-            return {}
-        try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ValidationError(f"模型参数 JSON 解析失败: {exc}") from exc
-        if not isinstance(parsed, dict):
-            raise ValidationError("模型参数必须是 JSON object。")
-        return parsed
+    def clean_model_name(self) -> str:
+        """Apply the same stable identifier contract used by model import."""
 
-    def clean_extra_train_config(self):
-        raw = self.cleaned_data.get("extra_train_config", "").strip()
-        if not raw:
-            return {}
-        try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ValidationError(f"附加训练配置 JSON 解析失败: {exc}") from exc
-        if not isinstance(parsed, dict):
-            raise ValidationError("附加训练配置必须是 JSON object。")
-        return parsed
+        return _validate_model_name(self.cleaned_data.get("model_name"))
+
+    def clean_model_params(self) -> dict[str, object]:
+        """Return training model parameters as a JSON object."""
+
+        return _parse_json_object(self.cleaned_data.get("model_params", ""), label="模型参数")
+
+    def clean_extra_train_config(self) -> dict[str, object]:
+        """Return additional training metadata as a JSON object."""
+
+        return _parse_json_object(
+            self.cleaned_data.get("extra_train_config", ""),
+            label="附加训练配置",
+        )
 
 
 @admin.register(QlibModelRegistryModel)
-class QlibModelRegistryAdmin(admin.ModelAdmin):
+class QlibModelRegistryAdmin(TypedModelAdmin[QlibModelRegistryModel]):
     list_display = (
         "model_name",
         "artifact_hash_short",
@@ -154,7 +220,9 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
     actions = ("activate_selected_models",)
     change_list_template = "admin/alpha/qlibmodelregistry/change_list.html"
 
-    def get_urls(self):
+    def get_urls(self) -> list[URLPattern]:
+        """Publish superuser model import, validation, and training routes."""
+
         urls = super().get_urls()
         custom_urls = [
             path(
@@ -175,7 +243,13 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
-    def changelist_view(self, request, extra_context=None):
+    def changelist_view(
+        self,
+        request: HttpRequest,
+        extra_context: dict[str, Any] | None = None,
+    ) -> HttpResponse:
+        """Add custom Qlib operation links to the registry changelist."""
+
         extra_context = extra_context or {}
         extra_context["import_url"] = reverse("admin:alpha_qlibmodelregistry_import")
         extra_context["train_url"] = reverse("admin:alpha_qlibmodelregistry_train")
@@ -185,20 +259,59 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
     def artifact_hash_short(self, obj: QlibModelRegistryModel) -> str:
         return f"{obj.artifact_hash[:12]}..."
 
-    @admin.action(description="激活选中的模型（最后一条生效）")
-    def activate_selected_models(self, request, queryset):
-        last_model = None
-        for model in queryset.order_by("created_at"):
-            model.activate(activated_by=f"admin:{request.user.username}")
-            last_model = model
-        if last_model is not None:
-            self.message_user(
-                request,
-                f"已激活模型 {last_model.model_name}@{last_model.artifact_hash[:8]}。",
-                level=messages.SUCCESS,
-            )
+    @admin.action(description="验证并激活选中的单个模型")
+    def activate_selected_models(
+        self,
+        request: HttpRequest,
+        queryset: QuerySet[QlibModelRegistryModel],
+    ) -> None:
+        """Validate and activate exactly one model under superuser control."""
 
-    def import_model_view(self, request: HttpRequest):
+        if not request.user.is_superuser:
+            self.message_user(request, "只有超级用户可以激活模型。", level=messages.ERROR)
+            return
+        selected = list(queryset.order_by("created_at")[:2])
+        if len(selected) != 1:
+            self.message_user(request, "每次必须且只能选择一个模型。", level=messages.ERROR)
+            return
+        model = selected[0]
+        validation = self._run_validation(model)
+        if not validation["passed"]:
+            self.message_user(request, "模型验证未通过，未执行激活。", level=messages.ERROR)
+            return
+        model.activate(activated_by=f"admin:{request.user.username}")
+        self.message_user(
+            request,
+            f"已激活模型 {model.model_name}@{model.artifact_hash[:8]}。",
+            level=messages.SUCCESS,
+        )
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Restrict pickle artifact import and direct registry creation to superusers."""
+
+        return bool(request.user.is_superuser and super().has_add_permission(request))
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: QlibModelRegistryModel | None = None,
+    ) -> bool:
+        """Prevent delegated staff from changing artifact paths or model state."""
+
+        return bool(request.user.is_superuser and super().has_change_permission(request, obj))
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: QlibModelRegistryModel | None = None,
+    ) -> bool:
+        """Restrict model registry deletion to superusers."""
+
+        return bool(request.user.is_superuser and super().has_delete_permission(request, obj))
+
+    def import_model_view(self, request: HttpRequest) -> HttpResponse:
+        """Import a model artifact without activating it as a side effect."""
+
         if not self.has_add_permission(request):
             self.message_user(request, "你没有导入模型的权限。", level=messages.ERROR)
             return HttpResponseRedirect(reverse("admin:index"))
@@ -206,16 +319,16 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
         form = QlibModelImportForm(request.POST or None, request.FILES or None)
 
         if request.method == "POST" and form.is_valid():
-            uploaded = form.cleaned_data["model_file"]
-            model_name = form.cleaned_data["model_name"]
+            uploaded = cast(UploadedFile, form.cleaned_data["model_file"])
+            model_name = cast(str, form.cleaned_data["model_name"])
             artifact_hash = self._hash_uploaded_file(uploaded)
 
             if QlibModelRegistryModel._default_manager.filter(artifact_hash=artifact_hash).exists():
                 form.add_error("model_file", f"相同 artifact_hash 已存在: {artifact_hash}")
             else:
                 model_file_path = self._store_uploaded_model(uploaded, model_name, artifact_hash)
-                train_config = form.cleaned_data["train_config"]
-                metrics_payload = {
+                train_config = cast(dict[str, object], form.cleaned_data["train_config"])
+                metrics_payload: dict[str, float | None] = {
                     "ic": (
                         float(form.cleaned_data["ic"])
                         if form.cleaned_data["ic"] is not None
@@ -258,8 +371,10 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
                 )
 
                 return HttpResponseRedirect(
-                    f"{reverse('admin:alpha_qlibmodelregistry_validate', args=[model.artifact_hash])}"
-                    f"?activate={'1' if form.cleaned_data['activate_now'] else '0'}"
+                    reverse(
+                        "admin:alpha_qlibmodelregistry_validate",
+                        args=[model.artifact_hash],
+                    )
                 )
 
         context = {
@@ -271,8 +386,10 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
         }
         return render(request, "admin/alpha/qlibmodelregistry/import_form.html", context)
 
-    def validate_model_view(self, request: HttpRequest, artifact_hash: str):
-        if not self.has_view_permission(request):
+    def validate_model_view(self, request: HttpRequest, artifact_hash: str) -> HttpResponse:
+        """Validate a model and activate it only through an explicit POST."""
+
+        if not request.user.is_superuser or not self.has_view_permission(request):
             self.message_user(request, "你没有查看模型验证结果的权限。", level=messages.ERROR)
             return HttpResponseRedirect(reverse("admin:index"))
 
@@ -282,13 +399,17 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
             self.message_user(request, f"模型不存在: {artifact_hash}", level=messages.ERROR)
             return HttpResponseRedirect(reverse("admin:alpha_qlibmodelregistrymodel_changelist"))
 
-        should_activate = request.GET.get("activate") == "1"
         result = self._run_validation(model)
-        if should_activate and result["passed"] and not model.is_active:
-            model.activate(activated_by=f"admin:{request.user.username}")
-            result["activation_message"] = "验证通过，模型已自动激活。"
-        elif should_activate and not result["passed"]:
-            result["activation_message"] = "验证未通过，未执行自动激活。"
+        if request.method == "POST":
+            if not self.has_change_permission(request, model):
+                raise PermissionDenied("Model activation requires change permission")
+            if request.POST.get("activate") != "1":
+                return HttpResponseBadRequest("Unknown model validation action")
+            if result["passed"] and not model.is_active:
+                model.activate(activated_by=f"admin:{request.user.username}")
+                result["activation_message"] = "验证通过，模型已激活。"
+            elif not result["passed"]:
+                result["activation_message"] = "验证未通过，未执行激活。"
 
         context = {
             **self.admin_site.each_context(request),
@@ -296,17 +417,20 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
             "title": "Qlib 模型试跑验证",
             "model_obj": model,
             "validation": result,
+            "can_activate": result["passed"] and not model.is_active,
             "change_url": reverse("admin:alpha_qlibmodelregistrymodel_change", args=[model.pk]),
             "list_url": reverse("admin:alpha_qlibmodelregistrymodel_changelist"),
         }
         return render(request, "admin/alpha/qlibmodelregistry/validation_result.html", context)
 
-    def train_model_view(self, request: HttpRequest):
+    def train_model_view(self, request: HttpRequest) -> HttpResponse:
+        """Validate and submit a Qlib training request for a superuser."""
+
         if not request.user.is_superuser:
             self.message_user(request, "你没有发起训练的权限。", level=messages.ERROR)
             return HttpResponseRedirect(reverse("admin:index"))
 
-        runtime_qlib = get_runtime_qlib_config()
+        runtime_qlib = runtime_settings.get_runtime_qlib_config()
         initial = {
             "universe": runtime_qlib.get("default_universe", "csi300"),
             "feature_set_id": runtime_qlib.get("default_feature_set_id", "v1"),
@@ -369,19 +493,34 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
         return render(request, "admin/alpha/qlibmodelregistry/train_form.html", context)
 
     def _model_root(self) -> Path:
-        qlib_settings = getattr(settings, "QLIB_SETTINGS", {}) or {}
-        root = qlib_settings.get("model_path", "/models/qlib")
-        return Path(root).expanduser()
+        qlib_settings = _qlib_settings_mapping()
+        configured_root = qlib_settings.get("model_path", "/models/qlib")
+        root = configured_root if isinstance(configured_root, str) else "/models/qlib"
+        return Path(root).expanduser().resolve()
 
-    def _hash_uploaded_file(self, uploaded) -> str:
+    def _hash_uploaded_file(self, uploaded: UploadedFile) -> str:
         sha256 = hashlib.sha256()
         for chunk in uploaded.chunks():
             sha256.update(chunk)
         uploaded.seek(0)
         return sha256.hexdigest()
 
-    def _store_uploaded_model(self, uploaded, model_name: str, artifact_hash: str) -> Path:
-        artifact_dir = self._model_root() / model_name / artifact_hash
+    def _store_uploaded_model(
+        self,
+        uploaded: UploadedFile,
+        model_name: str,
+        artifact_hash: str,
+    ) -> Path:
+        try:
+            safe_model_name = _validate_model_name(model_name)
+        except ValidationError as exc:
+            raise ValueError("model_name must be a safe identifier") from exc
+        if _ARTIFACT_HASH_PATTERN.fullmatch(artifact_hash) is None:
+            raise ValueError("artifact_hash must be a lowercase SHA-256 digest")
+        model_root = self._model_root()
+        artifact_dir = (model_root / safe_model_name / artifact_hash).resolve()
+        if not artifact_dir.is_relative_to(model_root):
+            raise ValueError("model artifact path escapes the configured root")
         artifact_dir.mkdir(parents=True, exist_ok=True)
         model_file_path = artifact_dir / "model.pkl"
         with model_file_path.open("wb") as destination:
@@ -396,8 +535,8 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
         model_name: str,
         artifact_hash: str,
         data_version: str,
-        train_config: dict,
-        metrics: dict,
+        train_config: dict[str, object],
+        metrics: dict[str, float | None],
     ) -> None:
         artifact_dir = model_file_path.parent
         with (artifact_dir / "config.json").open("w", encoding="utf-8") as fh:
@@ -418,9 +557,9 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
         with (artifact_dir / "data_version.txt").open("w", encoding="utf-8") as fh:
             fh.write(data_version)
 
-    def _run_validation(self, model: QlibModelRegistryModel) -> dict:
-        checks: list[dict] = []
-        sample_scores = []
+    def _run_validation(self, model: QlibModelRegistryModel) -> ModelValidationResult:
+        checks: list[ModelValidationCheck] = []
+        sample_scores: list[dict[str, object]] = []
         passed = True
 
         model_file = Path(model.model_path)
@@ -452,7 +591,7 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
                     {
                         "label": "pickle 加载",
                         "ok": False,
-                        "detail": f"加载失败: {exc}",
+                        "detail": f"加载失败: {type(exc).__name__}",
                     }
                 )
                 passed = False
@@ -461,28 +600,44 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
         qlib_data_ok = False
         qlib_data_path = ""
         try:
-            import qlib  # noqa: F401
+            importlib.import_module("qlib")
 
             qlib_import_ok = True
             checks.append({"label": "Qlib 依赖", "ok": True, "detail": "pyqlib 可导入"})
         except Exception as exc:
-            checks.append({"label": "Qlib 依赖", "ok": False, "detail": f"pyqlib 不可用: {exc}"})
+            checks.append(
+                {
+                    "label": "Qlib 依赖",
+                    "ok": False,
+                    "detail": f"pyqlib 不可用: {type(exc).__name__}",
+                }
+            )
             passed = False
 
-        qlib_settings = getattr(settings, "QLIB_SETTINGS", {}) or {}
+        qlib_settings = _qlib_settings_mapping()
 
         # 优先从数据库读取 Qlib 配置
         try:
-            from core.integration.runtime_settings import get_runtime_qlib_config
-
-            qlib_runtime_config = get_runtime_qlib_config()
-            qlib_data_path = qlib_runtime_config.get("provider_uri", "")
-            qlib_enabled = qlib_runtime_config.get("enabled", False)
-        except Exception:
-            qlib_data_path = str(
-                Path(qlib_settings.get("provider_uri", "~/.qlib/qlib_data/cn_data")).expanduser()
+            qlib_runtime_config = runtime_settings.get_runtime_qlib_config()
+            provider_uri = qlib_runtime_config.get("provider_uri", "")
+            enabled = qlib_runtime_config.get("enabled", False)
+            qlib_data_path = provider_uri if isinstance(provider_uri, str) else ""
+            qlib_enabled = enabled if isinstance(enabled, bool) else False
+        except Exception as exc:
+            configured_uri = qlib_settings.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+            fallback_uri = (
+                configured_uri if isinstance(configured_uri, str) else "~/.qlib/qlib_data/cn_data"
             )
+            qlib_data_path = str(Path(fallback_uri).expanduser())
             qlib_enabled = False
+            checks.append(
+                {
+                    "label": "Qlib 运行配置",
+                    "ok": False,
+                    "detail": f"配置不可用: {type(exc).__name__}",
+                }
+            )
+            passed = False
 
         if qlib_data_path:
             data_path_obj = Path(qlib_data_path).expanduser()
@@ -512,7 +667,9 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
                     trade_date=timezone.now().date(),
                     top_n=5,
                 )
-                sample_scores = scores[:5]
+                sample_scores = [
+                    {str(key): value for key, value in score.items()} for score in scores[:5]
+                ]
                 checks.append(
                     {
                         "label": "真实推理 smoke test",
@@ -528,7 +685,7 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
                     {
                         "label": "真实推理 smoke test",
                         "ok": False,
-                        "detail": str(exc),
+                        "detail": f"推理失败: {type(exc).__name__}",
                     }
                 )
                 passed = False
@@ -542,7 +699,7 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
 
 
 @admin.register(AlphaScoreCacheModel)
-class AlphaScoreCacheAdmin(admin.ModelAdmin):
+class AlphaScoreCacheAdmin(TypedModelAdmin[AlphaScoreCacheModel]):
     list_display = ("universe_id", "intended_trade_date", "provider_source", "status", "created_at")
     list_filter = ("provider_source", "status", "universe_id")
     search_fields = ("universe_id", "model_id", "model_artifact_hash")
@@ -550,7 +707,7 @@ class AlphaScoreCacheAdmin(admin.ModelAdmin):
 
 
 @admin.register(AlphaAlertModel)
-class AlphaAlertAdmin(admin.ModelAdmin):
+class AlphaAlertAdmin(TypedModelAdmin[AlphaAlertModel]):
     list_display = ("title", "alert_type", "severity", "is_resolved", "created_at")
     list_filter = ("alert_type", "severity", "is_resolved")
     search_fields = ("title", "message")

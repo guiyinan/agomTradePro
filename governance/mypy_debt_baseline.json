@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 1046,
-    "files_with_errors": 374
+    "errors": 1024,
+    "files_with_errors": 373
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -201,12 +201,6 @@
     },
     "apps/ai_provider/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/alpha/admin.py": {
-      "assignment": 2,
-      "import-untyped": 1,
-      "no-untyped-def": 12,
-      "type-arg": 7
     },
     "apps/alpha/application/ai_filter.py": {
       "no-any-return": 1

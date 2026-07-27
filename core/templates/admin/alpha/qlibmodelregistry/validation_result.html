@@ -70,6 +70,13 @@
     </div>
 
     <div class="submit-row">
+        {% if can_activate %}
+        <form method="post" style="display: inline-block; margin-right: 8px;">
+            {% csrf_token %}
+            <input type="hidden" name="activate" value="1">
+            <input type="submit" value="确认激活此模型" class="default">
+        </form>
+        {% endif %}
         <a href="{{ change_url }}" class="button default">查看模型详情</a>
         <a href="{{ list_url }}" class="button">返回列表</a>
     </div>
