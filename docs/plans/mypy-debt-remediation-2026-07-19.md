@@ -5315,4 +5315,23 @@
 
 - 留存安全与既有分层清理定向回归 `8 passed`；Task Monitor unit/component/API 扩展回归 `60 passed`。完整套件退出时一次 Windows 测试库文件锁 warning 对应在线备份用例单独重跑 `1 passed` 且无 warning。
 - `apps/task_monitor/infrastructure/repositories.py` 在跨文件及增量 mypy 口径均清零；全仓基线从 `774 errors / 338 files` 收紧为 `768 errors / 337 files`，净减少 `6 errors / 1 file`。
-- Django system check、架构 delta、改动文件 Ruff、增量 mypy 与全仓 debt baseline 刷新通过。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百四十九批
+
+- 按“陈旧请求释放新锁 × 锁过期后旧任务覆盖新 owner × 投递成功后监控失败导致重复投递”收口 Alpha/Qlib 运维锁生命周期。
+- Dashboard Alpha 刷新、批量 scoped inference 与两类 Qlib 数据刷新统一改为不可伪造的 owner token；acquire 返回精确 `LockOwnerToken`，promote/release 必须携带同一 token，陈旧调用只能返回 false，不能修改后继 owner。
+- 主锁 claim 与 owner 状态分离：主 claim 及 successor handoff 只通过 cache `add` 原子创建且保持不可变，任务 ID、阶段、绝对 lease 与 metadata 只写 owner 私有状态；无需依赖各缓存后端不一致的 compare-and-delete，也不会因旧 owner 清理窗口删除新锁。
+- 释放、任务完成和 lease 过期不再物理覆盖主 claim，而是将当前 generation 转为终态并由下一请求原子领取唯一 successor；跨进程 Redis 与本地 LocMem 共享同一协议，锁链及 registry 物理 TTL 有界为 24 小时。
+- Resolver 严格校验 token、owner state、phase、task ID、有限过期时间和 string-key metadata；owner token 不进入页面/API metadata。滚动升级期间继续识别旧 `__pending__`、`__sync__` 和 task-id v1 cache 值；v1 缺少 owner token，终态后不执行可能误删新 claim 的非条件删除，而是等待原 TTL 自然过期。
+- 锁 timeout 必须为非布尔正整数，空 lock key、非法 metadata 和空 task ID 在发布/晋升前失败关闭；registry cache 损坏时不再把字符串拆成字符列表。
+- Alpha Ops UseCase 与 Dashboard async handler 在任务成功投递后即使 lock promotion 或 Task Monitor pending record 写入失败，也不再释放仍可能运行的任务锁；只有 broker dispatch 尚未成功时才使用自己的 owner token 释放，避免用户重试产生重复任务。
+- Dashboard 同步降级路径同样持有 owner token，只有 promotion 成功才执行本地推理，并在 finally 中只释放自己的 generation。
+- 新增陈旧 promote/release 隔离、完成/过期 handoff、并发 successor 唯一性、v1 终态不危险删除、token 不外泄、非法 TTL 前置拒绝、监控写入失败保持锁和 broker 投递失败允许安全重试回归。
+
+## 第三百四十九批验证结果
+
+- Alpha Ops owner-token 专项 `11 passed`；Alpha unit、App tests 与 Dashboard Alpha 扩展回归 `167 passed`。
+- 扩展回归仅保留既有 Qlib pandas `DataFrame.groupby(axis=...)` FutureWarning，与本批锁逻辑无关。
+- `apps/alpha/application/ops_locks.py` 在 governed 与增量 mypy 口径均清零；全仓基线从 `768 errors / 337 files` 收紧为 `761 errors / 336 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

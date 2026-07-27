@@ -9,9 +9,6 @@ from apps.alpha.application.ops_locks import (
     build_inference_batch_lock_key,
     build_qlib_data_refresh_lock_key,
     list_active_dashboard_alpha_refresh_locks,
-    release_dashboard_alpha_refresh_lock,
-    release_inference_batch_lock,
-    release_qlib_data_refresh_lock,
 )
 from apps.alpha.application.ops_use_cases import (
     TriggerGeneralInferenceUseCase,
@@ -80,7 +77,7 @@ def test_trigger_general_inference_use_case_queues_qlib_task(monkeypatch):
         universe_id="csi300",
     )
 
-    release_dashboard_alpha_refresh_lock(
+    cache.delete(
         build_dashboard_alpha_refresh_lock_key(
             alpha_scope="general",
             target_date=date(2026, 4, 28),
@@ -112,7 +109,14 @@ def test_trigger_scoped_inference_use_case_passes_scope_payload(monkeypatch):
             return FakeTask()
 
     class FakeResolver:
-        def resolve(self, *, user_id: int, trade_date: date, portfolio_id: int | None = None, pool_mode: str | None = None):
+        def resolve(
+            self,
+            *,
+            user_id: int,
+            trade_date: date,
+            portfolio_id: int | None = None,
+            pool_mode: str | None = None,
+        ):
             return SimpleNamespace(
                 portfolio_id=portfolio_id,
                 portfolio_name="测试组合",
@@ -131,7 +135,9 @@ def test_trigger_scoped_inference_use_case_passes_scope_payload(monkeypatch):
             )
 
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
-    monkeypatch.setattr("apps.alpha.application.ops_use_cases.PortfolioAlphaPoolResolver", FakeResolver)
+    monkeypatch.setattr(
+        "apps.alpha.application.ops_use_cases.PortfolioAlphaPoolResolver", FakeResolver
+    )
 
     payload = TriggerScopedInferenceUseCase().execute(
         actor_user_id=7,
@@ -141,7 +147,7 @@ def test_trigger_scoped_inference_use_case_passes_scope_payload(monkeypatch):
         pool_mode="price_covered",
     )
 
-    release_dashboard_alpha_refresh_lock(
+    cache.delete(
         build_dashboard_alpha_refresh_lock_key(
             alpha_scope="portfolio",
             target_date=date(2026, 4, 28),
@@ -169,11 +175,13 @@ def test_trigger_scoped_batch_inference_use_case_queues_batch_task(monkeypatch):
             captured.update(kwargs)
             return FakeTask()
 
-    monkeypatch.setattr("apps.alpha.application.tasks.qlib_daily_scoped_inference", FakeDelayWrapper)
+    monkeypatch.setattr(
+        "apps.alpha.application.tasks.qlib_daily_scoped_inference", FakeDelayWrapper
+    )
 
     payload = TriggerScopedBatchInferenceUseCase().execute(top_n=25, pool_mode="market")
 
-    release_inference_batch_lock(
+    cache.delete(
         build_inference_batch_lock_key(
             mode="daily_scoped_batch",
             target_date=date.today(),
@@ -200,7 +208,9 @@ def test_trigger_qlib_universe_refresh_use_case_queues_refresh_task(monkeypatch)
             captured.update(kwargs)
             return FakeTask()
 
-    monkeypatch.setattr("apps.alpha.application.tasks.qlib_refresh_runtime_data_task", FakeDelayWrapper)
+    monkeypatch.setattr(
+        "apps.alpha.application.tasks.qlib_refresh_runtime_data_task", FakeDelayWrapper
+    )
 
     payload = TriggerQlibUniverseRefreshUseCase().execute(
         target_date=date(2026, 4, 28),
@@ -208,7 +218,7 @@ def test_trigger_qlib_universe_refresh_use_case_queues_refresh_task(monkeypatch)
         universes=["csi300", "csi500"],
     )
 
-    release_qlib_data_refresh_lock(
+    cache.delete(
         build_qlib_data_refresh_lock_key(
             mode="universes",
             target_date=date(2026, 4, 28),
@@ -256,7 +266,7 @@ def test_trigger_qlib_scoped_codes_refresh_use_case_queues_refresh_task(monkeypa
         pool_mode="price_covered",
     )
 
-    release_qlib_data_refresh_lock(
+    cache.delete(
         build_qlib_data_refresh_lock_key(
             mode="scoped_codes",
             target_date=date(2026, 4, 28),
@@ -272,7 +282,9 @@ def test_trigger_qlib_scoped_codes_refresh_use_case_queues_refresh_task(monkeypa
     assert captured["pool_mode"] == "price_covered"
     record = get_task_record_repository().get_by_task_id("task-refresh-codes-1")
     assert record is not None
-    assert record.task_name == "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task"
+    assert (
+        record.task_name == "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task"
+    )
     assert record.status == TaskStatus.PENDING
     assert record.kwargs["target_date"] == "2026-04-28"
     assert record.kwargs["portfolio_ids"] == [12, 18]

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 768,
-    "files_with_errors": 337
+    "errors": 761,
+    "files_with_errors": 336
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -204,9 +204,6 @@
     },
     "apps/alpha/application/interface_services.py": {
       "no-untyped-def": 4
-    },
-    "apps/alpha/application/ops_locks.py": {
-      "no-untyped-def": 7
     },
     "apps/alpha/application/ops_services.py": {
       "arg-type": 1,

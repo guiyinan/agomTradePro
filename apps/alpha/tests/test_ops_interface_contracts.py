@@ -4,12 +4,10 @@ from datetime import date
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import Client
 
-from apps.alpha.application.ops_locks import (
-    build_qlib_data_refresh_lock_key,
-    release_qlib_data_refresh_lock,
-)
+from apps.alpha.application.ops_locks import build_qlib_data_refresh_lock_key
 
 User = get_user_model()
 
@@ -98,9 +96,7 @@ def test_qlib_data_refresh_api_immediately_exposes_pending_task_in_overview(monk
         assert overview_payload["success"] is True
         recent_tasks = overview_payload["data"]["recent_tasks"]
         matching = [
-            item
-            for item in recent_tasks
-            if item["task_id"] == "task-qlib-refresh-pending-1"
+            item for item in recent_tasks if item["task_id"] == "task-qlib-refresh-pending-1"
         ]
         assert matching, "overview should include the just-queued pending task"
         task = matching[0]
@@ -108,7 +104,7 @@ def test_qlib_data_refresh_api_immediately_exposes_pending_task_in_overview(monk
         assert task["status"] == "pending"
         assert task["started_at"] is None
     finally:
-        release_qlib_data_refresh_lock(
+        cache.delete(
             build_qlib_data_refresh_lock_key(
                 mode="universes",
                 target_date=target_date,
@@ -162,7 +158,7 @@ def test_qlib_data_page_renders_recent_pending_task_after_refresh(monkeypatch):
         assert "pending" in html
         assert "暂无 Qlib 数据刷新任务记录。" not in html
     finally:
-        release_qlib_data_refresh_lock(
+        cache.delete(
             build_qlib_data_refresh_lock_key(
                 mode="universes",
                 target_date=target_date,

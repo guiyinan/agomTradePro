@@ -31,6 +31,7 @@ from apps.alpha.application.ops_services import (
 from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 from apps.alpha.application.repository_provider import get_alpha_pool_data_repository
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
+from core.exceptions import BusinessLogicError
 
 
 def record_pending_task(**kwargs: Any) -> Any:
@@ -55,6 +56,17 @@ def _build_conflict_payload(
     if extra_payload:
         payload.update(extra_payload)
     return payload
+
+
+def _require_lock_promotion(promoted: bool) -> None:
+    """Fail explicitly when a dispatched task no longer owns its lock generation."""
+
+    if not promoted:
+        raise BusinessLogicError(
+            message="Alpha operation lock ownership was lost after dispatch",
+            code="ALPHA_OPS_LOCK_OWNERSHIP_LOST",
+            status_code=409,
+        )
 
 
 class GetAlphaInferenceOpsOverviewUseCase:
@@ -98,22 +110,31 @@ class TriggerGeneralInferenceUseCase:
                 error="相同 scope/date/top_n 的 Alpha 推理仍在进行中。",
                 lock_meta=existing,
             )
-        if not acquire_dashboard_alpha_refresh_pending_lock(lock_key, meta=metadata):
+        owner_token = acquire_dashboard_alpha_refresh_pending_lock(lock_key, meta=metadata)
+        if owner_token is None:
             existing = resolve_dashboard_alpha_refresh_lock(lock_key) or metadata
             return _build_conflict_payload(
                 error="相同 scope/date/top_n 的 Alpha 推理仍在进行中。",
                 lock_meta=existing,
             )
+        task_dispatched = False
         try:
             task = qlib_predict_scores.delay(universe_id, trade_date.isoformat(), top_n)
-            promote_dashboard_alpha_refresh_task_lock(lock_key, task_id=task.id)
+            task_dispatched = True
+            promoted = promote_dashboard_alpha_refresh_task_lock(
+                lock_key,
+                owner_token=owner_token,
+                task_id=task.id,
+            )
             record_pending_task(
                 task_id=task.id,
                 task_name="apps.alpha.application.tasks.qlib_predict_scores",
                 args=(universe_id, trade_date.isoformat(), top_n),
             )
+            _require_lock_promotion(promoted)
         except Exception:
-            release_dashboard_alpha_refresh_lock(lock_key)
+            if not task_dispatched:
+                release_dashboard_alpha_refresh_lock(lock_key, owner_token=owner_token)
             raise
         return {
             "success": True,
@@ -166,12 +187,14 @@ class TriggerScopedInferenceUseCase:
                 error="相同 scope/date/top_n 的 scoped Alpha 推理仍在进行中。",
                 lock_meta=existing,
             )
-        if not acquire_dashboard_alpha_refresh_pending_lock(lock_key, meta=metadata):
+        owner_token = acquire_dashboard_alpha_refresh_pending_lock(lock_key, meta=metadata)
+        if owner_token is None:
             existing = resolve_dashboard_alpha_refresh_lock(lock_key) or metadata
             return _build_conflict_payload(
                 error="相同 scope/date/top_n 的 scoped Alpha 推理仍在进行中。",
                 lock_meta=existing,
             )
+        task_dispatched = False
         try:
             task = qlib_predict_scores.delay(
                 scope.universe_id,
@@ -179,15 +202,22 @@ class TriggerScopedInferenceUseCase:
                 top_n,
                 scope_payload=scope.to_dict(),
             )
-            promote_dashboard_alpha_refresh_task_lock(lock_key, task_id=task.id)
+            task_dispatched = True
+            promoted = promote_dashboard_alpha_refresh_task_lock(
+                lock_key,
+                owner_token=owner_token,
+                task_id=task.id,
+            )
             record_pending_task(
                 task_id=task.id,
                 task_name="apps.alpha.application.tasks.qlib_predict_scores",
                 args=(scope.universe_id, trade_date.isoformat(), top_n),
                 kwargs={"scope_payload": scope.to_dict()},
             )
+            _require_lock_promotion(promoted)
         except Exception:
-            release_dashboard_alpha_refresh_lock(lock_key)
+            if not task_dispatched:
+                release_dashboard_alpha_refresh_lock(lock_key, owner_token=owner_token)
             raise
         return {
             "success": True,
@@ -225,19 +255,26 @@ class TriggerScopedBatchInferenceUseCase:
                 error="同一批量 scoped Alpha 推理任务仍在进行中。",
                 lock_meta=existing,
             )
-        if not acquire_inference_batch_pending_lock(lock_key, meta=metadata):
+        owner_token = acquire_inference_batch_pending_lock(lock_key, meta=metadata)
+        if owner_token is None:
             existing = resolve_inference_batch_lock(lock_key) or metadata
             return _build_conflict_payload(
                 error="同一批量 scoped Alpha 推理任务仍在进行中。",
                 lock_meta=existing,
             )
+        task_dispatched = False
         try:
             task = qlib_daily_scoped_inference.delay(
                 top_n=top_n,
                 portfolio_limit=portfolio_limit,
                 pool_mode=pool_mode,
             )
-            promote_inference_batch_task_lock(lock_key, task_id=task.id)
+            task_dispatched = True
+            promoted = promote_inference_batch_task_lock(
+                lock_key,
+                owner_token=owner_token,
+                task_id=task.id,
+            )
             record_pending_task(
                 task_id=task.id,
                 task_name="alpha.qlib_daily_scoped_inference",
@@ -247,8 +284,10 @@ class TriggerScopedBatchInferenceUseCase:
                     "pool_mode": pool_mode,
                 },
             )
+            _require_lock_promotion(promoted)
         except Exception:
-            release_inference_batch_lock(lock_key)
+            if not task_dispatched:
+                release_inference_batch_lock(lock_key, owner_token=owner_token)
             raise
         return {
             "success": True,
@@ -293,19 +332,26 @@ class TriggerQlibUniverseRefreshUseCase:
                 error="相同日期和 universe 组合的 Qlib 数据刷新仍在进行中。",
                 lock_meta=existing,
             )
-        if not acquire_qlib_data_refresh_pending_lock(lock_key, meta=metadata):
+        owner_token = acquire_qlib_data_refresh_pending_lock(lock_key, meta=metadata)
+        if owner_token is None:
             existing = resolve_qlib_data_refresh_lock(lock_key) or metadata
             return _build_conflict_payload(
                 error="相同日期和 universe 组合的 Qlib 数据刷新仍在进行中。",
                 lock_meta=existing,
             )
+        task_dispatched = False
         try:
             task = qlib_refresh_runtime_data_task.delay(
                 target_date=target_date.isoformat(),
                 universes=normalized_universes or ["csi300"],
                 lookback_days=lookback_days,
             )
-            promote_qlib_data_refresh_task_lock(lock_key, task_id=task.id)
+            task_dispatched = True
+            promoted = promote_qlib_data_refresh_task_lock(
+                lock_key,
+                owner_token=owner_token,
+                task_id=task.id,
+            )
             record_pending_task(
                 task_id=task.id,
                 task_name="apps.alpha.application.tasks.qlib_refresh_runtime_data_task",
@@ -315,8 +361,10 @@ class TriggerQlibUniverseRefreshUseCase:
                     "lookback_days": lookback_days,
                 },
             )
+            _require_lock_promotion(promoted)
         except Exception:
-            release_qlib_data_refresh_lock(lock_key)
+            if not task_dispatched:
+                release_qlib_data_refresh_lock(lock_key, owner_token=owner_token)
             raise
         return {
             "success": True,
@@ -369,12 +417,14 @@ class TriggerQlibScopedCodesRefreshUseCase:
                 error="相同 scoped portfolio 范围的 Qlib 数据刷新仍在进行中。",
                 lock_meta=existing,
             )
-        if not acquire_qlib_data_refresh_pending_lock(lock_key, meta=metadata):
+        owner_token = acquire_qlib_data_refresh_pending_lock(lock_key, meta=metadata)
+        if owner_token is None:
             existing = resolve_qlib_data_refresh_lock(lock_key) or metadata
             return _build_conflict_payload(
                 error="相同 scoped portfolio 范围的 Qlib 数据刷新仍在进行中。",
                 lock_meta=existing,
             )
+        task_dispatched = False
         try:
             task = qlib_refresh_runtime_data_for_codes_task.delay(
                 target_date=target_date.isoformat(),
@@ -383,7 +433,12 @@ class TriggerQlibScopedCodesRefreshUseCase:
                 pool_mode=pool_mode,
                 lookback_days=lookback_days,
             )
-            promote_qlib_data_refresh_task_lock(lock_key, task_id=task.id)
+            task_dispatched = True
+            promoted = promote_qlib_data_refresh_task_lock(
+                lock_key,
+                owner_token=owner_token,
+                task_id=task.id,
+            )
             record_pending_task(
                 task_id=task.id,
                 task_name="apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task",
@@ -395,8 +450,10 @@ class TriggerQlibScopedCodesRefreshUseCase:
                     "lookback_days": lookback_days,
                 },
             )
+            _require_lock_promotion(promoted)
         except Exception:
-            release_qlib_data_refresh_lock(lock_key)
+            if not task_dispatched:
+                release_qlib_data_refresh_lock(lock_key, owner_token=owner_token)
             raise
         return {
             "success": True,

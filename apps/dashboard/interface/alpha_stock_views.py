@@ -13,6 +13,7 @@ from django.views.decorators.cache import never_cache
 
 from apps.alpha.application.pool_resolver import ResolvedAlphaPool
 from apps.dashboard.interface.api_auth import dashboard_api_view
+from core.exceptions import BusinessLogicError
 
 
 def _dashboard_views() -> ModuleType:
@@ -112,6 +113,8 @@ def alpha_refresh_htmx(request: HttpRequest) -> HttpResponse:
 
     dashboard_views = _dashboard_views()
     lock_key: str | None = None
+    lock_owner_token = None
+    task_dispatched = False
     try:
         target_date = dashboard_views.resolve_dashboard_alpha_trade_date()
         top_n = dashboard_views._parse_positive_int_param(
@@ -213,11 +216,12 @@ def alpha_refresh_htmx(request: HttpRequest) -> HttpResponse:
         from apps.alpha.application.tasks import qlib_predict_scores
 
         if resolved_pool is None:
-            if not dashboard_views.acquire_dashboard_alpha_refresh_pending_lock(
+            lock_owner_token = dashboard_views.acquire_dashboard_alpha_refresh_pending_lock(
                 lock_key,
                 meta=lock_meta_payload,
                 timeout=dashboard_views._ALPHA_REFRESH_LOCK_TTL_SECONDS,
-            ):
+            )
+            if lock_owner_token is None:
                 lock_meta = dashboard_views._resolve_existing_alpha_refresh_lock(lock_key) or {
                     "status": "running",
                     "mode": "async",
@@ -237,16 +241,24 @@ def alpha_refresh_htmx(request: HttpRequest) -> HttpResponse:
                     ),
                 )
             task = qlib_predict_scores.delay(raw_universe_id, target_date.isoformat(), top_n)
+            task_dispatched = True
+            promoted = dashboard_views.promote_dashboard_alpha_refresh_task_lock(
+                lock_key,
+                owner_token=lock_owner_token,
+                task_id=task.id,
+                timeout=dashboard_views._ALPHA_REFRESH_LOCK_TTL_SECONDS,
+            )
             dashboard_views.record_pending_task(
                 task_id=task.id,
                 task_name="apps.alpha.application.tasks.qlib_predict_scores",
                 args=(raw_universe_id, target_date.isoformat(), top_n),
             )
-            dashboard_views.promote_dashboard_alpha_refresh_task_lock(
-                lock_key,
-                task_id=task.id,
-                timeout=dashboard_views._ALPHA_REFRESH_LOCK_TTL_SECONDS,
-            )
+            if not promoted:
+                raise BusinessLogicError(
+                    message="Alpha operation lock ownership was lost after dispatch",
+                    code="ALPHA_OPS_LOCK_OWNERSHIP_LOST",
+                    status_code=409,
+                )
             message = (
                 "已触发通用 Alpha 刷新任务；结果仅用于研究排名，不作为账户专属建议。"
                 if alpha_scope == dashboard_views.ALPHA_SCOPE_GENERAL
@@ -266,11 +278,12 @@ def alpha_refresh_htmx(request: HttpRequest) -> HttpResponse:
                 "must_not_use_for_decision": True,
             }
         else:
-            if not dashboard_views.acquire_dashboard_alpha_refresh_pending_lock(
+            lock_owner_token = dashboard_views.acquire_dashboard_alpha_refresh_pending_lock(
                 lock_key,
                 meta=lock_meta_payload,
                 timeout=dashboard_views._ALPHA_REFRESH_LOCK_TTL_SECONDS,
-            ):
+            )
+            if lock_owner_token is None:
                 lock_meta = dashboard_views._resolve_existing_alpha_refresh_lock(lock_key) or {
                     "status": "running",
                     "mode": "async",
@@ -295,17 +308,25 @@ def alpha_refresh_htmx(request: HttpRequest) -> HttpResponse:
                 top_n,
                 scope_payload=resolved_pool.scope.to_dict(),
             )
+            task_dispatched = True
+            promoted = dashboard_views.promote_dashboard_alpha_refresh_task_lock(
+                lock_key,
+                owner_token=lock_owner_token,
+                task_id=task.id,
+                timeout=dashboard_views._ALPHA_REFRESH_LOCK_TTL_SECONDS,
+            )
             dashboard_views.record_pending_task(
                 task_id=task.id,
                 task_name="apps.alpha.application.tasks.qlib_predict_scores",
                 args=(resolved_pool.scope.universe_id, target_date.isoformat(), top_n),
                 kwargs={"scope_payload": resolved_pool.scope.to_dict()},
             )
-            dashboard_views.promote_dashboard_alpha_refresh_task_lock(
-                lock_key,
-                task_id=task.id,
-                timeout=dashboard_views._ALPHA_REFRESH_LOCK_TTL_SECONDS,
-            )
+            if not promoted:
+                raise BusinessLogicError(
+                    message="Alpha operation lock ownership was lost after dispatch",
+                    code="ALPHA_OPS_LOCK_OWNERSHIP_LOST",
+                    status_code=409,
+                )
             response_payload = {
                 "success": True,
                 "alpha_scope": dashboard_views.ALPHA_SCOPE_PORTFOLIO,
@@ -323,9 +344,12 @@ def alpha_refresh_htmx(request: HttpRequest) -> HttpResponse:
     except ValueError as exc:
         return JsonResponse({"success": False, "error": str(exc)}, status=400)
     except Exception as exc:
-        if lock_key is not None:
+        if lock_key is not None and lock_owner_token is not None and not task_dispatched:
             try:
-                dashboard_views.release_dashboard_alpha_refresh_lock(lock_key)
+                dashboard_views.release_dashboard_alpha_refresh_lock(
+                    lock_key,
+                    owner_token=lock_owner_token,
+                )
             except Exception:
                 dashboard_views.logger.exception(
                     "Failed to release dashboard Alpha refresh lock after request failure"
@@ -380,11 +404,12 @@ def _alpha_refresh_sync(
         pool_mode=pool_mode,
         scope_hash=scope_hash,
     )
-    if not dashboard_views.acquire_dashboard_alpha_refresh_pending_lock(
+    owner_token = dashboard_views.acquire_dashboard_alpha_refresh_pending_lock(
         lock_key,
         meta=sync_lock_meta,
         timeout=dashboard_views._ALPHA_REFRESH_LOCK_TTL_SECONDS,
-    ):
+    )
+    if owner_token is None:
         lock_meta = dashboard_views._resolve_existing_alpha_refresh_lock(lock_key) or {
             "status": "running",
             "mode": "sync",
@@ -405,12 +430,19 @@ def _alpha_refresh_sync(
         )
 
     try:
-        dashboard_views.promote_dashboard_alpha_refresh_task_lock(
+        promoted = dashboard_views.promote_dashboard_alpha_refresh_task_lock(
             lock_key,
+            owner_token=owner_token,
             task_id="__sync__",
             timeout=dashboard_views._ALPHA_REFRESH_LOCK_TTL_SECONDS,
             meta_updates=sync_lock_meta,
         )
+        if not promoted:
+            raise BusinessLogicError(
+                message="Alpha operation lock ownership was lost before sync execution",
+                code="ALPHA_OPS_LOCK_OWNERSHIP_LOST",
+                status_code=409,
+            )
         task_result = qlib_predict_scores.apply(
             args=[universe_id, target_date.isoformat(), top_n],
             kwargs={"scope_payload": scope_payload},
@@ -476,7 +508,10 @@ def _alpha_refresh_sync(
             }
         )
     finally:
-        dashboard_views.release_dashboard_alpha_refresh_lock(lock_key)
+        dashboard_views.release_dashboard_alpha_refresh_lock(
+            lock_key,
+            owner_token=owner_token,
+        )
 
 
 @dashboard_api_view(["GET"])
