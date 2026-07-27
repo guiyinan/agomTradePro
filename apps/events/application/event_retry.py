@@ -78,7 +78,7 @@ class EventRetryManager:
         max_retries: int = 3,
         base_delay_minutes: int = 5,
         failed_event_repo: FailedEventRepositoryProtocol | None = None,
-    ):
+    ) -> None:
         """
         初始化管理器
 
@@ -87,6 +87,14 @@ class EventRetryManager:
             base_delay_minutes: 基础延迟时间（分钟）
             failed_event_repo: 失败事件仓储（可选，默认自动创建）
         """
+        if isinstance(max_retries, bool) or not isinstance(max_retries, int) or max_retries <= 0:
+            raise ValueError("max_retries must be a positive integer")
+        if (
+            isinstance(base_delay_minutes, bool)
+            or not isinstance(base_delay_minutes, int)
+            or base_delay_minutes <= 0
+        ):
+            raise ValueError("base_delay_minutes must be a positive integer")
         self.max_retries = max_retries
         self.base_delay_minutes = base_delay_minutes
 
@@ -179,11 +187,17 @@ class EventRetryManager:
         """
         try:
             # 更新状态为重试中
-            self._repo.update_status(
+            claimed = self._repo.update_status(
                 event_db_id=failed_event_dto.id,
                 status="RETRYING",
                 last_retry_at=datetime.now(UTC),
             )
+            if not claimed:
+                logger.info(
+                    "Skipped retry for unclaimable failed event: id=%s",
+                    failed_event_dto.id,
+                )
+                return False
 
             # 重建事件对象
             try:
@@ -204,7 +218,8 @@ class EventRetryManager:
             handler_callable(event)
 
             # 重试成功
-            self._repo.mark_success(failed_event_dto.id)
+            if not self._repo.mark_success(failed_event_dto.id):
+                raise RuntimeError("failed event success transition was rejected")
 
             logger.info(
                 f"Event retry succeeded: {failed_event_dto.event_id} "
@@ -226,12 +241,17 @@ class EventRetryManager:
                 delay_minutes = self.base_delay_minutes * (2 ** (failed_event_dto.retry_count + 1))
                 next_retry_at = datetime.now(UTC) + timedelta(minutes=delay_minutes)
 
-            self._repo.increment_retry_count(
+            failure_recorded = self._repo.increment_retry_count(
                 event_db_id=failed_event_dto.id,
                 error_message=str(e),
                 next_retry_at=next_retry_at,
                 is_exhausted=is_exhausted,
             )
+            if not failure_recorded:
+                logger.error(
+                    "Failed event retry outcome could not be persisted: id=%s",
+                    failed_event_dto.id,
+                )
 
             if is_exhausted:
                 logger.error(

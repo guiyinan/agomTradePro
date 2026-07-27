@@ -5077,3 +5077,20 @@
 - Production init、账户 cold-start 与 scheduler 初始化专项 `42 passed`；Core、初始化链路和 Equity bootstrap 扩展回归 `95 passed`。
 - 实际执行 `python manage.py init_production --dry-run` 只输出正式 bootstrap 命令且零退出；`core/management/commands/init_production.py` 两种 mypy 口径均清零。
 - 全仓基线从 `884 errors / 354 files` 收紧为 `882 errors / 353 files`，净减少 `2 errors / 1 file`；Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百三十四批
+
+- 按“失败事件重复执行 × 状态迁移竞态 × 决策同步部分提交”收口 Events 失败事件仓储与执行状态同步。
+- 待重试事件从普通状态覆盖改为数据库条件领取：只有已到期的 `PENDING` 行能够原子迁移到 `RETRYING`；并发或陈旧 DTO 领取失败时不执行 handler，避免同一失败事件被重复消费。
+- 成功迁移只接受当前 `RETRYING` 行；失败计数在事务内通过 `select_for_update` 锁定并递增，耗尽状态从数据库持久化的 `retry_count/max_retries` 推导，不再信任调用方的陈旧计数提示。
+- 重试 ID、查询上限、保留天数、处理器 ID、状态、最大重试次数和时间戳增加持久化边界校验；时间戳必须具备时区，零或负保留期在删除前失败关闭，清理仅覆盖过期的 `SUCCESS/EXHAUSTED` 终态记录。
+- `EventRetryManager` 验证正整数重试参数，领取失败立即短路；成功或失败结果无法持久化时显式返回失败并记录稳定日志，不再继续报告处理完成。
+- 决策请求与 Alpha 候选执行状态同步改为在同一事务内检查两次写入结果；任一 Repository 返回 false 时在事务内部抛出私有回滚哨兵，避免请求已更新而候选未更新的部分提交。
+- 跨 App Repository 依赖改用 Domain Protocol 精确标注，显式保留注入的 falsey 替身；失败同步日志不再输出原始执行错误正文，避免敏感券商信息进入日志。
+- 新增并发独占领取、条件成功、陈旧 DTO 单次执行、持久化计数耗尽、安全保留期、非法边界输入和同步回滚时机回归。
+
+## 第三百三十四批验证结果
+
+- Events 仓储与同步定向回归 `28 passed`；Events Application、任务、决策执行工作流、组件与 API 扩展回归 `98 passed`。
+- `apps/events/application/event_retry.py` 与 `apps/events/infrastructure/repositories.py` 在跨文件及增量 mypy 口径均清零；全仓基线从 `882 errors / 353 files` 收紧为 `875 errors / 352 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。

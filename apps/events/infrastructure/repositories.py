@@ -7,13 +7,18 @@ Events Infrastructure Repositories
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
-from typing import Any
+from datetime import datetime, timedelta
+from typing import Any, cast
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.events.domain.entities import DomainEvent
+from apps.events.domain.interfaces import (
+    AlphaCandidateRepositoryProtocol,
+    DecisionRequestRepositoryProtocol,
+)
 from apps.events.domain.replay import ReplayRunReservation
 from core.integration.alpha_candidate_registry import (
     get_alpha_candidate_repository as _get_alpha_candidate_repository,
@@ -25,6 +30,19 @@ from core.integration.decision_request_registry import (
 from .models import EventReplayRunModel, FailedEventModel
 
 logger = logging.getLogger(__name__)
+
+FAILED_EVENT_STATUSES = frozenset(
+    {
+        FailedEventModel.PENDING,
+        FailedEventModel.RETRYING,
+        FailedEventModel.SUCCESS,
+        FailedEventModel.EXHAUSTED,
+    }
+)
+
+
+class _SynchronizationRejected(RuntimeError):
+    """Internal sentinel used to roll back logically incomplete status syncs."""
 
 
 class DjangoReplayRunRepository:
@@ -115,74 +133,54 @@ class DjangoReplayRunRepository:
 
 
 class FailedEventRepository:
-    """
-    失败事件仓储
+    """Persist, claim, transition, and clean durable failed-event records."""
 
-    实现 FailedEventRepositoryProtocol，管理失败事件的持久化。
-
-    Example:
-        >>> repo = FailedEventRepository()
-        >>> events = repo.find_pending_events(limit=10)
-    """
-
-    def __init__(self):
-        """初始化仓储"""
-        self.model = FailedEventModel
+    model = FailedEventModel
 
     def save(
         self,
-        event,
+        event: DomainEvent,
         handler_id: str,
         error_message: str,
         error_traceback: str | None,
         max_retries: int,
     ) -> int:
-        """
-        保存失败事件
+        """Persist one validated failure ready for a future retry claim."""
 
-        Args:
-            event: 领域事件
-            handler_id: 处理器 ID
-            error_message: 错误信息
-            error_traceback: 错误堆栈
-            max_retries: 最大重试次数
-
-        Returns:
-            保存后的数据库 ID
-        """
+        event_id = self._required_text(event.event_id, field_name="event.event_id")
+        normalized_handler_id = self._required_text(handler_id, field_name="handler_id")
+        self._positive_int(max_retries, field_name="max_retries")
         failed_event = self.model(
-            event_id=event.event_id,
+            event_id=event_id,
             event_type=event.event_type.value,
             payload=event.payload,
             metadata=event.metadata,
-            handler_id=handler_id,
+            handler_id=normalized_handler_id,
             error_message=error_message,
             error_traceback=error_traceback or "",
             retry_count=0,
             max_retries=max_retries,
-            next_retry_at=datetime.now(UTC),
+            next_retry_at=timezone.now(),
             status=self.model.PENDING,
         )
         failed_event.save()
-
+        event_db_id = failed_event.pk
+        if event_db_id is None:
+            raise RuntimeError("failed event save did not produce a primary key")
         logger.info(
-            f"Failed event saved: {event.event_id} " f"(handler={handler_id}, id={failed_event.id})"
+            "Failed event saved: %s (handler=%s, id=%s)",
+            event_id,
+            normalized_handler_id,
+            event_db_id,
         )
-
-        return failed_event.id
+        return int(event_db_id)
 
     def get_by_id(self, event_db_id: int) -> dict[str, Any] | None:
-        """
-        按 ID 获取失败事件
+        """Return one failed event by positive database ID."""
 
-        Args:
-            event_db_id: 数据库 ID
-
-        Returns:
-            失败事件字典或 None
-        """
+        self._positive_int(event_db_id, field_name="event_db_id")
         try:
-            model = self.model.objects.get(id=event_db_id)
+            model = self.model._default_manager.get(pk=event_db_id)
             return self._to_dict(model)
         except ObjectDoesNotExist:
             return None
@@ -192,26 +190,19 @@ class FailedEventRepository:
         limit: int,
         handler_id: str | None,
     ) -> list[dict[str, Any]]:
-        """
-        查找待重试的事件
+        """Return currently due pending events in deterministic FIFO order."""
 
-        Args:
-            limit: 最大返回数量
-            handler_id: 处理器 ID 过滤（可选）
-
-        Returns:
-            失败事件字典列表
-        """
-        queryset = self.model.objects.filter(
+        self._positive_int(limit, field_name="limit")
+        normalized_handler_id: str | None = None
+        if handler_id is not None:
+            normalized_handler_id = self._required_text(handler_id, field_name="handler_id")
+        queryset = self.model._default_manager.filter(
             status=self.model.PENDING,
-            next_retry_at__lte=datetime.now(UTC),
+            next_retry_at__lte=timezone.now(),
         )
-
-        if handler_id:
-            queryset = queryset.filter(handler_id=handler_id)
-
-        failed_events = queryset.order_by("created_at")[:limit]
-
+        if normalized_handler_id is not None:
+            queryset = queryset.filter(handler_id=normalized_handler_id)
+        failed_events = queryset.order_by("created_at", "pk")[:limit]
         return [self._to_dict(fe) for fe in failed_events]
 
     def update_status(
@@ -220,31 +211,29 @@ class FailedEventRepository:
         status: str,
         last_retry_at: datetime | None = None,
     ) -> bool:
-        """
-        更新事件状态
+        """Transition state, atomically claiming only due pending retry work."""
 
-        Args:
-            event_db_id: 数据库 ID
-            status: 新状态
-            last_retry_at: 最后重试时间（可选）
-
-        Returns:
-            是否更新成功
-        """
-        try:
-            model = self.model.objects.get(id=event_db_id)
-            model.status = status
-
-            if last_retry_at:
-                model.last_retry_at = last_retry_at
-
-            model.save(update_fields=["status", "last_retry_at", "updated_at"])
-
-            return True
-
-        except ObjectDoesNotExist:
-            logger.warning(f"Failed event not found: {event_db_id}")
-            return False
+        self._positive_int(event_db_id, field_name="event_db_id")
+        normalized_status = self._required_text(status, field_name="status")
+        if normalized_status not in FAILED_EVENT_STATUSES:
+            raise ValueError(f"unsupported failed event status: {normalized_status}")
+        normalized_retry_at = self._aware_datetime(last_retry_at, field_name="last_retry_at")
+        updates: dict[str, object] = {
+            "status": normalized_status,
+            "updated_at": timezone.now(),
+        }
+        if normalized_status == self.model.RETRYING:
+            updates["last_retry_at"] = normalized_retry_at or timezone.now()
+            updated: int = self.model._default_manager.filter(
+                pk=event_db_id,
+                status=self.model.PENDING,
+                next_retry_at__lte=timezone.now(),
+            ).update(**updates)
+            return updated == 1
+        if normalized_retry_at is not None:
+            updates["last_retry_at"] = normalized_retry_at
+        updated = self.model._default_manager.filter(pk=event_db_id).update(**updates)
+        return updated == 1
 
     def increment_retry_count(
         self,
@@ -253,84 +242,82 @@ class FailedEventRepository:
         next_retry_at: datetime | None,
         is_exhausted: bool,
     ) -> bool:
-        """
-        增加重试计数
+        """Atomically increment one claimed retry and derive exhaustion from storage."""
 
-        Args:
-            event_db_id: 数据库 ID
-            error_message: 错误信息
-            next_retry_at: 下次重试时间
-            is_exhausted: 是否已耗尽重试次数
-
-        Returns:
-            是否更新成功
-        """
-        try:
-            model = self.model.objects.get(id=event_db_id)
-            model.retry_count += 1
+        self._positive_int(event_db_id, field_name="event_db_id")
+        if not isinstance(is_exhausted, bool):
+            raise ValueError("is_exhausted must be a boolean")
+        normalized_next_retry = self._aware_datetime(
+            next_retry_at,
+            field_name="next_retry_at",
+        )
+        with transaction.atomic():
+            model = (
+                self.model._default_manager.select_for_update()
+                .filter(pk=event_db_id, status=self.model.RETRYING)
+                .first()
+            )
+            if model is None:
+                return False
+            next_count = model.retry_count + 1
+            derived_exhausted = next_count >= model.max_retries
+            if is_exhausted != derived_exhausted:
+                logger.warning(
+                    "Failed event exhaustion hint disagreed with persisted counters: id=%s",
+                    event_db_id,
+                )
+            if not derived_exhausted and normalized_next_retry is None:
+                raise ValueError("next_retry_at is required before retries are exhausted")
+            model.retry_count = next_count
             model.error_message = error_message
-
-            if is_exhausted:
-                model.status = self.model.EXHAUSTED
-            else:
-                model.next_retry_at = next_retry_at
-                model.status = self.model.PENDING
-
-            model.save()
-
+            model.status = self.model.EXHAUSTED if derived_exhausted else self.model.PENDING
+            model.next_retry_at = None if derived_exhausted else normalized_next_retry
+            model.save(
+                update_fields=[
+                    "retry_count",
+                    "error_message",
+                    "status",
+                    "next_retry_at",
+                    "updated_at",
+                ]
+            )
             return True
-
-        except ObjectDoesNotExist:
-            logger.warning(f"Failed event not found: {event_db_id}")
-            return False
 
     def mark_success(self, event_db_id: int) -> bool:
-        """
-        标记为成功
+        """Mark only a currently claimed retry as successful."""
 
-        Args:
-            event_db_id: 数据库 ID
-
-        Returns:
-            是否更新成功
-        """
-        try:
-            model = self.model.objects.get(id=event_db_id)
-            model.status = self.model.SUCCESS
-            model.save(update_fields=["status", "updated_at"])
-
-            return True
-
-        except ObjectDoesNotExist:
-            logger.warning(f"Failed event not found: {event_db_id}")
-            return False
+        self._positive_int(event_db_id, field_name="event_db_id")
+        updated: int = self.model._default_manager.filter(
+            pk=event_db_id,
+            status=self.model.RETRYING,
+        ).update(
+            status=self.model.SUCCESS,
+            next_retry_at=None,
+            updated_at=timezone.now(),
+        )
+        return updated == 1
 
     def cleanup_old_events(self, days: int) -> int:
-        """
-        清理旧的失败事件记录
+        """Delete completed terminal rows older than a positive retention period."""
 
-        Args:
-            days: 保留天数
-
-        Returns:
-            删除的记录数
-        """
-        cutoff_date = datetime.now(UTC) - timedelta(days=days)
-
-        deleted, _ = self.model.objects.filter(
+        self._positive_int(days, field_name="days")
+        cutoff_date = timezone.now() - timedelta(days=days)
+        deleted, _ = self.model._default_manager.filter(
             status__in=[self.model.SUCCESS, self.model.EXHAUSTED],
             updated_at__lt=cutoff_date,
         ).delete()
-
         if deleted > 0:
-            logger.info(f"Cleaned up {deleted} old failed event records")
-
-        return deleted
+            logger.info("Cleaned up %s old failed event records", deleted)
+        return int(deleted)
 
     def _to_dict(self, model: FailedEventModel) -> dict[str, Any]:
-        """转换 ORM 模型为字典"""
+        """Convert one ORM row into the stable Application dictionary contract."""
+
+        event_db_id = model.pk
+        if event_db_id is None:
+            raise RuntimeError("persisted failed event has no primary key")
         return {
-            "id": model.id,
+            "id": int(event_db_id),
             "event_id": model.event_id,
             "event_type": model.event_type,
             "payload": model.payload,
@@ -343,6 +330,32 @@ class FailedEventRepository:
             "status": model.status,
         }
 
+    @staticmethod
+    def _positive_int(value: object, *, field_name: str) -> int:
+        """Require a positive non-boolean integer at the persistence boundary."""
+
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError(f"{field_name} must be a positive integer")
+        return value
+
+    @staticmethod
+    def _required_text(value: object, *, field_name: str) -> str:
+        """Require a non-empty trimmed string."""
+
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{field_name} must be a non-empty string")
+        return value.strip()
+
+    @staticmethod
+    def _aware_datetime(value: object, *, field_name: str) -> datetime | None:
+        """Require timezone-aware optional transition timestamps."""
+
+        if value is None:
+            return None
+        if not isinstance(value, datetime) or not timezone.is_aware(value):
+            raise ValueError(f"{field_name} must be timezone-aware")
+        return value
+
 
 # 便捷函数
 
@@ -352,16 +365,16 @@ def get_failed_event_repository() -> FailedEventRepository:
     return FailedEventRepository()
 
 
-def get_alpha_candidate_repository():
+def get_alpha_candidate_repository() -> AlphaCandidateRepositoryProtocol:
     """Return the owning alpha candidate repository."""
 
-    return _get_alpha_candidate_repository()
+    return cast(AlphaCandidateRepositoryProtocol, _get_alpha_candidate_repository())
 
 
-def get_decision_request_repository():
+def get_decision_request_repository() -> DecisionRequestRepositoryProtocol:
     """Return the owning decision request repository."""
 
-    return _get_decision_request_repository()
+    return cast(DecisionRequestRepositoryProtocol, _get_decision_request_repository())
 
 
 class DecisionExecutionSyncRepository:
@@ -369,11 +382,19 @@ class DecisionExecutionSyncRepository:
 
     def __init__(
         self,
-        decision_request_repo: Any | None = None,
-        alpha_candidate_repo: Any | None = None,
+        decision_request_repo: DecisionRequestRepositoryProtocol | None = None,
+        alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
     ) -> None:
-        self._decision_request_repo = decision_request_repo or get_decision_request_repository()
-        self._alpha_candidate_repo = alpha_candidate_repo or get_alpha_candidate_repository()
+        self._decision_request_repo = (
+            decision_request_repo
+            if decision_request_repo is not None
+            else get_decision_request_repository()
+        )
+        self._alpha_candidate_repo = (
+            alpha_candidate_repo
+            if alpha_candidate_repo is not None
+            else get_alpha_candidate_repository()
+        )
 
     def sync_executed(
         self,
@@ -384,17 +405,21 @@ class DecisionExecutionSyncRepository:
     ) -> bool:
         """Persist DECISION_EXECUTED side effects atomically."""
 
-        with transaction.atomic():
-            request_updated = self._decision_request_repo.update_execution_status_to_executed(
-                request_id,
-                execution_ref,
-            )
-            candidate_updated = True
-            if candidate_id:
-                candidate_updated = self._alpha_candidate_repo.update_status_to_executed(
-                    candidate_id
+        try:
+            with transaction.atomic():
+                request_updated = self._decision_request_repo.update_execution_status_to_executed(
+                    request_id,
+                    execution_ref,
                 )
-        return request_updated and candidate_updated
+                if not request_updated:
+                    raise _SynchronizationRejected("decision request was not updated")
+                if candidate_id and not self._alpha_candidate_repo.update_status_to_executed(
+                    candidate_id
+                ):
+                    raise _SynchronizationRejected("alpha candidate was not updated")
+        except _SynchronizationRejected:
+            return False
+        return True
 
     def sync_failed(
         self,
@@ -405,22 +430,25 @@ class DecisionExecutionSyncRepository:
     ) -> bool:
         """Persist DECISION_EXECUTION_FAILED side effects atomically."""
 
-        with transaction.atomic():
-            request_updated = self._decision_request_repo.update_execution_status_to_failed(
-                request_id
-            )
-            candidate_updated = True
-            if candidate_id:
-                candidate_updated = self._alpha_candidate_repo.update_execution_status_to_failed(
-                    candidate_id
+        try:
+            with transaction.atomic():
+                request_updated = self._decision_request_repo.update_execution_status_to_failed(
+                    request_id
                 )
-        if request_updated and error_message:
+                if not request_updated:
+                    raise _SynchronizationRejected("decision request was not updated")
+                if candidate_id and not (
+                    self._alpha_candidate_repo.update_execution_status_to_failed(candidate_id)
+                ):
+                    raise _SynchronizationRejected("alpha candidate was not updated")
+        except _SynchronizationRejected:
+            return False
+        if error_message:
             logger.warning(
-                "DecisionRequest %s execution failed: %s",
+                "DecisionRequest %s execution failed",
                 request_id,
-                error_message,
             )
-        return request_updated and candidate_updated
+        return True
 
 
 def get_decision_execution_sync_repository() -> DecisionExecutionSyncRepository:
