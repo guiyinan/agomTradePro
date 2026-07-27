@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 952,
-    "files_with_errors": 364
+    "errors": 944,
+    "files_with_errors": 363
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -1184,10 +1184,6 @@
     },
     "core/management/commands/init_production.py": {
       "no-untyped-def": 2
-    },
-    "core/management/commands/warmup_cache.py": {
-      "no-untyped-call": 3,
-      "no-untyped-def": 5
     },
     "core/middleware/logging.py": {
       "attr-defined": 1,

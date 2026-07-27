@@ -4952,3 +4952,20 @@
 - 自动投顾任务与调度专项 `15 passed`；scheduler、auto-advisor、personal readiness 与 task-monitor 回归 `141 passed`。
 - `apps/dashboard/management/commands/setup_auto_advisor_weekly_report.py` 增量 mypy 清零；全仓基线从 `960 errors / 365 files` 收紧为 `952 errors / 364 files`，净减少 `8 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
+
+## 第三百二十六批
+
+- 按“部署缓存预热假成功 × 部分写入污染 × 运维参数失败关闭”收口 Core `warmup_cache` 管理命令。
+- `--only` 仅接受 `regime/macro/alpha`，未知目标和错误类型直接抛出 `CommandError`，不再被静默忽略后打印整体完成。
+- 所有选中数据源先查询、校验并生成不可变写入计划，再触碰缓存；任一数据源查询失败、返回错误结构或缺少业务键时整批失败，不再留下此前目标的部分预热结果。
+- 空数据默认视为部署异常并失败关闭；仅在明确的冷启动场景通过 `--allow-empty` 放行，输出 `SKIP` 且不伪报该目标已写入。
+- Regime、Macro、Alpha payload 分别校验非空 `regime`、`indicator_code` 和 `universe_id`；指标代码统一 trim/uppercase，缓存键冲突在写入前拒绝。
+- 写入前缓存快照、每个缓存写入和回滚均执行 round-trip 校验；快照异常在零写入状态失败，中途 set/get 异常、后端先变更后抛错或回读不一致时，当前键及此前已写键按逆序恢复旧值，不存在旧值的键删除，命令仅报告脱敏异常类型并显式暴露回滚失败。
+- 缓存目标、查询上限和 TTL 提取为显式常量；写入计划与目标结果使用 frozen dataclass，命令参数、动态 options 和内部容器补齐精确类型。
+- 新增未知目标、空数据默认失败、准备阶段零写入、重复键前置拒绝、快照异常脱敏、写入失败回滚及后端先变更后抛错回归。
+
+## 第三百二十六批验证结果
+
+- Cache warmup 专项 `7 passed`；Core、personal readiness status/evidence 与 evidence inspection 回归 `168 passed`。
+- `core/management/commands/warmup_cache.py` 增量 mypy 清零；全仓基线从 `952 errors / 364 files` 收紧为 `944 errors / 363 files`，净减少 `8 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过。
