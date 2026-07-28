@@ -31,7 +31,8 @@ class PrometheusMetricsMiddleware:
 
     注意：
     - 与 django_prometheus.middleware 配合使用
-    - 只记录 /api/ 路径的请求
+    - API 通用指标只记录 /api/ 路径
+    - Web-to-TUI 兼容指标覆盖受审 Classic 路由与 TUI 入口/action
     - 跳过 /metrics/ 端点本身
     """
 
@@ -39,29 +40,45 @@ class PrometheusMetricsMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        # 跳过非 API 路径和 metrics 端点
-        if not request.path.startswith('/api/') or request.path == '/metrics/':
+        if request.path in {"/metrics/", "/api/metrics/"}:
             return self.get_response(request)
 
-        # 记录开始时间
-        start_time = time.perf_counter()
-
-        # 执行请求
+        is_api_request = request.path.startswith("/api/")
+        start_time = time.perf_counter() if is_api_request else None
         response = self.get_response(request)
+        self._record_ui_migration_metrics(request, response)
 
-        # 计算延迟
-        duration = time.perf_counter() - start_time
-
-        # 记录指标
-        self._record_metrics(request, response, duration)
+        if is_api_request and start_time is not None:
+            duration = time.perf_counter() - start_time
+            self._record_metrics(request, response, duration)
 
         return response
 
-    def _record_metrics(
-        self,
+    @staticmethod
+    def _record_ui_migration_metrics(
         request: HttpRequest,
         response: HttpResponse,
-        duration: float
+    ) -> None:
+        """Record one bounded compatibility event when the route is in scope."""
+
+        try:
+            from core.metrics import record_web_to_tui_migration_event
+            from core.ui_migration_telemetry import classify_ui_migration_request
+
+            event = classify_ui_migration_request(request, response)
+            if event is None:
+                return
+            record_web_to_tui_migration_event(
+                surface=event.surface,
+                event_type=event.event_type,
+                task_key=event.task_key,
+                outcome=event.outcome,
+            )
+        except Exception as exc:
+            logger.warning(f"Failed to record Web-to-TUI migration metrics: {exc}")
+
+    def _record_metrics(
+        self, request: HttpRequest, response: HttpResponse, duration: float
     ) -> None:
         """记录 Prometheus 指标"""
         try:
@@ -72,18 +89,18 @@ class PrometheusMetricsMiddleware:
             )
 
             # 获取视图名称（从 response 或 request）
-            view_name = getattr(response, 'view_name', None)
+            view_name = getattr(response, "view_name", None)
             if not view_name:
                 # 尝试从 resolver 获取
                 try:
                     resolver_match = request.resolver_match
                     if resolver_match:
-                        view_name = resolver_match.view_name or 'unknown'
+                        view_name = resolver_match.view_name or "unknown"
                         # 简化视图名称（去掉 app 前缀）
-                        if '.' in view_name:
-                            view_name = view_name.split('.')[-1]
+                        if "." in view_name:
+                            view_name = view_name.split(".")[-1]
                 except Exception:
-                    view_name = 'unknown'
+                    view_name = "unknown"
 
             # 标准化端点路径（移除参数）
             endpoint = self._normalize_path(request.path)
@@ -105,7 +122,7 @@ class PrometheusMetricsMiddleware:
 
             # 记录错误（4xx/5xx）
             if response.status_code >= 400:
-                error_class = getattr(response, 'error_class', 'http_error')
+                error_class = getattr(response, "error_class", "http_error")
                 api_error_total.labels(
                     method=request.method,
                     endpoint=endpoint,
@@ -128,17 +145,17 @@ class PrometheusMetricsMiddleware:
         import re
 
         # 移除查询字符串
-        path = path.split('?')[0]
+        path = path.split("?")[0]
 
         # 替换数字 ID 为 :id 占位符
-        path = re.sub(r'/\d+(?=/|$)', '/:id', path)
+        path = re.sub(r"/\d+(?=/|$)", "/:id", path)
 
         # 替换 UUID 为 :uuid 占位符
         path = re.sub(
-            r'/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=/|$)',
-            '/:uuid',
+            r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=/|$)",
+            "/:uuid",
             path,
-            flags=re.IGNORECASE
+            flags=re.IGNORECASE,
         )
 
         return path
@@ -151,7 +168,14 @@ class ResponseViewNameMixin:
     配合 PrometheusMetricsMiddleware 使用，自动记录视图名称。
     """
 
-    def finalize_response(self, request, response, *args, **kwargs):
+    def finalize_response(
+        self,
+        request: HttpRequest,
+        response: HttpResponse,
+        *args: object,
+        **kwargs: object,
+    ) -> HttpResponse:
         # 添加视图名称到 response
-        response.view_name = self.__class__.__name__
-        return super().finalize_response(request, response, *args, **kwargs)
+        response.__dict__["view_name"] = self.__class__.__name__
+        parent_finalize: Callable[..., HttpResponse] = super().__getattribute__("finalize_response")
+        return parent_finalize(request, response, *args, **kwargs)

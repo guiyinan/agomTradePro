@@ -20,139 +20,169 @@ import logging
 from collections.abc import Callable
 from functools import wraps
 from time import perf_counter
+from typing import NotRequired, TypedDict, TypeVar
 
 from prometheus_client import Counter, Gauge, Histogram
 
 logger = logging.getLogger(__name__)
 
+_ResultT = TypeVar("_ResultT")
+
+
+class ApiMetricSummary(TypedDict):
+    """Aggregated API request counters."""
+
+    total: float
+    errors: float
+
+
+class CeleryMetricSummary(TypedDict):
+    """Aggregated Celery task counters."""
+
+    total: float
+    retries: float
+
+
+class AuditMetricSummary(TypedDict):
+    """Aggregated audit write counters."""
+
+    total: float
+    failures: float
+
+
+class MetricsSummary(TypedDict):
+    """Health-check projection of the registered Prometheus metrics."""
+
+    error: NotRequired[str]
+    api_requests: ApiMetricSummary
+    celery_tasks: CeleryMetricSummary
+    audit_writes: AuditMetricSummary
+
+
 # ==================== API 请求指标 ====================
 
 # API 请求总数（按方法、端点、状态码分组）
 api_request_total = Counter(
-    'api_request_total',
-    'Total API requests',
-    ['method', 'endpoint', 'status_code', 'view_name']
+    "api_request_total", "Total API requests", ["method", "endpoint", "status_code", "view_name"]
 )
 
 # API 请求延迟（秒）- 使用直方图记录分布
 api_request_latency_seconds = Histogram(
-    'api_request_latency_seconds',
-    'API request latency in seconds',
-    ['method', 'endpoint', 'view_name'],
-    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0)
+    "api_request_latency_seconds",
+    "API request latency in seconds",
+    ["method", "endpoint", "view_name"],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0),
 )
 
 # API 错误请求总数（4xx/5xx）
 api_error_total = Counter(
-    'api_error_total',
-    'Total API error requests (4xx/5xx)',
-    ['method', 'endpoint', 'error_class', 'status_code']
+    "api_error_total",
+    "Total API error requests (4xx/5xx)",
+    ["method", "endpoint", "error_class", "status_code"],
+)
+
+# Web-to-TUI 兼容期事件（标签均来自受审目录，不含用户输入或对象 ID）
+web_to_tui_migration_events_total = Counter(
+    "web_to_tui_migration_events_total",
+    "Web-to-TUI migration entries and executions by bounded task",
+    ["surface", "event_type", "task_key", "outcome"],
 )
 
 # ==================== Celery 任务指标 ====================
 
 # Celery 任务执行总数
 celery_task_total = Counter(
-    'celery_task_total',
-    'Total Celery task executions',
-    ['task_name', 'status']  # status: success/failure/retry/timeout
+    "celery_task_total",
+    "Total Celery task executions",
+    ["task_name", "status"],  # status: success/failure/retry/timeout
 )
 
 # Celery 任务执行时间
 celery_task_duration_seconds = Histogram(
-    'celery_task_duration_seconds',
-    'Celery task execution duration in seconds',
-    ['task_name'],
-    buckets=(0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 300.0, 600.0, 1800.0)
+    "celery_task_duration_seconds",
+    "Celery task execution duration in seconds",
+    ["task_name"],
+    buckets=(0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 300.0, 600.0, 1800.0),
 )
 
 # Celery 任务重试次数
 celery_task_retry_total = Counter(
-    'celery_task_retry_total',
-    'Total Celery task retries',
-    ['task_name', 'reason']
+    "celery_task_retry_total", "Total Celery task retries", ["task_name", "reason"]
 )
 
 # Celery 队列积压量（通过 Gauge 设置）
 celery_queue_length = Gauge(
-    'celery_queue_length',
-    'Current number of tasks in Celery queue',
-    ['queue_name']
+    "celery_queue_length", "Current number of tasks in Celery queue", ["queue_name"]
 )
 
 # Celery 活跃工作线程数
 celery_active_workers = Gauge(
-    'celery_active_workers',
-    'Number of active Celery workers',
-    ['worker_name']
+    "celery_active_workers", "Number of active Celery workers", ["worker_name"]
 )
 
 # ==================== 数据库连接指标 ====================
 
 # 数据库连接池使用情况
 db_connections_total = Gauge(
-    'db_connections_total',
-    'Total database connections',
-    ['database', 'status']  # status: active/idle
+    "db_connections_total",
+    "Total database connections",
+    ["database", "status"],  # status: active/idle
 )
 
 # 数据库查询延迟
 db_query_latency_seconds = Histogram(
-    'db_query_latency_seconds',
-    'Database query latency in seconds',
-    ['database', 'operation'],
-    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0)
+    "db_query_latency_seconds",
+    "Database query latency in seconds",
+    ["database", "operation"],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
 )
 
 # ==================== 审计日志指标 ====================
 
 # 审计日志写入总数
 audit_write_total = Counter(
-    'audit_write_total',
-    'Total audit log write operations',
-    ['module', 'source', 'status']  # status: success/failure
+    "audit_write_total",
+    "Total audit log write operations",
+    ["module", "source", "status"],  # status: success/failure
 )
 
 # 审计日志写入延迟
 audit_write_latency_seconds = Histogram(
-    'audit_write_latency_seconds',
-    'Audit log write latency in seconds',
-    ['module', 'source'],
-    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
+    "audit_write_latency_seconds",
+    "Audit log write latency in seconds",
+    ["module", "source"],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
 )
 
 # ==================== 异常指标 ====================
 
 # 异常总数（按模块、异常类型分组）
 exception_total = Counter(
-    'app_exception_total',
-    'Total exceptions by type',
-    ['module', 'exception_class']
+    "app_exception_total", "Total exceptions by type", ["module", "exception_class"]
 )
 
 # 未捕获异常总数
 unhandled_exception_total = Counter(
-    'app_unhandled_exception_total',
-    'Total unhandled exceptions',
-    ['module']
+    "app_unhandled_exception_total", "Total unhandled exceptions", ["module"]
 )
 
 # 外部服务异常总数
 external_service_error_total = Counter(
-    'app_external_service_error_total',
-    'Total external service errors',
-    ['service_name', 'error_type']
+    "app_external_service_error_total",
+    "Total external service errors",
+    ["service_name", "error_type"],
 )
 
 
 # ==================== 记录函数 ====================
+
 
 def record_api_request(
     method: str,
     endpoint: str,
     status_code: int,
     duration_seconds: float,
-    view_name: str = 'unknown',
+    view_name: str = "unknown",
     error_class: str | None = None,
 ) -> None:
     """
@@ -172,14 +202,12 @@ def record_api_request(
             method=method,
             endpoint=endpoint,
             status_code=str(status_code),
-            view_name=view_name or 'unknown'
+            view_name=view_name or "unknown",
         ).inc()
 
         # 记录延迟
         api_request_latency_seconds.labels(
-            method=method,
-            endpoint=endpoint,
-            view_name=view_name or 'unknown'
+            method=method, endpoint=endpoint, view_name=view_name or "unknown"
         ).observe(duration_seconds)
 
         # 记录错误（4xx/5xx）
@@ -187,13 +215,33 @@ def record_api_request(
             api_error_total.labels(
                 method=method,
                 endpoint=endpoint,
-                error_class=error_class or 'unknown',
-                status_code=str(status_code)
+                error_class=error_class or "unknown",
+                status_code=str(status_code),
             ).inc()
 
     except Exception as e:
         # 指标记录失败不应影响业务
         logger.warning(f"Failed to record API metric: {e}")
+
+
+def record_web_to_tui_migration_event(
+    *,
+    surface: str,
+    event_type: str,
+    task_key: str,
+    outcome: str,
+) -> None:
+    """Record one bounded Classic/TUI compatibility observation."""
+
+    try:
+        web_to_tui_migration_events_total.labels(
+            surface=surface,
+            event_type=event_type,
+            task_key=task_key,
+            outcome=outcome,
+        ).inc()
+    except Exception as exc:
+        logger.warning(f"Failed to record Web-to-TUI migration metric: {exc}")
 
 
 def record_celery_task(
@@ -213,22 +261,18 @@ def record_celery_task(
     """
     try:
         # 记录任务总数
-        celery_task_total.labels(
-            task_name=task_name or 'unknown',
-            status=status
-        ).inc()
+        celery_task_total.labels(task_name=task_name or "unknown", status=status).inc()
 
         # 记录执行时间
         if duration_seconds is not None:
-            celery_task_duration_seconds.labels(
-                task_name=task_name or 'unknown'
-            ).observe(duration_seconds)
+            celery_task_duration_seconds.labels(task_name=task_name or "unknown").observe(
+                duration_seconds
+            )
 
         # 记录重试
-        if status == 'retry' and retry_reason:
+        if status == "retry" and retry_reason:
             celery_task_retry_total.labels(
-                task_name=task_name or 'unknown',
-                reason=retry_reason
+                task_name=task_name or "unknown", reason=retry_reason
             ).inc()
 
     except Exception as e:
@@ -238,7 +282,7 @@ def record_celery_task(
 def record_audit_write(
     module: str,
     status: str,
-    source: str = 'api',
+    source: str = "api",
     latency_seconds: float | None = None,
 ) -> None:
     """
@@ -252,18 +296,13 @@ def record_audit_write(
     """
     try:
         # 记录写入总数
-        audit_write_total.labels(
-            module=module or 'unknown',
-            source=source,
-            status=status
-        ).inc()
+        audit_write_total.labels(module=module or "unknown", source=source, status=status).inc()
 
         # 记录延迟
         if latency_seconds is not None:
-            audit_write_latency_seconds.labels(
-                module=module or 'unknown',
-                source=source
-            ).observe(latency_seconds)
+            audit_write_latency_seconds.labels(module=module or "unknown", source=source).observe(
+                latency_seconds
+            )
 
     except Exception as e:
         logger.warning(f"Failed to record audit metric: {e}")
@@ -271,7 +310,8 @@ def record_audit_write(
 
 # ==================== 装饰器 ====================
 
-def track_api_request(view_func: Callable) -> Callable:
+
+def track_api_request(view_func: Callable[..., _ResultT]) -> Callable[..., _ResultT]:
     """
     API 请求追踪装饰器
 
@@ -282,14 +322,20 @@ def track_api_request(view_func: Callable) -> Callable:
         def get(self, request, *args, **kwargs):
             ...
     """
+
     @wraps(view_func)
-    def wrapper(self, request, *args, **kwargs):
+    def wrapper(
+        self: object,
+        request: object,
+        *args: object,
+        **kwargs: object,
+    ) -> _ResultT:
         # 获取视图名称
-        view_name = self.__class__.__name__ if hasattr(self, '__class__') else 'unknown'
+        view_name = self.__class__.__name__ if hasattr(self, "__class__") else "unknown"
 
         # 获取端点路径
-        endpoint = request.path
-        method = request.method
+        endpoint = str(getattr(request, "path", "unknown"))
+        method = str(getattr(request, "method", "unknown"))
 
         # 记录开始时间
         start_time = perf_counter()
@@ -300,13 +346,13 @@ def track_api_request(view_func: Callable) -> Callable:
 
             # 记录指标
             duration = perf_counter() - start_time
-            status_code = getattr(response, 'status_code', 200)
+            status_code = getattr(response, "status_code", 200)
             record_api_request(
                 method=method,
                 endpoint=endpoint,
                 status_code=status_code,
                 duration_seconds=duration,
-                view_name=view_name
+                view_name=view_name,
             )
 
             return response
@@ -315,7 +361,7 @@ def track_api_request(view_func: Callable) -> Callable:
             # 记录错误指标
             duration = perf_counter() - start_time
             error_class = e.__class__.__name__
-            status_code = getattr(e, 'status_code', 500)
+            status_code = getattr(e, "status_code", 500)
 
             record_api_request(
                 method=method,
@@ -323,7 +369,7 @@ def track_api_request(view_func: Callable) -> Callable:
                 status_code=status_code,
                 duration_seconds=duration,
                 view_name=view_name,
-                error_class=error_class
+                error_class=error_class,
             )
 
             raise
@@ -331,7 +377,7 @@ def track_api_request(view_func: Callable) -> Callable:
     return wrapper
 
 
-def track_celery_task(task_func: Callable) -> Callable:
+def track_celery_task(task_func: Callable[..., _ResultT]) -> Callable[..., _ResultT]:
     """
     Celery 任务追踪装饰器
 
@@ -343,8 +389,9 @@ def track_celery_task(task_func: Callable) -> Callable:
         def my_task(arg1, arg2):
             ...
     """
+
     @wraps(task_func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: object, **kwargs: object) -> _ResultT:
         # 获取任务名称
         task_name = task_func.__name__
 
@@ -357,22 +404,14 @@ def track_celery_task(task_func: Callable) -> Callable:
 
             # 记录成功指标
             duration = perf_counter() - start_time
-            record_celery_task(
-                task_name=task_name,
-                status='success',
-                duration_seconds=duration
-            )
+            record_celery_task(task_name=task_name, status="success", duration_seconds=duration)
 
             return result
 
         except Exception:
             # 记录失败指标
             duration = perf_counter() - start_time
-            record_celery_task(
-                task_name=task_name,
-                status='failure',
-                duration_seconds=duration
-            )
+            record_celery_task(task_name=task_name, status="failure", duration_seconds=duration)
 
             raise
 
@@ -381,9 +420,10 @@ def track_celery_task(task_func: Callable) -> Callable:
 
 # ==================== 指标摘要 ====================
 
+
 def record_exception(
     exception: Exception,
-    module: str = 'unknown',
+    module: str = "unknown",
     is_handled: bool = True,
     service_name: str | None = None,
 ) -> None:
@@ -400,23 +440,17 @@ def record_exception(
         exception_class = exception.__class__.__name__
 
         # 记录异常总数
-        exception_total.labels(
-            module=module or 'unknown',
-            exception_class=exception_class
-        ).inc()
+        exception_total.labels(module=module or "unknown", exception_class=exception_class).inc()
 
         # 记录未处理异常
         if not is_handled:
-            unhandled_exception_total.labels(
-                module=module or 'unknown'
-            ).inc()
+            unhandled_exception_total.labels(module=module or "unknown").inc()
 
         # 记录外部服务错误
         if service_name:
-            error_type = 'timeout' if 'timeout' in str(exception).lower() else 'other'
+            error_type = "timeout" if "timeout" in str(exception).lower() else "other"
             external_service_error_total.labels(
-                service_name=service_name,
-                error_type=error_type
+                service_name=service_name, error_type=error_type
             ).inc()
 
     except Exception as e:
@@ -424,7 +458,7 @@ def record_exception(
         logger.warning(f"Failed to record exception metric: {e}")
 
 
-def get_metrics_summary() -> dict:
+def get_metrics_summary() -> MetricsSummary:
     """
     获取指标摘要（用于健康检查和监控）
 
@@ -434,10 +468,10 @@ def get_metrics_summary() -> dict:
     try:
         from prometheus_client import REGISTRY
 
-        summary = {
-            'api_requests': {'total': 0, 'errors': 0},
-            'celery_tasks': {'total': 0, 'retries': 0},
-            'audit_writes': {'total': 0, 'failures': 0},
+        summary: MetricsSummary = {
+            "api_requests": {"total": 0.0, "errors": 0.0},
+            "celery_tasks": {"total": 0.0, "retries": 0.0},
+            "audit_writes": {"total": 0.0, "failures": 0.0},
         }
 
         # 遍历所有指标
@@ -446,30 +480,32 @@ def get_metrics_summary() -> dict:
                 name = sample.name
 
                 # API 请求统计
-                if name == 'api_request_total' and not sample.labels.get('status_code', '').startswith('4'):
-                    summary['api_requests']['total'] += sample.value
-                if name == 'api_error_total':
-                    summary['api_requests']['errors'] += sample.value
+                if name == "api_request_total" and not sample.labels.get(
+                    "status_code", ""
+                ).startswith("4"):
+                    summary["api_requests"]["total"] += sample.value
+                if name == "api_error_total":
+                    summary["api_requests"]["errors"] += sample.value
 
                 # Celery 任务统计
-                if name == 'celery_task_total':
-                    summary['celery_tasks']['total'] += sample.value
-                if name == 'celery_task_retry_total':
-                    summary['celery_tasks']['retries'] += sample.value
+                if name == "celery_task_total":
+                    summary["celery_tasks"]["total"] += sample.value
+                if name == "celery_task_retry_total":
+                    summary["celery_tasks"]["retries"] += sample.value
 
                 # 审计写入统计
-                if name == 'audit_write_total':
-                    summary['audit_writes']['total'] += sample.value
-                    if sample.labels.get('status') == 'failure':
-                        summary['audit_writes']['failures'] += sample.value
+                if name == "audit_write_total":
+                    summary["audit_writes"]["total"] += sample.value
+                    if sample.labels.get("status") == "failure":
+                        summary["audit_writes"]["failures"] += sample.value
 
         return summary
 
     except Exception as e:
         logger.error(f"Failed to get metrics summary: {e}", exc_info=True)
         return {
-            'error': str(e),
-            'api_requests': {'total': 0, 'errors': 0},
-            'celery_tasks': {'total': 0, 'retries': 0},
-            'audit_writes': {'total': 0, 'failures': 0},
+            "error": str(e),
+            "api_requests": {"total": 0.0, "errors": 0.0},
+            "celery_tasks": {"total": 0.0, "retries": 0.0},
+            "audit_writes": {"total": 0.0, "failures": 0.0},
         }
