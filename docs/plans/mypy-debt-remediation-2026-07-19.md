@@ -6126,3 +6126,18 @@
 - Audit Counter 原子计数、敏感原因脱敏、损坏 cache、backend、阈值与 cache 故障专项组合 `43 passed`；Audit 健康报告、接口服务、权限、公开 API 和用例扩展组合 `166 passed`。
 - `apps/audit/infrastructure/failure_counter.py` 增量 mypy 清零并退出债务清单；全仓基线从 `477 errors / 257 files` 收紧为 `474 errors / 256 files`，净减少 `3 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/SDK/MCP、费用执行链或部署实现。
+
+## 第四百批
+
+- 按“Equity 估值修复历史输入无合同 × as-of 后记录进入算法 × 乱序/重复/非有限值污染扩张窗口 × Regime/Pool 端口裸容器”收口估值修复 Domain 链。
+- 新增 `ValuationHistoryRecord` TypedDict；trade_date 必须为 plain date 且唯一，PE 可空但必须有限，PB 必须为正且有限。历史记录进入扩张窗口前按日期排序，乱序输入不再改变结果。
+- `analyze_repair_status(as_of_date=...)` 在校验估值数值前先排除未来记录；未来 NaN/Infinity 或极值不再污染历史时点结论，Application 单股重算正式向 Domain 传递 as-of date。
+- lookback 限制为 `1..100000`，confirm/stall window 必须为正整数，rebound/progress 阈值必须有限且非负；PercentilePoint 日期严格递增且所有分位处于 `0..1`。
+- 修复启动确认窗口改为包含第 `confirm_window` 个交易日，消除边界日反弹被漏判的 off-by-one；`detect_stall` 正式接受无修复起点的可空日期合同。
+- RegimeDataPort 使用精确 `RegimeSnapshot` list/optional，StockPoolPort 元数据使用 `dict[str, object] | None`，移除无参数 Optional、裸 list/dict 和多余 abstractmethod。
+
+## 第四百批验证结果
+
+- Equity 估值输入治理、PIT、窗口边界、排序、重复日期和有限性专项组合 `99 passed`；估值修复 Domain/Application、质量门禁、公开 API 和配置集成扩展组合 `184 passed`。
+- `apps/equity/domain/ports.py` 与 `apps/equity/domain/services_valuation_repair.py` 增量 mypy 清零并退出债务清单；Application use case 与 Infrastructure adapter 联合检查保持零回归，全仓基线从 `474 errors / 256 files` 收紧为 `468 errors / 254 files`，净减少 `6 errors / 2 files`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/SDK/MCP、费用执行链或部署实现。

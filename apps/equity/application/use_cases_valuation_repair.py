@@ -23,6 +23,7 @@ from apps.equity.domain.entities_valuation_repair import (
 from apps.equity.domain.services_valuation_repair import (
     InsufficientHistoryError,
     InvalidValuationDataError,
+    ValuationHistoryRecord,
     analyze_repair_status,
     build_percentile_series,
 )
@@ -238,7 +239,7 @@ class GetValuationRepairStatusUseCase:
                 raise ValueError(f"未找到股票 {request.stock_code} 的估值数据")
 
             # 3. 转换为 Domain 层期望的格式
-            history_dicts = [
+            history_dicts: list[ValuationHistoryRecord] = [
                 {
                     "trade_date": v.trade_date,
                     "pe": float(v.pe) if v.pe is not None else None,
@@ -364,7 +365,7 @@ class GetValuationPercentileHistoryUseCase:
                 raise ValueError(f"未找到股票 {request.stock_code} 的估值数据")
 
             # 2. 转换为 Domain 层期望的格式
-            history_dicts = [
+            history_dicts: list[ValuationHistoryRecord] = [
                 {
                     "trade_date": v.trade_date,
                     "pe": float(v.pe) if v.pe is not None else None,
@@ -610,7 +611,7 @@ class ScanValuationRepairsUseCase:
             raise ValueError(f"未找到股票 {stock_code} 的估值数据")
 
         # 转换格式
-        history_dicts = [
+        history_dicts: list[ValuationHistoryRecord] = [
             {
                 "trade_date": v.trade_date,
                 "pe": float(v.pe) if v.pe is not None else None,
@@ -624,6 +625,7 @@ class ScanValuationRepairsUseCase:
             stock_code=stock_code,
             stock_name=stock_info.name,
             history=history_dicts,
+            as_of_date=as_of_date,
             lookback_days=lookback_days,
             config=get_valuation_repair_config(),
         )

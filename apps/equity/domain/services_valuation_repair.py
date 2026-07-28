@@ -8,6 +8,7 @@
 
 import math
 from datetime import date
+from typing import TypedDict
 
 # 导入实体类型
 from .entities_valuation_repair import (
@@ -20,22 +21,70 @@ from .entities_valuation_repair import (
 
 # ============== 异常定义 ==============
 
+
 class InsufficientHistoryError(Exception):
     """历史数据不足"""
-    pass
 
 
 class InvalidValuationDataError(Exception):
     """无效估值数据（如 PB <= 0）"""
-    pass
+
+
+class ValuationHistoryRecord(TypedDict):
+    """One raw valuation observation accepted by the repair algorithm."""
+
+    trade_date: date
+    pe: float | None
+    pb: float | None
+
+
+def _normalize_history(
+    history: list[ValuationHistoryRecord],
+    *,
+    as_of_date: date | None = None,
+) -> list[ValuationHistoryRecord]:
+    normalized: list[ValuationHistoryRecord] = []
+    seen_dates: set[date] = set()
+    for record in history:
+        if not isinstance(record, dict):
+            raise InvalidValuationDataError("valuation_history_shape_invalid")
+        trade_date = record.get("trade_date")
+        pe = record.get("pe")
+        pb = record.get("pb")
+        if type(trade_date) is not date:
+            raise InvalidValuationDataError("valuation_trade_date_invalid")
+        if as_of_date is not None and trade_date > as_of_date:
+            continue
+        if trade_date in seen_dates:
+            raise InvalidValuationDataError("valuation_trade_date_duplicated")
+        if pe is not None and (
+            isinstance(pe, bool) or not isinstance(pe, (int, float)) or not math.isfinite(pe)
+        ):
+            raise InvalidValuationDataError("valuation_pe_invalid")
+        if (
+            isinstance(pb, bool)
+            or not isinstance(pb, (int, float))
+            or not math.isfinite(pb)
+            or pb <= 0
+        ):
+            raise InvalidValuationDataError("PB 必须大于 0 且为有限数")
+        seen_dates.add(trade_date)
+        normalized.append(
+            {
+                "trade_date": trade_date,
+                "pe": float(pe) if pe is not None else None,
+                "pb": float(pb),
+            }
+        )
+    normalized.sort(key=lambda item: item["trade_date"])
+    return normalized
 
 
 # ============== 核心算法函数 ==============
 
+
 def compute_composite_percentile(
-    pe: float | None,
-    pb: float,
-    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
+    pe: float | None, pb: float, config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> tuple[float, str]:
     """计算综合百分位
 
@@ -51,6 +100,10 @@ def compute_composite_percentile(
     - 若 pe > 0：composite = pe * pe_weight + pb * pb_weight，method = "pe_pb_blend"
     - 若 pe <= 0 或 pe is None：composite = pb，method = "pb_only"
     """
+    if isinstance(pb, bool) or not math.isfinite(pb) or not 0 <= pb <= 1:
+        raise InvalidValuationDataError("pb_percentile_invalid")
+    if pe is not None and (isinstance(pe, bool) or not math.isfinite(pe)):
+        raise InvalidValuationDataError("pe_percentile_invalid")
     if pe is not None and pe > 0:
         composite = pe * config.pe_weight + pb * config.pb_weight
         return composite, "pe_pb_blend"
@@ -78,7 +131,7 @@ def _calculate_percentile(value: float, historical_values: list[float]) -> float
     n = len(historical_values)
 
     # 计算有多少值小于当前值
-    rank = sum(1 for v in historical_values if v < value)
+    rank = float(sum(1 for v in historical_values if v < value))
 
     # 相等的值加 0.5 权重
     equal_count = sum(1 for v in historical_values if v == value)
@@ -88,9 +141,9 @@ def _calculate_percentile(value: float, historical_values: list[float]) -> float
 
 
 def build_percentile_series(
-    history: list[dict],
+    history: list[ValuationHistoryRecord],
     lookback_days: int | None = None,
-    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG,
 ) -> list[PercentilePoint]:
     """构建百分位时间序列
 
@@ -119,11 +172,24 @@ def build_percentile_series(
     if lookback_days is None:
         lookback_days = config.default_lookback_days
 
+    if (
+        isinstance(lookback_days, bool)
+        or not isinstance(lookback_days, int)
+        or not 1 <= lookback_days <= 100_000
+    ):
+        raise InvalidValuationDataError("valuation_lookback_days_invalid")
+
     if not history:
         raise InsufficientHistoryError("历史数据为空")
 
+    normalized_history = _normalize_history(history)
+
     # 截断到最近 lookback_days 条
-    truncated = history[-lookback_days:] if len(history) > lookback_days else history
+    truncated = (
+        normalized_history[-lookback_days:]
+        if len(normalized_history) > lookback_days
+        else normalized_history
+    )
 
     if len(truncated) < config.min_history_points:
         raise InsufficientHistoryError(
@@ -137,13 +203,14 @@ def build_percentile_series(
         pe = record["pe"]
         pb = record["pb"]
 
-        # 验证 PB
-        if pb is None or pb <= 0:
-            raise InvalidValuationDataError(f"PB 必须大于 0，日期 {trade_date} 的 PB = {pb}")
+        if pb is None:
+            raise InvalidValuationDataError("PB 必须大于 0 且为有限数")
 
         # 扩张窗口计算百分位
-        pe_history = [h["pe"] for h in truncated[:i+1] if h["pe"] is not None and h["pe"] > 0]
-        pb_history = [h["pb"] for h in truncated[:i+1]]
+        pe_history = [
+            value for item in truncated[: i + 1] if (value := item["pe"]) is not None and value > 0
+        ]
+        pb_history = [value for item in truncated[: i + 1] if (value := item["pb"]) is not None]
 
         # 计算 PB 百分位
         pb_percentile = _calculate_percentile(pb, pb_history)
@@ -158,22 +225,46 @@ def build_percentile_series(
             pe_percentile, pb_percentile, config
         )
 
-        points.append(PercentilePoint(
-            trade_date=trade_date,
-            pe_percentile=pe_percentile,
-            pb_percentile=pb_percentile,
-            composite_percentile=composite_percentile,
-            composite_method=composite_method
-        ))
+        points.append(
+            PercentilePoint(
+                trade_date=trade_date,
+                pe_percentile=pe_percentile,
+                pb_percentile=pb_percentile,
+                composite_percentile=composite_percentile,
+                composite_method=composite_method,
+            )
+        )
 
     return points
+
+
+def _validate_percentile_series(series: list[PercentilePoint]) -> None:
+    previous_date: date | None = None
+    for point in series:
+        if not isinstance(point, PercentilePoint) or type(point.trade_date) is not date:
+            raise InvalidValuationDataError("valuation_percentile_point_invalid")
+        if previous_date is not None and point.trade_date <= previous_date:
+            raise InvalidValuationDataError("valuation_percentile_dates_invalid")
+        for value in (
+            point.pb_percentile,
+            point.composite_percentile,
+            point.pe_percentile,
+        ):
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or not 0 <= value <= 1
+            ):
+                raise InvalidValuationDataError("valuation_percentile_value_invalid")
+        previous_date = point.trade_date
 
 
 def detect_repair_start(
     series: list[PercentilePoint],
     confirm_window: int | None = None,
     min_rebound: float | None = None,
-    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG,
 ) -> tuple[date | None, float | None]:
     """检测修复启动点
 
@@ -196,8 +287,22 @@ def detect_repair_start(
         confirm_window = config.confirm_window
     if min_rebound is None:
         min_rebound = config.min_rebound
+    if (
+        isinstance(confirm_window, bool)
+        or not isinstance(confirm_window, int)
+        or confirm_window < 1
+    ):
+        raise InvalidValuationDataError("valuation_confirm_window_invalid")
+    if (
+        isinstance(min_rebound, bool)
+        or not isinstance(min_rebound, (int, float))
+        or not math.isfinite(min_rebound)
+        or min_rebound < 0
+    ):
+        raise InvalidValuationDataError("valuation_min_rebound_invalid")
     if not series:
         return None, None
+    _validate_percentile_series(series)
 
     # 找全局最低点
     bottom_idx = 0
@@ -213,7 +318,7 @@ def detect_repair_start(
         return None, None
 
     # 检查确认窗口内是否有足够反弹
-    search_end = min(bottom_idx + confirm_window, len(series))
+    search_end = min(bottom_idx + confirm_window + 1, len(series))
 
     for i in range(bottom_idx + 1, search_end):
         rebound = series[i].composite_percentile - bottom_value
@@ -225,10 +330,10 @@ def detect_repair_start(
 
 def detect_stall(
     series: list[PercentilePoint],
-    repair_start_date: date,
+    repair_start_date: date | None,
     stall_window: int | None = None,
     stall_min_progress: float | None = None,
-    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG,
 ) -> tuple[bool, date | None, int]:
     """检测修复停滞
 
@@ -256,9 +361,21 @@ def detect_stall(
         stall_window = config.stall_window
     if stall_min_progress is None:
         stall_min_progress = config.stall_min_progress
+    if isinstance(stall_window, bool) or not isinstance(stall_window, int) or stall_window < 1:
+        raise InvalidValuationDataError("valuation_stall_window_invalid")
+    if (
+        isinstance(stall_min_progress, bool)
+        or not isinstance(stall_min_progress, (int, float))
+        or not math.isfinite(stall_min_progress)
+        or stall_min_progress < 0
+    ):
+        raise InvalidValuationDataError("valuation_stall_progress_invalid")
 
     if not repair_start_date:
         return False, None, 0
+    if type(repair_start_date) is not date:
+        raise InvalidValuationDataError("valuation_repair_start_date_invalid")
+    _validate_percentile_series(series)
 
     # 找到修复起始点在序列中的位置
     start_idx = None
@@ -297,7 +414,7 @@ def determine_phase(
     repair_start_date: date | None,
     repair_start_percentile: float | None,
     is_stalled: bool,
-    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG,
 ) -> str:
     """确定修复阶段
 
@@ -326,26 +443,34 @@ def determine_phase(
         return ValuationRepairPhase.OVERSHOOTING.value
 
     # 2. COMPLETED
-    if (repair_start_date is not None and
-        config.target_percentile <= composite_percentile < config.overvalued_threshold):
+    if (
+        repair_start_date is not None
+        and config.target_percentile <= composite_percentile < config.overvalued_threshold
+    ):
         return ValuationRepairPhase.COMPLETED.value
 
     # 3. NEAR_TARGET
-    if (repair_start_date is not None and
-        config.near_target_threshold <= composite_percentile < config.target_percentile):
+    if (
+        repair_start_date is not None
+        and config.near_target_threshold <= composite_percentile < config.target_percentile
+    ):
         return ValuationRepairPhase.NEAR_TARGET.value
 
     # 4. STALLED
-    if (repair_start_date is not None and
-        is_stalled and
-        composite_percentile < config.near_target_threshold):
+    if (
+        repair_start_date is not None
+        and is_stalled
+        and composite_percentile < config.near_target_threshold
+    ):
         return ValuationRepairPhase.STALLED.value
 
     # 5. REPAIRING
-    if (repair_start_date is not None and
-        repair_start_percentile is not None and
-        composite_percentile >= repair_start_percentile + config.repairing_threshold and
-        composite_percentile < config.near_target_threshold):
+    if (
+        repair_start_date is not None
+        and repair_start_percentile is not None
+        and composite_percentile >= repair_start_percentile + config.repairing_threshold
+        and composite_percentile < config.near_target_threshold
+    ):
         return ValuationRepairPhase.REPAIRING.value
 
     # 6. REPAIR_STARTED
@@ -394,7 +519,7 @@ def calculate_repair_progress(
     current_percentile: float,
     start_percentile: float,
     target_percentile: float | None = None,
-    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG,
 ) -> float | None:
     """计算修复进度
 
@@ -420,9 +545,7 @@ def calculate_repair_progress(
 
 
 def calculate_repair_speed_per_30d(
-    current_percentile: float,
-    start_percentile: float,
-    repair_duration_trading_days: int
+    current_percentile: float, start_percentile: float, repair_duration_trading_days: int
 ) -> float | None:
     """计算修复速度（每 30 交易日提升的百分位）
 
@@ -446,7 +569,7 @@ def estimate_days_to_target(
     current_percentile: float,
     target_percentile: float,
     speed_per_30d: float | None,
-    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG,
 ) -> int | None:
     """估算到达目标的交易日数
 
@@ -478,7 +601,7 @@ def calculate_confidence(
     composite_method: str,
     has_repair_start: bool,
     is_stalled: bool,
-    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG,
 ) -> float:
     """计算置信度
 
@@ -523,7 +646,7 @@ def build_description(
     repair_start_date: date | None,
     repair_progress: float | None,
     stall_duration_trading_days: int,
-    estimated_days_to_target: int | None
+    estimated_days_to_target: int | None,
 ) -> str:
     """构建状态描述文本
 
@@ -553,9 +676,7 @@ def build_description(
 
     phase_label = phase_labels.get(phase, phase)
 
-    parts = [
-        f"{stock_code} 当前综合估值分位 {composite_percentile:.2f}，阶段为 {phase_label}。"
-    ]
+    parts = [f"{stock_code} 当前综合估值分位 {composite_percentile:.2f}，阶段为 {phase_label}。"]
 
     # 修复进度
     if repair_start_date and repair_progress is not None:
@@ -575,14 +696,14 @@ def build_description(
 def analyze_repair_status(
     stock_code: str,
     stock_name: str,
-    history: list[dict],
+    history: list[ValuationHistoryRecord],
     as_of_date: date | None = None,
     lookback_days: int | None = None,
     confirm_window: int | None = None,
     min_rebound: float | None = None,
     stall_window: int | None = None,
     stall_min_progress: float | None = None,
-    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG,
 ) -> ValuationRepairStatus:
     """分析估值修复状态（主入口）
 
@@ -608,8 +729,15 @@ def analyze_repair_status(
         InsufficientHistoryError: 历史数据不足
         InvalidValuationDataError: 估值数据无效
     """
+    if as_of_date is not None:
+        if type(as_of_date) is not date:
+            raise InvalidValuationDataError("valuation_as_of_date_invalid")
+    effective_history = _normalize_history(history, as_of_date=as_of_date)
+    if not effective_history:
+        raise InsufficientHistoryError("as_of_date 前无估值历史")
+
     # 1. 构建百分位序列
-    series = build_percentile_series(history, lookback_days, config)
+    series = build_percentile_series(effective_history, lookback_days, config)
 
     # 2. 获取当前状态（最新记录）
     latest = series[-1]
@@ -631,11 +759,7 @@ def analyze_repair_status(
 
     # 6. 确定阶段
     phase = determine_phase(
-        latest.composite_percentile,
-        repair_start_date,
-        repair_start_percentile,
-        is_stalled,
-        config
+        latest.composite_percentile, repair_start_date, repair_start_percentile, is_stalled, config
     )
 
     # 7. 计算进度、速度、ETA
@@ -645,49 +769,38 @@ def analyze_repair_status(
 
     if repair_start_date and repair_start_percentile is not None:
         # 计算修复持续天数
-        repair_duration = sum(
-            1 for p in series
-            if p.trade_date >= repair_start_date
-        )
+        repair_duration = sum(1 for p in series if p.trade_date >= repair_start_date)
 
         repair_progress = calculate_repair_progress(
-            latest.composite_percentile,
-            repair_start_percentile,
-            config.target_percentile,
-            config
+            latest.composite_percentile, repair_start_percentile, config.target_percentile, config
         )
 
         repair_speed = calculate_repair_speed_per_30d(
-            latest.composite_percentile,
-            repair_start_percentile,
-            repair_duration
+            latest.composite_percentile, repair_start_percentile, repair_duration
         )
 
         eta = estimate_days_to_target(
-            latest.composite_percentile,
-            config.target_percentile,
-            repair_speed,
-            config
+            latest.composite_percentile, config.target_percentile, repair_speed, config
         )
     else:
         repair_duration = 0
 
     # 8. 计算置信度
     confidence = calculate_confidence(
-        len(series),
-        latest.composite_method,
-        repair_start_date is not None,
-        is_stalled,
-        config
+        len(series), latest.composite_method, repair_start_date is not None, is_stalled, config
     )
 
     # 9. 映射信号
     signal = _map_phase_to_signal(phase)
 
     # 10. 获取当前 PE/PB 值
-    latest_record = history[-1]
-    current_pe = latest_record["pe"] if latest_record["pe"] is not None and latest_record["pe"] > 0 else None
+    latest_record = effective_history[-1]
+    current_pe = (
+        latest_record["pe"] if latest_record["pe"] is not None and latest_record["pe"] > 0 else None
+    )
     current_pb = latest_record["pb"]
+    if current_pb is None:
+        raise InvalidValuationDataError("valuation_pb_invalid")
 
     # 11. 构建描述
     description = build_description(
@@ -697,7 +810,7 @@ def analyze_repair_status(
         repair_start_date,
         repair_progress,
         stall_duration,
-        eta
+        eta,
     )
 
     return ValuationRepairStatus(
@@ -726,5 +839,5 @@ def analyze_repair_status(
         repair_duration_trading_days=repair_duration if repair_start_date else 0,
         lookback_trading_days=len(series),
         confidence=confidence,
-        description=description
+        description=description,
     )

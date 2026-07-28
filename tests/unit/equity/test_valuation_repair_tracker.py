@@ -21,8 +21,7 @@ from apps.equity.domain.entities_valuation_repair import (
     PercentilePoint,
     ValuationRepairPhase,
 )
-from apps.equity.domain.services_valuation_repair import (
-    # 异常
+from apps.equity.domain.services_valuation_repair import (  # 异常; 函数
     InsufficientHistoryError,
     InvalidValuationDataError,
     analyze_repair_status,
@@ -31,7 +30,6 @@ from apps.equity.domain.services_valuation_repair import (
     calculate_confidence,
     calculate_repair_progress,
     calculate_repair_speed_per_30d,
-    # 函数
     compute_composite_percentile,
     detect_repair_start,
     detect_stall,
@@ -41,22 +39,15 @@ from apps.equity.domain.services_valuation_repair import (
 
 # ==================== 测试数据构建工具 ====================
 
+
 def make_date(day_offset: int, base_date: date = date(2024, 1, 1)) -> date:
     """生成日期"""
     return base_date + timedelta(days=day_offset)
 
 
-def make_history_record(
-    trade_date: date,
-    pe: float,
-    pb: float
-) -> dict:
+def make_history_record(trade_date: date, pe: float, pb: float) -> dict:
     """构建历史记录"""
-    return {
-        "trade_date": trade_date,
-        "pe": pe,
-        "pb": pb
-    }
+    return {"trade_date": trade_date, "pe": pe, "pb": pb}
 
 
 def make_sample_history(count: int = 200) -> list:
@@ -95,6 +86,7 @@ def make_sample_history(count: int = 200) -> list:
 
 
 # ==================== Test compute_composite_percentile ====================
+
 
 class TestComputeCompositePercentile:
     """测试复合百分位计算"""
@@ -144,6 +136,7 @@ class TestComputeCompositePercentile:
 
 # ==================== Test build_percentile_series ====================
 
+
 class TestBuildPercentileSeries:
     """测试百分位序列构建"""
 
@@ -156,11 +149,7 @@ class TestBuildPercentileSeries:
         for i in range(150):
             pe = 10.0 + i * 0.1
             pb = 1.0 + i * 0.05
-            history.append(make_history_record(
-                base_date + timedelta(days=i),
-                pe,
-                pb
-            ))
+            history.append(make_history_record(base_date + timedelta(days=i), pe, pb))
 
         series = build_percentile_series(history, lookback_days=150)
 
@@ -178,11 +167,7 @@ class TestBuildPercentileSeries:
         history = []
 
         for i in range(100):  # 少于 config.min_history_points (120)
-            history.append(make_history_record(
-                make_date(i),
-                10.0 + i * 0.1,
-                1.0 + i * 0.05
-            ))
+            history.append(make_history_record(make_date(i), 10.0 + i * 0.1, 1.0 + i * 0.05))
 
         with pytest.raises(InsufficientHistoryError) as exc_info:
             build_percentile_series(history)
@@ -203,11 +188,7 @@ class TestBuildPercentileSeries:
             # 在中间插入一个 PB <= 0 的记录
             if i == 75:
                 pb = 0.0
-            history.append(make_history_record(
-                make_date(i),
-                10.0 + i * 0.1,
-                pb
-            ))
+            history.append(make_history_record(make_date(i), 10.0 + i * 0.1, pb))
 
         with pytest.raises(InvalidValuationDataError) as exc_info:
             build_percentile_series(history)
@@ -222,11 +203,7 @@ class TestBuildPercentileSeries:
             pb = 1.0 + i * 0.05
             if i == 75:
                 pb = -0.5
-            history.append(make_history_record(
-                make_date(i),
-                10.0 + i * 0.1,
-                pb
-            ))
+            history.append(make_history_record(make_date(i), 10.0 + i * 0.1, pb))
 
         with pytest.raises(InvalidValuationDataError):
             build_percentile_series(history)
@@ -239,11 +216,7 @@ class TestBuildPercentileSeries:
             # 前 50 天 PE 为负，之后为正
             pe = -5.0 if i < 50 else 10.0 + (i - 50) * 0.1
             pb = 1.0 + i * 0.05
-            history.append(make_history_record(
-                make_date(i),
-                pe,
-                pb
-            ))
+            history.append(make_history_record(make_date(i), pe, pb))
 
         series = build_percentile_series(history, lookback_days=150)
 
@@ -267,11 +240,7 @@ class TestBuildPercentileSeries:
         for i in range(150):
             pe = 0.0 if i < 50 else 10.0 + (i - 50) * 0.1
             pb = 1.0 + i * 0.05
-            history.append(make_history_record(
-                make_date(i),
-                pe,
-                pb
-            ))
+            history.append(make_history_record(make_date(i), pe, pb))
 
         series = build_percentile_series(history, lookback_days=150)
 
@@ -291,11 +260,7 @@ class TestBuildPercentileSeries:
         history = []
 
         for i in range(300):
-            history.append(make_history_record(
-                make_date(i),
-                10.0 + i * 0.01,
-                1.0 + i * 0.005
-            ))
+            history.append(make_history_record(make_date(i), 10.0 + i * 0.01, 1.0 + i * 0.005))
 
         # 只取最近 200 条
         series = build_percentile_series(history, lookback_days=200)
@@ -307,11 +272,7 @@ class TestBuildPercentileSeries:
         history = []
 
         for i in range(150):
-            history.append(make_history_record(
-                make_date(i),
-                10.0 + i * 0.1,
-                1.0 + i * 0.05
-            ))
+            history.append(make_history_record(make_date(i), 10.0 + i * 0.1, 1.0 + i * 0.05))
 
         series = build_percentile_series(history)
 
@@ -321,6 +282,7 @@ class TestBuildPercentileSeries:
 
 
 # ==================== Test detect_repair_start ====================
+
 
 class TestDetectRepairStart:
     """测试修复启动检测"""
@@ -333,34 +295,40 @@ class TestDetectRepairStart:
         # 底部前：下降
         for i in range(100):
             composite = 0.5 - i * 0.004  # 0.5 -> 0.1
-            series.append(PercentilePoint(
-                trade_date=make_date(i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=make_date(i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         # 底部点（最低）
         bottom_composite = 0.1
-        series.append(PercentilePoint(
-            trade_date=make_date(100),
-            pe_percentile=bottom_composite,
-            pb_percentile=bottom_composite,
-            composite_percentile=bottom_composite,
-            composite_method="pe_pb_blend"
-        ))
+        series.append(
+            PercentilePoint(
+                trade_date=make_date(100),
+                pe_percentile=bottom_composite,
+                pb_percentile=bottom_composite,
+                composite_percentile=bottom_composite,
+                composite_method="pe_pb_blend",
+            )
+        )
 
         # 反弹
         for i in range(101, 130):
             composite = 0.1 + (i - 100) * 0.01  # 0.1 -> 0.4
-            series.append(PercentilePoint(
-                trade_date=make_date(i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=make_date(i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         start_date, start_pct = detect_repair_start(series)
 
@@ -374,13 +342,15 @@ class TestDetectRepairStart:
         # 持续下降
         for i in range(100):
             composite = 0.5 - i * 0.004
-            series.append(PercentilePoint(
-                trade_date=make_date(i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=make_date(i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         start_date, start_pct = detect_repair_start(series)
 
@@ -395,24 +365,28 @@ class TestDetectRepairStart:
         # 普通数据
         for i in range(100):
             composite = 0.3 + i * 0.001
-            series.append(PercentilePoint(
-                trade_date=make_date(i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=make_date(i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         # 最近的最低点（在最后 10 天内）
         for i in range(100, 120):
             composite = 0.4 - (i - 100) * 0.01  # 下降
-            series.append(PercentilePoint(
-                trade_date=make_date(i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=make_date(i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         start_date, start_pct = detect_repair_start(series)
 
@@ -426,46 +400,54 @@ class TestDetectRepairStart:
         # 第一个局部低点
         for i in range(50):
             composite = 0.5 - i * 0.005  # 0.5 -> 0.25
-            series.append(PercentilePoint(
-                trade_date=make_date(i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=make_date(i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         # 反弹
         for i in range(50, 70):
             composite = 0.25 + (i - 50) * 0.01
-            series.append(PercentilePoint(
-                trade_date=make_date(i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=make_date(i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         # 再下降到更低点
         for i in range(70, 120):
             composite = 0.45 - (i - 70) * 0.008  # 0.45 -> 0.05
-            series.append(PercentilePoint(
-                trade_date=make_date(i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=make_date(i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         # 反弹超过 0.05
         for i in range(120, 150):  # 延长到 150 确保足够反弹
             composite = 0.05 + (i - 120) * 0.01
-            series.append(PercentilePoint(
-                trade_date=make_date(i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=make_date(i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         start_date, start_pct = detect_repair_start(series)
 
@@ -488,6 +470,7 @@ class TestDetectRepairStart:
 
 # ==================== Test detect_stall ====================
 
+
 class TestDetectStall:
     """测试停滞检测"""
 
@@ -503,24 +486,28 @@ class TestDetectStall:
         # 修复初期：上升
         for i in range(40):
             composite = 0.1 + i * 0.005
-            series.append(PercentilePoint(
-                trade_date=base_date + timedelta(days=i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=base_date + timedelta(days=i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         # 最近 40 天：停滞（波动 < 0.02）
         for i in range(40, 80):
             composite = 0.3 + (i % 5) * 0.003  # 0.3 ~ 0.312
-            series.append(PercentilePoint(
-                trade_date=base_date + timedelta(days=i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=base_date + timedelta(days=i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         is_stalled, stall_start, duration = detect_stall(
             series, start_date, stall_window=40, stall_min_progress=0.02
@@ -540,35 +527,41 @@ class TestDetectStall:
         # 上升
         for i in range(40):
             composite = 0.1 + i * 0.005
-            series.append(PercentilePoint(
-                trade_date=base_date + timedelta(days=i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=base_date + timedelta(days=i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         # 停滞
         for i in range(40, 60):
             composite = 0.3 + (i % 3) * 0.003
-            series.append(PercentilePoint(
-                trade_date=base_date + timedelta(days=i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=base_date + timedelta(days=i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         # 重新大幅上升
         for i in range(60, 100):
-            composite = 0.3 + (i - 60) * 0.02
-            series.append(PercentilePoint(
-                trade_date=base_date + timedelta(days=i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            composite = 0.3 + (i - 60) * 0.015
+            series.append(
+                PercentilePoint(
+                    trade_date=base_date + timedelta(days=i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         is_stalled, stall_start, duration = detect_stall(
             series, start_date, stall_window=40, stall_min_progress=0.02
@@ -587,13 +580,15 @@ class TestDetectStall:
         # 只有 30 个样本
         for i in range(30):
             composite = 0.1 + i * 0.001  # 很小的上升
-            series.append(PercentilePoint(
-                trade_date=base_date + timedelta(days=i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=base_date + timedelta(days=i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         is_stalled, stall_start, duration = detect_stall(
             series, start_date, stall_window=40, stall_min_progress=0.02
@@ -610,13 +605,15 @@ class TestDetectStall:
 
         for i in range(100):
             composite = 0.3 + i * 0.001
-            series.append(PercentilePoint(
-                trade_date=make_date(i),
-                pe_percentile=composite,
-                pb_percentile=composite,
-                composite_percentile=composite,
-                composite_method="pe_pb_blend"
-            ))
+            series.append(
+                PercentilePoint(
+                    trade_date=make_date(i),
+                    pe_percentile=composite,
+                    pb_percentile=composite,
+                    composite_percentile=composite,
+                    composite_method="pe_pb_blend",
+                )
+            )
 
         is_stalled, stall_start, duration = detect_stall(series, None)
 
@@ -627,6 +624,7 @@ class TestDetectStall:
 
 # ==================== Test determine_phase ====================
 
+
 class TestDeterminePhase:
     """测试阶段判定"""
 
@@ -636,7 +634,7 @@ class TestDeterminePhase:
             composite_percentile=0.85,  # >= 0.80
             repair_start_date=None,
             repair_start_percentile=None,
-            is_stalled=False
+            is_stalled=False,
         )
 
         assert phase == ValuationRepairPhase.OVERSHOOTING.value
@@ -647,7 +645,7 @@ class TestDeterminePhase:
             composite_percentile=0.85,
             repair_start_date=date(2024, 1, 1),
             repair_start_percentile=0.1,
-            is_stalled=True  # 停滞但优先级低于超涨
+            is_stalled=True,  # 停滞但优先级低于超涨
         )
 
         assert phase == ValuationRepairPhase.OVERSHOOTING.value
@@ -658,7 +656,7 @@ class TestDeterminePhase:
             composite_percentile=0.60,  # >= 0.50 且 < 0.80
             repair_start_date=date(2024, 1, 1),
             repair_start_percentile=0.1,
-            is_stalled=False
+            is_stalled=False,
         )
 
         assert phase == ValuationRepairPhase.COMPLETED.value
@@ -669,7 +667,7 @@ class TestDeterminePhase:
             composite_percentile=0.60,
             repair_start_date=None,  # 无修复起点
             repair_start_percentile=None,
-            is_stalled=False
+            is_stalled=False,
         )
 
         # 无修复起点，不判定为完成
@@ -681,7 +679,7 @@ class TestDeterminePhase:
             composite_percentile=0.47,  # >= 0.45 且 < 0.50
             repair_start_date=date(2024, 1, 1),
             repair_start_percentile=0.1,
-            is_stalled=False
+            is_stalled=False,
         )
 
         assert phase == ValuationRepairPhase.NEAR_TARGET.value
@@ -692,7 +690,7 @@ class TestDeterminePhase:
             composite_percentile=0.47,
             repair_start_date=None,
             repair_start_percentile=None,
-            is_stalled=False
+            is_stalled=False,
         )
 
         assert phase != ValuationRepairPhase.NEAR_TARGET.value
@@ -703,7 +701,7 @@ class TestDeterminePhase:
             composite_percentile=0.30,  # < 0.45
             repair_start_date=date(2024, 1, 1),
             repair_start_percentile=0.1,
-            is_stalled=True
+            is_stalled=True,
         )
 
         assert phase == ValuationRepairPhase.STALLED.value
@@ -715,7 +713,7 @@ class TestDeterminePhase:
             composite_percentile=0.50,  # >= 0.45
             repair_start_date=date(2024, 1, 1),
             repair_start_percentile=0.1,
-            is_stalled=True
+            is_stalled=True,
         )
 
         # 应该判定为 COMPLETED 而非 STALLED
@@ -727,7 +725,7 @@ class TestDeterminePhase:
             composite_percentile=0.30,  # >= start + 0.10 且 < 0.45
             repair_start_date=date(2024, 1, 1),
             repair_start_percentile=0.15,  # start = 0.15, current = 0.30 > 0.25
-            is_stalled=False
+            is_stalled=False,
         )
 
         assert phase == ValuationRepairPhase.REPAIRING.value
@@ -738,7 +736,7 @@ class TestDeterminePhase:
             composite_percentile=0.20,  # < start + 0.10
             repair_start_date=date(2024, 1, 1),
             repair_start_percentile=0.15,
-            is_stalled=False
+            is_stalled=False,
         )
 
         # 进展不足，应该是 REPAIR_STARTED
@@ -750,7 +748,7 @@ class TestDeterminePhase:
             composite_percentile=0.20,  # < start + 0.10
             repair_start_date=date(2024, 1, 1),
             repair_start_percentile=0.15,
-            is_stalled=False
+            is_stalled=False,
         )
 
         assert phase == ValuationRepairPhase.REPAIR_STARTED.value
@@ -761,7 +759,7 @@ class TestDeterminePhase:
             composite_percentile=0.15,  # < 0.20
             repair_start_date=None,
             repair_start_percentile=None,
-            is_stalled=False
+            is_stalled=False,
         )
 
         assert phase == ValuationRepairPhase.UNDERVALUED.value
@@ -772,7 +770,7 @@ class TestDeterminePhase:
             composite_percentile=0.40,  # >= 0.20 但无修复起点
             repair_start_date=None,
             repair_start_percentile=None,
-            is_stalled=False
+            is_stalled=False,
         )
 
         assert phase == ValuationRepairPhase.NO_REPAIR_NEEDED.value
@@ -781,14 +779,14 @@ class TestDeterminePhase:
         """测试所有阶段边界值"""
         test_cases = [
             # (composite, start_pct, is_stalled, expected_phase)
-            (0.80, None, False, "overshooting"),      # >= 0.80
-            (0.50, 0.1, False, "completed"),         # >= 0.50
-            (0.45, 0.1, False, "near_target"),       # >= 0.45
-            (0.25, 0.1, True, "stalled"),            # 停滞且 < 0.45
-            (0.25, 0.1, False, "repairing"),         # >= start + 0.10
-            (0.15, 0.1, False, "repair_started"),    # 有起点但进展小
-            (0.15, None, False, "undervalued"),      # < 0.20 无起点
-            (0.40, None, False, "no_repair_needed"), # 其他
+            (0.80, None, False, "overshooting"),  # >= 0.80
+            (0.50, 0.1, False, "completed"),  # >= 0.50
+            (0.45, 0.1, False, "near_target"),  # >= 0.45
+            (0.25, 0.1, True, "stalled"),  # 停滞且 < 0.45
+            (0.25, 0.1, False, "repairing"),  # >= start + 0.10
+            (0.15, 0.1, False, "repair_started"),  # 有起点但进展小
+            (0.15, None, False, "undervalued"),  # < 0.20 无起点
+            (0.40, None, False, "no_repair_needed"),  # 其他
         ]
 
         for composite, start_pct, is_stalled, expected in test_cases:
@@ -799,15 +797,14 @@ class TestDeterminePhase:
 
 # ==================== Test calculate_repair_progress ====================
 
+
 class TestCalculateRepairProgress:
     """测试修复进度计算"""
 
     def test_normal_progress(self):
         """测试正常进度"""
         progress = calculate_repair_progress(
-            current_percentile=0.35,
-            start_percentile=0.10,
-            target_percentile=0.50
+            current_percentile=0.35, start_percentile=0.10, target_percentile=0.50
         )
 
         # (0.35 - 0.10) / (0.50 - 0.10) = 0.25 / 0.40 = 0.625
@@ -816,9 +813,7 @@ class TestCalculateRepairProgress:
     def test_progress_clipped_to_one_when_above_target(self):
         """测试超过目标时裁剪为 1"""
         progress = calculate_repair_progress(
-            current_percentile=0.60,
-            start_percentile=0.10,
-            target_percentile=0.50
+            current_percentile=0.60, start_percentile=0.10, target_percentile=0.50
         )
 
         assert progress == 1.0
@@ -826,9 +821,7 @@ class TestCalculateRepairProgress:
     def test_progress_clipped_to_zero_when_below_start(self):
         """测试低于起点时裁剪为 0"""
         progress = calculate_repair_progress(
-            current_percentile=0.05,
-            start_percentile=0.10,
-            target_percentile=0.50
+            current_percentile=0.05, start_percentile=0.10, target_percentile=0.50
         )
 
         assert progress == 0.0
@@ -836,9 +829,7 @@ class TestCalculateRepairProgress:
     def test_zero_denominator_returns_none(self):
         """测试分母为 0 时返回 None"""
         progress = calculate_repair_progress(
-            current_percentile=0.30,
-            start_percentile=0.50,
-            target_percentile=0.50
+            current_percentile=0.30, start_percentile=0.50, target_percentile=0.50
         )
 
         assert progress is None
@@ -846,9 +837,7 @@ class TestCalculateRepairProgress:
     def test_negative_denominator_returns_none(self):
         """测试分母为负时返回 None"""
         progress = calculate_repair_progress(
-            current_percentile=0.30,
-            start_percentile=0.60,
-            target_percentile=0.50
+            current_percentile=0.30, start_percentile=0.60, target_percentile=0.50
         )
 
         assert progress is None
@@ -856,9 +845,7 @@ class TestCalculateRepairProgress:
     def test_at_start_returns_zero(self):
         """测试在起点时返回 0"""
         progress = calculate_repair_progress(
-            current_percentile=0.10,
-            start_percentile=0.10,
-            target_percentile=0.50
+            current_percentile=0.10, start_percentile=0.10, target_percentile=0.50
         )
 
         assert progress == 0.0
@@ -866,9 +853,7 @@ class TestCalculateRepairProgress:
     def test_at_target_returns_one(self):
         """测试达到目标时返回 1"""
         progress = calculate_repair_progress(
-            current_percentile=0.50,
-            start_percentile=0.10,
-            target_percentile=0.50
+            current_percentile=0.50, start_percentile=0.10, target_percentile=0.50
         )
 
         assert progress == 1.0
@@ -876,15 +861,14 @@ class TestCalculateRepairProgress:
 
 # ==================== Test calculate_repair_speed_per_30d ====================
 
+
 class TestCalculateRepairSpeedPer30d:
     """测试修复速度计算"""
 
     def test_normal_speed(self):
         """测试正常速度"""
         speed = calculate_repair_speed_per_30d(
-            current_percentile=0.30,
-            start_percentile=0.10,
-            repair_duration_trading_days=60
+            current_percentile=0.30, start_percentile=0.10, repair_duration_trading_days=60
         )
 
         # (0.30 - 0.10) / 60 * 30 = 0.20 / 60 * 30 = 0.10
@@ -893,9 +877,7 @@ class TestCalculateRepairSpeedPer30d:
     def test_negative_speed(self):
         """测试负速度（退化）"""
         speed = calculate_repair_speed_per_30d(
-            current_percentile=0.05,
-            start_percentile=0.10,
-            repair_duration_trading_days=30
+            current_percentile=0.05, start_percentile=0.10, repair_duration_trading_days=30
         )
 
         # (0.05 - 0.10) / 30 * 30 = -0.05
@@ -904,9 +886,7 @@ class TestCalculateRepairSpeedPer30d:
     def test_single_day_returns_none(self):
         """测试单日返回 None"""
         speed = calculate_repair_speed_per_30d(
-            current_percentile=0.15,
-            start_percentile=0.10,
-            repair_duration_trading_days=1
+            current_percentile=0.15, start_percentile=0.10, repair_duration_trading_days=1
         )
 
         assert speed is None
@@ -914,9 +894,7 @@ class TestCalculateRepairSpeedPer30d:
     def test_zero_days_returns_none(self):
         """测试 0 天返回 None"""
         speed = calculate_repair_speed_per_30d(
-            current_percentile=0.10,
-            start_percentile=0.10,
-            repair_duration_trading_days=0
+            current_percentile=0.10, start_percentile=0.10, repair_duration_trading_days=0
         )
 
         assert speed is None
@@ -924,15 +902,14 @@ class TestCalculateRepairSpeedPer30d:
 
 # ==================== Test estimate_days_to_target ====================
 
+
 class TestEstimateDaysToTarget:
     """测试估算到达目标天数"""
 
     def test_normal_estimation(self):
         """测试正常估算"""
         eta = estimate_days_to_target(
-            current_percentile=0.30,
-            target_percentile=0.50,
-            speed_per_30d=0.10
+            current_percentile=0.30, target_percentile=0.50, speed_per_30d=0.10
         )
 
         # remaining = 0.20, speed_per_day = 0.10 / 30 = 0.00333...
@@ -942,9 +919,7 @@ class TestEstimateDaysToTarget:
     def test_already_at_target_returns_zero(self):
         """测试已达到目标返回 0"""
         eta = estimate_days_to_target(
-            current_percentile=0.50,
-            target_percentile=0.50,
-            speed_per_30d=0.10
+            current_percentile=0.50, target_percentile=0.50, speed_per_30d=0.10
         )
 
         assert eta == 0
@@ -952,9 +927,7 @@ class TestEstimateDaysToTarget:
     def test_above_target_returns_zero(self):
         """测试超过目标返回 0"""
         eta = estimate_days_to_target(
-            current_percentile=0.60,
-            target_percentile=0.50,
-            speed_per_30d=0.10
+            current_percentile=0.60, target_percentile=0.50, speed_per_30d=0.10
         )
 
         assert eta == 0
@@ -962,9 +935,7 @@ class TestEstimateDaysToTarget:
     def test_zero_speed_returns_none(self):
         """测试零速度返回 None"""
         eta = estimate_days_to_target(
-            current_percentile=0.30,
-            target_percentile=0.50,
-            speed_per_30d=0.0
+            current_percentile=0.30, target_percentile=0.50, speed_per_30d=0.0
         )
 
         assert eta is None
@@ -972,9 +943,7 @@ class TestEstimateDaysToTarget:
     def test_negative_speed_returns_none(self):
         """测试负速度返回 None"""
         eta = estimate_days_to_target(
-            current_percentile=0.30,
-            target_percentile=0.50,
-            speed_per_30d=-0.05
+            current_percentile=0.30, target_percentile=0.50, speed_per_30d=-0.05
         )
 
         assert eta is None
@@ -982,9 +951,7 @@ class TestEstimateDaysToTarget:
     def test_none_speed_returns_none(self):
         """测试 None 速度返回 None"""
         eta = estimate_days_to_target(
-            current_percentile=0.30,
-            target_percentile=0.50,
-            speed_per_30d=None
+            current_percentile=0.30, target_percentile=0.50, speed_per_30d=None
         )
 
         assert eta is None
@@ -992,9 +959,7 @@ class TestEstimateDaysToTarget:
     def test_large_eta_capped_at_999(self):
         """测试大 ETA 上限为 999"""
         eta = estimate_days_to_target(
-            current_percentile=0.10,
-            target_percentile=0.50,
-            speed_per_30d=0.001  # 非常慢
+            current_percentile=0.10, target_percentile=0.50, speed_per_30d=0.001  # 非常慢
         )
 
         # remaining = 0.40, speed_per_day = 0.001 / 30
@@ -1003,6 +968,7 @@ class TestEstimateDaysToTarget:
 
 
 # ==================== Test calculate_confidence ====================
+
 
 class TestCalculateConfidence:
     """测试置信度计算"""
@@ -1013,7 +979,7 @@ class TestCalculateConfidence:
             sample_count=500,
             composite_method="pe_pb_blend",
             has_repair_start=True,
-            is_stalled=False
+            is_stalled=False,
         )
 
         # 0.4 + 0.2 + 0.15 + 0.15 + 0.1 = 1.0 -> 裁剪到 1.0
@@ -1022,10 +988,7 @@ class TestCalculateConfidence:
     def test_minimum_confidence(self):
         """测试最小置信度"""
         confidence = calculate_confidence(
-            sample_count=100,
-            composite_method="pb_only",
-            has_repair_start=False,
-            is_stalled=True
+            sample_count=100, composite_method="pb_only", has_repair_start=False, is_stalled=True
         )
 
         # 只有基础值 0.4
@@ -1037,7 +1000,7 @@ class TestCalculateConfidence:
             sample_count=300,  # >= 252
             composite_method="pb_only",
             has_repair_start=False,
-            is_stalled=False
+            is_stalled=False,
         )
 
         # 0.4 + 0.2 (样本数) + 0.1 (非停滞) = 0.7
@@ -1049,7 +1012,7 @@ class TestCalculateConfidence:
             sample_count=200,  # < 252
             composite_method="pb_only",
             has_repair_start=False,
-            is_stalled=False
+            is_stalled=False,
         )
 
         assert confidence == 0.5  # 0.4 + 0.1
@@ -1060,7 +1023,7 @@ class TestCalculateConfidence:
             sample_count=100,
             composite_method="pe_pb_blend",
             has_repair_start=False,
-            is_stalled=False
+            is_stalled=False,
         )
 
         assert confidence == 0.65  # 0.4 + 0.15 + 0.1
@@ -1068,10 +1031,7 @@ class TestCalculateConfidence:
     def test_repair_start_bonus(self):
         """测试修复起点加分"""
         confidence = calculate_confidence(
-            sample_count=100,
-            composite_method="pb_only",
-            has_repair_start=True,
-            is_stalled=False
+            sample_count=100, composite_method="pb_only", has_repair_start=True, is_stalled=False
         )
 
         assert confidence == 0.65  # 0.4 + 0.15 + 0.1
@@ -1079,10 +1039,7 @@ class TestCalculateConfidence:
     def test_not_stalled_bonus(self):
         """测试非停滞加分"""
         confidence = calculate_confidence(
-            sample_count=100,
-            composite_method="pb_only",
-            has_repair_start=False,
-            is_stalled=False
+            sample_count=100, composite_method="pb_only", has_repair_start=False, is_stalled=False
         )
 
         assert confidence == 0.5  # 0.4 + 0.1
@@ -1090,16 +1047,14 @@ class TestCalculateConfidence:
     def test_stalled_no_bonus(self):
         """测试停滞无加分"""
         confidence = calculate_confidence(
-            sample_count=100,
-            composite_method="pb_only",
-            has_repair_start=False,
-            is_stalled=True
+            sample_count=100, composite_method="pb_only", has_repair_start=False, is_stalled=True
         )
 
         assert confidence == 0.4  # 只有基础值
 
 
 # ==================== Test build_description ====================
+
 
 class TestBuildDescription:
     """测试描述文本生成"""
@@ -1113,7 +1068,7 @@ class TestBuildDescription:
             repair_start_date=None,
             repair_progress=None,
             stall_duration_trading_days=0,
-            estimated_days_to_target=None
+            estimated_days_to_target=None,
         )
 
         assert "000001.SZ" in desc
@@ -1129,7 +1084,7 @@ class TestBuildDescription:
             repair_start_date=date(2024, 1, 15),
             repair_progress=0.625,
             stall_duration_trading_days=0,
-            estimated_days_to_target=60
+            estimated_days_to_target=60,
         )
 
         assert "000001.SZ" in desc
@@ -1148,7 +1103,7 @@ class TestBuildDescription:
             repair_start_date=date(2024, 1, 15),
             repair_progress=0.3,
             stall_duration_trading_days=40,
-            estimated_days_to_target=None
+            estimated_days_to_target=None,
         )
 
         assert "000001.SZ" in desc
@@ -1164,7 +1119,7 @@ class TestBuildDescription:
             repair_start_date=date(2024, 1, 15),
             repair_progress=1.0,
             stall_duration_trading_days=0,
-            estimated_days_to_target=0
+            estimated_days_to_target=0,
         )
 
         assert "修复完成" in desc
@@ -1179,7 +1134,7 @@ class TestBuildDescription:
             repair_start_date=None,
             repair_progress=None,
             stall_duration_trading_days=0,
-            estimated_days_to_target=None
+            estimated_days_to_target=None,
         )
 
         assert "无需修复" in desc
@@ -1193,13 +1148,14 @@ class TestBuildDescription:
             repair_start_date=None,
             repair_progress=None,
             stall_duration_trading_days=0,
-            estimated_days_to_target=None
+            estimated_days_to_target=None,
         )
 
         assert "unknown_phase" in desc  # 直接使用阶段值
 
 
 # ==================== Test analyze_repair_status (Integration) ====================
+
 
 class TestAnalyzeRepairStatus:
     """测试整体分析流程"""
@@ -1213,7 +1169,7 @@ class TestAnalyzeRepairStatus:
             stock_code="000001.SZ",
             stock_name="平安银行",
             history=history,
-            as_of_date=date(2023, 7, 20)
+            as_of_date=date(2023, 7, 20),
         )
 
         # 验证基本字段
@@ -1228,8 +1184,15 @@ class TestAnalyzeRepairStatus:
 
         # 验证阶段相关
         assert status.phase in [p.value for p in ValuationRepairPhase]
-        assert status.signal in ["opportunity", "in_progress", "near_exit",
-                                 "take_profit", "stalled", "none", "watch"]
+        assert status.signal in [
+            "opportunity",
+            "in_progress",
+            "near_exit",
+            "take_profit",
+            "stalled",
+            "none",
+            "watch",
+        ]
 
         # 验证最低点信息
         assert status.lowest_percentile >= 0
@@ -1243,16 +1206,10 @@ class TestAnalyzeRepairStatus:
         for i in range(150):
             pe = 30.0 - i * 0.15  # 持续下降
             pb = 3.0 - i * 0.015
-            history.append(make_history_record(
-                make_date(i),
-                pe,
-                pb
-            ))
+            history.append(make_history_record(make_date(i), pe, pb))
 
         status = analyze_repair_status(
-            stock_code="000001.SZ",
-            stock_name="平安银行",
-            history=history
+            stock_code="000001.SZ", stock_name="平安银行", history=history
         )
 
         # 应该是低估或无需修复（因为没有反弹确认修复启动）
@@ -1274,16 +1231,10 @@ class TestAnalyzeRepairStatus:
 
             pb = pe / 10  # 简化关系
 
-            history.append(make_history_record(
-                make_date(i),
-                pe,
-                pb
-            ))
+            history.append(make_history_record(make_date(i), pe, pb))
 
         status = analyze_repair_status(
-            stock_code="000001.SZ",
-            stock_name="平安银行",
-            history=history
+            stock_code="000001.SZ", stock_name="平安银行", history=history
         )
 
         # 验证已完成修复
@@ -1292,7 +1243,7 @@ class TestAnalyzeRepairStatus:
             if status.composite_percentile >= 0.50:
                 assert status.phase in [
                     ValuationRepairPhase.COMPLETED.value,
-                    ValuationRepairPhase.OVERSHOOTING.value
+                    ValuationRepairPhase.OVERSHOOTING.value,
                 ]
 
     def test_pe_invalid_but_pb_valid(self):
@@ -1304,16 +1255,10 @@ class TestAnalyzeRepairStatus:
             pe = -5.0 if i < 50 else 5.0 + (i - 50) * 0.05  # 调整为较低的 PE
             pb = 0.5 + i * 0.005  # 从 0.5 开始
 
-            history.append(make_history_record(
-                make_date(i),
-                pe,
-                pb
-            ))
+            history.append(make_history_record(make_date(i), pe, pb))
 
         status = analyze_repair_status(
-            stock_code="000001.SZ",
-            stock_name="平安银行",
-            history=history
+            stock_code="000001.SZ", stock_name="平安银行", history=history
         )
 
         # 应该正常返回
@@ -1328,27 +1273,17 @@ class TestAnalyzeRepairStatus:
         history = []
 
         for i in range(100):  # 少于 config.min_history_points (120)
-            history.append(make_history_record(
-                make_date(i),
-                10.0 + i * 0.1,
-                1.0 + i * 0.05
-            ))
+            history.append(make_history_record(make_date(i), 10.0 + i * 0.1, 1.0 + i * 0.05))
 
         with pytest.raises(InsufficientHistoryError):
-            analyze_repair_status(
-                stock_code="000001.SZ",
-                stock_name="平安银行",
-                history=history
-            )
+            analyze_repair_status(stock_code="000001.SZ", stock_name="平安银行", history=history)
 
     def test_confidence_calculation(self):
         """测试置信度计算"""
         history = make_sample_history(300)  # 大样本
 
         status = analyze_repair_status(
-            stock_code="000001.SZ",
-            stock_name="平安银行",
-            history=history
+            stock_code="000001.SZ", stock_name="平安银行", history=history
         )
 
         # 置信度应该在合理范围内
@@ -1359,9 +1294,7 @@ class TestAnalyzeRepairStatus:
         history = make_sample_history(200)
 
         status = analyze_repair_status(
-            stock_code="000001.SZ",
-            stock_name="平安银行",
-            history=history
+            stock_code="000001.SZ", stock_name="平安银行", history=history
         )
 
         # 描述应该包含股票代码和关键信息
@@ -1370,6 +1303,7 @@ class TestAnalyzeRepairStatus:
 
 
 # ==================== Test Signal Mapping ====================
+
 
 class TestSignalMapping:
     """测试信号映射（间接通过 analyze_repair_status）"""
@@ -1382,16 +1316,10 @@ class TestSignalMapping:
         for i in range(150):
             pe = 5.0 + i * 0.01  # 低 PE
             pb = 0.5 + i * 0.001  # 低 PB
-            history.append(make_history_record(
-                make_date(i),
-                pe,
-                pb
-            ))
+            history.append(make_history_record(make_date(i), pe, pb))
 
         status = analyze_repair_status(
-            stock_code="000001.SZ",
-            stock_name="平安银行",
-            history=history
+            stock_code="000001.SZ", stock_name="平安银行", history=history
         )
 
         if status.phase == ValuationRepairPhase.UNDERVALUED.value:
@@ -1440,3 +1368,123 @@ class TestSignalMapping:
 
         signal = _map_phase_to_signal(ValuationRepairPhase.NO_REPAIR_NEEDED.value)
         assert signal == "none"
+
+
+class TestValuationRepairInputGovernance:
+    """PIT, ordering, and finite-value contracts for valuation evidence."""
+
+    def test_build_percentile_series_sorts_unsorted_history(self):
+        history = make_sample_history(150)
+        unsorted = list(reversed(history))
+
+        series = build_percentile_series(unsorted, lookback_days=150)
+
+        assert [point.trade_date for point in series] == sorted(
+            record["trade_date"] for record in history
+        )
+
+    def test_build_percentile_series_rejects_duplicate_dates(self):
+        history = make_sample_history(150)
+        history[-1] = {**history[-1], "trade_date": history[-2]["trade_date"]}
+
+        with pytest.raises(
+            InvalidValuationDataError,
+            match="valuation_trade_date_duplicated",
+        ):
+            build_percentile_series(history, lookback_days=150)
+
+    @pytest.mark.parametrize(
+        ("field", "value", "error_code"),
+        [
+            ("pe", float("nan"), "valuation_pe_invalid"),
+            ("pe", float("inf"), "valuation_pe_invalid"),
+            ("pb", float("nan"), "PB 必须大于 0"),
+            ("pb", float("inf"), "PB 必须大于 0"),
+        ],
+    )
+    def test_build_percentile_series_rejects_nonfinite_evidence(
+        self,
+        field,
+        value,
+        error_code,
+    ):
+        history = make_sample_history(150)
+        history[75] = {**history[75], field: value}
+
+        with pytest.raises(InvalidValuationDataError, match=error_code):
+            build_percentile_series(history, lookback_days=150)
+
+    @pytest.mark.parametrize("lookback_days", [True, 0, -1, 100_001])
+    def test_build_percentile_series_rejects_invalid_lookback(self, lookback_days):
+        with pytest.raises(
+            InvalidValuationDataError,
+            match="valuation_lookback_days_invalid",
+        ):
+            build_percentile_series(
+                make_sample_history(150),
+                lookback_days=lookback_days,
+            )
+
+    def test_analyze_repair_status_excludes_observations_after_as_of_date(self):
+        history = make_sample_history(180)
+        as_of_date = history[149]["trade_date"]
+        expected_pe = history[149]["pe"]
+        expected_pb = history[149]["pb"]
+        for index in range(150, 180):
+            history[index] = {
+                **history[index],
+                "pe": float("nan"),
+                "pb": float("nan"),
+            }
+
+        status = analyze_repair_status(
+            stock_code="000001.SZ",
+            stock_name="平安银行",
+            history=history,
+            as_of_date=as_of_date,
+            lookback_days=150,
+        )
+
+        assert status.as_of_date == as_of_date
+        assert status.current_pe == expected_pe
+        assert status.current_pb == expected_pb
+        assert status.lookback_trading_days == 150
+
+    def test_repair_start_accepts_rebound_on_confirm_window_boundary(self):
+        series = [
+            PercentilePoint(
+                trade_date=make_date(index),
+                pe_percentile=value,
+                pb_percentile=value,
+                composite_percentile=value,
+                composite_method="pe_pb_blend",
+            )
+            for index, value in enumerate([0.1, 0.11, 0.12, 0.13, 0.14, 0.16])
+        ]
+
+        start_date, start_value = detect_repair_start(
+            series,
+            confirm_window=5,
+            min_rebound=0.05,
+        )
+
+        assert start_date == make_date(0)
+        assert start_value == 0.1
+
+    def test_detect_stall_rejects_nonfinite_percentile(self):
+        series = [
+            PercentilePoint(
+                trade_date=make_date(index),
+                pe_percentile=0.1,
+                pb_percentile=0.1,
+                composite_percentile=(float("nan") if index == 5 else 0.1),
+                composite_method="pe_pb_blend",
+            )
+            for index in range(40)
+        ]
+
+        with pytest.raises(
+            InvalidValuationDataError,
+            match="valuation_percentile_value_invalid",
+        ):
+            detect_stall(series, make_date(0), stall_window=40)

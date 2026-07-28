@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 474,
-    "files_with_errors": 256
+    "errors": 468,
+    "files_with_errors": 254
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -374,16 +374,8 @@
     "apps/equity/apps.py": {
       "no-untyped-def": 1
     },
-    "apps/equity/domain/ports.py": {
-      "type-arg": 2,
-      "valid-type": 1
-    },
     "apps/equity/domain/services_technical.py": {
       "arg-type": 1
-    },
-    "apps/equity/domain/services_valuation_repair.py": {
-      "assignment": 1,
-      "type-arg": 2
     },
     "apps/equity/infrastructure/asset_master_queries.py": {
       "arg-type": 1

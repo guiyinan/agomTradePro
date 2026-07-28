@@ -5,9 +5,10 @@
 Domain 层定义接口，Infrastructure 层实现接口。
 """
 
-from abc import abstractmethod
 from datetime import date
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
+
+from apps.regime.domain.entities import RegimeSnapshot
 
 
 @runtime_checkable
@@ -18,12 +19,11 @@ class RegimeDataPort(Protocol):
     定义获取 Regime 历史数据的接口，由 regime 模块的仓储实现。
     """
 
-    @abstractmethod
     def get_snapshots_in_range(
         self,
         start_date: date,
-        end_date: date
-    ) -> list:
+        end_date: date,
+    ) -> list[RegimeSnapshot]:
         """
         获取日期范围内的快照列表
 
@@ -36,11 +36,10 @@ class RegimeDataPort(Protocol):
         """
         ...
 
-    @abstractmethod
     def get_snapshot_by_date(
         self,
-        observed_at: date
-    ) -> Optional:
+        observed_at: date,
+    ) -> RegimeSnapshot | None:
         """
         按日期获取 Regime 快照
 
@@ -61,7 +60,6 @@ class MarketDataPort(Protocol):
     定义获取市场指数数据的接口，由 macro 或 realtime 模块实现。
     """
 
-    @abstractmethod
     def get_index_daily_returns(
         self,
         index_code: str,
@@ -93,7 +91,6 @@ class StockPoolPort(Protocol):
     定义股票池操作的接口。
     """
 
-    @abstractmethod
     def get_current_pool(self) -> list[str]:
         """
         获取当前股票池
@@ -103,12 +100,11 @@ class StockPoolPort(Protocol):
         """
         ...
 
-    @abstractmethod
     def save_pool(
         self,
         stock_codes: list[str],
         regime: str,
-        as_of_date: date
+        as_of_date: date,
     ) -> None:
         """
         保存股票池
@@ -120,8 +116,7 @@ class StockPoolPort(Protocol):
         """
         ...
 
-    @abstractmethod
-    def get_latest_pool_info(self) -> dict | None:
+    def get_latest_pool_info(self) -> dict[str, object] | None:
         """
         获取最新的股票池信息
 
