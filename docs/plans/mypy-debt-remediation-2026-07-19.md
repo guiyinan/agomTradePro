@@ -5756,3 +5756,19 @@
 - Alpha 应用、Alpha 单元与运维 API 扩展回归 `136 passed`，仅保留一条既有 pandas `FutureWarning`；新增运维安全专项 `12 passed`，定点权限/任务登记/刷新组合回归 `27 passed`。
 - `apps/alpha/application/ops_services.py` 增量 mypy 清零并退出债务清单；全仓基线从 `610 errors / 296 files` 收紧为 `606 errors / 295 files`，净减少 `4 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百七十六批
+
+- 按“Qlib 构建命令动态配置直入文件 I/O × 非法窗口触发无界数据读取 × 日期错误裸异常 × 命令入口无类型”收口 Alpha 基础数据管理命令。
+- 新增冻结 `_BuildQlibOptions`，命令先完整校验 provider path、region、target date、freshness window、lookback window、check-only 和 universe 列表，再读取 Tushare 凭据或检查本地 Qlib 数据。
+- provider URI 必须为 1..4096 位、无控制字符的字符串；region 必须为 1..16 位受控 slug。配置中心返回错误类型、空值、换行或超长路径时不再进入目录检查或 builder。
+- `target_date` 非字符串、非法 ISO 日期统一转为可操作的 `CommandError`；`max_staleness_days` 限制为非 bool 整数 `0..365`，`lookback_days` 限制为非 bool 整数 `1..2000`，避免负数、bool 和超大窗口进入行情构建。
+- universe 只接受逗号分隔字符串，每项规范化为最长 64 位 slug，稳定去重并限制最多 32 项；列表/dict、路径片段、空范围和无界范围在 I/O 前失败关闭，不再用 `str(object)` 宽松吞入。
+- Tushare token resolver 只接受 trim 后非空字符串，动态配置返回数字、mapping 或空白时按未配置处理；命令输出继续只显示 configured/missing，不输出凭据。
+- `add_arguments`、`handle` 与辅助函数补齐精确类型，运行时配置保持 `dict[str, object]` 动态边界并在使用前收窄，清除该命令全部类型债务。
+
+## 第三百七十六批验证结果
+
+- Alpha/Qlib 应用、单元、运维 API 与构建命令扩展回归 `160 passed`，仅保留一条既有 pandas `FutureWarning`；新增命令安全专项 `21 passed`，既有命令边界组合 `28 passed`。
+- `apps/alpha/management/commands/build_qlib_data.py` 增量 mypy 清零并退出债务清单；全仓基线从 `606 errors / 295 files` 收紧为 `601 errors / 294 files`，净减少 `5 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

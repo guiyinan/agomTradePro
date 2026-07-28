@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 606,
-    "files_with_errors": 295
+    "errors": 601,
+    "files_with_errors": 294
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -204,11 +204,6 @@
     },
     "apps/alpha/management/commands/bootstrap_alpha_cold_start.py": {
       "no-untyped-def": 2
-    },
-    "apps/alpha/management/commands/build_qlib_data.py": {
-      "arg-type": 2,
-      "no-untyped-def": 2,
-      "union-attr": 1
     },
     "apps/alpha/management/commands/list_models.py": {
       "no-untyped-def": 2
