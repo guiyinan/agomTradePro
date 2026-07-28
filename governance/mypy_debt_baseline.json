@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 507,
-    "files_with_errors": 267
+    "errors": 502,
+    "files_with_errors": 266
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -686,12 +686,6 @@
     },
     "apps/sector/apps.py": {
       "no-untyped-def": 1
-    },
-    "apps/sector/infrastructure/adapters/akshare_sector_adapter.py": {
-      "import-untyped": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 1,
-      "type-arg": 1
     },
     "apps/sector/infrastructure/adapters/tushare_sector_adapter.py": {
       "import-untyped": 1,

@@ -6011,3 +6011,17 @@
 - 共享评估器有限性、对齐、tie rank、分组、窗口、覆盖率和指标不变量专项 `9 passed`；Alpha cache、Qlib artifact/runtime、training 与 monitoring 扩展组合总计 `89 passed, 1 warning`，warning 为既有 pandas groupby axis FutureWarning。
 - `shared/infrastructure/model_evaluation.py` 增量 mypy 清零并退出债务清单；精确类型同时消除 Alpha cache evaluation 的一条无类型调用债务，全仓基线从 `513 errors / 268 files` 收紧为 `507 errors / 267 files`，净减少 `6 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP 或部署实现。
+
+## 第三百九十二批
+
+- 按“Sector 动态 AKShare/pandas 边界无合同 × 损坏行情进入持久化链 × 外部异常正文泄漏”收口申万行业行情适配器。
+- AKShare 与 pandas 动态模块建立最小 Protocol；分类、指数、成分股及批量接口补齐精确容器类型，移除直接无类型 pandas import、无类型方法和裸 `list` 债务。
+- 行业层级、行业代码、日期区间与行业名称在 SDK/ORM I/O 前校验；批量指数抓取隔离单个非法代码，避免一个坏输入中断整批任务。
+- 远端行业分类过滤空值、非法代码和重复代码；指数行情拒绝非有限或非正收盘价，负 OHLC、成交量和成交额降级为空，NaN/Infinity 不再进入标准行情事实。
+- 成分股代码按受控交易所后缀过滤并去重；外部数据源失败日志只记录层级/代码和异常类型，不再输出连接串、凭据或底层异常正文。
+
+## 第三百九十二批验证结果
+
+- AKShare Sector 适配器输入、清洗、批量隔离与异常脱敏专项 `7 passed`；Sector 单元、Domain、跨模块依赖、API 边界与集成扩展组合总计 `85 passed`。
+- `apps/sector/infrastructure/adapters/akshare_sector_adapter.py` 增量 mypy 清零并退出债务清单；全仓基线从 `507 errors / 267 files` 收紧为 `502 errors / 266 files`，净减少 `5 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP、费用执行链或部署实现，手工联网的 capital-market smoke test 未纳入自动回归。
