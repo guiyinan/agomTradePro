@@ -9,6 +9,8 @@ Unit tests for Audit Failure Counter Module
 5. 健康状态判断
 """
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
@@ -16,9 +18,52 @@ import pytest
 from django.db import DatabaseError
 
 from apps.audit.infrastructure.failure_counter import (
+    AuditFailureCounter,
     FailureRecord,
     FailureStats,
 )
+
+
+class _ThreadSafeCache:
+    def __init__(self) -> None:
+        self._values: dict[str, object] = {}
+        self._lock = threading.RLock()
+
+    def get(self, key: str) -> object | None:
+        with self._lock:
+            return self._values.get(key)
+
+    def set(self, key: str, value: object, timeout: int | None = None) -> bool:
+        del timeout
+        with self._lock:
+            self._values[key] = value
+        return True
+
+    def add(self, key: str, value: object, timeout: int | None = None) -> bool:
+        del timeout
+        with self._lock:
+            if key in self._values:
+                return False
+            self._values[key] = value
+            return True
+
+    def incr(self, key: str) -> int:
+        with self._lock:
+            value = self._values.get(key)
+            if not isinstance(value, int):
+                raise ValueError("missing counter")
+            value += 1
+            self._values[key] = value
+            return value
+
+    def delete(self, key: str) -> bool:
+        with self._lock:
+            return self._values.pop(key, None) is not None
+
+    def delete_many(self, keys: list[str]) -> None:
+        with self._lock:
+            for key in keys:
+                self._values.pop(key, None)
 
 
 class TestFailureRecord:
@@ -256,6 +301,98 @@ class TestAuditFailureCounter:
 
         # 验证返回了正确的计数
         assert new_count == 1
+
+    @patch("apps.audit.infrastructure.failure_counter.cache")
+    def test_record_failure_redacts_sensitive_reason_and_traceback(
+        self,
+        mock_cache,
+        caplog,
+    ):
+        mock_cache.get.return_value = None
+        counter = AuditFailureCounter()
+
+        counter.record_failure(
+            "database",
+            "postgresql://admin:raw-secret@example.test/audit",
+            exc_info=True,
+        )
+
+        saved_stats = mock_cache.set.call_args.args[1]
+        assert saved_stats["recent_failures"][0]["reason"] == "database_failure"
+        assert "raw-secret" not in str(saved_stats)
+        assert "raw-secret" not in caplog.text
+        assert "postgresql://" not in caplog.text
+        assert "traceback suppressed" in caplog.text.lower()
+
+    @patch("apps.audit.infrastructure.failure_counter.cache")
+    def test_corrupted_cache_payload_degrades_to_empty_stats(self, mock_cache):
+        mock_cache.get.return_value = {
+            "total_count": "many",
+            "by_component": {"database": "bad", None: 3},
+            "recent_failures": [
+                {"timestamp": "not-a-date", "component": [], "reason": object()},
+                "not-an-object",
+            ],
+        }
+        counter = AuditFailureCounter()
+
+        stats = counter.get_failure_stats()
+
+        assert stats.total_count == 0
+        assert stats.by_component == {}
+        assert stats.recent_failures == []
+
+    @patch("apps.audit.infrastructure.failure_counter.cache")
+    def test_cache_read_failure_logs_only_exception_type(
+        self,
+        mock_cache,
+        caplog,
+    ):
+        mock_cache.get.side_effect = RuntimeError("redis://admin:cache-secret@example.test/0")
+        counter = AuditFailureCounter()
+
+        stats = counter.get_failure_stats()
+
+        assert stats.total_count == 0
+        assert "cache-secret" not in caplog.text
+        assert "redis://" not in caplog.text
+        assert "exception_type=RuntimeError" in caplog.text
+
+    @pytest.mark.parametrize("threshold", [True, 0, -1, 1_000_001])
+    def test_health_status_rejects_invalid_threshold(self, threshold):
+        counter = AuditFailureCounter()
+
+        with pytest.raises(ValueError, match="audit_failure_threshold_invalid"):
+            counter.get_health_status(threshold=threshold)
+
+    @patch("apps.audit.infrastructure.failure_counter.caches")
+    def test_named_cache_backend_is_honored(self, mock_caches):
+        named_cache = Mock()
+        mock_caches.__getitem__.return_value = named_cache
+
+        counter = AuditFailureCounter(cache_backend="audit")
+
+        assert counter._cache is named_cache
+        mock_caches.__getitem__.assert_called_once_with("audit")
+
+    def test_shared_cache_atomic_counts_survive_concurrent_counter_instances(self):
+        shared_cache = _ThreadSafeCache()
+        first = AuditFailureCounter()
+        second = AuditFailureCounter()
+        first._cache = shared_cache
+        second._cache = shared_cache
+
+        def record(index: int) -> None:
+            counter = first if index % 2 == 0 else second
+            counter.record_failure("database", "DatabaseError")
+
+        with ThreadPoolExecutor(max_workers=16) as executor:
+            list(executor.map(record, range(100)))
+
+        stats = first.get_failure_stats()
+        assert stats.total_count == 100
+        assert stats.by_component == {"database": 100}
+        assert len(stats.recent_failures) <= 10
 
 
 class TestGlobalFunctions:

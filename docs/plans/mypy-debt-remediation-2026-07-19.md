@@ -6111,3 +6111,18 @@
 - Events 注册校验、防御副本、重复替换、并发注册与 singleton 专项组合 `28 passed`；Domain event bus、初始化失败关闭、故障注入、决策执行和跨 App subscriber 扩展组合 `73 passed, 4 skipped`。
 - `apps/events/domain/registry.py` 增量 mypy 清零并退出债务清单；全仓基线从 `480 errors / 258 files` 收紧为 `477 errors / 257 files`，净减少 `3 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/SDK/MCP、费用执行链或部署实现。
+
+## 第三百九十九批
+
+- 按“Audit 失败计数跨进程读改写丢计数 × 原始失败原因/traceback 落 cache 和日志 × 损坏 cache 阻断健康检查 × backend 参数失效”收口审计旁路可观测性。
+- 失败总数与 database/validation/repository/timeout/cache/unknown 固定组件计数改用 cache `add/incr` 原子键；两个进程/计数器实例共享 backend 时不再因整份 stats payload 竞争而丢失计数。
+- legacy stats JSON 继续兼容读取；动态 payload 逐项校验非负整数、有限组件集合、aware ISO 时间和最多 10 条记录，错误类型、非法日期、非对象列表和损坏计数安全降级。
+- component 规范为有限类别，reason 只保留 timeout/database/connection/validation/repository/audit-write 稳定原因；PostgreSQL/Redis URL、凭据和底层异常正文不再进入 cache 或日志。
+- `exc_info=True` 不再输出 traceback，只记录已抑制提示；cache get/incr/reset 自身失败仅记录异常类型，计数器故障继续不阻断主业务。
+- named cache alias 现在真实通过 Django `caches` 解析；默认 cache 保持兼容。健康阈值只接受 `1..1000000` 正整数，全局计数器首次构造增加进程内锁。
+
+## 第三百九十九批验证结果
+
+- Audit Counter 原子计数、敏感原因脱敏、损坏 cache、backend、阈值与 cache 故障专项组合 `43 passed`；Audit 健康报告、接口服务、权限、公开 API 和用例扩展组合 `166 passed`。
+- `apps/audit/infrastructure/failure_counter.py` 增量 mypy 清零并退出债务清单；全仓基线从 `477 errors / 257 files` 收紧为 `474 errors / 256 files`，净减少 `3 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/SDK/MCP、费用执行链或部署实现。

@@ -18,15 +18,67 @@ Features:
 """
 
 import logging
+import re
+import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import TypedDict
 
-from django.core.cache import cache
+from django.core.cache import cache, caches
+from django.core.cache.backends.base import BaseCache
 
 logger = logging.getLogger(__name__)
 
+_COMPONENT_PATTERN = re.compile(r"^[a-z][a-z0-9_.-]{0,63}$")
+_KNOWN_COMPONENTS = (
+    "cache",
+    "database",
+    "repository",
+    "timeout",
+    "validation",
+    "unknown",
+)
 
-@dataclass
+
+class FailureRecordPayload(TypedDict):
+    timestamp: str
+    component: str
+    reason: str
+
+
+class FailureStatsPayload(TypedDict):
+    total_count: int
+    by_component: dict[str, int]
+    recent_failures: list[FailureRecordPayload]
+
+
+def _normalize_component(component: object) -> str:
+    if not isinstance(component, str):
+        return "unknown"
+    normalized = component.strip().casefold()
+    if _COMPONENT_PATTERN.fullmatch(normalized) is None:
+        return "unknown"
+    if normalized in _KNOWN_COMPONENTS:
+        return normalized
+    return "unknown"
+
+
+def _normalize_reason(reason: object) -> str:
+    marker = reason.casefold() if isinstance(reason, str) else ""
+    if "timeout" in marker or "timed out" in marker:
+        return "timeout"
+    if "database" in marker or "postgres" in marker or "sql" in marker:
+        return "database_failure"
+    if "connection" in marker:
+        return "connection_failure"
+    if "validation" in marker or "invalid" in marker:
+        return "validation_failure"
+    if "repository" in marker:
+        return "repository_failure"
+    return "audit_write_failure"
+
+
+@dataclass(frozen=True)
 class FailureRecord:
     """
     单次失败记录
@@ -36,11 +88,12 @@ class FailureRecord:
         component: 失败组件 (database, validation, repository)
         reason: 失败原因
     """
+
     timestamp: datetime
     component: str
     reason: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> FailureRecordPayload:
         """转换为字典"""
         return {
             "timestamp": self.timestamp.isoformat(),
@@ -59,11 +112,12 @@ class FailureStats:
         by_component: 按组件分组的失败次数
         recent_failures: 最近的失败记录（最多 10 条）
     """
+
     total_count: int = 0
     by_component: dict[str, int] = field(default_factory=dict)
     recent_failures: list[FailureRecord] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> FailureStatsPayload:
         """转换为字典"""
         return {
             "total_count": self.total_count,
@@ -88,14 +142,19 @@ class AuditFailureCounter:
     # 默认健康检查阈值（超过此数量返回 WARNING）
     DEFAULT_HEALTH_THRESHOLD = 10
 
-    def __init__(self, cache_backend: str | None = None):
+    def __init__(self, cache_backend: str | None = None) -> None:
         """
         初始化计数器
 
         Args:
             cache_backend: 使用的 cache 后端名称，None 表示使用默认
         """
-        self._cache = cache if cache_backend is None else cache
+        if cache_backend is not None and (
+            not isinstance(cache_backend, str) or not cache_backend.strip()
+        ):
+            raise ValueError("audit_failure_cache_backend_invalid")
+        self._cache: BaseCache = cache if cache_backend is None else caches[cache_backend.strip()]
+        self._lock = threading.RLock()
 
     def _get_cache_key(self, suffix: str = "") -> str:
         """获取 cache key"""
@@ -106,22 +165,35 @@ class AuditFailureCounter:
 
     def _get_stats(self) -> FailureStats:
         """从 cache 获取统计信息"""
-        stats_json = self._cache.get(self._get_cache_key("stats"))
-        if stats_json is None:
+        try:
+            raw_stats = self._cache.get(self._get_cache_key("stats"))
+        except Exception as exc:
+            logger.warning(
+                "Audit failure counter cache read failed; exception_type=%s",
+                type(exc).__name__,
+            )
             return FailureStats()
 
-        # 恢复 FailureStats 对象
-        return FailureStats(
-            total_count=stats_json.get("total_count", 0),
-            by_component=stats_json.get("by_component", {}),
-            recent_failures=[
-                FailureRecord(
-                    timestamp=datetime.fromisoformat(f["timestamp"]),
-                    component=f["component"],
-                    reason=f["reason"],
+        legacy = self._parse_stats_payload(raw_stats)
+        total_count = self._read_atomic_count(
+            self._get_cache_key("total"),
+            fallback=legacy.total_count,
+        )
+        by_component = {
+            component: count
+            for component in _KNOWN_COMPONENTS
+            if (
+                count := self._read_atomic_count(
+                    self._get_cache_key(f"component:{component}"),
+                    fallback=legacy.by_component.get(component, 0),
                 )
-                for f in stats_json.get("recent_failures", [])
-            ],
+            )
+            > 0
+        }
+        return FailureStats(
+            total_count=total_count,
+            by_component=by_component,
+            recent_failures=list(legacy.recent_failures),
         )
 
     def _save_stats(self, stats: FailureStats) -> None:
@@ -129,6 +201,79 @@ class AuditFailureCounter:
         stats_json = stats.to_dict()
         # 设置 1 小时过期时间，避免永久占用
         self._cache.set(self._get_cache_key("stats"), stats_json, timeout=3600)
+
+    def _parse_stats_payload(self, payload: object) -> FailureStats:
+        if not isinstance(payload, dict):
+            return FailureStats()
+        raw_total = payload.get("total_count", 0)
+        total_count = (
+            raw_total
+            if isinstance(raw_total, int) and not isinstance(raw_total, bool) and raw_total >= 0
+            else 0
+        )
+        by_component: dict[str, int] = {}
+        raw_components = payload.get("by_component", {})
+        if isinstance(raw_components, dict):
+            for raw_component, raw_count in list(raw_components.items())[:100]:
+                component = _normalize_component(raw_component)
+                if (
+                    (component != "unknown" or raw_component == "unknown")
+                    and isinstance(raw_count, int)
+                    and not isinstance(raw_count, bool)
+                    and raw_count > 0
+                ):
+                    by_component[component] = raw_count
+
+        recent_failures: list[FailureRecord] = []
+        raw_failures = payload.get("recent_failures", [])
+        if isinstance(raw_failures, list):
+            for raw_failure in raw_failures[: self.MAX_RECENT_FAILURES]:
+                if not isinstance(raw_failure, dict):
+                    continue
+                raw_timestamp = raw_failure.get("timestamp")
+                if not isinstance(raw_timestamp, str) or len(raw_timestamp) > 64:
+                    continue
+                try:
+                    timestamp = datetime.fromisoformat(raw_timestamp)
+                except ValueError:
+                    continue
+                if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+                    continue
+                recent_failures.append(
+                    FailureRecord(
+                        timestamp=timestamp,
+                        component=_normalize_component(raw_failure.get("component")),
+                        reason=_normalize_reason(raw_failure.get("reason")),
+                    )
+                )
+        return FailureStats(
+            total_count=total_count,
+            by_component=by_component,
+            recent_failures=recent_failures,
+        )
+
+    def _read_atomic_count(self, key: str, *, fallback: int) -> int:
+        try:
+            value = self._cache.get(key)
+        except Exception:
+            return fallback
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            return value
+        return fallback
+
+    def _increment_atomic_count(self, key: str, *, fallback: int) -> int:
+        try:
+            if self._cache.add(key, 1, timeout=3600) is True:
+                return 1
+            value = self._cache.incr(key)
+            if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+                return value
+        except Exception as exc:
+            logger.warning(
+                "Audit failure counter atomic increment failed; exception_type=%s",
+                type(exc).__name__,
+            )
+        return fallback + 1
 
     def record_failure(
         self,
@@ -145,44 +290,49 @@ class AuditFailureCounter:
             exc_info: 是否记录完整的异常堆栈信息
         """
         try:
-            stats = self._get_stats()
-
-            # 增加总计数
-            stats.total_count += 1
-
-            # 按组件分组计数
-            stats.by_component[component] = stats.by_component.get(component, 0) + 1
-
-            # 添加到最近失败记录
-            record = FailureRecord(
-                timestamp=datetime.now(UTC),
-                component=component,
-                reason=reason,
-            )
-            stats.recent_failures.insert(0, record)
-
-            # 限制最近失败记录数量
-            if len(stats.recent_failures) > self.MAX_RECENT_FAILURES:
+            normalized_component = _normalize_component(component)
+            normalized_reason = _normalize_reason(reason)
+            with self._lock:
+                stats = self._get_stats()
+                stats.total_count = self._increment_atomic_count(
+                    self._get_cache_key("total"),
+                    fallback=stats.total_count,
+                )
+                stats.by_component[normalized_component] = self._increment_atomic_count(
+                    self._get_cache_key(f"component:{normalized_component}"),
+                    fallback=stats.by_component.get(normalized_component, 0),
+                )
+                stats.recent_failures.insert(
+                    0,
+                    FailureRecord(
+                        timestamp=datetime.now(UTC),
+                        component=normalized_component,
+                        reason=normalized_reason,
+                    ),
+                )
                 stats.recent_failures = stats.recent_failures[: self.MAX_RECENT_FAILURES]
-
-            # 保存到 cache
-            self._save_stats(stats)
+                self._save_stats(stats)
 
             # 记录日志
             logger.warning(
-                f"Audit failure recorded: component={component}, reason={reason}, "
-                f"total_count={stats.total_count}"
+                "Audit failure recorded: component=%s, reason=%s, total_count=%s",
+                normalized_component,
+                normalized_reason,
+                stats.total_count,
             )
 
             if exc_info:
-                logger.error(
-                    f"Audit failure exception details: component={component}",
-                    exc_info=True,
+                logger.warning(
+                    "Audit failure traceback suppressed: component=%s",
+                    normalized_component,
                 )
 
-        except Exception as e:
+        except Exception as exc:
             # 计数器本身失败不应影响业务流程
-            logger.error(f"Failed to record audit failure: {e}", exc_info=True)
+            logger.warning(
+                "Failed to record audit failure; exception_type=%s",
+                type(exc).__name__,
+            )
 
     def get_failure_count(self) -> int:
         """
@@ -206,14 +356,25 @@ class AuditFailureCounter:
     def reset(self) -> None:
         """重置计数器"""
         try:
-            self._cache.delete(self._get_cache_key("stats"))
+            with self._lock:
+                self._cache.delete(self._get_cache_key("stats"))
+                self._cache.delete_many(
+                    [
+                        self._get_cache_key("total"),
+                        *[
+                            self._get_cache_key(f"component:{component}")
+                            for component in _KNOWN_COMPONENTS
+                        ],
+                    ]
+                )
             logger.info("Audit failure counter reset")
-        except Exception as e:
-            logger.error(f"Failed to reset audit failure counter: {e}", exc_info=True)
+        except Exception as exc:
+            logger.warning(
+                "Failed to reset audit failure counter; exception_type=%s",
+                type(exc).__name__,
+            )
 
-    def get_health_status(
-        self, threshold: int | None = None
-    ) -> dict[str, any]:
+    def get_health_status(self, threshold: int | None = None) -> dict[str, object]:
         """
         获取健康状态
 
@@ -232,6 +393,12 @@ class AuditFailureCounter:
         """
         if threshold is None:
             threshold = self.DEFAULT_HEALTH_THRESHOLD
+        if (
+            isinstance(threshold, bool)
+            or not isinstance(threshold, int)
+            or not 1 <= threshold <= 1_000_000
+        ):
+            raise ValueError("audit_failure_threshold_invalid")
 
         stats = self._get_stats()
 
@@ -263,15 +430,25 @@ class AuditFailureCounter:
         Returns:
             int: 更新后的该组件失败次数
         """
-        stats = self._get_stats()
-        stats.total_count += 1
-        stats.by_component[component] = stats.by_component.get(component, 0) + 1
-        self._save_stats(stats)
-        return stats.by_component[component]
+        normalized_component = _normalize_component(component)
+        with self._lock:
+            stats = self._get_stats()
+            stats.total_count = self._increment_atomic_count(
+                self._get_cache_key("total"),
+                fallback=stats.total_count,
+            )
+            component_count = self._increment_atomic_count(
+                self._get_cache_key(f"component:{normalized_component}"),
+                fallback=stats.by_component.get(normalized_component, 0),
+            )
+            stats.by_component[normalized_component] = component_count
+            self._save_stats(stats)
+            return component_count
 
 
 # 全局单例
 _failure_counter: AuditFailureCounter | None = None
+_failure_counter_lock = threading.RLock()
 
 
 def get_audit_failure_counter() -> AuditFailureCounter:
@@ -283,10 +460,10 @@ def get_audit_failure_counter() -> AuditFailureCounter:
     """
     global _failure_counter
 
-    if _failure_counter is None:
-        _failure_counter = AuditFailureCounter()
-
-    return _failure_counter
+    with _failure_counter_lock:
+        if _failure_counter is None:
+            _failure_counter = AuditFailureCounter()
+        return _failure_counter
 
 
 def record_audit_failure(
