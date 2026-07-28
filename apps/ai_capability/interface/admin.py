@@ -2,9 +2,15 @@
 AI Capability Catalog Admin Configuration.
 """
 
+from __future__ import annotations
+
+from typing import Generic, TypeVar
+
 from django.contrib import admin
+from django.db.models import Model
 from django.http import HttpRequest
 from django.utils.html import format_html
+from django.utils.safestring import SafeString
 
 from apps.ai_capability.models import (
     CapabilityCatalogModel,
@@ -13,10 +19,46 @@ from apps.ai_capability.models import (
     CapabilitySemanticOverrideModel,
     CapabilitySyncLogModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
+
+CapabilityEvidenceModelT = TypeVar("CapabilityEvidenceModelT", bound=Model)
+
+
+class ImmutableCapabilityEvidenceAdmin(
+    TypedModelAdmin[CapabilityEvidenceModelT],
+    Generic[CapabilityEvidenceModelT],
+):
+    """Expose generated capability evidence without mutation controls."""
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Prevent operators from fabricating capability evidence."""
+
+        del request
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: CapabilityEvidenceModelT | None = None,
+    ) -> bool:
+        """Keep generated capability evidence immutable."""
+
+        del request, obj
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: CapabilityEvidenceModelT | None = None,
+    ) -> bool:
+        """Require governed retention instead of ad-hoc Admin deletion."""
+
+        del request, obj
+        return False
 
 
 @admin.register(CapabilityCatalogModel)
-class CapabilityCatalogAdmin(admin.ModelAdmin):
+class CapabilityCatalogAdmin(TypedModelAdmin[CapabilityCatalogModel]):
     """Admin for capability catalog."""
 
     list_display = [
@@ -25,7 +67,7 @@ class CapabilityCatalogAdmin(admin.ModelAdmin):
         "source_type",
         "route_group",
         "semantic_key",
-        "risk_level",
+        "colored_risk_level",
         "enabled_for_routing",
         "review_status",
         "priority_weight",
@@ -49,6 +91,7 @@ class CapabilityCatalogAdmin(admin.ModelAdmin):
     ]
     readonly_fields = [
         "collected_semantic_key",
+        "semantic_key",
         "created_at",
         "updated_at",
         "last_synced_at",
@@ -145,7 +188,8 @@ class CapabilityCatalogAdmin(admin.ModelAdmin):
         ),
     )
 
-    def colored_risk_level(self, obj: CapabilityCatalogModel) -> str:
+    @admin.display(description="Risk Level", ordering="risk_level")
+    def colored_risk_level(self, obj: CapabilityCatalogModel) -> SafeString:
         """Render the risk level with a compact severity color."""
 
         colors = {
@@ -162,11 +206,19 @@ class CapabilityCatalogAdmin(admin.ModelAdmin):
             obj.get_risk_level_display(),
         )
 
-    colored_risk_level.short_description = "Risk Level"
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: CapabilityCatalogModel | None = None,
+    ) -> bool:
+        """Route catalog retirement through synchronization and governance."""
+
+        del request, obj
+        return False
 
 
 @admin.register(CapabilityRoutingLogModel)
-class CapabilityRoutingLogAdmin(admin.ModelAdmin):
+class CapabilityRoutingLogAdmin(ImmutableCapabilityEvidenceAdmin[CapabilityRoutingLogModel]):
     """Admin for routing logs."""
 
     list_display = [
@@ -179,37 +231,11 @@ class CapabilityRoutingLogAdmin(admin.ModelAdmin):
     ]
     list_filter = ["entrypoint", "decision", "created_at"]
     search_fields = ["raw_message", "session_id", "selected_capability_key"]
-    readonly_fields = [
-        "entrypoint",
-        "user",
-        "session_id",
-        "raw_message",
-        "retrieved_candidates",
-        "selected_capability_key",
-        "confidence",
-        "decision",
-        "fallback_reason",
-        "execution_result",
-        "created_at",
-    ]
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        """Keep routing logs append-only from the admin interface."""
-
-        return False
-
-    def has_change_permission(
-        self,
-        request: HttpRequest,
-        obj: CapabilityRoutingLogModel | None = None,
-    ) -> bool:
-        """Keep routing logs immutable from the admin interface."""
-
-        return False
+    readonly_fields = [field.name for field in CapabilityRoutingLogModel._meta.fields]
 
 
 @admin.register(CapabilitySyncLogModel)
-class CapabilitySyncLogAdmin(admin.ModelAdmin):
+class CapabilitySyncLogAdmin(ImmutableCapabilityEvidenceAdmin[CapabilitySyncLogModel]):
     """Admin for sync logs."""
 
     list_display = [
@@ -222,35 +248,13 @@ class CapabilitySyncLogAdmin(admin.ModelAdmin):
         "error_count",
     ]
     list_filter = ["sync_type", "started_at"]
-    readonly_fields = [
-        "sync_type",
-        "started_at",
-        "finished_at",
-        "total_discovered",
-        "created_count",
-        "updated_count",
-        "disabled_count",
-        "error_count",
-        "summary_payload",
-    ]
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        """Keep sync logs append-only from the admin interface."""
-
-        return False
-
-    def has_change_permission(
-        self,
-        request: HttpRequest,
-        obj: CapabilitySyncLogModel | None = None,
-    ) -> bool:
-        """Keep sync logs immutable from the admin interface."""
-
-        return False
+    readonly_fields = [field.name for field in CapabilitySyncLogModel._meta.fields]
 
 
 @admin.register(CapabilitySemanticOverrideModel)
-class CapabilitySemanticOverrideAdmin(admin.ModelAdmin):
+class CapabilitySemanticOverrideAdmin(
+    ImmutableCapabilityEvidenceAdmin[CapabilitySemanticOverrideModel]
+):
     """Read-only current semantic override projection."""
 
     list_display = [
@@ -262,42 +266,11 @@ class CapabilitySemanticOverrideAdmin(admin.ModelAdmin):
     ]
     list_filter = ["is_active", "updated_at"]
     search_fields = ["capability_key", "semantic_key", "reason"]
-    readonly_fields = [
-        "capability_key",
-        "semantic_key",
-        "reason",
-        "is_active",
-        "updated_by",
-        "created_at",
-        "updated_at",
-    ]
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        """Require the audited operator workflow for creation."""
-
-        return False
-
-    def has_change_permission(
-        self,
-        request: HttpRequest,
-        obj: CapabilitySemanticOverrideModel | None = None,
-    ) -> bool:
-        """Require the audited operator workflow for changes."""
-
-        return False
-
-    def has_delete_permission(
-        self,
-        request: HttpRequest,
-        obj: CapabilitySemanticOverrideModel | None = None,
-    ) -> bool:
-        """Preserve current-decision history for audited removal."""
-
-        return False
+    readonly_fields = [field.name for field in CapabilitySemanticOverrideModel._meta.fields]
 
 
 @admin.register(CapabilitySemanticAuditModel)
-class CapabilitySemanticAuditAdmin(admin.ModelAdmin):
+class CapabilitySemanticAuditAdmin(ImmutableCapabilityEvidenceAdmin[CapabilitySemanticAuditModel]):
     """Immutable semantic governance audit history."""
 
     list_display = [
@@ -317,39 +290,4 @@ class CapabilitySemanticAuditAdmin(admin.ModelAdmin):
         "reason",
         "request_fingerprint",
     ]
-    readonly_fields = [
-        "batch_id",
-        "idempotency_key",
-        "capability_key",
-        "action",
-        "old_collected_value",
-        "old_effective_value",
-        "new_effective_value",
-        "reason",
-        "operator",
-        "request_fingerprint",
-        "created_at",
-    ]
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        """Audit evidence can only be created transactionally."""
-
-        return False
-
-    def has_change_permission(
-        self,
-        request: HttpRequest,
-        obj: CapabilitySemanticAuditModel | None = None,
-    ) -> bool:
-        """Audit evidence is append-only."""
-
-        return False
-
-    def has_delete_permission(
-        self,
-        request: HttpRequest,
-        obj: CapabilitySemanticAuditModel | None = None,
-    ) -> bool:
-        """Audit evidence is immutable."""
-
-        return False
+    readonly_fields = [field.name for field in CapabilitySemanticAuditModel._meta.fields]

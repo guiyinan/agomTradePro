@@ -6155,3 +6155,17 @@
 - Audit Admin 专项 `3 passed`；Audit Domain/Application、仓储完整性、接口、归因/验证集成和现有审计控制台扩展组合 `168 passed`。
 - `apps/audit/interface/admin.py` 增量 mypy 清零并退出债务清单；全仓基线从 `468 errors / 254 files` 收紧为 `461 errors / 253 files`，净减少 `7 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 Audit 生成/读取 API、TUI/Terminal/SDK/MCP 或部署实现。
+
+## 第四百零二批
+
+- 按“Capability 路由/同步日志可由 Admin 删除 × semantic_key 可绕过幂等审计流程直改 × Catalog 可被后台临时删除 × 风险展示元数据动态挂载”收口 AI Capability Admin 治理入口。
+- Routing Log、Sync Log、Semantic Override 与 Semantic Audit 统一为完全不可变证据 Admin；全部字段只读，新增、修改和删除均失败关闭，现有 override 移除继续走正式语义治理事务与追加审计。
+- Catalog 的 `semantic_key` 与 `collected_semantic_key` 固定只读，语义修正必须经过已有 preview/apply、幂等键、fingerprint 和 audit 流程；风险等级、确认要求、路由开关与 review status 仍保留人工治理能力。
+- Catalog 禁止后台直接删除，退役继续由同步器和治理服务负责；风险等级展示改用 `@admin.display`，动态标签由 `format_html` 转义并保留排序合同。
+- 5 个 Admin 全部迁移到统一 `TypedModelAdmin` 合同；新增注册唯一性、证据不可变、Catalog 字段边界与风险标签转义测试。
+
+## 第四百零二批验证结果
+
+- AI Capability Admin/语义治理专项 `7 passed`；完整单元、组件、Catalog/MCP 投影、路由、同步与语义治理 API 扩展组合 `704 passed`。
+- `apps/ai_capability/interface/admin.py` 增量 mypy 清零并退出债务清单；全仓基线从 `461 errors / 253 files` 收紧为 `455 errors / 252 files`，净减少 `6 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 Catalog 同步/路由/语义治理 API、TUI/Terminal/SDK/MCP 成功响应或部署实现。
