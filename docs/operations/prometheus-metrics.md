@@ -1,7 +1,7 @@
 # Prometheus 指标体系
 
-> 版本: 1.0
-> 更新时间: 2026-03-04
+> 版本: 1.1
+> 更新时间: 2026-07-27
 
 ## 概述
 
@@ -10,6 +10,7 @@ AgomTradePro 通过 `prometheus-client` 和 `django-prometheus` 实现了完整�
 - **API 请求指标**：请求量、延迟、错误率
 - **Celery 任务指标**：任务执行、重试、队列堆积
 - **审计日志指标**：写入成功/失败计数
+- **Web → TUI 迁移指标**：按受审任务对照 Classic/TUI 入口占比和真实执行错误率
 - **Django 基础指标**：数据库连接、缓存等（由 django-prometheus 自动收集）
 
 ## 快速开始
@@ -67,6 +68,7 @@ scrape_configs:
 | `api_request_total` | Counter | method, endpoint, status_code, view_name | API 请求总数 |
 | `api_request_latency_seconds` | Histogram | method, endpoint, view_name | API 请求延迟（秒） |
 | `api_error_total` | Counter | method, endpoint, error_class, status_code | API 错误请求总数（4xx/5xx） |
+| `web_to_tui_migration_events_total` | Counter | surface, event_type, task_key, outcome | 兼容期入口、执行、缺参和确认事件 |
 
 **标签说明**：
 - `method`: HTTP 方法（GET/POST/PUT/DELETE）
@@ -74,6 +76,33 @@ scrape_configs:
 - `status_code`: HTTP 状态码（200/400/500 等）
 - `view_name`: DRF 视图类名
 - `error_class`: 异常类名（仅错误时）
+
+### Web → TUI 兼容期指标
+
+`task_key` 只来自
+`config/tui/migration/web_to_tui_telemetry.v1.json`，该文件由受审迁移矩阵确定性
+生成，CI 会执行：
+
+```bash
+python scripts/build_web_to_tui_telemetry_catalog.py --check
+```
+
+标签说明：
+
+- `surface`：`classic` 或 `tui`
+- `event_type`：`entry`、`execution`、`form` 或 `confirmation`
+- `task_key`：目标 action key；仅 screen 级任务使用 `screen:<screen_key>`
+- `outcome`：`success`、`client_error`、`server_error`、`input_required` 或
+  `confirmation_required`
+
+TUI action 外层 HTTP 200 不作为成功依据；中间件读取 action response 内层真实状态。
+缺少必填参数和写操作待确认属于正常交互，分别记录为 `form/input_required` 和
+`confirmation/confirmation_required`，不进入执行错误率。目录外的 URL/action 不
+记录，避免用户输入产生 Prometheus 高基数标签。Classic 页面发起的同源 `/api/`
+请求通过受审页面 Referer 归入该页面的固定 task key；跨源或目录外 Referer 不记录。
+迁移样本只记录已认证用户。匿名 Classic 登录跳转、匿名 TUI shell 请求和伪造 Referer 的
+公共 API 请求均不进入 14 日 entry/request/error 分母，避免认证流量或扫描流量稀释真实任务
+错误率；认证与对象授权仍由各 owner view/API 执行，遥测过滤不替代权限检查。
 
 ### Celery 任务指标
 
@@ -214,6 +243,80 @@ sum(rate(celery_task_total{status="success"}[5m])) / sum(rate(celery_task_total[
 ```promql
 sum(rate(audit_write_total{status="failure"}[5m])) / sum(rate(audit_write_total[5m])) * 100
 ```
+
+#### M5：14 日 Classic 入口占比
+
+```promql
+web_to_tui:legacy_entry_ratio_14d
+```
+
+只有 `web_to_tui:entry_samples_14d >= 20` 的任务可直接套用 5% 门槛；低于 20 次
+必须走计划规定的低频 owner/reviewer 双签例外。
+
+#### M5：14 日 TUI 与 Classic 任务请求错误率差
+
+```promql
+web_to_tui:task_request_error_ratio_14d{surface="tui"}
+- on (task_key)
+web_to_tui:task_request_error_ratio_14d{surface="classic"}
+```
+
+Classic 侧统计页面 entry 及其同源 API execution；TUI 侧统计真实 action execution，
+不把 shell 打开或缺参/确认握手冒充任务结果。两侧各至少 20 个可比较 task request
+样本时才触发自动回退告警；样本不足必须进入低频双签或继续观察，不能按 0 错误率
+通过。结果不得高于 `0.005`。`monitoring/alerts.yml` 已提供对应 14 日 recording rules 和
+`WebToTuiLegacyEntryRatioHigh`、`WebToTuiErrorRateRegression` 告警。
+
+#### M5：生产遥测快照入证
+
+观察窗口结束后，生产 Prometheus 查询结果必须先保存为仓库内、无凭证的
+`web-to-tui-production-telemetry-snapshot.v1` JSON，再由生成器写入 cutover evidence：
+
+```bash
+python scripts/build_web_to_tui_production_telemetry.py \
+  --snapshot <repo-relative-production-snapshot.json>
+python scripts/build_web_to_tui_production_telemetry.py \
+  --snapshot <repo-relative-production-snapshot.json> --write-evidence
+```
+
+快照必须包含 `candidate_version`、`candidate_commit`、`source_sha256`、`environment`、
+`window_start`、`window_end`、`collected_at`、`collection` 和 `tasks`。`collection` 只能登记
+不含用户名、密码、query 或 fragment 的 HTTPS Prometheus origin，并逐项保存生成器内置的
+六条批准 PromQL；`tasks` 必须精确覆盖 catalog 的 101 个 task key，并提供 Classic/TUI
+entry、task request 和 error 六类非负整数计数。工具会校验完整候选绑定、快照 SHA、低频
+双签、5% Classic 占比、两侧最小请求样本和错误率回退门槛，任一不满足都不会写 evidence。
+
+#### M5：机器化 cutover 判定
+
+生产窗口证据统一写入
+`config/tui/migration/web_to_tui_cutover_evidence.v1.json`。该文件必须与迁移矩阵
+SHA 一致，并覆盖机器推导出的全部 migrated A/B route page 和全部 comparable task。
+检查命令：
+
+```bash
+python scripts/check_web_to_tui_cutover_readiness.py
+```
+
+普通检查即使判定为 `DENY` 也以成功状态退出，便于兼容期持续验证证据结构；实际执行
+Classic 清理、production registry 切换或计划归档前必须使用硬门：
+
+```bash
+python scripts/check_web_to_tui_cutover_readiness.py --require-allow
+```
+
+硬门同时校验：稳定版本不少于 14 天、逐 route task UAT、完整窗口 P0/P1 为 0、逐任务
+旧入口比例、两侧 task request 错误率、低频 owner/reviewer 双签、回滚演练、生产
+registry 备份和独立 cutover 审批。缺少样本使用 `null`/空列表表达，不得填 0 冒充已观测。
+
+阻断缺陷门禁不再只检查观察结束时的 open 数。受审 issue-tracker 快照须通过：
+
+```bash
+python scripts/build_web_to_tui_defect_evidence.py \
+  --snapshot <repo-relative-defect-snapshot.json> --require-clear
+```
+
+生成器分别登记窗口内新增和窗口内曾未关闭的 P0/P1；四项均为 0 才能通过，候选、commit、
+矩阵 SHA、查询范围或快照摘要不匹配时 fail closed。
 
 ## 架构说明
 

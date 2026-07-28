@@ -218,6 +218,12 @@ agomtradepro\Scripts\python.exe -m pytest tests/unit/test_tui_workbench.py tests
 agomtradepro\Scripts\python.exe manage.py check
 ```
 
+`smoke_tui_actions.py --fail-on-error` is an execution check, not a schema-only check. Run it against
+a fully migrated disposable database with a persisted staff user and a same-database localhost
+service for MCP actions. A fresh installation without Regime, Pulse, or AI Provider data must return
+an explicit empty/setup state. Do not use a stale development database and do not broadly allow
+4xx/5xx responses to make the smoke pass.
+
 Publish to the local DB registry only after review:
 
 ```powershell
@@ -235,6 +241,44 @@ agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\publish_tui_metada
 ```
 
 The command canonicalizes the reviewed file through the same validation, IA normalization, runtime injection, and compacting path used by publishing. It exits with code `1` when the active database row is missing or its source hash differs.
+
+### Verified registry backup and restore
+
+Before M5-B cleanup, export the active production registry to a protected path outside the Git
+worktree. The command refuses repository-local output and refuses to overwrite an existing artifact.
+It writes an atomic JSON bundle plus a `.sha256` sidecar containing the registry generation, graph
+hash, schema version, backend version, reviewed payload, runtime build ID, rollback ancestry and
+approval metadata.
+
+```powershell
+$backupPath = 'E:\agom-backups\tui-registry-pre-cutover.json'
+agomtradepro\Scripts\python.exe manage.py backup_tui_registry --registry-key default --output $backupPath
+```
+
+Verify recoverability without changing the registry:
+
+```powershell
+agomtradepro\Scripts\python.exe manage.py restore_tui_registry_backup --input $backupPath
+```
+
+The dry-run verifies the bundle sidecar, registry-record hash, payload hash, runtime build ID and
+the same metadata validator used by publishing. Record the external artifact location, generation,
+graph/schema/runtime identifiers, bundle SHA-256, retention period and verifier in the M5 evidence;
+do not commit the bundle or sidecar.
+
+An actual restore requires explicit approval and the source hash observed immediately before the
+operation. This prevents overwriting an unexpected newer generation:
+
+```powershell
+$activeHash = '<verified-active-source-hash>'
+agomtradepro\Scripts\python.exe manage.py restore_tui_registry_backup --input $backupPath --expected-active-source-hash $activeHash --approve
+```
+
+The approved restore republishes the validated backup payload through
+`PublishedTuiMetadataRepository`, archives the current generation and records it as `rollback_of`.
+Run the read-only active-registry check again after restore. Production backup evidence remains
+incomplete until these commands have been executed and independently verified in the production
+environment.
 
 ### VPS release synchronization
 

@@ -40,7 +40,7 @@ New user-facing semantics:
 
 The versioned registry `config/tui/ia/tui_information_architecture.v1.json` is the only source of truth for TUI groups, modules, canonical screens, legacy aliases, the daily workflow, audiences, panels, and action-density budgets. Compiler promotion, database normalization, runtime injection, and deep-link resolution must load this registry; they must not maintain parallel screen-routing dictionaries.
 
-The current contract has three groups (`daily`, `research`, `system`), 12 published screens, four retained runtime screens, and an eight-step daily workflow. The registry separates `sources` (published inputs) from `runtime_sources` (runtime inputs) so both inventories are mechanically testable. Adding, merging, or retiring a screen starts with this registry and its contract tests.
+The current contract has three groups (`daily`, `research`, `system`), 12 published screens, 11 runtime screens, and an eight-step daily workflow. The registry separates published inputs from runtime inputs so both inventories are mechanically testable. Adding, merging, or retiring a screen starts with this registry and its contract tests.
 
 The navigation renderer must collapse a redundant module heading when a group contains exactly one module with the same user-facing label. Multi-module groups retain both levels so their hierarchy remains explicit.
 
@@ -66,6 +66,26 @@ Hard rules:
 - Runtime-owned journey screens/actions replace stale database-published entries by key. Deployment must not leave an obsolete self-service contract active merely because it was published earlier.
 - Legacy screen keys resolve only through the registry alias map. Unknown keys retain the normal bounded 404 behavior.
 - `action_density.primary_operation_limit` and `task_group_limit` control the visible action budget. The renderer may collapse overflow, but it must not hardcode per-screen business keys or limits.
+
+## Task Deep-Link Rules
+
+Classic compatibility pages and cross-screen task links use
+`/tui/?screen=<screen-key>&action=<action-key>`. Additional query parameters
+may prefill fields declared by that action.
+
+- `screen` and `action` are reserved routing parameters and must never be sent
+  to the owner API as business fields.
+- A permitted safe read runs automatically only when all required fields are
+  present. A write, admin, AI, confirmation-bound, or incomplete read is
+  revealed and focused but never auto-submitted.
+- `password` and `file` fields must never be prefilled from the URL.
+- The action must pass the same audience filtering as the screen. A hidden or
+  forbidden action produces a bounded unavailable status and must not fall
+  through to a similarly named task.
+- Normal in-app navigation removes a stale `action` parameter. Browser
+  back/forward restores both the screen and task intent.
+- Action overflow and support/advanced groups are expanded as needed so the
+  requested permitted task is visible.
 
 ## Panel Rules
 
@@ -173,6 +193,57 @@ Hard rules:
 - Mutation actions should declare both `result_panel_key` and `refresh_panel_key`; the receipt remains visible while only the affected data panel refreshes.
 - Tool governance tables with several action controls use a full-width panel at desktop size; do not compress the actionable table beside a summary panel.
 - The operation column stays visible while a wide table scrolls horizontally.
+
+## Portable Chart Pattern
+
+Published chart actions use schema-owned projections rather than action-name checks in the
+runtime. The production convention is:
+
+```json
+{
+  "view_model": {
+    "kind": "chart",
+    "rows_path": "data",
+    "columns": [
+      {"key": "observed_at", "label": "日期"},
+      {"key": "composite_score", "label": "综合脉搏"},
+      {"key": "growth_score", "label": "增长"}
+    ]
+  }
+}
+```
+
+The first column is the x-axis. Every remaining column is one numeric series, in published
+legend order. The host projection produces `series[].points[]` with `{label, value}` pairs;
+the common runtime renders those pairs without knowing screen keys, action keys, or business
+field names.
+
+Hard rules:
+
+- Time axes use ISO 8601 values. Use timezone-aware datetimes when time-of-day matters;
+  date-only business observations may use `YYYY-MM-DD`.
+- Labels include the unit when it is not already unambiguous. Renderers do not infer scaling
+  or convert percent/fraction semantics.
+- Non-numeric and non-finite values are omitted from the affected series, not coerced to zero.
+- The generic host projection caps a chart at 240 source rows by deterministic even sampling,
+  preserves the first and last observations, and publishes `source_row_count` plus `sampled`.
+- Line charts may contain multiple series. Portable bar and pie charts use one series until a
+  grouped/stacked contract is separately approved.
+- Every chart exposes a visible textual series summary and legend. SVG geometry is decorative
+  and must not be the only source of meaning.
+- Empty and failed responses keep the chart panel bounded and show user-facing
+  `empty_message`/error recovery text; raw exceptions stay in diagnostics.
+- A production chart panel declares `empty_message`, `error_message`, and `stale_message`.
+  Dashboard siblings remain visible if that panel fails.
+
+`kpi_trend` result models use `label`, `value`, and `trend[]` points in the same
+`{label, value}` shape. `table_chart` result models contain a `chart` object following the
+chart result contract and a `table` object following the datagrid contract. These two kinds
+currently require an explicit server/host projection; publishing only `rows_path` and
+`columns` does not synthesize them.
+
+The canonical production sample is the `pulse.history` action on
+`macro-regime.overview`. It is the compatibility gate for later B-class chart migrations.
 
 ## Error And Recovery Contract
 
