@@ -14,7 +14,7 @@ class AssetAnalysisConfig(AppConfig):
     name = "apps.asset_analysis"
     verbose_name = "通用资产分析"
 
-    def ready(self):
+    def ready(self) -> None:
         """Register asset-analysis-owned integration providers."""
         logger = logging.getLogger(__name__)
         try:
@@ -28,4 +28,7 @@ class AssetAnalysisConfig(AppConfig):
             registry = get_asset_analysis_market_registry()
             registry.register_name_resolver("index", resolve_index_asset_names)
         except Exception as exc:
-            logger.error("Failed to register asset_analysis market providers: %s", exc)
+            logger.error(
+                "Failed to register asset_analysis market providers: %s",
+                type(exc).__name__,
+            )

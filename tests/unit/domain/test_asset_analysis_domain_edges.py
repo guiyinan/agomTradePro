@@ -61,6 +61,35 @@ def test_asset_score_rejects_invalid_allocation_and_serializes_style() -> None:
     assert payload["sector"] == "科技"
 
 
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        ({"asset_code": "  "}, "asset_code"),
+        ({"asset_name": ""}, "asset_name"),
+        ({"regime_score": True}, "regime_score"),
+        ({"custom_scores": {"quality": float("nan")}}, "custom_scores.quality"),
+        ({"total_score": float("inf")}, "total_score"),
+        ({"rank": -1}, "rank"),
+        ({"allocation_percent": False}, "allocation_percent"),
+    ],
+)
+def test_asset_score_rejects_invalid_identity_and_numeric_boundaries(
+    change: dict[str, object],
+    message: str,
+) -> None:
+    """Invalid dynamic values never enter the shared scoring entity."""
+
+    kwargs: dict[str, object] = {
+        "asset_type": AssetType.EQUITY,
+        "asset_code": "000001.SZ",
+        "asset_name": "Asset",
+    }
+    kwargs.update(change)
+
+    with pytest.raises(ValueError, match=message):
+        AssetScore(**kwargs)  # type: ignore[arg-type]
+
+
 def test_pool_value_objects_publish_dates_reasons_and_thresholds() -> None:
     """Pool contracts preserve lifecycle metadata and exact score boundaries."""
     entry = PoolEntry(

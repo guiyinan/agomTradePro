@@ -113,7 +113,7 @@ class WeightConfigsAPIView(APIView):
         """
         result = get_weight_configs()
 
-        response_serializer = WeightConfigsResponseSerializer(result)
+        response_serializer = WeightConfigsResponseSerializer(dict(result))
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 

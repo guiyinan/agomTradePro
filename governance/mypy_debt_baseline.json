@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 667,
-    "files_with_errors": 314
+    "errors": 658,
+    "files_with_errors": 310
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -233,19 +233,6 @@
     },
     "apps/alpha/management/commands/list_models.py": {
       "no-untyped-def": 2
-    },
-    "apps/asset_analysis/application/interface_services.py": {
-      "return-value": 1
-    },
-    "apps/asset_analysis/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/asset_analysis/domain/entities.py": {
-      "no-untyped-def": 1,
-      "type-arg": 2
-    },
-    "apps/asset_analysis/interface/urls.py": {
-      "no-untyped-def": 4
     },
     "apps/audit/domain/performance_services.py": {
       "no-untyped-def": 2

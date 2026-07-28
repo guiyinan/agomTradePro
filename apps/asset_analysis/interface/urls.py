@@ -6,23 +6,24 @@ Asset analysis page routes.
 - DRF API 路由迁移到 api_urls.py
 """
 
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import path
 
 app_name = "asset_analysis"
 
 
-def asset_analysis_root_redirect(request):
+def asset_analysis_root_redirect(request: HttpRequest) -> HttpResponse:
     """Redirect /asset-analysis/ to the canonical asset screen page."""
     return redirect("asset-screen")
 
 
-def asset_pool_summary_redirect(request):
+def asset_pool_summary_redirect(request: HttpRequest) -> HttpResponse:
     """Redirect legacy pool summary page entry to the asset screen page."""
     return redirect("asset-screen")
 
 
-def asset_pool_screen_redirect(request, asset_type: str):
+def asset_pool_screen_redirect(request: HttpRequest, asset_type: str) -> HttpResponse:
     """Redirect legacy pool screen URLs to the unified asset screen page."""
     return redirect(f"/asset-analysis/screen/?asset_type={asset_type}")
 

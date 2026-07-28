@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from apps.asset_analysis.application.dtos import ScreenRequest, ScreenResponse
+from apps.asset_analysis.application.dtos import (
+    ScreenRequest,
+    ScreenResponse,
+    WeightConfigsResponse,
+)
 from apps.asset_analysis.application.repository_provider import (
     get_asset_pool_query_repository,
     get_asset_repository,
@@ -90,7 +94,7 @@ def execute_multidim_screen(request: ScreenRequest, context: ScoreContext) -> Sc
     return use_case.execute(request, context)
 
 
-def get_weight_configs() -> dict[str, Any]:
+def get_weight_configs() -> WeightConfigsResponse:
     """Return all weight configs for interface serialization."""
 
     return GetWeightConfigsUseCase(get_weight_config_repository()).execute()

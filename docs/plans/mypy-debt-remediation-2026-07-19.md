@@ -5531,3 +5531,19 @@
 - Asset Analysis unit/domain/API、fund/equity 集成与评分日志扩展回归 `138 passed`。
 - Asset Analysis interfaces、DTO、scoring service 与 use case 四个历史债务文件在联合及增量 mypy 口径清零；全仓基线从 `685 errors / 318 files` 收紧为 `667 errors / 314 files`，净减少 `18 errors / 4 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百六十二批
+
+- 按“共享评分实体可接受伪数值 × 启动注册异常泄密 × 模块剩余无类型入口”完成 Asset Analysis 模块债务收口。
+- `AssetScore` 严格验证资产类型、非空代码/名称、style/size 枚举、sector、score date、risk level 与 string-key context；动态调用不能再把错误 shape 放入冻结 Domain 实体。
+- 四项维度分数、综合分数、自定义分数和配置比例全部拒绝 bool、NaN、Inf 与越界值；rank 必须为非布尔非负整数，避免损坏资产进入排序、资产池分类和 API 序列化。
+- Asset Analysis AppConfig `ready()` 注册失败日志只记录异常类型，不再输出 registry/provider/凭据正文；保留既有启动降级行为。
+- 权重配置 Application facade 返回精确 `WeightConfigsResponse`，Interface 在 DRF 动态构造边界显式投影为普通字典；没有把间接 `arg-type` 回归写入新基线。
+- AppConfig、三个 Classic 兼容 redirect handler 补齐精确返回与请求类型，不改变迁移期页面行为。
+- 新增资产身份、布尔/非有限分数、自定义分数、负排名和启动日志脱敏回归。
+
+## 第三百六十二批验证结果
+
+- Asset Analysis unit/domain/API、fund/equity 集成、日志与 Classic 路由兼容扩展回归 `172 passed`。
+- Domain entity、Application interface service、AppConfig 与 page URL 四个剩余债务文件在增量 mypy 口径清零，Asset Analysis 模块退出全仓债务清单；基线从 `667 errors / 314 files` 收紧为 `658 errors / 310 files`，净减少 `9 errors / 4 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
