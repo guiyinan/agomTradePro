@@ -186,7 +186,7 @@ def _evaluate(tmp_path: Path, payload: dict[str, Any]):
 
 
 def test_checked_in_evidence_is_explicitly_denied() -> None:
-    """Incomplete production evidence must never look cutover-ready."""
+    """Complete route closure must not override incomplete production evidence."""
 
     from datetime import date
 
@@ -204,7 +204,8 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
     assert gates["source_consistency"].passed is True
     assert gates["route_task_uat"].passed is True
     assert "covered=108/108" in gates["route_task_uat"].detail
-    assert gates["route_cleanup_readiness"].passed is False
+    assert gates["route_cleanup_readiness"].passed is True
+    assert "covered=108/108" in gates["route_cleanup_readiness"].detail
     assert gates["rollback_drill"].passed is True
 
 
