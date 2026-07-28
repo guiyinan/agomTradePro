@@ -26,6 +26,7 @@ from apps.data_center.domain.enums import (
 # Provider configuration value objects
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class ProviderConfig:
     """Immutable snapshot of a configured external data provider.
@@ -36,12 +37,12 @@ class ProviderConfig:
 
     id: int | None
     name: str
-    source_type: str          # tushare | akshare | eastmoney | qmt | fred
+    source_type: str  # tushare | akshare | eastmoney | qmt | fred
     is_active: bool
-    priority: int             # lower = higher precedence
+    priority: int  # lower = higher precedence
     api_key: str
     api_secret: str
-    http_url: str             # tushare proxy override
+    http_url: str  # tushare proxy override
     api_endpoint: str
     extra_config: dict[str, Any]
     description: str
@@ -80,9 +81,7 @@ class ProviderHealthSnapshot:
             "status": self.status.value,
             "is_healthy": self.status == ProviderHealthStatus.HEALTHY,
             "consecutive_failures": self.consecutive_failures,
-            "last_success_at": (
-                self.last_success_at.isoformat() if self.last_success_at else None
-            ),
+            "last_success_at": (self.last_success_at.isoformat() if self.last_success_at else None),
             "avg_latency_ms": self.avg_latency_ms,
         }
 
@@ -91,19 +90,18 @@ class ProviderHealthSnapshot:
 # Global provider settings value object
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class DataProviderSettings:
     """Global provider behaviour settings (singleton in DB)."""
 
-    default_source: str       # tushare | akshare | failover
+    default_source: str  # tushare | akshare | failover
     enable_failover: bool
     failover_tolerance: float  # e.g. 0.01 = 1 %
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.failover_tolerance <= 1.0:
-            raise ValueError(
-                f"failover_tolerance must be in [0, 1], got {self.failover_tolerance}"
-            )
+            raise ValueError(f"failover_tolerance must be in [0, 1], got {self.failover_tolerance}")
 
 
 @dataclass(frozen=True)
@@ -127,12 +125,15 @@ class ProductionCoverageUniverseConfig:
             raise ValueError("ProductionCoverageUniverseConfig.asset_type cannot be empty")
         if not self.exchanges:
             raise ValueError("ProductionCoverageUniverseConfig.exchanges cannot be empty")
-        if min(
-            self.min_active_asset_count,
-            self.min_star_market_count,
-            self.min_chinext_count,
-            self.min_bse_count,
-        ) < 0:
+        if (
+            min(
+                self.min_active_asset_count,
+                self.min_star_market_count,
+                self.min_chinext_count,
+                self.min_bse_count,
+            )
+            < 0
+        ):
             raise ValueError("Production coverage thresholds cannot be negative")
 
     def to_dict(self) -> dict[str, Any]:
@@ -153,17 +154,16 @@ class ProductionCoverageUniverseConfig:
 # Connection test result value object
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class ConnectionTestResult:
     """Result returned by a provider connectivity probe."""
 
     success: bool
-    status: str   # "success" | "warning" | "error"
+    status: str  # "success" | "warning" | "error"
     summary: str
     logs: list[str] = field(default_factory=list)
-    tested_at: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
-    )
+    tested_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -179,11 +179,12 @@ class ConnectionTestResult:
 # Master data value objects
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class AssetMaster:
     """Unified master record for any tradable asset."""
 
-    code: str                # canonical code, e.g. "000001.SZ"
+    code: str  # canonical code, e.g. "000001.SZ"
     name: str
     short_name: str
     asset_type: AssetType
@@ -342,6 +343,7 @@ class IndicatorUnitRule:
 # Fact table value objects
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class MacroFact:
     """One observation of a macro indicator."""
@@ -360,6 +362,12 @@ class MacroFact:
     def __post_init__(self) -> None:
         if not self.indicator_code:
             raise ValueError("MacroFact.indicator_code cannot be empty")
+        if (
+            isinstance(self.value, bool)
+            or not isinstance(self.value, (int, float))
+            or not math.isfinite(self.value)
+        ):
+            raise ValueError("MacroFact.value must be finite")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -396,11 +404,7 @@ class PriceBar:
     def __post_init__(self) -> None:
         if not self.asset_code:
             raise ValueError("PriceBar.asset_code cannot be empty")
-        if (
-            isinstance(self.close, bool)
-            or not math.isfinite(self.close)
-            or self.close <= 0
-        ):
+        if isinstance(self.close, bool) or not math.isfinite(self.close) or self.close <= 0:
             raise ValueError(f"PriceBar.close must be positive and finite: {self.close}")
 
     def to_dict(self) -> dict[str, Any]:
@@ -447,8 +451,7 @@ class QuoteSnapshot:
             or self.current_price <= 0
         ):
             raise ValueError(
-                "QuoteSnapshot.current_price must be positive and finite: "
-                f"{self.current_price}"
+                "QuoteSnapshot.current_price must be positive and finite: " f"{self.current_price}"
             )
 
     def to_dict(self) -> dict[str, Any]:
@@ -485,12 +488,20 @@ class FundNavFact:
     def __post_init__(self) -> None:
         if not self.fund_code:
             raise ValueError("FundNavFact.fund_code cannot be empty")
-        if (
-            isinstance(self.nav, bool)
-            or not math.isfinite(self.nav)
-            or self.nav <= 0
-        ):
+        if isinstance(self.nav, bool) or not math.isfinite(self.nav) or self.nav <= 0:
             raise ValueError(f"FundNavFact.nav must be positive and finite: {self.nav}")
+        for field_name, value in (
+            ("acc_nav", self.acc_nav),
+            ("daily_return", self.daily_return),
+        ):
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+            ):
+                raise ValueError(f"FundNavFact.{field_name} must be finite")
+        if self.acc_nav is not None and self.acc_nav <= 0:
+            raise ValueError("FundNavFact.acc_nav must be positive")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -523,6 +534,12 @@ class FinancialFact:
     def __post_init__(self) -> None:
         if not self.asset_code or not self.metric_code:
             raise ValueError("FinancialFact fields cannot be empty")
+        if (
+            isinstance(self.value, bool)
+            or not isinstance(self.value, (int, float))
+            or not math.isfinite(self.value)
+        ):
+            raise ValueError("FinancialFact.value must be finite")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -559,6 +576,27 @@ class ValuationFact:
     def __post_init__(self) -> None:
         if not self.asset_code:
             raise ValueError("ValuationFact.asset_code cannot be empty")
+        for field_name, value in (
+            ("pe_ttm", self.pe_ttm),
+            ("pe_static", self.pe_static),
+            ("pb", self.pb),
+            ("ps_ttm", self.ps_ttm),
+            ("market_cap", self.market_cap),
+            ("float_market_cap", self.float_market_cap),
+            ("dv_ratio", self.dv_ratio),
+        ):
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+            ):
+                raise ValueError(f"ValuationFact.{field_name} must be finite")
+        for field_name, value in (
+            ("market_cap", self.market_cap),
+            ("float_market_cap", self.float_market_cap),
+        ):
+            if value is not None and value < 0:
+                raise ValueError(f"ValuationFact.{field_name} cannot be negative")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -711,7 +749,8 @@ class MarketThermometerThresholds:
 
     def __post_init__(self) -> None:
         if not (
-            0 <= self.warm_threshold
+            0
+            <= self.warm_threshold
             <= self.hot_threshold
             <= self.overheat_threshold
             <= self.extreme_threshold
@@ -749,20 +788,21 @@ class MarketThermometerConfig:
             "market_news_sentiment": 0.10,
         }
     )
-    thresholds: MarketThermometerThresholds = field(
-        default_factory=MarketThermometerThresholds
-    )
+    thresholds: MarketThermometerThresholds = field(default_factory=MarketThermometerThresholds)
 
     def __post_init__(self) -> None:
-        if min(
-            self.short_window,
-            self.medium_window,
-            self.long_window,
-            self.monthly_long_window,
-            self.daily_stale_days,
-            self.monthly_stale_days,
-            self.min_valid_components,
-        ) <= 0:
+        if (
+            min(
+                self.short_window,
+                self.medium_window,
+                self.long_window,
+                self.monthly_long_window,
+                self.daily_stale_days,
+                self.monthly_stale_days,
+                self.min_valid_components,
+            )
+            <= 0
+        ):
             raise ValueError("MarketThermometerConfig numeric values must be positive")
         total_weight = sum(float(value) for value in self.component_weights.values())
         if total_weight <= 0:
@@ -877,6 +917,7 @@ class MarketThermometerSnapshot:
 # ---------------------------------------------------------------------------
 # Raw payload audit value object
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class RawAudit:

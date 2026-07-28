@@ -5807,3 +5807,21 @@
 - Agent Runtime Facade、Application、Domain、MCP/SDK 合同、Terminal Agent 与 SDK client 扩展回归 `197 passed`。
 - `apps/agent_runtime/infrastructure/context_snapshot_repository.py` 与五个相关 Facade 文件联合增量 mypy 清零；上下文仓储退出债务清单，全仓基线从 `597 errors / 293 files` 收紧为 `594 errors / 292 files`，净减少 `3 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal/TUI 页面、SDK、MCP 或部署实现。
+
+## 第三百七十九批
+
+- 按“Tushare 动态 SDK 无合同 × NaN/Inf 可污染 canonical facts × 坏字段中断整批 × Provider 异常正文泄露”收口 Data Center 统一事实入口。
+- 为 Tushare `trade_cal/daily/margin/etf_share_size` 与 pandas-like frame 建立最小 Infrastructure Protocol；三个 client 创建点显式收窄，ETF calendar/size helper 不再接收无界 Any。
+- `MacroFact` 与 `FinancialFact` 的核心数值必须为非 bool 有限数；`ValuationFact` 的七个可选估值字段拒绝 bool、非数值和 NaN/Inf，流通/总市值同时不得为负。
+- `FundNavFact` 的累计净值与日收益拒绝非有限值，累计净值必须为正；单位净值原有正有限约束保持不变。
+- 通用 Tushare 宏观点统一经 `safe_float`，坏值按观察点跳过；行情快照的坏主价格按记录隔离，负数/非有限成交量和金额降级为 None，不再让单条报价终止整个列表。
+- Fund NAV 对非正/非有限主净值按记录跳过，损坏累计净值降级为空；Financial facts 按 metric 逐项收窄，单项 NaN/Inf 不再丢弃同一报告期全部合法指标。
+- Valuation facts 使用 `safe_float` 收窄倍率和收益率，负/非有限市值降级为空；所有输出仍由 Domain 不变量二次保护。
+- 全市场成交额失败日志只记录异常类型，不再写入 Tushare endpoint、token 或底层异常正文；原有失败关闭语义保持不变。
+
+## 第三百七十九批验证结果
+
+- 新增 canonical fact 与 Tushare 数值/SDK 安全专项 `15 passed`。
+- Data Center 全单元、统一价格、on-demand、组件仓储与 API 集成扩展回归 `434 passed`；Macro 与 Equity 财务/估值消费者回归 `160 passed`。
+- `apps/data_center/infrastructure/_provider_adapter_tushare.py` 与 Domain entities 联合增量 mypy 清零；Tushare adapter 退出债务清单，全仓基线从 `594 errors / 292 files` 收紧为 `591 errors / 291 files`，净减少 `3 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

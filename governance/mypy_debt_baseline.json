@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 594,
-    "files_with_errors": 292
+    "errors": 591,
+    "files_with_errors": 291
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -305,9 +305,6 @@
     },
     "apps/data_center/infrastructure/_provider_adapter_base.py": {
       "no-any-return": 1
-    },
-    "apps/data_center/infrastructure/_provider_adapter_tushare.py": {
-      "attr-defined": 3
     },
     "apps/data_center/infrastructure/a_share_universe_sync.py": {
       "misc": 2
