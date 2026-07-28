@@ -138,52 +138,9 @@
 | [web-to-tui-migration-plan-2026-07-25.md](plans/web-to-tui-migration-plan-2026-07-25.md) | **Web 界面 → TUI 整体迁移计划（M0-M5，195 模板去向矩阵 / 图表样板 / web 保留清单）** | 实施中；M0-M4 实现完成，M5 候选尚未部署、观察未开始，当前禁止清理 Classic |
 | [web-to-tui-m0-evidence-2026-07-26.md](plans/web-to-tui-m0-evidence-2026-07-26.md) | **Web → TUI M0/M0-D 证据（195 模板矩阵、7 个死模板清理、冻结门与双端基线）** | ✅ M0/M0-D 已完成 |
 | [web-to-tui-m1-chart-evidence-2026-07-26.md](plans/web-to-tui-m1-chart-evidence-2026-07-26.md) | **Web → TUI M1 图表样板证据（portable chart 契约、多序列/采样/可访问性、双端门禁）** | ✅ M1 已完成 |
-| [web-to-tui-m2-account-evidence-2026-07-26.md](plans/web-to-tui-m2-account-evidence-2026-07-26.md) | **Web → TUI M2 Account Waves 证据（MCP 自助/治理、用户准入、权限与写后回执）** | ✅ M2 Account waves 已完成 |
-| [web-to-tui-m2-qlib-evidence-2026-07-26.md](plans/web-to-tui-m2-qlib-evidence-2026-07-26.md) | **Web → TUI M2 Qlib 配置与训练 Wave 证据（专用任务页、确认契约、兼容入口）** | ✅ M2-W6 已完成 |
-| [web-to-tui-m2-prompt-evidence-2026-07-26.md](plans/web-to-tui-m2-prompt-evidence-2026-07-26.md) | **Web → TUI M2 Prompt 工作台 Wave 证据（混合角色 CRUD、路径 ID 真源、兼容入口）** | ✅ M2-W7 已完成 |
-| [web-to-tui-m2-ai-provider-evidence-2026-07-26.md](plans/web-to-tui-m2-ai-provider-evidence-2026-07-26.md) | **Web → TUI M2 AI Provider 证据（scope-aware 深链、完整配置字段、配额/日志与确认契约）** | ✅ M2-W8/W9 已完成 |
-| [web-to-tui-m2-signal-evidence-2026-07-26.md](plans/web-to-tui-m2-signal-evidence-2026-07-26.md) | **Web → TUI M2 Signal 证据（证伪优先 CRUD、角色分层、批量检查 API）** | ✅ M2-W10 已完成 |
-| [web-to-tui-m2-decision-rhythm-evidence-2026-07-26.md](plans/web-to-tui-m2-decision-rhythm-evidence-2026-07-26.md) | **Web → TUI M2 Decision Rhythm 证据（配额/趋势、portable chart、权限与确认契约）** | ✅ M2-W11 已完成 |
-| [web-to-tui-m2-backtest-evidence-2026-07-26.md](plans/web-to-tui-m2-backtest-evidence-2026-07-26.md) | **Web → TUI M2 Backtest 证据（PIT/research 字段、row actions、持仓应用与认证）** | ✅ M2-W12 已完成 |
-| [web-to-tui-m2-beta-gate-evidence-2026-07-26.md](plans/web-to-tui-m2-beta-gate-evidence-2026-07-26.md) | **Web → TUI M2 Beta Gate 证据（不可变配置、资产评估、版本回滚与权限）** | ✅ M2-W13 已完成 |
-| [web-to-tui-m2-rotation-assets-evidence-2026-07-26.md](plans/web-to-tui-m2-rotation-assets-evidence-2026-07-26.md) | **Web → TUI M2 Rotation Assets 证据（目录 CRUD、预览导入、行情与导出）** | ✅ M2-W14 已完成 |
-| [web-to-tui-m2-rotation-configs-evidence-2026-07-26.md](plans/web-to-tui-m2-rotation-configs-evidence-2026-07-26.md) | **Web → TUI M2 Rotation Configs 证据（完整配置、管理员 CRUD/启停/信号生成）** | ✅ M2-W15 已完成 |
-| [web-to-tui-m2-rotation-user-evidence-2026-07-26.md](plans/web-to-tui-m2-rotation-user-evidence-2026-07-26.md) | **Web → TUI M2 Rotation User 证据（信号质量、账户配置、模板与 owner scope）** | ✅ M2-W16 已完成 |
-| [web-to-tui-m2-alpha-trigger-read-evidence-2026-07-26.md](plans/web-to-tui-m2-alpha-trigger-read-evidence-2026-07-26.md) | **Web → TUI M2 Alpha Trigger Read 证据（可操作候选、证伪详情、执行跟踪与绩效）** | ✅ M2-W17 已完成 |
-| [web-to-tui-m2-alpha-trigger-lifecycle-evidence-2026-07-26.md](plans/web-to-tui-m2-alpha-trigger-lifecycle-evidence-2026-07-26.md) | **Web → TUI M2 Alpha Trigger Lifecycle 证据（创建编辑、状态转换、证伪与候选生成）** | ✅ M2-W18 已完成 |
-| [web-to-tui-m2-policy-events-evidence-2026-07-26.md](plans/web-to-tui-m2-policy-events-evidence-2026-07-26.md) | **Web → TUI M2 Policy Events 证据（事件查询、管理员创建、审核与理由确认）** | ✅ M2-W19 已完成 |
-| [web-to-tui-m2-policy-rss-evidence-2026-07-26.md](plans/web-to-tui-m2-policy-rss-evidence-2026-07-26.md) | **Web → TUI M2 Policy RSS 证据（Reader、源/关键词治理、抓取日志与任务跟踪）** | ✅ M2-W20 已完成 |
-| [web-to-tui-m3-task-monitor-evidence-2026-07-26.md](plans/web-to-tui-m3-task-monitor-evidence-2026-07-26.md) | **Web → TUI M3 Task Monitor 证据（计划任务、执行记录、Readiness 与管理员调度）** | ✅ M3-W21 已完成 |
-| [web-to-tui-m3-sentiment-evidence-2026-07-26.md](plans/web-to-tui-m3-sentiment-evidence-2026-07-26.md) | **Web → TUI M3 Sentiment 证据（文本分析、缓存开关、服务健康与错误边界）** | ✅ M3-W22 已完成 |
-| [web-to-tui-m3-terminal-config-evidence-2026-07-26.md](plans/web-to-tui-m3-terminal-config-evidence-2026-07-26.md) | **Web → TUI M3 Terminal Config 证据（410 owner 退役、staff 重定向与 Agent chat 替代）** | ✅ M3-W23 已完成 |
-| [web-to-tui-m3-asset-analysis-evidence-2026-07-26.md](plans/web-to-tui-m3-asset-analysis-evidence-2026-07-26.md) | **Web → TUI M3 Asset Analysis 证据（真实类型筛选、8 列优先级与原生导出）** | ✅ M3-W24 已完成 |
-| [web-to-tui-m3-risk-center-evidence-2026-07-26.md](plans/web-to-tui-m3-risk-center-evidence-2026-07-26.md) | **Web → TUI M3 Risk Center 证据（12 个既有 action、账户范围与确认写入）** | ✅ M3-W25 已完成 |
-| [web-to-tui-m3-decision-workspace-evidence-2026-07-26.md](plans/web-to-tui-m3-decision-workspace-evidence-2026-07-26.md) | **Web → TUI M3 Decision Workspace 证据（推荐/计划/审批、刷新与证伪草稿、HTML partial 边界）** | ✅ M3-W26 已完成 |
-| [web-to-tui-m3-alpha-ops-evidence-2026-07-26.md](plans/web-to-tui-m3-alpha-ops-evidence-2026-07-26.md) | **Web → TUI M3 Alpha Ops 证据（三种推理、两种 Qlib 刷新、staff/superuser 边界）** | ✅ M3-W27 已完成 |
-| [web-to-tui-m3-equity-config-evidence-2026-07-26.md](plans/web-to-tui-m3-equity-config-evidence-2026-07-26.md) | **Web → TUI M3 Equity Config 证据（21 字段版本化配置、激活/回滚/删除与缓存治理）** | ✅ M3-W28 已完成 |
-| [web-to-tui-m3-equity-screen-evidence-2026-07-26.md](plans/web-to-tui-m3-equity-screen-evidence-2026-07-26.md) | **Web → TUI M3 Equity Screen 证据（扁平业务字段、owner custom rule 适配与原生结果表）** | ✅ M3-W29 已完成 |
-| [web-to-tui-m3-dashboard-alpha-evidence-2026-07-26.md](plans/web-to-tui-m3-dashboard-alpha-evidence-2026-07-26.md) | **Web → TUI M3 Dashboard Alpha 证据（scope-aware 完整排名、历史筛选与运行详情）** | ✅ M3-W30 已完成 |
-| [web-to-tui-m3-factor-calculate-evidence-2026-07-26.md](plans/web-to-tui-m3-factor-calculate-evidence-2026-07-26.md) | **Web → TUI M3 Factor Calculate 证据（已存配置计算、个股解释与无原始 JSON 表单）** | ✅ M3-W31 已完成 |
-| [web-to-tui-m3-factor-definitions-evidence-2026-07-26.md](plans/web-to-tui-m3-factor-definitions-evidence-2026-07-26.md) | **Web → TUI M3 Factor Definitions 证据（完整 CRUD、Domain 枚举与输入边界）** | ✅ M3-W32 已完成 |
-| [web-to-tui-m3-factor-portfolios-evidence-2026-07-26.md](plans/web-to-tui-m3-factor-portfolios-evidence-2026-07-26.md) | **Web → TUI M3 Factor Portfolios 证据（标量配置、逐项权重与组合生成）** | ✅ M3-W33 已完成 |
-| [web-to-tui-m3-hedge-evidence-2026-07-26.md](plans/web-to-tui-m3-hedge-evidence-2026-07-26.md) | **Web → TUI M3 Hedge 证据（对冲对、快照、告警与角色可见性）** | ✅ M3-W34 已完成 |
-| [web-to-tui-m3-fund-evidence-2026-07-26.md](plans/web-to-tui-m3-fund-evidence-2026-07-26.md) | **Web → TUI M3 Fund 证据（扁平多维筛选与完整研究工作流）** | ✅ M3-W35 已完成 |
-| [web-to-tui-m3-broker-execution-evidence-2026-07-26.md](plans/web-to-tui-m3-broker-execution-evidence-2026-07-26.md) | **Web → TUI M3 Broker Execution 证据（实盘订单、对账、启停与管理员接入治理）** | ✅ M3-W36 已完成 |
-| [web-to-tui-m3-simulated-trading-records-evidence-2026-07-26.md](plans/web-to-tui-m3-simulated-trading-records-evidence-2026-07-26.md) | **Web → TUI M3 Simulated Trading Records 证据（持仓、交易筛选与巡检通知）** | ✅ M3-W37 已完成 |
-| [web-to-tui-m3-agent-runtime-operator-evidence-2026-07-26.md](plans/web-to-tui-m3-agent-runtime-operator-evidence-2026-07-26.md) | **Web → TUI M3 Agent Runtime Operator 证据（任务调查、提案审批与角色可见性）** | ✅ M3-W38 已完成 |
-| [web-to-tui-m3-ops-hubs-evidence-2026-07-26.md](plans/web-to-tui-m3-ops-hubs-evidence-2026-07-26.md) | **Web → TUI M3 Ops Hubs 证据（角色入口、MCP 工具治理与扁平语义修正）** | ✅ M3-W39 已完成 |
-| [web-to-tui-m3-strategy-workbench-evidence-2026-07-26.md](plans/web-to-tui-m3-strategy-workbench-evidence-2026-07-26.md) | **Web → TUI M3 Strategy Workbench 证据（版本化策略、typed 条件、脚本/AI/仓位与执行证据）** | ✅ M3-W40 已完成 |
-| [web-to-tui-m3-audit-review-evidence-2026-07-26.md](plans/web-to-tui-m3-audit-review-evidence-2026-07-26.md) | **Web → TUI M3 Audit Review 证据（复盘概览、报告生成、owner/admin 日志与决策链）** | ✅ M3-W41 已完成 |
-| [web-to-tui-m3-data-center-governance-evidence-2026-07-26.md](plans/web-to-tui-m3-data-center-governance-evidence-2026-07-26.md) | **Web → TUI M3 Data Center Governance 证据（治理、Provider、Publisher、Universe 与市场温度计）** | ✅ M3-W42 已完成 |
-| [web-to-tui-m4-audit-analytics-evidence-2026-07-26.md](plans/web-to-tui-m4-audit-analytics-evidence-2026-07-26.md) | **Web → TUI M4 Audit Analytics 证据（归因贡献、指标绩效、阈值历史与多图表类型）** | ✅ M4-W43 已完成 |
-| [web-to-tui-m4-audit-manual-trade-evidence-2026-07-26.md](plans/web-to-tui-m4-audit-manual-trade-evidence-2026-07-26.md) | **Web → TUI M4 Audit Manual Trade 证据（CSV 导入、推荐执行关联、四分支净值与 table_chart）** | ✅ M4-W44 已完成 |
-| [web-to-tui-m4-account-overview-evidence-2026-07-26.md](plans/web-to-tui-m4-account-overview-evidence-2026-07-26.md) | **Web → TUI M4 Account Overview 证据（账户资料、波动率百分比、目标区间与空态）** | ✅ M4-W45 已完成 |
-| [web-to-tui-m4-dashboard-overview-evidence-2026-07-26.md](plans/web-to-tui-m4-dashboard-overview-evidence-2026-07-26.md) | **Web → TUI M4 Dashboard Overview 证据（P0 指挥摘要、资产配置 pie 与收益 line）** | ✅ M4-W46 已完成 |
-| [web-to-tui-m4-macro-regime-analytics-evidence-2026-07-26.md](plans/web-to-tui-m4-macro-regime-analytics-evidence-2026-07-26.md) | **Web → TUI M4 Macro / Regime Analytics 证据（指标与风险时序、象限概率、动量与联合历史）** | ✅ M4-W47 已完成 |
-| [web-to-tui-m4-sentiment-dashboard-evidence-2026-07-26.md](plans/web-to-tui-m4-sentiment-dashboard-evidence-2026-07-26.md) | **Web → TUI M4 Sentiment Dashboard 证据（最新指数摘要、canonical 扁平投影与三序列趋势）** | ✅ M4-W48 已完成 |
-| [web-to-tui-m4-macro-trend-filter-evidence-2026-07-26.md](plans/web-to-tui-m4-macro-trend-filter-evidence-2026-07-26.md) | **Web → TUI M4 Macro Trend Filter 证据（Data Center 真源、PIT-safe 趋势算法与 Filter consumer 迁出）** | ✅ M4-W49 已完成 |
-| [web-to-tui-m4-equity-analytics-evidence-2026-07-26.md](plans/web-to-tui-m4-equity-analytics-evidence-2026-07-26.md) | **Web → TUI M4 Equity Analytics 证据（个股时序、股票池板块分布与估值修复百分位）** | ✅ M4-W50 已完成 |
-| [web-to-tui-m4-simulated-accounts-evidence-2026-07-26.md](plans/web-to-tui-m4-simulated-accounts-evidence-2026-07-26.md) | **Web → TUI M4 Simulated Accounts 证据（账户生命周期、绩效净值、策略绑定与 IA P0 清单）** | ✅ M4-W51 已完成 |
+| [web-to-tui-m2-consolidated-evidence-2026-07-26.md](plans/web-to-tui-m2-consolidated-evidence-2026-07-26.md) | **Web → TUI M2 合并证据（W1-W20，15 份原始 wave 记录与 SHA-256 清单）** | ✅ M2 已完成 |
+| [web-to-tui-m3-consolidated-evidence-2026-07-26.md](plans/web-to-tui-m3-consolidated-evidence-2026-07-26.md) | **Web → TUI M3 合并证据（W21-W42，22 份原始 wave 记录与 SHA-256 清单）** | ✅ M3 已完成 |
+| [web-to-tui-m4-consolidated-evidence-2026-07-26.md](plans/web-to-tui-m4-consolidated-evidence-2026-07-26.md) | **Web → TUI M4 合并证据（W43-W51，9 份原始 wave 记录与 SHA-256 清单）** | ✅ M4 已完成 |
 | [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选尚未部署，复审日待机器窗口确定 |
 | [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | ✅ 生产健康；仍运行旧提交，不计入 cutover gate |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | ✅ 本地演练通过；不解除 14 日与生产门禁 |
