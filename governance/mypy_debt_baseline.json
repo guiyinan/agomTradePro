@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 567,
-    "files_with_errors": 286
+    "errors": 557,
+    "files_with_errors": 283
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -97,18 +97,8 @@
       "assignment": 1,
       "no-any-return": 1
     },
-    "apps/ai_capability/application/mcp_catalog_projection.py": {
-      "arg-type": 2
-    },
-    "apps/ai_capability/application/mcp_runtime_gateway.py": {
-      "import-untyped": 5
-    },
     "apps/ai_capability/application/query_services.py": {
       "union-attr": 1
-    },
-    "apps/ai_capability/application/sync_use_cases.py": {
-      "arg-type": 2,
-      "dict-item": 1
     },
     "apps/ai_capability/apps.py": {
       "no-untyped-def": 1

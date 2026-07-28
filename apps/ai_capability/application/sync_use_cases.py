@@ -7,6 +7,8 @@ import re
 import time
 from datetime import UTC, datetime
 
+from django.db import DatabaseError
+
 from apps.ai_capability.application.dtos import SyncResultDTO
 from apps.ai_capability.application.mcp_catalog_projection import (
     build_governed_mcp_capability,
@@ -32,6 +34,7 @@ from apps.ai_capability.application.terminal_gateway import get_terminal_capabil
 from apps.ai_capability.domain.entities import (
     CapabilityDefinition,
     CapabilitySyncLog,
+    ReviewStatus,
     RiskLevel,
     RouteGroup,
     SourceType,
@@ -39,6 +42,20 @@ from apps.ai_capability.domain.entities import (
 from apps.ai_capability.domain.services import BuiltinCapabilityRegistry
 
 logger = logging.getLogger(__name__)
+
+_SYNC_SOURCE_EXCEPTIONS = (
+    ArithmeticError,
+    AttributeError,
+    ConnectionError,
+    DatabaseError,
+    ImportError,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
 
 _MCP_MUTATING_KEYWORDS = (
     "activate",
@@ -97,7 +114,8 @@ class SyncCapabilitiesUseCase:
         created_count = 0
         updated_count = 0
         disabled_count = 0
-        error_count, summary = 0, {}
+        error_count = 0
+        summary: dict[str, dict[str, int | str]] = {}
 
         sources = {
             "builtin": self._sync_builtin,
@@ -120,10 +138,14 @@ class SyncCapabilitiesUseCase:
                 )
                 disabled_count += disabled
                 summary[source_name] = {**result, "disabled": disabled}
-            except Exception as exc:
-                logger.exception("Capability source sync failed: %s", source_name)
+            except _SYNC_SOURCE_EXCEPTIONS as exc:
+                logger.warning(
+                    "Capability source sync failed: %s; exception_type=%s",
+                    source_name,
+                    type(exc).__name__,
+                )
                 error_count += 1
-                summary[source_name] = {"error": str(exc)}
+                summary[source_name] = {"error": "capability_source_sync_failed"}
 
         finished_at = datetime.now(UTC)
         duration = time.time() - start_time
@@ -212,21 +234,21 @@ class SyncCapabilitiesUseCase:
                 enabled_for_chat=False,
                 enabled_for_agent=True,
                 auto_collected=True,
-                review_status="auto",
+                review_status=ReviewStatus.AUTO,
             )
             capabilities.append(cap)
 
         return capabilities
 
-    def _map_risk_level(self, terminal_risk: str) -> str:
+    def _map_risk_level(self, terminal_risk: str) -> RiskLevel:
         """Map terminal risk level to capability risk level."""
         mapping = {
-            "read": "safe",
-            "write_low": "low",
-            "write_high": "high",
-            "admin": "critical",
+            "read": RiskLevel.SAFE,
+            "write_low": RiskLevel.LOW,
+            "write_high": RiskLevel.HIGH,
+            "admin": RiskLevel.CRITICAL,
         }
-        return mapping.get(terminal_risk, "medium")
+        return mapping.get(terminal_risk, RiskLevel.MEDIUM)
 
     def _classify_mcp_tool(self, tool_name: str) -> tuple[RiskLevel, bool, bool]:
         normalized = (tool_name or "").lower()

@@ -6,6 +6,7 @@ from typing import Any
 
 from ..domain.entities import (
     CapabilityDefinition,
+    ReviewStatus,
     RiskLevel,
     RouteGroup,
     SourceType,
@@ -77,7 +78,7 @@ def build_governed_mcp_capability(manifest: Any) -> CapabilityDefinition:
         enabled_for_agent=True,
         visibility=Visibility.PUBLIC,
         auto_collected=True,
-        review_status="auto",
+        review_status=ReviewStatus.AUTO,
         priority_weight=10.0,
     )
 
@@ -96,14 +97,10 @@ def build_legacy_mcp_capability(
 
     legacy_disposition = get_sdk_mcp_legacy_disposition(tool.name)
     disposition = str(getattr(legacy_disposition, "disposition", "") or "").strip()
-    disposition_reason = str(
-        getattr(legacy_disposition, "rationale", "") or ""
-    ).strip()
+    disposition_reason = str(getattr(legacy_disposition, "rationale", "") or "").strip()
     recommended_capability_keys = [
         str(key).strip()
-        for key in list(
-            getattr(legacy_disposition, "recommended_capability_keys", ()) or ()
-        )
+        for key in list(getattr(legacy_disposition, "recommended_capability_keys", ()) or ())
         if str(key).strip()
     ]
     owner_app = str(getattr(legacy_disposition, "owner_app", "") or "").strip()
@@ -144,10 +141,10 @@ def build_legacy_mcp_capability(
         enabled_for_agent=False,
         visibility=Visibility.ADMIN,
         auto_collected=True,
-        review_status="rejected" if legacy_disposition is not None else "auto",
+        review_status=(
+            ReviewStatus.REJECTED if legacy_disposition is not None else ReviewStatus.AUTO
+        ),
         priority_weight=(
-            0.01
-            if legacy_disposition is not None
-            else (0.1 if replacement_capability_key else 1.0)
+            0.01 if legacy_disposition is not None else (0.1 if replacement_capability_key else 1.0)
         ),
     )

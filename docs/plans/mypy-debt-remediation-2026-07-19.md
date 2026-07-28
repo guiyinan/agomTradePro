@@ -5891,3 +5891,20 @@
 - MCP executor 安全专项 `17 passed`；Terminal/TUI/MCP/SDK/SSL 高风险最小回归包 `274 passed`，覆盖本地无 HTTP stage/resume、audit sink、审批 API、Workbench、Terminal Agent 与 SDK client。
 - `apps/agent_runtime/infrastructure/mcp_proposal_executor.py` 增量 mypy 清零并退出债务清单；全仓基线从 `571 errors / 287 files` 收紧为 `567 errors / 286 files`，净减少 `4 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 TUI/Terminal/SDK/MCP 对外契约或部署实现。
+
+## 第三百八十四批
+
+- 按“legacy MCP 环境变量并发串面 × 动态 catalog metadata 无合同 × 非法 MCP 请求回退 builtin 绕过”收口 AI Capability MCP runtime gateway。
+- MCP server reload 增加进程内可重入锁；core 与 legacy-inclusive 列表均在锁内显式设置 `AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS`、reload、读取并恢复原环境后再次 reload。core 列表即使宿主环境原为 true 也只返回 core tools，并发 core 请求会等待 legacy scope 完整退出。
+- `include_legacy` 只接受真实 bool；字符串 `"false"` 不再打开 legacy surface。动态 server、core names、registry loader 与 legacy disposition 均通过 importlib 边界加载，删除五个 import-untyped 债务。
+- MCP tools 限制最多 2000 项，名称必须为受控标识且唯一；description 保持兼容历史空值但限制类型/长度/NUL，input schema 必须为有限 string-keyed JSON object。
+- governed manifests 与 legacy dispositions 建立精确 Protocol；registry key 必须等于 capability key，必要字符串、tuple、schema 与确认标志逐项收窄。正式 RiskLevel/ReviewStatus 枚举替代下游宽松字符串。
+- MCP tool call 名称、参数与结果执行深度、节点数、有限数、string-keyed object 和编码大小校验；参数上限 256 KiB、结果上限 1 MiB，NaN/Inf、非 JSON、非字符串键和无界 payload 不再进入 routing 或用户响应。
+- gateway 验证失败使用专用 `McpRuntimeValidationError`，Capability dispatcher 明确返回 `mcp_request_invalid`，不再回退 builtin registry 绕过 MCP 边界。其他 SDK 故障继续兼容 fallback，但日志只记录异常类型，不输出 traceback/连接串。
+- capability source sync 失败只记录异常类型并持久化稳定 `capability_source_sync_failed`，不再把配置、数据库或凭据正文写入 sync summary。
+
+## 第三百八十四批验证结果
+
+- MCP gateway 并发/边界安全专项 `11 passed`，legacy 空描述与真实 catalog 同步专项 `13 passed`；AI Capability catalog/sync/routing API 与 Terminal/TUI/MCP/SDK/SSL 组合回归 `983 passed`。
+- MCP runtime gateway、catalog projection、sync use case 与主 routing use case 联合增量 mypy 清零；三个文件退出债务清单，全仓基线从 `567 errors / 286 files` 收紧为 `557 errors / 283 files`，净减少 `10 errors / 3 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 TUI/Terminal/SDK/MCP 对外成功响应结构或部署实现。

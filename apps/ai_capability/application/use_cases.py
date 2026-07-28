@@ -48,11 +48,27 @@ from ..domain.services import (
     RetrievalScore,
 )
 from . import sync_use_cases as _sync_use_cases
+from .mcp_runtime_gateway import (
+    McpRuntimeValidationError,
+)
 from .mcp_runtime_gateway import call_sdk_mcp_tool as _call_sdk_mcp_tool
 from .result_enrichment import enrich_security_names
 from .terminal_gateway import get_terminal_capability_gateway
 
 logger = logging.getLogger(__name__)
+
+_MCP_FALLBACK_EXCEPTIONS = (
+    ArithmeticError,
+    AttributeError,
+    ConnectionError,
+    ImportError,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
 
 McpManifestLoader = Callable[[], list[Any]]
 McpCoreNameLoader = Callable[[], set[str]]
@@ -121,12 +137,8 @@ class SyncCapabilitiesUseCase(_sync_use_cases.SyncCapabilitiesUseCase):
     """Compatibility wrapper for tests and callers patching the legacy module path."""
 
     def _sync_mcp_tools(self) -> list[CapabilityDefinition]:
-        original_manifest_loader = _read_sync_loader(
-            "_list_sdk_mcp_capability_manifests"
-        )
-        original_core_names_loader = _read_sync_loader(
-            "_list_sdk_mcp_core_tool_names"
-        )
+        original_manifest_loader = _read_sync_loader("_list_sdk_mcp_capability_manifests")
+        original_core_names_loader = _read_sync_loader("_list_sdk_mcp_core_tool_names")
         original_tools_loader = _read_sync_loader("_list_sdk_mcp_tools")
         try:
             _write_sync_loader(
@@ -511,9 +523,17 @@ class CapabilityExecutionDispatcher:
 
         try:
             result = _call_sdk_mcp_tool(tool_name, call_params)
-        except Exception:
-            logger.exception(
-                "SDK MCP tool execution failed for %s; falling back to builtin registry", tool_name
+        except McpRuntimeValidationError:
+            logger.warning("SDK MCP tool request rejected for %s", tool_name)
+            return {
+                "reply": "MCP tool request rejected.",
+                "error_code": "mcp_request_invalid",
+            }
+        except _MCP_FALLBACK_EXCEPTIONS as exc:
+            logger.warning(
+                "SDK MCP tool execution failed for %s; falling back to builtin registry; exception_type=%s",
+                tool_name,
+                type(exc).__name__,
             )
             result = execute_builtin_tool(tool_name, params)
 
