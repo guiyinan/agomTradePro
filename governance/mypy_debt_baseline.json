@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 487,
-    "files_with_errors": 260
+    "errors": 483,
+    "files_with_errors": 259
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -720,9 +720,6 @@
     },
     "apps/signal/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/simulated_trading/interface/sdk_contract_views.py": {
-      "no-untyped-def": 4
     },
     "apps/simulated_trading/management/commands/repair_personal_account_readiness.py": {
       "no-untyped-def": 1

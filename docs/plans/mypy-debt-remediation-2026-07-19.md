@@ -6068,3 +6068,17 @@
 - Alpha 覆盖日期、gateway failover、行情过滤、异常脱敏、真实事务回滚与 CLI JSON 专项 `7 passed`；Alpha cache、Data Center runtime helper、资产主数据回填与价格仓储扩展组合 `42 passed`。
 - `apps/data_center/infrastructure/alpha_price_coverage_sync.py`、`apps/data_center/management/commands/sync_alpha_price_coverage.py` 与 `core/integration/alpha_cache.py` 增量 mypy 清零并退出债务清单；全仓基线从 `494 errors / 263 files` 收紧为 `487 errors / 260 files`，净减少 `7 errors / 3 files`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/SDK/MCP、费用执行链或部署实现。
+
+## 第三百九十六批
+
+- 按“模拟交易 SDK mutation 请求/返回无合同 × 超量平仓生成卖出流水 × 业务/数据库异常正文反射 × 账户 ID 枚举”收口公开平仓与账户重置接口。
+- Position close 与 account reset handler 补齐 DRF Request、正整数 account ID 和 Response 合同；账户访问拒绝统一为 authentication/access-denied/not-found 稳定错误，不再把账户 ID 或 Application 文案直接反射给 SDK。
+- 统一持仓服务在任何流水或持仓写入前验证现有数量、平仓数量和成交价为正且有限；平仓数量超过当前持仓返回 `close_shares_exceeds_position`，不再生成超额卖出记录或删除完整持仓。
+- 找不到持仓、损坏持仓状态、非法数量和非法价格使用专用稳定错误码及 400/404/409 状态；未知 ValueError 不再把账户、资产、连接串或凭据正文返回调用方。
+- 平仓与重置的数据库、连接、运行时和类型故障统一返回 503 稳定错误；日志仅记录异常类型，不输出 traceback 或底层异常正文。重置成功与账本原子清理结构保持不变。
+
+## 第三百九十六批验证结果
+
+- 模拟交易平仓、重置、超量拒绝、异常脱敏和账本不变量专项 `19 passed`；模拟交易 Domain/Application、SDK client、账户持仓关闭与统一账本扩展组合 `99 passed`。
+- `apps/simulated_trading/interface/sdk_contract_views.py` 增量 mypy 清零并退出债务清单；`unified_position_service.py` 保持清零，全仓基线从 `487 errors / 260 files` 收紧为 `483 errors / 259 files`，净减少 `4 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/MCP、费用执行链或部署实现。

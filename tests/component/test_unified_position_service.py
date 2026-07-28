@@ -328,3 +328,24 @@ def test_close_position_normalizes_float_backed_domain_quantity_for_partial_clos
     assert result.quantity == Decimal("60.000000")
     assert trade_repo.saved_entities[0].quantity == Decimal("40.000000")
     assert trade_repo.saved_entities[0].amount == 440.0
+
+
+def test_close_position_rejects_quantity_above_position_without_mutation():
+    position_repo = _FakePositionRepository()
+    trade_repo = _FakeTradeRepository()
+    service = _make_service(position_repo=position_repo, trade_repo=trade_repo)
+    position_repo.save_position_record(
+        account_id=6,
+        asset_code="000001.SZ",
+        defaults={"quantity": Decimal("10.000000")},
+    )
+
+    with pytest.raises(ValueError, match="close_shares_exceeds_position"):
+        service.close_position(
+            account_id=6,
+            asset_code="000001.SZ",
+            close_shares=Decimal("10.000001"),
+        )
+
+    assert position_repo.get_position(6, "000001.SZ").quantity == Decimal("10.000000")
+    assert trade_repo.saved_entities == []

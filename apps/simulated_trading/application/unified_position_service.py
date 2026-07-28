@@ -35,12 +35,18 @@ from apps.simulated_trading.domain.entities import (
     SimulatedTrade,
     TradeAction,
 )
+from shared.domain.position_calculations import recalculate_derived_fields
 
 logger = logging.getLogger(__name__)
 
 _QUANTITY_PLACES = Decimal("0.000001")
 _COST_PLACES = Decimal("0.0001")
 _VALUE_PLACES = Decimal("0.01")
+SIMULATED_POSITION_NOT_FOUND_ERROR = "simulated_position_not_found"
+SIMULATED_POSITION_STATE_INVALID_ERROR = "simulated_position_state_invalid"
+CLOSE_SHARES_INVALID_ERROR = "close_shares_invalid"
+CLOSE_SHARES_EXCEEDS_POSITION_ERROR = "close_shares_exceeds_position"
+CLOSE_PRICE_INVALID_ERROR = "close_price_invalid"
 
 
 class PositionLifecycleRepositoryProtocol(Protocol):
@@ -155,7 +161,6 @@ class UnifiedPositionService:
         Preserves non-integer share quantities from the source system.
         Returns the created/updated PositionModel ORM instance.
         """
-        from shared.domain.position_calculations import recalculate_derived_fields
 
         qty = _to_decimal(shares, _QUANTITY_PLACES)
         avg_cost_d = _to_decimal(price, _COST_PLACES)
@@ -266,8 +271,6 @@ class UnifiedPositionService:
 
         Returns the updated Position domain entity.
         """
-        from shared.domain.position_calculations import recalculate_derived_fields
-
         model = self._position_repo.get_position(account_id, asset_code)
         if model is None:
             raise ValueError(
@@ -334,26 +337,30 @@ class UnifiedPositionService:
         Preserves Decimal precision for partial-close remainder.
         Returns the updated Position domain entity, or None on full close.
         """
-        from shared.domain.position_calculations import recalculate_derived_fields
-
         model = self._position_repo.get_position(account_id, asset_code)
         if model is None:
-            raise ValueError(
-                f"Position not found: account_id={account_id}, asset_code={asset_code}"
-            )
+            raise ValueError(SIMULATED_POSITION_NOT_FOUND_ERROR)
 
         position_quantity = _to_decimal(model.quantity, _QUANTITY_PLACES)
+        if not position_quantity.is_finite() or position_quantity <= 0:
+            raise ValueError(SIMULATED_POSITION_STATE_INVALID_ERROR)
         qty_to_close = (
             _to_decimal(close_shares, _QUANTITY_PLACES)
             if close_shares is not None
             else position_quantity
         )
+        if not qty_to_close.is_finite() or qty_to_close <= 0:
+            raise ValueError(CLOSE_SHARES_INVALID_ERROR)
+        if qty_to_close > position_quantity:
+            raise ValueError(CLOSE_SHARES_EXCEEDS_POSITION_ERROR)
         avg_cost_d = Decimal(str(model.avg_cost))
         price_d = (
             _to_decimal(close_price, _COST_PLACES)
             if close_price is not None
             else _to_decimal(model.current_price, _COST_PLACES)
         )
+        if not price_d.is_finite() or price_d <= 0:
+            raise ValueError(CLOSE_PRICE_INVALID_ERROR)
         execution_time = traded_at or timezone.now()
         execution_date = execution_time.date()
         amount = (qty_to_close * price_d).quantize(_VALUE_PLACES)

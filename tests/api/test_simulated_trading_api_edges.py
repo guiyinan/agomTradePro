@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from django.db import DatabaseError
 
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
@@ -226,3 +227,115 @@ def test_reset_account_endpoint_clears_ledger_and_resets_capital(
     assert owned_account.current_cash == Decimal("200000.00")
     assert owned_account.total_value == Decimal("200000.00")
     assert owned_account.positions.count() == 0
+
+
+@pytest.mark.django_db
+def test_close_position_endpoint_rejects_oversell_without_ledger_mutation(
+    authenticated_client,
+    owned_account,
+):
+    position = PositionModel.objects.create(
+        account=owned_account,
+        asset_code="000001.SZ",
+        asset_name="Ping An Bank",
+        asset_type="equity",
+        quantity=Decimal("100"),
+        available_quantity=Decimal("100"),
+        avg_cost=Decimal("10"),
+        total_cost=Decimal("1000"),
+        current_price=Decimal("11"),
+        market_value=Decimal("1100"),
+        unrealized_pnl=Decimal("100"),
+        unrealized_pnl_pct=10.0,
+        first_buy_date="2026-01-02",
+    )
+
+    response = authenticated_client.post(
+        f"/api/simulated-trading/accounts/{owned_account.id}/positions/close/",
+        {"asset_code": "000001.SZ", "close_shares": "101"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "success": False,
+        "error": "close_shares_exceeds_position",
+    }
+    position.refresh_from_db()
+    assert position.quantity == Decimal("100")
+    assert not owned_account.trades.exists()
+
+
+@pytest.mark.django_db
+def test_close_position_endpoint_redacts_unknown_validation_error(
+    authenticated_client,
+    owned_account,
+    mocker,
+    caplog,
+):
+    mocker.patch(
+        "apps.simulated_trading.interface.sdk_contract_views.interface_services."
+        "close_account_position",
+        side_effect=ValueError("postgresql://admin:raw-secret@example.test/simulated"),
+    )
+
+    response = authenticated_client.post(
+        f"/api/simulated-trading/accounts/{owned_account.id}/positions/close/",
+        {"asset_code": "000001.SZ"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "success": False,
+        "error": "simulated_position_close_failed",
+    }
+    assert "raw-secret" not in caplog.text
+    assert "postgresql://" not in caplog.text
+    assert "exception_type=ValueError" in caplog.text
+
+
+@pytest.mark.django_db
+def test_reset_account_endpoint_redacts_repository_error(
+    authenticated_client,
+    owned_account,
+    mocker,
+    caplog,
+):
+    mocker.patch(
+        "apps.simulated_trading.interface.sdk_contract_views.interface_services."
+        "reset_account_with_summary",
+        side_effect=DatabaseError("postgresql://admin:reset-secret@example.test/simulated"),
+    )
+
+    response = authenticated_client.post(
+        f"/api/simulated-trading/accounts/{owned_account.id}/reset/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "success": False,
+        "error": "simulated_account_reset_unavailable",
+    }
+    assert "reset-secret" not in caplog.text
+    assert "postgresql://" not in caplog.text
+    assert "exception_type=DatabaseError" in caplog.text
+
+
+@pytest.mark.django_db
+def test_reset_account_endpoint_returns_stable_missing_account_error(
+    authenticated_client,
+):
+    response = authenticated_client.post(
+        "/api/simulated-trading/accounts/999999/reset/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "success": False,
+        "error": "simulated_account_not_found",
+    }
