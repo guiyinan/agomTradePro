@@ -236,16 +236,44 @@
         }
     }
 
+    function actionKeyFromBrowserLocation() {
+        try {
+            return new URL(window.location.href).searchParams.get("action")?.trim() || "";
+        } catch (_error) {
+            return "";
+        }
+    }
+
+    function actionParamsFromBrowserLocation() {
+        try {
+            const params = {};
+            new URL(window.location.href).searchParams.forEach((value, key) => {
+                if (!["screen", "action"].includes(key)) {
+                    params[key] = value;
+                }
+            });
+            return params;
+        } catch (_error) {
+            return {};
+        }
+    }
+
     function syncBrowserScreenLocation(screenKey, options = {}) {
         const normalizedKey = String(screenKey || "").trim();
         if (!normalizedKey || !window.history?.pushState) {
             return;
         }
         const url = new URL(window.location.href);
-        if (url.searchParams.get("screen") === normalizedKey) {
+        if (
+            url.searchParams.get("screen") === normalizedKey
+            && (options.preserveAction || !url.searchParams.has("action"))
+        ) {
             return;
         }
         url.searchParams.set("screen", normalizedKey);
+        if (!options.preserveAction) {
+            url.searchParams.delete("action");
+        }
         const method = options.replace ? "replaceState" : "pushState";
         window.history[method]({ screenKey: normalizedKey }, "", url);
     }

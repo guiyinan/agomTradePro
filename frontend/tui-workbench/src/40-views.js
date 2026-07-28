@@ -288,15 +288,33 @@
     function renderChartMarkup(viewModel, options = {}) {
         const compact = Boolean(options.compact);
         const chartType = String(viewModel.chart_type || viewModel.renderer || "line").toLowerCase();
-        const points = chartPoints(viewModel);
+        const series = chartSeries(viewModel);
+        const points = series.flatMap((item) => item.points);
         if (!points.length) {
-            return renderEmptyState(viewModel.empty_message || "暂无图表数据。", []);
+            return renderEmptyState(
+                viewModel.empty_message || "暂无图表数据。",
+                viewModel.empty_guidance,
+                viewModel.next_steps,
+            );
         }
         const svg = chartType === "pie"
-            ? renderPieSvg(points)
+            ? renderPieSvg(series[0].points)
             : chartType === "bar"
-                ? renderBarSvg(points)
-                : renderLineSvg(points);
+                ? renderBarSvg(series[0].points)
+                : renderLineSeriesSvg(series);
+        const legend = chartType === "line"
+            ? series.map((item, index) => {
+                const latest = item.points[item.points.length - 1];
+                return `
+                    <span class="tui-chart-series-legend">
+                        <i class="series-${index % 6}"></i>
+                        ${escapeHtml(item.label)} ${escapeHtml(formatNumber(latest.value))}
+                    </span>
+                `;
+            }).join("")
+            : series[0].points.slice(0, compact ? 4 : 8).map((point) => `
+                <span><i></i>${escapeHtml(point.label)} ${escapeHtml(formatNumber(point.value))}</span>
+            `).join("");
         return `
             <section class="tui-rich-view tui-chart-view ${compact ? "is-compact" : ""}">
                 <div class="tui-rich-header">
@@ -304,11 +322,8 @@
                     <span>${escapeHtml(chartType.toUpperCase())}</span>
                 </div>
                 ${svg}
-                <div class="tui-chart-legend">
-                    ${points.slice(0, compact ? 4 : 8).map((point) => `
-                        <span><i></i>${escapeHtml(point.label)} ${escapeHtml(formatNumber(point.value))}</span>
-                    `).join("")}
-                </div>
+                <div class="tui-chart-legend">${legend}</div>
+                ${renderChartTextSummary(series, viewModel)}
             </section>
         `;
     }
@@ -448,10 +463,46 @@
     }
 
     function chartPoints(viewModel) {
-        const series = Array.isArray(viewModel.series) ? viewModel.series : [];
-        const firstSeries = series.find((item) => Array.isArray(item?.points));
-        const points = firstSeries ? firstSeries.points : (Array.isArray(viewModel.points) ? viewModel.points : []);
-        return points.map(normalizePoint).filter(Boolean);
+        return chartSeries(viewModel)[0]?.points || [];
+    }
+
+    function chartSeries(viewModel) {
+        const sourceSeries = Array.isArray(viewModel.series) ? viewModel.series : [];
+        const normalizedSeries = sourceSeries
+            .filter((item) => Array.isArray(item?.points))
+            .map((item, index) => ({
+                key: String(item.key || `series-${index + 1}`),
+                label: String(item.label || item.name || `序列 ${index + 1}`),
+                points: item.points.map(normalizePoint).filter(Boolean),
+            }))
+            .filter((item) => item.points.length);
+        if (normalizedSeries.length) {
+            return normalizedSeries;
+        }
+        const points = (Array.isArray(viewModel.points) ? viewModel.points : [])
+            .map(normalizePoint)
+            .filter(Boolean);
+        return points.length ? [{ key: "value", label: String(viewModel.label || viewModel.title || "数值"), points }] : [];
+    }
+
+    function renderChartTextSummary(series, viewModel) {
+        const xAxisLabel = String(viewModel.x_axis_label || "横轴");
+        return `
+            <dl class="tui-chart-accessible-summary" aria-label="图表文本摘要">
+                <div><dt>横轴</dt><dd>${escapeHtml(xAxisLabel)}</dd></div>
+                ${series.map((item) => {
+                    const first = item.points[0];
+                    const latest = item.points[item.points.length - 1];
+                    return `
+                        <div>
+                            <dt>${escapeHtml(item.label)}</dt>
+                            <dd>${escapeHtml(first.label)} ${escapeHtml(formatNumber(first.value))}
+                                至 ${escapeHtml(latest.label)} ${escapeHtml(formatNumber(latest.value))}</dd>
+                        </div>
+                    `;
+                }).join("")}
+            </dl>
+        `;
     }
 
     function normalizePoint(point, index = 0) {
@@ -496,10 +547,38 @@
         const scale = chartScale(points, width, height, padding);
         const path = points.map((point, index) => `${index === 0 ? "M" : "L"}${scale.x(index).toFixed(1)} ${scale.y(point.value).toFixed(1)}`).join(" ");
         return `
-            <svg class="tui-chart-svg ${options.spark ? "is-spark" : ""}" viewBox="0 0 ${width} ${height}" role="img">
+            <svg class="tui-chart-svg ${options.spark ? "is-spark" : ""}" viewBox="0 0 ${width} ${height}" aria-hidden="true">
                 <path class="tui-chart-gridline" d="M${padding} ${height - padding}H${width - padding}"></path>
                 <path class="tui-chart-line" d="${escapeHtml(path)}"></path>
                 ${points.map((point, index) => `<circle class="tui-chart-point" cx="${scale.x(index).toFixed(1)}" cy="${scale.y(point.value).toFixed(1)}" r="${options.spark ? 2 : 3}"></circle>`).join("")}
+            </svg>
+        `;
+    }
+
+    function renderLineSeriesSvg(series) {
+        const width = 640;
+        const height = 220;
+        const padding = 28;
+        const allPoints = series.flatMap((item) => item.points);
+        const labels = [...new Set(allPoints.map((point) => point.label))];
+        const scale = chartScale(allPoints, width, height, padding);
+        const xFor = (label) => {
+            if (labels.length <= 1) {
+                return width / 2;
+            }
+            const index = Math.max(0, labels.indexOf(label));
+            return padding + (index / (labels.length - 1)) * (width - padding * 2);
+        };
+        return `
+            <svg class="tui-chart-svg" viewBox="0 0 ${width} ${height}" aria-hidden="true">
+                <path class="tui-chart-gridline" d="M${padding} ${height - padding}H${width - padding}"></path>
+                ${series.map((item, seriesIndex) => {
+                    const path = item.points.map((point, index) => `${index === 0 ? "M" : "L"}${xFor(point.label).toFixed(1)} ${scale.y(point.value).toFixed(1)}`).join(" ");
+                    return `
+                        <path class="tui-chart-line series-${seriesIndex % 6}" d="${escapeHtml(path)}"></path>
+                        ${item.points.map((point) => `<circle class="tui-chart-point series-${seriesIndex % 6}" cx="${xFor(point.label).toFixed(1)}" cy="${scale.y(point.value).toFixed(1)}" r="3"></circle>`).join("")}
+                    `;
+                }).join("")}
             </svg>
         `;
     }
@@ -517,7 +596,7 @@
         const barGap = 8;
         const barWidth = Math.max(8, (width - padding * 2 - barGap * (points.length - 1)) / points.length);
         return `
-            <svg class="tui-chart-svg" viewBox="0 0 ${width} ${height}" role="img">
+            <svg class="tui-chart-svg" viewBox="0 0 ${width} ${height}" aria-hidden="true">
                 <path class="tui-chart-gridline" d="M${padding} ${zeroY.toFixed(1)}H${width - padding}"></path>
                 ${points.map((point, index) => {
                     const x = padding + index * (barWidth + barGap);
@@ -541,7 +620,7 @@
             return slice;
         }).join("");
         return `
-            <svg class="tui-chart-svg tui-chart-pie" viewBox="0 0 200 200" role="img">
+            <svg class="tui-chart-svg tui-chart-pie" viewBox="0 0 200 200" aria-hidden="true">
                 ${slices}
                 <circle class="tui-chart-pie-hole" r="38" cx="100" cy="100"></circle>
             </svg>
@@ -561,17 +640,22 @@
         const detailBody = semantics.length
             ? renderSemanticDetailView(viewModel, semantics)
             : renderSemanticGridFields(viewModel.fields || []);
+        const isEmpty = !detailBody;
         const nested = semantics.length ? [] : (viewModel.nested || []);
         els.main.innerHTML = `
             <div class="tui-view-status">${escapeHtml(viewModel.status)} / ${escapeHtml(viewModel.title)}</div>
             ${renderDecisionCue(viewModel)}
-            ${detailBody || renderEmptyState("暂无摘要数据。", [])}
+            ${detailBody || renderEmptyState(
+                viewModel.empty_message || "暂无摘要数据。",
+                viewModel.empty_guidance,
+                viewModel.next_steps,
+            )}
             ${nested.length ? `
                 <div class="tui-nested-list">
                     ${nested.map((item) => `<span>${escapeHtml(item.label)}: ${escapeHtml(item.count)} 行</span>`).join("")}
                 </div>
             ` : ""}
-            ${Array.isArray(viewModel.next_steps) && viewModel.next_steps.length ? renderEmptyState("建议下一步", [], viewModel.next_steps) : ""}
+            ${!isEmpty && Array.isArray(viewModel.next_steps) && viewModel.next_steps.length ? renderEmptyState("建议下一步", [], viewModel.next_steps) : ""}
         `;
         bindNextStepButtons(els.main, viewModel.next_steps);
     }
