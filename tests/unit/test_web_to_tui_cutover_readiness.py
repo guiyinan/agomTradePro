@@ -15,12 +15,14 @@ from scripts.build_web_to_tui_production_telemetry import (
     APPROVED_QUERIES,
     build_production_telemetry_evidence,
 )
+from scripts.build_web_to_tui_review_snapshot import build_review_snapshot
 from scripts.check_web_to_tui_cutover_readiness import (
     _load_catalog,
     evaluate_readiness,
     required_route_pages,
     required_task_keys,
 )
+from scripts.record_web_to_tui_cutover_approval import build_approval_attestation
 
 ROOT = Path(__file__).resolve().parents[2]
 MATRIX_PATH = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
@@ -175,11 +177,6 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
     backup_projection.pop("version")
     backup_projection["evidence"] = backup_evidence
     backup_projection["evidence_sha256"] = backup_sha256
-    review_evidence, review_sha256 = _write_fixture(
-        evidence_root,
-        "review.md",
-        "synthetic independent cutover review\n",
-    )
     route_pages = sorted(required_route_pages(MATRIX_PATH))
     task_records = [
         {
@@ -235,30 +232,8 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
             "evidence_sha256": rollback_sha256,
             "production_registry_backup": backup_projection,
         },
-        "review_snapshot": {
-            "evidence": review_evidence,
-            "sha256": review_sha256,
-        },
-        "approvals": {
-            "owner": {
-                "name": "terminal-owner",
-                "decision": "approve",
-                "approved_at": "2026-08-09",
-                "candidate_version": "0.9.0-rc1",
-                "candidate_commit": candidate_commit,
-                "source_sha256": source_sha256,
-                "evidence_snapshot_sha256": review_sha256,
-            },
-            "reviewer": {
-                "name": "independent-reviewer",
-                "decision": "approve",
-                "approved_at": "2026-08-09",
-                "candidate_version": "0.9.0-rc1",
-                "candidate_commit": candidate_commit,
-                "source_sha256": source_sha256,
-                "evidence_snapshot_sha256": review_sha256,
-            },
-        },
+        "review_snapshot": {"evidence": None, "sha256": None},
+        "approvals": {"owner": None, "reviewer": None},
     }
 
     defect_snapshot = {
@@ -313,7 +288,7 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
         "telemetry.json",
         telemetry_snapshot,
     )
-    return build_production_telemetry_evidence(
+    payload = build_production_telemetry_evidence(
         snapshot=telemetry_snapshot,
         catalog=raw_catalog,
         evidence=payload,
@@ -321,6 +296,56 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
         snapshot_sha256=telemetry_sha256,
         as_of=date(2026, 8, 9),
     )
+
+    pre_review_path = evidence_root / "pre-review-evidence.json"
+    pre_review_path.write_text(json.dumps(payload), encoding="utf-8")
+    readiness = evaluate_readiness(
+        matrix_path=MATRIX_PATH,
+        catalog_path=CATALOG_PATH,
+        evidence_path=pre_review_path,
+        as_of=date(2026, 8, 9),
+        evidence_root=evidence_root,
+    )
+    review_snapshot = build_review_snapshot(
+        evidence=payload,
+        readiness=readiness,
+        reviewed_at=date(2026, 8, 9),
+    )
+    review_reference, review_sha256 = _write_fixture(
+        evidence_root,
+        "review.json",
+        review_snapshot,
+    )
+    payload["review_snapshot"] = {
+        "evidence": review_reference,
+        "sha256": review_sha256,
+    }
+
+    for role, name in (
+        ("owner", "terminal-owner"),
+        ("reviewer", "independent-reviewer"),
+    ):
+        attestation = build_approval_attestation(
+            evidence=payload,
+            review_snapshot=review_snapshot,
+            review_reference=review_reference,
+            review_sha256=review_sha256,
+            role=role,
+            name=name,
+            approved_at=date(2026, 8, 9),
+            as_of=date(2026, 8, 9),
+        )
+        approval_reference, approval_sha256 = _write_fixture(
+            evidence_root,
+            f"{role}-approval.json",
+            attestation,
+        )
+        projection = dict(attestation)
+        projection.pop("version")
+        projection["evidence"] = approval_reference
+        projection["evidence_sha256"] = approval_sha256
+        payload["approvals"][role] = projection
+    return payload
 
 
 def _evaluate(tmp_path: Path, payload: dict[str, Any]):
@@ -767,6 +792,35 @@ def test_approvals_require_verified_review_snapshot(tmp_path: Path) -> None:
     payload["review_snapshot"]["sha256"] = invalid_digest
     payload["approvals"]["owner"]["evidence_snapshot_sha256"] = invalid_digest
     payload["approvals"]["reviewer"]["evidence_snapshot_sha256"] = invalid_digest
+
+    result = _evaluate(tmp_path, payload)
+
+    assert result.decision == "DENY"
+    assert next(gate for gate in result.gates if gate.key == "cutover_approvals").passed is False
+
+
+def test_review_snapshot_must_reproduce_current_gate_results(tmp_path: Path) -> None:
+    """A digest-matched narrative cannot replace the eight-gate review snapshot."""
+
+    payload = _complete_evidence(tmp_path)
+    payload["review_snapshot"] = {
+        "evidence": payload["cleanup"]["evidence"],
+        "sha256": payload["cleanup"]["evidence_sha256"],
+    }
+
+    result = _evaluate(tmp_path, payload)
+
+    assert result.decision == "DENY"
+    assert next(gate for gate in result.gates if gate.key == "cutover_approvals").passed is False
+
+
+def test_approvals_require_role_bound_structured_attestations(tmp_path: Path) -> None:
+    """Approval projection fields cannot be paired with an unrelated evidence file."""
+
+    payload = _complete_evidence(tmp_path)
+    owner = payload["approvals"]["owner"]
+    owner["evidence"] = payload["cleanup"]["evidence"]
+    owner["evidence_sha256"] = payload["cleanup"]["evidence_sha256"]
 
     result = _evaluate(tmp_path, payload)
 

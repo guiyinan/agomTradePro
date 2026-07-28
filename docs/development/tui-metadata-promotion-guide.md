@@ -297,6 +297,44 @@ Run the read-only active-registry check again after restore. Production backup e
 incomplete until the backup and attestation commands have been executed and independently verified
 in the production environment.
 
+### Immutable cutover review and approvals
+
+After the stable window, defect snapshot, telemetry snapshot and production registry attestation all
+pass, freeze the eight non-approval gates into one review snapshot. The command refuses to write while
+any gate fails and clears stale approvals whenever a replacement snapshot is created:
+
+```powershell
+$reviewPath = Join-Path $PWD 'docs\plans\web-to-tui-m5-cutover-review.json'
+agomtradepro\Scripts\python.exe scripts\build_web_to_tui_review_snapshot.py `
+  --as-of '<YYYY-MM-DD>' `
+  --snapshot-output $reviewPath `
+  --write-evidence
+```
+
+The owner and independent reviewer then record separate role-bound attestations. They must use distinct
+identities and approve no earlier than the immutable review date:
+
+```powershell
+agomtradepro\Scripts\python.exe scripts\record_web_to_tui_cutover_approval.py `
+  --role owner `
+  --name '<owner-identity>' `
+  --approved-at '<YYYY-MM-DD>' `
+  --attestation-output 'docs\plans\web-to-tui-m5-owner-approval.json' `
+  --write-evidence
+
+agomtradepro\Scripts\python.exe scripts\record_web_to_tui_cutover_approval.py `
+  --role reviewer `
+  --name '<independent-reviewer-identity>' `
+  --approved-at '<YYYY-MM-DD>' `
+  --attestation-output 'docs\plans\web-to-tui-m5-reviewer-approval.json' `
+  --write-evidence
+```
+
+Both tools default to dry-run behavior. The readiness checker reconstructs the current eight-gate
+snapshot and exact approval projections; changing the candidate, matrix, production evidence or review
+digest invalidates prior signatures. These commands record evidence but do not create or impersonate a
+human approval.
+
 ### VPS release synchronization
 
 VPS deployment must not call the publisher ad hoc. Both supported deployment paths call:

@@ -84,9 +84,10 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
 
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     try:
-        temporary.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
+        temporary.write_bytes(
+            (json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode(
+                "utf-8"
+            )
         )
         os.replace(temporary, path)
     finally:

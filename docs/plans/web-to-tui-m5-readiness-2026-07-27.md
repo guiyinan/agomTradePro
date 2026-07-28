@@ -71,11 +71,15 @@ TUI，B 类 backlog 为 0；但这不等于获得 Classic 删除授权。2026-07
   保留期，并绑定候选版本、commit 与矩阵 SHA；owner 与独立 reviewer 的批准还必须绑定
   经 SHA-256 校验的同一评审快照。占位字符串、摘要不匹配、过期审批、路径穿越或缺失
   证据文件、虚构 commit、本地占位 locator 或非正 generation 均不能放行，对应
-  fail-closed 单测 `27 passed`；同时覆盖候选提交内矩阵、结构化快照重建、逐 route 清理
+  fail-closed 单测 `29 passed`；同时覆盖候选提交内矩阵、结构化快照重建、逐 route 清理
   scope/回滚映射、备份 attestation/保留期与观察窗口结束后审批时序。
 - 2026-07-28 checker 再次收紧：候选 commit 还必须属于当前分支并实际包含当前矩阵；108 条
   route rollback mapping 必须逐值等于矩阵，不再只验 SHA 可解析；缺陷与遥测 gate 会重新解析
   JSON 快照并调用生成器重建 evidence，摘要匹配的 Markdown、手工改写计数或跨候选快照均不能通过。
+- `build_web_to_tui_review_snapshot.py` 只在其余 8 个 gate 全通过时冻结精确 gate 结果，并清空
+  旧签字；`record_web_to_tui_cutover_approval.py` 分别生成 owner/reviewer 角色绑定 attestation，
+  强制不同身份、候选/矩阵/快照摘要一致和窗口结束后签署。Checker 会重建 review snapshot 并
+  逐份核对 attestation；工具只记录真实审批，不能代替或伪造审批人决定。
 - Classic cleanup guard 已接入 consistency CI：固定识别 7 个 M0-D 审计基线；任何新增
   `deleted` 行必须保留 A/B lifecycle、进入 M5-B wave，并由完整 readiness checker 返回
   ALLOW，否则 CI 直接失败。
@@ -106,7 +110,7 @@ FAIL blocking_defects: evidence=false; structured_snapshot=false
 FAIL production_telemetry: covered=0/101; production_evidence=false; structured_snapshot=false
 PASS rollback_drill
 FAIL production_registry_backup: evidence=false; structured_attestation=false; integrity=false; restore_verified=false
-FAIL cutover_approvals
+FAIL cutover_approvals: owner=missing; reviewer=missing; snapshot=false; attestations=false
 ```
 
 日常一致性检查：

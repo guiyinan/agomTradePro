@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 from collections.abc import Generator
@@ -245,7 +246,9 @@ def test_backup_evidence_command_writes_safe_candidate_bound_attestation(
     assert attestation["payload_sha256"] == published_registry.source_hash
     assert attestation["source_sha256"] == source_sha256
     assert projection["evidence"] == attestation_path.name
-    assert projection["evidence_sha256"]
+    assert (
+        projection["evidence_sha256"] == hashlib.sha256(attestation_path.read_bytes()).hexdigest()
+    )
     assert projection["restore_dry_run_passed"] is True
 
 

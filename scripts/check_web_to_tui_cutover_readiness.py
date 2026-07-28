@@ -37,6 +37,20 @@ REQUIRED_ROUTE_CLOSURE_SCOPES = frozenset(
 )
 DEFECT_QUERY_SCOPE = "created_or_open_during_candidate_window"
 BACKUP_ATTESTATION_VERSION = "web-to-tui-production-registry-backup-attestation.v1"
+REVIEW_SNAPSHOT_VERSION = "web-to-tui-cutover-review-snapshot.v1"
+APPROVAL_ATTESTATION_VERSION = "web-to-tui-cutover-approval-attestation.v1"
+REQUIRED_PRE_APPROVAL_GATES = frozenset(
+    {
+        "source_consistency",
+        "stable_version_window",
+        "route_task_uat",
+        "route_cleanup_readiness",
+        "blocking_defects",
+        "production_telemetry",
+        "rollback_drill",
+        "production_registry_backup",
+    }
+)
 
 
 class ClassicRouteRecord(TypedDict):
@@ -600,6 +614,89 @@ def _backup_attestation_matches(
     return attestation == expected
 
 
+def _review_snapshot_matches(
+    *,
+    review_snapshot: dict[str, Any],
+    gates: list[GateResult],
+    stable_version: str,
+    candidate_commit: str,
+    source_sha256: str,
+    required_routes: int,
+    required_tasks: int,
+    observation_end: date | None,
+    as_of: date,
+    evidence_root: Path,
+) -> bool:
+    """Require the review snapshot to reproduce every current pre-approval gate."""
+
+    snapshot_path = _verified_repo_evidence(
+        review_snapshot.get("evidence"),
+        review_snapshot.get("sha256"),
+        root=evidence_root,
+    )
+    if snapshot_path is None:
+        return False
+    try:
+        snapshot = _load_object(snapshot_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+    reviewed_at = _parse_date(snapshot.get("reviewed_at"))
+    gate_keys = {gate.key for gate in gates}
+    expected = {
+        "version": REVIEW_SNAPSHOT_VERSION,
+        "candidate_version": stable_version,
+        "candidate_commit": candidate_commit,
+        "source_sha256": source_sha256,
+        "reviewed_at": reviewed_at.isoformat() if reviewed_at else None,
+        "as_of": reviewed_at.isoformat() if reviewed_at else None,
+        "required_route_pages": required_routes,
+        "required_tasks": required_tasks,
+        "gates": [asdict(gate) for gate in gates],
+    }
+    return bool(
+        gate_keys == REQUIRED_PRE_APPROVAL_GATES
+        and all(gate.passed for gate in gates)
+        and reviewed_at
+        and observation_end
+        and observation_end <= reviewed_at <= as_of
+        and snapshot == expected
+    )
+
+
+def _approval_attestation_matches(
+    value: object,
+    *,
+    role: str,
+    review_reference: str,
+    review_sha256: str,
+    evidence_root: Path,
+) -> bool:
+    """Require one approval projection to equal its role-bound attestation."""
+
+    approval = _mapping(value)
+    attestation_path = _verified_repo_evidence(
+        approval.get("evidence"),
+        approval.get("evidence_sha256"),
+        root=evidence_root,
+    )
+    if attestation_path is None:
+        return False
+    try:
+        attestation = _load_object(attestation_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+    projection = dict(approval)
+    projection.pop("evidence", None)
+    projection.pop("evidence_sha256", None)
+    expected = {"version": APPROVAL_ATTESTATION_VERSION, **projection}
+    return bool(
+        approval.get("role") == role
+        and approval.get("review_snapshot") == review_reference
+        and approval.get("evidence_snapshot_sha256") == review_sha256
+        and attestation == expected
+    )
+
+
 def evaluate_readiness(
     *,
     matrix_path: Path,
@@ -842,16 +939,35 @@ def evaluate_readiness(
     )
 
     review_snapshot = _mapping(evidence.get("review_snapshot"))
+    review_snapshot_reference = str(review_snapshot.get("evidence") or "").strip()
     review_snapshot_sha256 = str(review_snapshot.get("sha256") or "").strip()
-    review_snapshot_ok = (
-        _verified_repo_evidence(
-            review_snapshot.get("evidence"),
-            review_snapshot_sha256,
-            root=evidence_root,
-        )
-        is not None
+    review_snapshot_ok = _review_snapshot_matches(
+        review_snapshot=review_snapshot,
+        gates=gates,
+        stable_version=stable_version,
+        candidate_commit=candidate_commit,
+        source_sha256=evidence_sha,
+        required_routes=len(routes),
+        required_tasks=len(tasks),
+        observation_end=observation_end,
+        as_of=as_of,
+        evidence_root=evidence_root,
     )
     approvals = _mapping(evidence.get("approvals"))
+    owner_attestation_ok = _approval_attestation_matches(
+        approvals.get("owner"),
+        role="owner",
+        review_reference=review_snapshot_reference,
+        review_sha256=review_snapshot_sha256,
+        evidence_root=evidence_root,
+    )
+    reviewer_attestation_ok = _approval_attestation_matches(
+        approvals.get("reviewer"),
+        role="reviewer",
+        review_reference=review_snapshot_reference,
+        review_sha256=review_snapshot_sha256,
+        evidence_root=evidence_root,
+    )
     owner, owner_ok = _bound_approval(
         approvals.get("owner"),
         stable_version=stable_version,
@@ -870,13 +986,21 @@ def evaluate_readiness(
         observation_end=observation_end,
         as_of=as_of,
     )
-    approvals_ok = bool(review_snapshot_ok and owner_ok and reviewer_ok and owner != reviewer)
+    approvals_ok = bool(
+        review_snapshot_ok
+        and owner_attestation_ok
+        and reviewer_attestation_ok
+        and owner_ok
+        and reviewer_ok
+        and owner != reviewer
+    )
     gates.append(
         GateResult(
             "cutover_approvals",
             approvals_ok,
             f"owner={owner or 'missing'}; reviewer={reviewer or 'missing'}; "
-            f"snapshot={str(review_snapshot_ok).lower()}",
+            f"snapshot={str(review_snapshot_ok).lower()}; "
+            f"attestations={str(owner_attestation_ok and reviewer_attestation_ok).lower()}",
         )
     )
 
