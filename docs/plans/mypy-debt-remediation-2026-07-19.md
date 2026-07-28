@@ -6097,3 +6097,17 @@
 - AI Provider Responses、Chat fallback、timeout、配置边界和异常脱敏专项 `11 passed`；用户路由、配置模式、公开 API、Agent Runtime 与 Terminal Agent 扩展组合 `86 passed`。
 - `apps/ai_provider/infrastructure/adapters.py` 增量 mypy 清零并退出债务清单；全仓基线从 `483 errors / 259 files` 收紧为 `480 errors / 258 files`，净减少 `3 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/SDK/MCP 成功响应、费用执行链或部署实现。
+
+## 第三百九十八批
+
+- 按“Events 注册/排序无类型合同 × 全局单例并发竞态 × 返回内部可变列表 × 订阅描述无边界”收口跨模块事件订阅注册表。
+- `SubscriberInfo` 改为 frozen 值对象并补齐 `__post_init__` 合同；module name、正式 EventType、callable factory、`-10000..10000` priority 和 500 字符无控制符 description 在注册前验证。
+- 注册、重复替换、排序、读取、取消和清空全部进入进程内 RLock；同一 module/event 的重复注册在锁内原子替换并按 priority/module name 确定性重排。
+- `get_subscribers()` 与 `get_all_subscribers()` 返回防御副本；调用方清空结果或尝试修改订阅信息不再污染全局注册状态。
+- process-wide registry 首次构造和 reset 由独立可重入锁保护，并发 Django ready/test reload 不再可能创建多个注册表实例或丢失订阅。
+
+## 第三百九十八批验证结果
+
+- Events 注册校验、防御副本、重复替换、并发注册与 singleton 专项组合 `28 passed`；Domain event bus、初始化失败关闭、故障注入、决策执行和跨 App subscriber 扩展组合 `73 passed, 4 skipped`。
+- `apps/events/domain/registry.py` 增量 mypy 清零并退出债务清单；全仓基线从 `480 errors / 258 files` 收紧为 `477 errors / 257 files`，净减少 `3 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/SDK/MCP、费用执行链或部署实现。

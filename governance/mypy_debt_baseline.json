@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 480,
-    "files_with_errors": 258
+    "errors": 477,
+    "files_with_errors": 257
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -431,10 +431,6 @@
       "no-untyped-def": 2
     },
     "apps/events/application/dtos.py": {
-      "no-untyped-def": 2
-    },
-    "apps/events/domain/registry.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 2
     },
     "apps/events/infrastructure/models.py": {

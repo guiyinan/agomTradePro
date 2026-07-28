@@ -22,6 +22,8 @@ Domain 层注册表， 用于实现订阅注册反转 (IoC)。
 """
 
 import logging
+import re
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -29,24 +31,49 @@ from .entities import EventHandler, EventType
 
 logger = logging.getLogger(__name__)
 
+_MODULE_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,127}$")
+_MIN_PRIORITY = -10_000
+_MAX_PRIORITY = 10_000
+
 
 # ============================================================================
 # Registry Data Structures
 # ============================================================================
 
-@dataclass
+
+@dataclass(frozen=True)
 class SubscriberInfo:
     """订阅者信息"""
+
     module_name: str
     event_type: EventType
     handler_factory: Callable[[], EventHandler]
     priority: int = 100
     description: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """初始化后验证"""
-        if self.handler_factory is None:
-            raise ValueError(f"Handler factory cannot be None for {self.module_name}")
+        if (
+            not isinstance(self.module_name, str)
+            or _MODULE_NAME_PATTERN.fullmatch(self.module_name) is None
+        ):
+            raise ValueError("event_subscriber_module_name_invalid")
+        if not isinstance(self.event_type, EventType):
+            raise TypeError("event_subscriber_event_type_invalid")
+        if not callable(self.handler_factory):
+            raise TypeError("event_subscriber_factory_invalid")
+        if (
+            isinstance(self.priority, bool)
+            or not isinstance(self.priority, int)
+            or not _MIN_PRIORITY <= self.priority <= _MAX_PRIORITY
+        ):
+            raise ValueError("event_subscriber_priority_invalid")
+        if self.description is not None and (
+            not isinstance(self.description, str)
+            or len(self.description) > 500
+            or any(ord(character) < 32 or ord(character) == 127 for character in self.description)
+        ):
+            raise ValueError("event_subscriber_description_invalid")
 
 
 @dataclass
@@ -73,9 +100,9 @@ class EventSubscriberRegistry:
         ... )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._subscribers: dict[EventType, list[SubscriberInfo]] = {}
-        self._sorted = False
+        self._lock = threading.RLock()
 
     def register(
         self,
@@ -83,7 +110,7 @@ class EventSubscriberRegistry:
         event_type: EventType,
         handler_factory: Callable[[], EventHandler],
         priority: int = 100,
-        description: str | None = None
+        description: str | None = None,
     ) -> None:
         """
         注册订阅者
@@ -99,41 +126,34 @@ class EventSubscriberRegistry:
         - 添加重复注册检测，防止同一 (module_name, event_type) 重复注册
         - 如果已存在相同组合，则更新而非追加
         """
-        # 检查是否已存在相同的 (module_name, event_type) 组合
-        if event_type in self._subscribers:
-            for i, existing in enumerate(self._subscribers[event_type]):
-                if existing.module_name == module_name:
-                    # 已存在，更新而不是追加
-                    self._subscribers[event_type][i] = SubscriberInfo(
-                        module_name=module_name,
-                        event_type=event_type,
-                        handler_factory=handler_factory,
-                        priority=priority,
-                        description=description
-                    )
-                    self._sorted = False
-                    logger.debug(
-                        f"Updated subscriber: {module_name} -> {event_type.value} (priority={priority})"
-                    )
-                    return
-
-        # 不存在，创建新订阅者
         subscriber = SubscriberInfo(
             module_name=module_name,
             event_type=event_type,
             handler_factory=handler_factory,
             priority=priority,
-            description=description
+            description=description,
         )
-
-        if event_type in self._subscribers:
-            self._subscribers[event_type].append(subscriber)
-        else:
-            self._subscribers[event_type] = [subscriber]
-        self._sorted = False  # 添加后需要重新排序
+        with self._lock:
+            subscribers = self._subscribers.setdefault(event_type, [])
+            for index, existing in enumerate(subscribers):
+                if existing.module_name == module_name:
+                    subscribers[index] = subscriber
+                    subscribers.sort(key=lambda item: (item.priority, item.module_name))
+                    logger.debug(
+                        "Updated subscriber: %s -> %s (priority=%s)",
+                        module_name,
+                        event_type.value,
+                        priority,
+                    )
+                    return
+            subscribers.append(subscriber)
+            subscribers.sort(key=lambda item: (item.priority, item.module_name))
 
         logger.debug(
-            f"Registered subscriber: {module_name} -> {event_type.value} (priority={priority})"
+            "Registered subscriber: %s -> %s (priority=%s)",
+            module_name,
+            event_type.value,
+            priority,
         )
 
     def get_subscribers(self, event_type: EventType) -> list[SubscriberInfo]:
@@ -146,13 +166,10 @@ class EventSubscriberRegistry:
         Returns:
             SubscriberInfo 列表 (按优先级排序)
         """
-        if not self._sorted:
-            # 按优先级排序
-            for subscribers in self._subscribers.values():
-                subscribers.sort(key=lambda s: s.priority)
-            self._sorted = True
-
-        return self._subscribers.get(event_type, [])
+        if not isinstance(event_type, EventType):
+            raise TypeError("event_subscriber_event_type_invalid")
+        with self._lock:
+            return list(self._subscribers.get(event_type, ()))
 
     def get_all_subscribers(self) -> list[SubscriberInfo]:
         """
@@ -161,10 +178,16 @@ class EventSubscriberRegistry:
         Returns:
             所有 SubscriberInfo 列表表
         """
-        all_subscribers = []
-        for subscribers in self._subscribers.values():
-            all_subscribers.extend(subscribers)
-        return all_subscribers
+        with self._lock:
+            all_subscribers = [
+                subscriber
+                for subscribers in self._subscribers.values()
+                for subscriber in subscribers
+            ]
+        return sorted(
+            all_subscribers,
+            key=lambda item: (item.event_type.value, item.priority, item.module_name),
+        )
 
     def is_registered(self, module_name: str, event_type: EventType) -> bool:
         """
@@ -177,9 +200,15 @@ class EventSubscriberRegistry:
         Returns:
             是否已注册
         """
-        if event_type not in self._subscribers:
+        if not isinstance(module_name, str) or _MODULE_NAME_PATTERN.fullmatch(module_name) is None:
             return False
-        return any(s.module_name == module_name for s in self._subscribers[event_type])
+        if not isinstance(event_type, EventType):
+            return False
+        with self._lock:
+            return any(
+                subscriber.module_name == module_name
+                for subscriber in self._subscribers.get(event_type, ())
+            )
 
     def unregister(self, module_name: str, event_type: EventType) -> bool:
         """
@@ -192,23 +221,34 @@ class EventSubscriberRegistry:
         Returns:
             是否成功取消注册
         """
-        if event_type not in self._subscribers:
+        if not isinstance(module_name, str) or _MODULE_NAME_PATTERN.fullmatch(module_name) is None:
             return False
-
-        original_count = len(self._subscribers[event_type])
-        self._subscribers[event_type] = [
-            s for s in self._subscribers[event_type] if s.module_name != module_name
-        ]
-
-        if len(self._subscribers[event_type]) < original_count:
-            logger.debug(f"Unregistered subscriber: {module_name} -> {event_type.value}")
-            return True
-        return False
+        if not isinstance(event_type, EventType):
+            return False
+        with self._lock:
+            subscribers = self._subscribers.get(event_type)
+            if not subscribers:
+                return False
+            remaining = [
+                subscriber for subscriber in subscribers if subscriber.module_name != module_name
+            ]
+            if len(remaining) == len(subscribers):
+                return False
+            if remaining:
+                self._subscribers[event_type] = remaining
+            else:
+                del self._subscribers[event_type]
+        logger.debug(
+            "Unregistered subscriber: %s -> %s",
+            module_name,
+            event_type.value,
+        )
+        return True
 
     def clear(self) -> None:
         """清空注册表"""
-        self._subscribers.clear()
-        self._sorted = False
+        with self._lock:
+            self._subscribers.clear()
 
 
 # ============================================================================
@@ -216,6 +256,7 @@ class EventSubscriberRegistry:
 # ============================================================================
 
 _registry_instance: EventSubscriberRegistry | None = None
+_registry_lock = threading.RLock()
 
 
 def get_event_subscriber_registry() -> EventSubscriberRegistry:
@@ -226,9 +267,10 @@ def get_event_subscriber_registry() -> EventSubscriberRegistry:
         EventSubscriberRegistry 实例
     """
     global _registry_instance
-    if _registry_instance is None:
-        _registry_instance = EventSubscriberRegistry()
-    return _registry_instance
+    with _registry_lock:
+        if _registry_instance is None:
+            _registry_instance = EventSubscriberRegistry()
+        return _registry_instance
 
 
 def reset_event_subscriber_registry() -> None:
@@ -238,4 +280,5 @@ def reset_event_subscriber_registry() -> None:
     用于测试或配置重置。
     """
     global _registry_instance
-    _registry_instance = None
+    with _registry_lock:
+        _registry_instance = None
