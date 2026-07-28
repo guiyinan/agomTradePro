@@ -18,17 +18,16 @@ This stage applies behavior-preserving refactoring to the initial four highest-r
 - Decision Rhythm ORM models now have focused rhythm/request, valuation/approval, portfolio-transition, unified-recommendation/execution-link, and model-parameter owners. The original model module remains the stable Django import and patch surface, with no schema migration.
 - Decision Rhythm repositories now have focused quota/request, valuation/recommendation/approval, and unified-recommendation/model-parameter owners. The original repository module is a thin stable import surface.
 - Data Center application use cases now have focused provider/catalog, read-query, decision-reliability, fact-query, macro-governance, and provider-sync owners. The original use-case module is an explicit compatibility aggregator with bounded exports.
-- Every remediated path was removed from both the allowance and remediation maps. Every remaining allowance has an owner, rationale, priority, target, review date, and this plan path.
+- Broker Execution persistence now composes focused access, Agent runtime, management, and reconciliation owners behind the original repository class.
+- Strategy interface-facing ORM queries now live in a focused repository owner while the legacy repository import remains stable.
+- TUI workbench result rendering now composes collection and detail owners while preserving the public result-model mixin.
+- AI Capability catalog routing services and read-only catalog queries now have focused Application owners behind the established use-case exports.
+- Simulated Trading inspection persistence now has a focused Infrastructure owner while the repository/provider re-export path remains stable.
+- Every remediated path was removed from both the allowance and remediation maps; both maps are now empty.
 
 ## Remaining scope
 
-The remaining allowances are not refactored in this stage. Their authoritative backlog is `large_file_remediation` in the governance baseline:
-
-- AI Capability application orchestration and Simulated Trading unified-ledger persistence entered the P1 backlog on 2026-07-23 after crossing the repository-wide limit; both require responsibility-based decomposition that preserves their current facade and repository contracts.
-- P1 items must be reviewed by 2026-09-30.
-- P2 items must be reviewed by 2026-12-31.
-- A reached review date fails governance CI until the file is remediated or its metadata is deliberately revised through review.
-- Targets cannot exceed the repository-wide large-file threshold.
+There are no tracked large-file allowances after the 2026-07-28 closure. Any production Python file that exceeds the repository-wide threshold must now be decomposed or enter a separately reviewed remediation plan; this stage must not be reopened merely to raise the machine baseline.
 
 ## Regression coverage
 
@@ -50,7 +49,7 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 
 - Runtime imports and compatibility exports are the main risk because tests and adjacent interface modules patch legacy paths. Each original module therefore retains thin exports or aggregators.
 - Celery task registration is kept in the original module; Infrastructure modules contain implementation only.
-- Further large-file splits remain separate P1/P2 work packages and must retain independent compatibility tests and rollback points.
+- Any future large-file split remains an independent work package with compatibility tests and a module-level rollback point.
 - Each responsibility split is independently revertible. If a regression is found, revert the corresponding split together with its baseline removal so governance remains internally consistent.
 - No database schema, route, API payload, template key, TUI key, or Celery task name changes are part of this stage.
 
@@ -150,3 +149,33 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - `apps/audit/infrastructure/metrics.py` pre-existing I001 fixed as whitespace-only.
 - Full repository test suite and strict mypy were not run in this batch.
 - Roll back each module split together with its structure contract, plan doc, and paired baseline entries.
+
+## 2026-07-28 final allowance closure
+
+### Completed
+
+- Split `apps/broker_execution/infrastructure/repositories.py` into four bounded mixin owners for scoped access, Agent operations, management/configuration, and reconciliation/live-order creation. The original module remains the concrete compatibility class.
+- Split `StrategyInterfaceRepository` into `apps/strategy/infrastructure/strategy_interface_repository.py` with an intentional legacy re-export.
+- Split TUI chart/datagrid and detail/message rendering into two bounded result-model mixins while retaining `TuiWorkbenchResultModelMixin` as the public composition point.
+- Split AI Capability catalog routing services and catalog query use cases into two focused Application modules while retaining symbol identity and the legacy sync-loader patch surface.
+- Split `DjangoInspectionRepository` into `apps/simulated_trading/infrastructure/inspection_repository.py` and preserved both repository and provider import paths.
+- Added a five-part structure contract covering symbol identity, mixin composition, one-way owner dependencies, and tighter per-file non-empty-line budgets.
+- Removed the final AI Capability, Broker Execution, and Simulated Trading entries from `allowed_large_python_files` and `large_file_remediation`; the machine baseline now reports no large-file violations or allowances.
+
+### Verified
+
+- Structure contract: `5 passed`.
+- Broker Execution, Strategy, AI Capability, and Simulated Trading focused behavior regression: `183 passed`.
+- TUI result-model focused behavior regression: `11 passed`.
+- Fixed high-risk regression package (`test_tui_workbench`, Terminal Agent service, SDK client, internal SSL redirect): `278 passed`.
+- Incremental mypy: no issues in 15 changed production files; full mypy debt ceiling passed at the existing ceiling (`2108` errors in `478` files).
+- Governance consistency: `0` violations, including `large_python_files` and `large_file_remediation`.
+- `makemigrations --check --dry-run` reported no changes for Broker Execution, Strategy, and Simulated Trading.
+- Django system check, Python compilation, Ruff, Black, and isort passed for the changed batch.
+- Architecture guardrail selection passed `24/25`; the remaining failure is the pre-existing module-dependency budget drift (`200` observed edges versus the `196` baseline, including Terminal's existing outbound budget). This batch adds no new cross-App dependency target and does not raise that unrelated baseline.
+
+### Unverified risks and rollback
+
+- The full repository pytest suite was not run; verification is limited to the focused module suites, the fixed high-risk package, structure contracts, and governance/type/format gates listed above.
+- The existing module-dependency budget drift requires a separate architecture-governance mainline; it must not be hidden by increasing the baseline as part of this large-file-only batch.
+- Roll back each module independently by reverting its facade/owner modules and the structure contract assertions. Any rollback that reintroduces an over-limit file must also restore reviewed remediation metadata before merge; no model, migration, route, API payload, TUI key, or Celery task name changed in this batch.
