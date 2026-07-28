@@ -5563,3 +5563,20 @@
 - Signal 全量单元与数据连接命令扩展回归 `134 passed`。
 - `apps/signal/infrastructure/diagnostic_queries.py` 在增量 mypy 口径清零；全仓基线从 `658 errors / 310 files` 收紧为 `657 errors / 309 files`，净减少 `1 error / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百六十四批
+
+- 按“非法证券代码触发全链数据源 × 非有限价格持久化 fallback × provider 异常泄密”收口 Valuation Application 来源选择链。
+- 证券代码在 formal、snapshot、Data Center fact 和行情 provider I/O 前统一 trim/uppercase，并限制为 1..20 位受控资产标识；空白、内嵌空格、超长和非法字符直接返回不可用且零外部调用。
+- 同一规范代码贯穿全部来源、fallback 快照与返回合同，避免大小写/空白变体产生跨来源错配或重复持久化。
+- fallback 行情必须是正有限 `Decimal`；NaN、Infinity、零、负数和错误类型不能创建或保存估值快照。来源标签必须是非空、长度受控、无控制字符的单行审计标签，污染来源失败关闭。
+- 读取或保存后的 fallback 必须属于请求证券、方法为 `FALLBACK`，且六项价格均为正有限 Decimal；损坏持久化结果不能进入推荐链。
+- formal/snapshot 有效 payload 返回隔离副本，调用方修改结果不会直接污染来源持有的 mapping。
+- 来源异常日志只记录规范证券代码和异常类型，不再输出数据库、provider 响应或凭据正文。
+- 拆分 snapshot/fact payload 局部变量，消除 optional dict 赋值债务；新增非法代码零 I/O、非有限价格不落库、来源标签、代码规范化和异常脱敏回归。
+
+## 第三百六十四批验证结果
+
+- Valuation service、Domain 边界、Equity quality gate 与 Unified Recommendation 扩展回归 `67 passed`。
+- `apps/valuation/application/use_cases.py` 在增量 mypy 口径清零；全仓基线从 `657 errors / 309 files` 收紧为 `656 errors / 308 files`，净减少 `1 error / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 657,
-    "files_with_errors": 309
+    "errors": 656,
+    "files_with_errors": 308
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -930,9 +930,6 @@
     },
     "apps/terminal/management/commands/export_tui_django_contracts.py": {
       "no-untyped-def": 2
-    },
-    "apps/valuation/application/use_cases.py": {
-      "assignment": 1
     },
     "apps/valuation/infrastructure/providers.py": {
       "attr-defined": 1

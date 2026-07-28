@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable
 from datetime import date, timedelta
 from decimal import Decimal
@@ -13,6 +14,9 @@ from ..domain.rules import ValuationPayloadPolicy
 from ..domain.services import ValuationSnapshotService
 
 logger = logging.getLogger(__name__)
+
+_SECURITY_CODE_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9._:-]{0,19}$")
+_MAX_PROVENANCE_LENGTH = 128
 
 
 class FormalValuationSource(Protocol):
@@ -81,41 +85,111 @@ class AssetValuationService:
 
     def get_valuation(self, security_code: str) -> dict[str, Any] | None:
         """Return the freshest reliable valuation or an explicit price fallback."""
+        normalized_code = self._normalize_security_code(security_code)
+        if normalized_code is None:
+            return None
         today = self._today_provider()
         try:
-            formal = self._formal_source.get_payload(security_code)
+            formal = self._formal_source.get_payload(normalized_code)
             if formal and ValuationPayloadPolicy.is_usable(formal, today=today):
-                return formal
+                return dict(formal)
 
-            for payload in self._snapshot_source.list_recent_payloads(security_code):
-                if ValuationPayloadPolicy.is_usable(payload, today=today):
-                    return payload
+            for snapshot_payload in self._snapshot_source.list_recent_payloads(normalized_code):
+                if ValuationPayloadPolicy.is_usable(snapshot_payload, today=today):
+                    return dict(snapshot_payload)
 
             start = today - timedelta(days=self.MAX_FORMAL_VALUATION_AGE_DAYS)
-            for fact in self._fact_source.list_recent(security_code, start, today):
-                payload = ValuationPayloadPolicy.build_fact_payload(fact, today=today)
-                if payload is not None:
-                    return payload
+            for fact in self._fact_source.list_recent(normalized_code, start, today):
+                fact_payload = ValuationPayloadPolicy.build_fact_payload(fact, today=today)
+                if fact_payload is not None:
+                    return fact_payload
 
-            fallback = self._snapshot_source.get_today_fallback(security_code, today)
+            fallback = self._snapshot_source.get_today_fallback(normalized_code, today)
             if fallback is None:
-                price, source = self._market_price_source.get_latest(security_code)
-                if price <= 0:
+                price, raw_source = self._market_price_source.get_latest(normalized_code)
+                source = self._normalize_provenance(raw_source)
+                if not self._is_positive_finite_price(price) or source is None:
                     return None
                 fallback = self._snapshot_service.create_current_price_fallback_snapshot(
-                    security_code=security_code,
+                    security_code=normalized_code,
                     current_price=price,
                     source=source,
                 )
                 fallback = self._snapshot_source.save_fallback(fallback)
-            payload = ValuationPayloadPolicy.snapshot_to_payload(
+            if not self._is_valid_fallback(fallback, normalized_code):
+                return None
+            fallback_payload = ValuationPayloadPolicy.snapshot_to_payload(
                 fallback,
                 valuation_source="current_price_fallback",
             )
-            return payload if ValuationPayloadPolicy.has_positive_price_contract(payload) else None
+            return (
+                fallback_payload
+                if ValuationPayloadPolicy.has_positive_price_contract(fallback_payload)
+                else None
+            )
         except Exception as exc:
-            logger.warning("Failed to get valuation for %s: %s", security_code, exc)
+            logger.warning(
+                "Failed to get valuation security_code=%s exception_type=%s",
+                normalized_code,
+                type(exc).__name__,
+            )
             return None
+
+    @staticmethod
+    def _normalize_security_code(value: object) -> str | None:
+        """Return a bounded canonical security code before any source I/O."""
+
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip().upper()
+        return normalized if _SECURITY_CODE_PATTERN.fullmatch(normalized) else None
+
+    @staticmethod
+    def _normalize_provenance(value: object) -> str | None:
+        """Return a bounded single-line source label safe for audit storage."""
+
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip()
+        if (
+            not normalized
+            or len(normalized) > _MAX_PROVENANCE_LENGTH
+            or any(ord(character) < 32 or ord(character) == 127 for character in normalized)
+        ):
+            return None
+        return normalized
+
+    @staticmethod
+    def _is_positive_finite_price(value: object) -> bool:
+        """Return whether a market price is a positive finite Decimal."""
+
+        return isinstance(value, Decimal) and value.is_finite() and value > Decimal("0")
+
+    @classmethod
+    def _is_valid_fallback(
+        cls,
+        snapshot: object,
+        security_code: str,
+    ) -> bool:
+        """Validate a persisted fallback before it reaches recommendations."""
+
+        if (
+            not isinstance(snapshot, ValuationSnapshot)
+            or snapshot.security_code != security_code
+            or snapshot.valuation_method != "FALLBACK"
+        ):
+            return False
+        return all(
+            cls._is_positive_finite_price(price)
+            for price in (
+                snapshot.fair_value,
+                snapshot.entry_price_low,
+                snapshot.entry_price_high,
+                snapshot.target_price_low,
+                snapshot.target_price_high,
+                snapshot.stop_loss_price,
+            )
+        )
 
 
 __all__ = [
