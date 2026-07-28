@@ -6082,3 +6082,18 @@
 - 模拟交易平仓、重置、超量拒绝、异常脱敏和账本不变量专项 `19 passed`；模拟交易 Domain/Application、SDK client、账户持仓关闭与统一账本扩展组合 `99 passed`。
 - `apps/simulated_trading/interface/sdk_contract_views.py` 增量 mypy 清零并退出债务清单；`unified_position_service.py` 保持清零，全仓基线从 `487 errors / 260 files` 收紧为 `483 errors / 259 files`，净减少 `4 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/MCP、费用执行链或部署实现。
+
+## 第三百九十七批
+
+- 按“AI Provider 可选 SDK 类型漂移 × Responses/Chat/failover 原始异常拼接 × provider 配置无边界 × 动态 adapter 返回 Any”收口 OpenAI-compatible 运行链。
+- 可选 OpenAI SDK 改由 importlib 动态边界加载，删除 Optional client 的宽泛 ignore；failover adapter 建立精确 Protocol 与 TypedDict，不再从动态 item 返回 Any。
+- base URL 只接受无内嵌凭据的 HTTP(S) 地址并限制长度/控制字符；API key、模型、provider 名称和 provider 数量建立边界，fallback flag 必须为真实 bool。
+- temperature 必须为有限 `0..2`，max_tokens 必须为正整数且不超过 1,000,000；非法采样配置在 SDK I/O 前返回 `ai_provider_request_invalid`。
+- Responses/Chat 单路失败只发布 `ai_provider_request_failed`、`ai_provider_timeout` 或 `ai_provider_rate_limited`；双路失败发布 `ai_provider_fallback_failed`，不再拼接代理 URL、API key 或 SDK 异常正文。
+- provider 初始化、健康检查和多 provider 运行失败分别使用稳定原因/错误码；日志仅记录清洗后的 provider 名称和异常类型，多 provider 全失败不再暴露最后一次异常。
+
+## 第三百九十七批验证结果
+
+- AI Provider Responses、Chat fallback、timeout、配置边界和异常脱敏专项 `11 passed`；用户路由、配置模式、公开 API、Agent Runtime 与 Terminal Agent 扩展组合 `86 passed`。
+- `apps/ai_provider/infrastructure/adapters.py` 增量 mypy 清零并退出债务清单；全仓基线从 `483 errors / 259 files` 收紧为 `480 errors / 258 files`，净减少 `3 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/SDK/MCP 成功响应、费用执行链或部署实现。

@@ -30,12 +30,66 @@ def test_ai_failover_helper_reports_missing_healthy_providers(mocker) -> None:
     assert helper.has_available_adapters is False
     assert "ds: provider health check failed" in helper.describe_unavailable_providers()
     assert result["status"] == "error"
-    assert "No healthy AI providers available" in result["error_message"]
+    assert result["error_message"] == "no_healthy_ai_providers"
 
 
-def test_create_ai_policy_classifier_returns_none_without_healthy_provider(
-    mocker, caplog
+def test_ai_failover_helper_redacts_provider_initialization_failure(
+    mocker,
+    caplog,
 ) -> None:
+    mocker.patch(
+        "apps.ai_provider.infrastructure.adapters.OpenAICompatibleAdapter",
+        side_effect=RuntimeError("https://admin:init-secret@example.test/v1"),
+    )
+
+    helper = AIFailoverHelper(
+        [
+            {
+                "name": "secret-provider",
+                "base_url": "https://example.test/v1",
+                "api_key": "secret",
+            }
+        ]
+    )
+
+    assert helper.unavailable_providers == [
+        {
+            "name": "secret-provider",
+            "reason": "provider initialization failed",
+        }
+    ]
+    assert "init-secret" not in caplog.text
+    assert "https://admin" not in caplog.text
+    assert "exception_type=RuntimeError" in caplog.text
+
+
+def test_ai_failover_helper_redacts_runtime_failure(mocker, caplog) -> None:
+    adapter_instance = Mock()
+    adapter_instance.is_available.return_value = True
+    adapter_instance.chat_completion.side_effect = RuntimeError("api_key=runtime-secret")
+    mocker.patch(
+        "apps.ai_provider.infrastructure.adapters.OpenAICompatibleAdapter",
+        return_value=adapter_instance,
+    )
+    helper = AIFailoverHelper(
+        [
+            {
+                "name": "runtime-provider",
+                "base_url": "https://example.test/v1",
+                "api_key": "secret",
+            }
+        ]
+    )
+
+    result = helper.chat_completion_with_failover(messages=[{"role": "user", "content": "hi"}])
+
+    assert result["error_message"] == "all_ai_providers_failed"
+    assert "runtime-secret" not in str(result)
+    assert "runtime-secret" not in caplog.text
+    assert "exception_type=RuntimeError" in caplog.text
+
+
+def test_create_ai_policy_classifier_returns_none_without_healthy_provider(mocker, caplog) -> None:
     caplog.set_level("WARNING")
     provider_repo = Mock()
     provider = Mock()
@@ -64,9 +118,7 @@ def test_create_ai_policy_classifier_returns_none_without_healthy_provider(
     assert "no healthy providers are available" in caplog.text.lower()
 
 
-def test_create_ai_policy_classifier_skips_provider_without_usable_api_key(
-    mocker, caplog
-) -> None:
+def test_create_ai_policy_classifier_skips_provider_without_usable_api_key(mocker, caplog) -> None:
     caplog.set_level("WARNING")
     provider_repo = Mock()
     provider = Mock()
