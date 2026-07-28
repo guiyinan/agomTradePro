@@ -147,11 +147,34 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
         "rollback.md",
         "synthetic rollback drill evidence\n",
     )
+    backup_attestation = {
+        "version": "web-to-tui-production-registry-backup-attestation.v1",
+        "location": "artifact://tui-registry/pre-cutover.json",
+        "bundle_sha256": "b" * 64,
+        "payload_sha256": "c" * 64,
+        "registry_generation": 42,
+        "graph_hash": "d" * 64,
+        "schema_version": "tui-metadata.v3",
+        "runtime_version": "agomtui-runtime-0.2.0",
+        "runtime_build_id": "agomtui-runtime-0.2.0+test",
+        "candidate_version": "0.9.0-rc1",
+        "candidate_commit": candidate_commit,
+        "source_sha256": source_sha256,
+        "created_at": "2026-08-09",
+        "restore_dry_run_passed": True,
+        "restore_verified_at": "2026-08-09",
+        "verified_by": "independent-reviewer",
+        "retention_until": "2026-09-09",
+    }
     backup_evidence, backup_sha256 = _write_fixture(
         evidence_root,
-        "backup.md",
-        "synthetic production registry backup attestation\n",
+        "backup.json",
+        backup_attestation,
     )
+    backup_projection = dict(backup_attestation)
+    backup_projection.pop("version")
+    backup_projection["evidence"] = backup_evidence
+    backup_projection["evidence_sha256"] = backup_sha256
     review_evidence, review_sha256 = _write_fixture(
         evidence_root,
         "review.md",
@@ -210,24 +233,7 @@ def _complete_evidence(evidence_root: Path) -> dict[str, Any]:
             "performed_at": "2026-07-27",
             "evidence": rollback_evidence,
             "evidence_sha256": rollback_sha256,
-            "production_registry_backup": {
-                "evidence": backup_evidence,
-                "evidence_sha256": backup_sha256,
-                "location": "artifact://tui-registry/pre-cutover.json",
-                "payload_sha256": "c" * 64,
-                "registry_generation": 42,
-                "graph_hash": "d" * 64,
-                "schema_version": "tui-metadata.v3",
-                "runtime_version": "agomtui-runtime-0.2.0",
-                "candidate_version": "0.9.0-rc1",
-                "candidate_commit": candidate_commit,
-                "source_sha256": source_sha256,
-                "created_at": "2026-08-09",
-                "restore_dry_run_passed": True,
-                "restore_verified_at": "2026-08-09",
-                "verified_by": "independent-reviewer",
-                "retention_until": "2026-09-09",
-            },
+            "production_registry_backup": backup_projection,
         },
         "review_snapshot": {
             "evidence": review_evidence,
@@ -579,6 +585,38 @@ def test_backup_placeholder_string_cannot_allow_cutover(tmp_path: Path) -> None:
 
     payload = _complete_evidence(tmp_path)
     payload["rollback"]["production_registry_backup"] = "artifact://tui-registry/pre-cutover.json"
+
+    result = _evaluate(tmp_path, payload)
+
+    assert result.decision == "DENY"
+    assert (
+        next(gate for gate in result.gates if gate.key == "production_registry_backup").passed
+        is False
+    )
+
+
+def test_backup_gate_revalidates_structured_attestation(tmp_path: Path) -> None:
+    """A digest-matched narrative cannot stand in for registry backup attestation."""
+
+    payload = _complete_evidence(tmp_path)
+    backup = payload["rollback"]["production_registry_backup"]
+    backup["evidence"] = payload["cleanup"]["evidence"]
+    backup["evidence_sha256"] = payload["cleanup"]["evidence_sha256"]
+
+    result = _evaluate(tmp_path, payload)
+
+    assert result.decision == "DENY"
+    assert (
+        next(gate for gate in result.gates if gate.key == "production_registry_backup").passed
+        is False
+    )
+
+
+def test_backup_attestation_projection_must_match_exactly(tmp_path: Path) -> None:
+    """Hand-edited backup hashes cannot diverge from the verified attestation."""
+
+    payload = _complete_evidence(tmp_path)
+    payload["rollback"]["production_registry_backup"]["graph_hash"] = "e" * 64
 
     result = _evaluate(tmp_path, payload)
 

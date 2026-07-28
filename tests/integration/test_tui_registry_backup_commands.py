@@ -6,6 +6,7 @@ import json
 import tempfile
 from collections.abc import Generator
 from copy import deepcopy
+from datetime import datetime, timedelta
 from io import StringIO
 from pathlib import Path
 
@@ -16,6 +17,9 @@ from django.core.management.base import CommandError
 from apps.terminal.infrastructure.models import TuiMetadataRegistryORM
 from apps.terminal.infrastructure.tui_metadata_repository import (
     PublishedTuiMetadataRepository,
+)
+from apps.terminal.management.commands import (
+    build_tui_registry_backup_evidence as backup_evidence_command,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -108,6 +112,35 @@ def _backup(tmp_path: Path) -> tuple[Path, Path, str]:
     )
 
 
+def _candidate_evidence(bundle_path: Path, path: Path) -> tuple[str, str]:
+    """Write a candidate window ending on the bundle export date."""
+
+    bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+    exported_at = datetime.fromisoformat(bundle["exported_at"])
+    observation_end = exported_at.date()
+    released_at = observation_end - timedelta(days=14)
+    source_sha256 = "a" * 64
+    path.write_text(
+        json.dumps(
+            {
+                "version": "web-to-tui-cutover-evidence.v1",
+                "source_sha256": source_sha256,
+                "candidate": {
+                    "stable_version": "0.9.0-rc1",
+                    "candidate_commit": "b" * 40,
+                    "released_at": released_at.isoformat(),
+                    "observation_end": observation_end.isoformat(),
+                },
+                "rollback": {"production_registry_backup": None},
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return observation_end.isoformat(), source_sha256
+
+
 @pytest.mark.django_db
 def test_backup_command_writes_verified_external_bundle(
     published_registry: TuiMetadataRegistryORM,
@@ -169,6 +202,90 @@ def test_restore_command_rejects_tampered_bundle(
 
     with pytest.raises(CommandError, match="bundle SHA-256 mismatch"):
         call_command("restore_tui_registry_backup", input=str(output_path))
+
+
+@pytest.mark.django_db
+def test_backup_evidence_command_writes_safe_candidate_bound_attestation(
+    published_registry: TuiMetadataRegistryORM,
+    external_backup_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verified external payloads produce a payload-free structured M5 attestation."""
+
+    output_path, sidecar_path, _output = _backup(external_backup_dir)
+    evidence_path = tmp_path / "cutover-evidence.json"
+    observation_end, source_sha256 = _candidate_evidence(output_path, evidence_path)
+    retention_until = (
+        datetime.fromisoformat(observation_end).date() + timedelta(days=30)
+    ).isoformat()
+    attestation_path = tmp_path / "registry-backup-attestation.json"
+    monkeypatch.setattr(backup_evidence_command, "ROOT", tmp_path)
+
+    call_command(
+        "build_tui_registry_backup_evidence",
+        input=str(output_path),
+        sha256_file=str(sidecar_path),
+        location="artifact://m5/tui-registry-pre-cutover.json",
+        verified_by="independent-reviewer",
+        retention_until=retention_until,
+        as_of=observation_end,
+        attestation_output=str(attestation_path),
+        cutover_evidence=str(evidence_path),
+        write_evidence=True,
+    )
+
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    updated = json.loads(evidence_path.read_text(encoding="utf-8"))
+    projection = updated["rollback"]["production_registry_backup"]
+
+    assert attestation["version"] == "web-to-tui-production-registry-backup-attestation.v1"
+    assert "payload" not in attestation
+    assert attestation["registry_generation"] == published_registry.pk
+    assert attestation["payload_sha256"] == published_registry.source_hash
+    assert attestation["source_sha256"] == source_sha256
+    assert projection["evidence"] == attestation_path.name
+    assert projection["evidence_sha256"]
+    assert projection["restore_dry_run_passed"] is True
+
+
+@pytest.mark.django_db
+def test_backup_evidence_rejects_stale_registry_generation(
+    published_registry: TuiMetadataRegistryORM,
+    external_backup_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bundle for a no-longer-active registry cannot become cutover evidence."""
+
+    output_path, sidecar_path, _output = _backup(external_backup_dir)
+    evidence_path = tmp_path / "cutover-evidence.json"
+    observation_end, _source_sha256 = _candidate_evidence(output_path, evidence_path)
+    changed_payload = deepcopy(published_registry.payload)
+    changed_payload["modules"][0]["label"] = "Changed after backup"
+    PublishedTuiMetadataRepository().publish_payload(
+        payload=changed_payload,
+        registry_key="default",
+        review_note="change after backup",
+        backend_version="test-backend-2",
+    )
+    monkeypatch.setattr(backup_evidence_command, "ROOT", tmp_path)
+
+    with pytest.raises(CommandError, match="active registry does not match"):
+        call_command(
+            "build_tui_registry_backup_evidence",
+            input=str(output_path),
+            sha256_file=str(sidecar_path),
+            location="artifact://m5/tui-registry-pre-cutover.json",
+            verified_by="independent-reviewer",
+            retention_until=(
+                datetime.fromisoformat(observation_end).date() + timedelta(days=30)
+            ).isoformat(),
+            as_of=observation_end,
+            attestation_output=str(tmp_path / "registry-backup-attestation.json"),
+            cutover_evidence=str(evidence_path),
+            write_evidence=True,
+        )
 
 
 @pytest.mark.django_db

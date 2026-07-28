@@ -262,9 +262,26 @@ agomtradepro\Scripts\python.exe manage.py restore_tui_registry_backup --input $b
 ```
 
 The dry-run verifies the bundle sidecar, registry-record hash, payload hash, runtime build ID and
-the same metadata validator used by publishing. Record the external artifact location, generation,
-graph/schema/runtime identifiers, bundle SHA-256, retention period and verifier in the M5 evidence;
-do not commit the bundle or sidecar.
+the same metadata validator used by publishing. After the candidate observation window ends, build
+the payload-free repository attestation from that external bundle. The command also requires the
+backed-up generation/hash to remain the active production registry and reruns publish preparation as
+the restore dry-run:
+
+```powershell
+$attestationPath = Join-Path $PWD 'docs\plans\web-to-tui-m5-production-registry-backup-attestation.json'
+agomtradepro\Scripts\python.exe manage.py build_tui_registry_backup_evidence `
+  --input $backupPath `
+  --location 'artifact://agomtradepro/m5/tui-registry-pre-cutover.json' `
+  --verified-by '<independent-reviewer>' `
+  --retention-until '<YYYY-MM-DD>' `
+  --attestation-output $attestationPath
+```
+
+The default is a dry run. Add `--write-evidence` only after reviewing the printed generation,
+graph hash, bundle SHA-256 and attestation path. It atomically writes a structured attestation with
+no registry payload and projects the exact candidate-bound fields into the cutover evidence. The
+readiness checker reparses that JSON and rejects narrative files or hand-edited projections. Do not
+commit the external bundle or sidecar.
 
 An actual restore requires explicit approval and the source hash observed immediately before the
 operation. This prevents overwriting an unexpected newer generation:
@@ -277,8 +294,8 @@ agomtradepro\Scripts\python.exe manage.py restore_tui_registry_backup --input $b
 The approved restore republishes the validated backup payload through
 `PublishedTuiMetadataRepository`, archives the current generation and records it as `rollback_of`.
 Run the read-only active-registry check again after restore. Production backup evidence remains
-incomplete until these commands have been executed and independently verified in the production
-environment.
+incomplete until the backup and attestation commands have been executed and independently verified
+in the production environment.
 
 ### VPS release synchronization
 

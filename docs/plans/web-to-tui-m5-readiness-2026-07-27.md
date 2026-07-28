@@ -71,9 +71,8 @@ TUI，B 类 backlog 为 0；但这不等于获得 Classic 删除授权。2026-07
   保留期，并绑定候选版本、commit 与矩阵 SHA；owner 与独立 reviewer 的批准还必须绑定
   经 SHA-256 校验的同一评审快照。占位字符串、摘要不匹配、过期审批、路径穿越或缺失
   证据文件、虚构 commit、本地占位 locator 或非正 generation 均不能放行，对应
-  fail-closed 单测 `25 passed`；同时覆盖候选提交内矩阵、结构化快照重建、逐 route 清理
-  scope/回滚映射、备份保留期与
-  观察窗口结束后审批时序。
+  fail-closed 单测 `27 passed`；同时覆盖候选提交内矩阵、结构化快照重建、逐 route 清理
+  scope/回滚映射、备份 attestation/保留期与观察窗口结束后审批时序。
 - 2026-07-28 checker 再次收紧：候选 commit 还必须属于当前分支并实际包含当前矩阵；108 条
   route rollback mapping 必须逐值等于矩阵，不再只验 SHA 可解析；缺陷与遥测 gate 会重新解析
   JSON 快照并调用生成器重建 evidence，摘要匹配的 Markdown、手工改写计数或跨候选快照均不能通过。
@@ -87,7 +86,9 @@ TUI，B 类 backlog 为 0；但这不等于获得 Classic 删除授权。2026-07
   2 个认证前对象查询及 7 个手写提示漂移。当前只关闭 `legacy_url`，不冒充完整权限/状态证据。
 - Registry 备份/恢复命令已落地：备份只能写到仓库外并原子生成 JSON + SHA-256 sidecar；
   恢复默认 dry-run，显式批准时还要求匹配当前 active source hash，并记录 rollback ancestry。
-  这只证明工具可用，不代表已经取得生产 registry 备份。
+  `build_tui_registry_backup_evidence` 会再次验证 bundle/sidecar、当前 active generation/hash、
+  restore payload、候选窗口和保留期，只把不含 payload 的结构化 attestation 写入仓库；checker
+  要求 attestation 与 cutover projection 精确相等。这只证明工具可用，不代表已经取得生产备份。
 - Published metadata 收口为 12 screens / 399 actions；删除 8 个无 screen/panel/矩阵消费者且
   缺少必填参数的旧 auto action。全新迁移 SQLite + staff 用户 + 同库 localhost 下，read/AI
   action smoke 为 `380 total / 238 ok / 142 needs_input / 0 error`；Regime、Pulse 首装空态返回
@@ -104,7 +105,7 @@ PASS route_cleanup_readiness: covered=108/108; scope_counts=empty_state:108,erro
 FAIL blocking_defects: evidence=false; structured_snapshot=false
 FAIL production_telemetry: covered=0/101; production_evidence=false; structured_snapshot=false
 PASS rollback_drill
-FAIL production_registry_backup: evidence=false; integrity=false; restore_verified=false
+FAIL production_registry_backup: evidence=false; structured_attestation=false; integrity=false; restore_verified=false
 FAIL cutover_approvals
 ```
 

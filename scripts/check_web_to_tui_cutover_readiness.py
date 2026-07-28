@@ -36,6 +36,7 @@ REQUIRED_ROUTE_CLOSURE_SCOPES = frozenset(
     {"primary_task", "permission", "empty_state", "error_state", "legacy_url", "rollback"}
 )
 DEFECT_QUERY_SCOPE = "created_or_open_during_candidate_window"
+BACKUP_ATTESTATION_VERSION = "web-to-tui-production-registry-backup-attestation.v1"
 
 
 class ClassicRouteRecord(TypedDict):
@@ -574,6 +575,31 @@ def _telemetry_snapshot_matches(
     return _mapping(prepared.get("telemetry")) == telemetry
 
 
+def _backup_attestation_matches(
+    *,
+    production_backup: dict[str, Any],
+    evidence_root: Path,
+) -> bool:
+    """Require the backup projection to equal its payload-free attestation."""
+
+    attestation_path = _verified_repo_evidence(
+        production_backup.get("evidence"),
+        production_backup.get("evidence_sha256"),
+        root=evidence_root,
+    )
+    if attestation_path is None:
+        return False
+    try:
+        attestation = _load_object(attestation_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+    projection = dict(production_backup)
+    projection.pop("evidence", None)
+    projection.pop("evidence_sha256", None)
+    expected = {"version": BACKUP_ATTESTATION_VERSION, **projection}
+    return attestation == expected
+
+
 def evaluate_readiness(
     *,
     matrix_path: Path,
@@ -775,15 +801,22 @@ def evaluate_readiness(
         )
         is not None
     )
+    backup_attestation_ok = _backup_attestation_matches(
+        production_backup=production_backup,
+        evidence_root=evidence_root,
+    )
     backup_ok = bool(
         backup_evidence_ok
+        and backup_attestation_ok
         and _valid_backup_location(production_backup.get("location"))
+        and _valid_sha256(production_backup.get("bundle_sha256"))
         and _valid_sha256(production_backup.get("payload_sha256"))
         and _valid_sha256(production_backup.get("graph_hash"))
         and backup_generation is not None
         and backup_generation > 0
         and str(production_backup.get("schema_version") or "").strip()
         and str(production_backup.get("runtime_version") or "").strip()
+        and str(production_backup.get("runtime_build_id") or "").strip()
         and str(production_backup.get("candidate_version") or "").strip() == stable_version
         and str(production_backup.get("candidate_commit") or "").strip() == candidate_commit
         and str(production_backup.get("source_sha256") or "").strip() == evidence_sha
@@ -802,6 +835,7 @@ def evaluate_readiness(
             "production_registry_backup",
             backup_ok,
             f"evidence={str(backup_evidence_ok).lower()}; "
+            f"structured_attestation={str(backup_attestation_ok).lower()}; "
             f"integrity={str(_valid_sha256(production_backup.get('payload_sha256'))).lower()}; "
             f"restore_verified={str(production_backup.get('restore_dry_run_passed') is True).lower()}",
         )
