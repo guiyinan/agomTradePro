@@ -5676,3 +5676,17 @@
 - Account 文档管理专项、Admin 页面与公共文档 API 集成回归 `46 passed`。
 - `apps/account/interface/documentation_views.py` 在增量 mypy 口径清零；全仓基线从 `639 errors / 301 files` 收紧为 `632 errors / 300 files`，净减少 `7 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批只修复既有 retained Admin 流程，未新增 Classic 页面，也未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百七十一批
+
+- 按“备份下载 token 无界进入校验链 × 动态归档响应未收窄 × 下载 handler 无类型”收口 Account 数据库备份下载入口。
+- token 在数据库与 Django signing I/O 前限制为最多 4096 位无空白 ASCII 字符；空值、超长、Unicode 与控制字符统一按无效链接返回 404。
+- Application 返回的动态归档必须收窄为非空 bytes、安全单文件名和固定 `application/octet-stream`；路径片段、CRLF、超长文件名、空内容与错误 MIME 不再进入 `FileResponse` header/body。
+- 保留既有签名校验、到期、摘要比对、单次原子消费和新链接撤销旧链接语义；下载 handler 补齐 `HttpRequest` 与精确响应类型。
+- 新增无界 token 零 service I/O、损坏归档拒绝与合法二进制响应回归。
+
+## 第三百七十一批验证结果
+
+- Account 备份下载专项及加密归档、邮件链接、单次消费、撤销与到期组件回归 `13 passed`。
+- `apps/account/interface/backup_views.py` 在增量 mypy 口径清零；全仓基线从 `632 errors / 300 files` 收紧为 `630 errors / 299 files`，净减少 `2 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改备份生成、邮件、数据库配置、Terminal、TUI、SDK、MCP 或部署实现。
