@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import importlib
 import json
 import re
 import subprocess
@@ -14,6 +15,14 @@ from datetime import date
 from pathlib import Path
 from typing import Any, TypedDict, cast
 from urllib.parse import urlparse
+
+module_prefix = "scripts." if __package__ else ""
+defect_evidence_builder: Any = importlib.import_module(
+    f"{module_prefix}build_web_to_tui_defect_evidence"
+)
+production_telemetry_builder: Any = importlib.import_module(
+    f"{module_prefix}build_web_to_tui_production_telemetry"
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MATRIX = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
@@ -104,7 +113,7 @@ def _non_negative_int(value: object) -> int | None:
     return value
 
 
-def _repo_evidence_path(value: object) -> Path | None:
+def _repo_evidence_path(value: object, *, root: Path = ROOT) -> Path | None:
     """Resolve an existing repository evidence file without allowing traversal."""
 
     if not isinstance(value, str) or not value.strip():
@@ -112,8 +121,9 @@ def _repo_evidence_path(value: object) -> Path | None:
     relative = Path(value.strip())
     if relative.is_absolute():
         return None
-    resolved = (ROOT / relative).resolve()
-    if not resolved.is_relative_to(ROOT) or not resolved.is_file():
+    resolved_root = root.resolve()
+    resolved = (resolved_root / relative).resolve()
+    if not resolved.is_relative_to(resolved_root) or not resolved.is_file():
         return None
     return resolved
 
@@ -145,6 +155,43 @@ def _candidate_commit_exists(value: object) -> bool:
     return result.returncode == 0
 
 
+def _candidate_commit_is_ancestor(value: object) -> bool:
+    """Return whether a full commit belongs to the current branch history."""
+
+    if not _candidate_commit_exists(value):
+        return False
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", str(value).strip(), "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _candidate_contains_matrix(
+    value: object,
+    *,
+    matrix_path: Path,
+    matrix_sha256: str,
+) -> bool:
+    """Return whether a commit stores the exact migration matrix under review."""
+
+    if not _candidate_commit_is_ancestor(value):
+        return False
+    try:
+        relative = matrix_path.resolve().relative_to(ROOT.resolve()).as_posix()
+    except ValueError:
+        return False
+    result = subprocess.run(
+        ["git", "show", f"{str(value).strip()}:{relative}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0 and hashlib.sha256(result.stdout).hexdigest() == matrix_sha256
+
+
 def _valid_backup_location(value: object) -> bool:
     """Return whether a backup uses an explicit approved external locator."""
 
@@ -154,10 +201,15 @@ def _valid_backup_location(value: object) -> bool:
     return parsed.scheme in BACKUP_LOCATION_SCHEMES and bool(parsed.netloc or parsed.path)
 
 
-def _verified_repo_evidence(value: object, digest: object) -> Path | None:
+def _verified_repo_evidence(
+    value: object,
+    digest: object,
+    *,
+    root: Path = ROOT,
+) -> Path | None:
     """Resolve one evidence file only when its checked-in SHA-256 matches."""
 
-    path = _repo_evidence_path(value)
+    path = _repo_evidence_path(value, root=root)
     if path is None or not _valid_sha256(digest):
         return None
     expected = str(digest).strip()
@@ -213,11 +265,18 @@ def _route_cleanup_gate(
     matrix_path: Path,
     cleanup: dict[str, Any],
     required_routes: set[str],
+    *,
+    evidence_root: Path,
 ) -> GateResult:
     """Require per-route closure evidence before any Classic cleanup is allowed."""
 
     evidence_ok = (
-        _verified_repo_evidence(cleanup.get("evidence"), cleanup.get("evidence_sha256")) is not None
+        _verified_repo_evidence(
+            cleanup.get("evidence"),
+            cleanup.get("evidence_sha256"),
+            root=evidence_root,
+        )
+        is not None
     )
     passed_routes = _string_set(cleanup.get("passed_route_pages"))
     scope_values = _mapping(cleanup.get("scope_coverage"))
@@ -241,27 +300,33 @@ def _route_cleanup_gate(
     )
 
     rollback_values = _mapping(cleanup.get("route_rollback_commits"))
-    rollback_routes = {str(key).strip() for key in rollback_values if str(key).strip()}
+    rollback_mapping = {
+        str(key).strip(): str(value).strip()
+        for key, value in rollback_values.items()
+        if isinstance(key, str) and key.strip() and isinstance(value, str) and value.strip()
+    }
+    rollback_routes = set(rollback_mapping)
     rollback_key_ok = rollback_routes == required_routes
     rollback_scope_ok = rollback_routes == scope_routes.get("rollback", set())
-    rollback_commits = {
-        str(value).strip()
-        for value in rollback_values.values()
-        if isinstance(value, str) and value.strip()
-    }
-    rollback_ok = bool(
-        rollback_key_ok
-        and rollback_scope_ok
-        and len(rollback_commits) > 0
-        and all(_candidate_commit_exists(commit) for commit in rollback_commits)
-    )
-
     with matrix_path.open("r", encoding="utf-8", newline="") as handle:
         rows = {
             str(row.get("template_path") or "").strip(): row
             for row in csv.DictReader(handle)
             if str(row.get("template_path") or "").strip() in required_routes
         }
+    matrix_rollback_mapping = {
+        template_path: str(row.get("rollback_commit") or "").strip()
+        for template_path, row in rows.items()
+    }
+    rollback_commits = set(rollback_mapping.values())
+    rollback_matrix_ok = rollback_mapping == matrix_rollback_mapping
+    rollback_ok = bool(
+        rollback_key_ok
+        and rollback_scope_ok
+        and rollback_matrix_ok
+        and len(rollback_commits) > 0
+        and all(_candidate_commit_is_ancestor(commit) for commit in rollback_commits)
+    )
     lifecycle_ok = len(rows) == len(required_routes) and all(
         str(row.get("legacy_url_policy") or "").strip() in LEGACY_URL_POLICIES
         and str(row.get("owner") or "").strip()
@@ -277,7 +342,9 @@ def _route_cleanup_gate(
         f"covered={len(fully_closed_routes)}/{len(required_routes)}; "
         f"scope_counts={','.join(f'{scope}:{len(scope_routes[scope])}' for scope in sorted(scope_routes))}; "
         f"scopes={str(scope_ok).lower()}; "
-        f"rollback={str(rollback_ok).lower()}; lifecycle={str(lifecycle_ok).lower()}; "
+        f"rollback={str(rollback_ok).lower()}; "
+        f"rollback_matrix={str(rollback_matrix_ok).lower()}; "
+        f"lifecycle={str(lifecycle_ok).lower()}; "
         f"evidence={str(evidence_ok).lower()}",
     )
 
@@ -323,6 +390,9 @@ def _telemetry_gate(
     required_tasks: set[str],
     observation_start: date | None,
     observation_end: date | None,
+    *,
+    evidence_root: Path,
+    structured_snapshot_ok: bool,
 ) -> GateResult:
     """Evaluate per-task traffic, error regression, and low-frequency exceptions."""
 
@@ -330,7 +400,11 @@ def _telemetry_gate(
     window_end = _parse_date(telemetry.get("window_end"))
     collected_at = _parse_date(telemetry.get("collected_at"))
     evidence_ok = (
-        _verified_repo_evidence(telemetry.get("evidence"), telemetry.get("snapshot_sha256"))
+        _verified_repo_evidence(
+            telemetry.get("evidence"),
+            telemetry.get("snapshot_sha256"),
+            root=evidence_root,
+        )
         is not None
     )
     environment_ok = telemetry.get("environment") == "production"
@@ -416,14 +490,88 @@ def _telemetry_gate(
         or not window_ok
         or not evidence_ok
         or not environment_ok
+        or not structured_snapshot_ok
     )
     detail = (
         f"covered={len(required_tasks) - len(missing)}/{len(required_tasks)}; "
         f"invalid={len(invalid_tasks)}; extras={len(extras)}; "
         f"duplicates={len(duplicate_keys)}; window_ok={str(window_ok).lower()}; "
-        f"production_evidence={str(evidence_ok and environment_ok).lower()}"
+        f"production_evidence={str(evidence_ok and environment_ok).lower()}; "
+        f"structured_snapshot={str(structured_snapshot_ok).lower()}"
     )
     return GateResult("production_telemetry", passed, detail)
+
+
+def _defect_snapshot_matches(
+    *,
+    defects: dict[str, Any],
+    evidence: dict[str, Any],
+    evidence_root: Path,
+    as_of: date,
+) -> bool:
+    """Rebuild defect evidence from its structured snapshot and compare exactly."""
+
+    snapshot_path = _verified_repo_evidence(
+        defects.get("evidence"),
+        defects.get("snapshot_sha256"),
+        root=evidence_root,
+    )
+    if snapshot_path is None:
+        return False
+    try:
+        snapshot = _load_object(snapshot_path)
+        prepared = defect_evidence_builder.build_defect_evidence(
+            snapshot=snapshot,
+            evidence=evidence,
+            snapshot_evidence_path=str(defects.get("evidence") or "").strip(),
+            snapshot_sha256=str(defects.get("snapshot_sha256") or "").strip(),
+            as_of=as_of,
+        )
+    except (
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+        defect_evidence_builder.DefectEvidenceError,
+    ):
+        return False
+    return _mapping(prepared.get("defects")) == defects
+
+
+def _telemetry_snapshot_matches(
+    *,
+    telemetry: dict[str, Any],
+    catalog: dict[str, Any],
+    evidence: dict[str, Any],
+    evidence_root: Path,
+    as_of: date,
+) -> bool:
+    """Rebuild telemetry evidence from its structured snapshot and compare exactly."""
+
+    snapshot_path = _verified_repo_evidence(
+        telemetry.get("evidence"),
+        telemetry.get("snapshot_sha256"),
+        root=evidence_root,
+    )
+    if snapshot_path is None:
+        return False
+    try:
+        snapshot = _load_object(snapshot_path)
+        prepared = production_telemetry_builder.build_production_telemetry_evidence(
+            snapshot=snapshot,
+            catalog=catalog,
+            evidence=evidence,
+            snapshot_evidence_path=str(telemetry.get("evidence") or "").strip(),
+            snapshot_sha256=str(telemetry.get("snapshot_sha256") or "").strip(),
+            as_of=as_of,
+        )
+    except (
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+        production_telemetry_builder.ProductionTelemetryError,
+    ):
+        return False
+    return _mapping(prepared.get("telemetry")) == telemetry
 
 
 def evaluate_readiness(
@@ -432,11 +580,13 @@ def evaluate_readiness(
     catalog_path: Path,
     evidence_path: Path,
     as_of: date,
+    evidence_root: Path = ROOT,
 ) -> ReadinessResult:
     """Evaluate every M5 cutover requirement against current evidence."""
 
     matrix_bytes = matrix_path.read_bytes()
     matrix_sha256 = hashlib.sha256(matrix_bytes).hexdigest()
+    catalog_payload = _load_object(catalog_path)
     catalog = _load_catalog(catalog_path)
     evidence = _load_object(evidence_path)
     routes = required_route_pages(matrix_path)
@@ -458,9 +608,14 @@ def evaluate_readiness(
     candidate_commit = str(candidate.get("candidate_commit") or "").strip()
     released_at = _parse_date(candidate.get("released_at"))
     observation_end = _parse_date(candidate.get("observation_end"))
+    candidate_source_ok = _candidate_contains_matrix(
+        candidate_commit,
+        matrix_path=matrix_path,
+        matrix_sha256=matrix_sha256,
+    )
     stable_window_ok = bool(
         stable_version
-        and _candidate_commit_exists(candidate_commit)
+        and candidate_source_ok
         and released_at
         and observation_end
         and observation_end <= as_of
@@ -471,7 +626,7 @@ def evaluate_readiness(
             "stable_version_window",
             stable_window_ok,
             f"version={stable_version or 'missing'}; "
-            f"commit={'verified' if _candidate_commit_exists(candidate_commit) else 'missing_or_unresolvable'}; "
+            f"commit={'verified_with_matrix' if candidate_source_ok else 'missing_or_source_mismatch'}; "
             f"released_at={released_at}; "
             f"observation_end={observation_end}; minimum_days=14",
         )
@@ -479,7 +634,12 @@ def evaluate_readiness(
 
     uat = _mapping(evidence.get("uat"))
     uat_evidence_ok = (
-        _verified_repo_evidence(uat.get("evidence"), uat.get("evidence_sha256")) is not None
+        _verified_repo_evidence(
+            uat.get("evidence"),
+            uat.get("evidence_sha256"),
+            root=evidence_root,
+        )
+        is not None
     )
     passed_routes = _string_set(uat.get("passed_route_pages"))
     missing_routes = routes - passed_routes
@@ -498,6 +658,7 @@ def evaluate_readiness(
             matrix_path,
             _mapping(evidence.get("cleanup")),
             routes,
+            evidence_root=evidence_root,
         )
     )
 
@@ -509,7 +670,18 @@ def evaluate_readiness(
     open_p0 = _non_negative_int(defects.get("open_p0"))
     open_p1 = _non_negative_int(defects.get("open_p1"))
     defect_evidence_ok = (
-        _verified_repo_evidence(defects.get("evidence"), defects.get("snapshot_sha256")) is not None
+        _verified_repo_evidence(
+            defects.get("evidence"),
+            defects.get("snapshot_sha256"),
+            root=evidence_root,
+        )
+        is not None
+    )
+    defect_snapshot_ok = _defect_snapshot_matches(
+        defects=defects,
+        evidence=evidence,
+        evidence_root=evidence_root,
+        as_of=as_of,
     )
     defect_filter = str(defects.get("query_filter") or "").strip()
     defect_scope = str(defects.get("query_scope") or "").strip()
@@ -531,6 +703,7 @@ def evaluate_readiness(
         and open_p0 == 0
         and open_p1 == 0
         and defect_evidence_ok
+        and defect_snapshot_ok
         and defect_binding_ok
         and defect_scope == DEFECT_QUERY_SCOPE
         and defect_filter
@@ -545,22 +718,36 @@ def evaluate_readiness(
             f"window={defect_start}..{defect_end}; new_p0={new_p0}; new_p1={new_p1}; "
             f"open_p0={open_p0}; open_p1={open_p1}; "
             f"binding={str(defect_binding_ok).lower()}; "
-            f"evidence={str(defect_evidence_ok).lower()}",
+            f"evidence={str(defect_evidence_ok).lower()}; "
+            f"structured_snapshot={str(defect_snapshot_ok).lower()}",
         )
     )
 
+    telemetry = _mapping(evidence.get("telemetry"))
     gates.append(
         _telemetry_gate(
-            _mapping(evidence.get("telemetry")),
+            telemetry,
             tasks,
             released_at,
             observation_end,
+            evidence_root=evidence_root,
+            structured_snapshot_ok=_telemetry_snapshot_matches(
+                telemetry=telemetry,
+                catalog=catalog_payload,
+                evidence=evidence,
+                evidence_root=evidence_root,
+                as_of=as_of,
+            ),
         )
     )
 
     rollback = _mapping(evidence.get("rollback"))
     rollback_evidence = str(rollback.get("evidence") or "").strip()
-    rollback_path = _verified_repo_evidence(rollback_evidence, rollback.get("evidence_sha256"))
+    rollback_path = _verified_repo_evidence(
+        rollback_evidence,
+        rollback.get("evidence_sha256"),
+        root=evidence_root,
+    )
     rollback_ok = bool(
         rollback.get("passed") is True
         and rollback.get("environment") in {"local", "preproduction"}
@@ -584,6 +771,7 @@ def evaluate_readiness(
         _verified_repo_evidence(
             production_backup.get("evidence"),
             production_backup.get("evidence_sha256"),
+            root=evidence_root,
         )
         is not None
     )
@@ -622,7 +810,12 @@ def evaluate_readiness(
     review_snapshot = _mapping(evidence.get("review_snapshot"))
     review_snapshot_sha256 = str(review_snapshot.get("sha256") or "").strip()
     review_snapshot_ok = (
-        _verified_repo_evidence(review_snapshot.get("evidence"), review_snapshot_sha256) is not None
+        _verified_repo_evidence(
+            review_snapshot.get("evidence"),
+            review_snapshot_sha256,
+            root=evidence_root,
+        )
+        is not None
     )
     approvals = _mapping(evidence.get("approvals"))
     owner, owner_ok = _bound_approval(

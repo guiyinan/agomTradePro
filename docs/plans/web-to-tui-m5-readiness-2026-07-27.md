@@ -59,7 +59,8 @@ TUI，B 类 backlog 为 0；但这不等于获得 Classic 删除授权。2026-07
   留痕，但 `--require-clear` 和 readiness 必须失败。当前没有候选缺陷快照。
 - 生产遥测 evidence 生成器已落地：`build_web_to_tui_production_telemetry.py` 只接受仓库内
   经复核的 production Prometheus 快照，并要求候选版本、完整 commit、矩阵 SHA、精确 14 日
-  窗口和 101 个 catalog task 完全一致。六条 PromQL、整数计数、5% Classic 占比、两侧各
+  窗口和 `classic_routes.task_key` 推导出的 101 个可比较任务完全一致；TUI-only action 不进入
+  生产门禁分母。六条 PromQL、整数计数、5% Classic 占比、两侧各
   20 个 task request、0.5 个百分点错误率回退和低频独立双签均 fail closed；默认 dry-run，
   显式 `--write-evidence` 才更新 cutover evidence。runtime 分类器同时排除匿名登录跳转、
   匿名 TUI shell 和伪造 Referer 的公共 API 请求，只让已认证任务流量进入门禁。当前没有
@@ -70,8 +71,12 @@ TUI，B 类 backlog 为 0；但这不等于获得 Classic 删除授权。2026-07
   保留期，并绑定候选版本、commit 与矩阵 SHA；owner 与独立 reviewer 的批准还必须绑定
   经 SHA-256 校验的同一评审快照。占位字符串、摘要不匹配、过期审批、路径穿越或缺失
   证据文件、虚构 commit、本地占位 locator 或非正 generation 均不能放行，对应
-  fail-closed 单测 `19 passed`；同时覆盖逐 route 清理 scope/回滚映射、备份保留期与
+  fail-closed 单测 `25 passed`；同时覆盖候选提交内矩阵、结构化快照重建、逐 route 清理
+  scope/回滚映射、备份保留期与
   观察窗口结束后审批时序。
+- 2026-07-28 checker 再次收紧：候选 commit 还必须属于当前分支并实际包含当前矩阵；108 条
+  route rollback mapping 必须逐值等于矩阵，不再只验 SHA 可解析；缺陷与遥测 gate 会重新解析
+  JSON 快照并调用生成器重建 evidence，摘要匹配的 Markdown、手工改写计数或跨候选快照均不能通过。
 - Classic cleanup guard 已接入 consistency CI：固定识别 7 个 M0-D 审计基线；任何新增
   `deleted` 行必须保留 A/B lifecycle、进入 M5-B wave，并由完整 readiness checker 返回
   ALLOW，否则 CI 直接失败。
@@ -93,11 +98,11 @@ TUI，B 类 backlog 为 0；但这不等于获得 Classic 删除授权。2026-07
 ```text
 Web-to-TUI M5 cutover: DENY (as of 2026-07-28)
 PASS source_consistency
-FAIL stable_version_window: commit=missing_or_unresolvable
+FAIL stable_version_window: commit=missing_or_source_mismatch
 PASS route_task_uat: covered=108/108; evidence=true
-PASS route_cleanup_readiness: covered=108/108; scope_counts=empty_state:108,error_state:108,legacy_url:108,permission:108,primary_task:108,rollback:108; scopes=true; rollback=true; lifecycle=true; evidence=true
-FAIL blocking_defects: evidence=false
-FAIL production_telemetry: covered=0/101; production_evidence=false
+PASS route_cleanup_readiness: covered=108/108; scope_counts=empty_state:108,error_state:108,legacy_url:108,permission:108,primary_task:108,rollback:108; scopes=true; rollback=true; rollback_matrix=true; lifecycle=true; evidence=true
+FAIL blocking_defects: evidence=false; structured_snapshot=false
+FAIL production_telemetry: covered=0/101; production_evidence=false; structured_snapshot=false
 PASS rollback_drill
 FAIL production_registry_backup: evidence=false; integrity=false; restore_verified=false
 FAIL cutover_approvals

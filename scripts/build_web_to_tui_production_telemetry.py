@@ -177,14 +177,22 @@ def _validate_collection_metadata(snapshot: dict[str, Any]) -> None:
 
 
 def _required_task_keys(catalog: dict[str, Any]) -> set[str]:
-    """Return the exact bounded task set from the checked-in catalog."""
+    """Return only Classic-comparable task keys from the checked-in catalog."""
 
-    raw_keys = catalog.get("tui_task_keys")
-    if not isinstance(raw_keys, list):
-        raise ProductionTelemetryError("Telemetry catalog lacks tui_task_keys")
-    keys = {value.strip() for value in raw_keys if isinstance(value, str) and value.strip()}
-    if not keys or len(keys) != len(raw_keys):
-        raise ProductionTelemetryError("Telemetry catalog task keys are blank or duplicated")
+    raw_routes = catalog.get("classic_routes")
+    if not isinstance(raw_routes, list):
+        raise ProductionTelemetryError("Telemetry catalog lacks classic_routes")
+    keys: set[str] = set()
+    for index, raw_route in enumerate(raw_routes):
+        route = _mapping(raw_route)
+        task_key = str(route.get("task_key") or "").strip()
+        if not task_key:
+            raise ProductionTelemetryError(
+                f"Telemetry catalog classic route {index} lacks task_key"
+            )
+        keys.add(task_key)
+    if not keys:
+        raise ProductionTelemetryError("Telemetry catalog has no comparable task keys")
     return keys
 
 

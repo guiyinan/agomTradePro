@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from typing import Any
 
@@ -29,7 +30,11 @@ def _catalog() -> dict[str, Any]:
 
     return {
         "source_sha256": SOURCE_SHA256,
-        "tui_task_keys": ["task.one", "task.two"],
+        "classic_routes": [
+            {"task_key": "task.one"},
+            {"task_key": "task.two"},
+        ],
+        "tui_task_keys": ["task.one", "task.two", "tui.only"],
     }
 
 
@@ -98,7 +103,7 @@ def _build(snapshot: dict[str, Any]) -> dict[str, Any]:
 
 
 def test_builds_exact_candidate_bound_telemetry_evidence() -> None:
-    """A complete snapshot produces checker-compatible sorted evidence."""
+    """Only Classic-comparable tasks enter checker-compatible evidence."""
 
     prepared = _build(_snapshot())
 
@@ -108,6 +113,15 @@ def test_builds_exact_candidate_bound_telemetry_evidence() -> None:
         "task.one",
         "task.two",
     ]
+
+
+def test_checked_in_catalog_requires_only_classic_comparable_tasks() -> None:
+    """TUI-only actions must not inflate the 101-task production denominator."""
+
+    catalog = json.loads(production_telemetry.DEFAULT_CATALOG.read_text(encoding="utf-8"))
+
+    assert len(production_telemetry._required_task_keys(catalog)) == 101
+    assert len(catalog["tui_task_keys"]) > 101
 
 
 def test_rejects_missing_extra_or_duplicate_task_keys() -> None:

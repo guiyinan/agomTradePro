@@ -282,8 +282,9 @@ python scripts/build_web_to_tui_production_telemetry.py \
 快照必须包含 `candidate_version`、`candidate_commit`、`source_sha256`、`environment`、
 `window_start`、`window_end`、`collected_at`、`collection` 和 `tasks`。`collection` 只能登记
 不含用户名、密码、query 或 fragment 的 HTTPS Prometheus origin，并逐项保存生成器内置的
-六条批准 PromQL；`tasks` 必须精确覆盖 catalog 的 101 个 task key，并提供 Classic/TUI
-entry、task request 和 error 六类非负整数计数。工具会校验完整候选绑定、快照 SHA、低频
+六条批准 PromQL；`tasks` 必须精确覆盖 catalog 中 `classic_routes.task_key` 去重后的 101 个
+可比较任务，不能使用包含 TUI-only action 的全量 `tui_task_keys`，并提供 Classic/TUI entry、
+task request 和 error 六类非负整数计数。工具会校验完整候选绑定、快照 SHA、低频
 双签、5% Classic 占比、两侧最小请求样本和错误率回退门槛，任一不满足都不会写 evidence。
 
 #### M5：机器化 cutover 判定
