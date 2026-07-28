@@ -8,12 +8,20 @@
 import logging
 from decimal import Decimal, InvalidOperation
 
-import pandas
-
 from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapshot
 from shared.numeric import safe_float
 
+from ._contracts import ExternalRowProtocol
+
 logger = logging.getLogger(__name__)
+
+_PARSER_EXCEPTIONS = (
+    ArithmeticError,
+    AttributeError,
+    LookupError,
+    TypeError,
+    ValueError,
+)
 
 
 def _safe_decimal(value: object) -> Decimal | None:
@@ -22,7 +30,7 @@ def _safe_decimal(value: object) -> Decimal | None:
         return None
     try:
         d = Decimal(str(value))
-        if d != d:  # NaN check
+        if not d.is_finite():
             return None
         return d
     except (InvalidOperation, ValueError, TypeError):
@@ -34,13 +42,34 @@ def _safe_int(value: object) -> int | None:
     if value is None:
         return None
     try:
-        return int(float(value))
-    except (ValueError, TypeError):
+        if isinstance(value, bool):
+            return None
+        normalized = safe_float(value)
+        return int(normalized) if normalized is not None else None
+    except (OverflowError, ValueError, TypeError):
         return None
 
 
+def _nonnegative_decimal(value: object) -> Decimal | None:
+    """Return a finite non-negative Decimal or None for a damaged field."""
+
+    normalized = _safe_decimal(value)
+    if normalized is None or normalized < 0:
+        return None
+    return normalized
+
+
+def _nonnegative_int(value: object) -> int | None:
+    """Return a non-negative integer or None for a damaged field."""
+
+    normalized = _safe_int(value)
+    if normalized is None or normalized < 0:
+        return None
+    return normalized
+
+
 def parse_akshare_spot_row(
-    row: "pandas.Series",  # type: ignore[name-defined]
+    row: ExternalRowProtocol,
     stock_code_tushare: str,
 ) -> QuoteSnapshot | None:
     """将 ak.stock_zh_a_spot_em() 的一行解析为 QuoteSnapshot
@@ -55,9 +84,7 @@ def parse_akshare_spot_row(
     try:
         price = _safe_decimal(row.get("最新价"))
         if price is None or price <= 0:
-            logger.warning(
-                "无法解析 %s 的最新价: %s", stock_code_tushare, row.get("最新价")
-            )
+            logger.warning("无法解析 %s 的最新价: %s", stock_code_tushare, row.get("最新价"))
             return None
 
         return QuoteSnapshot(
@@ -65,16 +92,20 @@ def parse_akshare_spot_row(
             price=price,
             change=_safe_decimal(row.get("涨跌额")),
             change_pct=safe_float(row.get("涨跌幅")),
-            volume=_safe_int(row.get("成交量")),
-            amount=_safe_decimal(row.get("成交额")),
+            volume=_nonnegative_int(row.get("成交量")),
+            amount=_nonnegative_decimal(row.get("成交额")),
             turnover_rate=safe_float(row.get("换手率")),
             volume_ratio=safe_float(row.get("量比")),
-            high=_safe_decimal(row.get("最高")),
-            low=_safe_decimal(row.get("最低")),
-            open=_safe_decimal(row.get("今开")),
-            pre_close=_safe_decimal(row.get("昨收")),
+            high=_nonnegative_decimal(row.get("最高")),
+            low=_nonnegative_decimal(row.get("最低")),
+            open=_nonnegative_decimal(row.get("今开")),
+            pre_close=_nonnegative_decimal(row.get("昨收")),
             source="eastmoney",
         )
-    except Exception:
-        logger.exception("解析行情数据失败: %s", stock_code_tushare)
+    except _PARSER_EXCEPTIONS as exc:
+        logger.warning(
+            "Eastmoney quote parsing failed; stock_code=%s; exception_type=%s",
+            stock_code_tushare,
+            type(exc).__name__,
+        )
         return None

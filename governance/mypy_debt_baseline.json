@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 534,
-    "files_with_errors": 276
+    "errors": 526,
+    "files_with_errors": 273
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -304,20 +304,6 @@
     },
     "apps/data_center/infrastructure/market_breadth_repositories.py": {
       "misc": 1
-    },
-    "apps/data_center/infrastructure/parsers/eastmoney_capital_flow_parser.py": {
-      "import-untyped": 1,
-      "unused-ignore": 1
-    },
-    "apps/data_center/infrastructure/parsers/eastmoney_news_parser.py": {
-      "import-untyped": 1,
-      "type-arg": 1,
-      "unused-ignore": 1
-    },
-    "apps/data_center/infrastructure/parsers/eastmoney_quote_parser.py": {
-      "arg-type": 1,
-      "import-untyped": 1,
-      "unused-ignore": 1
     },
     "apps/data_center/infrastructure/pit_repository.py": {
       "misc": 2

@@ -6,14 +6,21 @@
 
 import hashlib
 import logging
+import math
 import re
 from datetime import UTC, datetime
-
-import pandas
+from urllib.parse import urlsplit
 
 from apps.data_center.infrastructure.market_gateway_entities import StockNewsItem
 
+from ._contracts import ExternalDataFrameProtocol
+
 logger = logging.getLogger(__name__)
+
+_MAX_NEWS_ITEMS = 500
+_MAX_TITLE_LENGTH = 500
+_MAX_CONTENT_LENGTH = 100_000
+_MAX_URL_LENGTH = 2_048
 
 # 需要过滤的内容模式（广告、免责声明等）
 _JUNK_PATTERNS = [
@@ -36,7 +43,38 @@ def _clean_content(content: str) -> str:
         return ""
     for pattern in _JUNK_PATTERNS:
         content = pattern.sub("", content)
-    return content.strip()
+    return content.strip()[:_MAX_CONTENT_LENGTH]
+
+
+def _clean_title(value: object) -> str:
+    """Return one bounded single-line title from an external cell."""
+
+    if value is None or (isinstance(value, float) and not math.isfinite(value)):
+        return ""
+    return " ".join(str(value).split())[:_MAX_TITLE_LENGTH]
+
+
+def _safe_url(value: object) -> str | None:
+    """Return one bounded credential-free HTTP(S) news URL."""
+
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    if not normalized:
+        return None
+    if len(normalized) > _MAX_URL_LENGTH or any(
+        ord(character) < 32 or ord(character) == 127 for character in normalized
+    ):
+        return None
+    parsed = urlsplit(normalized)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        return None
+    return normalized
 
 
 def _parse_datetime(value: object) -> datetime | None:
@@ -46,8 +84,10 @@ def _parse_datetime(value: object) -> datetime | None:
     if isinstance(value, datetime):
         if value.tzinfo is None:
             return value.replace(tzinfo=UTC)
-        return value
+        return value.astimezone(UTC)
     s = str(value).strip()
+    if not s or len(s) > 64 or any(ord(character) < 32 for character in s):
+        return None
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
         try:
             dt = datetime.strptime(s, fmt)
@@ -58,7 +98,7 @@ def _parse_datetime(value: object) -> datetime | None:
 
 
 def parse_akshare_news_rows(
-    df: "pandas.DataFrame",  # type: ignore[name-defined]
+    df: ExternalDataFrameProtocol | None,
     stock_code: str,
     limit: int = 20,
 ) -> list[StockNewsItem]:
@@ -79,30 +119,36 @@ def parse_akshare_news_rows(
     Returns:
         去重且清洗后的 StockNewsItem 列表
     """
-    if df is None or df.empty:
+    if (
+        df is None
+        or df.empty
+        or isinstance(limit, bool)
+        or not isinstance(limit, int)
+        or limit <= 0
+    ):
         return []
+    bounded_limit = min(limit, _MAX_NEWS_ITEMS)
 
     items: list[StockNewsItem] = []
-    seen_ids: set = set()
+    seen_ids: set[str] = set()
 
     for _, row in df.iterrows():
-        title = str(row.get("新闻标题", "")).strip()
+        title = _clean_title(row.get("新闻标题", ""))
         if not title:
             continue
 
-        published_str = str(row.get("发布时间", ""))
         published_at = _parse_datetime(row.get("发布时间"))
         if published_at is None:
             logger.debug("跳过无法解析时间的新闻: %s", title[:30])
             continue
 
-        news_id = _generate_news_id(stock_code, title, published_str)
+        news_id = _generate_news_id(stock_code, title, published_at.isoformat())
         if news_id in seen_ids:
             continue
         seen_ids.add(news_id)
 
         content = _clean_content(str(row.get("新闻内容", "")))
-        url = str(row.get("新闻链接", "")).strip() or None
+        url = _safe_url(row.get("新闻链接", ""))
 
         try:
             item = StockNewsItem(
@@ -115,11 +161,14 @@ def parse_akshare_news_rows(
                 source="eastmoney",
             )
             items.append(item)
-        except ValueError as e:
-            logger.warning("跳过无效新闻: %s - %s", title[:30], e)
+        except ValueError as exc:
+            logger.warning(
+                "Skipping invalid Eastmoney news item; exception_type=%s",
+                type(exc).__name__,
+            )
             continue
 
-        if len(items) >= limit:
+        if len(items) >= bounded_limit:
             break
 
     return items

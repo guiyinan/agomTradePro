@@ -5950,3 +5950,18 @@
 - Macro Application 安全、数据管理与既有 use case 专项 `26 passed`；Macro unit、Application component 与 data-sync integration 扩展组合 `185 passed, 1 failed`。唯一失败为既有 PIT 测试要求在 `2024-02-28` 截止查询中纳入 `2024-03-15` 才发布的数据，与 PIT 防后视语义冲突；目标仓储文件本批无改动，单独重跑可稳定复现。
 - `apps/macro/application/data_management.py` 与 `apps/macro/application/use_cases.py` 增量 mypy 清零并退出债务清单；全仓基线从 `543 errors / 278 files` 收紧为 `534 errors / 276 files`，净减少 `9 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Macro PIT 仓储、数据库 migration、TUI/Terminal/SDK/MCP 或部署实现。
+
+## 第三百八十八批
+
+- 按“Eastmoney 动态 pandas 类型债务 × 非有限行情进入快照 × 新闻 URL/条数无边界 × 资金流日期类型失真”收口 Data Center 外部市场 payload parsers。
+- 新增最小 dataframe/row Protocol，行情、新闻和资金流 parser 不再直接 import 无类型 pandas，也不再用宽泛 type ignore 掩盖 Series/DataFrame 边界。
+- Quote Decimal/整数转换拒绝 bool、NaN 与 Infinity；价格必须为正，负成交量、成交额和 OHLC 字段降级为空，不再把损坏市场总量发布为合法负值。parser 异常日志只记录股票代码与异常类型。
+- Capital flow 先处理 datetime 再处理 date，确保 trade_date 为 plain date；主力净流入和占比必须为有限数，缺失/非有限主字段不再静默伪造为零。
+- News limit 只接受正整数并最多处理 500 条；标题、正文和 URL 分别限制长度，aware 时间统一转 UTC。链接只接受无凭据 HTTP(S)，javascript、内嵌用户名/密码、控制字符和超长 URL 降级为空。
+- 新闻去重 ID 使用规范化 UTC 发布时间，等价时间表示不再产生重复事实；实体校验失败日志不输出标题、URL 或异常正文。
+
+## 第三百八十八批验证结果
+
+- Eastmoney quote/news/capital-flow parser 专项 `30 passed`；真实 market gateway、Phase 3 provider adapter 与资产分类扩展组合总计 `96 passed`。
+- 三份 Eastmoney parser 与共享 dataframe contract 增量 mypy 清零；三个 parser 全部退出债务清单，全仓基线从 `534 errors / 276 files` 收紧为 `526 errors / 273 files`，净减少 `8 errors / 3 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP 或部署实现。
