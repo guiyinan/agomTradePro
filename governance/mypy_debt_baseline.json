@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 653,
-    "files_with_errors": 306
+    "errors": 652,
+    "files_with_errors": 305
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -314,9 +314,6 @@
     },
     "apps/dashboard/application/tasks.py": {
       "misc": 1
-    },
-    "apps/dashboard/application/use_cases.py": {
-      "arg-type": 1
     },
     "apps/dashboard/interface/api_urls.py": {
       "no-untyped-def": 1

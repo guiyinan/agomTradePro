@@ -5597,3 +5597,20 @@
 - Dashboard Domain services/rules 与 serializer 扩展回归 `98 passed`。
 - `apps/dashboard/domain/services.py` 与 `apps/dashboard/domain/entities.py` 在增量 mypy 口径清零；全仓基线从 `656 errors / 308 files` 收紧为 `653 errors / 306 files`，净减少 `3 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百六十六批
+
+- 按“Account Position 直接错传 Strategy Protocol × 持仓/总资产不勾稽 × 配置异常泄密”收口 Dashboard 资产配置建议边界。
+- Dashboard Application 新增最小 `_AllocationPosition` 与 asset-class value adapter，只向 Strategy 发布规范代码、Decimal 市值和受控资产大类；不再假定完整 Account Domain Position 天然满足跨 App Protocol。
+- 总资产必须为非布尔、非负有限数；持仓代码必须为规范受控标识，市值必须为非负有限 Decimal，资产类别只允许 Strategy allocation matrix 正式支持的 equity/fixed_income/commodity/cash。
+- fund/currency/derivative/other 等尚未建立显式 allocation 映射的类别失败关闭，不再被 Strategy 汇总遗漏后错误当作现金。
+- 持仓市值总和不得超过总资产（保留 0.01 元转换容差）；账实不符时不生成配置比例、调仓金额或收益风险预测，避免 current allocation 合计超过 100%。
+- Regime 与风险偏好在 Strategy 调用前校验为正式枚举集合；pending/未知 Policy 继续按既有语义降级为无 Policy 覆盖。
+- Strategy 异常日志只记录异常类型，不再输出底层配置、数据库或凭据正文。
+- 新增非法总资产不得调用 Strategy、损坏代码/市值/资产类别、持仓超总资产、Domain Position adapter 和异常脱敏回归。
+
+## 第三百六十六批验证结果
+
+- Dashboard allocation safety、Strategy allocation 与 Dashboard guardrail 扩展回归 `24 passed`；首次完整组合运行在 Windows 测试库初始化阶段超过 240 秒上限且无失败输出，按同一范围扩大上限重跑通过。
+- `apps/dashboard/application/use_cases.py` 在增量 mypy 口径清零；全仓基线从 `653 errors / 306 files` 收紧为 `652 errors / 305 files`，净减少 `1 error / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

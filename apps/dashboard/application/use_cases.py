@@ -5,8 +5,11 @@ Dashboard Application Use Cases
 """
 
 import logging
+import math
+import re
 from dataclasses import dataclass, field
 from datetime import date
+from decimal import Decimal
 from time import perf_counter
 from typing import Any, Protocol, TypedDict
 
@@ -32,10 +35,34 @@ from apps.dashboard.application.repository_provider import (
 )
 from apps.regime.domain.entities import RegimeSnapshot
 from apps.signal.domain.entities import InvestmentSignal, SignalStatus
+from apps.strategy.domain.protocols import (
+    AssetClassValueProtocol,
+    PositionLikeProtocol,
+)
 from core.exceptions import ResourceNotFoundError
 
 logger = logging.getLogger(__name__)
 _DASHBOARD_DATA_PERF_WARNING_MS = 3000
+_ALLOCATION_ASSET_CODE_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9._:-]{0,19}$")
+_ALLOCATION_ASSET_CLASSES = frozenset({"equity", "fixed_income", "commodity", "cash"})
+_ALLOCATION_REGIMES = frozenset({"Recovery", "Overheat", "Stagflation", "Deflation"})
+_ALLOCATION_RISK_PROFILES = frozenset({"conservative", "moderate", "aggressive", "defensive"})
+
+
+@dataclass
+class _AllocationAssetClassValue:
+    """Strategy-facing asset-class value isolated from Account entities."""
+
+    value: str
+
+
+@dataclass(frozen=True)
+class _AllocationPosition:
+    """Validated position projection consumed by Strategy allocation."""
+
+    asset_code: str
+    market_value: Decimal
+    asset_class: AssetClassValueProtocol
 
 
 class _MacroDataHealth(TypedDict):
@@ -446,9 +473,7 @@ class GetDashboardDataUseCase:
 
         total_duration_ms = int((perf_counter() - started_at) * 1000)
         log_method = (
-            logger.warning
-            if total_duration_ms >= _DASHBOARD_DATA_PERF_WARNING_MS
-            else logger.info
+            logger.warning if total_duration_ms >= _DASHBOARD_DATA_PERF_WARNING_MS else logger.info
         )
         log_method(
             "Dashboard data aggregation completed",
@@ -1076,6 +1101,17 @@ class GetDashboardDataUseCase:
 
             # 获取用户风险偏好
             risk_profile = _risk_tolerance_value(profile.risk_tolerance)
+            prepared_positions = self._prepare_allocation_positions(
+                total_assets,
+                positions,
+            )
+            if (
+                current_regime not in _ALLOCATION_REGIMES
+                or risk_profile not in _ALLOCATION_RISK_PROFILES
+                or prepared_positions is None
+            ):
+                return None
+            normalized_total_assets, allocation_positions = prepared_positions
             effective_policy_level = self._normalize_policy_level_for_strategy(policy_level)
 
             # 调用AllocationService计算建议
@@ -1083,8 +1119,8 @@ class GetDashboardDataUseCase:
                 current_regime=current_regime,
                 risk_profile=risk_profile,
                 policy_level=effective_policy_level,
-                total_assets=total_assets,
-                current_positions=positions,
+                total_assets=normalized_total_assets,
+                current_positions=allocation_positions,
             )
 
             # 转换为字典格式
@@ -1112,9 +1148,56 @@ class GetDashboardDataUseCase:
                 "regime": advice.regime,
                 "risk_profile_display": _display_risk_tolerance(profile.risk_tolerance),
             }
-        except Exception as e:
-            logger.warning(f"生成资产配置建议失败: {e}")
+        except Exception as exc:
+            logger.warning(
+                "生成资产配置建议失败 exception_type=%s",
+                type(exc).__name__,
+            )
             return None
+
+    @staticmethod
+    def _prepare_allocation_positions(
+        total_assets: object,
+        positions: list[Position],
+    ) -> tuple[float, list[PositionLikeProtocol]] | None:
+        """Validate portfolio totals and adapt Account positions for Strategy."""
+
+        if (
+            isinstance(total_assets, bool)
+            or not isinstance(total_assets, (int, float))
+            or not math.isfinite(float(total_assets))
+            or total_assets < 0
+        ):
+            return None
+        normalized_total = float(total_assets)
+        total_decimal = Decimal(str(normalized_total))
+        invested_value = Decimal("0")
+        adapted: list[PositionLikeProtocol] = []
+
+        for position in positions:
+            asset_code = position.asset_code.strip().upper()
+            asset_class = position.asset_class.value
+            market_value = position.market_value
+            if (
+                not _ALLOCATION_ASSET_CODE_PATTERN.fullmatch(asset_code)
+                or asset_class not in _ALLOCATION_ASSET_CLASSES
+                or not isinstance(market_value, Decimal)
+                or not market_value.is_finite()
+                or market_value < 0
+            ):
+                return None
+            invested_value += market_value
+            adapted.append(
+                _AllocationPosition(
+                    asset_code=asset_code,
+                    market_value=market_value,
+                    asset_class=_AllocationAssetClassValue(asset_class),
+                )
+            )
+
+        if invested_value > total_decimal + Decimal("0.01"):
+            return None
+        return normalized_total, adapted
 
     def _generate_allocation_chart_data(
         self, asset_allocation: list[dict[str, Any]]
