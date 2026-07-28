@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 656,
-    "files_with_errors": 308
+    "errors": 653,
+    "files_with_errors": 306
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -317,13 +317,6 @@
     },
     "apps/dashboard/application/use_cases.py": {
       "arg-type": 1
-    },
-    "apps/dashboard/domain/entities.py": {
-      "type-arg": 1
-    },
-    "apps/dashboard/domain/services.py": {
-      "assignment": 1,
-      "var-annotated": 1
     },
     "apps/dashboard/interface/api_urls.py": {
       "no-untyped-def": 1

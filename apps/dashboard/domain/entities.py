@@ -14,6 +14,7 @@ from typing import Any
 
 class CardType(Enum):
     """卡片类型"""
+
     METRIC = "metric"  # 指标卡片
     CHART = "chart"  # 图表卡片
     LIST = "list"  # 列表卡片
@@ -24,6 +25,7 @@ class CardType(Enum):
 
 class WidgetType(Enum):
     """组件类型"""
+
     LINE_CHART = "line_chart"
     BAR_CHART = "bar_chart"
     PIE_CHART = "pie_chart"
@@ -38,6 +40,7 @@ class WidgetType(Enum):
 
 class ChartDataType(Enum):
     """图表数据类型"""
+
     TIME_SERIES = "time_series"
     CATEGORICAL = "categorical"
     DISTRIBUTION = "distribution"
@@ -46,6 +49,7 @@ class ChartDataType(Enum):
 
 class AlertSeverity(Enum):
     """告警级别"""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -54,6 +58,7 @@ class AlertSeverity(Enum):
 
 class DataSourceType(Enum):
     """数据源类型"""
+
     LIVE = "live"  # 实时数据
     CACHED = "cached"  # 缓存数据
     STATIC = "static"  # 静态数据
@@ -210,7 +215,7 @@ class DashboardWidget:
     widget_id: str
     widget_type: WidgetType
     title: str | None = None
-    config: ChartConfig | MetricCard | dict | None = None
+    config: ChartConfig | MetricCard | dict[str, Any] | None = None
     data_source: str | None = None
     refresh_interval: int = 60  # 默认60秒刷新
     cache_ttl: int = 300  # 默认缓存5分钟
@@ -330,8 +335,8 @@ class DashboardLayout:
             visible,
             key=lambda c: (
                 c.position.get("row", 0) if c.position else 0,
-                c.position.get("col", 0) if c.position else 0
-            )
+                c.position.get("col", 0) if c.position else 0,
+            ),
         )
 
 

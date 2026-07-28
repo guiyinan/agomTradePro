@@ -5580,3 +5580,20 @@
 - Valuation service、Domain 边界、Equity quality gate 与 Unified Recommendation 扩展回归 `67 passed`。
 - `apps/valuation/application/use_cases.py` 在增量 mypy 口径清零；全仓基线从 `657 errors / 309 files` 收紧为 `656 errors / 308 files`，净减少 `1 error / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百六十五批
+
+- 按“Dashboard 动态指标伪趋势 × 非有限图表/告警值 × cooldown 状态不回写”收口仪表盘 Domain 服务。
+- 指标路径读取改为 `Mapping -> object` 动态边界，并在展示前收窄为有限 int/float/Decimal、字符串或 None；bool 转为文本状态，NaN/Inf 不再显示为 `nan/infM`。
+- 趋势仅在当前值和前值均为非布尔有限数时计算；数字字符串不再被隐式 `float()` 后制造趋势，坏前值稳定返回无趋势。变化率同样拒绝非有限输入。
+- 折线图 series 定义只接受非空字符串 name/y_key，非法或重复系列安全忽略；任一系列坏点会隔离整行，X 轴与所有系列保持相同长度。
+- 柱状图和饼图只接收具备标签及有限数值的行；缺失值、bool、NaN、Inf 不再被默认成真实零进入用户图表。
+- 告警只评估非布尔有限指标和有限阈值；非法 cooldown 配置、损坏或 naive 时间戳失败关闭，不再抛出 aware/naive datetime 比较异常或绕过冷却期。
+- 空 cooldown mapping 不再被 truthy fallback 替换；首次触发会回写调用方持有的同一状态对象，后续调用可以真正抑制重复告警。
+- `MetricCalculationResult`、DashboardWidget config 和图表 series 局部集合补齐精确类型；新增趋势、非有限展示、图表坏行、告警数值及 cooldown 回写/时区回归。
+
+## 第三百六十五批验证结果
+
+- Dashboard Domain services/rules 与 serializer 扩展回归 `98 passed`。
+- `apps/dashboard/domain/services.py` 与 `apps/dashboard/domain/entities.py` 在增量 mypy 口径清零；全仓基线从 `656 errors / 308 files` 收紧为 `653 errors / 306 files`，净减少 `3 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

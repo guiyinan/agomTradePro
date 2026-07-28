@@ -5,8 +5,11 @@ Dashboard Domain Services
 仅使用 Python 标准库，不依赖 Django、pandas 等外部库。
 """
 
+import math
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 from .entities import (
@@ -63,7 +66,7 @@ class MetricCalculationResult:
     """
 
     metric_name: str
-    value: float | int | str
+    value: float | int | str | Decimal | None
     formatted_value: str
     trend: str | None = None
     trend_value: float | None = None
@@ -114,8 +117,7 @@ class DashboardLayoutService:
         for card in layout.cards:
             if card.metadata.get("visibility_conditions"):
                 rule = DashboardCardVisibilityRule(
-                    card_id=card.card_id,
-                    conditions=card.metadata["visibility_conditions"]
+                    card_id=card.card_id, conditions=card.metadata["visibility_conditions"]
                 )
                 rule_engine.add_rule(rule)
 
@@ -171,7 +173,7 @@ class DashboardLayoutService:
                 "columns": layout.columns,
                 "row_height": layout.row_height,
                 "resolved_at": datetime.now(UTC).isoformat(),
-            }
+            },
         )
 
     def calculate_card_position(
@@ -209,8 +211,7 @@ class DashboardLayoutService:
                 overlaps = False
                 for occupied in occupied_positions:
                     if self._positions_overlap(
-                        {"row": row, "col": col, "width": width, "height": height},
-                        occupied
+                        {"row": row, "col": col, "width": width, "height": height}, occupied
                     ):
                         overlaps = True
                         break
@@ -230,15 +231,25 @@ class DashboardLayoutService:
         pos2: dict[str, int],
     ) -> bool:
         """检查两个位置是否重叠"""
-        r1, c1, w1, h1 = pos1.get("row", 0), pos1.get("col", 0), pos1.get("width", 1), pos1.get("height", 1)
-        r2, c2, w2, h2 = pos2.get("row", 0), pos2.get("col", 0), pos2.get("width", 1), pos2.get("height", 1)
+        r1, c1, w1, h1 = (
+            pos1.get("row", 0),
+            pos1.get("col", 0),
+            pos1.get("width", 1),
+            pos1.get("height", 1),
+        )
+        r2, c2, w2, h2 = (
+            pos2.get("row", 0),
+            pos2.get("col", 0),
+            pos2.get("width", 1),
+            pos2.get("height", 1),
+        )
 
         # 检查矩形重叠
         return not (
-            r1 + h1 <= r2 or  # pos1 在 pos2 上方
-            r2 + h2 <= r1 or  # pos2 在 pos1 上方
-            c1 + w1 <= c2 or  # pos1 在 pos2 左侧
-            c2 + w2 <= c1     # pos2 在 pos1 左侧
+            r1 + h1 <= r2  # pos1 在 pos2 上方
+            or r2 + h2 <= r1  # pos2 在 pos1 上方
+            or c1 + w1 <= c2  # pos1 在 pos2 左侧
+            or c2 + w2 <= c1  # pos2 在 pos1 左侧
         )
 
 
@@ -273,7 +284,7 @@ class DashboardMetricService:
             指标计算结果
         """
         # 获取指标值
-        value = self._extract_metric_value(metric_name, data)
+        value = self._normalize_metric_value(self._extract_metric_value(metric_name, data))
 
         # 格式化值
         if config:
@@ -284,10 +295,13 @@ class DashboardMetricService:
         # 计算趋势
         trend = None
         trend_value = None
-        if previous_data:
-            previous_value = self._extract_metric_value(metric_name, previous_data)
-            if previous_value is not None and isinstance(value, int | float):
-                trend_value = float(value) - float(previous_value)
+        if previous_data is not None:
+            current_numeric = self._finite_float(value)
+            previous_numeric = self._finite_float(
+                self._extract_metric_value(metric_name, previous_data)
+            )
+            if current_numeric is not None and previous_numeric is not None:
+                trend_value = current_numeric - previous_numeric
                 if trend_value > 0:
                     trend = "up"
                 elif trend_value < 0:
@@ -309,31 +323,70 @@ class DashboardMetricService:
             severity=severity,
         )
 
-    def _extract_metric_value(self, metric_name: str, data: dict[str, Any]) -> Any:
+    def _extract_metric_value(
+        self,
+        metric_name: str,
+        data: dict[str, Any],
+    ) -> object | None:
         """从数据中提取指标值"""
         # 支持嵌套路径，如 "portfolio.total_value"
         keys = metric_name.split(".")
-        value = data
+        value: object = data
         for key in keys:
-            if isinstance(value, dict):
+            if isinstance(value, Mapping):
                 value = value.get(key)
             else:
                 return None
         return value
 
-    def _format_value(self, value: Any) -> str:
+    def _format_value(self, value: float | int | str | Decimal | None) -> str:
         """格式化值"""
-        if isinstance(value, float):
-            if abs(value) >= 1_000_000:
-                return f"{value / 1_000_000:.2f}M"
-            elif abs(value) >= 1_000:
-                return f"{value / 1_000:.2f}K"
+        if isinstance(value, float | Decimal):
+            numeric = float(value)
+            if abs(numeric) >= 1_000_000:
+                return f"{numeric / 1_000_000:.2f}M"
+            elif abs(numeric) >= 1_000:
+                return f"{numeric / 1_000:.2f}K"
             else:
-                return f"{value:.2f}"
+                return f"{numeric:.2f}"
         elif isinstance(value, int):
             return f"{value:,}"
         else:
             return str(value)
+
+    @staticmethod
+    def _normalize_metric_value(
+        value: object,
+    ) -> float | int | str | Decimal | None:
+        """Normalize one dynamic metric value for user-facing display."""
+
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return str(value)
+        if isinstance(value, Decimal):
+            return value if value.is_finite() else None
+        if isinstance(value, float):
+            return value if math.isfinite(value) else None
+        if isinstance(value, int | str):
+            return value
+        return None
+
+    @staticmethod
+    def _finite_float(value: object) -> float | None:
+        """Return a finite numeric value without accepting bool or numeric strings."""
+
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, Decimal):
+            if not value.is_finite():
+                return None
+            normalized = float(value)
+            return normalized if math.isfinite(normalized) else None
+        if isinstance(value, int | float):
+            normalized = float(value)
+            return normalized if math.isfinite(normalized) else None
+        return None
 
     def calculate_change_rate(
         self,
@@ -350,9 +403,13 @@ class DashboardMetricService:
         Returns:
             变化率（百分比）
         """
-        if previous_value == 0:
+        current_numeric = self._finite_float(current_value)
+        previous_numeric = self._finite_float(previous_value)
+        if current_numeric is None or previous_numeric is None:
+            raise ValueError("change-rate inputs must be finite numbers")
+        if previous_numeric == 0:
             return 0.0
-        return ((current_value - previous_value) / previous_value) * 100
+        return ((current_numeric - previous_numeric) / previous_numeric) * 100
 
 
 class DashboardChartService:
@@ -398,21 +455,40 @@ class DashboardChartService:
     ) -> dict[str, Any]:
         """准备折线图数据"""
         # 提取系列数据
-        series_data = {}
-        x_values = []
+        series_data: dict[str, list[float]] = {}
+        x_values: list[object] = []
+        series_definitions: list[tuple[str, str]] = []
+        seen_series_names: set[str] = set()
+        for series in config.series:
+            series_name = series.get("name", "value")
+            y_key = series.get("y_key", "y")
+            if (
+                isinstance(series_name, str)
+                and series_name.strip()
+                and isinstance(y_key, str)
+                and y_key.strip()
+                and series_name.strip() not in seen_series_names
+            ):
+                normalized_name = series_name.strip()
+                seen_series_names.add(normalized_name)
+                series_definitions.append((normalized_name, y_key.strip()))
 
         for item in raw_data:
             x_val = item.get(config.x_axis_label or "x")
-            if x_val is not None:
-                x_values.append(x_val)
-
-            for series in config.series:
-                series_name = series.get("name", "value")
-                y_key = series.get("y_key", "y")
-                if y_key in item:
-                    if series_name not in series_data:
-                        series_data[series_name] = []
-                    series_data[series_name].append(item[y_key])
+            if x_val is None:
+                continue
+            row_values: dict[str, float] = {}
+            for series_name, y_key in series_definitions:
+                numeric_value = DashboardMetricService._finite_float(item.get(y_key))
+                if numeric_value is None:
+                    row_values = {}
+                    break
+                row_values[series_name] = numeric_value
+            if series_definitions and not row_values:
+                continue
+            x_values.append(x_val)
+            for series_name, numeric_value in row_values.items():
+                series_data.setdefault(series_name, []).append(numeric_value)
 
         return {
             "x": x_values,
@@ -424,7 +500,7 @@ class DashboardChartService:
                 "colors": config.colors,
                 "show_legend": config.show_legend,
                 "show_grid": config.show_grid,
-            }
+            },
         }
 
     def _prepare_bar_chart_data(
@@ -433,12 +509,16 @@ class DashboardChartService:
         raw_data: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """准备柱状图数据"""
-        categories = []
-        values = []
+        categories: list[object] = []
+        values: list[float] = []
 
         for item in raw_data:
-            categories.append(item.get(config.x_axis_label or "category", ""))
-            values.append(item.get(config.y_axis_label or "value", 0))
+            category = item.get(config.x_axis_label or "category")
+            value = DashboardMetricService._finite_float(item.get(config.y_axis_label or "value"))
+            if category is None or value is None:
+                continue
+            categories.append(category)
+            values.append(value)
 
         return {
             "categories": categories,
@@ -448,7 +528,7 @@ class DashboardChartService:
                 "x_label": config.x_axis_label,
                 "y_label": config.y_axis_label,
                 "colors": config.colors,
-            }
+            },
         }
 
     def _prepare_pie_chart_data(
@@ -457,12 +537,16 @@ class DashboardChartService:
         raw_data: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """准备饼图数据"""
-        labels = []
-        values = []
+        labels: list[object] = []
+        values: list[float] = []
 
         for item in raw_data:
-            labels.append(item.get("label", ""))
-            values.append(item.get("value", 0))
+            label = item.get("label")
+            value = DashboardMetricService._finite_float(item.get("value"))
+            if label is None or value is None:
+                continue
+            labels.append(label)
+            values.append(value)
 
         return {
             "labels": labels,
@@ -471,7 +555,7 @@ class DashboardChartService:
                 "title": config.title,
                 "colors": config.colors,
                 "show_legend": config.show_legend,
-            }
+            },
         }
 
 
@@ -503,8 +587,8 @@ class DashboardAlertService:
         Returns:
             触发的告警列表
         """
-        cooldown_state = cooldown_state or {}
-        triggered_alerts = []
+        cooldown_state = cooldown_state if cooldown_state is not None else {}
+        triggered_alerts: list[dict[str, Any]] = []
         now = datetime.now(UTC)
 
         for config in alert_configs:
@@ -512,30 +596,44 @@ class DashboardAlertService:
                 continue
 
             # 检查冷却时间
+            if (
+                isinstance(config.cooldown, bool)
+                or not isinstance(config.cooldown, int)
+                or config.cooldown < 0
+                or DashboardMetricService._finite_float(config.threshold) is None
+            ):
+                continue
+
             if config.alert_id in cooldown_state:
                 last_triggered = cooldown_state[config.alert_id]
+                if (
+                    not isinstance(last_triggered, datetime)
+                    or last_triggered.tzinfo is None
+                    or last_triggered.utcoffset() is None
+                ):
+                    continue
                 if (now - last_triggered).total_seconds() < config.cooldown:
                     continue
 
             # 评估告警条件
             if config.metric and config.metric in current_data:
-                value = current_data[config.metric]
-                try:
-                    value = float(value)
-                except (TypeError, ValueError):
+                value = DashboardMetricService._finite_float(current_data[config.metric])
+                if value is None:
                     continue
 
                 if config.should_alert(value):
-                    triggered_alerts.append({
-                        "alert_id": config.alert_id,
-                        "name": config.name,
-                        "severity": config.severity.value,
-                        "metric": config.metric,
-                        "value": value,
-                        "threshold": config.threshold,
-                        "message": f"{config.name}: {config.metric} = {value}, 阈值 = {config.threshold}",
-                        "triggered_at": now.isoformat(),
-                    })
+                    triggered_alerts.append(
+                        {
+                            "alert_id": config.alert_id,
+                            "name": config.name,
+                            "severity": config.severity.value,
+                            "metric": config.metric,
+                            "value": value,
+                            "threshold": config.threshold,
+                            "message": f"{config.name}: {config.metric} = {value}, 阈值 = {config.threshold}",
+                            "triggered_at": now.isoformat(),
+                        }
+                    )
                     # 更新冷却状态
                     cooldown_state[config.alert_id] = now
 
@@ -543,6 +641,7 @@ class DashboardAlertService:
 
 
 # ========== 便捷函数 ==========
+
 
 def resolve_dashboard_layout(
     layout: DashboardLayout,
