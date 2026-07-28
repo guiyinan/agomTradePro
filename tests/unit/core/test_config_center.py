@@ -1,7 +1,13 @@
+import json
+import logging
 from types import SimpleNamespace
 
+import pytest
+
 from core.application.config_center import (
+    _CAPABILITIES,
     _SUMMARY_BUILDERS,
+    _safe_summary,
     build_config_center_snapshot,
     list_config_capabilities,
 )
@@ -72,3 +78,73 @@ def test_config_center_capabilities_and_summary_builders_remain_in_sync():
     capability_keys = {item["key"] for item in capabilities}
 
     assert capability_keys == set(_SUMMARY_BUILDERS.keys())
+
+
+def test_safe_summary_redacts_provider_exception_details(caplog):
+    def _failing_builder(user):
+        raise RuntimeError("postgresql://admin:raw-secret@example.test/prod")
+
+    with caplog.at_level(logging.WARNING):
+        payload = _safe_summary(_failing_builder, "测试配置", object())
+
+    assert payload == {
+        "status": "attention",
+        "summary": {"message": "测试配置 读取失败"},
+    }
+    assert "raw-secret" not in caplog.text
+    assert "postgresql://" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        [],
+        {"status": "configured", "summary": []},
+        {"status": "configured", "summary": {1: "non-string-key"}},
+        {"status": "configured", "summary": {"score": float("nan")}},
+        {"status": "configured\nforged", "summary": {}},
+    ],
+)
+def test_safe_summary_rejects_invalid_dynamic_payloads(payload):
+    result = _safe_summary(lambda user: payload, "动态配置", object())
+
+    assert result["status"] == "attention"
+    assert result["summary"]["message"] == "动态配置 读取失败"
+
+
+def test_safe_summary_rejects_oversized_payload():
+    result = _safe_summary(
+        lambda user: {
+            "status": "configured",
+            "summary": {"content": "x" * 1_048_576},
+        },
+        "超大配置",
+        object(),
+    )
+
+    assert result["status"] == "attention"
+
+
+def test_safe_summary_detaches_valid_payload():
+    source = {"status": "configured", "summary": {"items": ["one"]}}
+    result = _safe_summary(lambda user: source, "合法配置", object())
+    source["summary"]["items"].append("two")
+
+    assert result == {"status": "configured", "summary": {"items": ["one"]}}
+    assert json.dumps(result, allow_nan=False)
+
+
+def test_string_staff_flag_does_not_publish_staff_capabilities(monkeypatch):
+    monkeypatch.setattr(
+        "core.application.config_center._SUMMARY_BUILDERS",
+        {
+            capability.key: (lambda user: {"status": "configured", "summary": {"message": "ok"}})
+            for capability in _CAPABILITIES
+        },
+    )
+
+    snapshot = build_config_center_snapshot(SimpleNamespace(is_staff="false"))
+    item_keys = {item["key"] for section in snapshot["sections"] for item in section["items"]}
+
+    assert "system_settings" not in item_keys
+    assert "risk_center" not in item_keys

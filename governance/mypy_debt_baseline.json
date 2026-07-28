@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 526,
-    "files_with_errors": 273
+    "errors": 521,
+    "files_with_errors": 271
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -803,14 +803,6 @@
     },
     "apps/valuation/infrastructure/providers.py": {
       "attr-defined": 1
-    },
-    "core/api_views.py": {
-      "no-untyped-def": 2
-    },
-    "core/application/config_center.py": {
-      "no-any-return": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 1
     },
     "core/asgi.py": {
       "import-untyped": 3

@@ -2,13 +2,48 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import math
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypedDict, cast
 
+from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.db import DatabaseError
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+_MAX_SUMMARY_BYTES = 1_048_576
+_MAX_SUMMARY_DEPTH = 12
+_MAX_SUMMARY_NODES = 10_000
+_SUMMARY_EXCEPTIONS = (
+    ArithmeticError,
+    AttributeError,
+    ConnectionError,
+    DatabaseError,
+    ImproperlyConfigured,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValidationError,
+    ValueError,
+)
+
+
+class ConfigSectionPayload(TypedDict):
+    """One user-facing section in the config-center snapshot."""
+
+    key: str
+    title: str
+    items: list[dict[str, Any]]
+
+
+RawSummaryBuilder = Callable[[object], object]
+SummaryBuilder = Callable[[object], dict[str, Any]]
 
 
 @dataclass(frozen=True)
@@ -274,17 +309,104 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
 )
 
 
-def _safe_summary(builder, fallback_name: str, user: Any) -> dict[str, Any]:
+def _fallback_summary(fallback_name: str) -> dict[str, Any]:
+    """Return the stable attention payload for one unavailable capability."""
+
+    return {
+        "status": "attention",
+        "summary": {
+            "message": f"{fallback_name} 读取失败",
+        },
+    }
+
+
+def _is_bounded_json_value(
+    value: object,
+    *,
+    depth: int = 0,
+    node_count: list[int] | None = None,
+) -> bool:
+    """Return whether a dynamic summary is finite string-keyed JSON data."""
+
+    if node_count is None:
+        node_count = [0]
+    node_count[0] += 1
+    if node_count[0] > _MAX_SUMMARY_NODES or depth > _MAX_SUMMARY_DEPTH:
+        return False
+    if value is None or isinstance(value, (bool, int, str)):
+        return True
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, Mapping):
+        return all(
+            isinstance(key, str)
+            and _is_bounded_json_value(
+                nested,
+                depth=depth + 1,
+                node_count=node_count,
+            )
+            for key, nested in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return all(
+            _is_bounded_json_value(
+                item,
+                depth=depth + 1,
+                node_count=node_count,
+            )
+            for item in value
+        )
+    return False
+
+
+def _normalize_summary_payload(
+    payload: object,
+    *,
+    fallback_name: str,
+) -> dict[str, Any]:
+    """Validate and detach one cross-App summary payload."""
+
+    fallback = _fallback_summary(fallback_name)
+    if not isinstance(payload, Mapping) or not all(isinstance(key, str) for key in payload):
+        return fallback
+    status = payload.get("status")
+    summary = payload.get("summary")
+    if (
+        not isinstance(status, str)
+        or not status
+        or len(status) > 64
+        or any(ord(character) < 32 or ord(character) == 127 for character in status)
+        or not isinstance(summary, Mapping)
+        or not _is_bounded_json_value(summary)
+    ):
+        return fallback
+    candidate = {"status": status, "summary": summary}
     try:
-        return builder(user)
-    except Exception as exc:
-        logger.warning("Failed to build %s summary: %s", fallback_name, exc)
-        return {
-            "status": "attention",
-            "summary": {
-                "message": f"{fallback_name} 读取失败",
-            },
-        }
+        encoded = json.dumps(candidate, ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError):
+        return fallback
+    if len(encoded.encode("utf-8")) > _MAX_SUMMARY_BYTES:
+        return fallback
+    return cast(dict[str, Any], json.loads(encoded))
+
+
+def _safe_summary(
+    builder: RawSummaryBuilder,
+    fallback_name: str,
+    user: object,
+) -> dict[str, Any]:
+    """Build one validated summary without exposing provider exceptions."""
+
+    try:
+        payload = builder(user)
+    except _SUMMARY_EXCEPTIONS as exc:
+        logger.warning(
+            "Config summary unavailable; capability=%s; exception_type=%s",
+            fallback_name,
+            type(exc).__name__,
+        )
+        return _fallback_summary(fallback_name)
+    return _normalize_summary_payload(payload, fallback_name=fallback_name)
 
 
 def get_account_settings_summary(user: Any) -> dict[str, Any]:
@@ -423,7 +545,7 @@ def get_trading_cost_summary(user: Any) -> dict[str, Any]:
     return get_account_config_summary_service().get_trading_cost_summary(user)
 
 
-_SUMMARY_BUILDERS = {
+_SUMMARY_BUILDERS: dict[str, SummaryBuilder] = {
     "account_settings": lambda user: _safe_summary(get_account_settings_summary, "账户设置", user),
     "mcp_guide": lambda user: _safe_summary(get_mcp_guide_summary, "MCP 接入说明", user),
     "capability_gateway": lambda user: _safe_summary(
@@ -473,11 +595,11 @@ def list_config_capabilities() -> list[dict[str, Any]]:
     ]
 
 
-def build_config_center_snapshot(user: Any) -> dict[str, Any]:
-    sections: dict[str, dict[str, Any]] = {}
+def build_config_center_snapshot(user: object) -> dict[str, Any]:
+    sections: dict[str, ConfigSectionPayload] = {}
 
     for capability in _CAPABILITIES:
-        if capability.permission == "staff" and not getattr(user, "is_staff", False):
+        if capability.permission == "staff" and getattr(user, "is_staff", False) is not True:
             continue
         summary_payload = _SUMMARY_BUILDERS[capability.key](user)
         section = sections.setdefault(

@@ -5965,3 +5965,18 @@
 - Eastmoney quote/news/capital-flow parser 专项 `30 passed`；真实 market gateway、Phase 3 provider adapter 与资产分类扩展组合总计 `96 passed`。
 - 三份 Eastmoney parser 与共享 dataframe contract 增量 mypy 清零；三个 parser 全部退出债务清单，全仓基线从 `534 errors / 276 files` 收紧为 `526 errors / 273 files`，净减少 `8 errors / 3 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP 或部署实现。
+
+## 第三百八十九批
+
+- 按“跨 App 配置摘要返回 Any × 动态 payload 污染页面/API × staff truthy 越权展示 × 异常正文进入日志”收口 Core Config Center 聚合入口。
+- summary builder 建立精确 callable 合同；动态结果必须为包含有界 status 和 string-keyed summary 的 JSON object。非字符串键、scalar/list summary、NaN/Inf、未知对象和非法控制字符统一降级为稳定 attention payload。
+- summary payload 限制最多 12 层、10000 节点和 1 MiB；合法结果经 JSON round-trip 脱离 provider 自有可变对象，后续源对象修改不能改变已生成的页面/API 快照。
+- 跨 App builder 的数据库、配置、连接和验证异常只记录 capability 与异常类型；数据库/Redis URL、路径、凭据和 traceback 不再进入日志。
+- staff-only capability 只接受真实 `is_staff is True`；字符串 `"false"` 和其他 truthy 动态值不能发布系统设置、集中风控、Agent Operator、数据源等管理员配置。
+- Core snapshot/capability API handler 补齐 DRF Request/Response 类型和 public docstring，继续由 `IsAdminUser` 保护，不改变成功响应结构。
+
+## 第三百八十九批验证结果
+
+- Core Config Center shape/权限/脱敏专项 `12 passed`；真实 staff API、设置中心页面、Qlib runtime/training 与系统设置跨模块组合 `65 passed`。
+- `core/application/config_center.py` 与 `core/api_views.py` 增量 mypy 清零并退出债务清单；全仓基线从 `526 errors / 273 files` 收紧为 `521 errors / 271 files`，净减少 `5 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP 或部署实现。
