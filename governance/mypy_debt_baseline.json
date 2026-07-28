@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 591,
-    "files_with_errors": 291
+    "errors": 588,
+    "files_with_errors": 290
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -742,9 +742,6 @@
     },
     "apps/regime/management/commands/set_regime_threshold.py": {
       "no-untyped-def": 2
-    },
-    "apps/research/composition.py": {
-      "arg-type": 3
     },
     "apps/sector/apps.py": {
       "no-untyped-def": 1

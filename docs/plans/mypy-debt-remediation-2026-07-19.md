@@ -5825,3 +5825,19 @@
 - Data Center 全单元、统一价格、on-demand、组件仓储与 API 集成扩展回归 `434 passed`；Macro 与 Equity 财务/估值消费者回归 `160 passed`。
 - `apps/data_center/infrastructure/_provider_adapter_tushare.py` 与 Domain entities 联合增量 mypy 清零；Tushare adapter 退出债务清单，全仓基线从 `594 errors / 292 files` 收紧为 `591 errors / 291 files`，净减少 `3 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百八十批
+
+- 按“跨用户 Research 证据写入 × 越权触发晋级状态变更 × 动态 payload 污染不可复现证据”收口 Research 注册表。
+- Domain 新增精确 Research Registry Gateway、trial/split/metric TypedDict 与只读结果 Protocol；Application 不再通过 `**kwargs: Any` 编排仓储，Composition 的三处宽泛参数债务清零。
+- 普通用户创建 trial 或执行 promotion 前必须匹配实验 owner；staff 可维护他人或系统实验。实验/trial 不存在分别稳定映射为 404，越权映射为 403，证据身份冲突和业务校验失败映射为 400。
+- trial 创建在事务内锁定实验并先完成归属检查；越权请求不会创建 family、trial、split 或 metric。promotion 同样先完成归属检查，不能替他人触发 decision 或 trial 状态变更。
+- 新增严格 DRF 嵌套 serializer，顶层、split 与 metric 未知字段不再静默丢弃；标识、状态、计数、置信区间、p-value、JSON 对象与总体证据大小均有明确边界。
+- Application 对非 API 调用执行同一套完整校验：拒绝 bool 伪装整数、NaN/Inf、重复指标名、缺失/未知字段、未配对或倒序置信区间、非法 p-value 与超大 JSON；输入 mapping 深拷贝后持久化，不再由 Repository `pop()` 原地修改。
+- Repository 按精确字段创建 trial/split，并批量写入已验证 metric；历史 promotion 读取遇到缺失 split、非法 p-value 或非有限 DSR 输入时记录稳定拒绝原因，不再因坏证据崩溃或错误晋级。
+
+## 第三百八十批验证结果
+
+- Research Unit、Component、权限安全 API 与跨模块完整性 API 合约回归 `36 passed`；覆盖 owner/staff 边界、越权零写入、404/403/400、严格嵌套字段、非有限指标、重复指标、证据大小限制，以及历史缺失 split/非有限指标的安全拒绝。
+- `apps/research/domain/contracts.py`、Application use cases、Repository、Composition、serializer 与 API view 联合增量 mypy 清零；全仓基线从 `591 errors / 291 files` 收紧为 `588 errors / 290 files`，净减少 `3 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，也未修改 Terminal、TUI、SDK、MCP 或部署实现。

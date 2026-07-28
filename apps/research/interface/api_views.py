@@ -1,7 +1,13 @@
 """HTTP contracts for experiments, trials and promotion decisions."""
 
-from rest_framework import serializers, status
+from __future__ import annotations
+
+from typing import cast
+
+from rest_framework import status
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -10,48 +16,34 @@ from apps.research.composition import (
     make_register_experiment,
     make_run_trial,
 )
-
-
-class ExperimentSerializer(serializers.Serializer[dict[str, object]]):
-    question = serializers.CharField()
-    hypothesis = serializers.CharField()
-
-
-class TrialSerializer(serializers.Serializer[dict[str, object]]):
-    experiment_id = serializers.CharField(max_length=64)
-    family_id = serializers.CharField(max_length=64)
-    planned_trial_count = serializers.IntegerField(min_value=1)
-    status = serializers.ChoiceField(
-        choices=["draft", "running", "completed", "failed", "aborted"], default="draft"
-    )
-    pit_manifest_id = serializers.CharField(max_length=64)
-    backtest_id = serializers.IntegerField(required=False, allow_null=True)
-    backtest_trust_status = serializers.ChoiceField(
-        choices=["legacy_unverified", "exploratory", "pit_verified"]
-    )
-    code_commit = serializers.CharField(max_length=64)
-    dependency_lock_hash = serializers.CharField(max_length=64)
-    engine_version = serializers.CharField(max_length=64)
-    parameters = serializers.DictField()
-    random_seed = serializers.IntegerField()
-    benchmark_spec = serializers.DictField()
-    cost_spec = serializers.DictField()
-    slippage_spec = serializers.DictField()
-    universe_spec = serializers.DictField()
-    split_spec = serializers.DictField()
-    metrics = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+from apps.research.domain.contracts import (
+    ResearchAccessDeniedError,
+    ResearchConflictError,
+    ResearchRecordNotFoundError,
+    TrialRegistrationPayload,
+)
+from apps.research.interface.serializers import ExperimentSerializer, TrialSerializer
 
 
 class ExperimentListCreateView(APIView):
+    """Register owner-bound research experiments."""
+
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):  # type: ignore[no-untyped-def]
+    def post(self, request: Request) -> Response:
+        """Validate and register one research experiment."""
+
         serializer = ExperimentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        experiment = make_register_experiment().execute(
-            **serializer.validated_data,
-            owner_id=request.user.id,
-        )
+        actor_user_id, _ = _actor_context(request)
+        try:
+            experiment = make_register_experiment().execute(
+                question=cast(str, serializer.validated_data["question"]),
+                hypothesis=cast(str, serializer.validated_data["hypothesis"]),
+                owner_id=actor_user_id,
+            )
+        except ValueError as exc:
+            raise ValidationError({"non_field_errors": [str(exc)]}) from exc
         return Response(
             {
                 "experiment_id": experiment.experiment_id,
@@ -64,12 +56,31 @@ class ExperimentListCreateView(APIView):
 
 
 class TrialListCreateView(APIView):
+    """Register immutable trial evidence for an owned experiment."""
+
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):  # type: ignore[no-untyped-def]
+    def post(self, request: Request) -> Response:
+        """Validate and persist one owner-scoped research trial."""
+
         serializer = TrialSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        trial = make_run_trial().execute(dict(serializer.validated_data))
+        actor_user_id, actor_is_staff = _actor_context(request)
+        payload = cast(TrialRegistrationPayload, serializer.validated_data)
+        try:
+            trial = make_run_trial().execute(
+                payload,
+                actor_user_id=actor_user_id,
+                actor_is_staff=actor_is_staff,
+            )
+        except ResearchAccessDeniedError as exc:
+            raise PermissionDenied(str(exc)) from exc
+        except ResearchRecordNotFoundError as exc:
+            raise NotFound(str(exc)) from exc
+        except ResearchConflictError as exc:
+            raise ValidationError({"non_field_errors": [str(exc)]}) from exc
+        except ValueError as exc:
+            raise ValidationError({"non_field_errors": [str(exc)]}) from exc
         return Response(
             {
                 "trial_id": trial.trial_id,
@@ -84,10 +95,28 @@ class TrialListCreateView(APIView):
 
 
 class PromotionEvaluationView(APIView):
+    """Evaluate one owner-scoped trial against promotion gates."""
+
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, trial_id: str):  # type: ignore[no-untyped-def]
-        decision = make_evaluate_promotion().execute(trial_id)
+    def post(self, request: Request, trial_id: str) -> Response:
+        """Run an idempotent promotion evaluation for an authorized actor."""
+
+        actor_user_id, actor_is_staff = _actor_context(request)
+        try:
+            decision = make_evaluate_promotion().execute(
+                trial_id,
+                actor_user_id=actor_user_id,
+                actor_is_staff=actor_is_staff,
+            )
+        except ResearchAccessDeniedError as exc:
+            raise PermissionDenied(str(exc)) from exc
+        except ResearchRecordNotFoundError as exc:
+            raise NotFound(str(exc)) from exc
+        except ResearchConflictError as exc:
+            raise ValidationError({"non_field_errors": [str(exc)]}) from exc
+        except ValueError as exc:
+            raise ValidationError({"non_field_errors": [str(exc)]}) from exc
         return Response(
             {
                 "decision_id": decision.decision_id,
@@ -98,3 +127,12 @@ class PromotionEvaluationView(APIView):
             }
         )
 
+
+def _actor_context(request: Request) -> tuple[int, bool]:
+    """Return the authenticated integer actor id and staff flag."""
+
+    raw_user_id: object = getattr(request.user, "pk", None)
+    if isinstance(raw_user_id, bool) or not isinstance(raw_user_id, int) or raw_user_id <= 0:
+        raise PermissionDenied("authenticated_integer_user_required")
+    raw_is_staff: object = getattr(request.user, "is_staff", False)
+    return raw_user_id, raw_is_staff is True

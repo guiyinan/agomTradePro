@@ -12,7 +12,12 @@ from apps.data_center.infrastructure.pit_models import (
     PITDatasetManifestModel,
     PITFactVersionModel,
 )
-from apps.research.infrastructure.models import MetricObservation, ResearchExperiment
+from apps.research.domain.contracts import TrialRegistrationPayload
+from apps.research.infrastructure.models import (
+    DatasetSplitSpec,
+    MetricObservation,
+    ResearchExperiment,
+)
 from apps.research.infrastructure.repositories import ResearchRegistryRepository
 
 
@@ -90,9 +95,12 @@ def _create_verified_backtest(trial_id: str) -> int:
     ).pk
 
 
-def _trial_payload(trial_id: str, family_id: str, backtest_id: int) -> dict:
+def _trial_payload(
+    trial_id: str,
+    family_id: str,
+    backtest_id: int,
+) -> TrialRegistrationPayload:
     return {
-        "trial_id": trial_id,
         "experiment_id": "experiment-1",
         "family_id": family_id,
         "planned_trial_count": 2,
@@ -138,13 +146,19 @@ def test_promotion_requires_complete_declared_family_and_records_q_value() -> No
     _create_verified_manifest()
     repository = ResearchRegistryRepository()
     repository.create_trial(
-        _trial_payload("trial-1", "family-1", _create_verified_backtest("trial-1"))
+        _trial_payload("trial-1", "family-1", _create_verified_backtest("trial-1")),
+        trial_id="trial-1",
+        actor_user_id=1,
+        actor_is_staff=True,
     )
     repository.create_trial(
-        _trial_payload("trial-2", "family-1", _create_verified_backtest("trial-2"))
+        _trial_payload("trial-2", "family-1", _create_verified_backtest("trial-2")),
+        trial_id="trial-2",
+        actor_user_id=1,
+        actor_is_staff=True,
     )
 
-    decision = repository.evaluate_promotion("trial-1")
+    decision = repository.evaluate_promotion("trial-1", actor_user_id=1, actor_is_staff=True)
 
     assert decision.decision == "approved"
     assert decision.evidence["actual_trial_count"] == 2
@@ -163,10 +177,13 @@ def test_promotion_rejects_unregistered_family_trials() -> None:
     _create_verified_manifest()
     repository = ResearchRegistryRepository()
     repository.create_trial(
-        _trial_payload("trial-1", "family-1", _create_verified_backtest("trial-1"))
+        _trial_payload("trial-1", "family-1", _create_verified_backtest("trial-1")),
+        trial_id="trial-1",
+        actor_user_id=1,
+        actor_is_staff=True,
     )
 
-    decision = repository.evaluate_promotion("trial-1")
+    decision = repository.evaluate_promotion("trial-1", actor_user_id=1, actor_is_staff=True)
 
     assert decision.decision == "rejected"
     assert "family_trial_count_mismatch" in decision.evidence["reasons"]
@@ -182,14 +199,22 @@ def test_failed_family_trial_is_retained_without_fabricating_metrics() -> None:
     _create_verified_manifest()
     repository = ResearchRegistryRepository()
     repository.create_trial(
-        _trial_payload("trial-1", "family-1", _create_verified_backtest("trial-1"))
+        _trial_payload("trial-1", "family-1", _create_verified_backtest("trial-1")),
+        trial_id="trial-1",
+        actor_user_id=1,
+        actor_is_staff=True,
     )
     failed = _trial_payload("trial-2", "family-1", _create_verified_backtest("trial-2"))
     failed["status"] = "failed"
     failed["metrics"] = []
-    repository.create_trial(failed)
+    repository.create_trial(
+        failed,
+        trial_id="trial-2",
+        actor_user_id=1,
+        actor_is_staff=True,
+    )
 
-    decision = repository.evaluate_promotion("trial-1")
+    decision = repository.evaluate_promotion("trial-1", actor_user_id=1, actor_is_staff=True)
 
     assert decision.decision == "approved"
     assert decision.evidence["actual_trial_count"] == 2
@@ -205,10 +230,72 @@ def test_family_identity_cannot_change_after_registration() -> None:
     _create_verified_manifest()
     repository = ResearchRegistryRepository()
     repository.create_trial(
-        _trial_payload("trial-1", "family-1", _create_verified_backtest("trial-1"))
+        _trial_payload("trial-1", "family-1", _create_verified_backtest("trial-1")),
+        trial_id="trial-1",
+        actor_user_id=1,
+        actor_is_staff=True,
     )
     conflicting = _trial_payload("trial-2", "family-1", _create_verified_backtest("trial-2"))
     conflicting["planned_trial_count"] = 3
 
     with pytest.raises(ValueError, match="different evidence"):
-        repository.create_trial(conflicting)
+        repository.create_trial(
+            conflicting,
+            trial_id="trial-2",
+            actor_user_id=1,
+            actor_is_staff=True,
+        )
+
+
+@pytest.mark.django_db
+def test_promotion_rejects_legacy_trial_with_missing_split_without_crashing() -> None:
+    ResearchExperiment.objects.create(
+        experiment_id="experiment-1",
+        question="Legacy split evidence",
+        hypothesis="Missing split evidence prevents promotion.",
+    )
+    _create_verified_manifest()
+    repository = ResearchRegistryRepository()
+    repository.create_trial(
+        _trial_payload("trial-1", "family-1", _create_verified_backtest("trial-1")),
+        trial_id="trial-1",
+        actor_user_id=1,
+        actor_is_staff=True,
+    )
+    DatasetSplitSpec._default_manager.filter(trial_id="trial-1").delete()
+
+    decision = repository.evaluate_promotion("trial-1", actor_user_id=1, actor_is_staff=True)
+
+    assert decision.decision == "rejected"
+    assert "missing_split_spec" in decision.evidence["reasons"]
+
+
+@pytest.mark.django_db
+def test_promotion_rejects_nonfinite_legacy_metric_without_crashing() -> None:
+    ResearchExperiment.objects.create(
+        experiment_id="experiment-1",
+        question="Legacy metric evidence",
+        hypothesis="Nonfinite persisted metrics prevent promotion.",
+    )
+    _create_verified_manifest()
+    repository = ResearchRegistryRepository()
+    for trial_id in ("trial-1", "trial-2"):
+        repository.create_trial(
+            _trial_payload(
+                trial_id,
+                "family-1",
+                _create_verified_backtest(trial_id),
+            ),
+            trial_id=trial_id,
+            actor_user_id=1,
+            actor_is_staff=True,
+        )
+    MetricObservation._default_manager.filter(
+        trial_id="trial-1",
+        metric_name="sharpe_ratio",
+    ).update(value=float("inf"))
+
+    decision = repository.evaluate_promotion("trial-1", actor_user_id=1, actor_is_staff=True)
+
+    assert decision.decision == "rejected"
+    assert "nonfinite_metric_evidence" in decision.evidence["reasons"]
