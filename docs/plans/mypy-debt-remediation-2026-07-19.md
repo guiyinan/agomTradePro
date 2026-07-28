@@ -5706,3 +5706,19 @@
 - Account 分类/汇率约束专项、完整 API edges、初始化命令、模型与仓储结构回归 `83 passed`。
 - `classification_models.py`、约束模块与相关仓储联合增量 mypy 清零；全仓基线从 `630 errors / 299 files` 收紧为 `624 errors / 298 files`，净减少 `6 errors / 1 file`。
 - Account migration drift、migration plan、Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百七十三批
+
+- 按“外部基金事实可写入 NaN/Inf × 非正净值/负持仓 × 越界配置比例 × 模型入口无类型”收口 Fund ORM 真源。
+- 新增抽象 `ValidatedFundModel`，所有 Fund model 的 `create/save/update_or_create` 在持久化前执行字段与业务校验；保留数据库 unique 约束原有 `IntegrityError` 契约，不用提前 unique validation 改变调用方行为。
+- Decimal 基金规模、净值和持仓市值在校验前按字段声明精度规范化，消除 `Decimal(float)` 尾差；NaN、Infinity、负规模、非正单位/累计净值和非有限日收益失败关闭。
+- 基金经理任职结束不得早于开始、任期天数不得为负；持仓数量/市值不得为负，持仓与行业配置比例限制为 `0..100`。
+- 业绩窗口要求 `start_date <= end_date`，区间收益、年化收益、波动率、最大回撤、Sharpe、Beta 与 Alpha 全部拒绝非有限数，波动率不得为负；不强行统一现有正/负最大回撤表达口径。
+- 新增 11 项数据库 CheckConstraint 保护 QuerySet update/bulk 绕过；`0003` migration 在加约束前只读审计既有 Fund 数据，发现冲突即明确停止且不静默修复投资事实。
+- 七个 Fund model 字符串入口补齐 `str` 类型；数据库约束拆入独立 owner 模块，删除模型文件历史 mypy 债务。
+
+## 第三百七十三批验证结果
+
+- Fund 模型专项、Admin、完整 Fund 集成/API、Data Center 同步、资产主数据回填与 Alpha provider 回归 `87 passed`。
+- `apps/fund/infrastructure/models.py` 与约束模块联合增量 mypy 清零；全仓基线从 `624 errors / 298 files` 收紧为 `617 errors / 297 files`，净减少 `7 errors / 1 file`。
+- Fund migration drift、migration plan、Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

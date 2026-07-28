@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 624,
-    "files_with_errors": 298
+    "errors": 617,
+    "files_with_errors": 297
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -535,9 +535,6 @@
     },
     "apps/fund/infrastructure/adapters/akshare_fund_adapter.py": {
       "import-untyped": 1
-    },
-    "apps/fund/infrastructure/models.py": {
-      "no-untyped-def": 7
     },
     "apps/fund/interface/api_urls.py": {
       "no-untyped-def": 1
