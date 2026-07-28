@@ -5614,3 +5614,19 @@
 - Dashboard allocation safety、Strategy allocation 与 Dashboard guardrail 扩展回归 `24 passed`；首次完整组合运行在 Windows 测试库初始化阶段超过 240 秒上限且无失败输出，按同一范围扩大上限重跑通过。
 - `apps/dashboard/application/use_cases.py` 在增量 mypy 口径清零；全仓基线从 `653 errors / 306 files` 收紧为 `652 errors / 305 files`，净减少 `1 error / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百六十七批
+
+- 按“Decision Workspace 动态参数强转崩页 × 无界导航 token × bool 伪装整数”收口 Dashboard 深链构造器。
+- security_code 统一 trim/uppercase 并限制为 1..20 位受控资产标识；空白、内嵌空格、控制字符和超长代码不进入用户链接。
+- source 统一为最长 64 位小写 slug，action 统一为最长 32 位大写 token；换行、CRLF、空白和其他非法字符直接省略，不再仅依赖 URL encode 把污染内容带入工作台。
+- step 与 account_id 使用共享式本地严格整数边界：只接受非 bool 的正整数或 ASCII 十进制字符串；step 上限 100，账户 ID 上限 `2147483647`，负数、零、小数、Unicode 数字和越界值稳定省略。
+- 单个无效参数不会让 `int()` 抛错并中断 Dashboard 页面；其余有效 source/security/action 仍按 canonical 顺序生成链接。
+- `build_decision_workspace_url` 的动态入口改为 object 边界并逐项收窄，删除恒假容器比较和两处不安全 int 强转债务。
+- 新增 canonical 顺序、非法 account/step 不崩页和污染 token 隔离回归。
+
+## 第三百六十七批验证结果
+
+- Dashboard navigation safety 与既有 Decision Workspace URL/模型注入合同回归 `18 passed`。
+- `apps/dashboard/application/navigation.py` 在增量 mypy 口径清零；全仓基线从 `652 errors / 305 files` 收紧为 `649 errors / 304 files`，净减少 `3 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

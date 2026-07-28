@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 652,
-    "files_with_errors": 305
+    "errors": 649,
+    "files_with_errors": 304
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -307,10 +307,6 @@
     },
     "apps/dashboard/application/auto_advisor_outputs.py": {
       "no-any-return": 1
-    },
-    "apps/dashboard/application/navigation.py": {
-      "arg-type": 2,
-      "comparison-overlap": 1
     },
     "apps/dashboard/application/tasks.py": {
       "misc": 1
