@@ -16,6 +16,51 @@ from apps.fund.infrastructure.models import FundHoldingModel
 
 
 @pytest.mark.django_db
+def test_dashboard_tui_overview_projects_allocation_and_performance_rows(
+    client,
+    auth_user,
+    monkeypatch,
+):
+    client.force_login(auth_user)
+    monkeypatch.setattr(
+        "apps.dashboard.interface.tui_views.build_dashboard_data",
+        lambda user_id: SimpleNamespace(
+            display_name=f"User {user_id}",
+            current_regime="Recovery",
+            regime_confidence=0.82,
+            total_assets=1_000_000.0,
+            total_return=50_000.0,
+            total_return_pct=5.0,
+            cash_balance=200_000.0,
+            invested_value=800_000.0,
+            invested_ratio=0.8,
+            position_count=3,
+            active_signals=[{"id": 1}],
+            pending_review_count=2,
+            regime_data_health="healthy",
+            allocation_data={"股票": 600_000.0, "债券": 200_000.0},
+            performance_data=[
+                {"date": "2026-07-25", "return_pct": 4.123456789},
+            ],
+        ),
+    )
+
+    response = client.get("/api/dashboard/tui/overview/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["summary"]["regime_confidence_percent"] == 82.0
+    assert payload["summary"]["invested_ratio_percent"] == 80.0
+    assert payload["allocation"] == [
+        {"asset_class": "股票", "market_value": 600000.0, "weight_percent": 75.0},
+        {"asset_class": "债券", "market_value": 200000.0, "weight_percent": 25.0},
+    ]
+    assert payload["performance"] == [
+        {"date": "2026-07-25", "return_pct": 4.123457},
+    ]
+
+
+@pytest.mark.django_db
 def test_dashboard_allocation_rejects_invalid_account_id(client, auth_user):
     client.force_login(auth_user)
 

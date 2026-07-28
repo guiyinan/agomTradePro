@@ -205,3 +205,27 @@ def test_pulse_current_requests_refresh_when_snapshot_missing(authenticated_clie
     assert payload["data"]["regime_context"] == snapshot.regime_context
     assert captured["refresh_if_stale"] is True
     assert captured["as_of_date"] == date.today()
+
+
+@pytest.mark.django_db
+def test_pulse_current_returns_explicit_empty_state(
+    authenticated_client,
+    monkeypatch,
+):
+    """A fresh install can render the Pulse panel before the first snapshot exists."""
+
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases.GetLatestPulseUseCase.execute",
+        lambda self, **kwargs: None,
+    )
+
+    response = authenticated_client.get("/api/pulse/current/")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {
+        "success": True,
+        "available": False,
+        "count": 0,
+        "data": [],
+        "message": "No pulse data available",
+    }

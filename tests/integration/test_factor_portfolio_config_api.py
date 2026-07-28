@@ -2,7 +2,10 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
-from apps.factor.infrastructure.models import FactorPortfolioConfigModel
+from apps.factor.infrastructure.models import (
+    FactorDefinitionModel,
+    FactorPortfolioConfigModel,
+)
 
 
 def _build_authenticated_client() -> APIClient:
@@ -57,3 +60,78 @@ def test_factor_portfolio_config_crud_flow():
     delete_response = client.delete(f"/api/factor/configs/{config_id}/")
     assert delete_response.status_code == 204
     assert not FactorPortfolioConfigModel._default_manager.filter(id=config_id).exists()
+
+
+@pytest.mark.django_db
+def test_factor_portfolio_weight_is_managed_with_scalar_operations():
+    client = _build_authenticated_client()
+    FactorDefinitionModel._default_manager.create(
+        code="quality_scalar_api",
+        name="质量因子",
+        category="quality",
+        data_source="test",
+        data_field="quality",
+        direction="positive",
+    )
+    create_response = client.post(
+        "/api/factor/configs/",
+        {
+            "name": "逐项权重配置",
+            "description": "不使用原始 JSON 表单",
+            "is_active": False,
+        },
+        format="json",
+    )
+    assert create_response.status_code == 201
+    config_id = create_response.data["id"]
+    assert create_response.data["factor_weights"] == {}
+
+    set_response = client.patch(
+        f"/api/factor/configs/{config_id}/factor-weight/",
+        {"factor_code": "quality_scalar_api", "weight": 0.75},
+        format="json",
+    )
+    assert set_response.status_code == 200
+    assert set_response.data["factor_weights"] == {"quality_scalar_api": 0.75}
+
+    unknown_response = client.patch(
+        f"/api/factor/configs/{config_id}/factor-weight/",
+        {"factor_code": "unknown_factor", "weight": 0.25},
+        format="json",
+    )
+    assert unknown_response.status_code == 400
+
+    remove_response = client.post(
+        f"/api/factor/configs/{config_id}/remove-factor-weight/",
+        {"factor_code": "quality_scalar_api"},
+        format="json",
+    )
+    assert remove_response.status_code == 200
+    assert remove_response.data["factor_weights"] == {}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("universe", "unknown"),
+        ("rebalance_frequency", "hourly"),
+        ("weight_method", "random"),
+        ("top_n", 0),
+        ("max_debt_ratio", 101),
+        ("max_sector_weight", 0),
+        ("max_single_stock_weight", 1.1),
+        ("factor_weights", {"quality": 1.1}),
+    ],
+)
+def test_factor_portfolio_config_rejects_values_outside_owner_contract(
+    field,
+    value,
+):
+    client = _build_authenticated_client()
+    payload = {"name": f"非法组合-{field}"}
+    payload[field] = value
+
+    response = client.post("/api/factor/configs/", payload, format="json")
+
+    assert response.status_code == 400

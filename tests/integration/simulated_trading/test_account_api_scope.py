@@ -35,7 +35,9 @@ def _create_account(user, name: str, *, is_active: bool = True) -> SimulatedAcco
 
 
 @pytest.mark.django_db
-def test_account_list_api_returns_only_current_users_accounts(api_client: APIClient, owner, other_user):
+def test_account_list_api_returns_only_current_users_accounts(
+    api_client: APIClient, owner, other_user
+):
     _create_account(owner, "owned_active", is_active=True)
     _create_account(owner, "owned_inactive", is_active=False)
     _create_account(other_user, "foreign_active", is_active=True)
@@ -58,7 +60,9 @@ def test_account_list_api_returns_only_current_users_accounts(api_client: APICli
 
 
 @pytest.mark.django_db
-def test_account_list_api_active_only_filters_within_current_users_accounts(api_client: APIClient, owner, other_user):
+def test_account_list_api_active_only_filters_within_current_users_accounts(
+    api_client: APIClient, owner, other_user
+):
     _create_account(owner, "owned_active", is_active=True)
     _create_account(owner, "owned_inactive", is_active=False)
     _create_account(other_user, "foreign_active", is_active=True)
@@ -71,7 +75,9 @@ def test_account_list_api_active_only_filters_within_current_users_accounts(api_
     assert data["success"] is True
     account_ids = {account["account_id"] for account in data["accounts"]}
     expected_ids = set(
-        SimulatedAccountModel.objects.filter(user=owner, is_active=True).values_list("id", flat=True)
+        SimulatedAccountModel.objects.filter(user=owner, is_active=True).values_list(
+            "id", flat=True
+        )
     )
     foreign_ids = set(
         SimulatedAccountModel.objects.filter(user=other_user).values_list("id", flat=True)
@@ -98,6 +104,7 @@ def test_account_detail_api_rejects_non_owner(api_client: APIClient, owner, othe
     "path_suffix",
     (
         "positions/",
+        "trades/",
         "performance/",
         "performance-report/?start_date=2026-07-01&end_date=2026-07-10",
         "inspections/",
@@ -112,8 +119,6 @@ def test_account_read_apis_reject_non_owner(
     foreign_account = _create_account(other_user, "foreign_read_scope", is_active=True)
     api_client.force_login(owner)
 
-    response = api_client.get(
-        f"/api/account/accounts/{foreign_account.id}/{path_suffix}"
-    )
+    response = api_client.get(f"/api/account/accounts/{foreign_account.id}/{path_suffix}")
 
     assert response.status_code == 403

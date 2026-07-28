@@ -8,7 +8,6 @@ Prometheus Metrics Integration Tests
 - Metrics 端点可访问性
 """
 
-
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
@@ -25,46 +24,93 @@ class TestPrometheusMetricsEndpoint:
         """测试 metrics 端点可访问"""
         client = Client()
 
-        response = client.get('/metrics/')
+        response = client.get("/metrics/")
 
         assert response.status_code == 200
-        assert 'text/plain' in response.get('Content-Type', '')
+        assert "text/plain" in response.get("Content-Type", "")
 
     def test_api_metrics_endpoint_alias_accessible(self):
         """测试 /api/metrics/ 兼容别名可访问"""
         client = Client()
 
-        response = client.get('/api/metrics/')
+        response = client.get("/api/metrics/")
 
         assert response.status_code == 200
-        assert 'text/plain' in response.get('Content-Type', '')
+        assert "text/plain" in response.get("Content-Type", "")
 
     def test_metrics_endpoint_content(self):
         """测试 metrics 端点返回内容"""
         client = Client()
 
-        response = client.get('/metrics/')
+        response = client.get("/metrics/")
 
-        content = response.content.decode('utf-8')
+        content = response.content.decode("utf-8")
 
         # 验证包含基本的 Prometheus 格式
-        assert '# HELP' in content or '# TYPE' in content
+        assert "# HELP" in content or "# TYPE" in content
 
     def test_metrics_endpoint_after_request(self):
         """测试 API 请求后 metrics 端点包含相关指标"""
         client = Client()
 
         # 触发一个 API 请求
-        response = client.get('/api/health/')
+        response = client.get("/api/health/")
         assert response.status_code in (200, 302, 403)  # 可能被重定向或需要认证
 
         # 获取 metrics
-        metrics_response = client.get('/metrics/')
-        content = metrics_response.content.decode('utf-8')
+        metrics_response = client.get("/metrics/")
+        content = metrics_response.content.decode("utf-8")
 
         # 验证包含指标（可能由 django-prometheus 自动生成）
         # 不强制检查自定义指标，因为请求可能被中间件跳过
         assert len(content) > 0
+
+    def test_web_to_tui_entry_metrics_use_comparable_bounded_task(self):
+        """Classic and TUI deep links must share one approved task label."""
+
+        client = Client()
+        user = User.objects.create_user(username="migration_metrics_entry")
+        client.force_login(user)
+        classic_response = client.get("/simulated-trading/dashboard/")
+        tui_response = client.get(
+            "/tui/",
+            {
+                "screen": "execution.accounts",
+                "action": "simulated-trading.accounts",
+            },
+        )
+
+        assert classic_response.status_code == 200
+        assert tui_response.status_code in {200, 302}
+
+        metrics_response = client.get("/metrics/")
+        content = metrics_response.content.decode("utf-8")
+        assert (
+            'web_to_tui_migration_events_total{event_type="entry",outcome="success",'
+            'surface="classic",task_key="simulated-trading.accounts"}' in content
+        )
+        assert (
+            'web_to_tui_migration_events_total{event_type="entry",outcome="success",'
+            'surface="tui",task_key="simulated-trading.accounts"}' in content
+        )
+
+    def test_classic_api_execution_uses_reviewed_referrer_task(self):
+        """Classic API outcomes must be comparable with TUI action outcomes."""
+
+        client = Client()
+        user = User.objects.create_user(username="migration_metrics_execution")
+        client.force_login(user)
+        response = client.get(
+            "/api/health/",
+            HTTP_REFERER="http://testserver/simulated-trading/dashboard/",
+        )
+
+        assert response.status_code == 200
+        content = client.get("/metrics/").content.decode("utf-8")
+        assert (
+            'web_to_tui_migration_events_total{event_type="execution",outcome="success",'
+            'surface="classic",task_key="simulated-trading.accounts"}' in content
+        )
 
 
 @pytest.mark.django_db
@@ -83,7 +129,7 @@ class TestAPIMetrics:
 
         # 发起 API 请求
         client = Client()
-        client.get('/api/health/')
+        client.get("/api/health/")
 
         # 验证计数增加
         final_count = 0
@@ -105,7 +151,7 @@ class TestAPIMetrics:
 
         # 发起 API 请求
         client = Client()
-        client.get('/api/health/')
+        client.get("/api/health/")
 
         # 验证有延迟样本被记录
         final_samples = 0
@@ -128,28 +174,24 @@ class TestCeleryMetrics:
         metric_names = {metric.name for metric in REGISTRY.collect()}
 
         # prometheus_client 的指标名称可能不含 _total 后缀
-        assert any('celery_task' in name for name in metric_names)
-        assert any('celery_task_duration' in name or 'duration' in name for name in metric_names)
-        assert any('celery_task_retry' in name or 'retry' in name for name in metric_names)
+        assert any("celery_task" in name for name in metric_names)
+        assert any("celery_task_duration" in name or "duration" in name for name in metric_names)
+        assert any("celery_task_retry" in name or "retry" in name for name in metric_names)
 
     def test_celery_task_execution_records_metrics(self):
         """测试 Celery 任务执行记录指标"""
         from core.metrics import celery_task_total, record_celery_task
 
         # 使用 record_celery_task 直接记录指标（用于测试）
-        record_celery_task(
-            task_name='check_data_freshness',
-            status='success',
-            duration_seconds=1.5
-        )
+        record_celery_task(task_name="check_data_freshness", status="success", duration_seconds=1.5)
 
         # 验证指标被记录
         found = False
         for metric in celery_task_total.collect():
             for sample in metric.samples:
                 if (
-                    sample.labels.get('task_name') == 'check_data_freshness'
-                    and sample.labels.get('status') == 'success'
+                    sample.labels.get("task_name") == "check_data_freshness"
+                    and sample.labels.get("status") == "success"
                 ):
                     found = True
                     assert sample.value > 0
@@ -169,8 +211,10 @@ class TestAuditMetrics:
         # 注意：指标名称可能不含 _total 后缀
         metric_names = {metric.name for metric in REGISTRY.collect()}
 
-        assert any('audit_write' in name for name in metric_names)
-        assert any('audit_write_latency' in name or 'audit_latency' in name for name in metric_names)
+        assert any("audit_write" in name for name in metric_names)
+        assert any(
+            "audit_write_latency" in name or "audit_latency" in name for name in metric_names
+        )
 
     def test_audit_write_metrics_function(self):
         """测试审计写入指标记录函数"""
@@ -178,10 +222,7 @@ class TestAuditMetrics:
 
         # 记录一次成功
         record_audit_write(
-            module='test_module',
-            status='success',
-            source='test',
-            latency_seconds=0.1
+            module="test_module", status="success", source="test", latency_seconds=0.1
         )
 
         # 验证指标被记录
@@ -189,8 +230,8 @@ class TestAuditMetrics:
         for metric in audit_write_total.collect():
             for sample in metric.samples:
                 if (
-                    sample.labels.get('module') == 'test_module'
-                    and sample.labels.get('status') == 'success'
+                    sample.labels.get("module") == "test_module"
+                    and sample.labels.get("status") == "success"
                 ):
                     found = True
                     assert sample.value > 0
@@ -203,29 +244,29 @@ class TestAuditMetrics:
         from apps.audit.infrastructure.metrics import export_metrics, record_audit_write_success
 
         record_audit_write_success(
-            module='audit_test',
-            action='export',
-            source='test',
+            module="audit_test",
+            action="export",
+            source="test",
             latency_seconds=0.05,
         )
 
         content = export_metrics()
 
-        assert '# HELP audit_write_success_total' in content
-        assert 'audit_write_success_total' in content
-        assert 'audit_write_latency_seconds' in content
-        assert '# Error exporting metrics:' not in content
+        assert "# HELP audit_write_success_total" in content
+        assert "audit_write_success_total" in content
+        assert "audit_write_latency_seconds" in content
+        assert "# Error exporting metrics:" not in content
 
     def test_audit_metrics_endpoint_returns_prometheus_text(self):
         """测试审计指标 API 不返回导出错误占位文本。"""
         client = Client()
 
-        response = client.get('/api/audit/metrics/')
+        response = client.get("/api/audit/metrics/")
 
         assert response.status_code == 200
-        content = response.content.decode('utf-8')
-        assert '# HELP audit_write_success_total' in content
-        assert '# Error exporting metrics:' not in content
+        content = response.content.decode("utf-8")
+        assert "# HELP audit_write_success_total" in content
+        assert "# Error exporting metrics:" not in content
 
 
 @pytest.mark.django_db
@@ -239,13 +280,13 @@ class TestMetricsSummary:
         summary = get_metrics_summary()
 
         # 验证返回结构
-        assert 'api_requests' in summary
-        assert 'celery_tasks' in summary
-        assert 'audit_writes' in summary
+        assert "api_requests" in summary
+        assert "celery_tasks" in summary
+        assert "audit_writes" in summary
 
         # 验证子结构
-        assert 'total' in summary['api_requests']
-        assert 'errors' in summary['api_requests']
+        assert "total" in summary["api_requests"]
+        assert "errors" in summary["api_requests"]
 
 
 @pytest.mark.django_db
@@ -267,19 +308,15 @@ class TestCeleryMetricsSignalHandlers:
         from core.metrics import celery_task_total, record_celery_task
 
         # 使用 record_celery_task 模拟信号处理器的行为
-        record_celery_task(
-            task_name='check_data_freshness',
-            status='success',
-            duration_seconds=2.0
-        )
+        record_celery_task(task_name="check_data_freshness", status="success", duration_seconds=2.0)
 
         # 验证指标被记录
         found_success = False
         for metric in celery_task_total.collect():
             for sample in metric.samples:
                 if (
-                    sample.labels.get('task_name') == 'check_data_freshness'
-                    and sample.labels.get('status') == 'success'
+                    sample.labels.get("task_name") == "check_data_freshness"
+                    and sample.labels.get("status") == "success"
                 ):
                     found_success = True
                     break

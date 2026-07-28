@@ -97,7 +97,6 @@ class TestTemplateRendering(TestCase):
             "ai_provider/detail.html",
             "alpha_trigger/candidate_detail.html",
             "audit/attribution_detail.html",
-            "audit/attribution_report.html",
             "simulated_trading/my_trades.html",
             "strategy/detail.html",
         }

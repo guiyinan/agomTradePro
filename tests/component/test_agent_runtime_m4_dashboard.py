@@ -177,6 +177,33 @@ class TestOperatorDashboard:
 
         assert response.status_code == 200
 
+    def test_operator_tui_queues_and_proposal_detail_enforce_role(
+        self,
+        client,
+        staff_user,
+        task_with_data,
+    ):
+        from django.contrib.auth.models import User
+
+        proposal = task_with_data.proposals.get()
+        client.force_login(staff_user)
+        task_response = client.get(
+            "/api/agent-runtime/operator/tasks/?task_domain=research&attention=false"
+        )
+        proposal_response = client.get("/api/agent-runtime/operator/proposals/?risk_level=medium")
+        detail_response = client.get(f"/api/agent-runtime/operator/proposals/{proposal.id}/")
+
+        assert task_response.status_code == 200
+        assert task_response.json()["tasks"][0]["request_id"] == task_with_data.request_id
+        assert proposal_response.status_code == 200
+        assert proposal_response.json()["proposals"][0]["request_id"] == proposal.request_id
+        assert detail_response.status_code == 200
+        assert detail_response.json()["proposal"]["id"] == proposal.id
+
+        regular_user = User.objects.create_user(username="operator-tui-regular")
+        client.force_login(regular_user)
+        assert client.get("/api/agent-runtime/operator/tasks/").status_code == 403
+
     def test_needs_attention_no_double_count(self, factory, staff_user):
         """Verify needs_attention_count does not double-count tasks."""
         from apps.agent_runtime.infrastructure.models import AgentTaskModel

@@ -22,6 +22,7 @@ from apps.alpha_trigger.domain.services import (
     TriggerEvaluator,
     TriggerFilter,
     TriggerInvalidator,
+    can_transition_trigger_status,
     check_invalidations,
     evaluate_trigger,
     generate_candidate,
@@ -371,3 +372,15 @@ def test_trigger_filter_covers_status_asset_strength_expiry_sort_and_top_n() -> 
     assert trigger_filter.sort_by_confidence(triggers, descending=False)[0] is low
     assert trigger_filter.get_top_n(triggers, 1, "created_at")
     assert trigger_filter.get_top_n(triggers, 2, "unchanged") == triggers[:2]
+
+
+def test_trigger_status_transitions_are_explicit_and_terminal() -> None:
+    """Pause/resume/cancel transitions reject invalid terminal-state recovery."""
+
+    assert can_transition_trigger_status(TriggerStatus.ACTIVE, TriggerStatus.PAUSED)
+    assert can_transition_trigger_status(TriggerStatus.PAUSED, TriggerStatus.ACTIVE)
+    assert can_transition_trigger_status(TriggerStatus.ACTIVE, TriggerStatus.CANCELLED)
+    assert not can_transition_trigger_status(
+        TriggerStatus.CANCELLED,
+        TriggerStatus.ACTIVE,
+    )

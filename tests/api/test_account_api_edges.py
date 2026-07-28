@@ -83,6 +83,64 @@ def test_account_health_contract(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_account_profile_and_password_self_service_contract(
+    authenticated_client,
+    auth_user,
+):
+    profile_response = authenticated_client.get("/api/account/profile/")
+
+    assert profile_response.status_code == 200
+    assert profile_response.json()["email"] == "account@example.com"
+
+    wrong_password = authenticated_client.post(
+        "/api/account/profile/password/",
+        {
+            "current_password": "wrong-password",
+            "new_password": "A-different-password-2026!",
+        },
+        format="json",
+    )
+    assert wrong_password.status_code == 403
+
+    changed = authenticated_client.post(
+        "/api/account/profile/password/",
+        {
+            "current_password": "testpass123",
+            "new_password": "A-different-password-2026!",
+        },
+        format="json",
+    )
+    assert changed.status_code == 200
+    assert changed.json() == {"success": True, "message": "密码已更新"}
+    auth_user.refresh_from_db()
+    assert auth_user.check_password("A-different-password-2026!") is True
+
+
+@pytest.mark.django_db
+def test_account_self_service_tui_screen_exposes_password_and_ledger_tasks(
+    authenticated_client,
+):
+    response = authenticated_client.get("/api/tui/screens/account.self-service/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["screen"]["key"] == "account.self-service"
+    action_by_key = {action["key"]: action for action in payload["actions"]}
+    assert set(action_by_key) >= {
+        "account-settings.read-profile",
+        "account-settings.update-profile",
+        "account-settings.change-password",
+        "account-settings.list-capital-flows",
+        "account-settings.create-capital-flow",
+        "account-settings.delete-capital-flow",
+        "account-settings.list-trading-costs",
+        "account-settings.create-trading-cost",
+    }
+    password_fields = action_by_key["account-settings.change-password"]["fields"]
+    assert {field["input_type"] for field in password_fields} == {"password"}
+
+
+@pytest.mark.django_db
 def test_account_volatility_history_uses_domain_metric_fields(
     authenticated_client,
     auth_user,
@@ -137,6 +195,86 @@ def test_account_volatility_history_uses_domain_metric_fields(
 
 
 @pytest.mark.django_db
+def test_account_tui_volatility_projects_percentage_chart_rows(
+    authenticated_client,
+    auth_user,
+    monkeypatch,
+):
+    authenticated_client.force_login(auth_user)
+    monkeypatch.setattr(
+        account_interface_services,
+        "get_active_portfolio_for_user",
+        lambda _user_id: SimpleNamespace(id=17),
+    )
+    analysis = SimpleNamespace(
+        portfolio_id=17,
+        current_volatility_30d=0.20,
+        current_volatility_60d=0.18,
+        current_volatility_90d=0.16,
+        target_volatility=0.15,
+        adjustment_result=SimpleNamespace(
+            should_reduce=True,
+            reduction_reason="above target",
+            suggested_position_multiplier=0.75,
+        ),
+        volatility_history=[
+            VolatilityMetrics(
+                daily_volatility=0.01,
+                annualized_volatility=0.1587,
+                window_days=30,
+                as_of_date=date(2026, 7, 22),
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        VolatilityAnalysisUseCase,
+        "analyze_portfolio_volatility",
+        lambda self, *, portfolio_id, user_id: analysis,
+    )
+
+    response = authenticated_client.get("/api/account/tui/volatility/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["volatility_30d_percent"] == 20.0
+    assert payload["target_percent"] == 15.0
+    assert payload["suggested_multiplier_percent"] == 75.0
+    assert payload["history"] == [
+        {
+            "date": "2026-07-22",
+            "annualized_volatility_percent": 15.87,
+            "target_percent": 15.0,
+            "target_upper_percent": 18.0,
+            "target_lower_percent": 12.0,
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_account_tui_volatility_returns_explicit_empty_state(
+    authenticated_client,
+    auth_user,
+    monkeypatch,
+):
+    authenticated_client.force_login(auth_user)
+    monkeypatch.setattr(
+        account_interface_services,
+        "get_active_portfolio_for_user",
+        lambda _user_id: None,
+    )
+
+    response = authenticated_client.get("/api/account/tui/volatility/")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "has_portfolio": False,
+        "message": "暂无活跃投资组合",
+        "history": [],
+    }
+
+
+@pytest.mark.django_db
 def test_account_mcp_self_contract(authenticated_client, auth_user):
     settings_obj = SystemSettingsModel.get_settings()
     settings_obj.allow_token_plaintext_view = True
@@ -165,6 +303,112 @@ def test_account_mcp_self_contract(authenticated_client, auth_user):
     assert payload["capability_endpoint"].endswith("/api/ai-capability/capabilities/")
     assert "Capability Catalog" in payload["agent_bootstrap_prompt"]
     assert payload["token_access_level_choices"][0]["value"] == "read_only"
+
+
+@pytest.mark.django_db
+def test_admin_user_access_governance_contract_and_mutations(
+    admin_authenticated_client,
+    admin_user,
+):
+    user = get_user_model().objects.create_user(
+        username="pending_governed_user",
+        password="testpass123",
+        email="pending@example.com",
+        is_active=False,
+    )
+    profile, _ = AccountProfileModel.objects.update_or_create(
+        user=user,
+        defaults={
+            "display_name": "Pending Governed User",
+            "initial_capital": Decimal("1000000.00"),
+            "approval_status": "pending",
+            "user_agreement_accepted": True,
+            "risk_warning_acknowledged": True,
+        },
+    )
+
+    list_response = admin_authenticated_client.get(
+        "/api/account/admin/users/",
+        {"approval_status": "pending", "q": "governed"},
+    )
+
+    assert list_response.status_code == 200
+    assert list_response["Content-Type"].startswith("application/json")
+    payload = list_response.json()
+    assert payload["total_count"] == 1
+    assert payload["rows"][0]["user_id"] == user.id
+    assert payload["rows"][0]["approval_status"] == "pending"
+    assert {row["value"] for row in payload["role_choices"]} >= {"admin", "read_only"}
+
+    approve_response = admin_authenticated_client.post(
+        f"/api/account/admin/users/{user.id}/approve/",
+        {},
+        format="json",
+    )
+    assert approve_response.status_code == 200
+    assert approve_response.json()["success"] is True
+    user.refresh_from_db()
+    profile.refresh_from_db()
+    assert user.is_active is True
+    assert profile.approval_status == "approved"
+    assert profile.approved_by_id == admin_user.id
+
+    role_response = admin_authenticated_client.post(
+        f"/api/account/admin/users/{user.id}/role/",
+        {"rbac_role": "analyst"},
+        format="json",
+    )
+    assert role_response.status_code == 200
+    profile.refresh_from_db()
+    assert profile.rbac_role == "analyst"
+
+    reset_response = admin_authenticated_client.post(
+        f"/api/account/admin/users/{user.id}/reset/",
+        {},
+        format="json",
+    )
+    assert reset_response.status_code == 200
+    profile.refresh_from_db()
+    assert profile.approval_status == "pending"
+
+    reject_response = admin_authenticated_client.post(
+        f"/api/account/admin/users/{user.id}/reject/",
+        {"rejection_reason": "身份材料待补充"},
+        format="json",
+    )
+    assert reject_response.status_code == 200
+    profile.refresh_from_db()
+    assert profile.approval_status == "rejected"
+    assert profile.rejection_reason == "身份材料待补充"
+
+
+@pytest.mark.django_db
+def test_user_access_governance_requires_admin(authenticated_client):
+    response = authenticated_client.get("/api/account/admin/users/")
+
+    assert response.status_code == 403
+    assert response["Content-Type"].startswith("application/json")
+
+
+@pytest.mark.django_db
+def test_user_access_governance_tui_screen_exposes_task_actions(
+    admin_authenticated_client,
+):
+    response = admin_authenticated_client.get("/api/tui/screens/identity-access.user-governance/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["screen"]["key"] == "identity-access.user-governance"
+    assert payload["screen"]["audience"] == "admin"
+    assert payload["screen"]["user_experience"]["primary_task"]
+    assert payload["screen"]["default_action_key"] == "identity-access.user-list"
+    assert {action["key"] for action in payload["actions"]} >= {
+        "identity-access.user-list",
+        "identity-access.approve-user",
+        "identity-access.reject-user",
+        "identity-access.reset-user",
+        "identity-access.set-user-role",
+    }
 
 
 @pytest.mark.django_db

@@ -161,6 +161,65 @@ def test_daily_inspection_list_returns_stable_empty_envelope(
 
 
 @pytest.mark.django_db
+def test_inspection_notification_api_enforces_owner_scope_and_validates_emails(
+    authenticated_client,
+    owned_account,
+    django_user_model,
+):
+    read_response = authenticated_client.get(
+        f"/api/simulated-trading/accounts/{owned_account.id}/inspection-notification/"
+    )
+    assert read_response.status_code == 200
+    assert read_response.json()["config"]["notify_on"] == "warning_error"
+
+    invalid_response = authenticated_client.patch(
+        f"/api/simulated-trading/accounts/{owned_account.id}/inspection-notification/",
+        {
+            "is_enabled": True,
+            "notify_on": "all",
+            "include_owner_email": False,
+            "recipient_emails": ["invalid-email"],
+        },
+        format="json",
+    )
+    assert invalid_response.status_code == 400
+    assert "recipient_emails" in invalid_response.json()["details"]
+
+    update_response = authenticated_client.patch(
+        f"/api/simulated-trading/accounts/{owned_account.id}/inspection-notification/",
+        {
+            "is_enabled": False,
+            "notify_on": "all",
+            "include_owner_email": False,
+            "recipient_emails": ["ops@example.com"],
+        },
+        format="json",
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["config"] == {
+        "is_enabled": False,
+        "notify_on": "all",
+        "include_owner_email": False,
+        "recipient_emails": ["ops@example.com"],
+        "updated_at": update_response.json()["config"]["updated_at"],
+    }
+
+    other_user = django_user_model.objects.create_user(username="notification-other")
+    foreign_account = SimulatedAccountModel.objects.create(
+        user=other_user,
+        account_name="foreign-account",
+        account_type="simulated",
+        initial_capital=Decimal("100000.00"),
+        current_cash=Decimal("100000.00"),
+        total_value=Decimal("100000.00"),
+    )
+    forbidden_response = authenticated_client.get(
+        f"/api/simulated-trading/accounts/{foreign_account.id}/inspection-notification/"
+    )
+    assert forbidden_response.status_code == 404
+
+
+@pytest.mark.django_db
 def test_close_position_endpoint_commits_through_unified_ledger(
     authenticated_client,
     owned_account,

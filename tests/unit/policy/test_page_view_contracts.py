@@ -140,7 +140,7 @@ def test_policy_create_and_update_form_views_delegate_payloads(monkeypatch) -> N
     monkeypatch.setattr(page_views, "rss_api_service", rss_service)
     monkeypatch.setattr(page_views.messages, "success", lambda *args: None)
     request = RequestFactory().post("/")
-    request.user = SimpleNamespace(is_authenticated=True)
+    request.user = SimpleNamespace(is_authenticated=True, is_staff=True)
     form = SimpleNamespace(to_payload=lambda: {"name": "contract"})
 
     create_event = page_views.PolicyEventCreateView()

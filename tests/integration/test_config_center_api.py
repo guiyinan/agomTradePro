@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
@@ -166,9 +168,7 @@ def test_config_center_snapshot_includes_data_center_runtime_summary(staff_clien
         def get_all_statuses(self):
             return [_Snapshot("eastmoney-main", "degraded"), _Snapshot("tushare-main", "healthy")]
 
-    monkeypatch.setattr(
-        "apps.data_center.provider_runtime.get_registry", lambda: _Registry()
-    )
+    monkeypatch.setattr("apps.data_center.provider_runtime.get_registry", lambda: _Registry())
 
     response = staff_client.get("/api/system/config-center/")
 
@@ -352,7 +352,8 @@ def test_user_management_page_uses_admin_console_language(superuser_client):
 
     content = _assert_html_contract(response, "用户管理", "返回管理控制台")
     assert "返回管理控制台" in content
-    assert "管理控制台是管理员统一入口" in content
+    assert "/tui/?screen=identity-access.user-governance" in content
+    assert "当前 Classic 页面仅在兼容期内保留" in content
     assert "系统设置" in content
 
 
@@ -361,8 +362,10 @@ def test_token_management_page_uses_admin_console_language(superuser_client):
     response = superuser_client.get("/account/admin/tokens/")
 
     content = _assert_html_contract(response, "Token 管理", "返回管理控制台")
+    assert "/tui/?screen=capability-router.admin-access" in content
+    assert "当前 Classic 页面仅在兼容期内保留" in content
     assert "返回管理控制台" in content
-    assert "当前页面只负责 Token 与 MCP 开关" in content
+    assert "MCP 用户、令牌与开关治理已迁入 TUI" in content
     assert "用户管理" in content
 
 
@@ -397,7 +400,64 @@ def test_system_settings_page_uses_settings_center_language(superuser_client):
     content = _assert_html_contract(response, "系统设置", "返回设置中心")
     assert "设置中心工作流" in content
     assert "返回设置中心" in content
-    assert "不要把配置编辑和管理员值守混在一起" in content
+    assert "/tui/?screen=system.settings" in content
+    assert "当前 Classic 页面仅在兼容期内保留" in content
+
+
+@pytest.mark.django_db
+def test_system_governance_settings_api_is_admin_only_and_updates_allowlist(
+    normal_client,
+    staff_client,
+):
+    forbidden = normal_client.get("/api/system/config-center/settings/")
+    assert forbidden.status_code == 403
+
+    current = staff_client.get("/api/system/config-center/settings/")
+    assert current.status_code == 200
+    assert current["Content-Type"].startswith("application/json")
+    assert "require_user_approval" in current.json()
+    assert "benchmark_code_map" in current.json()
+
+    updated = staff_client.put(
+        "/api/system/config-center/settings/",
+        data=json.dumps(
+            {
+                "require_user_approval": False,
+                "market_color_convention": "us_market",
+                "alpha_pool_mode": "market",
+                "benchmark_code_map": {"equity_default_index": "000300.SH"},
+                "asset_proxy_code_map": {"equity": "510300.SH"},
+                "notes": "M2 system settings contract",
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert updated.status_code == 200
+    payload = updated.json()
+    assert payload["require_user_approval"] is False
+    assert payload["market_color_convention"] == "us_market"
+    assert payload["market_color_label"] == "美股绿涨红跌"
+    assert payload["benchmark_code_map"] == {"equity_default_index": "000300.SH"}
+    assert payload["asset_proxy_code_map"] == {"equity": "510300.SH"}
+
+
+@pytest.mark.django_db
+def test_system_settings_tui_screen_exposes_read_and_confirmed_update(
+    superuser_client,
+):
+    response = superuser_client.get("/api/tui/screens/system.settings/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["screen"]["key"] == "system.settings"
+    assert payload["screen"]["audience"] == "admin"
+    actions = {action["key"]: action for action in payload["actions"]}
+    assert set(actions) == {"system-settings.read", "system-settings.update"}
+    assert actions["system-settings.update"]["confirmation_required"] is True
+    field_by_key = {field["key"]: field for field in actions["system-settings.update"]["fields"]}
+    assert field_by_key["benchmark_code_map"]["value_type"] == "object"
+    assert field_by_key["asset_proxy_code_map"]["input_type"] == "textarea"
 
 
 @pytest.mark.django_db

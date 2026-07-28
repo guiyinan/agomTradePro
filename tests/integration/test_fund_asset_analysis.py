@@ -136,6 +136,30 @@ class TestDjangoFundAssetRepository:
 class TestFundMultiDimScorer:
     """测试基金多维度评分服务"""
 
+    def test_screen_funds_empty_result_keeps_response_shape(self):
+        """空筛选结果仍提供 Interface 所需的 count 和 funds 字段。"""
+
+        class MockRepo:
+            def get_assets_by_filter(self, **kwargs):
+                return []
+
+        scorer = FundMultiDimScorer(MockRepo())
+        context = ScoreContext(
+            current_regime="Recovery",
+            policy_level="P0",
+            sentiment_index=0.0,
+            active_signals=[],
+        )
+
+        result = scorer.screen_funds({}, context)
+
+        assert result == {
+            "success": True,
+            "count": 0,
+            "message": "未找到符合条件的基金",
+            "funds": [],
+        }
+
     def test_score_batch_empty(self):
         """测试空列表评分"""
         # Mock repo

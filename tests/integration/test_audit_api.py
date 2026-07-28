@@ -372,6 +372,55 @@ class TestOperationLogAPI:
         assert data["trace"]["steps"][1]["tool_name"] == "run_strategy"
         assert data["trace"]["final_summary"] == "Buy CSI300 ETF"
 
+    def test_decision_traces_are_owner_scoped_with_admin_override(
+        self,
+        api_client,
+        regular_user,
+        admin_user,
+    ):
+        """Regular users see only their traces while admins retain full evidence access."""
+
+        own_trace = OperationLogModel._default_manager.create(
+            request_id="trace-owner-visible",
+            user_id=regular_user.id,
+            username=regular_user.username,
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="regime",
+            action="READ",
+            mcp_tool_name="get_current_regime",
+            request_params={},
+            response_status=200,
+        )
+        foreign_trace = OperationLogModel._default_manager.create(
+            request_id="trace-owner-hidden",
+            user_id=admin_user.id,
+            username=admin_user.username,
+            source="MCP",
+            operation_type="MCP_CALL",
+            module="policy",
+            action="READ",
+            mcp_tool_name="get_policy_status",
+            request_params={},
+            response_status=200,
+        )
+
+        api_client.force_authenticate(user=regular_user)
+        regular_list = api_client.get("/api/audit/decision-traces/?user_id=999999")
+        regular_detail = api_client.get(f"/api/audit/decision-traces/{foreign_trace.request_id}/")
+
+        assert regular_list.status_code == 200
+        regular_request_ids = {item["request_id"] for item in regular_list.json()["traces"]}
+        assert own_trace.request_id in regular_request_ids
+        assert foreign_trace.request_id not in regular_request_ids
+        assert regular_detail.status_code in {403, 404}
+
+        api_client.force_authenticate(user=admin_user)
+        admin_list = api_client.get("/api/audit/decision-traces/")
+        admin_request_ids = {item["request_id"] for item in admin_list.json()["traces"]}
+        assert own_trace.request_id in admin_request_ids
+        assert foreign_trace.request_id in admin_request_ids
+
     def test_decision_trace_list_separates_same_request_id_by_token(self, api_client, admin_user):
         """测试相同 request_id 但不同 token 会拆成不同决策链。"""
         OperationLogModel._default_manager.create(

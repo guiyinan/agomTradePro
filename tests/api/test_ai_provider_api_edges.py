@@ -80,6 +80,73 @@ def test_ai_provider_logs_list_success_contract(admin_client):
 
 
 @pytest.mark.django_db
+def test_user_usage_logs_filter_by_owned_provider_only(
+    authenticated_client,
+    auth_user,
+):
+    other_user = get_user_model().objects.create_user(
+        username="other-log-user",
+        password="testpass123",
+    )
+    owned_provider = AIProviderConfig.objects.create(
+        name="owned-personal",
+        scope="user",
+        owner_user=auth_user,
+        provider_type="openai",
+        is_active=True,
+        priority=1,
+        base_url="https://owned.example.invalid/v1",
+        api_key="sk-owned",
+        default_model="gpt-4o-mini",
+    )
+    other_provider = AIProviderConfig.objects.create(
+        name="other-personal",
+        scope="user",
+        owner_user=other_user,
+        provider_type="openai",
+        is_active=True,
+        priority=1,
+        base_url="https://other.example.invalid/v1",
+        api_key="sk-other",
+        default_model="gpt-4o-mini",
+    )
+    for provider, user in (
+        (owned_provider, auth_user),
+        (other_provider, other_user),
+    ):
+        AIUsageLog.objects.create(
+            provider=provider,
+            user=user,
+            provider_scope="personal",
+            quota_charged=False,
+            model="gpt-4o-mini",
+            request_type="chat",
+            prompt_tokens=1,
+            completion_tokens=1,
+            total_tokens=2,
+            estimated_cost=0.001,
+            response_time_ms=10,
+            status="success",
+        )
+
+    owned_response = authenticated_client.get(f"/api/ai/me/logs/?provider={owned_provider.id}")
+    other_response = authenticated_client.get(f"/api/ai/me/logs/?provider={other_provider.id}")
+
+    assert owned_response.status_code == 200
+    assert [item["provider_id"] for item in owned_response.json()] == [owned_provider.id]
+    assert other_response.status_code == 200
+    assert other_response.json() == []
+
+
+@pytest.mark.django_db
+def test_user_usage_logs_reject_invalid_provider_filter(authenticated_client):
+    response = authenticated_client.get("/api/ai/me/logs/?provider=bad")
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "provider 必须是整数"
+
+
+@pytest.mark.django_db
 @override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="ai-provider-api-test-key")
 def test_admin_can_create_system_ai_provider(admin_client):
     response = admin_client.post(
@@ -144,6 +211,10 @@ def test_ai_provider_test_connection_missing_provider_returns_404(admin_client):
 
 @pytest.mark.django_db
 def test_user_can_list_own_personal_providers(authenticated_client, auth_user):
+    other_user = get_user_model().objects.create_user(
+        username="other-provider-owner",
+        password="testpass123",
+    )
     AIProviderConfig.objects.create(
         name="personal-main",
         scope="user",
@@ -165,6 +236,17 @@ def test_user_can_list_own_personal_providers(authenticated_client, auth_user):
         api_key="sk-system",
         default_model="gpt-4o-mini",
     )
+    AIProviderConfig.objects.create(
+        name="other-personal",
+        scope="user",
+        owner_user=other_user,
+        provider_type="openai",
+        is_active=True,
+        priority=2,
+        base_url="https://other.example.invalid/user",
+        api_key="sk-other-user",
+        default_model="gpt-4o-mini",
+    )
 
     response = authenticated_client.get("/api/ai/me/providers/")
 
@@ -177,6 +259,74 @@ def test_user_can_list_own_personal_providers(authenticated_client, auth_user):
     assert payload[0]["today_cost"] == 0.0
     assert payload[0]["month_requests"] == 0
     assert payload[0]["month_cost"] == 0.0
+
+
+@pytest.mark.django_db
+def test_personal_provider_detail_and_update_reject_foreign_owner(
+    authenticated_client,
+):
+    other_user = get_user_model().objects.create_user(
+        username="foreign-provider-owner",
+        password="testpass123",
+    )
+    foreign_provider = AIProviderConfig.objects.create(
+        name="foreign-personal",
+        scope="user",
+        owner_user=other_user,
+        provider_type="openai",
+        is_active=True,
+        priority=1,
+        base_url="https://foreign.example.invalid/user",
+        api_key="sk-foreign-user",
+        default_model="gpt-4o-mini",
+    )
+
+    detail_response = authenticated_client.get(f"/api/ai/me/providers/{foreign_provider.id}/")
+    update_response = authenticated_client.put(
+        f"/api/ai/me/providers/{foreign_provider.id}/",
+        {
+            "name": "should-not-update",
+            "provider_type": "openai",
+            "base_url": "https://forbidden.example.invalid/user",
+            "default_model": "gpt-4o-mini",
+        },
+        format="json",
+    )
+
+    assert detail_response.status_code == 404
+    assert update_response.status_code == 404
+    foreign_provider.refresh_from_db()
+    assert foreign_provider.name == "foreign-personal"
+
+
+@pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="ai-provider-api-test-key")
+def test_user_can_create_personal_provider_without_api_key(
+    authenticated_client,
+    auth_user,
+):
+    """An optional credential must reach the use case as an explicit empty value."""
+
+    response = authenticated_client.post(
+        "/api/ai/me/providers/",
+        {
+            "name": "personal-no-key",
+            "provider_type": "custom",
+            "base_url": "https://example.invalid/no-key",
+            "is_active": False,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["scope"] == "user"
+    assert payload["owner_user_id"] == auth_user.id
+    assert payload["api_key_configured"] is False
+
+    provider = AIProviderConfig.objects.get(pk=payload["id"])
+    assert provider.api_key == ""
+    assert provider.api_key_encrypted == ""
 
 
 @pytest.mark.django_db

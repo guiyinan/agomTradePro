@@ -73,6 +73,80 @@ def test_factor_catalog_get_endpoints_are_pure_reads(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_factor_calculate_config_delegates_validated_scalar_inputs(
+    authenticated_client,
+):
+    with patch(
+        "apps.factor.interface.views." "factor_interface_services.calculate_scores_for_config",
+        return_value={
+            "success": True,
+            "total_scores": 1,
+            "scores": [{"stock_code": "600000.SH", "rank": 1}],
+            "message": "ok",
+            "status": 200,
+        },
+    ) as calculate:
+        response = authenticated_client.post(
+            "/api/factor/calculate-config/",
+            {
+                "config_id": 7,
+                "trade_date": "2026-07-25",
+                "top_n": 12,
+            },
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert response.json()["scores"][0]["stock_code"] == "600000.SH"
+    calculate.assert_called_once_with(
+        post_data={
+            "config_id": 7,
+            "trade_date": "2026-07-25",
+            "top_n": 12,
+        }
+    )
+
+
+@pytest.mark.django_db
+def test_factor_explain_config_normalizes_stock_code(authenticated_client):
+    with patch(
+        "apps.factor.interface.views." "factor_interface_services.explain_stock_for_config",
+        return_value={
+            "success": True,
+            "explanation": {"stock_code": "600000.SH"},
+            "status": 200,
+        },
+    ) as explain:
+        response = authenticated_client.post(
+            "/api/factor/explain-config/",
+            {"config_id": 7, "stock_code": " 600000.sh "},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert response.json()["explanation"]["stock_code"] == "600000.SH"
+    explain.assert_called_once_with(stock_code="600000.SH", config_id=7)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        ("/api/factor/calculate-config/", {"config_id": 0, "top_n": 101}),
+        ("/api/factor/explain-config/", {"config_id": 1, "stock_code": ""}),
+    ],
+)
+def test_factor_config_operations_reject_invalid_inputs(
+    authenticated_client,
+    path,
+    payload,
+):
+    response = authenticated_client.post(path, payload, format="json")
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
 def test_factor_top_stocks_is_pure_compute_without_price_cache_writes(
     authenticated_client,
     monkeypatch,

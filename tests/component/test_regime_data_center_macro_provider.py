@@ -8,6 +8,7 @@ from apps.regime.application.use_cases import (
     CalculateRegimeUseCase,
 )
 from apps.regime.infrastructure.macro_data_provider import (
+    DataCenterMacroRepositoryAdapter,
     DjangoMacroDataProvider,
     MacroRepositoryAdapter,
 )
@@ -49,6 +50,34 @@ def test_django_macro_data_provider_reads_data_center_facts() -> None:
     assert result.value == 50.8
     assert result.observed_at == date(2025, 1, 1)
     assert result.unit == "指数"
+
+
+@pytest.mark.django_db
+def test_regime_macro_adapter_observes_live_catalog_governance_updates() -> None:
+    """The long-lived provider must not retain stale Data Center catalog metadata."""
+
+    catalog, _ = IndicatorCatalogModel.objects.update_or_create(
+        code="CN_PMI",
+        defaults={
+            "name_cn": "采购经理指数",
+            "name_en": "PMI",
+            "default_unit": "指数",
+            "default_period_type": "D",
+            "category": "growth",
+            "extra": {"governance_revision": 1},
+        },
+    )
+    adapter = DataCenterMacroRepositoryAdapter()
+
+    assert adapter._get_default_period_type("CN_PMI") == "D"
+    assert adapter._get_catalog_extra("CN_PMI")["governance_revision"] == 1
+
+    catalog.default_period_type = "M"
+    catalog.extra = {"governance_revision": 2}
+    catalog.save(update_fields=["default_period_type", "extra", "updated_at"])
+
+    assert adapter._get_default_period_type("CN_PMI") == "M"
+    assert adapter._get_catalog_extra("CN_PMI")["governance_revision"] == 2
 
 
 @pytest.mark.django_db

@@ -349,7 +349,13 @@ def test_invalidation_template_and_ai_draft_endpoints(monkeypatch):
     assert template_payload["pulse_context"]["transition_warning"] is True
 
     class DummyClient:
-        def chat_completion(self, messages, temperature=0.2, max_tokens=500):
+        def chat_completion(
+            self,
+            messages,
+            model=None,
+            temperature=0.2,
+            max_tokens=500,
+        ):
             return {
                 "status": "success",
                 "content": """

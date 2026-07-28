@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -257,6 +258,124 @@ def test_prompt_execution_logs_require_staff(authenticated_client):
     response = authenticated_client.get("/api/prompt/logs/")
 
     assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_prompt_manage_page_publishes_precise_tui_compatibility_link(
+    client,
+    staff_user,
+):
+    client.force_login(staff_user)
+    response = client.get("/prompt/manage/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "当前 Classic 页面仅在兼容期内保留" in content
+    assert (
+        "/tui/?screen=prompt.workbench&amp;action=prompt-template.list"
+        in content
+    )
+
+
+@pytest.mark.django_db
+def test_prompt_tui_workbench_exposes_role_appropriate_task_contract(
+    client,
+    staff_client,
+):
+    reader = get_user_model().objects.create_user(
+        username="prompt_reader",
+        password="testpass123",
+        email="prompt-reader@example.com",
+    )
+    if hasattr(reader, "account_profile"):
+        reader.account_profile.rbac_role = "read_only"
+        reader.account_profile.save(update_fields=["rbac_role", "updated_at"])
+    client.force_login(reader)
+
+    user_response = client.get("/api/tui/screens/prompt.workbench/")
+    staff_response = staff_client.get("/api/tui/screens/prompt.workbench/")
+
+    assert user_response.status_code == 200
+    assert staff_response.status_code == 200
+    user_payload = user_response.json()
+    staff_payload = staff_response.json()
+    assert user_payload["screen"]["key"] == "prompt.workbench"
+    assert user_payload["screen"]["default_action_key"] == "prompt-template.list"
+    assert user_payload["screen"]["dashboard_panels"][0]["user_priority"] == "p0"
+
+    user_actions = {action["key"]: action for action in user_payload["actions"]}
+    staff_actions = {action["key"]: action for action in staff_payload["actions"]}
+    assert "prompt-template.execute" in user_actions
+    assert "prompt-template.create" not in user_actions
+    assert set(staff_actions) >= {
+        "prompt-template.create",
+        "prompt-template.update",
+        "prompt-template.delete",
+        "prompt-template.execute",
+        "prompt-chain.create",
+        "prompt-chain.update",
+        "prompt-chain.delete",
+        "prompt-template.list",
+        "prompt-chain.list",
+        "prompt-log.recent",
+    }
+    for action_key in (
+        "prompt-template.create",
+        "prompt-template.update",
+        "prompt-template.delete",
+        "prompt-template.execute",
+        "prompt-chain.create",
+        "prompt-chain.update",
+        "prompt-chain.delete",
+    ):
+        assert staff_actions[action_key]["confirmation_required"] is True
+
+
+@pytest.mark.django_db
+def test_prompt_execute_uses_path_template_id_without_duplicate_body_field(
+    authenticated_client,
+):
+    template = PromptTemplateORM.objects.create(
+        name="Path-owned Prompt",
+        category="analysis",
+        version="1.0",
+        template_content="Analyze the supplied context.",
+        placeholders=[],
+        is_active=True,
+    )
+    captured: dict[str, object] = {}
+
+    class _FakeUseCase:
+        def execute(self, request_dto):
+            captured["template_id"] = request_dto.template_id
+            return SimpleNamespace(
+                success=True,
+                content="ok",
+                provider_used="test",
+                model_used="test-model",
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                estimated_cost=0.0,
+                response_time_ms=1,
+                error_message="",
+                parsed_output=None,
+                template_name=template.name,
+            )
+
+    with patch(
+        "apps.prompt.interface.views.build_execute_prompt_use_case",
+        return_value=_FakeUseCase(),
+    ):
+        response = authenticated_client.post(
+            f"/api/prompt/templates/{template.id}/execute/",
+            {"placeholder_values": {}},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert captured["template_id"] == template.id
+    assert response.json()["content"] == "ok"
 
 
 @pytest.mark.django_db

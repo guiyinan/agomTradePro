@@ -71,3 +71,21 @@ def test_profile_view_renders_investment_accounts_without_interface_cross_import
     assert "真实账户A" in content
     assert "模拟账户B" in content
     assert "156000.00" in content
+
+
+@pytest.mark.django_db
+def test_account_settings_page_links_to_tui_self_service():
+    user = get_user_model().objects.create_user(
+        username="settings_link_user",
+        email="settings-link@example.com",
+        password="testpass123",
+    )
+    client = Client()
+    client.force_login(user)
+
+    response = client.get("/account/settings/")
+
+    assert response.status_code == 200
+    content = _response_text(response)
+    assert "/tui/?screen=account.self-service" in content
+    assert "当前 Classic 页面仅在兼容期内保留" in content

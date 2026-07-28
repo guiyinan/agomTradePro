@@ -13,6 +13,8 @@ from apps.account.infrastructure.repositories import (
 from apps.backtest.application.decision_replay import (
     DecisionReplayBacktestRequest,
     DecisionReplayBacktestUseCase,
+    DecisionReplayComparisonRequest,
+    DecisionReplayComparisonUseCase,
 )
 from apps.data_center.infrastructure.models import PriceBarModel
 from apps.decision_rhythm.infrastructure.models import (
@@ -231,6 +233,81 @@ def test_decision_replay_no_action_preserves_initial_capital(owner_portfolio):
     backtest = user.backtests.get(id=response.backtest_id)
     assert backtest.final_capital == Decimal("10000.00")
     assert backtest.trades == []
+
+
+@pytest.mark.django_db
+def test_decision_replay_comparison_merges_all_fixed_branches(owner_portfolio):
+    user, portfolio = owner_portfolio
+    ManualTradeImportUseCase().confirm(
+        user_id=user.id,
+        portfolio_id=portfolio.id,
+        broker_name="demo",
+        filename="comparison.csv",
+        content=_csv(["2026-05-20T10:00:00,buy,000001.SZ,100,10.00,t1,first buy"]),
+    )
+
+    response = DecisionReplayComparisonUseCase().execute(
+        DecisionReplayComparisonRequest(
+            user_id=user.id,
+            portfolio_id=portfolio.id,
+            start_date=date(2026, 5, 19),
+            end_date=date(2026, 5, 25),
+            initial_capital=Decimal("10000"),
+        )
+    )
+
+    assert response.success
+    assert [row["branch_type"] for row in response.branches] == [
+        "actual",
+        "no_action",
+        "system_plan",
+        "delayed_1d",
+    ]
+    assert response.equity_curve[0]["date"] == "2026-05-19"
+    assert {
+        "actual",
+        "no_action",
+        "system_plan",
+        "delayed_1d",
+    } <= response.equity_curve[-1].keys()
+    assert user.backtests.count() == 4
+
+
+@pytest.mark.django_db
+def test_tui_csv_import_preview_is_owner_scoped(client, owner_portfolio):
+    user, portfolio = owner_portfolio
+    client.force_login(user)
+    response = client.post(
+        "/api/account/tui/broker-trades/preview/",
+        data={
+            "portfolio_id": portfolio.id,
+            "broker_name": "tui",
+            "file": _csv(["2026-05-20T10:00:00,buy,000001.SZ,100,10.00,t1,preview"]).decode(
+                "utf-8"
+            ),
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["valid_rows"] == 1
+    assert response.json()["rows"][0]["asset_code"] == "000001.SZ"
+
+    other_user = User.objects.create_user(username="other-manual-sync-user")
+    other_portfolio = PortfolioModel.objects.create(user=other_user, name="其他组合")
+    forbidden = client.post(
+        "/api/account/tui/broker-trades/preview/",
+        data={
+            "portfolio_id": other_portfolio.id,
+            "broker_name": "tui",
+            "file": _csv(["2026-05-20T10:00:00,buy,000001.SZ,100,10.00,t1,forbidden"]).decode(
+                "utf-8"
+            ),
+        },
+        content_type="application/json",
+    )
+
+    assert forbidden.status_code == 403
 
 
 @pytest.mark.django_db
