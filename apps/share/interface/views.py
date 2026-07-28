@@ -572,7 +572,7 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
             self._mark_password_verified(request, model)
 
         if not increment_share_link_access_count(share_link_id=model.id):
-            self._log_access(model.id, request, "access_limit_reached", is_verified=False)
+            self._log_access(model.id, request, "max_count_exceeded", is_verified=False)
             return Response(
                 {"error": "access_limit_reached"},
                 status=status.HTTP_403_FORBIDDEN,
@@ -605,7 +605,7 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
             return Response({"error": "快照不存在"}, status=status.HTTP_404_NOT_FOUND)
 
         if not increment_share_link_access_count(share_link_id=model.id):
-            self._log_access(model.id, request, "access_limit_reached", is_verified=False)
+            self._log_access(model.id, request, "max_count_exceeded", is_verified=False)
             return Response(
                 {"error": "access_limit_reached"},
                 status=status.HTTP_403_FORBIDDEN,

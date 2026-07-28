@@ -5722,3 +5722,21 @@
 - Fund 模型专项、Admin、完整 Fund 集成/API、Data Center 同步、资产主数据回填与 Alpha provider 回归 `87 passed`。
 - `apps/fund/infrastructure/models.py` 与约束模块联合增量 mypy 清零；全仓基线从 `624 errors / 298 files` 收紧为 `617 errors / 297 files`，净减少 `7 errors / 1 file`。
 - Fund migration drift、migration plan、Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百七十四批
+
+- 按“公开分享计数丢更新 × 访问上限竞态 × 快照/审计坏数据可直写 × 模型入口无类型”收口 Share ORM 与公开访问边界。
+- `ShareLinkModel.increment_access_count()` 改为数据库条件更新：仅活动、未过期且未达上限的链接可以原子消费一次访问；陈旧实例连续写入不再丢失计数，未保存实例明确拒绝，失败返回 `False`。
+- 运行时可访问性检查对 naive 过期时间失败关闭；最大访问次数统一要求为正数，`0` 不再因分享级别不同而被误当成无限制，并校验账户 ID、短码、访问次数及上限勾稽关系。
+- Share Link 增加正账户 ID、非负访问次数、正访问上限与访问次数不超过上限的数据库约束，防止 QuerySet update 等路径绕过模型校验。
+- Snapshot 增加正版本号、成对且有序的来源日期约束；模型校验要求五类快照 payload 均为 JSON object、可序列化且不含 NaN/Inf。
+- Access Log 状态增加数据库白名单约束；公开 API 在读取后发生访问上限竞态时使用正式 `max_count_exceeded` 审计状态，保留原 `access_limit_reached` 响应文本以兼容调用方。
+- Disclaimer 单例键固定为 `default`，lines 限制为有界非空字符串列表；`get_solo()` 会修复已有的 truthy 畸形 JSON，不再只处理空列表。
+- 新增 `0005` migration，在加约束前只读审计现有链接计数、快照范围、访问日志状态和免责声明单例键；发现冲突会明确停止迁移，不静默改写历史分享记录。
+- 数据库约束拆入独立 `model_constraints.py`，四个字符串入口、模型校验、原子计数和单例读取补齐精确类型，删除 Share 模型文件历史 mypy 债务。
+
+## 第三百七十四批验证结果
+
+- Share Application/Domain/Infrastructure/Interface 全量与安全扩展回归 `180 passed`；其中新增模型完整性专项 `16 passed`，既有模型与视图组合回归 `55 passed`。
+- `apps/share/infrastructure/models.py`、约束模块与公开 view 联合增量 mypy 清零；全仓基线从 `617 errors / 297 files` 收紧为 `610 errors / 296 files`，净减少 `7 errors / 1 file`。
+- Share migration drift、Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

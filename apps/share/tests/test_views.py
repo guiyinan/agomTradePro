@@ -11,7 +11,11 @@ from apps.decision_rhythm.infrastructure.models import (
     DecisionResponseModel,
     UnifiedRecommendationModel,
 )
-from apps.share.infrastructure.models import ShareLinkModel, ShareSnapshotModel
+from apps.share.infrastructure.models import (
+    ShareAccessLogModel,
+    ShareLinkModel,
+    ShareSnapshotModel,
+)
 from apps.simulated_trading.infrastructure.models import PositionModel, SimulatedTradeModel
 
 
@@ -22,6 +26,26 @@ def test_public_snapshot_requires_password(password_protected_share_link):
     response = client.get(f"/api/share/public/{password_protected_share_link.short_code}/snapshot/")
 
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_public_access_race_logs_canonical_limit_status(active_share_link, monkeypatch):
+    """A limit reached after the initial read must still persist a valid audit status."""
+
+    monkeypatch.setattr(
+        "apps.share.interface.views.increment_share_link_access_count",
+        lambda *, share_link_id: False,
+    )
+    client = APIClient()
+
+    response = client.post(f"/api/share/public/{active_share_link.short_code}/access/", {})
+
+    assert response.status_code == 403
+    assert response.data == {"error": "access_limit_reached"}
+    assert (
+        ShareAccessLogModel._default_manager.get(share_link=active_share_link).result_status
+        == "max_count_exceeded"
+    )
 
 
 @pytest.mark.django_db
@@ -162,7 +186,9 @@ def test_share_disclaimer_manage_page_updates_config(client, test_user, share_di
 
 
 @pytest.mark.django_db
-def test_share_disclaimer_manage_page_uses_settings_language(client, test_user, share_disclaimer_config):
+def test_share_disclaimer_manage_page_uses_settings_language(
+    client, test_user, share_disclaimer_config
+):
     test_user.is_staff = True
     test_user.save(update_fields=["is_staff"])
     client.force_login(test_user)

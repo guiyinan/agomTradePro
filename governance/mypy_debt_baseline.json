@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 617,
-    "files_with_errors": 297
+    "errors": 610,
+    "files_with_errors": 296
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -819,9 +819,6 @@
     },
     "apps/setup_wizard/management/commands/bootstrap_local_env.py": {
       "no-untyped-def": 2
-    },
-    "apps/share/infrastructure/models.py": {
-      "no-untyped-def": 7
     },
     "apps/signal/interface/admin.py": {
       "type-arg": 1
