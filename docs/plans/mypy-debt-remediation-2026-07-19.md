@@ -5841,3 +5841,19 @@
 - Research Unit、Component、权限安全 API 与跨模块完整性 API 合约回归 `36 passed`；覆盖 owner/staff 边界、越权零写入、404/403/400、严格嵌套字段、非有限指标、重复指标、证据大小限制，以及历史缺失 split/非有限指标的安全拒绝。
 - `apps/research/domain/contracts.py`、Application use cases、Repository、Composition、serializer 与 API view 联合增量 mypy 清零；全仓基线从 `591 errors / 291 files` 收紧为 `588 errors / 290 files`，净减少 `3 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，也未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百八十一批
+
+- 按“Audit 零分数被误报缺失 × 完成态指标数量不勾稽 × 验证异常正文泄露”收口阈值验证摘要链。
+- Validation Repository 所有动态字典返回补齐 string/object 精确类型；API view 使用 DRF `Request/Response` 和显式日期 TypedDict，不再把无类型 `validated_data` 通过 `**payload` 传播到 Application。
+- 摘要读取改为 `is not None`/有限分数收窄，合法 `0.0` F1 与稳定性分数保持为真实零；历史 NaN、Infinity、负数或越界分数降级为缺失，不再发布非标准 JSON 数值。
+- validation run ID、日期范围、状态、布尔标志、查询 limit、四类指标计数、平均分数及文本长度在 ORM 写入前统一校验；completed 状态要求 approved/rejected/pending 合计严格等于 total，分类合计超过总数同样失败关闭。
+- 单个指标评估失败时明确计入 pending，修复未分类指标被遗漏但整批仍标记 completed 的审计勾稽缺口。
+- 阈值验证异常对 API 与数据库只发布稳定 `threshold_validation_failed`；日志仅记录异常类型，不再输出数据库 URL、凭据或 traceback。失败状态回写自身再次遇到数据库异常时也会隔离，原请求仍稳定失败。
+- 新增零分数四类 projection、历史非有限分数、无效 run/date/count/status/score/bool、completed 勾稽、limit 上限、失败指标 pending 和双重数据库异常脱敏回归。
+
+## 第三百八十一批验证结果
+
+- Audit Unit、Application、Domain、Component、Integration 与 API 全链回归 `351 passed`。
+- `apps/audit/infrastructure/validation_repositories.py`、`apps/audit/interface/validation_api_views.py` 与阈值验证 Application 联合增量 mypy 清零；全仓基线从 `588 errors / 290 files` 收紧为 `577 errors / 288 files`，净减少 `11 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，也未修改 Terminal、TUI、SDK、MCP 或部署实现。

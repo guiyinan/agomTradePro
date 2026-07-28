@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import logging
+from datetime import date
+from typing import TypedDict, cast
 
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -22,10 +25,19 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-def _validation_request(request):
+class _ValidationRequest(TypedDict):
+    """Validated date range accepted by both validation endpoints."""
+
+    start_date: date
+    end_date: date
+
+
+def _validation_request(request: Request) -> _ValidationRequest:
+    """Validate and narrow one threshold-validation HTTP request."""
+
     serializer = AuditValidationRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    return serializer.validated_data
+    return cast(_ValidationRequest, serializer.validated_data)
 
 
 class PreviewValidationView(APIView):
@@ -33,9 +45,14 @@ class PreviewValidationView(APIView):
 
     permission_classes = [IsAdminUser]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
+        """Return the governed read/write impact without executing validation."""
+
         payload = _validation_request(request)
-        preview = preview_threshold_validation(**payload)
+        preview = preview_threshold_validation(
+            start_date=payload["start_date"],
+            end_date=payload["end_date"],
+        )
         return Response({"success": True, "preview": preview})
 
 
@@ -44,7 +61,9 @@ class RunValidationView(APIView):
 
     permission_classes = [IsAdminUser]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
+        """Execute and serialize one governed threshold-validation run."""
+
         payload = _validation_request(request)
         response = run_threshold_validation(
             start_date=payload["start_date"],

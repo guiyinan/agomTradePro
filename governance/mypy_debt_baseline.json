@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 588,
-    "files_with_errors": 290
+    "errors": 577,
+    "files_with_errors": 288
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -213,9 +213,6 @@
       "type-arg": 2,
       "valid-type": 1
     },
-    "apps/audit/infrastructure/validation_repositories.py": {
-      "type-arg": 6
-    },
     "apps/audit/interface/admin.py": {
       "type-arg": 7
     },
@@ -227,10 +224,6 @@
     },
     "apps/audit/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/audit/interface/validation_api_views.py": {
-      "no-untyped-call": 2,
-      "no-untyped-def": 3
     },
     "apps/audit/management/commands/cleanup_operation_logs.py": {
       "no-untyped-def": 2

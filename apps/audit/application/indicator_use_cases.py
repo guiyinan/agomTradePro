@@ -20,6 +20,7 @@ from apps.audit.domain.entities import (
 from apps.audit.domain.services import IndicatorPerformanceAnalyzer
 
 logger = logging.getLogger(__name__)
+_THRESHOLD_VALIDATION_FAILURE = "threshold_validation_failed"
 
 __all__ = [
     "AdjustIndicatorWeightsRequest",
@@ -243,6 +244,7 @@ class ValidateThresholdsUseCase:
         3. 汇总结果，生成总体建议
         4. 保存验证摘要
         """
+        validation_run_id: str | None = None
         try:
             validation_run_id = f"validation_{uuid.uuid4().hex[:12]}"
             run_date = date.today()
@@ -300,6 +302,8 @@ class ValidateThresholdsUseCase:
                         rejected_count += 1
                     else:
                         pending_count += 1
+                else:
+                    pending_count += 1
 
             # 4. 计算总体统计
             if indicator_reports:
@@ -362,18 +366,30 @@ class ValidateThresholdsUseCase:
                 validation_run_id=validation_run_id,
             )
 
-        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
-            logger.error(f"阈值验证失败: {e}", exc_info=True)
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as exc:
+            logger.error(
+                "Threshold validation failed",
+                extra={"exception_type": type(exc).__name__},
+            )
 
             # 更新验证摘要为失败状态 (通过 Repository)
-            if not request.use_shadow_mode:
-                self.audit_repo.update_validation_summary_status(
-                    validation_run_id=validation_run_id,
-                    status="failed",
-                    error_message=str(e),
-                )
+            if not request.use_shadow_mode and validation_run_id is not None:
+                try:
+                    self.audit_repo.update_validation_summary_status(
+                        validation_run_id=validation_run_id,
+                        status="failed",
+                        error_message=_THRESHOLD_VALIDATION_FAILURE,
+                    )
+                except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as persistence_exc:
+                    logger.error(
+                        "Threshold validation failure status persistence failed",
+                        extra={"exception_type": type(persistence_exc).__name__},
+                    )
 
-            return ValidateThresholdsResponse(success=False, error=str(e))
+            return ValidateThresholdsResponse(
+                success=False,
+                error=_THRESHOLD_VALIDATION_FAILURE,
+            )
 
     def _generate_overall_recommendation(
         self,

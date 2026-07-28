@@ -1,12 +1,19 @@
 """Application interface invariants for user-visible Audit payloads."""
 
+from datetime import date
 from unittest.mock import Mock
 
 import pytest
+from django.db import DatabaseError
 
-from apps.audit.application import interface_services
+from apps.audit.application import indicator_use_cases, interface_services
 from apps.audit.application.attribution_use_cases import (
     GenerateAttributionReportResponse,
+)
+from apps.audit.application.indicator_use_cases import (
+    EvaluateIndicatorPerformanceResponse,
+    ValidateThresholdsRequest,
+    ValidateThresholdsUseCase,
 )
 
 
@@ -154,3 +161,77 @@ def test_public_failure_stats_exclude_raw_failure_reasons(
         "by_component": {"database": 3},
     }
     assert "secret" not in str(payload)
+
+
+def test_threshold_validation_failure_redacts_exception_from_response_storage_and_log(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    repository = Mock()
+    repository.get_active_threshold_configs_by_codes.side_effect = DatabaseError(
+        "postgresql://audit:secret@internal/validation"
+    )
+    repository.update_validation_summary_status.side_effect = DatabaseError(
+        "redis://audit:second-secret@internal/validation"
+    )
+
+    response = ValidateThresholdsUseCase(repository).execute(
+        ValidateThresholdsRequest(
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
+            use_shadow_mode=False,
+        )
+    )
+
+    assert response.success is False
+    assert response.error == "threshold_validation_failed"
+    repository.update_validation_summary_status.assert_called_once()
+    assert (
+        repository.update_validation_summary_status.call_args.kwargs["error_message"]
+        == "threshold_validation_failed"
+    )
+    assert "secret" not in caplog.text
+    assert "postgresql://" not in caplog.text
+    assert "redis://" not in caplog.text
+
+
+def test_failed_indicator_evaluations_are_reconciled_as_pending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = Mock()
+    repository.get_active_threshold_configs_by_codes.return_value = [
+        {"indicator_code": "PMI"},
+        {"indicator_code": "CPI"},
+    ]
+
+    class _FailedEvaluationUseCase:
+        def __init__(self, audit_repository: object) -> None:
+            self.audit_repository = audit_repository
+
+        def execute(self, request: object) -> EvaluateIndicatorPerformanceResponse:
+            return EvaluateIndicatorPerformanceResponse(
+                success=False,
+                error="indicator_evaluation_failed",
+            )
+
+    monkeypatch.setattr(
+        indicator_use_cases,
+        "EvaluateIndicatorPerformanceUseCase",
+        _FailedEvaluationUseCase,
+    )
+
+    response = ValidateThresholdsUseCase(repository).execute(
+        ValidateThresholdsRequest(
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
+            use_shadow_mode=False,
+        )
+    )
+
+    assert response.success is True
+    assert response.validation_report is not None
+    assert response.validation_report.pending_indicators == 2
+    completion = repository.update_validation_summary_status.call_args.kwargs
+    assert completion["status"] == "completed"
+    assert completion["approved_indicators"] == 0
+    assert completion["rejected_indicators"] == 0
+    assert completion["pending_indicators"] == 2
