@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 513,
-    "files_with_errors": 268
+    "errors": 507,
+    "files_with_errors": 267
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -173,7 +173,6 @@
       "no-untyped-def": 1
     },
     "apps/alpha/infrastructure/cache_evaluation.py": {
-      "no-untyped-call": 1,
       "var-annotated": 1
     },
     "apps/alpha/interface/score_upload_api_views.py": {
@@ -875,12 +874,6 @@
     },
     "shared/infrastructure/mcp_runtime.py": {
       "import-untyped": 1
-    },
-    "shared/infrastructure/model_evaluation.py": {
-      "arg-type": 2,
-      "no-untyped-def": 1,
-      "type-arg": 1,
-      "var-annotated": 1
     },
     "shared/infrastructure/tushare_client.py": {
       "attr-defined": 1

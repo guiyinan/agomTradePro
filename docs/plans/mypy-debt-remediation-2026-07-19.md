@@ -5995,3 +5995,19 @@
 - Pulse API 输入、权限、非有限 payload 与异常脱敏专项 `15 passed`；API、计算/读取 UseCase、Data Provider freshness、权重配置与路由扩展组合 `62 passed`。
 - `apps/pulse/interface/api_views.py`、`apps/pulse/interface/api_urls.py` 与 serializers 增量 mypy 清零并退出债务清单；全仓基线从 `521 errors / 271 files` 收紧为 `513 errors / 268 files`，净减少 `8 errors / 3 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP 或部署实现。
+
+## 第三百九十一批
+
+- 按“模型评估样本错位 × 缺失分组成员伪造零值 × 非有限指标进入证据 × coverage/turnover 越界”收口共享 Model Evaluation 基础设施。
+- IC/Rank IC 只使用同位置的有限 prediction/target 对；数组必须一维且等长。Rank IC 对并列值使用稳定平均名次，不再由双 argsort 任意打破 ties。
+- ICIR 同时过滤 NaN 与 Infinity；rolling IC 要求 window 为大于 1 的真实整数并先校验序列等长，非法窗口和错位序列不再在切片后产生误导结果。
+- Group IC 只纳入同时存在有限预测、目标和 group 的股票；缺失股票不再被补成 0 后参与行业相关性。每组不足两个真实样本时安全跳过。
+- Sharpe 过滤非有限收益并把年化无风险利率转换为日频；max drawdown 拒绝多维和非有限累计序列。Turnover 使用当前/上期去重仓位总数作为分母，结果稳定限制在 `0..1`。
+- ModelEvaluator coverage 改为“有限共同股票 / 有限目标 universe”，额外预测和 NaN 不再令覆盖率超过 1；绩效只使用同时存在有限预测与收益的股票，不再把缺失收益伪造为零。
+- ModelMetrics 在构造时拒绝 NaN/Inf、越界 coverage/turnover 和负 max drawdown，损坏评估证据不能进入缓存、训练记录或监控链。
+
+## 第三百九十一批验证结果
+
+- 共享评估器有限性、对齐、tie rank、分组、窗口、覆盖率和指标不变量专项 `9 passed`；Alpha cache、Qlib artifact/runtime、training 与 monitoring 扩展组合总计 `89 passed, 1 warning`，warning 为既有 pandas groupby axis FutureWarning。
+- `shared/infrastructure/model_evaluation.py` 增量 mypy 清零并退出债务清单；精确类型同时消除 Alpha cache evaluation 的一条无类型调用债务，全仓基线从 `513 errors / 268 files` 收紧为 `507 errors / 267 files`，净减少 `6 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP 或部署实现。

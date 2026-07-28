@@ -8,12 +8,59 @@ Qlib 模型评估相关的基础设施。
 """
 
 import logging
+import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+def _finite_numeric_value(value: object) -> float | None:
+    """Return one finite non-boolean numeric value."""
+
+    if isinstance(value, bool) or not isinstance(value, (int, float, np.number)):
+        return None
+    normalized = float(value)
+    return normalized if math.isfinite(normalized) else None
+
+
+def _finite_aligned_arrays(
+    predictions: np.ndarray,
+    targets: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return finite aligned one-dimensional prediction/target arrays."""
+
+    try:
+        pred_array = np.asarray(predictions, dtype=float)
+        target_array = np.asarray(targets, dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("predictions and targets must be numeric") from exc
+    if pred_array.ndim != 1 or target_array.ndim != 1:
+        raise ValueError("predictions and targets must be one-dimensional")
+    if len(pred_array) != len(target_array):
+        raise ValueError("predictions 和 targets 长度必须相同")
+    finite_mask = np.isfinite(pred_array) & np.isfinite(target_array)
+    return pred_array[finite_mask], target_array[finite_mask]
+
+
+def _descending_average_ranks(values: np.ndarray) -> np.ndarray:
+    """Return deterministic descending ranks with average ranks for ties."""
+
+    order = np.argsort(-values, kind="mergesort")
+    sorted_values = values[order]
+    ranks: np.ndarray = np.empty(len(values), dtype=float)
+    start = 0
+    while start < len(values):
+        end = start + 1
+        while end < len(values) and sorted_values[end] == sorted_values[start]:
+            end += 1
+        average_rank = ((start + 1) + end) / 2.0
+        ranks[order[start:end]] = average_rank
+        start = end
+    return ranks
 
 
 @dataclass(frozen=True)
@@ -48,6 +95,21 @@ class ModelMetrics:
     annual_return: float | None = None
     annual_volatility: float | None = None
     max_drawdown: float | None = None
+
+    def __post_init__(self) -> None:
+        """Reject non-finite or impossible persisted evaluation evidence."""
+
+        for field_name, value in self.to_dict().items():
+            if value is None:
+                continue
+            if _finite_numeric_value(value) is None:
+                raise ValueError(f"{field_name} must be a finite number")
+        if self.coverage is not None and not 0.0 <= self.coverage <= 1.0:
+            raise ValueError("coverage must be between 0 and 1")
+        if self.turnover is not None and not 0.0 <= self.turnover <= 1.0:
+            raise ValueError("turnover must be between 0 and 1")
+        if self.max_drawdown is not None and self.max_drawdown < 0:
+            raise ValueError("max_drawdown must be non-negative")
 
     def to_dict(self) -> dict[str, float | None]:
         """转换为字典"""
@@ -93,7 +155,7 @@ class RollingMetrics:
     ic_ma_5: float | None = None
     ic_std_20: float | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str | float | None]:
         return {
             "date": self.date.isoformat(),
             "ic": self.ic,
@@ -114,7 +176,7 @@ class IC_Calculator:
     @staticmethod
     def calculate_ic(
         predictions: np.ndarray,
-        targets: np.ndarray
+        targets: np.ndarray,
     ) -> float:
         """
         计算 IC（相关系数）
@@ -133,14 +195,12 @@ class IC_Calculator:
             ...     np.array([0.15, 0.25, 0.35])
             ... )
         """
-        if len(predictions) != len(targets):
-            raise ValueError("predictions 和 targets 长度必须相同")
-
-        if len(predictions) < 2:
+        finite_predictions, finite_targets = _finite_aligned_arrays(predictions, targets)
+        if len(finite_predictions) < 2:
             return 0.0
 
         # 计算相关系数
-        correlation = np.corrcoef(predictions, targets)[0, 1]
+        correlation = np.corrcoef(finite_predictions, finite_targets)[0, 1]
 
         # 处理 NaN
         if np.isnan(correlation):
@@ -151,7 +211,7 @@ class IC_Calculator:
     @staticmethod
     def calculate_rank_ic(
         predictions: np.ndarray,
-        targets: np.ndarray
+        targets: np.ndarray,
     ) -> float:
         """
         计算 Rank IC（排序相关系数）
@@ -163,15 +223,13 @@ class IC_Calculator:
         Returns:
             Rank IC 值
         """
-        if len(predictions) != len(targets):
-            raise ValueError("predictions 和 targets 长度必须相同")
-
-        if len(predictions) < 2:
+        finite_predictions, finite_targets = _finite_aligned_arrays(predictions, targets)
+        if len(finite_predictions) < 2:
             return 0.0
 
         # 计算排名
-        pred_ranks = np.argsort(np.argsort(-predictions)) + 1
-        target_ranks = np.argsort(np.argsort(-targets)) + 1
+        pred_ranks = _descending_average_ranks(finite_predictions)
+        target_ranks = _descending_average_ranks(finite_targets)
 
         # 计算排名的相关系数
         rank_ic = np.corrcoef(pred_ranks, target_ranks)[0, 1]
@@ -184,7 +242,7 @@ class IC_Calculator:
     @staticmethod
     def calculate_icir(
         ics: list[float],
-        annualize: bool = True
+        annualize: bool = True,
     ) -> float:
         """
         计算 ICIR（IC 的信息比率）
@@ -201,10 +259,10 @@ class IC_Calculator:
         if not ics or len(ics) < 2:
             return 0.0
 
-        ics_array = np.array(ics)
+        ics_array = np.asarray(ics, dtype=float)
 
-        # 移除 NaN
-        ics_array = ics_array[~np.isnan(ics_array)]
+        # 移除非有限值
+        ics_array = ics_array[np.isfinite(ics_array)]
 
         if len(ics_array) < 2:
             return 0.0
@@ -224,9 +282,9 @@ class IC_Calculator:
 
     @staticmethod
     def calculate_group_ic(
-        predictions: dict[str, np.ndarray],
-        targets: dict[str, np.ndarray],
-        groups: dict[str, str]
+        predictions: Mapping[str, float],
+        targets: Mapping[str, float],
+        groups: Mapping[str, str],
     ) -> float:
         """
         计算分组 IC（按行业分组）
@@ -243,12 +301,18 @@ class IC_Calculator:
             return 0.0
 
         # 按分组计算 IC
-        group_ics = []
+        group_ics: list[float] = []
         for group_id in set(groups.values()):
-            group_stocks = [k for k, v in groups.items() if v == group_id]
+            group_stocks = [
+                stock
+                for stock, assigned_group in groups.items()
+                if assigned_group == group_id
+                and _finite_numeric_value(predictions.get(stock)) is not None
+                and _finite_numeric_value(targets.get(stock)) is not None
+            ]
 
-            group_preds = np.array([predictions.get(k, 0) for k in group_stocks])
-            group_targets = np.array([targets.get(k, 0) for k in group_stocks])
+            group_preds = np.array([float(predictions[stock]) for stock in group_stocks])
+            group_targets = np.array([float(targets[stock]) for stock in group_stocks])
 
             if len(group_preds) > 1:
                 group_ic = IC_Calculator.calculate_ic(group_preds, group_targets)
@@ -264,7 +328,7 @@ class IC_Calculator:
     def calculate_rolling_ic(
         predictions: list[float],
         targets: list[float],
-        window: int = 20
+        window: int = 20,
     ) -> list[tuple[int, float]]:
         """
         计算滚动 IC
@@ -277,7 +341,11 @@ class IC_Calculator:
         Returns:
             [(索引, IC 值), ...] 列表
         """
-        if len(predictions) < window or len(targets) < window:
+        if len(predictions) != len(targets):
+            raise ValueError("predictions 和 targets 长度必须相同")
+        if isinstance(window, bool) or not isinstance(window, int) or window < 2:
+            raise ValueError("window must be an integer greater than 1")
+        if len(predictions) < window:
             return []
 
         preds_array = np.array(predictions)
@@ -286,8 +354,8 @@ class IC_Calculator:
         rolling_ics = []
 
         for i in range(window - 1, len(predictions)):
-            window_preds = preds_array[i - window + 1:i + 1]
-            window_targets = targets_array[i - window + 1:i + 1]
+            window_preds = preds_array[i - window + 1 : i + 1]
+            window_targets = targets_array[i - window + 1 : i + 1]
 
             ic = IC_Calculator.calculate_ic(window_preds, window_targets)
             rolling_ics.append((i, ic))
@@ -306,7 +374,7 @@ class PerformanceCalculator:
     def calculate_sharpe_ratio(
         returns: np.ndarray,
         risk_free_rate: float = 0.03,
-        annualize: bool = True
+        annualize: bool = True,
     ) -> float:
         """
         计算夏普比率
@@ -321,16 +389,23 @@ class PerformanceCalculator:
         Returns:
             夏普比率
         """
-        if len(returns) < 2:
+        returns_array = np.asarray(returns, dtype=float)
+        if returns_array.ndim != 1:
+            raise ValueError("returns must be one-dimensional")
+        returns_array = returns_array[np.isfinite(returns_array)]
+        if len(returns_array) < 2:
             return 0.0
+        if not math.isfinite(risk_free_rate):
+            raise ValueError("risk_free_rate must be finite")
 
-        mean_return = np.mean(returns)
-        std_return = np.std(returns)
+        mean_return = np.mean(returns_array)
+        std_return = np.std(returns_array)
 
         if std_return == 0:
             return 0.0
 
-        sharpe = (mean_return - risk_free_rate) / std_return
+        period_risk_free_rate = risk_free_rate / 252 if annualize else risk_free_rate
+        sharpe = (mean_return - period_risk_free_rate) / std_return
 
         if annualize:
             sharpe *= np.sqrt(252)
@@ -339,7 +414,7 @@ class PerformanceCalculator:
 
     @staticmethod
     def calculate_max_drawdown(
-        cumulative_returns: np.ndarray
+        cumulative_returns: np.ndarray,
     ) -> float:
         """
         计算最大回撤
@@ -350,22 +425,24 @@ class PerformanceCalculator:
         Returns:
             最大回撤（正值）
         """
-        if len(cumulative_returns) < 2:
+        values = np.asarray(cumulative_returns, dtype=float)
+        if values.ndim != 1:
+            raise ValueError("cumulative_returns must be one-dimensional")
+        if not np.all(np.isfinite(values)):
+            raise ValueError("cumulative_returns must contain only finite values")
+        if len(values) < 2:
             return 0.0
 
         # 计算回撤
-        running_max = np.maximum.accumulate(cumulative_returns)
-        drawdown = cumulative_returns - running_max
+        running_max = np.maximum.accumulate(values)
+        drawdown = values - running_max
 
-        max_dd = np.min(drawdown)
+        max_dd = float(np.min(drawdown))
 
-        return float(abs(max_dd))
+        return abs(max_dd)
 
     @staticmethod
-    def calculate_turnover(
-        current_positions: list[str],
-        previous_positions: list[str]
-    ) -> float:
+    def calculate_turnover(current_positions: list[str], previous_positions: list[str]) -> float:
         """
         计算换手率
 
@@ -386,15 +463,17 @@ class PerformanceCalculator:
         added = current_set - previous_set
         removed = previous_set - current_set
 
-        turnover = (len(added) + len(removed)) / (2 * len(previous_set))
+        total_distinct_positions = len(current_set) + len(previous_set)
+        turnover = (
+            (len(added) + len(removed)) / total_distinct_positions
+            if total_distinct_positions
+            else 0.0
+        )
 
         return float(turnover)
 
     @staticmethod
-    def calculate_coverage(
-        scored_stocks: list[str],
-        universe_stocks: list[str]
-    ) -> float:
+    def calculate_coverage(scored_stocks: list[str], universe_stocks: list[str]) -> float:
         """
         计算覆盖率
 
@@ -423,7 +502,7 @@ class ModelEvaluator:
     综合评估模型性能。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.ic_calculator = IC_Calculator()
         self.perf_calculator = PerformanceCalculator()
 
@@ -432,7 +511,7 @@ class ModelEvaluator:
         predictions: dict[str, float],
         targets: dict[str, float],
         returns: dict[str, float] | None = None,
-        groups: dict[str, str] | None = None
+        groups: dict[str, str] | None = None,
     ) -> ModelMetrics:
         """
         评估预测结果
@@ -447,15 +526,22 @@ class ModelEvaluator:
             模型指标
         """
         # 准备数组
-        pred_list = []
-        target_list = []
-        stock_list = []
+        pred_list: list[float] = []
+        target_list: list[float] = []
 
+        valid_target_codes = {
+            stock for stock, value in targets.items() if _finite_numeric_value(value) is not None
+        }
+        valid_prediction_codes = {
+            stock
+            for stock, value in predictions.items()
+            if _finite_numeric_value(value) is not None
+        }
+        common_codes = valid_prediction_codes & valid_target_codes
         for stock in predictions:
-            if stock in targets:
-                pred_list.append(predictions[stock])
-                target_list.append(targets[stock])
-                stock_list.append(stock)
+            if stock in common_codes:
+                pred_list.append(float(predictions[stock]))
+                target_list.append(float(targets[stock]))
 
         if not pred_list:
             return ModelMetrics()
@@ -475,42 +561,41 @@ class ModelEvaluator:
         # 计算分组 IC
         group_ic = None
         if groups:
-            group_ic = self.ic_calculator.calculate_group_ic(
-                predictions, targets, groups
-            )
+            group_ic = self.ic_calculator.calculate_group_ic(predictions, targets, groups)
 
         metrics = ModelMetrics(
             ic=ic,
             icir=icir,
             rank_ic=rank_ic,
             group_ic=group_ic,
-            coverage=len(predictions) / max(len(targets), 1)
+            coverage=(len(common_codes) / len(valid_target_codes) if valid_target_codes else 0.0),
         )
 
         # 如果提供了收益数据，计算更多指标
         if returns:
-            metrics = self._calculate_performance_metrics(
-                predictions, returns, metrics
-            )
+            metrics = self._calculate_performance_metrics(predictions, returns, metrics)
 
         return metrics
 
     def _calculate_performance_metrics(
-        self,
-        predictions: dict[str, float],
-        returns: dict[str, float],
-        metrics: ModelMetrics
+        self, predictions: dict[str, float], returns: dict[str, float], metrics: ModelMetrics
     ) -> ModelMetrics:
         """计算绩效指标"""
         # 取 top N 股票
         top_n = 30
+        eligible_predictions = [
+            (stock, float(score))
+            for stock, score in predictions.items()
+            if _finite_numeric_value(score) is not None
+            and _finite_numeric_value(returns.get(stock)) is not None
+        ]
         sorted_stocks = sorted(
-            predictions.items(),
-            key=lambda x: x[1],
-            reverse=True
+            eligible_predictions,
+            key=lambda item: item[1],
+            reverse=True,
         )[:top_n]
 
-        top_returns = [returns.get(stock, 0) for stock, _ in sorted_stocks]
+        top_returns = [float(returns[stock]) for stock, _ in sorted_stocks]
         returns_array = np.array(top_returns)
 
         if len(returns_array) < 2:
@@ -524,11 +609,11 @@ class ModelEvaluator:
         max_dd = self.perf_calculator.calculate_max_drawdown(cumulative_returns)
 
         # 年化收益
-        total_return = cumulative_returns[-1]
-        annual_return = total_return * 252  # 假设日度
+        total_return = float(cumulative_returns[-1])
+        annual_return = float(total_return * 252)  # 假设日度
 
         # 年化波动
-        annual_vol = np.std(returns_array) * np.sqrt(252)
+        annual_vol = float(np.std(returns_array) * np.sqrt(252))
 
         # 更新指标
         return ModelMetrics(
