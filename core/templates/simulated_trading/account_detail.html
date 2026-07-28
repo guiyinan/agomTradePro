@@ -10,6 +10,7 @@
 {% endblock %}
 
 {% block content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="execution.accounts" action_key="simulated-trading.account-detail" %}
 <div class="account-container">
     <div class="account-header">
         <h1>模拟盘账户详情</h1>

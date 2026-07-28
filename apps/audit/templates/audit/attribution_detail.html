@@ -50,6 +50,7 @@
 {% endblock %}
 
 {% block audit_content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="execution.audit" action_key="audit.attribution-detail" %}
 <div class="detail-grid">
     <!-- 主内容区 -->
     <div class="main-content">
