@@ -6,9 +6,12 @@ Terminal Application Use Cases.
 
 import json
 import logging
+import math
+import re
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from ..domain.entities import (
     CommandType,
@@ -17,17 +20,79 @@ from ..domain.entities import (
     TerminalMode,
     TerminalRiskLevel,
 )
+from ..domain.exceptions import (
+    TerminalAuditPersistenceError,
+    TerminalCommandExecutionError,
+)
 from ..domain.interfaces import TerminalAuditRepository, TerminalCommandRepository
 from ..domain.services import TerminalPermissionService
 
 logger = logging.getLogger(__name__)
 
+_COMMAND_EXECUTION_EXCEPTIONS = (
+    TerminalCommandExecutionError,
+    ArithmeticError,
+    AttributeError,
+    ConnectionError,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
+_AUDIT_SUMMARY_LIMIT = 500
+_AUDIT_VALUE_LIMIT = 160
+_AUDIT_COLLECTION_LIMIT = 20
+_AUDIT_MAX_DEPTH = 6
+_REDACTED_VALUE = "***"
+_SENSITIVE_PARAMETER_FRAGMENTS = frozenset(
+    {
+        "apikey",
+        "authorization",
+        "cookie",
+        "credential",
+        "password",
+        "passwd",
+        "privatekey",
+        "secret",
+        "session",
+        "token",
+    }
+)
+
+
+class CommandExecutionServiceProtocol(Protocol):
+    """Command execution surface consumed by the Terminal use case."""
+
+    def execute_prompt_command(
+        self,
+        command: TerminalCommand,
+        params: dict[str, Any],
+        session_id: str | None = None,
+        provider_name: str | None = None,
+        model_name: str | None = None,
+    ) -> dict[str, Any]:
+        """Execute one prompt-backed command."""
+        ...
+
+    def execute_api_command(
+        self,
+        command: TerminalCommand,
+        params: dict[str, Any],
+        user_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Execute one API-backed command."""
+        ...
+
 
 # ========== Request/Response DTOs ==========
+
 
 @dataclass
 class ExecuteCommandRequest:
     """执行命令请求"""
+
     command_name: str
     params: dict[str, Any] = field(default_factory=dict)
     session_id: str | None = None
@@ -35,18 +100,19 @@ class ExecuteCommandRequest:
     model_name: str | None = None
     # 治理字段
     user_id: int | None = None
-    username: str = 'unknown'
-    user_role: str = 'read_only'
+    username: str = "unknown"
+    user_role: str = "read_only"
     mcp_enabled: bool = False
-    terminal_mode: str = 'confirm_each'
+    terminal_mode: str = "confirm_each"
     confirmation_token: str | None = None
 
 
 @dataclass
 class ExecuteCommandResponse:
     """执行命令响应"""
+
     success: bool
-    output: str = ''
+    output: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
     command: TerminalCommand | None = None
@@ -61,19 +127,20 @@ class ExecuteCommandResponse:
 @dataclass
 class CreateCommandRequest:
     """创建命令请求"""
+
     name: str
     description: str
     command_type: str
     # Prompt配置
     prompt_template_id: str | None = None
     system_prompt: str | None = None
-    user_prompt_template: str = ''
+    user_prompt_template: str = ""
     # API配置
     api_endpoint: str | None = None
-    api_method: str = 'GET'
+    api_method: str = "GET"
     response_jq_filter: str | None = None
     # 参数
-    parameters: list[dict] = field(default_factory=list)
+    parameters: list[dict[str, Any]] = field(default_factory=list)
     # 其他配置
     timeout: int = 60
     provider_name: str | None = None
@@ -81,7 +148,7 @@ class CreateCommandRequest:
     risk_level: str = TerminalRiskLevel.READ.value
     requires_mcp: bool = True
     enabled_in_terminal: bool = True
-    category: str = 'general'
+    category: str = "general"
     tags: list[str] = field(default_factory=list)
     is_active: bool = True
 
@@ -89,6 +156,7 @@ class CreateCommandRequest:
 @dataclass
 class CreateCommandResponse:
     """创建命令响应"""
+
     success: bool
     command: TerminalCommand | None = None
     error: str | None = None
@@ -97,6 +165,7 @@ class CreateCommandResponse:
 @dataclass
 class UpdateCommandRequest:
     """更新命令请求"""
+
     command_id: str
     name: str | None = None
     description: str | None = None
@@ -107,7 +176,7 @@ class UpdateCommandRequest:
     api_endpoint: str | None = None
     api_method: str | None = None
     response_jq_filter: str | None = None
-    parameters: list[dict] | None = None
+    parameters: list[dict[str, Any]] | None = None
     timeout: int | None = None
     provider_name: str | None = None
     model_name: str | None = None
@@ -122,6 +191,7 @@ class UpdateCommandRequest:
 @dataclass
 class UpdateCommandResponse:
     """更新命令响应"""
+
     success: bool
     command: TerminalCommand | None = None
     error: str | None = None
@@ -129,15 +199,16 @@ class UpdateCommandResponse:
 
 # ========== Use Cases ==========
 
+
 class ExecuteCommandUseCase:
     """执行终端命令用例"""
 
     def __init__(
         self,
         repository: TerminalCommandRepository,
-        execution_service,
+        execution_service: CommandExecutionServiceProtocol,
         audit_repository: TerminalAuditRepository | None = None,
-    ):
+    ) -> None:
         self._repository = repository
         self._execution_service = execution_service
         self._audit_repository = audit_repository
@@ -148,9 +219,9 @@ class ExecuteCommandUseCase:
         request: ExecuteCommandRequest,
         command: TerminalCommand | None,
         result_status: str,
-        confirmation_status: str = 'not_required',
+        confirmation_status: str = "not_required",
         confirmation_required: bool = False,
-        error_message: str = '',
+        error_message: str = "",
         duration_ms: int = 0,
     ) -> None:
         """记录审计日志"""
@@ -160,11 +231,11 @@ class ExecuteCommandUseCase:
             entry = TerminalAuditEntry(
                 user_id=request.user_id,
                 username=request.username,
-                session_id=request.session_id or '',
+                session_id=request.session_id or "",
                 command_name=request.command_name,
-                risk_level=command.risk_level.value if command else 'unknown',
+                risk_level=command.risk_level.value if command else "unknown",
                 mode=request.terminal_mode,
-                params_summary=json.dumps(request.params, default=str)[:500],
+                params_summary=_audit_params_summary(request.params),
                 confirmation_required=confirmation_required,
                 confirmation_status=confirmation_status,
                 result_status=result_status,
@@ -172,8 +243,11 @@ class ExecuteCommandUseCase:
                 duration_ms=duration_ms,
             )
             self._audit_repository.save(entry)
-        except Exception:
-            logger.exception("Failed to save terminal audit log")
+        except TerminalAuditPersistenceError as exc:
+            logger.warning(
+                "Terminal audit persistence failed; exception_type=%s",
+                type(exc).__name__,
+            )
 
     def execute(self, request: ExecuteCommandRequest) -> ExecuteCommandResponse:
         """执行命令（含治理逻辑）"""
@@ -188,7 +262,9 @@ class ExecuteCommandUseCase:
             )
 
         if not command.is_active or not command.enabled_in_terminal:
-            self._log_audit(request, command, 'blocked', error_message='Command inactive or disabled')
+            self._log_audit(
+                request, command, "blocked", error_message="Command inactive or disabled"
+            )
             return ExecuteCommandResponse(
                 success=False,
                 error=f"Command '{request.command_name}' is not available",
@@ -196,7 +272,7 @@ class ExecuteCommandUseCase:
 
         # 2. MCP 检查
         if command.requires_mcp and not request.mcp_enabled:
-            self._log_audit(request, command, 'blocked', error_message='MCP access required')
+            self._log_audit(request, command, "blocked", error_message="MCP access required")
             return ExecuteCommandResponse(
                 success=False,
                 error="This command requires MCP access which is disabled for your account",
@@ -205,7 +281,7 @@ class ExecuteCommandUseCase:
 
         # 3. 角色权限检查
         if not self._permission_service.can_execute(request.user_role, command.risk_level):
-            self._log_audit(request, command, 'blocked', error_message='Permission denied')
+            self._log_audit(request, command, "blocked", error_message="Permission denied")
             return ExecuteCommandResponse(
                 success=False,
                 error=f"Your role '{request.user_role}' cannot execute {command.risk_level.value} commands",
@@ -217,7 +293,7 @@ class ExecuteCommandUseCase:
         is_write = command.risk_level != TerminalRiskLevel.READ
 
         if mode == TerminalMode.READONLY.value and is_write:
-            self._log_audit(request, command, 'blocked', error_message='Readonly mode')
+            self._log_audit(request, command, "blocked", error_message="Readonly mode")
             return ExecuteCommandResponse(
                 success=False,
                 error="Terminal is in read-only mode. Write commands are not allowed.",
@@ -228,6 +304,7 @@ class ExecuteCommandUseCase:
             if not request.confirmation_token:
                 # 生成确认令牌
                 from .confirmation import ConfirmationTokenService
+
                 token_service = ConfirmationTokenService()
                 token, details = token_service.create_token(
                     user_id=request.user_id or 0,
@@ -237,8 +314,10 @@ class ExecuteCommandUseCase:
                     mode=mode,
                 )
                 self._log_audit(
-                    request, command, 'pending',
-                    confirmation_status='not_required',
+                    request,
+                    command,
+                    "pending",
+                    confirmation_status="not_required",
                     confirmation_required=True,
                 )
                 return ExecuteCommandResponse(
@@ -259,6 +338,7 @@ class ExecuteCommandUseCase:
             else:
                 # 验证令牌
                 from .confirmation import ConfirmationTokenService
+
                 token_service = ConfirmationTokenService()
                 is_valid, error_msg = token_service.validate_token(
                     token=request.confirmation_token,
@@ -270,8 +350,10 @@ class ExecuteCommandUseCase:
                 )
                 if not is_valid:
                     self._log_audit(
-                        request, command, 'blocked',
-                        confirmation_status='expired',
+                        request,
+                        command,
+                        "blocked",
+                        confirmation_status="expired",
                         confirmation_required=True,
                         error_message=error_msg,
                     )
@@ -287,7 +369,7 @@ class ExecuteCommandUseCase:
             return ExecuteCommandResponse(
                 success=False,
                 error="Missing required parameters",
-                metadata={'missing_params': [p.to_dict() for p in missing_params]},
+                metadata={"missing_params": [p.to_dict() for p in missing_params]},
                 command=command,
                 risk_level=command.risk_level.value,
             )
@@ -313,9 +395,15 @@ class ExecuteCommandUseCase:
                 )
 
             duration_ms = int((time.monotonic() - start_time) * 1000)
-            confirmation_status = 'confirmed' if is_write and mode == TerminalMode.CONFIRM_EACH.value else 'not_required'
+            confirmation_status = (
+                "confirmed"
+                if is_write and mode == TerminalMode.CONFIRM_EACH.value
+                else "not_required"
+            )
             self._log_audit(
-                request, command, 'success',
+                request,
+                command,
+                "success",
                 confirmation_status=confirmation_status,
                 confirmation_required=is_write and mode == TerminalMode.CONFIRM_EACH.value,
                 duration_ms=duration_ms,
@@ -323,23 +411,29 @@ class ExecuteCommandUseCase:
 
             return ExecuteCommandResponse(
                 success=True,
-                output=result.get('output', ''),
-                metadata=result.get('metadata', {}),
+                output=result.get("output", ""),
+                metadata=result.get("metadata", {}),
                 command=command,
                 risk_level=command.risk_level.value,
             )
 
-        except Exception as e:
+        except _COMMAND_EXECUTION_EXCEPTIONS as exc:
             duration_ms = int((time.monotonic() - start_time) * 1000)
-            logger.exception(f"Failed to execute command '{request.command_name}'")
+            logger.warning(
+                "Terminal command execution failed; command=%s; exception_type=%s",
+                request.command_name,
+                type(exc).__name__,
+            )
             self._log_audit(
-                request, command, 'error',
-                error_message=str(e),
+                request,
+                command,
+                "error",
+                error_message="terminal_command_execution_failed",
                 duration_ms=duration_ms,
             )
             return ExecuteCommandResponse(
                 success=False,
-                error=str(e),
+                error="terminal_command_execution_failed",
                 command=command,
                 risk_level=command.risk_level.value,
             )
@@ -351,11 +445,13 @@ class ListCommandsUseCase:
     def __init__(self, repository: TerminalCommandRepository):
         self._repository = repository
 
-    def execute(self, category: str | None = None, include_inactive: bool = False) -> list[TerminalCommand]:
+    def execute(
+        self, category: str | None = None, include_inactive: bool = False
+    ) -> list[TerminalCommand]:
         """获取命令列表"""
         if category:
             return self._repository.get_by_category(category)
-        elif include_inactive and hasattr(self._repository, "get_all"):
+        elif include_inactive:
             return self._repository.get_all()
         else:
             return self._repository.get_all_active()
@@ -374,12 +470,12 @@ class CreateCommandUseCase:
         # 检查名称是否已存在
         if self._repository.exists_by_name(request.name):
             return CreateCommandResponse(
-                success=False,
-                error=f"Command '{request.name}' already exists"
+                success=False, error=f"Command '{request.name}' already exists"
             )
 
         # 构建实体
         from ..domain.entities import CommandParameter
+
         parameters = [CommandParameter.from_dict(p) for p in request.parameters]
 
         command = TerminalCommand(
@@ -408,10 +504,7 @@ class CreateCommandUseCase:
         # 保存
         saved_command = self._repository.save(command)
 
-        return CreateCommandResponse(
-            success=True,
-            command=saved_command
-        )
+        return CreateCommandResponse(success=True, command=saved_command)
 
 
 class UpdateCommandUseCase:
@@ -426,16 +519,14 @@ class UpdateCommandUseCase:
         command = self._repository.get_by_id(request.command_id)
         if not command:
             return UpdateCommandResponse(
-                success=False,
-                error=f"Command with id '{request.command_id}' not found"
+                success=False, error=f"Command with id '{request.command_id}' not found"
             )
 
         # 检查名称冲突
         if request.name and request.name != command.name:
             if self._repository.exists_by_name(request.name, exclude_id=request.command_id):
                 return UpdateCommandResponse(
-                    success=False,
-                    error=f"Command name '{request.name}' already exists"
+                    success=False, error=f"Command name '{request.name}' already exists"
                 )
 
         # 更新字段
@@ -459,6 +550,7 @@ class UpdateCommandUseCase:
             command.response_jq_filter = request.response_jq_filter
         if request.parameters is not None:
             from ..domain.entities import CommandParameter
+
             command.parameters = [CommandParameter.from_dict(p) for p in request.parameters]
         if request.timeout is not None:
             command.timeout = request.timeout
@@ -482,10 +574,7 @@ class UpdateCommandUseCase:
         # 保存
         saved_command = self._repository.save(command)
 
-        return UpdateCommandResponse(
-            success=True,
-            command=saved_command
-        )
+        return UpdateCommandResponse(success=True, command=saved_command)
 
 
 class DeleteCommandUseCase:
@@ -497,3 +586,63 @@ class DeleteCommandUseCase:
     def execute(self, command_id: str) -> bool:
         """删除命令"""
         return self._repository.delete(command_id)
+
+
+def _audit_params_summary(params: Mapping[str, Any]) -> str:
+    """Return a bounded JSON audit summary with sensitive values redacted."""
+
+    redacted = _redact_audit_value(params)
+    encoded = json.dumps(redacted, ensure_ascii=False, separators=(",", ":"))
+    if len(encoded) <= _AUDIT_SUMMARY_LIMIT:
+        return encoded
+    preview = encoded[:200]
+    return json.dumps(
+        {"preview": preview, "truncated": True},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+
+def _redact_audit_value(value: Any, *, depth: int = 0) -> Any:
+    """Recursively redact secrets and bound values retained by command audits."""
+
+    if depth >= _AUDIT_MAX_DEPTH:
+        return "<depth-limit>"
+    if isinstance(value, Mapping):
+        redacted: dict[str, Any] = {}
+        for index, (key, nested_value) in enumerate(value.items()):
+            if index >= _AUDIT_COLLECTION_LIMIT:
+                redacted["<truncated>"] = True
+                break
+            normalized_key = str(key)
+            if _is_sensitive_parameter(normalized_key):
+                redacted[normalized_key] = _REDACTED_VALUE
+            else:
+                redacted[normalized_key] = _redact_audit_value(
+                    nested_value,
+                    depth=depth + 1,
+                )
+        return redacted
+    if isinstance(value, (list, tuple)):
+        items = [
+            _redact_audit_value(item, depth=depth + 1) for item in value[:_AUDIT_COLLECTION_LIMIT]
+        ]
+        if len(value) > _AUDIT_COLLECTION_LIMIT:
+            items.append("<truncated>")
+        return items
+    if isinstance(value, float) and not math.isfinite(value):
+        return "<non-finite>"
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        if len(value) <= _AUDIT_VALUE_LIMIT:
+            return value
+        return f"{value[:_AUDIT_VALUE_LIMIT]}<truncated>"
+    return f"<{type(value).__name__}>"
+
+
+def _is_sensitive_parameter(name: str) -> bool:
+    """Return whether a parameter name denotes secret-bearing data."""
+
+    normalized = re.sub(r"[^a-z0-9]", "", name.casefold())
+    return any(fragment in normalized for fragment in _SENSITIVE_PARAMETER_FRAGMENTS)

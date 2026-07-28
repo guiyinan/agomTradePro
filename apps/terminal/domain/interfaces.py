@@ -28,6 +28,10 @@ class TerminalCommandRepository(Protocol):
         """获取所有活跃命令"""
         ...
 
+    def get_all(self) -> list[TerminalCommand]:
+        """Return every command, including inactive records."""
+        ...
+
     def get_by_category(self, category: str) -> list[TerminalCommand]:
         """按分类获取命令"""
         ...

@@ -7,10 +7,17 @@ Terminal Infrastructure Repositories.
 import logging
 from typing import Any
 
+from django.core.exceptions import ValidationError
+from django.db import DatabaseError
+
 from ..domain.entities import TerminalAuditEntry, TerminalCommand
+from ..domain.exceptions import TerminalAuditPersistenceError
 from ..domain.interfaces import TerminalAuditRepository, TerminalCommandRepository
-from .models import TerminalAuditLogORM, TerminalRuntimeSettingsORM
-from .models import TerminalCommandORM as TerminalCommandModel
+from .models import (
+    TerminalAuditLogORM,
+    TerminalCommandORM,
+    TerminalRuntimeSettingsORM,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,39 +30,39 @@ class DjangoTerminalCommandRepository:
     def get_by_id(self, command_id: str) -> TerminalCommand | None:
         """根据ID获取命令"""
         try:
-            model = TerminalCommandModel._default_manager.get(pk=int(command_id))
+            model = TerminalCommandORM._default_manager.get(pk=int(command_id))
             return model.to_entity()
-        except (TerminalCommandModel.DoesNotExist, ValueError) as e:
+        except (TerminalCommandORM.DoesNotExist, ValueError) as e:
             logger.debug(f"Command not found by id: {command_id}, error: {e}")
             return None
 
     def get_by_name(self, name: str) -> TerminalCommand | None:
         """根据名称获取命令"""
         try:
-            model = TerminalCommandModel._default_manager.get(name=name)
+            model = TerminalCommandORM._default_manager.get(name=name)
             return model.to_entity()
-        except TerminalCommandModel.DoesNotExist:
+        except TerminalCommandORM.DoesNotExist:
             logger.debug(f"Command not found by name: {name}")
             return None
 
     def get_all_active(self) -> list[TerminalCommand]:
         """获取所有活跃命令"""
-        models = TerminalCommandModel._default_manager.filter(is_active=True)
+        models = TerminalCommandORM._default_manager.filter(is_active=True)
         return [m.to_entity() for m in models]
 
     def get_by_category(self, category: str) -> list[TerminalCommand]:
         """按分类获取命令"""
-        models = TerminalCommandModel._default_manager.filter(category=category, is_active=True)
+        models = TerminalCommandORM._default_manager.filter(category=category, is_active=True)
         return [m.to_entity() for m in models]
 
     def get_all(self) -> list[TerminalCommand]:
         """获取所有命令（包括非活跃）"""
-        models = TerminalCommandModel._default_manager.all()
+        models = TerminalCommandORM._default_manager.all()
         return [m.to_entity() for m in models]
 
     def save(self, command: TerminalCommand) -> TerminalCommand:
         """保存命令"""
-        model = TerminalCommandModel.from_entity(command)
+        model = TerminalCommandORM.from_entity(command)
         model.full_clean()
         model.save()
         return model.to_entity()
@@ -63,14 +70,14 @@ class DjangoTerminalCommandRepository:
     def delete(self, command_id: str) -> bool:
         """删除命令"""
         try:
-            deleted, _ = TerminalCommandModel._default_manager.filter(pk=int(command_id)).delete()
+            deleted, _ = TerminalCommandORM._default_manager.filter(pk=int(command_id)).delete()
             return deleted > 0
         except ValueError:
             return False
 
     def exists_by_name(self, name: str, exclude_id: str | None = None) -> bool:
         """检查名称是否存在"""
-        qs = TerminalCommandModel._default_manager.filter(name=name)
+        qs = TerminalCommandORM._default_manager.filter(name=name)
         if exclude_id:
             qs = qs.exclude(pk=int(exclude_id))
         return qs.exists()
@@ -80,7 +87,7 @@ class DjangoTerminalCommandRepository:
         enabled_in_terminal: bool = True,
     ) -> list[TerminalCommand]:
         """获取过滤后的活跃命令"""
-        qs = TerminalCommandModel._default_manager.filter(
+        qs = TerminalCommandORM._default_manager.filter(
             is_active=True,
             enabled_in_terminal=enabled_in_terminal,
         )
@@ -92,22 +99,25 @@ class DjangoTerminalAuditRepository:
 
     def save(self, entry: TerminalAuditEntry) -> TerminalAuditEntry:
         """保存审计条目"""
-        model = TerminalAuditLogORM(
-            user_id=entry.user_id,
-            username=entry.username,
-            session_id=entry.session_id,
-            command_name=entry.command_name,
-            risk_level=entry.risk_level,
-            mode=entry.mode,
-            params_summary=entry.params_summary or "",
-            confirmation_required=entry.confirmation_required,
-            confirmation_status=entry.confirmation_status,
-            result_status=entry.result_status,
-            error_message=entry.error_message,
-            duration_ms=entry.duration_ms,
-        )
-        model.save()
-        return model.to_entity()
+        try:
+            model = TerminalAuditLogORM(
+                user_id=entry.user_id,
+                username=entry.username,
+                session_id=entry.session_id,
+                command_name=entry.command_name,
+                risk_level=entry.risk_level,
+                mode=entry.mode,
+                params_summary=entry.params_summary or "",
+                confirmation_required=entry.confirmation_required,
+                confirmation_status=entry.confirmation_status,
+                result_status=entry.result_status,
+                error_message=entry.error_message,
+                duration_ms=entry.duration_ms,
+            )
+            model.save()
+            return model.to_entity()
+        except (DatabaseError, ValidationError, ValueError) as exc:
+            raise TerminalAuditPersistenceError("terminal_audit_persistence_failed") from exc
 
     def get_recent(
         self,

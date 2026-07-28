@@ -5908,3 +5908,18 @@
 - MCP gateway 并发/边界安全专项 `11 passed`，legacy 空描述与真实 catalog 同步专项 `13 passed`；AI Capability catalog/sync/routing API 与 Terminal/TUI/MCP/SDK/SSL 组合回归 `983 passed`。
 - MCP runtime gateway、catalog projection、sync use case 与主 routing use case 联合增量 mypy 清零；三个文件退出债务清单，全仓基线从 `567 errors / 286 files` 收紧为 `557 errors / 283 files`，净减少 `10 errors / 3 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 TUI/Terminal/SDK/MCP 对外成功响应结构或部署实现。
+
+## 第三百八十五批
+
+- 按“Terminal 命令失败伪装成功 × 内外部 API 调度边界宽松 × 异常/参数凭据进入用户响应和审计”收口命令执行链。
+- Command execution 建立精确 Application Protocol，命令仓储正式发布 `get_all()` 合同，认证用户和 runtime/factory 返回类型收窄；Terminal services、use cases 及两个消费端的隐式动态调用债务同步清零。
+- API 命令只允许正式 HTTP method、有限 timeout、合法 status 和受控 endpoint；内部 URL 拒绝 query、fragment、反斜线与编码/明文 traversal，且必须提供存在的正整数认证用户。外部 URL 拒绝内嵌凭据，path 参数按 URL segment 编码并从 request params 移除。
+- 外部请求和内部 API 的 4xx/5xx 统一失败关闭；非法 JQ-like filter 不再回退发布原始响应。请求与响应必须为有限、可 JSON 序列化且不超过 1 MiB 的 payload，NaN、Infinity、动态对象和超大数据在输出/metadata 前拒绝。
+- Prompt runtime 失败不再把 Agent 原始错误正文当成成功 output；所有命令执行失败向用户与审计只发布稳定 `terminal_command_execution_failed`，日志仅记录异常类型。
+- 命令参数审计递归遮蔽 password/token/secret/API key/authorization/cookie/session/credential/private key 等字段，并限制深度、集合数量、文本长度和总摘要大小；审计 ORM 失败通过 Domain 异常跨层传递，连接串和底层异常正文不进入日志。
+
+## 第三百八十五批验证结果
+
+- Terminal 命令执行安全专项 `22 passed`；既有 Terminal 治理、API、边界与查询服务组合 `91 passed`；TUI Workbench、Terminal Agent、SDK client 与内部 SSL redirect 固定高风险回归包 `236 passed`。
+- `apps/terminal/application/services.py` 与 `apps/terminal/application/use_cases.py` 增量 mypy 清零并退出债务清单；精确协议同时清除 AI Capability gateway 与 Terminal interface service 的最后债务，全仓基线从 `557 errors / 283 files` 收紧为 `546 errors / 279 files`，净减少 `11 errors / 4 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/SDK/MCP/部署实现或 Terminal 对外成功响应结构。
