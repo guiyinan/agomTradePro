@@ -5740,3 +5740,19 @@
 - Share Application/Domain/Infrastructure/Interface 全量与安全扩展回归 `180 passed`；其中新增模型完整性专项 `16 passed`，既有模型与视图组合回归 `55 passed`。
 - `apps/share/infrastructure/models.py`、约束模块与公开 view 联合增量 mypy 清零；全仓基线从 `617 errors / 297 files` 收紧为 `610 errors / 296 files`，净减少 `7 errors / 1 file`。
 - Share migration drift、Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百七十五批
+
+- 按“Alpha 运维异常正文外泄 × 动态运行配置误入本地 I/O × 任务结果无界发布 × 跨 App provider Any”收口 Alpha/Qlib 运维查询与数据刷新边界。
+- Task Monitor 动态 provider 在 Alpha Application 内收窄为正式 `CeleryHealthCheckerProtocol` 与 `TaskRecordRepositoryProtocol`，Celery 健康状态不再通过 Any 传播。
+- Celery 健康检查失败只向 staff API/页面发布稳定 `celery_health_check_failed`，结构化日志仅记录异常类型；broker URL、凭据或底层异常正文不再进入响应和普通日志。
+- Qlib runtime 仅在 `enabled is True` 时启用；`provider_uri` 必须为非空、长度不超过 4096 且无控制字符的字符串。错误类型、空值、换行和超长路径在 builder/本地日期检查 I/O 前失败关闭。
+- 启用 Qlib 但 provider 路径无效时发布 `qlib_provider_uri_invalid`；本地数据检查异常发布 `qlib_data_inspection_failed` 并仅记录异常类型，不再把文件路径、数据库或凭据正文显示在运维页。
+- Task Monitor 字符串结果只解析 mapping；非结构化或超长结果统一标记不可用。动态结果限制深度、条目数和文本长度，并递归遮蔽 token/password/secret/credential/DSN/数据库 URL 及 error/exception/traceback 字段。
+- 最近任务不再发布持久化的原始 exception，失败只显示稳定 `task_failed`；日期序列化和 runtime config 返回合同同步收窄，清除该文件全部高风险 Any/arg-type 债务。
+
+## 第三百七十五批验证结果
+
+- Alpha 应用、Alpha 单元与运维 API 扩展回归 `136 passed`，仅保留一条既有 pandas `FutureWarning`；新增运维安全专项 `12 passed`，定点权限/任务登记/刷新组合回归 `27 passed`。
+- `apps/alpha/application/ops_services.py` 增量 mypy 清零并退出债务清单；全仓基线从 `610 errors / 296 files` 收紧为 `606 errors / 295 files`，净减少 `4 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

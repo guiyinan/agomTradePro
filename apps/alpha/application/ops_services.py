@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import ast
 import logging
-from datetime import date
+from collections.abc import Mapping
+from datetime import date, datetime
 from importlib import import_module
-from typing import Any
+from typing import Any, TypeAlias, cast
 
 from django.utils import timezone
 
@@ -18,6 +19,10 @@ from apps.alpha.application.repository_provider import (
     inspect_latest_trade_date,
 )
 from apps.alpha.domain.entities import normalize_stock_code
+from apps.task_monitor.domain.interfaces import (
+    CeleryHealthCheckerProtocol,
+    TaskRecordRepositoryProtocol,
+)
 from core.integration.runtime_settings import get_runtime_qlib_config
 
 logger = logging.getLogger(__name__)
@@ -35,15 +40,42 @@ QLIB_DATA_REFRESH_TASK_NAMES = (
     "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task",
 )
 
+JsonScalar: TypeAlias = str | int | float | bool | None
+JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
 
-def get_celery_health_checker() -> Any:
+_MAX_TASK_RESULT_DEPTH = 5
+_MAX_TASK_RESULT_ITEMS = 100
+_MAX_TASK_RESULT_TEXT_LENGTH = 2_000
+_MAX_TASK_RESULT_SOURCE_LENGTH = 65_536
+_REDACTED_TASK_VALUE = "***"
+_FAILED_TASK_VALUE = "operation_failed"
+_SENSITIVE_TASK_KEY_SUFFIXES = frozenset(
+    {
+        "api_key",
+        "authorization",
+        "cookie",
+        "credential",
+        "database_url",
+        "dsn",
+        "error",
+        "exception",
+        "password",
+        "private_key",
+        "secret",
+        "token",
+        "traceback",
+    }
+)
+
+
+def get_celery_health_checker() -> CeleryHealthCheckerProtocol:
     provider = import_module("apps.task_monitor.application.provider")
-    return provider.get_celery_health_checker()
+    return cast(CeleryHealthCheckerProtocol, provider.get_celery_health_checker())
 
 
-def get_task_record_repository() -> Any:
+def get_task_record_repository() -> TaskRecordRepositoryProtocol:
     provider = import_module("apps.task_monitor.application.provider")
-    return provider.get_task_record_repository()
+    return cast(TaskRecordRepositoryProtocol, provider.get_task_record_repository())
 
 
 def _parse_universe_list(raw_universes: str | list[str] | tuple[str, ...] | None) -> list[str]:
@@ -56,28 +88,103 @@ def _parse_universe_list(raw_universes: str | list[str] | tuple[str, ...] | None
 
 
 def _serialize_task_result(raw_value: str | None) -> dict[str, Any] | str | None:
-    """Parse task-monitor result payloads stored as stringified dicts when possible."""
+    """Parse and bound task-monitor results without exposing stored secret fields."""
     if not raw_value:
         return None
+    if len(raw_value) > _MAX_TASK_RESULT_SOURCE_LENGTH:
+        return "task_result_unavailable"
     try:
-        parsed = ast.literal_eval(raw_value)
+        parsed: object = ast.literal_eval(raw_value)
     except (ValueError, SyntaxError):
-        return raw_value
-    return parsed
+        return "task_result_unavailable"
+    if not isinstance(parsed, Mapping):
+        return "task_result_unavailable"
+    sanitized = _sanitize_task_result_value(parsed)
+    if not isinstance(sanitized, dict):
+        return "task_result_unavailable"
+    return cast(dict[str, Any], sanitized)
 
 
-def _to_iso(value: Any) -> str | None:
+def _sanitize_task_result_value(value: object, *, depth: int = 0) -> JsonValue:
+    """Project a dynamic task result into a bounded JSON-safe value."""
+
+    if depth >= _MAX_TASK_RESULT_DEPTH:
+        return "<max-depth>"
+    if isinstance(value, Mapping):
+        result: dict[str, JsonValue] = {}
+        for index, (raw_key, nested_value) in enumerate(value.items()):
+            if index >= _MAX_TASK_RESULT_ITEMS:
+                result["__truncated__"] = True
+                break
+            key = _bounded_task_text(str(raw_key), limit=128)
+            if not key:
+                continue
+            if _is_sensitive_task_key(key):
+                normalized_key = key.casefold().replace("-", "_")
+                result[key] = (
+                    _FAILED_TASK_VALUE
+                    if normalized_key in {"error", "exception", "traceback"}
+                    or normalized_key.endswith(("_error", "_exception", "_traceback"))
+                    else _REDACTED_TASK_VALUE
+                )
+                continue
+            result[key] = _sanitize_task_result_value(nested_value, depth=depth + 1)
+        return result
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [
+            _sanitize_task_result_value(item, depth=depth + 1)
+            for item in list(value)[:_MAX_TASK_RESULT_ITEMS]
+        ]
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        return _bounded_task_text(value, limit=_MAX_TASK_RESULT_TEXT_LENGTH)
+    return _bounded_task_text(str(value), limit=_MAX_TASK_RESULT_TEXT_LENGTH)
+
+
+def _bounded_task_text(value: str, *, limit: int) -> str:
+    """Return a single-line, bounded operational value."""
+
+    normalized = " ".join(value.replace("\x00", " ").split())
+    if len(normalized) <= limit:
+        return normalized
+    return f"{normalized[:limit]}…"
+
+
+def _is_sensitive_task_key(key: str) -> bool:
+    """Return whether a task-result key can carry credentials or exception detail."""
+
+    normalized = key.strip().casefold().replace("-", "_")
+    return normalized == "error" or any(
+        normalized == suffix or normalized.endswith(f"_{suffix}")
+        for suffix in _SENSITIVE_TASK_KEY_SUFFIXES
+    )
+
+
+def _to_iso(value: date | datetime | None) -> str | None:
     if value is None:
         return None
-    if hasattr(value, "isoformat"):
-        return value.isoformat()
-    return str(value)
+    return value.isoformat()
+
+
+def _get_provider_uri(runtime_config: Mapping[str, object]) -> str | None:
+    """Return a bounded local provider path from dynamic runtime configuration."""
+
+    raw_provider_uri = runtime_config.get("provider_uri")
+    if not isinstance(raw_provider_uri, str):
+        return None
+    provider_uri = raw_provider_uri.strip()
+    if not provider_uri or len(provider_uri) > 4_096:
+        return None
+    if any(ord(character) < 32 or ord(character) == 127 for character in provider_uri):
+        return None
+    return provider_uri
 
 
 class QlibRuntimeDataRefreshService:
     """Refresh local qlib runtime data for universes or explicit code scopes."""
 
-    def get_runtime_config(self) -> dict[str, Any]:
+    def get_runtime_config(self) -> dict[str, object]:
         """Return runtime qlib config through the integration bridge."""
 
         return get_runtime_qlib_config()
@@ -91,10 +198,12 @@ class QlibRuntimeDataRefreshService:
     ) -> dict[str, Any]:
         """Refresh local qlib data for named universes."""
         qlib_config = self.get_runtime_config()
-        if not qlib_config.get("enabled"):
+        if qlib_config.get("enabled") is not True:
             return {"status": "skipped", "reason": "qlib_disabled"}
 
-        provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+        provider_uri = _get_provider_uri(qlib_config)
+        if provider_uri is None:
+            return {"status": "skipped", "reason": "qlib_provider_uri_invalid"}
         normalized_universes = _parse_universe_list(universes) or ["csi300"]
         summary = TushareQlibBuilder(provider_uri).build_recent_data(
             target_date=target_date,
@@ -127,10 +236,12 @@ class QlibRuntimeDataRefreshService:
     ) -> dict[str, Any]:
         """Refresh local qlib data for one explicit stock scope."""
         qlib_config = self.get_runtime_config()
-        if not qlib_config.get("enabled"):
+        if qlib_config.get("enabled") is not True:
             return {"status": "skipped", "reason": "qlib_disabled"}
 
-        provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+        provider_uri = _get_provider_uri(qlib_config)
+        if provider_uri is None:
+            return {"status": "skipped", "reason": "qlib_provider_uri_invalid"}
         normalized_codes = sorted(
             {normalize_stock_code(code) for code in stock_codes if normalize_stock_code(code)}
         )
@@ -207,7 +318,10 @@ class AlphaOpsOverviewQueryService:
         try:
             return get_celery_health_checker().check_health().to_dict()
         except Exception as exc:
-            logger.warning("Failed to inspect celery health for alpha ops: %s", exc)
+            logger.warning(
+                "Failed to inspect celery health for alpha ops",
+                extra={"exception_type": type(exc).__name__},
+            )
             return {
                 "is_healthy": False,
                 "broker_reachable": False,
@@ -217,7 +331,7 @@ class AlphaOpsOverviewQueryService:
                 "pending_tasks_count": 0,
                 "scheduled_tasks_count": 0,
                 "last_check": timezone.now().isoformat(),
-                "error": str(exc),
+                "error": "celery_health_check_failed",
             }
 
     def _list_recent_tasks(
@@ -247,7 +361,7 @@ class AlphaOpsOverviewQueryService:
                 "runtime_seconds": record.runtime_seconds,
                 "queue": record.queue,
                 "worker": record.worker,
-                "exception": record.exception,
+                "exception": "task_failed" if record.exception else None,
                 "result": _serialize_task_result(record.result),
             }
             for record in ordered
@@ -297,13 +411,19 @@ class QlibDataOpsOverviewQueryService:
         runtime_config = get_runtime_qlib_config()
         latest_local_trade_date = None
         local_data_error = None
-        provider_uri = runtime_config.get("provider_uri")
-        if runtime_config.get("enabled") and provider_uri:
-            try:
-                latest_local_trade_date = inspect_latest_trade_date(provider_uri)
-            except Exception as exc:
-                local_data_error = str(exc)
-                logger.warning("Failed to inspect qlib latest local date: %s", exc)
+        if runtime_config.get("enabled") is True:
+            provider_uri = _get_provider_uri(runtime_config)
+            if provider_uri is None:
+                local_data_error = "qlib_provider_uri_invalid"
+            else:
+                try:
+                    latest_local_trade_date = inspect_latest_trade_date(provider_uri)
+                except Exception as exc:
+                    local_data_error = "qlib_data_inspection_failed"
+                    logger.warning(
+                        "Failed to inspect qlib latest local date",
+                        extra={"exception_type": type(exc).__name__},
+                    )
 
         recent_tasks = AlphaOpsOverviewQueryService()._list_recent_tasks(
             QLIB_DATA_REFRESH_TASK_NAMES,
