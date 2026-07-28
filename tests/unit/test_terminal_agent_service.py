@@ -459,3 +459,68 @@ def test_stage_mcp_confirmation_persists_model_generated_arguments():
     assert approval_event.data["proposal_id"] == 41
     assert approval_event.data["capability_key"] == "portfolio.write.rebalance"
     assert "ephemeral-token" not in str(approval_event.data)
+
+
+def test_collect_events_redacts_sdk_exception_details(caplog):
+    service = OpenAIAgentsTerminalService()
+    resolved_provider = SimpleNamespace(provider=SimpleNamespace(), model="test-model")
+    tool_access = SimpleNamespace(
+        auto_allowed={},
+        gated={},
+        allowed_tool_names=frozenset(),
+    )
+
+    with patch.object(
+        service,
+        "_import_agents_sdk",
+        side_effect=RuntimeError("postgresql://admin:raw-secret@example.test/terminal"),
+    ):
+        events = asyncio.run(service._collect_events(_request(), resolved_provider, tool_access))
+
+    assert events == [
+        TerminalAgentEventDTO(
+            event_type="error",
+            data={
+                "session_id": "sess-1",
+                "message": "terminal_agent_execution_failed",
+            },
+        )
+    ]
+    assert "raw-secret" not in caplog.text
+    assert "postgresql://" not in caplog.text
+    assert "exception_type=RuntimeError" in caplog.text
+
+
+def test_error_usage_audit_uses_stable_message_and_redacts_repository_failure(caplog):
+    usage_repo = Mock()
+    usage_repo.log_usage.side_effect = RuntimeError(
+        "postgresql://admin:audit-secret@example.test/terminal"
+    )
+    service = OpenAIAgentsTerminalService(usage_repo=usage_repo)
+    resolved_provider = SimpleNamespace(
+        provider=SimpleNamespace(),
+        user=SimpleNamespace(id=7),
+        provider_scope="personal",
+        quota_charged=False,
+        model="test-model",
+        fallback_used=False,
+    )
+
+    service._log_terminal_run(
+        request=_request(),
+        resolved_provider=resolved_provider,
+        events=[
+            TerminalAgentEventDTO(
+                event_type="error",
+                data={"message": "postgresql://admin:event-secret@example.test/terminal"},
+            )
+        ],
+    )
+
+    assert usage_repo.log_usage.call_args.kwargs["error_message"] == (
+        "terminal_agent_execution_failed"
+    )
+    assert "audit-secret" not in caplog.text
+    assert "event-secret" not in caplog.text
+    assert "postgresql://" not in caplog.text
+    assert "exception_type=RuntimeError" in caplog.text

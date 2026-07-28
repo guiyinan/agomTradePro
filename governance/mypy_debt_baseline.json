@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 497,
-    "files_with_errors": 264
+    "errors": 494,
+    "files_with_errors": 263
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -88,10 +88,6 @@
     },
     "apps/agent_runtime/infrastructure/repositories.py": {
       "misc": 2
-    },
-    "apps/agent_runtime/infrastructure/terminal_agent_service.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 2
     },
     "apps/ai_capability/application/facade.py": {
       "assignment": 1,

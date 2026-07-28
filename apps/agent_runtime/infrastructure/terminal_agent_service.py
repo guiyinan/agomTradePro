@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sys
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,7 @@ TERMINAL_AGENT_CORE_MCP_TOOLS = frozenset(
 # several MCP calls in one turn, so keep the stdio client timeout comfortably
 # above the default 5s SDK value.
 TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS = 90.0
+TERMINAL_AGENT_EXECUTION_ERROR = "terminal_agent_execution_failed"
 
 
 @dataclass(frozen=True)
@@ -125,7 +127,10 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             metadata=metadata,
         )
 
-    def stream_chat(self, request: TerminalAgentChatRequestDTO):
+    def stream_chat(
+        self,
+        request: TerminalAgentChatRequestDTO,
+    ) -> Iterator[TerminalAgentEventDTO]:
         """Yield normalized agent events for one request."""
 
         tool_access = self._build_tool_access_snapshot(request)
@@ -198,13 +203,16 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                 )
                 return result_events
         except Exception as exc:
-            logger.exception("Terminal agent execution failed")
+            logger.warning(
+                "Terminal agent execution failed; exception_type=%s",
+                type(exc).__name__,
+            )
             return [
                 TerminalAgentEventDTO(
                     event_type="error",
                     data={
                         "session_id": request.session_id,
-                        "message": str(exc),
+                        "message": TERMINAL_AGENT_EXECUTION_ERROR,
                     },
                 )
             ]
@@ -341,7 +349,10 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             },
         )
 
-    def _build_tool_filter(self, allowed_tool_names: frozenset[str]):
+    def _build_tool_filter(
+        self,
+        allowed_tool_names: frozenset[str],
+    ) -> Callable[[Any, Any], bool]:
         """Build a tool filter that only exposes auto-approved MCP tools."""
 
         allowed_names = set(allowed_tool_names)
@@ -930,7 +941,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                 request=request,
                 usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
                 status="error",
-                error_message=str(error_event.data.get("message") or ""),
+                error_message=TERMINAL_AGENT_EXECUTION_ERROR,
             )
 
     def _log_usage(
@@ -966,8 +977,11 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                     "fallback_used": resolved_provider.fallback_used,
                 },
             )
-        except Exception:
-            logger.exception("Failed to persist terminal agent usage log")
+        except Exception as exc:
+            logger.warning(
+                "Failed to persist terminal agent usage log; exception_type=%s",
+                type(exc).__name__,
+            )
 
     def _dig(self, obj: Any, *attrs: str) -> Any:
         """Safely drill through nested attributes."""

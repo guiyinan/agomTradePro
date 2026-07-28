@@ -69,6 +69,15 @@ class TerminalCapabilityGateway(Protocol):
         """Return normalized MCP capability records visible to the request."""
         ...
 
+    def match_terminal_mcp_capability(
+        self,
+        *,
+        message: str,
+        capability_keys: list[str],
+    ) -> dict[str, Any] | None:
+        """Return the best high-confidence capability match, if any."""
+        ...
+
 
 class TerminalApprovalGateway(Protocol):
     """Gateway for durable approval of Terminal-originated MCP calls."""
@@ -85,15 +94,6 @@ class TerminalApprovalGateway(Protocol):
         actor: dict[str, Any],
     ) -> dict[str, Any]:
         """Persist and submit one MCP capability proposal for human approval."""
-        ...
-
-    def match_terminal_mcp_capability(
-        self,
-        *,
-        message: str,
-        capability_keys: list[str],
-    ) -> dict[str, Any] | None:
-        """Return the best high-confidence capability match, if any."""
         ...
 
 

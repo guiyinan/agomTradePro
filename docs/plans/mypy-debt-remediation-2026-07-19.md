@@ -6039,3 +6039,17 @@
 - 市场温度计 provider fallback、timeout、异常脱敏和 runtime 配置边界专项 `31 passed`；Data Center 全单元、架构/反向依赖、Dashboard、市场温度计 API 与 Pulse API 扩展组合总计 `362 passed`。
 - `apps/data_center/application/_market_thermometer_runtime.py` 与 `apps/data_center/application/market_thermometer_sync.py` 增量 mypy 清零并退出债务清单；全仓基线从 `502 errors / 266 files` 收紧为 `497 errors / 264 files`，净减少 `5 errors / 2 files`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP、费用执行链或部署实现。
+
+## 第三百九十四批
+
+- 按“Terminal Capability Gateway 合同归属错误 × 流式/工具过滤返回类型缺失 × SDK/ORM 异常正文进入用户与审计”收口 Terminal Agent 核心运行链。
+- `match_terminal_mcp_capability()` 从 Approval Gateway 纠正到实际调用方 Capability Gateway，正式 Protocol 与 `CapabilityRoutingFacade` 实现重新一致；高风险工具匹配不再依赖协议外动态属性。
+- `stream_chat()` 发布精确 `Iterator[TerminalAgentEventDTO]`，MCP tool filter 发布精确 callable 合同，清除流式服务与 SDK filter 的隐式动态返回。
+- Agents SDK、MCP session 和动态事件处理失败统一返回 `terminal_agent_execution_failed`；用户流式事件和 usage 审计不再保存连接串、API key 或底层异常正文。
+- 执行失败和 usage ORM 写入失败日志只记录异常类型，不再输出 traceback 或异常正文；即使收到携带敏感内容的错误事件，持久化前也会替换为稳定错误码。
+
+## 第三百九十四批验证结果
+
+- Terminal Agent capability、MCP、审批、流式事件与异常脱敏专项 `13 passed`；TUI Workbench、Terminal Agent、SDK client、内部 SSL、Capability gateway 与 Terminal API 固定高风险组合 `259 passed`。
+- `apps/agent_runtime/infrastructure/terminal_agent_service.py` 增量 mypy 清零并退出债务清单；全仓基线从 `497 errors / 264 files` 收紧为 `494 errors / 263 files`，净减少 `3 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI 元数据、SDK/MCP 成功响应、费用执行链或部署实现。
