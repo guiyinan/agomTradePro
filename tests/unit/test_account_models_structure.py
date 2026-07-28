@@ -69,6 +69,7 @@ def test_account_model_modules_stay_bounded_and_one_way() -> None:
     budgets = {
         AGGREGATOR_MODULE: 100,
         "apps.account.infrastructure.identity_models": 450,
+        "apps.account.infrastructure.classification_constraints": 80,
         "apps.account.infrastructure.classification_models": 350,
         "apps.account.infrastructure.portfolio_models": 500,
         "apps.account.infrastructure.trading_config_models": 550,

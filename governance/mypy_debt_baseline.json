@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 630,
-    "files_with_errors": 299
+    "errors": 624,
+    "files_with_errors": 298
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -25,10 +25,6 @@
     },
     "apps/account/infrastructure/broker_import_parser.py": {
       "import-untyped": 1
-    },
-    "apps/account/infrastructure/classification_models.py": {
-      "redundant-cast": 1,
-      "unused-ignore": 5
     },
     "apps/account/infrastructure/config_summary_repository.py": {
       "assignment": 1

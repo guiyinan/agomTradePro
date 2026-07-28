@@ -4,10 +4,18 @@
 包含资产元数据、多级资产分类、币种与汇率。
 """
 
+import re
+from datetime import date
 from decimal import Decimal
-from typing import Any, cast
 
-from django.db import models  # type: ignore[import-untyped]
+from django.core.exceptions import ValidationError
+from django.db import models
+
+from .classification_constraints import (
+    ASSET_CATEGORY_CONSTRAINTS,
+    CURRENCY_CONSTRAINTS,
+    EXCHANGE_RATE_CONSTRAINTS,
+)
 
 __all__ = [
     "AssetCategoryModel",
@@ -20,7 +28,10 @@ __all__ = [
 # 资产元数据模型
 
 
-class AssetMetadataModel(models.Model):  # type: ignore[misc]
+_CURRENCY_CODE_PATTERN = re.compile(r"^[A-Z][A-Z0-9]{1,9}$")
+
+
+class AssetMetadataModel(models.Model):
     """
     资产元数据表
 
@@ -108,7 +119,7 @@ class AssetMetadataModel(models.Model):  # type: ignore[misc]
 # 资产分类体系（多级分类）
 
 
-class AssetCategoryModel(models.Model):  # type: ignore[misc]
+class AssetCategoryModel(models.Model):
     """
     资产分类模型
 
@@ -155,16 +166,55 @@ class AssetCategoryModel(models.Model):  # type: ignore[misc]
             models.Index(fields=["parent"]),
             models.Index(fields=["level"]),
         ]
+        constraints = ASSET_CATEGORY_CONSTRAINTS
 
     def __str__(self) -> str:
         return f"{self.path} - {self.name}"
 
     def get_ancestors(self) -> list["AssetCategoryModel"]:
-        """获取所有父级分类"""
-        if self.parent:
-            parent = cast("AssetCategoryModel", self.parent)
-            return parent.get_ancestors() + [parent]
-        return []
+        """Return root-first ancestors while failing closed on corrupt cycles."""
+
+        ancestors: list[AssetCategoryModel] = []
+        seen_ids: set[int] = set()
+        if self.pk is not None:
+            seen_ids.add(self.pk)
+        current = self.parent
+        while current is not None:
+            if current.pk is None or current.pk in seen_ids:
+                raise ValueError("资产分类层级存在循环引用")
+            seen_ids.add(current.pk)
+            ancestors.append(current)
+            current = current.parent
+        ancestors.reverse()
+        return ancestors
+
+    def clean(self) -> None:
+        """Validate materialized tree invariants before repository or Admin writes."""
+
+        super().clean()
+        errors: dict[str, str] = {}
+        if self.level < 1:
+            errors["level"] = "分类层级必须大于等于 1"
+        if self.parent_id is None:
+            if self.level != 1:
+                errors["level"] = "根分类层级必须为 1"
+        else:
+            if self.pk is not None and self.parent_id == self.pk:
+                errors["parent"] = "分类不能以自身作为父分类"
+            try:
+                parent = self.parent
+                if parent is None:
+                    errors["parent"] = "父分类不存在"
+                else:
+                    if self.level != parent.level + 1:
+                        errors["level"] = "子分类层级必须等于父分类层级加 1"
+                    if not self.path.startswith(f"{parent.path}/"):
+                        errors["path"] = "子分类路径必须位于父分类路径下"
+                self.get_ancestors()
+            except ValueError as exc:
+                errors["parent"] = str(exc)
+        if errors:
+            raise ValidationError(errors)
 
     def get_full_path(self) -> str:
         """获取完整分类路径"""
@@ -177,7 +227,7 @@ class AssetCategoryModel(models.Model):  # type: ignore[misc]
 # 币种模型
 
 
-class CurrencyModel(models.Model):  # type: ignore[misc]
+class CurrencyModel(models.Model):
     """
     币种模型
 
@@ -204,21 +254,37 @@ class CurrencyModel(models.Model):  # type: ignore[misc]
         verbose_name = "币种"
         verbose_name_plural = "币种"
         ordering = ["-is_base", "code"]
+        constraints = CURRENCY_CONSTRAINTS
 
     def __str__(self) -> str:
         return f"{self.code} - {self.name} ({self.symbol})"
 
+    def clean(self) -> None:
+        """Validate canonical currency identity and precision."""
+
+        super().clean()
+        errors: dict[str, str] = {}
+        if not _CURRENCY_CODE_PATTERN.fullmatch(self.code):
+            errors["code"] = "币种代码必须为 2 至 10 位大写 ASCII 字母或数字"
+        if not 0 <= self.precision <= 8:
+            errors["precision"] = "币种精度必须在 0 至 8 之间"
+        if self.is_base and not self.is_active:
+            errors["is_active"] = "基准货币必须启用"
+        if errors:
+            raise ValidationError(errors)
+
     @classmethod
     def get_base_currency(cls) -> "CurrencyModel | None":
         """获取基准货币"""
-        result = cls.objects.filter(is_base=True).first() or cls.objects.filter(code="CNY").first()
-        return cast("CurrencyModel | None", result)
+        return cls._default_manager.filter(is_base=True, is_active=True).first() or (
+            cls._default_manager.filter(code="CNY", is_active=True).first()
+        )
 
 
 # 汇率模型
 
 
-class ExchangeRateModel(models.Model):  # type: ignore[misc]
+class ExchangeRateModel(models.Model):
     """
     汇率模型
 
@@ -246,23 +312,51 @@ class ExchangeRateModel(models.Model):  # type: ignore[misc]
         indexes = [
             models.Index(fields=["from_currency", "to_currency", "effective_date"]),
         ]
+        constraints = EXCHANGE_RATE_CONSTRAINTS
 
     def __str__(self) -> str:
         return f"{self.from_currency.code} -> {self.to_currency.code}: {self.rate} ({self.effective_date})"
 
+    def clean(self) -> None:
+        """Validate one governed exchange-rate observation."""
+
+        super().clean()
+        errors: dict[str, str] = {}
+        if not self.rate.is_finite() or self.rate <= 0:
+            errors["rate"] = "汇率必须为正有限数"
+        if self.from_currency_id == self.to_currency_id:
+            errors["to_currency"] = "源币种和目标币种不能相同"
+        if self.from_currency_id and not self.from_currency.is_active:
+            errors["from_currency"] = "源币种必须处于启用状态"
+        if self.to_currency_id and not self.to_currency.is_active:
+            errors["to_currency"] = "目标币种必须处于启用状态"
+        if errors:
+            raise ValidationError(errors)
+
     def convert(self, amount: Decimal) -> Decimal:
         """将金额从源币种转换为目标币种"""
-        return amount * Decimal(str(self.rate))
+        if not isinstance(amount, Decimal) or not amount.is_finite():
+            raise ValueError("转换金额必须为有限 Decimal")
+        rate = Decimal(self.rate)
+        if not rate.is_finite() or rate <= 0:
+            raise ValueError("汇率必须为正有限数")
+        return amount * rate
 
     @classmethod
     def get_latest_rate(cls, from_code: str, to_code: str) -> "ExchangeRateModel | None":
         """获取最新汇率"""
-        result = (
-            cls.objects.filter(from_currency__code=from_code, to_currency__code=to_code)
+        normalized_from = cls._normalize_currency_code(from_code)
+        normalized_to = cls._normalize_currency_code(to_code)
+        return (
+            cls._default_manager.filter(
+                from_currency__code=normalized_from,
+                from_currency__is_active=True,
+                to_currency__code=normalized_to,
+                to_currency__is_active=True,
+            )
             .order_by("-effective_date")
             .first()
         )
-        return cast("ExchangeRateModel | None", result)
 
     @classmethod
     def convert_amount(
@@ -270,7 +364,7 @@ class ExchangeRateModel(models.Model):  # type: ignore[misc]
         amount: Decimal,
         from_code: str,
         to_code: str,
-        date: Any = None,
+        date: date | None = None,
     ) -> Decimal:
         """
         转换金额
@@ -284,18 +378,38 @@ class ExchangeRateModel(models.Model):  # type: ignore[misc]
         Returns:
             转换后的金额
         """
-        if from_code == to_code:
+        normalized_from = cls._normalize_currency_code(from_code)
+        normalized_to = cls._normalize_currency_code(to_code)
+        if not isinstance(amount, Decimal) or not amount.is_finite():
+            raise ValueError("转换金额必须为有限 Decimal")
+        if normalized_from == normalized_to:
             return amount
 
-        queryset = cls.objects.filter(from_currency__code=from_code, to_currency__code=to_code)
+        queryset = cls._default_manager.filter(
+            from_currency__code=normalized_from,
+            from_currency__is_active=True,
+            to_currency__code=normalized_to,
+            to_currency__is_active=True,
+        )
 
         if date:
             queryset = queryset.filter(effective_date__lte=date).order_by("-effective_date")
         else:
             queryset = queryset.order_by("-effective_date")
 
-        rate = cast("ExchangeRateModel | None", queryset.first())
+        rate = queryset.first()
         if not rate:
-            raise ValueError(f"No exchange rate found for {from_code} -> {to_code}")
+            raise ValueError(f"No exchange rate found for {normalized_from} -> {normalized_to}")
 
         return rate.convert(amount)
+
+    @staticmethod
+    def _normalize_currency_code(value: object) -> str:
+        """Return one canonical governed currency code."""
+
+        if not isinstance(value, str):
+            raise ValueError("币种代码格式无效")
+        normalized = value.strip().upper()
+        if not _CURRENCY_CODE_PATTERN.fullmatch(normalized):
+            raise ValueError("币种代码格式无效")
+        return normalized

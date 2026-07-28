@@ -170,7 +170,10 @@ class AccountClassificationRepository:
         validated_data["name"] = name
         validated_data["level"] = parent.level + 1 if parent is not None else 1
         validated_data["path"] = f"{parent.path}/{name}" if parent is not None else name
-        return AssetCategoryModel._default_manager.create(**validated_data)
+        model = AssetCategoryModel(**validated_data)
+        model.full_clean()
+        model.save()
+        return model
 
     def update_asset_category(
         self,
@@ -190,6 +193,7 @@ class AccountClassificationRepository:
             model.name = str(model.name).strip()
             model.level = parent.level + 1 if parent is not None else 1
             model.path = f"{parent.path}/{model.name}" if parent is not None else model.name
+            model.full_clean()
             model.save()
             self._refresh_category_descendants(model)
         return model
@@ -257,7 +261,10 @@ class AccountClassificationRepository:
     def create_exchange_rate(self, **validated_data: Any) -> Any:
         """Create one exchange rate."""
 
-        return ExchangeRateModel._default_manager.create(**validated_data)
+        model = ExchangeRateModel(**validated_data)
+        model.full_clean()
+        model.save()
+        return model
 
     def update_exchange_rate(
         self,
@@ -270,6 +277,7 @@ class AccountClassificationRepository:
         model = ExchangeRateModel._default_manager.get(id=exchange_rate_id)
         for field, value in validated_data.items():
             setattr(model, field, value)
+        model.full_clean()
         model.save()
         return model
 

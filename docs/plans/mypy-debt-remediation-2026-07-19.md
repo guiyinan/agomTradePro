@@ -5690,3 +5690,19 @@
 - Account 备份下载专项及加密归档、邮件链接、单次消费、撤销与到期组件回归 `13 passed`。
 - `apps/account/interface/backup_views.py` 在增量 mypy 口径清零；全仓基线从 `632 errors / 300 files` 收紧为 `630 errors / 299 files`，净减少 `2 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改备份生成、邮件、数据库配置、Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百七十二批
+
+- 按“分类循环递归崩溃 × 币种基准/精度可失真 × 非法汇率可绕过 API 直写 × ORM 类型 ignore”收口 Account 分类与汇率模型。
+- 资产分类祖先遍历改为带已访问集合的迭代实现；两节点及更深循环失败关闭，不再递归至 `RecursionError`。模型校验同步验证根/子层级、父路径、自引用与循环关系。
+- Currency 增加精度 `0..8`、基准货币必须启用及全库最多一个基准货币约束；币种代码在模型边界要求 2 至 10 位大写 ASCII 标识，基准货币查询只返回启用记录。
+- Exchange Rate 增加正汇率和源/目标币种不同的数据库约束；仓储 create/update 在保存前执行 `full_clean()`，停用币种、同币种、非正/非有限汇率不能绕过 serializer 进入数据库。
+- 金额转换只接受有限 Decimal，币种代码统一 trim/uppercase 并校验；最新汇率与转换查询不再使用停用币种。
+- 新增 `0036` migration，在加约束前只读审计既有分类、币种与汇率数据；发现冲突会给出明确违规类别并停止迁移，不静默删除或改写治理数据。
+- 数据库约束声明拆入独立 `classification_constraints.py`，原模型 owner 保持 340 行且新模块设置 80 行预算；删除过期 Django import/class ignore 与冗余 cast。
+
+## 第三百七十二批验证结果
+
+- Account 分类/汇率约束专项、完整 API edges、初始化命令、模型与仓储结构回归 `83 passed`。
+- `classification_models.py`、约束模块与相关仓储联合增量 mypy 清零；全仓基线从 `630 errors / 299 files` 收紧为 `624 errors / 298 files`，净减少 `6 errors / 1 file`。
+- Account migration drift、migration plan、Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
