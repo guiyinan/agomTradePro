@@ -444,7 +444,14 @@ class DataConnectionTester:
 
             # Check signals by regime match
             regime_matched = summary["regime_matched_count"]
-            if regime_matched > 0:
+            if not summary["regime_match_available"]:
+                self.log_result(
+                    "Signal",
+                    "Regime匹配",
+                    "warning",
+                    "Regime 匹配证据不可用：信号模型未记录匹配分数",
+                )
+            elif regime_matched > 0:
                 self.log_result(
                     "Signal",
                     "Regime匹配",

@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+from django.db.models import Count, Q
 
+from apps.signal.domain.diagnostics import (
+    RecentSignalDiagnostic,
+    SignalDiagnosticSummary,
+)
+from apps.signal.domain.entities import SignalStatus
 from apps.signal.infrastructure.models import InvestmentSignalModel
 
 
@@ -15,33 +20,60 @@ class SignalDiagnosticRepository:
 
         return int(InvestmentSignalModel.objects.count())
 
-    def get_signal_summary(self, *, recent_limit: int = 5) -> dict[str, Any]:
-        """Return status counts, recent signals, and regime match count."""
+    def get_signal_summary(self, *, recent_limit: int = 5) -> SignalDiagnosticSummary:
+        """Return truthful status counts and bounded recent signal evidence."""
 
-        all_signals = InvestmentSignalModel.objects.all()
-        recent_signals = [
-            {
-                "asset_code": signal.asset_code,
-                "direction": signal.direction,
-                "status": signal.status,
-                "created_at": signal.created_at,
-            }
-            for signal in all_signals.order_by("-created_at")[:recent_limit]
-        ]
-        regime_matched_count = 0
-        if any(
-            field.name == "regime_match_score"
-            for field in InvestmentSignalModel._meta.get_fields()
+        if (
+            isinstance(recent_limit, bool)
+            or not isinstance(recent_limit, int)
+            or not 1 <= recent_limit <= 100
         ):
-            regime_matched_count = all_signals.filter(regime_match_score__gte=0.7).count()
+            raise ValueError("recent_limit must be an integer from 1 to 100")
+
+        all_signals = InvestmentSignalModel._default_manager.all()
+        counts = all_signals.aggregate(
+            total_count=Count("id"),
+            active_count=Count(
+                "id",
+                filter=Q(status=SignalStatus.APPROVED.value),
+            ),
+            invalidated_count=Count(
+                "id",
+                filter=Q(status=SignalStatus.INVALIDATED.value),
+            ),
+            closed_count=Count(
+                "id",
+                filter=Q(
+                    status__in=(
+                        SignalStatus.REJECTED.value,
+                        SignalStatus.EXPIRED.value,
+                    )
+                ),
+            ),
+        )
+        recent_signals: list[RecentSignalDiagnostic] = [
+            RecentSignalDiagnostic(
+                asset_code=signal.asset_code,
+                direction=signal.direction,
+                status=signal.status,
+                created_at=signal.created_at,
+            )
+            for signal in all_signals.only(
+                "asset_code",
+                "direction",
+                "status",
+                "created_at",
+            ).order_by("-created_at")[:recent_limit]
+        ]
 
         return {
-            "total_count": all_signals.count(),
-            "active_count": all_signals.filter(status="active").count(),
-            "invalidated_count": all_signals.filter(status="invalidated").count(),
-            "closed_count": all_signals.filter(status="closed").count(),
+            "total_count": counts["total_count"],
+            "active_count": counts["active_count"],
+            "invalidated_count": counts["invalidated_count"],
+            "closed_count": counts["closed_count"],
             "recent_signals": recent_signals,
-            "regime_matched_count": regime_matched_count,
+            "regime_match_available": False,
+            "regime_matched_count": 0,
         }
 
     def list_distinct_asset_codes(self) -> list[str]:

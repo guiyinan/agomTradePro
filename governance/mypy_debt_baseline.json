@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 658,
-    "files_with_errors": 310
+    "errors": 657,
+    "files_with_errors": 309
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -859,9 +859,6 @@
     },
     "apps/share/infrastructure/models.py": {
       "no-untyped-def": 7
-    },
-    "apps/signal/infrastructure/diagnostic_queries.py": {
-      "misc": 1
     },
     "apps/signal/interface/admin.py": {
       "type-arg": 1

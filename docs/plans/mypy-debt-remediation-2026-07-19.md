@@ -5547,3 +5547,19 @@
 - Asset Analysis unit/domain/API、fund/equity 集成、日志与 Classic 路由兼容扩展回归 `172 passed`。
 - Domain entity、Application interface service、AppConfig 与 page URL 四个剩余债务文件在增量 mypy 口径清零，Asset Analysis 模块退出全仓债务清单；基线从 `667 errors / 314 files` 收紧为 `658 errors / 310 files`，净减少 `9 errors / 4 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百六十三批
+
+- 按“Signal 诊断查询不存在字段 × 已失效状态口径 × 不可用证据伪装成零”收口投资信号运维汇总。
+- 删除对模型从未定义的 `regime_match_score` 动态字段探测与 ORM filter；诊断查询不再依赖 mypy 无法验证、运行时永远不可达的字段分支。
+- 状态统计改用正式 `SignalStatus`：`approved` 计为活跃，`invalidated` 单独统计，`rejected/expired` 计为关闭；不再查询模型 choices 中不存在的 `active/closed` 并长期返回假零。
+- 总数和三类状态计数使用单次条件聚合，最近信号使用受控 `only + order_by + slice`，完整汇总固定为两条查询；`recent_limit` 必须为非布尔 `1..100` 整数并在任何查询前拒绝。
+- 新增 Domain `SignalDiagnosticSummary`/`RecentSignalDiagnostic` TypedDict，Infrastructure、Application 与运维命令共享精确合同。
+- 当前模型没有持久化 Regime 匹配分数时显式发布 `regime_match_available=false`；数据连接命令显示“匹配证据不可用”，不再把不可测量状态描述成“暂无匹配信号”。
+- 新增真实状态聚合、固定查询数、非法 limit 零查询和运维文案真实性回归。
+
+## 第三百六十三批验证结果
+
+- Signal 全量单元与数据连接命令扩展回归 `134 passed`。
+- `apps/signal/infrastructure/diagnostic_queries.py` 在增量 mypy 口径清零；全仓基线从 `658 errors / 310 files` 收紧为 `657 errors / 309 files`，净减少 `1 error / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

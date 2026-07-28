@@ -18,6 +18,7 @@ from apps.signal.application.repository_provider import (
     UnifiedSignalRepository,
     get_signal_diagnostic_repository,
 )
+from apps.signal.domain.diagnostics import SignalDiagnosticSummary
 from apps.signal.domain.entities import SignalStatus
 from apps.signal.domain.rules import check_eligibility
 
@@ -502,7 +503,7 @@ def get_signal_diagnostic_count() -> int:
     return get_signal_diagnostic_repository().get_signal_count()
 
 
-def get_signal_diagnostic_summary() -> dict[str, Any]:
+def get_signal_diagnostic_summary() -> SignalDiagnosticSummary:
     """Return signal summary for operational diagnostics."""
 
     return get_signal_diagnostic_repository().get_signal_summary()
