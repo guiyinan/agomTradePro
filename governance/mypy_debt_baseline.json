@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 502,
-    "files_with_errors": 266
+    "errors": 497,
+    "files_with_errors": 264
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -261,12 +261,6 @@
     },
     "apps/dashboard/templatetags/dashboard_tags.py": {
       "no-untyped-def": 2
-    },
-    "apps/data_center/application/_market_thermometer_runtime.py": {
-      "no-any-return": 2
-    },
-    "apps/data_center/application/market_thermometer_sync.py": {
-      "no-untyped-def": 3
     },
     "apps/data_center/application/on_demand.py": {
       "no-any-return": 1,

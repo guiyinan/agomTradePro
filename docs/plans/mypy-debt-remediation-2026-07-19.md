@@ -6025,3 +6025,17 @@
 - AKShare Sector 适配器输入、清洗、批量隔离与异常脱敏专项 `7 passed`；Sector 单元、Domain、跨模块依赖、API 边界与集成扩展组合总计 `85 passed`。
 - `apps/sector/infrastructure/adapters/akshare_sector_adapter.py` 增量 mypy 清零并退出债务清单；全仓基线从 `507 errors / 267 files` 收紧为 `502 errors / 266 files`，净减少 `5 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP、费用执行链或部署实现，手工联网的 capital-market smoke test 未纳入自动回归。
+
+## 第三百九十三批
+
+- 按“市场温度计 provider 动态合同 × 线程返回值未收窄 × 上游异常正文进入审计/API”收口 Data Center 输入同步链。
+- 同步 UseCase 接入正式 `ProviderRegistryProtocol`，provider 配置与统一数据源使用精确 tuple 合同；解析单个 provider 与 provider 列表不再返回隐式 Any。
+- provider 线程调用改为泛型成功/失败结果对象，只允许真实 `Exception` 跨线程重抛，不再对动态 payload 执行 `raise`；超时统一发布稳定 `market_thermometer_provider_timeout`。
+- Macro、ETF 共识和市场新闻同步的可恢复错误只进入稳定 `market_thermometer_provider_failed`，数据库/数据源连接串、凭据和底层异常正文不再写入 RawAudit 或 API 结果。
+- legacy runtime facade 建立最小 Protocol；决策日期必须为 plain date，默认/分组件 timeout 必须是有限正数且不超过 300 秒，override 最多 50 项并返回脱离 facade 的精确副本。
+
+## 第三百九十三批验证结果
+
+- 市场温度计 provider fallback、timeout、异常脱敏和 runtime 配置边界专项 `31 passed`；Data Center 全单元、架构/反向依赖、Dashboard、市场温度计 API 与 Pulse API 扩展组合总计 `362 passed`。
+- `apps/data_center/application/_market_thermometer_runtime.py` 与 `apps/data_center/application/market_thermometer_sync.py` 增量 mypy 清零并退出债务清单；全仓基线从 `502 errors / 266 files` 收紧为 `497 errors / 264 files`，净减少 `5 errors / 2 files`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP、费用执行链或部署实现。

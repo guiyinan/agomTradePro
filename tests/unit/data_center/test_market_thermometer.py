@@ -6,6 +6,9 @@ import time
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 
+import pytest
+
+from apps.data_center.application import _market_thermometer_runtime
 from apps.data_center.application import market_thermometer as market_thermometer_module
 from apps.data_center.application.market_thermometer import (
     CalculateMarketThermometerUseCase,
@@ -233,6 +236,21 @@ class _UnavailableProvider:
         raise DataSourceUnavailableError("provider unavailable")
 
 
+class _SecretUnavailableProvider(_UnavailableProvider):
+    def fetch_macro_series(
+        self,
+        indicator_code: str,
+        start: date,
+        end: date,
+    ) -> list[MacroFact]:
+        del indicator_code, start, end
+        raise DataSourceUnavailableError("postgresql://admin:raw-secret@example.test/market")
+
+    def fetch_news(self, query: str, limit: int = 200):
+        del query, limit
+        raise DataSourceUnavailableError("postgresql://admin:raw-secret@example.test/market")
+
+
 class _WindowAwareProvider:
     def __init__(self) -> None:
         self.requests: list[tuple[str, date, date]] = []
@@ -403,9 +421,72 @@ def test_sync_market_thermometer_inputs_times_out_slow_provider_and_continues(mo
 
     turnover_results = [item for item in payload["results"] if item["component"] == "turnover"]
     assert turnover_results[0]["status"] == "error"
-    assert "timed out" in turnover_results[0]["error"]
+    assert turnover_results[0]["error"] == "market_thermometer_provider_timeout"
     assert turnover_results[1]["status"] == "success"
     assert turnover_results[1]["provider"] == "Tushare Pro"
+
+
+def test_sync_market_thermometer_inputs_redacts_provider_error_details() -> None:
+    raw_audit_repo = _FakeRawAuditRepo()
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
+        provider_registry=_FakeProviderFactory(providers={1: _SecretUnavailableProvider()}),
+        macro_repo=_FakeMacroRepo(series_map={}),
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=raw_audit_repo,
+        macro_normalizer=_FakeMacroNormalizer(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 5, 19))
+
+    assert "raw-secret" not in str(payload)
+    assert "postgresql://" not in str(payload)
+    error_results = [item for item in payload["results"] if item["status"] == "error"]
+    assert error_results
+    assert {item["error"] for item in error_results} == {"market_thermometer_provider_failed"}
+    audit_errors = [
+        getattr(row, "error_message", "")
+        for row in raw_audit_repo.rows
+        if getattr(row, "status", "") == "error"
+    ]
+    assert audit_errors
+    assert set(audit_errors) == {"market_thermometer_provider_failed"}
+
+
+def test_market_thermometer_runtime_rejects_non_date_facade_result(monkeypatch) -> None:
+    facade = type(
+        "InvalidDateFacade",
+        (),
+        {
+            "MARKET_THERMOMETER_PROVIDER_TIMEOUT_SECONDS": 4.0,
+            "MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES": {},
+            "resolve_market_thermometer_as_of_date": staticmethod(
+                lambda raw_as_of_date="", **kwargs: datetime(2026, 5, 19, tzinfo=UTC)
+            ),
+        },
+    )()
+    monkeypatch.setattr(_market_thermometer_runtime, "_FACADE", facade)
+
+    with pytest.raises(TypeError, match="market_thermometer_as_of_date_invalid"):
+        _market_thermometer_runtime.resolve_as_of_date()
+
+
+def test_market_thermometer_runtime_rejects_nonfinite_timeout_override(monkeypatch) -> None:
+    facade = type(
+        "InvalidTimeoutFacade",
+        (),
+        {
+            "MARKET_THERMOMETER_PROVIDER_TIMEOUT_SECONDS": 4.0,
+            "MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES": {"turnover": float("inf")},
+        },
+    )()
+    monkeypatch.setattr(_market_thermometer_runtime, "_FACADE", facade)
+
+    with pytest.raises(
+        ValueError,
+        match="market_thermometer_provider_timeout_overrides_invalid",
+    ):
+        _market_thermometer_runtime.provider_timeout_overrides()
 
 
 def test_sync_market_thermometer_inputs_applies_etf_timeout_override(monkeypatch):

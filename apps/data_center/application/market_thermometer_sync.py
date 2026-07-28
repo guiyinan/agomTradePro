@@ -6,17 +6,20 @@ import dataclasses
 import queue
 import threading
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from functools import partial
-from typing import Any
+from typing import Any, Generic, TypeVar
 
-from apps.data_center.domain.entities import MacroFact, RawAudit
+from apps.data_center.domain.entities import MacroFact, ProviderConfig, RawAudit
 from apps.data_center.domain.enums import DataQualityStatus
 from apps.data_center.domain.protocols import (
     MacroFactRepositoryProtocol,
     NewsRepositoryProtocol,
     ProviderConfigRepositoryProtocol,
+    ProviderRegistryProtocol,
     RawAuditRepositoryProtocol,
+    UnifiedDataProviderProtocol,
 )
 
 from ._market_thermometer_runtime import (
@@ -69,23 +72,43 @@ def _is_recoverable_thermometer_exception(exc: Exception) -> bool:
     )
 
 
+_ProviderResult = TypeVar("_ProviderResult")
+
+
+@dataclass(frozen=True)
+class _ProviderCallSuccess(Generic[_ProviderResult]):
+    value: _ProviderResult
+
+
+@dataclass(frozen=True)
+class _ProviderCallFailure:
+    error: Exception
+
+
+def _provider_failure_code(exc: Exception) -> str:
+    if isinstance(exc, TimeoutError):
+        return "market_thermometer_provider_timeout"
+    return "market_thermometer_provider_failed"
+
+
 def _run_market_thermometer_provider_call(
-    fetcher: Callable[[], Any],
+    fetcher: Callable[[], _ProviderResult],
     *,
-    provider_name: str,
     capability: str,
     timeout_seconds: float | None = None,
-) -> Any:
+) -> _ProviderResult:
     """Run one provider call with a bounded wait so sync jobs degrade quickly."""
 
     timeout = timeout_seconds if timeout_seconds is not None else provider_timeout_seconds()
-    result_queue: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
+    result_queue: queue.Queue[_ProviderCallSuccess[_ProviderResult] | _ProviderCallFailure] = (
+        queue.Queue(maxsize=1)
+    )
 
     def _worker() -> None:
         try:
-            result_queue.put(("ok", fetcher()))
+            result_queue.put(_ProviderCallSuccess(fetcher()))
         except Exception as exc:
-            result_queue.put(("err", exc))
+            result_queue.put(_ProviderCallFailure(exc))
 
     thread = threading.Thread(
         target=_worker,
@@ -95,13 +118,13 @@ def _run_market_thermometer_provider_call(
     thread.start()
 
     try:
-        status, payload = result_queue.get(timeout=timeout)
+        outcome = result_queue.get(timeout=timeout)
     except queue.Empty as exc:
-        raise TimeoutError(f"{provider_name} {capability} timed out after {timeout:.1f}s") from exc
+        raise TimeoutError("market_thermometer_provider_timeout") from exc
 
-    if status == "err":
-        raise payload
-    return payload
+    if isinstance(outcome, _ProviderCallFailure):
+        raise outcome.error
+    return outcome.value
 
 
 class SyncMarketThermometerInputsUseCase:
@@ -110,7 +133,7 @@ class SyncMarketThermometerInputsUseCase:
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_registry,
+        provider_registry: ProviderRegistryProtocol,
         macro_repo: MacroFactRepositoryProtocol,
         news_repo: NewsRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
@@ -161,7 +184,6 @@ class SyncMarketThermometerInputsUseCase:
                     )
                     facts = _run_market_thermometer_provider_call(
                         fetch_macro_series,
-                        provider_name=provider_name,
                         capability=f"{component_key}_macro_sync",
                         timeout_seconds=timeout_seconds,
                     )
@@ -230,7 +252,7 @@ class SyncMarketThermometerInputsUseCase:
                             },
                             status="error",
                             row_count=0,
-                            error_message=str(exc),
+                            error_message=_provider_failure_code(exc),
                         )
                     )
                     results.append(
@@ -239,7 +261,7 @@ class SyncMarketThermometerInputsUseCase:
                             "provider": provider_name,
                             "stored_count": 0,
                             "status": "error",
-                            "error": str(exc),
+                            "error": _provider_failure_code(exc),
                         }
                     )
 
@@ -250,7 +272,6 @@ class SyncMarketThermometerInputsUseCase:
             try:
                 news_items = _run_market_thermometer_provider_call(
                     lambda: provider.fetch_news("", limit=200),
-                    provider_name=provider_name,
                     capability="market_news_sync",
                 )
                 normalized_news = [
@@ -355,7 +376,7 @@ class SyncMarketThermometerInputsUseCase:
                         request_params={"date": target_date.isoformat(), "asset_code": ""},
                         status="error",
                         row_count=0,
-                        error_message=str(exc),
+                        error_message=_provider_failure_code(exc),
                     )
                 )
                 results.append(
@@ -364,7 +385,7 @@ class SyncMarketThermometerInputsUseCase:
                         "provider": provider_name,
                         "stored_count": 0,
                         "status": "error",
-                        "error": str(exc),
+                        "error": _provider_failure_code(exc),
                     }
                 )
 
@@ -377,7 +398,7 @@ class SyncMarketThermometerInputsUseCase:
         spec: dict[str, Any],
         start_date: date,
         end_date: date,
-        providers: list[tuple[Any, Any]],
+        providers: list[tuple[ProviderConfig, UnifiedDataProviderProtocol]],
     ) -> list[dict[str, Any]]:
         """Sync canonical ETF flow from main-flow sources, then size-flow proxy fallback."""
 
@@ -428,7 +449,7 @@ class SyncMarketThermometerInputsUseCase:
         spec: dict[str, Any],
         start_date: date,
         end_date: date,
-        providers: list[tuple[Any, Any]],
+        providers: list[tuple[ProviderConfig, UnifiedDataProviderProtocol]],
         indicator_code: str | None = None,
         output_indicator_code: str | None = None,
         consensus_extra: dict[str, Any] | None = None,
@@ -450,7 +471,6 @@ class SyncMarketThermometerInputsUseCase:
                 )
                 facts = _run_market_thermometer_provider_call(
                     fetch_macro_series,
-                    provider_name=provider_name,
                     capability=f"{component_key}_verified_sync",
                     timeout_seconds=timeout_seconds,
                 )
@@ -533,7 +553,7 @@ class SyncMarketThermometerInputsUseCase:
                         },
                         status="error",
                         row_count=0,
-                        error_message=str(exc),
+                        error_message=_provider_failure_code(exc),
                     )
                 )
                 results.append(
@@ -542,7 +562,7 @@ class SyncMarketThermometerInputsUseCase:
                         "provider": provider_name,
                         "stored_count": 0,
                         "status": "error",
-                        "error": str(exc),
+                        "error": _provider_failure_code(exc),
                     }
                 )
 
@@ -677,20 +697,26 @@ class SyncMarketThermometerInputsUseCase:
             return target_date - timedelta(days=7), target_date
         return target_date, target_date
 
-    def _resolve_provider(self, source_types: tuple[str, ...]):
+    def _resolve_provider(
+        self,
+        source_types: tuple[str, ...],
+    ) -> tuple[ProviderConfig, UnifiedDataProviderProtocol] | None:
         resolved = self._resolve_providers(source_types)
         if not resolved:
             return None
         return resolved[0]
 
-    def _resolve_providers(self, source_types: tuple[str, ...]):
+    def _resolve_providers(
+        self,
+        source_types: tuple[str, ...],
+    ) -> list[tuple[ProviderConfig, UnifiedDataProviderProtocol]]:
         providers = [
             provider
             for provider in self._provider_repo.list_all()
             if provider.is_active and provider.source_type in source_types
         ]
         providers.sort(key=lambda item: (source_types.index(item.source_type), item.priority))
-        resolved = []
+        resolved: list[tuple[ProviderConfig, UnifiedDataProviderProtocol]] = []
         for config in providers:
             provider = self._provider_registry.get_by_id(int(config.id or 0))
             if provider is not None:
