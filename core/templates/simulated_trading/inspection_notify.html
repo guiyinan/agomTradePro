@@ -3,6 +3,7 @@
 {% block title %}巡检邮件通知配置 - {{ account.account_name }}{% endblock %}
 
 {% block content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="execution.accounts" action_key="simulated-trading.inspection-notification" %}
 <div class="notify-container">
     <div class="header-row">
         <div>

@@ -25,6 +25,17 @@
     <p class="subtitle">通过运营页面维护 AI 提供商配置（无需 Django Admin）</p>
 </div>
 
+<div style="margin-bottom:18px; padding:14px 16px; border:1px solid #93c5fd; border-radius:14px; background:#eff6ff; color:#1e3a8a;">
+    <strong>迁移提示：</strong>
+    服务商配置维护已迁入 TUI，API Key 会以密码字段处理并在提交前要求确认。
+    {% if provider.scope == "user" %}
+    <a href="/tui/?screen=ai-ops.providers&amp;action=ai-ops.update-my-provider&amp;provider_id={{ provider.id }}" style="color:#1d4ed8; font-weight:700;">打开我的服务商配置</a>。
+    {% else %}
+    <a href="/tui/?screen=ai-ops.system-providers&amp;action=ai-ops.update-system-provider&amp;provider_id={{ provider.id }}" style="color:#1d4ed8; font-weight:700;">打开系统服务商配置</a>。
+    {% endif %}
+    当前 Classic 页面仅在兼容期内保留。
+</div>
+
 <div class="section">
     <div class="card">
         <form method="post">

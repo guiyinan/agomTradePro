@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container py-4">
+    {% include "components/classic_tui_migration_banner.html" with screen_key="execution.audit" action_key="audit.decision-trace-list" %}
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h1 class="h3 mb-0">{{ page_title }}</h1>
         <div class="d-flex gap-2">

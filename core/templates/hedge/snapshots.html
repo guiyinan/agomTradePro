@@ -4,6 +4,7 @@
 {% block hedge_page_title %}对冲快照{% endblock %}
 
 {% block hedge_content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="macro-regime.strategy" action_key="hedge.snapshot-list" %}
 <!-- 统计卡片 -->
 <div class="hedge-stats-row">
     <div class="hedge-stat-card">

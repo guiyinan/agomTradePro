@@ -3,6 +3,11 @@
 {% block title %}设置中心 - AgomTradePro{% endblock %}
 
 {% block content %}
+{% if request.user.is_staff or request.user.is_superuser %}
+    {% include "components/classic_tui_migration_banner.html" with screen_key="api-library.data-center" %}
+{% else %}
+    {% include "components/classic_tui_migration_banner.html" with screen_key="account.self-service" %}
+{% endif %}
 <div style="max-width: 1320px; margin: 0 auto; padding: 24px;">
     <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; margin-bottom: 20px;">
         <div>

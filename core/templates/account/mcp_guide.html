@@ -259,6 +259,13 @@
 
 {% block content %}
 <div class="mcp-guide">
+    <div class="mcp-banner" role="status">
+        <strong>此经典页面已进入兼容期。</strong>
+        日常 MCP 接入、Token 创建/撤销、Endpoint 与 Prompt 复制请使用
+        <a href="/tui/?screen=capability-router.self-service">TUI「MCP 自助接入」</a>。
+        当前页暂时保留，用于承接旧书签以及展示从旧表单刚创建、仅能查看一次的 Token；
+        后续将按迁移计划下线。
+    </div>
     <section class="mcp-hero">
         <h1>MCP 接入说明</h1>
         <p>把当前账户可用的 MCP / SDK 接入参数集中到一个页面，直接复制给 Codex、Claude Code 或其他支持 MCP 的 Agent 即可使用。</p>

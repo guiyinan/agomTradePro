@@ -60,6 +60,11 @@
 .success-banner { background: #d1fae5; color: #065f46; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; }
 </style>
 
+<div role="status" style="margin: 0 auto 16px; max-width: 1200px; padding: 12px 16px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a;">
+    Alpha 触发器编辑已迁入 TUI。
+    <a href="/tui/?screen=research.signals&amp;action=alpha-trigger.update&amp;params=%7B%22trigger_id%22%3A%22{{ trigger.trigger_id|urlencode }}%22%7D" style="color:#1d4ed8; font-weight:700;">在 TUI 中编辑此触发器</a>。
+    当前 Classic 页面仅在兼容期内保留。
+</div>
 <div class="edit-container">
     <!-- 面包屑 -->
     <div class="breadcrumb">

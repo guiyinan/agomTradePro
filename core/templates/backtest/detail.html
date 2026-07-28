@@ -8,6 +8,11 @@
 {% endblock %}
 
 {% block content %}
+<div role="status" style="margin: 0 auto 16px; max-width: 1200px; padding: 12px 16px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a;">
+    回测详情与应用持仓任务已迁入 TUI。
+    <a href="/tui/?screen=research.asset-lab&amp;action=backtest.detail&amp;pk={{ backtest.id }}" style="color:#1d4ed8; font-weight:700;">打开此回测的 TUI 详情</a>。
+    当前 Classic 页面仅在兼容期内保留。
+</div>
 <div class="backtest-detail-container">
     <div class="detail-header">
         <h1>{{ backtest.name }}</h1>

@@ -5,6 +5,7 @@
 {% block subtitle %}生产覆盖 universe 口径与阈值{% endblock %}
 
 {% block content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="api-library.data-center" action_key="data-center.universe-config" %}
 <section class="section">
     <h2>生产覆盖 Universe 配置</h2>
     <p class="lead">这里配置 readiness 和生产覆盖诊断使用的股票池口径。默认是全 A 股 active 股票，包含上交所、深交所、北交所。</p>

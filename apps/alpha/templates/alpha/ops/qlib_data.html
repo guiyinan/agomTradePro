@@ -9,6 +9,11 @@
 
 {% block content %}
 {% now "Y-m-d" as today_iso %}
+<div role="status" style="margin: 0 auto 16px; max-width: 1440px; padding: 12px 16px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a;">
+    Qlib 数据运维任务已迁入 TUI。
+    <a href="/tui/?screen=research.signals&amp;action=auto.api.get.api.alpha.ops.qlib-data.overview" style="color:#1d4ed8; font-weight:700;">打开 Qlib 数据概览</a>。
+    当前 Classic 管理员页面仅在兼容期内保留。
+</div>
 <div class="admin-shell admin-shell--wide">
     <div class="admin-shell__hero">
         <div class="admin-shell__lead">

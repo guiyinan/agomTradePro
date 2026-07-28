@@ -3,6 +3,7 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="api-library.data-center" action_key="data-center.market-thermometer-current" %}
 <section class="hero">
     <div>
         <h1>Market Thermometer</h1>

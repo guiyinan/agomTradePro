@@ -4,6 +4,7 @@
 {% block title %}账户交易记录 - {{ account.account_name }} - AgomTradePro{% endblock %}
 
 {% block content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="execution.accounts" action_key="simulated-trading.trades" %}
 <div class="account-container">
     <div class="account-header">
         <div class="header-title-row">
