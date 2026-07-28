@@ -5923,3 +5923,16 @@
 - Terminal 命令执行安全专项 `22 passed`；既有 Terminal 治理、API、边界与查询服务组合 `91 passed`；TUI Workbench、Terminal Agent、SDK client 与内部 SSL redirect 固定高风险回归包 `236 passed`。
 - `apps/terminal/application/services.py` 与 `apps/terminal/application/use_cases.py` 增量 mypy 清零并退出债务清单；精确协议同时清除 AI Capability gateway 与 Terminal interface service 的最后债务，全仓基线从 `557 errors / 283 files` 收紧为 `546 errors / 279 files`，净减少 `11 errors / 4 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/SDK/MCP/部署实现或 Terminal 对外成功响应结构。
+
+## 第三百八十六批
+
+- 按“Terminal 审批/审计权限动态 truthy 提权 × DRF 用户边界无合同”收口 Terminal permission classes。
+- `IsStaffOrAdmin` 与 `IsStaffOrOperator` 只接受真实布尔 `is_authenticated/is_staff/is_superuser`；字符串 `"false"`、数字和其他 truthy 动态值不再获得 staff、superuser 或 operator 权限。
+- operator 访问继续以正式 Django `operator` Group 为真源，但 membership `exists()` 必须返回真实 `True`；异常动态返回不能伪装组成员。匿名和普通用户保持失败关闭。
+- DRF request/view、用户标志及 group membership manager/query 建立最小 Protocol，权限判断不再传播 Any 或依赖无类型 handler。
+
+## 第三百八十六批验证结果
+
+- Terminal permission 专项 `7 passed`；审批端点、staff-only 审计端点、TUI Workbench、Terminal Agent、SDK client 与内部 SSL redirect 扩展回归合计 `268 passed`。
+- `apps/terminal/interface/permissions.py` 增量 mypy 清零并退出债务清单；全仓基线从 `546 errors / 279 files` 收紧为 `543 errors / 278 files`，净减少 `3 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/SDK/MCP/部署实现或 Terminal 权限角色口径。
