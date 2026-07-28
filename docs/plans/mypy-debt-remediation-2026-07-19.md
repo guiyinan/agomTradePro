@@ -5874,3 +5874,20 @@
 - Audit Unit、Application、Domain、Component、Integration 与 API 全链回归 `378 passed`；精确 enrichment 最终消费端追加回归 `42 passed`。
 - `apps/audit/infrastructure/attribution_repositories.py` 与五个生产消费点联合增量 mypy 清零；Attribution Repository 退出债务清单，全仓基线从 `577 errors / 288 files` 收紧为 `571 errors / 287 files`，净减少 `6 errors / 1 file`。
 - Migration drift、Audit migration plan、Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百八十三批
+
+- 按“字符串 staff 标志可提权 × 伪造 roles 进入 MCP 审计/环境 × 动态异常与结果污染执行证据”收口已批准 MCP 提案执行器。
+- 执行前必须提供 string-keyed actor mapping、正整数 user ID、真实 bool `is_staff` 和有界单行 username；`"false"`、bool ID、零负 ID、CRLF username 与匿名 actor 在任何环境变量或 MCP I/O 前拒绝。
+- trusted MCP role 只由严格 `is_staff` 派生为 `admin/read_only`，不再信任调用方传入的 roles；同一角色同时进入 scoped environment、Django SDK transport 与 Audit context，消除权限与审计身份错配。
+- proposal payload 只允许 capability key、arguments 和既有 session ID 字段；capability key 使用受控 slug，arguments 必须为 string-keyed、有限、可 JSON 序列化且不超过 256 KiB 的对象。未知字段、路径片段、NaN/Inf、非 object 或超大参数不进入 MCP。
+- stage/resume envelope 必须为有限 JSON object 且总量不超过 1 MiB；confirmation token 限制为 1..4096 位受控字符。非有限结果不能写入 Agent execution evidence。
+- MCP 错误只向上游发布受控 error code，error message、数据库/Redis URL 和凭据正文不再进入 execution failure；动态 transport/import/audit sink 异常统一降级为稳定 `mcp_execution_transport_failed`。
+- embedded MCP 环境变量继续在全局锁内设置并在成功/异常后恢复；内部认证 secret 类型异常、Audit sink 失败与异常 log ID 均使用稳定错误码。
+- SDK/MCP 动态 import 改为 importlib 边界加精确 context-manager callable，两个 import-untyped 与两个无类型函数债务清零。
+
+## 第三百八十三批验证结果
+
+- MCP executor 安全专项 `17 passed`；Terminal/TUI/MCP/SDK/SSL 高风险最小回归包 `274 passed`，覆盖本地无 HTTP stage/resume、audit sink、审批 API、Workbench、Terminal Agent 与 SDK client。
+- `apps/agent_runtime/infrastructure/mcp_proposal_executor.py` 增量 mypy 清零并退出债务清单；全仓基线从 `571 errors / 287 files` 收紧为 `567 errors / 286 files`，净减少 `4 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 TUI/Terminal/SDK/MCP 对外契约或部署实现。

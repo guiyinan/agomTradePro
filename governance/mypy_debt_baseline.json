@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 571,
-    "files_with_errors": 287
+    "errors": 567,
+    "files_with_errors": 286
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -85,10 +85,6 @@
     },
     "apps/agent_runtime/apps.py": {
       "no-untyped-def": 1
-    },
-    "apps/agent_runtime/infrastructure/mcp_proposal_executor.py": {
-      "import-untyped": 2,
-      "no-untyped-def": 2
     },
     "apps/agent_runtime/infrastructure/repositories.py": {
       "misc": 2
