@@ -27,7 +27,6 @@ from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
 
 from ..application.dtos import (
-    CapabilitySummaryDTO,
     RouteRequestDTO,
     RouteResponseDTO,
 )
@@ -43,11 +42,17 @@ from ..domain.interfaces import ConfirmationCodecProtocol
 from ..domain.services import (
     CapabilityFilter,
     CapabilityParameterPolicy,
-    CapabilityRetrievalScorer,
-    CapabilitySemanticDeduper,
-    RetrievalScore,
 )
 from . import sync_use_cases as _sync_use_cases
+from .catalog_query_use_cases import (
+    GetCapabilityDetailUseCase,
+    GetCapabilityListUseCase,
+    GetCatalogStatsUseCase,
+)
+from .catalog_routing_services import (
+    CapabilityRegistryService,
+    CapabilityRetrievalService,
+)
 from .mcp_runtime_gateway import call_sdk_mcp_tool as _call_sdk_mcp_tool
 from .result_enrichment import enrich_security_names
 from .terminal_gateway import get_terminal_capability_gateway
@@ -121,12 +126,8 @@ class SyncCapabilitiesUseCase(_sync_use_cases.SyncCapabilitiesUseCase):
     """Compatibility wrapper for tests and callers patching the legacy module path."""
 
     def _sync_mcp_tools(self) -> list[CapabilityDefinition]:
-        original_manifest_loader = _read_sync_loader(
-            "_list_sdk_mcp_capability_manifests"
-        )
-        original_core_names_loader = _read_sync_loader(
-            "_list_sdk_mcp_core_tool_names"
-        )
+        original_manifest_loader = _read_sync_loader("_list_sdk_mcp_capability_manifests")
+        original_core_names_loader = _read_sync_loader("_list_sdk_mcp_core_tool_names")
         original_tools_loader = _read_sync_loader("_list_sdk_mcp_tools")
         try:
             _write_sync_loader(
@@ -196,56 +197,6 @@ def _get_fallback_chat_system_prompt() -> str:
     settings_data = get_terminal_capability_gateway().get_runtime_settings()
     custom_prompt = str(settings_data.get("fallback_chat_system_prompt", "") or "").strip()
     return custom_prompt or _DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT
-
-
-class CapabilityRegistryService:
-    """System-level capability registry service."""
-
-    def __init__(
-        self,
-        capability_repo: DjangoCapabilityRepository | None = None,
-        filter_service: CapabilityFilter | None = None,
-    ):
-        self.capability_repo = capability_repo or DjangoCapabilityRepository()
-        self.filter_service = filter_service or CapabilityFilter()
-        self.semantic_deduper = CapabilitySemanticDeduper()
-
-    def get_routable_capabilities(self, context: RoutingContext) -> list[CapabilityDefinition]:
-        capabilities = self.capability_repo.get_all_for_routing()
-        filtered = self.filter_service.filter_by_context(capabilities, context)
-        return self._apply_entrypoint_source_policy(filtered, context)
-
-    def _apply_entrypoint_source_policy(
-        self,
-        capabilities: list[CapabilityDefinition],
-        context: RoutingContext,
-    ) -> list[CapabilityDefinition]:
-        """Apply entrypoint-specific source preference and MCP de-dup policy."""
-        deduped = self.semantic_deduper.deduplicate(
-            capabilities,
-            entrypoint=context.entrypoint,
-        )
-        if context.entrypoint in {"web", "chat"}:
-            non_mcp = [cap for cap in deduped if cap.source_type != SourceType.MCP_TOOL]
-            if non_mcp:
-                return non_mcp
-            return []
-        return deduped
-
-
-class CapabilityRetrievalService:
-    """Deterministic capability retrieval service."""
-
-    def __init__(self, scorer: CapabilityRetrievalScorer | None = None):
-        self.scorer = scorer or CapabilityRetrievalScorer()
-
-    def retrieve(
-        self,
-        capabilities: list[CapabilityDefinition],
-        message: str,
-        k: int,
-    ) -> list[RetrievalScore]:
-        return self.scorer.retrieve_top_k(capabilities, message, k=k)
 
 
 class CapabilityDecisionService:
@@ -1323,74 +1274,6 @@ class RouteMessageUseCase:
             confirmation=confirmation,
             result=decision.result,
         )
-
-
-class GetCapabilityListUseCase:
-    """Use case for getting capability list."""
-
-    def __init__(
-        self,
-        capability_repo: DjangoCapabilityRepository | None = None,
-    ):
-        self.capability_repo = capability_repo or DjangoCapabilityRepository()
-
-    def execute(
-        self,
-        source_type: str | None = None,
-        route_group: str | None = None,
-        category: str | None = None,
-        enabled_only: bool = True,
-    ) -> list[CapabilitySummaryDTO]:
-        """Get list of capabilities."""
-        capabilities = self.capability_repo.list_capabilities(
-            source_type=source_type,
-            route_group=route_group,
-            category=category,
-            enabled_only=enabled_only,
-        )
-
-        return [
-            CapabilitySummaryDTO(
-                capability_key=cap.capability_key,
-                name=cap.name,
-                summary=cap.summary,
-                source_type=cap.source_type.value,
-                route_group=cap.route_group.value,
-                category=cap.category,
-                risk_level=cap.risk_level.value,
-                enabled_for_routing=cap.enabled_for_routing,
-                requires_confirmation=cap.requires_confirmation,
-            )
-            for cap in capabilities
-        ]
-
-
-class GetCapabilityDetailUseCase:
-    """Use case for getting a capability by key."""
-
-    def __init__(
-        self,
-        capability_repo: DjangoCapabilityRepository | None = None,
-    ):
-        self.capability_repo = capability_repo or DjangoCapabilityRepository()
-
-    def execute(self, capability_key: str) -> CapabilityDefinition | None:
-        """Get a single capability definition."""
-        return self.capability_repo.get_by_key(capability_key)
-
-
-class GetCatalogStatsUseCase:
-    """Use case for fetching catalog statistics."""
-
-    def __init__(
-        self,
-        capability_repo: DjangoCapabilityRepository | None = None,
-    ):
-        self.capability_repo = capability_repo or DjangoCapabilityRepository()
-
-    def execute(self) -> dict[str, Any]:
-        """Get catalog statistics."""
-        return self.capability_repo.get_stats()
 
 
 __all__ = [
