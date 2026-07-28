@@ -135,7 +135,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [web-to-tui-migration-plan-2026-07-25.md](plans/web-to-tui-migration-plan-2026-07-25.md) | **Web 界面 → TUI 整体迁移计划（M0-M5，195 模板去向矩阵 / 图表样板 / web 保留清单）** | 实施中；M0-M4 实现完成，M5 兼容期计时中且当前禁止清理 Classic |
+| [web-to-tui-migration-plan-2026-07-25.md](plans/web-to-tui-migration-plan-2026-07-25.md) | **Web 界面 → TUI 整体迁移计划（M0-M5，195 模板去向矩阵 / 图表样板 / web 保留清单）** | 实施中；M0-M4 实现完成，M5 候选尚未部署、观察未开始，当前禁止清理 Classic |
 | [web-to-tui-m0-evidence-2026-07-26.md](plans/web-to-tui-m0-evidence-2026-07-26.md) | **Web → TUI M0/M0-D 证据（195 模板矩阵、7 个死模板清理、冻结门与双端基线）** | ✅ M0/M0-D 已完成 |
 | [web-to-tui-m1-chart-evidence-2026-07-26.md](plans/web-to-tui-m1-chart-evidence-2026-07-26.md) | **Web → TUI M1 图表样板证据（portable chart 契约、多序列/采样/可访问性、双端门禁）** | ✅ M1 已完成 |
 | [web-to-tui-m2-account-evidence-2026-07-26.md](plans/web-to-tui-m2-account-evidence-2026-07-26.md) | **Web → TUI M2 Account Waves 证据（MCP 自助/治理、用户准入、权限与写后回执）** | ✅ M2 Account waves 已完成 |
@@ -184,10 +184,11 @@
 | [web-to-tui-m4-macro-trend-filter-evidence-2026-07-26.md](plans/web-to-tui-m4-macro-trend-filter-evidence-2026-07-26.md) | **Web → TUI M4 Macro Trend Filter 证据（Data Center 真源、PIT-safe 趋势算法与 Filter consumer 迁出）** | ✅ M4-W49 已完成 |
 | [web-to-tui-m4-equity-analytics-evidence-2026-07-26.md](plans/web-to-tui-m4-equity-analytics-evidence-2026-07-26.md) | **Web → TUI M4 Equity Analytics 证据（个股时序、股票池板块分布与估值修复百分位）** | ✅ M4-W50 已完成 |
 | [web-to-tui-m4-simulated-accounts-evidence-2026-07-26.md](plans/web-to-tui-m4-simulated-accounts-evidence-2026-07-26.md) | **Web → TUI M4 Simulated Accounts 证据（账户生命周期、绩效净值、策略绑定与 IA P0 清单）** | ✅ M4-W51 已完成 |
-| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；最早 2026-08-09 复审 |
+| [web-to-tui-m5-readiness-2026-07-27.md](plans/web-to-tui-m5-readiness-2026-07-27.md) | **Web → TUI M5 Readiness（14 日兼容期、UAT、telemetry 与回滚演练门禁）** | ⛔ 当前 DENY；候选尚未部署，复审日待机器窗口确定 |
+| [web-to-tui-m5-production-preflight-2026-07-28.md](plans/web-to-tui-m5-production-preflight-2026-07-28.md) | **Web → TUI M5 生产 Preflight（只读健康、release/commit 与候选差异核查）** | ✅ 生产健康；仍运行旧提交，不计入 cutover gate |
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | ✅ 本地演练通过；不解除 14 日与生产门禁 |
 | [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | ✅ 自动化 15/15；主任务 UAT 108/108；Classic 清理仍 DENY |
-| [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与剩余状态/回滚范围）** | 🚧 `primary_task`、`legacy_url` 108/108；其余 scope 未完成 |
+| [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与状态/回滚范围）** | ✅ 六类 scope 均为 108/108；不替代生产门禁 |
 | [qmt-live-trading-bridge-plan.md](plan/qmt-live-trading-bridge-plan.md) | **QMT 本地执行桥与 VPS 实盘交易接入计划（Web / TUI / MCP / 权限 / 风控 / 对账）** | 仓库 MVP 已实现；待目标券商 Phase 0 与仿真实测 |
 | [adr-0002-qmt-local-execution-bridge.md](architecture/adr-0002-qmt-local-execution-bridge.md) | QMT 本地 Agent + VPS 控制面架构决策 | 已接受 |
 | [qmt-agent-runbook.md](operations/qmt-agent-runbook.md) | Windows QMT Agent 安装、分级启用、停止与故障处理 | 可执行 |
