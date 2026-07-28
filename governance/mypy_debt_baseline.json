@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 2257,
-    "files_with_errors": 509
+    "errors": 2108,
+    "files_with_errors": 478
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -55,9 +55,6 @@
     },
     "apps/account/infrastructure/signals.py": {
       "no-untyped-def": 1
-    },
-    "apps/account/interface/api_urls.py": {
-      "unused-ignore": 1
     },
     "apps/account/interface/backup_views.py": {
       "no-untyped-def": 2
@@ -173,9 +170,6 @@
     "apps/ai_capability/interface/admin.py": {
       "attr-defined": 1,
       "type-arg": 5
-    },
-    "apps/ai_capability/interface/api_urls.py": {
-      "arg-type": 1
     },
     "apps/ai_capability/interface/mcp_access_views.py": {
       "no-untyped-def": 1
@@ -428,9 +422,6 @@
     "apps/audit/interface/admin.py": {
       "type-arg": 7
     },
-    "apps/audit/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
     "apps/audit/interface/openapi.py": {
       "misc": 1
     },
@@ -458,10 +449,6 @@
       "type-arg": 6
     },
     "apps/audit/templatetags/audit_filters.py": {
-      "no-untyped-def": 2
-    },
-    "apps/backtest/application/decision_replay.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 2
     },
     "apps/backtest/application/use_cases.py": {
@@ -497,17 +484,6 @@
     "apps/backtest/interface/admin.py": {
       "no-untyped-def": 4,
       "type-arg": 2
-    },
-    "apps/backtest/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/backtest/interface/serializers.py": {
-      "arg-type": 1,
-      "no-untyped-def": 3,
-      "type-arg": 7
-    },
-    "apps/backtest/interface/views.py": {
-      "no-untyped-def": 13
     },
     "apps/beta_gate/interface/api_urls.py": {
       "no-untyped-def": 1
@@ -582,9 +558,6 @@
     "apps/dashboard/interface/alpha_stock_views.py": {
       "no-untyped-call": 6,
       "no-untyped-def": 8
-    },
-    "apps/dashboard/interface/api_urls.py": {
-      "no-untyped-def": 1
     },
     "apps/dashboard/interface/dashboard_navigation_context.py": {
       "no-any-return": 8,
@@ -738,9 +711,6 @@
       "type-arg": 6,
       "unused-ignore": 4
     },
-    "apps/data_center/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
     "apps/data_center/interface/api_views.py": {
       "arg-type": 6,
       "assignment": 1,
@@ -821,9 +791,6 @@
     },
     "apps/decision_rhythm/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/decision_rhythm/interface/page_views.py": {
-      "no-untyped-def": 2
     },
     "apps/decision_rhythm/interface/today_queue_api_views.py": {
       "no-untyped-def": 1
@@ -923,23 +890,14 @@
     "apps/equity/interface/page_views.py": {
       "no-untyped-def": 5
     },
-    "apps/equity/interface/pool_actions.py": {
-      "attr-defined": 8,
-      "no-untyped-def": 2
-    },
     "apps/equity/interface/sdk_contract_actions.py": {
       "no-untyped-def": 2
-    },
-    "apps/equity/interface/valuation_actions.py": {
-      "attr-defined": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 9
     },
     "apps/equity/interface/valuation_config_views.py": {
       "no-untyped-def": 12
     },
     "apps/equity/interface/views.py": {
-      "no-untyped-call": 9,
+      "no-untyped-call": 2,
       "no-untyped-def": 10
     },
     "apps/equity/management/commands/backfill_equity_valuation.py": {
@@ -1025,14 +983,6 @@
     "apps/filter/interface/urls.py": {
       "no-untyped-def": 1
     },
-    "apps/filter/interface/views.py": {
-      "arg-type": 2,
-      "index": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 6,
-      "type-arg": 1
-    },
     "apps/fund/application/interface_services.py": {
       "attr-defined": 2,
       "no-untyped-call": 8,
@@ -1041,12 +991,6 @@
     },
     "apps/fund/application/repository_provider.py": {
       "no-untyped-call": 3
-    },
-    "apps/fund/application/services.py": {
-      "attr-defined": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 2,
-      "type-arg": 4
     },
     "apps/fund/application/use_cases.py": {
       "attr-defined": 1,
@@ -1087,9 +1031,6 @@
       "attr-defined": 2,
       "no-untyped-def": 2,
       "type-arg": 6
-    },
-    "apps/fund/interface/api_urls.py": {
-      "no-untyped-def": 1
     },
     "apps/fund/interface/serializers.py": {
       "no-untyped-def": 1,
@@ -1151,9 +1092,6 @@
       "no-untyped-call": 1,
       "no-untyped-def": 9
     },
-    "apps/macro/interface/api_urls.py": {
-      "type-arg": 1
-    },
     "apps/macro/interface/forms.py": {
       "type-arg": 1
     },
@@ -1165,9 +1103,6 @@
     },
     "apps/macro/interface/views/helpers.py": {
       "no-untyped-def": 3
-    },
-    "apps/macro/interface/views/page_views.py": {
-      "unused-ignore": 2
     },
     "apps/macro/management/commands/migrate_usd_data.py": {
       "attr-defined": 1,
@@ -1431,10 +1366,6 @@
     "apps/pulse/interface/api_urls.py": {
       "no-untyped-def": 1
     },
-    "apps/pulse/interface/api_views.py": {
-      "no-untyped-def": 4,
-      "type-arg": 1
-    },
     "apps/pulse/interface/serializers.py": {
       "type-arg": 2
     },
@@ -1452,9 +1383,6 @@
     },
     "apps/pulse/management/commands/show_pulse_config.py": {
       "no-untyped-def": 1
-    },
-    "apps/regime/application/interface_services.py": {
-      "no-untyped-def": 2
     },
     "apps/regime/application/navigator_use_cases.py": {
       "no-untyped-def": 2,
@@ -1516,21 +1444,12 @@
     "apps/regime/interface/admin.py": {
       "type-arg": 1
     },
-    "apps/regime/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/regime/interface/api_views.py": {
-      "no-untyped-def": 8
-    },
     "apps/regime/interface/serializers.py": {
       "no-untyped-def": 1,
       "type-arg": 5
     },
     "apps/regime/interface/urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/regime/interface/views.py": {
-      "no-untyped-def": 2
     },
     "apps/regime/management/commands/init_regime_thresholds.py": {
       "no-untyped-def": 2
@@ -1601,9 +1520,6 @@
     },
     "apps/sentiment/infrastructure/models.py": {
       "no-untyped-def": 4
-    },
-    "apps/sentiment/interface/api_urls.py": {
-      "no-untyped-def": 1
     },
     "apps/sentiment/interface/serializers.py": {
       "type-arg": 8
@@ -1699,14 +1615,6 @@
       "no-untyped-def": 1,
       "type-arg": 2
     },
-    "apps/task_monitor/interface/serializers.py": {
-      "type-arg": 5
-    },
-    "apps/task_monitor/interface/views.py": {
-      "attr-defined": 2,
-      "misc": 5,
-      "no-untyped-def": 5
-    },
     "apps/task_monitor/management/__init__.py": {
       "misc": 5,
       "no-untyped-def": 5
@@ -1768,11 +1676,6 @@
       "arg-type": 2,
       "union-attr": 3
     },
-    "apps/terminal/infrastructure/tui_metadata_repository.py": {
-      "attr-defined": 1,
-      "redundant-cast": 2,
-      "unused-ignore": 4
-    },
     "apps/terminal/interface/admin.py": {
       "no-untyped-def": 4,
       "type-arg": 3
@@ -1786,9 +1689,6 @@
       "misc": 1,
       "no-untyped-def": 3,
       "type-arg": 14
-    },
-    "apps/terminal/interface/views.py": {
-      "no-untyped-def": 8
     },
     "apps/terminal/management/commands/export_tui_django_contracts.py": {
       "no-untyped-def": 2
@@ -1856,17 +1756,9 @@
       "no-untyped-call": 3,
       "no-untyped-def": 5
     },
-    "core/metrics.py": {
-      "no-untyped-def": 2,
-      "type-arg": 3
-    },
     "core/middleware/logging.py": {
       "attr-defined": 1,
       "no-any-return": 1
-    },
-    "core/middleware/prometheus.py": {
-      "misc": 1,
-      "no-untyped-def": 1
     },
     "core/middleware/query_profiler.py": {
       "no-untyped-def": 1,
@@ -1887,9 +1779,6 @@
     "core/settings/development_sqlite.py": {
       "assignment": 1
     },
-    "core/settings/playwright.py": {
-      "index": 1
-    },
     "core/settings/production.py": {
       "import-not-found": 4
     },
@@ -1901,9 +1790,6 @@
     },
     "core/templatetags/factor_tags.py": {
       "no-untyped-def": 4
-    },
-    "core/urls.py": {
-      "no-untyped-def": 3
     },
     "shared/apps.py": {
       "no-untyped-def": 1
