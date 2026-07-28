@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 647,
-    "files_with_errors": 303
+    "errors": 639,
+    "files_with_errors": 301
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -47,9 +47,6 @@
     "apps/account/infrastructure/signals.py": {
       "no-untyped-def": 1
     },
-    "apps/account/interface/api_urls.py": {
-      "unused-ignore": 1
-    },
     "apps/account/interface/backup_views.py": {
       "no-untyped-def": 2
     },
@@ -59,10 +56,6 @@
     "apps/account/interface/openapi.py": {
       "misc": 1,
       "no-untyped-def": 1
-    },
-    "apps/account/interface/performance_compat_views.py": {
-      "no-any-return": 5,
-      "no-untyped-def": 2
     },
     "apps/account/interface/sizing_views.py": {
       "unused-ignore": 2

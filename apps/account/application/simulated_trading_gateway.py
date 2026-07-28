@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from decimal import Decimal
-from typing import Any, TypeVar
+from typing import Any, Literal, Protocol, TypeVar
 
 from apps.account.application.market_price_contracts import MarketPriceProvider
 from apps.account.application.portfolio_api_contracts import (
@@ -14,13 +14,39 @@ from apps.account.application.portfolio_api_contracts import (
 
 _ProviderT = TypeVar("_ProviderT")
 
+AccountViewKey = Literal[
+    "account-list",
+    "account-batch-delete",
+    "account-detail",
+    "account-position-list",
+    "account-trade-list",
+    "account-performance",
+    "account-equity-curve",
+    "account-inspection-run",
+    "account-inspection-list",
+    "account-performance-report",
+    "account-valuation-snapshot",
+    "account-valuation-timeline",
+    "account-benchmarks",
+    "account-backfill",
+]
+
+
+class AccountApiViewClass(Protocol):
+    """Minimal cross-App contract exposed by a registered API view class."""
+
+    @classmethod
+    def as_view(cls, **initkwargs: object) -> Callable[..., Any]:
+        """Build a callable whose framework response is narrowed by Interface consumers."""
+
+
 _portfolio_repository_factory: Callable[[], PortfolioApiRepository] | None = None
 _position_service_factory: Callable[[], UnifiedPositionService] | None = None
 _price_provider_factory: Callable[[int], MarketPriceProvider] | None = None
 _default_accounts_provisioner: Callable[[Any, Decimal], None] | None = None
 _investment_accounts_reader: Callable[[int], list[dict[str, Any]]] | None = None
 _portfolio_account_resolver: Callable[[int], int | None] | None = None
-_view_resolver: Callable[[str], Any] | None = None
+_view_resolver: Callable[[AccountViewKey], AccountApiViewClass] | None = None
 
 
 def configure_simulated_trading_gateway(
@@ -31,7 +57,7 @@ def configure_simulated_trading_gateway(
     default_accounts_provisioner: Callable[[Any, Decimal], None],
     investment_accounts_reader: Callable[[int], list[dict[str, Any]]],
     portfolio_account_resolver: Callable[[int], int | None],
-    view_resolver: Callable[[str], Any],
+    view_resolver: Callable[[AccountViewKey], AccountApiViewClass],
 ) -> None:
     """Register Simulated Trading implementations for Account consumers."""
 
@@ -101,7 +127,7 @@ def get_unified_account_id_for_portfolio(portfolio_id: int) -> int | None:
     return provider(portfolio_id)
 
 
-def get_simulated_trading_view(view_key: str) -> Any:
+def get_simulated_trading_view(view_key: AccountViewKey) -> AccountApiViewClass:
     """Resolve a canonical trading API view without importing its owner."""
 
     provider = _require(_view_resolver, "view_resolver")
@@ -109,6 +135,8 @@ def get_simulated_trading_view(view_key: str) -> Any:
 
 
 __all__ = [
+    "AccountApiViewClass",
+    "AccountViewKey",
     "build_market_price_provider",
     "build_portfolio_api_repository",
     "configure_simulated_trading_gateway",

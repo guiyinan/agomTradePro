@@ -5646,3 +5646,18 @@
 - Dashboard Alpha Query、Alpha View、Exit Loop、Decision Rhythm Exit Advisor 与结构合同相关回归 `96 passed`。
 - `apps/dashboard/application/alpha_homepage_exit_watch.py` 在增量 mypy 口径清零；全仓基线从 `649 errors / 304 files` 收紧为 `647 errors / 303 files`，净减少 `2 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百六十九批
+
+- 按“跨 App API view registry 返回 Any × 兼容委托响应 shape 未验证 × 非法 portfolio/account 映射进入下游”收口账户业绩与估值兼容入口。
+- Account Application gateway 新增受控 `AccountViewKey` 与最小 `AccountApiViewClass` Protocol；Simulated Trading 注册端发布精确 view map，14 个 canonical 账户 API URL 与 4 个兼容 API 不再依赖无界 view class Any。
+- 框架 view callable 的动态返回值只停留在 gateway/Interface 边界；兼容层必须确认真实 DRF `Response` 后才能回传，错误 shape 与注册表不可用统一返回稳定 503，不把任意对象交给 Django 响应链。
+- portfolio ID 与映射后的 unified account ID 必须为 `1..2147483647` 的非 bool 整数；非法路径 scope 或损坏 provider 映射不触发后续 canonical view。
+- view registry 解析异常日志只记录 view key 与异常类型，不输出 provider、配置或凭据正文；canonical API 原有账户所有者、管理员与 observer 只读权限检查继续由下游正式视图执行。
+- 新增非法 portfolio/mapping、raw request 转发、注册异常脱敏和非 Response 拒绝回归；同步删除因 gateway 合同收紧后已无效的 Django URL import ignore。
+
+## 第三百六十九批验证结果
+
+- Account 兼容委托专项与 canonical/compatibility 业绩 API 集成回归 `64 passed`；API 最小合同 guardrail `23 passed`。
+- Application gateway、Account performance compatibility/API URLs 与 Simulated Trading 注册端联合增量 mypy 清零；全仓基线从 `647 errors / 303 files` 收紧为 `639 errors / 301 files`，净减少 `8 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

@@ -14,6 +14,10 @@ from apps.account.application.portfolio_api_contracts import (
 from apps.account.application.portfolio_api_contracts import (
     UnifiedPositionService as UnifiedPositionServiceProtocol,
 )
+from apps.account.application.simulated_trading_gateway import (
+    AccountApiViewClass,
+    AccountViewKey,
+)
 
 
 def _build_portfolio_api_repository() -> PortfolioApiRepositoryProtocol:
@@ -105,10 +109,10 @@ def _get_unified_account_id_for_portfolio(portfolio_id: int) -> int | None:
     )
 
 
-def _resolve_view(view_key: str) -> type[Any]:
+def _resolve_view(view_key: AccountViewKey) -> AccountApiViewClass:
     from apps.simulated_trading.interface import performance_views, views
 
-    view_map = {
+    view_map: dict[AccountViewKey, AccountApiViewClass] = {
         "account-list": views.AccountListAPIView,
         "account-batch-delete": views.AccountBatchDeleteAPIView,
         "account-detail": views.AccountDetailAPIView,
@@ -124,7 +128,7 @@ def _resolve_view(view_key: str) -> type[Any]:
         "account-benchmarks": performance_views.AccountBenchmarksAPIView,
         "account-backfill": performance_views.AccountBackfillAPIView,
     }
-    return cast(type[Any], view_map[view_key])
+    return view_map[view_key]
 
 
 def register_account_gateway() -> None:

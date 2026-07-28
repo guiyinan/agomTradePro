@@ -1,6 +1,6 @@
 """Account API URL configuration."""
 
-from django.urls import include, path  # type: ignore[import-untyped]
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.account.application.simulated_trading_gateway import get_simulated_trading_view
