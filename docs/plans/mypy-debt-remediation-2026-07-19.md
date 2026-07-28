@@ -6053,3 +6053,18 @@
 - Terminal Agent capability、MCP、审批、流式事件与异常脱敏专项 `13 passed`；TUI Workbench、Terminal Agent、SDK client、内部 SSL、Capability gateway 与 Terminal API 固定高风险组合 `259 passed`。
 - `apps/agent_runtime/infrastructure/terminal_agent_service.py` 增量 mypy 清零并退出债务清单；全仓基线从 `497 errors / 264 files` 收紧为 `494 errors / 263 files`，净减少 `3 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI 元数据、SDK/MCP 成功响应、费用执行链或部署实现。
+
+## 第三百九十五批
+
+- 按“Alpha 价格覆盖回填先删后写非原子 × 单源异常中断 failover × 错资产/区间外/损坏 bar 进入事实库 × CLI 日期无边界”收口模型价格覆盖同步链。
+- `sync_from_alpha_cache()` 与 `sync_codes()` 在 cache、主数据或 gateway I/O 前验证 plain-date 有序区间；反向区间不再执行资产回填或删除价格数据。
+- 单个历史行情 gateway 的连接、超时、数据与运行异常被隔离，后续 gateway 继续 failover；日志只记录资产代码、gateway 类型和异常类型，不输出 URL、凭据或底层异常正文。
+- gateway payload 必须为 `list[HistoricalPriceBar]`；只接收目标资产、请求区间内、有效 source、正且有限 OHLC、合法高低价关系及非负有限成交量/成交额，重复日期/source 使用最后一条规范事实。
+- 旧受管 bar 删除与新 `PriceBar` 批量写入纳入同一数据库事务；新写入失败时旧价格事实完整回滚，不再留下模型评估价格断层。
+- 管理命令补齐 CommandParser/handle/date 合同，严格验证字符串、bool、最多 5000 个额外代码及日期区间；结果改为稳定 JSON，Alpha cache core bridge 同步发布 `date | None` 返回合同。
+
+## 第三百九十五批验证结果
+
+- Alpha 覆盖日期、gateway failover、行情过滤、异常脱敏、真实事务回滚与 CLI JSON 专项 `7 passed`；Alpha cache、Data Center runtime helper、资产主数据回填与价格仓储扩展组合 `42 passed`。
+- `apps/data_center/infrastructure/alpha_price_coverage_sync.py`、`apps/data_center/management/commands/sync_alpha_price_coverage.py` 与 `core/integration/alpha_cache.py` 增量 mypy 清零并退出债务清单；全仓基线从 `494 errors / 263 files` 收紧为 `487 errors / 260 files`，净减少 `7 errors / 3 files`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/SDK/MCP、费用执行链或部署实现。

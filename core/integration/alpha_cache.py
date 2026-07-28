@@ -37,7 +37,7 @@ def collect_alpha_cache_codes(
     )
 
 
-def get_alpha_cache_earliest_trade_date():
+def get_alpha_cache_earliest_trade_date() -> date | None:
     """Return the earliest intended trade date present in alpha score cache."""
 
     return _get_alpha_cache_earliest_trade_date()
