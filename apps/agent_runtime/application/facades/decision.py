@@ -27,8 +27,11 @@ class DecisionTaskFacade(BaseContextFacade):
             quota_summary = self.context_repository.fetch_decision_quota_summary()
             if quota_summary.get("status") == "ok":
                 base["quotas"] = quota_summary.get("quotas", [])
-        except Exception as e:
-            logger.debug("Decision quotas unavailable: %s", e)
+        except Exception as exc:
+            logger.debug(
+                "Decision quotas unavailable",
+                extra={"exception_type": type(exc).__name__},
+            )
         return base
 
     def fetch_active_signals_summary(self) -> dict[str, Any]:

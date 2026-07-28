@@ -3,29 +3,42 @@
 from __future__ import annotations
 
 import logging
+from datetime import date, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-def _unavailable(source_name: str, error: str) -> dict[str, Any]:
+def _unavailable(source_name: str) -> dict[str, Any]:
     """Return a degraded placeholder for an unavailable data source."""
 
     return {
         "status": "unavailable",
         "source": source_name,
-        "error": str(error),
+        "error": "source_fetch_failed",
     }
 
 
-def _unsupported(source_name: str, error: str) -> dict[str, Any]:
-    """Return a stable placeholder for an unsupported source contract."""
+def _invalid_input(source_name: str, error_code: str) -> dict[str, Any]:
+    """Return a stable placeholder for a rejected repository input."""
 
     return {
-        "status": "unsupported",
+        "status": "invalid_input",
         "source": source_name,
-        "error": str(error),
+        "error": error_code,
     }
+
+
+def _log_source_failure(message: str, exc: BaseException) -> None:
+    """Log source failure metadata without exposing exception text or credentials."""
+
+    logger.warning(message, extra={"exception_type": type(exc).__name__})
+
+
+def _to_iso(value: date | datetime | None) -> str | None:
+    """Serialize a governed ORM date value for agent context."""
+
+    return value.isoformat() if value is not None else None
 
 
 class DjangoContextSnapshotRepository:
@@ -48,9 +61,9 @@ class DjangoContextSnapshotRepository:
                 "distribution": latest.distribution,
                 "observed_at": str(latest.observed_at),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch regime summary: %s", e)
-            return _unavailable("regime", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch regime summary", exc)
+            return _unavailable("regime")
 
     def fetch_policy_summary(self) -> dict[str, Any]:
         """Fetch current policy gear status."""
@@ -65,11 +78,11 @@ class DjangoContextSnapshotRepository:
                 "status": "ok",
                 "current_gear": latest.level,
                 "event_date": str(latest.event_date),
-                "description": getattr(latest, "description", ""),
+                "description": latest.description,
             }
-        except Exception as e:
-            logger.warning("Failed to fetch policy summary: %s", e)
-            return _unavailable("policy", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch policy summary", exc)
+            return _unavailable("policy")
 
     def fetch_portfolio_summary(self) -> dict[str, Any]:
         """Fetch portfolio overview."""
@@ -90,9 +103,9 @@ class DjangoContextSnapshotRepository:
                 "portfolio_name": portfolio.name,
                 "position_count": open_positions,
             }
-        except Exception as e:
-            logger.warning("Failed to fetch portfolio summary: %s", e)
-            return _unavailable("portfolio", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch portfolio summary", exc)
+            return _unavailable("portfolio")
 
     def fetch_active_signals_summary(self) -> dict[str, Any]:
         """Fetch active investment signals summary."""
@@ -104,7 +117,7 @@ class DjangoContextSnapshotRepository:
                 status__in=("pending", "approved")
             )
             total = active_qs.count()
-            recent = list(
+            recent_rows = list(
                 active_qs.order_by("-created_at")[:5].values(
                     "id",
                     "asset_code",
@@ -113,17 +126,24 @@ class DjangoContextSnapshotRepository:
                     "created_at",
                 )
             )
-            for item in recent:
-                if item.get("created_at"):
-                    item["created_at"] = item["created_at"].isoformat()
+            recent: list[dict[str, Any]] = [
+                {
+                    "id": item["id"],
+                    "asset_code": item["asset_code"],
+                    "direction": item["direction"],
+                    "status": item["status"],
+                    "created_at": _to_iso(item["created_at"]),
+                }
+                for item in recent_rows
+            ]
             return {
                 "status": "ok",
                 "active_count": total,
                 "recent": recent,
             }
-        except Exception as e:
-            logger.warning("Failed to fetch active signals: %s", e)
-            return _unavailable("signal", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch active signals", exc)
+            return _unavailable("signal")
 
     def fetch_open_decisions_summary(self) -> dict[str, Any]:
         """Fetch open decision requests summary."""
@@ -138,9 +158,9 @@ class DjangoContextSnapshotRepository:
                 "status": "ok",
                 "pending_count": pending,
             }
-        except Exception as e:
-            logger.warning("Failed to fetch open decisions: %s", e)
-            return _unavailable("decision_rhythm", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch open decisions", exc)
+            return _unavailable("decision_rhythm")
 
     def fetch_risk_alerts_summary(self) -> dict[str, Any]:
         """Fetch risk-related alerts."""
@@ -153,9 +173,9 @@ class DjangoContextSnapshotRepository:
                 "status": "ok",
                 "active_beta_gates": active_gates,
             }
-        except Exception as e:
-            logger.warning("Failed to fetch risk alerts: %s", e)
-            return _unavailable("risk", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch risk alerts", exc)
+            return _unavailable("risk")
 
     def fetch_task_health_summary(self) -> dict[str, Any]:
         """Fetch agent runtime task health."""
@@ -180,35 +200,39 @@ class DjangoContextSnapshotRepository:
                 "needs_human": needs_human,
                 "failed_tasks": failed,
             }
-        except Exception as e:
-            logger.warning("Failed to fetch task health: %s", e)
-            return _unavailable("agent_runtime", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch task health", exc)
+            return _unavailable("agent_runtime")
 
     def fetch_data_freshness_summary(self) -> dict[str, Any]:
         """Fetch data freshness metrics across sources."""
 
-        freshness: dict[str, Any] = {"status": "ok", "sources": {}}
+        sources: dict[str, str] = {}
+        failed_sources: list[str] = []
         try:
             from apps.regime.infrastructure.models import RegimeLog
 
-            latest = RegimeLog._default_manager.order_by("-observed_at").first()
-            if latest:
-                freshness["sources"]["regime"] = str(latest.observed_at)
-        except Exception as e:
-            logger.warning("Failed to fetch regime freshness: %s", e)
-            freshness["sources"]["regime"] = "unavailable"
+            latest_regime = RegimeLog._default_manager.order_by("-observed_at").first()
+            if latest_regime:
+                sources["regime"] = latest_regime.observed_at.isoformat()
+        except Exception as exc:
+            _log_source_failure("Failed to fetch regime freshness", exc)
+            sources["regime"] = "unavailable"
+            failed_sources.append("regime")
 
         try:
             from apps.macro.infrastructure.models import MacroIndicator
 
-            latest = MacroIndicator._default_manager.order_by("-published_at").first()
-            if latest:
-                freshness["sources"]["macro"] = str(latest.published_at)
-        except Exception as e:
-            logger.warning("Failed to fetch macro freshness: %s", e)
-            freshness["sources"]["macro"] = "unavailable"
+            latest_macro = MacroIndicator._default_manager.order_by("-published_at").first()
+            if latest_macro and latest_macro.published_at is not None:
+                sources["macro"] = latest_macro.published_at.isoformat()
+        except Exception as exc:
+            _log_source_failure("Failed to fetch macro freshness", exc)
+            sources["macro"] = "unavailable"
+            failed_sources.append("macro")
 
-        return freshness
+        status = "degraded" if failed_sources else ("ok" if sources else "no_data")
+        return {"status": status, "sources": sources}
 
     def fetch_event_bus_summary(self) -> dict[str, Any]:
         """Fetch event bus metrics used by ops-facing facades."""
@@ -220,9 +244,9 @@ class DjangoContextSnapshotRepository:
                 "status": "ok",
                 "total_event_records": StoredEventModel._default_manager.count(),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch event bus summary: %s", e)
-            return _unavailable("events", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch event bus summary", exc)
+            return _unavailable("events")
 
     def fetch_ai_provider_summary(self) -> dict[str, Any]:
         """Fetch AI provider availability metrics."""
@@ -236,9 +260,9 @@ class DjangoContextSnapshotRepository:
                     is_active=True
                 ).count(),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch AI provider summary: %s", e)
-            return _unavailable("ai_provider", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch AI provider summary", exc)
+            return _unavailable("ai_provider")
 
     def fetch_audit_freshness_summary(self) -> dict[str, Any]:
         """Fetch latest audit activity timestamp."""
@@ -253,9 +277,9 @@ class DjangoContextSnapshotRepository:
                 "status": "ok",
                 "audit": latest_audit.timestamp.isoformat(),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch audit freshness summary: %s", e)
-            return _unavailable("audit", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch audit freshness summary", exc)
+            return _unavailable("audit")
 
     def fetch_price_alert_summary(self) -> dict[str, Any]:
         """Fetch realtime price alert counts."""
@@ -272,9 +296,9 @@ class DjangoContextSnapshotRepository:
                     status="triggered"
                 ).count(),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch price alert summary: %s", e)
-            return _unavailable("realtime", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch price alert summary", exc)
+            return _unavailable("realtime")
 
     def fetch_sentiment_freshness_summary(self) -> dict[str, Any]:
         """Fetch latest sentiment update timestamp."""
@@ -286,9 +310,9 @@ class DjangoContextSnapshotRepository:
             if latest is None:
                 return {"status": "no_data"}
             return {"status": "ok", "sentiment": latest.created_at.isoformat()}
-        except Exception as e:
-            logger.warning("Failed to fetch sentiment freshness summary: %s", e)
-            return _unavailable("sentiment", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch sentiment freshness summary", exc)
+            return _unavailable("sentiment")
 
     def fetch_decision_quota_summary(self) -> dict[str, Any]:
         """Fetch decision quota overview."""
@@ -307,9 +331,9 @@ class DjangoContextSnapshotRepository:
                     )[:10]
                 ),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch decision quota summary: %s", e)
-            return _unavailable("decision_rhythm", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch decision quota summary", exc)
+            return _unavailable("decision_rhythm")
 
     def fetch_pending_signal_summary(self) -> dict[str, Any]:
         """Fetch pending approval signal counts."""
@@ -323,12 +347,15 @@ class DjangoContextSnapshotRepository:
                     status="pending",
                 ).count(),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch pending signal summary: %s", e)
-            return _unavailable("signal", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch pending signal summary", exc)
+            return _unavailable("signal")
 
     def fetch_portfolio_position_summary(self, portfolio_id: int) -> dict[str, Any]:
         """Fetch top open positions for a portfolio."""
+
+        if isinstance(portfolio_id, bool) or not isinstance(portfolio_id, int) or portfolio_id < 1:
+            return _invalid_input("account", "portfolio_id_invalid")
 
         try:
             from apps.account.infrastructure.models import PositionModel
@@ -342,9 +369,9 @@ class DjangoContextSnapshotRepository:
                     ).values("asset_code", "shares", "avg_cost")[:10]
                 ),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch portfolio position summary: %s", e)
-            return _unavailable("account", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch portfolio position summary", exc)
+            return _unavailable("account")
 
     def fetch_simulated_account_summary(self) -> dict[str, Any]:
         """Fetch active simulated trading account counts."""
@@ -358,9 +385,9 @@ class DjangoContextSnapshotRepository:
                     is_active=True
                 ).count(),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch simulated account summary: %s", e)
-            return _unavailable("simulated_trading", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch simulated account summary", exc)
+            return _unavailable("simulated_trading")
 
     def fetch_regime_history_summary(self) -> dict[str, Any]:
         """Fetch regime history counts for research context."""
@@ -372,9 +399,9 @@ class DjangoContextSnapshotRepository:
                 "status": "ok",
                 "history_records": RegimeLog._default_manager.count(),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch regime history summary: %s", e)
-            return _unavailable("regime", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch regime history summary", exc)
+            return _unavailable("regime")
 
     def fetch_signal_invalidation_summary(self) -> dict[str, Any]:
         """Fetch counts of signals carrying invalidation logic."""
@@ -390,6 +417,6 @@ class DjangoContextSnapshotRepository:
                 .exclude(invalidation_logic="")
                 .count(),
             }
-        except Exception as e:
-            logger.warning("Failed to fetch signal invalidation summary: %s", e)
-            return _unavailable("signal", str(e))
+        except Exception as exc:
+            _log_source_failure("Failed to fetch signal invalidation summary", exc)
+            return _unavailable("signal")

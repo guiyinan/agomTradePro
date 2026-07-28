@@ -145,11 +145,11 @@ class BaseContextFacade:
 
         try:
             summary = fetcher()
-        except Exception:
+        except Exception as exc:
             logger.warning(
                 "Context snapshot source %s failed",
                 source_name,
-                exc_info=True,
+                extra={"exception_type": type(exc).__name__},
             )
             return _unavailable(source_name)
 

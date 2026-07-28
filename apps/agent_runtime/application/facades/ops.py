@@ -27,8 +27,11 @@ class OpsTaskFacade(BaseContextFacade):
             event_bus = self.context_repository.fetch_event_bus_summary()
             if event_bus.get("status") == "ok":
                 base["total_event_records"] = event_bus.get("total_event_records", 0)
-        except Exception as e:
-            logger.debug("Event bus metrics unavailable: %s", e)
+        except Exception as exc:
+            logger.debug(
+                "Event bus metrics unavailable",
+                extra={"exception_type": type(exc).__name__},
+            )
         return base
 
     def fetch_data_freshness_summary(self) -> dict[str, Any]:

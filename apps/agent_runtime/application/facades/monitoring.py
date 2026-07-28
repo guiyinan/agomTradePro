@@ -31,8 +31,11 @@ class MonitoringTaskFacade(BaseContextFacade):
                     "triggered_price_alerts",
                     0,
                 )
-        except Exception as e:
-            logger.debug("Price alerts unavailable: %s", e)
+        except Exception as exc:
+            logger.debug(
+                "Price alerts unavailable",
+                extra={"exception_type": type(exc).__name__},
+            )
         return base
 
     def fetch_data_freshness_summary(self) -> dict[str, Any]:
@@ -41,9 +44,7 @@ class MonitoringTaskFacade(BaseContextFacade):
         try:
             sentiment_summary = self.context_repository.fetch_sentiment_freshness_summary()
             if sentiment_summary.get("status") == "ok":
-                base.setdefault("sources", {})["sentiment"] = sentiment_summary.get(
-                    "sentiment"
-                )
+                base.setdefault("sources", {})["sentiment"] = sentiment_summary.get("sentiment")
             elif sentiment_summary.get("status") == "no_data":
                 base.setdefault("sources", {})["sentiment"] = "no_data"
             else:

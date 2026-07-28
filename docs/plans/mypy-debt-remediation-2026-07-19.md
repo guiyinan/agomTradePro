@@ -5790,3 +5790,20 @@
 - 按 TUI 高风险链路最小回归要求，Workbench 与 Terminal Agent 组合 `208 passed`。
 - `apps/operational_readiness/application/monitor_service.py` 增量 mypy 清零并退出债务清单；全仓基线从 `601 errors / 294 files` 收紧为 `597 errors / 293 files`，净减少 `4 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 TUI/Terminal 实现、SDK、MCP 或部署实现。
+
+## 第三百七十八批
+
+- 按“Agent 决策上下文异常正文外泄 × 部分数据源失败仍报告新鲜度 ok × ORM values 原地改型 × portfolio ID 无校验”收口 Agent Runtime 跨 App 上下文快照。
+- Repository 的 18 类 ORM 来源统一使用稳定降级合同：失败 payload 固定为 `source_fetch_failed`，结构化日志只记录异常类型；数据库 URL、Redis URL、路径、凭据和底层异常正文不再进入 Agent snapshot 或普通日志。
+- Base Context Facade 取消 `exc_info=True`，research/decision/execution/monitoring/ops 公共快照隔离失败时不再记录 traceback；四个 specialized Facade 的 detail enrichment 日志同步只保留异常类型。
+- Active Signal 最近记录不再把 ORM values TypedDict 的 datetime 字段原地改成字符串；改为显式构造 JSON-facing mapping，并由受控 date/datetime serializer 输出 ISO 时间。
+- Regime 与 Macro freshness 使用独立模型变量和精确日期字段；任一来源查询失败时总状态发布 `degraded`，全部查询成功但无记录时发布 `no_data`，不再用顶层 `ok` 掩盖 `sources.*=unavailable`。
+- portfolio position 查询只接受非 bool 正整数 ID；零、负数、字符串、None 和 bool 在 ORM I/O 前返回稳定 `portfolio_id_invalid`，避免动态 Agent 调用扩散无界/错误 scope。
+- Policy description 使用正式模型字段合同，不再依赖动态 `getattr`；Context Repository 的 TypedDict mutation、跨模型 assignment 与 attr-defined 债务全部清零。
+
+## 第三百七十八批验证结果
+
+- Agent Runtime 上下文安全与真实 ORM 组件专项 `16 passed`。
+- Agent Runtime Facade、Application、Domain、MCP/SDK 合同、Terminal Agent 与 SDK client 扩展回归 `197 passed`。
+- `apps/agent_runtime/infrastructure/context_snapshot_repository.py` 与五个相关 Facade 文件联合增量 mypy 清零；上下文仓储退出债务清单，全仓基线从 `597 errors / 293 files` 收紧为 `594 errors / 292 files`，净减少 `3 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal/TUI 页面、SDK、MCP 或部署实现。

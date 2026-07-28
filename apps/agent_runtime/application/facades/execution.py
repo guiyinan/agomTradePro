@@ -33,8 +33,11 @@ class ExecutionTaskFacade(BaseContextFacade):
                 )
                 if position_summary.get("status") == "ok":
                     base["top_positions"] = position_summary.get("top_positions", [])
-        except Exception as e:
-            logger.debug("Position details unavailable: %s", e)
+        except Exception as exc:
+            logger.debug(
+                "Position details unavailable",
+                extra={"exception_type": type(exc).__name__},
+            )
         return base
 
     def fetch_risk_alerts_summary(self) -> dict[str, Any]:
@@ -47,6 +50,9 @@ class ExecutionTaskFacade(BaseContextFacade):
                     "active_simulated_accounts",
                     0,
                 )
-        except Exception as e:
-            logger.debug("Simulated accounts unavailable: %s", e)
+        except Exception as exc:
+            logger.debug(
+                "Simulated accounts unavailable",
+                extra={"exception_type": type(exc).__name__},
+            )
         return base
