@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from copy import deepcopy
+from datetime import date, datetime
 from importlib import import_module
 from pathlib import Path
 from typing import Any
@@ -54,48 +56,56 @@ def build_personal_readiness_status(**kwargs: Any) -> dict[str, Any]:
     module = import_module(
         "apps.operational_readiness.management.commands.show_personal_readiness_status"
     )
-    return module.build_personal_readiness_status(**kwargs)
+    result: object = module.build_personal_readiness_status(**kwargs)
+    return _require_payload_mapping(result, label="personal readiness status")
 
 
-def resolve_default_readiness_target_date() -> Any:
+def resolve_default_readiness_target_date() -> date:
     """Resolve the default target-date helper at runtime."""
 
     module = import_module(
         "apps.operational_readiness.management.commands.run_personal_readiness_daily"
     )
-    return module.resolve_default_readiness_target_date()
+    result: object = module.resolve_default_readiness_target_date()
+    if isinstance(result, datetime) or not isinstance(result, date):
+        raise TypeError("default readiness target date provider returned an invalid value")
+    return result
 
 
 def get_ai_capability_surface_status_payload() -> dict[str, Any]:
     """Resolve AI capability surface status without a static app dependency."""
 
     module = import_module("apps.ai_capability.application.query_services")
-    return module.get_ai_capability_surface_status_payload()
+    result: object = module.get_ai_capability_surface_status_payload()
+    return _require_payload_mapping(result, label="AI capability surface status")
 
 
 def get_terminal_surface_status_payload() -> dict[str, Any]:
     """Resolve Terminal surface status without a static app dependency."""
 
     module = import_module("apps.terminal.application.query_services")
-    return module.get_terminal_surface_status_payload()
+    result: object = module.get_terminal_surface_status_payload()
+    return _require_payload_mapping(result, label="Terminal surface status")
 
 
 def get_active_stock_fact_coverage_payload() -> dict[str, Any]:
     """Resolve Data Center coverage status without a static app dependency."""
 
     module = import_module("apps.data_center.application.query_services")
-    return module.get_active_stock_fact_coverage_payload()
+    result: object = module.get_active_stock_fact_coverage_payload()
+    return _require_payload_mapping(result, label="active stock fact coverage")
 
 
 def _get_cached_strict_runtime_summary() -> dict[str, Any] | None:
     try:
-        cached = cache.get(STRICT_RUNTIME_CACHE_KEY)
+        cached: object = cache.get(STRICT_RUNTIME_CACHE_KEY)
+        cached_summary = _copy_payload_mapping(cached)
     except Exception as exc:
-        logger.warning("Readiness monitor strict cache read failed: %s", exc)
+        _log_readiness_failure("Readiness monitor strict cache read failed", exc)
         return None
-    if not isinstance(cached, dict):
+    if cached_summary is None or not _is_cached_monitor_summary(cached_summary):
         return None
-    return deepcopy(cached)
+    return cached_summary
 
 
 def _set_cached_strict_runtime_summary(summary: dict[str, Any]) -> None:
@@ -106,7 +116,7 @@ def _set_cached_strict_runtime_summary(summary: dict[str, Any]) -> None:
             timeout=STRICT_RUNTIME_CACHE_TTL_SECONDS,
         )
     except Exception as exc:
-        logger.warning("Readiness monitor strict cache write failed: %s", exc)
+        _log_readiness_failure("Readiness monitor strict cache write failed", exc)
 
 
 def get_personal_readiness_monitor_placeholder() -> dict[str, Any]:
@@ -182,14 +192,14 @@ def get_personal_readiness_monitor_placeholder() -> dict[str, Any]:
 
 
 def _summarize_personal_readiness_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    validation = dict(payload.get("validation") or {})
-    monitor_gate = dict(payload.get("monitor_gate") or {})
-    latest_evidence = dict(payload.get("latest_evidence") or {})
-    acceptance_gate = dict(payload.get("acceptance_gate") or {})
-    schedule_expectation = dict(payload.get("schedule_expectation") or {})
-    next_action = dict(payload.get("next_action") or {})
-    scheduler_runtime = dict(payload.get("scheduler_runtime") or {})
-    current_decision_data = dict(payload.get("current_decision_data") or {})
+    validation = _mapping_field(payload, "validation")
+    monitor_gate = _mapping_field(payload, "monitor_gate")
+    latest_evidence = _mapping_field(payload, "latest_evidence")
+    acceptance_gate = _mapping_field(payload, "acceptance_gate")
+    schedule_expectation = _mapping_field(payload, "schedule_expectation")
+    next_action = _mapping_field(payload, "next_action")
+    scheduler_runtime = _mapping_field(payload, "scheduler_runtime")
+    current_decision_data = _mapping_field(payload, "current_decision_data")
     latest_target_date = str(
         latest_evidence.get("target_date")
         or validation.get("latest_target_date")
@@ -211,7 +221,7 @@ def _summarize_personal_readiness_payload(payload: dict[str, Any]) -> dict[str, 
         "status": payload.get("status"),
         "daily_state": daily_state,
         "monitor_gate": {
-            "ok": bool(monitor_gate.get("ok")),
+            "ok": monitor_gate.get("ok") is True,
             "state": monitor_gate.get("state"),
             "reason": monitor_gate.get("reason"),
             "next_action": monitor_gate.get("next_action"),
@@ -219,7 +229,7 @@ def _summarize_personal_readiness_payload(payload: dict[str, Any]) -> dict[str, 
             "command": monitor_gate.get("command"),
         },
         "window": {
-            "accepted": bool(acceptance_gate.get("accepted")),
+            "accepted": acceptance_gate.get("accepted") is True,
             "accepted_days": validation.get("accepted_days"),
             "required_days": validation.get("required_days"),
             "remaining_days": validation.get("remaining_days"),
@@ -252,28 +262,27 @@ def _summarize_personal_readiness_payload(payload: dict[str, Any]) -> dict[str, 
             "command": next_action.get("command"),
         },
         "scheduler_runtime": {
-            "required": bool(scheduler_runtime.get("required")),
+            "required": scheduler_runtime.get("required") is True,
             "status": scheduler_runtime.get("status"),
             "worker_process_count": scheduler_runtime.get("worker_process_count"),
             "beat_process_count": scheduler_runtime.get("beat_process_count"),
             "responsive_worker_count": scheduler_runtime.get("responsive_worker_count"),
-            "missing_queues": list(scheduler_runtime.get("missing_queues") or []),
-            "missing_registered_tasks": list(
-                scheduler_runtime.get("missing_registered_tasks") or []
+            "missing_queues": _sequence_value(scheduler_runtime.get("missing_queues")),
+            "missing_registered_tasks": _sequence_value(
+                scheduler_runtime.get("missing_registered_tasks")
             ),
         },
         "decision_data": {
             "status": current_decision_data.get("status"),
             "readiness_status": current_decision_data.get("readiness_status"),
-            "must_not_use_for_decision": bool(
-                current_decision_data.get("must_not_use_for_decision")
-            ),
-            "blocked_reasons": list(current_decision_data.get("blocked_reasons") or []),
+            "must_not_use_for_decision": current_decision_data.get("must_not_use_for_decision")
+            is True,
+            "blocked_reasons": _sequence_value(current_decision_data.get("blocked_reasons")),
         },
         "data_coverage": _get_data_coverage(),
         "operator_surfaces": _get_operator_surfaces(),
-        "blocking_issues": list(validation.get("blocking_issues") or []),
-        "accepted_dates": list(validation.get("accepted_dates") or []),
+        "blocking_issues": _sequence_value(validation.get("blocking_issues")),
+        "accepted_dates": _sequence_value(validation.get("accepted_dates")),
     }
     return summary
 
@@ -296,16 +305,16 @@ def _get_ai_capability_surface() -> dict[str, Any]:
     try:
         return get_ai_capability_surface_status_payload()
     except Exception as exc:
-        logger.warning("Readiness monitor AI capability query failed: %s", exc)
-        return {"status": "error", "error": str(exc)}
+        _log_readiness_failure("Readiness monitor AI capability query failed", exc)
+        return {"status": "error", "error": "ai_capability_status_unavailable"}
 
 
 def _get_terminal_surface() -> dict[str, Any]:
     try:
         return get_terminal_surface_status_payload()
     except Exception as exc:
-        logger.warning("Readiness monitor terminal surface query failed: %s", exc)
-        return {"status": "error", "error": str(exc)}
+        _log_readiness_failure("Readiness monitor terminal surface query failed", exc)
+        return {"status": "error", "error": "terminal_status_unavailable"}
 
 
 def _empty_operator_surfaces() -> dict[str, Any]:
@@ -363,10 +372,10 @@ def _get_data_coverage() -> dict[str, Any]:
     try:
         return get_active_stock_fact_coverage_payload()
     except Exception as exc:
-        logger.warning("Readiness monitor data coverage query failed: %s", exc)
+        _log_readiness_failure("Readiness monitor data coverage query failed", exc)
         payload = _empty_data_coverage()
         payload["status"] = "error"
-        payload["error"] = str(exc)
+        payload["error"] = "data_coverage_unavailable"
         return payload
 
 
@@ -423,7 +432,7 @@ def _classify_daily_state(
     schedule_expectation: dict[str, Any],
     next_action: dict[str, Any],
 ) -> dict[str, Any]:
-    if acceptance_gate.get("accepted"):
+    if acceptance_gate.get("accepted") is True:
         return {
             "code": "window_accepted",
             "severity": "ok",
@@ -431,7 +440,7 @@ def _classify_daily_state(
             "message": "连续运行证据窗口已经满足正式验收要求。",
         }
 
-    if not monitor_gate.get("ok"):
+    if monitor_gate.get("ok") is not True:
         return {
             "code": "needs_attention",
             "severity": "danger",
@@ -490,8 +499,108 @@ def _build_attention_message(
     monitor_gate: dict[str, Any],
     next_action: dict[str, Any],
 ) -> str:
-    command = monitor_gate.get("command") or next_action.get("command")
-    reason = monitor_gate.get("reason") or next_action.get("reason") or "unknown"
+    command = _bounded_public_text(
+        monitor_gate.get("command") or next_action.get("command"),
+        max_length=512,
+    )
+    reason = (
+        _bounded_public_text(
+            monitor_gate.get("reason") or next_action.get("reason"),
+            max_length=512,
+        )
+        or "unknown"
+    )
     if command:
         return f"{reason}: {command}"
-    return str(reason)
+    return reason
+
+
+def _require_payload_mapping(value: object, *, label: str) -> dict[str, Any]:
+    """Return a detached string-keyed mapping or reject a broken dynamic provider."""
+
+    payload = _copy_payload_mapping(value)
+    if payload is None:
+        raise TypeError(f"{label} provider returned a non-object payload")
+    return payload
+
+
+def _copy_payload_mapping(value: object) -> dict[str, Any] | None:
+    """Detach a dynamic mapping while rejecting non-string keys."""
+
+    if not isinstance(value, Mapping):
+        return None
+    result: dict[str, Any] = {}
+    for key, nested_value in value.items():
+        if not isinstance(key, str):
+            return None
+        result[key] = deepcopy(nested_value)
+    return result
+
+
+def _mapping_field(payload: Mapping[str, Any], field_name: str) -> dict[str, Any]:
+    """Read one nested object without letting malformed sections crash the monitor."""
+
+    return _copy_payload_mapping(payload.get(field_name)) or {}
+
+
+def _sequence_value(value: object) -> list[Any]:
+    """Return a detached bounded list without splitting strings into characters."""
+
+    if not isinstance(value, (list, tuple)):
+        return []
+    return [deepcopy(item) for item in value[:500]]
+
+
+def _is_cached_monitor_summary(payload: Mapping[str, Any]) -> bool:
+    """Return whether cached strict-runtime data has the governed summary shape."""
+
+    required_mapping_fields = (
+        "daily_state",
+        "monitor_gate",
+        "window",
+        "today",
+        "schedule",
+        "next_action",
+        "scheduler_runtime",
+        "decision_data",
+        "data_coverage",
+        "operator_surfaces",
+    )
+    if not isinstance(payload.get("status"), str):
+        return False
+    if any(
+        not isinstance(payload.get(field_name), Mapping) for field_name in required_mapping_fields
+    ):
+        return False
+    if not isinstance(payload.get("blocking_issues"), list) or not isinstance(
+        payload.get("accepted_dates"), list
+    ):
+        return False
+    daily_state = payload["daily_state"]
+    monitor_gate = payload["monitor_gate"]
+    window = payload["window"]
+    return bool(
+        isinstance(daily_state.get("code"), str)
+        and isinstance(daily_state.get("severity"), str)
+        and isinstance(monitor_gate.get("ok"), bool)
+        and isinstance(window.get("accepted"), bool)
+    )
+
+
+def _bounded_public_text(value: object, *, max_length: int) -> str | None:
+    """Return a bounded single-line UI string from a dynamic readiness field."""
+
+    if not isinstance(value, str):
+        return None
+    normalized = " ".join(value.replace("\x00", " ").split())
+    if not normalized:
+        return None
+    if len(normalized) <= max_length:
+        return normalized
+    return f"{normalized[:max_length]}…"
+
+
+def _log_readiness_failure(message: str, exc: BaseException) -> None:
+    """Log a stable readiness failure without exposing provider exception text."""
+
+    logger.warning(message, extra={"exception_type": type(exc).__name__})

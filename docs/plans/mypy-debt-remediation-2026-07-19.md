@@ -5772,3 +5772,21 @@
 - Alpha/Qlib 应用、单元、运维 API 与构建命令扩展回归 `160 passed`，仅保留一条既有 pandas `FutureWarning`；新增命令安全专项 `21 passed`，既有命令边界组合 `28 passed`。
 - `apps/alpha/management/commands/build_qlib_data.py` 增量 mypy 清零并退出债务清单；全仓基线从 `606 errors / 295 files` 收紧为 `601 errors / 294 files`，净减少 `5 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百七十七批
+
+- 按“生产 readiness 动态 provider 返回 Any × 损坏 strict cache 可伪造验收状态 × 字符串布尔误判 × 异常正文进入 Task Monitor/TUI”收口 Operational Readiness 公共监视器。
+- 四个运行时 provider 入口在动态调用后必须返回 string-keyed mapping；readiness status、AI capability、Terminal surface 与 Data Center coverage 返回 list、scalar 或非字符串键时明确拒绝，不再把错误 shape 交给用户摘要。
+- 默认验收目标日期必须为 plain `date`；字符串、datetime 和 None 不再通过 Any 进入状态构建。跨 App 动态装配仍保持 Application 边界，不新增 Infrastructure 依赖。
+- strict runtime cache 只接受完整 monitor summary：要求正式顶层 sections、daily state、monitor bool、window bool 与列表字段；部分字典或结构损坏缓存会被忽略并重新获取实时状态，不能伪造“窗口已完成”。
+- 嵌套 validation/gate/scheduler/decision sections 使用受控 mapping 读取；字符串不再被 `list()` 拆成字符列表。`"false"` 等 truthy 字符串不再被当作 monitor 通过、窗口验收、scheduler required 或决策禁用标记。
+- 每类动态列表限制最多 500 项；attention reason/command 只发布有界单行字符串，损坏对象不会借 `str(object)` 进入 operator 页面。
+- cache、AI capability、Terminal 与 Data Center 异常日志只记录异常类型；页面/API 分别发布稳定 `ai_capability_status_unavailable`、`terminal_status_unavailable` 与 `data_coverage_unavailable`，不再暴露数据库 URL、路径或凭据正文。
+- 动态 provider 的四个 no-any-return 债务清零；同一安全 summary 继续供 Task Monitor 页面/API 和 TUI runtime governance 队列复用。
+
+## 第三百七十七批验证结果
+
+- Readiness monitor 安全与既有专项 `19 passed`；readiness 证据、每日任务、状态命令、Task Monitor API 与 TUI operator 扩展回归 `216 passed`。
+- 按 TUI 高风险链路最小回归要求，Workbench 与 Terminal Agent 组合 `208 passed`。
+- `apps/operational_readiness/application/monitor_service.py` 增量 mypy 清零并退出债务清单；全仓基线从 `601 errors / 294 files` 收紧为 `597 errors / 293 files`，净减少 `4 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 TUI/Terminal 实现、SDK、MCP 或部署实现。

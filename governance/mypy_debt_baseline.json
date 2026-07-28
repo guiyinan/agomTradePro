@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 601,
-    "files_with_errors": 294
+    "errors": 597,
+    "files_with_errors": 293
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -591,9 +591,6 @@
     },
     "apps/macro/management/commands/sync_macro_data.py": {
       "no-untyped-def": 2
-    },
-    "apps/operational_readiness/application/monitor_service.py": {
-      "no-any-return": 4
     },
     "apps/operational_readiness/application/tasks.py": {
       "misc": 1
