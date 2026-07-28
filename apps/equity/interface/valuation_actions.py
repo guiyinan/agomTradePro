@@ -6,9 +6,13 @@ actions whose use-case classes stay patchable through the legacy
 `use_case_cls`). Do not import the compatibility facade here.
 """
 
+from collections.abc import Callable
+from typing import Any, ParamSpec, Protocol, TypeVar, cast
+
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.equity.application.use_cases_valuation_repair import (
@@ -35,6 +39,22 @@ from .serializers import (
     ValuationRepairHistoryResponseSerializer,
     ValuationRepairStatusResponseSerializer,
 )
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+class _PreservingDecorator(Protocol):
+    """Describe a third-party decorator that preserves a callable signature."""
+
+    def __call__(self, func: Callable[_P, _R], /) -> Callable[_P, _R]: ...
+
+
+def _typed_decorator(decorator: object) -> _PreservingDecorator:
+    """Narrow an untyped framework decorator without changing runtime behavior."""
+
+    return cast(_PreservingDecorator, decorator)
+
 
 # OpenAPI declarations for the facade valuation actions. The facade applies
 # these prebuilt decorators so its thin methods stay bounded without losing
@@ -79,17 +99,42 @@ valuation_data_quality_latest_schema = extend_schema(
 )
 
 
+def _percentile_chart_points(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Scale canonical ratio fields into user-facing percentage chart rows."""
+
+    return [
+        {
+            "trade_date": str(row.get("trade_date") or ""),
+            "pe_percentile_percent": (
+                round(float(row["pe_percentile"]) * 100, 6)
+                if row.get("pe_percentile") is not None
+                else None
+            ),
+            "pb_percentile_percent": round(float(row.get("pb_percentile") or 0) * 100, 6),
+            "composite_percentile_percent": round(
+                float(row.get("composite_percentile") or 0) * 100,
+                6,
+            ),
+        }
+        for row in rows
+    ]
+
+
 class EquityValuationActionsMixin:
     """Snapshot listing and financial-data sync actions."""
 
-    @extend_schema(
-        summary="同步财务数据",
-        description="同步指定股票的财务数据（ROE、营收、利润等）",
-        request=SyncFinancialDataRequestSerializer,
-        responses={200: SyncFinancialDataResponseSerializer},
+    repair_repo: Any
+
+    @_typed_decorator(
+        extend_schema(
+            summary="同步财务数据",
+            description="同步指定股票的财务数据（ROE、营收、利润等）",
+            request=SyncFinancialDataRequestSerializer,
+            responses={200: SyncFinancialDataResponseSerializer},
+        )
     )
-    @action(detail=False, methods=["post"], url_path="financial-data/sync")
-    def sync_financial_data(self, request):
+    @_typed_decorator(action(detail=False, methods=["post"], url_path="financial-data/sync"))
+    def sync_financial_data(self, request: Request) -> Response:
         """同步财务数据"""
         from apps.equity.application.tasks_valuation_sync import sync_financial_data_task
 
@@ -106,14 +151,16 @@ class EquityValuationActionsMixin:
 
         return Response(result, status=status.HTTP_200_OK)
 
-    @extend_schema(
-        summary="列出估值修复快照",
-        description="列出估值修复快照（不触发实时重算）",
-        request=ListValuationRepairsRequestSerializer,
-        responses={200: ListValuationRepairsResponseSerializer},
+    @_typed_decorator(
+        extend_schema(
+            summary="列出估值修复快照",
+            description="列出估值修复快照（不触发实时重算）",
+            request=ListValuationRepairsRequestSerializer,
+            responses={200: ListValuationRepairsResponseSerializer},
+        )
     )
-    @action(detail=False, methods=["get"], url_path="valuation-repair-list")
-    def list_valuation_repairs(self, request):
+    @_typed_decorator(action(detail=False, methods=["get"], url_path="valuation-repair-list"))
+    def list_valuation_repairs(self, request: Request) -> Response:
         """
         GET /api/equity/valuation-repair-list/
 
@@ -169,7 +216,8 @@ class EquityValuationActionsMixin:
         )
 
         # 2. 执行用例
-        use_case = ListValuationRepairsUseCase(valuation_repair_repository=self.repair_repo)
+        use_case_type: type[Any] = ListValuationRepairsUseCase
+        use_case = use_case_type(valuation_repair_repository=self.repair_repo)
         use_case_response = use_case.execute(use_case_request)
 
         # 3. 返回响应
@@ -189,7 +237,13 @@ class EquityValuationActionsMixin:
 # legacy `apps.equity.interface.views` monkeypatch surface keeps working.
 
 
-def get_valuation_repair_status_impl(viewset, request, stock_code, *, use_case_cls):
+def get_valuation_repair_status_impl(
+    viewset: Any,
+    request: Request,
+    stock_code: str,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 GET /api/equity/valuation-repair/{stock_code}/（实时计算估值修复状态）。"""
     from apps.equity.application.use_cases_valuation_repair import (
         GetValuationRepairStatusRequest,
@@ -232,7 +286,13 @@ def get_valuation_repair_status_impl(viewset, request, stock_code, *, use_case_c
         )
 
 
-def get_valuation_repair_history_impl(viewset, request, stock_code, *, use_case_cls):
+def get_valuation_repair_history_impl(
+    viewset: Any,
+    request: Request,
+    stock_code: str,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 GET /api/equity/valuation-repair/{stock_code}/history/（百分位历史序列）。"""
     from apps.equity.application.use_cases_valuation_repair import (
         GetValuationPercentileHistoryRequest,
@@ -264,10 +324,12 @@ def get_valuation_repair_history_impl(viewset, request, stock_code, *, use_case_
     # 4. 返回响应
     if use_case_response.success:
         latest_snapshot = viewset.quality_repo.get_latest_snapshot()
+        points = [row for row in use_case_response.data if isinstance(row, dict)]
         return Response(
             {
                 "stock_code": stock_code,
-                "points": use_case_response.data,
+                "points": points,
+                "chart_points": _percentile_chart_points(points),
                 "data_quality_flag": (
                     "ok" if (latest_snapshot and latest_snapshot.is_gate_passed) else None
                 ),
@@ -285,7 +347,12 @@ def get_valuation_repair_history_impl(viewset, request, stock_code, *, use_case_
         )
 
 
-def scan_valuation_repairs_impl(viewset, request, *, use_case_cls):
+def scan_valuation_repairs_impl(
+    viewset: Any,
+    request: Request,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 POST /api/equity/valuation-repair/scan/（批量扫描并保存快照）。"""
     from apps.equity.application.use_cases_valuation_repair import (
         ScanValuationRepairsRequest,
@@ -330,7 +397,12 @@ def scan_valuation_repairs_impl(viewset, request, *, use_case_cls):
         )
 
 
-def sync_valuation_data_impl(viewset, request, *, use_case_cls):
+def sync_valuation_data_impl(
+    viewset: Any,
+    request: Request,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 POST /api/equity/valuation-data/sync/（同步估值数据到本地估值表）。"""
     serializer = SyncValuationDataRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -349,12 +421,15 @@ def sync_valuation_data_impl(viewset, request, *, use_case_cls):
     )
     if response.success:
         return Response(response.data, status=status.HTTP_200_OK)
-    return Response(
-        {"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST
-    )
+    return Response({"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST)
 
 
-def validate_valuation_data_impl(viewset, request, *, use_case_cls):
+def validate_valuation_data_impl(
+    viewset: Any,
+    request: Request,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 POST /api/equity/valuation-data/validate/（质量快照与 gate 状态）。"""
     serializer = ValidateValuationDataRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -372,12 +447,15 @@ def validate_valuation_data_impl(viewset, request, *, use_case_cls):
     )
     if response.success:
         return Response(response.data, status=status.HTTP_200_OK)
-    return Response(
-        {"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST
-    )
+    return Response({"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST)
 
 
-def valuation_data_freshness_impl(viewset, request, *, use_case_cls):
+def valuation_data_freshness_impl(
+    viewset: Any,
+    request: Request,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 GET /api/equity/valuation-data/freshness/（估值数据新鲜度）。"""
     use_case = use_case_cls(
         stock_repository=viewset.stock_repo,
@@ -386,12 +464,15 @@ def valuation_data_freshness_impl(viewset, request, *, use_case_cls):
     response = use_case.execute()
     if response.success:
         return Response(response.data, status=status.HTTP_200_OK)
-    return Response(
-        {"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST
-    )
+    return Response({"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST)
 
 
-def valuation_data_quality_latest_impl(viewset, request, *, use_case_cls):
+def valuation_data_quality_latest_impl(
+    viewset: Any,
+    request: Request,
+    *,
+    use_case_cls: type[Any],
+) -> Response:
     """实现 GET /api/equity/valuation-data/quality-latest/（最近质量快照）。"""
     use_case = use_case_cls(
         quality_repository=viewset.quality_repo,
@@ -399,9 +480,7 @@ def valuation_data_quality_latest_impl(viewset, request, *, use_case_cls):
     response = use_case.execute()
     if response.success:
         return Response(response.data, status=status.HTTP_200_OK)
-    return Response(
-        {"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST
-    )
+    return Response({"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST)
 
 
 __all__ = [

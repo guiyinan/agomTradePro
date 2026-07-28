@@ -1,0 +1,714 @@
+"""Curated runtime TUI metadata for Data Center administration."""
+
+from __future__ import annotations
+
+from typing import Any
+
+_SCREEN = "api-library.data-center"
+_MODULE = "system-governance"
+_SOURCE = "approved:runtime-data-center-governance"
+
+
+def _field(
+    key: str,
+    label: str,
+    *,
+    binding: str = "body",
+    input_type: str = "text",
+    value_type: str = "string",
+    required: bool = False,
+    default: object | None = None,
+    minimum: int | float | None = None,
+    maximum: int | float | None = None,
+    options: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build one typed, bounded TUI field."""
+
+    field: dict[str, Any] = {
+        "key": key,
+        "label": label,
+        "binding": binding,
+        "input_type": input_type,
+        "value_type": value_type,
+        "required": required,
+    }
+    if default is not None:
+        field["default"] = default
+    if minimum is not None:
+        field["min"] = minimum
+    if maximum is not None:
+        field["max"] = maximum
+    if options is not None:
+        field["options"] = options
+    return field
+
+
+def _action(
+    *,
+    key: str,
+    label: str,
+    endpoint: str,
+    intent: str,
+    view_type: str,
+    description: str,
+    task_group: str,
+    sequence: int,
+    fields: list[dict[str, Any]],
+    view_model: dict[str, Any],
+    method: str = "GET",
+    effect: str = "read",
+    confirmation_required: bool = False,
+    audit_required: bool = False,
+) -> dict[str, Any]:
+    """Build one staff-only Data Center task action."""
+
+    action: dict[str, Any] = {
+        "key": key,
+        "label": label,
+        "endpoint": endpoint,
+        "method": method,
+        "intent": intent,
+        "risk": "admin",
+        "audience": "admin",
+        "effect": effect,
+        "screen_key": _SCREEN,
+        "module_key": _MODULE,
+        "view_type": view_type,
+        "description": description,
+        "source": _SOURCE,
+        "task_group": task_group,
+        "sequence": sequence,
+        "task_tier": "operation",
+        "fields": fields,
+        "view_model": view_model,
+    }
+    if confirmation_required:
+        action["confirmation_required"] = True
+    if audit_required:
+        action["audit_required"] = True
+    return action
+
+
+def _publisher_fields(*, include_code: bool) -> list[dict[str, Any]]:
+    """Return flat publisher fields for create or partial update."""
+
+    fields: list[dict[str, Any]] = []
+    if include_code:
+        fields.append(_field("code", "机构代码", required=True, maximum=40))
+    fields.extend(
+        [
+            _field(
+                "canonical_name",
+                "中文名称",
+                required=include_code,
+                maximum=120,
+            ),
+            _field("canonical_name_en", "英文名称", maximum=160),
+            _field(
+                "publisher_class",
+                "机构类型",
+                input_type="select",
+                required=include_code,
+                options=[
+                    "government",
+                    "association",
+                    "market_infrastructure",
+                    "regulator",
+                    "system",
+                    "other",
+                ],
+            ),
+            _field(
+                "aliases",
+                "别名（每行一项）",
+                input_type="textarea",
+                value_type="list",
+            ),
+            _field("country_code", "国家/地区", default="CN", maximum=10),
+            _field("website", "网站"),
+            _field(
+                "is_active",
+                "启用",
+                input_type="checkbox",
+                value_type="boolean",
+                default=True,
+            ),
+            _field(
+                "description",
+                "说明",
+                input_type="textarea",
+                maximum=2000,
+            ),
+        ]
+    )
+    return fields
+
+
+_PROVIDER_COLUMNS: list[dict[str, str]] = [
+    {"key": "id", "label": "ID"},
+    {"key": "name", "label": "名称"},
+    {"key": "source_type", "label": "类型"},
+    {"key": "is_active", "label": "启用"},
+    {"key": "priority", "label": "优先级"},
+    {"key": "http_url", "label": "地址"},
+    {"key": "description", "label": "说明"},
+]
+
+_PUBLISHER_COLUMNS: list[dict[str, str]] = [
+    {"key": "code", "label": "代码"},
+    {"key": "canonical_name", "label": "名称"},
+    {"key": "canonical_name_en", "label": "英文名"},
+    {"key": "publisher_class", "label": "类型"},
+    {"key": "country_code", "label": "国家/地区"},
+    {"key": "is_active", "label": "启用"},
+    {"key": "website", "label": "网站"},
+]
+
+_THERMOMETER_CONFIG_FIELDS: list[dict[str, Any]] = [
+    _field(
+        "short_window",
+        "短窗口",
+        input_type="number",
+        value_type="integer",
+        minimum=1,
+    ),
+    _field(
+        "medium_window",
+        "中窗口",
+        input_type="number",
+        value_type="integer",
+        minimum=1,
+    ),
+    _field(
+        "long_window",
+        "长窗口",
+        input_type="number",
+        value_type="integer",
+        minimum=1,
+    ),
+    _field(
+        "daily_stale_days",
+        "日频过期天数",
+        input_type="number",
+        value_type="integer",
+        minimum=1,
+    ),
+    _field(
+        "monthly_stale_days",
+        "月频过期天数",
+        input_type="number",
+        value_type="integer",
+        minimum=1,
+    ),
+    _field(
+        "warm_threshold",
+        "偏暖阈值",
+        input_type="number",
+        value_type="float",
+        minimum=0,
+        maximum=100,
+    ),
+    _field(
+        "hot_threshold",
+        "过热阈值",
+        input_type="number",
+        value_type="float",
+        minimum=0,
+        maximum=100,
+    ),
+    _field(
+        "overheat_threshold",
+        "高热阈值",
+        input_type="number",
+        value_type="float",
+        minimum=0,
+        maximum=100,
+    ),
+    _field(
+        "extreme_threshold",
+        "极端阈值",
+        input_type="number",
+        value_type="float",
+        minimum=0,
+        maximum=100,
+    ),
+]
+
+
+RUNTIME_DATA_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
+    _action(
+        key="data-center.governance-overview",
+        label="宏观数据治理证据",
+        endpoint="/api/data-center/tui/governance/",
+        intent="inspect_macro_data_governance",
+        view_type="detail",
+        description="查看覆盖缺口、来源别名、单位规范与缺失同步候选。",
+        task_group="01 数据治理",
+        sequence=10,
+        fields=[],
+        view_model={"kind": "detail"},
+    ),
+    _action(
+        key="data-center.governance-run",
+        label="执行宏观数据治理",
+        endpoint="/api/data-center/tui/governance/",
+        method="POST",
+        intent="run_macro_data_governance",
+        view_type="detail",
+        description="确认后执行完整治理、来源归一、单位标准化或缺失序列同步。",
+        task_group="01 数据治理",
+        sequence=20,
+        fields=[
+            _field(
+                "action",
+                "治理动作",
+                input_type="select",
+                required=True,
+                options=[
+                    "run_full_repair",
+                    "canonicalize_sources",
+                    "normalize_units",
+                    "sync_missing_series",
+                ],
+            )
+        ],
+        view_model={"kind": "detail"},
+        effect="update",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+    _action(
+        key="auto.api.get.api.data-center.providers",
+        label="数据服务商",
+        endpoint="/api/data-center/providers/",
+        intent="list_data_center_providers",
+        view_type="datagrid",
+        description="查看已配置服务商、类型、优先级和启用状态。",
+        task_group="04 服务商",
+        sequence=30,
+        fields=[],
+        view_model={
+            "kind": "datagrid",
+            "rows_path": "results",
+            "columns": _PROVIDER_COLUMNS,
+        },
+    ),
+    _action(
+        key="data-center.provider-test",
+        label="测试服务商连接",
+        endpoint="/api/data-center/providers/{provider_id}/test/",
+        method="POST",
+        intent="test_data_center_provider_connection",
+        view_type="detail",
+        description="对指定服务商执行一次连接探测并返回日志。",
+        task_group="02 服务商与健康",
+        sequence=40,
+        fields=[
+            _field(
+                "provider_id",
+                "服务商 ID",
+                binding="path",
+                input_type="number",
+                value_type="integer",
+                required=True,
+                minimum=1,
+            )
+        ],
+        view_model={"kind": "detail"},
+    ),
+    _action(
+        key="data-center.provider-status",
+        label="服务商健康状态",
+        endpoint="/api/data-center/providers/status/",
+        intent="inspect_data_center_provider_health",
+        view_type="datagrid",
+        description="查看活动服务商的实时状态、失败次数和延迟。",
+        task_group="02 服务商与健康",
+        sequence=50,
+        fields=[],
+        view_model={
+            "kind": "datagrid",
+            "rows_path": "results",
+            "columns": [
+                {"key": "provider_name", "label": "服务商"},
+                {"key": "capability", "label": "能力"},
+                {"key": "status", "label": "状态"},
+                {"key": "consecutive_failures", "label": "连续失败"},
+                {"key": "last_success_at", "label": "最近成功"},
+                {"key": "avg_latency_ms", "label": "平均延迟(ms)"},
+            ],
+        },
+    ),
+    _action(
+        key="auto.api.get.api.data-center.publishers",
+        label="发布机构目录",
+        endpoint="/api/data-center/publishers/",
+        intent="list_data_center_publishers",
+        view_type="datagrid",
+        description="按启用状态查看标准发布机构、类别和来源信息。",
+        task_group="05 发布机构",
+        sequence=60,
+        fields=[
+            _field(
+                "active_only",
+                "仅启用",
+                binding="query",
+                input_type="checkbox",
+                value_type="boolean",
+                default=False,
+            )
+        ],
+        view_model={
+            "kind": "datagrid",
+            "rows_path": "results",
+            "columns": _PUBLISHER_COLUMNS,
+        },
+    ),
+    _action(
+        key="data-center.publisher-detail",
+        label="发布机构详情",
+        endpoint="/api/data-center/publishers/{publisher_code}/",
+        intent="inspect_data_center_publisher",
+        view_type="detail",
+        description="查看一个标准发布机构及其别名和说明。",
+        task_group="03 发布机构",
+        sequence=70,
+        fields=[
+            _field(
+                "publisher_code",
+                "机构代码",
+                binding="path",
+                required=True,
+                maximum=40,
+            )
+        ],
+        view_model={"kind": "detail"},
+    ),
+    _action(
+        key="data-center.publisher-create",
+        label="新建发布机构",
+        endpoint="/api/data-center/publishers/",
+        method="POST",
+        intent="create_data_center_publisher",
+        view_type="detail",
+        description="确认后新增标准发布机构及其别名。",
+        task_group="03 发布机构",
+        sequence=80,
+        fields=_publisher_fields(include_code=True),
+        view_model={"kind": "detail"},
+        effect="create",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+    _action(
+        key="data-center.publisher-update",
+        label="更新发布机构",
+        endpoint="/api/data-center/publishers/{publisher_code}/",
+        method="PATCH",
+        intent="update_data_center_publisher",
+        view_type="detail",
+        description="确认后局部更新发布机构信息。",
+        task_group="03 发布机构",
+        sequence=90,
+        fields=[
+            _field(
+                "publisher_code",
+                "机构代码",
+                binding="path",
+                required=True,
+                maximum=40,
+            ),
+            *_publisher_fields(include_code=False),
+        ],
+        view_model={"kind": "detail"},
+        effect="update",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+    _action(
+        key="data-center.publisher-delete",
+        label="删除发布机构",
+        endpoint="/api/data-center/publishers/{publisher_code}/",
+        method="DELETE",
+        intent="delete_data_center_publisher",
+        view_type="detail",
+        description="确认后删除指定发布机构。",
+        task_group="03 发布机构",
+        sequence=100,
+        fields=[
+            _field(
+                "publisher_code",
+                "机构代码",
+                binding="path",
+                required=True,
+                maximum=40,
+            )
+        ],
+        view_model={"kind": "detail"},
+        effect="delete",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+    _action(
+        key="data-center.universe-config",
+        label="生产覆盖 Universe 配置",
+        endpoint="/api/data-center/production-coverage/universe/",
+        intent="inspect_production_coverage_universe",
+        view_type="detail",
+        description="查看生产覆盖诊断使用的资产范围与最低覆盖门槛。",
+        task_group="04 生产覆盖",
+        sequence=110,
+        fields=[],
+        view_model={"kind": "detail"},
+    ),
+    _action(
+        key="data-center.universe-summary",
+        label="生产覆盖摘要",
+        endpoint="/api/data-center/production-coverage/summary/",
+        intent="inspect_production_coverage_summary",
+        view_type="detail",
+        description="查看当前资产覆盖数量、板块覆盖和最新日期。",
+        task_group="04 生产覆盖",
+        sequence=120,
+        fields=[],
+        view_model={"kind": "detail"},
+    ),
+    _action(
+        key="data-center.universe-update",
+        label="更新生产覆盖 Universe",
+        endpoint="/api/data-center/production-coverage/universe/",
+        method="PATCH",
+        intent="update_production_coverage_universe",
+        view_type="detail",
+        description="确认后更新资产范围、交易所和最低覆盖门槛。",
+        task_group="04 生产覆盖",
+        sequence=130,
+        fields=[
+            _field("universe_id", "Universe ID", maximum=50),
+            _field("asset_type", "资产类型", maximum=20),
+            _field(
+                "exchanges",
+                "交易所（每行一项）",
+                input_type="textarea",
+                value_type="list",
+            ),
+            _field(
+                "include_inactive",
+                "包含停用资产",
+                input_type="checkbox",
+                value_type="boolean",
+            ),
+            _field(
+                "min_active_asset_count",
+                "最低活动资产数",
+                input_type="number",
+                value_type="integer",
+                minimum=0,
+            ),
+            _field(
+                "min_star_market_count",
+                "最低科创板数量",
+                input_type="number",
+                value_type="integer",
+                minimum=0,
+            ),
+            _field(
+                "min_chinext_count",
+                "最低创业板数量",
+                input_type="number",
+                value_type="integer",
+                minimum=0,
+            ),
+            _field(
+                "min_bse_count",
+                "最低北交所数量",
+                input_type="number",
+                value_type="integer",
+                minimum=0,
+            ),
+            _field(
+                "description",
+                "说明",
+                input_type="textarea",
+                maximum=2000,
+            ),
+        ],
+        view_model={"kind": "detail"},
+        effect="update",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+    _action(
+        key="data-center.market-thermometer-current",
+        label="市场温度计",
+        endpoint="/api/data-center/market-thermometer/current/",
+        intent="inspect_market_thermometer",
+        view_type="detail",
+        description="查看当前市场温度、有效分量、数据新鲜度和证据。",
+        task_group="05 市场温度计",
+        sequence=140,
+        fields=[],
+        view_model={"kind": "detail"},
+    ),
+    _action(
+        key="data-center.market-thermometer-config",
+        label="市场温度计配置",
+        endpoint="/api/data-center/tui/market-thermometer/config/",
+        intent="inspect_market_thermometer_config",
+        view_type="detail",
+        description="查看全局窗口、新鲜度和温度阈值配置。",
+        task_group="05 市场温度计",
+        sequence=150,
+        fields=[],
+        view_model={"kind": "detail"},
+    ),
+    _action(
+        key="data-center.market-thermometer-config-update",
+        label="更新市场温度计配置",
+        endpoint="/api/data-center/tui/market-thermometer/config/",
+        method="PATCH",
+        intent="update_market_thermometer_config",
+        view_type="detail",
+        description="用扁平字段局部更新窗口、新鲜度或温度阈值。",
+        task_group="05 市场温度计",
+        sequence=160,
+        fields=_THERMOMETER_CONFIG_FIELDS,
+        view_model={"kind": "detail"},
+        effect="update",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+    _action(
+        key="data-center.market-thermometer-sync",
+        label="同步温度计输入",
+        endpoint="/api/data-center/market-thermometer/sync-inputs/",
+        method="POST",
+        intent="sync_market_thermometer_inputs",
+        view_type="detail",
+        description="确认后同步市场温度计所需的标准输入。",
+        task_group="05 市场温度计",
+        sequence=170,
+        fields=[
+            _field(
+                "as_of_date",
+                "截至日期",
+                input_type="date",
+                value_type="date",
+            )
+        ],
+        view_model={"kind": "detail"},
+        effect="update",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+    _action(
+        key="data-center.market-thermometer-calculate",
+        label="重算市场温度快照",
+        endpoint="/api/data-center/market-thermometer/calculate/",
+        method="POST",
+        intent="calculate_market_thermometer",
+        view_type="detail",
+        description="确认后基于当前输入生成新的市场温度快照。",
+        task_group="05 市场温度计",
+        sequence=180,
+        fields=[
+            _field(
+                "as_of_date",
+                "截至日期",
+                input_type="date",
+                value_type="date",
+            )
+        ],
+        view_model={"kind": "detail"},
+        effect="create",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+    _action(
+        key="data-center.market-thermometer-import-preview",
+        label="预览开户数导入",
+        endpoint="/api/data-center/market-thermometer/import/investor-accounts/",
+        method="POST",
+        intent="preview_investor_account_import",
+        view_type="detail",
+        description="解析开户数 CSV 并返回警告，不写入事实表。",
+        task_group="05 市场温度计",
+        sequence=190,
+        fields=[
+            _field(
+                "csv_text",
+                "CSV 内容",
+                input_type="textarea",
+                required=True,
+                maximum=500_000,
+            ),
+            _field(
+                "value_unit",
+                "数值单位",
+                input_type="select",
+                default="户",
+                options=["户", "万户"],
+            ),
+            _field(
+                "fail_on_warning",
+                "警告即失败",
+                input_type="checkbox",
+                value_type="boolean",
+                default=False,
+            ),
+            _field(
+                "dry_run",
+                "仅预览",
+                input_type="hidden",
+                value_type="boolean",
+                default=True,
+            ),
+        ],
+        view_model={"kind": "detail"},
+    ),
+    _action(
+        key="data-center.market-thermometer-import",
+        label="导入开户数",
+        endpoint="/api/data-center/market-thermometer/import/investor-accounts/",
+        method="POST",
+        intent="import_investor_account_series",
+        view_type="detail",
+        description="确认后把开户数 CSV 写入 canonical MacroFact。",
+        task_group="05 市场温度计",
+        sequence=200,
+        fields=[
+            _field(
+                "csv_text",
+                "CSV 内容",
+                input_type="textarea",
+                required=True,
+                maximum=500_000,
+            ),
+            _field(
+                "value_unit",
+                "数值单位",
+                input_type="select",
+                default="户",
+                options=["户", "万户"],
+            ),
+            _field(
+                "fail_on_warning",
+                "警告即失败",
+                input_type="checkbox",
+                value_type="boolean",
+                default=False,
+            ),
+            _field(
+                "dry_run",
+                "正式导入",
+                input_type="hidden",
+                value_type="boolean",
+                default=False,
+            ),
+        ],
+        view_model={"kind": "detail"},
+        effect="create",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+)

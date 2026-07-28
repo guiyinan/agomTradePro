@@ -1,10 +1,16 @@
 """Account API URL configuration."""
 
-from django.urls import include, path  # type: ignore[import-untyped]
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.account.application.simulated_trading_gateway import get_simulated_trading_view
-from apps.account.interface import classification_api_views, mcp_api_views, sizing_views, views
+from apps.account.interface import (
+    classification_api_views,
+    mcp_api_views,
+    sizing_views,
+    user_admin_api_views,
+    views,
+)
 from apps.account.interface.observer_api_views import ObserverGrantViewSet
 from apps.account.interface.performance_compat_views import (
     PortfolioBenchmarksCompatView,
@@ -15,6 +21,7 @@ from apps.account.interface.performance_compat_views import (
 from apps.account.interface.portfolio_api_views import PortfolioViewSet, PositionViewSet
 from apps.account.interface.profile_api_views import (
     AccountHealthView,
+    AccountPasswordChangeView,
     AccountProfileView,
     AssetMetadataViewSet,
     MacroSizingConfigView,
@@ -24,9 +31,12 @@ from apps.account.interface.profile_api_views import (
 from apps.account.interface.transaction_api_views import (
     BrokerTradeImportConfirmView,
     BrokerTradeImportPreviewView,
+    BrokerTradeTuiImportConfirmView,
+    BrokerTradeTuiImportPreviewView,
     CapitalFlowViewSet,
     TransactionViewSet,
 )
+from apps.account.interface.tui_views import AccountTuiVolatilityView
 
 app_name = "account_api"
 
@@ -69,6 +79,16 @@ classification_router.register(
 
 urlpatterns = [
     path("profile/", AccountProfileView.as_view(), name="profile"),
+    path(
+        "tui/volatility/",
+        AccountTuiVolatilityView.as_view(),
+        name="tui-volatility",
+    ),
+    path(
+        "profile/password/",
+        AccountPasswordChangeView.as_view(),
+        name="profile-password",
+    ),
     path("health/", AccountHealthView.as_view(), name="health"),
     path("macro-sizing-config/", MacroSizingConfigView.as_view(), name="macro-sizing-config"),
     path("users/search/", UserSearchView.as_view(), name="user-search"),
@@ -106,6 +126,31 @@ urlpatterns = [
         name="admin-mcp-user-toggle",
     ),
     path(
+        "admin/users/",
+        user_admin_api_views.UserAccessGovernanceView.as_view(),
+        name="admin-user-governance",
+    ),
+    path(
+        "admin/users/<int:user_id>/approve/",
+        user_admin_api_views.UserApproveView.as_view(),
+        name="admin-user-approve",
+    ),
+    path(
+        "admin/users/<int:user_id>/reject/",
+        user_admin_api_views.UserRejectView.as_view(),
+        name="admin-user-reject",
+    ),
+    path(
+        "admin/users/<int:user_id>/role/",
+        user_admin_api_views.UserRoleView.as_view(),
+        name="admin-user-role",
+    ),
+    path(
+        "admin/users/<int:user_id>/reset/",
+        user_admin_api_views.UserApprovalResetView.as_view(),
+        name="admin-user-reset",
+    ),
+    path(
         "broker-trades/preview/",
         BrokerTradeImportPreviewView.as_view(),
         name="broker-trade-preview",
@@ -114,6 +159,16 @@ urlpatterns = [
         "broker-trades/import/",
         BrokerTradeImportConfirmView.as_view(),
         name="broker-trade-import",
+    ),
+    path(
+        "tui/broker-trades/preview/",
+        BrokerTradeTuiImportPreviewView.as_view(),
+        name="tui-broker-trade-preview",
+    ),
+    path(
+        "tui/broker-trades/import/",
+        BrokerTradeTuiImportConfirmView.as_view(),
+        name="tui-broker-trade-import",
     ),
     # 统一账户 canonical API
     path("accounts/", AccountListAPIView.as_view(), name="account-list"),
@@ -176,6 +231,11 @@ urlpatterns = [
     ),
     path("", include(router.urls)),
     path("volatility/", views.portfolio_volatility_api_view, name="volatility"),
+    path(
+        "backtests/<int:backtest_id>/apply/",
+        views.apply_backtest_results_view,
+        name="apply-backtest-results",
+    ),
     path("sizing-context/", sizing_views.SizingContextView.as_view(), name="sizing-context"),
     path("", include(classification_router.urls)),
     path(

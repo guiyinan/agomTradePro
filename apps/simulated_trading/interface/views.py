@@ -176,6 +176,7 @@ def _account_payload(account: SimulatedAccount, *, newly_created: bool = False) 
 
 
 @require_http_methods(["GET"])
+@login_required
 def dashboard_page(request: HttpRequest) -> HttpResponse:
     """
     模拟盘仪表盘页面
@@ -186,6 +187,7 @@ def dashboard_page(request: HttpRequest) -> HttpResponse:
 
 
 @require_http_methods(["GET"])
+@login_required
 def account_detail_page(request: HttpRequest, account_id: int) -> HttpResponse:
     """
     账户详情页面

@@ -12,6 +12,7 @@ import logging
 from collections.abc import Callable
 from typing import Any, Protocol, TypeVar, cast
 
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, HttpResponseNotFound
 from django.shortcuts import render
 from drf_spectacular.utils import extend_schema
@@ -29,6 +30,8 @@ from ..application.repository_provider import (
     get_alpha_trigger_repository,
 )
 from ..application.use_cases import (
+    ChangeAlphaTriggerStatusUseCase,
+    ChangeTriggerStatusRequest,
     CheckInvalidationRequest,
     CheckTriggerInvalidationUseCase,
     CreateAlphaTriggerUseCase,
@@ -37,11 +40,15 @@ from ..application.use_cases import (
     EvaluateTriggerRequest,
     GenerateCandidateRequest,
     GenerateCandidateUseCase,
+    UpdateAlphaTriggerUseCase,
+    UpdateTriggerRequest,
 )
 from ..domain.entities import (
     CandidateStatus,
+    InvalidationCondition,
     SignalStrength,
     TriggerConfig,
+    TriggerStatus,
     TriggerType,
 )
 from .serializers import (
@@ -53,6 +60,7 @@ from .serializers import (
     EvaluateTriggerRequestSerializer,
     GenerateCandidateRequestSerializer,
     UpdateCandidateStatusRequestSerializer,
+    UpdateTriggerRequestSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,6 +99,24 @@ def _parse_statistics_days(request: Request) -> int:
     if not 1 <= days <= 365:
         raise ValidationError({"days": "days must be between 1 and 365"})
     return days
+
+
+def _domain_invalidation_conditions(
+    values: list[dict[str, Any]],
+) -> list[InvalidationCondition]:
+    """Convert validated nested serializer values into Domain entities."""
+
+    return [
+        InvalidationCondition(
+            condition_type=value["condition_type"],
+            indicator_code=value.get("indicator_code"),
+            threshold=value.get("threshold"),
+            direction=value.get("direction"),
+            time_limit_hours=value.get("time_limit_hours"),
+            custom_condition=value.get("custom_condition", {}),
+        )
+        for value in values
+    ]
 
 
 # ========== ViewSets ==========
@@ -178,6 +204,110 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @typed_extend_schema(
+        request=UpdateTriggerRequestSerializer,
+        responses={200: AlphaTriggerSerializer},
+    )
+    def partial_update(
+        self,
+        request: Request,
+        pk: str | None = None,
+    ) -> Response:
+        """Partially update one Alpha Trigger rule."""
+
+        trigger_id = _required_route_id(pk, label="trigger_id")
+        current = self.trigger_repository.get_by_id(trigger_id)
+        if current is None:
+            return Response(
+                {"success": False, "error": "Trigger not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = UpdateTriggerRequestSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        conditions = current.invalidation_conditions
+        if "invalidation_conditions" in data:
+            conditions = _domain_invalidation_conditions(data["invalidation_conditions"])
+
+        response = UpdateAlphaTriggerUseCase(
+            self.trigger_repository,
+            TriggerConfig(),
+        ).execute(
+            UpdateTriggerRequest(
+                trigger_id=trigger_id,
+                asset_class=data.get("asset_class", current.asset_class),
+                direction=data.get("direction", current.direction),
+                trigger_condition=data.get("trigger_condition", current.trigger_condition),
+                invalidation_conditions=conditions,
+                confidence=data.get("confidence", current.confidence),
+                thesis=data.get("thesis", current.thesis),
+                related_regime=data.get("related_regime", current.related_regime),
+                related_policy_level=data.get(
+                    "related_policy_level",
+                    current.related_policy_level,
+                ),
+            )
+        )
+        if not response.success or response.trigger is None:
+            return Response(
+                {"success": False, "error": response.error},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {
+                "success": True,
+                "result": AlphaTriggerSerializer(response.trigger).data,
+            }
+        )
+
+    def destroy(self, request: Request, pk: str | None = None) -> Response:
+        """Soft-cancel one Alpha Trigger while retaining its audit record."""
+
+        return self._change_status(pk, TriggerStatus.CANCELLED)
+
+    @action(detail=True, methods=["POST"], url_path="pause")
+    def pause(self, request: Request, pk: str | None = None) -> Response:
+        """Pause an active Alpha Trigger."""
+
+        return self._change_status(pk, TriggerStatus.PAUSED)
+
+    @action(detail=True, methods=["POST"], url_path="resume")
+    def resume(self, request: Request, pk: str | None = None) -> Response:
+        """Resume a paused Alpha Trigger."""
+
+        return self._change_status(pk, TriggerStatus.ACTIVE)
+
+    def _change_status(
+        self,
+        pk: str | None,
+        target_status: TriggerStatus,
+    ) -> Response:
+        """Run one lifecycle transition and normalize its API response."""
+
+        response = ChangeAlphaTriggerStatusUseCase(self.trigger_repository).execute(
+            ChangeTriggerStatusRequest(
+                trigger_id=_required_route_id(pk, label="trigger_id"),
+                target_status=target_status,
+            )
+        )
+        if not response.success or response.trigger is None:
+            response_status = (
+                status.HTTP_404_NOT_FOUND
+                if response.error == "Trigger not found"
+                else status.HTTP_400_BAD_REQUEST
+            )
+            return Response(
+                {"success": False, "error": response.error},
+                status=response_status,
+            )
+        return Response(
+            {
+                "success": True,
+                "result": AlphaTriggerSerializer(response.trigger).data,
+            }
+        )
 
     @action(detail=False, methods=["GET"], url_path="active")
     def active(self, request: Request) -> Response:
@@ -557,12 +687,9 @@ class CreateTriggerView(APIView):
             data = serializer.validated_data
 
             # 转换证伪条件
-            invalidation_conditions = [
-                cond.to_domain()
-                for cond in serializer.fields["invalidation_conditions"].to_internal_value(
-                    data.get("invalidation_conditions", [])
-                )
-            ]
+            invalidation_conditions = _domain_invalidation_conditions(
+                data.get("invalidation_conditions", [])
+            )
 
             # 构建请求
             req = CreateTriggerRequest(
@@ -571,7 +698,9 @@ class CreateTriggerView(APIView):
                 asset_class=data["asset_class"],
                 direction=data["direction"],
                 trigger_condition=data["trigger_condition"],
-                invalidation_conditions=invalidation_conditions,
+                invalidation_conditions=[
+                    condition.to_dict() for condition in invalidation_conditions
+                ],
                 confidence=data["confidence"],
                 thesis=data.get("thesis", ""),
                 expires_in_days=data.get("expires_in_days"),
@@ -840,6 +969,7 @@ class GenerateCandidateView(APIView):
 # ========== Template Views ==========
 
 
+@login_required
 def alpha_trigger_list_view(request: HttpRequest) -> HttpResponse:
     """
     Alpha 触发器列表页面
@@ -883,6 +1013,7 @@ def alpha_trigger_list_view(request: HttpRequest) -> HttpResponse:
         return render(request, "alpha_trigger/list.html", context, status=500)
 
 
+@login_required
 def alpha_trigger_create_view(request: HttpRequest) -> HttpResponse:
     """
     Alpha 触发器创建页面
@@ -904,6 +1035,7 @@ def alpha_trigger_create_view(request: HttpRequest) -> HttpResponse:
         return render(request, "alpha_trigger/create.html", context, status=500)
 
 
+@login_required
 def alpha_trigger_edit_view(
     request: HttpRequest,
     trigger_id: str,
@@ -935,6 +1067,7 @@ def alpha_trigger_edit_view(
         return render(request, "alpha_trigger/edit.html", context, status=500)
 
 
+@login_required
 def alpha_trigger_detail_view(
     request: HttpRequest,
     trigger_id: str,
@@ -971,6 +1104,7 @@ def alpha_trigger_detail_view(
         return render(request, "alpha_trigger/detail.html", context, status=500)
 
 
+@login_required
 def alpha_trigger_invalidation_builder_view(request: HttpRequest) -> HttpResponse:
     """
     证伪规则可视化构建器页面
@@ -1031,6 +1165,7 @@ def alpha_trigger_invalidation_builder_view(request: HttpRequest) -> HttpRespons
         return render(request, "alpha_trigger/invalidation_builder.html", context, status=500)
 
 
+@login_required
 def alpha_candidate_detail_view(
     request: HttpRequest,
     candidate_id: str,
@@ -1056,6 +1191,7 @@ def alpha_candidate_detail_view(
         return render(request, "alpha_trigger/candidate_detail.html", context, status=500)
 
 
+@login_required
 def alpha_trigger_performance_view(request: HttpRequest) -> HttpResponse:
     """
     Alpha 触发器性能追踪页面

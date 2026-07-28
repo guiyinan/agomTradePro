@@ -332,6 +332,28 @@ class FactorPortfolioConfigRepository:
         config.save()
         return config
 
+    def set_factor_weight(
+        self,
+        *,
+        config_id: int,
+        factor_code: str,
+        weight: float | None,
+    ) -> FactorPortfolioConfigModel | None:
+        """Set or remove one factor weight without exposing raw JSON editing."""
+
+        config = self.get_model_by_id(config_id)
+        if config is None:
+            return None
+
+        factor_weights = dict(config.factor_weights or {})
+        if weight is None:
+            factor_weights.pop(factor_code, None)
+        else:
+            factor_weights[factor_code] = weight
+        config.factor_weights = factor_weights
+        config.save(update_fields=["factor_weights", "updated_at"])
+        return config
+
     def delete_model(self, config_id: int) -> bool:
         """Delete one portfolio config ORM row."""
 

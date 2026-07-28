@@ -16,7 +16,7 @@ from apps.backtest.domain.entities import BacktestConfig
 from core.integration.decision_recommendations import build_decision_recommendation_plan_reader
 
 
-def get_manual_trade_sync_repository():
+def get_manual_trade_sync_repository() -> Any:
     """Return the account-owned manual trade sync repository."""
 
     from apps.account.application.repository_provider import (
@@ -41,6 +41,28 @@ class DecisionReplayBacktestResponse:
     success: bool
     backtest_id: int | None = None
     error: str = ""
+    result: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class DecisionReplayComparisonRequest:
+    """Request one fixed four-branch manual decision comparison."""
+
+    user_id: int
+    portfolio_id: int
+    start_date: date
+    end_date: date
+    initial_capital: Decimal = Decimal("1000000")
+
+
+@dataclass(frozen=True)
+class DecisionReplayComparisonResponse:
+    """Chart-ready comparison of the four approved decision branches."""
+
+    success: bool
+    branches: tuple[dict[str, Any], ...]
+    equity_curve: tuple[dict[str, Any], ...]
+    errors: tuple[str, ...]
 
 
 class DecisionReplayBacktestUseCase:
@@ -51,9 +73,9 @@ class DecisionReplayBacktestUseCase:
     def __init__(
         self,
         *,
-        trade_repo=None,
-        backtest_repo=None,
-        recommendation_repo=None,
+        trade_repo: Any | None = None,
+        backtest_repo: Any | None = None,
+        recommendation_repo: Any | None = None,
         price_series_reader: Callable[[str, date, date], list[tuple[date, float]]] | None = None,
     ) -> None:
         self.trade_repo = trade_repo or get_manual_trade_sync_repository()
@@ -100,10 +122,16 @@ class DecisionReplayBacktestUseCase:
                 end_date=request.end_date,
             )
             model.mark_completed(result_payload["final_capital"], result_payload)
-            return DecisionReplayBacktestResponse(success=True, backtest_id=model.id)
+            return DecisionReplayBacktestResponse(
+                success=True,
+                backtest_id=model.id,
+                result=result_payload,
+            )
         except Exception as exc:
             model.mark_failed(str(exc))
-            return DecisionReplayBacktestResponse(success=False, backtest_id=model.id, error=str(exc))
+            return DecisionReplayBacktestResponse(
+                success=False, backtest_id=model.id, error=str(exc)
+            )
 
     def _simulate(
         self,
@@ -181,9 +209,7 @@ class DecisionReplayBacktestUseCase:
 
         final_capital = self._portfolio_value(cash, positions, last_price)
         total_return = (
-            float((final_capital - initial_capital) / initial_capital)
-            if initial_capital
-            else 0.0
+            float((final_capital - initial_capital) / initial_capital) if initial_capital else 0.0
         )
         equity_values = [Decimal(str(point["value"])) for point in equity_curve]
         max_drawdown = self._max_drawdown(equity_values)
@@ -309,3 +335,66 @@ class DecisionReplayBacktestUseCase:
             if peak > 0:
                 max_dd = min(max_dd, (value - peak) / peak)
         return float(abs(max_dd))
+
+
+class DecisionReplayComparisonUseCase:
+    """Run and merge the four fixed replay branches for one owner portfolio."""
+
+    BRANCHES = ("actual", "no_action", "system_plan", "delayed_1d")
+
+    def __init__(
+        self,
+        *,
+        branch_use_case: DecisionReplayBacktestUseCase | None = None,
+    ) -> None:
+        self.branch_use_case = branch_use_case or DecisionReplayBacktestUseCase()
+
+    def execute(
+        self,
+        request: DecisionReplayComparisonRequest,
+    ) -> DecisionReplayComparisonResponse:
+        """Return branch metrics and one date-aligned equity curve."""
+
+        branches: list[dict[str, Any]] = []
+        curve_by_date: dict[str, dict[str, Any]] = {}
+        errors: list[str] = []
+        for branch_type in self.BRANCHES:
+            response = self.branch_use_case.execute(
+                DecisionReplayBacktestRequest(
+                    user_id=request.user_id,
+                    portfolio_id=request.portfolio_id,
+                    start_date=request.start_date,
+                    end_date=request.end_date,
+                    branch_type=branch_type,
+                    initial_capital=request.initial_capital,
+                )
+            )
+            result = response.result or {}
+            if not response.success:
+                errors.append(f"{branch_type}: {response.error or '运行失败'}")
+                continue
+            branches.append(
+                {
+                    "branch_type": branch_type,
+                    "backtest_id": response.backtest_id,
+                    "final_capital": result.get("final_capital"),
+                    "total_return_percent": float(result.get("total_return", 0) or 0) * 100,
+                    "max_drawdown_percent": float(result.get("max_drawdown", 0) or 0) * 100,
+                    "warning_count": len(result.get("warnings", []) or []),
+                }
+            )
+            for raw_point in result.get("equity_curve", []) or []:
+                if not isinstance(raw_point, dict):
+                    continue
+                point_date = str(raw_point.get("date") or "")
+                if not point_date:
+                    continue
+                row = curve_by_date.setdefault(point_date, {"date": point_date})
+                row[branch_type] = raw_point.get("value")
+
+        return DecisionReplayComparisonResponse(
+            success=not errors and len(branches) == len(self.BRANCHES),
+            branches=tuple(branches),
+            equity_curve=tuple(curve_by_date[key] for key in sorted(curve_by_date)),
+            errors=tuple(errors),
+        )

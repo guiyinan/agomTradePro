@@ -1,11 +1,17 @@
 """Strategy API URL configuration."""
 
-from django.urls import include, path
+from django.urls import URLPattern, URLResolver, include, path
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 
+from apps.strategy.interface.tui_views import (
+    StrategyTuiCreateView,
+    StrategyTuiRuleCreateView,
+    StrategyTuiRuleUpdateView,
+    StrategyTuiUpdateView,
+)
 from apps.strategy.interface.views import (
     AIStrategyConfigViewSet,
     PortfolioStrategyAssignmentViewSet,
@@ -17,6 +23,7 @@ from apps.strategy.interface.views import (
     bind_strategy,
     execution_evaluate,
     test_script,
+    test_strategy,
     unbind_strategy,
 )
 
@@ -28,7 +35,9 @@ router.register(r"position-rules", PositionManagementRuleViewSet, basename="posi
 router.register(r"rules", RuleConditionViewSet, basename="rulecondition")
 router.register(r"script-configs", ScriptConfigViewSet, basename="scriptconfig")
 router.register(r"ai-configs", AIStrategyConfigViewSet, basename="aistrategyconfig")
-router.register(r"assignments", PortfolioStrategyAssignmentViewSet, basename="portfoliostrategyassignment")
+router.register(
+    r"assignments", PortfolioStrategyAssignmentViewSet, basename="portfoliostrategyassignment"
+)
 router.register(r"execution-logs", StrategyExecutionLogViewSet, basename="strategyexecutionlog")
 
 
@@ -53,8 +62,33 @@ class StrategyApiRootView(APIView):
         )
 
 
-urlpatterns = [
+urlpatterns: list[URLPattern | URLResolver] = [
     path("", StrategyApiRootView.as_view(), name="api-root"),
+    path(
+        "tui/strategies/",
+        StrategyTuiCreateView.as_view(),
+        name="tui-strategy-create",
+    ),
+    path(
+        "tui/strategies/<int:strategy_id>/",
+        StrategyTuiUpdateView.as_view(),
+        name="tui-strategy-update",
+    ),
+    path(
+        "tui/strategies/<int:strategy_id>/preview/",
+        test_strategy,
+        name="tui-strategy-preview",
+    ),
+    path(
+        "tui/rules/",
+        StrategyTuiRuleCreateView.as_view(),
+        name="tui-rule-create",
+    ),
+    path(
+        "tui/rules/<int:rule_id>/",
+        StrategyTuiRuleUpdateView.as_view(),
+        name="tui-rule-update",
+    ),
     path("", include(router.urls)),
     path("test-script/", test_script, name="test-script"),
     path("execution/evaluate/", execution_evaluate, name="execution-evaluate"),

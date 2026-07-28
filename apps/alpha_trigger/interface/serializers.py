@@ -406,6 +406,36 @@ class CreateTriggerRequestSerializer(serializers.Serializer[Any]):
     )
 
 
+class UpdateTriggerRequestSerializer(serializers.Serializer[Any]):
+    """Validate editable Alpha Trigger fields for partial updates."""
+
+    asset_class = serializers.CharField(required=False)
+    direction = serializers.ChoiceField(
+        choices=["LONG", "SHORT", "NEUTRAL"],
+        required=False,
+    )
+    trigger_condition = serializers.DictField(required=False)
+    invalidation_conditions = InvalidationConditionSerializer(
+        many=True,
+        required=False,
+    )
+    confidence = serializers.FloatField(
+        min_value=0.0,
+        max_value=1.0,
+        required=False,
+    )
+    thesis = serializers.CharField(required=False, allow_blank=True)
+    related_regime = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    related_policy_level = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+    )
+
+
 class CheckInvalidationRequestSerializer(serializers.Serializer[Any]):
     """检查证伪请求序列化器"""
 

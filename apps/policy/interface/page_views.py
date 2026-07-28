@@ -3,7 +3,7 @@
 from typing import Any
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import Http404, HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
 from django.urls import reverse_lazy
@@ -22,7 +22,18 @@ page_service = get_policy_page_interface_service()
 rss_api_service = get_policy_rss_api_interface_service()
 
 
-class RSSSourceListView(LoginRequiredMixin, ListView):  # type: ignore[type-arg]
+class StaffRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Require an authenticated staff user for RSS governance pages."""
+
+    request: HttpRequest
+
+    def test_func(self) -> bool:
+        """Return whether the current user may govern RSS configuration."""
+
+        return bool(self.request.user.is_staff)
+
+
+class RSSSourceListView(StaffRequiredMixin, ListView):  # type: ignore[type-arg]
     """RSS源管理页面"""
 
     template_name = "policy/rss_manage.html"
@@ -46,7 +57,7 @@ class RSSSourceListView(LoginRequiredMixin, ListView):  # type: ignore[type-arg]
         return context
 
 
-class RSSKeywordListView(LoginRequiredMixin, ListView):  # type: ignore[type-arg]
+class RSSKeywordListView(StaffRequiredMixin, ListView):  # type: ignore[type-arg]
     """关键词规则管理页面"""
 
     template_name = "policy/rss_keywords.html"
@@ -68,7 +79,7 @@ class RSSKeywordListView(LoginRequiredMixin, ListView):  # type: ignore[type-arg
         return context
 
 
-class RSSFetchLogListView(LoginRequiredMixin, ListView):  # type: ignore[type-arg]
+class RSSFetchLogListView(StaffRequiredMixin, ListView):  # type: ignore[type-arg]
     """抓取日志查询页面"""
 
     template_name = "policy/rss_logs.html"
@@ -153,12 +164,17 @@ class PolicyEventsPageView(LoginRequiredMixin, ListView):  # type: ignore[type-a
         return context
 
 
-class PolicyEventCreateView(LoginRequiredMixin, FormView):  # type: ignore[type-arg]
+class PolicyEventCreateView(LoginRequiredMixin, UserPassesTestMixin, FormView):  # type: ignore[type-arg]
     """Create policy event without Django admin."""
 
     form_class = PolicyEventForm
     template_name = "policy/policy_event_form.html"
     success_url = reverse_lazy("policy:events-page")
+
+    def test_func(self) -> bool:
+        """Allow manual policy-event creation only for staff users."""
+
+        return bool(self.request.user.is_staff)
 
     def form_valid(self, form: PolicyEventForm) -> HttpResponse:
         page_service.create_policy_event(form.to_payload())
@@ -166,7 +182,7 @@ class PolicyEventCreateView(LoginRequiredMixin, FormView):  # type: ignore[type-
         return super().form_valid(form)
 
 
-class RSSSourceCreateView(LoginRequiredMixin, FormView):  # type: ignore[type-arg]
+class RSSSourceCreateView(StaffRequiredMixin, FormView):  # type: ignore[type-arg]
     """Create RSS source without Django admin."""
 
     form_class = RSSSourceForm
@@ -179,7 +195,7 @@ class RSSSourceCreateView(LoginRequiredMixin, FormView):  # type: ignore[type-ar
         return super().form_valid(form)
 
 
-class RSSSourceUpdateView(LoginRequiredMixin, FormView):  # type: ignore[type-arg]
+class RSSSourceUpdateView(StaffRequiredMixin, FormView):  # type: ignore[type-arg]
     """Update RSS source without Django admin."""
 
     form_class = RSSSourceForm
@@ -189,6 +205,10 @@ class RSSSourceUpdateView(LoginRequiredMixin, FormView):  # type: ignore[type-ar
     source: Any
 
     def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponseBase:
+        if not getattr(request.user, "is_authenticated", False) or not getattr(
+            request.user, "is_staff", False
+        ):
+            return self.handle_no_permission()
         self.source = rss_api_service.get_rss_source_config(kwargs[self.pk_url_kwarg])
         if self.source is None:
             raise Http404("RSS source not found")
@@ -205,7 +225,7 @@ class RSSSourceUpdateView(LoginRequiredMixin, FormView):  # type: ignore[type-ar
         return super().form_valid(form)
 
 
-class PolicyKeywordCreateView(LoginRequiredMixin, FormView):  # type: ignore[type-arg]
+class PolicyKeywordCreateView(StaffRequiredMixin, FormView):  # type: ignore[type-arg]
     """Create policy keyword rule without Django admin."""
 
     form_class = PolicyKeywordForm
@@ -218,7 +238,7 @@ class PolicyKeywordCreateView(LoginRequiredMixin, FormView):  # type: ignore[typ
         return super().form_valid(form)
 
 
-class PolicyKeywordUpdateView(LoginRequiredMixin, FormView):  # type: ignore[type-arg]
+class PolicyKeywordUpdateView(StaffRequiredMixin, FormView):  # type: ignore[type-arg]
     """Update policy keyword rule without Django admin."""
 
     form_class = PolicyKeywordForm
@@ -228,6 +248,10 @@ class PolicyKeywordUpdateView(LoginRequiredMixin, FormView):  # type: ignore[typ
     keyword: Any
 
     def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponseBase:
+        if not getattr(request.user, "is_authenticated", False) or not getattr(
+            request.user, "is_staff", False
+        ):
+            return self.handle_no_permission()
         self.keyword = rss_api_service.get_policy_level_keyword(kwargs[self.pk_url_kwarg])
         if self.keyword is None:
             raise Http404("Policy keyword not found")

@@ -1,0 +1,178 @@
+"""Runtime TUI metadata for Ops navigation and semantic governance."""
+
+from __future__ import annotations
+
+from typing import Any
+
+_SCREEN = "capability-router.mcp-center"
+_MODULE = "system-governance"
+_SOURCE = "approved:runtime-ops-semantic-governance"
+
+
+def _single_correction_fields() -> list[dict[str, Any]]:
+    """Build flat fields for one idempotent semantic correction."""
+
+    return [
+        {
+            "key": "idempotency_key",
+            "label": "幂等键",
+            "binding": "body",
+            "input_type": "text",
+            "value_type": "string",
+            "required": True,
+            "max": 255,
+        },
+        {
+            "key": "reason",
+            "label": "变更原因",
+            "binding": "body",
+            "input_type": "textarea",
+            "value_type": "string",
+            "required": True,
+            "max": 2000,
+        },
+        {
+            "key": "capability_key",
+            "label": "能力键",
+            "binding": "body",
+            "input_type": "text",
+            "value_type": "string",
+            "required": True,
+            "max": 255,
+        },
+        {
+            "key": "action",
+            "label": "修正动作",
+            "binding": "body",
+            "input_type": "select",
+            "value_type": "string",
+            "required": True,
+            "options": ["set", "remove"],
+        },
+        {
+            "key": "semantic_key",
+            "label": "新语义键",
+            "binding": "body",
+            "input_type": "text",
+            "value_type": "string",
+            "required": False,
+            "max": 255,
+        },
+    ]
+
+
+RUNTIME_OPS_SEMANTIC_ACTIONS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "ops.semantic-governance-overview",
+        "label": "语义键治理检查",
+        "endpoint": "/api/ai-capability/semantic-governance/",
+        "method": "GET",
+        "intent": "inspect_capability_semantic_governance",
+        "risk": "admin",
+        "audience": "admin",
+        "screen_key": _SCREEN,
+        "module_key": _MODULE,
+        "view_type": "detail",
+        "description": "检查缺失语义键、重复语义组和孤儿覆盖项。",
+        "source": _SOURCE,
+        "task_group": "04 语义键治理",
+        "sequence": 270,
+        "task_tier": "support",
+        "fields": [],
+        "view_model": {"kind": "detail"},
+    },
+    {
+        "key": "ops.semantic-governance-audit",
+        "label": "语义键变更审计",
+        "endpoint": "/api/ai-capability/semantic-governance/audit/",
+        "method": "GET",
+        "intent": "list_capability_semantic_audit",
+        "risk": "admin",
+        "audience": "admin",
+        "screen_key": _SCREEN,
+        "module_key": _MODULE,
+        "view_type": "datagrid",
+        "description": "按能力键查看不可变语义治理证据。",
+        "source": _SOURCE,
+        "task_group": "04 语义键治理",
+        "sequence": 280,
+        "task_tier": "support",
+        "fields": [
+            {
+                "key": "capability_key",
+                "label": "能力键",
+                "binding": "query",
+                "input_type": "text",
+                "value_type": "string",
+                "required": False,
+                "max": 255,
+            },
+            {
+                "key": "limit",
+                "label": "最多返回",
+                "binding": "query",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": False,
+                "default": 50,
+                "min": 1,
+                "max": 100,
+            },
+        ],
+        "view_model": {
+            "kind": "datagrid",
+            "rows_path": "results",
+            "columns": [
+                {"key": "created_at", "label": "时间"},
+                {"key": "capability_key", "label": "能力键"},
+                {"key": "action", "label": "动作"},
+                {"key": "old_effective_value", "label": "原语义"},
+                {"key": "new_effective_value", "label": "新语义"},
+                {"key": "reason", "label": "原因"},
+                {"key": "operator_id", "label": "操作者"},
+            ],
+        },
+    },
+    {
+        "key": "ops.semantic-governance-preview",
+        "label": "预览单条语义修正",
+        "endpoint": "/api/ai-capability/semantic-governance/single-preview/",
+        "method": "POST",
+        "intent": "preview_capability_semantic_correction",
+        "risk": "read",
+        "audience": "admin",
+        "effect": "read",
+        "screen_key": _SCREEN,
+        "module_key": _MODULE,
+        "view_type": "detail",
+        "description": "用扁平表单预览一条语义键修正，不写入数据库。",
+        "source": _SOURCE,
+        "task_group": "04 语义键治理",
+        "sequence": 290,
+        "task_tier": "operation",
+        "fields": _single_correction_fields(),
+        "view_model": {"kind": "detail"},
+    },
+    {
+        "key": "ops.semantic-governance-apply",
+        "label": "应用单条语义修正",
+        "endpoint": "/api/ai-capability/semantic-governance/single-apply/",
+        "method": "POST",
+        "intent": "apply_capability_semantic_correction",
+        "risk": "admin",
+        "audience": "admin",
+        "effect": "update",
+        "confirmation_required": True,
+        "audit_required": True,
+        "screen_key": _SCREEN,
+        "module_key": _MODULE,
+        "view_type": "detail",
+        "description": "确认并应用一条幂等语义键修正，保留不可变审计证据。",
+        "source": _SOURCE,
+        "task_group": "04 语义键治理",
+        "sequence": 300,
+        "task_tier": "operation",
+        "fields": _single_correction_fields(),
+        "view_model": {"kind": "detail"},
+    },
+)

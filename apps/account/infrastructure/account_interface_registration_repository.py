@@ -9,6 +9,8 @@ from typing import Any
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
@@ -480,3 +482,22 @@ class AccountInterfaceRegistrationRepositoryMixin:
             user.save(update_fields=["email"])
 
         return profile
+
+    def change_api_password(
+        self,
+        user_id: int,
+        *,
+        current_password: str,
+        new_password: str,
+    ) -> None:
+        """Re-authenticate a user and persist one validated password change."""
+
+        user = User._default_manager.get(id=user_id)
+        if not user.check_password(current_password):
+            raise PermissionError("当前密码不正确")
+        try:
+            validate_password(new_password, user=user)
+        except DjangoValidationError as exc:
+            raise ValueError("; ".join(str(message) for message in exc.messages)) from exc
+        user.set_password(new_password)
+        user.save(update_fields=["password"])

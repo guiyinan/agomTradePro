@@ -2,6 +2,8 @@
 DRF Serializers for Backtest Module.
 """
 
+from decimal import Decimal
+from typing import Any
 
 from django.apps import apps as django_apps
 from rest_framework import serializers
@@ -10,14 +12,14 @@ BacktestResultModel = django_apps.get_model("backtest", "BacktestResultModel")
 BacktestTradeModel = django_apps.get_model("backtest", "BacktestTradeModel")
 
 
-class BacktestConfigSerializer(serializers.Serializer):
+class BacktestConfigSerializer(serializers.Serializer[dict[str, Any]]):
     """回测配置序列化器"""
+
     start_date = serializers.DateField()
     end_date = serializers.DateField()
     initial_capital = serializers.FloatField(min_value=0)
     rebalance_frequency = serializers.ChoiceField(
-        choices=['monthly', 'quarterly', 'yearly'],
-        default='monthly'
+        choices=["monthly", "quarterly", "yearly"], default="monthly"
     )
     use_pit_data = serializers.BooleanField(default=False)
     transaction_cost_bps = serializers.FloatField(min_value=0, default=10.0)
@@ -31,9 +33,9 @@ class BacktestConfigSerializer(serializers.Serializer):
     research_trial_id = serializers.CharField(max_length=64, required=False, allow_null=True)
     decision_snapshot_id = serializers.CharField(max_length=64, required=False, allow_null=True)
 
-    def validate(self, data):
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
         """验证配置"""
-        if data['start_date'] >= data['end_date']:
+        if data["start_date"] >= data["end_date"]:
             raise serializers.ValidationError("start_date must be before end_date")
         if data.get("trust_status") == "pit_verified" and not data.get("data_manifest_id"):
             raise serializers.ValidationError(
@@ -58,92 +60,94 @@ class BacktestConfigSerializer(serializers.Serializer):
         return data
 
 
-class BacktestResultSerializer(serializers.ModelSerializer):
+class BacktestResultSerializer(serializers.ModelSerializer[Any]):
     """回测结果序列化器"""
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
         model = BacktestResultModel
         fields = [
-            'id',
-            'name',
-            'status',
-            'status_display',
-            'start_date',
-            'end_date',
-            'initial_capital',
-            'final_capital',
-            'total_return',
-            'annualized_return',
-            'max_drawdown',
-            'sharpe_ratio',
-            'rebalance_frequency',
-            'use_pit_data',
-            'transaction_cost_bps',
-            'data_manifest_id',
-            'pit_coverage',
-            'trust_status',
-            'config_hash',
-            'code_commit',
-            'engine_version',
-            'research_trial_id',
-            'decision_snapshot_id',
-            'equity_curve',
-            'regime_history',
-            'trades',
-            'warnings',
-            'error_message',
-            'created_at',
-            'updated_at',
-            'completed_at',
+            "id",
+            "name",
+            "status",
+            "status_display",
+            "start_date",
+            "end_date",
+            "initial_capital",
+            "final_capital",
+            "total_return",
+            "annualized_return",
+            "max_drawdown",
+            "sharpe_ratio",
+            "rebalance_frequency",
+            "use_pit_data",
+            "transaction_cost_bps",
+            "data_manifest_id",
+            "pit_coverage",
+            "trust_status",
+            "config_hash",
+            "code_commit",
+            "engine_version",
+            "research_trial_id",
+            "decision_snapshot_id",
+            "equity_curve",
+            "regime_history",
+            "trades",
+            "warnings",
+            "error_message",
+            "created_at",
+            "updated_at",
+            "completed_at",
         ]
         read_only_fields = [
-            'id',
-            'status',
-            'final_capital',
-            'total_return',
-            'annualized_return',
-            'max_drawdown',
-            'sharpe_ratio',
-            'equity_curve',
-            'regime_history',
-            'trades',
-            'warnings',
-            'error_message',
-            'created_at',
-            'updated_at',
-            'completed_at',
+            "id",
+            "status",
+            "final_capital",
+            "total_return",
+            "annualized_return",
+            "max_drawdown",
+            "sharpe_ratio",
+            "equity_curve",
+            "regime_history",
+            "trades",
+            "warnings",
+            "error_message",
+            "created_at",
+            "updated_at",
+            "completed_at",
         ]
 
 
-class BacktestListSerializer(serializers.ModelSerializer):
+class BacktestListSerializer(serializers.ModelSerializer[Any]):
     """回测列表序列化器（精简版）"""
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
         model = BacktestResultModel
         fields = [
-            'id',
-            'name',
-            'status',
-            'status_display',
-            'start_date',
-            'end_date',
-            'total_return',
-            'annualized_return',
-            'created_at',
+            "id",
+            "name",
+            "status",
+            "status_display",
+            "start_date",
+            "end_date",
+            "total_return",
+            "annualized_return",
+            "created_at",
         ]
 
 
-class RunBacktestSerializer(serializers.Serializer):
+class RunBacktestSerializer(serializers.Serializer[dict[str, Any]]):
     """运行回测请求序列化器"""
+
     name = serializers.CharField(max_length=200)
     start_date = serializers.DateField()
     end_date = serializers.DateField()
     initial_capital = serializers.FloatField(min_value=0)
     rebalance_frequency = serializers.ChoiceField(
-        choices=['monthly', 'quarterly', 'yearly'],
-        default='monthly'
+        choices=["monthly", "quarterly", "yearly"], default="monthly"
     )
     use_pit_data = serializers.BooleanField(default=False)
     transaction_cost_bps = serializers.FloatField(min_value=0, default=10.0)
@@ -158,9 +162,9 @@ class RunBacktestSerializer(serializers.Serializer):
     decision_snapshot_id = serializers.CharField(max_length=64, required=False, allow_null=True)
     run_async = serializers.BooleanField(default=False)
 
-    def validate(self, data):
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
         """验证请求"""
-        if data['start_date'] >= data['end_date']:
+        if data["start_date"] >= data["end_date"]:
             raise serializers.ValidationError("start_date must be before end_date")
         if data.get("trust_status") == "pit_verified":
             if not data.get("use_pit_data"):
@@ -189,7 +193,7 @@ class RunBacktestSerializer(serializers.Serializer):
         return data
 
 
-class DecisionReplayBacktestSerializer(serializers.Serializer):
+class DecisionReplayBacktestSerializer(serializers.Serializer[dict[str, Any]]):
     """Run a manual decision replay branch."""
 
     portfolio_id = serializers.IntegerField()
@@ -201,17 +205,18 @@ class DecisionReplayBacktestSerializer(serializers.Serializer):
     initial_capital = serializers.DecimalField(
         max_digits=20,
         decimal_places=2,
-        default="1000000.00",
+        default=Decimal("1000000.00"),
     )
 
-    def validate(self, data):
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
         if data["start_date"] >= data["end_date"]:
             raise serializers.ValidationError("start_date must be before end_date")
         return data
 
 
-class BacktestStatisticsSerializer(serializers.Serializer):
+class BacktestStatisticsSerializer(serializers.Serializer[Any]):
     """回测统计序列化器"""
+
     total = serializers.IntegerField()
     by_status = serializers.DictField()
     avg_return = serializers.FloatField()
@@ -219,23 +224,24 @@ class BacktestStatisticsSerializer(serializers.Serializer):
     min_return = serializers.FloatField()
 
 
-class TradeSerializer(serializers.ModelSerializer):
+class TradeSerializer(serializers.ModelSerializer[Any]):
     """交易记录序列化器"""
-    action_display = serializers.CharField(source='get_action_display', read_only=True)
+
+    action_display = serializers.CharField(source="get_action_display", read_only=True)
 
     class Meta:
         model = BacktestTradeModel
         fields = [
-            'id',
-            'backtest',
-            'trade_date',
-            'asset_class',
-            'action',
-            'action_display',
-            'shares',
-            'price',
-            'notional',
-            'cost',
-            'created_at',
+            "id",
+            "backtest",
+            "trade_date",
+            "asset_class",
+            "action",
+            "action_display",
+            "shares",
+            "price",
+            "notional",
+            "cost",
+            "created_at",
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ["id", "created_at"]

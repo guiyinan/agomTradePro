@@ -8,6 +8,11 @@ See: docs/plans/ai-native/implementation-contract.md
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from apps.agent_runtime.interface.operator_tui_views import (
+    OperatorProposalDetailAPIView,
+    OperatorProposalListAPIView,
+    OperatorTaskListAPIView,
+)
 from apps.agent_runtime.interface.views import (
     AgentProposalViewSet,
     AgentTaskHealthViewSet,
@@ -58,5 +63,16 @@ router.register(r"health", AgentTaskHealthViewSet, basename="health")
 app_name = 'agent_runtime'
 
 urlpatterns = [
+    path("operator/tasks/", OperatorTaskListAPIView.as_view(), name="operator-task-list"),
+    path(
+        "operator/proposals/",
+        OperatorProposalListAPIView.as_view(),
+        name="operator-proposal-list",
+    ),
+    path(
+        "operator/proposals/<int:proposal_id>/",
+        OperatorProposalDetailAPIView.as_view(),
+        name="operator-proposal-detail",
+    ),
     path('', include(router.urls)),
 ]

@@ -8,7 +8,7 @@ Alpha 事件触发的用例编排层。
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any, Protocol
 
@@ -30,6 +30,7 @@ from ..domain.services import (
     InvalidationCheckResult,
     TriggerEvaluator,
     TriggerInvalidator,
+    can_transition_trigger_status,
 )
 
 logger = logging.getLogger(__name__)
@@ -111,6 +112,47 @@ class CreateTriggerResponse:
         trigger: 创建的触发器
         error: 错误信息
     """
+
+    success: bool
+    trigger: AlphaTrigger | None = None
+    error: str | None = None
+
+
+@dataclass
+class UpdateTriggerRequest:
+    """Complete editable state for one existing Alpha Trigger."""
+
+    trigger_id: str
+    asset_class: str
+    direction: str
+    trigger_condition: dict[str, Any]
+    invalidation_conditions: list[InvalidationCondition]
+    confidence: float
+    thesis: str
+    related_regime: str | None
+    related_policy_level: int | None
+
+
+@dataclass
+class UpdateTriggerResponse:
+    """Result of updating one Alpha Trigger."""
+
+    success: bool
+    trigger: AlphaTrigger | None = None
+    error: str | None = None
+
+
+@dataclass
+class ChangeTriggerStatusRequest:
+    """Requested lifecycle transition for one Alpha Trigger."""
+
+    trigger_id: str
+    target_status: TriggerStatus
+
+
+@dataclass
+class ChangeTriggerStatusResponse:
+    """Result of an Alpha Trigger lifecycle transition."""
 
     success: bool
     trigger: AlphaTrigger | None = None
@@ -414,6 +456,90 @@ class CreateAlphaTriggerUseCase:
         )
 
         self.event_bus.publish(event)
+
+
+class UpdateAlphaTriggerUseCase:
+    """Update the editable rule fields of an existing Alpha Trigger."""
+
+    def __init__(
+        self,
+        trigger_repository: AlphaTriggerRepository,
+        config: TriggerConfig | None = None,
+    ) -> None:
+        """Initialize the update use case."""
+
+        self.trigger_repository = trigger_repository
+        self.config = config or TriggerConfig()
+
+    def execute(self, request: UpdateTriggerRequest) -> UpdateTriggerResponse:
+        """Validate, replace, and persist one Alpha Trigger."""
+
+        trigger = self.trigger_repository.get_by_id(request.trigger_id)
+        if trigger is None:
+            return UpdateTriggerResponse(success=False, error="Trigger not found")
+        if request.direction not in {"LONG", "SHORT", "NEUTRAL"}:
+            return UpdateTriggerResponse(success=False, error="Invalid direction")
+        if not 0 <= request.confidence <= 1:
+            return UpdateTriggerResponse(success=False, error="Invalid confidence")
+        if not request.trigger_condition:
+            return UpdateTriggerResponse(success=False, error="Trigger condition is required")
+
+        updated = replace(
+            trigger,
+            asset_class=request.asset_class,
+            direction=request.direction,
+            trigger_condition=request.trigger_condition,
+            invalidation_conditions=request.invalidation_conditions,
+            strength=self.config.get_strength(request.confidence),
+            confidence=request.confidence,
+            thesis=request.thesis,
+            related_regime=request.related_regime,
+            related_policy_level=request.related_policy_level,
+        )
+        try:
+            return UpdateTriggerResponse(
+                success=True,
+                trigger=self.trigger_repository.save(updated),
+            )
+        except Exception as exc:
+            logger.error("Failed to update alpha trigger: %s", exc, exc_info=True)
+            return UpdateTriggerResponse(success=False, error=str(exc))
+
+
+class ChangeAlphaTriggerStatusUseCase:
+    """Apply a validated Alpha Trigger lifecycle transition."""
+
+    def __init__(self, trigger_repository: AlphaTriggerRepository) -> None:
+        """Initialize the lifecycle use case."""
+
+        self.trigger_repository = trigger_repository
+
+    def execute(
+        self,
+        request: ChangeTriggerStatusRequest,
+    ) -> ChangeTriggerStatusResponse:
+        """Validate the transition and persist its target status."""
+
+        trigger = self.trigger_repository.get_by_id(request.trigger_id)
+        if trigger is None:
+            return ChangeTriggerStatusResponse(success=False, error="Trigger not found")
+        if not can_transition_trigger_status(trigger.status, request.target_status):
+            return ChangeTriggerStatusResponse(
+                success=False,
+                error=(
+                    f"Invalid trigger status transition: "
+                    f"{trigger.status.value} -> {request.target_status.value}"
+                ),
+            )
+        try:
+            updated = self.trigger_repository.update_status(
+                request.trigger_id,
+                request.target_status,
+            )
+            return ChangeTriggerStatusResponse(success=True, trigger=updated)
+        except Exception as exc:
+            logger.error("Failed to change alpha trigger status: %s", exc, exc_info=True)
+            return ChangeTriggerStatusResponse(success=False, error=str(exc))
 
 
 class CheckTriggerInvalidationUseCase:

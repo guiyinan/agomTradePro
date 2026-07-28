@@ -6,10 +6,12 @@ import it here.
 """
 
 from datetime import date
+from typing import Any
 
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.equity.application.use_cases import (
@@ -18,11 +20,33 @@ from apps.equity.application.use_cases import (
 )
 
 
+def _build_sector_distribution(
+    stocks: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Aggregate stock rows into portable sector-count chart rows."""
+
+    counts: dict[str, int] = {}
+    for stock in stocks:
+        sector = str(stock.get("sector") or "未知")
+        counts[sector] = counts.get(sector, 0) + 1
+    return [
+        {"sector": sector, "count": count}
+        for sector, count in sorted(
+            counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )
+    ]
+
+
 class EquityPoolActionsMixin:
     """Current-pool query and Regime-driven pool refresh actions."""
 
+    pool_adapter: Any
+    regime_repo: Any
+    stock_repo: Any
+
     @action(detail=False, methods=["get"], url_path="pool")
-    def get_pool(self, request):
+    def get_pool(self, request: Request) -> Response:
         """
         GET /api/equity/pool/
 
@@ -49,11 +73,12 @@ class EquityPoolActionsMixin:
                         "count": 0,
                         "update_time": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "stocks": [],
+                        "sector_distribution": [],
                     }
                 )
 
             # 获取股票详细信息
-            stocks = []
+            stocks: list[dict[str, object]] = []
             total_roe = 0
             total_pe = 0
             valid_pe_count = 0
@@ -79,12 +104,12 @@ class EquityPoolActionsMixin:
                     "name": stock_info.name,
                     "sector": stock_info.sector,
                     "roe": financial.roe if financial else 0,
-                    "pe": latest_valuation.pe
-                    if latest_valuation and latest_valuation.pe > 0
-                    else 0,
-                    "pb": latest_valuation.pb
-                    if latest_valuation and latest_valuation.pb > 0
-                    else 0,
+                    "pe": (
+                        latest_valuation.pe if latest_valuation and latest_valuation.pe > 0 else 0
+                    ),
+                    "pb": (
+                        latest_valuation.pb if latest_valuation and latest_valuation.pb > 0 else 0
+                    ),
                     "revenue_growth": financial.revenue_growth if financial else 0,
                     "profit_growth": financial.net_profit_growth if financial else 0,
                     "score": 0,  # 暂时为 0，后续可添加评分逻辑
@@ -103,16 +128,21 @@ class EquityPoolActionsMixin:
             return Response(
                 {
                     "success": True,
-                    "regime": pool_info.get("regime")
-                    if pool_info
-                    else (latest_regime.dominant_regime if latest_regime else "Unknown"),
+                    "regime": (
+                        pool_info.get("regime")
+                        if pool_info
+                        else (latest_regime.dominant_regime if latest_regime else "Unknown")
+                    ),
                     "count": len(stocks),
-                    "update_time": pool_info.get("updated_at")
-                    if pool_info
-                    else timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "update_time": (
+                        pool_info.get("updated_at")
+                        if pool_info
+                        else timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+                    ),
                     "avg_roe": round(avg_roe, 2),
                     "avg_pe": round(avg_pe, 2),
                     "stocks": stocks,
+                    "sector_distribution": _build_sector_distribution(stocks),
                 }
             )
 
@@ -123,7 +153,7 @@ class EquityPoolActionsMixin:
             )
 
     @action(detail=False, methods=["post"], url_path="pool/refresh")
-    def refresh_pool(self, request):
+    def refresh_pool(self, request: Request) -> Response:
         """
         POST /api/equity/pool/refresh/
 

@@ -1,7 +1,7 @@
 {
   "version": "tui-workbench.v2",
   "registry_key": "default",
-  "status": "published",
+  "status": "generated",
   "default_screen": "command-center.overview",
   "interaction_model": "user-task-workbench-to-approved-tools",
   "principles": [
@@ -82,9 +82,38 @@
           "action_key": "decision.workspace.today_queue",
           "user_priority": "p0",
           "presentation_semantic": "primary_list",
+          "columns": [
+            {
+              "key": "priority",
+              "label": "优先级"
+            },
+            {
+              "key": "status",
+              "label": "状态"
+            },
+            {
+              "key": "title",
+              "label": "事项"
+            },
+            {
+              "key": "next_action",
+              "label": "下一步"
+            }
+          ],
           "empty_message": "今日暂无待处理事项。",
           "error_message": "今日待办加载失败，请稍后重试。",
           "stale_message": "待办信息可能已过期，请刷新。",
+          "row_actions": []
+        },
+        {
+          "key": "investment-command-summary",
+          "title": "投资指挥摘要",
+          "kind": "detail",
+          "action_key": "dashboard.overview-summary",
+          "user_priority": "p0",
+          "presentation_semantic": "primary_status",
+          "empty_message": "暂无投资指挥摘要。",
+          "error_message": "投资指挥摘要加载失败，请稍后重试。",
           "row_actions": []
         },
         {
@@ -115,6 +144,7 @@
           "kind": "detail",
           "action_key": "operator.home.data_task_summary",
           "target_screen": "api-library.data-center",
+          "audience": "admin",
           "user_priority": "p1",
           "presentation_semantic": "supporting_detail",
           "empty_message": "暂无数据与任务异常。",
@@ -128,13 +158,65 @@
           "target_screen": "execution.accounts",
           "user_priority": "p1",
           "presentation_semantic": "supporting_detail",
+          "field_rules": [
+            {
+              "label": "用户 / ID",
+              "visible": false
+            },
+            {
+              "label": "用户 / 用户名",
+              "visible": false
+            },
+            {
+              "label": "环境 / 置信度",
+              "format": "percentage"
+            },
+            {
+              "label": "组合 / 总资产",
+              "format": "money"
+            },
+            {
+              "label": "组合 / 初始资金",
+              "format": "money"
+            },
+            {
+              "label": "组合 / 总收益",
+              "format": "money"
+            },
+            {
+              "label": "组合 / 总收益率",
+              "format": "percentage"
+            }
+          ],
           "empty_message": "暂无组合摘要。",
+          "row_actions": []
+        },
+        {
+          "key": "asset-allocation",
+          "title": "资产配置",
+          "kind": "chart",
+          "action_key": "auto.api.get.api.dashboard.allocation",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "暂无资产配置数据。",
+          "error_message": "资产配置加载失败，请稍后重试。",
+          "row_actions": []
+        },
+        {
+          "key": "portfolio-performance",
+          "title": "组合表现",
+          "kind": "chart",
+          "action_key": "auto.api.get.api.dashboard.performance",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "暂无组合表现数据。",
+          "error_message": "组合表现加载失败，请稍后重试。",
           "row_actions": []
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       },
       "workflow": {
         "name": "每日投研流程",
@@ -207,11 +289,23 @@
           "presentation_semantic": "supporting_detail",
           "empty_message": "暂无市场温度。",
           "row_actions": []
+        },
+        {
+          "key": "pulse-trend",
+          "title": "脉搏趋势",
+          "kind": "chart",
+          "action_key": "pulse.history",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "暂无脉搏趋势数据。",
+          "error_message": "脉搏趋势加载失败，请稍后重试。",
+          "stale_message": "脉搏趋势可能已过期，请刷新。",
+          "row_actions": []
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       },
       "workflow": {
         "name": "每日投研流程",
@@ -273,12 +367,46 @@
           "user_priority": "p0",
           "presentation_semantic": "primary_list",
           "empty_message": "暂无待处理政策事件。",
+          "columns": [
+            {
+              "key": "id",
+              "label": "事件 ID"
+            },
+            {
+              "key": "event_date",
+              "label": "日期"
+            },
+            {
+              "key": "event_type",
+              "label": "类型"
+            },
+            {
+              "key": "level",
+              "label": "档位"
+            },
+            {
+              "key": "gate_level",
+              "label": "闸门"
+            },
+            {
+              "key": "title",
+              "label": "标题"
+            },
+            {
+              "key": "audit_status",
+              "label": "审核状态"
+            },
+            {
+              "key": "gate_effective",
+              "label": "已生效"
+            }
+          ],
           "row_actions": []
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       },
       "workflow": {
         "name": "每日投研流程",
@@ -345,8 +473,8 @@
         }
       ],
       "action_density": {
-        "primary_operation_limit": 12,
-        "task_group_limit": 6
+        "primary_operation_limit": 6,
+        "task_group_limit": 4
       },
       "workflow": {
         "name": "每日投研流程",
@@ -372,7 +500,7 @@
       "audience": "authenticated",
       "summary": "确认有效信号、Alpha 候选、触发器和情绪过滤。",
       "view_type": "datagrid",
-      "default_action_key": "auto.api.get.api.alpha-triggers.candidates.actionable",
+      "default_action_key": "alpha.scores",
       "user_experience": {
         "journey": "workspace",
         "primary_task": "筛出今天最值得推进的有效候选。",
@@ -392,16 +520,6 @@
       },
       "dashboard_panels": [
         {
-          "key": "actionable-candidates",
-          "title": "可行动候选",
-          "kind": "datagrid",
-          "action_key": "auto.api.get.api.alpha-triggers.candidates.actionable",
-          "user_priority": "p0",
-          "presentation_semantic": "primary_list",
-          "empty_message": "当前没有可行动候选。",
-          "row_actions": []
-        },
-        {
           "key": "active-signals",
           "title": "活跃信号",
           "kind": "datagrid",
@@ -413,8 +531,8 @@
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       },
       "workflow": {
         "name": "每日投研流程",
@@ -473,7 +591,7 @@
           "key": "positions",
           "title": "当前持仓",
           "kind": "datagrid",
-          "action_key": "auto.api.get.api.account.positions",
+          "action_key": "auto.api.get.api.account.positions.read-only",
           "user_priority": "p0",
           "presentation_semantic": "primary_list",
           "empty_message": "当前账户没有持仓。",
@@ -481,8 +599,8 @@
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       },
       "workflow": {
         "name": "每日投研流程",
@@ -549,8 +667,8 @@
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       },
       "workflow": {
         "name": "每日投研流程",
@@ -617,8 +735,8 @@
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       },
       "workflow": {
         "name": "每日投研流程",
@@ -669,21 +787,11 @@
           "presentation_semantic": "primary_status",
           "empty_message": "资产池暂无数据。",
           "row_actions": []
-        },
-        {
-          "key": "backtest-stats",
-          "title": "回测统计",
-          "kind": "detail",
-          "action_key": "backtest.statistics",
-          "user_priority": "p0",
-          "presentation_semantic": "primary_status",
-          "empty_message": "暂无回测统计。",
-          "row_actions": []
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       }
     },
     {
@@ -713,19 +821,30 @@
       },
       "dashboard_panels": [
         {
+          "key": "assistant-conversation",
+          "title": "开始对话",
+          "kind": "detail",
+          "action_key": "terminal.agent_chat",
+          "user_priority": "p0",
+          "presentation_semantic": "next_step",
+          "note": "直接输入问题，助手会按当前账号权限调用已发布能力。",
+          "empty_message": "输入问题开始对话。",
+          "row_actions": []
+        },
+        {
           "key": "agent-attention",
           "title": "待人工处理",
           "kind": "datagrid",
           "action_key": "agent_runtime.needs_attention",
-          "user_priority": "p0",
+          "user_priority": "p1",
           "presentation_semantic": "primary_list",
           "empty_message": "当前没有待人工处理任务。",
           "row_actions": []
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       }
     },
     {
@@ -777,8 +896,8 @@
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       }
     },
     {
@@ -830,8 +949,8 @@
         }
       ],
       "action_density": {
-        "primary_operation_limit": 10,
-        "task_group_limit": 6
+        "primary_operation_limit": 5,
+        "task_group_limit": 4
       }
     }
   ],
@@ -1155,18 +1274,6 @@
       "sequence": 100
     },
     {
-      "key": "regime.action",
-      "label": "行动建议",
-      "endpoint": "/api/regime/action/",
-      "intent": "read_regime_action",
-      "screen_key": "macro-regime.overview",
-      "view_type": "detail",
-      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "02 行动建议",
-      "sequence": 200
-    },
-    {
       "key": "regime.navigator_history",
       "label": "环境切换历史",
       "endpoint": "/api/regime/navigator/history/",
@@ -1203,12 +1310,31 @@
       "endpoint": "/api/pulse/history/",
       "intent": "read_pulse_history",
       "screen_key": "macro-regime.overview",
-      "view_type": "datagrid",
+      "view_type": "chart",
       "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
       "source": "approved:smoke-promoted",
       "view_model": {
         "rows_path": "data",
-        "total_path": "count"
+        "total_path": "count",
+        "kind": "chart",
+        "columns": [
+          {
+            "key": "observed_at",
+            "label": "日期"
+          },
+          {
+            "key": "composite_score",
+            "label": "综合脉搏"
+          },
+          {
+            "key": "growth_score",
+            "label": "增长"
+          },
+          {
+            "key": "inflation_score",
+            "label": "通胀"
+          }
+        ]
       },
       "task_group": "02 脉搏历史",
       "sequence": 200,
@@ -2400,18 +2526,6 @@
       "sequence": 200
     },
     {
-      "key": "auto.api.get.api.account.positions",
-      "label": "持仓明细",
-      "endpoint": "/api/account/positions/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "execution.accounts",
-      "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "03 持仓交易",
-      "sequence": 300
-    },
-    {
       "key": "auto.api.get.api.account.transactions",
       "label": "交易流水",
       "endpoint": "/api/account/transactions/",
@@ -2618,19 +2732,6 @@
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
-      "task_tier": "support"
-    },
-    {
-      "key": "auto.api.get.api.account.volatility",
-      "label": "账户波动率",
-      "endpoint": "/api/account/volatility/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "execution.accounts",
-      "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "05 仓位约束",
-      "sequence": 500,
       "task_tier": "support"
     },
     {
@@ -3157,120 +3258,6 @@
       "key": "auto.api.get.api.account.currencies",
       "label": "币种列表",
       "endpoint": "/api/account/currencies/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "execution.accounts",
-      "view_type": "datagrid",
-      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "04 资产参数",
-      "sequence": 400,
-      "task_tier": "support",
-      "fields": [
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "code",
-          "label": "代码",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入代码",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "symbol",
-          "label": "代码",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入代码",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_base",
-          "label": "Is Base",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Base",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_active",
-          "label": "Is Active",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Active",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "precision",
-          "label": "Precision",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Precision",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        }
-      ]
-    },
-    {
-      "key": "auto.api.get.api.account.currencies.base",
-      "label": "基准币种",
-      "endpoint": "/api/account/currencies/base/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
@@ -23255,16 +23242,15 @@
     },
     {
       "key": "auto.api.get.api.account.positions.read-only",
-      "label": "账户 持仓 Read Only",
+      "label": "当前持仓（只读）",
       "endpoint": "/api/account/positions/read-only/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
       "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
       "source": "approved:smoke-promoted",
-      "task_group": "03 持仓交易",
-      "sequence": 300,
-      "task_tier": "support"
+      "task_group": "02 当前持仓",
+      "sequence": 200
     },
     {
       "key": "auto.api.get.api.terminal",
@@ -24415,6 +24401,23 @@
       "task_group": "05 条件查询",
       "sequence": 500,
       "task_tier": "advanced"
+    },
+    {
+      "key": "dashboard.overview-summary",
+      "label": "投资指挥摘要",
+      "endpoint": "/api/dashboard/tui/overview/",
+      "intent": "inspect_investment_command_summary",
+      "screen_key": "command-center.overview",
+      "view_type": "detail",
+      "view_model": {
+        "kind": "detail",
+        "title_path": "summary.display_name"
+      },
+      "description": "查看环境、资产、收益、仓位、信号和数据健康的 P0 摘要。",
+      "source": "approved:dashboard-overview",
+      "task_group": "01 指挥概览",
+      "sequence": 40,
+      "task_tier": "support"
     }
   ],
   "promotion_review": {
@@ -24440,26 +24443,30 @@
     "parameterized_safe_read_candidates": 150,
     "added_safe_api_actions": 33,
     "added_parameterized_api_actions": 150,
-    "published_actions": 416,
+    "published_actions": 422,
     "deferred": {
       "path_parameters": 41,
       "write_like_or_heavy": 30,
       "internal_debug_or_docs": 14
     },
-    "smoke_total": 397,
-    "smoke_ok": 248,
-    "smoke_needs_input": 149,
-    "smoke_error": 0,
-    "smoke_pruned_auto_actions": 6,
-    "business_promoted_actions": 402,
-    "approved_operation_actions": 22,
-    "operator_first_default_actions": 0,
+    "business_promoted_actions": 407,
+    "approved_operation_actions": 23,
+    "operator_first_default_actions": 1,
     "user_facing_design_annotations": 0,
-    "pruned_redundant_screen_actions": 0,
+    "pruned_redundant_screen_actions": 8,
+    "pruned_runtime_only_dashboard_panels": 21,
     "pruned_empty_screens": 0
   },
   "publication_note": "Publish-ready TUI metadata generated from reviewed baseline plus direct safe-read tool candidates.",
   "schema_version": "tui-metadata.v3",
+  "source_evidence_ref": "config/tui/generated/tui_operation_evidence.generated.json",
+  "source_evidence_counts": {
+    "api_safe_read": 520,
+    "sdk_methods": 463,
+    "mcp_tools": 378,
+    "classic_templates": 130
+  },
+  "generation_note": "Candidate metadata generated at compile time. Review graph and separate evidence before publishing.",
   "ia_version": "2026-07-21",
   "legacy_screen_aliases": {
     "command-center.dashboard": "command-center.overview",
@@ -24473,6 +24480,7 @@
     "execution.trading-ledger": "execution.accounts",
     "execution.portfolio-performance": "execution.accounts",
     "execution.account-settings": "execution.accounts",
+    "broker-execution.overview": "execution.accounts",
     "macro-regime.rotation": "macro-regime.strategy",
     "macro-regime.risk-controls": "macro-regime.strategy",
     "macro-regime.beta-gate": "macro-regime.strategy",
@@ -24481,6 +24489,7 @@
     "execution.events": "execution.audit",
     "execution.share": "execution.audit",
     "realtime-monitor.alerts": "execution.audit",
+    "broker-execution.audit": "execution.audit",
     "research.factors": "research.asset-lab",
     "research.backtests": "research.asset-lab",
     "research.fund-sector": "research.asset-lab",
@@ -24491,9 +24500,7 @@
     "execution.tasks": "api-library.data-center",
     "api-library.runtime": "api-library.data-center",
     "api-library.config-center": "api-library.data-center",
-    "ai-ops.user-quotas": "ai-ops.system-providers",
-    "capability-router.gateway": "capability-router.mcp-center",
-    "capability-router.admin-access": "capability-router.mcp-center"
+    "capability-router.gateway": "capability-router.mcp-center"
   },
   "field_aliases": {
     "company.keyword": [

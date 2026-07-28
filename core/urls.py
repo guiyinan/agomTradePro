@@ -3,7 +3,7 @@ URL configuration for AgomTradePro project.
 """
 
 from django.contrib import admin
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import include, path
 from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
@@ -81,8 +81,10 @@ from core.views_decision_funnel import (
 
 
 # API 根路径视图
-def api_root_view(request):
+def api_root_view(request: HttpRequest) -> JsonResponse:
     """API 根路径 - 返回可用的 API 端点列表"""
+
+    del request
     return JsonResponse(
         {
             "endpoints": {
@@ -126,8 +128,10 @@ def api_root_view(request):
     )
 
 
-def favicon_view(request):
+def favicon_view(request: HttpRequest) -> HttpResponse:
     """Return an empty favicon response to avoid repeated 404 noise in logs."""
+
+    del request
     return HttpResponse(status=204)
 
 
@@ -378,6 +382,10 @@ module_patterns = [
     path(
         "api/regime/", include(("apps.regime.interface.api_urls", "regime"), namespace="api_regime")
     ),
+    path(
+        "api/macro/",
+        include(("apps.macro.interface.api_urls", "macro_api"), namespace="api_macro"),
+    ),
     # Pulse 脉搏层 API
     path(
         "api/pulse/",
@@ -569,7 +577,7 @@ urlpatterns = [
 
 
 # ========== Prometheus 指标端点 ==========
-def metrics_view(request):
+def metrics_view(request: HttpRequest) -> HttpResponse:
     """
     Prometheus 指标导出端点
 
@@ -585,6 +593,7 @@ def metrics_view(request):
     """
     # 检查权限（可选：生产环境建议添加认证）
     # 可以通过 IP 白名单、Token 或 Basic Auth 保护
+    del request
 
     response = HttpResponse(generate_latest(), content_type=CONTENT_TYPE_LATEST)
 

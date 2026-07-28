@@ -11,12 +11,32 @@ from .tui_information_architecture import (
     screen_aliases,
     screen_specs,
 )
+from .tui_metadata_runtime_injection_account_overview import (
+    RUNTIME_ACCOUNT_OVERVIEW_ACTIONS,
+)
 from .tui_metadata_runtime_injection_advisor import (
     RUNTIME_ADVISOR_ACTION,
     RUNTIME_ADVISOR_FACTOR_BREAKDOWN_ACTION,
     RUNTIME_ADVISOR_SCREEN,
     RUNTIME_ADVISOR_SELECTOR_ACTION,
 )
+from .tui_metadata_runtime_injection_agent_runtime import (
+    RUNTIME_AGENT_RUNTIME_OPERATOR_ACTIONS,
+)
+from .tui_metadata_runtime_injection_alpha_ops import RUNTIME_ALPHA_OPS_ACTIONS
+from .tui_metadata_runtime_injection_alpha_trigger import (
+    RUNTIME_ALPHA_TRIGGER_MUTATION_ACTIONS,
+    RUNTIME_ALPHA_TRIGGER_READ_ACTIONS,
+)
+from .tui_metadata_runtime_injection_asset_analysis import (
+    RUNTIME_ASSET_ANALYSIS_ACTIONS,
+)
+from .tui_metadata_runtime_injection_audit import RUNTIME_AUDIT_ACTIONS
+from .tui_metadata_runtime_injection_audit_analytics import (
+    RUNTIME_AUDIT_ANALYTICS_ACTIONS,
+)
+from .tui_metadata_runtime_injection_backtest import RUNTIME_BACKTEST_ACTIONS
+from .tui_metadata_runtime_injection_beta_gate import RUNTIME_BETA_GATE_ACTIONS
 from .tui_metadata_runtime_injection_broker_execution import (
     RUNTIME_BROKER_EXECUTION_ACTIONS,
     RUNTIME_BROKER_EXECUTION_SCREENS,
@@ -35,9 +55,48 @@ from .tui_metadata_runtime_injection_cli import (
     RUNTIME_CLI_SCREEN,
     RUNTIME_CLI_STREAM_ACTION,
 )
-from .tui_metadata_runtime_injection_config_center import RUNTIME_CONFIG_CENTER_ACTIONS
+from .tui_metadata_runtime_injection_config_center import (
+    RUNTIME_CONFIG_CENTER_ACTIONS,
+    RUNTIME_CONFIG_CENTER_SCREEN,
+)
+from .tui_metadata_runtime_injection_dashboard_alpha import (
+    RUNTIME_DASHBOARD_ALPHA_ACTIONS,
+)
+from .tui_metadata_runtime_injection_dashboard_overview import (
+    RUNTIME_DASHBOARD_OVERVIEW_ACTIONS,
+)
+from .tui_metadata_runtime_injection_data_center import (
+    RUNTIME_DATA_CENTER_ACTIONS,
+)
+from .tui_metadata_runtime_injection_decision_rhythm import (
+    RUNTIME_DECISION_RHYTHM_ACTIONS,
+)
+from .tui_metadata_runtime_injection_decision_workspace import (
+    RUNTIME_DECISION_WORKSPACE_ACTIONS,
+)
+from .tui_metadata_runtime_injection_equity_analytics import (
+    RUNTIME_EQUITY_ANALYTICS_ACTIONS,
+)
+from .tui_metadata_runtime_injection_equity_config import (
+    RUNTIME_EQUITY_CONFIG_ACTIONS,
+)
+from .tui_metadata_runtime_injection_equity_screen import (
+    RUNTIME_EQUITY_SCREEN_ACTIONS,
+)
 from .tui_metadata_runtime_injection_event_replay import RUNTIME_EVENT_REPLAY_ACTIONS
+from .tui_metadata_runtime_injection_factor_calculate import (
+    RUNTIME_FACTOR_CALCULATE_ACTIONS,
+)
+from .tui_metadata_runtime_injection_factor_definitions import (
+    RUNTIME_FACTOR_DEFINITION_ACTIONS,
+)
+from .tui_metadata_runtime_injection_factor_portfolios import (
+    RUNTIME_FACTOR_PORTFOLIO_ACTIONS,
+)
+from .tui_metadata_runtime_injection_fund import RUNTIME_FUND_ACTIONS
+from .tui_metadata_runtime_injection_hedge import RUNTIME_HEDGE_ACTIONS
 from .tui_metadata_runtime_injection_identity_access import (
+    RUNTIME_ACCOUNT_SELF_SERVICE_SCREEN,
     RUNTIME_AI_MY_PROVIDERS_SCREEN,
     RUNTIME_AI_OPS_MODULE,
     RUNTIME_AI_SYSTEM_PROVIDERS_SCREEN,
@@ -46,8 +105,27 @@ from .tui_metadata_runtime_injection_identity_access import (
     RUNTIME_MCP_ACCESS_MODULE,
     RUNTIME_MCP_ADMIN_ACCESS_SCREEN,
     RUNTIME_MCP_SELF_SERVICE_SCREEN,
+    RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN,
+)
+from .tui_metadata_runtime_injection_macro_regime_analytics import (
+    RUNTIME_MACRO_REGIME_ANALYTICS_ACTIONS,
+)
+from .tui_metadata_runtime_injection_macro_trend_filter import (
+    RUNTIME_MACRO_TREND_FILTER_ACTIONS,
+)
+from .tui_metadata_runtime_injection_manual_trade_review import (
+    RUNTIME_MANUAL_TRADE_REVIEW_ACTIONS,
 )
 from .tui_metadata_runtime_injection_operator import RUNTIME_OPERATOR_ACTIONS
+from .tui_metadata_runtime_injection_ops import RUNTIME_OPS_SEMANTIC_ACTIONS
+from .tui_metadata_runtime_injection_policy import (
+    RUNTIME_POLICY_EVENT_ACTIONS,
+    RUNTIME_POLICY_RSS_ACTIONS,
+)
+from .tui_metadata_runtime_injection_prompt import (
+    RUNTIME_PROMPT_ACTIONS,
+    RUNTIME_PROMPT_SCREEN,
+)
 from .tui_metadata_runtime_injection_realtime import (
     RUNTIME_REALTIME_ACTIONS,
     RUNTIME_REALTIME_GROUP,
@@ -58,6 +136,24 @@ from .tui_metadata_runtime_injection_risk_center import (
     RUNTIME_RISK_CENTER_ACTIONS,
     RUNTIME_RISK_CENTER_MODULE,
     RUNTIME_RISK_CENTER_SCREEN,
+)
+from .tui_metadata_runtime_injection_rotation import (
+    RUNTIME_ROTATION_ACTIONS,
+    RUNTIME_ROTATION_CONFIG_ACTIONS,
+    RUNTIME_ROTATION_SIGNAL_ACCOUNT_ACTIONS,
+)
+from .tui_metadata_runtime_injection_sentiment import RUNTIME_SENTIMENT_ACTIONS
+from .tui_metadata_runtime_injection_signal import RUNTIME_SIGNAL_ACTIONS
+from .tui_metadata_runtime_injection_simulated_trading import (
+    RUNTIME_SIMULATED_TRADING_ACTIONS,
+)
+from .tui_metadata_runtime_injection_strategy import RUNTIME_STRATEGY_ACTIONS
+from .tui_metadata_runtime_injection_system_settings import (
+    RUNTIME_SYSTEM_SETTINGS_ACTIONS,
+    RUNTIME_SYSTEM_SETTINGS_SCREEN,
+)
+from .tui_metadata_runtime_injection_task_monitor import (
+    RUNTIME_TASK_MONITOR_ACTIONS,
 )
 
 
@@ -184,6 +280,8 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
             RUNTIME_AI_MY_PROVIDERS_SCREEN,
             RUNTIME_AI_SYSTEM_PROVIDERS_SCREEN,
             RUNTIME_AI_USER_QUOTAS_SCREEN,
+            RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN,
+            RUNTIME_ACCOUNT_SELF_SERVICE_SCREEN,
         ),
         actions=RUNTIME_CAPABILITY_ROUTER_ACTIONS,
         replace_existing=True,
@@ -204,6 +302,39 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
         actions=RUNTIME_RISK_CENTER_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_asset_analysis_metadata",
+        actions=RUNTIME_ASSET_ANALYSIS_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_account_overview_metadata",
+        actions=RUNTIME_ACCOUNT_OVERVIEW_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_audit_metadata",
+        actions=RUNTIME_AUDIT_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_audit_analytics_metadata",
+        actions=RUNTIME_AUDIT_ANALYTICS_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_manual_trade_review_metadata",
+        actions=RUNTIME_MANUAL_TRADE_REVIEW_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_macro_regime_analytics_metadata",
+        actions=RUNTIME_MACRO_REGIME_ANALYTICS_ACTIONS,
+        replace_existing=True,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_macro_trend_filter_metadata",
+        actions=RUNTIME_MACRO_TREND_FILTER_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_agent_runtime_operator_metadata",
+        actions=RUNTIME_AGENT_RUNTIME_OPERATOR_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_broker_execution_metadata",
         screens=RUNTIME_BROKER_EXECUTION_SCREENS,
         actions=RUNTIME_BROKER_EXECUTION_ACTIONS,
@@ -220,8 +351,131 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
         actions=RUNTIME_EVENT_REPLAY_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_factor_calculate_metadata",
+        actions=RUNTIME_FACTOR_CALCULATE_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_factor_definition_metadata",
+        actions=RUNTIME_FACTOR_DEFINITION_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_factor_portfolio_metadata",
+        actions=RUNTIME_FACTOR_PORTFOLIO_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_hedge_metadata",
+        actions=RUNTIME_HEDGE_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_fund_metadata",
+        actions=RUNTIME_FUND_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_ops_semantic_metadata",
+        actions=RUNTIME_OPS_SEMANTIC_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_simulated_trading_metadata",
+        actions=RUNTIME_SIMULATED_TRADING_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_strategy_metadata",
+        actions=RUNTIME_STRATEGY_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_config_center_metadata",
+        screens=(RUNTIME_CONFIG_CENTER_SCREEN,),
         actions=RUNTIME_CONFIG_CENTER_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_prompt_metadata",
+        screens=(RUNTIME_PROMPT_SCREEN,),
+        actions=RUNTIME_PROMPT_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_system_settings_metadata",
+        screens=(RUNTIME_SYSTEM_SETTINGS_SCREEN,),
+        actions=RUNTIME_SYSTEM_SETTINGS_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_signal_metadata",
+        actions=RUNTIME_SIGNAL_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_sentiment_metadata",
+        actions=RUNTIME_SENTIMENT_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_decision_rhythm_metadata",
+        actions=RUNTIME_DECISION_RHYTHM_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_decision_workspace_metadata",
+        actions=RUNTIME_DECISION_WORKSPACE_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_dashboard_alpha_metadata",
+        actions=RUNTIME_DASHBOARD_ALPHA_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_dashboard_overview_metadata",
+        actions=RUNTIME_DASHBOARD_OVERVIEW_ACTIONS,
+        replace_existing=True,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_data_center_metadata",
+        actions=RUNTIME_DATA_CENTER_ACTIONS,
+        replace_existing=True,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_equity_config_metadata",
+        actions=RUNTIME_EQUITY_CONFIG_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_equity_analytics_metadata",
+        actions=RUNTIME_EQUITY_ANALYTICS_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_equity_screen_metadata",
+        actions=RUNTIME_EQUITY_SCREEN_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_backtest_metadata",
+        actions=RUNTIME_BACKTEST_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_beta_gate_metadata",
+        actions=RUNTIME_BETA_GATE_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_alpha_trigger_metadata",
+        actions=(
+            *RUNTIME_ALPHA_TRIGGER_READ_ACTIONS,
+            *RUNTIME_ALPHA_TRIGGER_MUTATION_ACTIONS,
+        ),
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_alpha_ops_metadata",
+        actions=RUNTIME_ALPHA_OPS_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_policy_metadata",
+        actions=(
+            *RUNTIME_POLICY_EVENT_ACTIONS,
+            *RUNTIME_POLICY_RSS_ACTIONS,
+        ),
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_task_monitor_metadata",
+        actions=RUNTIME_TASK_MONITOR_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_rotation_metadata",
+        actions=(
+            *RUNTIME_ROTATION_ACTIONS,
+            *RUNTIME_ROTATION_CONFIG_ACTIONS,
+            *RUNTIME_ROTATION_SIGNAL_ACCOUNT_ACTIONS,
+        ),
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_operator_metadata",

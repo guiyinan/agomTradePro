@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from html import unescape
 from html.parser import HTMLParser
-from math import ceil
+from math import ceil, isfinite
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
@@ -193,6 +193,20 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
                 payload=data,
                 status_code=status_code,
             )
+        if forced_kind == "chart":
+            return self._finalize_view_model(
+                action,
+                self._chart_model(action, data, status_code),
+                payload=data,
+                status_code=status_code,
+            )
+        if forced_kind == "table_chart":
+            return self._finalize_view_model(
+                action,
+                self._table_chart_model(action, data, status_code),
+                payload=data,
+                status_code=status_code,
+            )
         if forced_kind == "datagrid":
             if isinstance(data, list):
                 return self._finalize_view_model(
@@ -323,6 +337,25 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
         model["debug_hidden_fields"] = (
             list(debug_hidden_fields) if isinstance(debug_hidden_fields, list) else []
         )
+        if self._view_model_is_empty(model):
+            if 200 <= int(status_code) < 300:
+                model["status"] = STATUS_LABELS["EMPTY"]
+            action_view_model = action.get("view_model")
+            configured_model = action_view_model if isinstance(action_view_model, dict) else {}
+            configured_message = str(configured_model.get("empty_message") or "").strip()
+            model["empty_message"] = (
+                configured_message
+                or str(model.get("empty_message") or "").strip()
+                or f"暂无{self._action_title(action)}数据。"
+            )
+            existing_guidance = model.get("empty_guidance")
+            guidance_values = list(existing_guidance) if isinstance(existing_guidance, list) else []
+            runtime_guidance = action.get("_empty_state_guidance")
+            if isinstance(runtime_guidance, list):
+                guidance_values = [*runtime_guidance, *guidance_values]
+            model["empty_guidance"] = list(
+                dict.fromkeys(str(item).strip() for item in guidance_values if str(item).strip())
+            )
         action_view_model = action.get("view_model")
         field_presentations = (
             action_view_model.get("field_presentations", {})
@@ -343,6 +376,33 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
                 normalized_fields.append({**field, "presentation": str(presentation)})
             model["fields"] = normalized_fields
         return model
+
+    def _view_model_is_empty(self, view_model: dict[str, Any]) -> bool:
+        """Return whether a portable result represents a reviewed empty state."""
+
+        if str(view_model.get("status") or "") == STATUS_LABELS["EMPTY"]:
+            return True
+        kind = str(view_model.get("kind") or "")
+        if kind == "datagrid":
+            pager = view_model.get("pager")
+            return int((pager if isinstance(pager, dict) else {}).get("total_rows") or 0) == 0
+        if kind == "chart":
+            return int(view_model.get("point_count") or 0) == 0
+        if kind == "table_chart":
+            table = view_model.get("table")
+            chart = view_model.get("chart")
+            table_payload = table if isinstance(table, dict) else {}
+            chart_payload = chart if isinstance(chart, dict) else {}
+            pager = table_payload.get("pager")
+            table_total = int((pager if isinstance(pager, dict) else {}).get("total_rows") or 0)
+            return table_total == 0 and int(chart_payload.get("point_count") or 0) == 0
+        if kind == "detail":
+            return not list(view_model.get("fields") or []) and not list(
+                view_model.get("nested") or []
+            )
+        if kind == "message":
+            return not str(view_model.get("message") or "").strip()
+        return False
 
     def _action_title(self, action: dict[str, Any]) -> str:
         return self._operator_text(action.get("label") or "")
@@ -380,6 +440,160 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
         if not candidates:
             return None
         return sorted(candidates, key=lambda item: item[0], reverse=True)[0][1]
+
+    def _chart_model(
+        self,
+        action: dict[str, Any],
+        payload: Any,
+        status_code: int,
+    ) -> dict[str, Any]:
+        """Project tabular API rows into the portable chart result contract."""
+
+        rows: list[Any] = []
+        if isinstance(payload, list):
+            rows = payload
+        elif isinstance(payload, dict):
+            rows_path = self._view_model_path(action, "rows_path")
+            explicit_rows = self._value_at_path(payload, rows_path) if rows_path else None
+            discovered_rows = (
+                explicit_rows if isinstance(explicit_rows, list) else self._find_list_value(payload)
+            )
+            rows = discovered_rows or []
+
+        mapping_rows = [row for row in rows if isinstance(row, dict)]
+        columns = self._view_model_columns(action)
+        title = self._action_title(action)
+        chart_type = self._view_model_path(action, "chart_type") or "line"
+        if len(columns) < 2:
+            return {
+                "kind": "chart",
+                "chart_type": chart_type,
+                "title": title,
+                "status": self._status_label(status_code),
+                "x_axis_label": columns[0]["label"] if columns else "",
+                "series": [],
+                "point_count": 0,
+                "source_row_count": len(mapping_rows),
+                "sampled": False,
+                "empty_message": f"暂无{title}数据。",
+            }
+
+        x_column, *series_columns = columns
+        ordered_rows = self._ordered_chart_rows(mapping_rows, x_column["key"])
+        sampled_rows = self._sample_chart_rows(ordered_rows)
+        series: list[dict[str, Any]] = []
+        point_count = 0
+        for column in series_columns:
+            points: list[dict[str, str | float]] = []
+            for row in sampled_rows:
+                value = self._chart_number(row.get(column["key"]))
+                if value is None:
+                    continue
+                label = self._display_value(row.get(x_column["key"]))
+                points.append({"label": label, "value": value})
+            point_count += len(points)
+            series.append(
+                {
+                    "key": column["key"],
+                    "label": column["label"],
+                    "points": points,
+                }
+            )
+
+        return {
+            "kind": "chart",
+            "chart_type": chart_type,
+            "title": title,
+            "status": self._status_label(status_code),
+            "x_axis_label": x_column["label"],
+            "series": series,
+            "point_count": point_count,
+            "source_row_count": len(ordered_rows),
+            "sampled": len(sampled_rows) < len(ordered_rows),
+            "empty_message": f"暂无{title}数据。",
+        }
+
+    def _table_chart_model(
+        self,
+        action: dict[str, Any],
+        payload: Any,
+        status_code: int,
+    ) -> dict[str, Any]:
+        """Project one payload into the portable chart-plus-table result shape."""
+
+        source_model = dict(action.get("view_model") or {})
+        table_action = dict(action)
+        table_action["view_model"] = {
+            "kind": "datagrid",
+            "rows_path": source_model.get("table_rows_path", ""),
+            "columns": list(source_model.get("table_columns") or []),
+        }
+        chart_action = dict(action)
+        chart_action["view_model"] = {
+            "kind": "chart",
+            "chart_type": source_model.get("chart_type", "line"),
+            "rows_path": source_model.get("chart_rows_path", ""),
+            "columns": list(source_model.get("chart_columns") or []),
+        }
+        table_rows: list[Any] = []
+        if isinstance(payload, list):
+            table_rows = payload
+        elif isinstance(payload, dict):
+            resolved = self._value_at_path(
+                payload,
+                str(source_model.get("table_rows_path") or ""),
+            )
+            if isinstance(resolved, list):
+                table_rows = resolved
+        return {
+            "kind": "table_chart",
+            "title": self._action_title(action),
+            "status": self._status_label(status_code),
+            "chart": self._chart_model(chart_action, payload, status_code),
+            "table": self._datagrid_model(
+                table_action,
+                table_rows,
+                status_code,
+                envelope=payload if isinstance(payload, dict) else None,
+            ),
+        }
+
+    def _ordered_chart_rows(
+        self,
+        rows: list[dict[str, Any]],
+        x_key: str,
+    ) -> list[dict[str, Any]]:
+        """Order ISO date/time axes oldest-first while preserving categorical order."""
+
+        labels = [str(row.get(x_key) or "").strip() for row in rows]
+        if labels and all(re.match(r"^\d{4}-\d{2}-\d{2}(?:T.*)?$", label) for label in labels):
+            return sorted(rows, key=lambda row: str(row.get(x_key) or ""))
+        return rows
+
+    def _sample_chart_rows(
+        self,
+        rows: list[dict[str, Any]],
+        *,
+        maximum: int = 240,
+    ) -> list[dict[str, Any]]:
+        """Bound SVG payloads while preserving the first and last observations."""
+
+        if len(rows) <= maximum:
+            return rows
+        last_index = len(rows) - 1
+        indexes = {round(index * last_index / (maximum - 1)) for index in range(maximum)}
+        return [rows[index] for index in sorted(indexes)]
+
+    def _chart_number(self, value: Any) -> float | None:
+        """Return a finite numeric chart value without treating booleans as numbers."""
+
+        if value is None or isinstance(value, bool):
+            return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        return number if isfinite(number) else None
 
     def _list_candidates(self, value: Any, *, depth: int = 0) -> list[tuple[int, list[Any]]]:
         if depth > 3:

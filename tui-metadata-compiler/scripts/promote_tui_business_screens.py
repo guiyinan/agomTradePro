@@ -400,6 +400,7 @@ ACTION_SCREEN_RULES: tuple[tuple[str, str], ...] = (
     ("auto.api.get.api.dashboard.", "command-center.dashboard"),
     ("auto.api.get.api.dashboard", "command-center.dashboard"),
     ("auto.api.get.api.account.portfolios", "execution.portfolio-performance"),
+    ("auto.api.get.api.account.positions.read-only", "execution.accounts"),
     ("auto.api.get.api.account.positions", "execution.trading-ledger"),
     ("auto.api.get.api.account.transactions", "execution.trading-ledger"),
     ("auto.api.get.api.account.capital-flows", "execution.trading-ledger"),
@@ -543,6 +544,7 @@ ACTION_DESCRIPTION_OVERRIDES = {
 }
 
 EXACT_VIEW_TYPE_RULES = {
+    "pulse.history": "chart",
     "auto.api.get.api.decision.workspace.aggregated": "datagrid",
     "auto.api.get.api.decision.workspace.recommendations": "datagrid",
     "auto.api.get.api.decision.workspace.conflicts": "datagrid",
@@ -563,6 +565,16 @@ EXACT_VIEW_TYPE_RULES = {
 }
 
 EXACT_VIEW_MODEL_RULES = {
+    "pulse.history": {
+        "kind": "chart",
+        "rows_path": "data",
+        "columns": [
+            {"key": "observed_at", "label": "日期"},
+            {"key": "composite_score", "label": "综合脉搏"},
+            {"key": "growth_score", "label": "增长"},
+            {"key": "inflation_score", "label": "通胀"},
+        ],
+    },
     "auto.api.get.api.decision.workspace.recommendations": {
         "rows_path": "recommendations",
         "total_path": "total_count",
@@ -1286,6 +1298,24 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
 
 APPROVED_OPERATION_ACTIONS = (
     *APPROVED_OPERATION_ACTIONS,
+    {
+        "key": "dashboard.overview-summary",
+        "label": "投资指挥摘要",
+        "method": "GET",
+        "endpoint": "/api/dashboard/tui/overview/",
+        "intent": "inspect_investment_command_summary",
+        "screen_key": "command-center.overview",
+        "module_key": "daily-decisions",
+        "view_type": "detail",
+        "risk": "read",
+        "fields": [],
+        "view_model": {"kind": "detail", "title_path": "summary.display_name"},
+        "description": "查看环境、资产、收益、仓位、信号和数据健康的 P0 摘要。",
+        "source": "approved:dashboard-overview",
+        "task_group": "01 指挥概览",
+        "sequence": 40,
+        "task_tier": "primary",
+    },
     *(
         {
             "key": key,
@@ -1363,6 +1393,7 @@ EXACT_LABELS = {
     "auto.api.get.api.account.accounts": "账户列表",
     "auto.api.get.api.account.portfolios": "组合列表",
     "auto.api.get.api.account.positions": "持仓明细",
+    "auto.api.get.api.account.positions.read-only": "当前持仓（只读）",
     "auto.api.get.api.account.transactions": "交易流水",
     "auto.api.get.api.account.capital-flows": "资金流水",
     "auto.api.get.api.account.assets": "资产清单",
@@ -1959,6 +1990,7 @@ TASK_GROUP_RULES: tuple[tuple[str, str], ...] = (
     ("auto.api.get.api.account.health", "01 账户状态"),
     ("auto.api.get.api.account.accounts", "02 账户组合"),
     ("auto.api.get.api.account.portfolios", "02 账户组合"),
+    ("auto.api.get.api.account.positions.read-only", "02 当前持仓"),
     ("auto.api.get.api.account.positions", "03 持仓交易"),
     ("auto.api.get.api.account.transactions", "03 持仓交易"),
     ("auto.api.get.api.account.capital-flows", "03 持仓交易"),
@@ -2043,7 +2075,6 @@ PRIMARY_ACTION_KEYS = {
     "auto.api.get.api.policy.status",
     "auto.api.get.api.policy.audit.queue",
     "regime.navigator",
-    "regime.action",
     "auto.api.get.api.regime.health",
     "pulse.current",
     "signal.active",
@@ -2077,6 +2108,7 @@ PRIMARY_ACTION_KEYS = {
     "auto.api.get.api.account.health",
     "auto.api.get.api.account.accounts",
     "auto.api.get.api.account.portfolios",
+    "auto.api.get.api.account.positions.read-only",
     "auto.api.get.api.account.positions",
     "auto.api.get.api.account.transactions",
     "auto.api.get.api.account.capital-flows",
@@ -2124,8 +2156,27 @@ PRIMARY_ACTION_KEYS = {
 }
 
 REDUNDANT_SCREEN_ACTION_KEYS = {
+    "command-center.overview": {
+        "auto.api.get.api.dashboard.auto-advisor-console",
+        "auto.api.get.api.dashboard.auto-advisor-query",
+        "auto.api.get.api.dashboard.auto-advisor-weekly-report",
+    },
+    "command-center.decision-flow": {
+        "auto.api.get.api.decision.advisor.sheet",
+    },
+    "execution.accounts": {
+        "auto.api.get.api.account.currencies.base",
+        "auto.api.get.api.account.positions",
+        "auto.api.get.api.account.volatility",
+    },
     "ai-ops.capabilities": {
         "param.api.get.api.ai-capability.capabilities.pk",
+    },
+    "macro-regime.overview": {
+        "regime.action",
+    },
+    "research.asset-lab": {
+        "auto.api.get.api.factor.portfolio",
     },
 }
 
@@ -2658,6 +2709,43 @@ def _prune_empty_screens(payload: dict[str, Any]) -> int:
     return removed
 
 
+def _prune_runtime_only_dashboard_panels(payload: dict[str, Any]) -> int:
+    """Leave runtime-owned panels to runtime injection instead of publishing dangling refs."""
+
+    action_keys = {
+        str(action.get("key") or "")
+        for action in payload.get("actions", [])
+        if str(action.get("key") or "").strip()
+    }
+    removed = 0
+    for screen in payload.get("screens", []):
+        panels = screen.get("dashboard_panels")
+        if not isinstance(panels, list):
+            continue
+        kept_panels = []
+        for panel in panels:
+            action_key = str(panel.get("action_key") or "") if isinstance(panel, dict) else ""
+            if action_key and action_key not in action_keys:
+                removed += 1
+                continue
+            if isinstance(panel, dict) and isinstance(panel.get("row_actions"), list):
+                kept_row_actions = []
+                for row_action in panel["row_actions"]:
+                    row_action_key = (
+                        str(row_action.get("action_key") or "")
+                        if isinstance(row_action, dict)
+                        else ""
+                    )
+                    if row_action_key and row_action_key not in action_keys:
+                        removed += 1
+                        continue
+                    kept_row_actions.append(row_action)
+                panel["row_actions"] = kept_row_actions
+            kept_panels.append(panel)
+        screen["dashboard_panels"] = kept_panels
+    return removed
+
+
 def _prune_redundant_screen_actions(payload: dict[str, Any]) -> int:
     """Drop duplicated screen actions when a row-backed business-key route exists."""
 
@@ -2754,6 +2842,7 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
     operator_first_default_actions = _apply_operator_first_default_actions(payload)
     user_facing_design_annotations = _apply_user_facing_design_metadata(payload)
     pruned_redundant_actions = _prune_redundant_screen_actions(payload)
+    pruned_runtime_only_panels = _prune_runtime_only_dashboard_panels(payload)
     _apply_default_business_context_metadata(payload)
     pruned_empty_screens = _prune_empty_screens(payload)
 
@@ -2763,6 +2852,7 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
     coverage["operator_first_default_actions"] = operator_first_default_actions
     coverage["user_facing_design_annotations"] = user_facing_design_annotations
     coverage["pruned_redundant_screen_actions"] = pruned_redundant_actions
+    coverage["pruned_runtime_only_dashboard_panels"] = pruned_runtime_only_panels
     coverage["pruned_empty_screens"] = pruned_empty_screens
     payload["coverage_summary"] = coverage
     return payload, promoted

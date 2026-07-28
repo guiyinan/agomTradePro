@@ -148,7 +148,7 @@
       "properties": {
         "key": { "type": "string", "minLength": 1 },
         "label": { "type": "string", "minLength": 1 },
-        "input_type": { "enum": ["text", "textarea", "number", "date", "checkbox", "select", "hidden", "file"] },
+        "input_type": { "enum": ["text", "textarea", "number", "date", "checkbox", "select", "hidden", "file", "password"] },
         "value_type": { "enum": ["string", "integer", "float", "decimal", "boolean", "date", "datetime", "list", "object"] },
         "required": { "type": "boolean" },
         "default": {},
@@ -203,14 +203,38 @@
     },
     "viewModel": {
       "type": "object",
+      "description": "Portable result projection contract. For kind=chart, rows_path selects tabular rows and columns defines the projection: the first column is the x-axis label and each remaining column is one numeric series. chart currently defaults to a line renderer; non-finite values are omitted and large row sets are deterministically sampled by the host projection.",
       "properties": {
-        "kind": { "enum": ["auto", "datagrid", "detail", "message", "chart", "image", "kpi_trend", "table_chart", "host_slot", "custom"] },
-        "rows_path": { "type": "string" },
+        "kind": {
+          "description": "Portable renderer kind. chart accepts the column projection convention; kpi_trend and table_chart require their documented result shapes.",
+          "enum": ["auto", "datagrid", "detail", "message", "chart", "image", "kpi_trend", "table_chart", "host_slot", "custom"]
+        },
+        "chart_type": {
+          "description": "Portable chart renderer. Omit for the backward-compatible line default.",
+          "enum": ["line", "bar", "pie"]
+        },
+        "rows_path": {
+          "type": "string",
+          "description": "Dot path to the source row array. A conventional API envelope may be unwrapped before this path is evaluated."
+        },
+        "table_rows_path": {
+          "type": "string",
+          "description": "For table_chart, dot path to the tabular summary rows."
+        },
+        "chart_rows_path": {
+          "type": "string",
+          "description": "For table_chart, dot path to the chart source rows."
+        },
         "total_path": { "type": "string" },
         "page_path": { "type": "string" },
         "page_size_path": { "type": "string" },
         "title_path": { "type": "string" },
         "status_path": { "type": "string" },
+        "empty_message": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Task-specific user-facing message rendered when the projected result is empty."
+        },
         "field_presentations": {
           "type": "object",
           "additionalProperties": { "$ref": "#/$defs/resultFieldPresentation" }
@@ -218,6 +242,35 @@
         "columns": {
           "type": "array",
           "maxItems": 8,
+          "description": "Ordered user-facing projection. For chart, the first item is the x-axis and the remaining items are numeric series; labels must include units when the unit is not otherwise unambiguous.",
+          "items": {
+            "type": "object",
+            "required": ["key", "label"],
+            "properties": {
+              "key": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "table_columns": {
+          "type": "array",
+          "maxItems": 8,
+          "description": "For table_chart, ordered user-facing table columns.",
+          "items": {
+            "type": "object",
+            "required": ["key", "label"],
+            "properties": {
+              "key": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "chart_columns": {
+          "type": "array",
+          "maxItems": 8,
+          "description": "For table_chart, x-axis followed by one or more numeric series.",
           "items": {
             "type": "object",
             "required": ["key", "label"],

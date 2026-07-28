@@ -1,0 +1,97 @@
+"""Runtime TUI metadata for the asset-analysis screening task."""
+
+from __future__ import annotations
+
+from typing import Any
+
+RUNTIME_ASSET_ANALYSIS_ACTIONS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "asset-analysis.pool-screen",
+        "label": "筛选资产池",
+        "endpoint": "/api/asset-analysis/screen/<asset_type>/",
+        "method": "POST",
+        "intent": "screen_asset_pool",
+        "risk": "read",
+        "audience": "authenticated",
+        "screen_key": "research.asset-lab",
+        "module_key": "research-tools",
+        "view_type": "datagrid",
+        "description": "按资产类型、宏观环境、评分区间和风险等级筛选资产池。",
+        "source": "approved:runtime-asset-analysis",
+        "task_group": "02 资产筛选",
+        "sequence": 300,
+        "task_tier": "support",
+        "fields": [
+            {
+                "key": "asset_type",
+                "label": "资产类型",
+                "binding": "path",
+                "input_type": "select",
+                "value_type": "string",
+                "required": True,
+                "options": ["equity", "fund"],
+                "default": "equity",
+            },
+            {
+                "key": "regime",
+                "label": "Regime 环境",
+                "binding": "body",
+                "input_type": "select",
+                "value_type": "string",
+                "required": False,
+                "options": [
+                    "",
+                    "Recovery",
+                    "Overheat",
+                    "Stagflation",
+                    "Deflation",
+                ],
+            },
+            {
+                "key": "min_score",
+                "label": "最低综合评分",
+                "binding": "body",
+                "input_type": "number",
+                "value_type": "float",
+                "required": False,
+                "default": 0,
+                "min": 0,
+                "max": 100,
+            },
+            {
+                "key": "max_score",
+                "label": "最高综合评分",
+                "binding": "body",
+                "input_type": "number",
+                "value_type": "float",
+                "required": False,
+                "default": 100,
+                "min": 0,
+                "max": 100,
+            },
+            {
+                "key": "risk_level",
+                "label": "风险等级",
+                "binding": "body",
+                "input_type": "select",
+                "value_type": "string",
+                "required": False,
+                "options": ["", "低风险", "中低风险", "中风险", "高风险"],
+            },
+        ],
+        "view_model": {
+            "kind": "datagrid",
+            "rows_path": "assets",
+            "columns": [
+                {"key": "asset_code", "label": "资产代码"},
+                {"key": "asset_name", "label": "资产名称"},
+                {"key": "pool_type", "label": "资产池"},
+                {"key": "total_score", "label": "综合评分"},
+                {"key": "regime_score", "label": "Regime"},
+                {"key": "policy_score", "label": "Policy"},
+                {"key": "risk_level", "label": "风险等级"},
+                {"key": "entry_reason", "label": "入池原因"},
+            ],
+        },
+    },
+)

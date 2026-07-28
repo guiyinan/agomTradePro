@@ -60,6 +60,7 @@ class SignalViewSet(viewsets.GenericViewSet[Any]):
 
         if self.action in {
             "approve",
+            "batch_check",
             "create",
             "destroy",
             "invalidate",
@@ -258,6 +259,16 @@ class SignalViewSet(viewsets.GenericViewSet[Any]):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         return Response(result)
+
+    @action(detail=False, methods=["post"], url_path="batch-check")
+    def batch_check(self, request: Request) -> Response:
+        """Check pending and approved signals against their invalidation rules."""
+
+        from apps.signal.application.invalidation_checker import (
+            check_and_invalidate_signals,
+        )
+
+        return Response(check_and_invalidate_signals())
 
     @action(detail=False, methods=["get"])
     def stats(self, request: Request) -> Response:

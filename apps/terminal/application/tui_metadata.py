@@ -63,6 +63,7 @@ ALLOWED_TUI_FIELD_INPUT_TYPES = {
     "file",
     "hidden",
     "number",
+    "password",
     "select",
     "text",
     "textarea",
@@ -110,14 +111,20 @@ ALLOWED_TUI_PAGINATION_KEYS = {
 }
 ALLOWED_TUI_VIEW_MODEL_KEYS = {
     "kind",
+    "chart_type",
     "rows_path",
+    "table_rows_path",
+    "chart_rows_path",
     "total_path",
     "page_path",
     "page_size_path",
     "title_path",
     "status_path",
+    "empty_message",
     "field_presentations",
     "columns",
+    "table_columns",
+    "chart_columns",
 }
 ALLOWED_TUI_RESULT_FIELD_PRESENTATIONS = {"secret", "copyable", "multiline", "metadata"}
 ALLOWED_TUI_DASHBOARD_PANEL_KINDS = {
@@ -191,6 +198,7 @@ ALLOWED_TUI_ACTION_EFFECTS = {
     "delete",
     "execute",
 }
+ALLOWED_TUI_CHART_TYPES = {"line", "bar", "pie"}
 ALLOWED_TUI_DASHBOARD_FIELD_FORMATS = {
     "text",
     "money",
@@ -375,7 +383,7 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                             f"{action['key']}.{field_key}.{presentation}"
                         )
                 continue
-            if key == "columns":
+            if key in {"columns", "table_columns", "chart_columns"}:
                 if not isinstance(value, list):
                     raise TuiMetadataValidationError(
                         f"Action view_model columns must be a list: {action['key']}"
@@ -399,6 +407,10 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
             if key == "kind" and value not in ALLOWED_TUI_VIEW_MODEL_KINDS:
                 raise TuiMetadataValidationError(
                     f"Action view_model has unsupported kind: {action['key']}.{value}"
+                )
+            if key == "chart_type" and value not in ALLOWED_TUI_CHART_TYPES:
+                raise TuiMetadataValidationError(
+                    f"Action view_model has unsupported chart_type: " f"{action['key']}.{value}"
                 )
         action.setdefault("description", "")
         action.setdefault("source", "published")
@@ -756,7 +768,7 @@ def compact_tui_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:
             action.pop("sequence", None)
         if action.get("module_key") == screen_module_by_key.get(str(action.get("screen_key"))):
             action.pop("module_key", None)
-        if action.get("result_semantics") == []:
+        if action.get("result_semantics") == [] and _default_result_semantics(action) == []:
             action.pop("result_semantics", None)
 
     return compacted
@@ -804,9 +816,14 @@ def _validate_field(action: dict[str, Any], field: dict[str, Any]) -> None:
         )
     if input_type == "checkbox" and not field.get("value_type"):
         field["value_type"] = "boolean"
-    if input_type in {"text", "textarea", "hidden", "select", "file"} and not field.get(
-        "value_type"
-    ):
+    if input_type in {
+        "text",
+        "textarea",
+        "hidden",
+        "password",
+        "select",
+        "file",
+    } and not field.get("value_type"):
         field["value_type"] = "string"
 
     value_type = field.get("value_type")

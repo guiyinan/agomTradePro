@@ -161,6 +161,27 @@ def set_portfolio_config_active(*, config_id: int, is_active: bool) -> Any | Non
     return get_factor_portfolio_config_repository().set_active(config_id, is_active)
 
 
+def set_portfolio_factor_weight(
+    *,
+    config_id: int,
+    factor_code: str,
+    weight: float | None,
+) -> Any | None:
+    """Set or remove one named factor weight on a stored configuration."""
+
+    normalized_code = factor_code.strip()
+    if (
+        weight is not None
+        and get_factor_definition_repository().get_by_code(normalized_code) is None
+    ):
+        raise ValueError(f"未知因子代码: {normalized_code}")
+    return _use_case_portfolio_repository().set_factor_weight(
+        config_id=config_id,
+        factor_code=normalized_code,
+        weight=weight,
+    )
+
+
 def create_factor_portfolio(
     *,
     config_name: str,

@@ -11,13 +11,17 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from apps.data_center.application.interface_services import get_active_provider_id_by_source
-from apps.regime.application.current_regime import resolve_current_regime
+from apps.regime.application import current_regime
 from apps.regime.application.repository_provider import (
     get_default_macro_repository,
     get_macro_source_config_gateway,
     get_regime_repository,
 )
-from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
+from apps.regime.application.use_cases import (
+    CalculateRegimeV2Request,
+    CalculateRegimeV2Response,
+    CalculateRegimeV2UseCase,
+)
 from shared.infrastructure.cache_service import CacheService
 from shared.numeric import safe_float
 
@@ -31,7 +35,7 @@ def get_available_regime_sources() -> list[Any]:
 def get_regime_current_payload(*, as_of_date: date | None = None) -> dict[str, Any]:
     """Return the current regime API payload."""
 
-    latest = resolve_current_regime(as_of_date=as_of_date or date.today())
+    latest = current_regime.resolve_current_regime(as_of_date=as_of_date or date.today())
     return {
         "success": True,
         "data": {
@@ -204,7 +208,7 @@ def get_regime_dashboard_payload(
     raw_data_json = json.dumps(response.raw_data) if response and response.raw_data else None
     regime_result = None
 
-    if result_v2:
+    if result_v2 and response:
         growth_series = (response.raw_data or {}).get("growth", []) or []
         inflation_series = (response.raw_data or {}).get("inflation", []) or []
 
@@ -264,7 +268,7 @@ def _build_regime_v2_response(
     as_of_date: date,
     data_source: str | None,
     skip_cache: bool,
-):
+) -> CalculateRegimeV2Response:
     """Execute the V2 regime use case with a consistent request payload."""
 
     request_obj = CalculateRegimeV2Request(
@@ -307,7 +311,7 @@ def _resolve_dashboard_response(
     requested_source: str | None,
     as_of_date: date,
     skip_cache: bool,
-):
+) -> tuple[CalculateRegimeV2Response | None, str | None, list[str]]:
     """Resolve the effective source for dashboard rendering."""
 
     candidate_sources: list[str | None] = []

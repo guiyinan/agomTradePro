@@ -257,6 +257,25 @@ class TerminalChatView(APIView):
                 "selected_capability_key": response_dto.metadata.get("capability_key"),
                 "proposal_id": response_dto.metadata.get("proposal_id"),
             }
+        except RuntimeError as exc:
+            if str(exc) in {
+                "No active AI providers configured",
+                "No available AI providers",
+            }:
+                logger.info("Terminal agent provider configuration is unavailable")
+                return Response(
+                    {
+                        "error": "AI 服务尚未配置，请先配置可用服务商。",
+                        "code": "AI_PROVIDER_UNAVAILABLE",
+                        "setup_required": True,
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            logger.exception("Terminal agent chat failed")
+            return Response(
+                {"error": f"AI 调用异常: {str(exc)}"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
         except Exception as exc:
             logger.exception("Terminal agent chat failed")
             return Response(
@@ -686,7 +705,16 @@ class TuiWorkbenchActionRunView(APIView):
             audit_repository=get_terminal_audit_repository(),
             require_audit_sink=True,
         )
+        task_label = "当前任务"
+        task_recovery_actions: list[dict[str, str]] = [{"label": "返回首页", "screen_key": "home"}]
         try:
+            error_context = service.get_action_error_context(action_key, user=request.user)
+            task_label = str(error_context.get("label") or task_label)
+            recovery_screen = str(error_context.get("screen_key") or "")
+            if recovery_screen:
+                task_recovery_actions = [
+                    {"label": f"返回{task_label}", "screen_key": recovery_screen}
+                ]
             payload = service.run_action(
                 action_key=action_key,
                 params=request.data.get("params", {}) if isinstance(request.data, dict) else {},
@@ -720,12 +748,7 @@ class TuiWorkbenchActionRunView(APIView):
                     error_code="tui_action_forbidden",
                     title="无权执行",
                     detail="当前账号不能执行这个任务。",
-                    recovery_actions=[
-                        {
-                            "label": "返回我的 MCP 接入",
-                            "screen_key": "capability-router.self-service",
-                        }
-                    ],
+                    recovery_actions=task_recovery_actions,
                 ),
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -736,8 +759,8 @@ class TuiWorkbenchActionRunView(APIView):
                     request=request,
                     error_code="tui_action_not_ready",
                     title="服务正在恢复",
-                    detail="系统数据结构尚未就绪，请稍后重试。",
-                    recovery_actions=[],
+                    detail=f"“{task_label}”所需的数据结构尚未就绪，请稍后重试。",
+                    recovery_actions=task_recovery_actions,
                 ),
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
@@ -748,8 +771,8 @@ class TuiWorkbenchActionRunView(APIView):
                     request=request,
                     error_code="tui_action_unavailable",
                     title="任务暂时不可用",
-                    detail="服务暂时无法完成这个任务，请稍后重试。",
-                    recovery_actions=[],
+                    detail=f"“{task_label}”暂时无法完成，请稍后重试。",
+                    recovery_actions=task_recovery_actions,
                 ),
                 status=status.HTTP_502_BAD_GATEWAY,
             )

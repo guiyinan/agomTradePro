@@ -14,6 +14,8 @@ from dataclasses import replace
 from typing import Any, Protocol, TypedDict
 
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
@@ -227,6 +229,8 @@ class RollbackConfigView(APIView):
 class BetaGateJsonSuggestAPIView(APIView):
     """根据自然语言建议生成 Beta Gate JSON。"""
 
+    permission_classes = [IsAdminUser]
+
     TARGET_CONFIG: dict[str, JsonSuggestionConfig] = {
         "regime": {
             "template": {
@@ -374,6 +378,7 @@ class BetaGateJsonSuggestAPIView(APIView):
 # ========== Template Views ==========
 
 
+@login_required
 def beta_gate_test_view(request: HttpRequest) -> HttpResponse:
     """
     Beta Gate 资产测试工具页面
@@ -452,6 +457,7 @@ def beta_gate_test_view(request: HttpRequest) -> HttpResponse:
         return render(request, "beta_gate/test_asset.html", context, status=500)
 
 
+@login_required
 def beta_gate_version_view(request: HttpRequest) -> HttpResponse:
     """
     Beta Gate 版本对比页面
@@ -812,6 +818,8 @@ class GateConfigViewSet(viewsets.ViewSet):
 class GateDecisionViewSet(viewsets.ViewSet):
     """闸门决策视图集（简化版）"""
 
+    permission_classes = [IsAuthenticated]
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.decision_repository = get_beta_gate_decision_repository()
@@ -895,6 +903,8 @@ class GateDecisionViewSet(viewsets.ViewSet):
 class VisibilityUniverseViewSet(viewsets.ViewSet):
     """可见性宇宙视图集（简化版）"""
 
+    permission_classes = [IsAuthenticated]
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.universe_repository = get_beta_gate_universe_repository()
@@ -965,6 +975,7 @@ class VisibilityUniverseViewSet(viewsets.ViewSet):
 # ========== Template Views ==========
 
 
+@staff_member_required
 def beta_gate_config_view(request: HttpRequest) -> HttpResponse:
     """
     Beta 闸门配置页面
@@ -994,6 +1005,7 @@ def beta_gate_config_view(request: HttpRequest) -> HttpResponse:
         return render(request, "beta_gate/config.html", context, status=500)
 
 
+@staff_member_required
 def beta_gate_config_create_view(request: HttpRequest) -> HttpResponse:
     """创建 Beta Gate 配置（非 Admin）。"""
     if request.method == "POST":
@@ -1016,6 +1028,7 @@ def beta_gate_config_create_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+@staff_member_required
 def beta_gate_config_edit_view(request: HttpRequest, config_id: str) -> HttpResponse:
     """编辑 Beta Gate 配置（非 Admin）。"""
     config = get_beta_gate_config_query_service().get_config_for_edit(config_id)
@@ -1044,6 +1057,7 @@ def beta_gate_config_edit_view(request: HttpRequest, config_id: str) -> HttpResp
     )
 
 
+@staff_member_required
 def beta_gate_config_activate_view(request: HttpRequest, config_id: str) -> HttpResponse:
     """将指定配置设为激活。"""
     if request.method != "POST":

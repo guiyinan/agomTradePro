@@ -13,6 +13,7 @@ from datetime import date
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -45,7 +46,7 @@ class RegimeViewSet(viewsets.ViewSet):
     read_only_actions = frozenset({"calculate"})
 
     @action(detail=False, methods=["get"])
-    def current(self, request):
+    def current(self, request: Request) -> Response:
         """
         获取当前 Regime 状态
 
@@ -60,7 +61,7 @@ class RegimeViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["post"])
-    def calculate(self, request):
+    def calculate(self, request: Request) -> Response:
         """
         计算 Regime 判定
 
@@ -80,7 +81,7 @@ class RegimeViewSet(viewsets.ViewSet):
         return Response(response_serializer.data)
 
     @action(detail=False, methods=["get"])
-    def history(self, request):
+    def history(self, request: Request) -> Response:
         """
         获取 Regime 历史记录
 
@@ -122,19 +123,27 @@ class RegimeViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["get"])
-    def distribution(self, request):
+    def distribution(self, request: Request) -> Response:
         """
         获取 Regime 分布统计
 
         GET /api/regime/distribution/?start_date=2024-01-01&end_date=2024-12-31
         """
         try:
+            query_serializer = RegimeHistoryQuerySerializer(data=request.query_params)
+            query_serializer.is_valid(raise_exception=True)
+            params = query_serializer.validated_data
             payload = get_regime_distribution_payload(
-                start_date=request.query_params.get("start_date"),
-                end_date=request.query_params.get("end_date"),
+                start_date=params.get("start_date"),
+                end_date=params.get("end_date"),
             )
             return Response(payload)
 
+        except ValidationError as exc:
+            return Response(
+                {"success": False, "error": exc.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             return Response(
                 {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -144,7 +153,7 @@ class RegimeViewSet(viewsets.ViewSet):
 class RegimeHealthView(APIView):
     """Regime 服务健康检查"""
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """检查 Regime 服务健康状态"""
         try:
             return Response(get_regime_health_payload(), status=status.HTTP_200_OK)
@@ -162,7 +171,7 @@ class RegimeNavigatorView(APIView):
     GET /api/regime/navigator/
     """
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         try:
             from apps.regime.application.navigator_use_cases import BuildRegimeNavigatorUseCase
 
@@ -180,8 +189,13 @@ class RegimeNavigatorView(APIView):
 
             if not navigator:
                 return Response(
-                    {"success": False, "error": "Navigator data not available"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {
+                        "success": True,
+                        "available": False,
+                        "data": None,
+                        "message": "Navigator data not available",
+                    },
+                    status=status.HTTP_200_OK,
                 )
 
             data = {
@@ -224,7 +238,7 @@ class RegimeNavigatorView(APIView):
                 ],
             }
 
-            return Response({"success": True, "data": data})
+            return Response({"success": True, "available": True, "data": data})
 
         except Exception as e:
             return Response(
@@ -239,7 +253,7 @@ class RegimeActionView(APIView):
     GET /api/regime/action/
     """
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         try:
             from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
 
@@ -261,8 +275,13 @@ class RegimeActionView(APIView):
 
             if not action:
                 return Response(
-                    {"success": False, "error": "Action recommendation not available"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {
+                        "success": True,
+                        "available": False,
+                        "data": None,
+                        "message": "Action recommendation not available",
+                    },
+                    status=status.HTTP_200_OK,
                 )
 
             contract = {
@@ -296,7 +315,7 @@ class RegimeActionView(APIView):
                 "contract": contract,
             }
 
-            return Response({"success": True, "data": data})
+            return Response({"success": True, "available": True, "data": data})
 
         except Exception as e:
             return Response(
@@ -311,7 +330,7 @@ class RegimeNavigatorHistoryView(APIView):
     GET /api/regime/navigator/history/?months=12
     """
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         try:
             from datetime import timedelta
 

@@ -5,14 +5,21 @@ Page views for filter operations.
 """
 
 import json
+from typing import Any, cast
 
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
+from ..application.repository_provider import (
+    DjangoFilterRepository as ApplicationFilterRepository,
+)
 from ..application.repository_provider import get_filter_repository
 from ..application.use_cases import (
     ApplyFilterRequest,
     ApplyFilterUseCase,
     GetFilterDataRequest,
+    GetFilterDataResponse,
     GetFilterDataUseCase,
 )
 from ..domain.entities import FilterType
@@ -21,88 +28,98 @@ from ..domain.entities import FilterType
 class DjangoFilterRepository:
     """Compatibility wrapper kept for legacy interface tests."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._repository = get_filter_repository()
 
-    def get_filter_config(self, indicator_code: str):
+    def get_filter_config(self, indicator_code: str) -> dict[str, Any]:
         return self._repository.get_filter_config(indicator_code)
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> Any:
         return getattr(self._repository, item)
 
 
-def filter_dashboard_view(request):
+@login_required
+def filter_dashboard_view(request: HttpRequest) -> HttpResponse:
     """趋势滤波器仪表板页面"""
     repository = DjangoFilterRepository()
-    apply_use_case = ApplyFilterUseCase(repository)
-    get_use_case = GetFilterDataUseCase(repository)
+    application_repository = cast(ApplicationFilterRepository, repository)
+    apply_use_case = ApplyFilterUseCase(application_repository)
+    get_use_case = GetFilterDataUseCase(application_repository)
 
     # 获取可用指标列表
     available_indicators = _get_available_indicators(repository)
 
     # 获取查询参数（默认使用第一个可用指标的代码）
-    default_indicator = available_indicators[0]['code'] if available_indicators else 'CN_PMI'
-    indicator = request.GET.get('indicator', default_indicator)
-    filter_type_str = request.GET.get('filter_type', 'hp')
-    filter_type = FilterType.HP if filter_type_str == 'hp' else FilterType.KALMAN
+    default_indicator = available_indicators[0]["code"] if available_indicators else "CN_PMI"
+    indicator = request.GET.get("indicator", default_indicator)
+    filter_type_str = request.GET.get("filter_type", "hp")
+    filter_type = FilterType.HP if filter_type_str == "hp" else FilterType.KALMAN
 
     context = {
-        'current_indicator': indicator,
-        'current_filter_type': filter_type_str,
-        'available_indicators': available_indicators,
-        'error': None,
-        'chart_data': None,
+        "current_indicator": indicator,
+        "current_filter_type": filter_type_str,
+        "available_indicators": available_indicators,
+        "error": None,
+        "chart_data": None,
     }
 
     try:
         # 尝试获取已保存的滤波结果
-        get_response = get_use_case.execute(GetFilterDataRequest(
-            indicator_code=indicator,
-            filter_type=filter_type,
-        ))
-
-        if get_response.success:
-            context['chart_data'] = _prepare_chart_data(get_response)
-        else:
-            # 如果没有保存的结果，尝试计算
-            apply_response = apply_use_case.execute(ApplyFilterRequest(
+        get_response = get_use_case.execute(
+            GetFilterDataRequest(
                 indicator_code=indicator,
                 filter_type=filter_type,
-                save_results=True,
-            ))
+            )
+        )
+
+        if get_response.success:
+            context["chart_data"] = _prepare_chart_data(get_response)
+        else:
+            # 如果没有保存的结果，尝试计算
+            apply_response = apply_use_case.execute(
+                ApplyFilterRequest(
+                    indicator_code=indicator,
+                    filter_type=filter_type,
+                    save_results=True,
+                )
+            )
 
             if apply_response.success:
                 # 重新获取数据
-                get_response = get_use_case.execute(GetFilterDataRequest(
-                    indicator_code=indicator,
-                    filter_type=filter_type,
-                ))
+                get_response = get_use_case.execute(
+                    GetFilterDataRequest(
+                        indicator_code=indicator,
+                        filter_type=filter_type,
+                    )
+                )
                 if get_response.success:
-                    context['chart_data'] = _prepare_chart_data(get_response)
-                    context['warnings'] = apply_response.warnings
+                    context["chart_data"] = _prepare_chart_data(get_response)
+                    context["warnings"] = apply_response.warnings
             else:
-                context['error'] = apply_response.error
+                context["error"] = apply_response.error
 
     except Exception as e:
-        context['error'] = str(e)
+        context["error"] = str(e)
 
-    return render(request, 'filter/dashboard.html', context)
+    return render(request, "filter/dashboard.html", context)
 
 
-def _get_available_indicators(repository) -> list[str]:
+def _get_available_indicators(
+    repository: DjangoFilterRepository,
+) -> list[dict[str, Any]]:
     """获取可用的指标列表（从数据库动态获取）"""
-    return repository.get_available_indicators()
+    return cast(list[dict[str, Any]], repository.get_available_indicators())
 
 
-def _prepare_chart_data(response) -> dict:
+def _prepare_chart_data(response: GetFilterDataResponse) -> dict[str, Any]:
     """准备图表数据"""
     return {
-        'dates': response.dates,
-        'original_values': response.original_values,
-        'filtered_values': response.filtered_values,
-        'slopes': response.slopes,
-        'dates_json': json.dumps(response.dates),
-        'original_values_json': json.dumps(response.original_values),
-        'filtered_values_json': json.dumps(response.filtered_values),
-        'slopes_json': json.dumps(response.slopes) if response.slopes else '[]',
+        "dates": response.dates,
+        "original_values": response.original_values,
+        "filtered_values": response.filtered_values,
+        "slopes": response.slopes,
+        "dates_json": json.dumps(response.dates),
+        "original_values_json": json.dumps(response.original_values),
+        "filtered_values_json": json.dumps(response.filtered_values),
+        "slopes_json": json.dumps(response.slopes) if response.slopes else "[]",
     }

@@ -26,6 +26,25 @@ from apps.factor.domain.services import (
     ScoringService,
 )
 
+FACTOR_UNIVERSE_CHOICES: dict[str, str] = {
+    "all_a": "全A",
+    "csi_300": "沪深300",
+    "csi_500": "中证500",
+    "csi_1000": "中证1000",
+    "star_50": "科创板50",
+}
+FACTOR_WEIGHT_METHOD_CHOICES: dict[str, str] = {
+    "equal_weight": "等权重",
+    "market_cap_weight": "市值加权",
+    "factor_score_weight": "因子得分加权",
+}
+FACTOR_REBALANCE_CHOICES: dict[str, str] = {
+    "daily": "每日",
+    "weekly": "每周",
+    "monthly": "每月",
+    "quarterly": "每季度",
+}
+
 
 class FactorDefinitionViewRow(Protocol):
     """Application-visible projection of one factor definition row."""
@@ -95,6 +114,14 @@ class PortfolioConfigRepository(Protocol):
         self,
         config_id: int,
         is_active: bool,
+    ) -> PortfolioConfigViewRow | None: ...
+
+    def set_factor_weight(
+        self,
+        *,
+        config_id: int,
+        factor_code: str,
+        weight: float | None,
     ) -> PortfolioConfigViewRow | None: ...
 
     def get_model_by_id(self, config_id: int) -> PortfolioConfigViewRow | None: ...
@@ -452,37 +479,13 @@ class GetPortfolioConfigsForViewUseCase:
             search=request.search,
         )
 
-        # Universe choices
-        universe_choices = {
-            "all_a": "全A",
-            "csi_300": "沪深300",
-            "csi_500": "中证500",
-            "csi_1000": "中证1000",
-            "star_50": "科创板50",
-        }
-
-        # Weight method choices
-        weight_method_choices = {
-            "equal_weight": "等权重",
-            "market_cap_weight": "市值加权",
-            "factor_score_weight": "因子得分加权",
-        }
-
-        # Rebalance frequency choices
-        rebalance_choices = {
-            "daily": "每日",
-            "weekly": "每周",
-            "monthly": "每月",
-            "quarterly": "每季度",
-        }
-
         return PortfolioListViewResponse(
             configs=configs,
             stats=self.portfolio_repo.get_view_stats(),
             factor_definitions=self.factor_repo.list_active_models(),
-            universe_choices=universe_choices,
-            weight_method_choices=weight_method_choices,
-            rebalance_choices=rebalance_choices,
+            universe_choices=FACTOR_UNIVERSE_CHOICES,
+            weight_method_choices=FACTOR_WEIGHT_METHOD_CHOICES,
+            rebalance_choices=FACTOR_REBALANCE_CHOICES,
         )
 
 

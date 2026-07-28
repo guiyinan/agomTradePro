@@ -4,12 +4,14 @@ Views for Backtest Module.
 包含页面视图和 API 视图。
 """
 
-from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from core.throttling import BacktestRateThrottle, WriteRateThrottle
@@ -17,6 +19,8 @@ from core.throttling import BacktestRateThrottle, WriteRateThrottle
 from ..application.decision_replay import (
     DecisionReplayBacktestRequest,
     DecisionReplayBacktestUseCase,
+    DecisionReplayComparisonRequest,
+    DecisionReplayComparisonUseCase,
 )
 from ..application.interface_services import (
     backtest_exists,
@@ -35,28 +39,34 @@ from .serializers import (
     DecisionReplayBacktestSerializer,
     RunBacktestSerializer,
 )
+from .tui_serializers import DecisionReplayComparisonSerializer
 
 # ==================== Page Views ====================
 
-def backtest_list_view(request):
+
+@login_required
+def backtest_list_view(request: HttpRequest) -> HttpResponse:
     """回测列表页面"""
-    return render(request, 'backtest/list.html', load_backtest_list_context(limit=20))
+    return render(request, "backtest/list.html", load_backtest_list_context(limit=20))
 
 
-def backtest_detail_view(request, backtest_id):
+@login_required
+def backtest_detail_view(request: HttpRequest, backtest_id: int) -> HttpResponse:
     """回测详情页面"""
     context = load_backtest_detail_context(backtest_id)
     if context is None:
-        return JsonResponse({'error': 'Backtest not found'}, status=404)
-    return render(request, 'backtest/detail.html', context)
+        return JsonResponse({"error": "Backtest not found"}, status=404)
+    return render(request, "backtest/detail.html", context)
 
 
-def backtest_create_view(request):
+@login_required
+def backtest_create_view(request: HttpRequest) -> HttpResponse:
     """创建回测页面"""
-    return render(request, 'backtest/create.html', load_backtest_create_context())
+    return render(request, "backtest/create.html", load_backtest_create_context())
 
 
 # ==================== API Views (DRF) ====================
+
 
 class BacktestViewSet(viewsets.ViewSet):
     """回测 API 视图集
@@ -76,36 +86,43 @@ class BacktestViewSet(viewsets.ViewSet):
     # P0-2: 分层限流配置
     # 注意：限流类内部已实现方法过滤，GET 请求不会触发这些限流
     throttle_classes = [BacktestRateThrottle, WriteRateThrottle]
+    permission_classes = [IsAuthenticated]
 
-    def list(self, request):
+    def list(self, request: Request) -> Response:
         """列出所有回测"""
-        status_filter = request.query_params.get('status')
-        limit_param = request.query_params.get('limit')
+        status_filter = request.query_params.get("status")
+        limit_param = request.query_params.get("limit")
         limit = None
-        if limit_param not in (None, ''):
+        if limit_param:
             try:
                 limit = int(limit_param)
             except (TypeError, ValueError):
                 return Response(
-                    {'error': 'limit must be an integer'},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"error": "limit must be an integer"}, status=status.HTTP_400_BAD_REQUEST
                 )
 
         return Response(list_backtests_payload(status_filter=status_filter, limit=limit))
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request: Request, pk: str | None = None) -> Response:
         """获取回测详情"""
+        if pk is None:
+            return Response(
+                {"error": "Backtest ID is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         response = get_backtest_result_payload(int(pk))
 
-        if response['error']:
-            return Response({'error': response['error']}, status=status.HTTP_404_NOT_FOUND)
+        if response["error"]:
+            return Response({"error": response["error"]}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({
-            'id': response['backtest_id'],
-            'name': response['name'],
-            'status': response['status'],
-            'result': response['result'],
-        })
+        return Response(
+            {
+                "id": response["backtest_id"],
+                "name": response["name"],
+                "status": response["status"],
+                "result": response["result"],
+            }
+        )
 
     @action(
         detail=True,
@@ -113,8 +130,13 @@ class BacktestViewSet(viewsets.ViewSet):
         url_path="equity-curve",
         permission_classes=[IsAdminUser],
     )
-    def equity_curve(self, request, pk=None):
+    def equity_curve(self, request: Request, pk: str | None = None) -> Response:
         """Return one persisted equity curve without running a backtest."""
+        if pk is None:
+            return Response(
+                {"error": "Backtest ID is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         payload = get_backtest_equity_curve_payload(int(pk))
         if payload is None:
             return Response(
@@ -123,104 +145,136 @@ class BacktestViewSet(viewsets.ViewSet):
             )
         return Response(payload)
 
-    def create(self, request):
+    def create(self, request: Request) -> Response:
         """创建并运行回测"""
         serializer = RunBacktestSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        response = run_backtest_payload(dict(serializer.validated_data))
+        validated_data = dict(serializer.validated_data)
+        validated_data.pop("run_async", None)
+        response = run_backtest_payload(validated_data)
 
-        if response.status == 'failed':
-            return Response({
-                'error': 'Backtest failed',
-                'errors': response.errors,
-                'warnings': response.warnings,
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if response.status == "failed":
+            return Response(
+                {
+                    "error": "Backtest failed",
+                    "errors": response.errors,
+                    "warnings": response.warnings,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-        return Response({
-            'backtest_id': response.backtest_id,
-            'status': response.status,
-            'result': response.result,
-            'warnings': response.warnings,
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "backtest_id": response.backtest_id,
+                "status": response.status,
+                "result": response.result,
+                "warnings": response.warnings,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
-    def destroy(self, request, pk=None):
+    def destroy(self, request: Request, pk: str | None = None) -> Response:
         """删除回测"""
+        if pk is None:
+            return Response(
+                {"error": "Backtest ID is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         response = delete_backtest_payload(int(pk))
 
-        if not response['success']:
-            return Response({'error': response['error']}, status=status.HTTP_404_NOT_FOUND)
+        if not response["success"]:
+            return Response({"error": response["error"]}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({'message': 'Backtest deleted successfully'})
+        return Response({"message": "Backtest deleted successfully"})
 
-    @action(detail=False, methods=['get'])
-    def statistics(self, request):
+    @action(detail=False, methods=["get"])
+    def statistics(self, request: Request) -> Response:
         """获取统计信息"""
         serializer = BacktestStatisticsSerializer(get_backtest_statistics_payload())
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'])
-    def rerun(self, request, pk=None):
+    @action(detail=True, methods=["post"])
+    def rerun(self, request: Request, pk: str | None = None) -> Response:
         """重新运行回测"""
+        if pk is None:
+            return Response(
+                {"error": "Backtest ID is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not backtest_exists(int(pk)):
-            return Response({'error': 'Backtest not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Backtest not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # 删除旧结果，准备重新运行
         # 实际实现中需要更复杂的逻辑
-        return Response({'message': 'Rerun initiated'})
+        return Response({"message": "Rerun initiated"})
 
 
 # ==================== Utility Views ====================
 
+
+@login_required
 @require_http_methods(["GET"])
-def backtest_statistics_api_view(request):
+def backtest_statistics_api_view(request: HttpRequest) -> JsonResponse:
     """获取回测统计（独立 API）"""
     response = get_backtest_statistics_payload()
 
-    return JsonResponse({
-        'total': response.total,
-        'by_status': response.by_status,
-        'avg_return': response.avg_return,
-        'max_return': response.max_return,
-        'min_return': response.min_return,
-    })
+    return JsonResponse(
+        {
+            "total": response.total,
+            "by_status": response.by_status,
+            "avg_return": response.avg_return,
+            "max_return": response.max_return,
+            "min_return": response.min_return,
+        }
+    )
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def run_backtest_api_view(request):
+def run_backtest_api_view(request: Request) -> Response:
     """运行回测（独立 API）"""
     serializer = RunBacktestSerializer(data=request.data)
     if not serializer.is_valid():
-        return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     validated_data = dict(serializer.validated_data)
     validated_data.pop("run_async", None)
     response = run_backtest_payload(validated_data)
 
-    if response.status == 'failed':
-        return Response({
-            'error': 'Backtest failed',
-            'errors': response.errors,
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    if response.status == "failed":
+        return Response(
+            {
+                "error": "Backtest failed",
+                "errors": response.errors,
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
-    return Response({
-        'backtest_id': response.backtest_id,
-        'status': response.status,
-        'result': response.result,
-        'warnings': response.warnings,
-    })
+    return Response(
+        {
+            "backtest_id": response.backtest_id,
+            "status": response.status,
+            "result": response.result,
+            "warnings": response.warnings,
+        }
+    )
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def decision_replay_backtest_api_view(request):
+def decision_replay_backtest_api_view(request: Request) -> Response:
     """Run a manual decision replay branch backtest."""
 
     serializer = DecisionReplayBacktestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
+    if request.user.id is None:
+        return Response(
+            {"error": "Authenticated user ID is required"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     response = DecisionReplayBacktestUseCase().execute(
         DecisionReplayBacktestRequest(
             user_id=request.user.id,
@@ -237,3 +291,36 @@ def decision_replay_backtest_api_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     return Response({"backtest_id": response.backtest_id}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def decision_replay_comparison_api_view(request: Request) -> Response:
+    """Run all four fixed replay branches and return chart-ready evidence."""
+
+    serializer = DecisionReplayComparisonSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    if request.user.id is None:
+        return Response(
+            {"error": "Authenticated user ID is required"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    data = serializer.validated_data
+    response = DecisionReplayComparisonUseCase().execute(
+        DecisionReplayComparisonRequest(
+            user_id=request.user.id,
+            portfolio_id=data["portfolio_id"],
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+            initial_capital=data["initial_capital"],
+        )
+    )
+    return Response(
+        {
+            "success": response.success,
+            "branches": list(response.branches),
+            "equity_curve": list(response.equity_curve),
+            "errors": list(response.errors),
+        },
+        status=status.HTTP_201_CREATED if response.branches else status.HTTP_400_BAD_REQUEST,
+    )

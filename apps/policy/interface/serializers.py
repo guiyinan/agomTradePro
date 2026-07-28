@@ -375,6 +375,43 @@ class RSSTriggerSerializer(serializers.Serializer[dict[str, Any]]):
     force_refetch = serializers.BooleanField(required=False, default=False)
 
 
+class RSSReaderQuerySerializer(serializers.Serializer[dict[str, Any]]):
+    """Validate the authenticated RSS reader query contract."""
+
+    source_id = serializers.IntegerField(required=False, min_value=1)
+    level = serializers.ChoiceField(
+        choices=["PX", "P0", "P1", "P2", "P3"],
+        required=False,
+    )
+    category = serializers.ChoiceField(
+        choices=["macro", "sector", "individual", "sentiment", "other"],
+        required=False,
+    )
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=200, default=50)
+    offset = serializers.IntegerField(required=False, min_value=0, default=0)
+
+
+class RSSReaderItemSerializer(serializers.Serializer[Any]):
+    """Serialize one normalized PolicyLog row for the RSS reader."""
+
+    id = serializers.IntegerField(read_only=True)
+    event_date = serializers.DateField(read_only=True)
+    level = serializers.CharField(read_only=True)
+    title = serializers.CharField(read_only=True)
+    description = serializers.CharField(read_only=True)
+    evidence_url = serializers.URLField(read_only=True)
+    info_category = serializers.CharField(read_only=True)
+    audit_status = serializers.CharField(read_only=True)
+    risk_impact = serializers.CharField(read_only=True)
+    rss_source_id = serializers.IntegerField(read_only=True, allow_null=True)
+    rss_source_name = serializers.CharField(
+        source="rss_source.name",
+        read_only=True,
+        allow_null=True,
+    )
+    created_at = serializers.DateTimeField(read_only=True)
+
+
 # ============================================================
 # 工作台序列化器
 # ============================================================

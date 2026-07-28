@@ -2,11 +2,15 @@
 
 import logging
 from datetime import date
+from typing import Any
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.pulse.domain.entities import PulseSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +23,7 @@ class PulseCurrentView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         try:
             from apps.pulse.application.use_cases import GetLatestPulseUseCase
 
@@ -31,11 +35,24 @@ class PulseCurrentView(APIView):
 
             if not snapshot:
                 return Response(
-                    {"success": False, "error": "No pulse data available"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {
+                        "success": True,
+                        "available": False,
+                        "count": 0,
+                        "data": [],
+                        "message": "No pulse data available",
+                    },
+                    status=status.HTTP_200_OK,
                 )
 
-            return Response({"success": True, "data": _serialize_snapshot(snapshot)})
+            return Response(
+                {
+                    "success": True,
+                    "available": True,
+                    "count": 1,
+                    "data": _serialize_snapshot(snapshot),
+                }
+            )
 
         except Exception as e:
             logger.exception(f"Error getting pulse: {e}")
@@ -54,7 +71,7 @@ class PulseHistoryView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         try:
             months = int(request.query_params.get("months", 6))
             limit_raw = request.query_params.get("limit")
@@ -81,7 +98,7 @@ class PulseCalculateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         if not request.user.is_staff:
             return Response(
                 {"success": False, "error": "Staff only"},
@@ -119,7 +136,7 @@ class PulseCalculateView(APIView):
             )
 
 
-def _serialize_snapshot(snapshot) -> dict:
+def _serialize_snapshot(snapshot: PulseSnapshot) -> dict[str, Any]:
     """Serialize a pulse snapshot into the public API contract."""
     indicator_observed_at = {
         str(reading.code): (reading.observed_at.isoformat() if reading.observed_at else None)

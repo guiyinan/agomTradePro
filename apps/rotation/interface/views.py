@@ -9,6 +9,8 @@ import json
 from datetime import date, datetime
 from typing import Any
 
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
@@ -141,6 +143,21 @@ class RotationConfigViewSet(viewsets.ModelViewSet[Any]):
     search_fields = ["name", "description"]
     ordering = ["-is_active", "-created_at"]
 
+    def get_permissions(self) -> list[BasePermission]:
+        """Restrict global rotation configuration mutations to staff users."""
+
+        if self.action in {
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "activate",
+            "deactivate",
+            "generate_signal",
+        }:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+
     @action(detail=True, methods=["post"])
     def activate(self, request: Request, pk: str | None = None) -> Response:
         """Activate this configuration"""
@@ -182,6 +199,7 @@ class RotationSignalViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     serializer_class = RotationSignalSerializer
     filterset_fields = ["config", "signal_date", "current_regime", "action_required"]
     ordering = ["-signal_date"]
+    permission_classes = [IsAuthenticated]
 
     @action(detail=False, methods=["get"])
     def latest(self, request: Request) -> Response:
@@ -342,6 +360,7 @@ class RotationActionViewSet(viewsets.ViewSet):
 # ============================================================================
 
 
+@staff_member_required
 def rotation_assets_view(request: HttpRequest) -> HttpResponse:
     """资产类别管理页面 - 显示所有资产类别、价格和动量信息"""
     return render(
@@ -351,6 +370,7 @@ def rotation_assets_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+@staff_member_required
 def rotation_configs_view(request: HttpRequest) -> HttpResponse:
     """轮动配置管理页面 - 显示和编辑策略配置"""
     return render(
@@ -360,6 +380,7 @@ def rotation_configs_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+@login_required
 def rotation_signals_view(request: HttpRequest) -> HttpResponse:
     """轮动信号页面 - 显示当前推荐和历史信号"""
     return render(
@@ -375,6 +396,7 @@ def rotation_signals_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+@login_required
 def rotation_account_config_view(request: HttpRequest) -> HttpResponse:
     """账户轮动配置页面 - 每个账户独立配置风险偏好和象限配置"""
     return render(
@@ -384,6 +406,7 @@ def rotation_account_config_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+@staff_member_required
 @require_http_methods(["POST"])
 def rotation_generate_signal_view(request: HttpRequest) -> JsonResponse:
     """生成轮动信号的 API 端点"""

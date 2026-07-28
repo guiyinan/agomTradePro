@@ -1,0 +1,135 @@
+"""Runtime TUI metadata for user-facing stock screening."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from apps.regime.domain.services_v2 import RegimeType
+
+_SCREEN = "research.asset-lab"
+_MODULE = "research"
+_SOURCE = "approved:runtime-equity-screen"
+
+RUNTIME_EQUITY_SCREEN_ACTIONS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "equity.screen-stocks",
+        "label": "筛选个股",
+        "endpoint": "/api/equity/screen/",
+        "method": "POST",
+        "intent": "screen_equity_candidates",
+        "risk": "write",
+        "audience": "authenticated",
+        "effect": "execute",
+        "confirmation_required": True,
+        "screen_key": _SCREEN,
+        "module_key": _MODULE,
+        "view_type": "datagrid",
+        "description": "按 Regime、估值、盈利成长和负债约束筛选个股候选。",
+        "source": _SOURCE,
+        "task_group": "02 个股筛选",
+        "sequence": 220,
+        "task_tier": "operation",
+        "fields": [
+            {
+                "key": "regime",
+                "label": "Regime（留空自动判断）",
+                "binding": "body",
+                "input_type": "select",
+                "value_type": "string",
+                "required": False,
+                "options": ["", *[item.value for item in RegimeType]],
+            },
+            {
+                "key": "min_roe",
+                "label": "最低 ROE（%）",
+                "binding": "body",
+                "input_type": "number",
+                "value_type": "float",
+                "required": False,
+                "default": 15,
+                "min": 0,
+                "max": 100,
+            },
+            {
+                "key": "max_pe",
+                "label": "最高 PE",
+                "binding": "body",
+                "input_type": "number",
+                "value_type": "float",
+                "required": False,
+                "default": 30,
+                "min": 0,
+                "max": 200,
+            },
+            {
+                "key": "max_pb",
+                "label": "最高 PB",
+                "binding": "body",
+                "input_type": "number",
+                "value_type": "float",
+                "required": False,
+                "default": 5,
+                "min": 0,
+                "max": 50,
+            },
+            {
+                "key": "min_revenue_growth",
+                "label": "最低营收增长（%）",
+                "binding": "body",
+                "input_type": "number",
+                "value_type": "float",
+                "required": False,
+                "default": 10,
+                "min": -100,
+                "max": 500,
+            },
+            {
+                "key": "min_profit_growth",
+                "label": "最低利润增长（%）",
+                "binding": "body",
+                "input_type": "number",
+                "value_type": "float",
+                "required": False,
+                "default": 10,
+                "min": -100,
+                "max": 500,
+            },
+            {
+                "key": "max_debt_ratio",
+                "label": "最高负债率（%）",
+                "binding": "body",
+                "input_type": "number",
+                "value_type": "float",
+                "required": False,
+                "default": 70,
+                "min": 0,
+                "max": 100,
+            },
+            {
+                "key": "max_count",
+                "label": "最多返回数量",
+                "binding": "body",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": False,
+                "default": 30,
+                "min": 1,
+                "max": 100,
+            },
+        ],
+        "view_model": {
+            "kind": "datagrid",
+            "rows_path": "items",
+            "columns": [
+                {"key": "rank", "label": "排名"},
+                {"key": "code", "label": "证券代码"},
+                {"key": "name", "label": "名称"},
+                {"key": "sector", "label": "行业"},
+                {"key": "roe", "label": "ROE"},
+                {"key": "pe", "label": "PE"},
+                {"key": "pb", "label": "PB"},
+                {"key": "score", "label": "评分"},
+            ],
+        },
+    },
+)

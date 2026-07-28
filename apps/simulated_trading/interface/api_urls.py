@@ -11,6 +11,7 @@ from .performance_views import (
     AccountValuationTimelineAPIView,
 )
 from .sdk_contract_views import AccountResetAPIView, PositionCloseAPIView
+from .tui_views import InspectionNotificationConfigAPIView
 from .views import (
     AccountBatchDeleteAPIView,
     AccountDetailAPIView,
@@ -63,6 +64,11 @@ urlpatterns = [
     path("accounts/<int:account_id>/equity-curve/", EquityCurveAPIView.as_view(), name="equity-curve"),
     path("accounts/<int:account_id>/inspections/run/", DailyInspectionRunAPIView.as_view(), name="daily-inspection-run"),
     path("accounts/<int:account_id>/inspections/", DailyInspectionReportListAPIView.as_view(), name="daily-inspection-list"),
+    path(
+        "accounts/<int:account_id>/inspection-notification/",
+        InspectionNotificationConfigAPIView.as_view(),
+        name="inspection-notification-config",
+    ),
     path("fee-configs/", FeeConfigListAPIView.as_view(), name="fee-config-list"),
     path("auto-trading/run/", AutoTradingAPIView.as_view(), name="auto-trading-run"),
     # 统一账户业绩与估值 API

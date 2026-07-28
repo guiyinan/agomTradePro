@@ -536,13 +536,16 @@ class PublishedTuiMetadataRepository:
 
         if str(payload.get("ia_version") or "").strip():
             return True
-        aliases = screen_aliases()
+        published_screen_keys = {
+            str(screen["key"])
+            for screen in load_tui_information_architecture()["published_screens"]
+        }
         known_screens = {
             str(screen.get("key") or "")
             for screen in payload.get("screens", [])
             if isinstance(screen, dict)
         }
-        return len(known_screens.intersection(aliases)) >= 8
+        return len(known_screens.intersection(published_screen_keys)) >= 8
 
     @staticmethod
     def _apply_information_architecture(payload: dict[str, Any]) -> dict[str, Any]:
@@ -561,6 +564,12 @@ class PublishedTuiMetadataRepository:
         density_overrides = density.get("screen_limits") or {}
         workflow = list(registry.get("workflow") or [])
         workflow_by_key = {str(step["screen_key"]): index for index, step in enumerate(workflow)}
+        runtime_replacement_action_keys = {
+            str(action.get("key") or "")
+            for bundle in RUNTIME_METADATA_INJECTIONS
+            if bundle.replace_existing
+            for action in bundle.actions
+        }
 
         screens: list[dict[str, Any]] = []
         for screen_key, configured in published_specs.items():
@@ -606,6 +615,8 @@ class PublishedTuiMetadataRepository:
             if not isinstance(source_action, dict):
                 continue
             if str(source_action.get("source") or "").startswith("approved:runtime-"):
+                continue
+            if str(source_action.get("key") or "") in runtime_replacement_action_keys:
                 continue
             target = aliases.get(str(source_action.get("screen_key") or ""), "")
             spec = specs.get(target)

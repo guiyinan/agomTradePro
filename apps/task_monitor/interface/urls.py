@@ -32,6 +32,22 @@ urlpatterns = [
     path("list/", views.list_tasks, name="task_list"),
     path("statistics/", views.get_task_statistics, name="task_statistics"),
     path("dashboard/", views.dashboard, name="dashboard"),
+    path("scheduler/console/", views.scheduler_console, name="scheduler_console"),
+    path(
+        "scheduler/bootstrap/",
+        views.bootstrap_scheduler,
+        name="scheduler_bootstrap",
+    ),
+    path(
+        "readiness/monitor/",
+        views.readiness_monitor,
+        name="readiness_monitor",
+    ),
+    path(
+        "readiness/schedule/",
+        views.readiness_schedule,
+        name="readiness_schedule",
+    ),
 
     # Celery 健康检查
     path("celery/health/", views.health_check, name="celery_health"),

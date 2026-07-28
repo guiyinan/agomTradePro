@@ -127,6 +127,7 @@ class AttributionReportSerializer(serializers.Serializer[dict[str, Any]]):
 
     id = serializers.IntegerField()
     backtest_id = serializers.IntegerField()
+    attribution_method = serializers.CharField(required=False)
     period_start = serializers.CharField()
     period_end = serializers.CharField()
     regime_timing_pnl = serializers.FloatField()
@@ -155,6 +156,16 @@ class GenerateAttributionReportResponseSerializer(serializers.Serializer[dict[st
     success = serializers.BooleanField()
     report_id = serializers.IntegerField(allow_null=True)
     error = serializers.CharField(allow_null=True, required=False)
+
+
+class AuditTuiReportListQuerySerializer(StrictFieldsSerializer):
+    """Bounded report-list filters exposed by the TUI audit workbench."""
+
+    method = serializers.ChoiceField(
+        choices=("", "heuristic", "brinson"),
+        required=False,
+        default="",
+    )
 
 
 # ============ MCP/SDK 操作审计日志序列化器 ============

@@ -266,6 +266,7 @@ RUNTIME_OPERATOR_ACTIONS: tuple[dict[str, Any], ...] = (
         "task_group": "01 治理主线",
         "sequence": 20,
         "task_tier": "primary",
+        "audience": "admin",
     },
     {
         "key": "operator.governance.ai_provider_summary",

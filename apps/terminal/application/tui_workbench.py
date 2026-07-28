@@ -54,6 +54,17 @@ USER_HIDDEN_SCREEN_ACTION_KEYS = {
     "param.api.get.api.audit.indicator-performance.str.indicator_code",
     "param.api.get.api.system.status.str.task_id",
 }
+
+
+def _is_agent_runtime_operator(user: Any) -> bool:
+    """Return whether the actor may use the Agent Runtime operator queue."""
+
+    if bool(getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)):
+        return True
+    groups = getattr(user, "groups", None)
+    return bool(groups is not None and groups.filter(name="operator").exists())
+
+
 USER_CONDITIONAL_SCREEN_ACTIONS: dict[str, Callable[[Any], bool]] = {
     "param.api.get.api.ai.me.providers.pk": lambda user: has_user_personal_providers(user),
     "param.api.get.api.dashboard.alpha.history.int.run_id": lambda user: has_dashboard_alpha_history(
@@ -71,6 +82,20 @@ USER_CONDITIONAL_SCREEN_ACTIONS: dict[str, Callable[[Any], bool]] = {
     "param.api.get.api.alpha-triggers.candidates.pk": lambda _user: has_alpha_candidates(),
     "auto.api.get.api.system.statistics": lambda _user: has_recent_task_failures(),
     "config_center.training_run_detail": lambda _user: has_qlib_training_runs(),
+    **dict.fromkeys(
+        (
+            "agent-runtime.operator-summary",
+            "agent-runtime.operator-task-list",
+            "agent-runtime.operator-task-detail",
+            "agent-runtime.operator-proposal-list",
+            "agent-runtime.operator-proposal-detail",
+            "agent-runtime.operator-submit-proposal",
+            "agent-runtime.operator-approve-proposal",
+            "agent-runtime.operator-reject-proposal",
+            "agent-runtime.operator-execute-proposal",
+        ),
+        _is_agent_runtime_operator,
+    ),
 }
 
 
@@ -368,6 +393,22 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             "result_semantics": payload["result_semantics"],
         }
 
+    def get_action_error_context(
+        self,
+        action_key: str,
+        *,
+        user: Any | None = None,
+    ) -> dict[str, str]:
+        """Return bounded user-facing context for an action failure."""
+
+        action = self._action_by_key(action_key, user=user)
+        if action is None:
+            return {}
+        return {
+            "label": self._operator_text(action.get("label") or "当前任务"),
+            "screen_key": str(action.get("screen_key") or ""),
+        }
+
     def _agent_action_summary(
         self,
         action: dict[str, Any],
@@ -485,8 +526,9 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             )
             status_code = int(result.get("status_code", 200))
             payload = result.get("payload")
+            projection_action = self._action_with_empty_state_context(action)
             view_model = self._to_view_model(
-                action=action,
+                action=projection_action,
                 payload=payload,
                 status_code=status_code,
                 request_params=request_params,
@@ -529,6 +571,26 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             result=envelope,
         )
         return envelope
+
+    def _action_with_empty_state_context(self, action: dict[str, Any]) -> dict[str, Any]:
+        """Attach reviewed screen guidance to one result projection.
+
+        The extra key is runtime-only and is never published as action metadata.
+        It lets every empty result retain the user task context defined on its
+        owning screen instead of falling back to a generic renderer message.
+        """
+
+        projected = dict(action)
+        screen_key = str(action.get("screen_key") or "")
+        screen = self._screen_by_key(self._metadata()).get(screen_key) or {}
+        experience = dict(screen.get("user_experience") or {})
+        guidance: list[str] = []
+        for key in ("empty_state_hint", "next_step_hint"):
+            value = self._operator_text(experience.get(key) or "").strip()
+            if value and value not in guidance:
+                guidance.append(value)
+        projected["_empty_state_guidance"] = guidance
+        return projected
 
     def _apply_default_field_values(
         self,
@@ -881,7 +943,8 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         user_id = getattr(user, "pk", None)
         role = str(getattr(user, "rbac_role", "") or "")
         return (
-            f"{user_id if user_id is not None else 'anon'}:{role}:{int(self._is_admin_user(user))}"
+            f"{user_id if user_id is not None else 'anon'}:{role}:"
+            f"{int(self._is_admin_user(user))}:{int(_is_agent_runtime_operator(user))}"
         )
 
     def _action_by_key(self, action_key: str, *, user: Any | None = None) -> dict[str, Any] | None:

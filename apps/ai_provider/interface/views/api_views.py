@@ -258,9 +258,20 @@ class MyUsageLogViewSet(viewsets.GenericViewSet[Any]):
     serializer_class = AIUsageLogSerializer
 
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        provider_id = request.GET.get("provider")
+        if provider_id:
+            try:
+                provider_id_int = int(provider_id)
+            except ValueError:
+                return Response(
+                    {"error": "provider 必须是整数"}, status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            provider_id_int = None
         status_filter = request.GET.get("status")
         provider_scope = request.GET.get("provider_scope")
         logs = ListUsageLogsUseCase().execute(
+            provider_id=provider_id_int,
             user=request.user,
             status=status_filter,
             limit=min(int(request.GET.get("limit", 100)), 500),

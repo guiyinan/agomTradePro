@@ -6,6 +6,7 @@
 - 禁止业务逻辑
 """
 
+from collections.abc import Mapping
 from typing import Any, TypeAlias, cast
 
 from rest_framework import serializers
@@ -33,6 +34,40 @@ class ScreenStocksRequestSerializer(serializers.Serializer[dict[str, Any]]):
     max_count = serializers.IntegerField(
         required=False, default=30, min_value=1, max_value=100, help_text="最多返回个股数量"
     )
+    min_roe = serializers.FloatField(required=False, write_only=True)
+    max_pe = serializers.FloatField(required=False, write_only=True)
+    max_pb = serializers.FloatField(required=False, write_only=True)
+    min_revenue_growth = serializers.FloatField(required=False, write_only=True)
+    min_profit_growth = serializers.FloatField(required=False, write_only=True)
+    max_debt_ratio = serializers.FloatField(required=False, write_only=True)
+
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Fold user-facing flat fields into the owner use-case custom rule."""
+
+        raw_rule = data.get("custom_rule")
+        if raw_rule is None:
+            custom_rule: dict[str, Any] = {}
+        elif isinstance(raw_rule, Mapping):
+            custom_rule = {str(key): value for key, value in raw_rule.items()}
+        else:
+            raise serializers.ValidationError(
+                {"custom_rule": "custom_rule 必须是 JSON 对象"}
+            )
+
+        flat_rule_keys = (
+            "min_roe",
+            "max_pe",
+            "max_pb",
+            "min_revenue_growth",
+            "min_profit_growth",
+            "max_debt_ratio",
+        )
+        for key in flat_rule_keys:
+            if key in data:
+                custom_rule[key] = data.pop(key)
+        if custom_rule:
+            data["custom_rule"] = custom_rule
+        return data
 
 
 class ScreenStocksResponseSerializer(serializers.Serializer[ScreenStocksResponse]):

@@ -19,10 +19,14 @@ from rest_framework.response import Response
 
 from apps.factor.application import interface_services as factor_interface_services
 from apps.factor.interface.serializers import (
+    FactorConfigCalculationRequestSerializer,
+    FactorConfigExplanationRequestSerializer,
     FactorDefinitionSerializer,
     FactorPortfolioConfigSerializer,
     FactorPortfolioReadQuerySerializer,
     FactorScoreRequestSerializer,
+    FactorWeightMutationSerializer,
+    FactorWeightRemovalSerializer,
 )
 
 
@@ -263,6 +267,48 @@ class FactorPortfolioConfigViewSet(viewsets.GenericViewSet[Any]):
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response({"status": "deactivated"})
 
+    @action(detail=True, methods=["patch"], url_path="factor-weight")
+    def set_factor_weight(
+        self,
+        request: Request,
+        pk: str | None = None,
+    ) -> Response:
+        """Set one factor weight using scalar fields."""
+
+        serializer = FactorWeightMutationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            config = factor_interface_services.set_portfolio_factor_weight(
+                config_id=_factor_id(pk),
+                factor_code=str(data["factor_code"]),
+                weight=float(data["weight"]),
+            )
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if config is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(self.get_serializer(config).data)
+
+    @action(detail=True, methods=["post"], url_path="remove-factor-weight")
+    def remove_factor_weight(
+        self,
+        request: Request,
+        pk: str | None = None,
+    ) -> Response:
+        """Remove one factor weight using its code."""
+
+        serializer = FactorWeightRemovalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        config = factor_interface_services.set_portfolio_factor_weight(
+            config_id=_factor_id(pk),
+            factor_code=str(serializer.validated_data["factor_code"]),
+            weight=None,
+        )
+        if config is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(self.get_serializer(config).data)
+
     @action(detail=True, methods=["post"])
     def generate_portfolio(
         self,
@@ -357,6 +403,40 @@ class FactorActionViewSet(viewsets.ViewSet):
                 }
             }
         )
+
+    @action(detail=False, methods=["post"], url_path="calculate-config")
+    def calculate_config(self, request: Request) -> Response:
+        """Calculate scores using one stored portfolio configuration."""
+
+        serializer = FactorConfigCalculationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        trade_date_value = data.get("trade_date")
+        outcome = factor_interface_services.calculate_scores_for_config(
+            post_data={
+                "config_id": data["config_id"],
+                "trade_date": (
+                    trade_date_value.isoformat() if trade_date_value is not None else ""
+                ),
+                "top_n": data.get("top_n", 30),
+            }
+        )
+        response_status = int(outcome.pop("status"))
+        return Response(outcome, status=response_status)
+
+    @action(detail=False, methods=["post"], url_path="explain-config")
+    def explain_config(self, request: Request) -> Response:
+        """Explain one stock using one stored portfolio configuration."""
+
+        serializer = FactorConfigExplanationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        outcome = factor_interface_services.explain_stock_for_config(
+            stock_code=str(data["stock_code"]).strip().upper(),
+            config_id=int(data["config_id"]),
+        )
+        response_status = int(outcome.pop("status"))
+        return Response(outcome, status=response_status)
 
     @action(detail=False, methods=["post"], url_path="top-stocks")
     def get_top_stocks(self, request: Request) -> Response:
