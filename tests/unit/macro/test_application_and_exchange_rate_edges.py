@@ -89,7 +89,9 @@ def test_data_management_success_failure_summary_and_schedule_boundaries() -> No
         execute=lambda request: SimpleNamespace(success=False, synced_count=0, errors=["timeout"])
     )
     assert FetchDataUseCase(success_sync, repo).execute(FetchDataRequest()).synced_count == 4
-    assert FetchDataUseCase(failure_sync, repo).execute(FetchDataRequest()).errors == ["timeout"]
+    assert FetchDataUseCase(failure_sync, repo).execute(FetchDataRequest()).errors == [
+        "macro_data_sync_failed"
+    ]
 
     deleted = DeleteDataUseCase(repo).execute(DeleteDataRequest(indicator_code="PMI"))
     assert deleted.success and deleted.deleted_count == 3

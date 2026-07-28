@@ -5936,3 +5936,17 @@
 - Terminal permission 专项 `7 passed`；审批端点、staff-only 审计端点、TUI Workbench、Terminal Agent、SDK client 与内部 SSL redirect 扩展回归合计 `268 passed`。
 - `apps/terminal/interface/permissions.py` 增量 mypy 清零并退出债务清单；全仓基线从 `546 errors / 279 files` 收紧为 `543 errors / 278 files`，净减少 `3 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/SDK/MCP/部署实现或 Terminal 权限角色口径。
+
+## 第三百八十七批
+
+- 按“Macro adapter 动态调用无合同 × 字符串 period type 进入 Domain × 数据源/仓储异常正文进入响应”收口 legacy Macro Application 编排。
+- Macro Repository 补齐按日期读取与批量保存协议；同步 adapter 建立 `supports/fetch` 精确 Protocol，动态返回必须为 `list[MacroDataPoint]`，dict、scalar 与混合对象在 canonical 写入前失败关闭。
+- 同步实体使用正式 `PeriodType.MONTH`，不再向 Domain 传递裸字符串；同步、最新值读取、手动抓取与删除构造器补齐 Repository/Adapter/UseCase 精确类型。
+- 手动抓取、同步 adapter 与删除失败只发布稳定 `macro_data_fetch_failed`、`macro_data_sync_failed`、`macro_indicator_sync_failed`、`macro_data_delete_failed`；日志只记录 indicator 与异常类型，不再包含数据库/Redis URL、路径或凭据正文。
+- 上游失败 response 的任意 errors 不再原样透传；Data Center connection probe payload 必须为 string-keyed dict，动态错误 shape 不进入接口展示。
+
+## 第三百八十七批验证结果
+
+- Macro Application 安全、数据管理与既有 use case 专项 `26 passed`；Macro unit、Application component 与 data-sync integration 扩展组合 `185 passed, 1 failed`。唯一失败为既有 PIT 测试要求在 `2024-02-28` 截止查询中纳入 `2024-03-15` 才发布的数据，与 PIT 防后视语义冲突；目标仓储文件本批无改动，单独重跑可稳定复现。
+- `apps/macro/application/data_management.py` 与 `apps/macro/application/use_cases.py` 增量 mypy 清零并退出债务清单；全仓基线从 `543 errors / 278 files` 收紧为 `534 errors / 276 files`，净减少 `9 errors / 2 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Macro PIT 仓储、数据库 migration、TUI/Terminal/SDK/MCP 或部署实现。

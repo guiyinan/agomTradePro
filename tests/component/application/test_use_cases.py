@@ -145,7 +145,7 @@ class TestSyncMacroDataUseCase:
         repository = Mock()
         adapter = Mock()
         adapter.supports.return_value = True
-        adapter.fetch.side_effect = Exception("Adapter error")
+        adapter.fetch.side_effect = RuntimeError("Adapter error")
 
         use_case = SyncMacroDataUseCase(repository=repository, adapters={"test": adapter})
 
@@ -155,7 +155,7 @@ class TestSyncMacroDataUseCase:
 
         assert not response.success
         assert len(response.errors) == 1
-        assert "Adapter error" in response.errors[0]
+        assert response.errors == ["CN_PMI: macro_indicator_sync_failed"]
 
     def test_execute_with_default_indicators(self):
         """测试使用默认指标列表"""

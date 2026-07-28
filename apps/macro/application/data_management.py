@@ -10,15 +10,48 @@ Provides functionality for:
 import logging
 from calendar import monthrange
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Protocol, cast
 
 from apps.macro.application.repository_provider import MacroRepositoryProtocol
 from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
 
+from .use_cases import SyncMacroDataRequest, SyncMacroDataResponse
+
 logger = logging.getLogger(__name__)
+
+_MACRO_DATA_FETCH_FAILED = "macro_data_fetch_failed"
+_MACRO_DATA_SYNC_FAILED = "macro_data_sync_failed"
+_MACRO_DATA_DELETE_FAILED = "macro_data_delete_failed"
+_MACRO_OPERATION_EXCEPTIONS = (
+    ArithmeticError,
+    AttributeError,
+    ConnectionError,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
+
+
+class DataSourceConnectionConfigProtocol(Protocol):
+    """Configuration surface required by the Data Center connectivity probe."""
+
+    def to_domain(self) -> object:
+        """Return the validated Domain configuration."""
+        ...
+
+
+class SyncMacroDataUseCaseProtocol(Protocol):
+    """Sync use-case surface consumed by manual Macro data fetching."""
+
+    def execute(self, request: SyncMacroDataRequest) -> SyncMacroDataResponse:
+        """Execute one bounded Macro sync request."""
+        ...
 
 
 class DataSourceType(Enum):
@@ -54,11 +87,7 @@ class FetchDataResponse:
     success: bool
     message: str
     synced_count: int = 0
-    errors: list[str] = None
-
-    def __post_init__(self):
-        if self.errors is None:
-            self.errors = []
+    errors: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -85,21 +114,26 @@ class RunDataSourceConnectionTestUseCase:
 
     def __init__(
         self,
-        probe_runner: Callable[[Any], dict[str, Any]] | None = None,
+        probe_runner: Callable[[DataSourceConnectionConfigProtocol], dict[str, Any]] | None = None,
     ) -> None:
         self._probe_runner = probe_runner or self._default_probe_runner
 
-    def execute(self, config: Any) -> dict[str, Any]:
+    def execute(self, config: DataSourceConnectionConfigProtocol) -> dict[str, Any]:
         """Run the configured probe and return a display-friendly payload."""
         return self._probe_runner(config)
 
     @staticmethod
-    def _default_probe_runner(config: Any) -> dict[str, Any]:
+    def _default_probe_runner(
+        config: DataSourceConnectionConfigProtocol,
+    ) -> dict[str, Any]:
         from apps.data_center.composition import (
             run_data_center_connection_test,
         )
 
-        return run_data_center_connection_test(config.to_domain()).to_dict()
+        payload = run_data_center_connection_test(config.to_domain()).to_dict()
+        if not isinstance(payload, dict) or not all(isinstance(key, str) for key in payload):
+            raise TypeError("macro_connection_probe_payload_invalid")
+        return cast(dict[str, Any], payload)
 
 
 @dataclass
@@ -130,7 +164,11 @@ class FetchDataUseCase:
     支持手动触发数据抓取
     """
 
-    def __init__(self, sync_use_case, repository):
+    def __init__(
+        self,
+        sync_use_case: SyncMacroDataUseCaseProtocol,
+        repository: MacroRepositoryProtocol,
+    ) -> None:
         """
         Args:
             sync_use_case: SyncMacroDataUseCase 实例
@@ -164,19 +202,24 @@ class FetchDataUseCase:
                 )
             else:
                 return FetchDataResponse(
-                    success=False, message="数据同步过程中出现错误", errors=sync_response.errors
+                    success=False,
+                    message="数据同步过程中出现错误",
+                    errors=[_MACRO_DATA_SYNC_FAILED],
                 )
 
-        except Exception as e:
-            logger.exception("数据获取失败")
+        except _MACRO_OPERATION_EXCEPTIONS as exc:
+            logger.warning(
+                "Macro data fetch failed; exception_type=%s",
+                type(exc).__name__,
+            )
             return FetchDataResponse(
-                success=False, message=f"数据获取失败: {str(e)}", errors=[str(e)]
+                success=False,
+                message="数据获取失败",
+                errors=[_MACRO_DATA_FETCH_FAILED],
             )
 
-    def _build_sync_request(self, request: FetchDataRequest):
+    def _build_sync_request(self, request: FetchDataRequest) -> SyncMacroDataRequest:
         """构建同步请求"""
-        from .use_cases import SyncMacroDataRequest
-
         start_date = request.start_date or self._get_default_start_date()
         end_date = request.end_date or date.today()
 
@@ -231,10 +274,15 @@ class DeleteDataUseCase:
                 deleted_count=deleted_count,
             )
 
-        except Exception as e:
-            logger.exception("数据删除失败")
+        except _MACRO_OPERATION_EXCEPTIONS as exc:
+            logger.warning(
+                "Macro data deletion failed; exception_type=%s",
+                type(exc).__name__,
+            )
             return DeleteDataResponse(
-                success=False, message=f"数据删除失败: {str(e)}", deleted_count=0
+                success=False,
+                message=_MACRO_DATA_DELETE_FAILED,
+                deleted_count=0,
             )
 
 
@@ -324,9 +372,7 @@ class ScheduleDataFetchUseCase:
             release_months = metadata.get("schedule_release_months") or []
             if isinstance(release_months, list | tuple) and release_months:
                 schedule["release_months"] = [
-                    int(month)
-                    for month in release_months
-                    if str(month).strip()
+                    int(month) for month in release_months if str(month).strip()
                 ]
             schedules[code] = schedule
 

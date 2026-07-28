@@ -26,6 +26,19 @@ class MacroRepositoryProtocol(Protocol):
         as_of_date: date | None = None,
     ) -> date | None: ...
 
+    def get_by_code_and_date(
+        self,
+        code: str,
+        observed_at: date,
+        revision_number: int | None = None,
+    ) -> MacroIndicator | None: ...
+
+    def save_indicators_batch(
+        self,
+        indicators: list[MacroIndicator],
+        revision_number: int = 1,
+    ) -> list[MacroIndicator]: ...
+
     def delete_by_conditions(
         self,
         indicator_code: str | None = None,
