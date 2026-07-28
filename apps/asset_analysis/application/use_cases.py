@@ -5,6 +5,11 @@
 用例是 Application 层的核心，协调 Domain 层和 Infrastructure 层。
 """
 
+import logging
+import math
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Protocol, runtime_checkable
 
 from django.utils import timezone
 
@@ -13,14 +18,86 @@ from apps.asset_analysis.application.dtos import (
     ScreenRequest,
     ScreenResponse,
     WeightConfigDTO,
+    WeightConfigsResponse,
 )
 from apps.asset_analysis.application.services import AssetMultiDimScorer
-from apps.asset_analysis.domain.entities import AssetScore, AssetStyle, AssetType
+from apps.asset_analysis.domain.entities import (
+    AssetScore,
+    AssetSize,
+    AssetStyle,
+    AssetType,
+)
 from apps.asset_analysis.domain.interfaces import (
     AssetRepositoryProtocol,
     WeightConfigRepositoryProtocol,
 )
 from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
+
+logger = logging.getLogger(__name__)
+
+
+class _CommonRawScore(Protocol):
+    """Common score fields exposed by asset-specific domain entities."""
+
+    style: str | AssetStyle | None
+    size: str | AssetSize | None
+    sector: str | None
+    regime_score: float
+    policy_score: float
+    sentiment_score: float
+    signal_score: float
+    total_score: float
+    rank: int
+    allocation_percent: float
+    risk_level: str
+
+    def get_custom_scores(self) -> dict[str, float]:
+        """Return asset-specific score dimensions."""
+
+
+@runtime_checkable
+class _FundRawScore(_CommonRawScore, Protocol):
+    """Narrow structural boundary for fund score entities."""
+
+    fund_code: str
+    fund_name: str
+    investment_style: str | None
+
+
+@runtime_checkable
+class _EquityRawScore(_CommonRawScore, Protocol):
+    """Narrow structural boundary for equity score entities."""
+
+    stock_code: str
+    stock_name: str
+
+
+@runtime_checkable
+class _GenericRawScore(_CommonRawScore, Protocol):
+    """Narrow structural boundary for other asset score adapters."""
+
+    asset_code: str
+    asset_name: str
+
+
+@dataclass(frozen=True)
+class _NormalizedRawScore:
+    """Validated fields used to construct the shared domain entity."""
+
+    code: str
+    name: str
+    style: AssetStyle | None
+    size: AssetSize | None
+    sector: str | None
+    regime_score: float
+    policy_score: float
+    sentiment_score: float
+    signal_score: float
+    custom_scores: dict[str, float]
+    total_score: float
+    rank: int
+    allocation_percent: float
+    risk_level: str
 
 
 class MultiDimScreenUseCase:
@@ -62,33 +139,37 @@ class MultiDimScreenUseCase:
             raw_assets = self.asset_repo.get_assets_by_filter(
                 asset_type=request.asset_type,
                 filters=request.filters,
-                max_count=request.max_count * 2  # 多取一些，筛选后再截断
+                max_count=request.max_count * 2,  # 多取一些，筛选后再截断
             )
 
             # 2. 转换为 AssetScore 实体
             assets = self._convert_to_asset_scores(raw_assets, request.asset_type)
 
-            # 3. 如果请求中指定了权重，创建临时权重配置
-            if request.weights:
+            # 3. 每个请求只解析一次实际使用的权重
+            custom_weights = (
                 WeightConfig(
-                    regime_weight=request.weights.get("regime", 0.40),
-                    policy_weight=request.weights.get("policy", 0.25),
-                    sentiment_weight=request.weights.get("sentiment", 0.20),
-                    signal_weight=request.weights.get("signal", 0.15),
+                    regime_weight=request.weights["regime"],
+                    policy_weight=request.weights["policy"],
+                    sentiment_weight=request.weights["sentiment"],
+                    signal_weight=request.weights["signal"],
                 )
-                # 注意：这里应该用某种方式设置临时权重
-                # 简化处理：假设 weight_repository 支持临时权重覆盖
-
-            # 4. 获取当前使用的权重
-            current_weights = self.weight_repo.get_active_weights(
-                asset_type=request.asset_type
+                if request.weights is not None
+                else None
+            )
+            effective_weights = custom_weights or self.weight_repo.get_active_weights(
+                asset_type=request.asset_type,
             )
 
             # 5. 批量评分
-            scored_assets = self.scorer.score_batch(assets, context)
+            scored_assets = self.scorer.score_batch(
+                assets,
+                context,
+                filters=request.filters,
+                weights_override=effective_weights,
+            )
 
             # 6. 截取前 N 名
-            scored_assets = scored_assets[:request.max_count]
+            scored_assets = scored_assets[: request.max_count]
 
             # 7. 转换为 DTO
             asset_dtos = self._convert_to_dtos(scored_assets)
@@ -98,22 +179,30 @@ class MultiDimScreenUseCase:
                 success=True,
                 timestamp=timezone.now().isoformat(),
                 context=context.to_dict(),
-                weights=current_weights.to_dict(),
+                weights=effective_weights.to_dict(),
                 assets=asset_dtos,
             )
 
-        except Exception as e:
+        except Exception as exc:
+            logger.error(
+                "Asset screening failed asset_type=%s exception_type=%s",
+                request.asset_type,
+                type(exc).__name__,
+            )
             return ScreenResponse(
                 success=False,
                 timestamp=timezone.now().isoformat(),
                 context=context.to_dict(),
                 weights={},
                 assets=[],
-                message=f"筛选失败: {str(e)}",
+                message="筛选暂不可用",
             )
 
     @staticmethod
-    def _convert_to_asset_scores(raw_assets: list, asset_type: str) -> list[AssetScore]:
+    def _convert_to_asset_scores(
+        raw_assets: list[object],
+        asset_type: str,
+    ) -> list[AssetScore]:
         """
         将原始资产对象转换为 AssetScore 实体
 
@@ -129,107 +218,190 @@ class MultiDimScreenUseCase:
         Returns:
             AssetScore 实体列表
         """
-        assets = []
+        resolved_asset_type = AssetType(asset_type)
+        assets: list[AssetScore] = []
 
         for raw in raw_assets:
-            # 判断资产类型并提取相应字段
-            if hasattr(raw, 'fund_code'):  # FundAssetScore
-                code = raw.fund_code
-                name = raw.fund_name
-                style_str = raw.style or raw.investment_style
-                size = raw.size
-                sector = raw.sector
-                # 获取已计算的分数（如果有）
-                regime_score = raw.regime_score
-                policy_score = raw.policy_score
-                sentiment_score = raw.sentiment_score
-                signal_score = raw.signal_score
-                custom_scores = raw.get_custom_scores() if hasattr(raw, 'get_custom_scores') else {}
-                total_score = raw.total_score
-                rank = raw.rank
-                allocation_percent = raw.allocation_percent
-                risk_level = raw.risk_level
+            if isinstance(raw, AssetScore):
+                if raw.asset_type is not resolved_asset_type:
+                    raise ValueError("资产数据类型与筛选类型不匹配")
+                assets.append(raw)
+                continue
 
-            elif hasattr(raw, 'stock_code'):  # EquityAssetScore
-                code = raw.stock_code
-                name = raw.stock_name
-                style_str = raw.style
-                size = raw.size
-                sector = raw.sector
-                regime_score = raw.regime_score
-                policy_score = raw.policy_score
-                sentiment_score = raw.sentiment_score
-                signal_score = raw.signal_score
-                custom_scores = raw.get_custom_scores() if hasattr(raw, 'get_custom_scores') else {}
-                total_score = raw.total_score
-                rank = raw.rank
-                allocation_percent = raw.allocation_percent
-                risk_level = raw.risk_level
-
-            elif hasattr(raw, 'asset_code'):  # AssetScore
-                code = raw.asset_code
-                name = raw.asset_name
-                style_str = raw.style.value if raw.style else None
-                size = raw.size
-                sector = raw.sector
-                regime_score = raw.regime_score
-                policy_score = raw.policy_score
-                sentiment_score = raw.sentiment_score
-                signal_score = raw.signal_score
-                custom_scores = raw.custom_scores
-                total_score = raw.total_score
-                rank = raw.rank
-                allocation_percent = raw.allocation_percent
-                risk_level = raw.risk_level
-
-            else:
-                # 通用提取
-                code = getattr(raw, "code", getattr(raw, "asset_code", getattr(raw, "fund_code", getattr(raw, "stock_code", ""))))
-                name = getattr(raw, "name", getattr(raw, "asset_name", getattr(raw, "fund_name", getattr(raw, "stock_name", ""))))
-                style_str = getattr(raw, "style", getattr(raw, "investment_style", None))
-                size = None
-                sector = getattr(raw, "sector", getattr(raw, "industry", None))
-                regime_score = 0.0
-                policy_score = 0.0
-                sentiment_score = 0.0
-                signal_score = 0.0
-                custom_scores = {}
-                total_score = 0.0
-                rank = 0
-                allocation_percent = 0.0
-                risk_level = "未知"
-
-            # 转换风格
-            style = None
-            if style_str:
-                if isinstance(style_str, str):
-                    try:
-                        style = AssetStyle(style_str.lower())
-                    except ValueError:
-                        pass
-                elif isinstance(style_str, AssetStyle):
-                    style = style_str
-
-            # 创建 AssetScore 实体
-            assets.append(AssetScore(
-                asset_type=AssetType(asset_type),
-                asset_code=code,
-                asset_name=name,
-                style=style,
-                size=size,
-                sector=sector,
-                regime_score=regime_score,
-                policy_score=policy_score,
-                sentiment_score=sentiment_score,
-                signal_score=signal_score,
-                custom_scores=custom_scores,
-                total_score=total_score,
-                rank=rank,
-                allocation_percent=allocation_percent,
-                risk_level=risk_level,
-            ))
+            normalized = MultiDimScreenUseCase._normalize_raw_score(
+                raw,
+                resolved_asset_type,
+            )
+            assets.append(
+                AssetScore(
+                    asset_type=resolved_asset_type,
+                    asset_code=normalized.code,
+                    asset_name=normalized.name,
+                    style=normalized.style,
+                    size=normalized.size,
+                    sector=normalized.sector,
+                    regime_score=normalized.regime_score,
+                    policy_score=normalized.policy_score,
+                    sentiment_score=normalized.sentiment_score,
+                    signal_score=normalized.signal_score,
+                    custom_scores=normalized.custom_scores,
+                    total_score=normalized.total_score,
+                    rank=normalized.rank,
+                    allocation_percent=normalized.allocation_percent,
+                    risk_level=normalized.risk_level,
+                )
+            )
 
         return assets
+
+    @staticmethod
+    def _normalize_raw_score(
+        raw: object,
+        asset_type: AssetType,
+    ) -> _NormalizedRawScore:
+        """Validate an asset-specific score object at the dynamic integration boundary."""
+
+        score: _CommonRawScore
+        if asset_type is AssetType.FUND and isinstance(raw, _FundRawScore):
+            code = raw.fund_code
+            name = raw.fund_name
+            style_value: object = raw.style or raw.investment_style
+            score = raw
+        elif asset_type is AssetType.EQUITY and isinstance(raw, _EquityRawScore):
+            code = raw.stock_code
+            name = raw.stock_name
+            style_value = raw.style
+            score = raw
+        elif isinstance(raw, _GenericRawScore):
+            code = raw.asset_code
+            name = raw.asset_name
+            style_value = raw.style
+            score = raw
+        else:
+            raise ValueError("不支持的资产数据结构")
+
+        return _NormalizedRawScore(
+            code=MultiDimScreenUseCase._required_text(code, "asset_code"),
+            name=MultiDimScreenUseCase._required_text(name, "asset_name"),
+            style=MultiDimScreenUseCase._normalize_style(style_value),
+            size=MultiDimScreenUseCase._normalize_size(score.size),
+            sector=MultiDimScreenUseCase._optional_text(score.sector, "sector"),
+            regime_score=MultiDimScreenUseCase._finite_number(
+                score.regime_score,
+                "regime_score",
+            ),
+            policy_score=MultiDimScreenUseCase._finite_number(
+                score.policy_score,
+                "policy_score",
+            ),
+            sentiment_score=MultiDimScreenUseCase._finite_number(
+                score.sentiment_score,
+                "sentiment_score",
+            ),
+            signal_score=MultiDimScreenUseCase._finite_number(
+                score.signal_score,
+                "signal_score",
+            ),
+            custom_scores=MultiDimScreenUseCase._normalize_custom_scores(
+                score.get_custom_scores(),
+            ),
+            total_score=MultiDimScreenUseCase._finite_number(
+                score.total_score,
+                "total_score",
+            ),
+            rank=MultiDimScreenUseCase._non_negative_int(score.rank, "rank"),
+            allocation_percent=MultiDimScreenUseCase._finite_number(
+                score.allocation_percent,
+                "allocation_percent",
+            ),
+            risk_level=MultiDimScreenUseCase._required_text(
+                score.risk_level,
+                "risk_level",
+            ),
+        )
+
+    @staticmethod
+    def _normalize_style(value: object) -> AssetStyle | None:
+        """Normalize one canonical asset-style value."""
+
+        if value is None:
+            return None
+        if isinstance(value, AssetStyle):
+            return value
+        if isinstance(value, str):
+            try:
+                return AssetStyle(value.strip().lower())
+            except ValueError:
+                return None
+        raise ValueError("style 必须是字符串或 AssetStyle")
+
+    @staticmethod
+    def _normalize_size(value: object) -> AssetSize | None:
+        """Normalize one canonical asset-size value."""
+
+        if value is None:
+            return None
+        if isinstance(value, AssetSize):
+            return value
+        if isinstance(value, str):
+            try:
+                return AssetSize(value.strip().lower())
+            except ValueError:
+                return None
+        raise ValueError("size 必须是字符串或 AssetSize")
+
+    @staticmethod
+    def _normalize_custom_scores(values: object) -> dict[str, float]:
+        """Validate custom score dimensions without allowing dynamic values downstream."""
+
+        if not isinstance(values, Mapping):
+            raise ValueError("custom_scores 必须是映射")
+        normalized: dict[str, float] = {}
+        for key, value in values.items():
+            if not isinstance(key, str) or not key.strip():
+                raise ValueError("custom_scores 键必须是非空字符串")
+            normalized[key] = MultiDimScreenUseCase._finite_number(
+                value,
+                f"custom_scores.{key}",
+            )
+        return normalized
+
+    @staticmethod
+    def _finite_number(value: object, field_name: str) -> float:
+        """Return a finite numeric boundary value."""
+
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{field_name} 必须是数值")
+        normalized = float(value)
+        if not math.isfinite(normalized):
+            raise ValueError(f"{field_name} 必须是有限值")
+        return normalized
+
+    @staticmethod
+    def _non_negative_int(value: object, field_name: str) -> int:
+        """Return a non-negative integer boundary value."""
+
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"{field_name} 必须是非负整数")
+        return value
+
+    @staticmethod
+    def _required_text(value: object, field_name: str) -> str:
+        """Return one required non-empty text boundary value."""
+
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{field_name} 必须是非空字符串")
+        return value.strip()
+
+    @staticmethod
+    def _optional_text(value: object, field_name: str) -> str | None:
+        """Return one optional normalized text boundary value."""
+
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError(f"{field_name} 必须是字符串")
+        return value.strip() or None
 
     @staticmethod
     def _convert_to_dtos(scored_assets: list[AssetScore]) -> list[AssetScoreDTO]:
@@ -245,23 +417,25 @@ class MultiDimScreenUseCase:
         dtos = []
 
         for asset in scored_assets:
-            dtos.append(AssetScoreDTO(
-                asset_code=asset.asset_code,
-                asset_name=asset.asset_name,
-                asset_type=asset.asset_type.value,
-                style=asset.style.value if asset.style else None,
-                size=asset.size.value if asset.size else None,
-                sector=asset.sector,
-                regime_score=asset.regime_score,
-                policy_score=asset.policy_score,
-                sentiment_score=asset.sentiment_score,
-                signal_score=asset.signal_score,
-                custom_scores=asset.custom_scores,
-                total_score=asset.total_score,
-                rank=asset.rank,
-                allocation=f"{asset.allocation_percent:.1f}%",
-                risk_level=asset.risk_level,
-            ))
+            dtos.append(
+                AssetScoreDTO(
+                    asset_code=asset.asset_code,
+                    asset_name=asset.asset_name,
+                    asset_type=asset.asset_type.value,
+                    style=asset.style.value if asset.style else None,
+                    size=asset.size.value if asset.size else None,
+                    sector=asset.sector,
+                    regime_score=asset.regime_score,
+                    policy_score=asset.policy_score,
+                    sentiment_score=asset.sentiment_score,
+                    signal_score=asset.signal_score,
+                    custom_scores=asset.custom_scores,
+                    total_score=asset.total_score,
+                    rank=asset.rank,
+                    allocation=f"{asset.allocation_percent:.1f}%",
+                    risk_level=asset.risk_level,
+                )
+            )
 
         return dtos
 
@@ -280,7 +454,7 @@ class GetWeightConfigsUseCase:
         """
         self.weight_repo = weight_repository
 
-    def execute(self) -> dict:
+    def execute(self) -> WeightConfigsResponse:
         """
         执行获取权重配置
 
@@ -290,10 +464,11 @@ class GetWeightConfigsUseCase:
         configs = self.weight_repo.list_all_configs()
 
         # 转换为响应格式
-        result = {
+        result: WeightConfigsResponse = {
             "configs": {},
             "active": None,
         }
+        active_priority: int | None = None
 
         for config in configs:
             dto = WeightConfigDTO(
@@ -310,7 +485,8 @@ class GetWeightConfigsUseCase:
             )
             result["configs"][dto.name] = dto.to_dict()
 
-            if dto.is_active and (result["active"] is None or dto.priority > 0):
+            if dto.is_active and (active_priority is None or dto.priority > active_priority):
                 result["active"] = dto.name
+                active_priority = dto.priority
 
         return result

@@ -6,7 +6,6 @@ Application 层依赖 Domain 层和 Infrastructure 层的接口。
 """
 
 import time
-import traceback
 from dataclasses import replace
 
 from apps.asset_analysis.application.logging_service import AlertService, ScoringLogger
@@ -53,12 +52,16 @@ class AssetMultiDimScorer:
         self.enable_alerts = enable_alerts
 
         # 初始化日志和告警服务
-        if self.enable_logging:
-            self.logger = ScoringLogger()
-        if self.enable_alerts:
-            self.alert_service = AlertService()
+        self.logger: ScoringLogger | None = ScoringLogger() if self.enable_logging else None
+        self.alert_service: AlertService | None = AlertService() if self.enable_alerts else None
 
-    def score(self, asset: AssetScore, context: ScoreContext) -> AssetScore:
+    def score(
+        self,
+        asset: AssetScore,
+        context: ScoreContext,
+        *,
+        weights_override: WeightConfig | None = None,
+    ) -> AssetScore:
         """
         计算单个资产的综合得分
 
@@ -69,9 +72,9 @@ class AssetMultiDimScorer:
         Returns:
             更新后的资产评分实体
         """
-        # 1. 获取权重配置（从数据库）
-        weights = self.weight_repo.get_active_weights(
-            asset_type=asset.asset_type.value
+        # 1. 使用批次传入的权重，或为单资产评分读取一次当前配置
+        weights = weights_override or self.weight_repo.get_active_weights(
+            asset_type=asset.asset_type.value,
         )
 
         # 2. 计算各维度得分
@@ -82,10 +85,10 @@ class AssetMultiDimScorer:
 
         # 3. 加权计算综合得分
         total_score = (
-            regime_score * weights.regime_weight +
-            policy_score * weights.policy_weight +
-            sentiment_score * weights.sentiment_weight +
-            signal_score * weights.signal_weight
+            regime_score * weights.regime_weight
+            + policy_score * weights.policy_weight
+            + sentiment_score * weights.sentiment_weight
+            + signal_score * weights.signal_weight
         )
 
         # 4. 返回更新后的资产对象（使用 dataclass.replace 创建新实例）
@@ -105,7 +108,8 @@ class AssetMultiDimScorer:
         context: ScoreContext,
         request_source: str = "unknown",
         user_id: int | None = None,
-        filters: dict | None = None,
+        filters: dict[str, object] | None = None,
+        weights_override: WeightConfig | None = None,
     ) -> list[AssetScore]:
         """
         批量评分资产（带日志记录和告警）
@@ -123,16 +127,20 @@ class AssetMultiDimScorer:
         start_time = time.time()
         total_assets = len(assets)
         status = "success"
-        error_message = None
+        error_message: str | None = None
+        weights = weights_override
 
         try:
-            # 1. 获取权重配置
-            weights = self.weight_repo.get_active_weights(
-                asset_type=assets[0].asset_type.value if assets else "unknown"
-            )
+            # 1. 每个批次只解析一次权重配置
+            if weights is None:
+                weights = self.weight_repo.get_active_weights(
+                    asset_type=assets[0].asset_type.value if assets else None,
+                )
 
             # 2. 批量计算得分
-            scored_assets = [self.score(asset, context) for asset in assets]
+            scored_assets = [
+                self.score(asset, context, weights_override=weights) for asset in assets
+            ]
 
             # 3. 按综合得分排序
             scored_assets.sort(key=lambda x: x.total_score, reverse=True)
@@ -154,45 +162,38 @@ class AssetMultiDimScorer:
                 asset = replace(
                     asset,
                     allocation_percent=allocation,
-                    risk_level=self._calculate_risk_level(asset)
+                    risk_level=self._calculate_risk_level(asset),
                 )
                 scored_assets[rank - 1] = asset
 
             return scored_assets
 
-        except Exception as e:
+        except Exception as exc:
             status = "failed"
-            error_message = str(e)
+            error_message = type(exc).__name__
 
             # 创建告警
-            if self.enable_alerts:
+            if self.alert_service is not None:
                 asset_type = assets[0].asset_type.value if assets else "unknown"
                 self.alert_service.create_scoring_error_alert(
                     asset_type=asset_type,
-                    error_message=error_message,
+                    error_message="资产评分暂不可用",
                     context={"total_assets": total_assets},
-                    stack_trace=traceback.format_exc(),
                 )
 
             raise
 
         finally:
             # 记录日志
-            if self.enable_logging:
+            if self.logger is not None:
                 execution_time_ms = int((time.time() - start_time) * 1000)
                 asset_type = assets[0].asset_type.value if assets else "unknown"
-
-                # 获取权重用于日志
-                try:
-                    weights = self.weight_repo.get_active_weights(asset_type=asset_type)
-                except Exception:
-                    weights = WeightConfig()
 
                 self.logger.log_scoring_from_context(
                     asset_type=asset_type,
                     request_source=request_source,
                     context=context,
-                    weights=weights,
+                    weights=weights or WeightConfig(),
                     filters=filters or {},
                     total_assets=total_assets,
                     filtered_assets=len(assets) if assets else 0,
@@ -203,7 +204,7 @@ class AssetMultiDimScorer:
                 )
 
                 # 性能告警
-                if self.enable_alerts and execution_time_ms > 5000:
+                if self.alert_service is not None and execution_time_ms > 5000:
                     self.alert_service.create_performance_alert(
                         asset_type=asset_type,
                         execution_time_ms=execution_time_ms,

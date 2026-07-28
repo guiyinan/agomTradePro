@@ -6,9 +6,24 @@ Infrastructure 层实现这些接口，Application 层通过接口调用。
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import TypedDict
 
 from apps.asset_analysis.domain.value_objects import WeightConfig
+
+
+class WeightConfigRecord(TypedDict):
+    """Repository record for one persisted scoring-weight configuration."""
+
+    name: str
+    description: str | None
+    regime_weight: float
+    policy_weight: float
+    sentiment_weight: float
+    signal_weight: float
+    asset_type: str | None
+    market_condition: str | None
+    is_active: bool
+    priority: int
 
 
 class WeightConfigRepositoryProtocol(ABC):
@@ -20,9 +35,7 @@ class WeightConfigRepositoryProtocol(ABC):
 
     @abstractmethod
     def get_active_weights(
-        self,
-        asset_type: str | None = None,
-        market_condition: str | None = None
+        self, asset_type: str | None = None, market_condition: str | None = None
     ) -> WeightConfig:
         """
         获取当前生效的权重配置
@@ -43,7 +56,7 @@ class WeightConfigRepositoryProtocol(ABC):
         pass
 
     @abstractmethod
-    def list_all_configs(self) -> list[dict]:
+    def list_all_configs(self) -> list[WeightConfigRecord]:
         """
         列出所有权重配置
 
@@ -63,7 +76,7 @@ class WeightConfigRepositoryProtocol(ABC):
         asset_type: str | None = None,
         market_condition: str | None = None,
         is_active: bool = True,
-        priority: int = 0
+        priority: int = 0,
     ) -> None:
         """
         保存权重配置
@@ -93,9 +106,9 @@ class AssetRepositoryProtocol(ABC):
     def get_assets_by_filter(
         self,
         asset_type: str,
-        filters: dict,
-        max_count: int = 100
-    ) -> list:
+        filters: dict[str, object],
+        max_count: int = 100,
+    ) -> list[object]:
         """
         根据过滤条件获取资产列表
 
@@ -110,7 +123,7 @@ class AssetRepositoryProtocol(ABC):
         pass
 
     @abstractmethod
-    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Optional:
+    def get_asset_by_code(self, asset_type: str, asset_code: str) -> object | None:
         """
         根据代码获取资产
 

@@ -5514,3 +5514,20 @@
 - Dashboard Query Services 安全与 Auto Advisor 输出/控制台组件回归 `26 passed`。
 - `apps/dashboard/application/query_services.py` 在增量 mypy 口径清零；全仓基线从 `688 errors / 319 files` 收紧为 `685 errors / 318 files`，净减少 `3 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百六十一批
+
+- 按“请求自定义权重未生效 × 批量评分重复读取配置 × 跨 App 资产类型失真 × 异常详情外泄”收口 Asset Analysis 核心评分链路。
+- `ScreenRequest` 内部构造边界与 DRF serializer 对齐：自定义权重必须且只能包含四个标准维度，拒绝 bool、NaN、Inf、越界值和总和失配；`max_count` 严格限制为非布尔 `1..100` 整数。
+- 自定义权重现在作为本次请求的实际权重传入批量评分，并原样返回给调用方；未指定权重时每个批次只读取一次 Repository 配置，同一权重对象同时用于全部资产计算与评分日志，不再形成按资产数量增长的重复查询。
+- fund/equity/shared 资产对象通过局部 Protocol 动态边界收窄；字符串 style/size 规范化为 `AssetStyle/AssetSize`，自定义分数与数值字段逐项验证，未知 shape、空代码和跨类型对象失败关闭，不再生成后续 `.value` 会崩溃的伪实体。
+- 筛选、日志和告警异常只保留稳定用户消息与异常类型，不再把 provider、数据库或凭据正文写入响应和应用日志；错误告警不再持久化原始 traceback。
+- 权重配置列表使用 `TypedDict` 仓储/响应合同，并按最高 priority 确定 active 配置；低优先级活动配置不再覆盖先前高优先级结果。
+- 多维评分 DTO 补齐既有 API 契约要求的顶层 `total_score`，serializer 保持对旧内部 payload 的兼容。
+- 新增自定义权重生效、单批一次配置读取、fund 枚举归一化、未知资产拒绝、异常脱敏、最高优先级选择及内部请求非法边界回归。
+
+## 第三百六十一批验证结果
+
+- Asset Analysis unit/domain/API、fund/equity 集成与评分日志扩展回归 `138 passed`。
+- Asset Analysis interfaces、DTO、scoring service 与 use case 四个历史债务文件在联合及增量 mypy 口径清零；全仓基线从 `685 errors / 318 files` 收紧为 `667 errors / 314 files`，净减少 `18 errors / 4 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

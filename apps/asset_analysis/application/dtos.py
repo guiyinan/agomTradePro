@@ -4,7 +4,16 @@
 DTO 用于在 Interface 层和 Application 层之间传输数据。
 """
 
+import math
 from dataclasses import dataclass, field
+from typing import TypedDict
+
+
+class WeightConfigsResponse(TypedDict):
+    """Typed response returned by the weight-config listing use case."""
+
+    configs: dict[str, dict[str, object]]
+    active: str | None
 
 
 @dataclass
@@ -12,24 +21,43 @@ class ScreenRequest:
     """
     多维度筛选请求 DTO
     """
-    asset_type: str                           # 资产类型：fund/equity/bond
-    filters: dict[str, object] = field(default_factory=dict)   # 过滤条件
-    weights: dict[str, float] | None = None  # 自定义权重（可选）
-    max_count: int = 30                       # 最大返回数量
 
-    def __post_init__(self):
+    asset_type: str  # 资产类型：fund/equity/bond
+    filters: dict[str, object] = field(default_factory=dict)  # 过滤条件
+    weights: dict[str, float] | None = None  # 自定义权重（可选）
+    max_count: int = 30  # 最大返回数量
+
+    def __post_init__(self) -> None:
         """验证请求数据"""
         valid_asset_types = {"fund", "equity", "bond", "commodity", "index", "sector"}
         if self.asset_type not in valid_asset_types:
             raise ValueError(f"asset_type 必须是 {valid_asset_types} 之一")
 
-        if self.weights:
-            total = sum(self.weights.values())
+        if self.weights is not None:
+            required_weight_keys = {"regime", "policy", "sentiment", "signal"}
+            if set(self.weights) != required_weight_keys:
+                raise ValueError("weights 必须且只能包含 regime、policy、sentiment、signal")
+
+            normalized_weights: dict[str, float] = {}
+            for key, value in self.weights.items():
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise ValueError(f"权重 {key} 必须是数值")
+                normalized_value = float(value)
+                if not math.isfinite(normalized_value) or not 0.0 <= normalized_value <= 1.0:
+                    raise ValueError(f"权重 {key} 必须是 0 到 1 之间的有限值")
+                normalized_weights[key] = normalized_value
+
+            total = sum(normalized_weights.values())
             if abs(total - 1.0) > 0.01:
                 raise ValueError(f"权重总和必须为1.0，当前为 {total}")
+            self.weights = normalized_weights
 
-        if self.max_count <= 0:
-            raise ValueError(f"max_count 必须大于 0，当前为 {self.max_count}")
+        if (
+            isinstance(self.max_count, bool)
+            or not isinstance(self.max_count, int)
+            or not 1 <= self.max_count <= 100
+        ):
+            raise ValueError(f"max_count 必须是 1 到 100 之间的整数，当前为 {self.max_count}")
 
 
 @dataclass
@@ -37,6 +65,7 @@ class AssetScoreDTO:
     """
     资产评分响应 DTO
     """
+
     asset_code: str
     asset_name: str
     asset_type: str
@@ -59,7 +88,7 @@ class AssetScoreDTO:
     allocation: str = "0%"
     risk_level: str = "未知"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "asset_code": self.asset_code,
@@ -76,6 +105,7 @@ class AssetScoreDTO:
                 "custom": self.custom_scores,
                 "total": self.total_score,
             },
+            "total_score": self.total_score,
             "rank": self.rank,
             "allocation": self.allocation,
             "risk_level": self.risk_level,
@@ -87,14 +117,15 @@ class ScreenResponse:
     """
     多维度筛选响应 DTO
     """
+
     success: bool
     timestamp: str
-    context: dict[str, object]                # 评分上下文
-    weights: dict[str, float]                 # 使用的权重
-    assets: list[AssetScoreDTO]               # 资产评分列表
-    message: str | None = None             # 额外消息
+    context: dict[str, object]  # 评分上下文
+    weights: dict[str, float]  # 使用的权重
+    assets: list[AssetScoreDTO]  # 资产评分列表
+    message: str | None = None  # 额外消息
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "success": self.success,
@@ -111,6 +142,7 @@ class WeightConfigDTO:
     """
     权重配置响应 DTO
     """
+
     name: str
     description: str | None
     regime_weight: float
@@ -122,7 +154,7 @@ class WeightConfigDTO:
     is_active: bool
     priority: int
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "name": self.name,

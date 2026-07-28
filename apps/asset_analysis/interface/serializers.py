@@ -138,6 +138,7 @@ class AssetScoreSerializer(serializers.Serializer[JsonPayload]):
     size = serializers.CharField(required=False, allow_null=True, help_text="规模")
     sector = serializers.CharField(required=False, allow_null=True, help_text="行业")
     scores = AssetScoreBreakdownSerializer(help_text="评分明细")
+    total_score = FiniteFloatField(required=False, help_text="综合得分")
     rank = serializers.IntegerField(help_text="排名")
     allocation = serializers.CharField(help_text="推荐比例")
     risk_level = serializers.CharField(help_text="风险等级")

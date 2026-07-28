@@ -11,6 +11,7 @@ from typing import Any, cast
 
 from apps.asset_analysis.domain.interfaces import (
     AssetRepositoryProtocol,
+    WeightConfigRecord,
     WeightConfigRepositoryProtocol,
 )
 from apps.asset_analysis.domain.pool import PoolCategory, PoolConfig, PoolType
@@ -90,11 +91,11 @@ class EmptyAssetRepository(AssetRepositoryProtocol):
         asset_type: str,
         filters: dict[str, Any],
         max_count: int = 100,
-    ) -> list[Any]:
+    ) -> list[object]:
         """返回空列表"""
         return []
 
-    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Any | None:
+    def get_asset_by_code(self, asset_type: str, asset_code: str) -> object | None:
         """返回 None"""
         return None
 
@@ -158,7 +159,7 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
         # 4. 降级到默认值
         return WeightConfig()
 
-    def list_all_configs(self) -> list[dict[str, Any]]:
+    def list_all_configs(self) -> list[WeightConfigRecord]:
         """
         列出所有权重配置
 
@@ -276,7 +277,7 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
         asset_type: str,
         filters: dict[str, Any],
         max_count: int = 100,
-    ) -> list[Any]:
+    ) -> list[object]:
         """
         根据过滤条件获取资产列表
 
@@ -285,7 +286,7 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
         repo = AssetRepositoryFactory.get_repository(asset_type)
         return repo.get_assets_by_filter(asset_type, filters, max_count)
 
-    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Any | None:
+    def get_asset_by_code(self, asset_type: str, asset_code: str) -> object | None:
         """
         根据代码获取资产
 

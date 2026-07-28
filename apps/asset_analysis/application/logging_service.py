@@ -5,8 +5,10 @@
 """
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from datetime import datetime
+from typing import Any, Protocol
 
 from django.utils import timezone
 
@@ -18,9 +20,39 @@ from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
 logger = logging.getLogger(__name__)
 
 
+class AssetAnalysisLogRepositoryProtocol(Protocol):
+    """Persistence boundary used by scoring logs and alerts."""
+
+    def create_scoring_log(self, payload: dict[str, Any]) -> int:
+        """Persist one scoring log."""
+
+    def create_alert(self, payload: dict[str, Any]) -> int:
+        """Persist one alert."""
+
+    def list_unresolved_alerts(
+        self,
+        *,
+        severity: str | None = None,
+        alert_type: str | None = None,
+        limit: int = 100,
+    ) -> Sequence[object]:
+        """List unresolved alerts."""
+
+    def resolve_alert(
+        self,
+        *,
+        alert_id: int,
+        resolved_by: int,
+        resolved_at: datetime,
+        resolution_notes: str | None = None,
+    ) -> bool:
+        """Resolve one alert."""
+
+
 @dataclass
 class ScoringLogEntry:
     """评分日志条目"""
+
     asset_type: str
     request_source: str
     user_id: int | None = None
@@ -50,7 +82,10 @@ class ScoringLogger:
     负责记录每次评分操作的详细信息。
     """
 
-    def __init__(self, repository=None):
+    def __init__(
+        self,
+        repository: AssetAnalysisLogRepositoryProtocol | None = None,
+    ) -> None:
         """初始化日志记录器"""
         self.logger = logging.getLogger(__name__)
         self.repository = repository or get_asset_analysis_log_repository()
@@ -100,8 +135,8 @@ class ScoringLogger:
             )
             return log_id
 
-        except Exception as e:
-            self.logger.error(f"记录评分日志失败: {str(e)}")
+        except Exception as exc:
+            self.logger.error("记录评分日志失败: %s", type(exc).__name__)
             return None
 
     def log_scoring_from_context(
@@ -169,7 +204,10 @@ class AlertService:
     负责创建和管理告警。
     """
 
-    def __init__(self, repository=None):
+    def __init__(
+        self,
+        repository: AssetAnalysisLogRepositoryProtocol | None = None,
+    ) -> None:
         """初始化告警服务"""
         self.logger = logging.getLogger(__name__)
         self.repository = repository or get_asset_analysis_log_repository()
@@ -215,14 +253,12 @@ class AlertService:
                 }
             )
 
-            self.logger.warning(
-                f"告警已创建: [{severity.upper()}] {title}"
-            )
+            self.logger.warning(f"告警已创建: [{severity.upper()}] {title}")
 
             return alert_id
 
-        except Exception as e:
-            self.logger.error(f"创建告警失败: {str(e)}")
+        except Exception as exc:
+            self.logger.error("创建告警失败: %s", type(exc).__name__)
             return None
 
     def create_scoring_error_alert(
@@ -377,7 +413,7 @@ class AlertService:
         severity: str | None = None,
         alert_type: str | None = None,
         limit: int = 100,
-    ) -> list:
+    ) -> list[object]:
         """
         获取未解决的告警
 
@@ -389,10 +425,12 @@ class AlertService:
         Returns:
             告警列表
         """
-        return self.repository.list_unresolved_alerts(
-            severity=severity,
-            alert_type=alert_type,
-            limit=limit,
+        return list(
+            self.repository.list_unresolved_alerts(
+                severity=severity,
+                alert_type=alert_type,
+                limit=limit,
+            )
         )
 
     def resolve_alert(
@@ -426,7 +464,6 @@ class AlertService:
             self.logger.info(f"告警已解决: {alert_id}")
             return True
 
-        except Exception as e:
-            self.logger.error(f"解决告警失败: {str(e)}")
+        except Exception as exc:
+            self.logger.error("解决告警失败: %s", type(exc).__name__)
             return False
-
