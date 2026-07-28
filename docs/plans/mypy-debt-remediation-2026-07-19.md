@@ -6141,3 +6141,17 @@
 - Equity 估值输入治理、PIT、窗口边界、排序、重复日期和有限性专项组合 `99 passed`；估值修复 Domain/Application、质量门禁、公开 API 和配置集成扩展组合 `184 passed`。
 - `apps/equity/domain/ports.py` 与 `apps/equity/domain/services_valuation_repair.py` 增量 mypy 清零并退出债务清单；Application use case 与 Infrastructure adapter 联合检查保持零回归，全仓基线从 `474 errors / 256 files` 收紧为 `468 errors / 254 files`，净减少 `6 errors / 2 files`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 TUI/Terminal/SDK/MCP、费用执行链或部署实现。
+
+## 第四百零一批
+
+- 按“生成型审计证据可由 Django Admin 伪造/改写/删除 × Admin 泛型合同缺失 × 经验总结正文可绕过归因流程修改”收口 Audit Admin 治理入口。
+- `AuditReport`、`AttributionReport`、`LossAnalysis`、`IndicatorPerformanceModel` 与 `ValidationSummaryModel` 统一使用不可变证据 Admin；全部模型字段只读，后台新增、修改和删除均失败关闭，证据只能由正式归因、验证和仓储流程生成。
+- `ExperienceSummary` 禁止后台新增和删除，归因生成的报告、经验正文、建议与优先级保持只读；仅保留 `is_applied` 与 `applied_at` 两个应用跟踪字段可由有权管理员更新。
+- `IndicatorThresholdConfigModel` 继续保留受控 Admin 编辑能力，不把运行时配置误当成审计证据锁死。
+- 7 个 Admin 全部迁移到项目统一 `TypedModelAdmin` 合同；新增注册唯一性、生成证据不可变和经验总结字段边界测试。
+
+## 第四百零一批验证结果
+
+- Audit Admin 专项 `3 passed`；Audit Domain/Application、仓储完整性、接口、归因/验证集成和现有审计控制台扩展组合 `168 passed`。
+- `apps/audit/interface/admin.py` 增量 mypy 清零并退出债务清单；全仓基线从 `468 errors / 254 files` 收紧为 `461 errors / 253 files`，净减少 `7 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 Audit 生成/读取 API、TUI/Terminal/SDK/MCP 或部署实现。

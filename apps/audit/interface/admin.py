@@ -2,7 +2,13 @@
 Django Admin for Audit.
 """
 
+from __future__ import annotations
+
+from typing import Generic, TypeVar
+
 from django.contrib import admin
+from django.db.models import Model
+from django.http import HttpRequest
 
 from apps.audit.models import (
     AttributionReport,
@@ -13,10 +19,46 @@ from apps.audit.models import (
     LossAnalysis,
     ValidationSummaryModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
+
+AuditEvidenceModelT = TypeVar("AuditEvidenceModelT", bound=Model)
+
+
+class ImmutableAuditEvidenceAdmin(
+    TypedModelAdmin[AuditEvidenceModelT],
+    Generic[AuditEvidenceModelT],
+):
+    """Expose generated audit evidence without allowing manual mutation."""
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Prevent operators from fabricating generated audit evidence."""
+
+        del request
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: AuditEvidenceModelT | None = None,
+    ) -> bool:
+        """Keep generated audit evidence immutable after persistence."""
+
+        del request, obj
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: AuditEvidenceModelT | None = None,
+    ) -> bool:
+        """Prevent ad-hoc deletion outside governed retention workflows."""
+
+        del request, obj
+        return False
 
 
 @admin.register(AuditReport)
-class AuditReportAdmin(admin.ModelAdmin):
+class AuditReportAdmin(ImmutableAuditEvidenceAdmin[AuditReport]):
     """Admin interface for AuditReport"""
 
     list_display = [
@@ -28,11 +70,11 @@ class AuditReportAdmin(admin.ModelAdmin):
     ]
     list_filter = ["period_start", "period_end"]
     date_hierarchy = "period_start"
-    readonly_fields = ["created_at"]
+    readonly_fields = [field.name for field in AuditReport._meta.fields]
 
 
 @admin.register(AttributionReport)
-class AttributionReportAdmin(admin.ModelAdmin):
+class AttributionReportAdmin(ImmutableAuditEvidenceAdmin[AttributionReport]):
     """Admin interface for AttributionReport"""
 
     list_display = [
@@ -48,43 +90,55 @@ class AttributionReportAdmin(admin.ModelAdmin):
     ]
     list_filter = ["period_start", "period_end", "regime_predicted", "created_at"]
     search_fields = ["backtest__strategy_name"]
-    readonly_fields = [
-        "regime_timing_pnl",
-        "asset_selection_pnl",
-        "interaction_pnl",
-        "total_pnl",
-        "regime_accuracy",
-        "created_at",
-        "updated_at",
-    ]
+    readonly_fields = [field.name for field in AttributionReport._meta.fields]
     date_hierarchy = "period_start"
 
 
 @admin.register(LossAnalysis)
-class LossAnalysisAdmin(admin.ModelAdmin):
+class LossAnalysisAdmin(ImmutableAuditEvidenceAdmin[LossAnalysis]):
     """Admin interface for LossAnalysis"""
 
     list_display = ["report", "loss_source", "impact", "impact_percentage", "created_at"]
     list_filter = ["loss_source", "created_at"]
     search_fields = ["report__backtest__strategy_name", "description"]
-    readonly_fields = ["impact_percentage", "created_at"]
+    readonly_fields = [field.name for field in LossAnalysis._meta.fields]
 
 
 @admin.register(ExperienceSummary)
-class ExperienceSummaryAdmin(admin.ModelAdmin):
+class ExperienceSummaryAdmin(TypedModelAdmin[ExperienceSummary]):
     """Admin interface for ExperienceSummary"""
 
     list_display = ["report", "priority", "is_applied", "applied_at", "created_at"]
     list_filter = ["priority", "is_applied", "applied_at", "created_at"]
     search_fields = ["lesson", "recommendation", "report__backtest__strategy_name"]
-    readonly_fields = ["created_at"]
+    readonly_fields = [
+        field.name
+        for field in ExperienceSummary._meta.fields
+        if field.name not in {"is_applied", "applied_at"}
+    ]
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Require experience summaries to originate from attribution workflows."""
+
+        del request
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: ExperienceSummary | None = None,
+    ) -> bool:
+        """Preserve the generated lesson while allowing application tracking."""
+
+        del request, obj
+        return False
 
 
 # ============ 指标表现评估相关 Admin ============
 
 
 @admin.register(IndicatorThresholdConfigModel)
-class IndicatorThresholdConfigModelAdmin(admin.ModelAdmin):
+class IndicatorThresholdConfigModelAdmin(TypedModelAdmin[IndicatorThresholdConfigModel]):
     """Admin interface for IndicatorThresholdConfigModel"""
 
     list_display = [
@@ -127,7 +181,7 @@ class IndicatorThresholdConfigModelAdmin(admin.ModelAdmin):
 
 
 @admin.register(IndicatorPerformanceModel)
-class IndicatorPerformanceModelAdmin(admin.ModelAdmin):
+class IndicatorPerformanceModelAdmin(ImmutableAuditEvidenceAdmin[IndicatorPerformanceModel]):
     """Admin interface for IndicatorPerformanceModel"""
 
     list_display = [
@@ -141,29 +195,7 @@ class IndicatorPerformanceModelAdmin(admin.ModelAdmin):
     ]
     list_filter = ["indicator_code", "recommended_action", "evaluation_period_end"]
     search_fields = ["indicator_code"]
-    readonly_fields = [
-        "evaluation_period_start",
-        "evaluation_period_end",
-        "true_positive_count",
-        "false_positive_count",
-        "true_negative_count",
-        "false_negative_count",
-        "precision",
-        "recall",
-        "f1_score",
-        "accuracy",
-        "lead_time_mean",
-        "lead_time_std",
-        "pre_2015_correlation",
-        "post_2015_correlation",
-        "stability_score",
-        "decay_rate",
-        "signal_strength",
-        "recommended_action",
-        "recommended_weight",
-        "confidence_level",
-        "created_at",
-    ]
+    readonly_fields = [field.name for field in IndicatorPerformanceModel._meta.fields]
 
     fieldsets = (
         (
@@ -194,7 +226,7 @@ class IndicatorPerformanceModelAdmin(admin.ModelAdmin):
 
 
 @admin.register(ValidationSummaryModel)
-class ValidationSummaryModelAdmin(admin.ModelAdmin):
+class ValidationSummaryModelAdmin(ImmutableAuditEvidenceAdmin[ValidationSummaryModel]):
     """Admin interface for ValidationSummaryModel"""
 
     list_display = [
@@ -211,22 +243,7 @@ class ValidationSummaryModelAdmin(admin.ModelAdmin):
     ]
     list_filter = ["status", "is_shadow_mode", "run_date"]
     search_fields = ["validation_run_id", "overall_recommendation"]
-    readonly_fields = [
-        "validation_run_id",
-        "run_date",
-        "evaluation_period_start",
-        "evaluation_period_end",
-        "total_indicators",
-        "approved_indicators",
-        "rejected_indicators",
-        "pending_indicators",
-        "avg_f1_score",
-        "avg_stability_score",
-        "overall_recommendation",
-        "status",
-        "is_shadow_mode",
-        "error_message",
-    ]
+    readonly_fields = [field.name for field in ValidationSummaryModel._meta.fields]
 
     fieldsets = (
         (

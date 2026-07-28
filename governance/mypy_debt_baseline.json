@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 468,
-    "files_with_errors": 254
+    "errors": 461,
+    "files_with_errors": 253
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -181,9 +181,6 @@
     },
     "apps/audit/domain/performance_services.py": {
       "no-untyped-def": 2
-    },
-    "apps/audit/interface/admin.py": {
-      "type-arg": 7
     },
     "apps/audit/interface/api_urls.py": {
       "no-untyped-def": 1
