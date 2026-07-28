@@ -5630,3 +5630,19 @@
 - Dashboard navigation safety 与既有 Decision Workspace URL/模型注入合同回归 `18 passed`。
 - `apps/dashboard/application/navigation.py` 在增量 mypy 口径清零；全仓基线从 `652 errors / 305 files` 收紧为 `649 errors / 304 files`，净减少 `3 errors / 1 file`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百六十八批
+
+- 按“Exit Watch 仓储属性无类型合同 × 动态仓位/推荐坏数据崩页 × 不安全详情 ID 与异常正文外泄”收口 Dashboard Alpha 退出观察链。
+- Exit Watch mixin 显式声明统一推荐与调仓计划 Repository Protocol；`AlphaHomepageQuery` 构造器注入的具体仓储现在具备可验证的 Application 边界，不再依赖宿主类动态属性。
+- account/signal ID 只接受非 bool 的正整数或 ASCII 十进制字符串，证券代码统一 trim/uppercase 并限制为受控标识；非法 scope 与代码在推荐、计划和 Signal repository I/O 前隔离。
+- 仓位、推荐分数、价格和数量统一拒绝 bool、NaN、Infinity、越界值与宽松数值强转；非有限止损价不能把退出契约错误标记为 ready，损坏 watch item 也不会中断列表排序。
+- recommendation/plan ID 通过受控 token 后才进入 API 详情链接；provider 理由、证伪摘要、reason code 与 notes 只发布有界单行字符串，损坏文本失败关闭。
+- 调仓计划只接受 timezone-aware datetime `as_of`；最新推荐比较将合法时间统一为 UTC，naive/aware 或错误类型混入时不再抛异常。推荐、计划与 Signal 来源失败日志只保留稳定上下文，不输出底层异常正文。
+- 新增非法账户/证券 scope、NaN/Inf、Infinity 止损、危险详情 ID、损坏计划日期、混合时区和异常日志脱敏回归。
+
+## 第三百六十八批验证结果
+
+- Dashboard Alpha Query、Alpha View、Exit Loop、Decision Rhythm Exit Advisor 与结构合同相关回归 `96 passed`。
+- `apps/dashboard/application/alpha_homepage_exit_watch.py` 在增量 mypy 口径清零；全仓基线从 `649 errors / 304 files` 收紧为 `647 errors / 303 files`，净减少 `2 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

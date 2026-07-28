@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 649,
-    "files_with_errors": 304
+    "errors": 647,
+    "files_with_errors": 303
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -301,9 +301,6 @@
     "apps/broker_execution/admin.py": {
       "no-untyped-def": 3,
       "type-arg": 1
-    },
-    "apps/dashboard/application/alpha_homepage_exit_watch.py": {
-      "attr-defined": 2
     },
     "apps/dashboard/application/auto_advisor_outputs.py": {
       "no-any-return": 1

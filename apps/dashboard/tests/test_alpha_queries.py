@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -1404,6 +1404,157 @@ def test_alpha_homepage_exit_watch_item_uses_canonical_workspace_url_and_process
         item["decision_workspace_url"]
         == "/decision/workspace/?source=dashboard-exit&security_code=000001.SZ&step=5&account_id=21&action=SELL"
     )
+
+
+def test_alpha_homepage_exit_watch_rejects_invalid_scope_identifiers(monkeypatch):
+    query = object.__new__(AlphaHomepageQuery)
+    query.unified_recommendation_repo = SimpleNamespace(
+        get_by_account=lambda account_id: [],
+    )
+    query.transition_plan_repo = SimpleNamespace(
+        get_latest_for_account=lambda account_id: None,
+    )
+    monkeypatch.setattr(
+        "apps.dashboard.application.alpha_homepage_exit_watch.list_user_position_payloads",
+        lambda **kwargs: [
+            {"account_id": True, "asset_code": "000001.SZ"},
+            {"account_id": -1, "asset_code": "000002.SZ"},
+            {"account_id": "2", "asset_code": "../../admin"},
+            {"account_id": "3", "asset_code": "600519.sh", "market_value": 1000},
+        ],
+    )
+
+    items = query._build_exit_watchlist(
+        user_id=7,
+        trade_date=date(2026, 4, 21),
+    )
+
+    assert [item["asset_code"] for item in items] == ["600519.SH"]
+    assert items[0]["account_id"] == 3
+
+
+def test_alpha_homepage_exit_watch_fails_closed_for_non_finite_values_and_unsafe_ids():
+    query = object.__new__(AlphaHomepageQuery)
+    recommendation = SimpleNamespace(
+        recommendation_id="rec/../../secret",
+        side="SELL",
+        status="ACTIVE",
+        user_action="pending",
+        source_signal_ids=[True, -3, "11"],
+        confidence=float("nan"),
+        composite_score=float("inf"),
+        alpha_model_score=float("-inf"),
+        stop_loss_price="Infinity",
+        human_rationale="provider\ncontrol text",
+        reason_codes=["VALID", object()],
+    )
+    order = SimpleNamespace(
+        action="HOLD",
+        current_qty=True,
+        target_qty=float("inf"),
+        delta_qty="bad",
+        stop_loss_price="Infinity",
+        price_band_low=float("nan"),
+        price_band_high=12,
+        invalidation_description="bad\nprovider text",
+        invalidation_rule={},
+        notes=["valid", "bad\nline", object()],
+        is_ready_for_approval=False,
+    )
+
+    item = query._build_exit_watch_item(
+        position={
+            "account_id": 21,
+            "asset_code": "000001.SZ",
+            "signal_id": 11,
+            "shares": float("inf"),
+            "market_value": float("nan"),
+            "avg_cost": True,
+            "current_price": "Infinity",
+            "unrealized_pnl_pct": float("-inf"),
+        },
+        recommendation_map={"000001.SZ": recommendation},
+        transition_order_map={"000001.SZ": {"order": order, "plan_id": "plan/../../secret"}},
+        signal_payloads={"11": {"invalidation_description": "跌破风控线"}},
+    )
+
+    assert item["contract_ready"] is False
+    assert item["stop_loss_price"] is None
+    assert item["shares"] == 0.0
+    assert item["market_value"] == 0.0
+    assert item["avg_cost"] == 0.0
+    assert item["current_price"] == 0.0
+    assert item["unrealized_pnl_pct"] == 0.0
+    assert item["source_signal_ids"] == ["11"]
+    assert item["recommendation_id"] == ""
+    assert item["transition_plan_id"] == ""
+    assert item["recommendation_detail_url"] == ""
+    assert item["transition_plan_detail_url"] == ""
+    assert item["recommendation_snapshot"]["confidence"] == 0.0
+    assert item["recommendation_snapshot"]["composite_score"] == 0.0
+    assert item["recommendation_snapshot"]["alpha_model_score"] == 0.0
+    assert item["recommendation_snapshot"]["human_rationale"] == ""
+    assert item["recommendation_snapshot"]["reason_codes"] == ["VALID"]
+    assert item["transition_plan_snapshot"]["current_qty"] == 0
+    assert item["transition_plan_snapshot"]["target_qty"] == 0
+    assert item["transition_plan_snapshot"]["delta_qty"] == 0
+    assert item["transition_plan_snapshot"]["notes"] == ["valid"]
+
+
+def test_alpha_homepage_exit_watch_ignores_damaged_plan_as_of():
+    query = object.__new__(AlphaHomepageQuery)
+    query.transition_plan_repo = SimpleNamespace(
+        get_latest_for_account=lambda account_id: SimpleNamespace(
+            plan_id="plan-1",
+            as_of="2026-04-21",
+            orders=[],
+        )
+    )
+
+    assert (
+        query._load_transition_orders(
+            account_id=21,
+            trade_date=date(2026, 4, 21),
+        )
+        == {}
+    )
+
+
+def test_alpha_homepage_exit_watch_handles_incompatible_recommendation_timestamps():
+    aware = SimpleNamespace(
+        security_code="000001.SZ",
+        updated_at=datetime(2026, 4, 21, tzinfo=UTC),
+    )
+    naive = SimpleNamespace(
+        security_code="000001.SZ",
+        updated_at=datetime(2026, 4, 22),
+    )
+
+    result = AlphaHomepageQuery._latest_recommendations_by_security([aware, naive])
+
+    assert result == {"000001.SZ": aware}
+
+
+def test_alpha_homepage_exit_watch_does_not_log_provider_exception_text(caplog):
+    query = object.__new__(AlphaHomepageQuery)
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("provider-secret-token")
+
+    query.unified_recommendation_repo = SimpleNamespace(get_by_account=fail)
+    query.transition_plan_repo = SimpleNamespace(get_latest_for_account=fail)
+
+    with caplog.at_level("WARNING"):
+        assert query._load_unified_recommendations(21) == []
+        assert (
+            query._load_transition_orders(
+                account_id=21,
+                trade_date=date(2026, 4, 21),
+            )
+            == {}
+        )
+
+    assert "provider-secret-token" not in caplog.text
 
 
 def test_alpha_metrics_query_uses_lightweight_provider_registry(monkeypatch):
