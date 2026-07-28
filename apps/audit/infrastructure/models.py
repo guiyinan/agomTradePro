@@ -82,7 +82,7 @@ class AttributionReport(models.Model):
     )
     regime_predicted = models.CharField(max_length=20, verbose_name="预测 Regime")
     regime_actual = models.CharField(
-        max_length=20, verbose_name="实际 Regime", null=True, blank=True
+        max_length=64, verbose_name="实际 Regime", null=True, blank=True
     )
 
     # 元数据

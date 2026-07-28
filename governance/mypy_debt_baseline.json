@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 577,
-    "files_with_errors": 288
+    "errors": 571,
+    "files_with_errors": 287
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -205,9 +205,6 @@
     },
     "apps/audit/domain/performance_services.py": {
       "no-untyped-def": 2
-    },
-    "apps/audit/infrastructure/attribution_repositories.py": {
-      "type-arg": 6
     },
     "apps/audit/infrastructure/failure_counter.py": {
       "type-arg": 2,

@@ -5857,3 +5857,20 @@
 - Audit Unit、Application、Domain、Component、Integration 与 API 全链回归 `351 passed`。
 - `apps/audit/infrastructure/validation_repositories.py`、`apps/audit/interface/validation_api_views.py` 与阈值验证 Application 联合增量 mypy 清零；全仓基线从 `588 errors / 290 files` 收紧为 `577 errors / 288 files`，净减少 `11 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，也未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百八十二批
+
+- 按“Attribution 非有限事实可直写 × 历史坏报告进入决策复盘 × 外推 Regime 证据在 PostgreSQL 截断失败”收口 Audit 归因持久化链。
+- Domain 新增 Attribution Report、Loss Analysis 与 Experience Summary 三类精确 TypedDict 投影；Repository 不再返回裸 dict，下游 Audit summary、Interface service 与 Decision Step 6 直接获得可验证的 int/float/str 合同。
+- 报告写入统一验证正整数 backtest ID、有序 plain-date 区间、有限 P&L、`0..1` Regime 准确率、正式 attribution method 与受控 Regime token；bool、NaN、Infinity、路径片段、未知方法在 ORM 前失败关闭。
+- Loss Analysis 要求正式损失来源、有限 impact、非负 impact percentage 与有界非空描述；Experience Summary 要求正 report ID、有界非空 lesson/recommendation 与正式优先级。
+- 报告、损失和经验查询对非法 ID 返回空结果；report list limit 限制为 `1..500`。历史报告存在非有限 P&L、越界准确率、倒置日期、未知方法或污染 Regime token 时整条隔离；历史损失指标非有限或百分比为负时不再发布。
+- 数据库健康探针仍执行真实 `SELECT 1`，但只返回 reachable/vendor，不再返回数据库名、本地 SQLite 路径或连接信息。
+- Audit summary 与生成后读回改为构造独立 enriched payload，不再原地向 Repository TypedDict 注入 loss/experience 字段；精确类型同步清除 Attribution use case 与 Decision Step 6 的 11 条隐含不安全转换。
+- 发现并修复既有 PostgreSQL 合同缺口：Application 会生成 `EXTRAPOLATED:Recovery:YYYY-MM-DD`，原 `regime_actual max_length=20` 无法容纳。字段扩至 64 位并新增 `0010_alter_attribution_regime_actual` migration，超长或污染 token 仍拒绝。
+
+## 第三百八十二批验证结果
+
+- Audit Unit、Application、Domain、Component、Integration 与 API 全链回归 `378 passed`；精确 enrichment 最终消费端追加回归 `42 passed`。
+- `apps/audit/infrastructure/attribution_repositories.py` 与五个生产消费点联合增量 mypy 清零；Attribution Repository 退出债务清单，全仓基线从 `577 errors / 288 files` 收紧为 `571 errors / 287 files`，净减少 `6 errors / 1 file`。
+- Migration drift、Audit migration plan、Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。

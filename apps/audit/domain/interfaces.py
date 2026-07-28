@@ -46,6 +46,48 @@ class IndicatorPerformanceRecord(TypedDict):
     decay_rate: float | None
 
 
+class AttributionReportRecord(TypedDict):
+    """JSON-facing projection of one validated attribution report."""
+
+    id: int
+    backtest_id: int
+    period_start: str
+    period_end: str
+    attribution_method: str
+    attribution_method_display: str
+    regime_timing_pnl: float
+    asset_selection_pnl: float
+    interaction_pnl: float
+    total_pnl: float
+    regime_accuracy: float
+    regime_predicted: str
+    regime_actual: str | None
+    created_at: str
+
+
+class LossAnalysisRecord(TypedDict):
+    """JSON-facing projection of one validated loss analysis."""
+
+    id: int
+    loss_source: str
+    loss_source_display: str
+    impact: float
+    impact_percentage: float
+    description: str
+    improvement_suggestion: str
+
+
+class ExperienceSummaryRecord(TypedDict):
+    """JSON-facing projection of one governed experience summary."""
+
+    id: int
+    lesson: str
+    recommendation: str
+    priority: str
+    is_applied: bool
+    applied_at: str | None
+
+
 class RegimeLogRecord(TypedDict):
     """Typed persistence projection for a Regime observation."""
 

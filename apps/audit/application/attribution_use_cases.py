@@ -705,14 +705,17 @@ class GetAuditSummaryUseCase:
                     success=False, error="必须提供 backtest_id 或 start_date + end_date"
                 )
 
-            # 补充损失分析和经验总结
+            # 补充损失分析和经验总结，不修改 Repository 的精确投影。
+            enriched_reports: list[dict[str, object]] = []
             for report in reports:
-                report["loss_analyses"] = self.audit_repo.get_loss_analyses(report["id"])
-                report["experience_summaries"] = self.audit_repo.get_experience_summaries(
+                enriched_report: dict[str, object] = dict(report)
+                enriched_report["loss_analyses"] = self.audit_repo.get_loss_analyses(report["id"])
+                enriched_report["experience_summaries"] = self.audit_repo.get_experience_summaries(
                     report["id"]
                 )
+                enriched_reports.append(enriched_report)
 
-            return GetAuditSummaryResponse(success=True, reports=reports)
+            return GetAuditSummaryResponse(success=True, reports=enriched_reports)
 
         except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as exc:
             logger.error("获取审计摘要失败: %s", type(exc).__name__, exc_info=True)

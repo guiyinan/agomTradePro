@@ -80,9 +80,12 @@ def generate_attribution_report_payload(backtest_id: int) -> dict[str, Any]:
             "error": "归因报告已生成但无法读取",
             "report": None,
         }
-    report["loss_analyses"] = audit_repo.get_loss_analyses(response.report_id)
-    report["experience_summaries"] = audit_repo.get_experience_summaries(response.report_id)
-    return {"success": True, "error": None, "report": report}
+    enriched_report: dict[str, Any] = dict(report)
+    enriched_report["loss_analyses"] = audit_repo.get_loss_analyses(response.report_id)
+    enriched_report["experience_summaries"] = audit_repo.get_experience_summaries(
+        response.report_id
+    )
+    return {"success": True, "error": None, "report": enriched_report}
 
 
 def preview_attribution_report_generation(*, backtest_id: int) -> dict[str, Any]:
