@@ -5661,3 +5661,18 @@
 - Account 兼容委托专项与 canonical/compatibility 业绩 API 集成回归 `64 passed`；API 最小合同 guardrail `23 passed`。
 - Application gateway、Account performance compatibility/API URLs 与 Simulated Trading 注册端联合增量 mypy 清零；全仓基线从 `647 errors / 303 files` 收紧为 `639 errors / 301 files`，净减少 `8 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改 Terminal、TUI、SDK、MCP 或部署实现。
+
+## 第三百七十批
+
+- 按“Admin 文档导入无大小上限 × 异常正文回传 × CSV 公式注入 × 动态请求无类型”收口 Account 文档管理保留流程。
+- JSON/CSV 上传限制为最多 5 MB，并在进入 Application service 前执行实际读取长度复核；缺失文件、未知格式、编码/JSON/CSV/字段错误返回稳定 4xx，数据库或服务异常返回稳定 503。
+- 导入失败日志只记录异常类型，不再把数据库、文件内容、配置或凭据正文写入响应和日志；删除裸 `Exception` 捕获。
+- Admin 排序字段只接受 32 位范围内的精确整数，拒绝 bool、小数、Unicode 数字和越界值；非法输入保留在编辑页并显示稳定校验提示，不再因 `int()` 崩页。
+- Markdown 下载使用 RFC 5987 UTF-8 文件名；CSV 导出的公式起始字符统一中和，避免文档标题、摘要或正文被电子表格应用当作公式执行。
+- 七个 Django view/helper 补齐 `HttpRequest`、`HttpResponse`、`QueryDict` 和精确 ID 类型；新增上传上限、错误脱敏、严格排序和 CSV 公式隔离回归。
+
+## 第三百七十批验证结果
+
+- Account 文档管理专项、Admin 页面与公共文档 API 集成回归 `46 passed`。
+- `apps/account/interface/documentation_views.py` 在增量 mypy 口径清零；全仓基线从 `639 errors / 301 files` 收紧为 `632 errors / 300 files`，净减少 `7 errors / 1 file`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批只修复既有 retained Admin 流程，未新增 Classic 页面，也未修改 Terminal、TUI、SDK、MCP 或部署实现。

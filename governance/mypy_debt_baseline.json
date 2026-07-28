@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 639,
-    "files_with_errors": 301
+    "errors": 632,
+    "files_with_errors": 300
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -49,9 +49,6 @@
     },
     "apps/account/interface/backup_views.py": {
       "no-untyped-def": 2
-    },
-    "apps/account/interface/documentation_views.py": {
-      "no-untyped-def": 7
     },
     "apps/account/interface/openapi.py": {
       "misc": 1,
