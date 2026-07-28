@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 521,
-    "files_with_errors": 271
+    "errors": 513,
+    "files_with_errors": 268
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -630,16 +630,6 @@
     "apps/pulse/infrastructure/data_provider.py": {
       "type-arg": 2,
       "type-var": 1
-    },
-    "apps/pulse/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/pulse/interface/api_views.py": {
-      "no-untyped-def": 4,
-      "type-arg": 1
-    },
-    "apps/pulse/interface/serializers.py": {
-      "type-arg": 2
     },
     "apps/pulse/interface/views.py": {
       "no-untyped-def": 1

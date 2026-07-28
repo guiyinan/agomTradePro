@@ -5980,3 +5980,18 @@
 - Core Config Center shape/权限/脱敏专项 `12 passed`；真实 staff API、设置中心页面、Qlib runtime/training 与系统设置跨模块组合 `65 passed`。
 - `core/application/config_center.py` 与 `core/api_views.py` 增量 mypy 清零并退出债务清单；全仓基线从 `526 errors / 273 files` 收紧为 `521 errors / 271 files`，净减少 `5 errors / 2 files`。
 - Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP 或部署实现。
+
+## 第三百九十批
+
+- 按“Pulse history 查询参数无界 × 执行异常正文反射 × 非有限战术指标发布 × truthy staff 触发手工计算”收口 Pulse 公共 API。
+- History query 新增 DRF Serializer：months 限制 `1..120`、limit 限制 `1..500`；零、负数、超限和非整数字符串在 Repository I/O 前返回标准 400，不再由 int 转换异常变成 500。
+- API root、Current、History 与 Calculate handler 补齐精确 Request/Response 类型；数据库、配置、连接和运行时异常只记录异常类型，对外分别发布稳定 `pulse_current_unavailable`、`pulse_history_unavailable` 与 `pulse_calculation_failed`。
+- Current snapshot、History list 和 Calculate 摘要必须为有限 JSON 且不超过 1 MiB；NaN、Infinity、动态对象和超大 payload 在 DRF Response 前失败关闭，合法 payload 经 JSON round-trip 与源对象隔离。
+- 手工计算只接受真实 `is_staff is True` 或 `is_superuser is True`；字符串 `"false"` 和其他 truthy 动态值返回 403，且不会触发 Pulse 计算。
+- Pulse snapshot serializer 补齐 DRF 泛型并修正 regime_context 为字符串合同；Domain snapshot serializer 使用精确 `PulseSnapshot` 类型，不再返回裸 dict。
+
+## 第三百九十批验证结果
+
+- Pulse API 输入、权限、非有限 payload 与异常脱敏专项 `15 passed`；API、计算/读取 UseCase、Data Provider freshness、权重配置与路由扩展组合 `62 passed`。
+- `apps/pulse/interface/api_views.py`、`apps/pulse/interface/api_urls.py` 与 serializers 增量 mypy 清零并退出债务清单；全仓基线从 `521 errors / 271 files` 收紧为 `513 errors / 268 files`，净减少 `8 errors / 3 files`。
+- Django system check、架构 delta、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库 migration、TUI/Terminal/SDK/MCP 或部署实现。

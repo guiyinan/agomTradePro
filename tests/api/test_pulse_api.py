@@ -1,4 +1,7 @@
+import logging
+from dataclasses import replace
 from datetime import date
+from unittest.mock import MagicMock
 
 import pytest
 from django.contrib.auth.models import User
@@ -205,3 +208,102 @@ def test_pulse_current_requests_refresh_when_snapshot_missing(authenticated_clie
     assert payload["data"]["regime_context"] == snapshot.regime_context
     assert captured["refresh_if_stale"] is True
     assert captured["as_of_date"] == date.today()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query",
+    [
+        "months=0",
+        "months=121",
+        "months=invalid",
+        "limit=0",
+        "limit=501",
+        "limit=invalid",
+    ],
+)
+def test_pulse_history_rejects_invalid_query_controls(authenticated_client, query):
+    response = authenticated_client.get(f"/api/pulse/history/?{query}")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("path", "patch_target", "expected_error"),
+    [
+        (
+            "/api/pulse/current/",
+            "apps.pulse.application.use_cases.GetLatestPulseUseCase.execute",
+            "pulse_current_unavailable",
+        ),
+        (
+            "/api/pulse/history/",
+            "apps.pulse.application.query_services.list_pulse_history_payloads",
+            "pulse_history_unavailable",
+        ),
+    ],
+)
+def test_pulse_read_failures_do_not_expose_exception_details(
+    authenticated_client,
+    monkeypatch,
+    caplog,
+    path,
+    patch_target,
+    expected_error,
+):
+    def _fail(*args, **kwargs):
+        raise RuntimeError("postgresql://admin:raw-secret@example.test/prod")
+
+    monkeypatch.setattr(patch_target, _fail)
+    with caplog.at_level(logging.WARNING):
+        response = authenticated_client.get(path)
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.json()["error"] == expected_error
+    assert "raw-secret" not in caplog.text
+    assert "postgresql://" not in caplog.text
+
+
+@pytest.mark.django_db
+def test_pulse_current_rejects_nonfinite_snapshot(authenticated_client, monkeypatch):
+    snapshot = replace(_pulse_snapshot(), composite_score=float("nan"))
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases.GetLatestPulseUseCase.execute",
+        lambda *args, **kwargs: snapshot,
+    )
+
+    response = authenticated_client.get("/api/pulse/current/")
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.json()["error"] == "pulse_current_unavailable"
+
+
+@pytest.mark.django_db
+def test_pulse_history_rejects_nonfinite_payload(authenticated_client, monkeypatch):
+    monkeypatch.setattr(
+        "apps.pulse.application.query_services.list_pulse_history_payloads",
+        lambda **kwargs: [{"composite_score": float("inf")}],
+    )
+
+    response = authenticated_client.get("/api/pulse/history/")
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.json()["error"] == "pulse_history_unavailable"
+
+
+@pytest.mark.django_db
+def test_pulse_calculate_requires_real_staff_boolean(authenticated_client, monkeypatch):
+    user = User.objects.create_user(username="truthy-pulse-staff")
+    user.is_staff = "false"
+    authenticated_client.force_authenticate(user=user)
+    execute = MagicMock(return_value=_pulse_snapshot())
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases.CalculatePulseUseCase.execute",
+        execute,
+    )
+
+    response = authenticated_client.post("/api/pulse/calculate/")
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    execute.assert_not_called()

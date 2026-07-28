@@ -1,6 +1,7 @@
 """Pulse API URL configuration."""
 
 from django.urls import path
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -12,7 +13,9 @@ app_name = "pulse_api"
 class PulseApiRootView(APIView):
     """Return discoverable pulse API endpoints."""
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        """Return the stable Pulse API endpoint catalog."""
+
         return Response(
             {
                 "endpoints": {
@@ -22,6 +25,7 @@ class PulseApiRootView(APIView):
                 }
             }
         )
+
 
 urlpatterns = [
     path("", PulseApiRootView.as_view(), name="api-root"),

@@ -1,14 +1,55 @@
 """Pulse API Views"""
 
+import json
 import logging
 from datetime import date
+from typing import Any, cast
 
+from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.db import DatabaseError
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.pulse.domain.entities import PulseSnapshot
+
+from .serializers import PulseHistoryQuerySerializer
+
 logger = logging.getLogger(__name__)
+
+_MAX_PULSE_PAYLOAD_BYTES = 1_048_576
+_PULSE_API_EXCEPTIONS = (
+    ArithmeticError,
+    AttributeError,
+    ConnectionError,
+    DatabaseError,
+    ImproperlyConfigured,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValidationError,
+    ValueError,
+)
+
+
+class PulseApiPayloadError(RuntimeError):
+    """Raised when a Pulse response is not bounded finite JSON data."""
+
+
+def _validated_json_payload(value: object) -> object:
+    """Return detached finite JSON data within the Pulse response limit."""
+
+    try:
+        encoded = json.dumps(value, ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError) as exc:
+        raise PulseApiPayloadError("pulse_payload_invalid") from exc
+    if len(encoded.encode("utf-8")) > _MAX_PULSE_PAYLOAD_BYTES:
+        raise PulseApiPayloadError("pulse_payload_too_large")
+    return json.loads(encoded)
 
 
 class PulseCurrentView(APIView):
@@ -19,7 +60,9 @@ class PulseCurrentView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        """Return the latest reliable or diagnostic Pulse snapshot."""
+
         try:
             from apps.pulse.application.use_cases import GetLatestPulseUseCase
 
@@ -37,10 +80,13 @@ class PulseCurrentView(APIView):
 
             return Response({"success": True, "data": _serialize_snapshot(snapshot)})
 
-        except Exception as e:
-            logger.exception(f"Error getting pulse: {e}")
+        except _PULSE_API_EXCEPTIONS as exc:
+            logger.warning(
+                "Pulse current API failed; exception_type=%s",
+                type(exc).__name__,
+            )
             return Response(
-                {"success": False, "error": str(e)},
+                {"success": False, "error": "pulse_current_unavailable"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -54,21 +100,32 @@ class PulseHistoryView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        """Return bounded Pulse history after validating query controls."""
+
+        serializer = PulseHistoryQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        query = cast(dict[str, Any], serializer.validated_data)
         try:
-            months = int(request.query_params.get("months", 6))
-            limit_raw = request.query_params.get("limit")
-            limit = int(limit_raw) if limit_raw is not None else None
+            months = int(query["months"])
+            limit_value = query.get("limit")
+            limit = int(limit_value) if limit_value is not None else None
             from apps.pulse.application.query_services import list_pulse_history_payloads
 
-            data = list_pulse_history_payloads(months=months, limit=limit)
+            raw_data = list_pulse_history_payloads(months=months, limit=limit)
+            data = _validated_json_payload(raw_data)
+            if not isinstance(data, list):
+                raise PulseApiPayloadError("pulse_history_payload_invalid")
 
             return Response({"success": True, "count": len(data), "data": data})
 
-        except Exception as e:
-            logger.exception(f"Error getting pulse history: {e}")
+        except _PULSE_API_EXCEPTIONS as exc:
+            logger.warning(
+                "Pulse history API failed; exception_type=%s",
+                type(exc).__name__,
+            )
             return Response(
-                {"success": False, "error": str(e)},
+                {"success": False, "error": "pulse_history_unavailable"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -81,8 +138,13 @@ class PulseCalculateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        if not request.user.is_staff:
+    def post(self, request: Request) -> Response:
+        """Calculate a fresh Pulse snapshot for an authenticated staff user."""
+
+        if not (
+            getattr(request.user, "is_staff", False) is True
+            or getattr(request.user, "is_superuser", False) is True
+        ):
             return Response(
                 {"success": False, "error": "Staff only"},
                 status=status.HTTP_403_FORBIDDEN,
@@ -96,30 +158,31 @@ class PulseCalculateView(APIView):
 
             if not snapshot:
                 return Response(
-                    {"success": False, "error": "Pulse calculation failed"},
+                    {"success": False, "error": "pulse_calculation_failed"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-            return Response(
+            data = _validated_json_payload(
                 {
-                    "success": True,
-                    "data": {
-                        "composite_score": snapshot.composite_score,
-                        "regime_strength": snapshot.regime_strength,
-                        "transition_warning": snapshot.transition_warning,
-                    },
+                    "composite_score": snapshot.composite_score,
+                    "regime_strength": snapshot.regime_strength,
+                    "transition_warning": snapshot.transition_warning,
                 }
             )
+            return Response({"success": True, "data": data})
 
-        except Exception as e:
-            logger.exception(f"Error calculating pulse: {e}")
+        except _PULSE_API_EXCEPTIONS as exc:
+            logger.warning(
+                "Pulse calculation API failed; exception_type=%s",
+                type(exc).__name__,
+            )
             return Response(
-                {"success": False, "error": str(e)},
+                {"success": False, "error": "pulse_calculation_failed"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
-def _serialize_snapshot(snapshot) -> dict:
+def _serialize_snapshot(snapshot: PulseSnapshot) -> dict[str, Any]:
     """Serialize a pulse snapshot into the public API contract."""
     indicator_observed_at = {
         str(reading.code): (reading.observed_at.isoformat() if reading.observed_at else None)
@@ -154,7 +217,7 @@ def _serialize_snapshot(snapshot) -> dict:
         "market_data_as_of": market_data_as_of,
         "indicator_observed_at": indicator_observed_at,
     }
-    return {
+    payload = {
         "observed_at": snapshot.observed_at.isoformat(),
         "regime_context": snapshot.regime_context,
         "composite_score": snapshot.composite_score,
@@ -197,3 +260,7 @@ def _serialize_snapshot(snapshot) -> dict:
             for r in snapshot.indicator_readings
         ],
     }
+    normalized = _validated_json_payload(payload)
+    if not isinstance(normalized, dict):
+        raise PulseApiPayloadError("pulse_snapshot_payload_invalid")
+    return cast(dict[str, Any], normalized)
