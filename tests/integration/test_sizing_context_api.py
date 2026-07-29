@@ -21,6 +21,7 @@ def user_with_portfolio(db):
 
 @pytest.fixture()
 def default_config(db):
+    MacroSizingConfigModel.objects.filter(is_active=True).update(is_active=False)
     return MacroSizingConfigModel.objects.create(
         regime_tiers_json=[
             {"min_confidence": 0.6, "factor": 1.0},

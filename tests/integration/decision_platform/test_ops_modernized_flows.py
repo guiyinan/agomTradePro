@@ -62,6 +62,7 @@ class TestOpsModernizedFlows:
             username="ops_user",
             email="ops@example.com",
             password="test_password",
+            is_staff=True,
         )
         self.client = Client()
         assert self.client.login(username="ops_user", password="test_password")

@@ -278,7 +278,8 @@ class TestDecisionPlatformPages:
         User.objects.create_user(
             username="test_user",
             email="test@example.com",
-            password="test_password"
+            password="test_password",
+            is_staff=True,
         )
         client = Client()
         client.login(username="test_user", password="test_password")
@@ -318,9 +319,7 @@ class TestDecisionPlatformAPI:
     def api_client(self):
         """创建 API 测试客户端"""
         User.objects.create_user(
-            username="api_user",
-            email="api@example.com",
-            password="test_password"
+            username="api_user", email="api@example.com", password="test_password"
         )
         client = Client()
         client.login(username="api_user", password="test_password")
@@ -331,7 +330,7 @@ class TestDecisionPlatformAPI:
         response = api_client.post(
             "/api/beta-gate/test/",
             data={"asset_codes": ["000001.SH"], "asset_class": "a_股票"},
-            content_type="application/json"
+            content_type="application/json",
         )
         assert response.status_code in [200, 201, 400, 405]
 
