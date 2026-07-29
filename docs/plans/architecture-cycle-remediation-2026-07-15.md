@@ -83,6 +83,12 @@ Eliminate the app-level bidirectional dependencies that regrew after the 2026-04
 - `check_module_cycles.py --fail-on-cycles` succeeds without an allowlist.
 - Remaining work is regression verification and compatibility cleanup; no accepted app-cycle debt remains.
 
+## Integration checkpoint — 2026-07-29
+
+- Integrating the TUI task workbench added six one-way Terminal composition-root dependencies and one-way Alpha/Dashboard observability dependencies.
+- The new edges expose governed Application facades or Domain metadata to the user-facing TUI; they do not create reverse imports, bidirectional pairs, or cycle components.
+- The graph budget was rebased to the exact merged graph in `2026-07-29.v17`; simultaneously reduced Hedge, Valuation, Asset Analysis, and Realtime budgets were tightened instead of retaining stale headroom.
+
 ## Regression and rollback
 
 - Each dependency pair is independently revertible together with its exact allowlist and graph-budget reduction.
