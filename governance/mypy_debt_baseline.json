@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 455,
-    "files_with_errors": 252
+    "errors": 446,
+    "files_with_errors": 250
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -205,16 +205,8 @@
     "apps/backtest/infrastructure/adapters/tushare_price_adapter.py": {
       "no-redef": 1
     },
-    "apps/backtest/infrastructure/models.py": {
-      "no-untyped-def": 2,
-      "type-arg": 1
-    },
     "apps/backtest/interface/__init__.py": {
       "var-annotated": 1
-    },
-    "apps/backtest/interface/admin.py": {
-      "no-untyped-def": 4,
-      "type-arg": 2
     },
     "apps/backtest/interface/api_urls.py": {
       "no-untyped-def": 1

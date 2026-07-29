@@ -9,8 +9,16 @@ from typing import Any
 
 from django.db.models import Avg
 
-from ..domain.entities import BacktestConfig, BacktestResult, Trade
-from .models import BacktestResultModel, BacktestTradeModel
+from ..domain.entities import (
+    BacktestCompletionPayload,
+    BacktestConfig,
+    BacktestResult,
+    Trade,
+)
+from .models import (
+    BacktestResultModel,
+    BacktestTradeModel,
+)
 
 
 class BacktestRepositoryError(Exception):
@@ -194,7 +202,7 @@ class DjangoBacktestRepository:
                 {"date": d.isoformat(), "value": v} for d, v in result.equity_curve
             ]
 
-            result_data = {
+            result_data: BacktestCompletionPayload = {
                 "total_return": result.total_return,
                 "annualized_return": result.annualized_return,
                 "max_drawdown": result.max_drawdown,

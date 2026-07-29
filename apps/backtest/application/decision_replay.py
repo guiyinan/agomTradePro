@@ -12,7 +12,7 @@ from apps.backtest.application.repository_provider import (
     get_backtest_repository,
     get_close_price_series_reader,
 )
-from apps.backtest.domain.entities import BacktestConfig
+from apps.backtest.domain.entities import BacktestCompletionPayload, BacktestConfig
 from core.integration.decision_recommendations import build_decision_recommendation_plan_reader
 
 
@@ -42,6 +42,12 @@ class DecisionReplayBacktestResponse:
     success: bool
     backtest_id: int | None = None
     error: str = ""
+
+
+class DecisionReplayResultPayload(BacktestCompletionPayload):
+    """Completed evidence plus the separately persisted final capital."""
+
+    final_capital: float
 
 
 class DecisionReplayBacktestUseCase:
@@ -115,7 +121,7 @@ class DecisionReplayBacktestUseCase:
         initial_capital: Decimal,
         start_date: date,
         end_date: date,
-    ) -> dict[str, Any]:
+    ) -> DecisionReplayResultPayload:
         cash = initial_capital
         positions: dict[str, Decimal] = {}
         last_price: dict[str, Decimal] = {}

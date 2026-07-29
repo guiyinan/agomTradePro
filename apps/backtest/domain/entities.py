@@ -21,6 +21,19 @@ class RegimeHistoryEntry(TypedDict):
     portfolio_value: float
 
 
+class BacktestCompletionPayload(TypedDict):
+    """Canonical evidence required to publish a completed backtest."""
+
+    total_return: float
+    annualized_return: float
+    max_drawdown: float
+    sharpe_ratio: float | None
+    equity_curve: list[dict[str, object]]
+    regime_history: list[RegimeHistoryEntry]
+    trades: list[dict[str, object]]
+    warnings: list[str]
+
+
 class RebalanceFrequency(Enum):
     """再平衡频率"""
 

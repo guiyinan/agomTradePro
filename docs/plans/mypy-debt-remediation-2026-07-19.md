@@ -6169,3 +6169,18 @@
 - AI Capability Admin/语义治理专项 `7 passed`；完整单元、组件、Catalog/MCP 投影、路由、同步与语义治理 API 扩展组合 `704 passed`。
 - `apps/ai_capability/interface/admin.py` 增量 mypy 清零并退出债务清单；全仓基线从 `461 errors / 253 files` 收紧为 `455 errors / 252 files`，净减少 `6 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 Catalog 同步/路由/语义治理 API、TUI/Terminal/SDK/MCP 成功响应或部署实现。
+
+## 第四百零三批
+
+- 按“回测结果/成交证据可由 Admin 删除 × 完成态裸 dict 无合同 × NaN/Infinity 与动态对象可进入 JSON/指标事实 × 调用方可变容器回写已发布证据”收口 Backtest 结果持久化链。
+- `BacktestResultModel` 与 `BacktestTradeModel` 统一为不可变证据 Admin，所有模型字段只读，后台新增、修改和删除均失败关闭；清理继续走 owner-scoped repository 或受控 retention task。
+- 回测结果 Admin 首屏新增 `trust_status/use_pit_data`，详情显式发布 data manifest、PIT coverage、config hash、code commit、engine version、research trial、decision snapshot、signal config 与 used signals，便于核查可复现性证据。
+- 新增 Domain `BacktestCompletionPayload` 合同并由正常回测与 Decision Replay 共同使用；Application 不反向依赖 Infrastructure，Repository 在调用完成态模型方法前构造精确 TypedDict。
+- `mark_completed()` 在修改模型前一次性验证 final capital、收益、回撤和 Sharpe 为有限数且拒绝 bool；权益曲线、Regime 历史与成交必须为有限、可 JSON 序列化且单字段不超过 8 MiB，warning 数量/长度有界。
+- 完成态 JSON 经过序列化 round-trip 与调用方容器隔离，final capital 通过十进制字符串进入 DecimalField；任一字段非法时保持 pending 状态且不产生部分写入。
+
+## 第四百零三批验证结果
+
+- Backtest Admin 与完成态边界专项 `10 passed`；任务、Repository、Decision Replay、owner-scoped API、指标完整性和真实回测执行扩展组合 `83 passed`。
+- `apps/backtest/interface/admin.py` 与 `apps/backtest/infrastructure/models.py` 增量 mypy 清零并退出债务清单；Domain payload、Decision Replay 与 Repository 联合检查保持零回归，全仓基线从 `455 errors / 252 files` 收紧为 `446 errors / 250 files`，净减少 `9 errors / 2 files`。
+- Django system check、迁移漂移检查、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 Backtest API 成功响应、TUI/Terminal/SDK/MCP 或部署实现。

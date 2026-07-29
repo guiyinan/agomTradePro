@@ -2,19 +2,63 @@
 Django Admin for Backtest.
 """
 
+from __future__ import annotations
+
+from typing import Generic, TypeVar
+
 from django.contrib import admin
+from django.db.models import Model
+from django.http import HttpRequest
 
 from apps.backtest.models import BacktestResultModel, BacktestTradeModel
+from shared.infrastructure.django_admin import TypedModelAdmin
+
+BacktestEvidenceModelT = TypeVar("BacktestEvidenceModelT", bound=Model)
+
+
+class ImmutableBacktestEvidenceAdmin(
+    TypedModelAdmin[BacktestEvidenceModelT],
+    Generic[BacktestEvidenceModelT],
+):
+    """Expose generated backtest evidence without mutation controls."""
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Require backtest evidence to originate from execution workflows."""
+
+        del request
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: BacktestEvidenceModelT | None = None,
+    ) -> bool:
+        """Keep persisted backtest evidence immutable."""
+
+        del request, obj
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: BacktestEvidenceModelT | None = None,
+    ) -> bool:
+        """Route deletion through owner-scoped or retention repositories."""
+
+        del request, obj
+        return False
 
 
 @admin.register(BacktestResultModel)
-class BacktestResultAdmin(admin.ModelAdmin):
+class BacktestResultAdmin(ImmutableBacktestEvidenceAdmin[BacktestResultModel]):
     """Admin interface for BacktestResult"""
 
     list_display = [
         "id",
         "name",
         "status",
+        "trust_status",
+        "use_pit_data",
         "start_date",
         "end_date",
         "total_return",
@@ -24,26 +68,20 @@ class BacktestResultAdmin(admin.ModelAdmin):
         "created_at",
         "completed_at",
     ]
-    list_filter = ["status", "start_date", "end_date", "rebalance_frequency"]
+    list_filter = [
+        "status",
+        "trust_status",
+        "use_pit_data",
+        "start_date",
+        "end_date",
+        "rebalance_frequency",
+    ]
     search_fields = ["name"]
     date_hierarchy = "start_date"
-    readonly_fields = [
-        "created_at",
-        "updated_at",
-        "completed_at",
-        "final_capital",
-        "total_return",
-        "annualized_return",
-        "max_drawdown",
-        "sharpe_ratio",
-        "equity_curve",
-        "regime_history",
-        "trades",
-        "warnings",
-    ]
+    readonly_fields = [field.name for field in BacktestResultModel._meta.fields] + ["used_signals"]
 
     fieldsets = (
-        ("基本信息", {"fields": ("name", "status", "error_message")}),
+        ("基本信息", {"fields": ("user", "name", "status", "error_message")}),
         (
             "回测配置",
             {
@@ -54,6 +92,23 @@ class BacktestResultAdmin(admin.ModelAdmin):
                     "rebalance_frequency",
                     "use_pit_data",
                     "transaction_cost_bps",
+                )
+            },
+        ),
+        (
+            "可复现性证据",
+            {
+                "fields": (
+                    "trust_status",
+                    "data_manifest_id",
+                    "pit_coverage",
+                    "config_hash",
+                    "code_commit",
+                    "engine_version",
+                    "research_trial_id",
+                    "decision_snapshot_id",
+                    "signal_configs",
+                    "used_signals",
                 )
             },
         ),
@@ -82,17 +137,9 @@ class BacktestResultAdmin(admin.ModelAdmin):
         ),
     )
 
-    def has_add_permission(self, request):
-        # 禁止手动添加，通过 API 创建
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        # 只允许修改状态
-        return False
-
 
 @admin.register(BacktestTradeModel)
-class BacktestTradeAdmin(admin.ModelAdmin):
+class BacktestTradeAdmin(ImmutableBacktestEvidenceAdmin[BacktestTradeModel]):
     """Admin interface for BacktestTrade"""
 
     list_display = [
@@ -109,10 +156,4 @@ class BacktestTradeAdmin(admin.ModelAdmin):
     list_filter = ["action", "asset_class", "trade_date"]
     search_fields = ["backtest__name", "asset_class"]
     date_hierarchy = "trade_date"
-    readonly_fields = ["created_at"]
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
+    readonly_fields = [field.name for field in BacktestTradeModel._meta.fields]
