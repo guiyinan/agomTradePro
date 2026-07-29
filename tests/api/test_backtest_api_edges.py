@@ -331,7 +331,7 @@ def test_backtest_create_passes_owner_and_redacts_internal_failure(
 
 
 @pytest.mark.django_db
-def test_backtest_rerun_does_not_report_false_success(authenticated_client, auth_user):
+def test_backtest_rerun_creates_a_new_run(authenticated_client, auth_user):
     backtest = BacktestResultModel.objects.create(
         user=auth_user,
         name="Existing backtest",
@@ -342,14 +342,30 @@ def test_backtest_rerun_does_not_report_false_success(authenticated_client, auth
         rebalance_frequency="monthly",
     )
 
-    response = authenticated_client.post(
-        f"/api/backtest/backtests/{backtest.id}/rerun/",
-        {},
-        format="json",
+    rerun_response = SimpleNamespace(
+        backtest_id=22,
+        status="completed",
+        result={"total_return": 0.1},
+        warnings=[],
     )
+    with patch(
+        "apps.backtest.interface.views.rerun_backtest_payload",
+        return_value=rerun_response,
+    ) as mock_rerun:
+        response = authenticated_client.post(
+            f"/api/backtest/backtests/{backtest.id}/rerun/",
+            {},
+            format="json",
+        )
 
-    assert response.status_code == 501
-    assert response.json()["error_code"] == "backtest_rerun_not_implemented"
+    assert response.status_code == 201
+    assert response.json() == {
+        "backtest_id": 22,
+        "status": "completed",
+        "result": {"total_return": 0.1},
+        "warnings": [],
+    }
+    mock_rerun.assert_called_once_with(backtest.id, user_id=auth_user.id)
 
 
 def test_backtest_viewset_create_does_not_forward_interface_run_async(

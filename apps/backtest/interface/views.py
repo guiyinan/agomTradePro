@@ -26,7 +26,6 @@ from ..application.decision_replay import (
     DecisionReplayComparisonUseCase,
 )
 from ..application.interface_services import (
-    backtest_exists,
     delete_backtest_payload,
     get_backtest_equity_curve_payload,
     get_backtest_result_payload,
@@ -35,6 +34,7 @@ from ..application.interface_services import (
     load_backtest_create_context,
     load_backtest_detail_context,
     load_backtest_list_context,
+    rerun_backtest_payload,
     run_backtest_payload,
 )
 from .serializers import (
@@ -267,18 +267,29 @@ class BacktestViewSet(viewsets.ViewSet):
             backtest_id = _parse_positive_identifier(pk, field_name="backtest_id")
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        if not backtest_exists(
+        response = rerun_backtest_payload(
             backtest_id,
             user_id=_authenticated_user_id(request),
-        ):
+        )
+        if response is None:
             return Response({"error": "Backtest not found"}, status=status.HTTP_404_NOT_FOUND)
-
+        if response.status == "failed":
+            return Response(
+                {
+                    "error": "Backtest failed",
+                    "error_code": "backtest_execution_failed",
+                    "warnings": response.warnings,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         return Response(
             {
-                "error": "Backtest rerun is not implemented",
-                "error_code": "backtest_rerun_not_implemented",
+                "backtest_id": response.backtest_id,
+                "status": response.status,
+                "result": response.result,
+                "warnings": response.warnings,
             },
-            status=status.HTTP_501_NOT_IMPLEMENTED,
+            status=status.HTTP_201_CREATED,
         )
 
 

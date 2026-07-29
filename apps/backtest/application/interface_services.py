@@ -159,6 +159,41 @@ def run_backtest_payload(
     ).execute(RunBacktestRequest(**resolved_data))
 
 
+def rerun_backtest_payload(
+    backtest_id: int,
+    *,
+    user_id: int,
+) -> RunBacktestResponse | None:
+    """Create a new run from one owner-scoped persisted backtest configuration."""
+
+    backtest = get_backtest_repository().get_backtest_by_id(
+        backtest_id,
+        user_id=user_id,
+    )
+    if backtest is None:
+        return None
+    return run_backtest_payload(
+        {
+            "name": backtest.name,
+            "start_date": backtest.start_date,
+            "end_date": backtest.end_date,
+            "initial_capital": float(backtest.initial_capital),
+            "rebalance_frequency": backtest.rebalance_frequency,
+            "use_pit_data": bool(backtest.use_pit_data),
+            "transaction_cost_bps": float(backtest.transaction_cost_bps),
+            "trust_status": backtest.trust_status,
+            "data_manifest_id": backtest.data_manifest_id,
+            "pit_coverage": dict(backtest.pit_coverage or {}),
+            "config_hash": backtest.config_hash,
+            "code_commit": backtest.code_commit,
+            "engine_version": backtest.engine_version or "backtest-v1",
+            "research_trial_id": backtest.research_trial_id,
+            "decision_snapshot_id": backtest.decision_snapshot_id,
+        },
+        user_id=user_id,
+    )
+
+
 def delete_backtest_payload(
     backtest_id: int,
     *,
