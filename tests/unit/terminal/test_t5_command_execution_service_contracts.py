@@ -17,6 +17,7 @@ from apps.terminal.application.services import (
     CommandExecutionService,
 )
 from apps.terminal.domain.entities import CommandType, TerminalCommand
+from apps.terminal.domain.exceptions import TerminalCommandExecutionError
 
 
 def _command(
@@ -62,6 +63,7 @@ def test_prompt_command_formats_request_response_and_trace(
 ) -> None:
     runtime = SimpleNamespace(
         execute=lambda request: SimpleNamespace(
+            success=True,
             final_answer="answer",
             error_message=None,
             tool_calls=[SimpleNamespace(tool_name="get_regime_status")],
@@ -119,8 +121,11 @@ def test_external_api_command_maps_transport_error(
     client.request_json.side_effect = TerminalApiRequestError("offline")
     monkeypatch.setattr(service_module, "get_terminal_command_http_client", lambda: client)
 
-    result = CommandExecutionService().execute_api_command(_command(), {"code": "x"})
-    assert result["metadata"]["error"] == "offline"
+    with pytest.raises(
+        TerminalCommandExecutionError,
+        match="terminal_external_api_failed",
+    ):
+        CommandExecutionService().execute_api_command(_command(), {"code": "x"})
 
 
 def test_internal_api_command_maps_missing_route(
@@ -131,12 +136,20 @@ def test_internal_api_command_maps_missing_route(
         "resolve",
         lambda _url: (_ for _ in ()).throw(Resolver404()),
     )
-    result = CommandExecutionService().execute_api_command(
-        _command(endpoint="/api/missing"),
-        {},
+    monkeypatch.setattr(
+        service_module,
+        "get_terminal_auth_user",
+        lambda _id: SimpleNamespace(id=7),
     )
-    assert result["metadata"]["status_code"] == 404
-    assert "not found" in result["output"]
+    with pytest.raises(
+        TerminalCommandExecutionError,
+        match="terminal_internal_api_not_found",
+    ):
+        CommandExecutionService().execute_api_command(
+            _command(endpoint="/api/missing"),
+            {},
+            user_id=7,
+        )
 
 
 def test_internal_api_command_dispatches_authenticated_drf_response(
@@ -181,9 +194,15 @@ def test_internal_api_command_decodes_plain_http_response(
         "resolve",
         lambda _url: SimpleNamespace(func=lambda request: response, kwargs={}),
     )
+    monkeypatch.setattr(
+        service_module,
+        "get_terminal_auth_user",
+        lambda _id: SimpleNamespace(id=7),
+    )
     result = CommandExecutionService().execute_api_command(
-        _command(endpoint="/plain"),
+        _command(endpoint="/api/plain"),
         {},
+        user_id=7,
     )
     assert result["output"] == "plain"
     assert result["metadata"]["status_code"] == 202
@@ -214,12 +233,15 @@ def test_output_filter_formats_special_commands_and_raw_data(
         "_apply_jq_filter",
         lambda _data, _filter: (_ for _ in ()).throw(ValueError("bad filter")),
     )
-    raw = service._filter_and_format_api_output(
-        command=_command(jq_filter=".bad"),
-        data={"x": 1},
-        params={"verbose": True},
-    )
-    assert '"x": 1' in raw
+    with pytest.raises(
+        TerminalCommandExecutionError,
+        match="terminal_output_filter_failed",
+    ):
+        service._filter_and_format_api_output(
+            command=_command(jq_filter=".bad"),
+            data={"x": 1},
+            params={"verbose": True},
+        )
     assert service._filter_and_format_api_output(command=_command(), data="text") == "text"
 
 
@@ -268,9 +290,7 @@ def test_advisor_today_formatter_covers_orders_blockers_and_actions() -> None:
     assert "阻断项:" in output
     assert "下一步命令:" in output
     assert (
-        CommandExecutionService._format_advisor_today_output(
-            {"success": True, "data": "bad"}
-        )
+        CommandExecutionService._format_advisor_today_output({"success": True, "data": "bad"})
         == '{\n  "success": true,\n  "data": "bad"\n}'
     )
 
@@ -302,10 +322,12 @@ def test_advisor_query_formatter_covers_dict_text_and_evidence() -> None:
 def test_jq_filter_supports_keys_indexes_and_invalid_paths() -> None:
     service = CommandExecutionService()
     data = {"items": [{"value": 3}], "nested": {"values": [1, 2]}}
-    assert service._apply_jq_filter(data, "items") == data
+    with pytest.raises(ValueError, match="invalid terminal output filter"):
+        service._apply_jq_filter(data, "items")
     assert service._apply_jq_filter(data, ".items[0].value") == 3
     assert service._apply_jq_filter(data["nested"]["values"], ".1") == 2
-    assert service._apply_jq_filter(data, ".missing.value") is None
+    with pytest.raises(ValueError, match="invalid terminal output filter path"):
+        service._apply_jq_filter(data, ".missing.value")
 
 
 def test_runtime_settings_services_apply_visibility_and_prompt_fallback(

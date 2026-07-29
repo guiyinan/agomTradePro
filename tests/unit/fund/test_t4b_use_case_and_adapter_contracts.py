@@ -39,7 +39,7 @@ def _query(rows: list[dict[str, object]]) -> Mock:
 
 def test_screen_funds_uses_explicit_custom_criteria_and_missing_name() -> None:
     repository = Mock()
-    repository.get_fund_type_preferences_by_regime.return_value = []
+    repository.get_fund_preferences_by_regime.return_value = []
     repository.resolve_research_window.return_value = (
         date(2025, 7, 25),
         date(2026, 7, 25),
@@ -82,11 +82,15 @@ def test_screen_funds_uses_explicit_custom_criteria_and_missing_name() -> None:
 
 def test_screen_funds_uses_persisted_regime_defaults_and_reports_absence() -> None:
     repository = Mock()
-    repository.get_fund_type_preferences_by_regime.return_value = []
+    repository.get_fund_preferences_by_regime.return_value = [
+        ("混合型", "成长"),
+        ("股票型", "平衡"),
+        ("混合型", "价值"),
+    ]
     repository.resolve_research_window.return_value = (date.today(), date.today())
     repository.get_persisted_funds_with_performance.return_value = []
     regime_repository = Mock()
-    regime_repository.get_latest_snapshot.return_value = SimpleNamespace(dominant_regime="ME")
+    regime_repository.get_latest_snapshot.return_value = SimpleNamespace(dominant_regime="Recovery")
 
     with patch(
         "apps.fund.application.use_cases.get_regime_repository",
@@ -95,7 +99,7 @@ def test_screen_funds_uses_persisted_regime_defaults_and_reports_absence() -> No
         result = ScreenFundsUseCase(repository).execute(ScreenFundsRequest())
 
     assert result.success is True
-    assert result.regime == "ME"
+    assert result.regime == "Recovery"
     assert result.screening_criteria["fund_types"] == ["混合型", "股票型"]
     assert result.screening_criteria["investment_styles"] == ["成长", "平衡", "价值"]
     assert result.screening_criteria["min_scale"] == "0"
@@ -107,7 +111,7 @@ def test_screen_funds_uses_persisted_regime_defaults_and_reports_absence() -> No
     ):
         failed = ScreenFundsUseCase(repository).execute(ScreenFundsRequest())
     assert failed.success is False
-    assert "No persisted Regime snapshot" in failed.error
+    assert failed.error == "基金筛选失败，请检查 Regime、筛选偏好和本地业绩数据"
 
 
 def test_rank_style_and_sync_use_cases_preserve_repository_contracts() -> None:
@@ -117,7 +121,10 @@ def test_rank_style_and_sync_use_cases_preserve_repository_contracts() -> None:
         date(2026, 1, 1),
     )
     repository.get_persisted_funds_with_performance.return_value = ["market"]
-    repository.get_fund_type_preferences_by_regime.return_value = ["ETF", "stock"]
+    repository.get_fund_preferences_by_regime.return_value = [
+        ("ETF", ""),
+        ("stock", ""),
+    ]
     rank = RankFundsUseCase(repository)
     scores = [SimpleNamespace(rank=index) for index in range(3)]
     rank.screener = Mock()
@@ -154,7 +161,7 @@ def test_style_analysis_distinguishes_missing_fund_holdings_and_exception() -> N
     repository = Mock()
     use_case = AnalyzeFundStyleUseCase(repository)
     repository.get_fund_info.return_value = None
-    assert use_case.execute(AnalyzeFundStyleRequest("missing")).error == "基金 missing 不存在"
+    assert use_case.execute(AnalyzeFundStyleRequest("missing")).error == "基金 MISSING 不存在"
 
     repository.get_fund_info.return_value = SimpleNamespace(fund_name="Fund A")
     repository.get_fund_holdings.return_value = []
@@ -166,7 +173,7 @@ def test_style_analysis_distinguishes_missing_fund_holdings_and_exception() -> N
     repository.get_fund_holdings.side_effect = RuntimeError("repository failed")
     failed = use_case.execute(AnalyzeFundStyleRequest("F1"))
     assert failed.success is False
-    assert failed.error == "repository failed"
+    assert failed.error == "基金风格分析失败，请检查基金与持仓数据"
 
 
 def test_performance_use_case_validates_data_calculates_and_persists() -> None:
@@ -186,6 +193,7 @@ def test_performance_use_case_validates_data_calculates_and_persists() -> None:
 
     nav = [
         SimpleNamespace(nav_date=date(2026, 1, 1), daily_return=None),
+        SimpleNamespace(nav_date=date(2026, 1, 6), daily_return=0.01),
         SimpleNamespace(nav_date=date(2026, 1, 11), daily_return=0.02),
     ]
     repository.get_fund_nav.return_value = nav
@@ -204,11 +212,11 @@ def test_performance_use_case_validates_data_calculates_and_persists() -> None:
     assert result.performance.volatility == 0.3
     assert result.performance.sharpe_ratio == 0.4
     calculator.calculate_annualized_return.assert_called_once_with(0.1, 10)
-    calculator.calculate_volatility.assert_called_once_with([0.02])
+    calculator.calculate_volatility.assert_called_once_with([0.01, 0.02])
     repository.save_fund_performance.assert_called_once_with(result.performance)
 
     repository.save_fund_performance.side_effect = RuntimeError("write failed")
-    assert use_case.execute(request).error == "write failed"
+    assert use_case.execute(request).error == "基金业绩计算失败，请检查日期范围和净值数据"
 
 
 def test_persisted_akshare_adapter_maps_fund_list_info_and_scale() -> None:
@@ -415,7 +423,7 @@ def test_hybrid_adapter_lazy_sources_fallback_and_health_contracts(
     )
 
     assert _raw_fund_list(adapter_with_token).iloc[0]["fund_code"] == "F1"
-    health.record_failure.assert_any_call("akshare_fund", "akshare down")
+    health.record_failure.assert_any_call("akshare_fund", "RuntimeError")
     health.record_success.assert_called_with("tushare_fund")
 
     health.is_healthy.return_value = False
@@ -441,13 +449,12 @@ def test_hybrid_info_and_nav_return_empty_on_unhealthy_or_source_error(
     adapter = HybridFundAdapter()
     adapter._akshare_adapter = Mock()
     health.is_healthy.return_value = False
-    assert adapter.fetch_fund_info_em("unique-unhealthy").empty
-    assert adapter.fetch_fund_nav_em("unique-unhealthy").empty
+    assert adapter.fetch_fund_info_em("000001").empty
+    assert adapter.fetch_fund_nav_em("000001").empty
 
     health.is_healthy.return_value = True
     adapter._akshare_adapter.fetch_fund_info_em.side_effect = RuntimeError("info failed")
     adapter._akshare_adapter.fetch_fund_nav_em.side_effect = RuntimeError("nav failed")
-    assert adapter.fetch_fund_info_em("unique-error").empty
-    assert adapter.fetch_fund_nav_em("unique-error").empty
-    health.record_failure.assert_any_call("akshare_fund", "info failed")
-    health.record_failure.assert_any_call("akshare_fund", "nav failed")
+    assert adapter.fetch_fund_info_em("000002").empty
+    assert adapter.fetch_fund_nav_em("000002").empty
+    health.record_failure.assert_any_call("akshare_fund", "RuntimeError")

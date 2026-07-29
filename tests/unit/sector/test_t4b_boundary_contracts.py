@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pandas as pd
+import pytest
 
 from apps.sector.application.tasks import (
     analyze_sector_rotation,
@@ -29,13 +30,13 @@ def _query(rows: list[dict[str, object]]) -> Mock:
 
 
 def test_update_daily_task_serializes_success_and_contains_setup_failure() -> None:
-    result = SimpleNamespace(success=True, updated_count=12, error=None)
+    result = SimpleNamespace(success=True, updated_count=12, error=None, error_code=None)
     use_case = Mock()
     use_case.execute.return_value = result
 
     with (
-        patch("apps.sector.application.tasks.DjangoSectorRepository"),
-        patch("apps.sector.application.tasks.AKShareSectorAdapter"),
+        patch("apps.sector.application.tasks.get_sector_repository"),
+        patch("apps.sector.application.tasks.get_sector_adapter"),
         patch(
             "apps.sector.application.tasks.UpdateSectorDataUseCase",
             return_value=use_case,
@@ -43,21 +44,23 @@ def test_update_daily_task_serializes_success_and_contains_setup_failure() -> No
     ):
         payload = update_daily_sector_data.run(level="SW2")
 
-    assert payload == {"success": True, "updated_count": 12, "error": None}
+    assert payload == {
+        "success": True,
+        "updated_count": 12,
+        "error": None,
+        "error_code": None,
+    }
     request = use_case.execute.call_args.args[0]
     assert request.level == "SW2"
     assert date.fromisoformat(request.end_date) == date.today()
     assert (date.fromisoformat(request.end_date) - date.fromisoformat(request.start_date)).days == 7
 
     with patch(
-        "apps.sector.application.tasks.DjangoSectorRepository",
+        "apps.sector.application.tasks.get_sector_repository",
         side_effect=RuntimeError("repository unavailable"),
     ):
-        assert update_daily_sector_data.run() == {
-            "success": False,
-            "updated_count": 0,
-            "error": "repository unavailable",
-        }
+        with pytest.raises(RuntimeError, match="repository unavailable"):
+            update_daily_sector_data.run()
 
 
 def test_rotation_task_serializes_scores_and_preserves_business_failure() -> None:
@@ -77,10 +80,16 @@ def test_rotation_task_serializes_scores_and_preserves_business_failure() -> Non
         regime="Recovery",
         analysis_date=date(2026, 7, 25),
         top_sectors=[score],
+        error=None,
+        error_code=None,
+        status="available",
+        data_source="persisted",
+        warning_message=None,
+        warning_detail=None,
     )
 
     with (
-        patch("apps.sector.application.tasks.DjangoSectorRepository"),
+        patch("apps.sector.application.tasks.get_sector_repository"),
         patch(
             "apps.sector.application.tasks.AnalyzeSectorRotationUseCase",
             return_value=use_case,
@@ -103,6 +112,12 @@ def test_rotation_task_serializes_scores_and_preserves_business_failure() -> Non
                 "regime_fit_score": 66.34,
             }
         ],
+        "error": None,
+        "error_code": None,
+        "status": "available",
+        "data_source": "persisted",
+        "warning_message": None,
+        "warning_detail": None,
     }
     request = use_case.execute.call_args.args[0]
     assert request.regime == "Recovery"
@@ -111,28 +126,34 @@ def test_rotation_task_serializes_scores_and_preserves_business_failure() -> Non
 
     use_case.execute.return_value = SimpleNamespace(
         success=False,
+        regime="Recovery",
+        analysis_date=date(2026, 7, 25),
+        top_sectors=[],
         error="insufficient data",
+        error_code="insufficient_data",
+        status="unavailable",
+        data_source="none",
+        warning_message=None,
+        warning_detail=None,
     )
     with (
-        patch("apps.sector.application.tasks.DjangoSectorRepository"),
+        patch("apps.sector.application.tasks.get_sector_repository"),
         patch(
             "apps.sector.application.tasks.AnalyzeSectorRotationUseCase",
             return_value=use_case,
         ),
     ):
-        assert analyze_sector_rotation.run() == {
-            "success": False,
-            "error": "insufficient data",
-        }
+        failed = analyze_sector_rotation.run()
+        assert failed["success"] is False
+        assert failed["error"] == "insufficient data"
+        assert failed["error_code"] == "insufficient_data"
 
     with patch(
-        "apps.sector.application.tasks.DjangoSectorRepository",
+        "apps.sector.application.tasks.get_sector_repository",
         side_effect=RuntimeError("setup failed"),
     ):
-        assert analyze_sector_rotation.run() == {
-            "success": False,
-            "error": "setup failed",
-        }
+        with pytest.raises(RuntimeError, match="setup failed"):
+            analyze_sector_rotation.run()
 
 
 def test_tushare_compatibility_adapter_delegates_and_normalizes_columns() -> None:
@@ -162,8 +183,8 @@ def test_tushare_compatibility_adapter_delegates_and_normalizes_columns() -> Non
 
     delegate.fetch_sector_index_daily.return_value = pd.DataFrame()
     delegate.fetch_all_sector_index_daily.return_value = pd.DataFrame()
-    assert adapter.fetch_sector_index_daily("missing", "a", "b").empty
-    assert adapter.fetch_all_sector_index_daily([], "a", "b").empty
+    assert adapter.fetch_sector_index_daily("801010", "20260701", "20260725").empty
+    assert adapter.fetch_all_sector_index_daily([], "20260701", "20260725").empty
 
 
 def test_tushare_adapter_constructor_builds_internal_delegate() -> None:
@@ -200,7 +221,8 @@ def test_tushare_constituents_handle_unknown_empty_and_normalized_sector() -> No
             constituent_model,
         ),
     ):
-        assert adapter.fetch_sector_constituents("missing.SI").empty
+        with pytest.raises(ValueError, match="sector_code_invalid"):
+            adapter.fetch_sector_constituents("missing.SI")
 
     sector_query.first.return_value = {"sector_code": "801010"}
     with (

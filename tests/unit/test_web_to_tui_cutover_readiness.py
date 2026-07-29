@@ -18,6 +18,8 @@ from scripts.build_web_to_tui_production_telemetry import (
 from scripts.build_web_to_tui_review_snapshot import build_review_snapshot
 from scripts.check_web_to_tui_cutover_readiness import (
     _load_catalog,
+    _normalized_source_bytes,
+    _verified_repo_evidence,
     evaluate_readiness,
     required_route_pages,
     required_task_keys,
@@ -33,7 +35,12 @@ EVIDENCE_PATH = ROOT / "config/tui/migration/web_to_tui_cutover_evidence.v1.json
 def _file_digest(path: Path) -> str:
     """Return the SHA-256 of one synthetic evidence fixture."""
 
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    content = (
+        _normalized_source_bytes(path)
+        if path.suffix.lower() in {".csv", ".md", ".txt"}
+        else path.read_bytes()
+    )
+    return hashlib.sha256(content).hexdigest()
 
 
 def _repository_head() -> str:
@@ -57,7 +64,7 @@ def _repository_commit_with_different_matrix() -> str:
         text=True,
         encoding="utf-8",
     ).splitlines()
-    current_digest = hashlib.sha256(MATRIX_PATH.read_bytes()).digest()
+    current_digest = hashlib.sha256(_normalized_source_bytes(MATRIX_PATH)).digest()
     for commit in commits:
         result = subprocess.run(
             ["git", "show", f"{commit}:{relative_matrix}"],
@@ -386,6 +393,23 @@ def test_checked_in_evidence_is_explicitly_denied() -> None:
     assert gates["route_cleanup_readiness"].passed is True
     assert "covered=108/108" in gates["route_cleanup_readiness"].detail
     assert gates["rollback_drill"].passed is True
+
+
+def test_text_evidence_digest_normalizes_windows_line_endings(tmp_path: Path) -> None:
+    """Checked-in text evidence must verify identically on Windows and Linux."""
+
+    evidence = tmp_path / "review.md"
+    evidence.write_bytes(b"reviewed\r\npassed\r\n")
+    expected = hashlib.sha256(b"reviewed\npassed\n").hexdigest()
+
+    assert (
+        _verified_repo_evidence(
+            evidence.name,
+            expected,
+            root=tmp_path,
+        )
+        == evidence
+    )
 
 
 def test_complete_independent_evidence_allows_cutover(tmp_path: Path) -> None:

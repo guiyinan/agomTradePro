@@ -34,7 +34,7 @@ def test_macro_fetch_converts_only_provider_unavailable_errors() -> None:
     adapter = SimpleNamespace(
         fetch=lambda *_args: (_ for _ in ()).throw(unavailable_type("offline"))
     )
-    with pytest.raises(ConnectionError, match="offline"):
+    with pytest.raises(ConnectionError, match="macro_source_unavailable"):
         adapter_base._fetch_macro_points(adapter, "CN_CPI", date(2024, 1, 1), date(2024, 2, 1))
 
     adapter.fetch = lambda *_args: [1]

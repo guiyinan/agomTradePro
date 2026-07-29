@@ -311,7 +311,7 @@ def test_qlib_queue_trigger_and_inline_failures_release_state(
         lambda universe, day, error: alerts.append(error),
     )
     assert provider._trigger_infer_task("csi300", TARGET_DATE, 10) == "failed"
-    assert alerts == ["queue offline"]
+    assert alerts == ["RuntimeError"]
 
     deleted: list[str] = []
     monkeypatch.setattr(qlib_adapter.cache, "add", lambda *args, **kwargs: True)
@@ -328,7 +328,7 @@ def test_qlib_queue_trigger_and_inline_failures_release_state(
         intended_trade_date=TARGET_DATE,
         top_n=10,
     )
-    assert failed == {"status": "failed", "result": "{'outcome': 'failed'}"}
+    assert failed == {"status": "failed", "error_code": "inline_inference_failed"}
 
     monkeypatch.setattr(
         "apps.alpha.application.tasks.qlib_predict_scores.apply",
@@ -339,7 +339,7 @@ def test_qlib_queue_trigger_and_inline_failures_release_state(
         intended_trade_date=TARGET_DATE,
         top_n=10,
     )
-    assert failed == {"status": "failed", "error": "inline crashed"}
+    assert failed == {"status": "failed", "error_code": "inline_inference_exception"}
     assert len(deleted) == 2
 
 

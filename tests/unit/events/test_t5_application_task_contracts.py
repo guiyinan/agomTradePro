@@ -26,6 +26,7 @@ def test_publish_single_and_batch_events_persist_before_dispatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     event_store = MagicMock()
+    event_store.get_by_id.return_value = None
     event_store.append.side_effect = [True, True, False]
     event_bus = MagicMock()
     monkeypatch.setattr(tasks, "get_event_store", lambda: event_store)
@@ -36,7 +37,7 @@ def test_publish_single_and_batch_events_persist_before_dispatch(
         {"regime": "Recovery"},
         {"source": "test"},
         "event-1",
-        "invalid timestamp",
+        "2026-07-24T00:00:00Z",
         "correlation-1",
         "causation-1",
     )
@@ -73,11 +74,9 @@ def test_replay_events_parses_dates_and_dynamic_handler(
     response = tasks.replay_events_async.run(
         event_type=EventType.REGIME_CHANGED.value,
         since="2026-07-01T00:00:00Z",
-        until="invalid",
+        until=None,
         limit=50,
-        target_handler_class=(
-            "tests.unit.events.test_t5_application_task_contracts.ReplayHandler"
-        ),
+        target_handler_class=("tests.unit.events.test_t5_application_task_contracts.ReplayHandler"),
     )
 
     assert response["success"] is True
@@ -121,8 +120,10 @@ def test_cleanup_tasks_return_failures_without_raising(
     )
     monkeypatch.setattr(tasks, "get_event_store", lambda: failing_store)
     monkeypatch.setattr(tasks, "get_snapshot_store", lambda: failing_store)
-    assert tasks.cleanup_old_events.run()["success"] is False
-    assert tasks.cleanup_old_snapshots.run()["success"] is False
+    with pytest.raises(RuntimeError, match="event cleanup failed"):
+        tasks.cleanup_old_events.run()
+    with pytest.raises(RuntimeError, match="snapshot cleanup failed"):
+        tasks.cleanup_old_snapshots.run()
 
 
 def test_cleanup_snapshots_returns_deleted_count(
@@ -163,9 +164,7 @@ def test_metrics_and_health_tasks_cover_success_zero_total_and_failure(
 
     collected = tasks.collect_event_metrics.run()
     assert collected["success"] is True
-    assert collected["metrics"]["memory"]["success_rate"] == pytest.approx(
-        20 / 21 * 100
-    )
+    assert collected["metrics"]["memory"]["success_rate"] == pytest.approx(20 / 21 * 100)
     assert collected["metrics"]["memory"]["last_event_at"].startswith("2026-07-24")
     assert tasks.event_bus_health_check.run()["is_healthy"] is True
 
@@ -174,7 +173,7 @@ def test_metrics_and_health_tasks_cover_success_zero_total_and_failure(
     assert zero["metrics"]["memory"]["success_rate"] == 0
 
     bus.get_metrics.side_effect = RuntimeError("metrics unavailable")
-    assert tasks.collect_event_metrics.run()["success"] is False
-    health = tasks.event_bus_health_check.run()
-    assert health["success"] is False
-    assert health["is_healthy"] is False
+    with pytest.raises(RuntimeError, match="metrics unavailable"):
+        tasks.collect_event_metrics.run()
+    with pytest.raises(RuntimeError, match="metrics unavailable"):
+        tasks.event_bus_health_check.run()

@@ -4,11 +4,11 @@ import json
 from contextlib import nullcontext
 from datetime import UTC, datetime
 from decimal import Decimal
-from io import BytesIO
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from apps.account.application import tasks
 from apps.account.application.documentation_use_cases import (
@@ -182,7 +182,7 @@ def test_documentation_import_success_by_format(
         _request(
             method="POST",
             post={"format": import_format},
-            files={"file": BytesIO(b"[]")},
+            files={"file": SimpleUploadedFile("docs.json", b"[]")},
         )
     )
 
@@ -203,7 +203,7 @@ def test_documentation_import_rejects_missing_unknown_and_service_error(
         _request(
             method="POST",
             post={"format": "xml"},
-            files={"file": BytesIO(b"<doc />")},
+            files={"file": SimpleUploadedFile("docs.xml", b"<doc />")},
         )
     )
     monkeypatch.setattr(
@@ -215,14 +215,14 @@ def test_documentation_import_rejects_missing_unknown_and_service_error(
         _request(
             method="POST",
             post={"format": "json"},
-            files={"file": BytesIO(b"bad")},
+            files={"file": SimpleUploadedFile("docs.json", b"bad")},
         )
     )
 
     assert missing.status_code == 400
     assert unknown.status_code == 400
-    assert broken.status_code == 500
-    assert json.loads(broken.content)["error"] == "bad json"
+    assert broken.status_code == 400
+    assert json.loads(broken.content)["error"] == "导入文件格式或内容无效"
 
 
 def _analysis() -> SimpleNamespace:

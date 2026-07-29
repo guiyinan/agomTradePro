@@ -46,8 +46,8 @@ def _event(level: PolicyLevel = PolicyLevel.P2) -> PolicyEvent:
 @pytest.mark.parametrize(
     ("exception", "expected_fragment"),
     [
-        (DataFetchError("source offline"), "source offline"),
-        (DatabaseError("database offline"), "Failed to fetch policy level"),
+        (DataFetchError("source offline"), "policy_state_unavailable"),
+        (DatabaseError("database offline"), "policy_state_unavailable"),
     ],
 )
 def test_current_policy_query_converts_expected_data_failures(
@@ -66,10 +66,10 @@ def test_current_policy_query_converts_expected_data_failures(
 @pytest.mark.parametrize(
     ("exception", "expected_prefix"),
     [
-        (DataFetchError("source offline"), "数据处理错误"),
+        (DataFetchError("source offline"), "政策事件数据处理失败"),
         (IntegrityError("duplicate"), "数据一致性错误"),
-        (DatabaseError("database offline"), "数据库错误"),
-        (RuntimeError("unexpected"), "系统错误"),
+        (DatabaseError("database offline"), "政策事件保存失败"),
+        (RuntimeError("unexpected"), "政策事件处理失败"),
     ],
 )
 def test_create_policy_event_classifies_persistence_failures(
@@ -150,7 +150,7 @@ def test_update_policy_event_rejects_mismatch_missing_records_and_repository_fai
         event_date=TARGET_DATE,
         level=PolicyLevel.P2,
         title="updated",
-        description="updated",
+        description="updated policy description with enough evidence",
         evidence_url="https://evidence.test",
     )
     assert "不匹配" in mismatch.errors[0]
@@ -161,7 +161,7 @@ def test_update_policy_event_rejects_mismatch_missing_records_and_repository_fai
         event_date=TARGET_DATE,
         level=PolicyLevel.P2,
         title="updated",
-        description="updated",
+        description="updated policy description with enough evidence",
         evidence_url="https://evidence.test",
     )
     assert missing_id.errors == ["未找到 ID=99 的事件"]
@@ -170,7 +170,7 @@ def test_update_policy_event_rejects_mismatch_missing_records_and_repository_fai
         event_date=TARGET_DATE,
         level=PolicyLevel.P2,
         title="updated",
-        description="updated",
+        description="updated policy description with enough evidence",
         evidence_url="https://evidence.test",
     )
     assert "未找到日期" in missing_date.errors[0]
@@ -182,10 +182,10 @@ def test_update_policy_event_rejects_mismatch_missing_records_and_repository_fai
         event_date=TARGET_DATE,
         level=PolicyLevel.P2,
         title="updated",
-        description="updated",
+        description="updated policy description with enough evidence",
         evidence_url="https://evidence.test",
     )
-    assert failed.errors == ["更新失败: update locked"]
+    assert failed.errors == ["政策事件更新失败"]
 
 
 def test_delete_policy_event_covers_identity_date_and_unsupported_store_boundaries(

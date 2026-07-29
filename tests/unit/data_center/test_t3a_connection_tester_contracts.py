@@ -137,7 +137,7 @@ def test_timeout_wrapper_returns_success_and_probe_error() -> None:
         lambda _config, _logs: (_ for _ in ()).throw(RuntimeError("offline")),
     )
     assert failed.status == "error"
-    assert "offline" in failed.summary
+    assert failed.summary == "Connection test failed (RuntimeError)"
 
 
 def test_timeout_wrapper_handles_queue_timeout(
@@ -195,4 +195,4 @@ def test_public_dispatch_handles_credentials_unsupported_and_unexpected(
     )
     unexpected = connection_tester.run_connection_test(_config("fred"))
     assert unexpected.status == "error"
-    assert "broken probe" in unexpected.summary
+    assert unexpected.summary == "Connection test failed (RuntimeError)"

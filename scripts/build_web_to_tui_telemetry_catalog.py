@@ -34,6 +34,13 @@ class TelemetryCatalog(TypedDict):
     tui_task_keys: list[str]
 
 
+def normalized_source_bytes(path: Path) -> bytes:
+    """Return UTF-8 bytes with Git-compatible LF line endings."""
+
+    text = path.read_text(encoding="utf-8")
+    return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
 def _split_values(raw_value: str) -> list[str]:
     """Split one semicolon-delimited matrix field into non-empty values."""
 
@@ -64,7 +71,7 @@ def _primary_task_key(row: dict[str, str]) -> str:
 def build_catalog(matrix_path: Path) -> TelemetryCatalog:
     """Build a deterministic, low-cardinality telemetry catalog."""
 
-    matrix_bytes = matrix_path.read_bytes()
+    matrix_bytes = normalized_source_bytes(matrix_path)
     with matrix_path.open("r", encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
 

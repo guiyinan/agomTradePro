@@ -182,7 +182,7 @@ def test_default_adapter_factory_isolates_optional_provider_failures(
         MagicMock(return_value=tushare),
     )
     created = composite.create_default_price_adapter("token", "https://example.test")
-    assert created._adapters == [data_center, tushare]
+    assert created._adapters == (data_center, tushare)
 
     monkeypatch.setattr(
         composite,
@@ -194,5 +194,5 @@ def test_default_adapter_factory_isolates_optional_provider_failures(
         MagicMock(side_effect=RuntimeError("tushare offline")),
     )
     empty = composite.create_default_price_adapter("token")
-    assert empty._adapters == []
-    assert composite.create_default_price_adapter()._adapters == []
+    assert empty._adapters == ()
+    assert composite.create_default_price_adapter()._adapters == ()

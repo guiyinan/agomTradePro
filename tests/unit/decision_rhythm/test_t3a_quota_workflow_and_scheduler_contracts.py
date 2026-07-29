@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from django.core.management.base import CommandError
 
 from apps.decision_rhythm.application.decision_quota_use_cases import (
     GetDecisionQueueUseCase,
@@ -348,18 +349,20 @@ def test_scheduler_command_validates_clock_and_persists_enabled_state(
     get_or_create = Mock(return_value=(crontab, True))
     update_or_create = Mock()
     changed = Mock()
+    crontab_type = SimpleNamespace(
+        _meta=SimpleNamespace(fields=[]),
+        objects=SimpleNamespace(get_or_create=get_or_create),
+    )
+    periodic_task_type = SimpleNamespace(
+        objects=SimpleNamespace(update_or_create=update_or_create),
+    )
+    beat_models = SimpleNamespace(
+        CrontabSchedule=crontab_type,
+        PeriodicTask=periodic_task_type,
+        PeriodicTasks=SimpleNamespace(changed=changed),
+    )
     monkeypatch.setattr(command_module.transaction, "atomic", nullcontext)
-    monkeypatch.setattr(
-        command_module.CrontabSchedule,
-        "objects",
-        SimpleNamespace(get_or_create=get_or_create),
-    )
-    monkeypatch.setattr(
-        command_module.PeriodicTask,
-        "objects",
-        SimpleNamespace(update_or_create=update_or_create),
-    )
-    monkeypatch.setattr(command_module.PeriodicTasks, "changed", changed)
+    monkeypatch.setattr(command_module, "import_module", lambda _name: beat_models)
     stdout = StringIO()
     stderr = StringIO()
     command = command_module.Command(stdout=stdout, stderr=stderr)
@@ -370,13 +373,13 @@ def test_scheduler_command_validates_clock_and_persists_enabled_state(
     assert defaults["enabled"] is True
     assert defaults["crontab"] is crontab
     assert '"use_pit": true' in defaults["kwargs"]
-    changed.assert_called_once_with(command_module.PeriodicTask)
+    changed.assert_called_once_with(periodic_task_type)
     assert "enabled @ 22:45" in stdout.getvalue()
 
-    command.handle(hour=-1, minute=45, disable=False)
-    command.handle(hour=22, minute=60, disable=False)
-    assert "--hour must be between 0 and 23" in stderr.getvalue()
-    assert "--minute must be between 0 and 59" in stderr.getvalue()
+    with pytest.raises(CommandError, match="--hour must be between 0 and 23"):
+        command.handle(hour=-1, minute=45, disable=False)
+    with pytest.raises(CommandError, match="--minute must be between 0 and 59"):
+        command.handle(hour=22, minute=60, disable=False)
 
 
 def test_scheduler_command_argument_defaults_are_explicit() -> None:

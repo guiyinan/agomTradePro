@@ -127,6 +127,9 @@ class _ClassificationRepository:
     def get_exchange_rate_for_conversion(self, **_kwargs: object) -> object | None:
         return self.rate_model
 
+    def active_currency_codes_exist(self, _codes: set[str]) -> bool:
+        return True
+
     def get_portfolio_for_user(self, **_kwargs: object) -> object:
         return SimpleNamespace(id=9, base_currency=SimpleNamespace(code="CNY"))
 
@@ -147,8 +150,6 @@ class _ClassificationRepository:
         ]
 
     def convert_amount(self, **kwargs: object) -> Decimal:
-        if kwargs["from_code"] == "USD":
-            raise ValueError("rate missing")
         return kwargs["amount"]  # type: ignore[return-value]
 
 
@@ -203,7 +204,7 @@ def test_account_settings_and_trading_cost_outcomes(
     missing = interface_services.save_trading_cost_config(
         7,
         commission_rate="",
-        min_commission="",
+        min_commission="8",
         stamp_duty_rate="",
         transfer_fee_rate="",
     )

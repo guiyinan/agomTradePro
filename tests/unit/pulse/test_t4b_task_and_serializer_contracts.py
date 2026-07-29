@@ -35,7 +35,7 @@ def test_weekly_pulse_task_reports_business_failure(
 def _snapshot_payload() -> dict[str, object]:
     return {
         "observed_at": date(2026, 7, 25),
-        "regime_context": {"name": "recovery"},
+        "regime_context": "Recovery",
         "composite_score": 0.4,
         "regime_strength": "moderate",
         "transition_warning": False,

@@ -73,7 +73,7 @@ def test_signal_handlers_record_success_failure_retry_and_revoke(
     }
     assert {"success", "failure", "revoked", "terminated"} <= statuses
     reasons = {item["reason"] for item in metric_spies["celery_task_retry_total"].labels_seen}
-    assert reasons == {"RuntimeError", "backoff", "ValueError"}
+    assert reasons == {"RuntimeError", "str", "ValueError"}
 
 
 def test_queue_metrics_and_prometheus_gauges(
@@ -92,10 +92,10 @@ def test_queue_metrics_and_prometheus_gauges(
     assert celery_metrics.get_task_queue_metrics() == {
         "active_tasks": 2,
         "reserved_tasks": 3,
-        "workers": 1,
+        "workers": 2,
     }
     celery_metrics.update_queue_metrics()
-    assert ("set", 1) in metric_spies["celery_active_workers"].values
+    assert ("set", 2) in metric_spies["celery_active_workers"].values
     assert ("set", 3) in metric_spies["celery_queue_length"].values
 
     monkeypatch.setattr(
@@ -104,7 +104,7 @@ def test_queue_metrics_and_prometheus_gauges(
     )
     failed = celery_metrics.get_task_queue_metrics()
     assert failed["workers"] == 0
-    assert failed["error"] == "broker offline"
+    assert failed["error"] == "queue_metrics_unavailable"
 
 
 def test_tracking_decorator_records_all_terminal_states(

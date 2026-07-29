@@ -24,13 +24,10 @@ def _adapter() -> MacroDataAdapter:
 def test_indicator_value_and_series_normalize_missing_and_timestamp_data() -> None:
     """Indicator reads must distinguish missing dates/rows and serialize series."""
     adapter = _adapter()
-    adapter.macro_repository.get_latest_observation_date.return_value = None
+    adapter.macro_repository.get_latest_observation.return_value = None
     assert adapter.get_indicator_value("PMI") is None
 
-    adapter.macro_repository.get_latest_observation_date.return_value = date(2026, 7, 1)
-    adapter.macro_repository.get_by_code_and_date.return_value = None
-    assert adapter.get_indicator_value("PMI") is None
-    adapter.macro_repository.get_by_code_and_date.return_value = SimpleNamespace(value="51.2")
+    adapter.macro_repository.get_latest_observation.return_value = SimpleNamespace(value="51.2")
     assert adapter.get_indicator_value("PMI") == 51.2
 
     adapter.macro_repository.get_series.return_value = [
@@ -156,12 +153,15 @@ def test_function_executor_dispatches_latest_series_and_trend_contracts(
 
     monkeypatch.setattr(adapter, "get_indicator_series", series)
     as_of = date(2026, 7, 25)
-    assert len(
-        executor.execute_function(
-            "SERIES",
-            {"indicator": "PMI", "days": 10, "as_of_date": as_of},
+    assert (
+        len(
+            executor.execute_function(
+                "SERIES",
+                {"indicator": "PMI", "days": 10, "as_of_date": as_of},
+            )
         )
-    ) == 2
+        == 2
+    )
     assert captured[-1] == (date(2026, 7, 15), as_of)
     with pytest.raises(ValueError, match="indicator"):
         executor.execute_function("SERIES", {})

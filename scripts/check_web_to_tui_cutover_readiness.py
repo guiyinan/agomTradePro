@@ -32,9 +32,19 @@ SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 BACKUP_LOCATION_SCHEMES = frozenset({"artifact", "s3", "sftp", "https"})
 LEGACY_URL_POLICIES = frozenset({"redirect_to_tui", "retain", "remove_410", "remove_404"})
+NORMALIZED_TEXT_EVIDENCE_SUFFIXES = frozenset({".csv", ".md", ".txt"})
 REQUIRED_ROUTE_CLOSURE_SCOPES = frozenset(
     {"primary_task", "permission", "empty_state", "error_state", "legacy_url", "rollback"}
 )
+
+
+def _normalized_source_bytes(path: Path) -> bytes:
+    """Return UTF-8 source bytes with Git-compatible LF line endings."""
+
+    text = path.read_text(encoding="utf-8")
+    return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
 DEFECT_QUERY_SCOPE = "created_or_open_during_candidate_window"
 BACKUP_ATTESTATION_VERSION = "web-to-tui-production-registry-backup-attestation.v1"
 REVIEW_SNAPSHOT_VERSION = "web-to-tui-cutover-review-snapshot.v1"
@@ -228,7 +238,12 @@ def _verified_repo_evidence(
     if path is None or not _valid_sha256(digest):
         return None
     expected = str(digest).strip()
-    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    content = (
+        _normalized_source_bytes(path)
+        if path.suffix.lower() in NORMALIZED_TEXT_EVIDENCE_SUFFIXES
+        else path.read_bytes()
+    )
+    actual = hashlib.sha256(content).hexdigest()
     return path if actual == expected else None
 
 
@@ -707,7 +722,7 @@ def evaluate_readiness(
 ) -> ReadinessResult:
     """Evaluate every M5 cutover requirement against current evidence."""
 
-    matrix_bytes = matrix_path.read_bytes()
+    matrix_bytes = _normalized_source_bytes(matrix_path)
     matrix_sha256 = hashlib.sha256(matrix_bytes).hexdigest()
     catalog_payload = _load_object(catalog_path)
     catalog = _load_catalog(catalog_path)

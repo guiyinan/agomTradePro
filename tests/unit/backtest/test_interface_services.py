@@ -12,8 +12,8 @@ def test_load_backtest_list_context_uses_one_repository_snapshot(
 ) -> None:
     """The page context keeps list and statistics queries behind the repository."""
     repository = SimpleNamespace(
-        get_all_backtests=lambda *, limit: [{"id": 1, "limit": limit}],
-        get_statistics=lambda: {"completed": 1},
+        get_all_backtests=lambda *, limit, user_id: [{"id": 1, "limit": limit, "user_id": user_id}],
+        get_statistics=lambda *, user_id: {"completed": 1, "user_id": user_id},
     )
     monkeypatch.setattr(
         interface_services,
@@ -21,11 +21,11 @@ def test_load_backtest_list_context_uses_one_repository_snapshot(
         lambda: repository,
     )
 
-    context = interface_services.load_backtest_list_context(limit=7)
+    context = interface_services.load_backtest_list_context(user_id=5, limit=7)
 
     assert context == {
-        "backtests": [{"id": 1, "limit": 7}],
-        "stats": {"completed": 1},
+        "backtests": [{"id": 1, "limit": 7, "user_id": 5}],
+        "stats": {"completed": 1, "user_id": 5},
     }
 
 
@@ -37,11 +37,13 @@ def test_backtest_exists_preserves_repository_presence_semantics(
     monkeypatch.setattr(
         interface_services,
         "get_backtest_repository",
-        lambda: SimpleNamespace(get_backtest_by_id=rows.get),
+        lambda: SimpleNamespace(
+            get_backtest_by_id=lambda backtest_id, *, user_id: rows.get(backtest_id)
+        ),
     )
 
-    assert interface_services.backtest_exists(7) is True
-    assert interface_services.backtest_exists(8) is False
+    assert interface_services.backtest_exists(7, user_id=5) is True
+    assert interface_services.backtest_exists(8, user_id=5) is False
 
 
 def test_load_backtest_detail_context_handles_missing_and_completed_rows(
@@ -52,7 +54,7 @@ def test_load_backtest_detail_context_handles_missing_and_completed_rows(
     class FakeRepository:
         row = None
 
-        def get_backtest_by_id(self, _backtest_id: int):
+        def get_backtest_by_id(self, _backtest_id: int, *, user_id: int):
             return self.row
 
         @staticmethod
@@ -66,10 +68,10 @@ def test_load_backtest_detail_context_handles_missing_and_completed_rows(
         lambda: repository,
     )
 
-    assert interface_services.load_backtest_detail_context(99) is None
+    assert interface_services.load_backtest_detail_context(99, user_id=5) is None
 
     repository.row = SimpleNamespace(id=7, status="completed")
-    context = interface_services.load_backtest_detail_context(7)
+    context = interface_services.load_backtest_detail_context(7, user_id=5)
 
     assert context == {
         "backtest": repository.row,

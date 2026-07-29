@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -10,6 +10,7 @@ import pytest
 from django.utils import timezone
 
 from apps.backtest.application import tasks
+from core.exceptions import BusinessLogicError, ResourceNotFoundError
 
 
 def _config() -> dict[str, object]:
@@ -27,7 +28,7 @@ def test_run_backtest_task_persists_success_and_exercises_default_readers(
 ) -> None:
     repository = MagicMock()
     repository.get_backtest_by_id.return_value = SimpleNamespace(id=7)
-    monkeypatch.setattr(tasks, "DjangoBacktestRepository", lambda: repository)
+    monkeypatch.setattr(tasks, "get_backtest_repository", lambda: repository)
     snapshot = SimpleNamespace(
         dominant_regime="Recovery",
         confidence=0.8,
@@ -37,14 +38,17 @@ def test_run_backtest_task_persists_success_and_exercises_default_readers(
     )
     monkeypatch.setattr(
         tasks,
-        "get_regime_repository",
-        lambda: SimpleNamespace(get_regime_by_date=lambda _date: snapshot),
+        "build_default_regime_reader",
+        lambda: lambda _date: {
+            "dominant_regime": snapshot.dominant_regime,
+            "confidence": snapshot.confidence,
+        },
     )
     price_adapter = SimpleNamespace(get_price=lambda _asset, _date: 12.5)
     monkeypatch.setattr(
         tasks,
-        "create_default_price_adapter",
-        MagicMock(return_value=price_adapter),
+        "build_default_price_reader",
+        MagicMock(return_value=price_adapter.get_price),
     )
     from shared.config import secrets
 
@@ -89,37 +93,23 @@ def test_run_backtest_task_returns_failed_outcome_for_missing_record(
 ) -> None:
     repository = MagicMock()
     repository.get_backtest_by_id.return_value = None
-    monkeypatch.setattr(tasks, "DjangoBacktestRepository", lambda: repository)
-    monkeypatch.setattr(tasks.run_backtest_task, "retry", MagicMock(side_effect=RuntimeError))
+    monkeypatch.setattr(tasks, "get_backtest_repository", lambda: repository)
 
-    response = tasks.run_backtest_task.run(404, _config())
-
-    assert response == {
-        "backtest_id": 404,
-        "status": "failed",
-        "error": "Backtest 404 not found",
-    }
-    repository.update_status.assert_called_once_with(
-        404, "failed", "Backtest 404 not found"
-    )
+    with pytest.raises(ResourceNotFoundError, match="Backtest 404 not found"):
+        tasks.run_backtest_task.run(404, _config())
+    repository.update_status.assert_not_called()
 
 
 def test_cleanup_old_backtests_deletes_only_completed_expired_records(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    old = timezone.now() - timedelta(days=100)
-    recent = timezone.now() - timedelta(days=1)
     repository = MagicMock()
-    repository.get_all_backtests.return_value = [
-        SimpleNamespace(id=1, status="completed", created_at=old),
-        SimpleNamespace(id=2, status="running", created_at=old),
-        SimpleNamespace(id=3, status="completed", created_at=recent),
-    ]
-    repository.delete_backtest.return_value = True
-    monkeypatch.setattr(tasks, "DjangoBacktestRepository", lambda: repository)
+    repository.delete_completed_before.return_value = 1
+    monkeypatch.setattr(tasks, "get_backtest_repository", lambda: repository)
 
     assert tasks.cleanup_old_backtests.run(90) == 1
-    repository.delete_backtest.assert_called_once_with(1)
+    repository.delete_completed_before.assert_called_once()
+    assert repository.delete_completed_before.call_args.args[0] < timezone.now()
 
 
 def test_generate_report_rejects_missing_or_incomplete_backtests(
@@ -127,13 +117,13 @@ def test_generate_report_rejects_missing_or_incomplete_backtests(
 ) -> None:
     repository = MagicMock()
     repository.get_backtest_by_id.return_value = None
-    monkeypatch.setattr(tasks, "DjangoBacktestRepository", lambda: repository)
-    assert tasks.generate_backtest_report.run(1) == {"error": "Backtest 1 not found"}
+    monkeypatch.setattr(tasks, "get_backtest_repository", lambda: repository)
+    with pytest.raises(ResourceNotFoundError, match="Backtest 1 not found"):
+        tasks.generate_backtest_report.run(1)
 
     repository.get_backtest_by_id.return_value = SimpleNamespace(status="running")
-    assert tasks.generate_backtest_report.run(1) == {
-        "error": "Backtest 1 is not completed"
-    }
+    with pytest.raises(BusinessLogicError, match="Backtest 1 is not completed"):
+        tasks.generate_backtest_report.run(1)
 
 
 def test_generate_report_and_analysis_helpers_summarize_results(
@@ -168,7 +158,7 @@ def test_generate_report_and_analysis_helpers_summarize_results(
             assert backtest.status == "completed"
             return domain_result
 
-    monkeypatch.setattr(tasks, "DjangoBacktestRepository", FakeRepository)
+    monkeypatch.setattr(tasks, "get_backtest_repository", FakeRepository)
 
     report = tasks.generate_backtest_report.run(1)
 

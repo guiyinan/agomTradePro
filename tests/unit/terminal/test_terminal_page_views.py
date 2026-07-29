@@ -74,18 +74,10 @@ def test_staff_or_superuser_can_open_terminal_config(
     client,
     request,
     user_fixture,
-    monkeypatch,
 ) -> None:
-    monkeypatch.setattr(
-        "apps.terminal.interface.views.get_terminal_config_page_context",
-        lambda: {
-            "page_title": "Terminal Command Config",
-            "commands": [],
-            "categories": {},
-        },
-    )
     client.force_login(request.getfixturevalue(user_fixture))
 
     response = client.get("/terminal/config/")
 
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.url == "/tui/?screen=ai-ops.terminal&action=terminal.agent_chat"

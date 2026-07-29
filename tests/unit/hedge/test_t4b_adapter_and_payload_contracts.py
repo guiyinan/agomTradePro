@@ -12,7 +12,7 @@ from apps.hedge.infrastructure import adapters
 
 
 def test_base_adapter_contract_is_abstract_by_behavior() -> None:
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(TypeError, match="Protocols cannot be instantiated"):
         adapters.HedgeDataSource().get_asset_prices(
             "510300",
             date(2026, 7, 25),
@@ -55,13 +55,13 @@ def test_persisted_price_adapters_return_ordered_tail_empty_and_failure() -> Non
     repository.get_bars.return_value = []
     assert tushare.get_asset_prices("510300", date(2026, 7, 25)) is None
     repository.get_bars.side_effect = RuntimeError("store unavailable")
-    assert tushare.get_asset_prices("510300", date(2026, 7, 25)) is None
+    with pytest.raises(RuntimeError, match="store unavailable"):
+        tushare.get_asset_prices("510300", date(2026, 7, 25))
 
     repository.get_bars.side_effect = None
     repository.get_bars.return_value = bars
     akshare = adapters.AkshareHedgeAdapter.__new__(adapters.AkshareHedgeAdapter)
     akshare._repo = repository
-    assert akshare._convert_to_symbol("510300") == "510300"
     assert akshare.get_asset_prices("510300", date(2026, 7, 25), days=5) == [
         3.0,
         2.0,
@@ -70,29 +70,33 @@ def test_persisted_price_adapters_return_ordered_tail_empty_and_failure() -> Non
     repository.get_bars.return_value = []
     assert akshare.get_asset_prices("510300", date(2026, 7, 25)) is None
     repository.get_bars.side_effect = ValueError("malformed")
-    assert akshare.get_asset_prices("510300", date(2026, 7, 25)) is None
+    with pytest.raises(ValueError, match="malformed"):
+        akshare.get_asset_prices("510300", date(2026, 7, 25))
 
 
 def test_cache_helpers_contain_cache_backend_failures() -> None:
     cache = Mock()
-    with patch("django.core.cache.cache", cache):
-        adapters._cache_hedge_prices("510300", [1.0, 2.0])
-        cache.set.assert_called_once_with(
-            "hedge:prices:510300",
-            [1.0, 2.0],
-            timeout=86400,
-        )
-        cache.get.return_value = [2.0]
-        assert adapters._get_cached_hedge_prices("510300") == [2.0]
+    end_date = date(2026, 7, 25)
+    cache.get.return_value = {
+        "asset_code": "510300",
+        "end_date": end_date.isoformat(),
+        "days": 60,
+        "prices": [1.0, 2.0],
+    }
+    with patch.object(adapters, "cache", cache):
+        adapters._cache_hedge_prices("510300", end_date, 60, [1.0, 2.0])
+        assert cache.set.call_args.kwargs["timeout"] == 86400
+        assert cache.set.call_args.args[0].startswith("hedge:prices:v2:")
+        assert adapters._get_cached_hedge_prices("510300", end_date, 60) == [1.0, 2.0]
 
     cache.set.side_effect = RuntimeError("cache down")
     cache.get.side_effect = RuntimeError("cache down")
-    with patch("django.core.cache.cache", cache):
-        adapters._cache_hedge_prices("510300", [1.0])
-        assert adapters._get_cached_hedge_prices("510300") is None
+    with patch.object(adapters, "cache", cache):
+        adapters._cache_hedge_prices("510300", end_date, 60, [1.0])
+        assert adapters._get_cached_hedge_prices("510300", end_date, 60) is None
 
 
-def test_cached_adapter_uses_history_then_realtime_then_none() -> None:
+def test_cached_adapter_uses_only_exact_historical_cache() -> None:
     adapter = adapters.CachedHedgeAdapter()
 
     with (
@@ -100,34 +104,26 @@ def test_cached_adapter_uses_history_then_realtime_then_none() -> None:
             "apps.hedge.infrastructure.adapters._get_cached_hedge_prices",
             return_value=[1.0, 2.0, 3.0],
         ),
-        patch.object(adapter, "_get_realtime_price") as realtime,
     ):
         assert adapter.get_asset_prices(
             "510300",
             date(2026, 7, 25),
             days=2,
-        ) == [2.0, 3.0]
-        realtime.assert_not_called()
+        ) == [1.0, 2.0, 3.0]
 
     with (
         patch(
             "apps.hedge.infrastructure.adapters._get_cached_hedge_prices",
             return_value=[],
         ),
-        patch.object(adapter, "_get_realtime_price", return_value=4.5),
     ):
-        assert adapter.get_asset_prices(
-            "510300",
-            date(2026, 7, 25),
-            days=3,
-        ) == [4.5, 4.5, 4.5]
+        assert adapter.get_asset_prices("510300", date(2026, 7, 25), days=3) == []
 
     with (
         patch(
             "apps.hedge.infrastructure.adapters._get_cached_hedge_prices",
             return_value=None,
         ),
-        patch.object(adapter, "_get_realtime_price", return_value=None),
     ):
         assert (
             adapter.get_asset_prices(
@@ -136,22 +132,6 @@ def test_cached_adapter_uses_history_then_realtime_then_none() -> None:
             )
             is None
         )
-
-
-def test_realtime_price_lookup_validates_positive_price_and_contains_errors() -> None:
-    repository = Mock()
-    with patch(
-        "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository",
-        return_value=repository,
-    ):
-        repository.get_latest_price.return_value = SimpleNamespace(price=3.2)
-        assert adapters.CachedHedgeAdapter._get_realtime_price("510300") == 3.2
-        repository.get_latest_price.return_value = SimpleNamespace(price=0)
-        assert adapters.CachedHedgeAdapter._get_realtime_price("510300") is None
-        repository.get_latest_price.return_value = None
-        assert adapters.CachedHedgeAdapter._get_realtime_price("510300") is None
-        repository.get_latest_price.side_effect = RuntimeError("redis down")
-        assert adapters.CachedHedgeAdapter._get_realtime_price("510300") is None
 
 
 def test_failover_skips_errors_caches_primary_results_and_handles_exhaustion() -> None:
@@ -168,7 +148,12 @@ def test_failover_skips_errors_caches_primary_results_and_handles_exhaustion() -
             "510300",
             date(2026, 7, 25),
         ) == [3.0, 4.0]
-        cache.assert_called_once_with("510300", [3.0, 4.0])
+        cache.assert_called_once_with(
+            "510300",
+            date(2026, 7, 25),
+            60,
+            [3.0, 4.0],
+        )
 
     first.get_asset_prices.side_effect = RuntimeError("primary failed")
     second.get_asset_prices.side_effect = RuntimeError("secondary failed")

@@ -32,7 +32,12 @@ def _request(
         query_params=query or {},
         method=method,
         POST=data if isinstance(data, dict) else {},
-        user=SimpleNamespace(id=1),
+        user=SimpleNamespace(
+            id=1,
+            is_active=True,
+            is_staff=True,
+            is_authenticated=True,
+        ),
     )
 
 
@@ -146,7 +151,10 @@ def test_json_suggest_validates_and_parses_ai_results(
         "apps.ai_provider.application.chat_completion.generate_chat_completion",
         lambda **_kwargs: {"status": "failed", "error_message": "down"},
     )
-    assert view.post(_request(data={"target": "policy", "requirement": "保守"})).data["fallback"] is True
+    assert (
+        view.post(_request(data={"target": "policy", "requirement": "保守"})).data["fallback"]
+        is True
+    )
 
     monkeypatch.setattr(
         "apps.ai_provider.application.chat_completion.generate_chat_completion",
@@ -156,17 +164,19 @@ def test_json_suggest_validates_and_parses_ai_results(
             "provider_used": "test",
         },
     )
-    assert view.post(_request(data={"target": "portfolio", "requirement": "分散"})).data[
-        "fallback"
-    ] is True
+    assert (
+        view.post(_request(data={"target": "portfolio", "requirement": "分散"})).data["fallback"]
+        is True
+    )
 
     monkeypatch.setattr(
         "apps.ai_provider.application.chat_completion.generate_chat_completion",
         lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("provider down")),
     )
-    assert view.post(_request(data={"target": "regime", "requirement": "复苏"})).data[
-        "fallback"
-    ] is True
+    assert (
+        view.post(_request(data={"target": "regime", "requirement": "复苏"})).data["fallback"]
+        is True
+    )
 
 
 def test_json_parser_handles_plain_fenced_embedded_and_invalid_payloads() -> None:
@@ -274,9 +284,7 @@ def test_universe_viewset_validation_success_and_errors() -> None:
 
     assert view.list(_request(query={"limit": "bad"})).status_code == 400
     assert view.list(_request(query={"policy_level": "bad"})).status_code == 400
-    assert view.list(_request(query={"regime": "Recovery", "policy_level": 2})).data[
-        "count"
-    ] == 1
+    assert view.list(_request(query={"regime": "Recovery", "policy_level": 2})).data["count"] == 1
     assert view.retrieve(_request(), None).status_code == 400
     assert view.retrieve(_request(), "missing").status_code == 404
     assert view.retrieve(_request(), "s1").data["result"] == {"snapshot_id": "s1"}
@@ -332,14 +340,15 @@ def test_template_activate_success_and_non_post_redirect(
         lambda target: SimpleNamespace(status_code=302, url=target),
     )
     monkeypatch.setattr(view_module.messages, "success", MagicMock())
-    service = SimpleNamespace(
-        activate_config=lambda _id: SimpleNamespace(config_id="cfg")
-    )
+    service = SimpleNamespace(activate_config=lambda _id: SimpleNamespace(config_id="cfg"))
     monkeypatch.setattr(view_module, "get_beta_gate_config_query_service", lambda: service)
     monkeypatch.setattr(view_module.transaction, "atomic", nullcontext)
 
     assert view_module.beta_gate_config_activate_view(_request(), "cfg").status_code == 302
-    assert view_module.beta_gate_config_activate_view(
-        _request(method="POST"),
-        "cfg",
-    ).status_code == 302
+    assert (
+        view_module.beta_gate_config_activate_view(
+            _request(method="POST"),
+            "cfg",
+        ).status_code
+        == 302
+    )

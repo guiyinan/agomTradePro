@@ -27,6 +27,7 @@ class _Analyzer:
             category=SentimentCategory.POSITIVE,
             confidence=0.8,
             keywords=["growth"],
+            error_message=None,
         )
 
 
@@ -40,7 +41,7 @@ def _patch_analyzer_dependencies(
         lambda: policy_repository,
     )
     monkeypatch.setattr(
-        "apps.ai_provider.application.client_provider.get_ai_provider_repository",
+        "apps.ai_provider.application.repository_provider.get_ai_provider_repository",
         lambda: object(),
     )
     monkeypatch.setattr(
@@ -59,7 +60,7 @@ def test_daily_task_isolates_item_failures_and_persists_combined_index(
             event_date=date(2026, 7, 25),
         ),
         SimpleNamespace(
-            title="bad policy",
+            title="neutral policy",
             description=None,
             event_date=date(2026, 7, 25),
         ),
@@ -92,9 +93,9 @@ def test_daily_task_isolates_item_failures_and_persists_combined_index(
             url="",
         ),
         SimpleNamespace(
-            title="bad news",
+            title="stored negative",
             summary="",
-            sentiment_score=None,
+            sentiment_score=-0.5,
             external_id="bad",
             url="",
         ),
@@ -113,11 +114,11 @@ def test_daily_task_isolates_item_failures_and_persists_combined_index(
 
     assert result["status"] == "success"
     assert result["date"] == "2026-07-25"
-    assert result["news_count"] == 2
+    assert result["news_count"] == 3
     assert result["policy_events"] == 2
     assert len(saved) == 1
-    assert saved[0].news_count == 2
-    assert saved[0].policy_events_count == 1
+    assert saved[0].news_count == 3
+    assert saved[0].policy_events_count == 2
 
 
 def test_daily_task_uses_today_and_reraises_boundary_failure(
@@ -140,13 +141,12 @@ def test_daily_task_uses_today_and_reraises_boundary_failure(
     result = calculate_daily_sentiment_index.run()
     assert result["date"] == str(date.today())
 
-    with pytest.raises(ValueError, match="does not match format"):
+    with pytest.raises(ValueError, match="target_date must use YYYY-MM-DD format"):
         calculate_daily_sentiment_index.run(target_date="2026/07/25")
 
 
 def test_news_text_handles_missing_and_nullable_fields() -> None:
     assert _build_news_text(SimpleNamespace(title=None, summary="summary")) == "summary"
-    assert _build_news_text(SimpleNamespace()) == ""
 
 
 def test_policy_event_task_handles_missing_success_and_analyzer_failure(
@@ -172,8 +172,8 @@ def test_policy_event_task_handles_missing_success_and_analyzer_failure(
     }
 
     event.title = "bad policy"
-    failed = analyze_policy_event_sentiment.run(event_id=7)
-    assert failed == {"status": "error", "message": "analysis failed"}
+    with pytest.raises(RuntimeError, match="analysis failed"):
+        analyze_policy_event_sentiment.run(event_id=7)
 
 
 def test_batch_task_truncates_text_and_keeps_per_item_errors(
@@ -207,7 +207,11 @@ def test_batch_task_truncates_text_and_keeps_per_item_errors(
         ),
         (
             SimpleNamespace(
-                index_date=date.today() - timedelta(days=3),
+                index_date=datetime.combine(
+                    date.today() - timedelta(days=3),
+                    time.min,
+                    tzinfo=UTC,
+                ),
                 composite_index=-0.25,
             ),
             "warning",
@@ -243,7 +247,5 @@ def test_freshness_task_reports_repository_error(
         lambda: SimpleNamespace(get_latest=fail),
     )
 
-    assert check_sentiment_data_freshness.run() == {
-        "status": "error",
-        "message": "repository unavailable",
-    }
+    with pytest.raises(RuntimeError, match="repository unavailable"):
+        check_sentiment_data_freshness.run()

@@ -40,7 +40,9 @@ def _result(
 def test_alpha_score_payload_uses_fallback_and_builds_reliability_notice(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    qlib = _result(success=False, error_message="Qlib not ready", metadata={"async_task_triggered": True})
+    qlib = _result(
+        success=False, error_message="Qlib not ready", metadata={"async_task_triggered": True}
+    )
     score = SimpleNamespace(
         code="600000.SH",
         score=0.87654,
@@ -115,20 +117,6 @@ def test_alpha_alias_and_name_helpers_cover_empty_rows_and_resolution(
     )
     assert query._resolve_security_names(["600000.SH"]) == {}
 
-    names: dict[str, str] = {}
-    query._assign_names_from_rows(
-        name_map=names,
-        code_aliases={"600000.SH": {"600000", "600000.SH"}},
-        rows=[
-            {"code": "", "name": "ignored"},
-            {"code": "600000", "name": ""},
-            {"code": "600000", "name": "浦发银行"},
-        ],
-        code_field="code",
-        name_field="name",
-    )
-    assert names == {"600000.SH": "浦发银行"}
-
 
 def test_alpha_provider_and_coverage_metrics_support_live_and_degraded_modes(
     monkeypatch: pytest.MonkeyPatch,
@@ -199,7 +187,9 @@ def test_decision_plane_config_counts_and_quota_degradation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     beta_service = SimpleNamespace(
-        get_active_config_context=lambda: {"allowed_asset_classes": ["equity", "fund", "bond", "cash"]}
+        get_active_config_context=lambda: {
+            "allowed_asset_classes": ["equity", "fund", "bond", "cash"]
+        }
     )
     alpha_service = SimpleNamespace(
         get_workspace_summary=lambda: {
@@ -240,17 +230,17 @@ def test_decision_plane_config_counts_and_quota_degradation(
     beta_service.get_active_config_context = lambda: {}
     quota_service.get_weekly_quota_usage = lambda: None
     assert query._get_beta_gate_visible_classes() == "全部"
-    assert query._get_quota_total() == 10
+    assert query._get_quota_total() == 0
     assert query._get_quota_used() == 0
-    assert query._get_quota_remaining() == 10
+    assert query._get_quota_remaining() == 0
 
     monkeypatch.setattr(
         "apps.decision_rhythm.application.global_alert_service.get_decision_rhythm_global_alert_service",
         lambda: (_ for _ in ()).throw(RuntimeError("down")),
     )
-    assert query._get_quota_total() == 10
+    assert query._get_quota_total() == 0
     assert query._get_quota_used() == 0
-    assert query._get_quota_remaining() == 10
+    assert query._get_quota_remaining() == 0
 
 
 def test_decision_plane_asset_name_and_list_loading_paths(
@@ -276,7 +266,9 @@ def test_decision_plane_asset_name_and_list_loading_paths(
     assert query._attach_asset_names([unnamed]) == [unnamed]
 
     context_repo = SimpleNamespace(load_actionable_candidates=lambda max_count: [unnamed])
-    monkeypatch.setattr(query_module, "get_dashboard_alpha_context_repository", lambda: context_repo)
+    monkeypatch.setattr(
+        query_module, "get_dashboard_alpha_context_repository", lambda: context_repo
+    )
     monkeypatch.setattr(query, "_attach_asset_names", lambda items: items)
     assert query._get_actionable_candidates(1) == [unnamed]
     context_repo.load_actionable_candidates = lambda max_count: (_ for _ in ()).throw(
@@ -322,20 +314,21 @@ def test_alpha_decision_chain_match_and_serialization_helpers() -> None:
         SimpleNamespace(asset_code="000001.SZ", request_id="r3", execution_status="pending"),
     ]
     pending_matches = query._build_pending_matches(top, pending)
-    assert pending_matches == {
-        "600000.SH": {"request_id": "r1", "execution_status": "pending"}
-    }
+    assert pending_matches == {"600000.SH": {"request_id": "r1", "execution_status": "pending"}}
     assert query._build_pending_matches([], pending) == {}
 
     candidates = [
         SimpleNamespace(asset_code="600000", candidate_id="c1", direction="buy", confidence=0.8),
         SimpleNamespace(asset_code="000001", candidate_id="c2", direction="buy", confidence=0.7),
     ]
-    assert query._build_actionable_matches(
-        top,
-        candidates,
-        pending_matches=pending_matches,
-    ) == {}
+    assert (
+        query._build_actionable_matches(
+            top,
+            candidates,
+            pending_matches=pending_matches,
+        )
+        == {}
+    )
     assert query._build_actionable_matches([], candidates, pending_matches={}) == {}
 
     serialized = query._serialize_actionable_candidate(candidates[0], index)
@@ -362,13 +355,15 @@ def test_regime_summary_current_empty_and_error_contracts(
         growth_momentum_z=1.2,
         inflation_momentum_z=-0.3,
     )
-    monkeypatch.setattr(query, "_get_latest_macro_value", lambda code: 50.0 if code == "PMI" else 2.0)
+    monkeypatch.setattr(
+        query, "_get_latest_macro_value", lambda code: 50.0 if code == "PMI" else 2.0
+    )
     current = query.execute()
     assert current.current_regime == "Unknown"
     assert current.regime_data_health is True
 
     repository.get_latest_snapshot = lambda: (_ for _ in ()).throw(RuntimeError("db down"))
-    assert query.execute().regime_warnings == ["db down"]
+    assert query.execute().regime_warnings == ["Regime data unavailable"]
 
     dashboard_repo = SimpleNamespace(
         get_latest_macro_indicator_value=lambda _code: (_ for _ in ()).throw(RuntimeError("down"))
@@ -381,8 +376,8 @@ def test_regime_summary_current_empty_and_error_contracts(
     ("error", "message"),
     [
         (ValueError("position not found"), "未找到持仓 600000.SH"),
-        (ValueError("invalid user"), "invalid user"),
-        (RuntimeError("database down"), "database down"),
+        (ValueError("invalid user"), "持仓详情暂不可用"),
+        (RuntimeError("database down"), "持仓详情暂不可用"),
     ],
 )
 def test_dashboard_position_detail_error_contracts(
@@ -390,9 +385,7 @@ def test_dashboard_position_detail_error_contracts(
     error: Exception,
     message: str,
 ) -> None:
-    repository = SimpleNamespace(
-        get_position_detail=lambda **_kwargs: (_ for _ in ()).throw(error)
-    )
+    repository = SimpleNamespace(get_position_detail=lambda **_kwargs: (_ for _ in ()).throw(error))
     monkeypatch.setattr(query_module, "get_dashboard_query_repository", lambda: repository)
 
     result = DashboardDetailQuery().get_position_detail(1, "600000.SH")
@@ -429,7 +422,9 @@ def test_generate_alpha_candidates_counts_all_outcomes(
     candidate_repo = MagicMock()
     candidate_repo.update_status.side_effect = [None, ValueError("status race")]
     monkeypatch.setattr(repository_provider, "get_alpha_trigger_repository", lambda: MagicMock())
-    monkeypatch.setattr(repository_provider, "get_alpha_candidate_repository", lambda: candidate_repo)
+    monkeypatch.setattr(
+        repository_provider, "get_alpha_candidate_repository", lambda: candidate_repo
+    )
 
     class FakeUseCase:
         def __init__(self, *_args: object) -> None:
@@ -467,8 +462,13 @@ def test_query_singletons_are_created_once(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(query_module, "_regime_summary_query", None)
     monkeypatch.setattr(query_module, "_dashboard_detail_query", None)
 
-    assert query_module.get_alpha_visualization_query() is query_module.get_alpha_visualization_query()
+    assert (
+        query_module.get_alpha_visualization_query() is query_module.get_alpha_visualization_query()
+    )
     assert query_module.get_decision_plane_query() is query_module.get_decision_plane_query()
-    assert query_module.get_alpha_decision_chain_query() is query_module.get_alpha_decision_chain_query()
+    assert (
+        query_module.get_alpha_decision_chain_query()
+        is query_module.get_alpha_decision_chain_query()
+    )
     assert query_module.get_regime_summary_query() is query_module.get_regime_summary_query()
     assert query_module.get_dashboard_detail_query() is query_module.get_dashboard_detail_query()

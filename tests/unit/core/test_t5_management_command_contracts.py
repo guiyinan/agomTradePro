@@ -6,6 +6,7 @@ import json
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 from django.core.management.base import CommandError, OutputWrapper
@@ -93,10 +94,26 @@ def test_cache_warmup_success_empty_and_failure_paths(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cached: list[tuple[str, object]] = []
+    cache_state: dict[str, object] = {}
+
+    def set_cache(key: str, value: object, **_kwargs: object) -> None:
+        cached.append((key, value))
+        cache_state[key] = value
+
     monkeypatch.setattr(
         warmup_cache.cache,
         "set",
-        lambda key, value, **_kwargs: cached.append((key, value)),
+        set_cache,
+    )
+    monkeypatch.setattr(
+        warmup_cache.cache,
+        "get",
+        lambda key, default=None: cache_state.get(key, default),
+    )
+    monkeypatch.setattr(
+        warmup_cache.cache,
+        "delete",
+        lambda key: cache_state.pop(key, None) is not None,
     )
     monkeypatch.setattr(
         "apps.regime.application.query_services.get_latest_regime_cache_payload",
@@ -126,7 +143,7 @@ def test_cache_warmup_success_empty_and_failure_paths(
         "apps.regime.application.query_services.get_latest_regime_cache_payload",
         lambda: None,
     )
-    command._warmup_regime()
+    command.handle(only="regime", allow_empty=True)
     assert "SKIP" in stdout.getvalue()
 
     monkeypatch.setattr(
@@ -137,46 +154,32 @@ def test_cache_warmup_success_empty_and_failure_paths(
         "apps.alpha.application.query_services.list_recent_alpha_score_cache_payloads",
         lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("alpha unavailable")),
     )
-    command._warmup_macro()
-    command._warmup_alpha()
-    assert "FAIL" in stdout.getvalue()
+    with pytest.raises(CommandError, match="macro cache warmup preparation failed"):
+        command.handle(only="macro")
+    with pytest.raises(CommandError, match="alpha cache warmup preparation failed"):
+        command.handle(only="alpha")
 
 
 def test_init_production_dry_skip_success_reload_and_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        init_production,
-        "INIT_SCRIPTS",
-        [
-            ("fixture.first", "first", "First"),
-            ("fixture.second", "second", "Second"),
-        ],
-    )
-    command, stdout, stderr = _command(init_production.Command)
+    command, stdout, _stderr = _command(init_production.Command)
     command.handle(dry_run=True, skip="")
-    assert "[DRY]" in stdout.getvalue()
+    assert "[DRY] python manage.py bootstrap_cold_start" in stdout.getvalue()
 
-    command.handle(dry_run=False, skip="first,second")
-    assert "SKIP" in stdout.getvalue()
+    with pytest.raises(CommandError, match="--skip is no longer supported"):
+        command.handle(dry_run=False, skip="first")
 
-    imported: list[str] = []
-    monkeypatch.setattr(
-        init_production.importlib,
-        "import_module",
-        lambda name: imported.append(name) or SimpleNamespace(),
-    )
+    bootstrap = MagicMock()
+    monkeypatch.setattr(init_production, "call_command", bootstrap)
     command.handle(dry_run=False, skip="")
-    assert imported == ["fixture.first", "fixture.second"]
-
-    monkeypatch.setattr(
-        init_production.importlib,
-        "import_module",
-        lambda _name: (_ for _ in ()).throw(RuntimeError("init failed")),
+    bootstrap.assert_called_once_with(
+        "bootstrap_cold_start",
+        stdout=command.stdout,
+        stderr=command.stderr,
     )
-    with pytest.raises(CommandError, match="2 init script"):
-        command.handle(dry_run=False, skip="")
-    assert "init failed" in stderr.getvalue()
+
+    assert "Production initialization complete" in stdout.getvalue()
 
 
 def test_healthcheck_json_text_and_unhealthy_exit(
@@ -195,8 +198,8 @@ def test_healthcheck_json_text_and_unhealthy_exit(
 
     command.handle(json=False)
     text = stdout.getvalue()
-    assert "optional" in text
-    assert "offline" in text
+    assert "optional" not in text
+    assert "offline" not in text
 
     monkeypatch.setattr(healthcheck, "is_healthy", lambda _checks: False)
     with pytest.raises(SystemExit) as raised:
@@ -335,6 +338,7 @@ def test_data_connection_diagnostics_cover_all_successful_business_paths(
                 }
             ],
             "regime_matched_count": 1,
+            "regime_match_available": True,
         },
     )
     assert tester.test_investment_signals() is True

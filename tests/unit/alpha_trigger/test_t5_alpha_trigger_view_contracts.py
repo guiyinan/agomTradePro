@@ -67,7 +67,9 @@ def _patch_serializers(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(view_module, name, FakeSerializer)
 
 
-def _trigger_view(trigger_repo: object, candidate_repo: object | None = None) -> AlphaTriggerViewSet:
+def _trigger_view(
+    trigger_repo: object, candidate_repo: object | None = None
+) -> AlphaTriggerViewSet:
     view = AlphaTriggerViewSet.__new__(AlphaTriggerViewSet)
     view.trigger_repository = trigger_repo
     view.candidate_repository = candidate_repo or MagicMock()
@@ -148,13 +150,12 @@ def test_candidate_list_retrieve_and_filters(
     view = _candidate_view(repo)
 
     assert view.list(_request()).data["count"] == 1
+    assert view.list(_request(query={"asset_code": "600000.SH", "status": "ACTIONABLE"})).data[
+        "results"
+    ] == ["asset"]
     assert (
-        view.list(
-            _request(query={"asset_code": "600000.SH", "status": "ACTIONABLE"})
-        ).data["results"]
-        == ["asset"]
+        view.list(_request(query={"asset_code": "600000.SH", "status": "BAD"})).status_code == 200
     )
-    assert view.list(_request(query={"asset_code": "600000.SH", "status": "BAD"})).status_code == 200
     assert view.retrieve(_request(), pk="missing").status_code == 404
     assert view.retrieve(_request(), pk="c1").data["result"] == "candidate"
 
@@ -178,10 +179,13 @@ def test_candidate_actions_and_statistics(
     assert view.actionable(_request(query={"min_strength": "strong"})).data["count"] == 1
     assert view.actionable(_request(query={"min_strength": "BAD"})).status_code == 200
     assert view.watch_list(_request()).data["results"] == ["watch"]
-    assert view.update_status(
-        _request(data={"status": "ACTIONABLE"}),
-        pk="c1",
-    ).data["result"] == "updated"
+    assert (
+        view.update_status(
+            _request(data={"status": "ACTIONABLE"}),
+            pk="c1",
+        ).data["result"]
+        == "updated"
+    )
     assert view.statistics(_request(query={"days": 30})).data["result"] == {"count": 1}
     assert view.statistics(_request(query={"days": 400})).status_code == 400
 
@@ -190,10 +194,13 @@ def test_candidate_actions_and_statistics(
     repo.get_watch_list.side_effect = RuntimeError("watch down")
     assert view.watch_list(_request()).status_code == 500
     repo.update_status.side_effect = RuntimeError("update down")
-    assert view.update_status(
-        _request(data={"status": "ACTIONABLE"}),
-        pk="c1",
-    ).status_code == 500
+    assert (
+        view.update_status(
+            _request(data={"status": "ACTIONABLE"}),
+            pk="c1",
+        ).status_code
+        == 500
+    )
     repo.get_statistics.side_effect = RuntimeError("stats down")
     assert view.statistics(_request()).status_code == 500
 
@@ -253,7 +260,9 @@ def test_action_views_success_business_failure_and_exception(
     for view_class, use_case_name, payload, success_response in scenarios:
         use_case = MagicMock()
         use_case.execute.return_value = success_response
-        monkeypatch.setattr(view_module, use_case_name, lambda *_args, _use_case=use_case: _use_case)
+        monkeypatch.setattr(
+            view_module, use_case_name, lambda *_args, _use_case=use_case: _use_case
+        )
         view = view_class.__new__(view_class)
         view.trigger_repository = trigger_repo
         if view_class is GenerateCandidateView:
@@ -330,7 +339,7 @@ def test_template_list_edit_detail_and_candidate_pages(
         "apps.asset_analysis.application.asset_name_service.resolve_asset_name",
         lambda code: f"name-{code}",
     )
-    request = SimpleNamespace()
+    request = SimpleNamespace(user=SimpleNamespace(is_authenticated=True))
 
     assert view_module.alpha_trigger_list_view(request).status_code == 200
     assert trigger.asset_name == "name-600000.SH"
@@ -351,7 +360,7 @@ def test_template_pages_cover_not_found_and_error_fallbacks(
     service.get_detail_context.return_value = None
     service.get_candidate_detail_context.return_value = None
     monkeypatch.setattr(view_module, "get_alpha_trigger_page_query_service", lambda: service)
-    request = SimpleNamespace()
+    request = SimpleNamespace(user=SimpleNamespace(is_authenticated=True))
 
     assert view_module.alpha_trigger_edit_view(request, "missing").status_code == 404
     assert view_module.alpha_trigger_detail_view(request, "missing").status_code == 404
@@ -374,9 +383,7 @@ def test_performance_api_success_and_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _patch_serializers(monkeypatch)
-    service = SimpleNamespace(
-        get_performance_data=lambda **_kwargs: [{"trigger_id": "t1"}]
-    )
+    service = SimpleNamespace(get_performance_data=lambda **_kwargs: [{"trigger_id": "t1"}])
     monkeypatch.setattr(view_module, "get_alpha_trigger_page_query_service", lambda: service)
     view = TriggerPerformanceAPIView()
 

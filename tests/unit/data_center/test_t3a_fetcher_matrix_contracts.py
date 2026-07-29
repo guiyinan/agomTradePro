@@ -24,7 +24,7 @@ START = date(2024, 1, 1)
 END = date(2025, 12, 31)
 
 
-def _units(_code: str) -> tuple[str, str]:
+def _units(_code: str, **_kwargs: object) -> tuple[str, str]:
     return "%", "%"
 
 
@@ -37,17 +37,36 @@ class _AkshareFixture:
         return pd.DataFrame({"月份": ["2024年1月"], "制造业-指数": [50.2]})
 
     def macro_china_cpi(self) -> pd.DataFrame:
-        values: dict[str, list[object]] = {"月份": ["2024年1月"]}
-        for index in range(1, 12):
-            values[f"cpi_{index}"] = [100 + index]
-        values["全国-当月"] = [100.5]
-        return pd.DataFrame(values)
+        return pd.DataFrame(
+            {
+                "月份": ["2024年1月"],
+                "全国-当月": [100.5],
+                "全国-同比增长": [0.5],
+                "全国-环比增长": [0.1],
+                "城市-同比增长": [0.6],
+                "城市-环比增长": [0.2],
+                "农村-同比增长": [0.3],
+                "农村-环比增长": [0.1],
+            }
+        )
 
     def macro_china_ppi(self) -> pd.DataFrame:
-        return pd.DataFrame({"月份": ["2024年1月"], "当月": [99.5], "同比": [-1.2]})
+        return pd.DataFrame(
+            {
+                "月份": ["2024年1月"],
+                "当月": [99.5],
+                "当月同比增长": [-1.2],
+            }
+        )
 
     def macro_china_money_supply(self) -> pd.DataFrame:
-        return pd.DataFrame({"月份": ["2024年1月"], "M2": [300000], "M2同比增长": [8.7]})
+        return pd.DataFrame(
+            {
+                "月份": ["2024年1月"],
+                "货币和准货币(M2)-数量(亿元)": [300000],
+                "货币和准货币(M2)-同比增长": [8.7],
+            }
+        )
 
     def macro_china_non_man_pmi(self) -> pd.DataFrame:
         return pd.DataFrame({"序号": [1], "日期": ["2024-01-31"], "今值": [51.0]})
@@ -72,17 +91,17 @@ class _AkshareFixture:
     def macro_china_reserve_requirement_ratio(self) -> pd.DataFrame:
         return pd.DataFrame(
             [["2024年1月15日", "large bank", 10.5]],
-            columns=["日期", "机构", "比例"],
+            columns=["生效时间", "机构", "大型金融机构-调整后"],
         )
 
     def macro_china_new_financial_credit(self) -> pd.DataFrame:
-        return pd.DataFrame({"月份": ["2024年1月"], "新增": ["4,900"]})
+        return pd.DataFrame({"月份": ["2024年1月"], "当月": ["4,900"]})
 
     def macro_rmb_deposit(self) -> pd.DataFrame:
         return pd.DataFrame({"月份": ["2024年1月"], "新增存款-数量": ["1,200"]})
 
     def macro_rmb_loan(self) -> pd.DataFrame:
-        return pd.DataFrame({"月份": ["2024年1月"], "贷款": ["2,300"]})
+        return pd.DataFrame({"月份": ["2024年1月"], "新增人民币贷款-总额": ["2,300"]})
 
     def repo_rate_hist(self, **_kwargs: str) -> pd.DataFrame:
         return pd.DataFrame({"date": ["2024-01-20"], "DR007": ["1.9%"]})
@@ -91,10 +110,13 @@ class _AkshareFixture:
         return pd.DataFrame({"日期": ["2024-01-20"], "净投放": ["1,000"]})
 
     def macro_china_gyzjz(self) -> pd.DataFrame:
-        return pd.DataFrame([["2024年1月", 6.8]], columns=["月份", "同比"])
+        return pd.DataFrame([["2024年1月", 6.8]], columns=["月份", "同比增长"])
 
     def macro_china_consumer_goods_retail(self) -> pd.DataFrame:
-        return pd.DataFrame([["2024年1月", 47000, 5.5]], columns=["月份", "总额", "同比"])
+        return pd.DataFrame(
+            [["2024年1月", 47000, 5.5]],
+            columns=["月份", "当月", "同比增长"],
+        )
 
     def macro_china_gdp(self) -> pd.DataFrame:
         return pd.DataFrame(
@@ -148,16 +170,22 @@ class _AkshareFixture:
         )
 
     def macro_china_urban_unemployment(self) -> pd.DataFrame:
-        return pd.DataFrame({"月份": ["2024年1月"], "城镇调查失业率": ["5.2%"]})
+        return pd.DataFrame(
+            {
+                "date": ["2024年1月"],
+                "item": ["全国城镇调查失业率"],
+                "value": ["5.2%"],
+            }
+        )
 
     def macro_china_new_house_price(self) -> pd.DataFrame:
         return pd.DataFrame(
             [["2024-01-31", "北京", 101.5]],
-            columns=["日期", "城市", "指数"],
+            columns=["日期", "城市", "新建商品住宅价格指数-同比"],
         )
 
     def energy_oil_hist(self) -> pd.DataFrame:
-        return pd.DataFrame({"调价日期": ["2024-01-31"], "汽油最高零售价": [10880]})
+        return pd.DataFrame({"调整日期": ["2024-01-31"], "汽油价格": [10880]})
 
     def macro_china_society_electricity(self) -> pd.DataFrame:
         return pd.DataFrame([["2024.01", 900000]], columns=["月份", "用电量"])
@@ -179,8 +207,8 @@ def stable_indicator_units(monkeypatch: pytest.MonkeyPatch) -> None:
         economic_fetchers,
         financial_fetchers,
         other_fetchers,
+        pmi_subitems_fetchers,
         trade_fetchers,
-        weekly_indicators_fetchers,
     ):
         monkeypatch.setattr(module, "resolve_indicator_units", _units)
 
@@ -344,7 +372,7 @@ def test_other_fetcher_success_matrix(
         ("fetch_scfi", "CN_SCFI"),
     ],
 )
-def test_weekly_fetcher_success_matrix(
+def test_weekly_fetcher_rejects_semantically_incompatible_proxies(
     akshare_fixture: _AkshareFixture,
     method_name: str,
     expected_code: str,
@@ -353,7 +381,7 @@ def test_weekly_fetcher_success_matrix(
         akshare_fixture, "fixture", lambda _point: None, _identity
     )
     result = getattr(fetcher, method_name)(START, END)
-    assert result[0].code == expected_code
+    assert result == []
 
 
 def test_pmi_subitem_file_loading_and_conversion(tmp_path: Path) -> None:
@@ -379,7 +407,7 @@ def test_pmi_subitem_file_loading_and_conversion(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    fetcher._data_file_path = str(data_path)
+    fetcher._data_file_path = data_path
 
     methods: list[Callable[[date, date], list[object]]] = [
         fetcher.fetch_pmi_new_order,
@@ -404,13 +432,14 @@ def test_pmi_subitem_invalid_file_and_records_are_skipped(tmp_path: Path) -> Non
     fetcher = pmi_subitems_fetchers.PMISubitemsFetcher(
         object(), "fixture", lambda _point: None, _identity
     )
-    fetcher._data_file_path = str(tmp_path / "missing.json")
+    fetcher._data_file_path = tmp_path / "missing.json"
     assert fetcher._load_manual_data() == []
 
     bad_path = tmp_path / "bad.json"
     bad_path.write_text("{", encoding="utf-8")
-    fetcher._data_file_path = str(bad_path)
-    assert fetcher._load_manual_data() == []
+    fetcher._data_file_path = bad_path
+    with pytest.raises(pmi_subitems_fetchers.DataValidationError):
+        fetcher._load_manual_data()
 
     records = [
         {"reporting_period": "bad", "new_order": 50},

@@ -206,7 +206,7 @@ def test_multidim_empty_result_has_stable_shape() -> None:
     )
 
     assert result == {
-        "success": False,
+        "success": True,
         "count": 0,
         "message": "未找到符合条件的基金",
         "funds": [],

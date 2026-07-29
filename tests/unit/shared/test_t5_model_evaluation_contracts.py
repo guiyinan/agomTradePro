@@ -93,7 +93,7 @@ def test_model_evaluator_handles_empty_grouped_and_performance_payloads() -> Non
     assert metrics.group_ic is not None
     assert metrics.sharpe is not None
     assert metrics.annual_return == pytest.approx(2.52)
-    assert metrics.coverage == 1.5
+    assert metrics.coverage == 1.0
 
     unchanged = evaluator._calculate_performance_metrics(
         {"a": 1},

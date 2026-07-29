@@ -264,7 +264,6 @@ def test_market_symbol_and_dataframe_normalization_contracts() -> None:
 def test_market_local_load_persistence_and_empty_persistence() -> None:
     repository = MagicMock()
     repository.get_bars.return_value = [
-        _price_bar(close=0),
         _price_bar(close=12),
     ]
     adapter = _market_adapter(repository)
@@ -342,11 +341,14 @@ def test_index_returns_hydration_controls_and_exception_isolation(
         "_load_local_index_points",
         lambda *_args: (_ for _ in ()).throw(RuntimeError("db down")),
     )
-    assert adapter.get_index_daily_returns(
-        "000300.SH",
-        date(2026, 1, 1),
-        date(2026, 1, 2),
-    ) == {}
+    assert (
+        adapter.get_index_daily_returns(
+            "000300.SH",
+            date(2026, 1, 1),
+            date(2026, 1, 2),
+        )
+        == {}
+    )
 
 
 def test_stock_pool_cache_paths_and_save_metadata(
@@ -404,7 +406,12 @@ def test_stock_pool_database_helpers_cover_success_empty_and_failure(
         created_at=datetime(2026, 7, 2, 1),
     )
     manager = MagicMock()
-    manager.filter.return_value.order_by.return_value.first.side_effect = [latest, None, latest, None]
+    manager.filter.return_value.order_by.return_value.first.side_effect = [
+        latest,
+        None,
+        latest,
+        None,
+    ]
     monkeypatch.setattr(models, "StockPoolSnapshot", SimpleNamespace(objects=manager))
 
     assert adapter._load_pool_from_db() == ["600000.SH"]

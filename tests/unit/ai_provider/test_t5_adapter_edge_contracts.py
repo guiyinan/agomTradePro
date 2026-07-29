@@ -46,7 +46,9 @@ def test_provider_inference_and_initialization_environment_contracts(
 
     monkeypatch.delenv("AGOMTRADEPRO_OPENAI_FALLBACK_ENABLED")
     assert _adapter(monkeypatch, fallback_enabled=None).fallback_enabled is True
-    assert _adapter(monkeypatch, fallback_enabled=0).fallback_enabled is False
+    assert _adapter(monkeypatch, fallback_enabled=False).fallback_enabled is False
+    with pytest.raises(TypeError, match="ai_provider_fallback_flag_invalid"):
+        _adapter(monkeypatch, fallback_enabled=0)
 
     monkeypatch.setattr(adapters, "OPENAI_AVAILABLE", False)
     with pytest.raises(ImportError, match="openai"):
@@ -115,7 +117,7 @@ def test_responses_and_chat_paths_forward_optional_contracts(
         stream=True,
     )
     assert stream_result["status"] == "error"
-    assert "stream=True" in stream_result["error_message"]
+    assert stream_result["error_message"] == "ai_provider_stream_unsupported"
 
 
 def test_adapter_error_classification_availability_and_extractors(
@@ -135,10 +137,7 @@ def test_adapter_error_classification_availability_and_extractors(
     assert adapter.estimate_tokens("") == 1
     assert adapter.estimate_tokens("123456") == 2
 
-    assert (
-        adapter._extract_text_from_responses(SimpleNamespace(output_text="direct"))
-        == "direct"
-    )
+    assert adapter._extract_text_from_responses(SimpleNamespace(output_text="direct")) == "direct"
     assert adapter._extract_text_from_responses(SimpleNamespace(output=[])) == ""
     assert adapter._extract_tool_calls_from_responses(SimpleNamespace(output=[])) is None
 
@@ -152,8 +151,7 @@ def test_dual_mode_reports_both_failures_and_disabled_fallback(
     adapter.client.chat.completions.create.side_effect = RuntimeError("chat offline")
     result = adapter.chat_completion([])
     assert result["status"] == "error"
-    assert "Responses failed" in result["error_message"]
-    assert "Chat fallback failed" in result["error_message"]
+    assert result["error_message"] == "ai_provider_fallback_failed"
 
     adapter.fallback_enabled = False
     disabled = adapter.chat_completion([])
@@ -195,18 +193,15 @@ def test_failover_helper_handles_initialization_success_and_provider_failures(
     ]
     result = helper.chat_completion_with_failover([])
     assert result["status"] == "error"
-    assert "Attempted: failing" in result["error_message"]
-    assert "provider failed" in result["error_message"]
+    assert result["error_message"] == "all_ai_providers_failed"
 
     monkeypatch.setattr(
         adapters,
         "OpenAICompatibleAdapter",
         MagicMock(side_effect=RuntimeError("bad configuration")),
     )
-    broken = AIFailoverHelper(
-        [{"name": "broken", "base_url": "bad", "api_key": "secret"}]
-    )
+    broken = AIFailoverHelper([{"name": "broken", "base_url": "bad", "api_key": "secret"}])
     assert broken.has_available_adapters is False
-    assert "bad configuration" in broken.describe_unavailable_providers()
+    assert broken.describe_unavailable_providers() == "broken: provider initialization failed"
     empty = AIFailoverHelper([])
     assert empty.describe_unavailable_providers() == "no providers configured"

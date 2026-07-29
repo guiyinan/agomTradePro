@@ -165,9 +165,11 @@ def test_chat_execution_handles_success_provider_error_and_exception(
         "status": "failed",
         "error_message": "quota",
     }
-    assert facade._execute_chat("question", context) == "AI 调用失败: quota"
+    assert facade._execute_chat("question", context) == "AI 调用失败: ai_provider_request_failed"
     client.chat_completion.side_effect = RuntimeError("offline")
-    assert "offline" in facade._execute_chat("question", context)
+    assert facade._execute_chat("question", context) == (
+        "Chat execution failed: ai_provider_request_failed"
+    )
 
 
 def test_logging_and_response_contracts_handle_failures_and_suggestions() -> None:

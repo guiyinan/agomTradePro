@@ -40,7 +40,10 @@ def test_command_fails_closed_when_encryption_service_is_unavailable(
 
     with (
         service_patch,
-        pytest.raises(CommandError, match="Failed to initialize encryption service"),
+        pytest.raises(
+            CommandError,
+            match="Encryption service not available|Failed to initialize encryption service",
+        ),
     ):
         command.handle(dry_run=False, force=False)
 
@@ -158,7 +161,7 @@ def test_encrypt_provider_dry_run_masks_key_and_does_not_persist() -> None:
     result = command._encrypt_provider(provider, crypto, dry_run=True)
 
     assert result == "encrypted"
-    assert "abcdefgh**********..." in output.getvalue()
+    assert "Encrypting: ***" in output.getvalue()
     assert "super-secret" not in output.getvalue()
     crypto.encrypt.assert_not_called()
     provider.save.assert_not_called()
@@ -215,7 +218,8 @@ def test_encrypt_provider_contains_failure_and_never_prints_plaintext() -> None:
         result = command._encrypt_provider(provider, crypto)
 
     assert result == "error"
-    assert "vault offline" in output.getvalue()
+    assert "Error (RuntimeError)" in output.getvalue()
+    assert "vault offline" not in output.getvalue()
     assert "abcdefgh-secret" not in output.getvalue()
 
 
@@ -224,7 +228,7 @@ def test_encrypt_provider_contains_failure_and_never_prints_plaintext() -> None:
     [
         ("", "(empty)"),
         ("short", "***"),
-        ("abcdefgh1234", "abcdefgh**********..."),
+        ("abcdefgh1234", "***"),
     ],
 )
 def test_mask_key_never_returns_complete_secret(api_key: str, expected: str) -> None:

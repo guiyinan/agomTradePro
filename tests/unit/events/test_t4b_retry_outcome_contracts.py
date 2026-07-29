@@ -60,16 +60,19 @@ class _FailedEventRepository:
         )
         return rows[:limit]
 
-    def update_status(self, **kwargs: Any) -> None:
+    def update_status(self, **kwargs: Any) -> bool:
         self.updated.append(kwargs)
+        return True
 
-    def mark_success(self, event_db_id: int) -> None:
+    def mark_success(self, event_db_id: int) -> bool:
         self.success_ids.append(event_db_id)
+        return True
 
-    def increment_retry_count(self, **kwargs: Any) -> None:
+    def increment_retry_count(self, **kwargs: Any) -> bool:
         self.incremented.append(kwargs)
         if self.rows:
             self.rows[0]["status"] = "EXHAUSTED" if kwargs["is_exhausted"] else "PENDING"
+        return True
 
     def cleanup_old_events(self, days: int) -> int:
         return days

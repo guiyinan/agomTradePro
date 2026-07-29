@@ -1,5 +1,6 @@
 """Behavior contracts for the terminal natural-language router."""
 
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -78,8 +79,9 @@ def test_high_confidence_regime_route_masks_technical_chain_for_normal_user() ->
     regime = SimpleNamespace(
         dominant_regime="ME",
         confidence=0.78,
-        source="unit",
-        observed_at="2026-07-25T00:00:00+00:00",
+        data_source="unit",
+        observed_at=date(2026, 7, 25),
+        warnings=[],
     )
     policy = SimpleNamespace(value="TIGHT")
     repository = Mock()
@@ -289,9 +291,18 @@ def test_extract_json_and_chain_helpers_cover_empty_and_missing_details() -> Non
 
     regime_chain = service._build_regime_chain(
         TerminalIntentDecision("market_regime", 0.9),
-        SimpleNamespace(),
-        SimpleNamespace(),
+        SimpleNamespace(
+            dominant_regime="Unknown",
+            confidence=0.0,
+            data_source="none",
+            observed_at=date(2026, 7, 25),
+            warnings=[],
+        ),
+        SimpleNamespace(value="UNKNOWN"),
         True,
     )
     assert regime_chain["visibility"] == "technical"
-    assert "RegimeSnapshot.dominant_regime=Unknown" in regime_chain["steps"][1]["technical_details"]
+    assert (
+        "CurrentRegimeResult.dominant_regime=Unknown"
+        in regime_chain["steps"][1]["technical_details"]
+    )

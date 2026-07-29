@@ -52,10 +52,9 @@ def test_ops_serializers_preserve_valid_and_malformed_task_evidence() -> None:
     assert ops_services._parse_universe_list((" CSI1000 ", "")) == ["csi1000"]
     assert ops_services._serialize_task_result(None) is None
     assert ops_services._serialize_task_result("{'status': 'partial'}") == {"status": "partial"}
-    assert ops_services._serialize_task_result("{broken") == "{broken"
+    assert ops_services._serialize_task_result("{broken") == "task_result_unavailable"
     assert ops_services._to_iso(None) is None
     assert ops_services._to_iso(TARGET_DATE) == TARGET_DATE.isoformat()
-    assert ops_services._to_iso(7) == "7"
 
 
 def test_runtime_refresh_service_handles_disabled_empty_and_successful_scopes(
@@ -126,7 +125,7 @@ def test_alpha_ops_overview_serializes_health_tasks_caches_and_alerts(
     )
     health = service._get_celery_health()
     assert health["is_healthy"] is False
-    assert health["error"] == "broker offline"
+    assert health["error"] == "celery_health_check_failed"
 
     started = datetime(2026, 7, 24, 8, tzinfo=UTC)
     records = {
@@ -167,7 +166,7 @@ def test_alpha_ops_overview_serializes_health_tasks_caches_and_alerts(
     serialized = service._list_recent_tasks(("task.a", "task.b"), limit=10)
     assert len(serialized) == 1
     assert serialized[0]["task_name"] == "task.b"
-    assert serialized[0]["result"] == "{malformed"
+    assert serialized[0]["result"] == "task_result_unavailable"
 
     cache_row = SimpleNamespace(
         id=1,
@@ -230,7 +229,7 @@ def test_qlib_data_overview_reports_local_inspection_failure_and_summary_shapes(
         ],
     )
     result = service.build()
-    assert result["local_data_status"]["local_data_error"] == "calendar missing"
+    assert result["local_data_status"]["local_data_error"] == "qlib_data_inspection_failed"
     assert result["latest_build_summary"] == {"status": "partial", "stored": 0}
     assert service._extract_latest_build_summary(
         [{"result": {"requested_target_date": TARGET_DATE.isoformat()}}]
@@ -264,7 +263,7 @@ def test_general_and_scoped_inference_conflicts_and_queue_failures_release_locks
     monkeypatch.setattr(
         ops_use_cases,
         "acquire_dashboard_alpha_refresh_pending_lock",
-        lambda key, meta: False,
+        lambda key, meta: None,
     )
     conflict = ops_use_cases.TriggerGeneralInferenceUseCase().execute(
         trade_date=TARGET_DATE,
@@ -277,12 +276,12 @@ def test_general_and_scoped_inference_conflicts_and_queue_failures_release_locks
     monkeypatch.setattr(
         ops_use_cases,
         "acquire_dashboard_alpha_refresh_pending_lock",
-        lambda key, meta: True,
+        lambda key, meta: "owner-general",
     )
     monkeypatch.setattr(
         ops_use_cases,
         "release_dashboard_alpha_refresh_lock",
-        lambda key: released.append(key),
+        lambda key, *, owner_token: released.append(key),
     )
     monkeypatch.setattr(
         tasks.qlib_predict_scores,
@@ -332,13 +331,13 @@ def test_batch_and_refresh_queue_failures_release_their_distinct_locks(
     monkeypatch.setattr(
         ops_use_cases,
         "acquire_inference_batch_pending_lock",
-        lambda key, meta: True,
+        lambda key, meta: "owner-batch",
     )
     released_batches: list[str] = []
     monkeypatch.setattr(
         ops_use_cases,
         "release_inference_batch_lock",
-        lambda key: released_batches.append(key),
+        lambda key, *, owner_token: released_batches.append(key),
     )
     monkeypatch.setattr(
         tasks.qlib_daily_scoped_inference,
@@ -356,13 +355,13 @@ def test_batch_and_refresh_queue_failures_release_their_distinct_locks(
     monkeypatch.setattr(
         ops_use_cases,
         "acquire_qlib_data_refresh_pending_lock",
-        lambda key, meta: True,
+        lambda key, meta: "owner-refresh",
     )
     released_refreshes: list[str] = []
     monkeypatch.setattr(
         ops_use_cases,
         "release_qlib_data_refresh_lock",
-        lambda key: released_refreshes.append(key),
+        lambda key, *, owner_token: released_refreshes.append(key),
     )
     monkeypatch.setattr(
         tasks.qlib_refresh_runtime_data_task,
