@@ -6324,3 +6324,18 @@
 - Sentiment 模型有限性、脱敏、缓存、追加日志与告警状态专项 `14 passed`；全部 Sentiment Domain、仓储、页面/API 与告警回归 `143 passed`；Agent Runtime Context Snapshot 消费者 `16 passed`。
 - `apps/sentiment/infrastructure/models.py` 增量 mypy 清零并退出债务清单；全仓基线从 `410 errors / 237 files` 收紧为 `406 errors / 236 files`，净减少 `4 errors / 1 file`。
 - Django system check、Sentiment migration drift、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未改变 Sentiment/Agent Context API 成功响应结构或数据库结构。
+
+## 第四百一十三批
+
+- 按“实盘执行 Admin 共享裸 ModelAdmin × request/object 无类型合同 × 部分模型只声明少数字段只读 × 新字段加入后可遗漏只读投影”收口 Broker Execution 后台治理入口。
+- 新增泛型 `ReadOnlyExecutionAdmin[ConcreteModel]`，使用统一 `TypedModelAdmin`、`HttpRequest` 与精确可空模型对象合同；11 个 Agent、账户绑定/授权、订单、对账、告警、日报、kill switch、credential 与 audit Admin 全部绑定具体模型类型。
+- `get_readonly_fields()` 从具体模型元数据动态发布全部持久化字段；后续模型新增字段自动进入只读投影，不再依赖各 Admin 手工维护不完整列表。
+- 新增、修改和删除继续在共享基类失败关闭；原始 broker account reference 继续从账户绑定详情中排除，credential secret hash 不进入列表或搜索面。
+- 本批只收紧后台观察面，不修改订单提交、审批、风险检查、账户授权、kill switch、对账、Agent 协议或成交执行逻辑。
+
+## 第四百一十三批验证结果
+
+- Broker Execution Admin 注册、全字段只读、敏感字段与三类写权限专项 `3 passed`；实盘执行 Domain/Application/Agent/API/权限/对账/TUI/MCP 组合 `108 passed, 1 skipped`。
+- 项目规定的 TUI Workbench、Terminal Agent、SDK Client 与内部 SSL 固定回归包 `238 passed`。
+- `apps/broker_execution/admin.py` 增量 mypy 清零并退出债务清单；全仓基线从 `406 errors / 236 files` 收紧为 `402 errors / 235 files`，净减少 `4 errors / 1 file`。
+- Django system check、Broker Execution migration drift、改动文件 Ruff、Black、isort、增量 mypy、架构护栏与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未改变公开 API、TUI、MCP 或 SDK 成功响应结构。

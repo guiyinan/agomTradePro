@@ -1,6 +1,10 @@
 """Read-only Django Admin projections for governed broker execution."""
 
+from typing import Generic, TypeVar
+
 from django.contrib import admin
+from django.db.models import Model
+from django.http import HttpRequest
 
 from apps.broker_execution.infrastructure.models import (
     BrokerAccountAccessModel,
@@ -15,23 +19,47 @@ from apps.broker_execution.infrastructure.models import (
     ReconciliationRunModel,
     TradingControlModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
+
+ExecutionModelT = TypeVar("ExecutionModelT", bound=Model)
 
 
-class ReadOnlyExecutionAdmin(admin.ModelAdmin):
+class ReadOnlyExecutionAdmin(TypedModelAdmin[ExecutionModelT], Generic[ExecutionModelT]):
     """Prevent Django Admin from bypassing governed execution use cases."""
 
-    def has_add_permission(self, request) -> bool:
+    def get_readonly_fields(
+        self,
+        request: HttpRequest,
+        obj: ExecutionModelT | None = None,
+    ) -> tuple[str, ...]:
+        """Publish every persisted execution field as read-only evidence."""
+
+        del request, obj
+        return tuple(field.name for field in self.model._meta.fields)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        del request
         return False
 
-    def has_change_permission(self, request, obj=None) -> bool:
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: ExecutionModelT | None = None,
+    ) -> bool:
+        del request, obj
         return False
 
-    def has_delete_permission(self, request, obj=None) -> bool:
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: ExecutionModelT | None = None,
+    ) -> bool:
+        del request, obj
         return False
 
 
 @admin.register(BrokerAgentModel)
-class BrokerAgentAdmin(ReadOnlyExecutionAdmin):
+class BrokerAgentAdmin(ReadOnlyExecutionAdmin[BrokerAgentModel]):
     list_display = (
         "agent_id",
         "display_name",
@@ -46,7 +74,7 @@ class BrokerAgentAdmin(ReadOnlyExecutionAdmin):
 
 
 @admin.register(BrokerAccountBindingModel)
-class BrokerAccountBindingAdmin(ReadOnlyExecutionAdmin):
+class BrokerAccountBindingAdmin(ReadOnlyExecutionAdmin[BrokerAccountBindingModel]):
     list_display = (
         "account_id",
         "user",
@@ -60,7 +88,7 @@ class BrokerAccountBindingAdmin(ReadOnlyExecutionAdmin):
 
 
 @admin.register(BrokerAccountAccessModel)
-class BrokerAccountAccessAdmin(ReadOnlyExecutionAdmin):
+class BrokerAccountAccessAdmin(ReadOnlyExecutionAdmin[BrokerAccountAccessModel]):
     list_display = (
         "user",
         "account_id",
@@ -73,7 +101,7 @@ class BrokerAccountAccessAdmin(ReadOnlyExecutionAdmin):
 
 
 @admin.register(LiveOrderModel)
-class LiveOrderAdmin(ReadOnlyExecutionAdmin):
+class LiveOrderAdmin(ReadOnlyExecutionAdmin[LiveOrderModel]):
     list_display = (
         "client_order_id",
         "account_id",
@@ -97,7 +125,7 @@ class LiveOrderAdmin(ReadOnlyExecutionAdmin):
 
 
 @admin.register(ReconciliationRunModel)
-class ReconciliationRunAdmin(ReadOnlyExecutionAdmin):
+class ReconciliationRunAdmin(ReadOnlyExecutionAdmin[ReconciliationRunModel]):
     list_display = (
         "id",
         "account_id",
@@ -112,7 +140,7 @@ class ReconciliationRunAdmin(ReadOnlyExecutionAdmin):
 
 
 @admin.register(ReconciliationDifferenceModel)
-class ReconciliationDifferenceAdmin(ReadOnlyExecutionAdmin):
+class ReconciliationDifferenceAdmin(ReadOnlyExecutionAdmin[ReconciliationDifferenceModel]):
     list_display = (
         "run",
         "dimension",
@@ -122,13 +150,11 @@ class ReconciliationDifferenceAdmin(ReadOnlyExecutionAdmin):
         "created_at",
     )
     list_filter = ("dimension", "severity", "status")
-    readonly_fields = tuple(
-        field.name for field in ReconciliationDifferenceModel._meta.fields
-    )
+    readonly_fields = tuple(field.name for field in ReconciliationDifferenceModel._meta.fields)
 
 
 @admin.register(BrokerExecutionAlertModel)
-class BrokerExecutionAlertAdmin(ReadOnlyExecutionAdmin):
+class BrokerExecutionAlertAdmin(ReadOnlyExecutionAdmin[BrokerExecutionAlertModel]):
     list_display = (
         "last_seen_at",
         "account_id",
@@ -138,22 +164,18 @@ class BrokerExecutionAlertAdmin(ReadOnlyExecutionAdmin):
         "auto_stop_applied",
     )
     list_filter = ("severity", "status", "auto_stop_applied")
-    readonly_fields = tuple(
-        field.name for field in BrokerExecutionAlertModel._meta.fields
-    )
+    readonly_fields = tuple(field.name for field in BrokerExecutionAlertModel._meta.fields)
 
 
 @admin.register(BrokerExecutionDailyReportModel)
-class BrokerExecutionDailyReportAdmin(ReadOnlyExecutionAdmin):
+class BrokerExecutionDailyReportAdmin(ReadOnlyExecutionAdmin[BrokerExecutionDailyReportModel]):
     list_display = ("report_date", "account_id", "status", "generated_at")
     list_filter = ("status", "report_date")
-    readonly_fields = tuple(
-        field.name for field in BrokerExecutionDailyReportModel._meta.fields
-    )
+    readonly_fields = tuple(field.name for field in BrokerExecutionDailyReportModel._meta.fields)
 
 
 @admin.register(TradingControlModel)
-class TradingControlAdmin(ReadOnlyExecutionAdmin):
+class TradingControlAdmin(ReadOnlyExecutionAdmin[TradingControlModel]):
     list_display = (
         "user",
         "account_id",
@@ -165,7 +187,7 @@ class TradingControlAdmin(ReadOnlyExecutionAdmin):
 
 
 @admin.register(BrokerAgentCredentialModel)
-class BrokerAgentCredentialAdmin(ReadOnlyExecutionAdmin):
+class BrokerAgentCredentialAdmin(ReadOnlyExecutionAdmin[BrokerAgentCredentialModel]):
     list_display = (
         "credential_id",
         "agent",
@@ -184,7 +206,7 @@ class BrokerAgentCredentialAdmin(ReadOnlyExecutionAdmin):
 
 
 @admin.register(BrokerExecutionAuditModel)
-class BrokerExecutionAuditAdmin(ReadOnlyExecutionAdmin):
+class BrokerExecutionAuditAdmin(ReadOnlyExecutionAdmin[BrokerExecutionAuditModel]):
     list_display = (
         "created_at",
         "actor",
@@ -196,6 +218,4 @@ class BrokerExecutionAuditAdmin(ReadOnlyExecutionAdmin):
     )
     list_filter = ("action", "resource_type", "actor_type")
     search_fields = ("resource_id", "request_id", "reason", "actor__username")
-    readonly_fields = tuple(
-        field.name for field in BrokerExecutionAuditModel._meta.fields
-    )
+    readonly_fields = tuple(field.name for field in BrokerExecutionAuditModel._meta.fields)

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 406,
-    "files_with_errors": 236
+    "errors": 402,
+    "files_with_errors": 235
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -198,10 +198,6 @@
     },
     "apps/beta_gate/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/broker_execution/admin.py": {
-      "no-untyped-def": 3,
-      "type-arg": 1
     },
     "apps/dashboard/application/auto_advisor_outputs.py": {
       "no-any-return": 1
