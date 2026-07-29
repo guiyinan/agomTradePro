@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 444,
-    "files_with_errors": 249
+    "errors": 441,
+    "files_with_errors": 247
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -195,12 +195,6 @@
     },
     "apps/audit/templatetags/audit_filters.py": {
       "no-untyped-def": 2
-    },
-    "apps/backtest/infrastructure/adapters/base.py": {
-      "no-untyped-def": 1
-    },
-    "apps/backtest/infrastructure/adapters/composite_price_adapter.py": {
-      "arg-type": 2
     },
     "apps/backtest/infrastructure/adapters/tushare_price_adapter.py": {
       "no-redef": 1

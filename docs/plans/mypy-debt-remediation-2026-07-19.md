@@ -6199,3 +6199,18 @@
 - Regime V2 原有与有限性/阈值/period/分布专项 `40 passed`；Regime Domain、UseCase、任务、API、编排、Interface 与重算命令扩展组合 `108 passed`。
 - `apps/regime/domain/services_v2.py` 增量 mypy 清零并退出债务清单；全仓基线从 `446 errors / 250 files` 收紧为 `444 errors / 249 files`，净减少 `2 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 Regime API 成功响应、阈值数据库结构、TUI/Terminal/SDK/MCP 或部署实现。
+
+## 第四百零五批
+
+- 按“Backtest 价格点允许 bool/零值/NaN/Infinity × supports 异常中断 failover × 主源动态序列未经资产/日期校验 × 上游异常正文和 traceback 进入日志”收口组合行情边界。
+- `AssetPricePoint` 改为 frozen 规范事实；资产、来源和 plain-date 必须有效，价格接受标准数值/Decimal 但必须为有限正数并统一收窄为 float，控制字符和超长标识失败关闭。
+- Composite adapter 防御复制 adapter/default price 配置；default price 必须有限正数，只有显式 `use_defaults=True` 时才发布默认资产支持，调用方后续修改原 dict 不再改变运行结果。
+- `supports/get_price/get_prices` 统一校验资产、日期与 cache flag；单个 adapter 的 supports/read 异常被隔离，日志仅发布安全 source、operation 和异常类型，不再包含数据库 URL、Token、异常正文或 traceback。
+- 单点价格拒绝 bool、非有限值与非正值后继续 failover；序列只接收正式 AssetPricePoint、目标资产和请求区间内记录，按日期排序并以最后一条规范事实去重，动态对象、错资产和越界记录不进入 Attribution。
+- Data Center adapter 直接读取同样校验 finite positive price、plain-date 区间和来源；损坏 bar 单条跳过，仓储异常只记录异常类型。默认工厂使用显式 `list[AssetPriceAdapterProtocol]`，修复 Data Center/Tushare 异构列表类型失真。
+
+## 第四百零五批验证结果
+
+- 价格点、默认值、单点/序列 failover、脱敏和 Data Center 读取专项 `16 passed`；Backtest 任务、Audit Attribution/actual-regime 与 Data Center 消费者扩展组合 `103 passed`。
+- `apps/backtest/infrastructure/adapters/base.py` 与 `composite_price_adapter.py` 增量 mypy 清零并退出债务清单；全仓基线从 `444 errors / 249 files` 收紧为 `441 errors / 247 files`，净减少 `3 errors / 2 files`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 Backtest/Audit API 成功响应、TUI/Terminal/SDK/MCP 或部署实现。
