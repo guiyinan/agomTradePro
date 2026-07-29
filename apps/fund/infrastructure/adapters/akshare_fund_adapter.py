@@ -8,8 +8,8 @@ data_center and local fund tables instead of direct AKShare imports.
 from __future__ import annotations
 
 from datetime import date
-
-import pandas as pd
+from importlib import import_module
+from typing import Any
 
 from apps.data_center.infrastructure.repositories import (
     FundNavRepository as DataCenterFundNavRepository,
@@ -21,6 +21,8 @@ from apps.fund.infrastructure.models import (
     FundSectorAllocationModel,
 )
 
+pd: Any = import_module("pandas")
+
 
 class AkShareFundAdapter:
     """Compatibility adapter for fund reads after data-center cutover."""
@@ -28,7 +30,7 @@ class AkShareFundAdapter:
     def __init__(self) -> None:
         self._dc_nav_repo = DataCenterFundNavRepository()
 
-    def fetch_fund_list_em(self) -> pd.DataFrame:
+    def fetch_fund_list_em(self) -> Any:
         rows = list(
             FundInfoModel._default_manager.filter(is_active=True)
             .values(
@@ -55,7 +57,7 @@ class AkShareFundAdapter:
             }
         )
 
-    def fetch_fund_info_em(self, fund_code: str) -> pd.DataFrame:
+    def fetch_fund_info_em(self, fund_code: str) -> Any:
         rows = list(
             FundInfoModel._default_manager.filter(fund_code=fund_code, is_active=True).values(
                 "fund_code",
@@ -84,7 +86,7 @@ class AkShareFundAdapter:
             }
         )
 
-    def fetch_fund_nav_em(self, fund_code: str) -> pd.DataFrame:
+    def fetch_fund_nav_em(self, fund_code: str) -> Any:
         facts = self._dc_nav_repo.get_series(fund_code)
         if facts:
             return pd.DataFrame(
@@ -107,7 +109,7 @@ class AkShareFundAdapter:
         )
         return pd.DataFrame(rows) if rows else pd.DataFrame()
 
-    def fetch_fund_portfolio_em(self, fund_code: str, year: int, quarter: int) -> pd.DataFrame:
+    def fetch_fund_portfolio_em(self, fund_code: str, year: int, quarter: int) -> Any:
         month = quarter * 3
         cutoff = date(year, month, 1)
         rows = list(
@@ -137,12 +139,12 @@ class AkShareFundAdapter:
             }
         )
 
-    def fetch_fund_rank_em(self, indicator: str = "收益率") -> pd.DataFrame:
+    def fetch_fund_rank_em(self, indicator: str = "收益率") -> Any:
         if indicator == "规模":
             return self.fetch_fund_scale_rank()
         return pd.DataFrame()
 
-    def fetch_fund_sector_allocation(self, fund_code: str, year: int, quarter: int) -> pd.DataFrame:
+    def fetch_fund_sector_allocation(self, fund_code: str, year: int, quarter: int) -> Any:
         rows = list(
             FundSectorAllocationModel._default_manager.filter(
                 fund_code=fund_code,
@@ -161,7 +163,7 @@ class AkShareFundAdapter:
             }
         )
 
-    def fetch_fund_scale_rank(self) -> pd.DataFrame:
+    def fetch_fund_scale_rank(self) -> Any:
         rows = list(
             FundInfoModel._default_manager.filter(is_active=True)
             .exclude(fund_scale__isnull=True)

@@ -200,7 +200,7 @@ class HeatSentimentScore:
     heat_score: float  # 0-100，热度评分
     sentiment_score: float  # -1.0 ~ +1.0，情绪评分
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证评分范围"""
         if not 0 <= self.heat_score <= 100:
             raise ValueError(f"heat_score must be in [0, 100], got {self.heat_score}")

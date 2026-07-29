@@ -14,7 +14,7 @@ class FundConfig(AppConfig):
     name = "apps.fund"
     verbose_name = "基金分析模块"
 
-    def ready(self):
+    def ready(self) -> None:
         """Register fund-owned asset-analysis integrations."""
         logger = logging.getLogger(__name__)
         try:
@@ -34,4 +34,7 @@ class FundConfig(AppConfig):
             registry.register_name_resolver("fund", resolve_fund_names)
             registry.register_name_resolver("fund_holding", resolve_fund_holding_names)
         except Exception as exc:
-            logger.error("Failed to register fund market providers: %s", exc)
+            logger.error(
+                "Failed to register fund market providers: %s",
+                type(exc).__name__,
+            )

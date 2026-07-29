@@ -9,6 +9,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
 
@@ -25,11 +26,24 @@ logger = logging.getLogger(__name__)
 @dataclass
 class NewsSourceConfig:
     """新闻源配置"""
+
     name: str
     base_url: str
     api_key: str | None = None
     request_timeout: int = 10
     rate_limit_delay: float = 1.0  # 秒
+
+    def __post_init__(self) -> None:
+        """Reject unsafe or unbounded provider configuration."""
+        parsed_url = urlsplit(self.base_url)
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.hostname:
+            raise ValueError("news source URL must use HTTP or HTTPS")
+        if parsed_url.username is not None or parsed_url.password is not None:
+            raise ValueError("news source URL must not contain credentials")
+        if not 1 <= self.request_timeout <= 120:
+            raise ValueError("request_timeout must be between 1 and 120 seconds")
+        if not 0 <= self.rate_limit_delay <= 60:
+            raise ValueError("rate_limit_delay must be between 0 and 60 seconds")
 
 
 class NewsPolicyAdapter(PolicyAdapterProtocol):
@@ -50,20 +64,44 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
     # 政策档位关键词配置
     LEVEL_KEYWORDS = {
         PolicyLevel.P3: [
-            "熔断", "紧急救市", "市场恐慌", "股市崩盘",
-            "汇率一次性调整", "资本管制", "非常规措施"
+            "熔断",
+            "紧急救市",
+            "市场恐慌",
+            "股市崩盘",
+            "汇率一次性调整",
+            "资本管制",
+            "非常规措施",
         ],
         PolicyLevel.P2: [
-            "降息", "加息", "降准", "加息",
-            "财政刺激", "减税降费", "特别国债",
-            "政策出台", "重大政策", "政策落地",
-            "央行", "证监会", "银保监会", "发布会"
+            "降息",
+            "加息",
+            "降准",
+            "加息",
+            "财政刺激",
+            "减税降费",
+            "特别国债",
+            "政策出台",
+            "重大政策",
+            "政策落地",
+            "央行",
+            "证监会",
+            "银保监会",
+            "发布会",
         ],
         PolicyLevel.P1: [
-            "政策预期", "政策信号", "或将", "有望",
-            "讨论", "研究", "酝酿", "考虑",
-            "表态", "定调", "会议", "讲话"
-        ]
+            "政策预期",
+            "政策信号",
+            "或将",
+            "有望",
+            "讨论",
+            "研究",
+            "酝酿",
+            "考虑",
+            "表态",
+            "定调",
+            "会议",
+            "讲话",
+        ],
     }
 
     def __init__(self, config: NewsSourceConfig):
@@ -75,14 +113,12 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
         """
         self.config = config
         self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
+        self.session.headers.update(
+            {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
 
     def fetch_policy_events(
-        self,
-        start_date: date | None = None,
-        end_date: date | None = None
+        self, start_date: date | None = None, end_date: date | None = None
     ) -> list[PolicyEvent]:
         """
         获取政策事件列表
@@ -95,11 +131,9 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
             List[PolicyEvent]: 政策事件列表
         """
         if not self.is_available():
-            raise PolicySourceUnavailableError(
-                f"News source {self.config.name} is unavailable"
-            )
+            raise PolicySourceUnavailableError(f"News source {self.config.name} is unavailable")
 
-        events = []
+        events: list[PolicyEvent] = []
 
         try:
             # 默认搜索最近 7 天
@@ -117,13 +151,11 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
                 if event:
                     events.append(event)
 
-            logger.info(
-                f"Fetched {len(events)} policy events from {self.config.name}"
-            )
+            logger.info(f"Fetched {len(events)} policy events from {self.config.name}")
 
-        except Exception as e:
-            logger.error(f"Failed to fetch policy events: {e}")
-            raise PolicyAdapterError(f"Fetch failed: {e}") from e
+        except Exception as exc:
+            logger.error("policy_news_fetch_failed: %s", type(exc).__name__)
+            raise PolicyAdapterError("policy_news_fetch_failed") from exc
 
         return events
 
@@ -135,10 +167,7 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
             bool: 是否可用
         """
         try:
-            response = self.session.get(
-                self.config.base_url,
-                timeout=self.config.request_timeout
-            )
+            response = self.session.get(self.config.base_url, timeout=self.config.request_timeout)
             return response.status_code == 200
         except Exception:
             return False
@@ -147,11 +176,7 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
         """获取数据源名称"""
         return self.config.name
 
-    def _search_policy_news(
-        self,
-        start_date: date,
-        end_date: date
-    ) -> list[dict[str, Any]]:
+    def _search_policy_news(self, start_date: date, end_date: date) -> list[dict[str, Any]]:
         """
         搜索政策相关新闻
 
@@ -165,12 +190,9 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
         # 注意：这里是示例实现，实际需要根据具体 API 调整
 
         # 示例：使用关键词搜索
-        keywords = [
-            "货币政策", "财政政策", "降准", "降息",
-            "股市", "救市", "刺激计划"
-        ]
+        keywords = ["货币政策", "财政政策", "降准", "降息", "股市", "救市", "刺激计划"]
 
-        news_items = []
+        news_items: list[dict[str, Any]] = []
 
         for keyword in keywords:
             try:
@@ -183,16 +205,17 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
 
                 pass
 
-            except Exception as e:
-                logger.warning(f"Search failed for keyword '{keyword}': {e}")
+            except Exception as exc:
+                logger.warning(
+                    "policy_news_search_failed: keyword=%s error_type=%s",
+                    keyword,
+                    type(exc).__name__,
+                )
                 continue
 
         return news_items
 
-    def _parse_news_to_event(
-        self,
-        news_item: dict[str, Any]
-    ) -> PolicyEvent | None:
+    def _parse_news_to_event(self, news_item: dict[str, Any]) -> PolicyEvent | None:
         """
         将新闻解析为政策事件
 
@@ -225,11 +248,11 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
                 level=level,
                 title=title,
                 description=description,
-                evidence_url=url
+                evidence_url=url,
             )
 
-        except Exception as e:
-            logger.warning(f"Failed to parse news item: {e}")
+        except Exception as exc:
+            logger.warning("policy_news_item_invalid: %s", type(exc).__name__)
             return None
 
     def _classify_policy_level(self, text: str) -> PolicyLevel:
@@ -303,9 +326,7 @@ class RSSPolicyAdapter(PolicyAdapterProtocol):
     """
 
     def fetch_policy_events(
-        self,
-        start_date: date | None = None,
-        end_date: date | None = None
+        self, start_date: date | None = None, end_date: date | None = None
     ) -> list[PolicyEvent]:
         """
         从 PolicyLog 获取政策事件
@@ -327,7 +348,7 @@ class RSSPolicyAdapter(PolicyAdapterProtocol):
         logs = PolicyLog._default_manager.filter(
             event_date__gte=start_date,
             event_date__lte=end_date,
-        ).order_by('-event_date')[:100]
+        ).order_by("-event_date")[:100]
 
         events = []
         for log in logs:
@@ -336,13 +357,15 @@ class RSSPolicyAdapter(PolicyAdapterProtocol):
             except ValueError:
                 level = PolicyLevel.P0
 
-            events.append(PolicyEvent(
-                event_date=log.event_date,
-                level=level,
-                title=log.title,
-                description=log.description,
-                evidence_url=log.evidence_url,
-            ))
+            events.append(
+                PolicyEvent(
+                    event_date=log.event_date,
+                    level=level,
+                    title=log.title,
+                    description=log.description,
+                    evidence_url=log.evidence_url,
+                )
+            )
 
         logger.info(f"RSSPolicyAdapter: loaded {len(events)} events from PolicyLog")
         return events
@@ -351,6 +374,7 @@ class RSSPolicyAdapter(PolicyAdapterProtocol):
         """检查 PolicyLog 表是否可访问"""
         try:
             from apps.policy.infrastructure.models import PolicyLog
+
             PolicyLog._default_manager.exists()
             return True
         except Exception:

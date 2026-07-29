@@ -8,31 +8,35 @@ No Django, Pandas, or external dependencies allowed.
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
+from math import isfinite
 from typing import Any
 
 
 class PlaceholderType(Enum):
     """占位符类型"""
-    SIMPLE = "simple"           # {{PMI}} -> 直接值替换
-    STRUCTURED = "structured"   # {{MACRO_DATA}} -> 表格/JSON
-    FUNCTION = "function"       # {{TREND(PMI,6m)}} -> 函数调用
-    CONDITIONAL = "conditional" # {%if%} -> 模板语法
+
+    SIMPLE = "simple"  # {{PMI}} -> 直接值替换
+    STRUCTURED = "structured"  # {{MACRO_DATA}} -> 表格/JSON
+    FUNCTION = "function"  # {{TREND(PMI,6m)}} -> 函数调用
+    CONDITIONAL = "conditional"  # {%if%} -> 模板语法
 
 
 class ChainExecutionMode(Enum):
     """链式执行模式"""
-    SERIAL = "serial"           # 串行：Step1 -> Step2 -> Step3
-    PARALLEL = "parallel"       # 并行：多个Step同时执行 -> 汇总
-    TOOL_CALLING = "tool"       # 工具调用：AI主动调用函数
-    HYBRID = "hybrid"           # 混合模式
+
+    SERIAL = "serial"  # 串行：Step1 -> Step2 -> Step3
+    PARALLEL = "parallel"  # 并行：多个Step同时执行 -> 汇总
+    TOOL_CALLING = "tool"  # 工具调用：AI主动调用函数
+    HYBRID = "hybrid"  # 混合模式
 
 
 class PromptCategory(Enum):
     """Prompt分类"""
-    REPORT_ANALYSIS = "report"      # 投资分析报告生成
-    SIGNAL_GENERATION = "signal"    # 投资信号自动生成
-    DATA_ANALYSIS = "analysis"      # 通用数据分析
-    CHAT = "chat"                   # 聊天提问
+
+    REPORT_ANALYSIS = "report"  # 投资分析报告生成
+    SIGNAL_GENERATION = "signal"  # 投资信号自动生成
+    DATA_ANALYSIS = "analysis"  # 通用数据分析
+    CHAT = "chat"  # 聊天提问
 
 
 @dataclass(frozen=True)
@@ -48,6 +52,7 @@ class PlaceholderDef:
         function_name: FUNCTION类型的函数名
         function_params: FUNCTION类型的函数参数
     """
+
     name: str
     type: PlaceholderType
     description: str
@@ -75,6 +80,7 @@ class PromptTemplate:
         is_active: 是否激活
         created_at: 创建日期
     """
+
     id: str | None
     name: str
     category: PromptCategory
@@ -90,12 +96,19 @@ class PromptTemplate:
 
     def __post_init__(self) -> None:
         """验证数据一致性"""
-        # 确保temperature在有效范围内
-        if self.temperature < 0 or self.temperature > 2:
-            raise ValueError(f"temperature must be between 0 and 2, got {self.temperature}")
-        # 确保max_tokens为正数
-        if self.max_tokens is not None and self.max_tokens <= 0:
-            raise ValueError(f"max_tokens must be positive, got {self.max_tokens}")
+        if (
+            isinstance(self.temperature, bool)
+            or not isinstance(self.temperature, int | float)
+            or not isfinite(float(self.temperature))
+            or not 0 <= self.temperature <= 2
+        ):
+            raise ValueError("temperature must be finite between 0 and 2")
+        if self.max_tokens is not None and (
+            isinstance(self.max_tokens, bool)
+            or not isinstance(self.max_tokens, int)
+            or not 1 <= self.max_tokens <= 1_000_000
+        ):
+            raise ValueError("max_tokens must be an integer between 1 and 1000000")
 
 
 @dataclass(frozen=True)
@@ -114,6 +127,7 @@ class ChainStep:
         enable_tool_calling: 是否启用工具调用
         available_tools: 可用工具列表
     """
+
     step_id: str
     template_id: str
     step_name: str
@@ -140,6 +154,7 @@ class ChainConfig:
         is_active: 是否激活
         created_at: 创建日期
     """
+
     id: str | None
     name: str
     category: PromptCategory
@@ -192,6 +207,7 @@ class PromptExecutionContext:
         chain_execution_id: 链式执行ID
         step_outputs: 前序步骤输出
     """
+
     placeholder_values: dict[str, Any]
     regime_snapshot: dict[str, Any] | None = None
     policy_level: int | None = None
@@ -219,6 +235,7 @@ class PromptExecutionResult:
         error_message: 错误信息
         parsed_output: 解析后的结构化输出
     """
+
     success: bool
     content: str
     provider_used: str
@@ -230,6 +247,30 @@ class PromptExecutionResult:
     response_time_ms: int
     error_message: str | None = None
     parsed_output: dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        """Reject malformed or non-finite execution accounting evidence."""
+
+        counters = (self.prompt_tokens, self.completion_tokens, self.total_tokens)
+        if any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in counters
+        ):
+            raise ValueError("token counters must be non-negative integers")
+        if self.total_tokens < self.prompt_tokens + self.completion_tokens:
+            raise ValueError("total_tokens cannot be below component token counts")
+        if (
+            isinstance(self.estimated_cost, bool)
+            or not isinstance(self.estimated_cost, int | float)
+            or not isfinite(float(self.estimated_cost))
+            or self.estimated_cost < 0
+        ):
+            raise ValueError("estimated_cost must be finite and non-negative")
+        if (
+            isinstance(self.response_time_ms, bool)
+            or not isinstance(self.response_time_ms, int)
+            or self.response_time_ms < 0
+        ):
+            raise ValueError("response_time_ms must be a non-negative integer")
 
 
 @dataclass(frozen=True)
@@ -247,6 +288,7 @@ class ChainExecutionResult:
         total_time_ms: 总时间（毫秒）
         error_message: 错误信息
     """
+
     success: bool
     chain_name: str
     execution_mode: ChainExecutionMode
@@ -256,3 +298,26 @@ class ChainExecutionResult:
     total_cost: float = 0.0
     total_time_ms: int = 0
     error_message: str | None = None
+
+    def __post_init__(self) -> None:
+        """Reject malformed aggregate execution accounting evidence."""
+
+        if (
+            isinstance(self.total_tokens, bool)
+            or not isinstance(self.total_tokens, int)
+            or self.total_tokens < 0
+        ):
+            raise ValueError("total_tokens must be a non-negative integer")
+        if (
+            isinstance(self.total_cost, bool)
+            or not isinstance(self.total_cost, int | float)
+            or not isfinite(float(self.total_cost))
+            or self.total_cost < 0
+        ):
+            raise ValueError("total_cost must be finite and non-negative")
+        if (
+            isinstance(self.total_time_ms, bool)
+            or not isinstance(self.total_time_ms, int)
+            or self.total_time_ms < 0
+        ):
+            raise ValueError("total_time_ms must be a non-negative integer")

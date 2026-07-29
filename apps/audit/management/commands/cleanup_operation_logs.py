@@ -7,40 +7,55 @@ Usage:
 """
 
 from datetime import timedelta
+from typing import Any
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
 from apps.audit.infrastructure.models import OperationLogModel
 
 
 class Command(BaseCommand):
-    help = 'Cleanup old operation logs from the database'
+    help = "Cleanup old operation logs from the database"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
+        """Register bounded retention cleanup options."""
+
         parser.add_argument(
-            '--days',
+            "--days",
             type=int,
-            default=getattr(settings, 'AUDIT_RETENTION_DAYS', 90),
-            help='Number of days to keep logs (default: 90)',
+            default=getattr(settings, "AUDIT_RETENTION_DAYS", 90),
+            help="Number of days to keep logs (default: 90)",
         )
         parser.add_argument(
-            '--dry-run',
-            action='store_true',
-            help='Show what would be deleted without actually deleting',
+            "--dry-run",
+            action="store_true",
+            help="Show what would be deleted without actually deleting",
         )
         parser.add_argument(
-            '--batch-size',
+            "--batch-size",
             type=int,
             default=1000,
-            help='Number of records to delete per batch (default: 1000)',
+            help="Number of records to delete per batch (default: 1000)",
         )
 
-    def handle(self, *args, **options):
-        days = options['days']
-        dry_run = options['dry_run']
-        batch_size = options['batch_size']
+    def handle(self, *args: Any, **options: Any) -> None:
+        """Delete operation logs older than the validated retention window."""
+
+        days = options.get("days")
+        dry_run = options.get("dry_run")
+        batch_size = options.get("batch_size")
+        if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= 36_500:
+            raise CommandError("days must be an integer between 1 and 36500")
+        if not isinstance(dry_run, bool):
+            raise CommandError("dry-run must be a boolean flag")
+        if (
+            isinstance(batch_size, bool)
+            or not isinstance(batch_size, int)
+            or not 1 <= batch_size <= 10_000
+        ):
+            raise CommandError("batch-size must be an integer between 1 and 10000")
 
         cutoff_date = timezone.now() - timedelta(days=days)
 
@@ -55,34 +70,26 @@ class Command(BaseCommand):
         total_to_delete = queryset.count()
 
         if total_to_delete == 0:
-            self.stdout.write(self.style.SUCCESS('No logs to cleanup.'))
+            self.stdout.write(self.style.SUCCESS("No logs to cleanup."))
             return
 
         self.stdout.write(f"Found {total_to_delete} logs to cleanup.")
 
         if dry_run:
-            self.stdout.write(
-                self.style.WARNING(
-                    f"[DRY RUN] Would delete {total_to_delete} logs."
-                )
-            )
+            self.stdout.write(self.style.WARNING(f"[DRY RUN] Would delete {total_to_delete} logs."))
             return
 
         # 分批删除
         deleted_total = 0
         while True:
             # 获取一批记录 ID
-            log_ids = list(
-                queryset.values_list('id', flat=True)[:batch_size]
-            )
+            log_ids = list(queryset.values_list("id", flat=True)[:batch_size])
 
             if not log_ids:
                 break
 
             # 删除这批记录
-            deleted_count, _ = OperationLogModel._default_manager.filter(
-                id__in=log_ids
-            ).delete()
+            deleted_count, _ = OperationLogModel._default_manager.filter(id__in=log_ids).delete()
 
             deleted_total += deleted_count
 
@@ -91,8 +98,4 @@ class Command(BaseCommand):
                 f"(total: {deleted_total}/{total_to_delete})"
             )
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Successfully deleted {deleted_total} logs."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Successfully deleted {deleted_total} logs."))

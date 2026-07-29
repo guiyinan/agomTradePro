@@ -56,8 +56,11 @@ class TerminalMcpApprovalFacade:
                 created_by=user_id,
             )
         )
+        proposal_id = created.proposal.id
+        if proposal_id is None:
+            raise RuntimeError("agent_proposal_persistence_missing_id")
         submitted = self._submit_use_case.execute(
-            proposal_id=int(created.proposal.id),
+            proposal_id=proposal_id,
             actor=actor,
             context={},
         )

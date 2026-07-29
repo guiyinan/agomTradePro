@@ -17,6 +17,7 @@ from apps.policy.domain.entities import (
 )
 from apps.policy.infrastructure.adapters import feedparser_adapter
 from apps.policy.infrastructure.adapters.ai_policy_classifier import AIPolicyClassifier
+from apps.policy.infrastructure.adapters.base import PolicyAdapterError
 from apps.policy.infrastructure.adapters.content_extractor import (
     BaseContentExtractor,
     ContentExtractorError,
@@ -107,6 +108,26 @@ def test_news_adapter_availability_classification_date_parsing_and_fetch(monkeyp
         get=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("offline"))
     )
     assert adapter.is_available() is False
+
+
+def test_news_adapter_rejects_unsafe_config_and_redacts_provider_failures(monkeypatch) -> None:
+    """Provider credentials and exception details must not escape the adapter boundary."""
+    with pytest.raises(ValueError, match="must not contain credentials"):
+        NewsSourceConfig("unsafe", "https://user:secret@news.test")
+    with pytest.raises(ValueError, match="request_timeout"):
+        NewsSourceConfig("slow", "https://news.test", request_timeout=0)
+
+    adapter = NewsPolicyAdapter(NewsSourceConfig("fake", "https://news.test"))
+    monkeypatch.setattr(adapter, "is_available", lambda: True)
+    monkeypatch.setattr(
+        adapter,
+        "_search_policy_news",
+        lambda *args: (_ for _ in ()).throw(RuntimeError("postgres://user:secret@db")),
+    )
+
+    with pytest.raises(PolicyAdapterError, match="^policy_news_fetch_failed$") as error:
+        adapter.fetch_policy_events()
+    assert "secret" not in str(error.value)
 
 
 def _rss_item() -> RSSItem:

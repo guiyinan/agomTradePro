@@ -23,6 +23,7 @@ from apps.alpha.application.repository_provider import (
     get_qlib_model_registry_repository,
     inspect_latest_trade_date,
 )
+from apps.audit.domain.entities import mask_sensitive_text
 from apps.config_center.application.query_services import has_qlib_training_runs
 from apps.data_center.application.interface_services import (
     get_decision_data_readiness_payload,
@@ -30,13 +31,13 @@ from apps.data_center.application.interface_services import (
 )
 from apps.data_center.application.query_services import get_active_stock_fact_coverage_payload
 from apps.decision_rhythm.application.today_queue import TodayDecisionQueueQueryService
+from apps.operational_readiness.application.monitor_service import (
+    get_personal_readiness_monitor_summary,
+)
 from apps.policy.application.query_services import get_policy_status_payload
 from apps.pulse.application.use_cases import GetLatestPulseUseCase
 from apps.regime.application.interface_services import get_regime_current_payload
 from apps.signal.application.query_services import get_signal_diagnostic_summary
-from apps.task_monitor.application.readiness_monitor_service import (
-    get_personal_readiness_monitor_summary,
-)
 from apps.terminal.application.query_services import get_terminal_surface_status_payload
 from core.integration.runtime_settings import get_runtime_qlib_config
 
@@ -896,7 +897,7 @@ def _coverage_reason(payload: dict[str, Any]) -> str:
     domains = dict(payload.get("domains") or {})
     issues = list(universe_quality.get("issues") or [])
     if issues:
-        return issues[0]
+        return _first_text(issues[0])
     for domain_name, detail in domains.items():
         if int((detail or {}).get("missing_count") or 0) > 0:
             return f"{domain_name} missing {(detail or {}).get('missing_count')} assets"
@@ -952,7 +953,7 @@ def _first_text(*values: Any) -> str:
             continue
         text = str(value or "").strip()
         if text:
-            return text
+            return mask_sensitive_text(text)[:2_000]
     return ""
 
 

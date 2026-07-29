@@ -21,15 +21,15 @@ class TerminalCommandORM(models.Model):
     """Terminal command configuration persisted in the terminal app."""
 
     COMMAND_TYPE_CHOICES = [
-        (CommandType.PROMPT.value, 'Prompt模板调用'),
-        (CommandType.API.value, 'API端点调用'),
+        (CommandType.PROMPT.value, "Prompt模板调用"),
+        (CommandType.API.value, "API端点调用"),
     ]
 
     RISK_LEVEL_CHOICES = [
-        (TerminalRiskLevel.READ.value, '只读'),
-        (TerminalRiskLevel.WRITE_LOW.value, '低风险写入'),
-        (TerminalRiskLevel.WRITE_HIGH.value, '高风险写入'),
-        (TerminalRiskLevel.ADMIN.value, '管理员'),
+        (TerminalRiskLevel.READ.value, "只读"),
+        (TerminalRiskLevel.WRITE_LOW.value, "低风险写入"),
+        (TerminalRiskLevel.WRITE_HIGH.value, "高风险写入"),
+        (TerminalRiskLevel.ADMIN.value, "管理员"),
     ]
 
     name = models.CharField(
@@ -53,7 +53,7 @@ class TerminalCommandORM(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='terminal_commands',
+        related_name="terminal_commands",
         help_text="关联的Prompt模板（command_type=prompt时使用）",
     )
     system_prompt = models.TextField(
@@ -71,7 +71,7 @@ class TerminalCommandORM(models.Model):
     )
     api_method = models.CharField(
         max_length=10,
-        default='GET',
+        default="GET",
         help_text="HTTP方法（GET/POST）",
     )
     response_jq_filter = models.CharField(
@@ -100,7 +100,7 @@ class TerminalCommandORM(models.Model):
     )
     category = models.CharField(
         max_length=50,
-        default='general',
+        default="general",
         db_index=True,
         help_text="命令分类",
     )
@@ -134,42 +134,50 @@ class TerminalCommandORM(models.Model):
     updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
     class Meta:
-        db_table = 'terminal_command'
-        ordering = ['category', 'name']
+        db_table = "terminal_command"
+        ordering = ["category", "name"]
         verbose_name = "终端命令"
         verbose_name_plural = "终端命令配置"
         indexes = [
-            models.Index(fields=['category', 'is_active']),
-            models.Index(fields=['command_type', 'is_active']),
+            models.Index(fields=["category", "is_active"]),
+            models.Index(fields=["command_type", "is_active"]),
         ]
 
     def __str__(self) -> str:
         return f"{self.name} ({self.command_type})"
 
-    def clean(self):
+    def clean(self) -> None:
         super().clean()
 
         if self.command_type == CommandType.PROMPT.value and not self.prompt_template:
-            raise ValidationError({
-                'prompt_template': 'Prompt类型命令必须关联Prompt模板',
-            })
+            raise ValidationError(
+                {
+                    "prompt_template": "Prompt类型命令必须关联Prompt模板",
+                }
+            )
 
         if self.command_type == CommandType.PROMPT.value and not (
             self.user_prompt_template or self.system_prompt or self.prompt_template_id
         ):
-            raise ValidationError({
-                'user_prompt_template': 'Prompt类型命令至少需要模板或提示词配置',
-            })
+            raise ValidationError(
+                {
+                    "user_prompt_template": "Prompt类型命令至少需要模板或提示词配置",
+                }
+            )
 
         if self.command_type == CommandType.API.value and not self.api_endpoint:
-            raise ValidationError({
-                'api_endpoint': 'API类型命令必须配置API端点',
-            })
+            raise ValidationError(
+                {
+                    "api_endpoint": "API类型命令必须配置API端点",
+                }
+            )
 
         if self.timeout <= 0:
-            raise ValidationError({
-                'timeout': 'timeout必须为正数',
-            })
+            raise ValidationError(
+                {
+                    "timeout": "timeout必须为正数",
+                }
+            )
 
     def to_entity(self) -> TerminalCommand:
         """Map ORM model to domain entity."""
@@ -177,7 +185,7 @@ class TerminalCommandORM(models.Model):
             id=str(self.pk),
             name=self.name,
             description=self.description,
-            command_type=self.command_type,
+            command_type=CommandType(self.command_type),
             is_active=self.is_active,
             prompt_template_id=str(self.prompt_template_id) if self.prompt_template_id else None,
             system_prompt=self.system_prompt or None,
@@ -199,29 +207,37 @@ class TerminalCommandORM(models.Model):
         )
 
     @classmethod
-    def from_entity(cls, entity: TerminalCommand) -> 'TerminalCommandORM':
+    def from_entity(cls, entity: TerminalCommand) -> "TerminalCommandORM":
         """Map domain entity to ORM model."""
         if entity.id and str(entity.id).isdigit():
-            instance = cls._default_manager.filter(pk=int(entity.id)).first() or cls(pk=int(entity.id))
+            instance = cls._default_manager.filter(pk=int(entity.id)).first() or cls(
+                pk=int(entity.id)
+            )
         else:
             instance = cls()
         instance.name = entity.name
         instance.description = entity.description
         instance.command_type = entity.command_type.value
-        instance.prompt_template_id = int(entity.prompt_template_id) if entity.prompt_template_id else None
-        instance.system_prompt = entity.system_prompt or ''
+        instance.prompt_template_id = (
+            int(entity.prompt_template_id) if entity.prompt_template_id else None
+        )
+        instance.system_prompt = entity.system_prompt or ""
         instance.user_prompt_template = entity.user_prompt_template
-        instance.api_endpoint = entity.api_endpoint or ''
+        instance.api_endpoint = entity.api_endpoint or ""
         instance.api_method = entity.api_method
-        instance.response_jq_filter = entity.response_jq_filter or ''
+        instance.response_jq_filter = entity.response_jq_filter or ""
         instance.parameters = [p.to_dict() for p in entity.parameters]
         instance.timeout = entity.timeout
-        instance.provider_name = entity.provider_name or ''
-        instance.model_name = entity.model_name or ''
+        instance.provider_name = entity.provider_name or ""
+        instance.model_name = entity.model_name or ""
         instance.category = entity.category
         instance.tags = entity.tags or []
         instance.is_active = entity.is_active
-        instance.risk_level = entity.risk_level.value if isinstance(entity.risk_level, TerminalRiskLevel) else entity.risk_level
+        instance.risk_level = (
+            entity.risk_level.value
+            if isinstance(entity.risk_level, TerminalRiskLevel)
+            else entity.risk_level
+        )
         instance.requires_mcp = entity.requires_mcp
         instance.enabled_in_terminal = entity.enabled_in_terminal
         return instance
@@ -231,17 +247,17 @@ class TerminalAuditLogORM(models.Model):
     """终端审计日志"""
 
     CONFIRMATION_STATUS_CHOICES = [
-        ('confirmed', '已确认'),
-        ('cancelled', '已取消'),
-        ('not_required', '无需确认'),
-        ('expired', '已过期'),
+        ("confirmed", "已确认"),
+        ("cancelled", "已取消"),
+        ("not_required", "无需确认"),
+        ("expired", "已过期"),
     ]
 
     RESULT_STATUS_CHOICES = [
-        ('success', '成功'),
-        ('error', '错误'),
-        ('blocked', '被阻止'),
-        ('pending', '等待确认'),
+        ("success", "成功"),
+        ("error", "错误"),
+        ("blocked", "被阻止"),
+        ("pending", "等待确认"),
     ]
 
     user = models.ForeignKey(
@@ -260,20 +276,20 @@ class TerminalAuditLogORM(models.Model):
     confirmation_status = models.CharField(
         max_length=20,
         choices=CONFIRMATION_STATUS_CHOICES,
-        default='not_required',
+        default="not_required",
     )
     result_status = models.CharField(
         max_length=20,
         choices=RESULT_STATUS_CHOICES,
-        default='pending',
+        default="pending",
     )
     error_message = models.TextField(blank=True)
     duration_ms = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
-        db_table = 'terminal_audit_log'
-        ordering = ['-created_at']
+        db_table = "terminal_audit_log"
+        ordering = ["-created_at"]
         verbose_name = "终端审计日志"
         verbose_name_plural = "终端审计日志"
 
@@ -302,14 +318,14 @@ class TerminalAuditLogORM(models.Model):
 class TerminalRuntimeSettingsORM(models.Model):
     """Terminal runtime settings singleton."""
 
-    singleton_key = models.CharField(max_length=32, unique=True, default='default', editable=False)
+    singleton_key = models.CharField(max_length=32, unique=True, default="default", editable=False)
     answer_chain_enabled = models.BooleanField(
         default=True,
         help_text="是否允许在 Terminal 回答中展开查看答案链条",
     )
     fallback_chat_system_prompt = models.TextField(
         blank=True,
-        default='',
+        default="",
         help_text=(
             "Terminal 与共享网页聊天在 fallback 普通对话时注入的系统提示词。"
             "可由管理员控制回答范围，例如系统状态、Regime、持仓、信号、回测、"
@@ -320,7 +336,7 @@ class TerminalRuntimeSettingsORM(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'terminal_runtime_settings'
+        db_table = "terminal_runtime_settings"
         verbose_name = "Terminal 运行设置"
         verbose_name_plural = "Terminal 运行设置"
 
@@ -328,10 +344,10 @@ class TerminalRuntimeSettingsORM(models.Model):
         return "Terminal 运行设置"
 
     @classmethod
-    def get_solo(cls) -> 'TerminalRuntimeSettingsORM':
+    def get_solo(cls) -> "TerminalRuntimeSettingsORM":
         settings_obj, _ = cls.objects.get_or_create(
-            singleton_key='default',
-            defaults={'answer_chain_enabled': True, 'fallback_chat_system_prompt': ''},
+            singleton_key="default",
+            defaults={"answer_chain_enabled": True, "fallback_chat_system_prompt": ""},
         )
         return settings_obj
 
@@ -344,28 +360,32 @@ class TuiMetadataRegistryORM(models.Model):
     """
 
     STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('published', 'Published'),
-        ('archived', 'Archived'),
-        ('rejected', 'Rejected'),
+        ("draft", "Draft"),
+        ("published", "Published"),
+        ("archived", "Archived"),
+        ("rejected", "Rejected"),
     ]
     GENERATION_SOURCE_CHOICES = [
-        ('ai', 'AI'),
-        ('manual', 'Manual'),
-        ('mixed', 'Mixed'),
+        ("ai", "AI"),
+        ("manual", "Manual"),
+        ("mixed", "Mixed"),
     ]
     REVIEW_STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
     ]
 
-    registry_key = models.CharField(max_length=80, db_index=True, default='default')
-    version = models.CharField(max_length=40, default='tui-workbench.v2')
-    schema_version = models.CharField(max_length=40, default='tui-metadata.v3')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True)
-    review_status = models.CharField(max_length=20, choices=REVIEW_STATUS_CHOICES, default='pending', db_index=True)
-    generation_source = models.CharField(max_length=20, choices=GENERATION_SOURCE_CHOICES, default='mixed')
+    registry_key = models.CharField(max_length=80, db_index=True, default="default")
+    version = models.CharField(max_length=40, default="tui-workbench.v2")
+    schema_version = models.CharField(max_length=40, default="tui-metadata.v3")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft", db_index=True)
+    review_status = models.CharField(
+        max_length=20, choices=REVIEW_STATUS_CHOICES, default="pending", db_index=True
+    )
+    generation_source = models.CharField(
+        max_length=20, choices=GENERATION_SOURCE_CHOICES, default="mixed"
+    )
     backend_version = models.CharField(max_length=80, blank=True)
     payload = models.JSONField(default=dict)
     source_hash = models.CharField(max_length=64, blank=True, db_index=True)
@@ -373,30 +393,30 @@ class TuiMetadataRegistryORM(models.Model):
     changed_fields = models.JSONField(default=list, blank=True)
     review_note = models.TextField(blank=True)
     rollback_of = models.ForeignKey(
-        'self',
+        "self",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='rollback_releases',
+        related_name="rollback_releases",
     )
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='approved_tui_metadata_registries',
+        related_name="approved_tui_metadata_registries",
     )
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'terminal_tui_metadata_registry'
-        ordering = ['-published_at', '-updated_at']
+        db_table = "terminal_tui_metadata_registry"
+        ordering = ["-published_at", "-updated_at"]
         verbose_name = "TUI 元数据发布注册表"
         verbose_name_plural = "TUI 元数据发布注册表"
         indexes = [
-            models.Index(fields=['registry_key', 'status', '-published_at']),
+            models.Index(fields=["registry_key", "status", "-published_at"]),
         ]
 
     def __str__(self) -> str:
@@ -404,8 +424,8 @@ class TuiMetadataRegistryORM(models.Model):
 
 
 __all__ = [
-    'TerminalCommandORM',
-    'TerminalAuditLogORM',
-    'TerminalRuntimeSettingsORM',
-    'TuiMetadataRegistryORM',
+    "TerminalCommandORM",
+    "TerminalAuditLogORM",
+    "TerminalRuntimeSettingsORM",
+    "TuiMetadataRegistryORM",
 ]

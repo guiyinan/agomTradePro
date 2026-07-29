@@ -8,7 +8,9 @@ Author: AgomTradePro System
 Version: 1.0
 """
 
+import logging
 from datetime import date
+from typing import Protocol
 
 from apps.prompt.domain.entities import (
     ChainConfig,
@@ -19,10 +21,31 @@ from apps.prompt.domain.entities import (
     PromptCategory,
     PromptTemplate,
 )
+from apps.prompt.infrastructure.repositories import ChainRepositoryError, PromptRepositoryError
+
+logger = logging.getLogger(__name__)
+
+
+class PromptFixtureRepository(Protocol):
+    """Prompt fixture persistence operations."""
+
+    def get_template_by_name(self, name: str) -> PromptTemplate | None: ...
+
+    def create_template(self, template: PromptTemplate) -> PromptTemplate: ...
+
+
+class ChainFixtureRepository(Protocol):
+    """Chain fixture persistence operations."""
+
+    def get_chain_by_name(self, name: str) -> ChainConfig | None: ...
+
+    def create_chain(self, chain: ChainConfig) -> ChainConfig: ...
+
 
 # ============================================
 # Predefined Prompt Templates
 # ============================================
+
 
 def get_predefined_templates() -> list[PromptTemplate]:
     """
@@ -57,25 +80,25 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="DOMINANT_REGIME_NAME",
                     type=PlaceholderType.SIMPLE,
                     description="主导Regime名称",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="REGIME_CONFIDENCE",
                     type=PlaceholderType.SIMPLE,
                     description="Regime置信度",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="GROWTH_Z",
                     type=PlaceholderType.SIMPLE,
                     description="增长动量Z-score",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="INFLATION_Z",
                     type=PlaceholderType.SIMPLE,
                     description="通胀动量Z-score",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是一位专业的宏观经济分析师，擅长分析增长/通胀象限及其投资含义。",
@@ -83,9 +106,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=2000,
             description="Regime分析报告模板",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 2. 宏观数据摘要模板
         PromptTemplate(
             id=None,
@@ -109,7 +131,7 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="MACRO_DATA",
                     type=PlaceholderType.STRUCTURED,
                     description="宏观指标摘要数据",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是一位资深的经济数据分析师，擅长从多维度解读宏观数据。",
@@ -117,9 +139,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1500,
             description="宏观数据摘要分析模板",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 3. 投资信号生成模板
         PromptTemplate(
             id=None,
@@ -152,25 +173,25 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="ASSET_CODE",
                     type=PlaceholderType.SIMPLE,
                     description="资产代码",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="REGIME",
                     type=PlaceholderType.STRUCTURED,
                     description="当前Regime状态",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="POLICY_LEVEL",
                     type=PlaceholderType.SIMPLE,
                     description="政策档位",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="MACRO_DATA",
                     type=PlaceholderType.STRUCTURED,
                     description="宏观指标摘要",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是一位专业的量化投资分析师，擅长基于宏观环境生成投资信号，并设计完善的证伪逻辑。",
@@ -178,9 +199,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1000,
             description="投资信号生成模板",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 4. 趋势分析模板
         PromptTemplate(
             id=None,
@@ -207,21 +227,21 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="INDICATOR_CODE",
                     type=PlaceholderType.SIMPLE,
                     description="指标代码",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="TREND_DATA",
                     type=PlaceholderType.FUNCTION,
                     description="趋势分析结果",
                     function_name="calculate_trend",
-                    function_params={"period": "3m"}
+                    function_params={"period": "3m"},
                 ),
                 PlaceholderDef(
                     name="SERIES_DATA",
                     type=PlaceholderType.FUNCTION,
                     description="时序数据",
                     function_name="get_series",
-                    function_params={"days": 90}
+                    function_params={"days": 90},
                 ),
             ],
             system_prompt="你是一位技术分析专家，擅长识别数据趋势和模式。",
@@ -229,9 +249,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1500,
             description="趋势分析模板",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 5. 聊天助手模板
         PromptTemplate(
             id=None,
@@ -254,13 +273,13 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="USER_MESSAGE",
                     type=PlaceholderType.SIMPLE,
                     description="用户消息",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="CONTEXT",
                     type=PlaceholderType.STRUCTURED,
                     description="上下文数据",
-                    required=False
+                    required=False,
                 ),
             ],
             system_prompt="你是AgomTradePro系统的智能助手，精通宏观经济学、Regime理论和量化投资。请以专业、友好的方式回答用户问题。",
@@ -268,9 +287,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1000,
             description="聊天助手模板",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 6. 周度市场分析报告
         PromptTemplate(
             id=None,
@@ -314,37 +332,37 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="REPORT_DATE",
                     type=PlaceholderType.SIMPLE,
                     description="报告日期",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="MACRO_SUMMARY",
                     type=PlaceholderType.STRUCTURED,
                     description="宏观摘要",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="DOMINANT_REGIME_NAME",
                     type=PlaceholderType.SIMPLE,
                     description="主导Regime",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="REGIME_CONFIDENCE",
                     type=PlaceholderType.SIMPLE,
                     description="置信度",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="GROWTH_Z",
                     type=PlaceholderType.SIMPLE,
                     description="增长Z-score",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="INFLATION_Z",
                     type=PlaceholderType.SIMPLE,
                     description="通胀Z-score",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是一位资深的市场策略分析师，擅长综合宏观分析生成投资策略报告。",
@@ -352,9 +370,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=2500,
             description="周度市场分析报告",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 7. PMI专项分析
         PromptTemplate(
             id=None,
@@ -385,27 +402,27 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     type=PlaceholderType.SIMPLE,
                     description="制造业PMI",
                     required=True,
-                    default_value="50.0"
+                    default_value="50.0",
                 ),
                 PlaceholderDef(
                     name="NON_MANUFACTURING_PMI",
                     type=PlaceholderType.SIMPLE,
                     description="非制造业PMI",
                     required=True,
-                    default_value="50.0"
+                    default_value="50.0",
                 ),
                 PlaceholderDef(
                     name="COMPOSITE_PMI",
                     type=PlaceholderType.SIMPLE,
                     description="综合PMI",
                     required=True,
-                    default_value="50.0"
+                    default_value="50.0",
                 ),
                 PlaceholderDef(
                     name="PMI_HISTORY",
                     type=PlaceholderType.STRUCTURED,
                     description="PMI历史数据",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是PMI分析专家，精通中国采购经理指数的含义和解读。",
@@ -413,9 +430,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1500,
             description="PMI专项深度分析",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 8. CPI通胀分析
         PromptTemplate(
             id=None,
@@ -446,27 +462,27 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     type=PlaceholderType.SIMPLE,
                     description="CPI同比",
                     required=True,
-                    default_value="0.0"
+                    default_value="0.0",
                 ),
                 PlaceholderDef(
                     name="CPI_MOM",
                     type=PlaceholderType.SIMPLE,
                     description="CPI环比",
                     required=True,
-                    default_value="0.0"
+                    default_value="0.0",
                 ),
                 PlaceholderDef(
                     name="CORE_CPI",
                     type=PlaceholderType.SIMPLE,
                     description="核心CPI",
                     required=True,
-                    default_value="0.0"
+                    default_value="0.0",
                 ),
                 PlaceholderDef(
                     name="CPI_BREAKDOWN",
                     type=PlaceholderType.STRUCTURED,
                     description="CPI分项数据",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是通胀分析专家，精通中国CPI数据构成和通胀理论。",
@@ -474,9 +490,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1500,
             description="CPI通胀专项分析",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 9. 债券市场分析
         PromptTemplate(
             id=None,
@@ -507,40 +522,40 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="REGIME",
                     type=PlaceholderType.SIMPLE,
                     description="当前Regime",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="GROWTH_Z",
                     type=PlaceholderType.SIMPLE,
                     description="增长Z-score",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="INFLATION_Z",
                     type=PlaceholderType.SIMPLE,
                     description="通胀Z-score",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="BOND_YIELD_10Y",
                     type=PlaceholderType.SIMPLE,
                     description="10年期国债收益率",
                     required=True,
-                    default_value="2.5"
+                    default_value="2.5",
                 ),
                 PlaceholderDef(
                     name="BOND_YIELD_1Y",
                     type=PlaceholderType.SIMPLE,
                     description="1年期国债收益率",
                     required=True,
-                    default_value="2.0"
+                    default_value="2.0",
                 ),
                 PlaceholderDef(
                     name="YIELD_SPREAD",
                     type=PlaceholderType.SIMPLE,
                     description="收益率曲线利差",
                     required=True,
-                    default_value="50"
+                    default_value="50",
                 ),
             ],
             system_prompt="你是债券投资专家，精通固定收益分析和利率周期理论。",
@@ -548,9 +563,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1500,
             description="债券市场投资分析",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 10. 风险预警分析
         PromptTemplate(
             id=None,
@@ -600,25 +614,25 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="MACRO_INDICATORS",
                     type=PlaceholderType.STRUCTURED,
                     description="宏观指标",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="CURRENT_REGIME",
                     type=PlaceholderType.SIMPLE,
                     description="当前Regime",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="LAST_MONTH_REGIME",
                     type=PlaceholderType.SIMPLE,
                     description="上月Regime",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="REGIME_TREND",
                     type=PlaceholderType.SIMPLE,
                     description="Regime变化趋势",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是风险管理专家，擅长识别和评估金融市场各类风险。",
@@ -626,9 +640,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=2000,
             description="市场风险预警分析",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 11. 资产配置建议
         PromptTemplate(
             id=None,
@@ -674,39 +687,39 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     type=PlaceholderType.SIMPLE,
                     description="风险偏好（conservative/balanced/aggressive）",
                     required=True,
-                    default_value="balanced"
+                    default_value="balanced",
                 ),
                 PlaceholderDef(
                     name="INVESTMENT_HORIZON",
                     type=PlaceholderType.SIMPLE,
                     description="投资期限（short/medium/long）",
                     required=True,
-                    default_value="medium"
+                    default_value="medium",
                 ),
                 PlaceholderDef(
                     name="CAPITAL",
                     type=PlaceholderType.SIMPLE,
                     description="资金规模",
                     required=True,
-                    default_value="100万"
+                    default_value="100万",
                 ),
                 PlaceholderDef(
                     name="REGIME",
                     type=PlaceholderType.SIMPLE,
                     description="当前Regime",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="CONFIDENCE",
                     type=PlaceholderType.SIMPLE,
                     description="置信度",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="POLICY_LEVEL",
                     type=PlaceholderType.SIMPLE,
                     description="政策档位",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是资产配置专家，精通基于宏观环境的战略资产配置（SAA）和战术资产配置（TAA）。",
@@ -714,9 +727,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1500,
             description="资产配置建议生成",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 12. 行业轮动建议
         PromptTemplate(
             id=None,
@@ -759,19 +771,19 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="REGIME",
                     type=PlaceholderType.SIMPLE,
                     description="当前Regime",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="GROWTH_Z",
                     type=PlaceholderType.SIMPLE,
                     description="增长Z-score",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="INFLATION_Z",
                     type=PlaceholderType.SIMPLE,
                     description="通胀Z-score",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是行业配置专家，精通基于宏观周期的行业轮动理论。",
@@ -779,9 +791,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1500,
             description="行业轮动建议",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 13. 货币政策解读
         PromptTemplate(
             id=None,
@@ -811,31 +822,31 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="POLICY_MEETING",
                     type=PlaceholderType.SIMPLE,
                     description="政策会议名称",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="POLICY_LEVEL",
                     type=PlaceholderType.SIMPLE,
                     description="政策档位",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="RATE_DECISION",
                     type=PlaceholderType.SIMPLE,
                     description="利率决定",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="POLICY_STATEMENT",
                     type=PlaceholderType.STRUCTURED,
                     description="政策声明摘要",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="MACRO_CONTEXT",
                     type=PlaceholderType.STRUCTURED,
                     description="宏观背景",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是货币政策专家，精通央行政策和利率传导机制。",
@@ -843,9 +854,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1500,
             description="货币政策解读",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 14. 重大事件影响评估
         PromptTemplate(
             id=None,
@@ -876,31 +886,31 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="EVENT_TYPE",
                     type=PlaceholderType.SIMPLE,
                     description="事件类型（政策/数据/地缘等）",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="EVENT_DESCRIPTION",
                     type=PlaceholderType.SIMPLE,
                     description="事件描述",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="EVENT_DATE",
                     type=PlaceholderType.SIMPLE,
                     description="事件时间",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="REGIME",
                     type=PlaceholderType.SIMPLE,
                     description="当前Regime",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="MARKET_STATE",
                     type=PlaceholderType.STRUCTURED,
                     description="市场状态",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是事件分析专家，擅长评估突发事件对金融市场的影响。",
@@ -908,9 +918,8 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=1500,
             description="重大事件影响评估",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 15. 简易快速分析
         PromptTemplate(
             id=None,
@@ -935,13 +944,13 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     name="ANALYSIS_TARGET",
                     type=PlaceholderType.SIMPLE,
                     description="分析目标",
-                    required=True
+                    required=True,
                 ),
                 PlaceholderDef(
                     name="DATA",
                     type=PlaceholderType.STRUCTURED,
                     description="相关数据",
-                    required=True
+                    required=True,
                 ),
             ],
             system_prompt="你是快速分析专家，擅长从复杂数据中快速提炼核心观点。",
@@ -949,7 +958,7 @@ def get_predefined_templates() -> list[PromptTemplate]:
             max_tokens=500,
             description="快速简易分析",
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
     ]
 
@@ -957,6 +966,7 @@ def get_predefined_templates() -> list[PromptTemplate]:
 # ============================================
 # Predefined Chain Configurations
 # ============================================
+
 
 def get_predefined_chains() -> list[ChainConfig]:
     """
@@ -980,7 +990,7 @@ def get_predefined_chains() -> list[ChainConfig]:
                     order=1,
                     input_mapping={},
                     output_parser=None,
-                    parallel_group=None
+                    parallel_group=None,
                 ),
                 ChainStep(
                     step_id="step2_regime",
@@ -992,7 +1002,7 @@ def get_predefined_chains() -> list[ChainConfig]:
                         "REGIME_CONFIDENCE": "step1.output.confidence",
                     },
                     output_parser=None,
-                    parallel_group=None
+                    parallel_group=None,
                 ),
                 ChainStep(
                     step_id="step3_report",
@@ -1004,15 +1014,14 @@ def get_predefined_chains() -> list[ChainConfig]:
                         "REGIME_ANALYSIS": "step2.output.content",
                     },
                     output_parser=None,
-                    parallel_group=None
+                    parallel_group=None,
                 ),
             ],
             execution_mode=ChainExecutionMode.SERIAL,
             aggregate_step=None,
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 2. 多维度并行分析链
         ChainConfig(
             id=None,
@@ -1027,7 +1036,7 @@ def get_predefined_chains() -> list[ChainConfig]:
                     order=1,
                     input_mapping={"INDICATOR_CODE": "CN_PMI"},
                     output_parser=None,
-                    parallel_group="group1"
+                    parallel_group="group1",
                 ),
                 ChainStep(
                     step_id="step_cpi",
@@ -1036,7 +1045,7 @@ def get_predefined_chains() -> list[ChainConfig]:
                     order=1,
                     input_mapping={"INDICATOR_CODE": "CN_CPI"},
                     output_parser=None,
-                    parallel_group="group1"
+                    parallel_group="group1",
                 ),
                 ChainStep(
                     step_id="step_ppi",
@@ -1045,7 +1054,7 @@ def get_predefined_chains() -> list[ChainConfig]:
                     order=1,
                     input_mapping={"INDICATOR_CODE": "CN_PPI"},
                     output_parser=None,
-                    parallel_group="group1"
+                    parallel_group="group1",
                 ),
                 ChainStep(
                     step_id="step_aggregate",
@@ -1058,15 +1067,14 @@ def get_predefined_chains() -> list[ChainConfig]:
                         "PPI_ANALYSIS": "step_ppi.output.content",
                     },
                     output_parser=None,
-                    parallel_group=None
+                    parallel_group=None,
                 ),
             ],
             execution_mode=ChainExecutionMode.PARALLEL,
             aggregate_step=None,
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
-
         # 3. 信号验证链（工具调用模式）
         ChainConfig(
             id=None,
@@ -1083,24 +1091,22 @@ def get_predefined_chains() -> list[ChainConfig]:
                     output_parser="extract_json",
                     parallel_group=None,
                     enable_tool_calling=True,
-                    available_tools=["get_macro_indicator", "get_regime_status"]
+                    available_tools=["get_macro_indicator", "get_regime_status"],
                 ),
                 ChainStep(
                     step_id="step_validate",
                     template_id="signal_validation",
                     step_name="验证信号",
                     order=2,
-                    input_mapping={
-                        "SIGNAL_DATA": "step_generate.output.parsed_output"
-                    },
+                    input_mapping={"SIGNAL_DATA": "step_generate.output.parsed_output"},
                     output_parser=None,
-                    parallel_group=None
+                    parallel_group=None,
                 ),
             ],
             execution_mode=ChainExecutionMode.TOOL_CALLING,
             aggregate_step=None,
             is_active=True,
-            created_at=date.today()
+            created_at=date.today(),
         ),
     ]
 
@@ -1109,7 +1115,8 @@ def get_predefined_chains() -> list[ChainConfig]:
 # Load Functions
 # ============================================
 
-def load_predefined_templates(repository) -> int:
+
+def load_predefined_templates(repository: PromptFixtureRepository) -> int:
     """
     加载预定义模板到数据库
 
@@ -1129,13 +1136,16 @@ def load_predefined_templates(repository) -> int:
             if not existing:
                 repository.create_template(template)
                 count += 1
-        except Exception as e:
-            print(f"加载模板 {template.name} 失败: {e}")
+        except (PromptRepositoryError, TypeError, ValueError) as exc:
+            logger.error(
+                "Failed to load predefined prompt template error_type=%s",
+                type(exc).__name__,
+            )
 
     return count
 
 
-def load_predefined_chains(repository) -> int:
+def load_predefined_chains(repository: ChainFixtureRepository) -> int:
     """
     加载预定义链配置到数据库
 
@@ -1155,7 +1165,10 @@ def load_predefined_chains(repository) -> int:
             if not existing:
                 repository.create_chain(chain)
                 count += 1
-        except Exception as e:
-            print(f"加载链配置 {chain.name} 失败: {e}")
+        except (ChainRepositoryError, TypeError, ValueError) as exc:
+            logger.error(
+                "Failed to load predefined prompt chain error_type=%s",
+                type(exc).__name__,
+            )
 
     return count

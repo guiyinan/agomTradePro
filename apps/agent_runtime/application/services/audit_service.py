@@ -8,9 +8,20 @@ WP-M1-06: Security And Audit Hook
 """
 
 import logging
-from typing import Any
+from typing import Any, cast
+
+from apps.audit.domain.entities import mask_sensitive_params, mask_sensitive_text
 
 logger = logging.getLogger(__name__)
+
+
+def _masked_dict(payload: dict[str, Any]) -> dict[str, Any]:
+    """Detach and redact a payload before crossing the audit boundary."""
+
+    masked = mask_sensitive_params(payload)
+    if not isinstance(masked, dict):
+        return {}
+    return cast(dict[str, Any], masked)
 
 
 class AgentRuntimeAuditService:
@@ -27,7 +38,7 @@ class AgentRuntimeAuditService:
     should not affect the main workflow.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the audit service."""
         self._enabled = True
 
@@ -289,10 +300,10 @@ class AgentRuntimeAuditService:
                 action=action,
                 resource_type=resource_type,
                 resource_id=resource_id,
-                request_params=request_params,
-                response_payload=response_payload,
+                request_params=_masked_dict(request_params),
+                response_payload=_masked_dict(response_payload),
                 response_status=response_status,
-                response_message=response_message,
+                response_message=mask_sensitive_text(response_message)[:2_000],
                 ip_address=ip_address,
             )
 
@@ -300,15 +311,22 @@ class AgentRuntimeAuditService:
             response = use_case.execute(request)
 
             if response.success:
-                logger.debug(f"Logged operation: {operation_type} for task {resource_id}")
+                logger.debug(
+                    "Logged operation: %s for resource_type=%s",
+                    operation_type,
+                    resource_type,
+                )
                 return response.log_id
             else:
-                logger.warning(f"Failed to log operation: {response.error}")
+                logger.warning("Agent runtime audit write returned unsuccessful status")
                 return None
 
-        except Exception as e:
+        except Exception as exc:
             # Log error but don't block the main workflow
-            logger.error(f"Audit logging failed: {e}")
+            logger.error(
+                "Agent runtime audit logging failed: error_type=%s",
+                exc.__class__.__name__,
+            )
             return None
 
     def enable(self) -> None:

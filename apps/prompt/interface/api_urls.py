@@ -1,6 +1,7 @@
 """Prompt API URL configuration."""
 
 from django.urls import include, path
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
@@ -27,7 +28,11 @@ router.register(r"logs", ExecutionLogViewSet, basename="execution-log")
 
 
 class PromptApiRootView(APIView):
-    def get(self, request):
+    """Return discoverable Prompt API endpoints."""
+
+    def get(self, request: Request) -> Response:
+        """Return stable Prompt API discovery metadata."""
+
         return Response(
             {
                 "endpoints": {

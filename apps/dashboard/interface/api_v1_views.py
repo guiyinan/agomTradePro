@@ -16,6 +16,7 @@ from apps.account.interface.authentication import (
     TerminalInternalAuthentication,
 )
 from apps.dashboard.application.auto_advisor_outputs import (
+    ReportUserProtocol,
     persist_auto_advisor_weekly_report_outputs,
 )
 from apps.dashboard.application.query_services import (
@@ -202,7 +203,7 @@ def auto_advisor_weekly_report(request: Request) -> Response:
         persisted = None
         if request.method == "POST":
             persisted = persist_auto_advisor_weekly_report_outputs(
-                user=request.user,
+                user=cast(ReportUserProtocol, request.user),
                 report_payload=payload,
                 audit_source="API",
                 audit_tool_name="auto_advisor_weekly_report",

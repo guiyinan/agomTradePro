@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
 
-from ..domain.entities import EventType
+from ..domain.entities import DomainEvent, EventType
 
 if TYPE_CHECKING:
-    from .use_cases import PublishEventRequest
+    from .use_cases import GetEventMetricsResponse, PublishEventRequest
 
 
 @dataclass
@@ -197,7 +197,7 @@ def dto_to_event_publish_request(dto: EventPublishRequestDTO) -> PublishEventReq
     )
 
 
-def event_to_dto(event) -> EventDTO:
+def event_to_dto(event: DomainEvent) -> EventDTO:
     """
     转换领域事件为 DTO
 
@@ -219,7 +219,7 @@ def event_to_dto(event) -> EventDTO:
     )
 
 
-def metrics_to_dto(metrics) -> EventMetricsDTO:
+def metrics_to_dto(metrics: GetEventMetricsResponse) -> EventMetricsDTO:
     """
     转换事件指标为 DTO
 

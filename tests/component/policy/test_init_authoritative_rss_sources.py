@@ -1,7 +1,7 @@
 from io import StringIO
 
 import pytest
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 
 from apps.policy.infrastructure.models import RSSHubGlobalConfig, RSSSourceConfigModel
 from apps.policy.management.commands.init_authoritative_rss_sources import (
@@ -95,3 +95,12 @@ def test_init_authoritative_rss_sources_resolves_env_base_url(monkeypatch):
     monkeypatch.setenv("AGOM_RSSHUB_BASE_URL", "http://rsshub:1200/")
 
     assert Command._resolve_base_url("") == "http://rsshub:1200"
+
+
+@pytest.mark.parametrize(
+    "candidate_url",
+    ["ftp://rsshub.test", "https://user:secret@rsshub.test", "https://rsshub.test?q=secret"],
+)
+def test_init_authoritative_rss_sources_rejects_unsafe_base_url(candidate_url):
+    with pytest.raises(CommandError):
+        Command._resolve_base_url(candidate_url)

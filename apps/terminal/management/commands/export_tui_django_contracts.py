@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 
 from apps.terminal.infrastructure.tui_contract_export import (
     DEFAULT_TUI_CONTRACT_APP_LABELS,
@@ -21,7 +22,7 @@ class Command(BaseCommand):
         "AgomTUI compile-time metadata generation."
     )
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         """Register command-line arguments."""
 
         parser.add_argument(
@@ -54,7 +55,7 @@ class Command(BaseCommand):
             help="Pretty-print JSON indentation width.",
         )
 
-    def handle(self, *args, **options) -> None:
+    def handle(self, *args: str, **options: Any) -> None:
         """Export the requested manifest and print a concise summary."""
 
         output_path = Path(options["output"]).resolve()

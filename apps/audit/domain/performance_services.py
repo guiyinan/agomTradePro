@@ -4,6 +4,7 @@ Pure business logic for evaluating indicator predictive power against Regime
 history. Only uses Python standard library (no pandas/numpy).
 """
 
+import logging
 import math
 from datetime import date, timedelta
 
@@ -586,10 +587,14 @@ class ThresholdValidator:
     验证历史阈值配置的表现。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.analyzers: dict[str, IndicatorPerformanceAnalyzer] = {}
 
-    def add_indicator(self, indicator_code: str, threshold_config: IndicatorThresholdConfig):
+    def add_indicator(
+        self,
+        indicator_code: str,
+        threshold_config: IndicatorThresholdConfig,
+    ) -> None:
         """添加指标分析器"""
         self.analyzers[indicator_code] = IndicatorPerformanceAnalyzer(threshold_config)
 
@@ -612,7 +617,7 @@ class ThresholdValidator:
         Returns:
             List[IndicatorPerformanceReport]: 所有指标的表现报告
         """
-        reports = []
+        reports: list[IndicatorPerformanceReport] = []
 
         for indicator_code, analyzer in self.analyzers.items():
             if indicator_code not in indicators_data:
@@ -627,10 +632,10 @@ class ThresholdValidator:
                     evaluation_end=evaluation_end,
                 )
                 reports.append(report)
-            except Exception as e:
-                # 记录错误但继续处理其他指标
-                import logging
-
-                logging.warning(f"Failed to analyze {indicator_code}: {e}")
+            except (ArithmeticError, TypeError, ValueError) as exc:
+                logging.warning(
+                    "Failed to analyze indicator error_type=%s",
+                    type(exc).__name__,
+                )
 
         return reports

@@ -4,13 +4,14 @@ Sector page routes.
 板块分析的用户入口已收口到 rotation 页面，旧 sector 页面路径仅保留跳转。
 """
 
+from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.urls import path
 
 app_name = "sector"
 
 
-def sector_page_redirect(request):
+def sector_page_redirect(request: HttpRequest) -> HttpResponseRedirect:
     """Redirect legacy sector pages to the rotation assets page."""
     return redirect("rotation:assets")
 

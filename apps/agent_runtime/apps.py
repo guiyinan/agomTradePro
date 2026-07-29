@@ -8,7 +8,7 @@ class AgentRuntimeConfig(AppConfig):
     name = "apps.agent_runtime"
     verbose_name = "Agent Runtime"
 
-    def ready(self):
+    def ready(self) -> None:
         """Import modules when app is ready"""
         from .application.config_summary_service import (
             configure_agent_runtime_config_summary_repository,

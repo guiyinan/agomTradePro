@@ -10,26 +10,10 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 100,
-    "files_with_errors": 72
+    "errors": 27,
+    "files_with_errors": 24
   },
   "modules": {
-    "apps/agent_runtime/application/dtos.py": {
-      "attr-defined": 1
-    },
-    "apps/agent_runtime/application/services/audit_service.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 1
-    },
-    "apps/agent_runtime/application/terminal_approval.py": {
-      "arg-type": 1
-    },
-    "apps/agent_runtime/application/use_cases.py": {
-      "arg-type": 1
-    },
-    "apps/agent_runtime/apps.py": {
-      "no-untyped-def": 1
-    },
     "apps/agent_runtime/infrastructure/repositories.py": {
       "misc": 2
     },
@@ -41,27 +25,6 @@
     },
     "apps/ai_provider/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/audit/domain/performance_services.py": {
-      "no-untyped-def": 2
-    },
-    "apps/audit/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/audit/interface/openapi.py": {
-      "misc": 1
-    },
-    "apps/audit/interface/urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/audit/management/commands/cleanup_operation_logs.py": {
-      "no-untyped-def": 2
-    },
-    "apps/audit/management/commands/init_indicator_thresholds.py": {
-      "no-untyped-def": 2
-    },
-    "apps/audit/templatetags/audit_filters.py": {
-      "no-untyped-def": 2
     },
     "apps/backtest/infrastructure/adapters/tushare_price_adapter.py": {
       "no-redef": 1
@@ -75,39 +38,11 @@
     "apps/beta_gate/interface/api_urls.py": {
       "no-untyped-def": 1
     },
-    "apps/dashboard/application/auto_advisor_outputs.py": {
-      "no-any-return": 1
-    },
-    "apps/dashboard/application/tasks.py": {
-      "misc": 1
-    },
-    "apps/dashboard/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/dashboard/interface/workflow_views.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 2
-    },
-    "apps/dashboard/templatetags/dashboard_tags.py": {
-      "no-untyped-def": 2
-    },
     "apps/data_center/infrastructure/market_breadth_repositories.py": {
       "misc": 1
     },
     "apps/equity/infrastructure/asset_repository.py": {
       "misc": 1
-    },
-    "apps/events/application/dtos.py": {
-      "no-untyped-def": 2
-    },
-    "apps/events/infrastructure/models.py": {
-      "no-untyped-def": 1
-    },
-    "apps/events/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/events/interface/urls.py": {
-      "var-annotated": 1
     },
     "apps/filter/interface/deprecation.py": {
       "misc": 1
@@ -115,79 +50,8 @@
     "apps/filter/interface/urls.py": {
       "no-untyped-def": 1
     },
-    "apps/fund/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/fund/infrastructure/adapters/akshare_fund_adapter.py": {
-      "import-untyped": 1
-    },
-    "apps/fund/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/fund/management/commands/prepare_fund_research_data.py": {
-      "no-untyped-def": 3
-    },
-    "apps/hedge/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/hedge/interface/urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/hedge/management/commands/init_hedge.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 3
-    },
-    "apps/policy/domain/entities.py": {
-      "no-untyped-def": 1
-    },
-    "apps/policy/infrastructure/adapters/news_adapter.py": {
-      "var-annotated": 1
-    },
-    "apps/policy/infrastructure/adapters/rss_adapter.py": {
-      "type-arg": 1
-    },
-    "apps/policy/management/commands/init_authoritative_rss_sources.py": {
-      "no-untyped-def": 2
-    },
     "apps/portfolio/interface/admin.py": {
       "type-arg": 1
-    },
-    "apps/prompt/application/__init__.py": {
-      "no-untyped-def": 2,
-      "type-arg": 1
-    },
-    "apps/prompt/application/context_builders.py": {
-      "no-untyped-def": 1
-    },
-    "apps/prompt/application/interface_services.py": {
-      "no-untyped-call": 1
-    },
-    "apps/prompt/application/runtime_provider.py": {
-      "no-untyped-call": 2
-    },
-    "apps/prompt/infrastructure/fixtures/templates.py": {
-      "no-untyped-def": 2
-    },
-    "apps/prompt/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/sector/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/sector/infrastructure/adapters/tushare_sector_adapter.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 1,
-      "type-arg": 1
-    },
-    "apps/sector/infrastructure/repositories.py": {
-      "arg-type": 1,
-      "no-untyped-def": 1
-    },
-    "apps/sector/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/sector/interface/urls.py": {
-      "no-untyped-def": 1
     },
     "apps/sentiment/apps.py": {
       "no-untyped-def": 1
@@ -218,23 +82,6 @@
     },
     "apps/simulated_trading/management/commands/repair_personal_account_readiness.py": {
       "no-untyped-def": 1
-    },
-    "apps/terminal/application/__init__.py": {
-      "no-untyped-def": 1
-    },
-    "apps/terminal/application/tui_operator_services.py": {
-      "attr-defined": 1,
-      "no-any-return": 1
-    },
-    "apps/terminal/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/terminal/infrastructure/models.py": {
-      "arg-type": 1,
-      "no-untyped-def": 1
-    },
-    "apps/terminal/management/commands/export_tui_django_contracts.py": {
-      "no-untyped-def": 2
     },
     "apps/valuation/infrastructure/providers.py": {
       "attr-defined": 1

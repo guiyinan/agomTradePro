@@ -187,6 +187,17 @@ def test_data_center_governance_rows_map_freshness_and_coverage(monkeypatch):
     assert rows[2]["severity"] == "warning"
 
 
+def test_operator_reason_redacts_credentials() -> None:
+    """Operator-facing failure reasons never publish provider credentials."""
+
+    reason = operator_services._first_text(
+        "provider failed dsn=postgresql://user:secret@database.internal/runtime"
+    )
+
+    assert "secret" not in reason
+    assert "***" in reason
+
+
 def test_ai_provider_governance_rows_map_provider_failures_and_quota(monkeypatch):
     class FakeListProvidersUseCase:
         def execute(self, **kwargs):

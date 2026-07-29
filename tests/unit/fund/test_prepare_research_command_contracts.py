@@ -67,7 +67,7 @@ def test_prepare_fund_research_validates_dates_sync_and_universe(monkeypatch) ->
             **_options(start_date="2026-07-24", end_date="2026-07-24")
         )
     command = prepare_fund_research_data.Command(stdout=StringIO())
-    with pytest.raises(CommandError, match="Invalid date"):
+    with pytest.raises(CommandError, match="fund research date is invalid"):
         command._parse_date("bad-date", default=date.today())
 
     class _BrokenRepo:
@@ -75,7 +75,7 @@ def test_prepare_fund_research_validates_dates_sync_and_universe(monkeypatch) ->
             raise RuntimeError("master unavailable")
 
     monkeypatch.setattr(prepare_fund_research_data, "DjangoFundRepository", _BrokenRepo)
-    with pytest.raises(CommandError, match="master unavailable"):
+    with pytest.raises(CommandError, match="fund_master_sync_failed"):
         prepare_fund_research_data.Command(stdout=StringIO()).handle(**_options())
 
     class _EmptyRepo:
@@ -126,8 +126,13 @@ def test_fund_code_resolution_uses_explicit_codes_or_local_filters(monkeypatch) 
         "FundInfoModel",
         SimpleNamespace(_default_manager=query),
     )
+    with pytest.raises(CommandError, match="max-funds"):
+        command._resolve_fund_codes(
+            _options(fund_codes="", fund_types=" equity, bond ", max_funds=0)
+        )
+
     resolved = command._resolve_fund_codes(
-        _options(fund_codes="", fund_types=" equity, bond ", max_funds=0)
+        _options(fund_codes="", fund_types=" equity, bond ", max_funds=1)
     )
     assert resolved == ["000010"]
     assert query.filters[-1] == {"fund_type__in": ["equity", "bond"]}

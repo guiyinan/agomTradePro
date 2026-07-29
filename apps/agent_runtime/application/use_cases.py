@@ -201,6 +201,8 @@ class CreateTaskUseCase:
             created_by=input_dto.created_by,
             status=TaskStatus.DRAFT.value,
         )
+        if task.id is None:
+            raise RuntimeError("agent_task_persistence_missing_id")
 
         # Emit timeline event
         timeline_event_id = self.timeline_service.write_task_created_event(
@@ -221,8 +223,11 @@ class CreateTaskUseCase:
                     input_payload=input_dto.input_payload,
                     source="API",
                 )
-            except Exception as e:
-                logger.warning(f"Failed to log audit event: {e}")
+            except Exception as exc:
+                logger.warning(
+                    "Failed to log agent task audit event: error_type=%s",
+                    exc.__class__.__name__,
+                )
 
         logger.info(f"Created task {task.id} with request_id={request_id}")
 

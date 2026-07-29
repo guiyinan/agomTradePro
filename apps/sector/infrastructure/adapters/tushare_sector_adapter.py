@@ -7,18 +7,22 @@ implementation now delegates to the unified internal store.
 
 from __future__ import annotations
 
-import pandas as pd
-
-from .akshare_sector_adapter import AKShareSectorAdapter
+from .akshare_sector_adapter import (
+    AKShareSectorAdapter,
+    DataFramePayload,
+    _normalize_sector_code,
+    _validate_date_range,
+    pd,
+)
 
 
 class TushareSectorAdapter:
     """Compatibility facade reusing the internal sector fact store."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._delegate = AKShareSectorAdapter()
 
-    def fetch_sw_industry_classify(self, level: str = "L1") -> pd.DataFrame:
+    def fetch_sw_industry_classify(self, level: str = "L1") -> DataFramePayload:
         return self._delegate.fetch_sw_industry_classify(level=level)
 
     def fetch_sector_index_daily(
@@ -26,7 +30,8 @@ class TushareSectorAdapter:
         sector_code: str,
         start_date: str,
         end_date: str,
-    ) -> pd.DataFrame:
+    ) -> DataFramePayload:
+        _validate_date_range(start_date, end_date)
         df = self._delegate.fetch_sector_index_daily(
             sector_code=sector_code,
             start_date=start_date,
@@ -36,10 +41,10 @@ class TushareSectorAdapter:
             return df
         return df.rename(columns={"open": "open_price"})
 
-    def fetch_sector_constituents(self, sector_code: str) -> pd.DataFrame:
+    def fetch_sector_constituents(self, sector_code: str) -> DataFramePayload:
         from apps.sector.infrastructure.models import SectorConstituentModel, SectorInfoModel
 
-        normalized_code = sector_code.replace(".SI", "")
+        normalized_code = _normalize_sector_code(sector_code)
         sector = (
             SectorInfoModel._default_manager.filter(sector_code=normalized_code)
             .values("sector_code")
@@ -66,12 +71,14 @@ class TushareSectorAdapter:
 
     def fetch_all_sector_index_daily(
         self,
-        sector_codes: list,
+        sector_codes: list[str],
         start_date: str,
         end_date: str,
-    ) -> pd.DataFrame:
+    ) -> DataFramePayload:
+        _validate_date_range(start_date, end_date)
+        normalized_codes = [_normalize_sector_code(code) for code in sector_codes]
         df = self._delegate.fetch_all_sector_index_daily(
-            sector_codes=sector_codes,
+            sector_codes=normalized_codes,
             start_date=start_date,
             end_date=end_date,
         )

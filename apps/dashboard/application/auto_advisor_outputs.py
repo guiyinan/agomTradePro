@@ -2,21 +2,57 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date
-from importlib import import_module
-from typing import Any
+from typing import Any, Protocol
+
+from apps.audit.application.interface_services import (
+    log_operation_payload as _log_operation_payload,
+)
 
 from .repository_provider import get_auto_advisor_report_repository
 
 
+class ReportUserProtocol(Protocol):
+    """User identity fields required for report persistence and audit."""
+
+    @property
+    def id(self) -> int | None: ...
+
+    @property
+    def username(self) -> str: ...
+
+    @property
+    def email(self) -> str: ...
+
+
 def log_operation_payload(**kwargs: Any) -> dict[str, Any]:
-    interface_services = import_module("apps.audit.application.interface_services")
-    return interface_services.log_operation_payload(**kwargs)
+    """Write one audit row through the owning application boundary."""
+
+    result = _log_operation_payload(**kwargs)
+    return {str(key): value for key, value in result.items()}
+
+
+def _mapping(value: object, field_name: str) -> dict[str, Any]:
+    """Detach one string-key mapping from a generated report payload."""
+
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{field_name} must be an object")
+    return {str(key): item for key, item in value.items()}
+
+
+def _bounded_text(value: object, *, field_name: str, maximum: int) -> str:
+    """Return bounded single-line report metadata."""
+
+    normalized = str(value or "").strip()
+    if len(normalized) > maximum or any(ord(character) < 32 for character in normalized):
+        raise ValueError(f"{field_name} is invalid")
+    return normalized
 
 
 def persist_auto_advisor_weekly_report_outputs(
     *,
-    user: Any,
+    user: ReportUserProtocol,
     report_payload: dict[str, Any],
     audit_source: str = "API",
     audit_tool_name: str = "dashboard.generate_auto_advisor_weekly_reports",
@@ -29,8 +65,8 @@ def persist_auto_advisor_weekly_report_outputs(
     if user_id <= 0:
         raise ValueError("valid user is required")
 
-    account = dict(report_payload.get("account") or {})
-    week = dict(report_payload.get("week") or {})
+    account = _mapping(report_payload.get("account"), "account")
+    week = _mapping(report_payload.get("week"), "week")
     account_id = int(account.get("account_id") or account.get("id") or 0)
     if account_id <= 0:
         raise ValueError("valid account_id is required")
@@ -38,8 +74,17 @@ def persist_auto_advisor_weekly_report_outputs(
     report_date = date.fromisoformat(str(week["as_of"]))
     week_start = date.fromisoformat(str(week["start"]))
     week_end = date.fromisoformat(str(week["end"]))
-    account_name = str(account.get("account_name") or account.get("name") or "")
-    investment_diary = dict(report_payload.get("investment_diary") or {})
+    if not week_start <= report_date <= week_end:
+        raise ValueError("weekly report dates are inconsistent")
+    account_name = _bounded_text(
+        account.get("account_name") or account.get("name") or "",
+        field_name="account_name",
+        maximum=200,
+    )
+    investment_diary = _mapping(
+        report_payload.get("investment_diary") or {},
+        "investment_diary",
+    )
     repo = get_auto_advisor_report_repository()
     report = repo.upsert_weekly_report(
         user_id=user_id,
@@ -60,7 +105,10 @@ def persist_auto_advisor_weekly_report_outputs(
         payload={
             "report_id": report["id"],
             "report_date": report["report_date"],
-            "today_conclusion": (report_payload.get("evidence") or {}).get("today_conclusion"),
+            "today_conclusion": _mapping(
+                report_payload.get("evidence") or {},
+                "evidence",
+            ).get("today_conclusion"),
             "investment_diary_status": investment_diary.get("status"),
         },
     )
@@ -90,17 +138,28 @@ def persist_auto_advisor_weekly_report_outputs(
 
 
 def _weekly_report_notification_message(report_payload: dict[str, Any]) -> str:
-    portfolio_change = dict(report_payload.get("portfolio_change") or {})
-    system_vs_actual = dict(report_payload.get("system_vs_actual") or {})
-    return (
-        f"组合变化 {portfolio_change.get('status') or '-'}，"
-        f"系统建议 {system_vs_actual.get('decision_count', 0)} 条。"
+    portfolio_change = _mapping(
+        report_payload.get("portfolio_change") or {},
+        "portfolio_change",
     )
+    system_vs_actual = _mapping(
+        report_payload.get("system_vs_actual") or {},
+        "system_vs_actual",
+    )
+    status = _bounded_text(
+        portfolio_change.get("status") or "-",
+        field_name="portfolio_change.status",
+        maximum=64,
+    )
+    decision_count = system_vs_actual.get("decision_count", 0)
+    if isinstance(decision_count, bool) or not isinstance(decision_count, int):
+        decision_count = 0
+    return f"组合变化 {status}，" f"系统建议 {decision_count} 条。"
 
 
 def _write_auto_advisor_report_audit_log(
     *,
-    user: Any,
+    user: ReportUserProtocol,
     account_id: int,
     report_id: int,
     report_payload: dict[str, Any],
@@ -109,6 +168,18 @@ def _write_auto_advisor_report_audit_log(
     audit_request_method: str,
     audit_request_path: str,
 ) -> dict[str, Any]:
+    audit_source = _bounded_text(audit_source, field_name="audit_source", maximum=32)
+    audit_tool_name = _bounded_text(audit_tool_name, field_name="audit_tool_name", maximum=128)
+    audit_request_method = _bounded_text(
+        audit_request_method,
+        field_name="audit_request_method",
+        maximum=16,
+    )
+    audit_request_path = _bounded_text(
+        audit_request_path,
+        field_name="audit_request_path",
+        maximum=256,
+    )
     return log_operation_payload(
         request_id=f"auto-advisor-weekly-report-{report_id}",
         user_id=int(getattr(user, "id", 0) or 0),

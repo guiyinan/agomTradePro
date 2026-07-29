@@ -1,17 +1,26 @@
 from __future__ import annotations
 
+import logging
+import re
+from collections.abc import Mapping
 from datetime import date, timedelta
+from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.fund.infrastructure.models import FundInfoModel
 from apps.fund.infrastructure.repositories import DjangoFundRepository
 
+logger = logging.getLogger(__name__)
+_FUND_CODE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,32}$")
+
 
 class Command(BaseCommand):
-    help = "Prepare fund research data by syncing fund info, NAV history, and performance snapshots."
+    help = (
+        "Prepare fund research data by syncing fund info, NAV history, and performance snapshots."
+    )
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--fund-codes",
             type=str,
@@ -53,24 +62,40 @@ class Command(BaseCommand):
             help="Fetch missing NAV history from Tushare when local NAV data is absent.",
         )
 
-    def handle(self, *args, **options) -> None:
+    def handle(self, *args: str, **options: Any) -> None:
         repo = DjangoFundRepository()
-        start_date = self._parse_date(options["start_date"], default=date.today() - timedelta(days=365))
-        end_date = self._parse_date(options["end_date"], default=date.today())
+        start_date = self._parse_date(
+            options.get("start_date"),
+            default=date.today() - timedelta(days=365),
+        )
+        end_date = self._parse_date(options.get("end_date"), default=date.today())
 
         if start_date >= end_date:
             raise CommandError("start-date must be earlier than end-date")
+        if (end_date - start_date).days > 7_305:
+            raise CommandError("fund research date range exceeds 20 years")
 
-        if not options["skip_info_sync"]:
+        skip_info_sync = options.get("skip_info_sync", False)
+        allow_remote_nav_sync = options.get("allow_remote_nav_sync", False)
+        if not isinstance(skip_info_sync, bool) or not isinstance(allow_remote_nav_sync, bool):
+            raise CommandError("fund research boolean options are invalid")
+
+        if not skip_info_sync:
             try:
                 synced_count = repo.ensure_fund_universe_seeded()
             except Exception as exc:
-                raise CommandError(f"Failed to sync fund master data: {exc}") from exc
+                logger.error(
+                    "Fund master sync failed: %s",
+                    type(exc).__name__,
+                )
+                raise CommandError("fund_master_sync_failed") from None
             self.stdout.write(self.style.SUCCESS(f"Fund info sync completed: {synced_count} rows"))
 
         fund_codes = self._resolve_fund_codes(options)
         if not fund_codes:
-            raise CommandError("No fund codes available. Sync fund master data first or pass --fund-codes.")
+            raise CommandError(
+                "No fund codes available. Sync fund master data first or pass --fund-codes."
+            )
 
         self.stdout.write(
             f"Preparing {len(fund_codes)} funds for range {start_date.isoformat()} -> {end_date.isoformat()}"
@@ -86,7 +111,7 @@ class Command(BaseCommand):
                     fund_code=fund_code,
                     start_date=start_date,
                     end_date=end_date,
-                    allow_remote_sync=options["allow_remote_nav_sync"],
+                    allow_remote_sync=allow_remote_nav_sync,
                 )
             except Exception:
                 failed_codes.append(fund_code)
@@ -95,7 +120,9 @@ class Command(BaseCommand):
             if performance is None:
                 skipped_count += 1
                 self.stdout.write(
-                    self.style.WARNING(f"Skipped {fund_code}: no usable NAV/performance data in the target range")
+                    self.style.WARNING(
+                        f"Skipped {fund_code}: no usable NAV/performance data in the target range"
+                    )
                 )
                 continue
 
@@ -111,28 +138,60 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"Prepared funds: {prepared_count}"))
         self.stdout.write(self.style.WARNING(f"Skipped funds: {skipped_count}"))
         if failed_codes:
-            self.stdout.write(self.style.ERROR(f"Failed funds ({len(failed_codes)}): {', '.join(failed_codes[:20])}"))
+            self.stdout.write(
+                self.style.ERROR(
+                    f"Failed funds ({len(failed_codes)}): {', '.join(failed_codes[:20])}"
+                )
+            )
 
-    def _resolve_fund_codes(self, options) -> list[str]:
-        raw_codes = [code.strip() for code in options["fund_codes"].split(",") if code.strip()]
+    def _resolve_fund_codes(self, options: Mapping[str, Any]) -> list[str]:
+        raw_code_value = options.get("fund_codes", "")
+        raw_type_value = options.get("fund_types", "")
+        if not isinstance(raw_code_value, str) or not isinstance(raw_type_value, str):
+            raise CommandError("fund selector options are invalid")
+        raw_codes = [code.strip() for code in raw_code_value.split(",") if code.strip()]
+        if (
+            len(raw_codes) > 1_000
+            or len(set(raw_codes)) != len(raw_codes)
+            or any(_FUND_CODE_PATTERN.fullmatch(code) is None for code in raw_codes)
+        ):
+            raise CommandError("fund-codes contains invalid identifiers")
         if raw_codes:
             return raw_codes
 
         queryset = FundInfoModel._default_manager.filter(is_active=True)
 
-        raw_types = [item.strip() for item in options["fund_types"].split(",") if item.strip()]
+        raw_types = [item.strip() for item in raw_type_value.split(",") if item.strip()]
+        if len(raw_types) > 100 or any(
+            not item or len(item) > 100 or any(ord(character) < 32 for character in item)
+            for item in raw_types
+        ):
+            raise CommandError("fund-types contains invalid identifiers")
         if raw_types:
             queryset = queryset.filter(fund_type__in=raw_types)
 
-        max_funds = max(int(options["max_funds"]), 1)
+        raw_max_funds = options.get("max_funds", 30)
+        if (
+            isinstance(raw_max_funds, bool)
+            or not isinstance(raw_max_funds, int)
+            or not 1 <= raw_max_funds <= 1_000
+        ):
+            raise CommandError("max-funds must be between 1 and 1000")
+        max_funds = raw_max_funds
         return list(
-            queryset.order_by("-fund_scale", "fund_code").values_list("fund_code", flat=True)[:max_funds]
+            queryset.order_by("-fund_scale", "fund_code").values_list("fund_code", flat=True)[
+                :max_funds
+            ]
         )
 
-    def _parse_date(self, value: str, *, default: date) -> date:
+    def _parse_date(self, value: Any, *, default: date) -> date:
+        if value is None:
+            return default
+        if not isinstance(value, str):
+            raise CommandError("fund research date is invalid")
         if not value:
             return default
         try:
             return date.fromisoformat(value)
-        except ValueError as exc:
-            raise CommandError(f"Invalid date: {value}") from exc
+        except ValueError:
+            raise CommandError("fund research date is invalid") from None

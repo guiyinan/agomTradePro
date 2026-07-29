@@ -1,8 +1,20 @@
 """OpenAPI authentication extensions for audit ingest APIs."""
 
-from typing import Any
+from importlib import import_module
+from typing import TYPE_CHECKING, Any
 
-from drf_spectacular.extensions import OpenApiAuthenticationExtension
+if TYPE_CHECKING:
+
+    class OpenApiAuthenticationExtension:
+        """Typed projection of drf-spectacular's runtime extension base."""
+
+        target_class: str
+        name: str
+
+else:
+    OpenApiAuthenticationExtension = import_module(
+        "drf_spectacular.extensions"
+    ).OpenApiAuthenticationExtension
 
 
 class AuditIngestTokenAuthenticationScheme(OpenApiAuthenticationExtension):

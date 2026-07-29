@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Any
+from urllib.parse import urlsplit
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.policy.infrastructure.models import RSSHubGlobalConfig, RSSSourceConfigModel
 
@@ -91,7 +93,7 @@ LEGACY_NON_INVESTMENT_SOURCE_NAMES: tuple[str, ...] = (
 class Command(BaseCommand):
     help = "Initialize authoritative RSSHub sources for policy and market news ingestion."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--base-url",
             default="",
@@ -114,7 +116,7 @@ class Command(BaseCommand):
             help="Print intended changes without writing to the database.",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         base_url = self._resolve_base_url(str(options.get("base_url") or ""))
         access_key = options.get("access_key")
         dry_run = bool(options.get("dry_run"))
@@ -206,13 +208,24 @@ class Command(BaseCommand):
     def _resolve_base_url(raw_value: str) -> str:
         explicit_value = raw_value.strip()
         if explicit_value:
-            return explicit_value.rstrip("/")
+            return Command._validate_base_url(explicit_value)
 
         env_value = os.environ.get("AGOM_RSSHUB_BASE_URL") or os.environ.get("RSSHUB_BASE_URL")
         if env_value:
-            return env_value.strip().rstrip("/")
+            return Command._validate_base_url(env_value.strip())
 
         settings_module = os.environ.get("DJANGO_SETTINGS_MODULE", "")
         if "production" in settings_module:
             return "http://rsshub:1200"
         return "http://127.0.0.1:1200"
+
+    @staticmethod
+    def _validate_base_url(value: str) -> str:
+        parsed_url = urlsplit(value)
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.hostname:
+            raise CommandError("RSSHub base URL must use HTTP or HTTPS")
+        if parsed_url.username is not None or parsed_url.password is not None:
+            raise CommandError("RSSHub base URL must not contain credentials")
+        if parsed_url.query or parsed_url.fragment:
+            raise CommandError("RSSHub base URL must not contain a query or fragment")
+        return value.rstrip("/")

@@ -4,7 +4,7 @@ Hedge Module API URL Configuration.
 Provides API-only routes for /api/hedge/.
 """
 
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
@@ -26,7 +26,7 @@ router.register(r"alerts", HedgeAlertViewSet, basename="hedge-alert")
 router.register(r"actions", HedgeActionViewSet, basename="hedge-action")
 
 
-def api_home(request):
+def api_home(request: HttpRequest) -> JsonResponse:
     return JsonResponse(
         {
             "message": "AgomTradePro Hedge Module API",

@@ -47,82 +47,37 @@ class FailedEventModel(models.Model):
         (EXHAUSTED, "已耗尽重试次数"),
     ]
 
-    event_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="事件 ID"
-    )
+    event_id = models.CharField(max_length=64, db_index=True, help_text="事件 ID")
 
-    event_type = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="事件类型"
-    )
+    event_type = models.CharField(max_length=64, db_index=True, help_text="事件类型")
 
-    payload = models.JSONField(
-        help_text="事件负载"
-    )
+    payload = models.JSONField(help_text="事件负载")
 
-    metadata = models.JSONField(
-        default=dict,
-        help_text="事件元数据"
-    )
+    metadata = models.JSONField(default=dict, help_text="事件元数据")
 
-    handler_id = models.CharField(
-        max_length=128,
-        db_index=True,
-        help_text="处理器 ID"
-    )
+    handler_id = models.CharField(max_length=128, db_index=True, help_text="处理器 ID")
 
-    error_message = models.TextField(
-        help_text="错误信息"
-    )
+    error_message = models.TextField(help_text="错误信息")
 
-    error_traceback = models.TextField(
-        blank=True,
-        help_text="错误堆栈"
-    )
+    error_traceback = models.TextField(blank=True, help_text="错误堆栈")
 
-    retry_count = models.IntegerField(
-        default=0,
-        help_text="重试次数"
-    )
+    retry_count = models.IntegerField(default=0, help_text="重试次数")
 
-    max_retries = models.IntegerField(
-        default=3,
-        help_text="最大重试次数"
-    )
+    max_retries = models.IntegerField(default=3, help_text="最大重试次数")
 
     next_retry_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="下次重试时间"
+        null=True, blank=True, db_index=True, help_text="下次重试时间"
     )
 
-    last_retry_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="最后重试时间"
-    )
+    last_retry_at = models.DateTimeField(null=True, blank=True, help_text="最后重试时间")
 
     status = models.CharField(
-        max_length=16,
-        choices=STATUS_CHOICES,
-        default=PENDING,
-        db_index=True,
-        help_text="状态"
+        max_length=16, choices=STATUS_CHOICES, default=PENDING, db_index=True, help_text="状态"
     )
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
     class Meta:
         db_table = "failed_event"
@@ -134,7 +89,7 @@ class FailedEventModel(models.Model):
             models.Index(fields=["handler_id", "status"], name="evt_fail_handler_idx"),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"FailedEvent({self.event_id}, {self.event_type}, {self.status})"
 
 

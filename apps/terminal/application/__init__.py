@@ -5,32 +5,32 @@ composition helpers while lightweight application modules are being loaded.
 """
 
 __all__ = [
-    'ExecuteCommandUseCase',
-    'ExecuteCommandRequest',
-    'ExecuteCommandResponse',
-    'ListCommandsUseCase',
-    'CreateCommandUseCase',
-    'UpdateCommandUseCase',
-    'DeleteCommandUseCase',
-    'CommandExecutionService',
+    "ExecuteCommandUseCase",
+    "ExecuteCommandRequest",
+    "ExecuteCommandResponse",
+    "ListCommandsUseCase",
+    "CreateCommandUseCase",
+    "UpdateCommandUseCase",
+    "DeleteCommandUseCase",
+    "CommandExecutionService",
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """Resolve legacy package-level imports without eager side effects."""
 
-    if name == 'CommandExecutionService':
+    if name == "CommandExecutionService":
         from .services import CommandExecutionService
 
         return CommandExecutionService
     if name in {
-        'ExecuteCommandUseCase',
-        'ExecuteCommandRequest',
-        'ExecuteCommandResponse',
-        'ListCommandsUseCase',
-        'CreateCommandUseCase',
-        'UpdateCommandUseCase',
-        'DeleteCommandUseCase',
+        "ExecuteCommandUseCase",
+        "ExecuteCommandRequest",
+        "ExecuteCommandResponse",
+        "ListCommandsUseCase",
+        "CreateCommandUseCase",
+        "UpdateCommandUseCase",
+        "DeleteCommandUseCase",
     }:
         from . import use_cases
 

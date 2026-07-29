@@ -8,7 +8,7 @@ class TerminalConfig(AppConfig):
     name = "apps.terminal"
     verbose_name = "Terminal"
 
-    def ready(self):
+    def ready(self) -> None:
         """Register Terminal-owned adapters after Django app initialization."""
 
         from .application.ai_capability_gateway import (

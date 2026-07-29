@@ -16,6 +16,7 @@ from typing import Any
 # Request DTOs (Input)
 # ============================================================================
 
+
 @dataclass
 class TaskCreateDTO:
     """
@@ -27,6 +28,7 @@ class TaskCreateDTO:
         input_payload: JSON input payload for the task
         schema_version: Schema version (default v1)
     """
+
     task_domain: str
     task_type: str
     input_payload: dict[str, Any] = field(default_factory=dict)
@@ -44,6 +46,7 @@ class TaskUpdateDTO:
         last_error: Structured error payload (optional)
         requires_human: Whether human intervention is needed (optional)
     """
+
     status: str | None = None
     current_step: str | None = None
     last_error: dict[str, Any] | None = None
@@ -64,6 +67,7 @@ class TaskQueryDTO:
         limit: Max results (default 50)
         offset: Pagination offset (default 0)
     """
+
     status: str | None = None
     task_domain: str | None = None
     task_type: str | None = None
@@ -82,6 +86,7 @@ class TaskApprovalDTO:
         action: Either 'approve' or 'reject'
         reason: Optional reason for the decision
     """
+
     action: str  # 'approve' or 'reject'
     reason: str | None = None
 
@@ -95,6 +100,7 @@ class TaskExecutionDTO:
         input_payload: Additional/updated input payload
         force: Force execution even if task is not in ready state
     """
+
     input_payload: dict[str, Any] = field(default_factory=dict)
     force: bool = False
 
@@ -112,6 +118,7 @@ class ProposalCreateDTO:
         proposal_payload: Execution payload
         approval_reason: Human/system explanation
     """
+
     task_id: int | None = None
     proposal_type: str = ""
     risk_level: str = "medium"
@@ -123,6 +130,7 @@ class ProposalCreateDTO:
 # ============================================================================
 # Response DTOs (Output)
 # ============================================================================
+
 
 @dataclass
 class TaskDetailDTO:
@@ -149,6 +157,7 @@ class TaskDetailDTO:
         artifacts_count: Number of artifacts
         timeline_events_count: Number of timeline events
     """
+
     id: int
     request_id: str
     schema_version: str
@@ -207,7 +216,8 @@ class TaskListDTO:
         limit: Limit used
         offset: Offset used
     """
-    tasks: list[dict[str, Any]]
+
+    tasks: list["TaskListItemDTO"]
     total: int
     limit: int
     offset: int
@@ -232,6 +242,7 @@ class TaskListItemDTO:
         created_at: Server timestamp
         updated_at: Server timestamp
     """
+
     id: int
     request_id: str
     schema_version: str
@@ -273,6 +284,7 @@ class TaskTimelineDTO:
         request_id: Trace id
         events: List of timeline events
     """
+
     task_id: int
     request_id: str
     events: list[dict[str, Any]]
@@ -296,6 +308,7 @@ class TimelineEventDTO:
         event_payload: Event details
         created_at: Server timestamp
     """
+
     id: int
     request_id: str
     task_id: int
@@ -335,6 +348,7 @@ class TaskArtifactsDTO:
         request_id: Trace id
         artifacts: List of artifacts
     """
+
     task_id: int
     request_id: str
     artifacts: list[dict[str, Any]]
@@ -356,6 +370,7 @@ class ArtifactDTO:
         content_type: MIME type
         created_at: Server timestamp
     """
+
     id: int
     request_id: str
     task_id: int
@@ -406,6 +421,7 @@ class ProposalDetailDTO:
         created_at: Server timestamp
         updated_at: Server timestamp
     """
+
     id: int
     request_id: str
     schema_version: str
@@ -441,6 +457,7 @@ class TaskContextDTO:
         data_freshness: Data freshness metrics
         created_at: Server timestamp
     """
+
     task_id: int
     request_id: str
     domain: str
@@ -461,6 +478,7 @@ class TaskStepsDTO:
         request_id: Trace id
         steps: List of steps
     """
+
     task_id: int
     request_id: str
     steps: list[dict[str, Any]]
@@ -485,6 +503,7 @@ class TaskStepDTO:
         output_data: Step output
         created_at: Server timestamp
     """
+
     id: int
     request_id: str
     task_id: int
@@ -503,6 +522,7 @@ class TaskStepDTO:
 # Error Response DTOs
 # ============================================================================
 
+
 @dataclass
 class ErrorResponseDTO:
     """
@@ -515,6 +535,7 @@ class ErrorResponseDTO:
         error: Error details dict with code and message
         task: Optional task details if error relates to a task
     """
+
     request_id: str
     error: dict[str, Any]  # {"code": "ERROR_CODE", "message": "...", "details": {...}}
     task: dict[str, Any] | None = None
@@ -540,6 +561,7 @@ class ValidationErrorDTO:
         error: Error details
         field_errors: Dict of field-specific errors
     """
+
     request_id: str
     error: dict[str, Any]
     field_errors: dict[str, list[str]]
@@ -557,6 +579,7 @@ class ValidationErrorDTO:
 # Response Wrapper DTOs
 # ============================================================================
 
+
 @dataclass
 class TaskCreateResponseDTO:
     """
@@ -566,6 +589,7 @@ class TaskCreateResponseDTO:
         request_id: Request trace id
         task: Created task detail
     """
+
     request_id: str
     task: TaskDetailDTO
 
@@ -586,6 +610,7 @@ class TaskGetResponseDTO:
         request_id: Request trace id
         task: Task detail
     """
+
     request_id: str
     task: TaskDetailDTO
 
@@ -606,6 +631,7 @@ class TaskListResponseDTO:
         request_id: Request trace id
         tasks: Task list result
     """
+
     request_id: str
     tasks: TaskListDTO
 
@@ -618,5 +644,5 @@ class TaskListResponseDTO:
                 "total": self.tasks.total,
                 "limit": self.tasks.limit,
                 "offset": self.tasks.offset,
-            }
+            },
         }

@@ -14,16 +14,19 @@ from ...domain.entities import ProxyConfig, RSSItem, RSSSourceConfig
 
 class RSSAdapterError(Exception):
     """RSS适配器异常基类"""
+
     pass
 
 
 class RSSFetchError(RSSAdapterError):
     """RSS抓取失败"""
+
     pass
 
 
 class RSSParseError(RSSAdapterError):
     """RSS解析失败"""
+
     pass
 
 
@@ -66,7 +69,7 @@ class BaseRSSAdapter:
         """默认实现：子类必须覆盖"""
         raise NotImplementedError
 
-    def _build_proxy_dict(self, proxy_config: ProxyConfig | None) -> dict | None:
+    def _build_proxy_dict(self, proxy_config: ProxyConfig | None) -> dict[str, str] | None:
         """
         构建代理配置字典
 
@@ -84,7 +87,7 @@ class BaseRSSAdapter:
             proxy_url += f"{proxy_config.username}:{proxy_config.password}@"
         proxy_url += f"{proxy_config.host}:{proxy_config.port}"
 
-        return {'http': proxy_url, 'https': proxy_url}
+        return {"http": proxy_url, "https": proxy_url}
 
     def _parse_rss_date(self, date_str: str) -> datetime:
         """
@@ -97,6 +100,7 @@ class BaseRSSAdapter:
             datetime: 解析后的日期时间
         """
         from email.utils import parsedate_to_datetime
+
         try:
             return parsedate_to_datetime(date_str)
         except Exception:
@@ -120,5 +124,6 @@ class BaseRSSAdapter:
             return f"link:{item.link}"
         else:
             import hashlib
+
             title_hash = hashlib.sha256(item.title.encode()).hexdigest()[:32]
             return f"title:{title_hash}:{item.pub_date.isoformat()}"

@@ -4,6 +4,7 @@ Sector API routes.
 
 from django.urls import include, path
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
@@ -21,7 +22,9 @@ class SectorApiRootView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        """Return stable sector workflow links."""
+
         return Response(
             {
                 "endpoints": {
@@ -31,6 +34,7 @@ class SectorApiRootView(APIView):
                 }
             }
         )
+
 
 urlpatterns = [
     path("", SectorApiRootView.as_view(), name="api-root"),

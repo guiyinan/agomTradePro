@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-from django.http import HttpResponseNotAllowed, JsonResponse
+import logging
 
+from django.http import HttpResponse, HttpResponseNotAllowed, JsonResponse
+from rest_framework.request import Request
+
+from apps.dashboard.application.queries import get_dashboard_detail_query
 from apps.dashboard.interface.api_auth import dashboard_api_view
 
-
-def _dashboard_views():
-    from apps.dashboard.interface import views as dashboard_views
-
-    return dashboard_views
+logger = logging.getLogger(__name__)
 
 
 @dashboard_api_view(["POST"])
-def workflow_refresh_candidates(request):
+def workflow_refresh_candidates(request: Request) -> HttpResponse:
     """
     主流程候选刷新：从活跃触发器补齐候选，并尝试提升高置信候选为 ACTIONABLE。
     """
@@ -22,14 +22,15 @@ def workflow_refresh_candidates(request):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
-    dashboard_views = _dashboard_views()
     try:
-        result = dashboard_views.get_dashboard_detail_query().generate_alpha_candidates()
+        result = get_dashboard_detail_query().generate_alpha_candidates()
         return JsonResponse({"success": True, "result": result})
     except Exception as exc:
-        dashboard_views.logger.error(
-            "Failed to refresh workflow candidates: %s",
-            exc,
-            exc_info=True,
+        logger.error(
+            "Failed to refresh workflow candidates (error_type=%s)",
+            type(exc).__name__,
         )
-        return JsonResponse({"success": False, "error": str(exc)}, status=500)
+        return JsonResponse(
+            {"success": False, "error": "workflow_candidate_refresh_failed"},
+            status=500,
+        )

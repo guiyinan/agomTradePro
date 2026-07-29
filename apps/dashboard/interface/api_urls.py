@@ -1,6 +1,6 @@
 """Dashboard API URL configuration."""
 
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.urls import path
 
 from apps.dashboard.interface import (
@@ -16,7 +16,7 @@ from apps.dashboard.interface import (
 app_name = "dashboard_api"
 
 
-def dashboard_api_root(request):
+def dashboard_api_root(request: HttpRequest) -> JsonResponse:
     """Discoverable dashboard API root."""
     return JsonResponse(
         {

@@ -6426,3 +6426,19 @@
 - 项目规定的 TUI Workbench、Terminal Agent、SDK Client 与内部 SSL 固定回归包 `238 passed`。
 - 51 个改动生产文件统一增量 mypy 清零；全仓基线从 `178 errors / 117 files` 收紧为 `100 errors / 72 files`，净减少 `78 errors / 45 files`。
 - Django system check、Alpha/Data Center/Macro/Pulse/Task Monitor migration drift、59 个改动 Python 文件 Ruff、Black、isort、增量 mypy、架构增量护栏与全仓 debt baseline 刷新通过；本批未新增数据库 migration 或修改数据库结构。
+
+## 第四百一十九批
+
+- 按剩余债务影响面并行收口 Audit/Prompt、Terminal/Agent Runtime、Sector/Dashboard，并由主线同步处理 Fund/Hedge 与 Events/Policy；各 agent 限定 owner 文件，统一在共享工作树完成交叉类型复核。
+- Audit 命令参数、指标阈值、绩效校验、URL/OpenAPI 与模板过滤器补齐精确合同；保留天数和批量规模有界，NaN/Infinity、异常精度及底层异常正文不能进入审计输出。Prompt context、policy、参数、模板和执行证据限制深度、数量、JSON 大小与有限性，敏感键和 credential DSN 在 provider、fixture 与上下文边界遮蔽。
+- Terminal/Agent Runtime DTO、提案/任务持久化、审批与审计服务完成类型收口；缺失持久化 ID 失败关闭，审计请求、响应和消息递归脱敏，TUI operator 直接消费 readiness Application 真源并遮蔽用户面 Token、凭据与 DSN。
+- Sector provider/repository 与 Dashboard 周报、workflow、task、template 边界补齐精确合同；非法代码、日期和非有限行情行失败关闭，周报及工作流异常不再回显凭据，模板属性访问拒绝 dunder 路径。
+- Fund AKShare 动态边界、API 与研究数据命令补齐类型和输入约束；Hedge API、URL 与初始化命令使用精确种子合同并验证 reset。Events DTO、模型和 API 使用正式事件/指标类型；Policy 新闻源与 RSS 配置拒绝带认证 URL、非法 timeout 和非 HTTP(S) base URL，provider 故障只发布稳定错误码。
+- 跨文件收紧暴露出的 Events metrics response 与 Dashboard authenticated user 类型冲突同步修复；Audit OpenAPI 使用 `TYPE_CHECKING` 投影隔离第三方无类型基类，不以新增 ignore 接受债务。
+
+## 第四百一十九批验证结果
+
+- Audit/Prompt 核心链 `225 passed`、命令与过滤器 `10 passed`；Terminal/Agent Runtime 含固定 TUI Workbench、Terminal Agent、SDK Client、内部 SSL 及专项组合 `298 passed`；Sector/Dashboard 既有与新增边界组合 `325 passed`。
+- Fund/Hedge 广泛回归首轮 `266 passed`，契约调整后命令定向 `5 passed`；Events/Policy 首轮有效用例 `17 passed`，修正 pytest 参数名冲突后安全 URL 与异常脱敏定向 `4 passed`；全批新增边界测试统一复核两组各 `29 passed`。
+- 49 个直接及受类型传播影响的生产文件增量 mypy 清零；全仓基线从 `100 errors / 72 files` 收紧为 `27 errors / 24 files`，净减少 `73 errors / 48 files`。
+- Django system check、10 个受影响 App migration drift、改动文件 Ruff/Black/isort、增量 mypy 与全仓 debt baseline 刷新通过；Audit 目录专项通过，但仓库既有结构预算检查仍报告未改动的 `attribution_services.py` 为 `467 > 450`，转入下一批独立拆分处理。本批未新增数据库 migration、未修改数据库结构或公开成功响应合同。
