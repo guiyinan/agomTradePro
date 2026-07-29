@@ -220,6 +220,12 @@ jobs:
           echo "typecheck-count=$(wc -w <<< "${TYPECHECK_TARGETS}" | tr -d ' ')" >> "$GITHUB_OUTPUT"
           echo "domain-coverage-count=$(wc -w <<< "${DOMAIN_COVERAGE_TARGETS}" | tr -d ' ')" >> "$GITHUB_OUTPUT"
 
+      - name: Enforce changed Python file-size headroom
+        run: |
+          python scripts/check_changed_python_file_size.py \
+            --base "${{ needs.detect-tests.outputs.base-ref }}" \
+            --head "${{ needs.detect-tests.outputs.head-ref }}"
+
       - name: Run ruff on changed Python files
         if: steps.targets.outputs.lint-count != '0'
         run: |

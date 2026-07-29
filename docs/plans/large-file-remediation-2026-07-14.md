@@ -24,7 +24,7 @@ This stage applies behavior-preserving refactoring to the initial four highest-r
 
 The remaining allowances are not refactored in this stage. Their authoritative backlog is `large_file_remediation` in the governance baseline:
 
-- AI Capability application orchestration and Simulated Trading unified-ledger persistence entered the P1 backlog on 2026-07-23 after crossing the repository-wide limit; both require responsibility-based decomposition that preserves their current facade and repository contracts.
+- AI Capability application orchestration is the only remaining allowance. It entered the P1 backlog on 2026-07-23 and requires responsibility-based decomposition that preserves its current public use-case facade.
 - P1 items must be reviewed by 2026-09-30.
 - P2 items must be reviewed by 2026-12-31.
 - A reached review date fails governance CI until the file is remediated or its metadata is deliberately revised through review.
@@ -150,3 +150,44 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - `apps/audit/infrastructure/metrics.py` pre-existing I001 fixed as whitespace-only.
 - Full repository test suite and strict mypy were not run in this batch.
 - Roll back each module split together with its structure contract, plan doc, and paired baseline entries.
+
+## 2026-07-25 Broker Execution and Strategy recurrence closure
+
+### Why large files recurred
+
+- The repository-wide 1200-line check detected debt only after a file crossed the hard limit. It provided no headroom signal for files already approaching the limit.
+- Broker Execution kept one public repository class for authentication, access control, order lifecycle, Agent administration, reconciliation, and reporting. Successive contract fixes correctly stayed behind that repository boundary but continued appending unrelated responsibilities to one implementation file.
+- Strategy retained a compatibility repository module and later appended `StrategyInterfaceRepository` to the same aggregator. The public import contract remained stable, but the implementation owner stopped being a bounded facade.
+- Large-file allowances made debt visible and ratcheted growth, but they did not prevent a newly remediated file from approaching the threshold again. A red governance result also cannot substitute for protected-branch enforcement.
+
+### Completed
+
+- Split `DjangoBrokerExecutionRepository` into access, order-control, Agent runtime, Agent administration, and reconciliation/reporting mixins. The original module remains the stable public repository and retains `create_live_order`.
+- Split `StrategyInterfaceRepository` into a focused module and explicitly re-exported it from the original Strategy repository module.
+- Preserved all 46 Broker repository methods and all 41 Strategy interface methods; method ASTs remain behavior-equivalent to their pre-split definitions.
+- Removed the resolved Broker Execution allowance and remediation entry. Ratcheted the remaining Simulated Trading allowance to its current non-empty line count.
+- Added `scripts/check_changed_python_file_size.py` to reject production Python files that grow beyond 1000 non-empty lines. Existing large files may shrink, and renames compare against their original path.
+- Wired the incremental headroom check into CI Fast Feedback before lint and mypy.
+
+### Verification and rollback
+
+- Focused Broker Execution and Strategy repository tests, architecture/governance checks, incremental mypy, formatting, and import sorting are required before merge.
+- The full repository test suite remains outside this responsibility-only refactor.
+- Roll back the Broker and Strategy splits together with the CI headroom guard and paired machine-baseline update. No model, migration, API, route, or payload change is intended.
+
+## 2026-07-26 Simulated Trading repository closure
+
+### Completed
+
+- Replaced the unified simulated-ledger repository file with a bounded compatibility facade.
+- Moved account, position/mutation, trade, daily-net-value, fee-config, and inspection persistence into six focused owner modules, with one small shared persistence helper.
+- Preserved the ten legacy repository and Mapper exports by object identity through the original `repositories` module and the existing wildcard provider surface.
+- Preserved all original class and helper ASTs, including transaction boundaries, QuerySet ordering, Decimal handling, and ORM conversion behavior.
+- Added owner-specific line budgets and reverse-import checks.
+- Removed the Simulated Trading allowance and remediation metadata from the machine baseline. AI Capability is now the only remaining approved large Python file.
+
+### Verification and rollback
+
+- Focused integration coverage includes account, position, trade, fee, daily-net-value, performance-curve, and strategy auto-trading consumers.
+- Formatting, import sorting, architecture/governance checks, and incremental mypy are required before merge.
+- Roll back the facade and all owner modules together with the structure contract and paired baseline removal. No model, migration, API, route, or payload change is part of this split.
