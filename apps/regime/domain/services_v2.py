@@ -16,24 +16,51 @@ from datetime import date
 from enum import Enum
 
 
+def _finite_number(value: object, *, field_name: str) -> float:
+    """Return one finite numeric value without accepting booleans."""
+
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field_name} must be finite")
+    try:
+        numeric = float(value)
+    except (OverflowError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be finite") from exc
+    if not math.isfinite(numeric):
+        raise ValueError(f"{field_name} must be finite")
+    return numeric
+
+
+def _finite_series(series: list[float], *, field_name: str) -> list[float]:
+    """Validate and detach a finite numeric history."""
+
+    if not isinstance(series, list):
+        raise ValueError(f"{field_name} must be a list")
+    return [
+        _finite_number(value, field_name=f"{field_name}[{index}]")
+        for index, value in enumerate(series)
+    ]
+
+
 class RegimeType(Enum):
     """Regime 类型枚举"""
-    RECOVERY = "Recovery"      # 复苏：增长↑，通胀↓
-    OVERHEAT = "Overheat"      # 过热：增长↑，通胀↑
-    STAGFLATION = "Stagflation" # 滞胀：增长↓，通胀↑
-    DEFLATION = "Deflation"    # 通缩：增长↓，通胀↓
+
+    RECOVERY = "Recovery"  # 复苏：增长↑，通胀↓
+    OVERHEAT = "Overheat"  # 过热：增长↑，通胀↑
+    STAGFLATION = "Stagflation"  # 滞胀：增长↓，通胀↑
+    DEFLATION = "Deflation"  # 通缩：增长↓，通胀↓
 
 
 @dataclass(frozen=True)
 class ThresholdConfig:
     """阈值配置"""
+
     # PMI 阈值
     pmi_expansion: float = 50.0  # PMI > 50 为扩张
     pmi_contraction: float = 50.0  # PMI < 50 为收缩
 
     # CPI 阈值
     cpi_high: float = 2.0  # CPI > 2% 为高通胀
-    cpi_low: float = 1.0   # CPI < 1% 为低通胀
+    cpi_low: float = 1.0  # CPI < 1% 为低通胀
     cpi_deflation: float = 0.0  # CPI < 0 为通缩
 
     # 动量权重（用于趋势预测）
@@ -42,10 +69,33 @@ class ThresholdConfig:
     # 置信度阈值
     high_confidence_threshold: float = 0.6
 
+    def __post_init__(self) -> None:
+        """Reject non-finite or internally inconsistent runtime thresholds."""
+
+        for field_name in (
+            "pmi_expansion",
+            "pmi_contraction",
+            "cpi_high",
+            "cpi_low",
+            "cpi_deflation",
+            "momentum_weight",
+            "high_confidence_threshold",
+        ):
+            _finite_number(getattr(self, field_name), field_name=field_name)
+        if self.pmi_contraction > self.pmi_expansion:
+            raise ValueError("pmi_contraction must not exceed pmi_expansion")
+        if not self.cpi_deflation <= self.cpi_low <= self.cpi_high:
+            raise ValueError("CPI thresholds must satisfy deflation <= low <= high")
+        if not 0.0 <= self.momentum_weight <= 1.0:
+            raise ValueError("momentum_weight must be between 0 and 1")
+        if not 0.0 <= self.high_confidence_threshold <= 1.0:
+            raise ValueError("high_confidence_threshold must be between 0 and 1")
+
 
 @dataclass(frozen=True)
 class TrendIndicator:
     """趋势指标（用于预测）"""
+
     indicator_code: str
     current_value: float
     momentum: float
@@ -53,10 +103,24 @@ class TrendIndicator:
     direction: str  # 'up', 'down', 'neutral'
     strength: str  # 'strong', 'moderate', 'weak'
 
+    def __post_init__(self) -> None:
+        """Validate one finite, classified trend observation."""
+
+        if not isinstance(self.indicator_code, str) or not self.indicator_code.strip():
+            raise ValueError("indicator_code is required")
+        _finite_number(self.current_value, field_name="current_value")
+        _finite_number(self.momentum, field_name="momentum")
+        _finite_number(self.momentum_z, field_name="momentum_z")
+        if self.direction not in {"up", "down", "neutral"}:
+            raise ValueError("direction must be up, down, or neutral")
+        if self.strength not in {"strong", "moderate", "weak"}:
+            raise ValueError("strength must be strong, moderate, or weak")
+
 
 @dataclass(frozen=True)
 class RegimeCalculationResult:
     """Regime 计算结果（新版本）"""
+
     regime: RegimeType
     confidence: float
     growth_level: float  # PMI 当前值
@@ -68,11 +132,41 @@ class RegimeCalculationResult:
     warnings: list[str] = field(default_factory=list)
     prediction: str | None = None  # 趋势预测
 
+    def __post_init__(self) -> None:
+        """Keep published regime evidence finite and normalized."""
+
+        if not isinstance(self.regime, RegimeType):
+            raise ValueError("regime must be a RegimeType")
+        confidence = _finite_number(self.confidence, field_name="confidence")
+        _finite_number(self.growth_level, field_name="growth_level")
+        _finite_number(self.inflation_level, field_name="inflation_level")
+        if not 0.0 <= confidence <= 1.0:
+            raise ValueError("confidence must be between 0 and 1")
+        expected_regimes = {regime.value for regime in RegimeType}
+        if set(self.distribution) != expected_regimes:
+            raise ValueError("distribution must contain every Regime exactly once")
+        probabilities = [
+            _finite_number(value, field_name=f"distribution[{key}]")
+            for key, value in self.distribution.items()
+        ]
+        if any(value < 0.0 or value > 1.0 for value in probabilities):
+            raise ValueError("distribution probabilities must be between 0 and 1")
+        if not math.isclose(math.fsum(probabilities), 1.0, rel_tol=0.0, abs_tol=1e-9):
+            raise ValueError("distribution probabilities must sum to 1")
+        if self.growth_state not in {"expansion", "contraction", "unknown"}:
+            raise ValueError("growth_state is invalid")
+        if self.inflation_state not in {"high", "moderate", "low", "deflation", "unknown"}:
+            raise ValueError("inflation_state is invalid")
+        if any(not isinstance(indicator, TrendIndicator) for indicator in self.trend_indicators):
+            raise ValueError("trend_indicators must contain TrendIndicator values")
+        if any(not isinstance(warning, str) for warning in self.warnings):
+            raise ValueError("warnings must contain strings")
+        if self.prediction is not None and not isinstance(self.prediction, str):
+            raise ValueError("prediction must be a string or None")
+
 
 def calculate_regime_by_level(
-    pmi_value: float,
-    cpi_value: float,
-    config: ThresholdConfig | None = None
+    pmi_value: float, cpi_value: float, config: ThresholdConfig | None = None
 ) -> RegimeType:
     """
     基于绝对水平判定 Regime
@@ -87,6 +181,8 @@ def calculate_regime_by_level(
     """
     if config is None:
         config = ThresholdConfig()
+    pmi_value = _finite_number(pmi_value, field_name="pmi_value")
+    cpi_value = _finite_number(cpi_value, field_name="cpi_value")
 
     # 判定增长状态
     growth_state = "expansion" if pmi_value >= config.pmi_expansion else "contraction"
@@ -112,9 +208,7 @@ def calculate_regime_by_level(
 
 
 def calculate_regime_distribution_by_level(
-    pmi_value: float,
-    cpi_value: float,
-    config: ThresholdConfig | None = None
+    pmi_value: float, cpi_value: float, config: ThresholdConfig | None = None
 ) -> dict[str, float]:
     """
     基于绝对水平计算四象限概率分布
@@ -134,6 +228,8 @@ def calculate_regime_distribution_by_level(
     """
     if config is None:
         config = ThresholdConfig()
+    pmi_value = _finite_number(pmi_value, field_name="pmi_value")
+    cpi_value = _finite_number(cpi_value, field_name="cpi_value")
 
     # 定义各象限的"理想"中心点
     centers = {
@@ -148,17 +244,17 @@ def calculate_regime_distribution_by_level(
     for regime, (center_pmi, center_cpi) in centers.items():
         # 使用相对距离
         pmi_dist = abs(pmi_value - center_pmi) / 10  # PMI 通常在 45-55 之间
-        cpi_dist = abs(cpi_value - center_cpi) / 3   # CPI 通常在 -1 到 5 之间
-        distance = math.sqrt(pmi_dist ** 2 + cpi_dist ** 2)
+        cpi_dist = abs(cpi_value - center_cpi) / 3  # CPI 通常在 -1 到 5 之间
+        distance = math.hypot(pmi_dist, cpi_dist)
         distances[regime] = distance
 
     # 转换为概率（距离越小，概率越高）
     # 使用带温度的 softmax: exp(-alpha * distance) / sum(...)
     alpha = 2.0
     weights = {r: math.exp(-alpha * d) for r, d in distances.items()}
-    total = sum(weights.values())
+    total = math.fsum(weights.values())
 
-    if total == 0:
+    if not math.isfinite(total) or total <= 0:
         return dict.fromkeys(centers, 0.25)
 
     probabilities = {r: w / total for r, w in weights.items()}
@@ -166,10 +262,7 @@ def calculate_regime_distribution_by_level(
     return probabilities
 
 
-def calculate_momentum_simple(
-    series: list[float],
-    period: int = 3
-) -> tuple[float, float]:
+def calculate_momentum_simple(series: list[float], period: int = 3) -> tuple[float, int]:
     """
     计算简单的动量
 
@@ -178,12 +271,17 @@ def calculate_momentum_simple(
         - momentum_value: 动量值
         - momentum_direction: -1 (下降), 0 (持平), 1 (上升)
     """
-    if len(series) < period + 1:
+    if isinstance(period, bool) or not isinstance(period, int) or period <= 0:
+        raise ValueError("period must be a positive integer")
+    values = _finite_series(series, field_name="series")
+    if len(values) < period + 1:
         return 0.0, 0
 
-    current = series[-1]
-    past = series[-period - 1]
+    current = values[-1]
+    past = values[-period - 1]
     momentum = current - past
+    if not math.isfinite(momentum):
+        raise ValueError("momentum must be finite")
 
     # 判定方向
     if abs(momentum) < 0.1:  # 变化小于阈值则视为持平
@@ -194,28 +292,36 @@ def calculate_momentum_simple(
     return momentum, direction
 
 
-def calculate_zscore_simple(
-    series: list[float],
-    value: float
-) -> float:
+def calculate_zscore_simple(series: list[float], value: float) -> float:
     """
     计算单个值的 Z-score（相对于历史均值）
     """
-    if len(series) < 3:
+    values = _finite_series(series, field_name="series")
+    value = _finite_number(value, field_name="value")
+    if len(values) < 3:
         return 0.0
 
-    mean_val = sum(series) / len(series)
-    variance = sum((x - mean_val) ** 2 for x in series) / len(series)
+    try:
+        mean_val = math.fsum(values) / len(values)
+        variance = math.fsum((item - mean_val) ** 2 for item in values) / len(values)
+    except OverflowError as exc:
+        raise ValueError("series variance must be finite") from exc
+    if not math.isfinite(mean_val) or not math.isfinite(variance):
+        raise ValueError("series variance must be finite")
     std_val = math.sqrt(variance)
 
     if std_val == 0:
         return 0.0
 
-    return (value - mean_val) / std_val
+    z_score = (value - mean_val) / std_val
+    if not math.isfinite(z_score):
+        raise ValueError("z_score must be finite")
+    return z_score
 
 
 def classify_momentum_strength(z_score: float) -> str:
     """根据 Z-score 分类动量强度"""
+    z_score = _finite_number(z_score, field_name="z_score")
     abs_z = abs(z_score)
     if abs_z < 0.5:
         return "weak"
@@ -229,13 +335,22 @@ def generate_prediction(
     current_regime: RegimeType,
     pmi_trend: int,
     cpi_trend: int,
-    trend_indicators: list[TrendIndicator]
+    trend_indicators: list[TrendIndicator],
 ) -> str | None:
     """
     生成趋势预测
 
     基于当前 Regime 和动量方向，预测未来可能的变化
     """
+    if not isinstance(current_regime, RegimeType):
+        raise ValueError("current_regime must be a RegimeType")
+    for field_name, trend in (("pmi_trend", pmi_trend), ("cpi_trend", cpi_trend)):
+        if isinstance(trend, bool) or not isinstance(trend, int) or trend not in {-1, 0, 1}:
+            raise ValueError(f"{field_name} must be -1, 0, or 1")
+    if not isinstance(trend_indicators, list) or any(
+        not isinstance(indicator, TrendIndicator) for indicator in trend_indicators
+    ):
+        raise ValueError("trend_indicators must contain TrendIndicator values")
     predictions = []
 
     # PMI 趋势预测
@@ -281,10 +396,7 @@ class RegimeCalculatorV2:
         self.config = config or ThresholdConfig()
 
     def calculate(
-        self,
-        pmi_series: list[float],
-        cpi_series: list[float],
-        as_of_date: date
+        self, pmi_series: list[float], cpi_series: list[float], as_of_date: date
     ) -> RegimeCalculationResult:
         """
         计算 Regime
@@ -297,12 +409,17 @@ class RegimeCalculatorV2:
         Returns:
             RegimeCalculationResult: 计算结果
         """
-        warnings = []
+        if type(as_of_date) is not date:
+            raise ValueError("as_of_date must be a date")
+        warnings: list[str] = []
 
         # 数据验证
         if not pmi_series or not cpi_series:
             warnings.append("数据为空")
             return self._empty_result(as_of_date, warnings)
+
+        pmi_series = _finite_series(pmi_series, field_name="pmi_series")
+        cpi_series = _finite_series(cpi_series, field_name="cpi_series")
 
         pmi_value = pmi_series[-1]
         cpi_value = cpi_series[-1]
@@ -324,14 +441,16 @@ class RegimeCalculatorV2:
         pmi_strength = classify_momentum_strength(pmi_z)
         pmi_dir_str = "up" if pmi_direction > 0 else ("down" if pmi_direction < 0 else "neutral")
 
-        trend_indicators.append(TrendIndicator(
-            indicator_code="PMI",
-            current_value=pmi_value,
-            momentum=pmi_momentum,
-            momentum_z=pmi_z,
-            direction=pmi_dir_str,
-            strength=pmi_strength
-        ))
+        trend_indicators.append(
+            TrendIndicator(
+                indicator_code="PMI",
+                current_value=pmi_value,
+                momentum=pmi_momentum,
+                momentum_z=pmi_z,
+                direction=pmi_dir_str,
+                strength=pmi_strength,
+            )
+        )
 
         # CPI 趋势
         cpi_period = min(3, max(1, len(cpi_series) - 1))
@@ -340,14 +459,16 @@ class RegimeCalculatorV2:
         cpi_strength = classify_momentum_strength(cpi_z)
         cpi_dir_str = "up" if cpi_direction > 0 else ("down" if cpi_direction < 0 else "neutral")
 
-        trend_indicators.append(TrendIndicator(
-            indicator_code="CPI",
-            current_value=cpi_value,
-            momentum=cpi_momentum,
-            momentum_z=cpi_z,
-            direction=cpi_dir_str,
-            strength=cpi_strength
-        ))
+        trend_indicators.append(
+            TrendIndicator(
+                indicator_code="CPI",
+                current_value=cpi_value,
+                momentum=cpi_momentum,
+                momentum_z=cpi_z,
+                direction=cpi_dir_str,
+                strength=cpi_strength,
+            )
+        )
 
         # 4. 判定状态描述
         growth_state = "expansion" if pmi_value >= self.config.pmi_expansion else "contraction"
@@ -366,7 +487,7 @@ class RegimeCalculatorV2:
             distribution=distribution,
             trend_indicators=trend_indicators,
             warnings=warnings,
-            prediction=prediction
+            prediction=prediction,
         )
 
     def _classify_inflation_state(self, cpi_value: float) -> str:
@@ -391,15 +512,13 @@ class RegimeCalculatorV2:
             inflation_state="unknown",
             distribution={r.value: 0.25 for r in RegimeType},
             trend_indicators=[],
-            warnings=warnings
+            warnings=warnings,
         )
 
 
 # 便捷函数
 def calculate_regime_with_defaults(
-    pmi_series: list[float],
-    cpi_series: list[float],
-    as_of_date: date
+    pmi_series: list[float], cpi_series: list[float], as_of_date: date
 ) -> RegimeCalculationResult:
     """使用默认配置计算 Regime"""
     calculator = RegimeCalculatorV2()

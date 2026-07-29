@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 446,
-    "files_with_errors": 250
+    "errors": 444,
+    "files_with_errors": 249
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -606,9 +606,6 @@
     },
     "apps/regime/domain/services.py": {
       "type-arg": 2
-    },
-    "apps/regime/domain/services_v2.py": {
-      "arg-type": 2
     },
     "apps/regime/infrastructure/fixtures/system_config.py": {
       "misc": 4

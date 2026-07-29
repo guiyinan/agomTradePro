@@ -6184,3 +6184,18 @@
 - Backtest Admin 与完成态边界专项 `10 passed`；任务、Repository、Decision Replay、owner-scoped API、指标完整性和真实回测执行扩展组合 `83 passed`。
 - `apps/backtest/interface/admin.py` 与 `apps/backtest/infrastructure/models.py` 增量 mypy 清零并退出债务清单；Domain payload、Decision Replay 与 Repository 联合检查保持零回归，全仓基线从 `455 errors / 252 files` 收紧为 `446 errors / 250 files`，净减少 `9 errors / 2 files`。
 - Django system check、迁移漂移检查、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 Backtest API 成功响应、TUI/Terminal/SDK/MCP 或部署实现。
+
+## 第四百零四批
+
+- 按“Regime V2 动量方向类型失真 × NaN/Infinity 可进入象限概率和置信度 × 非法 period 改变 Python 索引语义 × 失序阈值可发布矛盾判定”收口核心象限 Domain 算法。
+- `calculate_momentum_simple()` 正式返回 `tuple[float, int]`，方向只允许 `-1/0/1`；period 必须为非 bool 的正整数，完整历史序列必须为有限数，有限输入相减溢出也失败关闭。
+- ThresholdConfig 构造时验证所有阈值有限、PMI contraction 不高于 expansion、CPI 满足 `deflation <= low <= high`，momentum/confidence 权重限制在 `0..1`。
+- 水平分类、距离分布、Z-score、动量强度和主 Calculator 统一拒绝 bool、NaN 与 Infinity；分布距离改用 `hypot`，极端但有限观察导致权重下溢时稳定降级为四象限均匀分布。
+- RegimeCalculationResult 在发布时验证 Regime、confidence、增长/通胀水平、状态枚举、趋势对象以及四象限键/概率范围/总和；非有限或非归一化证据不能进入 Application、API、任务或审计消费者。
+- 主 Calculator 要求 plain `date` as-of，历史任一点损坏即失败关闭；空数据继续返回带“数据为空”warning 的零置信度安全结果。
+
+## 第四百零四批验证结果
+
+- Regime V2 原有与有限性/阈值/period/分布专项 `40 passed`；Regime Domain、UseCase、任务、API、编排、Interface 与重算命令扩展组合 `108 passed`。
+- `apps/regime/domain/services_v2.py` 增量 mypy 清零并退出债务清单；全仓基线从 `446 errors / 250 files` 收紧为 `444 errors / 249 files`，净减少 `2 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 Regime API 成功响应、阈值数据库结构、TUI/Terminal/SDK/MCP 或部署实现。
