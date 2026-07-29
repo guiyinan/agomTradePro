@@ -73,18 +73,6 @@
   "core_management_command_app_infrastructure_import_count": 0,
   "core_management_command_orm_access_count": 0,
   "python_file_non_empty_line_limit": 1200,
-  "allowed_large_python_files": {
-    "apps/ai_capability/application/use_cases.py": 1246
-  },
-  "large_file_remediation": {
-    "apps/ai_capability/application/use_cases.py": {
-      "owner": "ai-capability-maintainers",
-      "kind": "application-use-case-decomposition",
-      "rationale": "AI capability orchestration has crossed the repository size guard and needs focused routing, governance, and verification collaborators while preserving its public use-case facade.",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md",
-      "priority": "P1",
-      "target_non_empty_lines": 1200,
-      "review_by": "2026-08-31"
-    }
-  }
+  "allowed_large_python_files": {},
+  "large_file_remediation": {}
 }

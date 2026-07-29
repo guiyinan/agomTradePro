@@ -37,6 +37,24 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _build_sector_distribution(
+    stocks: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Aggregate stock rows into portable sector-count chart rows."""
+
+    counts: dict[str, int] = {}
+    for stock in stocks:
+        sector = str(stock.get("sector") or "未知")
+        counts[sector] = counts.get(sector, 0) + 1
+    return [
+        {"sector": sector, "count": count}
+        for sector, count in sorted(
+            counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )
+    ]
+
+
 class EquityPoolActionsMixin:
     """Current-pool query and Regime-driven pool refresh actions."""
 
@@ -81,11 +99,12 @@ class EquityPoolActionsMixin:
                         "avg_roe": None,
                         "avg_pe": None,
                         "stocks": [],
+                        "sector_distribution": [],
                     }
                 )
 
             # 获取股票详细信息
-            stocks = []
+            stocks: list[dict[str, object]] = []
             total_roe = 0.0
             valid_roe_count = 0
             total_pe = 0.0
@@ -111,7 +130,7 @@ class EquityPoolActionsMixin:
                 pe = pe if pe is not None and pe > 0 else None
                 pb = pb if pb is not None and pb > 0 else None
 
-                stock_data = {
+                stock_data: dict[str, object] = {
                     "code": stock_info.stock_code,
                     "name": stock_info.name,
                     "sector": stock_info.sector,
@@ -143,6 +162,7 @@ class EquityPoolActionsMixin:
                     "avg_roe": round(avg_roe, 2) if avg_roe is not None else None,
                     "avg_pe": round(avg_pe, 2) if avg_pe is not None else None,
                     "stocks": stocks,
+                    "sector_distribution": _build_sector_distribution(stocks),
                 }
             )
 

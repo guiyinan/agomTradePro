@@ -5,6 +5,7 @@
 {% block subtitle %}发布机构代码表与别名治理入口{% endblock %}
 
 {% block content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="api-library.data-center" action_key="auto.api.get.api.data-center.publishers" %}
 <section class="section">
     <h2>Publisher Catalog</h2>
     <p class="lead">这里维护发布机构代码表、canonical 名称和别名归并。程序判断统一基于 `publisher_code` / `publisher_codes`，`publisher` 仅保留给展示和兼容接口。</p>

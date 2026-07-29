@@ -44,6 +44,15 @@
 {% endblock %}
 
 {% block content %}
+<div role="status" style="margin: 0 auto 16px; max-width: 1200px; padding: 12px 16px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a;">
+    RSS 源配置已迁入管理员 TUI。
+    {% if form.instance.pk %}
+    <a href="/tui/?screen=policy.workbench&amp;action=policy.rss-source-update&amp;params=%7B%22source_id%22%3A{{ form.instance.pk }}%7D" style="color:#1d4ed8; font-weight:700;">在 TUI 中编辑此来源</a>。
+    {% else %}
+    <a href="/tui/?screen=policy.workbench&amp;action=policy.rss-source-create" style="color:#1d4ed8; font-weight:700;">打开 TUI 创建任务</a>。
+    {% endif %}
+    当前 Classic 页面仅在兼容期内保留。
+</div>
 <div class="rf-page">
     <h1>{% if form.instance.pk %}编辑{% else %}添加{% endif %} RSS 源</h1>
     <p class="sub">配置 RSS 数据源的连接参数与抓取行为。</p>

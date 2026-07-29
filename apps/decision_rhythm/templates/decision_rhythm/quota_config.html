@@ -10,6 +10,13 @@
 {% block content %}
 {% csrf_token %}
 <div class="config-container">
+    <div style="margin-bottom:18px; padding:14px 16px; border:1px solid #93c5fd; border-radius:14px; background:#eff6ff; color:#1e3a8a;">
+        <strong>迁移提示：</strong>
+        配额更新、重置与趋势检查已迁入 TUI。
+        <a href="/tui/?screen=command-center.decision-flow&amp;action=decision-rhythm.quota-update{% if current_account_id %}&amp;account_id={{ current_account_id }}{% endif %}" style="color:#1d4ed8; font-weight:700;">打开决策配额配置任务</a>。
+        当前 Classic 页面仅在兼容期内保留。
+    </div>
+
     <!-- 头部 -->
     <div class="config-header">
         <div>

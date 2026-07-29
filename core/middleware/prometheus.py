@@ -34,31 +34,54 @@ class PrometheusMetricsMiddleware:
 
     注意：
     - 与 django_prometheus.middleware 配合使用
-    - 只记录 /api/ 路径的请求
-    - 跳过 /metrics/ 端点本身
+    - API 通用指标只记录 /api/ 路径
+    - Web-to-TUI 兼容指标覆盖受审 Classic 路由与 TUI 入口/action
+    - 跳过 metrics 端点本身
     """
 
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        # 跳过非 API 路径和 metrics 端点
-        if not request.path.startswith("/api/") or request.path == "/metrics/":
+        if request.path in {"/metrics/", "/api/metrics/"}:
             return self.get_response(request)
 
-        # 记录开始时间
-        start_time = time.perf_counter()
-
-        # 执行请求
+        is_api_request = request.path.startswith("/api/")
+        start_time = time.perf_counter() if is_api_request else None
         response = self.get_response(request)
+        self._record_ui_migration_metrics(request, response)
 
-        # 计算延迟
-        duration = time.perf_counter() - start_time
-
-        # 记录指标
-        self._record_metrics(request, response, duration)
+        if is_api_request and start_time is not None:
+            duration = time.perf_counter() - start_time
+            self._record_metrics(request, response, duration)
 
         return response
+
+    @staticmethod
+    def _record_ui_migration_metrics(
+        request: HttpRequest,
+        response: HttpResponse,
+    ) -> None:
+        """Record one bounded compatibility event when the route is in scope."""
+
+        try:
+            from core.metrics import record_web_to_tui_migration_event
+            from core.ui_migration_telemetry import classify_ui_migration_request
+
+            event = classify_ui_migration_request(request, response)
+            if event is None:
+                return
+            record_web_to_tui_migration_event(
+                surface=event.surface,
+                event_type=event.event_type,
+                task_key=event.task_key,
+                outcome=event.outcome,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to record Web-to-TUI migration metrics (error_type=%s)",
+                type(exc).__name__,
+            )
 
     def _record_metrics(
         self, request: HttpRequest, response: HttpResponse, duration: float

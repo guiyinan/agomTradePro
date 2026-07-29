@@ -194,3 +194,6 @@ class DjangoInspectionRepository:
                 body=body,
                 status=status,
             )
+
+
+__all__ = ["DjangoInspectionRepository"]

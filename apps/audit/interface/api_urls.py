@@ -12,6 +12,14 @@ from .attribution_report_api_views import (
 )
 from .forecast_scoreboard_api_views import ForecastScoreboardView
 from .threshold_config_api_views import PreviewThresholdLevelsView, UpdateThresholdLevelsView
+from .tui_views import (
+    AuditTuiAttributionDetailView,
+    AuditTuiIndicatorPerformanceView,
+    AuditTuiManualTradeSummaryView,
+    AuditTuiOverviewView,
+    AuditTuiReportListView,
+    AuditTuiThresholdValidationView,
+)
 from .validation_api_views import PreviewValidationView, RunValidationView
 
 app_name = "audit_api"
@@ -21,8 +29,9 @@ class AuditApiRootView(APIView):
     """Return discoverable audit API endpoints."""
 
     def get(self, request: Request) -> Response:
-        """Return stable Audit API discovery metadata."""
+        """Return the bounded, discoverable audit API contract."""
 
+        del request
         return Response(
             {
                 "endpoints": {
@@ -49,6 +58,9 @@ class AuditApiRootView(APIView):
                     "failure_counter": "/api/audit/failure-counter/",
                     "metrics": "/api/audit/metrics/",
                     "forecast_scoreboard": "/api/audit/forecast-scoreboard/",
+                    "tui_overview": "/api/audit/tui/overview/",
+                    "tui_reports": "/api/audit/tui/reports/",
+                    "tui_manual_trades": "/api/audit/tui/manual-trades/",
                 }
             }
         )
@@ -56,6 +68,28 @@ class AuditApiRootView(APIView):
 
 urlpatterns = [
     path("", AuditApiRootView.as_view(), name="api-root"),
+    path("tui/overview/", AuditTuiOverviewView.as_view(), name="tui-overview"),
+    path("tui/reports/", AuditTuiReportListView.as_view(), name="tui-reports"),
+    path(
+        "tui/attribution/<int:report_id>/",
+        AuditTuiAttributionDetailView.as_view(),
+        name="tui-attribution-detail",
+    ),
+    path(
+        "tui/indicator-performance/",
+        AuditTuiIndicatorPerformanceView.as_view(),
+        name="tui-indicator-performance",
+    ),
+    path(
+        "tui/thresholds/",
+        AuditTuiThresholdValidationView.as_view(),
+        name="tui-thresholds",
+    ),
+    path(
+        "tui/manual-trades/",
+        AuditTuiManualTradeSummaryView.as_view(),
+        name="tui-manual-trades",
+    ),
     path(
         "reports/generate/preview/",
         PreviewAttributionReportView.as_view(),

@@ -1,7 +1,7 @@
 # R0 Filter 生命周期与消费者清单
 
 > 状态：已冻结；R1A 结论为“只弃用，不删除”
-> 取证日期：2026-07-20
+> 取证日期：2026-07-20；TUI 消费面复核：2026-07-26
 > 稳定身份：Django app `filter`、API `/api/filter/**`、SDK `client.filter`、MCP owner `filter`
 
 ## 1. 已登记消费者
@@ -10,13 +10,17 @@
 |---|---|---|
 | Django | `core/settings/base.py` 注册 `apps.filter` | 弃用期保持 |
 | HTTP API | `core/urls.py` 暴露 `/api/filter/`，含 apply/get-data/compare/indicators/config/health | 路径与响应体保持；增加弃用 header |
-| TUI | generated/published operation graph 含 filter root、indicators、health、config | 仍是明确消费者；sunset 前不得移除 |
+| TUI | W49 已发布 Macro owner 的 `macro.trend-filter-*` 替代任务；runtime load 会裁掉 filter root、indicators、health、config 五个旧 action | 用户任务已迁移；generated/published 源文件保留到后续治理批次，运行时不再形成 Filter 消费 |
 | Python SDK | `sdk/agomtradepro/modules/filter.py`，通过 `client.filter` 暴露 | 保持兼容；调用时发出 FutureWarning |
 | legacy MCP | `filter_tools.py` 注册 list/get/create/update/delete/health 六个工具 | 保持注册；不得新增调用方 |
 | governed MCP | 三个 read manifest + 三个 write manifest | 保持 enabled，显式发布 lifecycle metadata |
 | 自动测试 | API edges、SDK endpoints、MCP owner/read matrix、TUI workbench | 作为兼容基线保留 |
 
-全仓业务源码未发现除路由、TUI/SDK/MCP 接入层之外的 `apps.filter` 业务依赖；HP/Kalman 的可复用算法真源仍是 `shared/infrastructure/calculators.py` 与 `shared/infrastructure/kalman_filter.py`。这只能证明“内部业务未依赖”，不能证明外部客户端无调用。
+全仓业务源码未发现除路由、SDK/MCP 接入层之外的 `apps.filter` 业务依赖；HP/Kalman
+的可复用算法真源仍是 `shared/infrastructure/calculators.py` 与
+`shared/infrastructure/kalman_filter.py`。2026-07-26 起，TUI 替代任务由 Macro
+Application 读取 Data Center 真源，只读计算且不写入 Filter 表；这只能证明“仓内 TUI
+已迁移、内部业务未依赖”，不能证明外部客户端无调用。
 
 ## 2. 访问日志观察窗口
 
@@ -48,4 +52,4 @@
 | API path/namespace | 保持 | sunset 后一次性移除并更新 inventory |
 | SDK 属性与方法 | 保持并 warning | 下一个明确的破坏性版本才移除 |
 | MCP tool/capability key | 保持 enabled + deprecated | 先从发现面下线，再移除 legacy alias |
-| TUI action key | 保持 | 先发布替代用户任务，再删除生成物 |
+| TUI action key | Macro 替代任务已发布，旧 key 在 runtime load 时裁掉 | generated/published 源文件随后续治理批次再删除 |

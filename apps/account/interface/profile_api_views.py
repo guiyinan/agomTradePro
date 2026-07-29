@@ -3,7 +3,9 @@
 from collections.abc import Callable
 from typing import Any, TypeVar, cast
 
-from rest_framework import viewsets
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.models import User
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
@@ -16,6 +18,7 @@ from apps.account.application import interface_services
 
 from .permissions import GeneralPermission, TradingPermission
 from .serializers import (
+    AccountPasswordChangeSerializer,
     AccountProfileSerializer,
     AccountProfileUpdateSerializer,
     AssetMetadataSerializer,
@@ -66,9 +69,7 @@ class AccountProfileView(APIView):
             "email",
         }
         if unknown_fields:
-            raise ValidationError(
-                {"detail": f"不支持的字段: {', '.join(sorted(unknown_fields))}"}
-            )
+            raise ValidationError({"detail": f"不支持的字段: {', '.join(sorted(unknown_fields))}"})
         serializer = AccountProfileUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         profile_data = dict(serializer.validated_data)
@@ -79,6 +80,31 @@ class AccountProfileView(APIView):
             email=email,
         )
         return Response(AccountProfileUpdateSerializer(profile).data)
+
+
+class AccountPasswordChangeView(APIView):
+    """Change the current user's password after checking the current password."""
+
+    permission_classes = [IsAuthenticated, GeneralPermission]
+
+    def post(self, request: Request) -> Response:
+        serializer = AccountPasswordChangeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            interface_services.change_api_password(
+                _request_user_id(request),
+                current_password=str(serializer.validated_data["current_password"]),
+                new_password=str(serializer.validated_data["new_password"]),
+            )
+        except PermissionError as exc:
+            raise PermissionDenied(str(exc)) from exc
+        except ValueError as exc:
+            raise ValidationError({"new_password": str(exc)}) from exc
+        update_session_auth_hash(request._request, cast(User, request.user))
+        return Response(
+            {"success": True, "message": "密码已更新"},
+            status=status.HTTP_200_OK,
+        )
 
 
 class MacroSizingConfigView(APIView):
@@ -166,9 +192,7 @@ class AccountHealthView(APIView):
 
     def get(self, request: Request) -> Response:
         """检查 Account 服务健康状态"""
-        return Response(
-            interface_services.get_account_health_payload(_request_user_id(request))
-        )
+        return Response(interface_services.get_account_health_payload(_request_user_id(request)))
 
 
 class UserSearchView(APIView):
@@ -229,9 +253,7 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet[Any]):
 
     def get_queryset(self) -> Any:
         """只返回当前用户投资组合的费率配置"""
-        return interface_services.get_trading_cost_config_queryset(
-            _request_user_id(self.request)
-        )
+        return interface_services.get_trading_cost_config_queryset(_request_user_id(self.request))
 
     def get_serializer_class(self) -> type[BaseSerializer[Any]]:
         if self.action in ["create", "update", "partial_update"]:
@@ -281,9 +303,7 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet[Any]):
                 "transfer_fee_rate": serializer.validated_data.get(
                     "transfer_fee_rate", instance.transfer_fee_rate
                 ),
-                "is_active": serializer.validated_data.get(
-                    "is_active", instance.is_active
-                ),
+                "is_active": serializer.validated_data.get("is_active", instance.is_active),
             },
         )
 

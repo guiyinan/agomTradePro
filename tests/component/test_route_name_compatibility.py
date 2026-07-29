@@ -124,12 +124,11 @@ def test_dashboard_page_does_not_raise_reverse_error(db):
     assert response.status_code in (200, 302)
 
 
-def test_macro_templates_do_not_hardcode_legacy_api_paths():
+def test_macro_templates_and_controller_do_not_use_legacy_api_paths(client):
     template_dir = Path("core/templates")
 
     regime_dashboard = (template_dir / "regime/dashboard.html").read_text(encoding="utf-8")
     macro_data = (template_dir / "macro/data.html").read_text(encoding="utf-8")
-    macro_controller = (template_dir / "macro/data_controller.html").read_text(encoding="utf-8")
 
     assert "/macro/api/quick-sync/" not in regime_dashboard
     assert '{% url "api_data_center:dc-sync-macro" %}' in regime_dashboard
@@ -146,8 +145,9 @@ def test_macro_templates_do_not_hardcode_legacy_api_paths():
     )
     assert "currentIndicatorPayload = normalizeMacroPayload(code, result);" in macro_data
 
-    assert "const API_BASE = '/macro/api';" not in macro_controller
-    assert "const API_BASE = '/api/data-center';" in macro_controller
+    controller_response = client.get(reverse("macro:data_controller"))
+    assert controller_response.status_code == 302
+    assert controller_response["Location"] == "/data-center/providers/"
 
 
 def test_regime_redesign_templates_reflect_closure():

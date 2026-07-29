@@ -10,9 +10,11 @@ from apps.config_center.interface.api_views import (
     QlibTrainingRunDetailView,
     QlibTrainingRunListView,
     QlibTrainingRunTriggerView,
+    SystemGovernanceSettingsView,
 )
 
 urlpatterns = [
+    path("settings/", SystemGovernanceSettingsView.as_view(), name="system-settings"),
     path("qlib/runtime/", QlibRuntimeConfigView.as_view(), name="config-center-qlib-runtime"),
     path(
         "qlib/alpha-universes/",

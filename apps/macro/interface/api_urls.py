@@ -1,10 +1,21 @@
-"""Macro API URL compatibility module.
+"""Macro API URL configuration.
 
-Legacy ``/api/macro/*`` endpoints were retired during the data-center cutover.
-We keep an explicit empty router here so governance checks can verify the
-standard interface layer shape without reintroducing retired routes.
+Legacy data CRUD endpoints remain retired after the data-center cutover. The
+TUI overview below is a read-only projection of the current application
+facades and does not restore those retired contracts.
 """
 
-from django.urls import URLPattern, URLResolver
+from django.urls import URLPattern, URLResolver, path
 
-urlpatterns: list[URLPattern | URLResolver] = []
+from .tui_views import MacroTrendFilterTuiView, MacroTuiOverviewView
+
+app_name = "macro_api"
+
+urlpatterns: list[URLPattern | URLResolver] = [
+    path("tui/overview/", MacroTuiOverviewView.as_view(), name="tui-overview"),
+    path(
+        "tui/trend-filter/",
+        MacroTrendFilterTuiView.as_view(),
+        name="tui-trend-filter",
+    ),
+]

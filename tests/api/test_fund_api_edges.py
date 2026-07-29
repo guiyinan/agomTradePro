@@ -427,7 +427,7 @@ def test_fund_contracts_reject_invalid_dates_and_missing_context(
 
 
 @pytest.mark.django_db
-def test_fund_multidim_empty_result_is_404_not_500(authenticated_client):
+def test_fund_multidim_empty_result_is_a_successful_empty_state(authenticated_client):
     response = authenticated_client.post(
         "/api/fund/multidim-screen/",
         {
@@ -442,6 +442,56 @@ def test_fund_multidim_empty_result_is_404_not_500(authenticated_client):
         format="json",
     )
 
-    assert response.status_code == 404
-    assert response.json()["success"] is False
+    assert response.status_code == 200
+    assert response.json()["success"] is True
     assert response.json()["count"] == 0
+
+
+def test_fund_multidim_screen_folds_flat_tui_fields_at_interface_boundary(
+    authenticated_client,
+):
+    context = type(
+        "FundContext",
+        (),
+        {
+            "current_regime": "Recovery",
+            "policy_level": "P1",
+            "sentiment_index": 0.2,
+        },
+    )()
+    with patch(
+        "apps.fund.interface.views.interface_services.screen_funds_multidim",
+        return_value={
+            "result": {"success": True, "count": 0, "funds": []},
+            "context": context,
+            "active_signals_count": 0,
+        },
+    ) as screen:
+        response = authenticated_client.post(
+            "/api/fund/tui-multidim-screen/",
+            {
+                "fund_type": "股票型",
+                "investment_style": "成长",
+                "min_scale": 1000000000,
+                "regime": "Recovery",
+                "policy_level": "P1",
+                "sentiment_index": 0.2,
+                "max_count": 20,
+            },
+            format="json",
+        )
+
+    assert response.status_code == 200
+    screen.assert_called_once_with(
+        filters={
+            "fund_type": "股票型",
+            "investment_style": "成长",
+            "min_scale": Decimal("1000000000.00"),
+        },
+        context_data={
+            "regime": "Recovery",
+            "policy_level": "P1",
+            "sentiment_index": 0.2,
+        },
+        max_count=20,
+    )

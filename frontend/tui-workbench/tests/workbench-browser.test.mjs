@@ -64,6 +64,15 @@ const actions = [
         ],
         sequence: 2,
     }),
+    action("test.edit", {
+        label: "编辑记录",
+        method: "POST",
+        risk: "write",
+        fields: [
+            { key: "code", label: "代码", input_type: "text", required: true },
+        ],
+        sequence: 2,
+    }),
     action("test.upload", {
         label: "上传文本",
         task_tier: "support",
@@ -78,13 +87,38 @@ const actions = [
     action("test.fast", { label: "快请求", sequence: 6 }),
     action("test.next", { label: "下一动作", sequence: 7 }),
     action("test.regime", { label: "Regime 面板", sequence: 8 }),
+    action("test.chart", { label: "趋势图", view_type: "chart", sequence: 9 }),
     action("test.admin-read", {
         label: "管理员只读状态",
         risk: "admin",
         method: "GET",
         task_tier: "primary",
         screen_key: "test.dashboard",
-        sequence: 9,
+        sequence: 10,
+    }),
+    action("test.user-list", {
+        label: "读取用户准入队列",
+        view_type: "datagrid",
+        task_tier: "primary",
+        screen_key: "test.user-governance",
+        sequence: 11,
+    }),
+    action("test.approve-user", {
+        label: "批准用户",
+        risk: "admin",
+        method: "POST",
+        screen_key: "test.user-governance",
+        sequence: 12,
+    }),
+    action("test.password", {
+        label: "修改密码",
+        risk: "write",
+        method: "POST",
+        sequence: 13,
+        fields: [
+            { key: "current_password", label: "当前密码", input_type: "password", required: true },
+            { key: "new_password", label: "新密码", input_type: "password", required: true },
+        ],
     }),
 ];
 
@@ -100,6 +134,7 @@ const catalog = {
             screens: [
                 { key: "test.grid", label: "测试表格", view_type: "datagrid", action_count: actions.length },
                 { key: "test.dashboard", label: "测试概览", view_type: "status", action_count: 2 },
+                { key: "test.user-governance", label: "用户准入治理", view_type: "datagrid", action_count: 2 },
             ],
         }],
     }],
@@ -130,6 +165,7 @@ const dashboardScreen = {
         view_type: "status",
         status: "online",
         audience: "admin",
+        chrome_mode: "immersive",
         entry_state: { mode: "dashboard" },
         workflow: {},
         dashboard_panels: [
@@ -163,6 +199,52 @@ const dashboardScreen = {
     actions: actions.filter((item) => ["test.regime", "test.secure", "test.admin-read"].includes(item.key)),
 };
 
+const userGovernanceScreen = {
+    module: { key: "test", label: "测试模块" },
+    screen: {
+        key: "test.user-governance",
+        label: "用户准入治理",
+        summary: "验证管理员行操作、回执与写后刷新。",
+        view_type: "datagrid",
+        status: "online",
+        audience: "admin",
+        entry_state: { mode: "dashboard" },
+        workflow: {},
+        dashboard_panels: [
+            {
+                key: "users",
+                title: "用户准入队列",
+                kind: "datagrid",
+                user_priority: "p0",
+                presentation_semantic: "primary_list",
+                action_key: "test.user-list",
+                columns: [
+                    { key: "user_id", label: "用户 ID" },
+                    { key: "username", label: "用户名" },
+                    { key: "approval_status", label: "准入状态" },
+                ],
+                row_actions: [{
+                    action_key: "test.approve-user",
+                    label_template: "批准 {username}",
+                    param_map: { user_id: "user_id" },
+                    result_panel_key: "receipt",
+                    refresh_panel_key: "users",
+                }],
+            },
+            {
+                key: "receipt",
+                title: "治理回执",
+                kind: "detail",
+                user_priority: "p1",
+                presentation_semantic: "primary_status",
+                empty_message: "从用户列表选择一项治理操作。",
+            },
+        ],
+        user_experience: { primary_task: "处理待审批用户", primary_outcome: "得到治理回执" },
+    },
+    actions: actions.filter((item) => ["test.user-list", "test.approve-user"].includes(item.key)),
+};
+
 function listResult() {
     return {
         action: actions.find((item) => item.key === "test.list"),
@@ -184,7 +266,7 @@ function listResult() {
     };
 }
 
-async function openHarness() {
+async function openHarness(url = "https://app.test/", options = {}) {
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
     const page = await context.newPage();
@@ -245,6 +327,44 @@ async function openHarness() {
         }
         if (url.pathname === "/api/tui/screens/test.dashboard/") {
             await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(dashboardScreen) });
+            return;
+        }
+        if (url.pathname === "/api/tui/screens/test.user-governance/") {
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(userGovernanceScreen) });
+            return;
+        }
+        if (url.pathname.includes("/actions/test.user-list/run/")) {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    view_model: {
+                        kind: "datagrid",
+                        columns: [
+                            { key: "user_id", label: "用户 ID" },
+                            { key: "username", label: "用户名" },
+                            { key: "approval_status", label: "准入状态" },
+                        ],
+                        rows: [{ user_id: 42, username: "pending-user", approval_status: "pending" }],
+                        total: 1,
+                    },
+                }),
+            });
+            return;
+        }
+        if (url.pathname.includes("/actions/test.approve-user/run/")) {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    view_model: {
+                        kind: "detail",
+                        title: "已批准 pending-user",
+                        status: "成功",
+                        fields: [{ label: "用户 ID", value: 42, presentation: "metadata" }],
+                    },
+                }),
+            });
             return;
         }
         if (url.pathname.includes("/actions/test.list/run/")) {
@@ -314,6 +434,41 @@ async function openHarness() {
             });
             return;
         }
+        if (url.pathname.includes("/actions/test.chart/run/")) {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: actions.find((item) => item.key === "test.chart"),
+                    view_model: {
+                        kind: "chart",
+                        chart_type: "line",
+                        title: "脉搏趋势",
+                        status: "正常",
+                        x_axis_label: "日期",
+                        series: [
+                            {
+                                key: "composite_score",
+                                label: "综合脉搏",
+                                points: [
+                                    { label: "2026-07-24", value: 0.42 },
+                                    { label: "2026-07-25", value: 0.57 },
+                                ],
+                            },
+                            {
+                                key: "growth_score",
+                                label: "增长",
+                                points: [
+                                    { label: "2026-07-24", value: 0.31 },
+                                    { label: "2026-07-25", value: 0.38 },
+                                ],
+                            },
+                        ],
+                    },
+                }),
+            });
+            return;
+        }
         const actionKey = decodeURIComponent(url.pathname.match(/\/actions\/([^/]+)\/run\//)?.[1] || "");
         await route.fulfill({
             status: 200,
@@ -325,9 +480,13 @@ async function openHarness() {
         });
     });
     try {
-        await page.goto("https://app.test/");
+        await page.goto(url);
         await page.addScriptTag({ path: bundlePath });
-        await page.waitForSelector('[data-row-index="0"]');
+        if (options.waitForInitialRows !== false) {
+            await page.waitForSelector('[data-row-index="0"]');
+        } else {
+            await page.waitForSelector("[data-screen-title]");
+        }
         return { browser, page };
     } catch (error) {
         const status = await page.locator("[data-workbench-status]").textContent().catch(() => "");
@@ -336,6 +495,42 @@ async function openHarness() {
         throw new Error(`${error.message}\nstatus=${status}\nmain=${main}\nbrowser=${browserErrors.join(" | ")}\nrequests=${requestLog.join(" | ")}`);
     }
 }
+
+test("action deep links reveal, focus, and prefill the requested task", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.grid&action=test.edit&code=deep-link-code",
+        { waitForInitialRows: false },
+    );
+    try {
+        const input = page.locator('form[data-action-ui-key="test.edit"] input[name="code"]');
+        await input.waitFor();
+        await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "code");
+        assert.equal(await input.inputValue(), "deep-link-code");
+        assert.match(await page.locator("[data-workbench-status]").innerText(), /编辑记录/);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("immersive dashboard deep links locate their matching panel", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.dashboard&action=test.admin-read",
+        { waitForInitialRows: false },
+    );
+    try {
+        await page.locator('[data-dashboard-panel="admin-read"]').waitFor();
+        assert.match(
+            await page.locator("[data-workbench-status]").innerText(),
+            /管理员只读状态/,
+        );
+        assert.equal(
+            await page.locator('[data-dashboard-panel="admin-read"]').count(),
+            1,
+        );
+    } finally {
+        await browser.close();
+    }
+});
 
 test("catalog suppresses a redundant single-module heading", async () => {
     const { browser, page } = await openHarness();
@@ -387,6 +582,22 @@ test("action filtering and toggles preserve form and file input nodes", async ()
     }
 });
 
+test("password fields render as masked controls and keep values out of markup", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        const form = page.locator('[data-action-ui-key="test.password"]');
+        await form.waitFor({ state: "visible" });
+        const currentPassword = form.locator('input[name="current_password"]');
+        const newPassword = form.locator('input[name="new_password"]');
+        assert.equal(await currentPassword.getAttribute("type"), "password");
+        assert.equal(await newPassword.getAttribute("type"), "password");
+        assert.equal(await currentPassword.getAttribute("value"), "");
+        assert.equal(await newPassword.getAttribute("value"), "");
+    } finally {
+        await browser.close();
+    }
+});
+
 test("next steps without params do not inherit the previous action form", async () => {
     const { browser, page } = await openHarness();
     try {
@@ -429,6 +640,37 @@ test("dashboard auto-loads passive reads and never auto-runs sensitive actions",
         );
         assert.equal(secureRequests, 0);
         assert.equal(adminReadRequests, 1);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("admin governance row action shows a receipt and refreshes the source panel", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        let listRequests = 0;
+        page.on("request", (request) => {
+            if (request.url().includes("/actions/test.user-list/run/")) {
+                listRequests += 1;
+            }
+        });
+
+        const location = page.locator("[data-current-location]");
+        await location.fill("screen:test.user-governance");
+        await location.press("Enter");
+
+        const approve = page.locator('[data-dashboard-row-action][aria-label="批准 pending-user"]');
+        await approve.waitFor({ state: "visible" });
+        const mutationRequest = page.waitForRequest(
+            (request) => request.url().includes("/actions/test.approve-user/run/"),
+        );
+        await approve.click();
+
+        const request = await mutationRequest;
+        assert.deepEqual(request.postDataJSON().params, { user_id: 42 });
+        await page.locator('[data-dashboard-panel="receipt"]').getByText("已批准 pending-user").waitFor();
+        await page.waitForFunction(() => document.querySelectorAll('[data-dashboard-row-action]').length === 1);
+        assert.equal(listRequests, 2);
     } finally {
         await browser.close();
     }
@@ -483,6 +725,114 @@ test("menus expose menuitem semantics and return focus on Escape", async () => {
     }
 });
 
+test("chart view renders every series with an accessible text summary", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        const trigger = page.locator('form[data-action-ui-key="test.chart"] .tui-action-button');
+        await trigger.focus();
+        assert.equal(await trigger.evaluate((element) => element === document.activeElement), true);
+        await trigger.press("Enter");
+        const chart = page.locator(".tui-chart-view");
+        await chart.waitFor({ state: "visible" });
+
+        assert.equal(await chart.locator(".tui-chart-line").count(), 2);
+        assert.equal(await chart.locator(".tui-chart-series-legend").count(), 2);
+        assert.match(await chart.locator(".tui-chart-accessible-summary").innerText(), /综合脉搏/);
+        assert.match(await chart.locator(".tui-chart-accessible-summary").innerText(), /2026-07-25.*0.57/);
+        assert.equal(await chart.locator("svg").getAttribute("aria-hidden"), "true");
+    } finally {
+        await browser.close();
+    }
+});
+
+test("detail and chart empty results render reviewed task guidance", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        await page.route("**/actions/test.detail/run/", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: actions.find((item) => item.key === "test.detail"),
+                    view_model: {
+                        kind: "detail",
+                        title: "研究摘要",
+                        status: "暂无数据",
+                        fields: [],
+                        empty_message: "当前没有研究摘要。",
+                        empty_guidance: ["先检查研究样本和筛选条件。"],
+                        next_steps: [{ label: "补齐数据", action_key: "test.next" }],
+                    },
+                }),
+            });
+        });
+        const detailForm = page.locator('form[data-action-ui-key="test.detail"]');
+        await detailForm.locator('[name="code"]').fill("empty-case");
+        await detailForm.locator(".tui-action-button").click();
+        const detailEmpty = page.locator("[data-main-panel] .tui-empty-state");
+        await detailEmpty.getByText("当前没有研究摘要。", { exact: true }).waitFor();
+        assert.match(await detailEmpty.innerText(), /先检查研究样本和筛选条件/);
+        assert.equal(await detailEmpty.getByRole("button", { name: "补齐数据" }).count(), 1);
+
+        await page.route("**/actions/test.chart/run/", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: actions.find((item) => item.key === "test.chart"),
+                    view_model: {
+                        kind: "chart",
+                        chart_type: "line",
+                        title: "研究趋势",
+                        status: "暂无数据",
+                        series: [],
+                        empty_message: "当前没有研究趋势。",
+                        empty_guidance: ["先同步研究序列。"],
+                    },
+                }),
+            });
+        });
+        await page.locator('form[data-action-ui-key="test.chart"] .tui-action-button').click();
+        const chartEmpty = page.locator("[data-main-panel] .tui-empty-state");
+        await chartEmpty.getByText("当前没有研究趋势。", { exact: true }).waitFor();
+        assert.match(await chartEmpty.innerText(), /先同步研究序列/);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("chart view has no overlap or page overflow at three acceptance viewports", async () => {
+    const viewports = [
+        { width: 360, height: 800 },
+        { width: 768, height: 1024 },
+        { width: 1440, height: 1000 },
+    ];
+    for (const viewport of viewports) {
+        const { browser, page } = await openHarness();
+        try {
+            await page.setViewportSize(viewport);
+            await page.locator('form[data-action-ui-key="test.chart"] .tui-action-button').click();
+            const chart = page.locator(".tui-chart-view");
+            await chart.waitFor({ state: "visible" });
+            const geometry = await page.evaluate(() => {
+                const main = document.querySelector("[data-main-panel]").getBoundingClientRect();
+                const chartBox = document.querySelector(".tui-chart-view").getBoundingClientRect();
+                const summary = document.querySelector(".tui-chart-accessible-summary").getBoundingClientRect();
+                return {
+                    pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+                    chartInsideMain: chartBox.left >= main.left - 1 && chartBox.right <= main.right + 1,
+                    summaryBelowChart: summary.top >= chartBox.top && summary.bottom <= chartBox.bottom + 1,
+                };
+            });
+            assert.equal(geometry.pageOverflow, false, JSON.stringify(viewport));
+            assert.equal(geometry.chartInsideMain, true, JSON.stringify(viewport));
+            assert.equal(geometry.summaryBelowChart, true, JSON.stringify(viewport));
+        } finally {
+            await browser.close();
+        }
+    }
+});
+
 test("modal traps focus and clears sensitive markup on close", async () => {
     const { browser, page } = await openHarness();
     try {
@@ -499,6 +849,38 @@ test("modal traps focus and clears sensitive markup on close", async () => {
         await page.locator('[name="password"]').fill("secret-value");
         await close.click();
         assert.equal(await page.locator("[data-modal-body]").innerHTML(), "");
+    } finally {
+        await browser.close();
+    }
+});
+
+test("task failures render traceable recovery without leaking exception text", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        await page.route("**/actions/test.fast/run/", async (route) => {
+            await route.fulfill({
+                status: 502,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    error_code: "tui_action_unavailable",
+                    title: "任务暂时不可用",
+                    detail: "“快请求”暂时无法完成，请稍后重试。",
+                    trace_id: "browser-error-trace",
+                    recovery_actions: [{ label: "返回测试概览", screen_key: "test.dashboard" }],
+                }),
+            });
+        });
+        await page.locator('form[data-action-ui-key="test.fast"] .tui-action-button').click();
+        const error = page.locator(".tui-application-error");
+        await error.getByText("任务暂时不可用", { exact: true }).waitFor();
+        assert.match(await error.innerText(), /快请求/);
+        assert.match(await error.innerText(), /browser-error-trace/);
+        assert.equal((await error.innerText()).includes("private exception"), false);
+        assert.equal(await error.locator("[data-application-retry]").count(), 1);
+        await error.getByRole("button", { name: "返回测试概览" }).click();
+        await page.waitForFunction(
+            () => document.querySelector("[data-screen-title]")?.textContent === "测试概览",
+        );
     } finally {
         await browser.close();
     }

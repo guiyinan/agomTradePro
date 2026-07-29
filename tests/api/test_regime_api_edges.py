@@ -20,6 +20,40 @@ def authenticated_client(db):
     return client
 
 
+def test_regime_interface_resolves_current_provider_at_call_time(monkeypatch):
+    """A temporary resolver patch must not be captured during module import."""
+
+    from apps.regime.application import current_regime, interface_services
+
+    observed_at = date(2026, 7, 27)
+    monkeypatch.setattr(
+        current_regime,
+        "resolve_current_regime",
+        lambda *, as_of_date: SimpleNamespace(
+            observed_at=as_of_date,
+            dominant_regime="Recovery",
+            confidence=0.8,
+            growth_momentum_z=0.4,
+            inflation_momentum_z=-0.2,
+            distribution={"Recovery": 0.8},
+            data_source="test",
+            growth_level="up",
+            inflation_level="down",
+            growth_indicator="PMI",
+            inflation_indicator="CPI",
+            growth_value=50.3,
+            inflation_value=0.1,
+            is_fallback=False,
+            warnings=[],
+        ),
+    )
+
+    payload = interface_services.get_regime_current_payload(as_of_date=observed_at)
+
+    assert payload["data"]["observed_at"] == observed_at
+    assert payload["data"]["dominant_regime"] == "Recovery"
+
+
 @pytest.mark.django_db
 def test_regime_navigator_invalid_date_returns_400(authenticated_client):
     response = authenticated_client.get("/api/regime/navigator/?as_of_date=2026/04/02")

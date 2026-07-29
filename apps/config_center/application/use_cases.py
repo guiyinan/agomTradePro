@@ -44,6 +44,20 @@ class UpdateQlibRuntimeConfigUseCase:
         return get_config_center_settings_repository().update_runtime_config(payload)
 
 
+class GetSystemGovernanceSettingsUseCase:
+    """Read administrator-facing global settings."""
+
+    def execute(self) -> dict[str, Any]:
+        return get_config_center_settings_repository().build_system_governance_payload()
+
+
+class UpdateSystemGovernanceSettingsUseCase:
+    """Persist the validated global-settings allowlist."""
+
+    def execute(self, *, payload: dict[str, Any]) -> dict[str, Any]:
+        return get_config_center_settings_repository().update_system_governance(payload)
+
+
 class ListQlibTrainingProfilesUseCase:
     def execute(self, *, actor: Any) -> list[Any]:
         ensure_can_view_qlib_center(actor)

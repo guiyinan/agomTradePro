@@ -4,6 +4,7 @@
 {% block title %}{{ strategy.name }} - 策略详情 - AgomTradePro{% endblock %}
 
 {% block content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="macro-regime.strategy" action_key="strategy.workbench-detail" %}
 <style>
 .detail-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .detail-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px; }

@@ -17,6 +17,23 @@ from apps.alpha_trigger.infrastructure.models import (
 )
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "path",
+    (
+        "/alpha-triggers/",
+        "/alpha-triggers/create/",
+        "/alpha-triggers/invalidation-builder/",
+        "/alpha-triggers/performance/",
+    ),
+)
+def test_alpha_trigger_classic_pages_require_login(client, path):
+    response = client.get(path)
+
+    assert response.status_code == 302
+    assert response.url.startswith("/account/login/")
+
+
 def _trigger() -> AlphaTrigger:
     return AlphaTrigger(
         trigger_id="trigger-001",
@@ -323,3 +340,104 @@ def test_alpha_trigger_update_status_rejects_invalid_status(authenticated_client
     payload = response.json()
     assert payload["success"] is False
     assert "status" in payload["error"]
+
+
+@pytest.mark.django_db
+def test_alpha_trigger_partial_update_persists_rule_and_recomputes_strength(
+    authenticated_client,
+):
+    AlphaTriggerModel.objects.create(
+        trigger_id="trigger-update-001",
+        trigger_type="MOMENTUM_SIGNAL",
+        asset_code="600519.SH",
+        asset_class="a_share",
+        direction="LONG",
+        trigger_condition={"signal": "cross_up"},
+        confidence=0.55,
+        status="ACTIVE",
+    )
+
+    response = authenticated_client.patch(
+        "/api/alpha-triggers/triggers/trigger-update-001/",
+        {
+            "asset_class": "a_share_consumer",
+            "direction": "NEUTRAL",
+            "trigger_condition": {"signal": "cooling"},
+            "invalidation_conditions": [
+                {
+                    "condition_type": "threshold_cross",
+                    "indicator_code": "CN_PMI_MANUFACTURING",
+                    "threshold": 50.0,
+                    "direction": "below",
+                }
+            ],
+            "confidence": 0.86,
+            "thesis": "Momentum is cooling; wait for confirmation.",
+            "related_regime": "Slowdown",
+            "related_policy_level": 2,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["result"]["strength"] == "very_strong"
+    trigger = AlphaTriggerModel.objects.get(trigger_id="trigger-update-001")
+    assert trigger.asset_class == "a_share_consumer"
+    assert trigger.direction == "NEUTRAL"
+    assert trigger.trigger_condition == {"signal": "cooling"}
+    assert trigger.invalidation_conditions[0]["indicator_code"] == "CN_PMI_MANUFACTURING"
+    assert trigger.confidence == 0.86
+    assert trigger.strength == "VERY_STRONG"
+    assert trigger.related_regime == "Slowdown"
+    assert trigger.related_policy_level == 2
+
+
+@pytest.mark.django_db
+def test_alpha_trigger_pause_resume_and_cancel_enforce_lifecycle(authenticated_client):
+    AlphaTriggerModel.objects.create(
+        trigger_id="trigger-lifecycle-001",
+        trigger_type="MOMENTUM_SIGNAL",
+        asset_code="600519.SH",
+        asset_class="a_share",
+        direction="LONG",
+        trigger_condition={"signal": "cross_up"},
+        confidence=0.75,
+        status="ACTIVE",
+    )
+
+    paused = authenticated_client.post(
+        "/api/alpha-triggers/triggers/trigger-lifecycle-001/pause/",
+        {},
+        format="json",
+    )
+    invalid_pause = authenticated_client.post(
+        "/api/alpha-triggers/triggers/trigger-lifecycle-001/pause/",
+        {},
+        format="json",
+    )
+    resumed = authenticated_client.post(
+        "/api/alpha-triggers/triggers/trigger-lifecycle-001/resume/",
+        {},
+        format="json",
+    )
+    cancelled = authenticated_client.delete(
+        "/api/alpha-triggers/triggers/trigger-lifecycle-001/"
+    )
+    invalid_resume = authenticated_client.post(
+        "/api/alpha-triggers/triggers/trigger-lifecycle-001/resume/",
+        {},
+        format="json",
+    )
+
+    assert paused.status_code == 200
+    assert paused.json()["result"]["status"] == "paused"
+    assert invalid_pause.status_code == 400
+    assert resumed.status_code == 200
+    assert resumed.json()["result"]["status"] == "active"
+    assert cancelled.status_code == 200
+    assert cancelled.json()["result"]["status"] == "cancelled"
+    assert invalid_resume.status_code == 400
+    assert (
+        AlphaTriggerModel.objects.get(trigger_id="trigger-lifecycle-001").status
+        == "CANCELLED"
+    )

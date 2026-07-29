@@ -57,6 +57,24 @@ def _should_prune_failed_action(action: dict[str, Any]) -> bool:
     return str(action.get("source") or "") in PRUNABLE_AUTO_SOURCES
 
 
+def _is_expected_business_status(
+    *,
+    action: dict[str, Any],
+    endpoint: str,
+    status_code: int,
+) -> bool:
+    """Accept explicit service/readiness states without hiding generic failures."""
+
+    if status_code != 503:
+        return False
+    return (
+        str(action.get("risk") or "") == "ai"
+        or str(action.get("screen_key") or "").startswith("api-library.")
+        or endpoint in {"/api/ready/", "/api/health/"}
+        or endpoint.startswith("/api/system/")
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Smoke-test published TUI actions.")
     parser.add_argument("--registry-key", default="default")
@@ -154,10 +172,10 @@ def main() -> int:
             status_label = str(view_model.get("status") or "")
             ok = 200 <= status_code < 300
             endpoint = str(action.get("endpoint") or "")
-            business_status = status_code in {503} and (
-                action["screen_key"].startswith("api-library.")
-                or endpoint in {"/api/ready/", "/api/health/"}
-                or endpoint.startswith("/api/system/")
+            business_status = _is_expected_business_status(
+                action=action,
+                endpoint=endpoint,
+                status_code=status_code,
             )
             outcome = {
                 "key": action["key"],

@@ -200,9 +200,24 @@ class AlphaTriggerRepository:
         if existing:
             # 更新
             model = existing
+            model.trigger_type = AlphaTriggerModel._to_model_trigger_type(trigger.trigger_type)
+            model.asset_code = trigger.asset_code
+            model.asset_class = trigger.asset_class
+            model.direction = trigger.direction
+            model.trigger_condition = trigger.trigger_condition
+            model.invalidation_conditions = [
+                condition.to_dict() for condition in trigger.invalidation_conditions
+            ]
+            model.strength = str(trigger.strength.value).upper()
+            model.confidence = trigger.confidence
             model.status = str(trigger.status.value).upper()
+            model.thesis = trigger.thesis
             model.triggered_at = trigger.triggered_at
             model.invalidated_at = trigger.invalidated_at
+            model.expires_at = trigger.expires_at
+            model.source_signal_id = trigger.source_signal_id or ""
+            model.related_regime = trigger.related_regime or ""
+            model.related_policy_level = trigger.related_policy_level
             model.custom_data = getattr(trigger, "custom_data", {}) or {}
 
         else:

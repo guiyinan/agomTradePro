@@ -4,6 +4,7 @@
 
 {% block content %}
 <div class="container-fluid">
+    {% include "components/classic_tui_migration_banner.html" with screen_key="execution.audit" action_key="audit.operation-log-list" %}
     <div class="row mb-4">
         <div class="col-12">
             <h2><i class="fas fa-shield-alt"></i> 操作审计日志</h2>

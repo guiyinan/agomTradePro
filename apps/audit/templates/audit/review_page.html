@@ -252,6 +252,7 @@
 {% endblock %}
 
 {% block audit_content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="execution.audit" action_key="audit.overview" %}
 <section class="hero">
     <div class="hero-panel">
         <div class="badge badge-info" style="margin-bottom: 12px;">审计复核工作台</div>

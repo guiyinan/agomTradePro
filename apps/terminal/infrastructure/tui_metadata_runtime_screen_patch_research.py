@@ -61,7 +61,7 @@ RUNTIME_SCREEN_PATCHES_RESEARCH: dict[str, dict[str, Any]] = {
         ],
     },
     "research.alpha-triggers": {
-        "default_action_key": "auto.api.get.api.alpha-triggers.candidates.actionable",
+        "default_action_key": "alpha-trigger.candidate-actionable",
         "user_experience": {
             "journey": "dashboard",
             "primary_task": "先筛出今天最值得推进的候选，再决定继续跟进活跃触发器还是观察列表。",
@@ -83,7 +83,7 @@ RUNTIME_SCREEN_PATCHES_RESEARCH: dict[str, dict[str, Any]] = {
                 "key": "alpha-triggers-actionable",
                 "title": "一、可操作候选",
                 "kind": "datagrid",
-                "action_key": "auto.api.get.api.alpha-triggers.candidates.actionable",
+                "action_key": "alpha-trigger.candidate-actionable",
                 "max_rows": 8,
                 "layout_area": "actionable",
                 "target_screen": "research.alpha-triggers",
@@ -94,7 +94,7 @@ RUNTIME_SCREEN_PATCHES_RESEARCH: dict[str, dict[str, Any]] = {
                 "key": "alpha-triggers-active",
                 "title": "二、活跃触发器",
                 "kind": "datagrid",
-                "action_key": "auto.api.get.api.alpha-triggers.triggers.active",
+                "action_key": "alpha-trigger.trigger-active",
                 "max_rows": 6,
                 "layout_area": "triggers",
                 "target_screen": "research.alpha-triggers",
@@ -105,7 +105,7 @@ RUNTIME_SCREEN_PATCHES_RESEARCH: dict[str, dict[str, Any]] = {
                 "key": "alpha-triggers-watch-list",
                 "title": "三、观察列表",
                 "kind": "datagrid",
-                "action_key": "auto.api.get.api.alpha-triggers.candidates.watch-list",
+                "action_key": "alpha-trigger.candidate-watch-list",
                 "max_rows": 6,
                 "layout_area": "watch_list",
                 "target_screen": "research.alpha-triggers",
@@ -117,5 +117,12 @@ RUNTIME_SCREEN_PATCHES_RESEARCH: dict[str, dict[str, Any]] = {
 }
 
 RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS_RESEARCH: dict[str, set[str]] = {
-    "research.alpha-triggers": {"auto.api.get.api.alpha-triggers"}
+    "research.alpha-triggers": {"auto.api.get.api.alpha-triggers"},
+    "research.signals": {
+        "auto.api.get.api.filter",
+        "auto.api.get.api.filter.indicators",
+        "auto.api.get.api.filter.health",
+        "param.api.get.api.filter.config.indicator_code",
+        "param.api.get.api.filter.config.str.indicator_code",
+    },
 }

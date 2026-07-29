@@ -633,3 +633,107 @@ def test_readiness_monitor_json_returns_daily_gate(client, staff_user):
     assert payload["operator_surfaces"]["ai_capability"]["mcp_tools"]["total"] == 365
     assert payload["operator_surfaces"]["terminal"]["tui_metadata"]["screens"] == 37
     mock_context.assert_called_once_with(strict_runtime=True)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("get", "/api/system/scheduler/console/"),
+        ("post", "/api/system/scheduler/bootstrap/"),
+        ("get", "/api/system/readiness/monitor/"),
+        ("get", "/api/system/readiness/schedule/"),
+        ("patch", "/api/system/readiness/schedule/"),
+    ],
+)
+def test_task_monitor_governance_api_requires_staff(
+    authenticated_client,
+    method,
+    path,
+):
+    response = getattr(authenticated_client, method)(path, data={})
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_scheduler_console_api_is_bounded_and_staff_only(api_client, staff_user):
+    api_client.force_authenticate(user=staff_user)
+    payload = {
+        "summary": {"total_tasks": 1},
+        "health": {"is_healthy": True},
+        "periodic_tasks": [{"name": "daily-evidence", "enabled": True}],
+        "recent_failures": {"total": 0, "items": []},
+        "maintenance": {},
+        "readiness_schedule": {"daily_evidence_time": "16:10"},
+        "readiness_monitor": {"status": "loading"},
+    }
+
+    with patch(
+        "apps.task_monitor.interface.views.get_scheduler_console_payload",
+        return_value=payload,
+    ) as mock_payload:
+        response = api_client.get("/api/system/scheduler/console/?limit=200")
+
+    assert response.status_code == 200
+    assert response.json()["periodic_tasks"][0]["name"] == "daily-evidence"
+    mock_payload.assert_called_once_with(limit=200)
+
+
+@pytest.mark.django_db
+def test_readiness_governance_api_reads_updates_and_bootstraps(
+    api_client,
+    staff_user,
+):
+    api_client.force_authenticate(user=staff_user)
+    update_payload = {
+        "quote_pre_refresh_time": "15:35",
+        "daily_evidence_time": "16:10",
+        "weekly_auto_advisor_time": "17:30",
+    }
+
+    with (
+        patch(
+            "apps.task_monitor.interface.views.get_readiness_monitor_context",
+            return_value=_readiness_monitor_payload(),
+        ) as mock_monitor,
+        patch(
+            "apps.task_monitor.interface.views.get_readiness_schedule_payload",
+            return_value=update_payload,
+        ),
+        patch(
+            "apps.task_monitor.interface.views.configure_readiness_schedule",
+            return_value={**update_payload, "executed_commands": [], "output_lines": []},
+        ) as mock_configure,
+        patch(
+            "apps.task_monitor.interface.views.bootstrap_scheduler_defaults",
+            return_value={
+                "executed_commands": ["init_scheduler_defaults"],
+                "output_lines": [],
+            },
+        ) as mock_bootstrap,
+    ):
+        monitor = api_client.get("/api/system/readiness/monitor/?strict_runtime=true")
+        schedule = api_client.get("/api/system/readiness/schedule/")
+        updated = api_client.patch(
+            "/api/system/readiness/schedule/",
+            data=update_payload,
+            format="json",
+        )
+        bootstrapped = api_client.post(
+            "/api/system/scheduler/bootstrap/",
+            data={},
+            format="json",
+        )
+
+    assert monitor.status_code == 200
+    assert monitor.json()["daily_state"]["severity"] == "ok"
+    assert schedule.status_code == 200
+    assert schedule.json()["daily_evidence_time"] == "16:10"
+    assert updated.status_code == 200
+    assert updated.json()["weekly_auto_advisor_time"] == "17:30"
+    assert bootstrapped.status_code == 200
+    assert bootstrapped.json()["executed_commands"] == ["init_scheduler_defaults"]
+    mock_monitor.assert_called_once_with(strict_runtime=True)
+    mock_configure.assert_called_once_with(**update_payload)
+    mock_bootstrap.assert_called_once_with()

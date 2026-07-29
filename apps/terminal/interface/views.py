@@ -10,12 +10,11 @@ from typing import Concatenate, ParamSpec, TypeVar, cast
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, HttpResponseBase, HttpResponseForbidden
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
 
 from apps.terminal.application.interface_services import (
-    get_terminal_config_page_context,
     get_terminal_page_context,
 )
 from core.ui_modes import UI_MODE_TUI, set_ui_mode_cookie
@@ -66,9 +65,9 @@ class TerminalConfigView(View):
     """
 
     def get(self, request: HttpRequest) -> HttpResponse:
-        """Render the staff-only command configuration page."""
+        """Redirect the retired Classic configuration page to its TUI task."""
 
-        return render(request, "terminal/config.html", get_terminal_config_page_context())
+        return redirect("/tui/?screen=ai-ops.terminal&action=terminal.agent_chat")
 
 
 @method_decorator(login_required, name="dispatch")

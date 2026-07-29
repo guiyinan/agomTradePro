@@ -4,13 +4,88 @@ from __future__ import annotations
 
 from typing import Any
 
+RUNTIME_CONFIG_CENTER_SCREEN: dict[str, Any] = {
+    "key": "system.qlib-center",
+    "label": "Qlib 配置与训练",
+    "module_key": "system-governance",
+    "group": "system",
+    "summary": "维护 Qlib 运行配置、模型 Universe、训练模板和训练任务。",
+    "view_type": "detail",
+    "audience": "admin",
+    "dashboard_layout": "task_flow",
+    "default_action_key": "config_center.qlib_runtime",
+    "user_experience": {
+        "journey": "admin",
+        "primary_task": "确认 Qlib 运行条件并完成模型范围、训练模板和训练任务管理。",
+        "primary_outcome": "Qlib 运行配置有效，训练范围明确，最近训练状态可追溯。",
+        "empty_state_hint": "先读取运行配置；首次使用时再创建模型 Universe 或训练模板。",
+        "next_step_hint": "配置完成后触发训练，并在运行记录中确认任务结果。",
+    },
+    "workflow": {
+        "name": "系统治理流程",
+        "label": "Qlib 配置与训练",
+        "role": "维护模型训练和推理所需的运行条件。",
+        "previous": {"key": "system.settings", "label": "系统设置"},
+        "next": {"key": "api-library.data-center", "label": "数据与系统健康"},
+    },
+    "business_context": {
+        "objective": "让 Qlib 配置、模型范围、训练模板和运行记录在一个任务界面内闭环。",
+        "decision_output": "可用于训练或推理的 Qlib 配置，以及最近训练任务的明确状态。",
+        "checkpoints": [
+            "先核对运行配置、活跃模型和训练占用状态。",
+            "模型 Universe 只用于 Alpha/Qlib；生产覆盖范围继续由数据中心维护。",
+            "写操作需管理员权限，保存或触发训练前必须确认影响。",
+        ],
+    },
+    "dashboard_panels": [
+        {
+            "key": "qlib-runtime-status",
+            "title": "一、Qlib 运行条件",
+            "kind": "detail",
+            "action_key": "config_center.qlib_runtime",
+            "layout_area": "runtime",
+            "target_screen": "system.qlib-center",
+            "empty_message": "暂无 Qlib 运行配置。",
+            "error_message": "Qlib 运行配置读取失败，请稍后重试。",
+            "stale_message": "运行配置可能已经变化，请刷新后再操作。",
+            "user_priority": "p0",
+            "presentation_semantic": "primary_status",
+        },
+        {
+            "key": "qlib-alpha-universes",
+            "title": "二、模型 Universe",
+            "kind": "datagrid",
+            "action_key": "config_center.alpha_universes",
+            "max_rows": 8,
+            "layout_area": "universes",
+            "target_screen": "system.qlib-center",
+            "empty_message": "暂无自定义模型 Universe，可从任务区新建。",
+            "user_priority": "p0",
+            "presentation_semantic": "primary_list",
+        },
+        {
+            "key": "qlib-training-runs",
+            "title": "三、最近训练记录",
+            "kind": "datagrid",
+            "action_key": "config_center.training_runs",
+            "max_rows": 8,
+            "layout_area": "training_runs",
+            "target_screen": "system.qlib-center",
+            "empty_message": "暂无训练记录，可从任务区选择模板并触发训练。",
+            "user_priority": "p1",
+            "presentation_semantic": "supporting_list",
+        },
+    ],
+}
+
 RUNTIME_CONFIG_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
     {
         "key": "config_center.alpha_universes",
         "label": "Alpha/Qlib 模型 Universe",
         "endpoint": "/api/system/config-center/qlib/alpha-universes/",
         "intent": "list_alpha_universes",
-        "screen_key": "api-library.config-center",
+        "screen_key": "system.qlib-center",
+        "module_key": "system-governance",
         "view_type": "datagrid",
         "risk": "admin",
         "view_model": {
@@ -28,7 +103,8 @@ RUNTIME_CONFIG_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
         "label": "Alpha/Qlib 模型 Universe 成员",
         "endpoint": "/api/system/config-center/qlib/alpha-universes/<str:universe_id>/members/",
         "intent": "read_alpha_universe_members",
-        "screen_key": "api-library.config-center",
+        "screen_key": "system.qlib-center",
+        "module_key": "system-governance",
         "view_type": "datagrid",
         "risk": "admin",
         "fields": [
@@ -70,9 +146,12 @@ RUNTIME_CONFIG_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
         "method": "POST",
         "endpoint": "/api/system/config-center/qlib/alpha-universes/",
         "intent": "save_alpha_universe",
-        "screen_key": "api-library.config-center",
+        "screen_key": "system.qlib-center",
+        "module_key": "system-governance",
         "view_type": "detail",
         "risk": "admin",
+        "effect": "update",
+        "confirmation_required": True,
         "fields": [
             {
                 "key": "universe_id",

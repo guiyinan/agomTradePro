@@ -6,20 +6,24 @@ Mounted under /api/sentiment/
 """
 
 from django.urls import path
+from django.urls.resolvers import URLPattern, URLResolver
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import views
+from .tui_views import SentimentTuiOverviewView
 
 app_name = "sentiment"
 
 
 class SentimentApiRootView(APIView):
-    """Describe the stable sentiment API entry points."""
+    """Return discoverable Sentiment API endpoints."""
 
     def get(self, request: Request) -> Response:
-        """Return the sentiment endpoint catalogue."""
+        """Return the stable Sentiment API endpoint catalog."""
+
+        del request
         return Response(
             {
                 "endpoints": {
@@ -30,12 +34,13 @@ class SentimentApiRootView(APIView):
                     "index_recent": "/api/sentiment/index/recent/",
                     "health": "/api/sentiment/health/",
                     "cache_clear": "/api/sentiment/cache/clear/",
+                    "tui_overview": "/api/sentiment/tui/overview/",
                 }
             }
         )
 
 
-urlpatterns = [
+urlpatterns: list[URLPattern | URLResolver] = [
     path("", SentimentApiRootView.as_view(), name="root"),
     # API routes - Analysis
     path("analyze/", views.SentimentAnalyzeView.as_view(), name="analyze"),
@@ -47,4 +52,5 @@ urlpatterns = [
     # API routes - System
     path("health/", views.SentimentHealthView.as_view(), name="health"),
     path("cache/clear/", views.SentimentCacheClearView.as_view(), name="cache_clear"),
+    path("tui/overview/", SentimentTuiOverviewView.as_view(), name="tui-overview"),
 ]

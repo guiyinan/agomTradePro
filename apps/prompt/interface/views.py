@@ -134,7 +134,9 @@ class PromptTemplateViewSet(viewsets.ModelViewSet[Any]):
     def execute(self, request: Request, pk: str | None = None) -> Response:
         """执行模板"""
         self.get_object()
-        serializer = ExecutePromptSerializer(data=request.data)
+        request_payload = dict(request.data)
+        request_payload["template_id"] = pk
+        serializer = ExecutePromptSerializer(data=request_payload)
         serializer.is_valid(raise_exception=True)
 
         use_case = build_execute_prompt_use_case()

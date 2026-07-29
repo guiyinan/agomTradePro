@@ -191,6 +191,83 @@ def test_sentiment_health_returns_canonical_payload(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_sentiment_tui_overview_flattens_recent_indices(
+    authenticated_client,
+) -> None:
+    recent = {
+        "indices": [
+            {
+                "date": "2026-07-10",
+                "index": {
+                    "composite": 0.62,
+                    "news": 0.71,
+                    "policy": 0.41,
+                },
+                "level": "乐观",
+                "confidence": 0.84,
+                "data_sufficient": True,
+                "sector_sentiment": {},
+                "sources": {
+                    "news_count": 18,
+                    "policy_events_count": 4,
+                },
+            }
+        ],
+        "total": 1,
+    }
+    health = {
+        "status": "healthy",
+        "ai_provider_available": True,
+        "cache_count": 12,
+        "latest_index_date": "2026-07-10",
+    }
+    with (
+        patch(
+            "apps.sentiment.interface.tui_views.get_recent_sentiment_indices_payload",
+            return_value=recent,
+        ) as recent_mock,
+        patch(
+            "apps.sentiment.interface.tui_views.get_sentiment_health_payload",
+            return_value=health,
+        ),
+    ):
+        response = authenticated_client.get("/api/sentiment/tui/overview/?days=14")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["summary"]["latest_level"] == "乐观"
+    assert payload["summary"]["latest_confidence_percent"] == 84.0
+    assert payload["indices"] == [
+        {
+            "date": "2026-07-10",
+            "composite": 0.62,
+            "news": 0.71,
+            "policy": 0.41,
+            "level": "乐观",
+            "confidence_percent": 84.0,
+            "data_sufficient": True,
+            "news_count": 18,
+            "policy_events_count": 4,
+        }
+    ]
+    recent_mock.assert_called_once_with(days=14)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("days", ["0", "366", "bad"])
+def test_sentiment_tui_overview_rejects_invalid_days(
+    authenticated_client,
+    days: str,
+) -> None:
+    response = authenticated_client.get(f"/api/sentiment/tui/overview/?days={days}")
+
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+
+
+@pytest.mark.django_db
 def test_sentiment_cache_clear_rejects_non_staff_user(authenticated_client):
     response = authenticated_client.post("/api/sentiment/cache/clear/")
 

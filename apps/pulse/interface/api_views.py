@@ -74,11 +74,24 @@ class PulseCurrentView(APIView):
 
             if not snapshot:
                 return Response(
-                    {"success": False, "error": "No pulse data available"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {
+                        "success": True,
+                        "available": False,
+                        "count": 0,
+                        "data": [],
+                        "message": "No pulse data available",
+                    },
+                    status=status.HTTP_200_OK,
                 )
 
-            return Response({"success": True, "data": _serialize_snapshot(snapshot)})
+            return Response(
+                {
+                    "success": True,
+                    "available": True,
+                    "count": 1,
+                    "data": _serialize_snapshot(snapshot),
+                }
+            )
 
         except _PULSE_API_EXCEPTIONS as exc:
             logger.warning(

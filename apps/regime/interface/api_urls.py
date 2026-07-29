@@ -1,6 +1,7 @@
 """Regime API URL configuration."""
 
 from django.urls import include, path
+from django.urls.resolvers import URLPattern, URLResolver
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
@@ -13,6 +14,7 @@ from .api_views import (
     RegimeNavigatorView,
     RegimeViewSet,
 )
+from .tui_views import RegimeTuiOverviewView
 
 app_name = "regime_api"
 
@@ -24,6 +26,8 @@ class RegimeApiRootView(APIView):
     """Return discoverable regime API endpoints."""
 
     def get(self, request: Request) -> Response:
+        """Return the stable Regime API endpoint catalog."""
+
         del request
         return Response(
             {
@@ -36,12 +40,13 @@ class RegimeApiRootView(APIView):
                     "navigator_history": "/api/regime/navigator/history/",
                     "action": "/api/regime/action/",
                     "health": "/api/regime/health/",
+                    "tui_overview": "/api/regime/tui/overview/",
                 }
             }
         )
 
 
-urlpatterns = [
+urlpatterns: list[URLPattern | URLResolver] = [
     path("", RegimeApiRootView.as_view(), name="api-root"),
     path("", include(router.urls)),
     path("health/", RegimeHealthView.as_view(), name="health"),
@@ -50,4 +55,5 @@ urlpatterns = [
     path(
         "navigator/history/", RegimeNavigatorHistoryView.as_view(), name="regime-navigator-history"
     ),
+    path("tui/overview/", RegimeTuiOverviewView.as_view(), name="tui-overview"),
 ]

@@ -44,6 +44,18 @@ class _CatalogHarness(TuiWorkbenchCatalogMixin):
             "field_key": screen.get("entry_field_key", ""),
         }
 
+    @staticmethod
+    def _screen_dashboard_panels(
+        screen: dict[str, Any],
+        actions: list[dict[str, Any]],
+        *,
+        user: Any | None = None,
+    ) -> list[dict[str, Any]]:
+        """Keep this projection-only harness independent from repository indexes."""
+
+        del actions, user
+        return [dict(panel) for panel in screen.get("dashboard_panels") or []]
+
 
 def _screen_schema_properties() -> set[str]:
     root = Path(__file__).resolve().parents[3]

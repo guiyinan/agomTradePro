@@ -506,6 +506,88 @@
         return form.querySelector(`[name="${CSS.escape(fieldKey)}"]`);
     }
 
+    function focusDeepLinkedAction(screenSpec, actionKey) {
+        const normalizedKey = String(actionKey || "").trim();
+        if (!normalizedKey) {
+            return;
+        }
+        const action = (screenSpec?.actions || []).find((item) => item.key === normalizedKey);
+        if (!action) {
+            setStatus("链接中的任务在当前账号下不可用");
+            return;
+        }
+        const dashboardPanel = (screenSpec?.screen?.dashboard_panels || [])
+            .find((panel) => panel.action_key === normalizedKey);
+        if (dashboardPanel && isImmersiveDashboardScreen(screenSpec?.screen)) {
+            const panel = els.main.querySelector(
+                `[data-dashboard-panel="${CSS.escape(dashboardPanel.key)}"]`,
+            );
+            if (!panel) {
+                setStatus("链接中的任务暂时无法定位");
+                return;
+            }
+            panel.scrollIntoView({ block: "nearest" });
+            (panel.querySelector("button, a, input, select, textarea") || panel).focus?.();
+            setStatus(`已定位到 ${action.label}`);
+            return;
+        }
+        const tier = actionTier(action);
+        if (tier === "support") {
+            state.showSupportTasks = true;
+        }
+        if (tier === "advanced") {
+            state.showAdvancedQueries = true;
+        }
+        state.actionFilterText = "";
+        refreshRenderedActionPanel(screenSpec.actions || [], screenSpec.screen || {});
+        const form = els.actions.querySelector(
+            `[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`,
+        );
+        if (!form) {
+            setStatus("链接中的任务暂时无法定位");
+            return;
+        }
+        form.closest("details")?.setAttribute("open", "");
+        const deepLinkedParams = actionParamsFromBrowserLocation();
+        const runnableParams = {};
+        (action.fields || []).forEach((field) => {
+            if (!(field.key in deepLinkedParams)) {
+                return;
+            }
+            const element = formFieldElement(form, field.key);
+            if (!element || ["file", "password"].includes(field.input_type)) {
+                return;
+            }
+            if (field.input_type === "checkbox") {
+                element.checked = ["1", "true", "yes", "on"].includes(
+                    String(deepLinkedParams[field.key]).toLowerCase(),
+                );
+                runnableParams[field.key] = element.checked;
+                return;
+            }
+            element.value = deepLinkedParams[field.key];
+            runnableParams[field.key] = deepLinkedParams[field.key];
+        });
+        const requiredFieldsArePresent = (action.fields || [])
+            .filter((field) => field.required)
+            .every((field) => Object.prototype.hasOwnProperty.call(runnableParams, field.key));
+        const safeRead = ["read", "admin"].includes(
+            String(action.risk || "read").toLowerCase(),
+        )
+            && String(action.method || "GET").toUpperCase() === "GET"
+            && !action.confirmation_required;
+        if (safeRead && requiredFieldsArePresent) {
+            runAction(normalizedKey, null, { params: runnableParams });
+            return;
+        }
+        form.scrollIntoView({ block: "nearest" });
+        const primaryInput = form.querySelector(
+            "textarea, input:not([type='hidden']), select",
+        );
+        (primaryInput || form.querySelector("button"))?.focus();
+        setStatus(`已定位到 ${action.label}`);
+    }
+
     function selectedRowForActions() {
         const row = rowContextWithSource(state.visibleRows[state.selectedRowIndex]);
         if (row) {
@@ -588,10 +670,15 @@
                 state.operatorHomePayload = null;
                 state.operatorHomePromise = null;
             }
-            renderScreen(screenSpec, options);
+            renderScreen(screenSpec, {
+                ...options,
+                suppressAutoAction: Boolean(options.deepLinkedActionKey) || options.suppressAutoAction,
+            });
+            focusDeepLinkedAction(screenSpec, options.deepLinkedActionKey || "");
             if (!options.suppressHistory) {
                 syncBrowserScreenLocation(screenSpec?.screen?.key || screenKey, {
                     replace: Boolean(options.replaceHistory),
+                    preserveAction: Boolean(options.preserveAction),
                 });
             }
             refreshGovernanceBadges();

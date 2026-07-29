@@ -223,6 +223,7 @@
 {% endblock %}
 
 {% block audit_content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="execution.audit" action_key="audit.report-list" %}
 <!-- 统计摘要 -->
 <div class="summary-bar">
     <div class="summary-card">

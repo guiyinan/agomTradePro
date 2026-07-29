@@ -72,6 +72,19 @@ class ConfigCenterSettingsRepository:
         "alpha_fixed_provider": "alpha_fixed_provider",
         "alpha_pool_mode": "alpha_pool_mode",
     }
+    SYSTEM_GOVERNANCE_FIELDS = (
+        "require_user_approval",
+        "auto_approve_first_admin",
+        "default_mcp_enabled",
+        "allow_token_plaintext_view",
+        "market_color_convention",
+        "alpha_pool_mode",
+        "user_agreement_content",
+        "risk_warning_content",
+        "notes",
+        "benchmark_code_map",
+        "asset_proxy_code_map",
+    )
 
     def get_system_settings(self) -> SystemSettingsModel:
         return SystemSettingsModel.get_settings()
@@ -163,6 +176,34 @@ class ConfigCenterSettingsRepository:
             update_fields.append("updated_at")
             settings_obj.save(update_fields=update_fields)
         return self.build_runtime_config_payload()
+
+    def build_system_governance_payload(self) -> dict[str, Any]:
+        """Return the administrator-facing global settings contract."""
+
+        settings_obj = self.get_system_settings_for_read()
+        return {
+            field_name: getattr(settings_obj, field_name)
+            for field_name in self.SYSTEM_GOVERNANCE_FIELDS
+        } | {
+            "market_color_label": settings_obj.get_market_visual_tokens()["label"],
+            "updated_at": settings_obj.updated_at,
+        }
+
+    def update_system_governance(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        """Persist the explicit global-settings allowlist and return refreshed state."""
+
+        settings_obj = self.get_system_settings()
+        update_fields: list[str] = []
+        for field_name in self.SYSTEM_GOVERNANCE_FIELDS:
+            if field_name not in data:
+                continue
+            setattr(settings_obj, field_name, data[field_name])
+            update_fields.append(field_name)
+        if update_fields:
+            settings_obj.full_clean()
+            update_fields.append("updated_at")
+            settings_obj.save(update_fields=update_fields)
+        return self.build_system_governance_payload()
 
 
 class QlibTrainingProfileRepository:

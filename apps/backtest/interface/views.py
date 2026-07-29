@@ -5,6 +5,7 @@ Views for Backtest Module.
 """
 
 import logging
+from collections.abc import Mapping
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -21,6 +22,8 @@ from core.throttling import BacktestRateThrottle, WriteRateThrottle
 from ..application.decision_replay import (
     DecisionReplayBacktestRequest,
     DecisionReplayBacktestUseCase,
+    DecisionReplayComparisonRequest,
+    DecisionReplayComparisonUseCase,
 )
 from ..application.interface_services import (
     backtest_exists,
@@ -39,6 +42,7 @@ from .serializers import (
     DecisionReplayBacktestSerializer,
     RunBacktestSerializer,
 )
+from .tui_serializers import DecisionReplayComparisonSerializer
 
 logger = logging.getLogger(__name__)
 _MAX_BACKTEST_LIST_LIMIT = 500
@@ -65,6 +69,16 @@ def _parse_positive_identifier(raw_value: object, *, field_name: str) -> int:
     if value <= 0:
         raise ValueError(f"{field_name} must be a positive integer")
     return value
+
+
+def _application_backtest_payload(
+    validated_data: Mapping[str, object],
+) -> dict[str, object]:
+    """Remove Interface-only execution controls before Application dispatch."""
+
+    payload = dict(validated_data)
+    payload.pop("run_async", None)
+    return payload
 
 
 # ==================== Page Views ====================
@@ -198,7 +212,7 @@ class BacktestViewSet(viewsets.ViewSet):
             return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         response = run_backtest_payload(
-            dict(serializer.validated_data),
+            _application_backtest_payload(serializer.validated_data),
             user_id=_authenticated_user_id(request),
         )
 
@@ -297,7 +311,7 @@ def run_backtest_api_view(request: Request) -> Response:
         return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     response = run_backtest_payload(
-        dict(serializer.validated_data),
+        _application_backtest_payload(serializer.validated_data),
         user_id=_authenticated_user_id(request),
     )
 
@@ -353,3 +367,31 @@ def decision_replay_backtest_api_view(request: Request) -> Response:
             status=status.HTTP_400_BAD_REQUEST,
         )
     return Response({"backtest_id": response.backtest_id}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def decision_replay_comparison_api_view(request: Request) -> Response:
+    """Run all fixed replay branches and return chart-ready evidence."""
+
+    serializer = DecisionReplayComparisonSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    response = DecisionReplayComparisonUseCase().execute(
+        DecisionReplayComparisonRequest(
+            user_id=_authenticated_user_id(request),
+            portfolio_id=data["portfolio_id"],
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+            initial_capital=data["initial_capital"],
+        )
+    )
+    return Response(
+        {
+            "success": response.success,
+            "branches": list(response.branches),
+            "equity_curve": list(response.equity_curve),
+            "errors": list(response.errors),
+        },
+        status=(status.HTTP_201_CREATED if response.branches else status.HTTP_400_BAD_REQUEST),
+    )

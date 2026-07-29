@@ -228,6 +228,14 @@ class TestValuationRepairHistoryAPI:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["stock_code"] == "000001.SZ"
         assert response.json()["points"] == points
+        assert response.json()["chart_points"] == [
+            {
+                "trade_date": "2026-07-10",
+                "pe_percentile_percent": 20.0,
+                "pb_percentile_percent": 40.0,
+                "composite_percentile_percent": 30.0,
+            }
+        ]
         assert response.json()["data_source_provider"] == "local_db"
 
 

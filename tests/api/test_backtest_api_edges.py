@@ -350,3 +350,85 @@ def test_backtest_rerun_does_not_report_false_success(authenticated_client, auth
 
     assert response.status_code == 501
     assert response.json()["error_code"] == "backtest_rerun_not_implemented"
+
+
+def test_backtest_viewset_create_does_not_forward_interface_run_async(
+    authenticated_client,
+):
+    """The synchronous Application request must not receive the Interface-only flag."""
+
+    with patch(
+        "apps.backtest.interface.views.run_backtest_payload",
+        return_value=SimpleNamespace(
+            backtest_id=23,
+            status="completed",
+            result={"total_return": 0.05},
+            errors=[],
+            warnings=[],
+        ),
+    ) as run_backtest:
+        response = authenticated_client.post(
+            "/api/backtest/backtests/",
+            {
+                "name": "viewset-sync-contract",
+                "start_date": "2026-01-01",
+                "end_date": "2026-01-31",
+                "initial_capital": 100000,
+                "rebalance_frequency": "monthly",
+                "run_async": False,
+            },
+            format="json",
+        )
+
+    assert response.status_code == 201
+    assert response.json()["backtest_id"] == 23
+    assert "run_async" not in run_backtest.call_args.args[0]
+
+
+@pytest.mark.django_db
+def test_backtest_api_and_classic_pages_require_authentication(client):
+    assert client.get("/api/backtest/backtests/").status_code in {401, 403}
+    assert client.get("/api/backtest/statistics/").status_code in {401, 403}
+    assert client.get("/backtest/").status_code == 302
+    assert client.get("/backtest/create/").status_code == 302
+    assert client.get("/backtest/17/").status_code == 302
+
+
+@pytest.mark.django_db
+def test_backtest_classic_pages_publish_exact_tui_task_links(client, test_user):
+    client.force_login(test_user)
+    with (
+        patch(
+            "apps.backtest.interface.views.load_backtest_list_context",
+            return_value={"backtests": [], "stats": {}},
+        ),
+        patch(
+            "apps.backtest.interface.views.load_backtest_create_context",
+            return_value={"frequencies": [], "earliest_date": "", "latest_date": ""},
+        ),
+        patch(
+            "apps.backtest.interface.views.load_backtest_detail_context",
+            return_value={
+                "backtest": SimpleNamespace(id=17, name="Migration check", status="pending"),
+                "is_completed": False,
+            },
+        ),
+    ):
+        list_response = client.get("/backtest/")
+        create_response = client.get("/backtest/create/")
+        detail_response = client.get("/backtest/17/")
+
+    assert list_response.status_code == 200
+    assert create_response.status_code == 200
+    assert detail_response.status_code == 200
+    assert (
+        "/tui/?screen=research.asset-lab&amp;action=backtest.list" in list_response.content.decode()
+    )
+    assert (
+        "/tui/?screen=research.asset-lab&amp;action=backtest.run"
+        in create_response.content.decode()
+    )
+    assert (
+        "/tui/?screen=research.asset-lab&amp;action=backtest.detail&amp;pk=17"
+        in detail_response.content.decode()
+    )

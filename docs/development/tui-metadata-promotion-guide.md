@@ -218,6 +218,12 @@ agomtradepro\Scripts\python.exe -m pytest tests/unit/test_tui_workbench.py tests
 agomtradepro\Scripts\python.exe manage.py check
 ```
 
+`smoke_tui_actions.py --fail-on-error` is an execution check, not a schema-only check. Run it against
+a fully migrated disposable database with a persisted staff user and a same-database localhost
+service for MCP actions. A fresh installation without Regime, Pulse, or AI Provider data must return
+an explicit empty/setup state. Do not use a stale development database and do not broadly allow
+4xx/5xx responses to make the smoke pass.
+
 Publish to the local DB registry only after review:
 
 ```powershell
@@ -235,6 +241,99 @@ agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\publish_tui_metada
 ```
 
 The command canonicalizes the reviewed file through the same validation, IA normalization, runtime injection, and compacting path used by publishing. It exits with code `1` when the active database row is missing or its source hash differs.
+
+### Verified registry backup and restore
+
+Before M5-B cleanup, export the active production registry to a protected path outside the Git
+worktree. The command refuses repository-local output and refuses to overwrite an existing artifact.
+It writes an atomic JSON bundle plus a `.sha256` sidecar containing the registry generation, graph
+hash, schema version, backend version, reviewed payload, runtime build ID, rollback ancestry and
+approval metadata.
+
+```powershell
+$backupPath = 'E:\agom-backups\tui-registry-pre-cutover.json'
+agomtradepro\Scripts\python.exe manage.py backup_tui_registry --registry-key default --output $backupPath
+```
+
+Verify recoverability without changing the registry:
+
+```powershell
+agomtradepro\Scripts\python.exe manage.py restore_tui_registry_backup --input $backupPath
+```
+
+The dry-run verifies the bundle sidecar, registry-record hash, payload hash, runtime build ID and
+the same metadata validator used by publishing. After the candidate observation window ends, build
+the payload-free repository attestation from that external bundle. The command also requires the
+backed-up generation/hash to remain the active production registry and reruns publish preparation as
+the restore dry-run:
+
+```powershell
+$attestationPath = Join-Path $PWD 'docs\plans\web-to-tui-m5-production-registry-backup-attestation.json'
+agomtradepro\Scripts\python.exe manage.py build_tui_registry_backup_evidence `
+  --input $backupPath `
+  --location 'artifact://agomtradepro/m5/tui-registry-pre-cutover.json' `
+  --verified-by '<independent-reviewer>' `
+  --retention-until '<YYYY-MM-DD>' `
+  --attestation-output $attestationPath
+```
+
+The default is a dry run. Add `--write-evidence` only after reviewing the printed generation,
+graph hash, bundle SHA-256 and attestation path. It atomically writes a structured attestation with
+no registry payload and projects the exact candidate-bound fields into the cutover evidence. The
+readiness checker reparses that JSON and rejects narrative files or hand-edited projections. Do not
+commit the external bundle or sidecar.
+
+An actual restore requires explicit approval and the source hash observed immediately before the
+operation. This prevents overwriting an unexpected newer generation:
+
+```powershell
+$activeHash = '<verified-active-source-hash>'
+agomtradepro\Scripts\python.exe manage.py restore_tui_registry_backup --input $backupPath --expected-active-source-hash $activeHash --approve
+```
+
+The approved restore republishes the validated backup payload through
+`PublishedTuiMetadataRepository`, archives the current generation and records it as `rollback_of`.
+Run the read-only active-registry check again after restore. Production backup evidence remains
+incomplete until the backup and attestation commands have been executed and independently verified
+in the production environment.
+
+### Immutable cutover review and approvals
+
+After the stable window, defect snapshot, telemetry snapshot and production registry attestation all
+pass, freeze the eight non-approval gates into one review snapshot. The command refuses to write while
+any gate fails and clears stale approvals whenever a replacement snapshot is created:
+
+```powershell
+$reviewPath = Join-Path $PWD 'docs\plans\web-to-tui-m5-cutover-review.json'
+agomtradepro\Scripts\python.exe scripts\build_web_to_tui_review_snapshot.py `
+  --as-of '<YYYY-MM-DD>' `
+  --snapshot-output $reviewPath `
+  --write-evidence
+```
+
+The owner and independent reviewer then record separate role-bound attestations. They must use distinct
+identities and approve no earlier than the immutable review date:
+
+```powershell
+agomtradepro\Scripts\python.exe scripts\record_web_to_tui_cutover_approval.py `
+  --role owner `
+  --name '<owner-identity>' `
+  --approved-at '<YYYY-MM-DD>' `
+  --attestation-output 'docs\plans\web-to-tui-m5-owner-approval.json' `
+  --write-evidence
+
+agomtradepro\Scripts\python.exe scripts\record_web_to_tui_cutover_approval.py `
+  --role reviewer `
+  --name '<independent-reviewer-identity>' `
+  --approved-at '<YYYY-MM-DD>' `
+  --attestation-output 'docs\plans\web-to-tui-m5-reviewer-approval.json' `
+  --write-evidence
+```
+
+Both tools default to dry-run behavior. The readiness checker reconstructs the current eight-gate
+snapshot and exact approval projections; changing the candidate, matrix, production evidence or review
+digest invalidates prior signatures. These commands record evidence but do not create or impersonate a
+human approval.
 
 ### VPS release synchronization
 

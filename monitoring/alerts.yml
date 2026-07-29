@@ -1,4 +1,112 @@
 groups:
+  - name: web_to_tui_migration_readiness
+    rules:
+      - record: web_to_tui:entry_samples_14d
+        expr: |
+          sum by (task_key) (
+            increase(web_to_tui_migration_events_total{event_type="entry"}[14d])
+          )
+
+      - record: web_to_tui:legacy_entry_ratio_14d
+        expr: |
+          sum by (task_key) (
+            increase(web_to_tui_migration_events_total{
+              surface="classic",
+              event_type="entry"
+            }[14d])
+          )
+          /
+          clamp_min(
+            sum by (task_key) (
+              increase(web_to_tui_migration_events_total{event_type="entry"}[14d])
+            ),
+            1
+          )
+
+      - record: web_to_tui:execution_error_ratio_14d
+        expr: |
+          sum by (surface, task_key) (
+            increase(web_to_tui_migration_events_total{
+              event_type="execution",
+              outcome=~"client_error|server_error"
+            }[14d])
+          )
+          /
+          clamp_min(
+            sum by (surface, task_key) (
+              increase(web_to_tui_migration_events_total{
+                event_type="execution",
+                outcome=~"success|client_error|server_error"
+              }[14d])
+            ),
+            1
+          )
+
+      - record: web_to_tui:task_request_samples_14d
+        expr: |
+          sum by (surface, task_key) (
+            increase(web_to_tui_migration_events_total{
+              surface="classic",
+              event_type=~"entry|execution",
+              outcome=~"success|client_error|server_error"
+            }[14d])
+            or
+            increase(web_to_tui_migration_events_total{
+              surface="tui",
+              event_type="execution",
+              outcome=~"success|client_error|server_error"
+            }[14d])
+          )
+
+      - record: web_to_tui:task_request_error_ratio_14d
+        expr: |
+          sum by (surface, task_key) (
+            increase(web_to_tui_migration_events_total{
+              surface="classic",
+              event_type=~"entry|execution",
+              outcome=~"client_error|server_error"
+            }[14d])
+            or
+            increase(web_to_tui_migration_events_total{
+              surface="tui",
+              event_type="execution",
+              outcome=~"client_error|server_error"
+            }[14d])
+          )
+          /
+          clamp_min(
+            web_to_tui:task_request_samples_14d,
+            1
+          )
+
+      - alert: WebToTuiLegacyEntryRatioHigh
+        expr: |
+          web_to_tui:legacy_entry_ratio_14d > 0.05
+          and on (task_key)
+          web_to_tui:entry_samples_14d >= 20
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Classic entry ratio remains above the M5 threshold"
+          description: "Task {{ $labels.task_key }} has a 14-day Classic ratio of {{ $value | humanizePercentage }}"
+
+      - alert: WebToTuiErrorRateRegression
+        expr: |
+          web_to_tui:task_request_error_ratio_14d{surface="tui"}
+          - on (task_key)
+          web_to_tui:task_request_error_ratio_14d{surface="classic"} > 0.005
+          and on (task_key)
+          web_to_tui:task_request_samples_14d{surface="tui"} >= 20
+          and on (task_key)
+          web_to_tui:task_request_samples_14d{surface="classic"} >= 20
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TUI task error rate exceeds the Classic baseline"
+          description: "Task {{ $labels.task_key }} exceeds the 0.5 percentage-point M5 allowance"
+
   - name: agomtradepro_alerts
     rules:
       # 5xx 激增告警

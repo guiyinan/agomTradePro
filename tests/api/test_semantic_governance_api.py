@@ -125,11 +125,43 @@ def test_semantic_preview_rejects_unknown_fields_and_performs_zero_writes(
     assert invalid.status_code == 400
     assert response.status_code == 200
     assert response.json()["batch_id"] is None
-    assert response.json()["corrections"][0]["new_effective_value"] == (
-        "semantic.mcp_shared"
-    )
+    assert response.json()["corrections"][0]["new_effective_value"] == ("semantic.mcp_shared")
     assert CapabilitySemanticOverrideModel.objects.count() == 0
     assert CapabilitySemanticAuditModel.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_tui_single_semantic_preview_and_apply_use_flat_contract(staff_client) -> None:
+    """TUI adapters accept one flat correction and preserve idempotent evidence."""
+
+    _create_catalog("api.tui-target", "semantic.collected")
+    payload = {
+        "idempotency_key": "semantic-tui-single",
+        "reason": "Correct one routed semantic from the TUI",
+        "capability_key": "api.tui-target",
+        "action": "set",
+        "semantic_key": "semantic.tui_corrected",
+    }
+
+    preview = staff_client.post(
+        f"{BASE_URL}single-preview/",
+        payload,
+        format="json",
+    )
+    applied = staff_client.post(
+        f"{BASE_URL}single-apply/",
+        payload,
+        format="json",
+    )
+
+    assert preview.status_code == 200
+    assert preview.json()["batch_id"] is None
+    assert applied.status_code == 200
+    assert applied.json()["corrections"][0]["new_effective_value"] == ("semantic.tui_corrected")
+    assert (
+        CapabilitySemanticOverrideModel.objects.get(capability_key="api.tui-target").semantic_key
+        == "semantic.tui_corrected"
+    )
 
 
 @pytest.mark.django_db
@@ -169,9 +201,10 @@ def test_semantic_apply_is_idempotent_and_conflicts_on_payload_change(
     assert replay.json()["batch_id"] == first.json()["batch_id"]
     assert replay.json()["corrections"] == first.json()["corrections"]
     assert conflict.status_code == 409
-    assert CapabilitySemanticOverrideModel.objects.get(
-        capability_key="api.target"
-    ).semantic_key == "semantic.corrected"
+    assert (
+        CapabilitySemanticOverrideModel.objects.get(capability_key="api.target").semantic_key
+        == "semantic.corrected"
+    )
     assert CapabilitySemanticAuditModel.objects.count() == 1
 
 
@@ -206,12 +239,10 @@ def test_semantic_remove_and_audit_contract(staff_client) -> None:
     )
 
     assert response.status_code == 200
-    assert response.json()["corrections"][0]["new_effective_value"] == (
-        "semantic.collected"
+    assert response.json()["corrections"][0]["new_effective_value"] == ("semantic.collected")
+    assert (
+        CapabilitySemanticOverrideModel.objects.get(capability_key="api.target").is_active is False
     )
-    assert CapabilitySemanticOverrideModel.objects.get(
-        capability_key="api.target"
-    ).is_active is False
     assert audit.status_code == 200
     assert audit.json()["count"] == 1
     assert audit.json()["results"][0]["action"] == "remove"

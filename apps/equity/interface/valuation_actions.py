@@ -107,6 +107,30 @@ class EquityValuationViewProtocol(Protocol):
     pool_adapter: Any
 
 
+def _percentile_chart_points(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Scale canonical ratio fields into user-facing percentage chart rows."""
+
+    return [
+        {
+            "trade_date": str(row.get("trade_date") or ""),
+            "pe_percentile_percent": (
+                round(float(row["pe_percentile"]) * 100, 6)
+                if row.get("pe_percentile") is not None
+                else None
+            ),
+            "pb_percentile_percent": round(
+                float(row.get("pb_percentile") or 0) * 100,
+                6,
+            ),
+            "composite_percentile_percent": round(
+                float(row.get("composite_percentile") or 0) * 100,
+                6,
+            ),
+        }
+        for row in rows
+    ]
+
+
 def _repair_failure_message(error: object, *, fallback: str) -> str:
     """Publish known business failures without exposing arbitrary exception text."""
 
@@ -316,10 +340,12 @@ def get_valuation_repair_history_impl(
     # 4. 返回响应
     if use_case_response.success:
         latest_snapshot = viewset.quality_repo.get_latest_snapshot()
+        points = [row for row in use_case_response.data if isinstance(row, dict)]
         return Response(
             {
                 "stock_code": stock_code,
-                "points": use_case_response.data,
+                "points": points,
+                "chart_points": _percentile_chart_points(points),
                 "data_quality_flag": (
                     "ok" if (latest_snapshot and latest_snapshot.is_gate_passed) else None
                 ),

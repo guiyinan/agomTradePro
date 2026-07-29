@@ -57,6 +57,7 @@
 {% endblock %}
 
 {% block audit_content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="execution.audit" action_key="audit.threshold-list" %}
 <!-- 验证状态 -->
 <div class="validation-status">
     <div class="status-indicator status-{{ validation_status|lower }}"></div>

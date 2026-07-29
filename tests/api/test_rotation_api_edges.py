@@ -83,6 +83,41 @@ def test_rotation_config_catalog_is_a_pure_persisted_read(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_rotation_config_mutations_require_staff(authenticated_client):
+    config = RotationConfigModel.objects.create(
+        name="protected-config",
+        strategy_type="momentum",
+        asset_universe=["510300"],
+    )
+
+    responses = [
+        authenticated_client.post(
+            "/api/rotation/configs/",
+            {"name": "unauthorized", "strategy_type": "momentum"},
+            format="json",
+        ),
+        authenticated_client.patch(
+            f"/api/rotation/configs/{config.id}/",
+            {"description": "unauthorized"},
+            format="json",
+        ),
+        authenticated_client.post(
+            f"/api/rotation/configs/{config.id}/activate/",
+            {},
+            format="json",
+        ),
+        authenticated_client.post(
+            f"/api/rotation/configs/{config.id}/generate_signal/",
+            {},
+            format="json",
+        ),
+        authenticated_client.delete(f"/api/rotation/configs/{config.id}/"),
+    ]
+
+    assert {response.status_code for response in responses} == {403}
+
+
+@pytest.mark.django_db
 def test_rotation_regime_and_template_catalogs_return_canonical_rows(authenticated_client):
     RotationTemplateModel.objects.create(
         key="moderate",
@@ -184,6 +219,14 @@ def test_rotation_asset_catalog_mutations_require_staff(authenticated_client):
     assert asset.name == "沪深300ETF"
     assert asset.is_active is True
     assert not AssetClassModel.objects.filter(code="510500").exists()
+
+
+@pytest.mark.django_db
+def test_rotation_asset_classic_page_requires_staff(client, test_user):
+    assert client.get("/rotation/assets/").status_code == 302
+
+    client.force_login(test_user)
+    assert client.get("/rotation/assets/").status_code == 302
 
 
 @pytest.mark.django_db
@@ -373,6 +416,54 @@ def test_rotation_account_config_reads_are_user_scoped(
 
     assert by_account_response.status_code == 200
     assert by_account_response.json()["id"] == own_config.id
+
+
+@pytest.mark.django_db
+def test_rotation_account_config_mutations_cannot_cross_user_scope(
+    authenticated_client,
+    auth_user,
+):
+    foreign_user = get_user_model().objects.create_user(
+        username="rotation_mutation_foreign",
+        password="testpass123",
+    )
+    foreign_account = _create_account(foreign_user, "他人组合")
+    foreign_config = PortfolioRotationConfigModel.objects.create(
+        account=foreign_account,
+        risk_tolerance="aggressive",
+        regime_allocations={"Recovery": {"510500": 1.0}},
+        is_enabled=True,
+    )
+
+    create_response = authenticated_client.post(
+        "/api/rotation/account-configs/",
+        {
+            "account": foreign_account.id,
+            "risk_tolerance": "moderate",
+            "regime_allocations": {"Recovery": {"510300": 1.0}},
+            "is_enabled": True,
+        },
+        format="json",
+    )
+    patch_response = authenticated_client.patch(
+        f"/api/rotation/account-configs/{foreign_config.id}/",
+        {"risk_tolerance": "moderate"},
+        format="json",
+    )
+    template_response = authenticated_client.post(
+        f"/api/rotation/account-configs/{foreign_config.id}/apply-template/",
+        {"template_key": "moderate"},
+        format="json",
+    )
+    delete_response = authenticated_client.delete(
+        f"/api/rotation/account-configs/{foreign_config.id}/"
+    )
+
+    assert create_response.status_code in {400, 403}
+    assert patch_response.status_code == 404
+    assert template_response.status_code == 404
+    assert delete_response.status_code == 404
+    assert PortfolioRotationConfigModel.objects.filter(id=foreign_config.id).exists()
 
 
 @pytest.mark.django_db

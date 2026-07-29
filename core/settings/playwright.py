@@ -27,3 +27,19 @@ _default_database = _databases.setdefault("default", {})
 _default_database["NAME"] = str(_resolved_database_path)
 _test_database = _default_database.setdefault("TEST", {})
 _test_database["NAME"] = str(_resolved_database_path)
+
+# Matrix-driven browser UAT executes hundreds of governed TUI actions against a
+# disposable server. Preserve throttling behavior while preventing unrelated 429s.
+_rest_framework = cast(dict[str, Any], REST_FRAMEWORK)  # noqa: F405
+_default_throttle_rates = cast(
+    dict[str, str],
+    _rest_framework.setdefault("DEFAULT_THROTTLE_RATES", {}),
+)
+_rest_framework["DEFAULT_THROTTLE_RATES"] = {
+    **_default_throttle_rates,
+    "anon": "10000/hour",
+    "user": "100000/hour",
+    "backtest": "1000/hour",
+    "write": "10000/hour",
+    "burst": "10000/minute",
+}

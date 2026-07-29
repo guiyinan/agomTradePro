@@ -12,6 +12,7 @@ DRF Views and page views for regime calculation.
 import logging
 from datetime import date, datetime
 
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
@@ -34,6 +35,7 @@ def _parse_as_of_date(value: str | None) -> date:
     return datetime.strptime(value, "%Y-%m-%d").date() if value else date.today()
 
 
+@login_required
 def regime_dashboard_view(request: HttpRequest) -> HttpResponse:
     """Regime 判定仪表板页面（统一使用 V2 水平法）"""
     available_sources = get_available_regime_sources()

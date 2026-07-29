@@ -114,6 +114,13 @@ api_error_total = Counter(
     ["method", "endpoint", "error_class", "status_code"],
 )
 
+# Web-to-TUI compatibility events. Labels come from a governed task catalog.
+web_to_tui_migration_events_total = Counter(
+    "web_to_tui_migration_events_total",
+    "Web-to-TUI migration entries and executions by bounded task",
+    ["surface", "event_type", "task_key", "outcome"],
+)
+
 # ==================== Celery 任务指标 ====================
 
 # Celery 任务执行总数
@@ -264,6 +271,29 @@ def record_api_request(
         # 指标记录失败不应影响业务
         logger.warning(
             "Failed to record API metric (error_type=%s)",
+            _exception_type(exc),
+        )
+
+
+def record_web_to_tui_migration_event(
+    *,
+    surface: str,
+    event_type: str,
+    task_key: str,
+    outcome: str,
+) -> None:
+    """Record one bounded Classic/TUI compatibility observation."""
+
+    try:
+        web_to_tui_migration_events_total.labels(
+            surface=_bounded_label(surface, limit=32),
+            event_type=_bounded_label(event_type, limit=48),
+            task_key=_bounded_label(task_key, limit=160),
+            outcome=_bounded_label(outcome, limit=48),
+        ).inc()
+    except Exception as exc:
+        logger.warning(
+            "Failed to record Web-to-TUI migration metric (error_type=%s)",
             _exception_type(exc),
         )
 

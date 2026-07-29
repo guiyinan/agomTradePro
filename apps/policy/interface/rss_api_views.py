@@ -6,16 +6,22 @@ from typing import Any, cast
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.task_monitor.application.tracking import record_pending_task
 
-from ..application.repository_provider import get_policy_rss_api_interface_service
+from ..application.repository_provider import (
+    get_policy_page_interface_service,
+    get_policy_rss_api_interface_service,
+)
 from .serializers import (
     PolicyLevelKeywordSerializer,
     RSSFetchLogSerializer,
+    RSSReaderItemSerializer,
+    RSSReaderQuerySerializer,
     RSSSourceConfigCreateSerializer,
     RSSSourceConfigSerializer,
     RSSTriggerSerializer,
@@ -23,6 +29,7 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 rss_api_service = get_policy_rss_api_interface_service()
+page_service = get_policy_page_interface_service()
 
 
 def _queue_rss_fetch(*, source_id: int | None) -> str:
@@ -290,3 +297,41 @@ class PolicyLevelKeywordViewSet(
         keyword = self.get_object()
         rss_api_service.delete_policy_level_keyword(keyword.id)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RSSReaderItemsView(APIView):
+    """Authenticated read API for normalized RSS-derived policy items."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        """Return one bounded, filterable page of RSS reader items."""
+
+        query_serializer = RSSReaderQuerySerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+        query = query_serializer.validated_data
+        source_id = str(query.get("source_id") or "")
+        level = str(query.get("level") or "")
+        category = str(query.get("category") or "")
+        limit = int(query["limit"])
+        offset = int(query["offset"])
+
+        items = page_service.list_rss_reader_items(
+            source_id=source_id,
+            level=level,
+            category=category,
+        )
+        summary = page_service.get_rss_reader_summary(
+            source_id=source_id,
+            level=level,
+            category=category,
+        )
+        rows = list(items[offset : offset + limit])
+        return Response(
+            {
+                "count": int(summary["total_items"]),
+                "limit": limit,
+                "offset": offset,
+                "results": RSSReaderItemSerializer(rows, many=True).data,
+            }
+        )

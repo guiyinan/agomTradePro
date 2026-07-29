@@ -223,6 +223,116 @@ def test_strategy_catalog_api_is_read_only(authenticated_client, auth_user):
 
 
 @pytest.mark.django_db
+def test_tui_strategy_create_is_inactive_and_update_bumps_version(
+    authenticated_client,
+    auth_user,
+):
+    create_response = authenticated_client.post(
+        "/api/strategy/tui/strategies/",
+        {
+            "name": "TUI Versioned Strategy",
+            "description": "created from scalar fields",
+            "strategy_type": "hybrid",
+            "max_position_pct": 18,
+            "max_total_position_pct": 82,
+            "stop_loss_pct": 7,
+        },
+        format="json",
+    )
+
+    assert create_response.status_code == 201
+    strategy_id = create_response.json()["id"]
+    strategy = StrategyModel.objects.get(id=strategy_id)
+    assert strategy.created_by == auth_user.account_profile
+    assert strategy.is_active is False
+    assert strategy.version == 1
+
+    update_response = authenticated_client.patch(
+        f"/api/strategy/tui/strategies/{strategy_id}/",
+        {
+            "description": "updated without changing type",
+            "max_position_pct": 15,
+        },
+        format="json",
+    )
+
+    assert update_response.status_code == 200
+    strategy.refresh_from_db()
+    assert strategy.version == 2
+    assert strategy.strategy_type == "hybrid"
+    assert strategy.max_position_pct == 15
+
+
+@pytest.mark.django_db
+def test_tui_rule_adapter_builds_conditions_without_accepting_raw_json(
+    authenticated_client,
+    auth_user,
+):
+    strategy = StrategyModel.objects.create(
+        name="TUI Flat Rule Strategy",
+        strategy_type="rule_based",
+        is_active=False,
+        created_by=auth_user.account_profile,
+    )
+    base_payload = {
+        "strategy": strategy.id,
+        "rule_name": "PMI Guard",
+        "rule_type": "macro",
+        "operator": ">",
+        "indicator": "CN_PMI_MANUFACTURING",
+        "threshold": 50,
+        "action": "buy",
+        "weight": 0.2,
+        "target_assets": ["510300.SH"],
+        "priority": 20,
+        "is_enabled": True,
+    }
+
+    invalid = authenticated_client.post(
+        "/api/strategy/tui/rules/",
+        {**base_payload, "condition_json": {"operator": "=="}},
+        format="json",
+    )
+    created = authenticated_client.post(
+        "/api/strategy/tui/rules/",
+        base_payload,
+        format="json",
+    )
+
+    assert invalid.status_code == 400
+    assert created.status_code == 201
+    rule_id = created.json()["id"]
+    rule = RuleConditionModel.objects.get(id=rule_id)
+    assert rule.condition_json == {
+        "operator": ">",
+        "indicator": "CN_PMI_MANUFACTURING",
+        "threshold": 50.0,
+    }
+
+    updated = authenticated_client.patch(
+        f"/api/strategy/tui/rules/{rule_id}/",
+        {
+            **base_payload,
+            "rule_name": "PMI Range",
+            "operator": "between",
+            "min_value": 49,
+            "max_value": 52,
+        },
+        format="json",
+    )
+
+    assert updated.status_code == 200
+    rule.refresh_from_db()
+    assert rule.rule_name == "PMI Range"
+    assert rule.condition_json == {
+        "operator": "between",
+        "indicator": "CN_PMI_MANUFACTURING",
+        "min": 49.0,
+        "max": 52.0,
+    }
+
+
+@pytest.mark.django_db
 def test_strategy_detail_api_is_read_only(authenticated_client, auth_user):
     strategy = StrategyModel.objects.create(
         name="Quality Rotation",

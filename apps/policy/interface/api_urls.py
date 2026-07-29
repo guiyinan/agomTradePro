@@ -21,6 +21,7 @@ from .event_api_views import (
 from .rss_api_views import (
     PolicyLevelKeywordViewSet,
     RSSFetchLogViewSet,
+    RSSReaderItemsView,
     RSSSourceConfigViewSet,
 )
 from .workbench_api_views import (
@@ -47,6 +48,7 @@ router.register(r"rss/logs", RSSFetchLogViewSet, basename="rss-log")
 router.register(r"rss/keywords", PolicyLevelKeywordViewSet, basename="rss-keyword")
 
 urlpatterns = [
+    path("rss/reader/", RSSReaderItemsView.as_view(), name="rss-reader"),
     path("status/", PolicyStatusView.as_view(), name="status"),
     path("events/", PolicyEventListView.as_view(), name="event-list"),
     path("events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail"),

@@ -20,6 +20,7 @@ from apps.account.application.interface_services import (
     find_user_by_username,
     get_active_observer_grant,
 )
+from apps.account.application.rbac import ROLE_CHOICES
 
 SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
 
@@ -42,6 +43,7 @@ class AccountProfileSerializer(serializers.ModelSerializer[Any]):
 
     user_id = serializers.IntegerField(source="user.id", read_only=True)
     username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
 
     class Meta:
         model = AccountProfileModel
@@ -49,6 +51,7 @@ class AccountProfileSerializer(serializers.ModelSerializer[Any]):
             "id",
             "user_id",
             "username",
+            "email",
             "display_name",
             "initial_capital",
             "risk_tolerance",
@@ -67,6 +70,22 @@ class AccountProfileUpdateSerializer(serializers.ModelSerializer[Any]):
     class Meta:
         model = AccountProfileModel
         fields = ["display_name", "risk_tolerance", "email"]
+
+
+class AccountPasswordChangeSerializer(serializers.Serializer[dict[str, Any]]):
+    """Re-authenticated password-change payload."""
+
+    current_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        min_length=1,
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        min_length=8,
+        max_length=128,
+    )
 
 
 # ==================== Portfolio ====================
@@ -727,14 +746,10 @@ class MacroSizingConfigUpdateSerializer(serializers.Serializer[dict[str, Any]]):
                     or not isinstance(raw_value, (int, float))
                     or not math.isfinite(float(raw_value))
                 ):
-                    raise serializers.ValidationError(
-                        f"{field_name}.{key} 必须是有限数"
-                    )
+                    raise serializers.ValidationError(f"{field_name}.{key} 必须是有限数")
             factor = float(item["factor"])
             if not 0 <= factor <= 1:
-                raise serializers.ValidationError(
-                    f"{field_name}.factor 必须在 0 到 1 之间"
-                )
+                raise serializers.ValidationError(f"{field_name}.factor 必须在 0 到 1 之间")
             for bounded_key in ("min_confidence", "min_drawdown"):
                 if bounded_key in item and not 0 <= float(item[bounded_key]) <= 1:
                     raise serializers.ValidationError(
@@ -895,6 +910,73 @@ class MCPAdminUsersQuerySerializer(serializers.Serializer[dict[str, Any]]):
 
     q = serializers.CharField(required=False, allow_blank=True, default="")
     without_token = serializers.BooleanField(required=False, default=False)
+
+
+class UserAccessRoleChoiceSerializer(serializers.Serializer[dict[str, Any]]):
+    """One available RBAC role choice."""
+
+    value = serializers.CharField(read_only=True)
+    display_label = serializers.CharField(read_only=True)
+
+
+class UserAccessGovernanceRowSerializer(serializers.Serializer[dict[str, Any]]):
+    """One administrator-facing user approval and role row."""
+
+    user_id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    display_name = serializers.CharField(read_only=True, allow_blank=True)
+    email = serializers.CharField(read_only=True, allow_blank=True)
+    is_active = serializers.BooleanField(read_only=True)
+    approval_status = serializers.CharField(read_only=True)
+    rbac_role = serializers.CharField(read_only=True, allow_blank=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    approved_by = serializers.CharField(read_only=True, allow_blank=True)
+    approved_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    rejection_reason = serializers.CharField(read_only=True, allow_blank=True)
+
+
+class UserAccessGovernancePayloadSerializer(serializers.Serializer[dict[str, Any]]):
+    """Filtered administrator user-governance payload."""
+
+    status_filter = serializers.CharField(read_only=True, allow_blank=True)
+    search_query = serializers.CharField(read_only=True, allow_blank=True)
+    total_count = serializers.IntegerField(read_only=True)
+    pending_count = serializers.IntegerField(read_only=True)
+    approved_count = serializers.IntegerField(read_only=True)
+    rejected_count = serializers.IntegerField(read_only=True)
+    role_choices = UserAccessRoleChoiceSerializer(many=True, read_only=True)
+    rows = UserAccessGovernanceRowSerializer(many=True, read_only=True)
+
+
+class UserAccessGovernanceQuerySerializer(serializers.Serializer[dict[str, Any]]):
+    """Query fields accepted by the user-governance list."""
+
+    approval_status = serializers.ChoiceField(
+        choices=("", "pending", "approved", "auto_approved", "rejected"),
+        required=False,
+        default="",
+    )
+    q = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class UserAccessMutationRequestSerializer(serializers.Serializer[dict[str, Any]]):
+    """Optional fields used by reject and role mutations."""
+
+    rejection_reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    rbac_role = serializers.ChoiceField(
+        choices=ROLE_CHOICES,
+        required=False,
+        allow_blank=True,
+    )
+
+
+class UserAccessMutationResultSerializer(serializers.Serializer[dict[str, Any]]):
+    """Mutation receipt plus refreshed governance state."""
+
+    success = serializers.BooleanField(read_only=True)
+    message = serializers.CharField(read_only=True)
+    user_id = serializers.IntegerField(read_only=True)
+    governance = UserAccessGovernancePayloadSerializer(read_only=True)
 
 
 class MCPTokenPayloadSerializer(serializers.Serializer[dict[str, Any]]):

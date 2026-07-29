@@ -234,6 +234,74 @@ def test_decision_rhythm_reset_quota_rejects_unauthenticated_client(api_client):
 
 
 @pytest.mark.django_db
+def test_decision_rhythm_quota_reads_require_authentication(api_client):
+    list_response = api_client.get("/api/decision-rhythm/quotas/")
+    trend_response = api_client.get("/api/decision-rhythm/trend-data/?days=7")
+
+    assert list_response.status_code in {401, 403}
+    assert trend_response.status_code in {401, 403}
+
+
+@pytest.mark.django_db
+def test_decision_rhythm_quota_update_requires_admin(authenticated_client):
+    response = authenticated_client.post(
+        "/api/decision-rhythm/quota/update/",
+        {
+            "account_id": "acct-1",
+            "period": QuotaPeriod.WEEKLY.value,
+            "max_decisions": 10,
+            "max_executions": 5,
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_decision_rhythm_quota_update_rejects_invalid_numeric_for_admin(
+    admin_client,
+):
+    response = admin_client.post(
+        "/api/decision-rhythm/quota/update/",
+        {
+            "account_id": "acct-1",
+            "period": QuotaPeriod.WEEKLY.value,
+            "max_decisions": "invalid-number",
+            "max_executions": 5,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+
+
+@pytest.mark.django_db
+def test_decision_rhythm_quota_update_serializes_period_for_admin(admin_client):
+    """A successful quota update must expose the domain enum as JSON text."""
+
+    response = admin_client.post(
+        "/api/decision-rhythm/quota/update/",
+        {
+            "account_id": "acct-m5",
+            "period": QuotaPeriod.DAILY.value,
+            "max_decisions": 12,
+            "max_executions": 6,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["account_id"] == "acct-m5"
+    assert payload["period"] == QuotaPeriod.DAILY.value
+    assert payload["max_decisions"] == 12
+    assert payload["max_executions"] == 6
+
+
+@pytest.mark.django_db
 def test_decision_rhythm_reset_quota_rejects_invalid_period_for_admin(admin_client):
     response = admin_client.post(
         "/api/decision-rhythm/reset-quota/",
@@ -345,6 +413,34 @@ def test_decision_rhythm_reset_quota_rejects_missing_account_quotas(admin_client
         "success": False,
         "error": "未找到对应配额",
     }
+
+
+@pytest.mark.django_db
+def test_decision_rhythm_classic_pages_publish_role_appropriate_tui_links(
+    client,
+    test_user,
+    admin_user,
+):
+    anonymous_quota = client.get("/decision-rhythm/quota/")
+    assert anonymous_quota.status_code == 302
+
+    client.force_login(test_user)
+    quota_response = client.get("/decision-rhythm/quota/?account_id=acct-1")
+    config_response = client.get("/decision-rhythm/config/")
+    assert quota_response.status_code == 200
+    assert (
+        "/tui/?screen=command-center.decision-flow&amp;action=decision-rhythm.quota-list"
+        in quota_response.content.decode()
+    )
+    assert config_response.status_code == 302
+
+    client.force_login(admin_user)
+    admin_response = client.get("/decision-rhythm/config/?account_id=acct-1")
+    assert admin_response.status_code == 200
+    assert (
+        "/tui/?screen=command-center.decision-flow&amp;action=decision-rhythm.quota-update"
+        in admin_response.content.decode()
+    )
 
 
 @pytest.mark.django_db

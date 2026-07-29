@@ -1,0 +1,1188 @@
+{
+  "version": "web-to-tui-telemetry.v1",
+  "source_matrix": "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv",
+  "source_sha256": "bf7a6234a473c354b923d56793dd0c5b6eba8970e0ca0d212e14ed68bdc39ded",
+  "classic_routes": [
+    {
+      "url_name": "account:mcp_guide",
+      "task_key": "capability-router.mcp-self-status",
+      "screen_key": "capability-router.self-service",
+      "template_path": "core/templates/account/mcp_guide.html"
+    },
+    {
+      "url_name": "account:profile",
+      "task_key": "account.overview-profile",
+      "screen_key": "execution.accounts",
+      "template_path": "core/templates/account/profile.html"
+    },
+    {
+      "url_name": "account:settings",
+      "task_key": "account-settings.read-profile",
+      "screen_key": "account.self-service",
+      "template_path": "core/templates/account/settings.html"
+    },
+    {
+      "url_name": "account:system_settings",
+      "task_key": "system-settings.read",
+      "screen_key": "system.settings",
+      "template_path": "core/templates/account/system_settings.html"
+    },
+    {
+      "url_name": "account:token_management",
+      "task_key": "capability-router.mcp-admin-users",
+      "screen_key": "capability-router.admin-access",
+      "template_path": "core/templates/account/token_management.html"
+    },
+    {
+      "url_name": "account:user_management",
+      "task_key": "identity-access.user-list",
+      "screen_key": "identity-access.user-governance",
+      "template_path": "core/templates/account/user_management.html"
+    },
+    {
+      "url_name": "admin-console",
+      "task_key": "operator.governance.data_center_summary",
+      "screen_key": "api-library.data-center",
+      "template_path": "core/templates/ops/admin_console.html"
+    },
+    {
+      "url_name": "agent_runtime_pages:proposal_detail",
+      "task_key": "agent-runtime.operator-proposal-detail",
+      "screen_key": "ai-ops.terminal",
+      "template_path": "apps/agent_runtime/templates/agent_runtime/operator_proposal_detail.html"
+    },
+    {
+      "url_name": "agent_runtime_pages:proposal_list",
+      "task_key": "agent-runtime.operator-proposal-list",
+      "screen_key": "ai-ops.terminal",
+      "template_path": "apps/agent_runtime/templates/agent_runtime/operator_proposal_list.html"
+    },
+    {
+      "url_name": "agent_runtime_pages:task_detail",
+      "task_key": "agent-runtime.operator-task-detail",
+      "screen_key": "ai-ops.terminal",
+      "template_path": "apps/agent_runtime/templates/agent_runtime/operator_task_detail.html"
+    },
+    {
+      "url_name": "agent_runtime_pages:task_list",
+      "task_key": "agent-runtime.operator-task-list",
+      "screen_key": "ai-ops.terminal",
+      "template_path": "apps/agent_runtime/templates/agent_runtime/operator_task_list.html"
+    },
+    {
+      "url_name": "ai_provider:detail",
+      "task_key": "ai-ops.my-provider-detail",
+      "screen_key": "ai-ops.providers;ai-ops.system-providers",
+      "template_path": "core/templates/ai_provider/detail.html"
+    },
+    {
+      "url_name": "ai_provider:edit",
+      "task_key": "ai-ops.update-my-provider",
+      "screen_key": "ai-ops.providers;ai-ops.system-providers",
+      "template_path": "core/templates/ai_provider/form.html"
+    },
+    {
+      "url_name": "ai_provider:logs",
+      "task_key": "ai-ops.my-ai-logs",
+      "screen_key": "ai-ops.providers;ai-ops.system-providers",
+      "template_path": "core/templates/ai_provider/usage_logs.html"
+    },
+    {
+      "url_name": "ai_provider:manage",
+      "task_key": "ai-ops.list-system-providers",
+      "screen_key": "ai-ops.system-providers",
+      "template_path": "core/templates/ai_provider/manage.html"
+    },
+    {
+      "url_name": "ai_provider:my-providers",
+      "task_key": "ai-ops.list-my-providers",
+      "screen_key": "ai-ops.providers",
+      "template_path": "core/templates/ai_provider/my_providers.html"
+    },
+    {
+      "url_name": "ai_provider:quota-manage",
+      "task_key": "ai-ops.list-user-quotas",
+      "screen_key": "ai-ops.user-quotas",
+      "template_path": "core/templates/ai_provider/quota_manage.html"
+    },
+    {
+      "url_name": "alpha:ops-inference",
+      "task_key": "auto.api.get.api.alpha.ops.inference.overview",
+      "screen_key": "research.signals",
+      "template_path": "apps/alpha/templates/alpha/ops/inference.html"
+    },
+    {
+      "url_name": "alpha:ops-qlib-data",
+      "task_key": "auto.api.get.api.alpha.ops.qlib-data.overview",
+      "screen_key": "research.signals",
+      "template_path": "apps/alpha/templates/alpha/ops/qlib_data.html"
+    },
+    {
+      "url_name": "alpha_trigger:candidate_detail",
+      "task_key": "alpha-trigger.candidate-detail",
+      "screen_key": "research.signals",
+      "template_path": "apps/alpha_trigger/templates/alpha_trigger/candidate_detail.html"
+    },
+    {
+      "url_name": "alpha_trigger:create",
+      "task_key": "alpha-trigger.create",
+      "screen_key": "research.signals",
+      "template_path": "apps/alpha_trigger/templates/alpha_trigger/create.html"
+    },
+    {
+      "url_name": "alpha_trigger:detail",
+      "task_key": "alpha-trigger.trigger-detail",
+      "screen_key": "research.signals",
+      "template_path": "apps/alpha_trigger/templates/alpha_trigger/detail.html"
+    },
+    {
+      "url_name": "alpha_trigger:edit",
+      "task_key": "alpha-trigger.update",
+      "screen_key": "research.signals",
+      "template_path": "apps/alpha_trigger/templates/alpha_trigger/edit.html"
+    },
+    {
+      "url_name": "alpha_trigger:invalidation_builder",
+      "task_key": "alpha-trigger.create",
+      "screen_key": "research.signals",
+      "template_path": "apps/alpha_trigger/templates/alpha_trigger/invalidation_builder.html"
+    },
+    {
+      "url_name": "alpha_trigger:list",
+      "task_key": "alpha-trigger.candidate-actionable",
+      "screen_key": "research.signals",
+      "template_path": "apps/alpha_trigger/templates/alpha_trigger/list.html"
+    },
+    {
+      "url_name": "alpha_trigger:performance",
+      "task_key": "alpha-trigger.performance",
+      "screen_key": "research.signals",
+      "template_path": "apps/alpha_trigger/templates/alpha_trigger/performance.html"
+    },
+    {
+      "url_name": "asset-screen",
+      "task_key": "asset-analysis.pool-screen",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/asset_analysis/screen.html"
+    },
+    {
+      "url_name": "audit:audit-page",
+      "task_key": "audit.overview",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/review_page.html"
+    },
+    {
+      "url_name": "audit:decision_traces_admin",
+      "task_key": "audit.decision-trace-list",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/decision_traces_admin.html"
+    },
+    {
+      "url_name": "audit:indicator_performance",
+      "task_key": "audit.indicator-performance-list",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/indicator_performance.html"
+    },
+    {
+      "url_name": "audit:manual_trades",
+      "task_key": "audit.manual-trade-batches",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/manual_trade_review.html"
+    },
+    {
+      "url_name": "audit:my_decision_traces",
+      "task_key": "audit.decision-trace-list",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/my_decision_traces.html"
+    },
+    {
+      "url_name": "audit:my_operation_logs",
+      "task_key": "audit.operation-log-list",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/my_operation_logs.html"
+    },
+    {
+      "url_name": "audit:operation_logs_admin",
+      "task_key": "audit.operation-log-list",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/operation_logs_admin.html"
+    },
+    {
+      "url_name": "audit:report_detail",
+      "task_key": "audit.attribution-detail",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/attribution_detail.html"
+    },
+    {
+      "url_name": "audit:reports",
+      "task_key": "audit.report-list",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/report_list.html"
+    },
+    {
+      "url_name": "audit:review",
+      "task_key": "audit.overview",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/review_page.html"
+    },
+    {
+      "url_name": "audit:threshold_validation",
+      "task_key": "audit.threshold-list",
+      "screen_key": "execution.audit",
+      "template_path": "apps/audit/templates/audit/threshold_validation.html"
+    },
+    {
+      "url_name": "backtest:create",
+      "task_key": "backtest.run",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/backtest/create.html"
+    },
+    {
+      "url_name": "backtest:detail",
+      "task_key": "backtest.detail",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/backtest/detail.html"
+    },
+    {
+      "url_name": "backtest:list",
+      "task_key": "backtest.list",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/backtest/list.html"
+    },
+    {
+      "url_name": "beta_gate:config",
+      "task_key": "beta-gate.config-list",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "apps/beta_gate/templates/beta_gate/config.html"
+    },
+    {
+      "url_name": "beta_gate:config_edit",
+      "task_key": "beta-gate.config-create",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "apps/beta_gate/templates/beta_gate/config_form.html"
+    },
+    {
+      "url_name": "beta_gate:config_new",
+      "task_key": "beta-gate.config-create",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "apps/beta_gate/templates/beta_gate/config_form.html"
+    },
+    {
+      "url_name": "beta_gate:test",
+      "task_key": "beta-gate.test-assets",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "apps/beta_gate/templates/beta_gate/test_asset.html"
+    },
+    {
+      "url_name": "beta_gate:version",
+      "task_key": "beta-gate.version-compare",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "apps/beta_gate/templates/beta_gate/version_compare.html"
+    },
+    {
+      "url_name": "broker_execution:audit",
+      "task_key": "broker-execution.overview",
+      "screen_key": "execution.accounts",
+      "template_path": "apps/broker_execution/templates/broker_execution/workbench.html"
+    },
+    {
+      "url_name": "broker_execution:connection",
+      "task_key": "broker-execution.overview",
+      "screen_key": "execution.accounts",
+      "template_path": "apps/broker_execution/templates/broker_execution/workbench.html"
+    },
+    {
+      "url_name": "broker_execution:order-detail",
+      "task_key": "broker-execution.overview",
+      "screen_key": "execution.accounts",
+      "template_path": "apps/broker_execution/templates/broker_execution/workbench.html"
+    },
+    {
+      "url_name": "broker_execution:orders",
+      "task_key": "broker-execution.overview",
+      "screen_key": "execution.accounts",
+      "template_path": "apps/broker_execution/templates/broker_execution/workbench.html"
+    },
+    {
+      "url_name": "broker_execution:overview",
+      "task_key": "broker-execution.overview",
+      "screen_key": "execution.accounts",
+      "template_path": "apps/broker_execution/templates/broker_execution/workbench.html"
+    },
+    {
+      "url_name": "broker_execution:reconciliation",
+      "task_key": "broker-execution.overview",
+      "screen_key": "execution.accounts",
+      "template_path": "apps/broker_execution/templates/broker_execution/workbench.html"
+    },
+    {
+      "url_name": "broker_execution:settings",
+      "task_key": "broker-execution.overview",
+      "screen_key": "execution.accounts",
+      "template_path": "apps/broker_execution/templates/broker_execution/workbench.html"
+    },
+    {
+      "url_name": "config_center_pages:qlib-center",
+      "task_key": "config_center.qlib_runtime",
+      "screen_key": "system.qlib-center",
+      "template_path": "apps/config_center/templates/config_center/qlib_center.html"
+    },
+    {
+      "url_name": "dashboard:alpha_history",
+      "task_key": "dashboard.alpha-history",
+      "screen_key": "research.signals",
+      "template_path": "core/templates/dashboard/alpha_history.html"
+    },
+    {
+      "url_name": "dashboard:alpha_ranking",
+      "task_key": "dashboard.alpha-ranking",
+      "screen_key": "research.signals",
+      "template_path": "core/templates/dashboard/alpha_ranking.html"
+    },
+    {
+      "url_name": "dashboard:index",
+      "task_key": "dashboard.overview-summary",
+      "screen_key": "command-center.overview",
+      "template_path": "core/templates/dashboard/index.html"
+    },
+    {
+      "url_name": "data_center:dc-governance-page",
+      "task_key": "data-center.governance-overview",
+      "screen_key": "api-library.data-center",
+      "template_path": "apps/data_center/templates/data_center/governance.html"
+    },
+    {
+      "url_name": "data_center:dc-market-thermometer-page",
+      "task_key": "data-center.market-thermometer-current",
+      "screen_key": "api-library.data-center",
+      "template_path": "apps/data_center/templates/data_center/market_thermometer.html"
+    },
+    {
+      "url_name": "data_center:dc-monitor-page",
+      "task_key": "data-center.provider-status",
+      "screen_key": "api-library.data-center",
+      "template_path": "core/templates/data_center/monitor.html"
+    },
+    {
+      "url_name": "data_center:dc-providers-page",
+      "task_key": "auto.api.get.api.data-center.providers",
+      "screen_key": "api-library.data-center",
+      "template_path": "core/templates/data_center/providers.html"
+    },
+    {
+      "url_name": "data_center:dc-publishers-page",
+      "task_key": "auto.api.get.api.data-center.publishers",
+      "screen_key": "api-library.data-center",
+      "template_path": "apps/data_center/templates/data_center/publishers.html"
+    },
+    {
+      "url_name": "data_center:dc-universe-page",
+      "task_key": "data-center.universe-config",
+      "screen_key": "api-library.data-center",
+      "template_path": "apps/data_center/templates/data_center/universe.html"
+    },
+    {
+      "url_name": "decision-workspace",
+      "task_key": "auto.api.get.api.decision.workspace.aggregated",
+      "screen_key": "command-center.decision-flow",
+      "template_path": "core/templates/decision/workspace.html"
+    },
+    {
+      "url_name": "decision_rhythm:config",
+      "task_key": "decision-rhythm.quota-update",
+      "screen_key": "command-center.decision-flow",
+      "template_path": "apps/decision_rhythm/templates/decision_rhythm/quota_config.html"
+    },
+    {
+      "url_name": "decision_rhythm:quota",
+      "task_key": "decision-rhythm.quota-list",
+      "screen_key": "command-center.decision-flow",
+      "template_path": "apps/decision_rhythm/templates/decision_rhythm/quota.html"
+    },
+    {
+      "url_name": "equity:detail",
+      "task_key": "equity.valuation-overview",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/equity/detail.html"
+    },
+    {
+      "url_name": "equity:pool",
+      "task_key": "equity.pool-summary",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/equity/pool.html"
+    },
+    {
+      "url_name": "equity:screen",
+      "task_key": "equity.screen-stocks",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/equity/screen.html"
+    },
+    {
+      "url_name": "equity:valuation_repair",
+      "task_key": "equity.valuation-repair-list",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/equity/valuation_repair.html"
+    },
+    {
+      "url_name": "equity:valuation_repair_config",
+      "task_key": "equity.valuation-config-active",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/equity/config.html"
+    },
+    {
+      "url_name": "factor:calculate",
+      "task_key": "factor.calculate-config",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/factor/calculate.html"
+    },
+    {
+      "url_name": "factor:manage",
+      "task_key": "factor.definition-list",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/factor/manage.html"
+    },
+    {
+      "url_name": "factor:portfolios",
+      "task_key": "factor.portfolio-config-list",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/factor/portfolios.html"
+    },
+    {
+      "url_name": "filter:dashboard",
+      "task_key": "macro.trend-filter-summary",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/filter/dashboard.html"
+    },
+    {
+      "url_name": "fund:dashboard",
+      "task_key": "fund.multidim-screen",
+      "screen_key": "research.asset-lab",
+      "template_path": "core/templates/fund/dashboard.html"
+    },
+    {
+      "url_name": "hedge:alerts",
+      "task_key": "hedge.alert-active",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "core/templates/hedge/alerts.html"
+    },
+    {
+      "url_name": "hedge:pairs",
+      "task_key": "hedge.pair-list",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "core/templates/hedge/pairs.html"
+    },
+    {
+      "url_name": "hedge:snapshots",
+      "task_key": "hedge.snapshot-list",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "core/templates/hedge/snapshots.html"
+    },
+    {
+      "url_name": "macro:data",
+      "task_key": "macro.overview-summary",
+      "screen_key": "macro-regime.overview",
+      "template_path": "core/templates/macro/data.html"
+    },
+    {
+      "url_name": "policy:event-create",
+      "task_key": "policy.event-create",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/policy_event_form.html"
+    },
+    {
+      "url_name": "policy:events-page",
+      "task_key": "policy.event-list",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/policy_events.html"
+    },
+    {
+      "url_name": "policy:rss-keyword-create",
+      "task_key": "policy.rss-keyword-create",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/keyword_form.html"
+    },
+    {
+      "url_name": "policy:rss-keyword-edit",
+      "task_key": "policy.rss-keyword-create",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/keyword_form.html"
+    },
+    {
+      "url_name": "policy:rss-keywords",
+      "task_key": "policy.rss-keyword-list",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/rss_keywords.html"
+    },
+    {
+      "url_name": "policy:rss-logs",
+      "task_key": "policy.rss-log-list",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/rss_logs.html"
+    },
+    {
+      "url_name": "policy:rss-manage",
+      "task_key": "policy.rss-source-list",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/rss_manage.html"
+    },
+    {
+      "url_name": "policy:rss-reader",
+      "task_key": "policy.rss-reader",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/rss_reader.html"
+    },
+    {
+      "url_name": "policy:rss-source-create",
+      "task_key": "policy.rss-source-create",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/rss_source_form.html"
+    },
+    {
+      "url_name": "policy:rss-source-edit",
+      "task_key": "policy.rss-source-create",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/rss_source_form.html"
+    },
+    {
+      "url_name": "policy:workbench",
+      "task_key": "policy.queue_summary",
+      "screen_key": "policy.workbench",
+      "template_path": "core/templates/policy/workbench.html"
+    },
+    {
+      "url_name": "prompt:prompt-manage",
+      "task_key": "prompt-template.list",
+      "screen_key": "prompt.workbench",
+      "template_path": "core/templates/prompt/manage.html"
+    },
+    {
+      "url_name": "regime:dashboard",
+      "task_key": "regime.current",
+      "screen_key": "macro-regime.overview",
+      "template_path": "core/templates/regime/dashboard.html"
+    },
+    {
+      "url_name": "risk_center:console",
+      "task_key": "risk-center.effective-policy",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "apps/risk_center/templates/risk_center/console.html"
+    },
+    {
+      "url_name": "rotation:account_configs",
+      "task_key": "rotation.account-config-list",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "apps/rotation/templates/rotation/account_config.html"
+    },
+    {
+      "url_name": "rotation:assets",
+      "task_key": "rotation.asset-list",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "apps/rotation/templates/rotation/assets.html"
+    },
+    {
+      "url_name": "rotation:configs",
+      "task_key": "rotation.config-list",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "apps/rotation/templates/rotation/configs.html"
+    },
+    {
+      "url_name": "rotation:signals",
+      "task_key": "rotation.signal-list",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "apps/rotation/templates/rotation/signals.html"
+    },
+    {
+      "url_name": "sentiment:analyze",
+      "task_key": "sentiment.analyze-text",
+      "screen_key": "research.signals",
+      "template_path": "core/templates/sentiment/analyze.html"
+    },
+    {
+      "url_name": "sentiment:dashboard",
+      "task_key": "sentiment.dashboard-summary",
+      "screen_key": "research.signals",
+      "template_path": "core/templates/sentiment/dashboard.html"
+    },
+    {
+      "url_name": "settings-capability-gateway",
+      "task_key": "capability-router.mcp-self-status",
+      "screen_key": "capability-router.self-service;capability-router.mcp-center",
+      "template_path": "core/templates/ops/capability_gateway.html"
+    },
+    {
+      "url_name": "settings-center",
+      "task_key": "account-settings.read-profile",
+      "screen_key": "account.self-service;api-library.data-center",
+      "template_path": "core/templates/ops/center.html"
+    },
+    {
+      "url_name": "settings-mcp-tools",
+      "task_key": "capability-router.mcp-tools-stats",
+      "screen_key": "capability-router.mcp-center",
+      "template_path": "core/templates/ops/mcp_tools.html"
+    },
+    {
+      "url_name": "signal:manage",
+      "task_key": "signal.list",
+      "screen_key": "research.signals",
+      "template_path": "core/templates/signal/manage.html"
+    },
+    {
+      "url_name": "simulated_trading:account-detail",
+      "task_key": "simulated-trading.account-detail",
+      "screen_key": "execution.accounts",
+      "template_path": "core/templates/simulated_trading/account_detail.html"
+    },
+    {
+      "url_name": "simulated_trading:dashboard",
+      "task_key": "simulated-trading.accounts",
+      "screen_key": "execution.accounts",
+      "template_path": "core/templates/simulated_trading/dashboard.html"
+    },
+    {
+      "url_name": "simulated_trading:my-account-detail",
+      "task_key": "simulated-trading.account-detail",
+      "screen_key": "execution.accounts",
+      "template_path": "core/templates/simulated_trading/my_account_detail.html"
+    },
+    {
+      "url_name": "simulated_trading:my-accounts",
+      "task_key": "simulated-trading.accounts",
+      "screen_key": "execution.accounts",
+      "template_path": "core/templates/simulated_trading/my_accounts.html"
+    },
+    {
+      "url_name": "simulated_trading:my-inspection-notify",
+      "task_key": "simulated-trading.inspection-notification",
+      "screen_key": "execution.accounts",
+      "template_path": "core/templates/simulated_trading/inspection_notify.html"
+    },
+    {
+      "url_name": "simulated_trading:my-positions",
+      "task_key": "simulated-trading.positions",
+      "screen_key": "execution.accounts",
+      "template_path": "core/templates/simulated_trading/my_positions.html"
+    },
+    {
+      "url_name": "simulated_trading:my-trades",
+      "task_key": "simulated-trading.trades",
+      "screen_key": "execution.accounts",
+      "template_path": "core/templates/simulated_trading/my_trades.html"
+    },
+    {
+      "url_name": "strategy:create",
+      "task_key": "strategy.workbench-create",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "core/templates/strategy/create.html"
+    },
+    {
+      "url_name": "strategy:detail",
+      "task_key": "strategy.workbench-detail",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "core/templates/strategy/detail.html"
+    },
+    {
+      "url_name": "strategy:edit",
+      "task_key": "strategy.workbench-update",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "core/templates/strategy/edit.html"
+    },
+    {
+      "url_name": "strategy:list",
+      "task_key": "strategy.workbench-list",
+      "screen_key": "macro-regime.strategy",
+      "template_path": "core/templates/strategy/list.html"
+    },
+    {
+      "url_name": "task_monitor_pages:readiness_monitor_page",
+      "task_key": "task-monitor.readiness",
+      "screen_key": "api-library.data-center",
+      "template_path": "apps/task_monitor/templates/task_monitor/readiness_monitor.html"
+    },
+    {
+      "url_name": "task_monitor_pages:scheduler_console",
+      "task_key": "task-monitor.scheduler-catalog",
+      "screen_key": "api-library.data-center",
+      "template_path": "apps/task_monitor/templates/task_monitor/scheduler_console.html"
+    },
+    {
+      "url_name": "terminal-config",
+      "task_key": "terminal.agent_chat",
+      "screen_key": "ai-ops.terminal",
+      "template_path": "core/templates/terminal/config.html"
+    }
+  ],
+  "tui_task_keys": [
+    "account-settings.change-password",
+    "account-settings.create-capital-flow",
+    "account-settings.create-trading-cost",
+    "account-settings.delete-capital-flow",
+    "account-settings.list-capital-flows",
+    "account-settings.list-trading-costs",
+    "account-settings.read-profile",
+    "account-settings.update-profile",
+    "account.overview-profile",
+    "account.portfolio-volatility-chart",
+    "account.portfolio-volatility-summary",
+    "agent-runtime.operator-approve-proposal",
+    "agent-runtime.operator-execute-proposal",
+    "agent-runtime.operator-proposal-detail",
+    "agent-runtime.operator-proposal-list",
+    "agent-runtime.operator-reject-proposal",
+    "agent-runtime.operator-submit-proposal",
+    "agent-runtime.operator-summary",
+    "agent-runtime.operator-task-detail",
+    "agent-runtime.operator-task-list",
+    "ai-ops.batch-apply-user-quotas",
+    "ai-ops.create-my-provider",
+    "ai-ops.create-system-provider",
+    "ai-ops.delete-my-provider",
+    "ai-ops.delete-system-provider",
+    "ai-ops.list-my-providers",
+    "ai-ops.list-system-providers",
+    "ai-ops.list-user-quotas",
+    "ai-ops.my-ai-logs",
+    "ai-ops.my-provider-detail",
+    "ai-ops.my-quota-current",
+    "ai-ops.system-ai-logs",
+    "ai-ops.system-provider-detail",
+    "ai-ops.system-provider-overall-stats",
+    "ai-ops.system-provider-usage-stats",
+    "ai-ops.test-system-provider",
+    "ai-ops.toggle-my-provider",
+    "ai-ops.toggle-system-provider",
+    "ai-ops.update-my-provider",
+    "ai-ops.update-system-provider",
+    "ai-ops.update-user-quota",
+    "ai-ops.user-quota-detail",
+    "alpha-trigger.cancel",
+    "alpha-trigger.candidate-actionable",
+    "alpha-trigger.candidate-detail",
+    "alpha-trigger.candidate-list",
+    "alpha-trigger.candidate-statistics",
+    "alpha-trigger.candidate-watch-list",
+    "alpha-trigger.check-invalidation",
+    "alpha-trigger.create",
+    "alpha-trigger.evaluate",
+    "alpha-trigger.pause",
+    "alpha-trigger.performance",
+    "alpha-trigger.resume",
+    "alpha-trigger.trigger-active",
+    "alpha-trigger.trigger-detail",
+    "alpha-trigger.trigger-list",
+    "alpha-trigger.trigger-statistics",
+    "alpha-trigger.update",
+    "alpha.inference.trigger_batch",
+    "alpha.inference.trigger_general",
+    "alpha.inference.trigger_portfolio",
+    "alpha.qlib_data_refresh",
+    "alpha.qlib_data_refresh_universes",
+    "asset-analysis.pool-screen",
+    "audit.attribution-contribution-chart",
+    "audit.attribution-detail",
+    "audit.decision-trace-detail",
+    "audit.decision-trace-list",
+    "audit.indicator-performance-chart",
+    "audit.indicator-performance-detail",
+    "audit.indicator-performance-list",
+    "audit.manual-trade-batches",
+    "audit.manual-trade-execution-links",
+    "audit.manual-trade-import",
+    "audit.manual-trade-import-preview",
+    "audit.manual-trade-replay",
+    "audit.manual-trade-transactions",
+    "audit.operation-log-detail",
+    "audit.operation-log-export-json",
+    "audit.operation-log-list",
+    "audit.operation-log-stats",
+    "audit.overview",
+    "audit.report-generate",
+    "audit.report-generate-preview",
+    "audit.report-list",
+    "audit.threshold-history-chart",
+    "audit.threshold-list",
+    "audit.threshold-update",
+    "audit.threshold-update-preview",
+    "audit.validation-detail",
+    "audit.validation-preview",
+    "audit.validation-run",
+    "auto.api.get.api.alpha.ops.inference.overview",
+    "auto.api.get.api.alpha.ops.qlib-data.overview",
+    "auto.api.get.api.dashboard.allocation",
+    "auto.api.get.api.dashboard.performance",
+    "auto.api.get.api.data-center.providers",
+    "auto.api.get.api.data-center.publishers",
+    "auto.api.get.api.decision.workspace.aggregated",
+    "auto.api.get.api.decision.workspace.conflicts",
+    "auto.api.get.api.decision.workspace.recommendations",
+    "auto.api.get.api.prompt.chains.execution_modes",
+    "auto.api.get.api.prompt.logs",
+    "auto.api.get.api.prompt.templates.categories",
+    "backtest.apply",
+    "backtest.delete",
+    "backtest.detail",
+    "backtest.list",
+    "backtest.rerun",
+    "backtest.run",
+    "backtest.summary",
+    "beta-gate.config-create",
+    "beta-gate.config-delete",
+    "beta-gate.config-detail",
+    "beta-gate.config-list",
+    "beta-gate.config-update",
+    "beta-gate.rollback",
+    "beta-gate.test-assets",
+    "beta-gate.version-compare",
+    "broker-execution.account-access",
+    "broker-execution.account-access-list",
+    "broker-execution.account-access-preview",
+    "broker-execution.advisor-draft",
+    "broker-execution.advisor-draft-preview",
+    "broker-execution.agent-binding",
+    "broker-execution.agent-binding-preview",
+    "broker-execution.approval-preview",
+    "broker-execution.approve-order",
+    "broker-execution.audit-list",
+    "broker-execution.cancel-preview",
+    "broker-execution.connection-status",
+    "broker-execution.connection-sync",
+    "broker-execution.connection-sync-preview",
+    "broker-execution.credential-revoke",
+    "broker-execution.credential-revoke-preview",
+    "broker-execution.credential-rotate",
+    "broker-execution.credential-rotate-preview",
+    "broker-execution.kill-switch-preview",
+    "broker-execution.order-detail",
+    "broker-execution.order-list",
+    "broker-execution.overview",
+    "broker-execution.reconciliation-list",
+    "broker-execution.reject-order",
+    "broker-execution.reject-preview",
+    "broker-execution.request-cancel",
+    "broker-execution.resolve-reconciliation",
+    "broker-execution.resolve-reconciliation-preview",
+    "broker-execution.resume-preview",
+    "broker-execution.resume-trading",
+    "broker-execution.settings",
+    "broker-execution.settings-preview",
+    "broker-execution.trigger-kill-switch",
+    "capability-router.admin-create-mcp-token",
+    "capability-router.admin-revoke-mcp-token",
+    "capability-router.admin-revoke-user-mcp-tokens",
+    "capability-router.admin-toggle-user-mcp",
+    "capability-router.create-my-mcp-token",
+    "capability-router.list-mcp-routing-off",
+    "capability-router.list-mcp-tools",
+    "capability-router.list-my-mcp-tokens",
+    "capability-router.mcp-admin-user-detail",
+    "capability-router.mcp-admin-users",
+    "capability-router.mcp-self-endpoints",
+    "capability-router.mcp-self-prompt-guide",
+    "capability-router.mcp-self-status",
+    "capability-router.mcp-tool-detail",
+    "capability-router.mcp-tools-stats",
+    "capability-router.revoke-my-mcp-token",
+    "capability-router.sync-mcp-tools",
+    "capability-router.toggle-mcp-routing",
+    "capability-router.toggle-mcp-terminal",
+    "capability-router.verify-my-mcp-access",
+    "config_center.alpha_universe_members",
+    "config_center.alpha_universe_save",
+    "config_center.alpha_universes",
+    "config_center.qlib_runtime",
+    "config_center.qlib_runtime_update",
+    "config_center.training_profile_save",
+    "config_center.training_profiles",
+    "config_center.training_run_detail",
+    "config_center.training_run_trigger",
+    "config_center.training_runs",
+    "dashboard.alpha-history",
+    "dashboard.alpha-history-detail",
+    "dashboard.alpha-ranking",
+    "dashboard.overview-summary",
+    "data-center.governance-overview",
+    "data-center.governance-run",
+    "data-center.market-thermometer-calculate",
+    "data-center.market-thermometer-config",
+    "data-center.market-thermometer-config-update",
+    "data-center.market-thermometer-current",
+    "data-center.market-thermometer-import",
+    "data-center.market-thermometer-import-preview",
+    "data-center.market-thermometer-sync",
+    "data-center.provider-status",
+    "data-center.provider-test",
+    "data-center.publisher-create",
+    "data-center.publisher-delete",
+    "data-center.publisher-detail",
+    "data-center.publisher-update",
+    "data-center.universe-config",
+    "data-center.universe-summary",
+    "data-center.universe-update",
+    "decision-rhythm.quota-list",
+    "decision-rhythm.quota-reset",
+    "decision-rhythm.quota-trend",
+    "decision-rhythm.quota-update",
+    "decision.execute.approve",
+    "decision.execute.preview",
+    "decision.execute.reject",
+    "decision.workspace.invalidation_ai_draft",
+    "decision.workspace.invalidation_template",
+    "decision.workspace.plan_generate",
+    "decision.workspace.plan_update",
+    "decision.workspace.recommendation_action",
+    "decision.workspace.recommendations_refresh",
+    "equity.intraday-price",
+    "equity.pool-list",
+    "equity.pool-refresh",
+    "equity.pool-sector-distribution",
+    "equity.pool-summary",
+    "equity.regime-correlation",
+    "equity.screen-stocks",
+    "equity.technical-momentum",
+    "equity.technical-price",
+    "equity.valuation-config-activate",
+    "equity.valuation-config-active",
+    "equity.valuation-config-clear-cache",
+    "equity.valuation-config-create",
+    "equity.valuation-config-delete",
+    "equity.valuation-config-list",
+    "equity.valuation-config-rollback",
+    "equity.valuation-config-update",
+    "equity.valuation-overview",
+    "equity.valuation-repair-detail",
+    "equity.valuation-repair-history",
+    "equity.valuation-repair-list",
+    "equity.valuation-repair-scan",
+    "factor.calculate-config",
+    "factor.definition-create",
+    "factor.definition-delete",
+    "factor.definition-detail",
+    "factor.definition-list",
+    "factor.definition-toggle",
+    "factor.definition-update",
+    "factor.explain-config-stock",
+    "factor.portfolio-config-activate",
+    "factor.portfolio-config-create",
+    "factor.portfolio-config-deactivate",
+    "factor.portfolio-config-delete",
+    "factor.portfolio-config-detail",
+    "factor.portfolio-config-generate",
+    "factor.portfolio-config-list",
+    "factor.portfolio-config-update",
+    "factor.portfolio-factor-weight-remove",
+    "factor.portfolio-factor-weight-set",
+    "fund.holdings",
+    "fund.info",
+    "fund.multidim-screen",
+    "fund.nav",
+    "fund.performance",
+    "fund.rank",
+    "fund.score",
+    "fund.style",
+    "hedge.alert-active",
+    "hedge.alert-list",
+    "hedge.alert-monitor",
+    "hedge.alert-resolve",
+    "hedge.pair-activate",
+    "hedge.pair-create",
+    "hedge.pair-deactivate",
+    "hedge.pair-delete",
+    "hedge.pair-detail",
+    "hedge.pair-effectiveness",
+    "hedge.pair-list",
+    "hedge.pair-update",
+    "hedge.snapshot-latest",
+    "hedge.snapshot-list",
+    "hedge.snapshot-update-all",
+    "identity-access.approve-user",
+    "identity-access.reject-user",
+    "identity-access.reset-user",
+    "identity-access.set-user-role",
+    "identity-access.user-list",
+    "macro.indicator-trend",
+    "macro.overview-summary",
+    "macro.risk-timeline",
+    "macro.trend-filter-chart",
+    "macro.trend-filter-components",
+    "macro.trend-filter-summary",
+    "operator.governance.data_center_summary",
+    "ops.semantic-governance-apply",
+    "ops.semantic-governance-audit",
+    "ops.semantic-governance-overview",
+    "ops.semantic-governance-preview",
+    "param.api.get.api.prompt.chains.pk",
+    "param.api.get.api.prompt.logs.pk",
+    "param.api.get.api.prompt.templates.pk",
+    "policy.event-create",
+    "policy.event-detail",
+    "policy.event-list",
+    "policy.queue_summary",
+    "policy.rss-fetch-all",
+    "policy.rss-keyword-create",
+    "policy.rss-keyword-delete",
+    "policy.rss-keyword-detail",
+    "policy.rss-keyword-list",
+    "policy.rss-keyword-update",
+    "policy.rss-log-detail",
+    "policy.rss-log-list",
+    "policy.rss-reader",
+    "policy.rss-source-create",
+    "policy.rss-source-delete",
+    "policy.rss-source-detail",
+    "policy.rss-source-fetch",
+    "policy.rss-source-list",
+    "policy.rss-source-update",
+    "policy.workbench-approve",
+    "policy.workbench-bootstrap",
+    "policy.workbench-item-detail",
+    "policy.workbench-override",
+    "policy.workbench-reject",
+    "policy.workbench-rollback",
+    "policy.workbench_items",
+    "prompt-chain.create",
+    "prompt-chain.delete",
+    "prompt-chain.list",
+    "prompt-chain.update",
+    "prompt-log.recent",
+    "prompt-template.create",
+    "prompt-template.delete",
+    "prompt-template.execute",
+    "prompt-template.list",
+    "prompt-template.update",
+    "regime.current",
+    "regime.distribution-chart",
+    "regime.momentum-chart",
+    "regime.navigator_history",
+    "risk-center.account-policies",
+    "risk-center.create-exception",
+    "risk-center.daily-report",
+    "risk-center.daily-report-history",
+    "risk-center.effective-policy",
+    "risk-center.exceptions",
+    "risk-center.floor",
+    "risk-center.post-investment-check",
+    "risk-center.pre-trade-check",
+    "risk-center.templates",
+    "risk-center.update-floor",
+    "risk-center.upsert-policy",
+    "rotation.account-config-apply-template",
+    "rotation.account-config-by-account",
+    "rotation.account-config-create",
+    "rotation.account-config-delete",
+    "rotation.account-config-detail",
+    "rotation.account-config-list",
+    "rotation.account-config-update",
+    "rotation.asset-create",
+    "rotation.asset-delete",
+    "rotation.asset-detail",
+    "rotation.asset-import",
+    "rotation.asset-import-preview",
+    "rotation.asset-list",
+    "rotation.asset-prices",
+    "rotation.asset-update",
+    "rotation.config-activate",
+    "rotation.config-create",
+    "rotation.config-deactivate",
+    "rotation.config-delete",
+    "rotation.config-detail",
+    "rotation.config-generate_signal",
+    "rotation.config-list",
+    "rotation.config-update",
+    "rotation.signal-detail",
+    "rotation.signal-latest",
+    "rotation.signal-list",
+    "rotation.template-list",
+    "screen:account.self-service",
+    "screen:account.self-service;api-library.data-center",
+    "screen:ai-ops.providers",
+    "screen:ai-ops.providers;ai-ops.system-providers",
+    "screen:ai-ops.system-providers",
+    "screen:ai-ops.terminal",
+    "screen:ai-ops.user-quotas",
+    "screen:api-library.data-center",
+    "screen:capability-router.admin-access",
+    "screen:capability-router.mcp-center",
+    "screen:capability-router.self-service",
+    "screen:capability-router.self-service;capability-router.mcp-center",
+    "screen:command-center.decision-flow",
+    "screen:command-center.overview",
+    "screen:execution.accounts",
+    "screen:execution.audit",
+    "screen:identity-access.user-governance",
+    "screen:macro-regime.overview",
+    "screen:macro-regime.strategy",
+    "screen:policy.workbench",
+    "screen:prompt.workbench",
+    "screen:research.asset-lab",
+    "screen:research.signals",
+    "screen:system.qlib-center",
+    "screen:system.settings",
+    "sentiment.analyze-text",
+    "sentiment.dashboard-summary",
+    "sentiment.health",
+    "sentiment.index-trend",
+    "signal.approve",
+    "signal.batch-check",
+    "signal.create",
+    "signal.delete",
+    "signal.invalidate",
+    "signal.list",
+    "signal.reject",
+    "signal.update",
+    "simulated-trading.account-batch-delete",
+    "simulated-trading.account-create",
+    "simulated-trading.account-delete",
+    "simulated-trading.account-detail",
+    "simulated-trading.accounts",
+    "simulated-trading.equity-curve",
+    "simulated-trading.inspection-notification",
+    "simulated-trading.inspection-notification-update",
+    "simulated-trading.performance",
+    "simulated-trading.positions",
+    "simulated-trading.strategy-bind",
+    "simulated-trading.strategy-options",
+    "simulated-trading.strategy-unbind",
+    "simulated-trading.trades",
+    "strategy.ai-config-create",
+    "strategy.ai-config-list",
+    "strategy.ai-config-update",
+    "strategy.execute",
+    "strategy.execution-log-list",
+    "strategy.position-rule-create",
+    "strategy.position-rule-list",
+    "strategy.position-rule-update",
+    "strategy.preview",
+    "strategy.rule-create-composite",
+    "strategy.rule-create-macro",
+    "strategy.rule-create-regime",
+    "strategy.rule-create-signal",
+    "strategy.rule-list",
+    "strategy.rule-update-composite",
+    "strategy.rule-update-macro",
+    "strategy.rule-update-regime",
+    "strategy.rule-update-signal",
+    "strategy.script-create",
+    "strategy.script-list",
+    "strategy.script-update",
+    "strategy.workbench-activate",
+    "strategy.workbench-create",
+    "strategy.workbench-deactivate",
+    "strategy.workbench-delete",
+    "strategy.workbench-detail",
+    "strategy.workbench-list",
+    "strategy.workbench-update",
+    "system-settings.read",
+    "system-settings.update",
+    "task-monitor.celery-health",
+    "task-monitor.dashboard",
+    "task-monitor.readiness",
+    "task-monitor.readiness-schedule",
+    "task-monitor.readiness-schedule-update",
+    "task-monitor.scheduler-bootstrap",
+    "task-monitor.scheduler-catalog",
+    "task-monitor.statistics",
+    "task-monitor.task-detail",
+    "task-monitor.task-list",
+    "terminal.agent_chat"
+  ]
+}

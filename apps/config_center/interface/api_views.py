@@ -15,6 +15,7 @@ from apps.config_center.application.use_cases import (
     CreateOrUpdateQlibTrainingProfileUseCase,
     GetQlibRuntimeConfigUseCase,
     GetQlibTrainingRunDetailUseCase,
+    GetSystemGovernanceSettingsUseCase,
     ListAlphaUniverseConfigsUseCase,
     ListQlibTrainingProfilesUseCase,
     ListQlibTrainingRunsUseCase,
@@ -23,6 +24,7 @@ from apps.config_center.application.use_cases import (
     SaveAlphaUniverseConfigUseCase,
     TriggerQlibTrainingUseCase,
     UpdateQlibRuntimeConfigUseCase,
+    UpdateSystemGovernanceSettingsUseCase,
     ValidationFailureError,
 )
 from apps.config_center.interface.serializers import (
@@ -30,6 +32,7 @@ from apps.config_center.interface.serializers import (
     QlibRuntimeConfigSerializer,
     QlibTrainingProfileSerializer,
     QlibTrainingRunTriggerSerializer,
+    SystemGovernanceSettingsSerializer,
 )
 
 
@@ -130,6 +133,24 @@ class QlibRuntimeConfigView(StaffReadSuperuserWriteMixin):
         except QlibAccessDeniedError as exc:
             return self._permission_denied(exc)
         return Response({"success": True, "data": payload})
+
+
+class SystemGovernanceSettingsView(APIView):
+    """Read and update global settings through the config-center owner."""
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request: Request) -> Response:
+        payload = GetSystemGovernanceSettingsUseCase().execute()
+        return Response(SystemGovernanceSettingsSerializer(payload).data)
+
+    def put(self, request: Request) -> Response:
+        serializer = SystemGovernanceSettingsSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        payload = UpdateSystemGovernanceSettingsUseCase().execute(
+            payload=dict(serializer.validated_data)
+        )
+        return Response(SystemGovernanceSettingsSerializer(payload).data)
 
 
 class QlibTrainingProfileListCreateView(StaffReadSuperuserWriteMixin):

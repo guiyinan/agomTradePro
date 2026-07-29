@@ -2,7 +2,8 @@
 AI Capability Catalog API URLs.
 """
 
-from django.urls import URLPattern, URLResolver, path
+from django.urls import path
+from django.urls.resolvers import URLPattern, URLResolver
 from rest_framework.routers import DefaultRouter
 
 from .api_views import (
@@ -25,6 +26,10 @@ from .semantic_governance_views import (
     SemanticGovernanceAuditView,
     SemanticGovernancePreviewView,
     SemanticGovernanceView,
+)
+from .tui_semantic_governance import (
+    SemanticSingleApplyView,
+    SemanticSinglePreviewView,
 )
 
 router = DefaultRouter()
@@ -70,6 +75,16 @@ urlpatterns: list[URLPattern | URLResolver] = [
         "semantic-governance/audit/",
         SemanticGovernanceAuditView.as_view(),
         name="semantic-governance-audit",
+    ),
+    path(
+        "semantic-governance/single-preview/",
+        SemanticSinglePreviewView.as_view(),
+        name="semantic-governance-single-preview",
+    ),
+    path(
+        "semantic-governance/single-apply/",
+        SemanticSingleApplyView.as_view(),
+        name="semantic-governance-single-apply",
     ),
 ]
 

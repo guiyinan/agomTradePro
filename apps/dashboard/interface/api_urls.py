@@ -12,12 +12,15 @@ from apps.dashboard.interface import (
     portfolio_views,
     workflow_views,
 )
+from apps.dashboard.interface.tui_views import DashboardTuiOverviewView
 
 app_name = "dashboard_api"
 
 
 def dashboard_api_root(request: HttpRequest) -> JsonResponse:
     """Discoverable dashboard API root."""
+
+    del request
     return JsonResponse(
         {
             "endpoints": {
@@ -61,6 +64,7 @@ def dashboard_api_root(request: HttpRequest) -> JsonResponse:
 
 urlpatterns = [
     path("", dashboard_api_root, name="api_root"),
+    path("tui/overview/", DashboardTuiOverviewView.as_view(), name="tui_overview"),
     path("attention-items/", macro_views.attention_items_htmx, name="attention_items"),
     path("regime-status/", macro_views.regime_status_htmx, name="regime_status"),
     path("pulse-card/", macro_views.pulse_card_htmx, name="pulse_card"),

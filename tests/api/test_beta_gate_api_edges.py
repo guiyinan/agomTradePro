@@ -377,6 +377,26 @@ def test_beta_gate_config_mutations_require_staff(authenticated_client, path):
 
 
 @pytest.mark.django_db
+def test_beta_gate_catalogs_and_page_roles_require_authentication(
+    api_client,
+    client,
+    test_user,
+):
+    assert api_client.get("/api/beta-gate/decisions/").status_code in {401, 403}
+    assert api_client.get("/api/beta-gate/universe/").status_code in {401, 403}
+    assert api_client.post("/api/beta-gate/config/suggest/", {}, format="json").status_code in {
+        401,
+        403,
+    }
+    assert client.get("/beta-gate/test/").status_code == 302
+    assert client.get("/beta-gate/version/").status_code == 302
+
+    client.force_login(test_user)
+    assert client.get("/beta-gate/config/").status_code == 302
+    assert client.get("/beta-gate/config/new/").status_code == 302
+
+
+@pytest.mark.django_db
 def test_beta_gate_staff_create_increments_version_and_switches_profile_activation(
     staff_client,
 ):

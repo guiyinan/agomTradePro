@@ -5,6 +5,7 @@
 {% block subtitle %}针对宏观数据口径、source 别名和缺口序列的治理台。{% endblock %}
 
 {% block content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="api-library.data-center" action_key="data-center.governance-overview" %}
 <section class="section">
     <h2>治理摘要</h2>
     <p class="lead">这里不只看 GDP。高风险宏观指标的口径、配对序列、source 规范和存量缺口都集中审计。</p>

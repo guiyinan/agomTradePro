@@ -18,17 +18,16 @@ This stage applies behavior-preserving refactoring to the initial four highest-r
 - Decision Rhythm ORM models now have focused rhythm/request, valuation/approval, portfolio-transition, unified-recommendation/execution-link, and model-parameter owners. The original model module remains the stable Django import and patch surface, with no schema migration.
 - Decision Rhythm repositories now have focused quota/request, valuation/recommendation/approval, and unified-recommendation/model-parameter owners. The original repository module is a thin stable import surface.
 - Data Center application use cases now have focused provider/catalog, read-query, decision-reliability, fact-query, macro-governance, and provider-sync owners. The original use-case module is an explicit compatibility aggregator with bounded exports.
-- Every remediated path was removed from both the allowance and remediation maps. Every remaining allowance has an owner, rationale, priority, target, review date, and this plan path.
+- Broker Execution persistence composes focused access, order-control, Agent runtime, Agent administration, and reconciliation owners behind the original repository class.
+- Strategy interface-facing ORM queries live in a focused owner while the legacy repository import remains stable.
+- Simulated Trading account, position, trade, daily-net-value, fee, and inspection persistence use bounded repository owners behind the original compatibility facade.
+- AI Capability catalog routing and read-only catalog queries use focused Application owners while the established use-case module preserves public symbol identity.
+- TUI workbench result rendering composes collection and detail owners behind the public result-model mixin.
+- Every remediated path was removed from both the allowance and remediation maps; both maps are now empty.
 
 ## Remaining scope
 
-The remaining allowances are not refactored in this stage. Their authoritative backlog is `large_file_remediation` in the governance baseline:
-
-- AI Capability application orchestration is the only remaining allowance. It entered the P1 backlog on 2026-07-23 and requires responsibility-based decomposition that preserves its current public use-case facade.
-- P1 items must be reviewed by 2026-09-30.
-- P2 items must be reviewed by 2026-12-31.
-- A reached review date fails governance CI until the file is remediated or its metadata is deliberately revised through review.
-- Targets cannot exceed the repository-wide large-file threshold.
+There are no tracked large-file allowances after the 2026-07-29 branch integration. Any production Python file that exceeds the repository-wide threshold must be decomposed or enter a separately reviewed remediation plan; this stage must not be reopened merely to raise the machine baseline.
 
 ## Regression coverage
 
@@ -50,7 +49,7 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 
 - Runtime imports and compatibility exports are the main risk because tests and adjacent interface modules patch legacy paths. Each original module therefore retains thin exports or aggregators.
 - Celery task registration is kept in the original module; Infrastructure modules contain implementation only.
-- Further large-file splits remain separate P1/P2 work packages and must retain independent compatibility tests and rollback points.
+- Further large-file splits remain independent work packages and must retain compatibility tests and rollback points.
 - Each responsibility split is independently revertible. If a regression is found, revert the corresponding split together with its baseline removal so governance remains internally consistent.
 - No database schema, route, API payload, template key, TUI key, or Celery task name changes are part of this stage.
 
@@ -191,3 +190,21 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - Focused integration coverage includes account, position, trade, fee, daily-net-value, performance-curve, and strategy auto-trading consumers.
 - Formatting, import sorting, architecture/governance checks, and incremental mypy are required before merge.
 - Roll back the facade and all owner modules together with the structure contract and paired baseline removal. No model, migration, API, route, or payload change is part of this split.
+
+## 2026-07-29 branch integration closure
+
+### Completed
+
+- Integrated the dedicated Broker Execution, Strategy, and Simulated Trading repository-remediation histories into `dev/next-development` while retaining the more granular repository owners and their tighter structural budgets.
+- Integrated the AI Capability and TUI result-model splits from the Web-to-TUI migration line without restoring the superseded duplicate Broker repository implementation.
+- Preserved the MCP runtime validation boundary and redacted AI fallback errors while moving catalog query/routing responsibilities out of the AI Capability facade.
+- Removed the final AI Capability entries from `allowed_large_python_files` and `large_file_remediation`; both governance maps are empty.
+
+### Verification and rollback
+
+- Integrated structure and file-size guardrails: `13 passed`.
+- Conflict-focused API, Prometheus, TUI, Terminal Agent, SDK, and SSL package: `445 passed` after three contract fixes.
+- Django system check and the 196-template Web-to-TUI inventory check passed.
+- Governance consistency reports `0` violations; incremental and full mypy debt gates report `0` errors.
+- The full automated suite remains required on the committed integrated tree before branch cleanup.
+- Roll back the integration merge as one unit if cross-line compatibility fails; do not restore duplicate repository owners or increase the machine baseline to bypass a structural regression.

@@ -4,6 +4,15 @@
 
 {% block content %}
 {% include "components/json_assistant_assets.html" %}
+<div role="status" style="margin: 0 auto 16px; max-width: 1000px; padding: 12px 16px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a;">
+    Beta Gate 配置编辑已迁入 TUI。
+    {% if form_mode == "edit" %}
+    <a href="/tui/?screen=macro-regime.strategy&amp;action=beta-gate.config-update&amp;pk={{ config.config_id }}" style="color:#1d4ed8; font-weight:700;">打开此配置的替代版本任务</a>。
+    {% else %}
+    <a href="/tui/?screen=macro-regime.strategy&amp;action=beta-gate.config-create" style="color:#1d4ed8; font-weight:700;">打开创建配置任务</a>。
+    {% endif %}
+    当前 Classic 页面仅在兼容期内保留。
+</div>
 <style>
 .json-builder {
     margin-top: 10px;

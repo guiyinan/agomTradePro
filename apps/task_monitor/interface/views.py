@@ -16,6 +16,13 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apps.task_monitor.application.interface_services import (
+    bootstrap_scheduler_defaults,
+    configure_readiness_schedule,
+    get_readiness_monitor_context,
+    get_readiness_schedule_payload,
+    get_scheduler_console_payload,
+)
 from apps.task_monitor.application.provider import (
     get_celery_health_checker,
     get_task_record_repository,
@@ -28,6 +35,9 @@ from apps.task_monitor.application.use_cases import (
 )
 from apps.task_monitor.interface.serializers import (
     HealthCheckSerializer,
+    ReadinessMonitorQuerySerializer,
+    ReadinessScheduleUpdateSerializer,
+    SchedulerConsoleQuerySerializer,
     TaskListSerializer,
     TaskStatisticsSerializer,
     TaskStatusSerializer,
@@ -82,6 +92,79 @@ def _internal_error(operation: str) -> Response:
     return Response(
         {"error": "Task monitor operation failed", "code": "INTERNAL_ERROR"},
         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
+
+@typed_schema(
+    tags=["Task Monitor"],
+    summary="读取计划任务管理台",
+    responses={200: dict},
+)
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def scheduler_console(request: Request) -> Response:
+    """Return the bounded administrator scheduler console payload."""
+
+    query = SchedulerConsoleQuerySerializer(data=request.query_params)
+    query.is_valid(raise_exception=True)
+    return Response(get_scheduler_console_payload(limit=query.validated_data.get("limit", 100)))
+
+
+@typed_schema(
+    tags=["Task Monitor"],
+    summary="初始化默认计划任务",
+    responses={200: dict},
+)
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def bootstrap_scheduler(request: Request) -> Response:
+    """Initialize the repository-owned default periodic tasks."""
+
+    del request
+    return Response(bootstrap_scheduler_defaults())
+
+
+@typed_schema(
+    tags=["Task Monitor"],
+    summary="读取 readiness 验收状态",
+    responses={200: dict},
+)
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def readiness_monitor(request: Request) -> Response:
+    """Return readiness status with an optional strict runtime probe."""
+
+    query = ReadinessMonitorQuerySerializer(data=request.query_params)
+    query.is_valid(raise_exception=True)
+    return Response(
+        get_readiness_monitor_context(
+            strict_runtime=bool(query.validated_data["strict_runtime"]),
+        )
+    )
+
+
+@typed_schema(
+    tags=["Task Monitor"],
+    summary="读取或更新 readiness 调度时间",
+    request=ReadinessScheduleUpdateSerializer,
+    responses={200: dict},
+)
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAdminUser])
+def readiness_schedule(request: Request) -> Response:
+    """Read or update the post-close readiness schedule times."""
+
+    if request.method == "GET":
+        return Response(get_readiness_schedule_payload())
+
+    serializer = ReadinessScheduleUpdateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    return Response(
+        configure_readiness_schedule(
+            quote_pre_refresh_time=str(serializer.validated_data["quote_pre_refresh_time"]),
+            daily_evidence_time=str(serializer.validated_data["daily_evidence_time"]),
+            weekly_auto_advisor_time=str(serializer.validated_data["weekly_auto_advisor_time"]),
+        )
     )
 
 

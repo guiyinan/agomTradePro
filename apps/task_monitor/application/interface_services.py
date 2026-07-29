@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import Any
 
 from apps.operational_readiness.application.monitor_service import (
@@ -50,6 +51,25 @@ def get_scheduler_console_context(*, limit: int = 100) -> dict[str, Any]:
     }
 
 
+def get_scheduler_console_payload(*, limit: int = 100) -> dict[str, Any]:
+    """Return a JSON-safe scheduler console payload for owner interfaces."""
+
+    response = GetSchedulerConsoleUseCase(
+        scheduler_repository=get_scheduler_repository(),
+        health_checker=get_celery_health_checker(),
+        task_record_repository=get_task_record_repository(),
+    ).execute(limit=limit)
+    return {
+        "summary": asdict(response.summary),
+        "health": asdict(response.health),
+        "periodic_tasks": [asdict(item) for item in response.periodic_tasks],
+        "recent_failures": asdict(response.recent_failures),
+        "maintenance": get_maintenance_status_reader().read(),
+        "readiness_schedule": get_readiness_schedule_payload(),
+        "readiness_monitor": get_personal_readiness_monitor_placeholder(),
+    }
+
+
 def get_readiness_monitor_page_context() -> dict[str, Any]:
     """Return lightweight template context for the readiness monitor page."""
 
@@ -67,6 +87,15 @@ def get_readiness_monitor_context(*, strict_runtime: bool = False) -> dict[str, 
     """Return the daily readiness monitor payload for page JSON refreshes."""
 
     return get_personal_readiness_monitor_summary(strict_runtime=strict_runtime)
+
+
+def get_readiness_schedule_payload() -> dict[str, Any]:
+    """Return the configured readiness schedule as a JSON-safe mapping."""
+
+    response = GetReadinessScheduleUseCase(
+        scheduler_repository=get_scheduler_repository(),
+    ).execute()
+    return asdict(response)
 
 
 def bootstrap_scheduler_defaults() -> dict[str, Any]:

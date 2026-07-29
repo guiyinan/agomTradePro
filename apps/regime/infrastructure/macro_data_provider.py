@@ -99,10 +99,6 @@ class DataCenterMacroRepositoryAdapter:
             return float(value) - 100.0
         return float(value)
 
-    def __init__(self) -> None:
-        self._period_type_cache: dict[str, str] = {}
-        self._catalog_extra_cache: dict[str, dict[str, Any]] = {}
-
     def _get_models(self) -> tuple[type[Any], type[Any]]:
         from apps.data_center.infrastructure.models import (
             IndicatorCatalogModel,
@@ -112,20 +108,18 @@ class DataCenterMacroRepositoryAdapter:
         return IndicatorCatalogModel, MacroFactModel
 
     def _get_default_period_type(self, indicator_code: str) -> str:
-        if indicator_code not in self._period_type_cache:
-            IndicatorCatalogModel, _ = self._get_models()
-            catalog = IndicatorCatalogModel._default_manager.filter(code=indicator_code).first()
-            self._period_type_cache[indicator_code] = (
-                catalog.default_period_type if catalog else "D"
-            )
-        return self._period_type_cache[indicator_code]
+        """Read the current catalog period type without retaining stale governance state."""
+
+        IndicatorCatalogModel, _ = self._get_models()
+        catalog = IndicatorCatalogModel._default_manager.filter(code=indicator_code).first()
+        return str(catalog.default_period_type) if catalog else "D"
 
     def _get_catalog_extra(self, indicator_code: str) -> dict[str, Any]:
-        if indicator_code not in self._catalog_extra_cache:
-            IndicatorCatalogModel, _ = self._get_models()
-            catalog = IndicatorCatalogModel._default_manager.filter(code=indicator_code).first()
-            self._catalog_extra_cache[indicator_code] = dict(catalog.extra or {}) if catalog else {}
-        return self._catalog_extra_cache[indicator_code]
+        """Read live catalog governance metadata for the requested indicator."""
+
+        IndicatorCatalogModel, _ = self._get_models()
+        catalog = IndicatorCatalogModel._default_manager.filter(code=indicator_code).first()
+        return dict(catalog.extra or {}) if catalog else {}
 
     def _is_regime_direct_input_allowed(self, indicator_code: str) -> bool:
         return bool(

@@ -34,6 +34,7 @@ from .serializers import (
 )
 
 MAX_BROKER_IMPORT_FILE_BYTES = 10 * 1024 * 1024
+MAX_TUI_BROKER_IMPORT_TEXT_BYTES = 2 * 1024 * 1024
 ALLOWED_BROKER_IMPORT_SUFFIXES = {".csv", ".xlsx", ".xls"}
 MAX_TRANSACTION_NOTIONAL = Decimal("999999999999999999.99")
 NOTIONAL_QUANTUM = Decimal("0.01")
@@ -132,6 +133,74 @@ class BrokerTradeImportSerializer(serializers.Serializer[dict[str, Any]]):
         if value.size is None or value.size > MAX_BROKER_IMPORT_FILE_BYTES:
             raise serializers.ValidationError("导入文件不能超过 10 MiB")
         return value
+
+
+class BrokerTradeTuiImportSerializer(serializers.Serializer[dict[str, Any]]):
+    """Validate UTF-8 CSV text submitted by the TUI file field."""
+
+    portfolio_id = serializers.IntegerField(min_value=1)
+    broker_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="manual",
+        max_length=64,
+        trim_whitespace=True,
+    )
+    file = serializers.CharField(
+        allow_blank=False,
+        trim_whitespace=False,
+        max_length=MAX_TUI_BROKER_IMPORT_TEXT_BYTES,
+    )
+
+    def validate_file(self, value: str) -> str:
+        """Reject text whose encoded payload exceeds the runtime file budget."""
+
+        if len(value.encode("utf-8")) > MAX_TUI_BROKER_IMPORT_TEXT_BYTES:
+            raise serializers.ValidationError("CSV 文件不能超过 2 MiB")
+        return value
+
+
+class _BrokerTradeTuiImportBaseView(APIView):
+    """Shared TUI boundary for previewing or confirming UTF-8 CSV imports."""
+
+    permission_classes = [IsAuthenticated, TradingPermission]
+
+    preview_only = True
+
+    def post(self, request: Request) -> Response:
+        """Run the owner-scoped manual trade import use case."""
+
+        serializer = BrokerTradeTuiImportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        use_case = ManualTradeImportUseCase()
+        operation = use_case.preview if self.preview_only else use_case.confirm
+        try:
+            result = operation(
+                user_id=_authenticated_user_id(request),
+                portfolio_id=data["portfolio_id"],
+                broker_name=data.get("broker_name") or "manual",
+                filename="tui-manual-trades.csv",
+                content=data["file"].encode("utf-8"),
+            )
+        except LookupError as exc:
+            raise PermissionDenied("无权导入该投资组合的券商成交") from exc
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("CSV 文件格式或内容无效") from exc
+        return Response(
+            asdict(result),
+            status=status.HTTP_200_OK if self.preview_only else status.HTTP_201_CREATED,
+        )
+
+
+class BrokerTradeTuiImportPreviewView(_BrokerTradeTuiImportBaseView):
+    """Preview a UTF-8 CSV manual trade file submitted by the TUI."""
+
+
+class BrokerTradeTuiImportConfirmView(_BrokerTradeTuiImportBaseView):
+    """Confirm a UTF-8 CSV manual trade import submitted by the TUI."""
+
+    preview_only = False
 
 
 class BrokerTradeImportPreviewView(APIView):

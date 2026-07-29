@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from django.apps import apps as django_apps
 
@@ -186,3 +188,79 @@ def test_policy_rss_source_access_key_is_write_only(staff_client):
     detail = staff_client.get(f"/api/policy/rss/sources/{payload['id']}/")
     assert detail.status_code == 200
     assert "rsshub_custom_access_key" not in detail.json()
+
+
+@pytest.mark.django_db
+def test_policy_event_create_classic_page_requires_staff(client, test_user):
+    assert client.get("/policy/events/new/").status_code == 302
+
+    client.force_login(test_user)
+    assert client.get("/policy/events/new/").status_code == 403
+
+    test_user.is_staff = True
+    test_user.save(update_fields=["is_staff"])
+    client.force_login(test_user)
+    assert client.get("/policy/events/new/").status_code == 200
+
+
+@pytest.mark.django_db
+def test_policy_rss_governance_pages_require_staff_but_reader_allows_login(
+    client,
+    test_user,
+):
+    admin_paths = (
+        "/policy/rss/sources/",
+        "/policy/rss/sources/new/",
+        "/policy/rss/keywords/",
+        "/policy/rss/keywords/new/",
+        "/policy/rss/logs/",
+    )
+    client.force_login(test_user)
+    assert all(client.get(path).status_code == 403 for path in admin_paths)
+    assert client.get("/policy/rss/reader/").status_code == 200
+
+    test_user.is_staff = True
+    test_user.save(update_fields=["is_staff"])
+    client.force_login(test_user)
+    assert all(client.get(path).status_code == 200 for path in admin_paths)
+
+
+@pytest.mark.django_db
+def test_policy_rss_reader_api_is_authenticated_filtered_and_bounded(
+    authenticated_client,
+):
+    source_model = django_apps.get_model("policy", "RSSSourceConfigModel")
+    policy_log_model = django_apps.get_model("policy", "PolicyLog")
+    source = source_model._default_manager.create(
+        name="政策阅读源",
+        url="https://example.com/policy.xml",
+        category="gov_docs",
+        is_active=True,
+        fetch_interval_hours=6,
+    )
+    policy_log_model._default_manager.create(
+        event_date=date(2026, 7, 26),
+        level="P2",
+        title="政策阅读条目",
+        description="用于验证 RSS Reader owner API 的政策条目。",
+        evidence_url="https://example.com/policy/1",
+        info_category="macro",
+        rss_source=source,
+        audit_status="pending_review",
+    )
+
+    response = authenticated_client.get(
+        "/api/policy/rss/reader/",
+        {
+            "source_id": source.id,
+            "level": "P2",
+            "category": "macro",
+            "limit": 1,
+            "offset": 0,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["count"] == 1
+    assert response.json()["results"][0]["title"] == "政策阅读条目"
+    assert response.json()["results"][0]["rss_source_name"] == "政策阅读源"

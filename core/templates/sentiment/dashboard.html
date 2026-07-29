@@ -158,6 +158,7 @@
 {% endblock %}
 
 {% block content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="research.signals" action_key="sentiment.dashboard-summary" %}
 <div class="sentiment-dashboard">
     <div class="sentiment-header">
         <h1>舆情情感分析</h1>

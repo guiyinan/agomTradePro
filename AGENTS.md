@@ -445,6 +445,16 @@ test_score = StockScore(
 
 设计标准文档：`docs/development/tui-user-facing-design-standard.md`
 
+### 12. Web → TUI 迁移期页面冻结约束（临时）
+
+在 `docs/plans/web-to-tui-migration-plan-2026-07-25.md` 完成并归档前：
+
+- 新业务主任务默认只允许进入 `/tui/`，不得新增 Classic Django 业务页面。
+- `docs/plans/web-to-tui-migration-matrix-2026-07-25.csv` 当前覆盖 196 个模板（含迁移期共用提示组件；M0 初始基线为 195）；新增、删除或移动模板必须同步更新矩阵，并执行 `python scripts/web_template_migration_inventory.py --check`。
+- C 档保留流程、错误页、基座、Django Admin 与 TUI shell 如确需新增模板，PR 必须写明用户群、TUI 不适用原因、owner、保留期限，并同步更新 `config/tui/migration/web_template_migration.v1.json` 与计划 §8。
+- 既有 Classic 页面只允许缺陷修复、兼容提示和迁移导流，不得借修复扩展新的 Classic 主任务。
+- D 档模板必须有 URL/view、Django loader origin、继承/include、邮件/任务和测试引用证据，按独立 M0-D commit 删除。
+
 ## 代码风格
 
 - 类型标注：强制，所有生产代码函数必须完整标注参数与返回值

@@ -63,6 +63,8 @@ def test_mcp_guide_view_renders_connection_contract():
     assert response["Content-Type"].startswith("text/html")
     content = response.content.decode("utf-8")
     assert "MCP 接入说明" in content
+    assert "此经典页面已进入兼容期" in content
+    assert '/tui/?screen=capability-router.self-service' in content
     assert raw_key in content
     assert "Authorization: Token" in content
     assert "只读 Token" in content

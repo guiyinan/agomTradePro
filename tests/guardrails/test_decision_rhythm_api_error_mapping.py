@@ -61,7 +61,7 @@ def test_decision_rhythm_trend_invalid_days_returns_400(api_client):
 
 
 @pytest.mark.django_db
-def test_decision_rhythm_update_quota_invalid_numeric_returns_400(api_client):
+def test_decision_rhythm_update_quota_requires_admin(api_client):
     response = api_client.post(
         "/api/decision-rhythm/quota/update/",
         data={
@@ -71,4 +71,4 @@ def test_decision_rhythm_update_quota_invalid_numeric_returns_400(api_client):
         },
         content_type="application/json",
     )
-    assert response.status_code == 400
+    assert response.status_code == 403

@@ -547,6 +547,7 @@ class ManualTradeReviewSummaryUseCase:
             "batches": [
                 {
                     "id": batch.id,
+                    "portfolio_id": batch.portfolio_id,
                     "portfolio_name": batch.portfolio.name,
                     "broker_name": batch.broker_name,
                     "source_filename": batch.source_filename,
@@ -562,6 +563,7 @@ class ManualTradeReviewSummaryUseCase:
             "transactions": [
                 {
                     "id": tx.id,
+                    "portfolio_id": tx.portfolio_id,
                     "portfolio_name": tx.portfolio.name,
                     "asset_code": tx.asset_code,
                     "action": tx.action,

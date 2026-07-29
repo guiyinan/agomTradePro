@@ -153,7 +153,7 @@ class FundMultiDimScorer:
 
         if not funds:
             return {
-                "success": False,
+                "success": True,
                 "count": 0,
                 "message": "未找到符合条件的基金",
                 "funds": [],

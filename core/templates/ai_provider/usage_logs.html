@@ -14,6 +14,17 @@
     </p>
 </div>
 
+<div style="margin-bottom:18px; padding:14px 16px; border:1px solid #93c5fd; border-radius:14px; background:#eff6ff; color:#1e3a8a;">
+    <strong>迁移提示：</strong>
+    调用日志筛选已迁入 TUI。
+    {% if is_admin_view %}
+    <a href="/tui/?screen=ai-ops.system-providers&amp;action=ai-ops.system-ai-logs{% if filter_provider %}&amp;provider={{ filter_provider }}{% endif %}{% if filter_status %}&amp;status={{ filter_status }}{% endif %}&amp;limit={{ filter_limit }}" style="color:#1d4ed8; font-weight:700;">打开系统 AI 调用日志</a>。
+    {% else %}
+    <a href="/tui/?screen=ai-ops.providers&amp;action=ai-ops.my-ai-logs{% if filter_provider %}&amp;provider={{ filter_provider }}{% endif %}{% if filter_status %}&amp;status={{ filter_status }}{% endif %}&amp;limit={{ filter_limit }}" style="color:#1d4ed8; font-weight:700;">打开我的 AI 调用日志</a>。
+    {% endif %}
+    当前 Classic 页面仅在兼容期内保留。
+</div>
+
 <div style="margin-bottom: 24px; padding: 16px; background: var(--color-bg-light); border-radius: 4px;">
     <form method="get" style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
         <div>

@@ -48,13 +48,13 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert [group["key"] for group in registry["groups"]] == ["daily", "research", "system"]
     assert len(registry["published_screens"]) == 12
-    assert len(registry["runtime_screens"]) == 4
+    assert len(registry["runtime_screens"]) == 11
     assert len(registry["workflow"]) == 8
     assert sum(len(screen["sources"]) for screen in registry["published_screens"]) == 37
     assert (
         sum(len(screen.get("runtime_sources", [])) for screen in registry["published_screens"])
         + sum(len(screen["sources"]) for screen in registry["runtime_screens"])
-        == 13
+        == 18
     )
     assert aliases["macro-regime.pulse"] == "macro-regime.overview"
     assert aliases["command-center.auto-advisor"] == "command-center.decision-flow"
@@ -62,12 +62,12 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
     assert aliases["realtime-monitor.alerts"] == "execution.audit"
     assert aliases["broker-execution.overview"] == "execution.accounts"
     assert aliases["broker-execution.audit"] == "execution.audit"
-    assert aliases["ai-ops.user-quotas"] == "ai-ops.system-providers"
+    assert aliases["ai-ops.user-quotas"] == "ai-ops.user-quotas"
     assert aliases["capability-router.gateway"] == "capability-router.mcp-center"
-    assert aliases["capability-router.admin-access"] == "capability-router.mcp-center"
+    assert aliases["capability-router.admin-access"] == "capability-router.admin-access"
 
 
-def test_runtime_catalog_has_13_user_screens_and_16_admin_screens() -> None:
+def test_runtime_catalog_has_15_user_screens_and_23_admin_screens() -> None:
     payload = _runtime_payload()
     service = TuiWorkbenchService(metadata_repository=_StaticMetadataRepository(payload))
     user = SimpleNamespace(
@@ -88,16 +88,17 @@ def test_runtime_catalog_has_13_user_screens_and_16_admin_screens() -> None:
     user_screens = _catalog_screen_keys(service.get_catalog(user=user))
     admin_screens = _catalog_screen_keys(service.get_catalog(user=admin))
 
-    assert len(user_screens) == 13
-    assert len(admin_screens) == 16
+    assert len(user_screens) == 15
+    assert len(admin_screens) == 23
     assert "api-library.data-center" not in user_screens
     assert "ai-ops.system-providers" not in user_screens
     assert "capability-router.mcp-center" not in user_screens
-    assert admin_screens[-3:] == [
-        "api-library.data-center",
-        "capability-router.mcp-center",
-        "ai-ops.system-providers",
-    ]
+    assert "identity-access.user-governance" not in user_screens
+    assert "identity-access.user-governance" in admin_screens
+    assert "system.qlib-center" not in user_screens
+    assert "system.qlib-center" in admin_screens
+    assert "prompt.workbench" in user_screens
+    assert "prompt.workbench" in admin_screens
 
 
 def test_runtime_ia_is_idempotent_and_has_no_dangling_screen_references() -> None:
@@ -109,7 +110,7 @@ def test_runtime_ia_is_idempotent_and_has_no_dangling_screen_references() -> Non
     assert normalized_twice == normalized_once
     screen_keys = {screen["key"] for screen in normalized_once["screens"]}
     action_keys = {action["key"] for action in normalized_once["actions"]}
-    assert len(screen_keys) == 16
+    assert len(screen_keys) == 23
     assert all(action["screen_key"] in screen_keys for action in normalized_once["actions"])
     assert all(
         not panel.get("action_key") or panel["action_key"] in action_keys
@@ -146,6 +147,8 @@ def test_legacy_screen_keys_resolve_to_canonical_screens() -> None:
 
 def test_published_screens_define_panel_and_action_density_contracts() -> None:
     payload = validate_tui_metadata(json.loads(PUBLISHED_PATH.read_text(encoding="utf-8")))
+    registry = load_tui_information_architecture()
+    task_group_limit = registry["action_density"]["task_group_limit"]
 
     for screen in payload["screens"]:
         p0_panels = [
@@ -156,6 +159,29 @@ def test_published_screens_define_panel_and_action_density_contracts() -> None:
         if screen["key"] != "command-center.overview":
             assert len(p0_panels) <= 2
         assert screen["action_density"]["primary_operation_limit"] <= 12
-        assert screen["action_density"]["task_group_limit"] == 6
+        assert screen["action_density"]["task_group_limit"] == task_group_limit
         assert screen["user_experience"]["primary_task"]
         assert screen["user_experience"]["primary_outcome"]
+
+
+def test_macro_overview_publishes_portable_pulse_history_chart() -> None:
+    payload = validate_tui_metadata(json.loads(PUBLISHED_PATH.read_text(encoding="utf-8")))
+    screen = next(item for item in payload["screens"] if item["key"] == "macro-regime.overview")
+    action = next(item for item in payload["actions"] if item["key"] == "pulse.history")
+
+    panel = next(item for item in screen["dashboard_panels"] if item["key"] == "pulse-trend")
+    assert panel["kind"] == "chart"
+    assert panel["action_key"] == "pulse.history"
+    assert panel["empty_message"] == "暂无脉搏趋势数据。"
+    assert action["view_type"] == "chart"
+    assert action["view_model"] == {
+        "kind": "chart",
+        "rows_path": "data",
+        "total_path": "count",
+        "columns": [
+            {"key": "observed_at", "label": "日期"},
+            {"key": "composite_score", "label": "综合脉搏"},
+            {"key": "growth_score", "label": "增长"},
+            {"key": "inflation_score", "label": "通胀"},
+        ],
+    }

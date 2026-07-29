@@ -9,7 +9,7 @@ from drf_spectacular.utils import OpenApiParameter
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -42,6 +42,8 @@ from .serializers import (
 
 class DecisionQuotaViewSet(viewsets.ViewSet):
     """Decision quota read endpoints."""
+
+    permission_classes = [IsAuthenticated]
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -159,6 +161,8 @@ class ResetQuotaView(APIView):
 
 class TrendDataView(APIView):
     """GET /api/decision-rhythm/trend-data/"""
+
+    permission_classes = [IsAuthenticated]
 
     @typed_extend_schema(
         parameters=[

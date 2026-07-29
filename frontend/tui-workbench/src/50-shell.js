@@ -951,6 +951,7 @@
             els.moduleTree.innerHTML = '<div class="tui-loading">正在加载目录...</div>';
             setStatus("启动中");
             const deepLinkedScreen = screenKeyFromBrowserLocation();
+            const deepLinkedAction = actionKeyFromBrowserLocation();
             const requestedScreen = deepLinkedScreen || (
                 shouldResumeOnBoot() && state.lastNonHomeScreen
                     ? state.lastNonHomeScreen
@@ -967,8 +968,14 @@
                             state.operatorHomePayload = null;
                             state.operatorHomePromise = null;
                         }
-                        renderScreen(payload.screen);
-                        syncBrowserScreenLocation(payload.screen?.screen?.key, { replace: true });
+                        renderScreen(payload.screen, {
+                            suppressAutoAction: Boolean(deepLinkedAction),
+                        });
+                        focusDeepLinkedAction(payload.screen, deepLinkedAction);
+                        syncBrowserScreenLocation(payload.screen?.screen?.key, {
+                            replace: true,
+                            preserveAction: Boolean(deepLinkedAction),
+                        });
                         refreshGovernanceBadges();
                         if (requestedScreen && payload.resolved_screen !== requestedScreen) {
                             setStatus("上次工作区已不可用，已返回首页");
@@ -990,7 +997,11 @@
                 isResumeAttempt ? state.lastNonHomeScreen : catalog.default_screen
             );
             clearResumeOnBootFlag();
-            const loaded = await loadScreen(initialScreen, { replaceHistory: true });
+            const loaded = await loadScreen(initialScreen, {
+                replaceHistory: true,
+                preserveAction: Boolean(deepLinkedAction),
+                deepLinkedActionKey: deepLinkedAction,
+            });
             if (!loaded && (isResumeAttempt || deepLinkedScreen)) {
                 setStatus(deepLinkedScreen
                     ? "链接中的工作区不可用，已返回首页"
@@ -1054,7 +1065,13 @@
         window.addEventListener("popstate", () => {
             const screenKey = screenKeyFromBrowserLocation();
             if (screenKey && screenKey !== state.screen?.screen?.key) {
-                loadScreen(screenKey, { suppressHistory: true });
+                loadScreen(screenKey, {
+                    suppressHistory: true,
+                    preserveAction: true,
+                    deepLinkedActionKey: actionKeyFromBrowserLocation(),
+                });
+            } else if (screenKey) {
+                focusDeepLinkedAction(state.screen, actionKeyFromBrowserLocation());
             }
         });
         updateClock();

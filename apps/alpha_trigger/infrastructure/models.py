@@ -87,12 +87,14 @@ class AlphaTriggerModel(models.Model):
     INVALIDATED = "INVALIDATED"
     EXPIRED = "EXPIRED"
     CANCELLED = "CANCELLED"
+    PAUSED = "PAUSED"
     STATUS_CHOICES = [
         (ACTIVE, "活跃"),
         (TRIGGERED, "已触发"),
         (INVALIDATED, "已证伪"),
         (EXPIRED, "已过期"),
         (CANCELLED, "已取消"),
+        (PAUSED, "已暂停"),
     ]
 
     # Strength Choices

@@ -116,7 +116,7 @@ class CreateProviderUseCase:
         name: str,
         provider_type: str,
         base_url: str,
-        api_key: str,
+        api_key: str = "",
         default_model: str = "gpt-3.5-turbo",
         api_mode: str = "dual",
         fallback_enabled: bool = True,

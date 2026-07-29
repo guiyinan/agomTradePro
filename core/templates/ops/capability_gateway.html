@@ -196,6 +196,11 @@
 {% endblock %}
 
 {% block content %}
+{% if request.user.is_staff or request.user.is_superuser %}
+    {% include "components/classic_tui_migration_banner.html" with screen_key="capability-router.mcp-center" action_key="ops.semantic-governance-overview" %}
+{% else %}
+    {% include "components/classic_tui_migration_banner.html" with screen_key="capability-router.self-service" action_key="capability-router.mcp-self-status" %}
+{% endif %}
 <div class="admin-shell admin-shell--wide">
     <div class="admin-shell__hero">
         <div class="admin-shell__lead">

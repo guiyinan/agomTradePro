@@ -572,10 +572,15 @@ def test_tui_auto_advisor_screen_defaults_to_account_selector(client, tui_user):
     assert {panel["action_key"] for panel in panels} == {
         "auto.api.get.api.decision.workspace.aggregated",
         "auto.api.get.api.dashboard.action-recommendation",
+        "decision-rhythm.quota-list",
+        "decision-rhythm.quota-trend",
     }
 
 
 def test_tui_operation_fields_use_business_labels(client, tui_user):
+    tui_user.is_staff = True
+    tui_user.is_superuser = True
+    tui_user.save(update_fields=["is_staff", "is_superuser"])
     client.force_login(tui_user)
 
     response = client.get("/api/tui/screens/research.alpha/")
@@ -588,6 +593,943 @@ def test_tui_operation_fields_use_business_labels(client, tui_user):
     fields = {field["key"]: field for field in action["fields"]}
 
     assert fields["top_n"]["label"] == "候选数量"
+
+
+def test_tui_alpha_ops_publish_all_curated_admin_modes(client, tui_user):
+    client.force_login(tui_user)
+    regular_response = client.get("/api/tui/screens/research.signals/")
+    regular_actions = {action["key"] for action in regular_response.json()["actions"]}
+    assert "alpha.inference.trigger_general" not in regular_actions
+
+    tui_user.is_staff = True
+    tui_user.is_superuser = True
+    tui_user.save(update_fields=["is_staff", "is_superuser"])
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/research.signals/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected = {
+        "alpha.inference.trigger_general",
+        "alpha.inference.trigger_portfolio",
+        "alpha.inference.trigger_batch",
+        "alpha.qlib_data_refresh_universes",
+        "alpha.qlib_data_refresh",
+    }
+    assert expected <= set(actions)
+    for action_key in expected:
+        assert actions[action_key]["risk"] in {"write", "admin"}
+        assert actions[action_key]["confirmation_required"] is True
+        assert actions[action_key]["fields"][0]["key"] == "mode"
+
+
+def test_tui_equity_valuation_config_publishes_versioned_admin_workflow(client, tui_user):
+    client.force_login(tui_user)
+    regular_response = client.get("/api/tui/screens/research.asset-lab/")
+    regular_keys = {action["key"] for action in regular_response.json()["actions"]}
+    assert "equity.valuation-config-active" not in regular_keys
+
+    tui_user.is_staff = True
+    tui_user.is_superuser = True
+    tui_user.save(update_fields=["is_staff", "is_superuser"])
+    client.force_login(tui_user)
+    response = client.get("/api/tui/screens/research.asset-lab/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected = {
+        "equity.valuation-config-list",
+        "equity.valuation-config-active",
+        "equity.valuation-config-create",
+        "equity.valuation-config-update",
+        "equity.valuation-config-activate",
+        "equity.valuation-config-rollback",
+        "equity.valuation-config-delete",
+        "equity.valuation-config-clear-cache",
+    }
+    assert expected <= set(actions)
+    assert actions["equity.valuation-config-create"]["fields"][0]["key"] == "change_reason"
+    assert len(actions["equity.valuation-config-create"]["fields"]) == 21
+    for action_key in expected - {
+        "equity.valuation-config-list",
+        "equity.valuation-config-active",
+    }:
+        assert actions[action_key]["confirmation_required"] is True
+        assert actions[action_key]["risk"] == "admin"
+
+
+def test_tui_equity_screen_uses_flat_business_fields(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/research.asset-lab/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    action = actions["equity.screen-stocks"]
+    fields = {field["key"]: field for field in action["fields"]}
+    assert "custom_rule" not in fields
+    assert {
+        "regime",
+        "min_roe",
+        "max_pe",
+        "max_pb",
+        "min_revenue_growth",
+        "min_profit_growth",
+        "max_debt_ratio",
+        "max_count",
+    } == set(fields)
+    runtime = PublishedTuiMetadataRepository().load_published()
+    runtime_action = next(
+        item for item in runtime["actions"] if item["key"] == "equity.screen-stocks"
+    )
+    assert runtime_action["view_model"]["rows_path"] == "items"
+
+
+def test_tui_dashboard_alpha_publishes_ranking_and_history_tasks(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/research.signals/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    assert {
+        "dashboard.alpha-ranking",
+        "dashboard.alpha-history",
+        "dashboard.alpha-history-detail",
+    } <= set(actions)
+    ranking_fields = {field["key"]: field for field in actions["dashboard.alpha-ranking"]["fields"]}
+    assert ranking_fields["format"]["default"] == "json"
+    assert ranking_fields["alpha_scope"]["options"] == ["general", "portfolio"]
+    runtime = PublishedTuiMetadataRepository().load_published()
+    runtime_actions = {action["key"]: action for action in runtime["actions"]}
+    assert runtime_actions["dashboard.alpha-ranking"]["view_model"]["rows_path"] == ("data.items")
+    assert runtime_actions["dashboard.alpha-history"]["view_model"]["rows_path"] == "data"
+
+
+def test_tui_dashboard_overview_upgrades_allocation_and_performance_to_charts(
+    client,
+    tui_user,
+):
+    client.force_login(tui_user)
+    response = client.get("/api/tui/screens/command-center.overview/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    assert {
+        "dashboard.overview-summary",
+        "auto.api.get.api.dashboard.allocation",
+        "auto.api.get.api.dashboard.performance",
+    } <= actions.keys()
+    assert actions["auto.api.get.api.dashboard.allocation"]["view_type"] == "chart"
+    assert actions["auto.api.get.api.dashboard.performance"]["view_type"] == "chart"
+    panels = {panel["key"]: panel for panel in response.json()["screen"]["dashboard_panels"]}
+    assert panels["investment-command-summary"]["action_key"] == ("dashboard.overview-summary")
+    assert panels["investment-command-summary"]["user_priority"] == "p0"
+    assert panels["asset-allocation"]["action_key"] == ("auto.api.get.api.dashboard.allocation")
+    assert panels["asset-allocation"]["kind"] == "chart"
+    assert panels["portfolio-performance"]["action_key"] == (
+        "auto.api.get.api.dashboard.performance"
+    )
+    assert panels["portfolio-performance"]["kind"] == "chart"
+
+    loaded = PublishedTuiMetadataRepository().load_published()
+    raw_actions = {action["key"]: action for action in loaded["actions"]}
+    allocation = raw_actions["auto.api.get.api.dashboard.allocation"]
+    performance = raw_actions["auto.api.get.api.dashboard.performance"]
+    assert allocation["endpoint"] == "/api/dashboard/tui/overview/"
+    assert allocation["view_model"]["chart_type"] == "pie"
+    assert performance["view_model"]["chart_type"] == "line"
+
+
+def test_tui_macro_regime_analytics_publish_portable_chart_actions(
+    client,
+    tui_user,
+):
+    client.force_login(tui_user)
+    response = client.get("/api/tui/screens/macro-regime.overview/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected = {
+        "macro.overview-summary",
+        "macro.indicator-trend",
+        "macro.risk-timeline",
+        "regime.current",
+        "regime.distribution-chart",
+        "regime.momentum-chart",
+        "regime.navigator_history",
+    }
+    assert expected <= actions.keys()
+    assert actions["regime.current"]["view_type"] == "detail"
+    assert actions["regime.navigator_history"]["view_type"] == "chart"
+
+    loaded = PublishedTuiMetadataRepository().load_published()
+    raw_actions = {action["key"]: action for action in loaded["actions"]}
+    assert raw_actions["macro.indicator-trend"]["view_model"]["chart_type"] == "line"
+    assert raw_actions["macro.risk-timeline"]["view_model"]["rows_path"] == "risk_timeline"
+    assert raw_actions["regime.distribution-chart"]["view_model"]["chart_type"] == "pie"
+    assert raw_actions["regime.navigator_history"]["endpoint"] == ("/api/regime/tui/overview/")
+
+
+def test_tui_macro_trend_filter_replaces_deprecated_filter_actions(
+    client,
+    tui_user,
+):
+    """The replacement should be Macro-owned and remove deprecated TUI consumers."""
+
+    client.force_login(tui_user)
+    asset_response = client.get("/api/tui/screens/research.asset-lab/")
+    signal_response = client.get("/api/tui/screens/research.signals/")
+
+    assert asset_response.status_code == 200
+    assert signal_response.status_code == 200
+    actions = {action["key"]: action for action in asset_response.json()["actions"]}
+    expected = {
+        "macro.trend-filter-summary",
+        "macro.trend-filter-chart",
+        "macro.trend-filter-components",
+    }
+    assert expected <= actions.keys()
+    assert actions["macro.trend-filter-chart"]["view_type"] == "chart"
+    loaded = PublishedTuiMetadataRepository().load_published()
+    raw_actions = {action["key"]: action for action in loaded["actions"]}
+    assert raw_actions["macro.trend-filter-chart"]["view_model"]["chart_type"] == "line"
+    assert raw_actions["macro.trend-filter-components"]["view_model"]["columns"][-1] == {
+        "key": "slope",
+        "label": "趋势斜率",
+    }
+    fields = {field["key"]: field for field in actions["macro.trend-filter-summary"]["fields"]}
+    assert fields["indicator_code"]["required"] is True
+    assert fields["filter_type"]["options"] == ["HP", "KALMAN"]
+    assert fields["limit"]["min"] == 12
+    assert fields["limit"]["max"] == 500
+
+    signal_keys = {action["key"] for action in signal_response.json()["actions"]}
+    assert {
+        "auto.api.get.api.filter",
+        "auto.api.get.api.filter.indicators",
+        "auto.api.get.api.filter.health",
+        "param.api.get.api.filter.config.indicator_code",
+        "param.api.get.api.filter.config.str.indicator_code",
+    }.isdisjoint(signal_keys)
+
+
+def test_tui_equity_analytics_cover_detail_pool_and_valuation_repair(
+    client,
+    tui_user,
+):
+    """All three chart-heavy Equity routes should use owner API contracts."""
+
+    client.force_login(tui_user)
+    response = client.get("/api/tui/screens/research.asset-lab/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected = {
+        "equity.valuation-overview",
+        "equity.technical-price",
+        "equity.technical-momentum",
+        "equity.intraday-price",
+        "equity.regime-correlation",
+        "equity.pool-summary",
+        "equity.pool-list",
+        "equity.pool-sector-distribution",
+        "equity.pool-refresh",
+        "equity.valuation-repair-list",
+        "equity.valuation-repair-detail",
+        "equity.valuation-repair-history",
+        "equity.valuation-repair-scan",
+    }
+    assert expected <= actions.keys()
+    assert actions["equity.technical-price"]["view_type"] == "chart"
+    assert actions["equity.pool-list"]["view_type"] == "datagrid"
+    assert actions["equity.pool-refresh"]["confirmation_required"] is True
+    assert actions["equity.valuation-repair-scan"]["confirmation_required"] is True
+
+    loaded = PublishedTuiMetadataRepository().load_published()
+    raw_actions = {action["key"]: action for action in loaded["actions"]}
+    assert raw_actions["equity.pool-sector-distribution"]["view_model"] == {
+        "kind": "chart",
+        "chart_type": "pie",
+        "rows_path": "sector_distribution",
+        "columns": [
+            {"key": "sector", "label": "行业"},
+            {"key": "count", "label": "股票数"},
+        ],
+    }
+    assert raw_actions["equity.valuation-repair-history"]["view_model"]["rows_path"] == (
+        "chart_points"
+    )
+    stock_field = actions["equity.technical-price"]["fields"][0]
+    assert stock_field["key"] == "stock_code"
+    assert stock_field["binding"] == "path"
+
+
+def test_tui_simulated_accounts_cover_legacy_hubs_and_account_lifecycle(
+    client,
+    tui_user,
+):
+    """The final B routes should collapse into one owner-scoped account workflow."""
+
+    client.force_login(tui_user)
+    response = client.get("/api/tui/screens/execution.accounts/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    actions = {action["key"]: action for action in payload["actions"]}
+    expected = {
+        "simulated-trading.accounts",
+        "simulated-trading.account-detail",
+        "simulated-trading.account-create",
+        "simulated-trading.account-delete",
+        "simulated-trading.account-batch-delete",
+        "simulated-trading.performance",
+        "simulated-trading.equity-curve",
+        "simulated-trading.positions",
+        "simulated-trading.trades",
+        "simulated-trading.strategy-options",
+        "simulated-trading.strategy-bind",
+        "simulated-trading.strategy-unbind",
+        "simulated-trading.inspection-notification",
+        "simulated-trading.inspection-notification-update",
+    }
+    assert expected <= actions.keys()
+    assert actions["simulated-trading.accounts"]["view_type"] == "datagrid"
+    assert actions["simulated-trading.equity-curve"]["view_type"] == "chart"
+    assert actions["simulated-trading.account-create"]["confirmation_required"] is True
+    assert actions["simulated-trading.account-delete"]["confirmation_required"] is True
+    assert actions["simulated-trading.strategy-bind"]["confirmation_required"] is True
+
+    loaded = PublishedTuiMetadataRepository().load_published()
+    raw_actions = {action["key"]: action for action in loaded["actions"]}
+    assert raw_actions["simulated-trading.equity-curve"]["view_model"] == {
+        "kind": "chart",
+        "chart_type": "line",
+        "rows_path": "data_points",
+        "columns": [
+            {"key": "date", "label": "日期"},
+            {"key": "net_value", "label": "账户净值"},
+        ],
+    }
+    account_columns = raw_actions["simulated-trading.accounts"]["view_model"]["columns"]
+    assert len(account_columns) == 8
+    account_panel = next(
+        panel
+        for panel in payload["screen"]["dashboard_panels"]
+        if panel["key"] == "simulated-accounts"
+    )
+    assert account_panel["action_key"] == "simulated-trading.accounts"
+    assert account_panel["user_priority"] == "p0"
+
+
+def test_tui_factor_calculation_uses_stored_config_without_raw_json(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/research.asset-lab/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    calculate = actions["factor.calculate-config"]
+    explain = actions["factor.explain-config-stock"]
+    assert [field["key"] for field in calculate["fields"]] == [
+        "config_id",
+        "trade_date",
+        "top_n",
+    ]
+    assert [field["key"] for field in explain["fields"]] == [
+        "config_id",
+        "stock_code",
+    ]
+    assert all(
+        "factor_weights" not in {field["key"] for field in action["fields"]}
+        for action in (calculate, explain)
+    )
+
+
+def test_tui_factor_definition_governance_exposes_complete_curated_crud(
+    client,
+    tui_user,
+):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/research.asset-lab/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected_keys = {
+        "factor.definition-list",
+        "factor.definition-detail",
+        "factor.definition-create",
+        "factor.definition-update",
+        "factor.definition-toggle",
+        "factor.definition-delete",
+    }
+    assert expected_keys <= actions.keys()
+    create = actions["factor.definition-create"]
+    assert [field["key"] for field in create["fields"]] == [
+        "code",
+        "name",
+        "category",
+        "description",
+        "data_source",
+        "data_field",
+        "direction",
+        "update_frequency",
+        "is_active",
+        "min_data_points",
+        "allow_missing",
+    ]
+    assert create["confirmation_required"] is True
+    assert actions["factor.definition-delete"]["effect"] == "delete"
+    mutation_keys = {
+        "factor.definition-create",
+        "factor.definition-update",
+        "factor.definition-toggle",
+        "factor.definition-delete",
+    }
+    assert all(
+        actions[key].get("audience", "authenticated") == "authenticated" for key in mutation_keys
+    )
+
+
+def test_tui_factor_portfolio_config_uses_scalar_weight_operations(
+    client,
+    tui_user,
+):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/research.asset-lab/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected_keys = {
+        "factor.portfolio-config-list",
+        "factor.portfolio-config-detail",
+        "factor.portfolio-config-create",
+        "factor.portfolio-config-update",
+        "factor.portfolio-factor-weight-set",
+        "factor.portfolio-factor-weight-remove",
+        "factor.portfolio-config-activate",
+        "factor.portfolio-config-deactivate",
+        "factor.portfolio-config-generate",
+        "factor.portfolio-config-delete",
+    }
+    assert expected_keys <= actions.keys()
+    create_fields = {field["key"] for field in actions["factor.portfolio-config-create"]["fields"]}
+    update_fields = {field["key"] for field in actions["factor.portfolio-config-update"]["fields"]}
+    set_weight_fields = [
+        field["key"] for field in actions["factor.portfolio-factor-weight-set"]["fields"]
+    ]
+    assert "factor_weights" not in create_fields | update_fields
+    assert set_weight_fields == ["config_id", "factor_code", "weight"]
+    assert actions["factor.portfolio-factor-weight-set"]["confirmation_required"] is True
+    assert actions["factor.portfolio-config-delete"]["effect"] == "delete"
+
+
+def test_tui_hedge_workflows_cover_pairs_snapshots_and_alerts(
+    client,
+    tui_user,
+    tui_admin_user,
+):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/macro-regime.strategy/")
+
+    assert response.status_code == 200
+    user_actions = {action["key"]: action for action in response.json()["actions"]}
+    user_keys = {
+        "hedge.pair-list",
+        "hedge.pair-detail",
+        "hedge.pair-effectiveness",
+        "hedge.snapshot-list",
+        "hedge.snapshot-latest",
+        "hedge.alert-list",
+        "hedge.alert-active",
+    }
+    assert user_keys <= user_actions.keys()
+
+    client.force_login(tui_admin_user)
+    admin_response = client.get("/api/tui/screens/macro-regime.strategy/")
+    assert admin_response.status_code == 200
+    actions = {action["key"]: action for action in admin_response.json()["actions"]}
+    expected_keys = {
+        "hedge.pair-list",
+        "hedge.pair-detail",
+        "hedge.pair-create",
+        "hedge.pair-update",
+        "hedge.pair-activate",
+        "hedge.pair-deactivate",
+        "hedge.pair-effectiveness",
+        "hedge.pair-delete",
+        "hedge.snapshot-list",
+        "hedge.snapshot-latest",
+        "hedge.snapshot-update-all",
+        "hedge.alert-list",
+        "hedge.alert-active",
+        "hedge.alert-monitor",
+        "hedge.alert-resolve",
+    }
+    assert expected_keys <= actions.keys()
+    assert len(actions["hedge.pair-create"]["fields"]) == 14
+    assert (
+        user_actions["hedge.pair-effectiveness"].get("audience", "authenticated") == "authenticated"
+    )
+    assert "hedge.snapshot-update-all" not in user_actions
+    assert actions["hedge.alert-monitor"]["confirmation_required"] is True
+    assert actions["hedge.pair-delete"]["effect"] == "delete"
+
+
+def test_tui_fund_research_exposes_flat_multidim_and_detail_workflows(
+    client,
+    tui_user,
+):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/research.asset-lab/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected_keys = {
+        "fund.multidim-screen",
+        "fund.rank",
+        "fund.score",
+        "fund.style",
+        "fund.performance",
+        "fund.info",
+        "fund.nav",
+        "fund.holdings",
+    }
+    assert expected_keys <= actions.keys()
+    multidim_fields = {field["key"] for field in actions["fund.multidim-screen"]["fields"]}
+    assert multidim_fields == {
+        "fund_type",
+        "investment_style",
+        "min_scale",
+        "regime",
+        "policy_level",
+        "sentiment_index",
+        "max_count",
+    }
+    assert "filters" not in multidim_fields
+    assert "context" not in multidim_fields
+    assert actions["fund.performance"]["confirmation_required"] is True
+
+
+def test_tui_broker_execution_covers_admin_onboarding_without_raw_json(
+    client,
+    tui_user,
+    tui_admin_user,
+):
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_broker_execution import (
+        RUNTIME_BROKER_EXECUTION_ACTIONS,
+    )
+
+    client.force_login(tui_user)
+    user_response = client.get("/api/tui/screens/execution.accounts/")
+    assert user_response.status_code == 200
+    user_actions = {action["key"]: action for action in user_response.json()["actions"]}
+
+    client.force_login(tui_admin_user)
+    admin_response = client.get("/api/tui/screens/execution.accounts/")
+    assert admin_response.status_code == 200
+    actions = {action["key"]: action for action in admin_response.json()["actions"]}
+    admin_keys = {
+        "broker-execution.advisor-draft-preview",
+        "broker-execution.advisor-draft",
+        "broker-execution.agent-binding-preview",
+        "broker-execution.agent-binding",
+        "broker-execution.account-access-list",
+        "broker-execution.account-access-preview",
+        "broker-execution.account-access",
+        "broker-execution.credential-rotate-preview",
+        "broker-execution.credential-rotate",
+        "broker-execution.credential-revoke-preview",
+        "broker-execution.credential-revoke",
+        "broker-execution.connection-sync-preview",
+        "broker-execution.connection-sync",
+        "broker-execution.settings-preview",
+        "broker-execution.settings",
+    }
+    assert admin_keys <= actions.keys()
+    assert admin_keys.isdisjoint(user_actions)
+    rotate = actions["broker-execution.credential-rotate"]
+    assert rotate["result_semantics"] == ["copyable_secret"]
+    assert all(
+        field.get("value_type") != "object"
+        for key in admin_keys
+        for field in actions[key].get("fields", [])
+    )
+    assert "method" not in actions["broker-execution.settings"]
+    source_actions = {action["key"]: action for action in RUNTIME_BROKER_EXECUTION_ACTIONS}
+    assert source_actions["broker-execution.settings"]["method"] == "PATCH"
+
+
+def test_tui_simulated_trading_publishes_owned_records_and_notification_settings(
+    client,
+    tui_user,
+):
+    client.force_login(tui_user)
+    response = client.get("/api/tui/screens/execution.accounts/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected = {
+        "simulated-trading.positions",
+        "simulated-trading.trades",
+        "simulated-trading.inspection-notification",
+        "simulated-trading.inspection-notification-update",
+    }
+    assert expected <= actions.keys()
+    assert actions["simulated-trading.positions"]["view_type"] == "datagrid"
+    assert actions["simulated-trading.trades"]["view_type"] == "datagrid"
+    update_fields = {
+        field["key"]: field
+        for field in actions["simulated-trading.inspection-notification-update"]["fields"]
+    }
+    assert update_fields["recipient_emails"]["value_type"] == "list"
+    assert all(field.get("value_type") != "object" for field in update_fields.values())
+    assert (
+        actions["simulated-trading.inspection-notification-update"]["confirmation_required"] is True
+    )
+
+
+def test_tui_account_overview_publishes_profile_and_volatility_chart(
+    client,
+    tui_user,
+):
+    client.force_login(tui_user)
+    response = client.get("/api/tui/screens/execution.accounts/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected = {
+        "account.overview-profile",
+        "account.portfolio-volatility-summary",
+        "account.portfolio-volatility-chart",
+    }
+    assert expected <= actions.keys()
+    assert actions["account.portfolio-volatility-chart"]["view_type"] == "chart"
+
+    loaded = PublishedTuiMetadataRepository().load_published()
+    raw_actions = {action["key"]: action for action in loaded["actions"]}
+    chart = raw_actions["account.portfolio-volatility-chart"]["view_model"]
+    assert chart["chart_type"] == "line"
+    assert chart["rows_path"] == "history"
+    assert [column["key"] for column in chart["columns"]] == [
+        "date",
+        "annualized_volatility_percent",
+        "target_percent",
+        "target_upper_percent",
+        "target_lower_percent",
+    ]
+
+
+def test_tui_agent_runtime_operator_workflows_follow_operator_group_visibility(
+    client,
+    tui_user,
+):
+    from django.contrib.auth.models import Group
+
+    operator_keys = {
+        "agent-runtime.operator-summary",
+        "agent-runtime.operator-task-list",
+        "agent-runtime.operator-task-detail",
+        "agent-runtime.operator-proposal-list",
+        "agent-runtime.operator-proposal-detail",
+        "agent-runtime.operator-submit-proposal",
+        "agent-runtime.operator-approve-proposal",
+        "agent-runtime.operator-reject-proposal",
+        "agent-runtime.operator-execute-proposal",
+    }
+
+    client.force_login(tui_user)
+    user_response = client.get("/api/tui/screens/ai-ops.agent-runtime/")
+    assert user_response.status_code == 200
+    user_keys = {action["key"] for action in user_response.json()["actions"]}
+    assert operator_keys.isdisjoint(user_keys)
+
+    operator_group, _ = Group.objects.get_or_create(name="operator")
+    tui_user.groups.add(operator_group)
+    operator_response = client.get("/api/tui/screens/ai-ops.agent-runtime/")
+    assert operator_response.status_code == 200
+    actions = {action["key"]: action for action in operator_response.json()["actions"]}
+    assert operator_keys <= actions.keys()
+    assert actions["agent-runtime.operator-task-list"]["view_type"] == "datagrid"
+    assert actions["agent-runtime.operator-proposal-list"]["view_type"] == "datagrid"
+    for key in (
+        "agent-runtime.operator-submit-proposal",
+        "agent-runtime.operator-approve-proposal",
+        "agent-runtime.operator-reject-proposal",
+        "agent-runtime.operator-execute-proposal",
+    ):
+        assert actions[key]["confirmation_required"] is True
+
+
+def test_tui_ops_hubs_reuse_admin_and_mcp_workflows_without_raw_correction_json(
+    client,
+    tui_user,
+    tui_admin_user,
+):
+    client.force_login(tui_user)
+    self_service = client.get("/api/tui/screens/capability-router.self-service/")
+    assert self_service.status_code == 200
+    self_keys = {action["key"] for action in self_service.json()["actions"]}
+    assert "capability-router.mcp-self-status" in self_keys
+
+    client.force_login(tui_admin_user)
+    mcp_response = client.get("/api/tui/screens/capability-router.mcp-center/")
+    assert mcp_response.status_code == 200
+    actions = {action["key"]: action for action in mcp_response.json()["actions"]}
+    expected = {
+        "capability-router.mcp-tools-stats",
+        "capability-router.list-mcp-tools",
+        "capability-router.sync-mcp-tools",
+        "capability-router.toggle-mcp-routing",
+        "capability-router.toggle-mcp-terminal",
+        "ops.semantic-governance-overview",
+        "ops.semantic-governance-audit",
+        "ops.semantic-governance-preview",
+        "ops.semantic-governance-apply",
+    }
+    assert expected <= actions.keys()
+    for key in (
+        "ops.semantic-governance-preview",
+        "ops.semantic-governance-apply",
+    ):
+        assert all(field.get("value_type") != "object" for field in actions[key]["fields"])
+    assert actions["ops.semantic-governance-apply"]["confirmation_required"] is True
+
+
+def test_tui_strategy_workbench_exposes_flat_owner_scoped_configuration(
+    client,
+    tui_user,
+):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/macro-regime.strategy/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected = {
+        "strategy.workbench-list",
+        "strategy.workbench-detail",
+        "strategy.workbench-create",
+        "strategy.workbench-update",
+        "strategy.workbench-activate",
+        "strategy.workbench-deactivate",
+        "strategy.rule-list",
+        "strategy.rule-create-macro",
+        "strategy.rule-create-regime",
+        "strategy.rule-create-signal",
+        "strategy.rule-create-composite",
+        "strategy.script-create",
+        "strategy.script-test",
+        "strategy.ai-config-create",
+        "strategy.position-rule-create",
+        "strategy.execution-log-list",
+        "strategy.execute",
+        "strategy.preview",
+    }
+    assert expected <= actions.keys()
+
+    strategy_actions = {
+        key: action for key, action in actions.items() if key.startswith("strategy.")
+    }
+    assert strategy_actions
+    assert all(
+        field.get("value_type") != "object"
+        for action in strategy_actions.values()
+        for field in action.get("fields", [])
+    )
+    assert actions["strategy.workbench-create"]["confirmation_required"] is True
+    assert actions["strategy.rule-create-composite"]["confirmation_required"] is True
+    composite_keys = {field["key"] for field in actions["strategy.rule-create-composite"]["fields"]}
+    assert {
+        "composite_logic",
+        "first_type",
+        "first_operator",
+        "first_key",
+        "first_value",
+        "second_type",
+        "second_operator",
+        "second_key",
+        "second_value",
+    } <= composite_keys
+
+
+def test_tui_audit_workbench_preserves_owner_scope_and_admin_evidence_actions(
+    client,
+    tui_user,
+    tui_admin_user,
+):
+    client.force_login(tui_user)
+    user_response = client.get("/api/tui/screens/execution.audit/")
+
+    assert user_response.status_code == 200
+    user_actions = {action["key"]: action for action in user_response.json()["actions"]}
+    user_expected = {
+        "audit.overview",
+        "audit.report-list",
+        "audit.report-generate-preview",
+        "audit.report-generate",
+        "audit.operation-log-list",
+        "audit.operation-log-detail",
+        "audit.decision-trace-list",
+        "audit.decision-trace-detail",
+    }
+    assert user_expected <= user_actions.keys()
+    assert "audit.operation-log-stats" not in user_actions
+    assert "audit.operation-log-export-json" not in user_actions
+    assert user_actions["audit.report-generate"]["confirmation_required"] is True
+    assert user_actions["audit.operation-log-list"]["view_type"] == "datagrid"
+    assert user_actions["audit.decision-trace-list"]["view_type"] == "datagrid"
+
+    client.force_login(tui_admin_user)
+    admin_response = client.get("/api/tui/screens/execution.audit/")
+
+    assert admin_response.status_code == 200
+    admin_keys = {action["key"] for action in admin_response.json()["actions"]}
+    assert {
+        "audit.operation-log-stats",
+        "audit.operation-log-export-json",
+    } <= admin_keys
+
+
+def test_tui_audit_analytics_publish_chart_types_and_admin_mutations(
+    client,
+    tui_user,
+    tui_admin_user,
+):
+    read_keys = {
+        "audit.attribution-detail",
+        "audit.attribution-contribution-chart",
+        "audit.indicator-performance-list",
+        "audit.indicator-performance-chart",
+        "audit.indicator-performance-detail",
+        "audit.threshold-list",
+        "audit.threshold-history-chart",
+        "audit.validation-detail",
+    }
+    mutation_keys = {
+        "audit.threshold-update-preview",
+        "audit.threshold-update",
+        "audit.validation-preview",
+        "audit.validation-run",
+    }
+
+    client.force_login(tui_user)
+    user_response = client.get("/api/tui/screens/execution.audit/")
+    assert user_response.status_code == 200
+    user_keys = {action["key"] for action in user_response.json()["actions"]}
+    assert read_keys <= user_keys
+    assert mutation_keys.isdisjoint(user_keys)
+
+    client.force_login(tui_admin_user)
+    admin_response = client.get("/api/tui/screens/execution.audit/")
+    assert admin_response.status_code == 200
+    actions = {action["key"]: action for action in admin_response.json()["actions"]}
+    assert read_keys | mutation_keys <= actions.keys()
+    assert actions["audit.threshold-update"]["confirmation_required"] is True
+    assert actions["audit.validation-run"]["confirmation_required"] is True
+
+    loaded = PublishedTuiMetadataRepository().load_published()
+    raw_actions = {action["key"]: action for action in loaded["actions"]}
+    assert raw_actions["audit.attribution-contribution-chart"]["view_model"]["chart_type"] == "bar"
+    assert raw_actions["audit.threshold-history-chart"]["view_model"]["chart_type"] == "line"
+
+
+def test_tui_manual_trade_review_publishes_csv_and_table_chart_contract(
+    client,
+    tui_user,
+):
+    client.force_login(tui_user)
+    response = client.get("/api/tui/screens/execution.audit/")
+
+    assert response.status_code == 200
+    actions = {action["key"]: action for action in response.json()["actions"]}
+    expected = {
+        "audit.manual-trade-batches",
+        "audit.manual-trade-transactions",
+        "audit.manual-trade-import-preview",
+        "audit.manual-trade-import",
+        "audit.manual-trade-execution-links",
+        "audit.manual-trade-replay",
+    }
+    assert expected <= actions.keys()
+    assert actions["audit.manual-trade-import"]["confirmation_required"] is True
+    assert actions["audit.manual-trade-replay"]["confirmation_required"] is True
+    file_field = next(
+        field
+        for field in actions["audit.manual-trade-import-preview"]["fields"]
+        if field["key"] == "file"
+    )
+    assert file_field["input_type"] == "file"
+    assert file_field["accept"] == ".csv,text/csv"
+
+    loaded = PublishedTuiMetadataRepository().load_published()
+    raw_actions = {action["key"]: action for action in loaded["actions"]}
+    replay = raw_actions["audit.manual-trade-replay"]
+    assert replay["view_model"]["kind"] == "table_chart"
+    assert replay["view_model"]["table_rows_path"] == "branches"
+    assert replay["view_model"]["chart_rows_path"] == "equity_curve"
+
+
+def test_tui_data_center_admin_tasks_are_flat_and_hidden_from_regular_users(
+    client,
+    tui_user,
+    tui_admin_user,
+):
+    governed_keys = {
+        "auto.api.get.api.data-center.providers",
+        "auto.api.get.api.data-center.publishers",
+        "data-center.governance-overview",
+        "data-center.governance-run",
+        "data-center.provider-test",
+        "data-center.provider-status",
+        "data-center.publisher-detail",
+        "data-center.publisher-create",
+        "data-center.publisher-update",
+        "data-center.publisher-delete",
+        "data-center.universe-config",
+        "data-center.universe-summary",
+        "data-center.universe-update",
+        "data-center.market-thermometer-current",
+        "data-center.market-thermometer-config",
+        "data-center.market-thermometer-config-update",
+        "data-center.market-thermometer-sync",
+        "data-center.market-thermometer-calculate",
+        "data-center.market-thermometer-import-preview",
+        "data-center.market-thermometer-import",
+    }
+
+    client.force_login(tui_user)
+    user_response = client.get("/api/tui/screens/api-library.data-center/")
+    assert user_response.status_code == 403
+
+    client.force_login(tui_admin_user)
+    admin_response = client.get("/api/tui/screens/api-library.data-center/")
+    assert admin_response.status_code == 200
+    actions = {action["key"]: action for action in admin_response.json()["actions"]}
+    assert governed_keys <= actions.keys()
+    data_center_actions = {key: action for key, action in actions.items() if key in governed_keys}
+    assert all(
+        field.get("value_type") != "object"
+        for action in data_center_actions.values()
+        for field in action.get("fields", [])
+    )
+    for key in (
+        "data-center.governance-run",
+        "data-center.publisher-create",
+        "data-center.publisher-update",
+        "data-center.publisher-delete",
+        "data-center.universe-update",
+        "data-center.market-thermometer-config-update",
+        "data-center.market-thermometer-sync",
+        "data-center.market-thermometer-calculate",
+        "data-center.market-thermometer-import",
+    ):
+        assert actions[key]["confirmation_required"] is True
 
 
 def test_tui_alpha_scores_exposes_date_control_and_pagination(client, tui_user):
@@ -759,7 +1701,7 @@ def test_tui_catalog_promotes_smoke_checked_tools_into_business_screens(client, 
         "research.asset-lab": "auto.api.get.api.asset-analysis.pool-summary",
         "ai-ops.providers": "auto.api.get.api.ai.me.providers",
         "execution.audit": "auto.api.get.api.audit.health",
-        "research.signals": "auto.api.get.api.alpha-triggers.candidates.actionable",
+        "research.signals": "alpha-trigger.candidate-actionable",
     }
 
     for screen_key, default_action_key in expected_defaults.items():
@@ -783,7 +1725,8 @@ def test_tui_business_screen_actions_are_grouped_by_user_task(client, tui_user):
     groups = {action["task_group"] for action in actions}
     assert {"01 账户清单", "02 当前持仓", "03 单账户持仓"} <= groups
     assert "auto.api.get.api.account.accounts" in action_by_key
-    assert "auto.api.get.api.account.positions" in action_by_key
+    assert "auto.api.get.api.account.positions.read-only" in action_by_key
+    assert "auto.api.get.api.account.positions" not in action_by_key
     assert "param.api.get.api.account.accounts.int.account_id.positions" in action_by_key
     assert all(isinstance(action["sequence"], int) for action in actions)
     assert all(not action["label"].startswith("Get ") for action in actions)
@@ -802,7 +1745,7 @@ def test_tui_actions_expose_business_task_tiers(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     actions = {action["key"]: action for action in payload["actions"]}
-    assert actions["auto.api.get.api.account.positions"]["task_tier"] == "primary"
+    assert actions["auto.api.get.api.account.positions.read-only"]["task_tier"] == "primary"
     assert (
         actions["param.api.get.api.account.accounts.int.account_id.positions"]["task_tier"]
         == "primary"
@@ -877,10 +1820,7 @@ def test_tui_agent_runtime_and_alpha_trigger_defaults_prefer_non_empty_entrypoin
 
     alpha_response = client.get("/api/tui/screens/research.alpha-triggers/")
     alpha_payload = alpha_response.json()
-    assert (
-        alpha_payload["screen"]["default_action_key"]
-        == "auto.api.get.api.alpha-triggers.candidates.actionable"
-    )
+    assert alpha_payload["screen"]["default_action_key"] == "alpha-trigger.candidate-actionable"
 
     providers_response = client.get("/api/tui/screens/ai-ops.providers/")
     providers_payload = providers_response.json()
@@ -940,6 +1880,63 @@ def test_tui_my_providers_screen_exposes_self_service_actions(client, tui_user):
     assert "ai-ops.my-ai-logs" in action_keys
 
 
+def test_tui_ai_provider_mutations_confirm_and_mask_credentials(
+    client,
+    tui_user,
+    tui_admin_user,
+):
+    client.force_login(tui_user)
+    user_response = client.get("/api/tui/screens/ai-ops.providers/")
+
+    assert user_response.status_code == 200
+    user_actions = {action["key"]: action for action in user_response.json()["actions"]}
+    for action_key in (
+        "ai-ops.create-my-provider",
+        "ai-ops.update-my-provider",
+        "ai-ops.toggle-my-provider",
+        "ai-ops.delete-my-provider",
+    ):
+        assert user_actions[action_key]["confirmation_required"] is True
+    user_create_fields = {
+        field["key"]: field for field in user_actions["ai-ops.create-my-provider"]["fields"]
+    }
+    assert user_create_fields["api_key"]["input_type"] == "password"
+    assert {"fallback_enabled", "description", "extra_config"} <= set(user_create_fields)
+
+    client.force_login(tui_admin_user)
+    admin_response = client.get("/api/tui/screens/ai-ops.system-providers/")
+
+    assert admin_response.status_code == 200
+    admin_actions = {action["key"]: action for action in admin_response.json()["actions"]}
+    for action_key in (
+        "ai-ops.create-system-provider",
+        "ai-ops.update-system-provider",
+        "ai-ops.toggle-system-provider",
+        "ai-ops.test-system-provider",
+        "ai-ops.delete-system-provider",
+    ):
+        assert admin_actions[action_key]["confirmation_required"] is True
+    system_create_fields = {
+        field["key"]: field for field in admin_actions["ai-ops.create-system-provider"]["fields"]
+    }
+    assert system_create_fields["api_key"]["input_type"] == "password"
+    assert {
+        "fallback_enabled",
+        "daily_budget_limit",
+        "monthly_budget_limit",
+        "description",
+        "extra_config",
+    } <= set(system_create_fields)
+    assert "ai-ops.system-ai-logs" in admin_actions
+
+    quota_response = client.get("/api/tui/screens/ai-ops.user-quotas/")
+
+    assert quota_response.status_code == 200
+    quota_actions = {action["key"]: action for action in quota_response.json()["actions"]}
+    assert quota_actions["ai-ops.update-user-quota"]["confirmation_required"] is True
+    assert quota_actions["ai-ops.batch-apply-user-quotas"]["confirmation_required"] is True
+
+
 def test_tui_catalog_hides_admin_ai_management_screens_from_regular_user(client, tui_user):
     client.force_login(tui_user)
 
@@ -972,6 +1969,43 @@ def test_tui_catalog_shows_admin_ai_management_screens_to_admin_user(client, tui
     }
     assert "ai-ops.system-providers" in screen_keys
     assert "ai-ops.user-quotas" in screen_keys
+
+
+def test_tui_signal_management_actions_respect_role_and_confirmation(
+    client,
+    tui_user,
+    tui_admin_user,
+):
+    client.force_login(tui_user)
+    user_response = client.get("/api/tui/screens/research.signals/")
+
+    assert user_response.status_code == 200
+    user_actions = {action["key"]: action for action in user_response.json()["actions"]}
+    assert "signal.list" in user_actions
+    assert "signal.create" not in user_actions
+    assert "signal.batch-check" not in user_actions
+
+    client.force_login(tui_admin_user)
+    admin_response = client.get("/api/tui/screens/research.signals/")
+
+    assert admin_response.status_code == 200
+    admin_actions = {action["key"]: action for action in admin_response.json()["actions"]}
+    mutation_keys = {
+        "signal.create",
+        "signal.update",
+        "signal.approve",
+        "signal.reject",
+        "signal.invalidate",
+        "signal.delete",
+        "signal.batch-check",
+    }
+    assert mutation_keys <= set(admin_actions)
+    assert all(
+        admin_actions[action_key]["confirmation_required"] is True for action_key in mutation_keys
+    )
+    create_fields = {field["key"]: field for field in admin_actions["signal.create"]["fields"]}
+    assert create_fields["invalidation_logic"]["required"] is True
+    assert create_fields["asset_class"]["input_type"] == "text"
 
 
 def test_tui_dashboard_screen_hides_alpha_history_detail_without_history_rows(
@@ -1082,7 +2116,7 @@ def test_tui_config_center_screen_hides_training_run_detail_without_rows(
     monkeypatch.setattr(tui_workbench_module, "has_qlib_training_runs", lambda: False)
     client.force_login(tui_admin_user)
 
-    response = client.get("/api/tui/screens/api-library.config-center/")
+    response = client.get("/api/tui/screens/system.qlib-center/")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1098,7 +2132,7 @@ def test_tui_config_center_screen_shows_training_run_detail_with_rows(
     monkeypatch.setattr(tui_workbench_module, "has_qlib_training_runs", lambda: True)
     client.force_login(tui_admin_user)
 
-    response = client.get("/api/tui/screens/api-library.config-center/")
+    response = client.get("/api/tui/screens/system.qlib-center/")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1109,7 +2143,7 @@ def test_tui_config_center_screen_shows_training_run_detail_with_rows(
 def test_tui_config_center_screen_exposes_alpha_universe_actions(client, tui_admin_user):
     client.force_login(tui_admin_user)
 
-    response = client.get("/api/tui/screens/api-library.config-center/")
+    response = client.get("/api/tui/screens/system.qlib-center/")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1242,6 +2276,9 @@ def test_tui_decision_flow_publishes_confirmed_daily_workflow_actions(client, tu
     payload = response.json()
     actions = {action["key"]: action for action in payload["actions"]}
     expected_write_actions = {
+        "decision.workspace.recommendations_refresh",
+        "decision.workspace.invalidation_template",
+        "decision.workspace.invalidation_ai_draft",
         "decision.workspace.recommendation_action",
         "decision.workspace.plan_generate",
         "decision.workspace.plan_update",
@@ -1618,13 +2655,19 @@ def test_tui_action_api_returns_bounded_database_readiness_error(
     monkeypatch,
 ):
     client.force_login(tui_user)
+    screen_response = client.get("/api/tui/screens/capability-router.self-service/")
+    assert screen_response.status_code == 200
+    screen_payload = screen_response.json()
+    action_key = screen_payload["screen"]["default_action_key"]
+    action = next(item for item in screen_payload["actions"] if item["key"] == action_key)
+    action_label = action["label"]
 
     def raise_schema_mismatch(*args, **kwargs):
         raise OperationalError("no such column: secret_table.internal_name")
 
     monkeypatch.setattr(TuiWorkbenchService, "run_action", raise_schema_mismatch)
     response = client.post(
-        "/api/tui/actions/sample.list/run/",
+        f"/api/tui/actions/{action_key}/run/",
         data={"params": {}},
         content_type="application/json",
     )
@@ -1635,6 +2678,54 @@ def test_tui_action_api_returns_bounded_database_readiness_error(
     assert payload["title"] == "服务正在恢复"
     assert payload["trace_id"]
     assert "secret_table" not in str(payload)
+    assert action_label in payload["detail"]
+    assert payload["recovery_actions"] == [
+        {
+            "label": f"返回{action_label}",
+            "screen_key": "capability-router.self-service",
+        }
+    ]
+
+
+def test_tui_action_api_returns_task_level_unavailable_error(
+    client,
+    tui_user,
+    monkeypatch,
+):
+    client.force_login(tui_user)
+    screen_response = client.get("/api/tui/screens/capability-router.self-service/")
+    assert screen_response.status_code == 200
+    screen_payload = screen_response.json()
+    action_key = screen_payload["screen"]["default_action_key"]
+    action = next(item for item in screen_payload["actions"] if item["key"] == action_key)
+    action_label = action["label"]
+
+    def raise_upstream_failure(*args, **kwargs):
+        raise RuntimeError("private upstream response and internal endpoint")
+
+    monkeypatch.setattr(TuiWorkbenchService, "run_action", raise_upstream_failure)
+    response = client.post(
+        f"/api/tui/actions/{action_key}/run/",
+        data={"params": {}},
+        content_type="application/json",
+        HTTP_X_REQUEST_ID="route-error-trace",
+    )
+
+    assert response.status_code == 502
+    payload = response.json()
+    assert payload == {
+        "error_code": "tui_action_unavailable",
+        "title": "任务暂时不可用",
+        "detail": f"“{action_label}”暂时无法完成，请稍后重试。",
+        "recovery_actions": [
+            {
+                "label": f"返回{action_label}",
+                "screen_key": "capability-router.self-service",
+            }
+        ],
+        "trace_id": "route-error-trace",
+    }
+    assert "private upstream" not in str(payload)
 
 
 def test_tui_screen_payload_exposes_registry_identity(client, tui_user):
@@ -1709,21 +2800,28 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["key"] for panel in panels] == [
         "today-queue",
+        "investment-command-summary",
         "market-context",
         "account-signal-summary",
         "portfolio-summary",
+        "asset-allocation",
+        "portfolio-performance",
     ]
     assert [panel["target_screen"] for panel in panels] == [
+        "",
         "",
         "macro-regime.overview",
         "execution.accounts",
         "execution.accounts",
+        "",
+        "",
     ]
     assert panels[0]["action_key"] == "decision.workspace.today_queue"
-    assert panels[1]["action_key"] == "operator.home.market_context"
-    assert panels[2]["action_key"] == "operator.home.account_signal_summary"
-    assert panels[3]["action_key"] == "dashboard.v1_summary"
-    assert panels[3]["field_rules"] == [
+    assert panels[1]["action_key"] == "dashboard.overview-summary"
+    assert panels[2]["action_key"] == "operator.home.market_context"
+    assert panels[3]["action_key"] == "operator.home.account_signal_summary"
+    assert panels[4]["action_key"] == "dashboard.v1_summary"
+    assert panels[4]["field_rules"] == [
         {"label": "用户 / ID", "visible": False},
         {"label": "用户 / 用户名", "visible": False},
         {"label": "环境 / 置信度", "format": "percentage"},
@@ -1734,10 +2832,15 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
     ]
     assert [panel["title"] for panel in panels] == [
         "今日待办",
+        "投资指挥摘要",
         "环境与脉搏",
         "账户与信号",
         "组合摘要",
+        "资产配置",
+        "组合表现",
     ]
+    assert panels[5]["kind"] == "chart"
+    assert panels[6]["kind"] == "chart"
     action_keys = {action["key"] for action in payload["actions"]}
     assert {
         "operator.home.continue_decision_flow",
@@ -1774,9 +2877,10 @@ def test_tui_research_asset_lab_screen_returns_overview_panels(client, tui_user)
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["action_key"] for panel in panels] == [
         "auto.api.get.api.asset-analysis.pool-summary",
-        "backtest.statistics",
+        "backtest.summary",
+        "backtest.list",
     ]
-    assert [panel["kind"] for panel in panels] == ["detail", "detail"]
+    assert [panel["kind"] for panel in panels] == ["detail", "detail", "datagrid"]
 
 
 def test_tui_beta_gate_screen_returns_overview_panels(client, tui_user):
@@ -1792,6 +2896,11 @@ def test_tui_beta_gate_screen_returns_overview_panels(client, tui_user):
     action_keys = [action["key"] for action in payload["actions"]]
     assert [panel["action_key"] for panel in panels] == [
         "auto.api.get.api.beta-gate.decisions",
+        "beta-gate.config-list",
+        "rotation.asset-list",
+        "rotation.config-list",
+        "rotation.signal-list",
+        "rotation.account-config-list",
         "auto.api.get.api.hedge.alerts.active",
     ]
     assert set(action_keys) >= {
@@ -1812,6 +2921,8 @@ def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
     assert [panel["action_key"] for panel in panels] == [
         "auto.api.get.api.health",
         "auto.api.get.api.data-center",
+        "task-monitor.readiness",
+        "task-monitor.task-list",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
     assert "auto.api.get.api.data-center" in action_keys
@@ -1862,13 +2973,10 @@ def test_tui_alpha_triggers_screen_returns_overview_panels(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert (
-        payload["screen"]["default_action_key"]
-        == "auto.api.get.api.alpha-triggers.candidates.actionable"
-    )
+    assert payload["screen"]["default_action_key"] == "alpha-trigger.candidate-actionable"
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["action_key"] for panel in panels] == [
-        "auto.api.get.api.alpha-triggers.candidates.actionable",
+        "alpha-trigger.candidate-actionable",
         "signal.active",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
@@ -1891,9 +2999,15 @@ def test_tui_pulse_and_hedge_screens_return_overview_panels(client, tui_user):
         "regime.current",
         "pulse.current",
         "data_center.market_thermometer",
+        "pulse.history",
     ]
     assert [panel["action_key"] for panel in hedge_panels] == [
         "auto.api.get.api.beta-gate.decisions",
+        "beta-gate.config-list",
+        "rotation.asset-list",
+        "rotation.config-list",
+        "rotation.signal-list",
+        "rotation.account-config-list",
         "auto.api.get.api.hedge.alerts.active",
     ]
 
@@ -2789,6 +3903,220 @@ def test_tui_service_action_runner_honors_explicit_datagrid_columns(tui_user):
         "enabled_for_routing": "是",
         "enabled_for_terminal": "否",
     }
+
+
+def test_tui_service_action_runner_projects_chart_from_published_columns(tui_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "count": 2,
+                    "data": [
+                        {
+                            "observed_at": "2026-07-24",
+                            "composite_score": 0.42,
+                            "growth_score": 0.31,
+                            "ignored_note": "debug only",
+                        },
+                        {
+                            "observed_at": "2026-07-25",
+                            "composite_score": 0.57,
+                            "growth_score": None,
+                            "ignored_note": "debug only",
+                        },
+                    ],
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "pulse.history",
+                        "label": "脉搏趋势",
+                        "method": "GET",
+                        "endpoint": "/api/pulse/history/",
+                        "intent": "read_pulse_history",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "datagrid",
+                        "risk": "read",
+                        "fields": [],
+                        "view_model": {
+                            "kind": "chart",
+                            "chart_type": "bar",
+                            "rows_path": "data",
+                            "columns": [
+                                {"key": "observed_at", "label": "日期"},
+                                {"key": "composite_score", "label": "综合脉搏"},
+                                {"key": "growth_score", "label": "增长"},
+                            ],
+                        },
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(action_key="pulse.history", params={}, user=tui_user)
+    view_model = payload["view_model"]
+
+    assert view_model["kind"] == "chart"
+    assert view_model["chart_type"] == "bar"
+    assert view_model["series"] == [
+        {
+            "key": "composite_score",
+            "label": "综合脉搏",
+            "points": [
+                {"label": "2026-07-24", "value": 0.42},
+                {"label": "2026-07-25", "value": 0.57},
+            ],
+        },
+        {
+            "key": "growth_score",
+            "label": "增长",
+            "points": [{"label": "2026-07-24", "value": 0.31}],
+        },
+    ]
+    assert view_model["x_axis_label"] == "日期"
+    assert view_model["point_count"] == 3
+    assert view_model["empty_message"] == "暂无脉搏趋势数据。"
+    assert "ignored_note" not in str(view_model)
+
+
+def test_tui_service_action_runner_projects_portable_table_chart(tui_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "branches": [
+                        {
+                            "branch_type": "actual",
+                            "final_capital": 1020000,
+                            "total_return_percent": 2,
+                        },
+                        {
+                            "branch_type": "no_action",
+                            "final_capital": 1000000,
+                            "total_return_percent": 0,
+                        },
+                    ],
+                    "equity_curve": [
+                        {
+                            "date": "2026-07-24",
+                            "actual": 1000000,
+                            "no_action": 1000000,
+                        },
+                        {
+                            "date": "2026-07-25",
+                            "actual": 1020000,
+                            "no_action": 1000000,
+                        },
+                    ],
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "audit.replay",
+                        "label": "四分支复盘",
+                        "method": "GET",
+                        "endpoint": "/api/audit/replay/",
+                        "intent": "read_replay",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "table_chart",
+                        "risk": "read",
+                        "fields": [],
+                        "view_model": {
+                            "kind": "table_chart",
+                            "chart_type": "line",
+                            "table_rows_path": "branches",
+                            "chart_rows_path": "equity_curve",
+                            "table_columns": [
+                                {"key": "branch_type", "label": "分支"},
+                                {"key": "final_capital", "label": "期末资金（元）"},
+                                {"key": "total_return_percent", "label": "总收益（%）"},
+                            ],
+                            "chart_columns": [
+                                {"key": "date", "label": "日期"},
+                                {"key": "actual", "label": "实际操作（元）"},
+                                {"key": "no_action", "label": "不操作（元）"},
+                            ],
+                        },
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(action_key="audit.replay", params={}, user=tui_user)
+    view_model = payload["view_model"]
+
+    assert view_model["kind"] == "table_chart"
+    assert [row["branch_type"] for row in view_model["table"]["rows"]] == [
+        "actual",
+        "no_action",
+    ]
+    assert view_model["chart"]["series"][0]["points"][-1] == {
+        "label": "2026-07-25",
+        "value": 1020000.0,
+    }
+
+
+def test_chart_projection_sorts_dates_samples_large_payloads_and_bounds_errors():
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository(_metadata_payload()))
+    action = {
+        "key": "history.large",
+        "label": "大样本趋势",
+        "view_model": {
+            "kind": "chart",
+            "rows_path": "data",
+            "columns": [
+                {"key": "observed_at", "label": "日期"},
+                {"key": "value", "label": "数值"},
+            ],
+        },
+    }
+    rows = [
+        {
+            "observed_at": f"2025-{((index // 28) % 12) + 1:02d}-{(index % 28) + 1:02d}",
+            "value": index,
+        }
+        for index in reversed(range(300))
+    ]
+
+    view_model = service._to_view_model(
+        action=action,
+        payload={"success": True, "data": rows},
+        status_code=200,
+    )
+
+    points = view_model["series"][0]["points"]
+    assert view_model["source_row_count"] == 300
+    assert view_model["sampled"] is True
+    assert len(points) == 240
+    assert points[0]["label"] == min(row["observed_at"] for row in rows)
+    assert points[-1]["label"] == max(row["observed_at"] for row in rows)
+
+    failed_model = service._to_view_model(
+        action=action,
+        payload={"error": "upstream failed"},
+        status_code=502,
+    )
+    assert failed_model["kind"] == "chart"
+    assert all(not series["points"] for series in failed_model["series"])
+    assert failed_model["status"] == "错误"
+    assert failed_model["blocking_reason"]
 
 
 def test_tui_service_marks_missing_optional_detail_as_empty_state(tui_user):
@@ -5153,6 +6481,80 @@ def test_tui_service_empty_datagrid_returns_user_empty_state(tui_user):
     assert "F9" in " ".join(payload["view_model"]["empty_guidance"])
 
 
+@pytest.mark.parametrize(
+    ("action_key", "view_kind", "empty_payload", "empty_message"),
+    (
+        ("research.empty-detail", "detail", {}, "当前没有研究摘要。"),
+        ("research.empty-chart", "chart", [], "当前没有研究趋势。"),
+    ),
+)
+def test_tui_service_empty_results_keep_reviewed_task_guidance(
+    tui_user,
+    action_key,
+    view_kind,
+    empty_payload,
+    empty_message,
+):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {"status_code": 200, "payload": empty_payload}
+
+    screen = {
+        "key": "research.empty-review",
+        "label": "研究空态复核",
+        "module_key": "command-center",
+        "group": "workflow",
+        "summary": "复核研究任务的空态。",
+        "view_type": "detail",
+        "status": "online",
+        "default_action_key": action_key,
+        "user_experience": {
+            "journey": "workspace",
+            "primary_task": "检查研究结果。",
+            "primary_outcome": "明确是否需要补充数据。",
+            "empty_state_hint": "暂无结果时先检查研究样本和筛选条件。",
+            "next_step_hint": "补齐数据后重新执行当前研究任务。",
+        },
+    }
+    action_payload = {
+        "key": action_key,
+        "label": "研究摘要" if view_kind == "detail" else "研究趋势",
+        "method": "GET",
+        "endpoint": f"/api/test/{action_key}/",
+        "intent": "review_empty_result",
+        "screen_key": "research.empty-review",
+        "module_key": "command-center",
+        "view_type": view_kind,
+        "risk": "read",
+        "fields": [],
+        "view_model": {
+            "kind": view_kind,
+            "empty_message": empty_message,
+        },
+    }
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[action_payload],
+                screens=[screen],
+                default_screen="research.empty-review",
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(action_key=action_key, params={}, user=tui_user)
+    view_model = payload["view_model"]
+
+    assert view_model["kind"] == view_kind
+    assert view_model["status"] == "暂无数据"
+    assert view_model["empty_message"] == empty_message
+    assert view_model["empty_guidance"] == [
+        "暂无结果时先检查研究样本和筛选条件。",
+        "补齐数据后重新执行当前研究任务。",
+    ]
+
+
 def test_tui_service_converts_scalar_message_list_to_message(tui_user):
     class FakeExecutor:
         def execute(self, **kwargs):
@@ -5804,7 +7206,7 @@ def test_tui_metadata_repository_rehomes_account_actions_to_account_screen():
     loaded = PublishedTuiMetadataRepository().load_published()
 
     moved_keys = {
-        "auto.api.get.api.account.positions",
+        "auto.api.get.api.account.positions.read-only",
         "param.api.get.api.account.accounts.int.account_id.positions",
         "param.api.get.api.account.accounts.int.account_id.performance",
         "param.api.get.api.account.accounts.int.account_id.performance-report",
@@ -6514,7 +7916,23 @@ def test_tui_mcp_governance_panels_publish_native_row_actions():
     assert "position: sticky" in css
 
 
+def test_tui_operation_action_group_does_not_stick_over_later_tasks():
+    """A tall operation group must scroll away instead of intercepting later forms."""
+
+    css = (Path(__file__).resolve().parents[2] / "static" / "css" / "tui-workbench.css").read_text(
+        encoding="utf-8"
+    )
+    operation_group = css.split(".tui-action-group-operation {", maxsplit=1)[1].split(
+        "}", maxsplit=1
+    )[0]
+
+    assert "position: sticky" not in operation_group
+
+
 def test_tui_identity_access_metadata_is_composed_from_owner_shards():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_account_self_service import (
+        RUNTIME_ACCOUNT_SELF_SERVICE_ACTIONS,
+    )
     from apps.terminal.infrastructure.tui_metadata_runtime_injection_ai_quotas import (
         RUNTIME_AI_QUOTA_ACTIONS,
         RUNTIME_AI_USER_QUOTAS_SCREEN,
@@ -6533,12 +7951,17 @@ def test_tui_identity_access_metadata_is_composed_from_owner_shards():
     from apps.terminal.infrastructure.tui_metadata_runtime_injection_mcp_access import (
         RUNTIME_MCP_ACCESS_ACTIONS,
     )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_user_access import (
+        RUNTIME_USER_ACCESS_ACTIONS,
+    )
 
     expected_actions = (
         *RUNTIME_MCP_ACCESS_ACTIONS,
         *RUNTIME_AI_USER_PROVIDER_ACTIONS,
         *RUNTIME_AI_SYSTEM_PROVIDER_ACTIONS,
         *RUNTIME_AI_QUOTA_ACTIONS,
+        *RUNTIME_USER_ACCESS_ACTIONS,
+        *RUNTIME_ACCOUNT_SELF_SERVICE_ACTIONS,
     )
 
     assert [action["key"] for action in RUNTIME_IDENTITY_ACCESS_ACTIONS] == [
@@ -6547,6 +7970,444 @@ def test_tui_identity_access_metadata_is_composed_from_owner_shards():
     assert RUNTIME_AI_MY_PROVIDERS_SCREEN["key"] == "ai-ops.my-providers"
     assert RUNTIME_AI_SYSTEM_PROVIDERS_SCREEN["key"] == "ai-ops.system-providers"
     assert RUNTIME_AI_USER_QUOTAS_SCREEN["key"] == "ai-ops.user-quotas"
+
+
+def test_tui_decision_rhythm_actions_publish_role_and_chart_contracts():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_decision_rhythm import (
+        RUNTIME_DECISION_RHYTHM_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_DECISION_RHYTHM_ACTIONS}
+
+    assert set(actions) == {
+        "decision-rhythm.quota-list",
+        "decision-rhythm.quota-trend",
+        "decision-rhythm.quota-update",
+        "decision-rhythm.quota-reset",
+    }
+    assert actions["decision-rhythm.quota-list"]["risk"] == "read"
+    assert actions["decision-rhythm.quota-list"]["view_model"]["rows_path"] == "results"
+    assert actions["decision-rhythm.quota-trend"]["view_model"] == {
+        "kind": "chart",
+        "rows_path": "data.daily_decisions",
+        "columns": [
+            {"key": "date", "label": "日期"},
+            {"key": "value", "label": "每日决策"},
+        ],
+    }
+    for action_key in (
+        "decision-rhythm.quota-update",
+        "decision-rhythm.quota-reset",
+    ):
+        assert actions[action_key]["audience"] == "admin"
+        assert actions[action_key]["confirmation_required"] is True
+        assert actions[action_key]["effect"] == "update"
+
+
+def test_tui_backtest_actions_publish_complete_confirmed_task_flow():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_backtest import (
+        RUNTIME_BACKTEST_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_BACKTEST_ACTIONS}
+
+    assert set(actions) == {
+        "backtest.summary",
+        "backtest.list",
+        "backtest.detail",
+        "backtest.run",
+        "backtest.rerun",
+        "backtest.apply",
+        "backtest.delete",
+    }
+    assert actions["backtest.list"]["view_model"]["rows_path"] == "backtests"
+    assert actions["backtest.detail"]["fields"][0]["binding"] == "path"
+    run_fields = {field["key"]: field for field in actions["backtest.run"]["fields"]}
+    assert run_fields["start_date"]["input_type"] == "date"
+    assert run_fields["use_pit_data"]["input_type"] == "checkbox"
+    assert "data_manifest_id" in run_fields
+    for action_key in (
+        "backtest.run",
+        "backtest.rerun",
+        "backtest.apply",
+        "backtest.delete",
+    ):
+        assert actions[action_key]["confirmation_required"] is True
+        assert actions[action_key]["effect"] in {
+            "execute",
+            "create",
+            "delete",
+        }
+
+
+def test_tui_beta_gate_actions_publish_role_and_immutable_config_contracts():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_beta_gate import (
+        RUNTIME_BETA_GATE_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_BETA_GATE_ACTIONS}
+
+    assert set(actions) == {
+        "beta-gate.config-list",
+        "beta-gate.config-detail",
+        "beta-gate.config-create",
+        "beta-gate.config-update",
+        "beta-gate.config-delete",
+        "beta-gate.test-assets",
+        "beta-gate.version-compare",
+        "beta-gate.rollback",
+    }
+    assert actions["beta-gate.config-list"]["view_model"]["rows_path"] == "results"
+    create_fields = {field["key"]: field for field in actions["beta-gate.config-create"]["fields"]}
+    assert create_fields["allowed_regimes"]["value_type"] == "list"
+    update_fields = {field["key"]: field for field in actions["beta-gate.config-update"]["fields"]}
+    assert update_fields["regime_constraints"]["value_type"] == "object"
+    for action_key in (
+        "beta-gate.config-create",
+        "beta-gate.config-update",
+        "beta-gate.config-delete",
+        "beta-gate.rollback",
+    ):
+        assert actions[action_key]["audience"] == "admin"
+        assert actions[action_key]["confirmation_required"] is True
+    assert actions["beta-gate.test-assets"]["confirmation_required"] is True
+
+
+def test_tui_rotation_asset_actions_publish_admin_crud_and_import_preview():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_rotation import (
+        RUNTIME_ROTATION_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_ROTATION_ACTIONS}
+
+    assert set(actions) == {
+        "rotation.asset-list",
+        "rotation.asset-detail",
+        "rotation.asset-create",
+        "rotation.asset-update",
+        "rotation.asset-delete",
+        "rotation.asset-import-preview",
+        "rotation.asset-import",
+        "rotation.asset-prices",
+    }
+    assert actions["rotation.asset-list"]["view_model"]["rows_path"] == "results"
+    assert actions["rotation.asset-import-preview"]["method"] == "GET"
+    for action_key in (
+        "rotation.asset-create",
+        "rotation.asset-update",
+        "rotation.asset-delete",
+        "rotation.asset-import",
+    ):
+        assert actions[action_key]["audience"] == "admin"
+        assert actions[action_key]["confirmation_required"] is True
+    assert actions["rotation.asset-delete"]["effect"] == "delete"
+
+
+def test_tui_rotation_config_actions_publish_complete_admin_workflow():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_rotation import (
+        RUNTIME_ROTATION_CONFIG_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_ROTATION_CONFIG_ACTIONS}
+
+    assert set(actions) == {
+        "rotation.config-list",
+        "rotation.config-detail",
+        "rotation.config-create",
+        "rotation.config-update",
+        "rotation.config-delete",
+        "rotation.config-activate",
+        "rotation.config-deactivate",
+        "rotation.config-generate_signal",
+    }
+    create_fields = {field["key"]: field for field in actions["rotation.config-create"]["fields"]}
+    assert create_fields["asset_universe"]["value_type"] == "list"
+    assert create_fields["regime_allocations"]["value_type"] == "object"
+    for action_key in set(actions) - {"rotation.config-list", "rotation.config-detail"}:
+        assert actions[action_key]["audience"] == "admin"
+        assert actions[action_key]["confirmation_required"] is True
+
+
+def test_tui_rotation_signal_and_account_actions_preserve_quality_and_user_scope():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_rotation import (
+        RUNTIME_ROTATION_SIGNAL_ACCOUNT_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_ROTATION_SIGNAL_ACCOUNT_ACTIONS}
+
+    assert {
+        "rotation.signal-list",
+        "rotation.signal-latest",
+        "rotation.signal-detail",
+        "rotation.account-config-list",
+        "rotation.account-config-detail",
+        "rotation.account-config-by-account",
+        "rotation.account-config-create",
+        "rotation.account-config-update",
+        "rotation.account-config-delete",
+        "rotation.account-config-apply-template",
+        "rotation.template-list",
+    } == set(actions)
+    signal_columns = {
+        column["key"] for column in actions["rotation.signal-list"]["view_model"]["columns"]
+    }
+    assert {"data_quality", "is_stale", "actionable"} <= signal_columns
+    create_fields = {
+        field["key"]: field for field in actions["rotation.account-config-create"]["fields"]
+    }
+    assert create_fields["regime_allocations"]["value_type"] == "object"
+    for action_key in (
+        "rotation.account-config-create",
+        "rotation.account-config-update",
+        "rotation.account-config-delete",
+        "rotation.account-config-apply-template",
+    ):
+        assert actions[action_key]["audience"] == "authenticated"
+        assert actions[action_key]["confirmation_required"] is True
+
+
+def test_tui_alpha_trigger_reads_publish_actionable_and_invalidation_first_contracts():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_alpha_trigger import (
+        RUNTIME_ALPHA_TRIGGER_READ_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_ALPHA_TRIGGER_READ_ACTIONS}
+
+    assert set(actions) == {
+        "alpha-trigger.trigger-list",
+        "alpha-trigger.trigger-active",
+        "alpha-trigger.trigger-detail",
+        "alpha-trigger.candidate-list",
+        "alpha-trigger.candidate-actionable",
+        "alpha-trigger.candidate-watch-list",
+        "alpha-trigger.candidate-detail",
+        "alpha-trigger.trigger-statistics",
+        "alpha-trigger.candidate-statistics",
+        "alpha-trigger.performance",
+    }
+    assert actions["alpha-trigger.candidate-actionable"]["view_model"]["rows_path"] == "results"
+    candidate_columns = {
+        column["key"]
+        for column in actions["alpha-trigger.candidate-actionable"]["view_model"]["columns"]
+    }
+    assert {"risk_level", "expected_return", "is_executed"} <= candidate_columns
+    assert actions["alpha-trigger.trigger-detail"]["fields"][0]["binding"] == "path"
+    assert actions["alpha-trigger.performance"]["view_model"]["rows_path"] == "data"
+    assert all(action["risk"] == "read" for action in actions.values())
+
+
+def test_tui_alpha_trigger_mutations_publish_confirmed_lifecycle_contracts():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_alpha_trigger import (
+        RUNTIME_ALPHA_TRIGGER_MUTATION_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_ALPHA_TRIGGER_MUTATION_ACTIONS}
+
+    assert set(actions) == {
+        "alpha-trigger.create",
+        "alpha-trigger.update",
+        "alpha-trigger.pause",
+        "alpha-trigger.resume",
+        "alpha-trigger.cancel",
+        "alpha-trigger.check-invalidation",
+        "alpha-trigger.evaluate",
+        "alpha-trigger.generate-candidate",
+        "alpha-trigger.candidate-update-status",
+    }
+    create_fields = {field["key"]: field for field in actions["alpha-trigger.create"]["fields"]}
+    assert create_fields["trigger_condition"]["value_type"] == "object"
+    assert create_fields["invalidation_conditions"]["value_type"] == "list"
+    assert actions["alpha-trigger.update"]["fields"][0]["binding"] == "path"
+    assert actions["alpha-trigger.cancel"]["method"] == "DELETE"
+    assert all(action["confirmation_required"] is True for action in actions.values())
+    assert all(action["audience"] == "authenticated" for action in actions.values())
+
+
+def test_tui_policy_events_publish_role_aware_crud_and_review_contracts():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_policy import (
+        RUNTIME_POLICY_EVENT_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_POLICY_EVENT_ACTIONS}
+
+    assert set(actions) == {
+        "policy.event-list",
+        "policy.event-detail",
+        "policy.event-create",
+        "policy.workbench-bootstrap",
+        "policy.workbench-item-detail",
+        "policy.workbench-approve",
+        "policy.workbench-reject",
+        "policy.workbench-rollback",
+        "policy.workbench-override",
+    }
+    assert actions["policy.event-list"]["view_model"]["rows_path"] == "events"
+    assert actions["policy.event-detail"]["fields"][0]["binding"] == "path"
+    assert actions["policy.event-create"]["audience"] == "admin"
+    assert actions["policy.event-create"]["confirmation_required"] is True
+    for action_key in (
+        "policy.workbench-approve",
+        "policy.workbench-reject",
+        "policy.workbench-rollback",
+        "policy.workbench-override",
+    ):
+        assert actions[action_key]["audience"] == "authenticated"
+        assert actions[action_key]["confirmation_required"] is True
+
+
+def test_tui_policy_rss_actions_separate_reader_from_admin_governance():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_policy import (
+        RUNTIME_POLICY_RSS_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_POLICY_RSS_ACTIONS}
+
+    assert set(actions) == {
+        "policy.rss-reader",
+        "policy.rss-source-list",
+        "policy.rss-source-detail",
+        "policy.rss-source-create",
+        "policy.rss-source-update",
+        "policy.rss-source-delete",
+        "policy.rss-source-fetch",
+        "policy.rss-fetch-all",
+        "policy.rss-log-list",
+        "policy.rss-log-detail",
+        "policy.rss-keyword-list",
+        "policy.rss-keyword-detail",
+        "policy.rss-keyword-create",
+        "policy.rss-keyword-update",
+        "policy.rss-keyword-delete",
+    }
+    assert actions["policy.rss-reader"]["audience"] == "authenticated"
+    assert actions["policy.rss-reader"]["view_model"]["rows_path"] == "results"
+    source_fields = {field["key"]: field for field in actions["policy.rss-source-create"]["fields"]}
+    assert source_fields["proxy_password"]["input_type"] == "password"
+    assert source_fields["rsshub_custom_access_key"]["input_type"] == "password"
+    assert source_fields["category"]["options"] == [
+        "gov_docs",
+        "central_bank",
+        "mof",
+        "csrc",
+        "media",
+        "other",
+    ]
+    for action_key, action in actions.items():
+        if action_key == "policy.rss-reader":
+            continue
+        assert action["audience"] == "admin"
+    for action_key in (
+        "policy.rss-source-create",
+        "policy.rss-source-update",
+        "policy.rss-source-delete",
+        "policy.rss-source-fetch",
+        "policy.rss-fetch-all",
+        "policy.rss-keyword-create",
+        "policy.rss-keyword-update",
+        "policy.rss-keyword-delete",
+    ):
+        assert actions[action_key]["confirmation_required"] is True
+
+
+def test_tui_task_monitor_actions_publish_admin_readiness_and_scheduler_contracts():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_task_monitor import (
+        RUNTIME_TASK_MONITOR_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_TASK_MONITOR_ACTIONS}
+
+    assert set(actions) == {
+        "task-monitor.dashboard",
+        "task-monitor.scheduler-catalog",
+        "task-monitor.task-list",
+        "task-monitor.task-detail",
+        "task-monitor.statistics",
+        "task-monitor.celery-health",
+        "task-monitor.readiness",
+        "task-monitor.readiness-schedule",
+        "task-monitor.readiness-schedule-update",
+        "task-monitor.scheduler-bootstrap",
+    }
+    assert all(action["audience"] == "admin" for action in actions.values())
+    assert actions["task-monitor.task-list"]["view_model"]["rows_path"] == "items"
+    assert actions["task-monitor.scheduler-catalog"]["view_model"]["rows_path"] == (
+        "periodic_tasks"
+    )
+    assert actions["task-monitor.readiness"]["fields"][0]["value_type"] == "boolean"
+    update = actions["task-monitor.readiness-schedule-update"]
+    assert update["method"] == "PATCH"
+    assert update["confirmation_required"] is True
+    assert [field["input_type"] for field in update["fields"]] == [
+        "text",
+        "text",
+        "text",
+    ]
+    assert actions["task-monitor.scheduler-bootstrap"]["confirmation_required"] is True
+
+
+def test_tui_sentiment_analysis_publishes_typed_text_and_health_contracts():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_sentiment import (
+        RUNTIME_SENTIMENT_ACTIONS,
+    )
+
+    actions = {action["key"]: action for action in RUNTIME_SENTIMENT_ACTIONS}
+
+    assert set(actions) == {
+        "sentiment.dashboard-summary",
+        "sentiment.index-trend",
+        "sentiment.analyze-text",
+        "sentiment.health",
+    }
+    trend = actions["sentiment.index-trend"]
+    assert trend["view_type"] == "chart"
+    assert trend["view_model"]["chart_type"] == "line"
+    assert trend["view_model"]["rows_path"] == "indices"
+    analyze = actions["sentiment.analyze-text"]
+    assert analyze["audience"] == "authenticated"
+    assert analyze["screen_key"] == "research.signals"
+    assert analyze["method"] == "POST"
+    assert analyze["confirmation_required"] is True
+    fields = {field["key"]: field for field in analyze["fields"]}
+    assert fields["text"]["input_type"] == "textarea"
+    assert fields["text"]["max"] == 5000
+    assert fields["use_cache"]["input_type"] == "checkbox"
+    assert actions["sentiment.health"]["method"] == "GET"
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_registry import (
+        RUNTIME_METADATA_INJECTIONS,
+    )
+
+    raw_actions = {
+        action["key"]: action for bundle in RUNTIME_METADATA_INJECTIONS for action in bundle.actions
+    }
+    assert raw_actions["sentiment.dashboard-summary"]["endpoint"] == (
+        "/api/sentiment/tui/overview/"
+    )
+    assert raw_actions["sentiment.index-trend"]["view_model"]["columns"] == [
+        {"key": "date", "label": "日期"},
+        {"key": "composite", "label": "综合指数"},
+        {"key": "news", "label": "新闻情绪"},
+        {"key": "policy", "label": "政策情绪"},
+    ]
+
+
+def test_tui_asset_analysis_screen_publishes_only_supported_asset_types():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_asset_analysis import (
+        RUNTIME_ASSET_ANALYSIS_ACTIONS,
+    )
+
+    assert len(RUNTIME_ASSET_ANALYSIS_ACTIONS) == 1
+    action = RUNTIME_ASSET_ANALYSIS_ACTIONS[0]
+    fields = {field["key"]: field for field in action["fields"]}
+
+    assert action["key"] == "asset-analysis.pool-screen"
+    assert action["screen_key"] == "research.asset-lab"
+    assert action["risk"] == "read"
+    assert fields["asset_type"]["binding"] == "path"
+    assert fields["asset_type"]["options"] == ["equity", "fund"]
+    assert fields["min_score"]["min"] == 0
+    assert fields["max_score"]["max"] == 100
+    assert action["view_model"]["rows_path"] == "assets"
+    assert len(action["view_model"]["columns"]) == 8
 
 
 def test_tui_runtime_injection_replaces_stale_mcp_screen_and_action_contracts():

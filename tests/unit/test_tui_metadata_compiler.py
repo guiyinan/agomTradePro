@@ -1270,6 +1270,36 @@ def test_smoke_prune_marks_auto_promoted_failures_as_prunable(smoke_module):
     assert smoke_module._should_prune_failed_action({"source": "approved:admin"}) is False
 
 
+def test_smoke_accepts_only_explicit_503_business_states(smoke_module):
+    ai_action = {"risk": "ai", "screen_key": "ai-ops.terminal"}
+    read_action = {"risk": "read", "screen_key": "research.signals"}
+
+    assert (
+        smoke_module._is_expected_business_status(
+            action=ai_action,
+            endpoint="/api/terminal/chat/",
+            status_code=503,
+        )
+        is True
+    )
+    assert (
+        smoke_module._is_expected_business_status(
+            action=read_action,
+            endpoint="/api/signals/",
+            status_code=503,
+        )
+        is False
+    )
+    assert (
+        smoke_module._is_expected_business_status(
+            action=ai_action,
+            endpoint="/api/terminal/chat/",
+            status_code=500,
+        )
+        is False
+    )
+
+
 def test_promoter_prunes_empty_toolbox_screens(promoter_module):
     payload = {
         "groups": [{"key": "system", "label": "系统工具"}],
@@ -1325,6 +1355,37 @@ def test_promoter_prunes_empty_toolbox_screens(promoter_module):
     assert [screen["key"] for screen in payload["screens"]] == ["command-center.overview"]
 
 
+def test_promoter_prunes_runtime_only_dashboard_row_actions(promoter_module):
+    payload = {
+        "actions": [
+            {"key": "test.list"},
+            {"key": "test.known-row-action"},
+        ],
+        "screens": [
+            {
+                "key": "test.screen",
+                "dashboard_panels": [
+                    {
+                        "key": "test-panel",
+                        "action_key": "test.list",
+                        "row_actions": [
+                            {"action_key": "test.known-row-action"},
+                            {"action_key": "test.runtime-only-row-action"},
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+
+    removed = promoter_module._prune_runtime_only_dashboard_panels(payload)
+
+    assert removed == 1
+    assert payload["screens"][0]["dashboard_panels"][0]["row_actions"] == [
+        {"action_key": "test.known-row-action"}
+    ]
+
+
 def test_promoter_prunes_redundant_capability_pk_detail_action(promoter_module):
     payload = {
         "actions": [
@@ -1350,6 +1411,47 @@ def test_promoter_prunes_redundant_capability_pk_detail_action(promoter_module):
     assert "param.api.get.api.ai-capability.capabilities.str.capability_key" in keys
     assert "param.api.get.api.ai-capability.capabilities.pk" not in keys
     assert "param.api.get.api.ai.me.providers.pk" in keys
+
+
+def test_promoter_prunes_unbounded_auto_actions_replaced_by_curated_tasks(promoter_module):
+    payload = {
+        "actions": [
+            {
+                "key": "auto.api.get.api.dashboard.auto-advisor-console",
+                "screen_key": "command-center.overview",
+            },
+            {
+                "key": "auto.api.get.api.decision.advisor.sheet",
+                "screen_key": "command-center.decision-flow",
+            },
+            {
+                "key": "auto.api.get.api.account.volatility",
+                "screen_key": "execution.accounts",
+            },
+            {
+                "key": "regime.action",
+                "screen_key": "macro-regime.overview",
+            },
+            {
+                "key": "auto.api.get.api.factor.portfolio",
+                "screen_key": "research.asset-lab",
+            },
+            {
+                "key": "account.profile-summary",
+                "screen_key": "execution.accounts",
+            },
+        ]
+    }
+
+    removed = promoter_module._prune_redundant_screen_actions(payload)
+
+    assert removed == 5
+    assert payload["actions"] == [
+        {
+            "key": "account.profile-summary",
+            "screen_key": "execution.accounts",
+        }
+    ]
 
 
 def test_promoter_prefers_operator_first_defaults_for_known_screens(promoter_module):

@@ -4,6 +4,7 @@ import logging
 
 from rest_framework import status
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.permissions import IsAdminUser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -256,6 +257,8 @@ class UpdateQuotaConfigView(APIView):
     POST /api/decision-rhythm/quota/update/
     """
 
+    permission_classes = [IsAdminUser]
+
     @typed_extend_schema(
         request=UpdateQuotaConfigRequestSerializer,
         responses={200: dict},
@@ -300,7 +303,7 @@ class UpdateQuotaConfigView(APIView):
                     "success": True,
                     "quota_id": quota.quota_id,
                     "account_id": quota.account_id,
-                    "period": quota.period,
+                    "period": quota.period.value,
                     "max_decisions": quota.max_decisions,
                     "max_executions": quota.max_execution_count,
                 }

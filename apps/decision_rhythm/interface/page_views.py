@@ -2,6 +2,8 @@
 
 import logging
 
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.db import DatabaseError
 from django.http import HttpRequest, HttpResponse
@@ -30,6 +32,7 @@ PAGE_RECOVERABLE_EXCEPTIONS = (
 )
 
 
+@login_required
 def decision_rhythm_quota_view(request: HttpRequest) -> HttpResponse:
     """
     决策配额管理页面
@@ -64,6 +67,7 @@ def decision_rhythm_quota_view(request: HttpRequest) -> HttpResponse:
         return render(request, "decision_rhythm/quota.html", context, status=500)
 
 
+@staff_member_required
 def decision_rhythm_config_view(request: HttpRequest) -> HttpResponse:
     """
     决策配额配置页面

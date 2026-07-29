@@ -843,9 +843,6 @@ a {
 }
 
 .tui-action-group-operation {
-    position: sticky;
-    top: 0;
-    z-index: 3;
     background: var(--tui-panel);
     padding-bottom: 4px;
     border: 2px solid var(--tui-accent);
@@ -2153,6 +2150,18 @@ a {
     fill: var(--tui-accent-strong);
 }
 
+.tui-chart-line.series-1 { stroke: var(--tui-green); }
+.tui-chart-line.series-2 { stroke: var(--tui-warn); }
+.tui-chart-line.series-3 { stroke: var(--tui-danger); }
+.tui-chart-line.series-4 { stroke: var(--tui-accent-strong); }
+.tui-chart-line.series-5 { stroke: var(--tui-muted); }
+
+.tui-chart-point.series-1 { fill: var(--tui-green); }
+.tui-chart-point.series-2 { fill: var(--tui-warn); }
+.tui-chart-point.series-3 { fill: var(--tui-danger); }
+.tui-chart-point.series-4 { fill: var(--tui-accent-strong); }
+.tui-chart-point.series-5 { fill: var(--tui-muted); }
+
 .tui-chart-legend {
     justify-content: flex-start;
     flex-wrap: wrap;
@@ -2172,6 +2181,37 @@ a {
     width: 8px;
     height: 8px;
     background: var(--tui-accent);
+}
+
+.tui-chart-legend i.series-1 { background: var(--tui-green); }
+.tui-chart-legend i.series-2 { background: var(--tui-warn); }
+.tui-chart-legend i.series-3 { background: var(--tui-danger); }
+.tui-chart-legend i.series-4 { background: var(--tui-accent-strong); }
+.tui-chart-legend i.series-5 { background: var(--tui-muted); }
+
+.tui-chart-accessible-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 6px 12px;
+    margin: 10px 0 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--tui-border-dim);
+    color: var(--tui-muted);
+    font-size: 12px;
+}
+
+.tui-chart-accessible-summary div {
+    min-width: 0;
+}
+
+.tui-chart-accessible-summary dt {
+    color: var(--tui-text);
+    font-weight: 700;
+}
+
+.tui-chart-accessible-summary dd {
+    margin: 2px 0 0;
+    overflow-wrap: anywhere;
 }
 
 .tui-chart-pie {

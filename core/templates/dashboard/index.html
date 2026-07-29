@@ -17,6 +17,7 @@
 {% endblock %}
 
 {% block content %}
+{% include "components/classic_tui_migration_banner.html" with screen_key="command-center.overview" action_key="dashboard.overview-summary" %}
 <!-- Hidden JSON data for JavaScript -->
 {{ alpha_provider_status|json_script:"providerData" }}
 {{ alpha_ic_trends|json_script:"icTrendsData" }}

@@ -2,6 +2,7 @@
 
 from typing import Any, TypedDict
 
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
@@ -138,6 +139,7 @@ def _format_history_chart_label(row: dict[str, Any]) -> str:
     return reporting_period
 
 
+@login_required
 def macro_data_view(request: HttpRequest) -> HttpResponse:
     """Render the macro data management page."""
 

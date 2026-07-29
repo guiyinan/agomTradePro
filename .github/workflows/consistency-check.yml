@@ -35,6 +35,16 @@ jobs:
         run: |
           python scripts/check_routes.py --strict
 
+      - name: Enforce Web-to-TUI template freeze
+        run: |
+          python scripts/web_template_migration_inventory.py --check
+          python scripts/check_web_to_tui_cleanup_guard.py
+
+      - name: Check Web-to-TUI telemetry catalog
+        run: |
+          python scripts/build_web_to_tui_telemetry_catalog.py --check
+          python scripts/check_web_to_tui_cutover_readiness.py
+
       - name: Run TUI static contract check
         run: |
           python scripts/check_tui_static_contracts.py

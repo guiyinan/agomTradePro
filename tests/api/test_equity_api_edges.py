@@ -20,6 +20,7 @@ from apps.equity.infrastructure.models import (
     StockPoolSnapshot,
     ValuationModel,
 )
+from apps.equity.interface.serializers import ScreenStocksRequestSerializer
 from apps.regime.infrastructure.models import RegimeLog
 from core.exceptions import DataFetchError
 
@@ -86,6 +87,7 @@ def test_equity_pool_returns_empty_payload_when_no_pool(authenticated_client):
     assert payload["regime"] == "Recovery"
     assert payload["count"] == 0
     assert payload["stocks"] == []
+    assert payload["sector_distribution"] == []
 
 
 @pytest.mark.django_db
@@ -164,6 +166,7 @@ def test_equity_pool_default_read_chain_does_not_persist_business_state(
             "score": None,
         }
     ]
+    assert response.json()["sector_distribution"] == [{"sector": "银行", "count": 1}]
     assert after == before
     assert cache.get("equity:stock_pool:current") is None
     assert cache.get("equity:stock_pool:meta") is None
@@ -878,3 +881,29 @@ def test_equity_regime_correlation_uses_tushare_gateway_daily_price_fallback(aut
     cached_rows = StockDailyModel.objects.filter(stock_code="300308.SZ").order_by("trade_date")
     assert cached_rows.count() == len(remote_prices)
     assert cached_rows.last().close == Decimal("606.52")
+
+
+def test_screen_stocks_serializer_folds_flat_tui_fields_into_custom_rule():
+    serializer = ScreenStocksRequestSerializer(
+        data={
+            "regime": "Recovery",
+            "min_roe": 15,
+            "max_pe": 30,
+            "max_pb": 5,
+            "min_revenue_growth": 10,
+            "min_profit_growth": 8,
+            "max_debt_ratio": 70,
+            "max_count": 20,
+        }
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["custom_rule"] == {
+        "min_roe": 15.0,
+        "max_pe": 30.0,
+        "max_pb": 5.0,
+        "min_revenue_growth": 10.0,
+        "min_profit_growth": 8.0,
+        "max_debt_ratio": 70.0,
+    }
+    assert serializer.validated_data["max_count"] == 20

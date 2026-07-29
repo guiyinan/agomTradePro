@@ -5,6 +5,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .tui_views import FundTuiMultiDimScreenAPIView
 from .views import (
     AnalyzeFundStyleView,
     CalculateFundPerformanceView,
@@ -55,4 +56,9 @@ urlpatterns = [
     path("nav/<str:fund_code>/", FundNavView.as_view(), name="nav"),
     path("holding/<str:fund_code>/", FundHoldingView.as_view(), name="holding"),
     path("multidim-screen/", FundMultiDimScreenAPIView.as_view(), name="multidim_screen"),
+    path(
+        "tui-multidim-screen/",
+        FundTuiMultiDimScreenAPIView.as_view(),
+        name="tui_multidim_screen",
+    ),
 ]

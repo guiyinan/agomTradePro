@@ -93,6 +93,23 @@ def test_terminal_page_bootstraps_provider_selector(client, regular_user):
 
 
 @pytest.mark.django_db
+def test_retired_terminal_config_page_redirects_staff_to_agent_chat(
+    client,
+    staff_user,
+    regular_user,
+):
+    client.force_login(regular_user)
+    forbidden = client.get("/terminal/config/")
+
+    client.force_login(staff_user)
+    redirected = client.get("/terminal/config/")
+
+    assert forbidden.status_code == 403
+    assert redirected.status_code == 302
+    assert redirected["Location"] == ("/tui/?screen=ai-ops.terminal&action=terminal.agent_chat")
+
+
+@pytest.mark.django_db
 class TestTerminalSessionEndpoint:
     """Tests for /api/terminal/session/."""
 
@@ -186,6 +203,30 @@ class TestTerminalChatEndpoint:
         assert response.status_code == 502
         assert response.json()["error"] == "terminal_agent_unavailable"
         assert "agent exploded" not in response.content.decode("utf-8")
+
+    def test_terminal_chat_returns_503_when_provider_is_not_configured(
+        self,
+        api_client,
+        staff_user,
+    ):
+        api_client.force_authenticate(user=staff_user)
+
+        with patch(
+            "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
+            side_effect=RuntimeError("No available AI providers"),
+        ):
+            response = api_client.post(
+                "/api/terminal/chat/",
+                {"message": "请说明当前配置状态"},
+                format="json",
+            )
+
+        assert response.status_code == 503
+        assert response.json() == {
+            "error": "AI 服务尚未配置，请先配置可用服务商。",
+            "code": "AI_PROVIDER_UNAVAILABLE",
+            "setup_required": True,
+        }
 
 
 @pytest.mark.django_db

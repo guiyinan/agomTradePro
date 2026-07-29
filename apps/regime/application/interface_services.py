@@ -11,7 +11,7 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from apps.data_center.application.interface_services import get_active_provider_id_by_source
-from apps.regime.application.current_regime import resolve_current_regime
+from apps.regime.application import current_regime
 from apps.regime.application.repository_provider import (
     get_default_macro_repository,
     get_macro_source_config_gateway,
@@ -55,7 +55,7 @@ def get_available_regime_sources() -> list[Any]:
 def get_regime_current_payload(*, as_of_date: date | None = None) -> dict[str, Any]:
     """Return the current regime API payload."""
 
-    latest = resolve_current_regime(as_of_date=as_of_date or date.today())
+    latest = current_regime.resolve_current_regime(as_of_date=as_of_date or date.today())
     return {
         "success": True,
         "data": {

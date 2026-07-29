@@ -56,12 +56,19 @@ from apps.data_center.interface.api_views import (
     sync_valuations,
     valuations,
 )
+from apps.data_center.interface.tui_views import (
+    MacroGovernanceTuiView,
+    MarketThermometerTuiConfigView,
+)
 
 
 class DataCenterApiRootView(APIView):
     """Return discoverable data-center API endpoints."""
 
     def get(self, request: Request) -> Response:
+        """Return the bounded, discoverable Data Center API contract."""
+
+        del request
         return Response(
             {
                 "endpoints": {
@@ -95,6 +102,16 @@ class DataCenterApiRootView(APIView):
 
 urlpatterns = [
     path("", DataCenterApiRootView.as_view(), name="dc-api-root"),
+    path(
+        "tui/governance/",
+        MacroGovernanceTuiView.as_view(),
+        name="dc-tui-governance",
+    ),
+    path(
+        "tui/market-thermometer/config/",
+        MarketThermometerTuiConfigView.as_view(),
+        name="dc-tui-market-thermometer-config",
+    ),
     # Provider CRUD
     path("providers/", provider_list_create, name="dc-provider-list"),
     path("providers/<int:provider_id>/", provider_detail, name="dc-provider-detail"),

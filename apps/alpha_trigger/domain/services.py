@@ -28,6 +28,44 @@ from .entities import (
 
 logger = logging.getLogger(__name__)
 
+_ALLOWED_TRIGGER_STATUS_TRANSITIONS: dict[TriggerStatus, frozenset[TriggerStatus]] = {
+    TriggerStatus.ACTIVE: frozenset(
+        {
+            TriggerStatus.PAUSED,
+            TriggerStatus.TRIGGERED,
+            TriggerStatus.INVALIDATED,
+            TriggerStatus.EXPIRED,
+            TriggerStatus.CANCELLED,
+        }
+    ),
+    TriggerStatus.PAUSED: frozenset(
+        {
+            TriggerStatus.ACTIVE,
+            TriggerStatus.INVALIDATED,
+            TriggerStatus.EXPIRED,
+            TriggerStatus.CANCELLED,
+        }
+    ),
+    TriggerStatus.TRIGGERED: frozenset(
+        {
+            TriggerStatus.INVALIDATED,
+            TriggerStatus.CANCELLED,
+        }
+    ),
+    TriggerStatus.INVALIDATED: frozenset(),
+    TriggerStatus.EXPIRED: frozenset(),
+    TriggerStatus.CANCELLED: frozenset(),
+}
+
+
+def can_transition_trigger_status(
+    current: TriggerStatus,
+    target: TriggerStatus,
+) -> bool:
+    """Return whether one Alpha Trigger lifecycle transition is valid."""
+
+    return target in _ALLOWED_TRIGGER_STATUS_TRANSITIONS[current]
+
 
 @dataclass(frozen=True)
 class InvalidationCheckResult:

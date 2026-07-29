@@ -50,7 +50,9 @@ def test_factor_definition_crud_and_toggle_flow():
     assert patch_response.data["allow_missing"] is True
     assert patch_response.data["min_data_points"] == 24
 
-    toggle_response = client.post(f"/api/factor/definitions/{factor_id}/toggle-active/", {}, format="json")
+    toggle_response = client.post(
+        f"/api/factor/definitions/{factor_id}/toggle-active/", {}, format="json"
+    )
     assert toggle_response.status_code == 200
     assert toggle_response.data["success"] is True
     assert toggle_response.data["is_active"] is False
@@ -62,3 +64,32 @@ def test_factor_definition_crud_and_toggle_flow():
     delete_response = client.delete(f"/api/factor/definitions/{factor_id}/")
     assert delete_response.status_code == 204
     assert not FactorDefinitionModel._default_manager.filter(id=factor_id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("category", "unknown"),
+        ("direction", "sideways"),
+        ("update_frequency", "hourly"),
+        ("min_data_points", 0),
+    ],
+)
+def test_factor_definition_rejects_values_outside_domain_contract(field, value):
+    client = _build_authenticated_client()
+    payload = {
+        "code": f"invalid_{field}",
+        "name": "非法因子",
+        "category": "value",
+        "data_source": "test_source",
+        "data_field": "test_field",
+        "direction": "positive",
+        "update_frequency": "daily",
+        "min_data_points": 20,
+    }
+    payload[field] = value
+
+    response = client.post("/api/factor/definitions/", payload, format="json")
+
+    assert response.status_code == 400

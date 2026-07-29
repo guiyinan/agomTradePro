@@ -90,6 +90,65 @@ def test_signal_status_mutations_require_staff(
 
 
 @pytest.mark.django_db
+def test_signal_batch_check_requires_staff(authenticated_client):
+    with patch(
+        "apps.signal.application.invalidation_checker.check_and_invalidate_signals"
+    ) as mock_check:
+        response = authenticated_client.post(
+            "/api/signal/batch-check/",
+            {},
+            format="json",
+        )
+
+    assert response.status_code == 403
+    mock_check.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_signal_batch_check_returns_owner_result(
+    authenticated_client,
+    auth_user,
+):
+    auth_user.is_staff = True
+    auth_user.save(update_fields=["is_staff"])
+    result = {
+        "checked": 3,
+        "invalidated": 1,
+        "rejected": 0,
+        "invalidated_ids": [17],
+        "rejected_ids": [],
+        "signal_ids": [17],
+    }
+    with patch(
+        "apps.signal.application.invalidation_checker.check_and_invalidate_signals",
+        return_value=result,
+    ):
+        response = authenticated_client.post(
+            "/api/signal/batch-check/",
+            {},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert response.json() == result
+
+
+@pytest.mark.django_db
+def test_signal_classic_page_publishes_tui_task_link(client, auth_user):
+    client.force_login(auth_user)
+    with patch(
+        "apps.signal.interface.views.build_signal_management_context",
+        return_value={},
+    ):
+        response = client.get("/signal/manage/")
+
+    assert response.status_code == 200
+    assert (
+        b"/tui/?screen=research.signals&amp;action=signal.list" in response.content
+    )
+
+
+@pytest.mark.django_db
 def test_unified_signal_collection_requires_staff(authenticated_client):
     with patch(
         "apps.signal.application.unified_service.UnifiedSignalService.collect_all_signals"

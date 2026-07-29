@@ -9,6 +9,17 @@
     <p class="subtitle">{{ provider.provider_type_label }} - {{ provider.description }}</p>
 </div>
 
+<div style="margin-bottom:18px; padding:14px 16px; border:1px solid #93c5fd; border-radius:14px; background:#eff6ff; color:#1e3a8a;">
+    <strong>迁移提示：</strong>
+    服务商详情、用量与后续维护任务已迁入 TUI。
+    {% if provider.scope == "user" %}
+    <a href="/tui/?screen=ai-ops.providers&amp;action=ai-ops.my-provider-detail&amp;provider_id={{ provider.id }}" style="color:#1d4ed8; font-weight:700;">打开我的服务商详情</a>。
+    {% else %}
+    <a href="/tui/?screen=ai-ops.system-providers&amp;action=ai-ops.system-provider-detail&amp;provider_id={{ provider.id }}" style="color:#1d4ed8; font-weight:700;">打开系统服务商详情</a>。
+    {% endif %}
+    当前 Classic 页面仅在兼容期内保留。
+</div>
+
 <!-- 基本信息 -->
 <div class="section">
     <h2 class="section-title">基本信息</h2>

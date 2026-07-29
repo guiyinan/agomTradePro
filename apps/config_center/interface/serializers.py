@@ -15,6 +15,30 @@ ALPHA_UNIVERSE_SOURCE_TYPES = {
 }
 
 
+class SystemGovernanceSettingsSerializer(serializers.Serializer[dict[str, Any]]):
+    """Global system settings exposed to administrators."""
+
+    require_user_approval = serializers.BooleanField(required=False)
+    auto_approve_first_admin = serializers.BooleanField(required=False)
+    default_mcp_enabled = serializers.BooleanField(required=False)
+    allow_token_plaintext_view = serializers.BooleanField(required=False)
+    market_color_convention = serializers.ChoiceField(
+        choices=("cn_a_share", "us_market"),
+        required=False,
+    )
+    alpha_pool_mode = serializers.ChoiceField(
+        choices=("strict_valuation", "market", "price_covered"),
+        required=False,
+    )
+    user_agreement_content = serializers.CharField(required=False, allow_blank=True)
+    risk_warning_content = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    benchmark_code_map = serializers.DictField(required=False)
+    asset_proxy_code_map = serializers.DictField(required=False)
+    market_color_label = serializers.CharField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+
 class QlibRuntimeConfigSerializer(serializers.Serializer[dict[str, Any]]):
     configured = serializers.BooleanField(read_only=True)
     enabled = serializers.BooleanField(required=False)

@@ -103,6 +103,24 @@ def test_capability_gateway_page_renders_for_regular_user(client, regular_user, 
     assert "Capability Router" in content
     assert "发给 Agent 的启动 Prompt" in content
     assert "Token access level" in content
+    assert "capability-router.self-service" in content
+    assert "capability-router.mcp-center" not in content
+
+
+@pytest.mark.django_db
+def test_capability_gateway_page_points_admin_to_semantic_governance(
+    client,
+    admin_user,
+    mcp_tool,
+):
+    client.force_login(admin_user)
+
+    response = client.get("/settings/capability-gateway/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "capability-router.mcp-center" in content
+    assert "ops.semantic-governance-overview" in content
 
 
 @pytest.mark.django_db

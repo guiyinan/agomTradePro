@@ -26,6 +26,17 @@ RUNTIME_SCREEN_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {
         },
         "dashboard_panels": [
             {
+                "key": "simulated-accounts",
+                "title": "我的投资账户",
+                "kind": "datagrid",
+                "action_key": "simulated-trading.accounts",
+                "max_rows": 8,
+                "layout_area": "simulated_accounts",
+                "target_screen": "execution.accounts",
+                "user_priority": "p0",
+                "presentation_semantic": "primary_list",
+            },
+            {
                 "key": "broker-execution-readiness",
                 "title": "实盘就绪结论",
                 "kind": "detail",
@@ -296,6 +307,7 @@ RUNTIME_SCREEN_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {
 }
 
 RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS_EXECUTION: dict[str, set[str]] = {
+    "execution.accounts": {"auto.api.get.api.account.positions"},
     "execution.events": {"auto.api.get.api.events"},
     "execution.share": {"auto.api.get.api.share"},
 }

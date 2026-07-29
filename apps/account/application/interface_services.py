@@ -624,6 +624,21 @@ def update_api_profile(
     )
 
 
+def change_api_password(
+    user_id: int,
+    *,
+    current_password: str,
+    new_password: str,
+) -> None:
+    """Change the current user's password after explicit re-authentication."""
+
+    _interface_repo().change_api_password(
+        user_id,
+        current_password=current_password,
+        new_password=new_password,
+    )
+
+
 def get_asset_category_queryset() -> Any:
     """Return active asset categories for API listing/retrieval."""
 

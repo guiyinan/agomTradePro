@@ -65,3 +65,26 @@ class TaskStatusRequestSerializer(serializers.Serializer[dict[str, str]]):
     """任务状态请求序列化器"""
 
     task_id = serializers.CharField(required=True)
+
+
+class SchedulerConsoleQuerySerializer(serializers.Serializer[dict[str, object]]):
+    """Validate the bounded scheduler console query."""
+
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=200)
+
+
+class ReadinessMonitorQuerySerializer(serializers.Serializer[dict[str, object]]):
+    """Validate readiness monitor query options."""
+
+    strict_runtime = serializers.BooleanField(required=False, default=False)
+
+
+class ReadinessScheduleUpdateSerializer(serializers.Serializer[dict[str, object]]):
+    """Validate readiness schedule mutation fields."""
+
+    quote_pre_refresh_time = serializers.RegexField(regex=r"^\d{2}:\d{2}$", required=True)
+    daily_evidence_time = serializers.RegexField(regex=r"^\d{2}:\d{2}$", required=True)
+    weekly_auto_advisor_time = serializers.RegexField(
+        regex=r"^\d{2}:\d{2}$",
+        required=True,
+    )

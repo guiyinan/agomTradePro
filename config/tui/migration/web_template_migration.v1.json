@@ -1,0 +1,155 @@
+{
+  "version": "web-template-migration.v1",
+  "expected_template_count": 196,
+  "template_roots": [
+    "core/templates",
+    "apps"
+  ],
+  "retained_rules": [
+    {
+      "key": "share-public",
+      "path_prefix": "core/templates/share/",
+      "expected_count": 13,
+      "owner": "share",
+      "template_role": "external",
+      "reason": "面向未登录外部访问者，需保留富展示与免责声明。"
+    },
+    {
+      "key": "observer-portal",
+      "exact_paths": [
+        "core/templates/account/observer_portal.html",
+        "core/templates/account/collaboration.html"
+      ],
+      "expected_count": 2,
+      "owner": "account",
+      "template_role": "external",
+      "reason": "面向观察者和协作者，不属于日常操作工作台。"
+    },
+    {
+      "key": "authentication-entry",
+      "exact_paths": [
+        "core/templates/account/login.html",
+        "core/templates/account/register.html"
+      ],
+      "expected_count": 2,
+      "owner": "account",
+      "template_role": "external",
+      "reason": "登录与注册发生在认证之前，不能依赖需要已认证会话的 TUI shell。"
+    },
+    {
+      "key": "setup-wizard",
+      "path_prefix": "apps/setup_wizard/templates/",
+      "expected_count": 7,
+      "owner": "setup_wizard",
+      "template_role": "external",
+      "reason": "一次性初始化流程继续使用 Web 引导。"
+    },
+    {
+      "key": "django-admin",
+      "path_prefix": "core/templates/admin/",
+      "expected_count": 9,
+      "owner": "admin",
+      "template_role": "admin",
+      "reason": "Django Admin 生态依赖模板扩展机制。"
+    },
+    {
+      "key": "error-and-base",
+      "exact_paths": [
+        "core/templates/base.html",
+        "core/templates/base_auth.html",
+        "core/templates/404.html",
+        "core/templates/500.html"
+      ],
+      "expected_count": 4,
+      "owner": "core",
+      "template_role": "error",
+      "reason": "保留页面和错误响应仍需要共同基座。"
+    },
+    {
+      "key": "tui-shell",
+      "exact_paths": [
+        "core/templates/terminal/tui_workbench.html",
+        "core/templates/terminal/index.html"
+      ],
+      "expected_count": 2,
+      "owner": "terminal",
+      "template_role": "shell",
+      "reason": "TUI 与 Terminal 自身仍需要同源宿主模板。"
+    },
+    {
+      "key": "docs-pages",
+      "path_prefix": "core/templates/docs/",
+      "expected_count": 2,
+      "owner": "docs",
+      "template_role": "external",
+      "reason": "低频文档展示保留 Web 阅读体验。"
+    }
+  ],
+  "screen_by_owner": {
+    "account": "execution.accounts",
+    "agent_runtime": "ai-ops.terminal",
+    "ai_provider": "ai-ops.providers",
+    "alpha": "research.signals",
+    "alpha_trigger": "research.signals",
+    "asset_analysis": "research.asset-lab",
+    "audit": "execution.audit",
+    "backtest": "research.asset-lab",
+    "beta_gate": "macro-regime.strategy",
+    "broker_execution": "execution.accounts",
+    "config_center": "api-library.data-center",
+    "dashboard": "command-center.overview",
+    "data_center": "api-library.data-center",
+    "decision": "command-center.decision-flow",
+    "decision_rhythm": "command-center.decision-flow",
+    "equity": "research.asset-lab",
+    "factor": "research.asset-lab",
+    "filter": "research.asset-lab",
+    "fund": "research.asset-lab",
+    "hedge": "macro-regime.strategy",
+    "macro": "macro-regime.overview",
+    "ops": "api-library.data-center",
+    "policy": "policy.workbench",
+    "portfolio": "execution.accounts",
+    "prompt": "ai-ops.providers",
+    "regime": "macro-regime.overview",
+    "realtime": "execution.audit",
+    "risk_center": "macro-regime.strategy",
+    "rotation": "macro-regime.strategy",
+    "sentiment": "research.signals",
+    "share": "execution.audit",
+    "signal": "research.signals",
+    "simulated_trading": "execution.accounts",
+    "strategy": "macro-regime.strategy",
+    "task_monitor": "api-library.data-center",
+    "terminal": "ai-ops.terminal"
+  },
+  "m2_owners": [
+    "account",
+    "ai_provider",
+    "alpha_trigger",
+    "backtest",
+    "beta_gate",
+    "decision_rhythm",
+    "policy",
+    "prompt",
+    "rotation",
+    "signal"
+  ],
+  "admin_owners": [
+    "admin",
+    "ai_provider",
+    "config_center",
+    "data_center",
+    "ops",
+    "task_monitor"
+  ],
+  "chart_markers": [
+    "chart.js",
+    "echarts",
+    "plotly",
+    "highcharts",
+    "lightweight-charts",
+    "new chart(",
+    "<canvas"
+  ]
+}
