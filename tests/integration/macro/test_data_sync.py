@@ -628,15 +628,31 @@ class TestPitDataHandling:
             use_pit=True,  # 启用 PIT 模式
         )
 
-        # 应返回每个观测期的最新修订版本
-        assert len(series) == 2, f"应返回 2 个观测期，实际: {len(series)}"
+        # 截至 2 月末，只能看到 2 月 15 日已发布的 1 月初值。
+        assert len(series) == 1, f"应返回 1 个已发布观测期，实际: {len(series)}"
 
         # 验证 1 月数据使用修订版 2
         january = next((s for s in series if s.reporting_period == date(2024, 1, 1)), None)
         assert january is not None
-        assert january.value == 2.1, "1 月应使用修订版 2 的值"
+        assert january.value == 2.0, "1 月修订版 2 尚未发布，不应产生后视偏差"
 
-        # 验证 2 月数据
-        february = next((s for s in series if s.reporting_period == date(2024, 2, 1)), None)
+        # 到 3 月末，1 月修订值和 2 月初值均已发布。
+        march_series = repository.get_series(
+            code="CN_CPI_NATIONAL_YOY",
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 3, 31),
+            use_pit=True,
+        )
+        assert len(march_series) == 2
+        january = next(
+            (s for s in march_series if s.reporting_period == date(2024, 1, 1)),
+            None,
+        )
+        assert january is not None
+        assert january.value == 2.1
+        february = next(
+            (s for s in march_series if s.reporting_period == date(2024, 2, 1)),
+            None,
+        )
         assert february is not None
         assert february.value == 2.3

@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
-from django.conf import settings  # type: ignore[import-untyped]
+from django.conf import settings
 from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
 
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
@@ -39,11 +39,10 @@ class DjangoMaintenanceStatusReader:
 
     @staticmethod
     def _latest_execution(task_name: str) -> TaskExecutionModel | None:
-        return cast(
-            TaskExecutionModel | None,
+        return (
             TaskExecutionModel._default_manager.filter(task_name=task_name)
             .order_by("-created_at")
-            .first(),
+            .first()
         )
 
     @staticmethod
@@ -52,7 +51,7 @@ class DjangoMaintenanceStatusReader:
 
     @staticmethod
     def _next_run(task_name: str) -> datetime | None:
-        from django.utils import timezone  # type: ignore[import-untyped]
+        from django.utils import timezone
 
         task = PeriodicTask._default_manager.filter(task=task_name, enabled=True).first()
         if task is None:

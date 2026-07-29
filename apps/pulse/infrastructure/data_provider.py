@@ -7,7 +7,8 @@ Pulse 数据提供者 — 从 macro 模块已入库的数据中读取指标。
 
 import logging
 import math
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -20,6 +21,7 @@ from apps.data_center.infrastructure.seed_data.macro_indicator_governance import
 )
 from apps.pulse.domain.entities import PulseConfig, PulseIndicatorReading
 from shared.date_utils import business_day_age
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 CN_MARKET_TIMEZONE = ZoneInfo("Asia/Shanghai")
@@ -54,6 +56,20 @@ class PulseSeriesPoint:
     value: float
     published_at: date | None
     source_kind: str
+
+
+@dataclass(frozen=True)
+class PulseMacroFactCandidate:
+    """Detached macro fact used by canonical source-selection rules."""
+
+    indicator_code: str
+    reporting_period: date
+    value: float
+    source: str
+    revision_number: int
+    published_at: date | None
+    fetched_at: datetime
+    extra: Mapping[str, object]
 
 
 # Domain 层默认指标列表（用于 DB 无配置时 fallback）
@@ -135,10 +151,10 @@ class DjangoPulseDataProvider:
     若无配置则使用 DEFAULT_PULSE_INDICATORS。
     """
 
-    def __init__(self, config: PulseConfig | None = None):
+    def __init__(self, config: PulseConfig | None = None) -> None:
         self.config = config or PulseConfig.defaults()
         self._indicator_defs: list[PulseIndicatorDef] | None = None
-        self._indicator_extra_cache: dict[str, dict] = {}
+        self._indicator_extra_cache: dict[str, dict[str, object]] = {}
 
     def _load_indicator_defs(self) -> list[PulseIndicatorDef]:
         """从 DB 加载指标定义，fallback 到 Domain 默认值"""
@@ -148,6 +164,7 @@ class DjangoPulseDataProvider:
         try:
             from apps.pulse.infrastructure.models import (
                 PulseIndicatorConfigModel,
+                PulseIndicatorWeight,
                 PulseWeightConfig,
             )
 
@@ -155,7 +172,7 @@ class DjangoPulseDataProvider:
 
             # Override weights from active PulseWeightConfig
             active_weight_cfg = PulseWeightConfig.objects.filter(is_active=True).first()
-            weight_overrides = {}
+            weight_overrides: dict[str, PulseIndicatorWeight] = {}
             if active_weight_cfg:
                 weight_overrides = {w.indicator_code: w for w in active_weight_cfg.weights.all()}
 
@@ -165,7 +182,25 @@ class DjangoPulseDataProvider:
                     w_model = weight_overrides.get(c.indicator_code)
                     if w_model and not w_model.is_enabled:
                         continue  # If explicitly disabled, skip
-                    weight = w_model.weight if w_model else c.weight
+                    weight = safe_float(w_model.weight if w_model else c.weight)
+                    bullish_threshold = safe_float(c.bullish_threshold)
+                    bearish_threshold = safe_float(c.bearish_threshold)
+                    neutral_band = safe_float(c.neutral_band)
+                    signal_multiplier = safe_float(c.signal_multiplier)
+                    if (
+                        weight is None
+                        or weight <= 0
+                        or bullish_threshold is None
+                        or bearish_threshold is None
+                        or neutral_band is None
+                        or neutral_band < 0
+                        or signal_multiplier is None
+                    ):
+                        logger.warning(
+                            "Skipping invalid Pulse indicator config: code=%s",
+                            c.indicator_code,
+                        )
+                        continue
                     self._indicator_defs.append(
                         PulseIndicatorDef(
                             code=c.indicator_code,
@@ -174,10 +209,10 @@ class DjangoPulseDataProvider:
                             frequency=c.frequency,
                             weight=weight,
                             signal_type=c.signal_type,
-                            bullish_threshold=c.bullish_threshold,
-                            bearish_threshold=c.bearish_threshold,
-                            neutral_band=c.neutral_band,
-                            signal_multiplier=c.signal_multiplier,
+                            bullish_threshold=bullish_threshold,
+                            bearish_threshold=bearish_threshold,
+                            neutral_band=neutral_band,
+                            signal_multiplier=signal_multiplier,
                         )
                     )
                 logger.info(f"Loaded {len(self._indicator_defs)} pulse indicators from DB")
@@ -189,19 +224,22 @@ class DjangoPulseDataProvider:
                 w_model = weight_overrides.get(default_ind.code)
                 if w_model and not w_model.is_enabled:
                     continue
-                weight = w_model.weight if w_model else default_ind.weight
-
-                # Copy and update weight
-                ind_kwargs = {
-                    k: getattr(default_ind, k) for k in default_ind.__annotations__.keys()
-                }
-                ind_kwargs["weight"] = weight
-                self._indicator_defs.append(PulseIndicatorDef(**ind_kwargs))
+                weight = safe_float(w_model.weight if w_model else default_ind.weight)
+                if weight is None or weight <= 0:
+                    logger.warning(
+                        "Skipping invalid Pulse weight override: code=%s",
+                        default_ind.code,
+                    )
+                    continue
+                self._indicator_defs.append(replace(default_ind, weight=weight))
 
             return self._indicator_defs
 
-        except Exception as e:
-            logger.warning(f"Failed to load pulse indicator configs from DB: {e}")
+        except Exception as exc:
+            logger.warning(
+                "Failed to load Pulse indicator configs: error_type=%s",
+                exc.__class__.__name__,
+            )
 
         self._indicator_defs = DEFAULT_PULSE_INDICATORS
         return self._indicator_defs
@@ -209,13 +247,13 @@ class DjangoPulseDataProvider:
     def get_all_readings(self, as_of_date: date) -> list[PulseIndicatorReading]:
         """获取所有 Pulse 指标的最新读数"""
         indicator_defs = self._load_indicator_defs()
-        readings = []
+        readings: list[PulseIndicatorReading] = []
         for ind_def in indicator_defs:
             reading = self._get_indicator_reading(ind_def, as_of_date)
             if reading:
                 readings.append(reading)
             else:
-                logger.warning(f"Pulse indicator {ind_def.code} not available")
+                logger.warning("Pulse indicator %s not available", ind_def.code)
         return readings
 
     def _get_indicator_reading(
@@ -278,8 +316,12 @@ class DjangoPulseDataProvider:
                 source_kind=latest_point.source_kind,
             )
 
-        except Exception as e:
-            logger.warning(f"Error reading pulse indicator {ind_def.code}: {e}")
+        except Exception as exc:
+            logger.warning(
+                "Error reading Pulse indicator %s: error_type=%s",
+                ind_def.code,
+                exc.__class__.__name__,
+            )
             return None
 
     def _load_data_center_series(
@@ -304,15 +346,19 @@ class DjangoPulseDataProvider:
                 .order_by("bar_date")
                 .values_list("bar_date", "close")
             )
-            series = [
-                PulseSeriesPoint(
-                    observed_at=bar_date,
-                    value=float(close),
-                    published_at=None,
-                    source_kind="price_bar_close",
+            series: list[PulseSeriesPoint] = []
+            for bar_date, close in rows:
+                numeric_close = safe_float(close)
+                if numeric_close is None:
+                    continue
+                series.append(
+                    PulseSeriesPoint(
+                        observed_at=bar_date,
+                        value=numeric_close,
+                        published_at=None,
+                        source_kind="price_bar_close",
+                    )
                 )
-                for bar_date, close in rows
-            ]
             quote_cutoff = datetime.combine(
                 as_of_date + timedelta(days=1),
                 time.min,
@@ -330,14 +376,16 @@ class DjangoPulseDataProvider:
                 quote_date = latest_quote.snapshot_at.astimezone(CN_MARKET_TIMEZONE).date()
                 latest_bar_date = series[-1].observed_at if series else None
                 if latest_bar_date is None or quote_date > latest_bar_date:
-                    series.append(
-                        PulseSeriesPoint(
-                            observed_at=quote_date,
-                            value=float(latest_quote.current_price),
-                            published_at=quote_date,
-                            source_kind="quote_current_price",
+                    quote_value = safe_float(latest_quote.current_price)
+                    if quote_value is not None:
+                        series.append(
+                            PulseSeriesPoint(
+                                observed_at=quote_date,
+                                value=quote_value,
+                                published_at=quote_date,
+                                source_kind="quote_current_price",
+                            )
                         )
-                    )
             return series
 
         if not self._is_pulse_direct_input_allowed(code):
@@ -349,13 +397,30 @@ class DjangoPulseDataProvider:
 
         from apps.data_center.infrastructure.models import MacroFactModel
 
-        facts = list(
+        fact_models = list(
             MacroFactModel.objects.filter(
                 indicator_code=code,
                 reporting_period__gte=lookback,
                 reporting_period__lte=as_of_date,
             ).order_by("reporting_period", "id")
         )
+        facts: list[PulseMacroFactCandidate] = []
+        for fact in fact_models:
+            numeric_value = safe_float(fact.value)
+            if numeric_value is None:
+                continue
+            facts.append(
+                PulseMacroFactCandidate(
+                    indicator_code=fact.indicator_code,
+                    reporting_period=fact.reporting_period,
+                    value=numeric_value,
+                    source=fact.source,
+                    revision_number=fact.revision_number,
+                    published_at=fact.published_at,
+                    fetched_at=fact.fetched_at,
+                    extra=dict(fact.extra or {}),
+                )
+            )
         selection = select_macro_fact_series(
             facts,
             preferred_source=configured_macro_source(self._get_indicator_extra(code)),
@@ -366,14 +431,14 @@ class DjangoPulseDataProvider:
         return [
             PulseSeriesPoint(
                 observed_at=fact.reporting_period,
-                value=float(fact.value),
+                value=fact.value,
                 published_at=fact.published_at,
                 source_kind="macro_fact",
             )
             for fact in selection.facts
         ]
 
-    def _get_indicator_extra(self, code: str) -> dict:
+    def _get_indicator_extra(self, code: str) -> dict[str, object]:
         if code not in self._indicator_extra_cache:
             from apps.data_center.infrastructure.models import IndicatorCatalogModel
 

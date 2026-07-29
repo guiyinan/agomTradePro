@@ -5,4 +5,6 @@ We keep an explicit empty router here so governance checks can verify the
 standard interface layer shape without reintroducing retired routes.
 """
 
-urlpatterns: list = []
+from django.urls import URLPattern, URLResolver
+
+urlpatterns: list[URLPattern | URLResolver] = []

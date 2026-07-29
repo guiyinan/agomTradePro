@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.core.management.base import BaseCommand
 
 from apps.pulse.infrastructure.models import PulseWeightConfig
@@ -6,7 +8,7 @@ from apps.pulse.infrastructure.models import PulseWeightConfig
 class Command(BaseCommand):
     help = "查看当前 Pulse 权重配置"
 
-    def handle(self, *args, **options):
+    def handle(self, *args: str, **options: Any) -> None:
         active_config = PulseWeightConfig.objects.filter(is_active=True).first()
         if not active_config:
             self.stdout.write(self.style.WARNING("没有找到激活的 PulseWeightConfig"))

@@ -1,5 +1,6 @@
 """URL configuration for Macro app."""
 
+from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.urls import path
 
@@ -8,7 +9,7 @@ from . import views
 app_name = "macro"
 
 
-def macro_home_redirect(request):
+def macro_home_redirect(request: HttpRequest) -> HttpResponseRedirect:
     """Redirect root /macro/ to data page"""
     return redirect("macro:data")
 

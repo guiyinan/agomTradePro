@@ -56,3 +56,27 @@ def test_pulse_config_defaults_are_equal_weight():
         "liquidity": 0.25,
         "sentiment": 0.25,
     }
+
+    with pytest.raises(TypeError):
+        config.dimension_weights["growth"] = 1.0
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"bullish_z_threshold": float("nan")},
+        {"bearish_z_threshold": 2.0, "bullish_z_threshold": 1.0},
+        {"daily_stale_days": 0},
+        {
+            "dimension_weights": {
+                "growth": 0.5,
+                "inflation": 0.5,
+                "liquidity": 0.5,
+                "sentiment": 0.5,
+            }
+        },
+    ],
+)
+def test_pulse_config_rejects_invalid_runtime_evidence(kwargs):
+    with pytest.raises(ValueError):
+        PulseConfig(**kwargs)

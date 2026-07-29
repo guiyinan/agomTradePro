@@ -7,7 +7,10 @@ Task Monitor Infrastructure Repositories
 import importlib
 import json
 import logging
+import math
+import re
 import socket
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from enum import Enum
 from io import StringIO
@@ -44,6 +47,17 @@ from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 _PREFLIGHT_UNREACHABLE_CACHE: set[str] = set()
+_SENSITIVE_EVIDENCE_KEY = re.compile(
+    r"(?:password|passwd|pwd|token|secret|api[_-]?key|authorization|cookie|session|credential|dsn)",
+    re.IGNORECASE,
+)
+_URL_CREDENTIALS = re.compile(r"([a-z][a-z0-9+.-]*://)[^/@\s]+@", re.IGNORECASE)
+_BEARER_TOKEN = re.compile(r"\bBearer\s+[^\s,;]+", re.IGNORECASE)
+_ASSIGNED_SECRET = re.compile(
+    r"\b(password|passwd|pwd|token|secret|api[_-]?key|authorization|cookie|session|credential|dsn)"
+    r"\s*[:=]\s*[^\s,;]+",
+    re.IGNORECASE,
+)
 
 
 class _CrontabScheduleLike(Protocol):
@@ -114,24 +128,70 @@ def _log_preflight_unreachable_once(channel: str, endpoint: str | None) -> None:
     logger.info("%s preflight failed: endpoint unreachable.", channel)
 
 
-def _to_json_compatible(value: Any) -> Any:
+def _redact_evidence_text(value: object, *, limit: int = 10_000) -> str:
+    """Bound and redact common credential forms in persisted task evidence."""
+
+    text = str(value)
+    text = _URL_CREDENTIALS.sub(r"\1[REDACTED]@", text)
+    text = _BEARER_TOKEN.sub("Bearer [REDACTED]", text)
+    text = _ASSIGNED_SECRET.sub(lambda match: f"{match.group(1)}=[REDACTED]", text)
+    return text[:limit]
+
+
+def _to_json_compatible(
+    value: Any,
+    *,
+    key: str = "",
+    depth: int = 0,
+) -> Any:
     """Normalize arbitrary values into JSON-safe Python primitives."""
-    if isinstance(value, dict):
-        return {str(key): _to_json_compatible(item) for key, item in value.items()}
+    if _SENSITIVE_EVIDENCE_KEY.search(key):
+        return "[REDACTED]"
+    if depth >= 8:
+        return "[TRUNCATED]"
+    if isinstance(value, Mapping):
+        result: dict[str, Any] = {}
+        for index, (item_key, item) in enumerate(value.items()):
+            if index >= 200:
+                result["__truncated__"] = True
+                break
+            normalized_key = _redact_evidence_text(item_key, limit=200)
+            result[normalized_key] = _to_json_compatible(
+                item,
+                key=normalized_key,
+                depth=depth + 1,
+            )
+        return result
 
     if isinstance(value, list | tuple | set):
-        return [_to_json_compatible(item) for item in value]
+        return [
+            _to_json_compatible(item, depth=depth + 1)
+            for index, item in enumerate(value)
+            if index < 200
+        ]
+
+    if isinstance(value, str):
+        return _redact_evidence_text(value)
+
+    if value is None or isinstance(value, bool | int):
+        return value
+
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
 
     if isinstance(value, Enum):
-        return value.value
+        return _to_json_compatible(value.value, depth=depth + 1)
 
     if isinstance(value, UUID):
-        return str(value)
+        return _redact_evidence_text(value)
 
     try:
-        return json.loads(json.dumps(value, cls=DjangoJSONEncoder))
+        normalized = json.loads(json.dumps(value, cls=DjangoJSONEncoder, allow_nan=False))
     except TypeError:
-        return str(value)
+        return f"<{type(value).__name__}>"
+    except ValueError:
+        return None
+    return _to_json_compatible(normalized, depth=depth + 1)
 
 
 class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
@@ -150,9 +210,11 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
             model.kwargs = normalized_kwargs
             model.started_at = record.started_at
             model.finished_at = record.finished_at
-            model.result = record.result
-            model.exception = record.exception
-            model.traceback = record.traceback
+            model.result = _redact_evidence_text(record.result) if record.result else None
+            model.exception = (
+                _redact_evidence_text(record.exception, limit=2_000) if record.exception else None
+            )
+            model.traceback = _redact_evidence_text(record.traceback) if record.traceback else None
             model.runtime_seconds = record.runtime_seconds
             model.retries = record.retries
             model.priority = record.priority.value
@@ -169,9 +231,13 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
                 kwargs=normalized_kwargs,
                 started_at=record.started_at,
                 finished_at=record.finished_at,
-                result=record.result,
-                exception=record.exception,
-                traceback=record.traceback,
+                result=_redact_evidence_text(record.result) if record.result else None,
+                exception=(
+                    _redact_evidence_text(record.exception, limit=2_000)
+                    if record.exception
+                    else None
+                ),
+                traceback=(_redact_evidence_text(record.traceback) if record.traceback else None),
                 runtime_seconds=record.runtime_seconds,
                 retries=record.retries,
                 priority=record.priority.value,
@@ -332,13 +398,15 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
             task_id=model.task_id,
             task_name=model.task_name,
             status=TaskStatus(model.status),
-            args=tuple(model.args) if model.args else (),
-            kwargs=model.kwargs if model.kwargs else {},
+            args=tuple(_to_json_compatible(model.args)) if model.args else (),
+            kwargs=_to_json_compatible(model.kwargs) if model.kwargs else {},
             started_at=model.started_at,
             finished_at=model.finished_at,
-            result=model.result,
-            exception=model.exception,
-            traceback=model.traceback,
+            result=_redact_evidence_text(model.result) if model.result else None,
+            exception=(
+                _redact_evidence_text(model.exception, limit=2_000) if model.exception else None
+            ),
+            traceback=_redact_evidence_text(model.traceback) if model.traceback else None,
             runtime_seconds=model.runtime_seconds,
             retries=model.retries,
             priority=TaskPriority(model.priority),

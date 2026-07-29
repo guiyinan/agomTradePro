@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
+
 from apps.macro.application.data_management import (
     DeleteDataRequest,
     DeleteDataUseCase,
@@ -74,7 +76,12 @@ def test_exchange_rate_cache_database_environment_and_default(monkeypatch) -> No
     assert ExchangeRateService.get_usd_cny_rate(date(2026, 7, 1)) == 7.22
     monkeypatch.delenv("USD_CNY_EXCHANGE_RATE")
     values.clear()
-    assert ExchangeRateService.get_usd_cny_rate(date(2026, 7, 2)) == 7.0
+    with pytest.raises(RuntimeError, match="usd_cny_exchange_rate_unavailable"):
+        ExchangeRateService.get_usd_cny_rate(date(2026, 7, 2))
+
+    monkeypatch.setenv("USD_CNY_EXCHANGE_RATE", "nan")
+    with pytest.raises(ValueError, match="usd_cny_exchange_rate_invalid"):
+        ExchangeRateService.get_usd_cny_rate(date(2026, 7, 3))
     ExchangeRateService.invalidate_cache()
     assert values == {}
 

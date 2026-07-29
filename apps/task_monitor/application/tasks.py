@@ -5,7 +5,6 @@ Celery 任务钩子和装饰器，用于自动记录任务执行状态。
 """
 
 import logging
-import traceback as tb_module
 from typing import Any
 
 from celery import Task
@@ -16,7 +15,7 @@ from celery.signals import (
     task_retry,
     task_revoked,
 )
-from django.utils import timezone  # type: ignore[import-untyped]
+from django.utils import timezone
 
 from apps.operational_readiness.application.tasks import (
     execute_personal_readiness_daily_task,
@@ -105,8 +104,11 @@ def task_prerun_handler(
         use_case = get_use_case()
         use_case.execute(record)
 
-    except Exception as e:
-        logger.error(f"Failed to record task start: {e}")
+    except Exception as exc:
+        logger.error(
+            "Failed to record task start: error_type=%s",
+            exc.__class__.__name__,
+        )
 
 
 @task_postrun.connect  # type: ignore[misc]
@@ -175,8 +177,11 @@ def task_postrun_handler(
         use_case = get_use_case()
         use_case.execute(record)
 
-    except Exception as e:
-        logger.error(f"Failed to record task completion: {e}")
+    except Exception as exc:
+        logger.error(
+            "Failed to record task completion: error_type=%s",
+            exc.__class__.__name__,
+        )
 
 
 @task_failure.connect  # type: ignore[misc]
@@ -206,13 +211,15 @@ def task_failure_handler(
 
         # 获取异常信息
         exception_str = None
-        traceback_str = None
         if einfo:
-            exception_str = str(einfo.exception)
-            traceback_str = einfo.traceback
+            captured_exception = getattr(einfo, "exception", None)
+            exception_str = (
+                captured_exception.__class__.__name__
+                if captured_exception is not None
+                else "TaskFailure"
+            )
         elif exception:
-            exception_str = str(exception)
-            traceback_str = tb_module.format_exc()
+            exception_str = exception.__class__.__name__
 
         record = TaskExecutionRecord(
             task_id=task_id,
@@ -224,7 +231,7 @@ def task_failure_handler(
             finished_at=timezone.now(),
             result=None,
             exception=exception_str,
-            traceback=traceback_str,
+            traceback=None,
             runtime_seconds=runtime_seconds,
             retries=existing.retries,
             priority=existing.priority,
@@ -235,8 +242,11 @@ def task_failure_handler(
         use_case = get_use_case()
         use_case.execute(record)
 
-    except Exception as e:
-        logger.error(f"Failed to record task failure: {e}")
+    except Exception as exc:
+        logger.error(
+            "Failed to record task failure: error_type=%s",
+            exc.__class__.__name__,
+        )
 
 
 @task_retry.connect  # type: ignore[misc]
@@ -269,8 +279,12 @@ def task_retry_handler(
             started_at=existing.started_at,
             finished_at=None,
             result=None,
-            exception=str(reason) if reason else None,
-            traceback=einfo.traceback if einfo else None,
+            exception=(
+                reason.__class__.__name__
+                if isinstance(reason, BaseException)
+                else "task_retry" if reason else None
+            ),
+            traceback=None,
             runtime_seconds=None,
             retries=existing.retries + 1,
             priority=existing.priority,
@@ -280,8 +294,11 @@ def task_retry_handler(
 
         repository.save(record)
 
-    except Exception as e:
-        logger.error(f"Failed to record task retry: {e}")
+    except Exception as exc:
+        logger.error(
+            "Failed to record task retry: error_type=%s",
+            exc.__class__.__name__,
+        )
 
 
 @task_revoked.connect  # type: ignore[misc]
@@ -329,8 +346,11 @@ def task_revoked_handler(
 
         repository.save(record)
 
-    except Exception as e:
-        logger.error(f"Failed to record task revocation: {e}")
+    except Exception as exc:
+        logger.error(
+            "Failed to record task revocation: error_type=%s",
+            exc.__class__.__name__,
+        )
 
 
 # ========== Celery 定时清理任务 ==========
@@ -366,7 +386,10 @@ def cleanup_old_task_records(days_to_keep: int = 30) -> dict[str, Any]:
         }
 
     except Exception as exc:
-        logger.error(f"Failed to cleanup old task records: {exc}")
+        logger.error(
+            "Failed to cleanup old task records: error_type=%s",
+            exc.__class__.__name__,
+        )
         raise
 
 
@@ -430,12 +453,18 @@ def backup_database_task(
         }
 
     except subprocess.CalledProcessError as exc:
-        logger.error(f"Database backup command failed: {exc}")
+        logger.error(
+            "Database backup command failed: error_type=%s",
+            exc.__class__.__name__,
+        )
         # 重试任务
         raise self.retry(exc=exc) from exc
 
     except Exception as exc:
-        logger.error(f"Database backup task failed: {exc}")
+        logger.error(
+            "Database backup task failed: error_type=%s",
+            exc.__class__.__name__,
+        )
         raise
 
 
@@ -477,10 +506,10 @@ def verify_backup_task(backup_file: str) -> dict[str, Any]:
             with gzip.open(backup_path, "rb") as f:
                 # 读取一小部分验证
                 f.read(1024)
-        except Exception as e:
+        except Exception as exc:
             return {
                 "status": "error",
-                "message": f"Backup file is corrupted: {e}",
+                "message": f"Backup file is corrupted ({exc.__class__.__name__})",
             }
 
     logger.info(

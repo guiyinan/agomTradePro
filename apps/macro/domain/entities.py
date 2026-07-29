@@ -147,7 +147,7 @@ class MacroIndicator:
             PeriodType.YEAR,
         ]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据一致性"""
         if isinstance(self.period_type, str):
             # 如果传入的是字符串，转换为枚举

@@ -4,10 +4,10 @@ Task Monitor App Configuration
 Django app 配置。
 """
 
-from django.apps import AppConfig  # type: ignore[import-untyped]
+from django.apps import AppConfig
 
 
-class TaskMonitorConfig(AppConfig):  # type: ignore[misc]
+class TaskMonitorConfig(AppConfig):
     """Task Monitor 应用配置"""
 
     default_auto_field = "django.db.models.BigAutoField"

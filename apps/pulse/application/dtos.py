@@ -46,3 +46,19 @@ class PulseSnapshotDTO:
                 for score in snapshot.dimension_scores
             ],
         )
+
+
+@dataclass(frozen=True)
+class PulseHistoryDTO:
+    """Detached persisted Pulse history row for read-only consumers."""
+
+    observed_at: date
+    regime_context: str
+    composite_score: float
+    regime_strength: str
+    growth_score: float
+    inflation_score: float
+    liquidity_score: float
+    sentiment_score: float
+    transition_warning: bool
+    transition_direction: str | None

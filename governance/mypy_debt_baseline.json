@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 178,
-    "files_with_errors": 117
+    "errors": 100,
+    "files_with_errors": 72
   },
   "modules": {
     "apps/agent_runtime/application/dtos.py": {
@@ -41,31 +41,6 @@
     },
     "apps/ai_provider/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/alpha/application/ai_filter.py": {
-      "no-any-return": 1
-    },
-    "apps/alpha/application/pool_resolver.py": {
-      "no-untyped-def": 2
-    },
-    "apps/alpha/apps.py": {
-      "no-untyped-def": 2
-    },
-    "apps/alpha/domain/interfaces.py": {
-      "no-untyped-def": 1
-    },
-    "apps/alpha/infrastructure/cache_evaluation.py": {
-      "var-annotated": 1
-    },
-    "apps/alpha/management/commands/activate_model.py": {
-      "index": 1,
-      "no-untyped-def": 2
-    },
-    "apps/alpha/management/commands/bootstrap_alpha_cold_start.py": {
-      "no-untyped-def": 2
-    },
-    "apps/alpha/management/commands/list_models.py": {
-      "no-untyped-def": 2
     },
     "apps/audit/domain/performance_services.py": {
       "no-untyped-def": 2
@@ -162,45 +137,6 @@
       "no-untyped-call": 1,
       "no-untyped-def": 3
     },
-    "apps/macro/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/macro/domain/entities.py": {
-      "no-untyped-def": 1
-    },
-    "apps/macro/infrastructure/exchange_rate_config.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 1
-    },
-    "apps/macro/interface/api_urls.py": {
-      "type-arg": 1
-    },
-    "apps/macro/interface/forms.py": {
-      "type-arg": 1
-    },
-    "apps/macro/interface/serializers.py": {
-      "type-arg": 1
-    },
-    "apps/macro/interface/urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/macro/interface/views/helpers.py": {
-      "no-untyped-def": 3
-    },
-    "apps/macro/interface/views/page_views.py": {
-      "unused-ignore": 2
-    },
-    "apps/macro/management/commands/migrate_usd_data.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 2
-    },
-    "apps/macro/management/commands/setup_macro_daily_sync.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 2
-    },
-    "apps/macro/management/commands/sync_macro_data.py": {
-      "no-untyped-def": 2
-    },
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1
     },
@@ -233,34 +169,6 @@
       "no-untyped-def": 2
     },
     "apps/prompt/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/pulse/application/query_services.py": {
-      "attr-defined": 1
-    },
-    "apps/pulse/application/tasks.py": {
-      "no-untyped-def": 1
-    },
-    "apps/pulse/domain/services.py": {
-      "no-untyped-def": 1
-    },
-    "apps/pulse/infrastructure/data_provider.py": {
-      "type-arg": 2,
-      "type-var": 1
-    },
-    "apps/pulse/interface/views.py": {
-      "no-untyped-def": 1
-    },
-    "apps/pulse/management/commands/init_pulse_config.py": {
-      "no-untyped-def": 2
-    },
-    "apps/pulse/management/commands/init_pulse_weights.py": {
-      "no-untyped-def": 1
-    },
-    "apps/pulse/management/commands/set_pulse_weight.py": {
-      "no-untyped-def": 2
-    },
-    "apps/pulse/management/commands/show_pulse_config.py": {
       "no-untyped-def": 1
     },
     "apps/sector/apps.py": {
@@ -311,29 +219,6 @@
     "apps/simulated_trading/management/commands/repair_personal_account_readiness.py": {
       "no-untyped-def": 1
     },
-    "apps/task_monitor/application/repository_provider.py": {
-      "unused-ignore": 1
-    },
-    "apps/task_monitor/application/tasks.py": {
-      "unused-ignore": 1
-    },
-    "apps/task_monitor/apps.py": {
-      "unused-ignore": 2
-    },
-    "apps/task_monitor/infrastructure/backup_service.py": {
-      "unused-ignore": 1
-    },
-    "apps/task_monitor/infrastructure/maintenance_status.py": {
-      "redundant-cast": 1,
-      "unused-ignore": 2
-    },
-    "apps/task_monitor/management/commands/backup_database.py": {
-      "unused-ignore": 2
-    },
-    "apps/task_monitor/management/commands/init_scheduler_defaults.py": {
-      "assignment": 1,
-      "no-untyped-def": 2
-    },
     "apps/terminal/application/__init__.py": {
       "no-untyped-def": 1
     },
@@ -353,35 +238,6 @@
     },
     "apps/valuation/infrastructure/providers.py": {
       "attr-defined": 1
-    },
-    "shared/apps.py": {
-      "no-untyped-def": 1
-    },
-    "shared/infrastructure/async_runtime.py": {
-      "arg-type": 2
-    },
-    "shared/infrastructure/calculators.py": {
-      "import-untyped": 2
-    },
-    "shared/infrastructure/django_sdk_transport.py": {
-      "attr-defined": 1,
-      "no-any-return": 1
-    },
-    "shared/infrastructure/kalman_filter.py": {
-      "type-arg": 2
-    },
-    "shared/infrastructure/mappers.py": {
-      "no-untyped-def": 2,
-      "type-arg": 3
-    },
-    "shared/infrastructure/mcp_runtime.py": {
-      "import-untyped": 1
-    },
-    "shared/infrastructure/tushare_client.py": {
-      "attr-defined": 1
-    },
-    "shared/model_loading.py": {
-      "no-any-return": 1
     }
   }
 }

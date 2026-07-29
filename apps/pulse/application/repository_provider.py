@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
 from typing import Protocol
 
+from apps.pulse.application.dtos import PulseHistoryDTO
 from apps.pulse.domain.entities import PulseIndicatorReading, PulseSnapshot
 from apps.pulse.infrastructure.providers import (
     NavigatorAssetConfigRepository,
@@ -24,6 +26,15 @@ class PulseRepositoryProtocol(Protocol):
 
     def get_latest_snapshot(self) -> PulseSnapshot | None:
         """Return the latest persisted Pulse snapshot."""
+
+        ...
+
+    def get_history(
+        self,
+        months: int = 6,
+        limit: int | None = None,
+    ) -> Sequence[PulseHistoryDTO]:
+        """Return persisted history projections without exposing ORM semantics."""
 
         ...
 

@@ -3,6 +3,7 @@
 from datetime import date
 from typing import Any
 
+from apps.pulse.application.dtos import PulseHistoryDTO
 from apps.pulse.domain.entities import DimensionScore, PulseIndicatorReading, PulseSnapshot
 from apps.pulse.infrastructure.models import NavigatorAssetConfigModel, PulseLog
 
@@ -66,7 +67,7 @@ class PulseRepository:
             return None
         return self._log_to_snapshot(log)
 
-    def get_history(self, months: int = 6, limit: int | None = None) -> list[PulseLog]:
+    def get_history(self, months: int = 6, limit: int | None = None) -> list[PulseHistoryDTO]:
         """获取历史记录"""
         from datetime import timedelta
 
@@ -77,7 +78,21 @@ class PulseRepository:
         )
         if limit is not None:
             queryset = queryset[:limit]
-        return list(queryset)
+        return [
+            PulseHistoryDTO(
+                observed_at=log.observed_at,
+                regime_context=log.regime_context,
+                composite_score=log.composite_score,
+                regime_strength=log.regime_strength,
+                growth_score=log.growth_score,
+                inflation_score=log.inflation_score,
+                liquidity_score=log.liquidity_score,
+                sentiment_score=log.sentiment_score,
+                transition_warning=log.transition_warning,
+                transition_direction=log.transition_direction,
+            )
+            for log in queryset
+        ]
 
     def _log_to_snapshot(self, log: PulseLog) -> PulseSnapshot:
         """将 PulseLog ORM 实例转换回 PulseSnapshot 域对象"""

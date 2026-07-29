@@ -1,7 +1,10 @@
 """Pulse Module Domain Entities — 纯 Python，不依赖外部库。"""
 
+import math
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date
+from types import MappingProxyType
 
 
 class PulseDimension:
@@ -96,7 +99,7 @@ class PulseConfig:
     monthly_stale_days: int = 45
 
     # 维度权重（Phase 1 等权）
-    dimension_weights: dict[str, float] = field(
+    dimension_weights: Mapping[str, float] = field(
         default_factory=lambda: {
             "growth": 0.25,
             "inflation": 0.25,
@@ -107,6 +110,57 @@ class PulseConfig:
 
     # 转折预警阈值
     transition_warning_threshold: float = -0.3
+
+    def __post_init__(self) -> None:
+        """Validate and detach runtime decision thresholds."""
+
+        finite_fields = {
+            "bullish_z_threshold": self.bullish_z_threshold,
+            "bearish_z_threshold": self.bearish_z_threshold,
+            "direction_change_threshold": self.direction_change_threshold,
+            "transition_warning_threshold": self.transition_warning_threshold,
+        }
+        if any(
+            isinstance(value, bool)
+            or not isinstance(value, int | float)
+            or not math.isfinite(float(value))
+            for value in finite_fields.values()
+        ):
+            raise ValueError("pulse_config_threshold_invalid")
+        if self.bearish_z_threshold >= self.bullish_z_threshold:
+            raise ValueError("pulse_config_z_thresholds_invalid")
+        if not 0 <= self.direction_change_threshold <= 2:
+            raise ValueError("pulse_direction_change_threshold_invalid")
+        if not -1 <= self.transition_warning_threshold <= 1:
+            raise ValueError("pulse_transition_warning_threshold_invalid")
+        if (
+            isinstance(self.daily_stale_days, bool)
+            or not isinstance(self.daily_stale_days, int)
+            or not 1 <= self.daily_stale_days <= 366
+            or isinstance(self.monthly_stale_days, bool)
+            or not isinstance(self.monthly_stale_days, int)
+            or not 1 <= self.monthly_stale_days <= 3660
+        ):
+            raise ValueError("pulse_stale_days_invalid")
+
+        expected_dimensions = {"growth", "inflation", "liquidity", "sentiment"}
+        weights = dict(self.dimension_weights)
+        if set(weights) != expected_dimensions or any(
+            isinstance(value, bool)
+            or not isinstance(value, int | float)
+            or not math.isfinite(float(value))
+            or float(value) < 0
+            for value in weights.values()
+        ):
+            raise ValueError("pulse_dimension_weights_invalid")
+        normalized_weights = {key: float(value) for key, value in weights.items()}
+        if not math.isclose(sum(normalized_weights.values()), 1.0, abs_tol=1e-9):
+            raise ValueError("pulse_dimension_weights_total_invalid")
+        object.__setattr__(
+            self,
+            "dimension_weights",
+            MappingProxyType(normalized_weights),
+        )
 
     @classmethod
     def defaults(cls) -> "PulseConfig":

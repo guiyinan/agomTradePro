@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,9 @@ logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SDK_ROOT = REPO_ROOT / "sdk"
 MCP_CONFIG_PATH = REPO_ROOT / ".mcp.json"
+_ENV_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
+_TOOL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
+_ALLOWED_ENV_KEYS = {"NO_PROXY", "no_proxy"}
 
 
 def ensure_sdk_on_path() -> None:
@@ -33,24 +38,63 @@ def load_mcp_env_from_repo_config() -> None:
     if not MCP_CONFIG_PATH.exists():
         return
     try:
+        if MCP_CONFIG_PATH.stat().st_size > 1_048_576:
+            raise ValueError("MCP config exceeds size limit")
         payload = json.loads(MCP_CONFIG_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError, TypeError, ValueError):
-        logger.exception("Failed to load MCP config from %s", MCP_CONFIG_PATH)
+        if not isinstance(payload, dict):
+            raise ValueError("MCP config root must be an object")
+        raw_servers = payload.get("mcpServers")
+        if raw_servers is None:
+            return
+        if not isinstance(raw_servers, dict):
+            raise ValueError("MCP server catalog must be an object")
+        raw_server_conf = raw_servers.get("agomtradepro_local")
+        if raw_server_conf is None:
+            return
+        if not isinstance(raw_server_conf, dict):
+            raise ValueError("MCP server config must be an object")
+        raw_env = raw_server_conf.get("env")
+        if raw_env is None:
+            return
+        if not isinstance(raw_env, dict) or len(raw_env) > 100:
+            raise ValueError("MCP environment must be a bounded object")
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        logger.error("Failed to load MCP config error_type=%s", type(exc).__name__)
         return
-    server_conf = (payload.get("mcpServers") or {}).get("agomtradepro_local") or {}
-    for key, value in (server_conf.get("env") or {}).items():
-        if value is not None:
-            os.environ.setdefault(str(key), str(value))
+    for raw_key, value in raw_env.items():
+        if not isinstance(raw_key, str) or _ENV_KEY_PATTERN.fullmatch(raw_key) is None:
+            continue
+        if not (raw_key.startswith("AGOMTRADEPRO_") or raw_key in _ALLOWED_ENV_KEYS):
+            continue
+        if value is None:
+            continue
+        if not isinstance(value, str | int | float | bool):
+            continue
+        if isinstance(value, float) and not isfinite(value):
+            continue
+        normalized_value = str(value)
+        if len(normalized_value) > 16_384 or "\x00" in normalized_value:
+            continue
+        os.environ.setdefault(raw_key, normalized_value)
 
 
 def call_sdk_mcp_tool(tool_name: str, params: dict[str, Any]) -> Any:
     """Execute one MCP tool through the repository SDK server contract."""
 
+    normalized_tool_name = tool_name.strip()
+    if _TOOL_NAME_PATTERN.fullmatch(normalized_tool_name) is None:
+        raise ValueError("MCP tool name has invalid format")
+    try:
+        encoded_params = json.dumps(params, ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("MCP tool parameters must be finite JSON") from exc
+    if len(encoded_params.encode("utf-8")) > 1_048_576:
+        raise ValueError("MCP tool parameters exceed the 1 MiB limit")
     ensure_sdk_on_path()
     load_mcp_env_from_repo_config()
-    from agomtradepro_mcp.server import server
+    from agomtradepro_mcp.server import server  # type: ignore[import-untyped]
 
-    result = run_awaitable_sync(lambda: server.call_tool(tool_name, params))
+    result = run_awaitable_sync(lambda: server.call_tool(normalized_tool_name, params))
     if isinstance(result, tuple) and len(result) == 2:
         return result[1]
     return result

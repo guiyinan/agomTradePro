@@ -16,14 +16,29 @@ from typing import Protocol, TypeVar
 class MacroFactPreferenceCandidate(Protocol):
     """Minimum fact fields needed by canonical selection rules."""
 
-    indicator_code: str
-    reporting_period: date
-    value: float
-    source: str
-    revision_number: int
-    published_at: date | None
-    fetched_at: datetime
-    extra: Mapping[str, object]
+    @property
+    def indicator_code(self) -> str: ...
+
+    @property
+    def reporting_period(self) -> date: ...
+
+    @property
+    def value(self) -> float: ...
+
+    @property
+    def source(self) -> str: ...
+
+    @property
+    def revision_number(self) -> int: ...
+
+    @property
+    def published_at(self) -> date | None: ...
+
+    @property
+    def fetched_at(self) -> datetime: ...
+
+    @property
+    def extra(self) -> Mapping[str, object]: ...
 
 
 MacroFactCandidateT = TypeVar("MacroFactCandidateT", bound=MacroFactPreferenceCandidate)

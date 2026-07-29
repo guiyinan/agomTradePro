@@ -1,4 +1,7 @@
-from django.core.management.base import BaseCommand
+import math
+from typing import Any
+
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.pulse.infrastructure.models import PulseIndicatorWeight, PulseWeightConfig
 
@@ -6,13 +9,17 @@ from apps.pulse.infrastructure.models import PulseIndicatorWeight, PulseWeightCo
 class Command(BaseCommand):
     help = "设置特定指标的权重"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--indicator", type=str, required=True, help="指标代码")
         parser.add_argument("--weight", type=float, required=True, help="权重值")
 
-    def handle(self, *args, **options):
-        indicator_code = options["indicator"]
-        weight = options["weight"]
+    def handle(self, *args: str, **options: Any) -> None:
+        indicator_code = str(options["indicator"]).strip()
+        weight = float(options["weight"])
+        if not indicator_code:
+            raise CommandError("indicator must not be blank")
+        if not math.isfinite(weight) or weight <= 0:
+            raise CommandError("weight must be finite and greater than zero")
 
         active_config = PulseWeightConfig.objects.filter(is_active=True).first()
         if not active_config:

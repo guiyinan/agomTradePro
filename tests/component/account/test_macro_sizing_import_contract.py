@@ -17,14 +17,16 @@ def test_account_api_urls_import_sizing_context_view():
 
 @pytest.mark.django_db
 def test_macro_sizing_config_repository_returns_active_config():
-    MacroSizingConfigModel.objects.create(
-        regime_tiers_json=[{"min_confidence": 0.0, "factor": 0.7}],
-        pulse_tiers_json=[{"min_composite": -1.0, "max_composite": 1.0, "factor": 0.8}],
-        warning_factor=0.4,
-        drawdown_tiers_json=[{"min_drawdown": 0.1, "factor": 0.2}],
-        version=3,
+    MacroSizingConfigModel.objects.update_or_create(
         is_active=True,
-        description="test",
+        defaults={
+            "regime_tiers_json": [{"min_confidence": 0.0, "factor": 0.7}],
+            "pulse_tiers_json": [{"min_composite": -1.0, "max_composite": 1.0, "factor": 0.8}],
+            "warning_factor": 0.4,
+            "drawdown_tiers_json": [{"min_drawdown": 0.1, "factor": 0.2}],
+            "version": 3,
+            "description": "test",
+        },
     )
 
     config = MacroSizingConfigRepository().get_active_config()

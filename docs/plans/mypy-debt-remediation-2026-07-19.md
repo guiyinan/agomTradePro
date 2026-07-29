@@ -6406,3 +6406,23 @@
 - 项目规定的 TUI Workbench、Terminal Agent、SDK Client 与内部 SSL 固定回归包 `238 passed`。
 - 66 个改动生产文件统一增量 mypy 清零；全仓基线从 `297 errors / 180 files` 收紧为 `178 errors / 117 files`，净减少 `119 errors / 63 files`。
 - Django system check、Account/AI Capability/Equity migration drift、74 个改动 Python 文件 Ruff、Black、isort、增量 mypy、架构增量护栏与全仓 debt baseline 刷新通过；历史 migration 无 diff，本批未新增数据库 migration 或修改数据库结构。
+
+## 第四百一十八批
+
+- 继续按 Shared、Alpha、Macro、Pulse 与 Task Monitor 四条 owner 线并行推进，并在 agent 额度中止后统一接管其工作树残留；逐文件复核、修复跨线类型冲突并补齐回归后才纳入主线。
+- Shared async bridge、calculator、Kalman、mapper、Django SDK transport、MCP runtime、Tushare client 与动态模型加载边界全部类型收口；Kalman 状态/输入拒绝 bool、NaN/Infinity、负方差和超大序列，SDK 限制 loopback URL、method、header/query/body/file 数量与大小并拒绝带凭据 URL。
+- Alpha AI 二次筛选输入、响应 JSON、概率、文本、集合规模与敏感键均有界；provider/context 失败只保留稳定错误码和异常类型。Pool resolver、cache evaluation 与模型 activate/bootstrap/list 命令补齐精确合同，模型路径只显示文件名，不再输出完整路径或底层异常正文。
+- Alpha 历史压力测试同步正式 fail-closed 合同：Simple/ETF 只有真实估值、行情或持仓证据时才可参与降级；没有真实数据时返回 unavailable，不再把 mock 静态 ETF 成分误当作“永远可用”的生产保证。
+- Macro 表单/serializer/URL/view helper、实体、汇率服务与三个运维命令补齐精确合同；USD/CNY 只允许有限正数且按 cache、数据库、环境变量读取，全部缺失时 `usd_cny_exchange_rate_unavailable` 失败关闭，删除静态 `7.0` 金融默认值。
+- 美元数据迁移修正真实 ORM 模型名，手工汇率有界，单行失败触发事务回滚且不返回异常正文；macro sync 的 source、indicator、years 有界，provider 错误统一为稳定 `macro_sync_failed`。
+- Data Center 的 unavailable/validation 异常分别归入标准 `ConnectionError`/`ValueError` 家族，使 Macro Application 能按既有稳定异常白名单收敛；PIT 回归明确只发布 as-of 日前已公布修订，消除旧测试把未来修订计入历史截面的后视偏差。
+- Pulse 配置验证阈值、stale days、四维权重有限且合计 1，并以只读映射隔离；数据 provider 拒绝非有限 DB/行情事实，历史 ORM 行转换为显式 `PulseHistoryDTO` 后再进入 Application。
+- Task Monitor 任务失败/重试、备份和调度异常只保存稳定类型；args/kwargs/result/exception/traceback 在仓储入口递归限深限量并遮蔽 password/token/API key/Authorization/cookie/session/credential、Bearer 与带认证 URL，非有限数和未知对象不进入 JSON 证据。
+
+## 第四百一十八批验证结果
+
+- Alpha 全范围 `540 passed`；Macro Domain/Application/Data Center adapter、PIT、命令、页面/API 与 scheduler 组合 `381 passed`。
+- Pulse 与 Task Monitor 组合 `151 passed`；Shared Kalman、SDK transport、MCP runtime、async、mapper、calculator、Tushare 与模型加载组合 `154 passed`。
+- 项目规定的 TUI Workbench、Terminal Agent、SDK Client 与内部 SSL 固定回归包 `238 passed`。
+- 51 个改动生产文件统一增量 mypy 清零；全仓基线从 `178 errors / 117 files` 收紧为 `100 errors / 72 files`，净减少 `78 errors / 45 files`。
+- Django system check、Alpha/Data Center/Macro/Pulse/Task Monitor migration drift、59 个改动 Python 文件 Ruff、Black、isort、增量 mypy、架构增量护栏与全仓 debt baseline 刷新通过；本批未新增数据库 migration 或修改数据库结构。

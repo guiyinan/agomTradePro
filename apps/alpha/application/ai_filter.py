@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
+from collections.abc import Mapping, Sequence
 from datetime import date
-from typing import Any
+from itertools import islice
+from typing import Any, TypeAlias
 
 from apps.ai_provider.application.chat_completion import generate_chat_completion
 from apps.alpha.domain.entities import AlphaResult, StockScore
@@ -21,12 +24,22 @@ MIN_AI_FILTER_CONFIDENCE = 0.60
 AI_FILTER_VERDICTS_TO_KEEP = {"buy", "watch"}
 AI_FILTER_MAX_INPUT_COUNT = 50
 AI_FILTER_MIN_INPUT_COUNT = 20
+AI_FILTER_MAX_RESPONSE_BYTES = 1_048_576
+_SENSITIVE_KEY_PATTERN = re.compile(
+    r"(^|[_-])(api[_-]?key|authorization|cookie|credential|password|secret|session|token)([_-]|$)",
+    re.IGNORECASE,
+)
+
+JSONPrimitive: TypeAlias = str | int | float | bool | None
+JSONValue: TypeAlias = JSONPrimitive | list["JSONValue"] | dict[str, "JSONValue"]
 
 
 def get_ai_filter_candidate_limit(top_n: int) -> int:
     """Return the expanded candidate count used before AI filtering."""
 
-    safe_top_n = max(int(top_n or 1), 1)
+    if isinstance(top_n, bool) or not isinstance(top_n, int) or not 1 <= top_n <= 1000:
+        raise ValueError("top_n must be between 1 and 1000")
+    safe_top_n = top_n
     return min(AI_FILTER_MAX_INPUT_COUNT, max(safe_top_n * 2, AI_FILTER_MIN_INPUT_COUNT))
 
 
@@ -43,8 +56,9 @@ class AlphaAISecondPassFilterService:
     ) -> AlphaResult:
         """Return an AI-filtered result or the original top-N result on failure."""
 
-        requested_top_n = max(int(top_n or 1), 1)
-        candidate_scores = list(result.scores[: get_ai_filter_candidate_limit(requested_top_n)])
+        candidate_limit = get_ai_filter_candidate_limit(top_n)
+        requested_top_n = min(top_n, AI_FILTER_MAX_INPUT_COUNT)
+        candidate_scores = list(result.scores[:candidate_limit])
         if not result.success or not candidate_scores:
             return self._with_ai_filter_metadata(
                 self._truncate_result(result, requested_top_n),
@@ -78,14 +92,17 @@ class AlphaAISecondPassFilterService:
                 top_n=requested_top_n,
             )
         except Exception as exc:
-            logger.warning("Alpha AI second-pass filter failed: %s", exc)
+            logger.warning(
+                "Alpha AI second-pass filter failed (error_type=%s)",
+                type(exc).__name__,
+            )
             return self._with_ai_filter_metadata(
                 self._truncate_result(result, requested_top_n),
                 status="failed",
                 input_count=len(candidate_scores),
                 kept_count=len(result.scores[:requested_top_n]),
                 decisions_by_code={},
-                failure_reason=str(exc),
+                failure_reason="alpha_ai_filter_failed",
             )
 
         filtered = AlphaResult(
@@ -114,7 +131,10 @@ class AlphaAISecondPassFilterService:
         try:
             return get_stock_context_map([score.code for score in scores])
         except Exception as exc:
-            logger.warning("Alpha AI filter stock context unavailable: %s", exc)
+            logger.warning(
+                "Alpha AI filter stock context unavailable (error_type=%s)",
+                type(exc).__name__,
+            )
             return {}
 
     def _load_market_context(self) -> dict[str, Any]:
@@ -123,7 +143,10 @@ class AlphaAISecondPassFilterService:
         try:
             return get_latest_market_thermometer_snapshot_payload() or {}
         except Exception as exc:
-            logger.warning("Alpha AI filter market context unavailable: %s", exc)
+            logger.warning(
+                "Alpha AI filter market context unavailable (error_type=%s)",
+                type(exc).__name__,
+            )
             return {}
 
     def _build_messages(
@@ -174,8 +197,7 @@ class AlphaAISecondPassFilterService:
                     '{"decisions":[{"code":"000001.SZ","verdict":"buy","confidence":0.72,'
                     '"ai_filter_score":0.68,"buy_reasons":["..."],'
                     '"no_buy_reasons":["..."],"invalidation_summary":"..."}]}'
-                    "\n输入："
-                    + json.dumps(payload, ensure_ascii=False, default=str)
+                    "\n输入：" + json.dumps(payload, ensure_ascii=False, default=str)
                 ),
             },
         ]
@@ -187,7 +209,7 @@ class AlphaAISecondPassFilterService:
     ) -> dict[str, Any]:
         """Build one compact candidate row for the AI prompt."""
 
-        return self._json_safe(
+        payload = self._json_safe(
             {
                 "code": score.code,
                 "rank": score.rank,
@@ -213,6 +235,9 @@ class AlphaAISecondPassFilterService:
                 "valuation_trade_date": stock_context.get("valuation_trade_date"),
             }
         )
+        if not isinstance(payload, dict):
+            raise ValueError("alpha_candidate_payload_invalid")
+        return payload
 
     def _parse_ai_response(
         self,
@@ -226,12 +251,16 @@ class AlphaAISecondPassFilterService:
         raw_content = ai_response.get("content")
         if not raw_content:
             raise ValueError("ai_response_empty")
+        if len(str(raw_content).encode("utf-8")) > AI_FILTER_MAX_RESPONSE_BYTES:
+            raise ValueError("ai_response_too_large")
 
         try:
             payload = json.loads(self._strip_json_fence(str(raw_content)))
         except json.JSONDecodeError as exc:
             raise ValueError(f"ai_response_invalid_json: {exc}") from exc
 
+        if not isinstance(payload, dict):
+            raise ValueError("ai_response_not_object")
         raw_decisions = payload.get("decisions")
         if not isinstance(raw_decisions, list) or not raw_decisions:
             raise ValueError("ai_response_missing_decisions")
@@ -243,12 +272,12 @@ class AlphaAISecondPassFilterService:
                 raise ValueError("ai_response_decision_not_object")
             code = str(item.get("code") or "").strip().upper()
             if code not in expected_codes:
-                raise ValueError(f"ai_response_unknown_code: {code}")
+                raise ValueError("ai_response_unknown_code")
             if code in decisions_by_code:
-                raise ValueError(f"ai_response_duplicate_code: {code}")
+                raise ValueError("ai_response_duplicate_code")
             verdict = str(item.get("verdict") or "").strip().lower()
             if verdict not in {"buy", "watch", "avoid"}:
-                raise ValueError(f"ai_response_invalid_verdict: {code}")
+                raise ValueError("ai_response_invalid_verdict")
             confidence = self._require_probability(item.get("confidence"), f"{code}.confidence")
             ai_filter_score = self._require_probability(
                 item.get("ai_filter_score", confidence),
@@ -261,7 +290,10 @@ class AlphaAISecondPassFilterService:
                 "ai_filter_score": ai_filter_score,
                 "buy_reasons": self._string_list(item.get("buy_reasons")),
                 "no_buy_reasons": self._string_list(item.get("no_buy_reasons")),
-                "invalidation_summary": str(item.get("invalidation_summary") or ""),
+                "invalidation_summary": self._safe_text(
+                    item.get("invalidation_summary"),
+                    max_length=1000,
+                ),
             }
 
         missing_codes = expected_codes - set(decisions_by_code)
@@ -339,7 +371,7 @@ class AlphaAISecondPassFilterService:
         """Attach AI filter metadata to the result."""
 
         metadata = dict(result.metadata or {})
-        ai_filter_meta = {
+        ai_filter_meta: dict[str, Any] = {
             "enabled": True,
             "status": status,
             "input_count": input_count,
@@ -367,7 +399,7 @@ class AlphaAISecondPassFilterService:
             parsed = float(value)
         except (TypeError, ValueError) as exc:
             raise ValueError(f"ai_response_invalid_probability: {label}") from exc
-        if parsed < 0.0 or parsed > 1.0:
+        if not math.isfinite(parsed) or parsed < 0.0 or parsed > 1.0:
             raise ValueError(f"ai_response_probability_out_of_range: {label}")
         return parsed
 
@@ -376,15 +408,44 @@ class AlphaAISecondPassFilterService:
 
         if not isinstance(value, list):
             return []
-        return [str(item) for item in value if str(item).strip()]
+        return [
+            normalized
+            for item in value[:20]
+            if (normalized := self._safe_text(item, max_length=500))
+        ]
 
-    def _json_safe(self, value: Any) -> Any:
+    def _json_safe(self, value: Any, *, depth: int = 0) -> JSONValue:
         """Convert dates and nested structures into JSON-safe primitives."""
 
+        if depth > 6:
+            return "<truncated>"
+        if value is None or isinstance(value, bool | int | str):
+            return self._safe_text(value, max_length=4096) if isinstance(value, str) else value
+        if isinstance(value, float):
+            return value if math.isfinite(value) else None
         if hasattr(value, "isoformat"):
-            return value.isoformat()
-        if isinstance(value, dict):
-            return {str(key): self._json_safe(item) for key, item in value.items()}
-        if isinstance(value, list | tuple):
-            return [self._json_safe(item) for item in value]
-        return value
+            return self._safe_text(value.isoformat(), max_length=128)
+        if isinstance(value, Mapping):
+            payload: dict[str, JSONValue] = {}
+            for key, item in islice(value.items(), 200):
+                normalized_key = self._safe_text(key, max_length=128)
+                if not normalized_key:
+                    continue
+                payload[normalized_key] = (
+                    "<redacted>"
+                    if _SENSITIVE_KEY_PATTERN.search(normalized_key)
+                    else self._json_safe(item, depth=depth + 1)
+                )
+            return payload
+        if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
+            return [self._json_safe(item, depth=depth + 1) for item in islice(value, 200)]
+        return self._safe_text(value, max_length=1000)
+
+    @staticmethod
+    def _safe_text(value: object, *, max_length: int) -> str:
+        """Return bounded single-line text for prompts and audit metadata."""
+
+        normalized = "".join(
+            character if ord(character) >= 32 else " " for character in str(value or "")
+        )
+        return normalized.strip()[:max_length]

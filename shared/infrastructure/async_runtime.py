@@ -11,19 +11,25 @@ from typing import TypeVar
 T = TypeVar("T")
 
 
+async def _await_factory(awaitable_factory: Callable[[], Awaitable[T]]) -> T:
+    """Create and await an operation inside its owning event-loop thread."""
+
+    return await awaitable_factory()
+
+
 def run_awaitable_sync(awaitable_factory: Callable[[], Awaitable[T]]) -> T:
     """Run an awaitable from sync code, including when a loop already runs here."""
 
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(awaitable_factory())
+        return asyncio.run(_await_factory(awaitable_factory))
 
     context = copy_context()
     with ThreadPoolExecutor(max_workers=1, thread_name_prefix="agom-async-bridge") as executor:
         return executor.submit(
             context.run,
-            lambda: asyncio.run(awaitable_factory()),
+            lambda: asyncio.run(_await_factory(awaitable_factory)),
         ).result()
 
 

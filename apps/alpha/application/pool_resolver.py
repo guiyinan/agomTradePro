@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import Protocol, cast
 
-from apps.alpha.application.repository_provider import AlphaPoolDataRepository
+from apps.alpha.application.repository_provider import get_alpha_pool_data_repository
 from apps.alpha.domain.entities import AlphaPoolScope
 
 logger = logging.getLogger(__name__)
@@ -21,6 +21,29 @@ ALPHA_POOL_MODE_CHOICES = (
     (ALPHA_POOL_MODE_MARKET, "市场可交易池"),
     (ALPHA_POOL_MODE_PRICE_COVERED, "价格覆盖池"),
 )
+
+
+class PortfolioRecordProtocol(Protocol):
+    """Portfolio fields required to describe an Alpha pool."""
+
+    id: int
+    name: str
+
+
+class AlphaPoolDataRepositoryProtocol(Protocol):
+    """Persistence contract required by portfolio Alpha pool resolution."""
+
+    def resolve_portfolio(
+        self, *, user_id: int, portfolio_id: int | None
+    ) -> PortfolioRecordProtocol | None: ...
+
+    def resolve_market(self, *, portfolio_id: int | None, default_market: str) -> str: ...
+
+    def resolve_pool_mode(self, *, default_mode: str) -> str: ...
+
+    def resolve_instrument_codes(
+        self, *, market: str, trade_date: date, pool_mode: str
+    ) -> list[str]: ...
 
 
 @dataclass(frozen=True)
@@ -43,8 +66,11 @@ class PortfolioAlphaPoolResolver:
     DEFAULT_POOL_MODE = ALPHA_POOL_MODE_STRICT_VALUATION
     MIN_ALPHA_POOL_SIZE = 10
 
-    def __init__(self, *, repository: AlphaPoolDataRepository | None = None) -> None:
-        self.repository = repository or AlphaPoolDataRepository()
+    def __init__(self, *, repository: AlphaPoolDataRepositoryProtocol | None = None) -> None:
+        self.repository = repository or cast(
+            AlphaPoolDataRepositoryProtocol,
+            get_alpha_pool_data_repository(),
+        )
 
     def resolve(
         self,
@@ -55,6 +81,14 @@ class PortfolioAlphaPoolResolver:
         pool_mode: str | None = None,
     ) -> ResolvedAlphaPool:
         """Resolve the active portfolio and its stock universe."""
+        if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
+            raise ValueError("user_id must be a positive integer")
+        if portfolio_id is not None and (
+            isinstance(portfolio_id, bool) or not isinstance(portfolio_id, int) or portfolio_id <= 0
+        ):
+            raise ValueError("portfolio_id must be a positive integer")
+        if not isinstance(trade_date, date):
+            raise ValueError("trade_date must be a date")
         portfolio = self._resolve_portfolio(user_id=user_id, portfolio_id=portfolio_id)
         market = self._resolve_market(portfolio_id=portfolio.id if portfolio else None)
         requested_pool_mode = self._resolve_pool_mode(pool_mode)
@@ -85,7 +119,9 @@ class PortfolioAlphaPoolResolver:
             fallback_reason=fallback_reason,
         )
 
-    def _resolve_portfolio(self, *, user_id: int, portfolio_id: int | None) -> Any | None:
+    def _resolve_portfolio(
+        self, *, user_id: int, portfolio_id: int | None
+    ) -> PortfolioRecordProtocol | None:
         return self.repository.resolve_portfolio(user_id=user_id, portfolio_id=portfolio_id)
 
     def _resolve_market(self, *, portfolio_id: int | None) -> str:
@@ -99,7 +135,9 @@ class PortfolioAlphaPoolResolver:
             return normalize_alpha_pool_mode(pool_mode)
         return self.repository.resolve_pool_mode(default_mode=self.DEFAULT_POOL_MODE)
 
-    def _resolve_instrument_codes(self, *, market: str, trade_date: date, pool_mode: str) -> list[str]:
+    def _resolve_instrument_codes(
+        self, *, market: str, trade_date: date, pool_mode: str
+    ) -> list[str]:
         codes = self.repository.resolve_instrument_codes(
             market=market,
             trade_date=trade_date,
@@ -112,7 +150,7 @@ class PortfolioAlphaPoolResolver:
     def _build_scope(
         self,
         *,
-        portfolio,
+        portfolio: PortfolioRecordProtocol | None,
         market: str,
         trade_date: date,
         pool_mode: str,
@@ -136,7 +174,7 @@ class PortfolioAlphaPoolResolver:
         self,
         *,
         requested_scope: AlphaPoolScope,
-        portfolio,
+        portfolio: PortfolioRecordProtocol | None,
         market: str,
         trade_date: date,
     ) -> tuple[AlphaPoolScope, str]:

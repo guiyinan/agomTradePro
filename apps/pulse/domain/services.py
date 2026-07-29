@@ -1,5 +1,8 @@
 """Pulse 计算服务 — 纯 Python 域逻辑。"""
 
+import math
+from datetime import date
+
 from apps.pulse.domain.entities import (
     DimensionScore,
     PulseConfig,
@@ -17,7 +20,15 @@ def calculate_dimension_score(
 
     等权聚合维度内所有有效指标的 signal_score。
     """
-    valid = [r for r in readings if r.dimension == dimension and not r.is_stale]
+    valid = [
+        reading
+        for reading in readings
+        if reading.dimension == dimension
+        and not reading.is_stale
+        and math.isfinite(reading.signal_score)
+        and math.isfinite(reading.weight)
+        and reading.weight > 0
+    ]
     if not valid:
         return DimensionScore(
             dimension=dimension,
@@ -48,7 +59,7 @@ def calculate_dimension_score(
 def calculate_pulse(
     readings: list[PulseIndicatorReading],
     regime_context: str,
-    observed_at,
+    observed_at: date,
     config: PulseConfig | None = None,
 ) -> PulseSnapshot:
     """
@@ -63,23 +74,38 @@ def calculate_pulse(
     if config is None:
         config = PulseConfig.defaults()
 
+    if any(
+        not math.isfinite(reading.value)
+        or not math.isfinite(reading.signal_score)
+        or not math.isfinite(reading.weight)
+        or reading.weight <= 0
+        for reading in readings
+        if not reading.is_stale
+    ):
+        raise ValueError("invalid_pulse_indicator_numeric_evidence")
+
     dimensions = ["growth", "inflation", "liquidity", "sentiment"]
     dim_scores = [calculate_dimension_score(readings, d) for d in dimensions]
 
     # 综合分数（维度加权平均）
-    composite = sum(
-        ds.score * config.dimension_weights.get(ds.dimension, 0.25)
-        for ds in dim_scores
-    )
+    dimension_weights = [
+        config.dimension_weights.get(score.dimension, 0.25) for score in dim_scores
+    ]
+    if any(not math.isfinite(weight) or weight < 0 for weight in dimension_weights):
+        raise ValueError("invalid_pulse_dimension_weight")
+    if sum(dimension_weights) <= 0:
+        raise ValueError("invalid_pulse_dimension_weight_total")
+    weighted_scores = [
+        score.score * weight for score, weight in zip(dim_scores, dimension_weights, strict=True)
+    ]
+    composite = sum(weighted_scores)
     composite = round(composite, 3)
 
     # Regime 内强弱
     regime_strength = assess_regime_strength(composite)
 
     # 转折预警
-    warning, direction, reasons = detect_transition_warning(
-        dim_scores, regime_context, config
-    )
+    warning, direction, reasons = detect_transition_warning(dim_scores, regime_context, config)
 
     stale_count = sum(1 for r in readings if r.is_stale)
     data_source = "calculated" if stale_count == 0 else "stale"

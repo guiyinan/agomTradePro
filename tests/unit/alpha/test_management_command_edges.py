@@ -98,7 +98,8 @@ def test_alpha_cold_start_handles_model_and_prediction_boundaries(monkeypatch) -
     output = command.stdout.getvalue()
     assert "applied=2, skipped=3" in output
     assert "empty qlib result" in output
-    assert "offline" in output
+    assert "RuntimeError" in output
+    assert "offline" not in output
 
 
 def test_build_qlib_data_helpers_and_command_modes(monkeypatch) -> None:

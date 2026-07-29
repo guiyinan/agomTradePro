@@ -17,13 +17,13 @@ import pytest
 from django.db import close_old_connections, connections
 
 from apps.alpha.application.services import AlphaService
+from apps.alpha.domain.interfaces import AlphaProviderStatus
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
 from shared.infrastructure.metrics import get_alpha_metrics
 
-# --- Helper: mock ETF constituents so ETF fallback returns real data ---
+# --- Keep constituent lookup offline; health still requires persisted evidence. ---
 _ETF_CONSTITUENTS_PATH = (
-    "apps.alpha.infrastructure.adapters.etf_adapter"
-    ".ETFFallbackProvider._get_etf_constituents"
+    "apps.alpha.infrastructure.adapters.etf_adapter" ".ETFFallbackProvider._get_etf_constituents"
 )
 _FAKE_ETF_CONSTITUENTS = (
     [("600519.SH", 5.0), ("000858.SZ", 3.5), ("601318.SH", 2.8)],
@@ -89,7 +89,7 @@ class TestQlibNotInstalled:
         _reset_alpha_service()
 
     @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
-    @patch('apps.alpha.infrastructure.adapters.qlib_adapter.QlibAlphaProvider._get_active_model')
+    @patch("apps.alpha.infrastructure.adapters.qlib_adapter.QlibAlphaProvider._get_active_model")
     def test_alpha_service_works_without_qlib(self, mock_get_model, _mock_etf):
         """测试没有 Qlib 时 AlphaService 仍然工作"""
         # Mock 返回 None（模拟没有激活的模型）
@@ -98,11 +98,12 @@ class TestQlibNotInstalled:
         service = AlphaService()
         result = service.get_stock_scores("csi300")
 
-        # 应该降级到其他 Provider
-        assert result.success or result.source in ["cache", "simple", "etf"]
+        # 没有任何真实缓存/财务/ETF 持仓时必须失败关闭，不生成静态推荐。
+        assert not result.success
+        assert result.source == "none"
 
     @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
-    @patch('apps.alpha.infrastructure.adapters.qlib_adapter.QlibAlphaProvider._get_active_model')
+    @patch("apps.alpha.infrastructure.adapters.qlib_adapter.QlibAlphaProvider._get_active_model")
     def test_fallback_chain_without_qlib(self, mock_get_model, _mock_etf):
         """测试没有 Qlib 时的完整降级链路"""
         # 清空所有缓存
@@ -113,8 +114,9 @@ class TestQlibNotInstalled:
         service = AlphaService()
         result = service.get_stock_scores("csi300")
 
-        # 应该最终降级到 ETF Provider（总是可用）
-        assert result.source in ["simple", "etf"]
+        # 真实降级源均无数据时返回 unavailable。
+        assert not result.success
+        assert result.source == "none"
 
 
 @pytest.mark.django_db
@@ -133,7 +135,7 @@ class TestQlibDataUnavailable:
             scores=[
                 {"code": "600519.SH", "score": 0.8, "rank": 1, "factors": {}, "confidence": 0.8}
             ],
-            status="available"
+            status="available",
         )
 
         service = AlphaService()
@@ -155,14 +157,14 @@ class TestQlibDataUnavailable:
             provider_source="cache",
             asof_date=old_date,
             scores=[],
-            status="available"
+            status="available",
         )
 
         service = AlphaService()
         result = service.get_stock_scores("csi300")
 
-        # 应该降级到 Simple 或 ETF
-        assert result.source in ["simple", "etf"]
+        assert not result.success
+        assert result.source == "none"
 
 
 @pytest.mark.django_db
@@ -176,7 +178,7 @@ class TestQlibInferenceFailure:
         _reset_alpha_service()
 
     @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
-    @patch('apps.alpha.application.tasks.qlib_predict_scores.apply_async')
+    @patch("apps.alpha.application.tasks.qlib_predict_scores.apply_async")
     def test_inference_task_failure_handled_gracefully(self, mock_apply_async, _mock_etf):
         """测试推理任务失败时的优雅处理"""
         # Mock apply_async 抛出异常
@@ -185,15 +187,17 @@ class TestQlibInferenceFailure:
         service = AlphaService()
         result = service.get_stock_scores("csi300")
 
-        # 应该降级，不抛出异常
+        # 应该失败关闭但不抛出异常。
         assert result is not None
-        assert result.source in ["cache", "simple", "etf"]
+        assert not result.success
+        assert result.source == "none"
 
-    @patch('apps.alpha.application.tasks.qlib_predict_scores.apply_async')
+    @patch("apps.alpha.application.tasks.qlib_predict_scores.apply_async")
     def test_inference_task_timeout(self, mock_apply_async):
         """测试推理任务超时场景"""
         # Mock 任务延迟执行（模拟超时）
         from celery.result import AsyncResult
+
         mock_result = Mock(spec=AsyncResult)
         mock_result.id = "test-task-id"
         mock_apply_async.return_value = mock_result
@@ -224,8 +228,8 @@ class TestModelLoadingFailure:
         service = AlphaService()
         result = service.get_stock_scores("csi300")
 
-        # 应该降级到其他 Provider
-        assert result.source in ["cache", "simple", "etf"]
+        assert not result.success
+        assert result.source == "none"
 
     @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
     def test_model_file_missing(self, _mock_etf):
@@ -241,14 +245,14 @@ class TestModelLoadingFailure:
             label_id="return_5d",
             data_version="v1",
             model_path="/models/missing/nonexistent.pkl",  # 文件不存在
-            is_active=True
+            is_active=True,
         )
 
         service = AlphaService()
         result = service.get_stock_scores("csi300")
 
-        # 应该降级到其他 Provider
-        assert result.source in ["cache", "simple", "etf"]
+        assert not result.success
+        assert result.source == "none"
 
 
 @pytest.mark.django_db
@@ -275,13 +279,13 @@ class TestCompleteDegradation:
         # 获取评分
         result = service.get_stock_scores("csi300")
 
-        # 应该最终降级到 ETF
-        assert result.success
-        assert result.source == "etf" or result.source == "simple"
+        # 不允许用静态成分股伪造最后防线。
+        assert not result.success
+        assert result.source == "none"
 
     @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
-    def test_etf_provider_always_available(self, _mock_etf):
-        """测试 ETF Provider 总是可用"""
+    def test_etf_provider_requires_real_holdings(self, _mock_etf):
+        """ETF Provider 没有真实持仓时不得宣称可用。"""
         service = AlphaService()
 
         # 清空所有数据
@@ -291,8 +295,8 @@ class TestCompleteDegradation:
         # 多次尝试获取评分
         for _ in range(10):
             result = service.get_stock_scores("csi300")
-            assert result.success
-            assert result.source == "etf"
+            assert not result.success
+            assert result.source == "none"
 
 
 @pytest.mark.django_db
@@ -375,16 +379,11 @@ class TestMetricsUnderFailure:
         metrics.registry.reset_metrics()
 
         # 模拟 Provider 失败
-        metrics.record_provider_call(
-            provider_name="qlib",
-            success=False,
-            latency_ms=5000
-        )
+        metrics.record_provider_call(provider_name="qlib", success=False, latency_ms=5000)
 
         # 获取成功率指标
         success_rate = metrics.registry.get_metric(
-            "alpha_provider_success_rate",
-            {"provider": "qlib"}
+            "alpha_provider_success_rate", {"provider": "qlib"}
         )
 
         assert success_rate is not None
@@ -398,13 +397,12 @@ class TestMetricsUnderFailure:
 
         # 设置会触发告警的值
         metrics.registry.set_gauge(
-            "alpha_provider_success_rate",
-            0.3,  # 低于 0.5 的临界值
-            labels={"provider": "qlib"}
+            "alpha_provider_success_rate", 0.3, labels={"provider": "qlib"}  # 低于 0.5 的临界值
         )
 
         # 评估告警（设置持续时间为 0 以便立即触发）
         from apps.alpha.infrastructure.alerts import AlphaAlertConfig
+
         for rule in AlphaAlertConfig.get_all_rules():
             if rule.name == "provider_unavailable":
                 rule.duration_seconds = 0
@@ -437,14 +435,15 @@ class TestCacheFailureScenarios:
             provider_source="cache",
             asof_date=today,
             scores=[],  # 空评分
-            status="available"
+            status="available",
         )
 
         service = AlphaService()
         result = service.get_stock_scores("csi300", today)
 
-        # 应该跳过损坏的缓存，降级到下一个 Provider
-        assert result.source in ["simple", "etf"]
+        # 无真实下游数据时跳过损坏缓存并失败关闭。
+        assert not result.success
+        assert result.source == "none"
 
     def test_cache_inconsistent_data(self):
         """测试缓存数据不一致"""
@@ -458,9 +457,15 @@ class TestCacheFailureScenarios:
                 provider_source="cache",
                 asof_date=today,
                 scores=[
-                    {"code": f"TEST{i:04d}.SH", "score": 0.5 + i * 0.1, "rank": i + 1, "factors": {}, "confidence": 0.5}
+                    {
+                        "code": f"TEST{i:04d}.SH",
+                        "score": 0.5 + i * 0.1,
+                        "rank": i + 1,
+                        "factors": {},
+                        "confidence": 0.5,
+                    }
                 ],
-                status="available"
+                status="available",
             )
 
         service = AlphaService()
@@ -487,8 +492,8 @@ class TestRecoveryScenarios:
         service = AlphaService()
         result1 = service.get_stock_scores("csi300")
 
-        # 应该降级
-        assert result1.source in ["cache", "simple", "etf"]
+        assert not result1.success
+        assert result1.source == "none"
 
         # 2. 创建激活的模型
         QlibModelRegistryModel.objects.create(
@@ -501,7 +506,7 @@ class TestRecoveryScenarios:
             label_id="return_5d",
             data_version="v1",
             model_path="/models/recovery.pkl",
-            is_active=True
+            is_active=True,
         )
 
         # 创建 Qlib 缓存
@@ -515,7 +520,7 @@ class TestRecoveryScenarios:
             scores=[
                 {"code": "600519.SH", "score": 0.9, "rank": 1, "factors": {}, "confidence": 0.9}
             ],
-            status="available"
+            status="available",
         )
 
         # 3. 再次获取评分
@@ -565,7 +570,7 @@ class TestNetworkFailure:
         _reset_alpha_service()
 
     @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
-    @patch('apps.alpha.infrastructure.adapters.simple_adapter.SimpleAlphaProvider.get_stock_scores')
+    @patch("apps.alpha.infrastructure.adapters.simple_adapter.SimpleAlphaProvider.get_stock_scores")
     def test_external_api_failure(self, mock_simple, _mock_etf):
         """测试外部 API 失败"""
         # Mock Simple Provider 失败
@@ -574,12 +579,20 @@ class TestNetworkFailure:
         service = AlphaService()
         result = service.get_stock_scores("csi300")
 
-        # 应该最终降级到 ETF（不依赖外部 API）
-        assert result.success
-        assert result.source == "etf"
+        # 没有真实 ETF 持仓证据时必须失败关闭。
+        assert not result.success
+        assert result.source == "none"
 
-    @patch('apps.alpha.infrastructure.adapters.etf_adapter.ETFFallbackProvider.get_stock_scores')
-    def test_etf_provider_resilience(self, mock_etf):
+    @patch(
+        "apps.alpha.infrastructure.adapters.etf_adapter.ETFFallbackProvider.health_check",
+        return_value=AlphaProviderStatus.AVAILABLE,
+    )
+    @patch(
+        "apps.alpha.infrastructure.adapters.etf_adapter.ETFFallbackProvider.supports",
+        return_value=True,
+    )
+    @patch("apps.alpha.infrastructure.adapters.etf_adapter.ETFFallbackProvider.get_stock_scores")
+    def test_etf_provider_resilience(self, mock_etf, _mock_supports, _mock_health):
         """测试 ETF Provider 的韧性"""
         # 即使其他 Provider 都失败，ETF 也应该工作
         # Mock 返回正常结果
@@ -589,17 +602,12 @@ class TestNetworkFailure:
             success=True,
             scores=[
                 StockScore(
-                    code="510300.SH",
-                    score=1.0,
-                    rank=1,
-                    factors={},
-                    source="etf",
-                    confidence=1.0
+                    code="510300.SH", score=1.0, rank=1, factors={}, source="etf", confidence=1.0
                 )
             ],
             source="etf",
             timestamp=date.today().isoformat(),
-            status="available"
+            status="available",
         )
 
         service = AlphaService()
@@ -642,7 +650,7 @@ class TestGracefulDegradation:
             provider_source="cache",
             asof_date=today,
             scores=[],  # 空评分
-            status="available"
+            status="available",
         )
 
         service = AlphaService()
@@ -675,11 +683,7 @@ class TestLongRunningStability:
 
         # 模拟大量请求
         for _ in range(1000):
-            metrics.record_provider_call(
-                provider_name="test",
-                success=True,
-                latency_ms=100
-            )
+            metrics.record_provider_call(provider_name="test", success=True, latency_ms=100)
 
         # 检查计数器
         counter = metrics.registry.get_metric("alpha_score_request_count")
@@ -709,7 +713,7 @@ class TestErrorRecovery:
             scores=[
                 {"code": "600519.SH", "score": 0.8, "rank": 1, "factors": {}, "confidence": 0.8}
             ],
-            status="available"
+            status="available",
         )
 
         # 3. 再次请求

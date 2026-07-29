@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.core.management.base import BaseCommand
 
 from apps.pulse.infrastructure.data_provider import DEFAULT_PULSE_INDICATORS
@@ -7,15 +9,15 @@ from apps.pulse.infrastructure.models import PulseIndicatorWeight, PulseWeightCo
 class Command(BaseCommand):
     help = "初始化 Pulse 权重配置"
 
-    def handle(self, *args, **options):
+    def handle(self, *args: str, **options: Any) -> None:
         # 1. 创建整体配置
         config, created = PulseWeightConfig.objects.get_or_create(
             name="Phase 3 默认权重配置",
         )
         if created:
-            self.stdout.write(self.style.SUCCESS('创建新的 PulseWeightConfig'))
+            self.stdout.write(self.style.SUCCESS("创建新的 PulseWeightConfig"))
         else:
-            self.stdout.write('PulseWeightConfig 已存在')
+            self.stdout.write("PulseWeightConfig 已存在")
 
         # 将其设置为唯一的激活配置
         PulseWeightConfig.objects.exclude(id=config.id).update(is_active=False)
@@ -32,7 +34,7 @@ class Command(BaseCommand):
                     "dimension": indicator.dimension,
                     "weight": 1.0,
                     "is_enabled": True,
-                }
+                },
             )
 
         self.stdout.write(self.style.SUCCESS("初始化完成。指标权重已同步。"))

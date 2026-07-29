@@ -8,15 +8,17 @@ Usage:
 """
 
 import json
+from importlib import import_module
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
-from django_celery_beat.models import (
-    CrontabSchedule,
-    IntervalSchedule,
-    PeriodicTask,
-    PeriodicTasks,
-)
+
+beat_models: Any = import_module("django_celery_beat.models")
+CrontabSchedule = beat_models.CrontabSchedule
+IntervalSchedule = beat_models.IntervalSchedule
+PeriodicTask = beat_models.PeriodicTask
+PeriodicTasks = beat_models.PeriodicTasks
 
 LEGACY_TASK_ALIASES = {
     "apps.macro.application.tasks.sync_and_calculate_regime": (
@@ -41,7 +43,7 @@ MANAGED_TASK_NAMES = {
 class Command(BaseCommand):
     help = "Create/update macro and regime periodic tasks for robust decision data freshness."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--hour", type=int, default=8, help="Daily sync hour (0-23)")
         parser.add_argument("--minute", type=int, default=5, help="Daily sync minute (0-59)")
         parser.add_argument(
@@ -50,9 +52,9 @@ class Command(BaseCommand):
             help="Create/update tasks but disable them",
         )
 
-    def handle(self, *args, **options):
-        hour = options["hour"]
-        minute = options["minute"]
+    def handle(self, *args: str, **options: Any) -> None:
+        hour = int(options["hour"])
+        minute = int(options["minute"])
         enabled = not options["disable"]
 
         if hour < 0 or hour > 23:
@@ -63,7 +65,7 @@ class Command(BaseCommand):
             return
 
         with transaction.atomic():
-            crontab_kwargs = {
+            crontab_kwargs: dict[str, Any] = {
                 "minute": str(minute),
                 "hour": str(hour),
                 "day_of_week": "*",
@@ -79,14 +81,14 @@ class Command(BaseCommand):
                 every=6,
                 period=IntervalSchedule.HOURS,
             )
-            weekday_crontab_kwargs = {
+            weekday_crontab_kwargs: dict[str, Any] = {
                 "minute": "0",
                 "hour": "17",
                 "day_of_week": "1,2,3,4,5",
                 "day_of_month": "*",
                 "month_of_year": "*",
             }
-            weekday_recalc_crontab_kwargs = {
+            weekday_recalc_crontab_kwargs: dict[str, Any] = {
                 **weekday_crontab_kwargs,
                 "minute": "5",
             }
@@ -180,6 +182,4 @@ class Command(BaseCommand):
         self.stdout.write(f"  - daily-sync-and-calculate: {status} @ {hour:02d}:{minute:02d}")
         self.stdout.write(f"  - check-data-freshness: {status} every 6 hours")
         self.stdout.write(f"  - high-frequency-generate-signal: {status} @ weekdays 17:00")
-        self.stdout.write(
-            f"  - high-frequency-recalculate-regime: {status} @ weekdays 17:05"
-        )
+        self.stdout.write(f"  - high-frequency-recalculate-regime: {status} @ weekdays 17:05")

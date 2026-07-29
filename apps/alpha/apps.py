@@ -4,7 +4,11 @@ Alpha App Configuration
 Django app 配置。
 """
 
+from typing import Any
+
 from django.apps import AppConfig
+
+from apps.alpha.domain.entities import AlphaResult
 
 
 class AlphaConfig(AppConfig):
@@ -14,7 +18,7 @@ class AlphaConfig(AppConfig):
     name = "apps.alpha"
     verbose_name = "Alpha 信号抽象层"
 
-    def ready(self):
+    def ready(self) -> None:
         """应用就绪时的初始化"""
         import logging
 
@@ -25,7 +29,7 @@ class AlphaConfig(AppConfig):
 
         register_alpha_data_center_runtime()
 
-        def fetch_stock_scores(**kwargs):
+        def fetch_stock_scores(**kwargs: Any) -> AlphaResult:
             from apps.alpha.application.services import AlphaService
 
             return AlphaService().get_stock_scores(**kwargs)

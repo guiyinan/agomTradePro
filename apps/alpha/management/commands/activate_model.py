@@ -5,10 +5,14 @@ Activate Qlib Model Management Command
 """
 
 import logging
+import re
+from argparse import ArgumentParser
+from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 
 logger = logging.getLogger(__name__)
+_ARTIFACT_HASH_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 
 
 class Command(BaseCommand):
@@ -25,86 +29,82 @@ class Command(BaseCommand):
         --force: 强制激活（即使当前有激活的模型）
     """
 
-    help = 'Activate a trained Qlib model'
+    help = "Activate a trained Qlib model"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
-            'artifact_hash',
+            "artifact_hash",
             type=str,
-            help='Model artifact hash',
+            help="Model artifact hash",
         )
         parser.add_argument(
-            '--force',
-            action='store_true',
-            dest='force',
-            help='Force activation',
+            "--force",
+            action="store_true",
+            dest="force",
+            help="Force activation",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         """执行命令"""
-        artifact_hash = options.get('artifact_hash')
-        force = options.get('force', False)
+        artifact_hash = options.get("artifact_hash")
+        force = options.get("force", False)
+        if not isinstance(artifact_hash, str) or not _ARTIFACT_HASH_PATTERN.fullmatch(
+            artifact_hash
+        ):
+            raise CommandError("artifact_hash format is invalid")
+        if not isinstance(force, bool):
+            raise CommandError("--force option must be boolean")
 
-        self.stdout.write(f'激活模型: {artifact_hash[:8]}...')
+        self.stdout.write(f"激活模型: {artifact_hash[:8]}...")
 
         from apps.alpha.infrastructure.models import QlibModelRegistryModel
 
         # 查找模型
         try:
-            model = QlibModelRegistryModel._default_manager.get(
-                artifact_hash=artifact_hash
-            )
+            model = QlibModelRegistryModel._default_manager.get(artifact_hash=artifact_hash)
         except QlibModelRegistryModel.DoesNotExist:
-            self.stdout.write(
-                self.style.ERROR(f'  ✗ 模型不存在: {artifact_hash}')
-            )
+            self.stdout.write(self.style.ERROR(f"  ✗ 模型不存在: {artifact_hash}"))
             return
 
         # 检查当前激活状态
         if model.is_active:
-            self.stdout.write(
-                self.style.WARNING('  ⚠ 模型已经是激活状态')
-            )
+            self.stdout.write(self.style.WARNING("  ⚠ 模型已经是激活状态"))
             return
 
         # 检查是否有其他激活的模型
         current_active = QlibModelRegistryModel._default_manager.filter(
-            model_name=model.model_name,
-            is_active=True
+            model_name=model.model_name, is_active=True
         ).first()
 
         if current_active and not force:
             self.stdout.write(
-                self.style.WARNING(
-                    f'  ⚠ 当前有激活的模型: {current_active.artifact_hash[:8]}...'
-                )
+                self.style.WARNING(f"  ⚠ 当前有激活的模型: {current_active.artifact_hash[:8]}...")
             )
-            self.stdout.write('  使用 --force 强制激活')
+            self.stdout.write("  使用 --force 强制激活")
             return
 
         # 激活模型
         try:
-            model.activate(activated_by='command_line')
+            model.activate(activated_by="command_line")
 
-            self.stdout.write(
-                self.style.SUCCESS('  ✓ 模型已激活')
-            )
-            self.stdout.write(f'    模型名称: {model.model_name}')
-            self.stdout.write(f'    模型类型: {model.model_type}')
-            self.stdout.write(f'    股票池: {model.universe}')
-            self.stdout.write(f'    IC: {model.ic}')
-            self.stdout.write(f'    ICIR: {model.icir}')
+            self.stdout.write(self.style.SUCCESS("  ✓ 模型已激活"))
+            self.stdout.write(f"    模型名称: {model.model_name}")
+            self.stdout.write(f"    模型类型: {model.model_type}")
+            self.stdout.write(f"    股票池: {model.universe}")
+            self.stdout.write(f"    IC: {model.ic}")
+            self.stdout.write(f"    ICIR: {model.icir}")
 
             if current_active:
                 self.stdout.write(
                     self.style.WARNING(
-                        f'  ⚠ 之前的模型已取消激活: {current_active.artifact_hash[:8]}...'
+                        f"  ⚠ 之前的模型已取消激活: {current_active.artifact_hash[:8]}..."
                     )
                 )
 
-        except Exception as e:
-            self.stdout.write(
-                self.style.ERROR(f'  ✗ 激活失败: {e}')
+        except Exception as exc:
+            logger.error(
+                "Qlib model activation failed (error_type=%s)",
+                type(exc).__name__,
             )
-            raise CommandError(f'激活失败: {e}') from e
-
+            self.stdout.write(self.style.ERROR("  ✗ 激活失败"))
+            raise CommandError(f"激活失败 ({type(exc).__name__})") from exc

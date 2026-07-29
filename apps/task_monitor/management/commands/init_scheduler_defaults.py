@@ -1,9 +1,10 @@
 """Initialize default database-backed scheduler tasks."""
 
 from io import StringIO
+from typing import Any
 
 from django.core.management import call_command
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
 SCHEDULER_COMMANDS = (
@@ -20,14 +21,14 @@ SCHEDULER_COMMANDS = (
 class Command(BaseCommand):
     help = "Initialize all default django-celery-beat periodic tasks in one step."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--disable",
             action="store_true",
             help="Create/update all defaults but mark them disabled.",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: str, **options: Any) -> None:
         disable = bool(options.get("disable"))
         executed: list[str] = []
         outputs: list[str] = []
@@ -38,7 +39,10 @@ class Command(BaseCommand):
                 for command_name in SCHEDULER_COMMANDS:
                     current_command = command_name
                     buffer = StringIO()
-                    kwargs = {"stdout": buffer, "stderr": buffer}
+                    kwargs: dict[str, object] = {
+                        "stdout": buffer,
+                        "stderr": buffer,
+                    }
                     if disable:
                         kwargs["disable"] = True
                     call_command(command_name, **kwargs)
@@ -49,7 +53,8 @@ class Command(BaseCommand):
         except Exception as exc:
             failed_command = current_command or "unknown"
             raise CommandError(
-                f"Scheduler defaults initialization failed at {failed_command}: {exc}"
+                "Scheduler defaults initialization failed at "
+                f"{failed_command} ({exc.__class__.__name__})"
             ) from exc
 
         for output in outputs:

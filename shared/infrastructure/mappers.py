@@ -7,10 +7,11 @@ Entity-ORM Mapper Base Classes
 
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Generic, TypeVar
+from math import isfinite
+from typing import Any, Generic, TypeVar, get_origin
 
-TEntity = TypeVar('TEntity')
-TModel = TypeVar('TModel')
+TEntity = TypeVar("TEntity")
+TModel = TypeVar("TModel")
 
 
 class EntityMapper(Generic[TEntity, TModel], ABC):
@@ -54,38 +55,49 @@ class DataclassMapper(EntityMapper[TEntity, TModel], ABC):
     适用于 Domain Entity 是 dataclass 的场景。
     """
 
-    def _convert_value(self, value, target_type):
+    def _convert_value(self, value: object, target_type: object) -> object:
         """转换值类型"""
         if value is None:
             return None
 
-        if isinstance(value, target_type):
+        if isinstance(target_type, type) and isinstance(value, target_type):
             return value
 
-        if hasattr(target_type, '__origin__'):
+        if get_origin(target_type) is not None:
             return value
 
         if target_type is float and isinstance(value, int | str | Decimal):
-            return float(value)
+            converted = float(value)
+            if not isfinite(converted):
+                raise ValueError("converted float must be finite")
+            return converted
         if target_type is int and isinstance(value, str | float):
+            if isinstance(value, float) and not isfinite(value):
+                raise ValueError("converted integer source must be finite")
             return int(value)
         if target_type is str and not isinstance(value, str):
             return str(value)
         if target_type is Decimal and isinstance(value, int | float | str):
-            return Decimal(str(value))
+            converted_decimal = Decimal(str(value))
+            if not converted_decimal.is_finite():
+                raise ValueError("converted decimal must be finite")
+            return converted_decimal
 
         return value
 
 
 # Mapper 注册表
-_mapper_registry: dict = {}
+_mapper_registry: dict[type[Any], type[EntityMapper[Any, Any]]] = {}
 
 
-def register_mapper(entity_class: type, mapper_class: type[EntityMapper]):
+def register_mapper(
+    entity_class: type[Any],
+    mapper_class: type[EntityMapper[Any, Any]],
+) -> None:
     """注册 Mapper"""
     _mapper_registry[entity_class] = mapper_class
 
 
-def get_mapper(entity_class: type) -> type[EntityMapper] | None:
+def get_mapper(entity_class: type[Any]) -> type[EntityMapper[Any, Any]] | None:
     """获取 Entity 对应的 Mapper 类"""
     return _mapper_registry.get(entity_class)

@@ -22,8 +22,7 @@ from apps.signal.application.unified_service import UnifiedSignalService
 
 # --- Helper: mock ETF constituents so ETF fallback returns real data ---
 _ETF_CONSTITUENTS_PATH = (
-    "apps.alpha.infrastructure.adapters.etf_adapter"
-    ".ETFFallbackProvider._get_etf_constituents"
+    "apps.alpha.infrastructure.adapters.etf_adapter" ".ETFFallbackProvider._get_etf_constituents"
 )
 _FAKE_ETF_CONSTITUENTS = (
     [("600519.SH", 5.0), ("000858.SZ", 3.5), ("601318.SH", 2.8)],
@@ -55,7 +54,7 @@ class TestAlphaSignalIntegration:
                 {"code": "600519.SH", "score": 0.8, "rank": 1},
                 {"code": "000333.SH", "score": 0.7, "rank": 2},
             ],
-            status="available"
+            status="available",
         )
 
         # 收集信号
@@ -80,17 +79,14 @@ class TestAlphaSignalIntegration:
             scores=[
                 {"code": "600519.SH", "score": 0.85, "rank": 1},
             ],
-            status="available"
+            status="available",
         )
 
         # 收集信号
         service.collect_all_signals(today)
 
         # 查询统一信号
-        signals = service.get_unified_signals(
-            signal_date=today,
-            signal_source="alpha"
-        )
+        signals = service.get_unified_signals(signal_date=today, signal_source="alpha")
 
         # 验证至少有一条 Alpha 信号
         assert len(signals) >= 0  # 如果 Alpha 服务不可用，可能为 0
@@ -119,7 +115,7 @@ class TestAlphaBacktestIntegration:
         assert config.alpha_provider == "qlib"
         assert config.min_score == 0.6
 
-    @patch('apps.backtest.domain.alpha_backtest.AlphaService')
+    @patch("apps.backtest.domain.alpha_backtest.AlphaService")
     def test_alpha_backtest_use_case_execution(self, mock_alpha_service_class):
         """测试 Alpha 回测用例执行"""
         # Mock Alpha 服务
@@ -128,6 +124,7 @@ class TestAlphaBacktestIntegration:
 
         # Mock Alpha 结果
         from apps.alpha.domain.entities import AlphaResult, StockScore
+
         mock_result = AlphaResult(
             success=True,
             scores=[
@@ -137,12 +134,12 @@ class TestAlphaBacktestIntegration:
                     rank=1,
                     factors={"momentum": 0.7},
                     source="cache",
-                    confidence=0.9
+                    confidence=0.9,
                 )
             ],
             source="cache",
             timestamp=datetime.now().isoformat(),
-            status="available"
+            status="available",
         )
         mock_alpha_service.get_stock_scores.return_value = mock_result
 
@@ -207,7 +204,7 @@ class TestAlphaProviderFallback:
             scores=[
                 {"code": "600519.SH", "score": 0.8, "rank": 1, "factors": {}, "confidence": 0.8}
             ],
-            status="available"
+            status="available",
         )
 
         # 获取评分（应该从 Cache 返回）
@@ -225,8 +222,9 @@ class TestAlphaProviderFallback:
         # 不创建任何缓存，应该最终降级到 ETF
         result = service.get_stock_scores("csi300")
 
-        # ETF Provider 应该总是可用
-        assert result.success or result.source == "etf"
+        # 没有真实 ETF 持仓数据时不得发布静态兜底推荐。
+        assert not result.success
+        assert result.source == "none"
         AlphaService._instance = None
 
 
@@ -252,7 +250,7 @@ class TestAlphaMetricsRecording:
                 {"code": "600519.SH", "score": 0.8, "rank": 1, "factors": {}, "confidence": 0.8},
                 {"code": "000333.SH", "score": 0.7, "rank": 2, "factors": {}, "confidence": 0.7},
             ],
-            status="available"
+            status="available",
         )
 
         # 获取评分
@@ -282,7 +280,7 @@ class TestAlphaMetricsRecording:
                 {"code": "600519.SH", "score": 0.8, "rank": 1, "factors": {}, "confidence": 0.8},
                 {"code": "000333.SH", "score": 0.7, "rank": 2, "factors": {}, "confidence": 0.7},
             ],
-            status="available"
+            status="available",
         )
 
         # 获取评分
@@ -313,7 +311,7 @@ class TestAlphaQlibIntegration:
             model_path="/models/test.pkl",
             ic=0.05,
             icir=0.8,
-            is_active=True
+            is_active=True,
         )
 
         # 激活模型
@@ -340,7 +338,7 @@ class TestAlphaQlibIntegration:
             feature_set_id="v1",
             label_id="return_5d",
             data_version="2026.01.01",
-            model_path="/models/old.pkl"
+            model_path="/models/old.pkl",
         )
 
         current = QlibModelRegistryModel.objects.create(
@@ -353,7 +351,7 @@ class TestAlphaQlibIntegration:
             label_id="return_5d",
             data_version="2026.02.05",
             model_path="/models/current.pkl",
-            is_active=True
+            is_active=True,
         )
 
         # 回滚到上一个版本
@@ -386,7 +384,7 @@ class TestAlphaEndToEndFlow:
             data_version="2026.02.05",
             model_path="/models/e2e.pkl",
             ic=0.06,
-            is_active=True
+            is_active=True,
         )
 
         # 2. 创建评分缓存（模拟 Qlib 推理结果）
@@ -399,10 +397,22 @@ class TestAlphaEndToEndFlow:
             model_id="e2e_test_model",
             model_artifact_hash="e2e_hash",
             scores=[
-                {"code": "600519.SH", "score": 0.85, "rank": 1, "factors": {"momentum": 0.8}, "confidence": 0.9},
-                {"code": "000333.SH", "score": 0.75, "rank": 2, "factors": {"value": 0.7}, "confidence": 0.8},
+                {
+                    "code": "600519.SH",
+                    "score": 0.85,
+                    "rank": 1,
+                    "factors": {"momentum": 0.8},
+                    "confidence": 0.9,
+                },
+                {
+                    "code": "000333.SH",
+                    "score": 0.75,
+                    "rank": 2,
+                    "factors": {"value": 0.7},
+                    "confidence": 0.8,
+                },
             ],
-            status="available"
+            status="available",
         )
 
         # 3. 获取评分（通过 AlphaService）
@@ -435,9 +445,7 @@ class TestAlphaWithMonitoring:
         # 创建会触发告警的指标
         metrics = get_alpha_metrics()
         metrics.registry.set_gauge(
-            "alpha_provider_success_rate",
-            0.3,  # 低于阈值 0.5
-            labels={"provider": "test"}
+            "alpha_provider_success_rate", 0.3, labels={"provider": "test"}  # 低于阈值 0.5
         )
 
         # 评估告警
@@ -459,7 +467,7 @@ class TestAlphaWithMonitoring:
             provider_source="cache",
             asof_date=today,
             scores=[],
-            status="available"
+            status="available",
         )
 
         # 生成报告
@@ -487,7 +495,7 @@ class TestAlphaModelLifecycle:
             feature_set_id="v1",
             label_id="return_5d",
             data_version="v1",
-            model_path="/models/v1.pkl"
+            model_path="/models/v1.pkl",
         )
 
         model2 = QlibModelRegistryModel.objects.create(
@@ -499,7 +507,7 @@ class TestAlphaModelLifecycle:
             feature_set_id="v1",
             label_id="return_5d",
             data_version="v2",
-            model_path="/models/v2.pkl"
+            model_path="/models/v2.pkl",
         )
 
         # 激活 model1
@@ -530,13 +538,13 @@ class TestAlphaModelLifecycle:
                 feature_set_id="v1",
                 label_id="return_5d",
                 data_version=f"v{i}",
-                model_path=f"/models/v{i}.pkl"
+                model_path=f"/models/v{i}.pkl",
             )
 
         # 查询所有版本
-        models = QlibModelRegistryModel.objects.filter(
-            model_name=model_name
-        ).order_by('data_version')
+        models = QlibModelRegistryModel.objects.filter(model_name=model_name).order_by(
+            "data_version"
+        )
 
         assert models.count() == 3
 
@@ -555,7 +563,7 @@ class TestAlphaCacheStaleness:
             provider_source="cache",
             asof_date=old_date,
             scores=[],
-            status="available"
+            status="available",
         )
 
         # 检查陈旧度
@@ -573,7 +581,7 @@ class TestAlphaCacheStaleness:
             provider_source="cache",
             asof_date=recent_date,
             scores=[],
-            status="available"
+            status="available",
         )
 
         # 检查陈旧度
@@ -612,7 +620,7 @@ class TestAlphaMultiUniverse:
                 scores=[
                     {"code": "600519.SH", "score": 0.8, "rank": 1, "factors": {}, "confidence": 0.8}
                 ],
-                status="available"
+                status="available",
             )
 
         # 获取不同股票池的评分

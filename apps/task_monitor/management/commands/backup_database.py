@@ -15,20 +15,19 @@ Usage:
 
 import logging
 import subprocess
-from argparse import ArgumentParser
 from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError  # type: ignore[import-untyped]
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.task_monitor.application.repository_provider import get_database_backup_service
 
 logger = logging.getLogger(__name__)
 
 
-class Command(BaseCommand):  # type: ignore[misc]
+class Command(BaseCommand):
     help = "Backup the database (supports SQLite and PostgreSQL)"
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--output",
             type=str,

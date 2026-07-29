@@ -137,7 +137,7 @@ class AlphaProvider(ABC):
         intended_trade_date: date,
         top_n: int = 30,
         pool_scope: AlphaPoolScope | None = None,
-        user=None,
+        user: object | None = None,
     ) -> AlphaResult:
         """
         获取股票评分

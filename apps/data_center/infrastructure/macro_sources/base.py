@@ -12,13 +12,13 @@ from typing import Protocol
 from core.integration.runtime_settings import get_runtime_macro_publication_lags
 
 
-class DataSourceUnavailableError(Exception):
+class DataSourceUnavailableError(ConnectionError):
     """数据源不可用异常"""
 
     pass
 
 
-class DataValidationError(Exception):
+class DataValidationError(ValueError):
     """数据验证异常"""
 
     pass

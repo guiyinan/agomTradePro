@@ -6,13 +6,26 @@ Usage:
     python manage.py init_pulse_config --force  # 覆盖已有配置
 """
 
-from django.core.management.base import BaseCommand
+from typing import Any, TypedDict
+
+from django.core.management.base import BaseCommand, CommandParser
 
 from apps.pulse.infrastructure.data_provider import DEFAULT_PULSE_INDICATORS
 from apps.pulse.infrastructure.models import NavigatorAssetConfigModel, PulseIndicatorConfigModel
 
+
+class NavigatorAssetDefault(TypedDict):
+    """Validated default payload for one Navigator regime."""
+
+    regime_name: str
+    asset_weight_ranges: dict[str, list[float]]
+    risk_budget: float
+    recommended_sectors: list[str]
+    benefiting_styles: list[str]
+
+
 # Navigator 资产配置默认值
-NAVIGATOR_ASSET_DEFAULTS = [
+NAVIGATOR_ASSET_DEFAULTS: list[NavigatorAssetDefault] = [
     {
         "regime_name": "Recovery",
         "asset_weight_ranges": {
@@ -67,14 +80,14 @@ NAVIGATOR_ASSET_DEFAULTS = [
 class Command(BaseCommand):
     help = "Initialize Pulse indicator configs and Navigator asset configs in DB"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--force",
             action="store_true",
             help="Override existing configurations",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: str, **options: Any) -> None:
         force = options["force"]
         managed_codes = {ind_def.code for ind_def in DEFAULT_PULSE_INDICATORS}
 
@@ -117,8 +130,7 @@ class Command(BaseCommand):
 
         if force:
             deactivated_count = (
-                PulseIndicatorConfigModel.objects
-                .exclude(indicator_code__in=managed_codes)
+                PulseIndicatorConfigModel.objects.exclude(indicator_code__in=managed_codes)
                 .filter(is_active=True)
                 .update(is_active=False)
             )
@@ -162,9 +174,7 @@ class Command(BaseCommand):
                     nav_created += 1
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"  Navigator configs: {nav_created} created, {nav_updated} updated"
-            )
+            self.style.SUCCESS(f"  Navigator configs: {nav_created} created, {nav_updated} updated")
         )
 
         self.stdout.write(self.style.SUCCESS("Done!"))

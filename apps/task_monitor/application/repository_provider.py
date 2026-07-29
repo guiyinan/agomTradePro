@@ -20,7 +20,7 @@ def get_celery_health_checker() -> Any:
 
     from apps.task_monitor.infrastructure.providers import CeleryHealthChecker
 
-    return CeleryHealthChecker(celery_app=celery_app)  # type: ignore[no-untyped-call]
+    return CeleryHealthChecker(celery_app=celery_app)
 
 
 def get_database_backup_service() -> Any:
