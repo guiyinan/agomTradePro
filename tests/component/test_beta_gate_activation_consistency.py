@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 
@@ -16,6 +17,12 @@ class TestBetaGateActivationConsistency(TestCase):
     """Ensure Beta Gate active-config transitions are atomic and singular."""
 
     def setUp(self) -> None:
+        staff_user = get_user_model().objects.create_user(
+            username="beta-gate-admin",
+            password="test-password",
+            is_staff=True,
+        )
+        self.client.force_login(staff_user)
         self.active_config = GateConfigModel.objects.create(
             config_id="cfg-active",
             risk_profile=GateConfigModel.BALANCED,

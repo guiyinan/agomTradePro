@@ -57,7 +57,7 @@ def test_capability_sync_isolates_source_failures_and_continues():
     mcp_tools.assert_called_once_with()
     apis.assert_called_once_with()
     assert result.error_count == 1
-    assert result.summary["terminal_command"]["error"] == "terminal source failed"
+    assert result.summary["terminal_command"]["error"] == "capability_source_sync_failed"
     assert result.summary["mcp_tool"]["disabled"] == 0
     assert result.summary["api"]["disabled"] == 0
 

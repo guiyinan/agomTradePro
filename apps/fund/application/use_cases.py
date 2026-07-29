@@ -16,6 +16,7 @@ from typing import Protocol
 
 from apps.regime.application.repository_provider import get_regime_repository
 from apps.regime.domain.services_v2 import RegimeType
+from core.exceptions import MissingConfigError
 
 from ..domain.entities import (
     FundHolding,
@@ -305,7 +306,7 @@ class RankFundsUseCase:
             )
         )
         if not preferred_types:
-            raise ValueError(f"Fund ranking preferences are not configured for {regime}")
+            raise MissingConfigError(f"Fund ranking preferences are not configured for {regime}")
         regime_weights = dict.fromkeys(preferred_types, 1.0)
 
         # 3. 排名（调用 Domain 服务）

@@ -42,6 +42,7 @@ from apps.agent_runtime.application.terminal_approval import (
     TERMINAL_MCP_PROPOSAL_TYPE,
 )
 from apps.ai_capability.application.facade import CapabilityRoutingFacade
+from core.exceptions import MissingConfigError
 
 from ..application.repository_provider import (
     get_terminal_audit_repository,
@@ -257,6 +258,18 @@ class TerminalChatView(APIView):
                 "selected_capability_key": response_dto.metadata.get("capability_key"),
                 "proposal_id": response_dto.metadata.get("proposal_id"),
             }
+        except MissingConfigError:
+            logger.warning(
+                "Terminal agent chat unavailable because AI providers are not configured"
+            )
+            return Response(
+                {
+                    "error": "AI 服务尚未配置，请先配置可用服务商。",
+                    "code": "AI_PROVIDER_UNAVAILABLE",
+                    "setup_required": True,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         except Exception:
             logger.exception("Terminal agent chat failed")
             return Response(

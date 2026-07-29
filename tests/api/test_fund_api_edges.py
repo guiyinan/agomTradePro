@@ -13,6 +13,7 @@ from apps.fund.infrastructure.models import (
 )
 from apps.fund.infrastructure.repositories import DjangoFundRepository
 from apps.regime.infrastructure.models import RegimeLog
+from core.exceptions import MissingConfigError
 
 
 @pytest.mark.django_db
@@ -61,6 +62,27 @@ def test_fund_rank_success_contract(authenticated_client):
         ],
     }
     mock_rank.assert_called_once_with("Recovery", 20)
+
+
+@pytest.mark.django_db
+def test_fund_rank_reports_missing_preferences_as_configuration_conflict(
+    authenticated_client,
+):
+    with patch(
+        "apps.fund.interface.views.interface_services.rank_funds",
+        side_effect=MissingConfigError("private configuration details"),
+    ):
+        response = authenticated_client.get(
+            "/api/fund/rank/",
+            {"regime": "Recovery", "max_count": 20},
+        )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "success": False,
+        "error": "fund_ranking_preferences_unavailable",
+    }
+    assert "private configuration details" not in response.content.decode("utf-8")
 
 
 @pytest.mark.django_db

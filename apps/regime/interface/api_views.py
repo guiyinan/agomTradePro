@@ -217,8 +217,13 @@ class RegimeNavigatorView(APIView):
 
             if not navigator:
                 return Response(
-                    {"success": False, "error": "Navigator data not available"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {
+                        "success": True,
+                        "available": False,
+                        "data": None,
+                        "message": "Navigator data not available",
+                    },
+                    status=status.HTTP_200_OK,
                 )
 
             data = {
@@ -295,8 +300,13 @@ class RegimeActionView(APIView):
 
             if not action:
                 return Response(
-                    {"success": False, "error": "Action recommendation not available"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {
+                        "success": True,
+                        "available": False,
+                        "data": None,
+                        "message": "Action recommendation not available",
+                    },
+                    status=status.HTTP_200_OK,
                 )
 
             contract = {

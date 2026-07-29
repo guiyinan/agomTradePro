@@ -27,6 +27,7 @@ from apps.ai_provider.infrastructure.repositories import (
     AIUsageRepository,
     AIUserFallbackQuotaRepository,
 )
+from core.exceptions import MissingConfigError
 from shared.infrastructure.async_runtime import run_awaitable_sync
 
 logger = logging.getLogger(__name__)
@@ -706,7 +707,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                 user=user,
             )
 
-        raise RuntimeError("No available AI providers")
+        raise MissingConfigError("No available AI providers")
 
     def _resolve_user(self, user_id: int | None) -> Any | None:
         """Resolve one Django user for provider selection."""

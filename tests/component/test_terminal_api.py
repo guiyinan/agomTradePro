@@ -12,6 +12,7 @@ from apps.agent_runtime.infrastructure.models import (
 )
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.terminal.infrastructure.models import TerminalAuditLogORM
+from core.exceptions import MissingConfigError
 
 
 @pytest.fixture
@@ -213,7 +214,7 @@ class TestTerminalChatEndpoint:
 
         with patch(
             "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
-            side_effect=RuntimeError("No available AI providers"),
+            side_effect=MissingConfigError("No available AI providers"),
         ):
             response = api_client.post(
                 "/api/terminal/chat/",

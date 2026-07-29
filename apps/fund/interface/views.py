@@ -23,6 +23,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.exceptions import MissingConfigError
+
 from ..application import interface_services, use_cases
 from ..application.use_cases import (
     AnalyzeFundStyleRequest,
@@ -183,7 +185,16 @@ class RankFundsView(APIView):
         max_count = query.validated_data["max_count"]
 
         # 执行用例
-        fund_scores = interface_services.rank_funds(regime, max_count)
+        try:
+            fund_scores = interface_services.rank_funds(regime, max_count)
+        except MissingConfigError:
+            return Response(
+                {
+                    "success": False,
+                    "error": "fund_ranking_preferences_unavailable",
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
 
         # 序列化响应
         serializer = FundScoreSerializer(instance=cast(Any, fund_scores), many=True)
