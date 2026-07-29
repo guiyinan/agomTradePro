@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 382,
-    "files_with_errors": 228
+    "errors": 377,
+    "files_with_errors": 223
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -459,21 +459,6 @@
     },
     "apps/macro/management/commands/sync_macro_data.py": {
       "no-untyped-def": 2
-    },
-    "apps/operational_readiness/application/tasks.py": {
-      "misc": 1
-    },
-    "apps/operational_readiness/infrastructure/auto_advisor_weekly_scheduler_status.py": {
-      "import-untyped": 1
-    },
-    "apps/operational_readiness/infrastructure/quote_pre_readiness_scheduler_status.py": {
-      "import-untyped": 1
-    },
-    "apps/operational_readiness/infrastructure/readiness_runtime.py": {
-      "no-redef": 1
-    },
-    "apps/operational_readiness/infrastructure/readiness_status_evidence.py": {
-      "no-any-return": 1
     },
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1

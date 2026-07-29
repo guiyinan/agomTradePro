@@ -86,4 +86,5 @@ def _is_acceptance_candidate(*, operation_context: dict[str, Any]) -> bool:
 
 
 def _is_formal_evidence(*, operation_context: dict[str, Any]) -> bool | None:
-    return classify_operation_context(operation_context)["formal_evidence"]
+    value = classify_operation_context(operation_context).get("formal_evidence")
+    return value if isinstance(value, bool) else None

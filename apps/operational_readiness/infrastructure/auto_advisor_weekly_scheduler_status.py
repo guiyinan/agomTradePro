@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from django_celery_beat.models import PeriodicTask
+from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
 
 AUTO_ADVISOR_WEEKLY_TASK_NAME = "dashboard-auto-advisor-weekly-report"
 AUTO_ADVISOR_WEEKLY_TASK_PATH = "dashboard.generate_auto_advisor_weekly_reports"
@@ -26,7 +26,11 @@ def collect_auto_advisor_weekly_scheduler_status() -> dict[str, Any]:
     try:
         task = PeriodicTask.objects.filter(name=AUTO_ADVISOR_WEEKLY_TASK_NAME).first()
     except Exception as exc:
-        return {"status": "error", "error": str(exc)}
+        return {
+            "status": "error",
+            "error": "auto_advisor_scheduler_query_failed",
+            "exception_type": type(exc).__name__,
+        }
 
     if task is None:
         return {

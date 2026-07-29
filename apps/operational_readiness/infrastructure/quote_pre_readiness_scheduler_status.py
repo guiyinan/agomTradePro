@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from django_celery_beat.models import PeriodicTask
+from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
 
 from apps.operational_readiness.infrastructure import scheduler_status_utils
 
@@ -24,7 +24,11 @@ def collect_quote_pre_readiness_scheduler_status() -> dict[str, Any]:
     try:
         task = PeriodicTask.objects.filter(name=QUOTE_PRE_READINESS_TASK_NAME).first()
     except Exception as exc:
-        return {"status": "error", "error": str(exc)}
+        return {
+            "status": "error",
+            "error": "quote_pre_readiness_scheduler_query_failed",
+            "exception_type": type(exc).__name__,
+        }
 
     if task is None:
         return {

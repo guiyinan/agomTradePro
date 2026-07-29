@@ -6355,3 +6355,18 @@
 - Readiness 动态边界、模拟时钟、调度脱敏与命令定向组合 `93 passed`；全部 readiness、scheduler initialization、macro periodic task 与 weekly advisor 相关回归 `250 passed`。
 - 7 个 `apps/operational_readiness/management/commands/*.py` 目标文件增量 mypy 清零并退出债务清单；全仓基线从 `402 errors / 235 files` 收紧为 `382 errors / 228 files`，净减少 `20 errors / 7 files`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库模型、公开 API、TUI/MCP/SDK 或部署配置。
+
+## 第四百一十五批
+
+- 按“Readiness 命令层已收口但底层 task/runtime/status 仍有 Any × Celery/Beat 无类型边界 × process command line 和 scheduler/inspect 异常正文泄露”完成 Operational Readiness 主线小收口。
+- canonical daily Celery task 保留完整显式函数签名，并把唯一第三方无类型 decorator 缺口限制在单行 `misc` 边界；两个 Celery Beat scheduler status 模块同样只在 import 行隔离未提供 py.typed 的依赖。
+- scheduler 查询失败分别发布稳定 `auto_advisor_scheduler_query_failed` / `quote_pre_readiness_scheduler_query_failed` 与异常类型，不再返回数据库异常正文。
+- local runtime 的 process-scan、worker ping、active queue 和 registered task inspect 故障改为稳定错误码或有界异常类型；Redis/broker URL、Token 与底层连接异常不再进入 readiness monitor JSON。
+- 进程证据中的 password/token/API key/secret/credential/broker-account-ref 参数、环境变量形式和带认证 HTTP/PostgreSQL/Redis URL 在发布前遮蔽，命令行限制为 2000 字符；worker/beat 分类仍基于原始命令，避免脱敏改变运行判断。
+- process scan 的局部 issue 容器独立命名，消除成功路径重复定义；formal evidence 动态分类只接受真实 bool，否则安全返回 unknown，不再从动态 dict 返回 Any。
+
+## 第四百一十五批验证结果
+
+- Scheduler 故障脱敏、进程凭据遮蔽与 readiness status 定向组合 `80 passed`；全部 readiness、scheduler initialization、macro periodic task 与 weekly advisor 相关回归 `252 passed`。
+- `apps/operational_readiness/application/tasks.py` 及 4 个目标 Infrastructure 文件增量 mypy 清零并退出债务清单；Operational Readiness 模块剩余已登记债务清零，全仓基线从 `382 errors / 228 files` 收紧为 `377 errors / 223 files`，净减少 `5 errors / 5 files`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库模型、公开 API、TUI/MCP/SDK 或部署配置。

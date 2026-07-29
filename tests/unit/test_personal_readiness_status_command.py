@@ -12,7 +12,10 @@ from apps.task_monitor.management import auto_advisor_weekly_scheduler_status as
 from apps.task_monitor.management import quote_pre_readiness_scheduler_status as quote_module
 from apps.task_monitor.management import readiness_persistence_status
 from apps.task_monitor.management.commands import show_personal_readiness_status as command_module
-from apps.task_monitor.management.readiness_runtime import collect_local_scheduler_runtime
+from apps.task_monitor.management.readiness_runtime import (
+    PERSONAL_READINESS_REQUIRED_REGISTERED_TASKS,
+    collect_local_scheduler_runtime,
+)
 from tests.support.readiness_contracts import build_formal_acceptance_window_result
 
 ORIGINAL_COLLECT_AUTO_ADVISOR_WEEKLY_SCHEDULER = (
@@ -37,6 +40,29 @@ def test_scheduler_query_failure_does_not_expose_exception_details(monkeypatch):
         "exception_type": "RuntimeError",
     }
     assert "secret" not in str(payload)
+
+
+def test_related_scheduler_query_failures_publish_stable_errors(monkeypatch):
+    def fail_query(*args, **kwargs):
+        raise RuntimeError("redis://admin:secret@cache.internal/0")
+
+    monkeypatch.setattr(weekly_module.PeriodicTask.objects, "filter", fail_query)
+
+    weekly = weekly_module.collect_auto_advisor_weekly_scheduler_status()
+    quote = quote_module.collect_quote_pre_readiness_scheduler_status()
+
+    assert weekly == {
+        "status": "error",
+        "error": "auto_advisor_scheduler_query_failed",
+        "exception_type": "RuntimeError",
+    }
+    assert quote == {
+        "status": "error",
+        "error": "quote_pre_readiness_scheduler_query_failed",
+        "exception_type": "RuntimeError",
+    }
+    assert "secret" not in str(weekly)
+    assert "secret" not in str(quote)
 
 
 @pytest.fixture(autouse=True)
@@ -1509,6 +1535,37 @@ def test_personal_readiness_local_scheduler_runtime_detects_worker_and_beat():
     assert runtime["active_queues_status"] == "ok"
     assert runtime["missing_queues"] == []
     assert runtime["issues"] == []
+
+
+def test_personal_readiness_runtime_redacts_process_credentials():
+    runtime = collect_local_scheduler_runtime(
+        required=True,
+        process_commands=[
+            {
+                "pid": 1,
+                "command_line": (
+                    "python -m celery -A core worker --token=top-secret "
+                    "DATABASE_URL=postgres://admin:password@db.internal/main"
+                ),
+            },
+            {
+                "pid": 2,
+                "command_line": ("python manage.py celery_beat_windows --password raw-password"),
+            },
+        ],
+        worker_ping=[{"readiness@local": {"ok": "pong"}}],
+        worker_active_queues={"readiness@local": [{"name": "celery"}, {"name": "qlib_infer"}]},
+        worker_registered_tasks={
+            "readiness@local": list(PERSONAL_READINESS_REQUIRED_REGISTERED_TASKS)
+        },
+    )
+
+    process_text = str(runtime["processes"])
+    assert "top-secret" not in process_text
+    assert "raw-password" not in process_text
+    assert "password@" not in process_text
+    assert "--token=***" in process_text
+    assert "--password ***" in process_text
 
 
 def test_personal_readiness_local_scheduler_runtime_detects_docker_celery_paths():

@@ -76,7 +76,7 @@ def execute_personal_readiness_daily_task(
     name=CANONICAL_READINESS_TASK_NAME,
     time_limit=3600,
     soft_time_limit=3300,
-)
+)  # type: ignore[misc]  # Celery's decorator is untyped; the task signature below is explicit.
 def run_personal_readiness_daily_task(
     self: Any,
     target_date: str | None = None,

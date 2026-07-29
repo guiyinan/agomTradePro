@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from typing import Any
@@ -11,6 +12,13 @@ PERSONAL_READINESS_REQUIRED_REGISTERED_TASKS = (
     "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task",
     "dashboard.generate_auto_advisor_weekly_reports",
 )
+_COMMAND_CREDENTIAL_PATTERN = re.compile(
+    r"(?i)(--(?:password|token|api[-_]key|secret|credential|broker-account-ref)" r"(?:=|\s+))[^\s]+"
+)
+_ENV_CREDENTIAL_PATTERN = re.compile(
+    r"(?i)\b(password|token|api[-_]?key|secret|credential)=([^\s]+)"
+)
+_CREDENTIAL_URL_PATTERN = re.compile(r"(?i)\b(https?|postgres(?:ql)?|redis)://[^\s/@:]+:[^\s/@]+@")
 
 
 def collect_local_scheduler_runtime(
@@ -43,10 +51,10 @@ def collect_local_scheduler_runtime(
     try:
         commands = process_commands if process_commands is not None else _list_process_commands()
     except RuntimeError as exc:
-        issues = [
+        process_scan_issues = [
             {
                 "code": "local_scheduler_process_scan_failed",
-                "message": str(exc),
+                "message": f"local process scan failed ({type(exc).__name__})",
             }
         ]
         return {
@@ -59,10 +67,10 @@ def collect_local_scheduler_runtime(
             "required_registered_tasks": list(required_registered_tasks),
             "missing_registered_tasks": list(required_registered_tasks),
             "remediation_commands": _build_remediation_commands(
-                issues=issues,
+                issues=process_scan_issues,
                 required_queues=required_queues,
             ),
-            "issues": issues,
+            "issues": process_scan_issues,
             "processes": [],
         }
 
@@ -214,10 +222,14 @@ def _classify_command_line(command_line: Any) -> str | None:
 
 
 def _redact_process(process: dict[str, Any]) -> dict[str, Any]:
+    command_line = str(process.get("command_line") or "")
+    command_line = _CREDENTIAL_URL_PATTERN.sub(r"\1://***@", command_line)
+    command_line = _COMMAND_CREDENTIAL_PATTERN.sub(r"\1***", command_line)
+    command_line = _ENV_CREDENTIAL_PATTERN.sub(r"\1=***", command_line)
     return {
         "pid": process.get("pid"),
         "role": _classify_command_line(process.get("command_line")),
-        "command_line": str(process.get("command_line") or ""),
+        "command_line": command_line[:2_000],
     }
 
 
@@ -230,7 +242,8 @@ def _ping_celery_workers(*, timeout: float) -> dict[str, Any]:
         return {
             "status": "error",
             "responsive_worker_count": 0,
-            "error": str(exc),
+            "error": "celery_worker_ping_failed",
+            "exception_type": type(exc).__name__,
         }
 
 
@@ -250,7 +263,8 @@ def _inspect_worker_active_queues(
     except Exception as exc:
         return {
             "status": "error",
-            "error": str(exc),
+            "error": "celery_active_queue_inspection_failed",
+            "exception_type": type(exc).__name__,
             "covered_queues": [],
             "missing_queues": list(required_queues),
             "active_queue_worker_count": 0,
@@ -278,7 +292,8 @@ def _inspect_worker_registered_tasks(
     except Exception as exc:
         return {
             "status": "error",
-            "error": str(exc),
+            "error": "celery_registered_task_inspection_failed",
+            "exception_type": type(exc).__name__,
             "required_registered_tasks": list(required_registered_tasks),
             "missing_registered_tasks": list(required_registered_tasks),
             "registered_task_worker_count": 0,
