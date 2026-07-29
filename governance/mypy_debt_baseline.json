@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 441,
-    "files_with_errors": 247
+    "errors": 439,
+    "files_with_errors": 246
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -260,9 +260,6 @@
     },
     "apps/data_center/infrastructure/market_breadth_repositories.py": {
       "misc": 1
-    },
-    "apps/data_center/infrastructure/pit_repository.py": {
-      "misc": 2
     },
     "apps/data_center/interface/api_urls.py": {
       "no-untyped-def": 1

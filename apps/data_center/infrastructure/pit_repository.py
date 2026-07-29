@@ -8,8 +8,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from django.db.models import F, Q, QuerySet, Window
-from django.db.models.functions import RowNumber
+from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 from apps.data_center.domain.pit import (
     KnowledgeScope,
@@ -28,6 +27,13 @@ def _stable_hash(payload: Any) -> str:
     ).hexdigest()
 
 
+def _require_aware_datetime(value: datetime, *, label: str) -> None:
+    """Reject naive datetimes before they can alter PIT clock semantics."""
+
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{label} must be timezone-aware")
+
+
 class DjangoPITDataView:
     """Select latest fact revisions without leaking future knowledge."""
 
@@ -41,8 +47,7 @@ class DjangoPITDataView:
         """Build the fact-version queryset visible under the requested clock."""
 
         knowledge_scope = KnowledgeScope(knowledge_scope)
-        if as_of_time.tzinfo is None:
-            raise ValueError("as_of_time must be timezone-aware")
+        _require_aware_datetime(as_of_time, label="as_of_time")
         clock_field = "available_at" if knowledge_scope is KnowledgeScope.PUBLIC else "ingested_at"
         queryset = PITFactVersionModel._default_manager.filter(
             dataset=dataset,
@@ -60,6 +65,20 @@ class DjangoPITDataView:
                 queryset = queryset.filter(**{f"payload__{field_name}": value})
         return queryset, clock_field
 
+    @staticmethod
+    def _latest_versions(
+        queryset: QuerySet[PITFactVersionModel],
+        clock_field: str,
+    ) -> QuerySet[PITFactVersionModel]:
+        """Select the latest eligible row for each business key in SQL."""
+
+        latest_id = (
+            queryset.filter(business_key=OuterRef("business_key"))
+            .order_by(f"-{clock_field}", "-revision_number", "-id")
+            .values("id")[:1]
+        )
+        return queryset.filter(id=Subquery(latest_id)).order_by("business_key")
+
     def query(
         self,
         dataset: str,
@@ -73,13 +92,7 @@ class DjangoPITDataView:
         queryset, clock_field = self._eligible_queryset(
             dataset, as_of_time, knowledge_scope, filters
         )
-        rows = queryset.annotate(
-            pit_rank=Window(
-                expression=RowNumber(),
-                partition_by=[F("business_key")],
-                order_by=[F(clock_field).desc(), F("revision_number").desc(), F("id").desc()],
-            )
-        ).filter(pit_rank=1)
+        rows = self._latest_versions(queryset, clock_field)
         return [self._to_domain(row) for row in rows]
 
     @staticmethod
@@ -111,7 +124,21 @@ class ManifestBoundPITDataView(DjangoPITDataView):
         manifest = PITManifestRepository._to_domain(model)
         if not manifest.is_verified:
             raise ValueError("PIT manifest is not verified")
-        selected_ids = [int(item["id"]) for item in manifest.selected_versions]
+        try:
+            selected_ids = [
+                item["id"]
+                for item in manifest.selected_versions
+                if isinstance(item, dict)
+                and isinstance(item.get("id"), int)
+                and not isinstance(item["id"], bool)
+                and item["id"] > 0
+            ]
+        except (KeyError, TypeError) as exc:
+            raise ValueError("PIT manifest version evidence is invalid") from exc
+        if len(selected_ids) != len(manifest.selected_versions) or len(set(selected_ids)) != len(
+            selected_ids
+        ):
+            raise ValueError("PIT manifest version evidence is invalid")
         stored_rows: dict[int, Any] = {
             int(row["id"]): row
             for row in PITFactVersionModel._default_manager.filter(pk__in=selected_ids).values(
@@ -119,7 +146,7 @@ class ManifestBoundPITDataView(DjangoPITDataView):
             )
         }
         self._expected_hashes: dict[int, dict[str, str | None]] = {
-            int(item["id"]): {
+            item["id"]: {
                 "content_hash": item.get("content_hash"),
                 "payload_hash": item.get("payload_hash"),
             }
@@ -136,7 +163,10 @@ class ManifestBoundPITDataView(DjangoPITDataView):
         self._manifest = manifest
         self._ids_by_dataset: dict[str, list[int]] = {}
         for item in manifest.selected_versions:
-            self._ids_by_dataset.setdefault(str(item["dataset"]), []).append(int(item["id"]))
+            dataset = item.get("dataset")
+            if not isinstance(dataset, str) or not dataset:
+                raise ValueError("PIT manifest version evidence is invalid")
+            self._ids_by_dataset.setdefault(dataset, []).append(item["id"])
 
     @property
     def coverage(self) -> dict[str, float]:
@@ -154,6 +184,7 @@ class ManifestBoundPITDataView(DjangoPITDataView):
         """Select only evidence frozen in the manifest, failing on clock misuse."""
 
         knowledge_scope = KnowledgeScope(knowledge_scope)
+        _require_aware_datetime(as_of_time, label="as_of_time")
         if knowledge_scope is not self._manifest.knowledge_scope:
             raise ValueError("knowledge scope differs from the PIT manifest")
         if as_of_time > self._manifest.as_of_time:
@@ -164,16 +195,9 @@ class ManifestBoundPITDataView(DjangoPITDataView):
         queryset, clock_field = self._eligible_queryset(
             dataset, as_of_time, knowledge_scope, filters
         )
-        rows = (
-            queryset.filter(pk__in=allowed_ids)
-            .annotate(
-                pit_rank=Window(
-                    expression=RowNumber(),
-                    partition_by=[F("business_key")],
-                    order_by=[F(clock_field).desc(), F("revision_number").desc(), F("id").desc()],
-                )
-            )
-            .filter(pit_rank=1)
+        rows = self._latest_versions(
+            queryset.filter(pk__in=allowed_ids),
+            clock_field,
         )
         materialized = list(rows)
         if any(
@@ -199,8 +223,7 @@ class PITManifestRepository:
     ) -> PITDatasetManifest:
         """Resolve query specifications and persist their exact evidence set."""
 
-        if as_of_time.tzinfo is None:
-            raise ValueError("as_of_time must be timezone-aware")
+        _require_aware_datetime(as_of_time, label="as_of_time")
         as_of_time = as_of_time.astimezone(UTC)
         view = DjangoPITDataView()
         selected: list[dict[str, Any]] = []
@@ -272,7 +295,14 @@ class PITManifestRepository:
                 "manifest_hash": manifest_hash,
             },
         )
-        return self._to_domain(model)
+        manifest = self._to_domain(model)
+        if (
+            manifest.manifest_id != manifest_id
+            or manifest.manifest_hash != manifest_hash
+            or calculate_pit_manifest_hash(manifest) != manifest_hash
+        ):
+            raise ValueError("PIT manifest evidence conflicts with the requested snapshot")
+        return manifest
 
     def get(self, manifest_id: str) -> PITDatasetManifest | None:
         """Return a manifest by stable identifier."""
@@ -283,6 +313,8 @@ class PITManifestRepository:
     def list_recent(self, limit: int = 100) -> list[PITDatasetManifest]:
         """Return recent manifests without exposing mutable querysets."""
 
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 500:
+            raise ValueError("limit must be an integer between 1 and 500")
         rows = PITDatasetManifestModel._default_manager.order_by("-created_at")[:limit]
         return [self._to_domain(row) for row in rows]
 

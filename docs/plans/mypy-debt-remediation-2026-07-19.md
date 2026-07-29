@@ -6214,3 +6214,18 @@
 - 价格点、默认值、单点/序列 failover、脱敏和 Data Center 读取专项 `16 passed`；Backtest 任务、Audit Attribution/actual-regime 与 Data Center 消费者扩展组合 `103 passed`。
 - `apps/backtest/infrastructure/adapters/base.py` 与 `composite_price_adapter.py` 增量 mypy 清零并退出债务清单；全仓基线从 `444 errors / 249 files` 收紧为 `441 errors / 247 files`，净减少 `3 errors / 2 files`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改 Backtest/Audit API 成功响应、TUI/Terminal/SDK/MCP 或部署实现。
+
+## 第四百零六批
+
+- 按“PIT 最新版本窗口注解无法被 Django 类型系统识别 × 同时点修订选择缺少稳定顺序 × 冻结清单旁路篡改后可被重复构建直接复用 × 重复版本 ID 可进入绑定读取”收口 Data Center PIT 证据读取链。
+- 最新可见事实改用按 `business_key` 关联的数据库子查询，依次按知识时钟、修订号和主键倒序取一条，并按业务键稳定输出；保持数据库侧过滤效率，同时移除动态窗口字段带来的 ORM 类型债务。
+- Django PIT view、manifest build 与 manifest-bound view 统一要求真正 timezone-aware 的时点；自定义 `tzinfo` 但无 UTC offset 的伪 aware 时间不再进入历史时点比较。
+- manifest-bound reader 在查询事实库前校验选中版本 ID 为唯一正整数、dataset 非空，并继续核对 content hash 与 payload hash；重复、缺失或被修改的证据失败关闭。
+- 确定性 manifest 重复构建后重新计算并核对持久化证据；即使数据库记录被旁路改写，也不再把同一 manifest ID 下的冲突快照返回给 Research、Decision Rhythm 或 Backtest 消费者。
+- Repository 最近清单读取正式限制为 `1..500` 的非 bool 整数，避免绕过 Application 边界时出现负切片或无界读取。
+
+## 第四百零六批验证结果
+
+- PIT 历史修订、同时间戳稳定选择、冻结后版本隔离、payload 篡改、清单冲突与重复 ID 专项 `7 passed`；Data Center API、Research promotion、Decision Rhythm 输入快照和关键数据安全扩展组合 `27 passed`。
+- `apps/data_center/infrastructure/pit_repository.py` 增量 mypy 清零并退出债务清单；全仓基线从 `441 errors / 247 files` 收紧为 `439 errors / 246 files`，净减少 `2 errors / 1 file`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改公开 API 成功响应或数据库结构。

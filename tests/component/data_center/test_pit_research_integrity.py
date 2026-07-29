@@ -3,8 +3,15 @@ from decimal import Decimal
 
 import pytest
 
-from apps.data_center.domain.pit import KnowledgeScope
-from apps.data_center.infrastructure.pit_models import PITFactVersionModel
+from apps.data_center.domain.pit import (
+    KnowledgeScope,
+    PITDatasetManifest,
+    calculate_pit_manifest_hash,
+)
+from apps.data_center.infrastructure.pit_models import (
+    PITDatasetManifestModel,
+    PITFactVersionModel,
+)
 from apps.data_center.infrastructure.pit_repository import (
     DjangoPITDataView,
     ManifestBoundPITDataView,
@@ -58,6 +65,34 @@ def test_pit_view_selects_only_revision_publicly_available_at_as_of() -> None:
 
     assert before_revision[0].payload["value"] == "100"
     assert after_revision[0].payload["value"] == "120"
+
+
+@pytest.mark.django_db
+def test_pit_view_selects_latest_revision_deterministically_for_each_key() -> None:
+    cutoff = datetime(2025, 3, 1, tzinfo=UTC)
+    for business_key in ("A", "B"):
+        for revision in (0, 1):
+            PITFactVersionModel.objects.create(
+                dataset="price_bar",
+                business_key=business_key,
+                effective_at=cutoff - timedelta(days=1),
+                available_at=cutoff - timedelta(hours=1),
+                ingested_at=cutoff - timedelta(minutes=30),
+                revision_number=revision,
+                source_record_id=f"{business_key}-{revision}",
+                content_hash=str(revision + 1) * 64,
+                pit_quality="verified",
+                payload={"revision": revision},
+            )
+
+    rows = DjangoPITDataView().query(
+        "price_bar",
+        cutoff,
+        KnowledgeScope.PUBLIC,
+        {},
+    )
+
+    assert [(row.business_key, row.revision_number) for row in rows] == [("A", 1), ("B", 1)]
 
 
 @pytest.mark.django_db
@@ -175,3 +210,78 @@ def test_manifest_bound_view_rejects_payload_tampering_after_freeze() -> None:
             KnowledgeScope.PUBLIC,
             {"business_key": "000001.SZ"},
         )
+
+
+@pytest.mark.django_db
+def test_manifest_rebuild_rejects_conflicting_persisted_evidence() -> None:
+    cutoff = datetime(2025, 2, 28, tzinfo=UTC)
+    PITFactVersionModel.objects.create(
+        dataset="price_bar",
+        business_key="000001.SZ",
+        effective_at=cutoff - timedelta(days=1),
+        available_at=cutoff - timedelta(hours=1),
+        ingested_at=cutoff - timedelta(minutes=30),
+        source_record_id="price-v1",
+        content_hash="8" * 64,
+        pit_quality="verified",
+        payload={"close": "10.00"},
+    )
+    repository = PITManifestRepository()
+    kwargs = {
+        "as_of_time": cutoff,
+        "knowledge_scope": KnowledgeScope.PUBLIC,
+        "calendar_version": "sse-2025-v1",
+        "query_spec": {"price_bar": {"business_key": "000001.SZ"}},
+        "required_keys": {"price_bar": ["000001.SZ"]},
+    }
+    manifest = repository.build(**kwargs)
+    PITDatasetManifestModel._default_manager.filter(manifest_id=manifest.manifest_id).update(
+        calendar_version="tampered"
+    )
+
+    with pytest.raises(ValueError, match="conflicts with the requested snapshot"):
+        repository.build(**kwargs)
+
+
+@pytest.mark.django_db
+def test_manifest_bound_view_rejects_duplicate_selected_version_ids() -> None:
+    cutoff = datetime(2025, 2, 28, tzinfo=UTC)
+    PITFactVersionModel.objects.create(
+        dataset="price_bar",
+        business_key="000001.SZ",
+        effective_at=cutoff - timedelta(days=1),
+        available_at=cutoff - timedelta(hours=1),
+        ingested_at=cutoff - timedelta(minutes=30),
+        source_record_id="price-v1",
+        content_hash="8" * 64,
+        pit_quality="verified",
+        payload={"close": "10.00"},
+    )
+    manifest = PITManifestRepository().build(
+        as_of_time=cutoff,
+        knowledge_scope=KnowledgeScope.PUBLIC,
+        calendar_version="sse-2025-v1",
+        query_spec={"price_bar": {"business_key": "000001.SZ"}},
+        required_keys={"price_bar": ["000001.SZ"]},
+    )
+    selected = list(manifest.selected_versions)
+    duplicated = PITDatasetManifest(
+        manifest_id=manifest.manifest_id,
+        as_of_time=manifest.as_of_time,
+        knowledge_scope=manifest.knowledge_scope,
+        calendar_version=manifest.calendar_version,
+        query_spec=manifest.query_spec,
+        selected_versions=(*manifest.selected_versions, manifest.selected_versions[0]),
+        coverage=manifest.coverage,
+        missing=manifest.missing,
+        estimated=manifest.estimated,
+        unknown=manifest.unknown,
+        manifest_hash="",
+    )
+    PITDatasetManifestModel._default_manager.filter(manifest_id=manifest.manifest_id).update(
+        selected_versions=[*selected, selected[0]],
+        manifest_hash=calculate_pit_manifest_hash(duplicated),
+    )
+
+    with pytest.raises(ValueError, match="version evidence is invalid"):
+        ManifestBoundPITDataView(manifest.manifest_id)
