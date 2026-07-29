@@ -269,8 +269,6 @@ class TestApproveEventAPI:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["success"] is True
-        ingestion_config.refresh_from_db()
-        assert ingestion_config.updated_by == user
         assert response.data["event_id"] == event.id
 
 
@@ -485,6 +483,8 @@ class TestIngestionConfigAPI:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["success"] is True
+        ingestion_config.refresh_from_db()
+        assert ingestion_config.updated_by == user
 
 
 @pytest.mark.django_db
