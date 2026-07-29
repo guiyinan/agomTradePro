@@ -329,14 +329,20 @@ class GenerateUnifiedRecommendationsUseCase:
 
                 # 获取来源信号
                 signals = self.signal_provider.get_active_signals(security_code)
-                signal_ids = [s.get("signal_id") for s in signals if s.get("signal_id")]
+                signal_ids = [
+                    str(signal_id)
+                    for signal in signals
+                    if (signal_id := signal.get("signal_id")) is not None and str(signal_id).strip()
+                ]
 
                 # 获取来源候选
                 candidates = self.candidate_provider.get_active_candidates(request.account_id)
                 candidate_ids = [
-                    c.get("candidate_id")
-                    for c in candidates
-                    if c.get("security_code") == security_code and c.get("candidate_id")
+                    str(candidate_id)
+                    for candidate in candidates
+                    if candidate.get("security_code") == security_code
+                    and (candidate_id := candidate.get("candidate_id")) is not None
+                    and str(candidate_id).strip()
                 ]
 
                 # 生成推荐

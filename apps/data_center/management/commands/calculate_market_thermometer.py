@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import json
+from argparse import ArgumentParser
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.data_center.application.interface_services import (
     make_calculate_market_thermometer_use_case,
     make_sync_market_thermometer_inputs_use_case,
 )
-from apps.data_center.application.tasks import resolve_market_thermometer_as_of_date
+from apps.data_center.application.market_thermometer_dates import (
+    resolve_market_thermometer_as_of_date,
+)
 
 
 class Command(BaseCommand):
@@ -18,7 +22,9 @@ class Command(BaseCommand):
 
     help = "Calculate market-thermometer snapshot"
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: ArgumentParser | CommandParser) -> None:
+        """Register market-thermometer calculation options."""
+
         parser.add_argument("--as-of-date", type=str, default="")
         parser.add_argument(
             "--skip-sync",
@@ -36,9 +42,20 @@ class Command(BaseCommand):
             help="Emit machine-readable JSON instead of Python repr output.",
         )
 
-    def handle(self, *args, **options):
-        raw_date = str(options.get("as_of_date") or "").strip()
-        as_of_date = resolve_market_thermometer_as_of_date(raw_date)
+    def handle(self, *args: Any, **options: Any) -> None:
+        """Sync inputs and calculate one decision-safe snapshot."""
+
+        raw_option = options.get("as_of_date")
+        if raw_option is not None and not isinstance(raw_option, str):
+            raise CommandError("as-of-date must be an ISO date")
+        raw_date = (raw_option or "").strip()
+        try:
+            as_of_date = resolve_market_thermometer_as_of_date(raw_date)
+        except ValueError as exc:
+            raise CommandError("as-of-date must use YYYY-MM-DD format") from exc
+        for option_name in ("skip_sync", "allow_blocked_write", "json"):
+            if not isinstance(options.get(option_name), bool):
+                raise CommandError(f"{option_name.replace('_', '-')} must be a boolean flag")
         sync_payload = None
         if not bool(options.get("skip_sync")):
             sync_payload = make_sync_market_thermometer_inputs_use_case().execute(

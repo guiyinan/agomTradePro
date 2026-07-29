@@ -6,13 +6,14 @@ Infrastructure layer - fetches data from Tushare Pro API.
 
 import logging
 from calendar import monthrange
-from datetime import date, timedelta
-
-import pandas as pd
+from collections.abc import Sequence
+from datetime import date, datetime, timedelta
+from typing import Protocol, cast
 
 from core.integration.runtime_settings import get_runtime_macro_index_codes
 from shared.config.secrets import get_secrets
 from shared.infrastructure.tushare_client import create_tushare_pro_client
+from shared.numeric import safe_float
 
 from .base import (
     BaseMacroAdapter,
@@ -34,15 +35,41 @@ _CPI_FIELD_MAP: dict[str, tuple[str, str]] = {
 }
 
 
-def _resolve_shibor_tenor_column(df: pd.DataFrame) -> str:
+class _DataFrameProtocol(Protocol):
+    """Narrow dataframe surface returned by the third-party Tushare client."""
+
+    @property
+    def empty(self) -> bool: ...
+
+    @property
+    def columns(self) -> Sequence[object]: ...
+
+    def to_dict(self, orient: str) -> list[dict[str, object]]: ...
+
+
+class _TushareProProtocol(Protocol):
+    """Tushare endpoints consumed by this adapter."""
+
+    def shibor(self, *, start_date: str, end_date: str) -> _DataFrameProtocol: ...
+
+    def cn_cpi(self, *, start_m: str, end_m: str) -> _DataFrameProtocol | None: ...
+
+    def index_daily(
+        self,
+        *,
+        ts_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> _DataFrameProtocol: ...
+
+
+def _resolve_shibor_tenor_column(df: _DataFrameProtocol) -> str:
     """Resolve the SHIBOR 1-week tenor column from current or legacy casing."""
     normalized = {str(column).strip().lower(): column for column in df.columns}
     for candidate in ("1w", "1wk", "1_week"):
         if candidate in normalized:
             return str(normalized[candidate])
-    raise DataValidationError(
-        f"SHIBOR 数据缺少 1 周期限字段，当前列: {list(df.columns)}"
-    )
+    raise DataValidationError(f"SHIBOR 数据缺少 1 周期限字段，当前列: {list(df.columns)}")
 
 
 class TushareAdapter(BaseMacroAdapter):
@@ -56,7 +83,7 @@ class TushareAdapter(BaseMacroAdapter):
 
     source_name = "tushare"
 
-    def __init__(self, token: str | None = None, http_url: str | None = None):
+    def __init__(self, token: str | None = None, http_url: str | None = None) -> None:
         """
         Args:
             token: Tushare Pro Token（如果不提供，从环境变量读取）
@@ -66,22 +93,31 @@ class TushareAdapter(BaseMacroAdapter):
 
         self.token = token
         self.http_url = http_url
-        self._pro = None
+        self._pro: _TushareProProtocol | None = None
 
     @property
-    def pro(self):
+    def pro(self) -> _TushareProProtocol:
         """延迟初始化 tushare pro API"""
         if self._pro is None:
             try:
-                self._pro = create_tushare_pro_client(
-                    token=self.token,
-                    http_url=self.http_url,
+                self._pro = cast(
+                    _TushareProProtocol,
+                    create_tushare_pro_client(
+                        token=self.token,
+                        http_url=self.http_url,
+                    ),
                 )
                 logger.info("Tushare API 初始化成功")
             except ImportError:
-                raise DataSourceUnavailableError("tushare 库未安装，请运行: pip install tushare") from None
-            except Exception as e:
-                raise DataSourceUnavailableError(f"Tushare API 初始化失败: {e}") from e
+                raise DataSourceUnavailableError(
+                    "tushare 库未安装，请运行: pip install tushare"
+                ) from None
+            except Exception as exc:
+                logger.error(
+                    "Tushare API initialization failed; exception_type=%s",
+                    type(exc).__name__,
+                )
+                raise DataSourceUnavailableError("tushare_api_initialization_failed") from exc
         return self._pro
 
     def supports(self, indicator_code: str) -> bool:
@@ -97,12 +133,7 @@ class TushareAdapter(BaseMacroAdapter):
             pass
         return supported
 
-    def fetch(
-        self,
-        indicator_code: str,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch(self, indicator_code: str, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """
         获取指定指标的数据
 
@@ -128,15 +159,24 @@ class TushareAdapter(BaseMacroAdapter):
             else:
                 return self._fetch_index_daily(indicator_code, start_date, end_date)
 
-        except Exception as e:
-            logger.error(f"获取 {indicator_code} 数据失败: {e}")
-            raise DataSourceUnavailableError(f"获取数据失败: {e}") from e
+        except DataValidationError as exc:
+            logger.warning(
+                "Tushare data validation failed; indicator=%s exception_type=%s",
+                indicator_code,
+                type(exc).__name__,
+            )
+            raise DataSourceUnavailableError(str(exc)) from exc
+        except DataSourceUnavailableError:
+            raise
+        except Exception as exc:
+            logger.error(
+                "Tushare fetch failed; indicator=%s exception_type=%s",
+                indicator_code,
+                type(exc).__name__,
+            )
+            raise DataSourceUnavailableError("tushare_fetch_failed") from exc
 
-    def _fetch_shibor(
-        self,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def _fetch_shibor(self, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """
         获取 SHIBOR 利率数据
 
@@ -163,21 +203,21 @@ class TushareAdapter(BaseMacroAdapter):
         # 使用 1W（1周）利率作为代表值。
         # Tushare 当前返回小写列名（1w），这里兼容历史大小写差异。
         tenor_column = _resolve_shibor_tenor_column(df)
-        df = df[["date", tenor_column]].dropna()
-        df.columns = ['observed_at', 'value']
-
-        data_points = []
-        for _, row in df.iterrows():
+        data_points: list[MacroDataPoint] = []
+        for row in df.to_dict("records"):
             try:
-                observed_at = pd.to_datetime(row['observed_at']).date()
-                value = float(row['value'])
+                raw_date = str(row.get("date") or "").strip()
+                observed_at = datetime.strptime(raw_date[:8], "%Y%m%d").date()
+                value = safe_float(row.get(tenor_column))
+                if value is None:
+                    continue
 
                 point = MacroDataPoint(
                     code="SHIBOR",
                     value=value,
                     observed_at=observed_at,
                     published_at=observed_at,  # SHIBOR 当日发布
-                    source=self.source_name
+                    source=self.source_name,
                 )
                 self._validate_data_point(point)
                 data_points.append(point)
@@ -205,7 +245,7 @@ class TushareAdapter(BaseMacroAdapter):
             logger.warning(f"CPI 数据为空: {start_date} - {end_date}")
             return []
 
-        data_points = []
+        data_points: list[MacroDataPoint] = []
         for row in df.to_dict("records"):
             try:
                 raw_month = str(row.get("month") or "").strip()
@@ -219,9 +259,12 @@ class TushareAdapter(BaseMacroAdapter):
                 raw_value = row.get(value_column)
                 if raw_value in (None, ""):
                     continue
+                value = safe_float(raw_value)
+                if value is None:
+                    continue
                 point = MacroDataPoint(
                     code=indicator_code,
-                    value=float(raw_value),
+                    value=value,
                     observed_at=observed_at,
                     published_at=observed_at,
                     source=self.source_name,
@@ -237,10 +280,7 @@ class TushareAdapter(BaseMacroAdapter):
         return self._sort_and_deduplicate(data_points)
 
     def _fetch_index_daily(
-        self,
-        ts_code: str,
-        start_date: date,
-        end_date: date
+        self, ts_code: str, start_date: date, end_date: date
     ) -> list[MacroDataPoint]:
         """
         获取指数日线数据
@@ -256,33 +296,29 @@ class TushareAdapter(BaseMacroAdapter):
         start_str = start_date.strftime("%Y%m%d")
         end_str = end_date.strftime("%Y%m%d")
 
-        df = self.pro.index_daily(
-            ts_code=ts_code,
-            start_date=start_str,
-            end_date=end_str
-        )
+        df = self.pro.index_daily(ts_code=ts_code, start_date=start_str, end_date=end_str)
 
         if df.empty:
             logger.warning(f"指数 {ts_code} 数据为空: {start_date} - {end_date}")
             return []
 
         # 使用收盘价
-        df = df[['trade_date', 'close']]
-        df.columns = ['observed_at', 'value']
-
-        data_points = []
-        for _, row in df.iterrows():
+        data_points: list[MacroDataPoint] = []
+        for row in df.to_dict("records"):
             try:
                 # Tushare 返回的日期是 YYYYMMDD 格式
-                observed_at = pd.to_datetime(row['observed_at'], format="%Y%m%d").date()
-                value = float(row['value'])
+                raw_date = str(row.get("trade_date") or "").strip()
+                observed_at = datetime.strptime(raw_date[:8], "%Y%m%d").date()
+                value = safe_float(row.get("close"))
+                if value is None:
+                    continue
 
                 point = MacroDataPoint(
                     code=ts_code,
                     value=value,
                     observed_at=observed_at,
                     published_at=observed_at,  # 指数当日发布
-                    source=self.source_name
+                    source=self.source_name,
                 )
                 self._validate_data_point(point)
                 data_points.append(point)

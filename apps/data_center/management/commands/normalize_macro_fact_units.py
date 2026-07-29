@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from argparse import ArgumentParser
+from typing import Any
+
 from django.core.management import BaseCommand, CommandError
+from django.core.management.base import CommandParser
 
 from apps.data_center.infrastructure.repositories import MacroGovernanceRepository
 
@@ -19,7 +23,9 @@ class Command(BaseCommand):
         "using IndicatorUnitRule."
     )
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser | CommandParser) -> None:
+        """Register macro-fact normalization options."""
+
         parser.add_argument(
             "--indicator-codes",
             dest="indicator_codes",
@@ -41,10 +47,20 @@ class Command(BaseCommand):
             help="Exit non-zero if any fact needs normalization or cannot be normalized.",
         )
 
-    def handle(self, *args, **options):
-        indicator_codes = _split_codes(options.get("indicator_codes"))
-        check = bool(options.get("check"))
-        dry_run = bool(options.get("dry_run")) or check
+    def handle(self, *args: Any, **options: Any) -> None:
+        """Normalize governed macro facts or report drift without mutation."""
+
+        raw_indicator_codes = options.get("indicator_codes")
+        if raw_indicator_codes is not None and not isinstance(raw_indicator_codes, str):
+            raise CommandError("indicator-codes must be comma-separated text")
+        indicator_codes = _split_codes(raw_indicator_codes)
+        if len(indicator_codes) > 1000:
+            raise CommandError("indicator-codes accepts at most 1000 codes")
+        for option_name in ("check", "dry_run"):
+            if not isinstance(options.get(option_name), bool):
+                raise CommandError(f"{option_name.replace('_', '-')} must be a boolean flag")
+        check = options["check"]
+        dry_run = options["dry_run"] or check
         result = MacroGovernanceRepository().normalize_macro_fact_units(
             indicator_codes=indicator_codes or None,
             dry_run=dry_run,

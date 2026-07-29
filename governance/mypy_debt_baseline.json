@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 377,
-    "files_with_errors": 223
+    "errors": 297,
+    "files_with_errors": 180
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -215,115 +215,8 @@
     "apps/dashboard/templatetags/dashboard_tags.py": {
       "no-untyped-def": 2
     },
-    "apps/data_center/application/on_demand.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 1
-    },
-    "apps/data_center/application/reliability_use_cases.py": {
-      "no-untyped-def": 1
-    },
-    "apps/data_center/application/tasks.py": {
-      "unused-ignore": 1
-    },
-    "apps/data_center/infrastructure/_provider_adapter_base.py": {
-      "no-any-return": 1
-    },
-    "apps/data_center/infrastructure/a_share_universe_sync.py": {
-      "misc": 2
-    },
-    "apps/data_center/infrastructure/connection_tester.py": {
-      "no-any-return": 1
-    },
-    "apps/data_center/infrastructure/gateways/akshare_general_gateway.py": {
-      "arg-type": 1
-    },
-    "apps/data_center/infrastructure/gateways/tencent_gateway.py": {
-      "arg-type": 1
-    },
-    "apps/data_center/infrastructure/macro_sources/tushare_adapter.py": {
-      "assignment": 1,
-      "import-untyped": 1,
-      "no-untyped-def": 1
-    },
     "apps/data_center/infrastructure/market_breadth_repositories.py": {
       "misc": 1
-    },
-    "apps/data_center/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/data_center/management/commands/audit_on_demand_coverage.py": {
-      "attr-defined": 2,
-      "no-untyped-def": 2
-    },
-    "apps/data_center/management/commands/backfill_asset_master.py": {
-      "no-untyped-def": 2
-    },
-    "apps/data_center/management/commands/calculate_market_thermometer.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 2
-    },
-    "apps/data_center/management/commands/import_investor_accounts.py": {
-      "no-untyped-def": 2
-    },
-    "apps/data_center/management/commands/init_macro_indicator_governance.py": {
-      "no-untyped-def": 2
-    },
-    "apps/data_center/management/commands/normalize_macro_fact_units.py": {
-      "no-untyped-def": 2
-    },
-    "apps/data_center/management/commands/sync_a_share_universe.py": {
-      "no-untyped-def": 2
-    },
-    "apps/data_center/management/commands/sync_market_thermometer_inputs.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 2
-    },
-    "apps/decision_rhythm/application/advisor_contracts.py": {
-      "attr-defined": 1
-    },
-    "apps/decision_rhythm/application/decision_model_param_use_cases.py": {
-      "attr-defined": 2
-    },
-    "apps/decision_rhythm/application/decision_recommendation_use_cases.py": {
-      "arg-type": 2
-    },
-    "apps/decision_rhythm/application/tasks.py": {
-      "misc": 1,
-      "no-untyped-def": 1
-    },
-    "apps/decision_rhythm/infrastructure/consistency_snapshots.py": {
-      "no-any-return": 1
-    },
-    "apps/decision_rhythm/infrastructure/model_param_models.py": {
-      "unused-ignore": 4
-    },
-    "apps/decision_rhythm/infrastructure/models.py": {
-      "no-untyped-def": 1
-    },
-    "apps/decision_rhythm/interface/admin.py": {
-      "type-arg": 3
-    },
-    "apps/decision_rhythm/interface/advisor_api_views.py": {
-      "no-untyped-def": 1
-    },
-    "apps/decision_rhythm/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/decision_rhythm/interface/page_views.py": {
-      "no-untyped-def": 2
-    },
-    "apps/decision_rhythm/interface/today_queue_api_views.py": {
-      "no-untyped-def": 1
-    },
-    "apps/decision_rhythm/interface/workspace_api_support.py": {
-      "no-untyped-def": 2
-    },
-    "apps/decision_rhythm/management/commands/init_decision_model_params.py": {
-      "no-untyped-def": 2
-    },
-    "apps/decision_rhythm/management/commands/setup_workspace_snapshot_refresh.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 2
     },
     "apps/equity/application/market_sessions.py": {
       "no-untyped-def": 1
@@ -521,36 +414,6 @@
     },
     "apps/pulse/management/commands/show_pulse_config.py": {
       "no-untyped-def": 1
-    },
-    "apps/regime/domain/action_mapper.py": {
-      "type-arg": 1
-    },
-    "apps/regime/domain/protocols.py": {
-      "type-arg": 1
-    },
-    "apps/regime/domain/services.py": {
-      "type-arg": 2
-    },
-    "apps/regime/infrastructure/fixtures/system_config.py": {
-      "misc": 4
-    },
-    "apps/regime/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/regime/interface/urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/regime/interface/views.py": {
-      "no-untyped-def": 2
-    },
-    "apps/regime/management/commands/init_regime_thresholds.py": {
-      "no-untyped-def": 2
-    },
-    "apps/regime/management/commands/recalculate_regime.py": {
-      "no-untyped-def": 2
-    },
-    "apps/regime/management/commands/set_regime_threshold.py": {
-      "no-untyped-def": 2
     },
     "apps/sector/apps.py": {
       "no-untyped-def": 1

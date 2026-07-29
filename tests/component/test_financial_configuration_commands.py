@@ -5,7 +5,7 @@ from __future__ import annotations
 from io import StringIO
 
 import pytest
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 
 
 @pytest.mark.django_db
@@ -63,6 +63,28 @@ def test_regime_threshold_commands_create_update_activate_and_reset() -> None:
 
     call_command("init_regime_thresholds", reset=True, stdout=output)
     assert RegimeThresholdConfig._default_manager.filter(is_active=True).count() == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"pmi": float("nan")},
+        {"cpi_low": 3.0, "cpi_high": 2.0},
+        {"ppi_high": float("inf")},
+    ],
+)
+def test_regime_threshold_command_rejects_nonfinite_or_inverted_values(options) -> None:
+    with pytest.raises(CommandError):
+        call_command("set_regime_threshold", **options, stdout=StringIO())
+
+
+@pytest.mark.django_db
+def test_regime_threshold_command_validates_partial_update_against_stored_bound() -> None:
+    call_command("init_regime_thresholds", stdout=StringIO())
+
+    with pytest.raises(CommandError, match="cpi-low must not exceed cpi-high"):
+        call_command("set_regime_threshold", cpi_low=3.0, stdout=StringIO())
 
 
 @pytest.mark.django_db

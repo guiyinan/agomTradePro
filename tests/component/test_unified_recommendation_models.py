@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+from django.core.exceptions import ValidationError
 
 from apps.decision_rhythm.domain.entities import (
     ApprovalStatus,
@@ -334,6 +335,17 @@ class TestDecisionModelParamConfigModel:
         # 清理测试数据
         DecisionModelParamConfigModel.objects.filter(param_key=unique_key).delete()
 
+    @pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
+    def test_rejects_non_finite_float_values(self, value):
+        """Runtime scoring parameters must never persist non-finite values."""
+
+        with pytest.raises(ValidationError):
+            DecisionModelParamConfigModel.objects.create(
+                param_key="test_non_finite_weight",
+                param_value=value,
+                param_type="float",
+            )
+
 
 @pytest.mark.django_db
 class TestDecisionModelParamAuditLogModel:
@@ -390,6 +402,21 @@ class TestDecisionModelParamAuditLogModel:
         DecisionModelParamAuditLogModel.objects.filter(
             param_key__startswith="test_audit_param_unique_001"
         ).delete()
+
+    def test_audit_log_rejects_instance_update_and_delete(self):
+        """Persisted parameter-change evidence is append-only."""
+
+        log = DecisionModelParamAuditLogModel.objects.create(
+            param_key="test_immutable_param",
+            old_value="0.1",
+            new_value="0.2",
+            changed_by="tester",
+        )
+        log.new_value = "0.3"
+        with pytest.raises(ValidationError):
+            log.save()
+        with pytest.raises(ValidationError):
+            log.delete()
 
 
 @pytest.mark.django_db

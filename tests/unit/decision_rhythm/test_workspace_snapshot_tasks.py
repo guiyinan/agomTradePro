@@ -1,6 +1,8 @@
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
+
 from apps.decision_rhythm.application.tasks import refresh_decision_workspace_snapshots
 
 
@@ -76,7 +78,7 @@ def test_refresh_decision_workspace_snapshots_continues_on_partial_failures(monk
 
     class _BrokenSyncUseCase:
         def execute(self, request):
-            raise RuntimeError("macro unavailable")
+            raise RuntimeError("postgresql://user:secret@db/internal")
 
     monkeypatch.setattr(
         "apps.decision_rhythm.application.tasks.build_sync_macro_data_use_case",
@@ -123,7 +125,17 @@ def test_refresh_decision_workspace_snapshots_continues_on_partial_failures(monk
 
     assert result["status"] == "partial_success"
     assert result["components"]["macro_sync"]["status"] == "error"
+    assert result["components"]["macro_sync"]["error"] == "macro_sync_failed"
+    assert "secret" not in str(result)
     assert result["components"]["regime_snapshot"]["status"] == "success"
     assert result["components"]["pulse_snapshot"]["status"] == "error"
     assert result["components"]["action_recommendation"]["status"] == "blocked"
     assert result["components"]["rotation_signals"]["status"] == "partial_success"
+
+
+@pytest.mark.parametrize("days_back", [0, 367, True])
+def test_refresh_decision_workspace_snapshots_rejects_unbounded_days(days_back):
+    """Scheduled inputs must be finite before any provider work begins."""
+
+    with pytest.raises(ValueError, match="days_back"):
+        refresh_decision_workspace_snapshots.run(days_back=days_back)

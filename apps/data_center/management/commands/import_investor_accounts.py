@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
-from argparse import RawDescriptionHelpFormatter
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
+from pathlib import Path
+from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.data_center.application.interface_services import (
     make_import_investor_accounts_use_case,
@@ -28,7 +30,9 @@ class Command(BaseCommand):
 
     help = "Import investor-account history from CSV"
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: ArgumentParser | CommandParser) -> None:
+        """Register investor-account CSV import options."""
+
         parser.formatter_class = RawDescriptionHelpFormatter
         parser.epilog = CSV_FORMAT_HELP
         parser.add_argument("csv_path", nargs="?", type=str)
@@ -60,31 +64,48 @@ class Command(BaseCommand):
             help="Unit used by CSV values. Values are stored canonically as 户.",
         )
 
-    def handle(self, *args, **options):
-        if bool(options.get("print_template")):
+    def handle(self, *args: Any, **options: Any) -> None:
+        """Validate and import one bounded investor-account CSV file."""
+
+        for option_name in ("print_template", "dry_run", "json", "fail_on_warning"):
+            if not isinstance(options.get(option_name), bool):
+                raise CommandError(f"{option_name.replace('_', '-')} must be a boolean flag")
+        if options["print_template"]:
             self.stdout.write(CSV_TEMPLATE.rstrip())
             return
 
-        csv_path = str(options.get("csv_file") or options.get("csv_path") or "").strip()
+        raw_csv_path = options.get("csv_file") or options.get("csv_path") or ""
+        if not isinstance(raw_csv_path, str):
+            raise CommandError("CSV path must be text.")
+        csv_path = raw_csv_path.strip()
         if not csv_path:
             raise CommandError("CSV path is required. Pass a positional path or --file <csv_path>.")
+        if len(csv_path) > 4096:
+            raise CommandError("CSV path is too long.")
+        csv_file = Path(csv_path)
         try:
-            with open(csv_path, encoding="utf-8-sig") as handle:
+            if csv_file.stat().st_size > 10 * 1024 * 1024:
+                raise CommandError("CSV file exceeds the 10 MiB import limit.")
+            with csv_file.open(encoding="utf-8-sig") as handle:
                 csv_text = handle.read()
         except OSError as exc:
-            raise CommandError(f"Failed to read CSV file: {exc}") from exc
+            raise CommandError("Failed to read CSV file.") from exc
+
+        raw_value_unit = options.get("value_unit")
+        if raw_value_unit not in {"户", "万户"}:
+            raise CommandError("value-unit must be 户 or 万户.")
 
         try:
             result = make_import_investor_accounts_use_case().execute(
                 csv_text,
-                dry_run=bool(options.get("dry_run")),
-                value_unit=str(options.get("value_unit") or "户"),
+                dry_run=options["dry_run"],
+                value_unit=raw_value_unit,
             )
         except ValueError as exc:
-            raise CommandError(f"Invalid investor-account CSV: {exc}") from exc
-        if bool(options.get("json")):
+            raise CommandError("Invalid investor-account CSV.") from exc
+        if options["json"]:
             self.stdout.write(json.dumps(result, ensure_ascii=False, default=str))
         else:
             self.stdout.write(self.style.SUCCESS(str(result)))
-        if bool(options.get("fail_on_warning")) and result.get("warnings"):
+        if options["fail_on_warning"] and result.get("warnings"):
             raise CommandError("Investor-account CSV has warnings; inspect output before import.")

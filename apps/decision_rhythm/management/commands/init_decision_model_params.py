@@ -11,6 +11,9 @@ Options:
     --force       强制覆盖已存在的参数
 """
 
+from argparse import ArgumentParser
+from typing import Any, TypedDict
+
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -19,8 +22,18 @@ from apps.decision_rhythm.infrastructure.models import (
     DecisionModelParamConfigModel,
 )
 
+
 # 默认参数配置
-DEFAULT_PARAMS = [
+class DefaultParamDefinition(TypedDict):
+    """One bounded default model-parameter definition."""
+
+    param_key: str
+    param_value: str
+    param_type: str
+    description: str
+
+
+DEFAULT_PARAMS: tuple[DefaultParamDefinition, ...] = (
     # 模型权重
     {
         "param_key": "alpha_model_weight",
@@ -103,13 +116,13 @@ DEFAULT_PARAMS = [
         "param_type": "float",
         "description": "单笔最大资金量（元）",
     },
-]
+)
 
 
 class Command(BaseCommand):
     help = "初始化决策模型默认参数"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
             "--env",
             type=str,
@@ -122,12 +135,14 @@ class Command(BaseCommand):
             help="强制覆盖已存在的参数",
         )
 
-    def handle(self, *args, **options):
-        env = options["env"]
-        force = options["force"]
+    def handle(self, *args: Any, **options: Any) -> None:
+        env = options.get("env")
+        force = options.get("force")
 
-        if env not in ("dev", "test", "prod"):
-            raise CommandError(f"无效的环境: {env}，必须是 dev/test/prod")
+        if not isinstance(env, str) or env not in ("dev", "test", "prod"):
+            raise CommandError("无效的环境，必须是 dev/test/prod")
+        if not isinstance(force, bool):
+            raise CommandError("--force 参数格式无效")
 
         self.stdout.write(f"开始初始化 {env} 环境的模型参数...")
 
@@ -177,9 +192,7 @@ class Command(BaseCommand):
                         )
                     else:
                         skipped_count += 1
-                        self.stdout.write(
-                            self.style.HTTP_INFO(f"  跳过: {param_key}（已存在）")
-                        )
+                        self.stdout.write(self.style.HTTP_INFO(f"  跳过: {param_key}（已存在）"))
 
                 except DecisionModelParamConfigModel.DoesNotExist:
                     # 创建新参数
@@ -206,9 +219,7 @@ class Command(BaseCommand):
                     )
 
                     created_count += 1
-                    self.stdout.write(
-                        self.style.SUCCESS(f"  创建: {param_key} = {param_value}")
-                    )
+                    self.stdout.write(self.style.SUCCESS(f"  创建: {param_key} = {param_value}"))
 
         # 输出汇总
         self.stdout.write("")

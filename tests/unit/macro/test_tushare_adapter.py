@@ -44,6 +44,21 @@ def test_fetch_shibor_raises_when_one_week_column_missing():
         adapter.fetch("SHIBOR", date(2026, 4, 1), date(2026, 4, 5))
 
 
+def test_fetch_failure_does_not_reflect_provider_exception_details():
+    adapter = TushareAdapter(token="test-token")
+    adapter._pro = SimpleNamespace(
+        shibor=lambda start_date, end_date: (_ for _ in ()).throw(
+            RuntimeError("postgresql://user:secret@provider.invalid/data")
+        )
+    )
+
+    with pytest.raises(DataSourceUnavailableError) as exc_info:
+        adapter.fetch("SHIBOR", date(2026, 4, 1), date(2026, 4, 5))
+
+    assert str(exc_info.value) == "tushare_fetch_failed"
+    assert "secret" not in str(exc_info.value)
+
+
 def test_fetch_cpi_national_yoy_uses_cn_cpi_monthly_data():
     adapter = TushareAdapter(token="test-token")
     adapter._pro = SimpleNamespace(

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from argparse import ArgumentParser
+from typing import Any
+
 from django.core.management import BaseCommand, CommandError
+from django.core.management.base import CommandParser
 
 from apps.data_center.infrastructure.models import IndicatorCatalogModel
 from apps.data_center.infrastructure.seed_data.macro_indicator_governance import (
@@ -23,7 +27,9 @@ class Command(BaseCommand):
         "chart runtime metadata into IndicatorCatalog.extra."
     )
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser | CommandParser) -> None:
+        """Register macro-governance initialization options."""
+
         parser.add_argument(
             "--indicator-codes",
             dest="indicator_codes",
@@ -52,11 +58,21 @@ class Command(BaseCommand):
             help="Exit non-zero if applying governance would change any row.",
         )
 
-    def handle(self, *args, **options):
-        indicator_codes = set(_split_codes(options.get("indicator_codes")))
-        check = bool(options.get("check"))
-        dry_run = bool(options.get("dry_run")) or check
-        strict = bool(options.get("strict"))
+    def handle(self, *args: Any, **options: Any) -> None:
+        """Apply or validate governed metadata for the requested indicators."""
+
+        raw_indicator_codes = options.get("indicator_codes")
+        if raw_indicator_codes is not None and not isinstance(raw_indicator_codes, str):
+            raise CommandError("indicator-codes must be comma-separated text")
+        indicator_codes = set(_split_codes(raw_indicator_codes))
+        if len(indicator_codes) > 1000:
+            raise CommandError("indicator-codes accepts at most 1000 codes")
+        for option_name in ("check", "dry_run", "strict"):
+            if not isinstance(options.get(option_name), bool):
+                raise CommandError(f"{option_name.replace('_', '-')} must be a boolean flag")
+        check = options["check"]
+        dry_run = options["dry_run"] or check
+        strict = options["strict"]
 
         target_updates = {
             code: payload

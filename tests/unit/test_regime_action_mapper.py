@@ -235,3 +235,39 @@ class TestMapRegimePulseToAction:
         # Should still produce valid weights
         total = sum(result.asset_weights.values())
         assert total == pytest.approx(1.0, abs=0.01)
+
+    @pytest.mark.parametrize(
+        ("overrides", "message"),
+        [
+            ({"pulse_composite_score": float("nan")}, "must be finite"),
+            ({"confidence": float("inf")}, "confidence must be finite"),
+            ({"risk_budget": -0.1}, "risk_budget must be finite"),
+            ({"pulse_regime_strength": "unknown"}, "unsupported"),
+            (
+                {"weight_ranges": [{"category": "equity", "lower": 0.8, "upper": 0.2}]},
+                "finite, ordered",
+            ),
+        ],
+    )
+    def test_invalid_action_inputs_fail_closed(self, overrides, message):
+        values = {
+            "regime_name": "Recovery",
+            "weight_ranges": _default_weight_ranges(),
+            "risk_budget": 0.85,
+            "sectors": [],
+            "styles": [],
+            "reasoning": "test",
+            "pulse_composite_score": 0.0,
+            "pulse_regime_strength": "moderate",
+            "confidence": 0.8,
+            "as_of_date": date(2026, 3, 23),
+        }
+        values.update(overrides)
+
+        with pytest.raises(ValueError, match=message):
+            map_regime_pulse_to_action(**values)
+
+
+def test_action_mapper_config_rejects_nonfinite_limits():
+    with pytest.raises(ValueError, match="max_risk_budget"):
+        ActionMapperConfig(max_risk_budget=float("nan"))

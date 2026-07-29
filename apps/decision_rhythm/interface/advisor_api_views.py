@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import logging
+import re
 
+from django.core.exceptions import ImproperlyConfigured
+from django.db import DatabaseError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -14,6 +18,7 @@ from apps.decision_rhythm.application.advisor_services import (
 )
 
 logger = logging.getLogger(__name__)
+_ACCOUNT_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 class AdvisorDecisionSheetView(APIView):
@@ -21,13 +26,13 @@ class AdvisorDecisionSheetView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """Handle GET /api/decision/advisor/sheet/?account_id=<id>."""
 
         account_id = str(request.query_params.get("account_id") or "").strip()
-        if not account_id:
+        if not _ACCOUNT_ID_PATTERN.fullmatch(account_id):
             return Response(
-                {"success": False, "error": "account_id is required"},
+                {"success": False, "error": "account_id is invalid"},
                 status=400,
             )
 
@@ -41,8 +46,18 @@ class AdvisorDecisionSheetView(APIView):
                 {"success": False, "error": str(exc)},
                 status=exc.status_code,
             )
-        except Exception as exc:
-            logger.error("Failed to generate advisor decision sheet: %s", exc, exc_info=True)
+        except (
+            DatabaseError,
+            ImproperlyConfigured,
+            LookupError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            logger.error(
+                "Failed to generate advisor decision sheet (error_type=%s)",
+                type(exc).__name__,
+            )
             return Response(
                 {"success": False, "error": "advisor decision sheet generation failed"},
                 status=500,

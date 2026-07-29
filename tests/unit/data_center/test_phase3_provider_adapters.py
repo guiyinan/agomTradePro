@@ -84,7 +84,7 @@ def test_fred_unified_provider_adapter_parses_observations(monkeypatch):
 def test_akshare_macro_source_failure_is_recoverable_connection_error(monkeypatch):
     class _BrokenMacroAdapter:
         def fetch(self, indicator_code, start_date, end_date):
-            raise DataSourceUnavailableError("Response ended prematurely")
+            raise DataSourceUnavailableError("postgresql://user:secret@provider.invalid/data")
 
     monkeypatch.setattr(
         "apps.data_center.infrastructure._provider_adapter_akshare.AKShareAdapter",
@@ -96,7 +96,8 @@ def test_akshare_macro_source_failure_is_recoverable_connection_error(monkeypatc
     try:
         adapter.fetch_macro_series("CN_CPI_NATIONAL_YOY", date(2026, 5, 1), date(2026, 6, 1))
     except ConnectionError as exc:
-        assert "Response ended prematurely" in str(exc)
+        assert str(exc) == "macro_source_unavailable"
+        assert "secret" not in str(exc)
     else:
         raise AssertionError("Expected ConnectionError")
 

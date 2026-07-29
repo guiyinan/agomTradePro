@@ -236,12 +236,10 @@ def _safe_decimal(value: object) -> Decimal | None:
 
 
 def _safe_int(value: object) -> int | None:
-    if value in (None, "", "-"):
+    number = safe_float(value)
+    if number is None:
         return None
-    try:
-        return int(float(value))
-    except (ValueError, TypeError):
-        return None
+    return int(number)
 
 
 def _parse_tencent_quote_time(raw_value: str) -> datetime:

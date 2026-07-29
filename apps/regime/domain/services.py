@@ -7,6 +7,7 @@ Domain Services for Regime Calculation.
 import math
 from dataclasses import dataclass
 from datetime import date
+from typing import TypedDict
 
 from .entities import (
     ConfidenceBreakdown,
@@ -21,6 +22,7 @@ from .entities import (
 @dataclass(frozen=True)
 class RegimeCalculationResult:
     """Regime 计算结果"""
+
     snapshot: "RegimeSnapshot"
     warnings: list[str]
 
@@ -28,6 +30,7 @@ class RegimeCalculationResult:
 @dataclass(frozen=True)
 class MomentumResult:
     """动量计算结果"""
+
     value: float
     momentum: float
 
@@ -61,10 +64,7 @@ def sigmoid(x: float, k: float = 2.0) -> float:
 
 
 def calculate_regime_distribution(
-    growth_z: float,
-    inflation_z: float,
-    k: float = 2.0,
-    correlation: float = 0.3
+    growth_z: float, inflation_z: float, k: float = 2.0, correlation: float = 0.3
 ) -> dict[str, float]:
     """
     计算四象限 Regime 的模糊权重分布
@@ -162,10 +162,7 @@ def calculate_regime_distribution(
     }
 
 
-def calculate_momentum(
-    series: list[float],
-    period: int = 3
-) -> list[float]:
+def calculate_momentum(series: list[float], period: int = 3) -> list[float]:
     """
     计算时间序列的动量（周期变化）- 相对动量
 
@@ -200,10 +197,7 @@ def calculate_momentum(
     return momentums
 
 
-def calculate_absolute_momentum(
-    series: list[float],
-    period: int = 3
-) -> list[float]:
+def calculate_absolute_momentum(series: list[float], period: int = 3) -> list[float]:
     """
     计算时间序列的动量（周期变化）- 绝对差值动量
 
@@ -241,9 +235,7 @@ def calculate_absolute_momentum(
 
 
 def calculate_rolling_zscore(
-    series: list[float],
-    window: int = 60,
-    min_periods: int = 24
+    series: list[float], window: int = 60, min_periods: int = 24
 ) -> list[float]:
     """
     计算滚动 Z-score
@@ -267,7 +259,7 @@ def calculate_rolling_zscore(
         else:
             # 计算 [max(0, i-window+1), i] 的统计量
             start = max(0, i - window + 1)
-            window_data = series[start:i+1]
+            window_data = series[start : i + 1]
 
             mean_val = sum(window_data) / len(window_data)
             variance = sum((x - mean_val) ** 2 for x in window_data) / len(window_data)
@@ -319,7 +311,7 @@ class RegimeCalculator:
         zscore_min_periods: int = 12,
         sigmoid_k: float = 2.0,
         use_absolute_inflation_momentum: bool = True,
-        correlation: float = 0.3
+        correlation: float = 0.3,
     ):
         """
         Args:
@@ -348,10 +340,7 @@ class RegimeCalculator:
         self.correlation = max(-1.0, min(1.0, correlation))  # 限制在 [-1, 1]
 
     def calculate(
-        self,
-        growth_series: list[float],
-        inflation_series: list[float],
-        as_of_date: date
+        self, growth_series: list[float], inflation_series: list[float], as_of_date: date
     ) -> RegimeCalculationResult:
         """
         计算指定日期的 Regime 状态
@@ -379,33 +368,22 @@ class RegimeCalculator:
 
         # 1. 计算动量
         # 增长指标：使用相对动量
-        growth_momentums = calculate_momentum(
-            growth_series,
-            period=self.momentum_period
-        )
+        growth_momentums = calculate_momentum(growth_series, period=self.momentum_period)
 
         # 通胀指标：根据配置使用绝对差值动量或相对动量
         if self.use_absolute_inflation_momentum:
             inflation_momentums = calculate_absolute_momentum(
-                inflation_series,
-                period=self.momentum_period
+                inflation_series, period=self.momentum_period
             )
         else:
-            inflation_momentums = calculate_momentum(
-                inflation_series,
-                period=self.momentum_period
-            )
+            inflation_momentums = calculate_momentum(inflation_series, period=self.momentum_period)
 
         # 2. 计算 Z-score
         growth_z_scores = calculate_rolling_zscore(
-            growth_momentums,
-            window=self.zscore_window,
-            min_periods=self.zscore_min_periods
+            growth_momentums, window=self.zscore_window, min_periods=self.zscore_min_periods
         )
         inflation_z_scores = calculate_rolling_zscore(
-            inflation_momentums,
-            window=self.zscore_window,
-            min_periods=self.zscore_min_periods
+            inflation_momentums, window=self.zscore_window, min_periods=self.zscore_min_periods
         )
 
         # 取最后一个值作为当前状态
@@ -414,10 +392,7 @@ class RegimeCalculator:
 
         # 3. 计算 Regime 分布（考虑相关性）
         distribution = calculate_regime_distribution(
-            growth_z,
-            inflation_z,
-            k=self.sigmoid_k,
-            correlation=self.correlation
+            growth_z, inflation_z, k=self.sigmoid_k, correlation=self.correlation
         )
 
         # 4. 找到主导 Regime
@@ -425,13 +400,14 @@ class RegimeCalculator:
 
         # 5. 创建快照
         from .entities import RegimeSnapshot
+
         snapshot = RegimeSnapshot(
             growth_momentum_z=growth_z,
             inflation_momentum_z=inflation_z,
             distribution=distribution,
             dominant_regime=dominant_regime,
             confidence=confidence,
-            observed_at=as_of_date
+            observed_at=as_of_date,
         )
 
         return RegimeCalculationResult(snapshot=snapshot, warnings=warnings)
@@ -442,7 +418,7 @@ class RegimeCalculator:
         inflation_value: float,
         growth_history: list[float],
         inflation_history: list[float],
-        as_of_date: date
+        as_of_date: date,
     ) -> RegimeCalculationResult:
         """
         计算特定时点的 Regime（用于回测）
@@ -466,26 +442,37 @@ class RegimeCalculator:
 
 # ==================== Phase 1: High-Frequency Signal Integration ====================
 
+
 @dataclass
 class DailySignalContext:
     """日度信号上下文"""
+
     signal_direction: str  # BULLISH, BEARISH, NEUTRAL
     signal_strength: float  # 0-1
     confidence: float  # 0-1
     persist_days: int  # 持续天数
-    contributing_indicators: list[dict]
+    contributing_indicators: list[dict[str, object]]
     warning_signals: list[str]
 
 
 @dataclass
 class HybridRegimeResult:
     """混合 Regime 计算结果"""
+
     snapshot: "RegimeSnapshot"
     source: str  # MONTHLY_ONLY, DAILY_ONLY, HYBRID_WEIGHTED, DAILY_OVERRIDE
     daily_context: DailySignalContext | None
     monthly_confidence: float
     daily_confidence: float
     final_confidence: float
+
+
+class SignalConflictResolution(TypedDict):
+    """Deterministic result of monthly/daily signal conflict resolution."""
+
+    source: str
+    final_regime: str
+    confidence: float
 
 
 class HybridRegimeCalculator:
@@ -513,7 +500,7 @@ class HybridRegimeCalculator:
         monthly_calculator: RegimeCalculator | None = None,
         daily_persist_threshold: int = 10,
         hybrid_weight_daily: float = 0.3,
-        hybrid_weight_monthly: float = 0.7
+        hybrid_weight_monthly: float = 0.7,
     ):
         """
         Args:
@@ -532,7 +519,7 @@ class HybridRegimeCalculator:
         growth_series: list[float],
         inflation_series: list[float],
         daily_context: DailySignalContext | None,
-        as_of_date: date
+        as_of_date: date,
     ) -> HybridRegimeResult:
         """
         计算混合 Regime（融合月度和日度信号）
@@ -550,9 +537,7 @@ class HybridRegimeCalculator:
 
         # 1. 计算月度 Regime
         monthly_result = self.monthly_calculator.calculate(
-            growth_series=growth_series,
-            inflation_series=inflation_series,
-            as_of_date=as_of_date
+            growth_series=growth_series, inflation_series=inflation_series, as_of_date=as_of_date
         )
         monthly_snapshot = monthly_result.snapshot
         monthly_regime = monthly_snapshot.dominant_regime
@@ -566,7 +551,7 @@ class HybridRegimeCalculator:
                 daily_context=None,
                 monthly_confidence=monthly_confidence,
                 daily_confidence=0.0,
-                final_confidence=monthly_confidence
+                final_confidence=monthly_confidence,
             )
 
         # 3. 解析日度信号
@@ -583,33 +568,31 @@ class HybridRegimeCalculator:
             monthly_confidence=monthly_confidence,
             daily_regime=daily_regime,
             daily_confidence=daily_confidence,
-            persist_days=persist_days
+            persist_days=persist_days,
         )
 
         # 6. 生成最终结果
-        if resolution['source'] == 'MONTHLY_DEFAULT':
+        if resolution["source"] == "MONTHLY_DEFAULT":
             # 使用月度信号，降低置信度
             final_snapshot = RegimeSnapshot(
                 growth_momentum_z=monthly_snapshot.growth_momentum_z,
                 inflation_momentum_z=monthly_snapshot.inflation_momentum_z,
                 distribution=monthly_snapshot.distribution,
                 dominant_regime=monthly_regime,
-                confidence=resolution['confidence'],
-                observed_at=as_of_date
+                confidence=resolution["confidence"],
+                observed_at=as_of_date,
             )
-        elif resolution['source'] in ['DAILY_PERSISTENT', 'ALL_CONSISTENT']:
+        elif resolution["source"] in ["DAILY_PERSISTENT", "ALL_CONSISTENT"]:
             # 使用日度信号对应的 Regime
             final_snapshot = RegimeSnapshot(
                 growth_momentum_z=monthly_snapshot.growth_momentum_z,  # 保留月度 Z-score
                 inflation_momentum_z=monthly_snapshot.inflation_momentum_z,
                 distribution=self._adjust_distribution_for_daily(
-                    monthly_snapshot.distribution,
-                    daily_regime,
-                    daily_context.signal_strength
+                    monthly_snapshot.distribution, daily_regime, daily_context.signal_strength
                 ),
                 dominant_regime=daily_regime,
-                confidence=resolution['confidence'],
-                observed_at=as_of_date
+                confidence=resolution["confidence"],
+                observed_at=as_of_date,
             )
         else:
             # HYBRID_WEIGHTED: 加权融合
@@ -620,26 +603,24 @@ class HybridRegimeCalculator:
                     monthly_snapshot.distribution,
                     daily_regime,
                     self.hybrid_weight_monthly,
-                    self.hybrid_weight_daily
+                    self.hybrid_weight_daily,
                 ),
-                dominant_regime=resolution['final_regime'],
-                confidence=resolution['confidence'],
-                observed_at=as_of_date
+                dominant_regime=resolution["final_regime"],
+                confidence=resolution["confidence"],
+                observed_at=as_of_date,
             )
 
         return HybridRegimeResult(
             snapshot=final_snapshot,
-            source=resolution['source'],
+            source=resolution["source"],
             daily_context=daily_context,
             monthly_confidence=monthly_confidence,
             daily_confidence=daily_confidence,
-            final_confidence=resolution['confidence']
+            final_confidence=resolution["confidence"],
         )
 
     def _map_signal_to_regime(
-        self,
-        signal_direction: str,
-        current_distribution: dict[str, float]
+        self, signal_direction: str, current_distribution: dict[str, float]
     ) -> str:
         """
         将日度信号方向映射到 Regime
@@ -657,18 +638,22 @@ class HybridRegimeCalculator:
         if signal_direction == "BULLISH":
             # 在看多象限中选择权重更高的
             bullish_regime = max(
-                {k: v for k, v in current_distribution.items() if k in self.BULLISH_REGIMES}.items(),
+                {
+                    k: v for k, v in current_distribution.items() if k in self.BULLISH_REGIMES
+                }.items(),
                 key=lambda x: x[1],
-                default=("Recovery", 0.5)
+                default=("Recovery", 0.5),
             )
             return bullish_regime[0]
 
         if signal_direction == "BEARISH":
             # 在看空象限中选择权重更高的
             bearish_regime = max(
-                {k: v for k, v in current_distribution.items() if k in self.BEARISH_REGIMES}.items(),
+                {
+                    k: v for k, v in current_distribution.items() if k in self.BEARISH_REGIMES
+                }.items(),
                 key=lambda x: x[1],
-                default=("Deflation", 0.5)
+                default=("Deflation", 0.5),
             )
             return bearish_regime[0]
 
@@ -681,8 +666,8 @@ class HybridRegimeCalculator:
         monthly_confidence: float,
         daily_regime: str,
         daily_confidence: float,
-        persist_days: int
-    ) -> dict:
+        persist_days: int,
+    ) -> SignalConflictResolution:
         """
         解决信号冲突
 
@@ -697,17 +682,17 @@ class HybridRegimeCalculator:
         if daily_regime == monthly_regime:
             avg_confidence = (daily_confidence + monthly_confidence) / 2
             return {
-                'source': 'ALL_CONSISTENT',
-                'final_regime': daily_regime,
-                'confidence': min(avg_confidence + 0.2, 1.0)
+                "source": "ALL_CONSISTENT",
+                "final_regime": daily_regime,
+                "confidence": min(avg_confidence + 0.2, 1.0),
             }
 
         # Rule 2: Daily signal persists for >= threshold days
         if persist_days >= self.daily_persist_threshold:
             return {
-                'source': 'DAILY_PERSISTENT',
-                'final_regime': daily_regime,
-                'confidence': min(daily_confidence + 0.1, 1.0)
+                "source": "DAILY_PERSISTENT",
+                "final_regime": daily_regime,
+                "confidence": min(daily_confidence + 0.1, 1.0),
             }
 
         # Rule 3: Check if signals are in the same direction (both bullish or both bearish)
@@ -717,23 +702,25 @@ class HybridRegimeCalculator:
         if monthly_bullish == daily_bullish:
             # Same direction, different specific regime - use weighted approach
             return {
-                'source': 'HYBRID_WEIGHTED',
-                'final_regime': monthly_regime if monthly_confidence > daily_confidence else daily_regime,
-                'confidence': (monthly_confidence * self.hybrid_weight_monthly + daily_confidence * self.hybrid_weight_daily)
+                "source": "HYBRID_WEIGHTED",
+                "final_regime": (
+                    monthly_regime if monthly_confidence > daily_confidence else daily_regime
+                ),
+                "confidence": (
+                    monthly_confidence * self.hybrid_weight_monthly
+                    + daily_confidence * self.hybrid_weight_daily
+                ),
             }
 
         # Rule 4: Default - Use monthly signal, lower confidence
         return {
-            'source': 'MONTHLY_DEFAULT',
-            'final_regime': monthly_regime,
-            'confidence': max(monthly_confidence * 0.8, 0.4)
+            "source": "MONTHLY_DEFAULT",
+            "final_regime": monthly_regime,
+            "confidence": max(monthly_confidence * 0.8, 0.4),
         }
 
     def _adjust_distribution_for_daily(
-        self,
-        original_distribution: dict[str, float],
-        daily_regime: str,
-        signal_strength: float
+        self, original_distribution: dict[str, float], daily_regime: str, signal_strength: float
     ) -> dict[str, float]:
         """
         根据日度信号调整分布
@@ -764,9 +751,7 @@ class HybridRegimeCalculator:
         # 归一化
         total = sum(new_distribution.values())
         if total > 0:
-            new_distribution = {
-                k: v / total for k, v in new_distribution.items()
-            }
+            new_distribution = {k: v / total for k, v in new_distribution.items()}
 
         return new_distribution
 
@@ -775,7 +760,7 @@ class HybridRegimeCalculator:
         monthly_distribution: dict[str, float],
         daily_regime: str,
         monthly_weight: float,
-        daily_weight: float
+        daily_weight: float,
     ) -> dict[str, float]:
         """
         融合月度和日度分布
@@ -790,11 +775,13 @@ class HybridRegimeCalculator:
         blended = {}
         for regime in monthly_distribution:
             blended[regime] = (
-                monthly_distribution[regime] * monthly_weight +
-                daily_distribution[regime] * daily_weight
+                monthly_distribution[regime] * monthly_weight
+                + daily_distribution[regime] * daily_weight
             )
 
         return blended
+
+
 # ==================== Phase 4: Probability Confidence Model ====================
 
 
@@ -804,7 +791,7 @@ def calculate_confidence(
     has_daily_data: bool = False,
     has_weekly_data: bool = False,
     daily_consistent: bool = False,
-    config: ConfidenceConfig | None = None
+    config: ConfidenceConfig | None = None,
 ) -> ConfidenceBreakdown:
     """
     计算基于数据新鲜度的置信度
@@ -874,7 +861,7 @@ def calculate_confidence(
 def calculate_bayesian_confidence(
     indicators: list[IndicatorPredictivePower],
     base_prior: float = 0.5,
-    config: ConfidenceConfig | None = None
+    config: ConfidenceConfig | None = None,
 ) -> RegimeProbabilities:
     """
     贝叶斯框架计算 Regime 概率
@@ -973,7 +960,9 @@ def calculate_bayesian_confidence(
         }
 
         # 置信度 = 基础置信度 × (1 + 平均预测能力)
-        avg_predictive_power = sum(ind.predictive_power_score for ind in indicators) / len(indicators)
+        avg_predictive_power = sum(ind.predictive_power_score for ind in indicators) / len(
+            indicators
+        )
         confidence = min(1.0, base_prior * (1 + avg_predictive_power))
 
     # 4. 计算元数据
@@ -987,11 +976,13 @@ def calculate_bayesian_confidence(
     predictive_power_score = sum(ind.predictive_power_score for ind in indicators) / len(indicators)
 
     # 一致性评分（信号方向一致性）
-    signal_directions = [ind.current_signal for ind in indicators if ind.current_signal != "NEUTRAL"]
+    signal_directions = [
+        ind.current_signal for ind in indicators if ind.current_signal != "NEUTRAL"
+    ]
     if signal_directions:
         consistency = max(
             signal_directions.count("BULLISH") / len(signal_directions),
-            signal_directions.count("BEARISH") / len(signal_directions)
+            signal_directions.count("BEARISH") / len(signal_directions),
         )
     else:
         consistency = 0.0
@@ -1017,7 +1008,7 @@ def resolve_signal_conflict(
     daily_duration: int,
     persist_threshold: int = 10,
     hybrid_weight_daily: float = 0.3,
-    hybrid_weight_monthly: float = 0.7
+    hybrid_weight_monthly: float = 0.7,
 ) -> SignalConflict:
     """
     解决信号冲突
@@ -1093,8 +1084,9 @@ def resolve_signal_conflict(
     if weekly_signal:
         weekly_direction = get_direction(weekly_signal)
         if daily_direction == weekly_direction and daily_direction != monthly_direction:
-            final_confidence = (daily_confidence * hybrid_weight_daily +
-                              monthly_confidence * hybrid_weight_monthly)
+            final_confidence = (
+                daily_confidence * hybrid_weight_daily + monthly_confidence * hybrid_weight_monthly
+            )
             return SignalConflict(
                 daily_signal=daily_signal,
                 weekly_signal=weekly_signal,
@@ -1132,7 +1124,7 @@ def calculate_dynamic_weight(
     improvement_threshold: float = 0.1,
     improvement_bonus: float = 1.2,
     min_weight: float = 0.0,
-    max_weight: float = 1.0
+    max_weight: float = 1.0,
 ) -> float:
     """
     根据指标表现动态计算权重
@@ -1183,7 +1175,7 @@ class ConfidenceCalculator:
         days_since_update: int,
         has_daily_data: bool = False,
         has_weekly_data: bool = False,
-        daily_consistent: bool = False
+        daily_consistent: bool = False,
     ) -> ConfidenceBreakdown:
         """
         基于数据新鲜度计算置信度
@@ -1194,21 +1186,17 @@ class ConfidenceCalculator:
             has_daily_data=has_daily_data,
             has_weekly_data=has_weekly_data,
             daily_consistent=daily_consistent,
-            config=self.config
+            config=self.config,
         )
 
     def calculate_bayesian(
-        self,
-        indicators: list[IndicatorPredictivePower],
-        base_prior: float = 0.5
+        self, indicators: list[IndicatorPredictivePower], base_prior: float = 0.5
     ) -> RegimeProbabilities:
         """
         贝叶斯框架计算概率分布
         """
         return calculate_bayesian_confidence(
-            indicators=indicators,
-            base_prior=base_prior,
-            config=self.config
+            indicators=indicators, base_prior=base_prior, config=self.config
         )
 
     def resolve_conflict(
@@ -1218,7 +1206,7 @@ class ConfidenceCalculator:
         monthly_signal: str,
         daily_confidence: float,
         monthly_confidence: float,
-        daily_duration: int
+        daily_duration: int,
     ) -> SignalConflict:
         """
         解决信号冲突
@@ -1229,5 +1217,5 @@ class ConfidenceCalculator:
             monthly_signal=monthly_signal,
             daily_confidence=daily_confidence,
             monthly_confidence=monthly_confidence,
-            daily_duration=daily_duration
+            daily_duration=daily_duration,
         )

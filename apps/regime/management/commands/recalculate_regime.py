@@ -16,8 +16,9 @@
 """
 
 from datetime import date, timedelta
+from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
 from apps.regime.application.orchestration import build_regime_snapshot_from_v2_result
@@ -35,7 +36,7 @@ class Command(BaseCommand):
         "可能耗时数小时，建议先使用限定日期范围验证"
     )
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--clear-cache-only",
             action="store_true",
@@ -70,7 +71,7 @@ class Command(BaseCommand):
             ),
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         self.stdout.write(self.style.WARNING("=== Regime 数据重新计算工具 ==="))
 
         # 1. 清除缓存
@@ -238,10 +239,11 @@ class Command(BaseCommand):
                     )
                     error_count += 1
 
-            except Exception as e:
+            except Exception as exc:
                 self.stdout.write(
                     self.style.ERROR(
-                        f"  [{i+1}/{len(calculation_dates)}] {calc_date}: 异常 - {str(e)}"
+                        f"  [{i+1}/{len(calculation_dates)}] {calc_date}: "
+                        f"calculation_failed ({type(exc).__name__})"
                     )
                 )
                 error_count += 1
@@ -295,7 +297,7 @@ class Command(BaseCommand):
         if not dates:
             return []
 
-        sampled = {}
+        sampled: dict[tuple[int, int], date] = {}
         for dt in dates:
             year_month = (dt.year, dt.month)
             # 保留每月最后一个日期

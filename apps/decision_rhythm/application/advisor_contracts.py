@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
+from apps.account.application.portfolio_api_contracts import PortfolioApiRepository
 from apps.decision_rhythm.application.advisor_serialization import (
     _build_decision_card_payload,
     _decimal_to_number,
@@ -38,7 +39,8 @@ def get_manual_trade_portfolio_id_for_account(account_id: int) -> int | None:
 
     from apps.account.application.repository_provider import get_portfolio_api_repository
 
-    portfolio = get_portfolio_api_repository().get_portfolio_for_account(account_id)
+    repository = cast(PortfolioApiRepository, get_portfolio_api_repository())
+    portfolio = repository.get_portfolio_for_account(account_id)
     if portfolio is None:
         return None
     return int(portfolio.id)

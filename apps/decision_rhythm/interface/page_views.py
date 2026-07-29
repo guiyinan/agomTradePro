@@ -2,6 +2,9 @@
 
 import logging
 
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
+from django.db import DatabaseError
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from ..application.page_workflows import (
@@ -16,7 +19,18 @@ from .dependencies import (
 logger = logging.getLogger(__name__)
 
 
-def decision_rhythm_quota_view(request):
+PAGE_RECOVERABLE_EXCEPTIONS = (
+    DatabaseError,
+    ImproperlyConfigured,
+    LookupError,
+    PermissionDenied,
+    RuntimeError,
+    TypeError,
+    ValueError,
+)
+
+
+def decision_rhythm_quota_view(request: HttpRequest) -> HttpResponse:
     """
     决策配额管理页面
 
@@ -38,16 +52,19 @@ def decision_rhythm_quota_view(request):
 
         return render(request, "decision_rhythm/quota.html", context)
 
-    except Exception as e:
-        logger.error(f"Failed to load decision rhythm quota page: {e}", exc_info=True)
+    except PAGE_RECOVERABLE_EXCEPTIONS as exc:
+        logger.error(
+            "Failed to load decision rhythm quota page (error_type=%s)",
+            type(exc).__name__,
+        )
         context = {
-            "error": str(e),
+            "error": "decision_rhythm_quota_unavailable",
             "page_title": "决策配额管理",
         }
         return render(request, "decision_rhythm/quota.html", context, status=500)
 
 
-def decision_rhythm_config_view(request):
+def decision_rhythm_config_view(request: HttpRequest) -> HttpResponse:
     """
     决策配额配置页面
 
@@ -69,10 +86,13 @@ def decision_rhythm_config_view(request):
 
         return render(request, "decision_rhythm/quota_config.html", context)
 
-    except Exception as e:
-        logger.error(f"Failed to load decision rhythm config page: {e}", exc_info=True)
+    except PAGE_RECOVERABLE_EXCEPTIONS as exc:
+        logger.error(
+            "Failed to load decision rhythm config page (error_type=%s)",
+            type(exc).__name__,
+        )
         context = {
-            "error": str(e),
+            "error": "decision_rhythm_config_unavailable",
             "page_title": "决策配额配置",
         }
         return render(request, "decision_rhythm/quota_config.html", context, status=500)

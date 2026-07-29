@@ -5,8 +5,18 @@ Regime Action Mapper - 将 Regime 导航仪 + Pulse 脉搏转化为可执行的�
 所有阈值/参数通过 ActionMapperConfig 注入。
 """
 
+import math
 from dataclasses import dataclass, field
 from datetime import date
+from typing import TypedDict
+
+
+class WeightRange(TypedDict):
+    """Validated asset allocation interval consumed by the action mapper."""
+
+    category: str
+    lower: float
+    upper: float
 
 
 @dataclass(frozen=True)
@@ -15,18 +25,39 @@ class ActionMapperConfig:
 
     所有阈值均可通过 DB 覆盖，Domain 层提供默认值。
     """
+
     # Pulse regime strength 对风险预算的调整系数
     weak_risk_factor: float = 0.85
     strong_risk_factor: float = 1.05
     max_risk_budget: float = 0.95
 
     # 单一持仓上限
-    position_limit_high_risk: float = 0.10   # risk_budget >= 0.7 时
-    position_limit_low_risk: float = 0.08    # risk_budget < 0.7 时
+    position_limit_high_risk: float = 0.10  # risk_budget >= 0.7 时
+    position_limit_low_risk: float = 0.08  # risk_budget < 0.7 时
     position_limit_threshold: float = 0.70
 
     # 对冲建议触发条件
     hedge_enabled: bool = True
+
+    def __post_init__(self) -> None:
+        """Reject non-finite or incoherent action limits."""
+
+        bounded = {
+            "weak_risk_factor": self.weak_risk_factor,
+            "max_risk_budget": self.max_risk_budget,
+            "position_limit_high_risk": self.position_limit_high_risk,
+            "position_limit_low_risk": self.position_limit_low_risk,
+            "position_limit_threshold": self.position_limit_threshold,
+        }
+        for name, value in bounded.items():
+            if isinstance(value, bool) or not math.isfinite(value) or not 0 <= value <= 1:
+                raise ValueError(f"{name} must be finite and between 0 and 1")
+        if (
+            isinstance(self.strong_risk_factor, bool)
+            or not math.isfinite(self.strong_risk_factor)
+            or self.strong_risk_factor <= 0
+        ):
+            raise ValueError("strong_risk_factor must be finite and positive")
 
     @classmethod
     def defaults(cls) -> "ActionMapperConfig":
@@ -39,12 +70,13 @@ class RegimeActionRecommendation:
 
     Regime (权重区间) + Pulse (微调) → 具体配置。
     """
+
     # 具体资产配置（百分比，0-1）
     asset_weights: dict[str, float]  # {"equity": 0.55, "bond": 0.30, ...}
 
     # 风险预算
-    risk_budget_pct: float       # 总仓位上限
-    position_limit_pct: float    # 单一持仓上限
+    risk_budget_pct: float  # 总仓位上限
+    position_limit_pct: float  # 单一持仓上限
 
     # 板块建议
     recommended_sectors: list[str]
@@ -55,8 +87,8 @@ class RegimeActionRecommendation:
 
     # 可解释性
     reasoning: str
-    regime_contribution: str   # "复苏期，权益区间 50-70%"
-    pulse_contribution: str    # "脉搏偏弱(score=-0.15)，取区间下半部分"
+    regime_contribution: str  # "复苏期，权益区间 50-70%"
+    pulse_contribution: str  # "脉搏偏弱(score=-0.15)，取区间下半部分"
 
     # 元数据
     generated_at: date
@@ -73,13 +105,13 @@ class RegimeActionRecommendation:
 
 def map_regime_pulse_to_action(
     regime_name: str,
-    weight_ranges: list[dict],
+    weight_ranges: list[WeightRange],
     risk_budget: float,
     sectors: list[str],
     styles: list[str],
     reasoning: str,
     pulse_composite_score: float,  # -1 to +1
-    pulse_regime_strength: str,    # 'strong', 'moderate', 'weak'
+    pulse_regime_strength: str,  # 'strong', 'moderate', 'weak'
     confidence: float,
     as_of_date: date,
     config: ActionMapperConfig | None = None,
@@ -97,6 +129,32 @@ def map_regime_pulse_to_action(
     """
     if config is None:
         config = ActionMapperConfig.defaults()
+    if not weight_ranges:
+        raise ValueError("weight_ranges must not be empty")
+    if isinstance(pulse_composite_score, bool) or not math.isfinite(pulse_composite_score):
+        raise ValueError("pulse_composite_score must be finite")
+    if pulse_regime_strength not in {"strong", "moderate", "weak"}:
+        raise ValueError("pulse_regime_strength is unsupported")
+    for name, value in (("risk_budget", risk_budget), ("confidence", confidence)):
+        if isinstance(value, bool) or not math.isfinite(value) or not 0 <= value <= 1:
+            raise ValueError(f"{name} must be finite and between 0 and 1")
+
+    seen_categories: set[str] = set()
+    for weight_range in weight_ranges:
+        category = weight_range["category"]
+        lower = weight_range["lower"]
+        upper = weight_range["upper"]
+        if not isinstance(category, str) or not category.strip() or category in seen_categories:
+            raise ValueError("weight range categories must be non-empty and unique")
+        if (
+            any(
+                isinstance(value, bool) or not math.isfinite(value) or not 0 <= value <= 1
+                for value in (lower, upper)
+            )
+            or lower > upper
+        ):
+            raise ValueError("weight ranges must be finite, ordered, and between 0 and 1")
+        seen_categories.add(category)
 
     # 将 pulse score 从 [-1, 1] 映射到 [0, 1] 作为插值系数
     interpolation_ratio = (pulse_composite_score + 1.0) / 2.0

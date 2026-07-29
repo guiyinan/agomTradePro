@@ -1,6 +1,7 @@
 """Regime API URL configuration."""
 
 from django.urls import include, path
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
@@ -22,7 +23,8 @@ router.register(r"", RegimeViewSet, basename="regime")
 class RegimeApiRootView(APIView):
     """Return discoverable regime API endpoints."""
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        del request
         return Response(
             {
                 "endpoints": {
@@ -38,11 +40,14 @@ class RegimeApiRootView(APIView):
             }
         )
 
+
 urlpatterns = [
     path("", RegimeApiRootView.as_view(), name="api-root"),
     path("", include(router.urls)),
     path("health/", RegimeHealthView.as_view(), name="health"),
     path("navigator/", RegimeNavigatorView.as_view(), name="regime-navigator"),
     path("action/", RegimeActionView.as_view(), name="regime-action"),
-    path("navigator/history/", RegimeNavigatorHistoryView.as_view(), name="regime-navigator-history"),
+    path(
+        "navigator/history/", RegimeNavigatorHistoryView.as_view(), name="regime-navigator-history"
+    ),
 ]

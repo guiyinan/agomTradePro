@@ -24,6 +24,7 @@ from apps.regime.application.repository_provider import (
 from apps.regime.domain.action_mapper import (
     ActionMapperConfig,
     RegimeActionRecommendation,
+    WeightRange,
     map_regime_pulse_to_action,
 )
 from apps.regime.domain.entities import (
@@ -269,7 +270,7 @@ class BuildRegimeNavigatorUseCase:
                 regime, calc_result.confidence, config=asset_config
             )
 
-            weight_ranges = [
+            weight_ranges: list[AssetWeightRange] = [
                 AssetWeightRange(
                     category=wr["category"],
                     lower=wr["lower"],
@@ -430,7 +431,7 @@ class GetActionRecommendationUseCase:
 
             # 3. 调用 action mapper
             guidance = navigator.asset_guidance
-            weight_ranges = [
+            weight_ranges: list[WeightRange] = [
                 {
                     "category": wr.category,
                     "lower": wr.lower,

@@ -6,7 +6,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Generic, TypeVar
+from typing import Generic, Protocol, TypeVar
 
 from django.utils import timezone
 
@@ -14,6 +14,7 @@ from apps.data_center.application.dtos import (
     SyncFinancialRequest,
     SyncPriceRequest,
     SyncQuoteRequest,
+    SyncResult,
     SyncValuationRequest,
 )
 from apps.data_center.domain.entities import (
@@ -22,11 +23,41 @@ from apps.data_center.domain.entities import (
     QuoteSnapshot,
     ValuationFact,
 )
+from apps.data_center.domain.protocols import (
+    FinancialFactRepositoryProtocol,
+    PriceBarRepositoryProtocol,
+    QuoteSnapshotRepositoryProtocol,
+    ValuationFactRepositoryProtocol,
+)
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 QualityStatus = str
+
+
+class SyncPriceUseCaseProtocol(Protocol):
+    """Price synchronization contract required by read-through hydration."""
+
+    def execute(self, request: SyncPriceRequest) -> SyncResult: ...
+
+
+class SyncValuationUseCaseProtocol(Protocol):
+    """Valuation synchronization contract required by read-through hydration."""
+
+    def execute(self, request: SyncValuationRequest) -> SyncResult: ...
+
+
+class SyncFinancialUseCaseProtocol(Protocol):
+    """Financial synchronization contract required by read-through hydration."""
+
+    def execute(self, request: SyncFinancialRequest) -> SyncResult: ...
+
+
+class SyncQuoteUseCaseProtocol(Protocol):
+    """Quote synchronization contract required by read-through hydration."""
+
+    def execute(self, request: SyncQuoteRequest) -> SyncResult: ...
 
 
 @dataclass(frozen=True)
@@ -78,14 +109,14 @@ class OnDemandDataCenterService:
     def __init__(
         self,
         *,
-        price_repo,
-        valuation_repo,
-        financial_repo,
-        quote_repo,
-        sync_price_use_case,
-        sync_valuation_use_case,
-        sync_financial_use_case,
-        sync_quote_use_case,
+        price_repo: PriceBarRepositoryProtocol,
+        valuation_repo: ValuationFactRepositoryProtocol,
+        financial_repo: FinancialFactRepositoryProtocol,
+        quote_repo: QuoteSnapshotRepositoryProtocol,
+        sync_price_use_case: SyncPriceUseCaseProtocol,
+        sync_valuation_use_case: SyncValuationUseCaseProtocol,
+        sync_financial_use_case: SyncFinancialUseCaseProtocol,
+        sync_quote_use_case: SyncQuoteUseCaseProtocol,
         provider_id_resolver: Callable[[str], int | None],
     ) -> None:
         self._price_repo = price_repo
@@ -266,7 +297,9 @@ class OnDemandDataCenterService:
         )
         return EnsureDataResult(asset_code, facts, quality)
 
-    def assess_financials(self, asset_code: str, periods: int = 8) -> EnsureDataResult[FinancialFact]:
+    def assess_financials(
+        self, asset_code: str, periods: int = 8
+    ) -> EnsureDataResult[FinancialFact]:
         facts = self._query_financials(asset_code, periods)
         quality = self._quality_for_dated_records(
             facts,
@@ -289,7 +322,9 @@ class OnDemandDataCenterService:
     ) -> list[PriceBar]:
         limit = max((end - start).days + 10, 120)
         bars = self._price_repo.get_bars(asset_code, start=start, end=end, limit=limit)
-        return sorted((bar for bar in bars if bar.freq == frequency), key=lambda item: item.bar_date)
+        return sorted(
+            (bar for bar in bars if bar.freq == frequency), key=lambda item: item.bar_date
+        )
 
     def _query_valuations(
         self,
@@ -310,7 +345,7 @@ class OnDemandDataCenterService:
     def _sync_sources(
         self,
         source_order: tuple[str, ...],
-        sync_call: Callable[[int], object],
+        sync_call: Callable[[int], SyncResult],
     ) -> tuple[str, ...]:
         errors: list[str] = []
         for source in source_order:
@@ -320,13 +355,18 @@ class OnDemandDataCenterService:
                 continue
             try:
                 result = sync_call(provider_id)
-                stored_count = getattr(result, "stored_count", 0)
+                stored_count = result.stored_count
                 if stored_count > 0:
                     return tuple(errors)
                 errors.append(f"{source}: no records")
             except Exception as exc:
-                logger.warning("On-demand Data Center sync failed via %s: %s", source, exc)
-                errors.append(f"{source}: {exc}")
+                error_type = exc.__class__.__name__
+                logger.warning(
+                    "On-demand Data Center sync failed via %s (%s)",
+                    source,
+                    error_type,
+                )
+                errors.append(f"{source}: sync_failed ({error_type})")
         return tuple(errors)
 
     def _quality_for_dated_records(

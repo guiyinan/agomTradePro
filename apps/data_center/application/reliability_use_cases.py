@@ -36,6 +36,7 @@ from apps.data_center.domain.protocols import (
     MacroFactRepositoryProtocol,
     PriceBarRepositoryProtocol,
     ProviderConfigRepositoryProtocol,
+    ProviderRegistryProtocol,
     QuoteSnapshotRepositoryProtocol,
     RawAuditRepositoryProtocol,
 )
@@ -67,6 +68,21 @@ TUSHARE_CPI_INDICATORS = frozenset(
 _SOURCE_TYPE_CAPABILITIES = SOURCE_TYPE_CAPABILITIES
 
 
+def _failure_evidence(exc: BaseException) -> dict[str, str]:
+    """Return stable failure evidence without persisting provider payloads or secrets."""
+
+    return {
+        "error_type": exc.__class__.__name__,
+        "error_message": "operation_failed",
+    }
+
+
+def _failure_reason(prefix: str, exc: BaseException) -> str:
+    """Build a decision-safe failure reason from an exception class only."""
+
+    return f"{prefix} ({exc.__class__.__name__})"
+
+
 class RepairDecisionDataReliabilityUseCase:
     """Repair and re-check the data chain required for actionable decisions."""
 
@@ -74,7 +90,7 @@ class RepairDecisionDataReliabilityUseCase:
         self,
         *,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_registry,
+        provider_registry: ProviderRegistryProtocol,
         macro_fact_repo: MacroFactRepositoryProtocol,
         indicator_catalog_repo: IndicatorCatalogRepositoryProtocol,
         indicator_unit_rule_repo: IndicatorUnitRuleRepositoryProtocol,
@@ -147,14 +163,19 @@ class RepairDecisionDataReliabilityUseCase:
         try:
             return callback()
         except Exception as exc:
-            logger.exception("Decision reliability %s repair failed", section_name)
+            error_type = exc.__class__.__name__
+            logger.error(
+                "Decision reliability %s repair failed (%s)",
+                section_name,
+                error_type,
+            )
             return DecisionReliabilitySection(
                 status="failed",
                 must_not_use_for_decision=True,
-                blocked_reasons=[f"{section_name} 修复异常: {exc}"],
+                blocked_reasons=[f"{section_name} 修复异常 ({error_type})"],
                 details={
-                    "error_type": exc.__class__.__name__,
-                    "error_message": str(exc),
+                    "error_type": error_type,
+                    "error_message": "repair_failed",
                 },
             )
 
@@ -244,10 +265,10 @@ class RepairDecisionDataReliabilityUseCase:
                 indicator_details["sync"] = sync_result.to_dict()
             except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
                 failed = True
-                blocked_reasons.append(f"{indicator_code}: 同步失败: {exc}")
+                blocked_reasons.append(_failure_reason(f"{indicator_code}: 同步失败", exc))
                 indicator_details["sync"] = {
                     "status": "failed",
-                    "error_message": str(exc),
+                    **_failure_evidence(exc),
                 }
 
             query = QueryMacroSeriesUseCase(
@@ -314,10 +335,10 @@ class RepairDecisionDataReliabilityUseCase:
                 details["quote_sync"] = sync_result.to_dict()
             except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
                 failed = True
-                blocked_reasons.append(f"实时行情同步失败: {exc}")
+                blocked_reasons.append(_failure_reason("实时行情同步失败", exc))
                 details["quote_sync"] = {
                     "status": "failed",
-                    "error_message": str(exc),
+                    **_failure_evidence(exc),
                 }
 
         price_provider = self._select_provider_by_types(
@@ -345,9 +366,9 @@ class RepairDecisionDataReliabilityUseCase:
                     details["prices"][asset_code] = {"sync": sync_result.to_dict()}
                 except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
                     failed = True
-                    blocked_reasons.append(f"{asset_code}: 历史价格同步失败: {exc}")
+                    blocked_reasons.append(_failure_reason(f"{asset_code}: 历史价格同步失败", exc))
                     details["prices"][asset_code] = {
-                        "sync": {"status": "failed", "error_message": str(exc)}
+                        "sync": {"status": "failed", **_failure_evidence(exc)}
                     }
 
         quote_query = QueryLatestQuoteUseCase(self._quote_snapshot_repo)
@@ -429,8 +450,8 @@ class RepairDecisionDataReliabilityUseCase:
             return DecisionReliabilitySection(
                 status="failed",
                 must_not_use_for_decision=True,
-                blocked_reasons=[f"Pulse 重算失败: {exc}"],
-                details={"error_message": str(exc)},
+                blocked_reasons=[_failure_reason("Pulse 重算失败", exc)],
+                details=_failure_evidence(exc),
             )
 
         if snapshot is None:
@@ -505,10 +526,10 @@ class RepairDecisionDataReliabilityUseCase:
                     blocked_reasons.append(f"Alpha 修复失败: {message}")
             except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
                 failed = True
-                blocked_reasons.append(f"Alpha 修复失败: {exc}")
+                blocked_reasons.append(_failure_reason("Alpha 修复失败", exc))
                 details["repair"] = {
                     "status": "failed",
-                    "error_message": str(exc),
+                    **_failure_evidence(exc),
                 }
 
         status_payload: dict[str, Any] = {}
@@ -521,10 +542,10 @@ class RepairDecisionDataReliabilityUseCase:
                 details["readiness"] = status_payload
             except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
                 failed = True
-                blocked_reasons.append(f"Alpha readiness 读取失败: {exc}")
+                blocked_reasons.append(_failure_reason("Alpha readiness 读取失败", exc))
                 details["readiness"] = {
                     "status": "failed",
-                    "error_message": str(exc),
+                    **_failure_evidence(exc),
                 }
 
         recommendation_ready = bool(status_payload.get("recommendation_ready", False))

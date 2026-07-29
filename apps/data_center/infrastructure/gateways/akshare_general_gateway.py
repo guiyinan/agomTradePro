@@ -34,12 +34,10 @@ def _safe_decimal(value: object) -> Decimal | None:
 
 
 def _safe_int(value: object) -> int | None:
-    if value is None:
+    number = safe_float(value)
+    if number is None:
         return None
-    try:
-        return int(float(value))
-    except (ValueError, TypeError):
-        return None
+    return int(number)
 
 
 def _to_akshare_code(tushare_code: str) -> str:
@@ -75,9 +73,7 @@ class AKShareGeneralGateway(MarketGatewayProtocol):
     def supports(self, capability: DataCapability) -> bool:
         return capability in _SUPPORTED
 
-    def get_quote_snapshots(
-        self, stock_codes: list[str]
-    ) -> list[QuoteSnapshot]:
+    def get_quote_snapshots(self, stock_codes: list[str]) -> list[QuoteSnapshot]:
         """批量获取实时行情"""
         try:
             ak = get_akshare_module()
@@ -89,9 +85,7 @@ class AKShareGeneralGateway(MarketGatewayProtocol):
 
             df["代码"] = df["代码"].astype(str).str.strip()
 
-            ak_to_ts: dict[str, str] = {
-                _to_akshare_code(c): c for c in stock_codes
-            }
+            ak_to_ts: dict[str, str] = {_to_akshare_code(c): c for c in stock_codes}
 
             results: list[QuoteSnapshot] = []
             for ak_code, ts_code in ak_to_ts.items():
@@ -133,9 +127,7 @@ class AKShareGeneralGateway(MarketGatewayProtocol):
             logger.exception("AKShare 通用 gateway 行情失败")
             return []
 
-    def get_technical_snapshot(
-        self, stock_code: str
-    ) -> TechnicalSnapshot | None:
+    def get_technical_snapshot(self, stock_code: str) -> TechnicalSnapshot | None:
         """从行情中提取技术指标"""
         snapshots = self.get_quote_snapshots([stock_code])
         if not snapshots:

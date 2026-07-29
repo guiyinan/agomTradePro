@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
+from collections.abc import Callable
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, Protocol, TypeVar, cast
 
 from celery import shared_task
 from celery.utils.log import get_task_logger
@@ -13,14 +15,40 @@ from apps.macro.application.use_cases import (
     build_sync_macro_data_use_case,
 )
 from apps.pulse.application.use_cases import CalculatePulseUseCase
+from apps.pulse.domain.entities import PulseSnapshot
 from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
 from apps.regime.application.orchestration import calculate_regime_after_sync
 from apps.rotation.application.repository_provider import generate_rotation_signals
 
 logger = get_task_logger(__name__)
 
+TaskResult = TypeVar("TaskResult", covariant=True)
+DecoratedResult = TypeVar("DecoratedResult")
+_SOURCE_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 
-def refresh_pulse_snapshot(*, target_date: date):
+
+class _TypedTask(Protocol[TaskResult]):
+    """Callable Celery task exposing a typed synchronous runner."""
+
+    def __call__(self, *args: Any, **kwargs: Any) -> TaskResult: ...
+
+    def run(self, *args: Any, **kwargs: Any) -> TaskResult: ...
+
+
+def _typed_shared_task(
+    *decorator_args: object,
+    **decorator_kwargs: object,
+) -> Callable[[Callable[..., DecoratedResult]], _TypedTask[DecoratedResult]]:
+    """Narrow Celery's decorator while preserving the task result type."""
+
+    decorator = shared_task(*decorator_args, **decorator_kwargs)
+    return cast(
+        Callable[[Callable[..., DecoratedResult]], _TypedTask[DecoratedResult]],
+        decorator,
+    )
+
+
+def refresh_pulse_snapshot(*, target_date: date) -> PulseSnapshot | None:
     """Refresh the latest pulse snapshot through the owning pulse use case."""
 
     return CalculatePulseUseCase().execute(as_of_date=target_date)
@@ -29,7 +57,22 @@ def refresh_pulse_snapshot(*, target_date: date):
 def _parse_target_date(as_of_date: str | None) -> date:
     """Parse snapshot target date, defaulting to today."""
 
-    return date.fromisoformat(as_of_date) if as_of_date else date.today()
+    if as_of_date is None:
+        return date.today()
+    if len(as_of_date) != 10:
+        raise ValueError("as_of_date must use YYYY-MM-DD")
+    return date.fromisoformat(as_of_date)
+
+
+def _validate_task_options(*, source: str, days_back: int, use_pit: bool) -> None:
+    """Reject malformed or unbounded scheduled-task options."""
+
+    if not _SOURCE_PATTERN.fullmatch(source):
+        raise ValueError("invalid macro source")
+    if isinstance(days_back, bool) or not isinstance(days_back, int) or not 1 <= days_back <= 366:
+        raise ValueError("days_back must be between 1 and 366")
+    if not isinstance(use_pit, bool):
+        raise ValueError("use_pit must be boolean")
 
 
 def _sync_macro_inputs(*, target_date: date, source: str, days_back: int) -> dict[str, Any]:
@@ -65,7 +108,7 @@ def _build_overall_status(component_payloads: dict[str, dict[str, Any]]) -> str:
     return "error"
 
 
-@shared_task(time_limit=1800, soft_time_limit=1700)
+@_typed_shared_task(time_limit=1800, soft_time_limit=1700)
 def refresh_decision_workspace_snapshots(
     as_of_date: str | None = None,
     *,
@@ -75,6 +118,7 @@ def refresh_decision_workspace_snapshots(
 ) -> dict[str, Any]:
     """Precompute Step 1-3 workspace snapshots once per night."""
 
+    _validate_task_options(source=source, days_back=days_back, use_pit=use_pit)
     target_date = _parse_target_date(as_of_date)
     logger.info(
         "Refreshing decision workspace snapshots for %s (source=%s, days_back=%s)",
@@ -94,10 +138,14 @@ def refresh_decision_workspace_snapshots(
         )
         components["macro_sync"] = sync_result
     except Exception as exc:
-        logger.exception("Workspace snapshot macro sync failed for %s", target_date.isoformat())
+        logger.error(
+            "Workspace snapshot macro sync failed for %s (error_type=%s)",
+            target_date.isoformat(),
+            type(exc).__name__,
+        )
         components["macro_sync"] = {
             "status": "error",
-            "error": str(exc),
+            "error": "macro_sync_failed",
             "source": source,
         }
 
@@ -109,10 +157,14 @@ def refresh_decision_workspace_snapshots(
         )
         components["regime_snapshot"] = dict(regime_result or {})
     except Exception as exc:
-        logger.exception("Workspace snapshot regime refresh failed for %s", target_date.isoformat())
+        logger.error(
+            "Workspace snapshot regime refresh failed for %s (error_type=%s)",
+            target_date.isoformat(),
+            type(exc).__name__,
+        )
         components["regime_snapshot"] = {
             "status": "error",
-            "error": str(exc),
+            "error": "regime_snapshot_refresh_failed",
         }
 
     try:
@@ -131,10 +183,14 @@ def refresh_decision_workspace_snapshots(
                 "is_reliable": bool(getattr(pulse_snapshot, "is_reliable", False)),
             }
     except Exception as exc:
-        logger.exception("Workspace snapshot pulse refresh failed for %s", target_date.isoformat())
+        logger.error(
+            "Workspace snapshot pulse refresh failed for %s (error_type=%s)",
+            target_date.isoformat(),
+            type(exc).__name__,
+        )
         components["pulse_snapshot"] = {
             "status": "error",
-            "error": str(exc),
+            "error": "pulse_snapshot_refresh_failed",
         }
 
     try:
@@ -165,18 +221,17 @@ def refresh_decision_workspace_snapshots(
                 ).isoformat(),
                 "source": str(getattr(action, "context_source", "live_action_fallback")),
                 "risk_budget_pct": float(getattr(action, "risk_budget_pct", 0.0) or 0.0),
-                "recommended_sectors": list(
-                    getattr(action, "recommended_sectors", []) or []
-                ),
+                "recommended_sectors": list(getattr(action, "recommended_sectors", []) or []),
             }
     except Exception as exc:
-        logger.exception(
-            "Workspace snapshot action recommendation refresh failed for %s",
+        logger.error(
+            "Workspace snapshot action recommendation refresh failed for %s (error_type=%s)",
             target_date.isoformat(),
+            type(exc).__name__,
         )
         components["action_recommendation"] = {
             "status": "error",
-            "error": str(exc),
+            "error": "action_recommendation_refresh_failed",
         }
 
     try:
@@ -187,13 +242,14 @@ def refresh_decision_workspace_snapshots(
             "status": "success" if failed_count == 0 else "partial_success",
         }
     except Exception as exc:
-        logger.exception(
-            "Workspace snapshot rotation refresh failed for %s",
+        logger.error(
+            "Workspace snapshot rotation refresh failed for %s (error_type=%s)",
             target_date.isoformat(),
+            type(exc).__name__,
         )
         components["rotation_signals"] = {
             "status": "error",
-            "error": str(exc),
+            "error": "rotation_signal_refresh_failed",
         }
 
     overall_status = _build_overall_status(components)

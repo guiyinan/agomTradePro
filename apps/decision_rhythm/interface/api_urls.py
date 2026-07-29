@@ -1,6 +1,7 @@
 """Decision rhythm API URL configuration."""
 
 from django.urls import include, path
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
@@ -59,7 +60,9 @@ router.register(r"requests", DecisionRequestViewSet, basename="decision-request"
 class DecisionApiRootView(APIView):
     """Return discoverable decision workflow API endpoints."""
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        """Return stable links for the decision workflow API."""
+
         return Response(
             {
                 "endpoints": {
@@ -77,6 +80,7 @@ class DecisionApiRootView(APIView):
                 }
             }
         )
+
 
 urlpatterns = [
     path("api/decision/", DecisionApiRootView.as_view(), name="decision-api-root"),

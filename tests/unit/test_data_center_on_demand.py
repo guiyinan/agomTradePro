@@ -133,14 +133,17 @@ def test_ensure_price_bars_hydrates_missing_data_from_tushare():
 
 
 def test_ensure_valuations_marks_provider_failed_when_fallbacks_fail():
-    sync_valuation = FakeSyncUseCase(exc=RuntimeError("provider down"))
+    sync_valuation = FakeSyncUseCase(
+        exc=RuntimeError("postgresql://user:secret@provider.invalid/data")
+    )
     result = _service(sync_valuation=sync_valuation).ensure_valuations(
         "600031.SH", date(2026, 5, 1), date(2026, 5, 8)
     )
 
     assert result.quality.status == "provider_failed"
     assert result.quality.points_count == 0
-    assert "provider down" in result.quality.errors[0]
+    assert "RuntimeError" in result.quality.errors[0]
+    assert "secret" not in " ".join(result.quality.errors)
 
 
 def test_assess_price_bars_marks_sparse_without_hydrating():

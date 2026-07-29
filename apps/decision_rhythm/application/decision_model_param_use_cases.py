@@ -1,23 +1,27 @@
 """Decision model parameter query and update use cases."""
 
 import logging
+import math
+import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
 from django.utils import timezone
 
 if TYPE_CHECKING:
-    from ..domain.entities import (
-        GatePenalties,
-        ModelParamAuditLog,
-        ModelParamConfig,
-        ModelWeights,
-    )
+    from ..domain.entities import ModelParamAuditLog, ModelParamConfig
+    from ..domain.services import GatePenalties, ModelWeights
 
 
 logger = logging.getLogger(__name__)
+
+_PARAM_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
+_PARAM_TYPES = frozenset({"float", "int", "str", "bool"})
+_PARAM_ENVS = frozenset({"dev", "test", "prod"})
+_TRUE_VALUES = frozenset({"true", "1", "yes"})
+_FALSE_VALUES = frozenset({"false", "0", "no"})
 
 RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS = (
     AttributeError,
@@ -40,7 +44,7 @@ class ModelParamConfigRepositoryProtocol(Protocol):
         self,
         param_key: str,
         env: str,
-    ) -> Optional["ModelParamConfig"]:
+    ) -> "ModelParamConfig | None":
         """获取参数配置"""
         ...
 
@@ -76,7 +80,7 @@ class GetModelParamsUseCase:
         self,
         param_repo: ModelParamConfigRepositoryProtocol,
         default_env: str = "dev",
-    ):
+    ) -> None:
         """
         初始化用例
 
@@ -108,12 +112,12 @@ class GetModelParamsUseCase:
         db_params = self.param_repo.get_all_params(target_env)
 
         # 构建参数字典
-        params = dict(DEFAULT_MODEL_PARAMS)  # 从默认值开始
+        params: dict[str, Any] = dict(DEFAULT_MODEL_PARAMS)  # 从默认值开始
 
         # 用数据库配置覆盖
         for config in db_params:
             if config.is_active:
-                typed_value = config.get_typed_value()
+                typed_value = _parse_param_value(config.param_value, config.param_type)
                 params[config.param_key] = typed_value
 
         return params
@@ -141,7 +145,7 @@ class GetModelParamsUseCase:
         config = self.param_repo.get_param(param_key, target_env)
 
         if config and config.is_active:
-            return config.get_typed_value()
+            return _parse_param_value(config.param_value, config.param_type)
 
         # 回退到默认值
         if param_key in DEFAULT_MODEL_PARAMS:
@@ -167,11 +171,11 @@ class GetModelParamsUseCase:
         params = self.execute(env)
 
         return ModelWeights(
-            alpha_model_weight=params.get("alpha_model_weight", 0.40),
-            sentiment_weight=params.get("sentiment_weight", 0.15),
-            flow_weight=params.get("flow_weight", 0.15),
-            technical_weight=params.get("technical_weight", 0.15),
-            fundamental_weight=params.get("fundamental_weight", 0.15),
+            alpha_model_weight=_finite_float(params.get("alpha_model_weight", 0.40)),
+            sentiment_weight=_finite_float(params.get("sentiment_weight", 0.15)),
+            flow_weight=_finite_float(params.get("flow_weight", 0.15)),
+            technical_weight=_finite_float(params.get("technical_weight", 0.15)),
+            fundamental_weight=_finite_float(params.get("fundamental_weight", 0.15)),
         )
 
     def get_gate_penalties(
@@ -192,9 +196,9 @@ class GetModelParamsUseCase:
         params = self.execute(env)
 
         return GatePenalties(
-            cooldown_penalty=params.get("gate_penalty_cooldown", 0.10),
-            quota_penalty=params.get("gate_penalty_quota", 0.10),
-            volatility_penalty=params.get("gate_penalty_volatility", 0.10),
+            cooldown_penalty=_finite_float(params.get("gate_penalty_cooldown", 0.10)),
+            quota_penalty=_finite_float(params.get("gate_penalty_quota", 0.10)),
+            volatility_penalty=_finite_float(params.get("gate_penalty_volatility", 0.10)),
         )
 
 
@@ -215,7 +219,7 @@ class UpdateModelParamResponse:
     """更新模型参数响应"""
 
     success: bool
-    config: Optional["ModelParamConfig"] = None
+    config: "ModelParamConfig | None" = None
     error: str = ""
 
 
@@ -229,7 +233,7 @@ class UpdateModelParamUseCase:
     def __init__(
         self,
         param_repo: ModelParamConfigRepositoryProtocol,
-    ):
+    ) -> None:
         """
         初始化用例
 
@@ -257,6 +261,7 @@ class UpdateModelParamUseCase:
         from ..domain.entities import ModelParamAuditLog, ModelParamConfig
 
         try:
+            _validate_update_request(request)
             # 获取旧值
             old_config = self.param_repo.get_param(request.param_key, request.env)
             old_value = old_config.param_value if old_config else ""
@@ -307,8 +312,10 @@ class UpdateModelParamUseCase:
             self.param_repo.create_audit_log(audit_log)
 
             logger.info(
-                f"Model param updated: {request.param_key} = {request.param_value} "
-                f"(env={request.env}, by={request.updated_by})"
+                "Model parameter updated (key=%s, env=%s, actor=%s)",
+                request.param_key,
+                request.env,
+                request.updated_by or "system",
             )
 
             return UpdateModelParamResponse(
@@ -316,12 +323,60 @@ class UpdateModelParamUseCase:
                 config=saved_config,
             )
 
-        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
-            logger.error(f"Failed to update model param: {e}", exc_info=True)
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as exc:
+            logger.error(
+                "Model parameter update failed (key=%s, error_type=%s)",
+                request.param_key[:128],
+                type(exc).__name__,
+            )
             return UpdateModelParamResponse(
                 success=False,
-                error=str(e),
+                error="decision_model_parameter_update_failed",
             )
+
+
+def _finite_float(value: object) -> float:
+    """Return a finite numeric parameter value."""
+
+    if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+        raise ValueError("boolean is not a numeric parameter")
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError("numeric parameter must be finite")
+    return parsed
+
+
+def _parse_param_value(value: str, param_type: str) -> float | int | str | bool:
+    """Validate and parse one persisted model parameter value."""
+
+    if param_type not in _PARAM_TYPES:
+        raise ValueError("unsupported model parameter type")
+    if len(value) > 4096 or any(ord(character) < 32 for character in value):
+        raise ValueError("invalid model parameter value")
+    if param_type == "float":
+        return _finite_float(value)
+    if param_type == "int":
+        return int(value)
+    if param_type == "bool":
+        normalized = value.strip().lower()
+        if normalized in _TRUE_VALUES:
+            return True
+        if normalized in _FALSE_VALUES:
+            return False
+        raise ValueError("invalid boolean model parameter")
+    return value
+
+
+def _validate_update_request(request: UpdateModelParamRequest) -> None:
+    """Fail closed on malformed or unbounded model parameter updates."""
+
+    if not _PARAM_KEY_PATTERN.fullmatch(request.param_key):
+        raise ValueError("invalid model parameter key")
+    if request.env not in _PARAM_ENVS:
+        raise ValueError("invalid model parameter environment")
+    _parse_param_value(request.param_value, request.param_type)
+    if len(request.updated_by) > 128 or len(request.updated_reason) > 2000:
+        raise ValueError("model parameter audit metadata is too long")
 
 
 __all__ = [

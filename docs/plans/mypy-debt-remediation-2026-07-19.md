@@ -6370,3 +6370,20 @@
 - Scheduler 故障脱敏、进程凭据遮蔽与 readiness status 定向组合 `80 passed`；全部 readiness、scheduler initialization、macro periodic task 与 weekly advisor 相关回归 `252 passed`。
 - `apps/operational_readiness/application/tasks.py` 及 4 个目标 Infrastructure 文件增量 mypy 清零并退出债务清单；Operational Readiness 模块剩余已登记债务清零，全仓基线从 `382 errors / 228 files` 收紧为 `377 errors / 223 files`，净减少 `5 errors / 5 files`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库模型、公开 API、TUI/MCP/SDK 或部署配置。
+
+## 第四百一十六批
+
+- 按影响面将 Data Center 命令、Data Center 运行时、Decision Rhythm 与 Regime 四条数据决策链并行收口，并在共享工作树统一复核；本批只处理类型边界、输入有效性、证据不可变性和错误脱敏，不扩展业务功能。
+- Data Center 的 8 个管理命令全部补齐 `CommandParser`、精确 options 与返回合同；日期、provider、股票代码和文件输入在进入用例前规范化，CSV 文件限制为 10 MiB，非法或不可解析输入使用稳定命令错误失败关闭。
+- Data Center on-demand、reliability task、provider adapter、连接测试与 Tushare/Tencent/AKShare 边界使用精确 Protocol/容器合同；第三方动态返回在发布前收窄，provider 初始化、查询和网络失败只发布稳定错误码与异常类型，不再反射连接串或上游正文。
+- Decision Rhythm 参数、推荐、workspace snapshot task、模型与 API/页面/命令补齐精确合同；模型参数拒绝 bool、NaN/Infinity 和越界值，审计记录实例更新/删除及 Admin 写入口失败关闭，新建参数允许空 old-value 作为明确的首次创建证据。
+- Decision Rhythm workspace API support 移除历史兼容 re-export，统一通过 Application service 模块调用；snapshot、scheduler 和页面边界不再传播 Any，运行异常日志只保留稳定上下文与异常类型。
+- Regime action mapper、services、协议、fixture、页面/API 与三个阈值命令补齐精确 TypedDict/CLI 合同；权重区间要求有限、唯一、顺序一致且可成仓，risk/confidence/pulse 输入有限且处于正式范围。
+- Regime 阈值写入拒绝 bool、NaN/Infinity、非法字段和倒置 CPI 区间；部分更新会与数据库中另一侧阈值联合验证，页面和重算失败使用稳定错误码，非法日期不再把底层异常正文返回给用户。
+
+## 第四百一十六批验证结果
+
+- Data Center 管理命令定向 `34 passed`，全部相关 Data Center 用例、provider、宏观连接、API 与命令回归 `534 passed`；Regime Domain/Application/仓储/API/命令组合 `294 passed`。
+- Decision Rhythm 参数、推荐、workspace、today queue、snapshot 与统一推荐组合 `248 passed`；新增/强化的 provider、文件大小、非有限数、证据不可变性与错误脱敏边界均纳入上述测试集。
+- 44 个改动生产文件增量 mypy 全部清零；全仓基线从 `377 errors / 223 files` 收紧为 `297 errors / 180 files`，净减少 `80 errors / 43 files`。
+- Django system check、Data Center/Decision Rhythm/Regime migration drift、54 个改动 Python 文件 Ruff、Black、isort、增量 mypy、架构增量护栏与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改公开 API 成功响应结构或数据库结构。

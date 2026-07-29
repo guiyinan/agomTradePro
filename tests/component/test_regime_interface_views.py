@@ -156,3 +156,37 @@ def test_regime_dashboard_view_preserves_explicit_source_selection(authenticated
     assert context["error"] == "数据不足：需要 PMI 和 CPI 数据"
     assert context["current_source"] == "tushare"
     assert context["warnings"] == []
+
+
+@pytest.mark.django_db
+def test_regime_dashboard_invalid_date_returns_stable_error(authenticated_client):
+    response = authenticated_client.get(
+        "/regime/dashboard/?as_of_date=postgres://admin:secret@db.internal/regime"
+    )
+    context = _get_response_context(response)
+
+    assert context["error"] == "regime_dashboard_unavailable"
+    assert "secret" not in response.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+def test_regime_cache_clear_failure_does_not_reflect_exception(
+    authenticated_client,
+    monkeypatch,
+):
+    def fail_clear():
+        raise RuntimeError("redis://admin:secret@cache.internal/0")
+
+    monkeypatch.setattr(
+        "apps.regime.interface.views.clear_regime_cache_payload",
+        fail_clear,
+    )
+
+    response = authenticated_client.post("/regime/clear-cache/")
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "status": "error",
+        "message": "regime_cache_clear_failed",
+    }
+    assert "secret" not in response.content.decode("utf-8")

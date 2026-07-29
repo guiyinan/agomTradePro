@@ -32,25 +32,30 @@ from apps.data_center.domain.enums import (
     FinancialPeriodType,
 )
 from apps.data_center.domain.protocols import UnifiedDataProviderProtocol
+from apps.data_center.infrastructure.macro_sources.base import (
+    MacroAdapterProtocol,
+    MacroDataPoint,
+)
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
 
 def _fetch_macro_points(
-    adapter: Any,
+    adapter: MacroAdapterProtocol,
     indicator_code: str,
     start_date: date,
     end_date: date,
-) -> list[Any]:
+) -> list[MacroDataPoint]:
     """Fetch macro points and expose source failures as recoverable connection errors."""
 
     try:
         return adapter.fetch(indicator_code, start_date, end_date)
     except Exception as exc:
         if exc.__class__.__name__ == "DataSourceUnavailableError":
-            raise ConnectionError(str(exc)) from exc
+            raise ConnectionError("macro_source_unavailable") from exc
         raise
+
 
 _SOURCE_CAPABILITIES: dict[str, set[DataCapability]] = {
     "tushare": {
@@ -424,12 +429,12 @@ class BaseUnifiedProviderAdapter(UnifiedDataProviderProtocol):
                                     "EastMoney direct turnover quote blocked by local socket policy: asset=%s",
                                     asset_code,
                                 )
-                                raise ConnectionError(str(exc)) from exc
+                                raise ConnectionError("market_source_unavailable") from exc
                             if attempt == 3:
                                 logger.warning(
-                                    "EastMoney direct turnover quote failed: asset=%s error=%s",
+                                    "EastMoney direct turnover quote failed: asset=%s error_type=%s",
                                     asset_code,
-                                    exc,
+                                    exc.__class__.__name__,
                                 )
                             else:
                                 sleep(0.6 * attempt)

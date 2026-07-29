@@ -2,16 +2,51 @@
 
 from __future__ import annotations
 
+import math
+import re
 import uuid
 from typing import Any
 
-from django.db import models  # type: ignore[import-untyped]
-from django.utils import timezone  # type: ignore[import-untyped]
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils import timezone
 
 from ..domain.entities import ModelParamAuditLog, ModelParamConfig
 
+_PARAM_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
+_TRUE_VALUES = frozenset({"true", "1", "yes"})
+_FALSE_VALUES = frozenset({"false", "0", "no"})
 
-class DecisionModelParamConfigModel(models.Model):  # type: ignore[misc]
+
+def _has_control_characters(value: str) -> bool:
+    """Return whether text contains unsafe control characters."""
+
+    return any(ord(character) < 32 for character in value)
+
+
+def _validate_typed_value(value: str, param_type: str) -> None:
+    """Validate that one persisted parameter has a finite typed value."""
+
+    if len(value) > 4096 or _has_control_characters(value):
+        raise ValidationError({"param_value": "参数值格式无效或长度超限"})
+    try:
+        if param_type == "float":
+            parsed = float(value)
+            if not math.isfinite(parsed):
+                raise ValueError
+        elif param_type == "int":
+            int(value)
+        elif param_type == "bool":
+            normalized = value.strip().lower()
+            if normalized not in _TRUE_VALUES | _FALSE_VALUES:
+                raise ValueError
+        elif param_type != "str":
+            raise ValueError
+    except (TypeError, ValueError) as exc:
+        raise ValidationError({"param_value": "参数值与声明类型不匹配"}) from exc
+
+
+class DecisionModelParamConfigModel(models.Model):
     """
     决策模型参数配置 ORM 模型
 
@@ -89,9 +124,29 @@ class DecisionModelParamConfigModel(models.Model):  # type: ignore[misc]
     def __str__(self) -> str:
         return f"ModelParamConfig({self.param_key}={self.param_value}, env={self.env})"
 
+    def clean(self) -> None:
+        """Reject malformed, unbounded, or non-finite runtime parameters."""
+
+        super().clean()
+        if not _PARAM_KEY_PATTERN.fullmatch(self.param_key):
+            raise ValidationError({"param_key": "参数键格式无效"})
+        if isinstance(self.version, bool) or self.version < 1:
+            raise ValidationError({"version": "版本号必须为正整数"})
+        _validate_typed_value(self.param_value, self.param_type)
+        for field_name, value, limit in (
+            ("description", self.description, 2000),
+            ("updated_by", self.updated_by, 128),
+            ("updated_reason", self.updated_reason, 2000),
+        ):
+            if len(value) > limit or _has_control_characters(value):
+                raise ValidationError({field_name: "审计文本格式无效或长度超限"})
+
     def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.config_id:
             self.config_id = f"mpc_{uuid.uuid4().hex[:12]}"
+        if not self.updated_by:
+            self.updated_by = "system"
+        self.full_clean()
         super().save(*args, **kwargs)
 
     def to_domain(self) -> ModelParamConfig:
@@ -128,7 +183,7 @@ class DecisionModelParamConfigModel(models.Model):  # type: ignore[misc]
         )
 
 
-class DecisionModelParamAuditLogModel(models.Model):  # type: ignore[misc]
+class DecisionModelParamAuditLogModel(models.Model):
     """
     决策模型参数审计日志 ORM 模型
 
@@ -184,12 +239,39 @@ class DecisionModelParamAuditLogModel(models.Model):  # type: ignore[misc]
     def __str__(self) -> str:
         return f"ModelParamAuditLog({self.param_key}, {self.old_value} -> {self.new_value})"
 
+    def clean(self) -> None:
+        """Validate bounded audit evidence before its append-only insert."""
+
+        super().clean()
+        if not _PARAM_KEY_PATTERN.fullmatch(self.param_key):
+            raise ValidationError({"param_key": "参数键格式无效"})
+        for field_name, value, limit in (
+            ("old_value", self.old_value, 4096),
+            ("new_value", self.new_value, 4096),
+            ("changed_by", self.changed_by, 128),
+            ("change_reason", self.change_reason, 2000),
+        ):
+            if len(value) > limit or _has_control_characters(value):
+                raise ValidationError({field_name: "审计证据格式无效或长度超限"})
+
     def save(self, *args: Any, **kwargs: Any) -> None:
+        if not self._state.adding:
+            raise ValidationError("模型参数审计日志为追加型证据，不允许修改")
         if not self.log_id:
             self.log_id = f"mpal_{uuid.uuid4().hex[:12]}"
         if not self.changed_at:
             self.changed_at = timezone.now()
+        if not self.changed_by:
+            self.changed_by = "system"
+        # An empty old value is valid evidence for a newly created parameter;
+        # the model field predates that workflow and is not marked blank=True.
+        self.full_clean(exclude={"old_value"})
         super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        """Prevent instance-level deletion of append-only audit evidence."""
+
+        raise ValidationError("模型参数审计日志为追加型证据，不允许删除")
 
     def to_domain(self) -> ModelParamAuditLog:
         """转换为 Domain 层实体"""

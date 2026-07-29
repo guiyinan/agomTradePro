@@ -10,69 +10,23 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from rest_framework import status  # noqa: F401
-from rest_framework.response import Response  # noqa: F401
-from rest_framework.views import APIView  # noqa: F401
-
-from apps.ai_provider.application.chat_completion import (  # noqa: F401
-    AIClientFactory,
-    generate_chat_completion,
-)
 from apps.decision_rhythm.application.user_action_labels import build_user_action_label
 from apps.pulse.application.use_cases import GetLatestPulseUseCase
 from apps.regime.application.current_regime import resolve_current_regime
 
-from ..application.dtos import (  # noqa: F401
-    ConflictsListDTO,
-    RecommendationsListDTO,
-    RefreshRecommendationsRequestDTO,
-)
-from ..application.workspace_services import (
-    build_plan_risk_checks as workspace_build_plan_risk_checks,
-)
-from ..application.workspace_services import (  # noqa: F401
-    build_recommendation_risk_checks,
-    create_legacy_approval,
-    create_plan_approval,
-    create_unified_approval,
-    get_aggregated_workspace_payload,
-    get_approval_request,
-    get_legacy_recommendation,
-    get_model_params_payload,
-    get_related_candidate_ids,
-    get_signal_payloads,
-    get_transition_plan,
-    get_unified_recommendation,
-    get_valuation_repair_map,
-    get_valuation_snapshot,
-    has_pending_request,
-    list_workspace_conflicts,
-    list_workspace_recommendations,
-    recalculate_valuation_snapshot,
-    refresh_workspace_recommendations,
-    save_transition_plan,
-    serialize_transition_plan_payload,
-    update_approval_request_status,
-    update_model_param_payload,
-    update_workspace_recommendation_action,
-)
-from ..application.workspace_services import (
-    build_transition_plan_for_account as workspace_build_transition_plan_for_account,
-)
+from ..application import workspace_services
 from ..domain.entities import (
-    ApprovalStatus,  # noqa: F401
+    ExecutionApprovalRequest,
+    InvestmentRecommendation,
     PortfolioTransitionPlan,
     TransitionOrder,
     TransitionPlanStatus,
-    UserDecisionAction,  # noqa: F401
+    UnifiedRecommendation,
     calculate_transition_reward_risk,
-)
-from ..domain.services import (  # noqa: F401
-    ApprovalStatusStateMachine,  # noqa: F401
-    ExecutionApprovalService,  # noqa: F401
 )
 
 logger = logging.getLogger(__name__)
+
 
 def _decimal(value: Any, *, default: Decimal | None = None) -> Decimal | None:
     if value in (None, ""):
@@ -82,12 +36,14 @@ def _decimal(value: Any, *, default: Decimal | None = None) -> Decimal | None:
     except (InvalidOperation, ValueError, TypeError):
         return default
 
+
 def _truthy(value: Any) -> bool:
     if isinstance(value, bool):
         return value
     if value is None:
         return False
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
 
 def _regime_context() -> dict[str, Any]:
     try:
@@ -104,22 +60,33 @@ def _regime_context() -> dict[str, Any]:
             "source": "V2_CALCULATION",
         }
 
+
 def _build_valuation_repair_map(security_codes: list[str]) -> dict[str, dict[str, Any]]:
     """批量查询估值修复快照，供决策工作台展示辅助信息。"""
     try:
-        return get_valuation_repair_map(security_codes)
+        return workspace_services.get_valuation_repair_map(security_codes)
     except Exception as exc:
-        logger.warning(f"Failed to build valuation repair map for decision workspace: {exc}")
+        logger.warning(
+            "Failed to build valuation repair map for decision workspace: %s",
+            type(exc).__name__,
+        )
         return {}
+
 
 def _user_action_label(value: str) -> str:
     return build_user_action_label(value)
 
-def _risk_checks(recommendation, market_price: Decimal | None) -> dict[str, Any]:
-    return build_recommendation_risk_checks(recommendation, market_price)
+
+def _risk_checks(
+    recommendation: InvestmentRecommendation | UnifiedRecommendation,
+    market_price: Decimal | None,
+) -> dict[str, Any]:
+    return workspace_services.build_recommendation_risk_checks(recommendation, market_price)
+
 
 def _serialize_transition_plan(plan: PortfolioTransitionPlan) -> dict[str, Any]:
-    return serialize_transition_plan_payload(plan)
+    return workspace_services.serialize_transition_plan_payload(plan)
+
 
 def _pulse_context() -> dict[str, Any]:
     try:
@@ -129,7 +96,10 @@ def _pulse_context() -> dict[str, Any]:
             refresh_if_stale=True,
         )
     except Exception as exc:
-        logger.warning(f"Failed to load pulse context for invalidation template: {exc}")
+        logger.warning(
+            "Failed to load pulse context for invalidation template: %s",
+            type(exc).__name__,
+        )
         snapshot = None
 
     if snapshot is None:
@@ -150,6 +120,7 @@ def _pulse_context() -> dict[str, Any]:
         "transition_direction": snapshot.transition_direction,
         "transition_reasons": snapshot.transition_reasons,
     }
+
 
 def _build_system_invalidation_template(
     security_code: str,
@@ -211,6 +182,7 @@ def _build_system_invalidation_template(
         "description": description,
     }
 
+
 def _extract_json_payload(text: str) -> dict[str, Any]:
     raw = (text or "").strip()
     if not raw:
@@ -221,17 +193,20 @@ def _extract_json_payload(text: str) -> dict[str, Any]:
     start = raw.find("{")
     end = raw.rfind("}")
     if start >= 0 and end > start:
-        raw = raw[start:end + 1]
+        raw = raw[start : end + 1]
     parsed = json.loads(raw)
     if not isinstance(parsed, dict):
         raise ValueError("AI 返回不是 JSON 对象")
     return parsed
 
+
 def _load_signal_payloads(signal_ids: list[str]) -> dict[str, dict[str, Any]]:
-    return get_signal_payloads(signal_ids)
+    return workspace_services.get_signal_payloads(signal_ids)
+
 
 def _build_plan_risk_checks(plan: PortfolioTransitionPlan) -> dict[str, Any]:
-    return workspace_build_plan_risk_checks(plan)
+    return workspace_services.build_plan_risk_checks(plan)
+
 
 def _build_transition_plan_for_account(
     account_id: str,
@@ -239,11 +214,12 @@ def _build_transition_plan_for_account(
     *,
     persist: bool = True,
 ) -> PortfolioTransitionPlan:
-    return workspace_build_transition_plan_for_account(
+    return workspace_services.build_transition_plan_for_account(
         account_id=account_id,
         recommendation_ids=recommendation_ids,
         persist=persist,
     )
+
 
 def _update_transition_plan_from_payload(
     plan: PortfolioTransitionPlan,
@@ -326,18 +302,18 @@ def _update_transition_plan_from_payload(
         updated_plan = replace(updated_plan, status=TransitionPlanStatus.READY_FOR_APPROVAL)
     return updated_plan
 
+
 def _create_approval_from_plan(
     plan: PortfolioTransitionPlan,
     account_id: str,
     risk_checks: dict[str, Any],
     regime_source: str,
     market_price: Decimal | None,
-):
-    return create_plan_approval(
+) -> ExecutionApprovalRequest:
+    return workspace_services.create_plan_approval(
         plan,
         account_id=account_id,
         risk_checks=risk_checks,
         regime_source=regime_source,
         market_price=market_price,
     )
-

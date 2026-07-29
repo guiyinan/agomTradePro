@@ -41,3 +41,17 @@ def test_run_connection_test_tushare_uses_adapter_fetch_to_validate_parse_path()
     assert result.success is True
     assert "1 rows" in result.summary
     assert any("SHIBOR" in line for line in result.logs)
+
+
+def test_run_connection_test_redacts_probe_exception_message():
+    secret = "postgresql://user:secret@provider.invalid/data"
+    with patch(
+        "apps.data_center.infrastructure.macro_sources.tushare_adapter.TushareAdapter.fetch",
+        side_effect=RuntimeError(secret),
+    ):
+        result = run_connection_test(_tushare_config())
+
+    evidence = f"{result.summary} {' '.join(result.logs)}"
+    assert result.success is False
+    assert "RuntimeError" in evidence
+    assert secret not in evidence

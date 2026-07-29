@@ -4,6 +4,8 @@ Model implementations live in focused owner modules. This module remains the
 stable import and patch surface used by repositories, tests, and integrations.
 """
 
+from typing import Any
+
 from django.apps import apps as django_apps
 
 from .input_snapshot_models import DecisionInputSnapshotModel
@@ -45,7 +47,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     """Resolve the portfolio-owned model for legacy repository imports."""
 
     if name == "PortfolioTransitionPlanModel":

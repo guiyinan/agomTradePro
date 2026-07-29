@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+from argparse import ArgumentParser
 from datetime import timedelta
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db.models import Q
 from django.utils import timezone
 
@@ -22,7 +24,9 @@ from apps.data_center.infrastructure.models import (
 class Command(BaseCommand):
     help = "Dry-run audit for single-asset Data Center price/valuation/financial/quote coverage."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser | CommandParser) -> None:
+        """Register bounded coverage-audit options."""
+
         parser.add_argument("--asset-code", action="append", dest="asset_codes", default=[])
         parser.add_argument(
             "--universe",
@@ -34,15 +38,37 @@ class Command(BaseCommand):
         parser.add_argument("--lookback-days", type=int, default=365)
         parser.add_argument("--sample-size", type=int, default=20)
 
-    def handle(self, *args, **options):
-        end_date = timezone.localdate()
-        start_date = end_date - timedelta(days=options["lookback_days"])
-        service = make_on_demand_data_center_service()
-        asset_codes = self._resolve_universe(options["universe"], options["asset_codes"])
+    def handle(self, *args: Any, **options: Any) -> None:
+        """Audit the requested universe without hydrating unless explicitly enabled."""
 
-        results = {
+        lookback_days = self._positive_int_option(
+            options.get("lookback_days"), name="lookback-days", maximum=3650
+        )
+        sample_size = self._positive_int_option(
+            options.get("sample_size"), name="sample-size", maximum=1000
+        )
+        universe = options.get("universe")
+        if universe not in {"visible", "active", "all"}:
+            raise CommandError("universe must be one of: visible, active, all")
+        raw_asset_codes = options.get("asset_codes")
+        if not isinstance(raw_asset_codes, list) or not all(
+            isinstance(code, str) for code in raw_asset_codes
+        ):
+            raise CommandError("asset-code must be supplied as text")
+        if len(raw_asset_codes) > 1000:
+            raise CommandError("asset-code accepts at most 1000 values")
+        for option_name in ("hydrate", "as_json"):
+            if not isinstance(options.get(option_name), bool):
+                raise CommandError(f"{option_name.replace('_', '-')} must be a boolean flag")
+
+        end_date = timezone.localdate()
+        start_date = end_date - timedelta(days=lookback_days)
+        service = make_on_demand_data_center_service()
+        asset_codes = self._resolve_universe(universe, raw_asset_codes)
+
+        results: dict[str, Any] = {
             "mode": "hydrate" if options["hydrate"] else "dry_run",
-            "universe": options["universe"],
+            "universe": universe,
             "asset_count": len(asset_codes),
             "start": start_date.isoformat(),
             "end": end_date.isoformat(),
@@ -75,7 +101,7 @@ class Command(BaseCommand):
             )
             self._append_domain_result(results["domains"]["quote"], code, quote.quality.to_dict())
 
-        payload = self._summarize(results, sample_size=options["sample_size"])
+        payload = self._summarize(results, sample_size=sample_size)
         if options["as_json"]:
             self.stdout.write(json.dumps(payload, ensure_ascii=False, indent=2))
             return
@@ -92,7 +118,7 @@ class Command(BaseCommand):
                 f"sparse={counts.get('sparse', 0)} missing={counts.get('missing', 0)} "
                 f"provider_failed={counts.get('provider_failed', 0)}"
             )
-            for item in summary["issues"][: options["sample_size"]]:
+            for item in summary["issues"][:sample_size]:
                 self.stdout.write(
                     f"  {item['asset_code']} {item['status']} "
                     f"{item.get('coverage_start')}..{item.get('coverage_end')} "
@@ -147,8 +173,8 @@ class Command(BaseCommand):
         item = {"asset_code": asset_code, **quality}
         domain_results.setdefault(status, []).append(item)
 
-    def _summarize(self, results: dict[str, object], *, sample_size: int) -> dict[str, object]:
-        summarized_domains = {}
+    def _summarize(self, results: dict[str, Any], *, sample_size: int) -> dict[str, Any]:
+        summarized_domains: dict[str, dict[str, Any]] = {}
         for domain, by_status in results["domains"].items():
             counts = {status: len(items) for status, items in by_status.items()}
             issues = []
@@ -162,3 +188,11 @@ class Command(BaseCommand):
             **results,
             "domains": summarized_domains,
         }
+
+    @staticmethod
+    def _positive_int_option(value: object, *, name: str, maximum: int) -> int:
+        """Return one validated positive integer CLI option."""
+
+        if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= maximum:
+            raise CommandError(f"{name} must be an integer between 1 and {maximum}")
+        return value

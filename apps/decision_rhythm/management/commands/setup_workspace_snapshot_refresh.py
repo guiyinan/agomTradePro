@@ -1,31 +1,39 @@
 """Configure nightly decision workspace snapshot refresh tasks."""
 
 import json
+from argparse import ArgumentParser
+from importlib import import_module
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from django_celery_beat.models import CrontabSchedule, PeriodicTask, PeriodicTasks
 
 
 class Command(BaseCommand):
     help = "Create/update the nightly decision workspace snapshot refresh task."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("--hour", type=int, default=22, help="Nightly refresh hour (0-23)")
         parser.add_argument("--minute", type=int, default=45, help="Nightly refresh minute (0-59)")
         parser.add_argument("--disable", action="store_true", help="Disable the periodic task")
 
-    def handle(self, *args, **options):
-        hour = options["hour"]
-        minute = options["minute"]
-        enabled = not options["disable"]
+    def handle(self, *args: Any, **options: Any) -> None:
+        hour = options.get("hour")
+        minute = options.get("minute")
+        disabled = options.get("disable")
 
-        if hour < 0 or hour > 23:
-            self.stderr.write(self.style.ERROR("--hour must be between 0 and 23"))
-            return
-        if minute < 0 or minute > 59:
-            self.stderr.write(self.style.ERROR("--minute must be between 0 and 59"))
-            return
+        if isinstance(hour, bool) or not isinstance(hour, int) or not 0 <= hour <= 23:
+            raise CommandError("--hour must be between 0 and 23")
+        if isinstance(minute, bool) or not isinstance(minute, int) or not 0 <= minute <= 59:
+            raise CommandError("--minute must be between 0 and 59")
+        if not isinstance(disabled, bool):
+            raise CommandError("--disable must be boolean")
+
+        enabled = not disabled
+        beat_models = import_module("django_celery_beat.models")
+        CrontabSchedule = beat_models.CrontabSchedule
+        PeriodicTask = beat_models.PeriodicTask
+        PeriodicTasks = beat_models.PeriodicTasks
 
         with transaction.atomic():
             crontab_kwargs = {

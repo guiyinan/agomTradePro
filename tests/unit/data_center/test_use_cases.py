@@ -1127,9 +1127,8 @@ class TestRepairDecisionDataReliabilityUseCase:
         payload = report.to_dict()
         assert payload["macro_status"]["status"] == "failed"
         assert payload["macro_status"]["must_not_use_for_decision"] is True
-        assert "akshare cpi response ended prematurely" in (
-            payload["macro_status"]["blocked_reasons"][0]
-        )
+        assert "Exception" in payload["macro_status"]["blocked_reasons"][0]
+        assert "akshare cpi response ended prematurely" not in str(payload["macro_status"])
         assert payload["quote_status"]["status"] == "ready"
         assert payload["quote_status"]["must_not_use_for_decision"] is False
         assert payload["quote_status"]["details"]["quote_sync"]["stored_count"] == 1

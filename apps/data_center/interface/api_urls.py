@@ -8,6 +8,7 @@ Phase 2:  /assets/resolve/, /macro/series/, /prices/history/, /prices/quotes/
 """
 
 from django.urls import path
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -60,7 +61,7 @@ from apps.data_center.interface.api_views import (
 class DataCenterApiRootView(APIView):
     """Return discoverable data-center API endpoints."""
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         return Response(
             {
                 "endpoints": {

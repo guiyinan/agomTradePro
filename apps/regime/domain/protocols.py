@@ -20,6 +20,7 @@ from typing import Any, Protocol
 @dataclass(frozen=True)
 class MacroIndicatorValue:
     """宏观指标值"""
+
     indicator_code: str
     value: float
     observed_at: date
@@ -67,6 +68,7 @@ class MacroIndicator:
 @dataclass(frozen=True)
 class IndicatorSeries:
     """指标时间序列"""
+
     indicator_code: str
     values: list[float]
     dates: list[date]
@@ -93,9 +95,7 @@ class MacroDataProviderProtocol(Protocol):
     """
 
     def get_indicator_value(
-        self,
-        indicator_code: str,
-        as_of_date: date | None = None
+        self, indicator_code: str, as_of_date: date | None = None
     ) -> MacroIndicatorValue | None:
         """
         获取指定指标的最新值
@@ -110,10 +110,7 @@ class MacroDataProviderProtocol(Protocol):
         ...
 
     def get_indicator_series(
-        self,
-        indicator_code: str,
-        end_date: date,
-        lookback_periods: int = 24
+        self, indicator_code: str, end_date: date, lookback_periods: int = 24
     ) -> IndicatorSeries | None:
         """
         获取指标的历史序列
@@ -129,10 +126,7 @@ class MacroDataProviderProtocol(Protocol):
         ...
 
     def get_growth_series(
-        self,
-        indicator_code: str,
-        end_date: date,
-        lookback_periods: int = 24
+        self, indicator_code: str, end_date: date, lookback_periods: int = 24
     ) -> list[float]:
         """
         获取增长指标序列 (用于 Kalman 滤波)
@@ -148,10 +142,7 @@ class MacroDataProviderProtocol(Protocol):
         ...
 
     def get_inflation_series(
-        self,
-        indicator_code: str,
-        end_date: date,
-        lookback_periods: int = 24
+        self, indicator_code: str, end_date: date, lookback_periods: int = 24
     ) -> list[float]:
         """
         获取通胀指标序列 (用于 Kalman 滤波)
@@ -198,7 +189,7 @@ class DataSourceConfigProtocol(Protocol):
         """是否使用 Kalman 滤波"""
         ...
 
-    def get_kalman_params(self) -> dict:
+    def get_kalman_params(self) -> dict[str, float]:
         """获取 Kalman 滤波参数"""
         ...
 

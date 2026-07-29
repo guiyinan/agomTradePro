@@ -12,8 +12,9 @@ from __future__ import annotations
 import logging
 import queue
 import threading
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any
 
 from apps.data_center.domain.entities import ConnectionTestResult, ProviderConfig
 from apps.data_center.infrastructure.macro_sources import AKShareAdapter, TushareAdapter
@@ -21,6 +22,15 @@ from apps.data_center.infrastructure.macro_sources import AKShareAdapter, Tushar
 logger = logging.getLogger(__name__)
 
 _TEST_TIMEOUT_SECONDS = 15
+ConnectionProbe = Callable[[ProviderConfig, list[str]], ConnectionTestResult]
+
+
+@dataclass(frozen=True)
+class _ProbeOutcome:
+    """Typed cross-thread probe result that does not expose exception messages."""
+
+    result: ConnectionTestResult | None = None
+    error_type: str = ""
 
 
 def _log(logs: list[str], message: str) -> None:
@@ -31,6 +41,7 @@ def _log(logs: list[str], message: str) -> None:
 # Per-source probe functions
 # ---------------------------------------------------------------------------
 
+
 def _probe_tushare(config: ProviderConfig, logs: list[str]) -> ConnectionTestResult:
     """Test Tushare via a SHIBOR fetch (real parse path, not just HTTP ping)."""
     token = (config.api_key or "").strip()
@@ -39,8 +50,10 @@ def _probe_tushare(config: ProviderConfig, logs: list[str]) -> ConnectionTestRes
     if not token:
         _log(logs, "[ERROR] Tushare Token not configured.")
         return ConnectionTestResult(
-            success=False, status="error",
-            summary="Tushare Token missing", logs=logs,
+            success=False,
+            status="error",
+            summary="Tushare Token missing",
+            logs=logs,
         )
 
     _log(logs, "[INFO] Initialising Tushare client.")
@@ -120,7 +133,10 @@ def _probe_eastmoney(config: ProviderConfig, logs: list[str]) -> ConnectionTestR
     # get_quote_snapshots returns [] when market is closed or on transient errors
     snapshots = gateway.get_quote_snapshots(probe_codes)
     if not snapshots:
-        _log(logs, "[WARN] Quote returned empty list — market may be closed or outside trading hours.")
+        _log(
+            logs,
+            "[WARN] Quote returned empty list — market may be closed or outside trading hours.",
+        )
         return ConnectionTestResult(
             success=True,
             status="warning",
@@ -137,16 +153,16 @@ def _probe_eastmoney(config: ProviderConfig, logs: list[str]) -> ConnectionTestR
     )
 
 
-def _probe_credential_only(
-    config: ProviderConfig, logs: list[str]
-) -> ConnectionTestResult:
+def _probe_credential_only(config: ProviderConfig, logs: list[str]) -> ConnectionTestResult:
     """Validate that credentials are present for sources without a live probe."""
     api_key = (config.api_key or "").strip()
     if not api_key:
         _log(logs, "[ERROR] API key / token is missing.")
         return ConnectionTestResult(
-            success=False, status="error",
-            summary="Missing API key — cannot test connection", logs=logs,
+            success=False,
+            status="error",
+            summary="Missing API key — cannot test connection",
+            logs=logs,
         )
     _log(logs, "[WARN] Live probe not yet implemented for this source type.")
     _log(logs, "[INFO] API key is present; save config and monitor live status.")
@@ -162,20 +178,21 @@ def _probe_credential_only(
 # Timeout wrapper
 # ---------------------------------------------------------------------------
 
+
 def _run_with_timeout(
     config: ProviderConfig,
     logs: list[str],
-    probe: Any,
+    probe: ConnectionProbe,
     timeout: int = _TEST_TIMEOUT_SECONDS,
 ) -> ConnectionTestResult:
-    result_q: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
+    result_q: queue.Queue[_ProbeOutcome] = queue.Queue(maxsize=1)
     probe_logs: list[str] = []
 
     def _worker() -> None:
         try:
-            result_q.put(("ok", probe(config, probe_logs)))
+            result_q.put(_ProbeOutcome(result=probe(config, probe_logs)))
         except Exception as exc:
-            result_q.put(("err", exc))
+            result_q.put(_ProbeOutcome(error_type=exc.__class__.__name__))
 
     thread = threading.Thread(
         target=_worker,
@@ -185,7 +202,7 @@ def _run_with_timeout(
     thread.start()
 
     try:
-        kind, payload = result_q.get(timeout=timeout)
+        outcome = result_q.get(timeout=timeout)
     except queue.Empty:
         logs.extend(probe_logs)
         _log(logs, f"[ERROR] Probe timed out after {timeout}s.")
@@ -197,20 +214,22 @@ def _run_with_timeout(
         )
 
     logs.extend(probe_logs)
-    if kind == "err":
-        _log(logs, f"[ERROR] Probe raised: {payload}")
+    if outcome.result is None:
+        error_type = outcome.error_type or "UnknownError"
+        _log(logs, f"[ERROR] Probe raised: {error_type}")
         return ConnectionTestResult(
             success=False,
             status="error",
-            summary=f"Connection test failed: {payload}",
+            summary=f"Connection test failed ({error_type})",
             logs=logs,
         )
-    return payload
+    return outcome.result
 
 
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 def run_connection_test(config: ProviderConfig) -> ConnectionTestResult:
     """Dispatch a connectivity probe for *config* and return a structured result.
@@ -243,11 +262,16 @@ def run_connection_test(config: ProviderConfig) -> ConnectionTestResult:
             logs=logs,
         )
     except Exception as exc:
-        _log(logs, f"[ERROR] Unexpected error: {exc}")
-        logger.exception("Unexpected error during connection test for %s", config.name)
+        error_type = exc.__class__.__name__
+        _log(logs, f"[ERROR] Unexpected error: {error_type}")
+        logger.error(
+            "Unexpected error during connection test for %s (%s)",
+            config.name,
+            error_type,
+        )
         return ConnectionTestResult(
             success=False,
             status="error",
-            summary=f"Connection test failed: {exc}",
+            summary=f"Connection test failed ({error_type})",
             logs=logs,
         )

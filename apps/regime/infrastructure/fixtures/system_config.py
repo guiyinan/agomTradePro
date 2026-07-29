@@ -5,7 +5,20 @@ Regime system configuration initial data.
 运行方式: python manage.py shell < apps/regime/infrastructure/fixtures/system_config.py
 """
 
-SYSTEM_CONFIG_INITIAL_DATA = [
+from typing import TypedDict
+
+
+class _SystemConfigSeed(TypedDict):
+    """One typed seed row for regime-owned runtime configuration."""
+
+    key: str
+    name: str
+    parameter_type: str
+    value_float: float
+    description: str
+
+
+SYSTEM_CONFIG_INITIAL_DATA: tuple[_SystemConfigSeed, ...] = (
     {
         "key": "ai.auto_approve_threshold",
         "name": "AI 自动通过阈值",
@@ -69,7 +82,7 @@ SYSTEM_CONFIG_INITIAL_DATA = [
         "value_float": 0.03,
         "description": "回测时使用的无风险利率（年化）",
     },
-]
+)
 
 
 def init_system_config() -> dict[str, int]:

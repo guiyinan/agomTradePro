@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -15,10 +16,20 @@ class TodayDecisionQueueView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """Return the current user's account-level daily decision queue."""
 
         account_id = str(request.query_params.get("account_id") or "default").strip() or "default"
+        if account_id != "default" and not account_id.isdigit():
+            return Response(
+                {"success": False, "error": "account_id is invalid"},
+                status=400,
+            )
+        if len(account_id) > 64:
+            return Response(
+                {"success": False, "error": "account_id is invalid"},
+                status=400,
+            )
         if account_id.isdigit():
             access = get_account_access(request.user, int(account_id), action="查看")
             if access.error:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from importlib import import_module
 from typing import Any
 
@@ -69,10 +70,16 @@ def get_alpha_runtime_provider_status() -> dict[str, Any]:
     try:
         alpha_services = import_module("apps.alpha.application.services")
         AlphaService = alpha_services.AlphaService
-        return AlphaService().get_provider_status()
+        raw_status = AlphaService().get_provider_status()
+        if not isinstance(raw_status, Mapping):
+            return {"__error__": {"status": "error", "error": "invalid_provider_status"}}
+        return {str(key): value for key, value in raw_status.items()}
     except Exception as exc:
-        logger.warning("Failed to get Alpha runtime provider status: %s", exc)
-        return {"__error__": {"status": "error", "error": str(exc)}}
+        logger.warning(
+            "Failed to get Alpha runtime provider status (error_type=%s)",
+            type(exc).__name__,
+        )
+        return {"__error__": {"status": "error", "error": "provider_status_unavailable"}}
 
 
 def resolve_workspace_consistency_account_id(account_id: str | None = None) -> str:

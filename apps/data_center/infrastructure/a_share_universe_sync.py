@@ -130,16 +130,22 @@ class AShareUniverseSyncService:
                 is_active=True,
                 extra={"universe_source": source},
             )
-            retry_sqlite_locked_operation(lambda asset=asset: self._asset_repo.upsert(asset))
-            retry_sqlite_locked_operation(
-                lambda code=code: self._asset_repo.upsert_alias(
+
+            def upsert_asset(asset_to_save: AssetMaster = asset) -> AssetMaster:
+                return self._asset_repo.upsert(asset_to_save)
+
+            retry_sqlite_locked_operation(upsert_asset)
+
+            def upsert_alias(asset_code: str = code) -> AssetAlias:
+                return self._asset_repo.upsert_alias(
                     AssetAlias(
-                        asset_code=code,
+                        asset_code=asset_code,
                         provider_name="akshare",
-                        alias_code=code.split(".", 1)[0],
+                        alias_code=asset_code.split(".", 1)[0],
                     )
                 )
-            )
+
+            retry_sqlite_locked_operation(upsert_alias)
             touched_codes.add(code)
 
         deactivated_count = 0
