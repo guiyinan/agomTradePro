@@ -58,6 +58,7 @@ def test_backup_download_rejects_malformed_archive_payload(
         )
 
 
+@pytest.mark.django_db
 def test_backup_download_returns_valid_binary_archive(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         backup_views,
