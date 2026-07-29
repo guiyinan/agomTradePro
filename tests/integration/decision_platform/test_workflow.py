@@ -279,7 +279,6 @@ class TestDecisionPlatformPages:
             username="test_user",
             email="test@example.com",
             password="test_password",
-            is_staff=True,
         )
         client = Client()
         client.login(username="test_user", password="test_password")
@@ -297,6 +296,10 @@ class TestDecisionPlatformPages:
 
     def test_beta_gate_config_page_loads(self, db_client):
         """测试 Beta Gate 配置页面"""
+        user = User.objects.get(username="test_user")
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+        db_client.force_login(user)
         response = db_client.get("/beta-gate/config/")
         _assert_beta_gate_config_contract(response)
 

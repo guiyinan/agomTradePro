@@ -62,7 +62,6 @@ class TestOpsModernizedFlows:
             username="ops_user",
             email="ops@example.com",
             password="test_password",
-            is_staff=True,
         )
         self.client = Client()
         assert self.client.login(username="ops_user", password="test_password")
@@ -113,6 +112,9 @@ class TestOpsModernizedFlows:
         assert provider.extra_config == {"timeout": 30, "retry": 2}
 
     def test_beta_gate_create_edit_activate_without_admin(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+        self.client.force_login(self.user)
         old_active = GateConfigModel(
             config_id="cfg-old",
             risk_profile=GateConfigModel.BALANCED,
@@ -221,6 +223,9 @@ class TestOpsModernizedFlows:
         assert payload["config2"]["config_id"] == "cfg-v2"
 
     def test_beta_gate_config_suggest_api_fallback_template_without_ai_provider(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+        self.client.force_login(self.user)
         response = self.client.post(
             "/api/beta-gate/config/suggest/",
             data=json.dumps(
