@@ -20,9 +20,9 @@ User = get_user_model()
 
 
 def _assert_expected_status(response, expected_statuses, message: str) -> None:
-    assert response.status_code in expected_statuses, (
-        f"{message}, got {response.status_code}, expected one of {sorted(expected_statuses)}"
-    )
+    assert (
+        response.status_code in expected_statuses
+    ), f"{message}, got {response.status_code}, expected one of {sorted(expected_statuses)}"
     if response.status_code in {301, 302}:
         assert response.headers.get("Location"), f"{message}, redirect missing Location header"
 
@@ -54,9 +54,9 @@ def _assert_html_contract(
         assert css_asset in text, f"Expected CSS asset missing: {css_asset}"
 
     if one_of_fragments:
-        assert any(fragment in text for fragment in one_of_fragments), (
-            f"Expected at least one HTML fragment from {one_of_fragments}"
-        )
+        assert any(
+            fragment in text for fragment in one_of_fragments
+        ), f"Expected at least one HTML fragment from {one_of_fragments}"
 
 
 @pytest.mark.e2e
@@ -71,15 +71,15 @@ class TestNavigationNo404:
         client = Client()
         user = User.objects.create_user(
             username=f"test_nav_user_{uuid.uuid4().hex[:8]}",
-            password='test_pass_123',
-            email='nav@test.com'
+            password="test_pass_123",
+            email="nav@test.com",
         )
         client.force_login(user)
         return client
 
     def test_dashboard_url_no_404(self, authenticated_client):
         """Dashboard URL 应返回关键页面结构，而不是空壳。"""
-        response = authenticated_client.get('/dashboard/')
+        response = authenticated_client.get("/dashboard/")
         _assert_expected_status(response, {200}, "Dashboard should load successfully")
         _assert_html_contract(
             response,
@@ -110,9 +110,11 @@ class TestNavigationNo404:
             approval_reason="navigation guardrail approved",
         )
 
-        response = authenticated_client.get('/dashboard/')
+        response = authenticated_client.get("/dashboard/")
 
-        _assert_expected_status(response, {200}, "Dashboard pending queue should render successfully")
+        _assert_expected_status(
+            response, {200}, "Dashboard pending queue should render successfully"
+        )
         text = _response_text(response)
         assert "待执行队列 (1)" in text
         assert "000003.SH" in text
@@ -125,7 +127,7 @@ class TestNavigationNo404:
 
     def test_macro_data_url_no_404(self, authenticated_client):
         """宏观数据 URL 应返回图表和指标容器。"""
-        response = authenticated_client.get('/macro/data/')
+        response = authenticated_client.get("/macro/data/")
         _assert_expected_status(response, {200}, "Macro data page should load successfully")
         _assert_html_contract(
             response,
@@ -141,7 +143,7 @@ class TestNavigationNo404:
 
     def test_regime_dashboard_url_no_404(self, authenticated_client):
         """Regime Dashboard URL 应返回核心判定区块和样式资源。"""
-        response = authenticated_client.get('/regime/dashboard/')
+        response = authenticated_client.get("/regime/dashboard/")
         _assert_expected_status(response, {200}, "Regime dashboard should load successfully")
         _assert_html_contract(
             response,
@@ -160,7 +162,7 @@ class TestNavigationNo404:
 
     def test_signal_manage_url_no_404(self, authenticated_client):
         """Signal 管理 URL 应返回创建区和统计区。"""
-        response = authenticated_client.get('/signal/manage/')
+        response = authenticated_client.get("/signal/manage/")
         _assert_expected_status(response, {200}, "Signal manage page should load successfully")
         _assert_html_contract(
             response,
@@ -175,13 +177,13 @@ class TestNavigationNo404:
 
     def test_policy_manage_url_no_404(self, authenticated_client):
         """Policy 管理 URL 应重定向到工作台。"""
-        response = authenticated_client.get('/policy/')
+        response = authenticated_client.get("/policy/")
         _assert_expected_status(response, {301, 302}, "Policy manage page should redirect")
         assert "/policy/workbench/" in response.headers["Location"]
 
     def test_policy_workbench_url_contract(self, authenticated_client):
         """Policy 工作台应返回概览卡片与事件表格。"""
-        response = authenticated_client.get('/policy/workbench/')
+        response = authenticated_client.get("/policy/workbench/")
         _assert_expected_status(response, {200}, "Policy workbench should load successfully")
         _assert_html_contract(
             response,
@@ -196,7 +198,7 @@ class TestNavigationNo404:
 
     def test_equity_screen_url_contract(self, authenticated_client):
         """个股筛选页应返回流程区和推荐区。"""
-        response = authenticated_client.get('/equity/screen/')
+        response = authenticated_client.get("/equity/screen/")
         _assert_expected_status(response, {200}, "Equity screen should load successfully")
         _assert_html_contract(
             response,
@@ -210,7 +212,7 @@ class TestNavigationNo404:
 
     def test_fund_dashboard_url_contract(self, authenticated_client):
         """基金分析页应返回统计卡和评分表。"""
-        response = authenticated_client.get('/fund/dashboard/')
+        response = authenticated_client.get("/fund/dashboard/")
         _assert_expected_status(response, {200}, "Fund dashboard should load successfully")
         _assert_html_contract(
             response,
@@ -225,7 +227,7 @@ class TestNavigationNo404:
 
     def test_asset_analysis_screen_url_contract(self, authenticated_client):
         """资产筛选页应返回资产池卡片和结果表格。"""
-        response = authenticated_client.get('/asset-analysis/screen/')
+        response = authenticated_client.get("/asset-analysis/screen/")
         _assert_expected_status(response, {200}, "Asset analysis screen should load successfully")
         _assert_html_contract(
             response,
@@ -239,7 +241,7 @@ class TestNavigationNo404:
 
     def test_simulated_trading_dashboard_url_no_404(self, authenticated_client):
         """模拟交易 Dashboard URL 应返回入口卡片和状态区。"""
-        response = authenticated_client.get('/simulated-trading/dashboard/')
+        response = authenticated_client.get("/simulated-trading/dashboard/")
         _assert_expected_status(
             response,
             {200},
@@ -257,7 +259,7 @@ class TestNavigationNo404:
 
     def test_backtest_create_url_no_404(self, authenticated_client):
         """回测创建 URL 应返回可用表单和约束字段。"""
-        response = authenticated_client.get('/backtest/create/')
+        response = authenticated_client.get("/backtest/create/")
         _assert_expected_status(response, {200}, "Backtest create page should load successfully")
         _assert_html_contract(
             response,
@@ -272,7 +274,7 @@ class TestNavigationNo404:
 
     def test_audit_reports_url_no_404(self, authenticated_client):
         """审计报告 URL 应返回报告列表或生成入口。"""
-        response = authenticated_client.get('/audit/reports/')
+        response = authenticated_client.get("/audit/reports/")
         _assert_expected_status(response, {200}, "Audit reports page should load successfully")
         _assert_html_contract(
             response,
@@ -290,7 +292,7 @@ class TestNavigationNo404:
 
     def test_filter_dashboard_url_contract(self, authenticated_client):
         """滤波页面应返回选择器、摘要区和图表容器。"""
-        response = authenticated_client.get('/filter/dashboard/')
+        response = authenticated_client.get("/filter/dashboard/")
         _assert_expected_status(response, {200}, "Filter dashboard should load successfully")
         _assert_html_contract(
             response,
@@ -307,7 +309,11 @@ class TestNavigationNo404:
 
     def test_rotation_assets_url_contract(self, authenticated_client):
         """轮动资产页应返回统计卡和资产卡片。"""
-        response = authenticated_client.get('/rotation/assets/')
+        user = User.objects.get(email="nav@test.com")
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+        authenticated_client.force_login(user)
+        response = authenticated_client.get("/rotation/assets/")
         _assert_expected_status(response, {200}, "Rotation assets page should load successfully")
         _assert_html_contract(
             response,
@@ -336,13 +342,13 @@ class TestAPIEndpointsNo404:
 
     def test_api_health_check_no_404(self, api_client):
         """健康检查 API 应返回成功状态。"""
-        response = api_client.get('/api/health/')
+        response = api_client.get("/api/health/")
         _assert_expected_status(response, {200}, "API health check should be available")
         assert response["Content-Type"].startswith("application/json")
 
     def test_api_regime_current_no_404(self, api_client):
         """Regime 当前状态 API 应要求认证或返回成功。"""
-        response = api_client.get('/api/regime/current/')
+        response = api_client.get("/api/regime/current/")
         _assert_expected_status(
             response,
             {200, 401, 403},
@@ -351,7 +357,7 @@ class TestAPIEndpointsNo404:
 
     def test_api_signal_list_no_404(self, api_client):
         """Signal 列表 API 应要求认证或返回成功。"""
-        response = api_client.get('/api/signal/')
+        response = api_client.get("/api/signal/")
         _assert_expected_status(
             response,
             {200, 401, 403, 405},
@@ -360,10 +366,9 @@ class TestAPIEndpointsNo404:
 
     def test_api_policy_list_no_404(self, api_client):
         """Policy 列表 API 应要求认证或返回成功。"""
-        response = api_client.get('/api/policy/')
+        response = api_client.get("/api/policy/")
         _assert_expected_status(
             response,
             {200, 401, 403, 405},
             "Policy list API should be reachable",
         )
-
