@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock
 
-from apps.prompt.application.trace_logging import AgentExecutionLogger, _truncate
+from apps.prompt.application.trace_logging import AgentExecutionLogger, _safe_trace_text
 from apps.prompt.domain.agent_entities import (
     AgentExecutionRequest,
     AgentExecutionResponse,
@@ -55,9 +55,9 @@ def test_success_trace_is_bounded_structured_and_persisted() -> None:
 
     log = repository.create_log.call_args.args[0]
     assert log["execution_id"] == "execution-1"
-    assert len(log["rendered_prompt"]) == 5003
-    assert log["rendered_prompt"].endswith("...")
-    assert len(log["ai_response"]) == 5003
+    assert len(log["rendered_prompt"]) == 5000
+    assert log["rendered_prompt"].endswith("...[truncated]")
+    assert len(log["ai_response"]) == 5000
     assert log["status"] == "success"
     assert log["placeholder_values"] == {
         "context_scope": ["macro"],
@@ -70,7 +70,7 @@ def test_success_trace_is_bounded_structured_and_persisted() -> None:
             "arguments": {"asset": "000001.SZ"},
             "success": True,
             "duration_ms": 12,
-            "error": None,
+            "error": "",
         },
         {
             "tool_name": "policy.current",
@@ -99,7 +99,7 @@ def test_failed_trace_tolerates_empty_values_and_repository_failure() -> None:
     assert log["ai_response"] == ""
     assert log["parsed_output"]["tool_calls"] == []
     assert log["status"] == "error"
-    assert log["error_message"] == "provider unavailable"
+    assert log["error_message"] == "prompt_agent_execution_failed"
 
 
 def test_logger_without_repository_and_truncation_boundaries_are_safe() -> None:
@@ -108,7 +108,8 @@ def test_logger_without_repository_and_truncation_boundaries_are_safe() -> None:
         AgentExecutionResponse(success=True, final_answer="world"),
     )
 
-    assert _truncate(None, 5) is None
-    assert _truncate("", 5) == ""
-    assert _truncate("short", 5) == "short"
-    assert _truncate("longer", 4) == "long..."
+    assert _safe_trace_text(None, 5) == ""
+    assert _safe_trace_text("", 5) == ""
+    assert _safe_trace_text("short", 5) == "short"
+    assert _safe_trace_text("longer", 4) == "...["
+    assert _safe_trace_text("token=secret-value", 100) == "token=***"

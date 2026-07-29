@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 
 from apps.agent_runtime.infrastructure.context_snapshot_repository import (
     DjangoContextSnapshotRepository,
+    _invalid_input,
     _unavailable,
-    _unsupported,
 )
 
 
@@ -212,9 +212,7 @@ def test_context_snapshot_extended_summaries_cover_all_supported_sources() -> No
             assert fetch()[result_key] == 6
 
     audit_manager = MagicMock()
-    audit_manager.order_by.return_value.first.return_value = SimpleNamespace(
-        timestamp=observed_at
-    )
+    audit_manager.order_by.return_value.first.return_value = SimpleNamespace(timestamp=observed_at)
     with patch.dict(
         sys.modules,
         {
@@ -256,9 +254,7 @@ def test_context_snapshot_extended_summaries_cover_all_supported_sources() -> No
             )
         },
     ):
-        assert repository.fetch_sentiment_freshness_summary()["sentiment"].startswith(
-            "2026-07-25"
-        )
+        assert repository.fetch_sentiment_freshness_summary()["sentiment"].startswith("2026-07-25")
         sentiment_manager.order_by.return_value.first.return_value = None
         assert repository.fetch_sentiment_freshness_summary()["status"] == "no_data"
 
@@ -293,9 +289,7 @@ def test_context_snapshot_lists_and_degradation_contracts() -> None:
         },
     ):
         assert repository.fetch_pending_signal_summary()["pending_approval"] == 3
-        assert repository.fetch_signal_invalidation_summary()[
-            "with_invalidation_logic"
-        ] == 2
+        assert repository.fetch_signal_invalidation_summary()["with_invalidation_logic"] == 2
 
     position_manager = MagicMock()
     position_manager.filter.return_value.values.return_value.__getitem__.return_value = [
@@ -310,12 +304,16 @@ def test_context_snapshot_lists_and_degradation_contracts() -> None:
             )
         },
     ):
-        assert repository.fetch_portfolio_position_summary(7)["top_positions"][0][
-            "asset_code"
-        ] == "A"
+        assert (
+            repository.fetch_portfolio_position_summary(7)["top_positions"][0]["asset_code"] == "A"
+        )
 
-    assert _unavailable("source", "offline")["status"] == "unavailable"
-    assert _unsupported("source", "not implemented")["status"] == "unsupported"
+    assert _unavailable("source") == {
+        "status": "unavailable",
+        "source": "source",
+        "error": "source_fetch_failed",
+    }
+    assert _invalid_input("source", "identifier_invalid")["status"] == "invalid_input"
     with patch.dict(sys.modules, {"apps.regime.infrastructure.models": SimpleNamespace()}):
         degraded = repository.fetch_regime_summary()
     assert degraded["status"] == "unavailable"

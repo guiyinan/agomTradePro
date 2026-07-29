@@ -51,12 +51,15 @@ def _safe_trace_text(value: str | None, max_length: int) -> str:
 
     if not value:
         return ""
+    limit = max(0, max_length)
     redacted = _TRACE_CREDENTIAL_URL_PATTERN.sub(r"\1://***@", value)
     redacted = _TRACE_BEARER_PATTERN.sub("Bearer ***", redacted)
     redacted = _TRACE_SECRET_PATTERN.sub(r"\1=***", redacted)
-    if len(redacted) > max_length:
+    if len(redacted) > limit:
         suffix = "...[truncated]"
-        return f"{redacted[: max(0, max_length - len(suffix))]}{suffix}"
+        if limit <= len(suffix):
+            return suffix[:limit]
+        return f"{redacted[: limit - len(suffix)]}{suffix}"
     return redacted
 
 
