@@ -111,9 +111,7 @@ def test_account_input_helpers_cover_valid_and_invalid_boundaries() -> None:
         with pytest.raises(ValueError):
             account_tools._normalize_transaction_input(row)
 
-    flow = account_tools._normalize_capital_flow_input(
-        {"flow_type": "deposit", "amount": 100}
-    )
+    flow = account_tools._normalize_capital_flow_input({"flow_type": "deposit", "amount": 100})
     assert flow["flow_date"]
     assert flow["notes"] == ""
     for row in [
@@ -358,7 +356,8 @@ def test_broker_json_and_trading_cost_wrappers(
         {"data": {"total": 5}},
         {"total": 6},
     ]
-    assert tools["create_trading_cost_config"](1)["id"] == 4
+    assert tools["create_trading_cost_config"](1, min_commission=5.0)["id"] == 4
+    assert client.post.call_args.kwargs["json"]["min_commission"] == 5.0
     client.patch.return_value = {"id": 4, "is_active": False}
     updated = tools["update_trading_cost_config"](
         4,
