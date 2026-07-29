@@ -6279,3 +6279,18 @@
 - Alpha user/评分/日期/排序/隔离/动态仓储/因子专项 `10 passed`；真实 score upload、preview/commit 同目标、权限、用户隔离和 Alpha API 扩展组合 `45 passed`；新增 factor/upload 稳定 503 合同定向 `4 passed`。
 - `apps/alpha/application/interface_services.py` 与 `apps/alpha/interface/score_upload_api_views.py` 增量 mypy 清零并退出债务清单；Alpha views 联合检查保持零回归，全仓基线从 `427 errors / 242 files` 收紧为 `422 errors / 240 files`，净减少 `5 errors / 2 files`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未改变 Alpha upload/preview/factor 成功响应结构或数据库结构。
+
+## 第四百一十批
+
+- 按“AI Provider 配置可由直接 ORM 绕过 scope/owner 与 URL 合同 × 非有限预算和敏感 extra config 可持久化 × usage 计费归因可伪造 × 原始凭据可进入用量证据 × Admin 可删除计费日志”收口提供商配置与用量证据边界。
+- Provider 每次写入验证 system/user owner 对应关系、正整数优先级、无嵌入凭据的 HTTP(S) base URL、有限且非负的日/月预算及 `daily <= monthly`；名称、默认模型、描述与密文长度有界。
+- 明文与密文 API key 不得同时存在；`api_key_encrypted` 只接受正式加密封装前缀，误把明文写入密文字段的记录在模型边界直接拒绝，不再依赖读取仓储静默忽略。
+- `extra_config` 要求有限、可 JSON 序列化、无 credential key 且不超过 256 KiB；timeout、temperature、retry、token 和 supported model 等已知运行选项有明确范围，写入时序列化 round-trip 与调用方嵌套容器隔离。
+- Usage Log 插入前验证 token/耗时/成本非负有限、总 token 勾稽以及 personal/system fallback/system global 的用户、provider scope 与 quota charged 一致性；成功记录清空 error，失败正文和 metadata 递归遮蔽 password/token/API key/Authorization/cookie/session/credential 与带认证 URL。
+- Usage Log 实例更新与删除失败关闭，Admin 同时禁止新增、修改和删除；Fallback Quota 直接 ORM 写入同样验证有限非负额度、日/月勾稽与备注边界。
+
+## 第四百一十批验证结果
+
+- AI Provider 模型边界、加密与 Admin 守卫专项 `22 passed`；全部 AI Provider 单元/组件/API 回归 `130 passed`；Prompt、Terminal、TUI、SDK 与内部 SSL 跨模块消费者组合 `278 passed`。
+- `apps/ai_provider/infrastructure/models.py` 增量 mypy 清零并退出债务清单，Admin 联合检查保持零回归；全仓基线从 `422 errors / 240 files` 收紧为 `419 errors / 239 files`，净减少 `3 errors / 1 file`。
+- Django system check、AI Provider migration drift、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未改变 AI Provider API 成功响应结构或数据库结构。

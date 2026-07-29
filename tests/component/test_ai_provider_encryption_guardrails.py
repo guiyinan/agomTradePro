@@ -1,4 +1,5 @@
 import pytest
+from django.core.exceptions import ValidationError
 
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.ai_provider.infrastructure.repositories import AIProviderRepository
@@ -102,20 +103,22 @@ def test_repository_filters_out_unusable_active_system_providers(settings):
 
 
 @pytest.mark.django_db
-def test_repository_never_treats_encrypted_field_as_plaintext(settings):
+def test_model_rejects_plaintext_in_encrypted_field(settings):
     settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
-    repo = AIProviderRepository()
-    provider = AIProviderConfig.objects.create(
-        name="guardrail-plaintext-in-encrypted-field",
-        provider_type="custom",
-        base_url="https://example.invalid/v1",
-        api_key="",
-        api_key_encrypted="sk-misfiled-plaintext",
-        default_model="gpt-4o-mini",
-    )
 
-    assert repo.get_api_key(provider) == ""
-    assert repo.has_usable_api_key(provider) is False
+    with pytest.raises(ValidationError, match="encrypted API key format is invalid"):
+        AIProviderConfig.objects.create(
+            name="guardrail-plaintext-in-encrypted-field",
+            provider_type="custom",
+            base_url="https://example.invalid/v1",
+            api_key="",
+            api_key_encrypted="sk-misfiled-plaintext",
+            default_model="gpt-4o-mini",
+        )
+
+    assert not AIProviderConfig.objects.filter(
+        name="guardrail-plaintext-in-encrypted-field"
+    ).exists()
 
 
 @pytest.mark.django_db

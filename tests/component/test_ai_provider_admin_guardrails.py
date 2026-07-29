@@ -1,9 +1,11 @@
 import pytest
 from django.contrib import admin
+from django.contrib.auth import get_user_model
+from django.test import RequestFactory
 
 from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-from apps.ai_provider.interface.admin import AIProviderConfigAdmin
-from apps.ai_provider.models import AIProviderConfig
+from apps.ai_provider.interface.admin import AIProviderConfigAdmin, AIUsageLogAdmin
+from apps.ai_provider.models import AIProviderConfig, AIUsageLog
 from shared.infrastructure.crypto import FieldEncryptionService
 
 
@@ -39,3 +41,19 @@ def test_provider_admin_mask_does_not_disclose_key_suffix(settings):
     provider.refresh_from_db()
     assert provider.api_key == ""
     assert provider.api_key_encrypted
+
+
+@pytest.mark.django_db
+def test_usage_admin_disables_all_mutations():
+    request = RequestFactory().get("/admin/ai_provider/aiusagelog/")
+    request.user = get_user_model().objects.create_superuser(
+        username="usage_evidence_admin",
+        password="testpass123",
+        email="usage-evidence@example.com",
+    )
+    model_admin = admin.site._registry[AIUsageLog]
+
+    assert isinstance(model_admin, AIUsageLogAdmin)
+    assert model_admin.has_add_permission(request) is False
+    assert model_admin.has_change_permission(request) is False
+    assert model_admin.has_delete_permission(request) is False

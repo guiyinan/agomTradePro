@@ -110,6 +110,16 @@ class AIUsageLogAdmin(TypedModelAdmin[AIUsageLog]):
     ) -> bool:
         return False
 
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: AIUsageLog | None = None,
+    ) -> bool:
+        """Keep generated usage and billing evidence append-only."""
+
+        del request, obj
+        return False
+
 
 @admin.register(AIUserFallbackQuota)
 class AIUserFallbackQuotaAdmin(TypedModelAdmin[AIUserFallbackQuota]):

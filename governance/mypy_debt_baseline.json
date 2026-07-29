@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 422,
-    "files_with_errors": 240
+    "errors": 419,
+    "files_with_errors": 239
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -137,9 +137,6 @@
     },
     "apps/ai_provider/infrastructure/management/commands/encrypt_api_keys.py": {
       "no-untyped-def": 2
-    },
-    "apps/ai_provider/infrastructure/models.py": {
-      "no-untyped-def": 3
     },
     "apps/ai_provider/interface/api_urls.py": {
       "no-untyped-def": 1
