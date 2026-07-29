@@ -6262,3 +6262,20 @@
 - Prompt 模型采样策略、placeholder/chain、证据脱敏、token 勾稽、append-only 与 trace writer 专项 `11 passed`；全 Prompt Domain、序列化、接口服务、初始化命令、宏观适配、evaluation gate、API 和 AI Capability owner 回归 `131 passed`。
 - `apps/prompt/infrastructure/models.py` 与 `apps/prompt/application/trace_logging.py` 增量 mypy 清零并退出债务清单；Repository 联合检查保持零回归，全仓基线从 `433 errors / 244 files` 收紧为 `427 errors / 242 files`，净减少 `6 errors / 2 files`。
 - Django system check、Prompt migration drift、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改公开 API 成功响应或数据库结构。
+
+## 第四百零九批
+
+- 按“Alpha score upload 仅依赖 DRF 校验、内部调用可传字符串日期/bool 用户/NaN/重复排名 × 动态仓储返回直接发布 × 因子暴露可携带非有限值 × 底层异常正文进入 500”收口 Alpha Application 对外服务边界。
+- 新增 Alpha user、cache record、score item、preview target、preview response 与 factor exposure 精确合同；cache upsert 不再返回 `tuple[Any, bool]`，preview/factor payload 不再由动态 dict 向 Interface 扩散。
+- preview 与 commit 共用同一 Application 规范化入口：要求 persisted positive user ID 或显式 system scope、plain date 且 `asof <= intended_trade_date`、有界 universe/model/artifact 标识和 `1..1000` 条评分。
+- 每条评分必须完整包含 code/score/rank/factors/confidence/source；score、confidence 和全部 factor 必须有限，confidence 限制 `0..1`，rank/code 唯一，factor/source 数量和标识有界；结果按 rank/code 稳定排序并与调用方嵌套容器隔离。
+- cache write 返回必须是带正整数主键的记录和真实 bool created；preview existing evidence 必须包含完整、合法、可序列化的 id/count/date/model/update 字段，动态对象、bool ID、负计数或残缺 dict 使用稳定错误失败关闭。
+- factor exposure 要求正式 plain date、规范股票代码/provider 和最多 500 个有限因子；Provider 返回 NaN/Infinity、bool、动态容器或非法因子名不再进入 API JSON。
+- Alpha upload/preview 对 Application 输入失配返回稳定 400；数据库、仓储与动态返回故障返回 `alpha_score_cache_unavailable` 503。因子证据损坏返回 `alpha_factor_exposure_unavailable` 503；连接串和底层异常正文不再反射。
+- score upload view 的 write-user 边界补齐精确返回合同；Alpha score 查询的跨用户变量显式发布可空 opaque user 类型，保持 staff 授权和用户不存在语义不变。
+
+## 第四百零九批验证结果
+
+- Alpha user/评分/日期/排序/隔离/动态仓储/因子专项 `10 passed`；真实 score upload、preview/commit 同目标、权限、用户隔离和 Alpha API 扩展组合 `45 passed`；新增 factor/upload 稳定 503 合同定向 `4 passed`。
+- `apps/alpha/application/interface_services.py` 与 `apps/alpha/interface/score_upload_api_views.py` 增量 mypy 清零并退出债务清单；Alpha views 联合检查保持零回归，全仓基线从 `427 errors / 242 files` 收紧为 `422 errors / 240 files`，净减少 `5 errors / 2 files`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未改变 Alpha upload/preview/factor 成功响应结构或数据库结构。

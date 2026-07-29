@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 427,
-    "files_with_errors": 242
+    "errors": 422,
+    "files_with_errors": 240
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -147,9 +147,6 @@
     "apps/alpha/application/ai_filter.py": {
       "no-any-return": 1
     },
-    "apps/alpha/application/interface_services.py": {
-      "no-untyped-def": 4
-    },
     "apps/alpha/application/pool_resolver.py": {
       "no-untyped-def": 2
     },
@@ -161,9 +158,6 @@
     },
     "apps/alpha/infrastructure/cache_evaluation.py": {
       "var-annotated": 1
-    },
-    "apps/alpha/interface/score_upload_api_views.py": {
-      "no-untyped-def": 1
     },
     "apps/alpha/management/commands/activate_model.py": {
       "index": 1,

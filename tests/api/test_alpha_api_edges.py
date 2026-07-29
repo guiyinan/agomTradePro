@@ -199,6 +199,61 @@ def test_alpha_upload_scores_requires_admin_for_system_scope(authenticated_clien
 
 
 @pytest.mark.django_db
+def test_factor_exposure_corruption_returns_stable_service_error(authenticated_client):
+    with patch(
+        "apps.alpha.interface.views.get_factor_exposure_payload",
+        side_effect=RuntimeError("postgresql://user:secret@internal-db"),
+    ):
+        response = authenticated_client.get("/api/alpha/factor-exposure/000001.SZ/?provider=simple")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "success": False,
+        "error": "alpha_factor_exposure_unavailable",
+    }
+    assert "secret@internal-db" not in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("path", "patched_name"),
+    [
+        (
+            "/api/alpha/scores/upload/preview/",
+            "preview_alpha_score_upload",
+        ),
+        (
+            "/api/alpha/scores/upload/",
+            "upload_alpha_scores",
+        ),
+    ],
+)
+def test_alpha_upload_repository_failure_returns_stable_service_error(
+    authenticated_client,
+    path,
+    patched_name,
+):
+    payload = {
+        "universe_id": "csi300",
+        "asof_date": "2026-04-02",
+        "intended_trade_date": "2026-04-03",
+        "scores": [{"code": "600519.SH", "score": 0.9, "rank": 1}],
+    }
+    with patch(
+        f"apps.alpha.interface.score_upload_api_views.{patched_name}",
+        side_effect=RuntimeError("postgresql://user:secret@internal-db"),
+    ):
+        response = authenticated_client.post(path, payload, format="json")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "success": False,
+        "error": "alpha_score_cache_unavailable",
+    }
+    assert "secret@internal-db" not in response.content.decode()
+
+
+@pytest.mark.django_db
 def test_alpha_health_returns_503_when_all_providers_unavailable(authenticated_client):
     with patch(
         "apps.alpha.interface.views.AlphaService.get_provider_status",

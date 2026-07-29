@@ -187,7 +187,7 @@ def get_stock_scores(request: Request) -> Response:
         offset = params.validated_data.get("offset", 0)
         provider_filter = params.validated_data.get("provider", "")
         ai_filter = params.validated_data.get("ai_filter", False)
-        requested_user = request.user
+        requested_user: object | None = request.user
         requested_user_id = params.validated_data.get("user_id")
         service_top_n = max(top_n, offset + limit) if limit is not None else top_n
 
@@ -332,6 +332,11 @@ def get_factor_exposure(request: Request, stock_code: str) -> Response:
         return Response(
             {"success": False, "error": str(exc)},
             status=status.HTTP_404_NOT_FOUND,
+        )
+    except RuntimeError:
+        return Response(
+            {"success": False, "error": "alpha_factor_exposure_unavailable"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     return Response(payload)
 

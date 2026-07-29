@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from django.db import DatabaseError
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
@@ -23,7 +24,7 @@ def _validated_upload(request: Request) -> dict[str, Any]:
     return dict(serializer.validated_data)
 
 
-def _write_user(request: Request, scope: str):
+def _write_user(request: Request, scope: str) -> object | None:
     if scope == "system":
         if not request.user.is_staff:
             raise PermissionDenied("只有管理员可以上传系统级评分（scope=system）")
@@ -38,15 +39,26 @@ def preview_score_upload(request: Request) -> Response:
 
     data = _validated_upload(request)
     scope = data.get("scope", "user")
-    preview = preview_alpha_score_upload(
-        write_user=_write_user(request, scope),
-        universe_id=data["universe_id"],
-        asof_date=data["asof_date"],
-        intended_trade_date=data["intended_trade_date"],
-        model_id=data["model_id"],
-        model_artifact_hash=data["model_artifact_hash"],
-        scores=data["scores"],
-    )
+    try:
+        preview = preview_alpha_score_upload(
+            write_user=_write_user(request, scope),
+            universe_id=data["universe_id"],
+            asof_date=data["asof_date"],
+            intended_trade_date=data["intended_trade_date"],
+            model_id=data["model_id"],
+            model_artifact_hash=data["model_artifact_hash"],
+            scores=data["scores"],
+        )
+    except ValueError:
+        return Response(
+            {"success": False, "error": "alpha_score_upload_invalid"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except (DatabaseError, RuntimeError, TypeError):
+        return Response(
+            {"success": False, "error": "alpha_score_cache_unavailable"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     return Response({"success": True, "preview": preview})
 
 
@@ -57,15 +69,26 @@ def upload_scores(request: Request) -> Response:
 
     data = _validated_upload(request)
     scope = data.get("scope", "user")
-    cache_obj, created = upload_alpha_scores(
-        write_user=_write_user(request, scope),
-        universe_id=data["universe_id"],
-        asof_date=data["asof_date"],
-        intended_trade_date=data["intended_trade_date"],
-        model_id=data["model_id"],
-        model_artifact_hash=data["model_artifact_hash"],
-        scores=data["scores"],
-    )
+    try:
+        cache_obj, created = upload_alpha_scores(
+            write_user=_write_user(request, scope),
+            universe_id=data["universe_id"],
+            asof_date=data["asof_date"],
+            intended_trade_date=data["intended_trade_date"],
+            model_id=data["model_id"],
+            model_artifact_hash=data["model_artifact_hash"],
+            scores=data["scores"],
+        )
+    except ValueError:
+        return Response(
+            {"success": False, "error": "alpha_score_upload_invalid"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except (DatabaseError, RuntimeError, TypeError):
+        return Response(
+            {"success": False, "error": "alpha_score_cache_unavailable"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     return Response(
         {
             "success": True,
