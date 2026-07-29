@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.operational_readiness.infrastructure.readiness_window_validation_calendar import (
     _load_qlib_trading_calendar,
@@ -28,7 +29,7 @@ DEFAULT_CALENDAR_SOURCE = "auto"
 class Command(BaseCommand):
     help = "Validate continuous personal readiness evidence over trading days."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--output-dir",
             default=DEFAULT_OUTPUT_DIR,
@@ -98,8 +99,8 @@ def validate_personal_readiness_window(
     output_dir: Path,
     required_days: int = DEFAULT_REQUIRED_DAYS,
     calendar_source: str = DEFAULT_CALENDAR_SOURCE,
-    expected_latest_date=None,
-    trading_calendar=None,
+    expected_latest_date: date | None = None,
+    trading_calendar: set[date] | list[date] | tuple[date, ...] | None = None,
 ) -> dict[str, Any]:
     """Validate readiness evidence files against the continuous-run acceptance gate."""
 

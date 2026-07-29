@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from io import StringIO
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -43,6 +44,31 @@ def test_resolve_default_readiness_target_date_does_not_hide_stale_qlib_calendar
     )
 
     assert command_module.resolve_default_readiness_target_date() == date(2026, 7, 1)
+
+
+def test_runtime_trade_date_boundary_rejects_dynamic_invalid_value(monkeypatch):
+    monkeypatch.setattr(
+        command_module,
+        "import_module",
+        lambda name: SimpleNamespace(resolve_recent_closed_trade_date=lambda: "2026-07-01"),
+    )
+
+    with pytest.raises(CommandError, match="invalid value"):
+        command_module.resolve_recent_closed_trade_date()
+
+
+def test_runtime_account_repair_boundary_rejects_dynamic_invalid_payload(monkeypatch):
+    monkeypatch.setattr(
+        command_module,
+        "import_module",
+        lambda name: SimpleNamespace(
+            AccountReadinessRepairRequest=lambda **kwargs: object(),
+            repair_personal_account_readiness=lambda request: ["not", "an", "object"],
+        ),
+    )
+
+    with pytest.raises(CommandError, match="invalid payload"):
+        command_module.repair_personal_account_readiness(object())
 
 
 def test_parse_date_keeps_explicit_target_date(monkeypatch):

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.operational_readiness.domain.evidence_contract import (
     ACCEPTED_DECISION_QUOTE_FRESHNESS_STATUSES,
@@ -28,7 +28,7 @@ from apps.operational_readiness.management.commands.validate_personal_readiness_
 class Command(BaseCommand):
     help = "Inspect a personal readiness evidence JSON file and explain blockers."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--output-dir",
             default=DEFAULT_OUTPUT_DIR,
@@ -1098,7 +1098,7 @@ def _append_degradation_observations(
             parts.append(f"stale={','.join(str(item) for item in stale_components)}")
         if missing_components:
             parts.append(f"missing={','.join(str(item) for item in missing_components)}")
-        observation = {
+        observation: dict[str, Any] = {
             "component": "decision_data.market_thermometer",
             "status": "resolved_after_evidence" if current_resolution else "degraded",
             "reason": "; ".join(parts),

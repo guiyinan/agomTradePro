@@ -7,9 +7,9 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from importlib import import_module
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.operational_readiness.management.commands.collect_personal_readiness_evidence import (
     DEFAULT_OUTPUT_DIR,
@@ -23,11 +23,38 @@ from apps.operational_readiness.management.commands.validate_personal_readiness_
 )
 
 
+class _ReadinessRepairRequestFactory(Protocol):
+    """Runtime constructor contract for the simulated-trading repair request."""
+
+    def __call__(
+        self,
+        *,
+        user_id: int | None,
+        account_id: int | None,
+        initial_capital: Decimal,
+        dry_run: bool,
+    ) -> object: ...
+
+
+class _ReadinessRepairModule(Protocol):
+    """Runtime application facade loaded without a static dependency."""
+
+    AccountReadinessRepairRequest: _ReadinessRepairRequestFactory
+
+    def repair_personal_account_readiness(self, request: object) -> object: ...
+
+
+class _TradeDatesModule(Protocol):
+    """Runtime closed-trade-date resolver contract."""
+
+    def resolve_recent_closed_trade_date(self) -> date: ...
+
+
 class Command(BaseCommand):
     help = "Run account preflight, daily evidence collection, and window validation."
     stealth_options = ("trigger_source", "trigger_task_id", "trigger_task_name")
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--target-date",
             dest="target_date",
@@ -293,22 +320,37 @@ def resolve_default_readiness_target_date() -> date:
 def resolve_recent_closed_trade_date() -> date:
     """Resolve Alpha's closed-trade-date helper without a static app dependency."""
 
-    module = import_module("apps.alpha.application.trade_dates")
-    return module.resolve_recent_closed_trade_date()
+    module = cast(
+        _TradeDatesModule,
+        import_module("apps.alpha.application.trade_dates"),
+    )
+    resolved = module.resolve_recent_closed_trade_date()
+    if not isinstance(resolved, date):
+        raise CommandError("closed trade date resolver returned an invalid value")
+    return resolved
 
 
-def AccountReadinessRepairRequest(**kwargs: Any) -> Any:
+def AccountReadinessRepairRequest(**kwargs: Any) -> object:
     """Build the simulated-trading account readiness request at runtime."""
 
-    module = import_module("apps.simulated_trading.application.readiness_services")
+    module = cast(
+        _ReadinessRepairModule,
+        import_module("apps.simulated_trading.application.readiness_services"),
+    )
     return module.AccountReadinessRepairRequest(**kwargs)
 
 
-def repair_personal_account_readiness(request: Any) -> dict[str, Any]:
+def repair_personal_account_readiness(request: object) -> dict[str, Any]:
     """Run simulated-trading account readiness repair without a static dependency."""
 
-    module = import_module("apps.simulated_trading.application.readiness_services")
-    return module.repair_personal_account_readiness(request)
+    module = cast(
+        _ReadinessRepairModule,
+        import_module("apps.simulated_trading.application.readiness_services"),
+    )
+    result = module.repair_personal_account_readiness(request)
+    if not isinstance(result, dict):
+        raise CommandError("account readiness repair returned an invalid payload")
+    return result
 
 
 def _validate_target_date_is_closed(

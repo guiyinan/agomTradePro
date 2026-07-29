@@ -23,6 +23,22 @@ ORIGINAL_COLLECT_QUOTE_PRE_READINESS_SCHEDULER = (
 )
 
 
+def test_scheduler_query_failure_does_not_expose_exception_details(monkeypatch):
+    def fail_query(*args, **kwargs):
+        raise RuntimeError("postgres://admin:secret@db.internal/readiness")
+
+    monkeypatch.setattr(command_module.PeriodicTask.objects, "filter", fail_query)
+
+    payload = command_module._collect_scheduler_status()
+
+    assert payload == {
+        "status": "error",
+        "error": "scheduler_query_failed",
+        "exception_type": "RuntimeError",
+    }
+    assert "secret" not in str(payload)
+
+
 @pytest.fixture(autouse=True)
 def _default_auto_advisor_weekly_scheduler(monkeypatch):
     monkeypatch.setattr(

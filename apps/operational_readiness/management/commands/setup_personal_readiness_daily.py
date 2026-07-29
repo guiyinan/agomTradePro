@@ -5,9 +5,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
-from django_celery_beat.models import CrontabSchedule, PeriodicTask, PeriodicTasks
+from django_celery_beat.models import (  # type: ignore[import-untyped]
+    CrontabSchedule,
+    PeriodicTask,
+    PeriodicTasks,
+)
 
 TASK_NAME = "personal-readiness-daily-evidence"
 TASK_PATH = "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task"
@@ -27,7 +31,7 @@ DEFAULT_TASK_KWARGS: dict[str, object] = {
 class Command(BaseCommand):
     help = "Create/update the personal readiness daily evidence periodic task."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--hour", type=int, default=DEFAULT_RUN_HOUR, help="Run hour (0-23).")
         parser.add_argument(
             "--minute",
@@ -60,7 +64,7 @@ class Command(BaseCommand):
         )
         parser.add_argument("--disable", action="store_true", help="Disable the periodic task.")
 
-    def handle(self, *args, **options) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         hour = int(options["hour"])
         minute = int(options["minute"])
         day_of_week = str(options["day_of_week"] or "").strip()
@@ -121,7 +125,7 @@ def _build_periodic_task_defaults(
     *,
     enabled: bool,
     kwargs: dict[str, object],
-    crontab: Any,
+    crontab: CrontabSchedule,
 ) -> dict[str, object]:
     defaults = {
         "task": TASK_PATH,
@@ -156,7 +160,7 @@ def _build_periodic_task_defaults(
     return defaults
 
 
-def _get_crontab(*, hour: int, minute: int, day_of_week: str):
+def _get_crontab(*, hour: int, minute: int, day_of_week: str) -> CrontabSchedule:
     crontab_kwargs = {
         "minute": str(minute),
         "hour": str(hour),

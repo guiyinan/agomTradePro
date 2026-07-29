@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from django.core.management.base import BaseCommand, CommandError
-from django_celery_beat.models import PeriodicTask
+from django.core.management.base import BaseCommand, CommandError, CommandParser
+from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
 
 from apps.operational_readiness.application import status_services
 from apps.operational_readiness.infrastructure import (
@@ -21,18 +21,18 @@ from apps.operational_readiness.infrastructure import (
 from apps.operational_readiness.infrastructure.readiness_runtime import (
     collect_local_scheduler_runtime,
 )
-from apps.operational_readiness.infrastructure.readiness_status_acceptance import (
+from apps.operational_readiness.infrastructure.readiness_status_acceptance import (  # noqa: F401 - compatibility export  # noqa: F401  # noqa: F401  # noqa: F401 - compatibility export
     DEFAULT_SCHEDULE_OVERDUE_GRACE_MINUTES,
     EXPECTED_SCHEDULE_DAY_OF_WEEK,
     EXPECTED_SCHEDULE_TIMEZONE,
     MIN_POST_CLOSE_SCHEDULE_MINUTES,
     STRICT_MONITOR_COMMAND,
     _build_acceptance_gate,
-    _build_acceptance_operator_actions,  # noqa: F401 - compatibility export
-    _build_auto_advisor_weekly_persistence_requirement,  # noqa: F401
-    _build_quote_pre_readiness_activity_requirement,  # noqa: F401
+    _build_acceptance_operator_actions,
+    _build_auto_advisor_weekly_persistence_requirement,
+    _build_quote_pre_readiness_activity_requirement,
     _build_schedule_expectation,
-    _build_scheduler_runtime_requirement,  # noqa: F401 - compatibility export
+    _build_scheduler_runtime_requirement,
     _get_scheduler_issue,
     _resolve_status_date,
     _rollup_status,
@@ -82,7 +82,7 @@ _parse_single_crontab_number = scheduler_status_utils.parse_single_crontab_numbe
 class Command(BaseCommand):
     help = "Show personal readiness window, evidence, and scheduler status."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--output-dir",
             default=DEFAULT_OUTPUT_DIR,
@@ -595,7 +595,11 @@ def _collect_scheduler_status() -> dict[str, Any]:
     try:
         task = PeriodicTask.objects.filter(name=TASK_NAME).first()
     except Exception as exc:
-        return {"status": "error", "error": str(exc)}
+        return {
+            "status": "error",
+            "error": "scheduler_query_failed",
+            "exception_type": type(exc).__name__,
+        }
 
     if task is None:
         return {
@@ -807,3 +811,11 @@ def _parse_date(value: Any) -> date | None:
         return date.fromisoformat(str(value))
     except ValueError as exc:
         raise CommandError("expected-latest-date must be YYYY-MM-DD") from exc
+
+
+__all__ = [
+    "Command",
+    "_build_schedule_expectation",
+    "_with_quote_pre_readiness_schedule_expectation",
+    "build_personal_readiness_status",
+]

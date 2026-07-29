@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+from django.core.management import CommandError
+
 from apps.task_monitor.management.commands import (
     simulate_personal_readiness_checkpoints as command_module,
 )
@@ -71,3 +74,20 @@ def test_simulate_personal_readiness_checkpoints_uses_injected_times(monkeypatch
         "2026-07-06T17:20:00+08:00",
         "2026-07-06T17:45:00+08:00",
     )
+
+
+@pytest.mark.parametrize(
+    ("times", "message"),
+    [
+        ((), "at least one"),
+        (("2026-07-03T16:20:00",), "timezone-aware"),
+        (("2026-07-04T16:20:00+08:00",), "must match target_date"),
+        (("not-an-iso-time",), "must be ISO datetime"),
+    ],
+)
+def test_simulate_checkpoints_rejects_invalid_clock_evidence(times, message):
+    with pytest.raises(CommandError, match=message):
+        command_module.simulate_checkpoints(
+            target_date=date(2026, 7, 3),
+            times=times,
+        )

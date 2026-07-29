@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 402,
-    "files_with_errors": 235
+    "errors": 382,
+    "files_with_errors": 228
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -474,33 +474,6 @@
     },
     "apps/operational_readiness/infrastructure/readiness_status_evidence.py": {
       "no-any-return": 1
-    },
-    "apps/operational_readiness/management/commands/inspect_personal_readiness_evidence.py": {
-      "assignment": 2,
-      "no-untyped-def": 1
-    },
-    "apps/operational_readiness/management/commands/repair_personal_readiness_evidence.py": {
-      "arg-type": 2,
-      "no-untyped-def": 1
-    },
-    "apps/operational_readiness/management/commands/run_personal_readiness_daily.py": {
-      "no-any-return": 2,
-      "no-untyped-def": 1
-    },
-    "apps/operational_readiness/management/commands/setup_personal_readiness_daily.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 3
-    },
-    "apps/operational_readiness/management/commands/show_personal_readiness_status.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 1
-    },
-    "apps/operational_readiness/management/commands/simulate_personal_readiness_checkpoints.py": {
-      "attr-defined": 2,
-      "no-untyped-def": 1
-    },
-    "apps/operational_readiness/management/commands/validate_personal_readiness_window.py": {
-      "no-untyped-def": 2
     },
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1

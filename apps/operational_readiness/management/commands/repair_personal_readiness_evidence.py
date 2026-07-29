@@ -6,10 +6,10 @@ import json
 from datetime import UTC, date, datetime
 from hashlib import sha256
 from pathlib import Path
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.operational_readiness.management.commands.collect_personal_readiness_evidence import (
     DEFAULT_OUTPUT_DIR,
@@ -25,10 +25,18 @@ REPAIR_TRIGGER_NAME = "apps.task_monitor.management.commands.repair_personal_rea
 REPAIR_ARCHIVE_DIRNAME = "_repair_archive"
 
 
+class _ArchivePaths(TypedDict):
+    """Canonical paths created while preserving historical evidence."""
+
+    json: str
+    markdown: str | None
+    manifest: NotRequired[str]
+
+
 class Command(BaseCommand):
     help = "Archive and rebuild one historical personal readiness evidence file."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--target-date",
             required=True,
@@ -192,7 +200,7 @@ def _archive_existing_files(
     json_path: Path,
     markdown_path: Path,
     repair_started_at: datetime,
-) -> dict[str, str | None]:
+) -> _ArchivePaths:
     archive_dir = (
         json_path.parent
         / REPAIR_ARCHIVE_DIRNAME

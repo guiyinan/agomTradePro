@@ -6339,3 +6339,19 @@
 - 项目规定的 TUI Workbench、Terminal Agent、SDK Client 与内部 SSL 固定回归包 `238 passed`。
 - `apps/broker_execution/admin.py` 增量 mypy 清零并退出债务清单；全仓基线从 `406 errors / 236 files` 收紧为 `402 errors / 235 files`，净减少 `4 errors / 1 file`。
 - Django system check、Broker Execution migration drift、改动文件 Ruff、Black、isort、增量 mypy、架构护栏与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未改变公开 API、TUI、MCP 或 SDK 成功响应结构。
+
+## 第四百一十四批
+
+- 按“Operational Readiness 七个生产命令共享无类型 CLI parser × 动态跨 App 返回 Any × repair archive 路径可空类型失真 × 模拟时钟可跨日/无时区 × scheduler 异常正文泄露”收口个人 readiness 运维命令族。
+- inspect、repair、daily run、scheduler setup、status、checkpoint simulation 与 window validation 全部使用 Django `CommandParser` 和精确 handle 参数合同；第三方 Celery Beat 类型缺口限制在局部 import 边界。
+- repair archive 引入精确 TypedDict，强制 canonical JSON 路径存在且 manifest 为显式可选扩展；不再把 `str | None` 直接交给 Path，历史证据归档、fingerprint 与 manifest 链保持可验证。
+- Alpha closed-trade-date 与 Simulated Trading account repair 的延迟 import 使用 Protocol 收窄；动态 resolver 非 date 或 repair 非对象 payload 时抛出稳定 CommandError，不再把 Any 传播到 daily evidence 与 acceptance window。
+- checkpoint simulation 要求至少一个 ISO、timezone-aware 且与 target date 同日的时点；无时区、跨日和非法字符串在调用 scheduler expectation 前失败关闭。
+- status scheduler 查询异常只发布 `scheduler_query_failed` 与异常类型，不再把 PostgreSQL/Redis URL、凭据或底层异常正文带入监控 JSON；simulation 所需的 schedule helper 通过显式模块导出合同发布。
+- inspection 的市场温度计 current-status 观察对象使用精确动态值容器，既保留修复后证据对象，又消除字符串字典误推断。
+
+## 第四百一十四批验证结果
+
+- Readiness 动态边界、模拟时钟、调度脱敏与命令定向组合 `93 passed`；全部 readiness、scheduler initialization、macro periodic task 与 weekly advisor 相关回归 `250 passed`。
+- 7 个 `apps/operational_readiness/management/commands/*.py` 目标文件增量 mypy 清零并退出债务清单；全仓基线从 `402 errors / 235 files` 收紧为 `382 errors / 228 files`，净减少 `20 errors / 7 files`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未修改数据库模型、公开 API、TUI/MCP/SDK 或部署配置。

@@ -4,7 +4,7 @@ import json
 from datetime import date, datetime
 from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.operational_readiness.infrastructure import (
     auto_advisor_weekly_scheduler_status as weekly_status,
@@ -24,7 +24,7 @@ DEFAULT_SIMULATED_CLOCKS = (
 class Command(BaseCommand):
     help = "Dry-run personal readiness checkpoint timing without changing system time."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--target-date",
             default="2026-07-03",
@@ -48,13 +48,24 @@ class Command(BaseCommand):
 
 
 def simulate_checkpoints(*, target_date: date, times: tuple[str, ...]) -> dict[str, Any]:
+    if not isinstance(target_date, date):
+        raise CommandError("target_date must be a date")
+    if not times:
+        raise CommandError("at least one simulated checkpoint time is required")
     validation = {"next_required_date": target_date.isoformat()}
     next_action = {"target_date": target_date.isoformat()}
     daily_scheduler = status_command._collect_scheduler_status()
     quote_scheduler = status_command._collect_quote_pre_readiness_scheduler_status()
     checkpoints = []
     for time_text in times:
-        now = datetime.fromisoformat(time_text)
+        try:
+            now = datetime.fromisoformat(time_text)
+        except (TypeError, ValueError) as exc:
+            raise CommandError("simulated checkpoint time must be ISO datetime") from exc
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise CommandError("simulated checkpoint time must be timezone-aware")
+        if now.date() != target_date:
+            raise CommandError("simulated checkpoint time must match target_date")
         quote = status_command._with_quote_pre_readiness_schedule_expectation(
             scheduler=quote_scheduler,
             validation=validation,
