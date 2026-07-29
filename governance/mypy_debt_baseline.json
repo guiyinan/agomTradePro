@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 410,
-    "files_with_errors": 237
+    "errors": 406,
+    "files_with_errors": 236
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -618,9 +618,6 @@
     },
     "apps/sentiment/apps.py": {
       "no-untyped-def": 1
-    },
-    "apps/sentiment/infrastructure/models.py": {
-      "no-untyped-def": 4
     },
     "apps/sentiment/interface/api_urls.py": {
       "no-untyped-def": 1

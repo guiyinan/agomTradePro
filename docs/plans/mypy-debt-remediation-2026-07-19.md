@@ -6309,3 +6309,18 @@
 - Sector 模型/Admin 边界、持久化、公开 API、Realtime 与 Equity 配置组合 `42 passed`；全部文件名含 Sector 的 Domain/Application/Repository/API 集成回归 `99 passed`；账户初始化命令消费者 `13 passed`。
 - `apps/sector/infrastructure/models.py` 与 `apps/sector/interface/admin.py` 增量 mypy 清零并退出债务清单；全仓基线从 `419 errors / 239 files` 收紧为 `410 errors / 237 files`，净减少 `9 errors / 2 files`。
 - Django system check、Sector migration drift、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未改变 Sector/Realtime API 成功响应结构或数据库结构。
+
+## 第四百一十二批
+
+- 按“Sentiment Domain 校验可被直接 ORM 绕过 × NaN/Infinity 与 bool 可进入策略/Agent Context × AI 分析原文和告警元数据可沉积凭据 × 分析日志可改删 × 告警解决状态可矛盾”收口情绪持久化边界。
+- 四类 Sentiment 模型统一在普通 ORM save/update_or_create 前校验原始值与规范值；FloatField 转换前拒绝 bool，评分、综合指数、置信度与行业情绪要求有限且处于正式范围，新闻/政策计数要求非负整数。
+- sector sentiment 限制为最多 500 个有界行业键与 `-3..3` 分数并防御复制；Agent Context、策略和 API 不再读取动态对象、NaN/Infinity 或调用方后续修改的行业映射。
+- Analysis Log 与 Cache 要求正式分类、有限评分/置信度、唯一且有界关键词；cache key 必须为 SHA-256 hex。Cache 继续允许更新和受权清理，Analysis Log 插入后实例更新/删除失败关闭。
+- AI 分析 input text、告警 message 与 metadata 在持久化前遮蔽 password/token/API key/Authorization/cookie/session/credential、Bearer 和带认证 HTTP/PostgreSQL/Redis URL；metadata 有深度、集合与 256 KiB 总量边界并与调用方容器隔离。
+- 告警 title/message 有界；resolved 告警必须有 timezone-aware resolved_at，unresolved 告警禁止 resolved_at，既有 `resolve()` 继续原子发布一致状态。
+
+## 第四百一十二批验证结果
+
+- Sentiment 模型有限性、脱敏、缓存、追加日志与告警状态专项 `14 passed`；全部 Sentiment Domain、仓储、页面/API 与告警回归 `143 passed`；Agent Runtime Context Snapshot 消费者 `16 passed`。
+- `apps/sentiment/infrastructure/models.py` 增量 mypy 清零并退出债务清单；全仓基线从 `410 errors / 237 files` 收紧为 `406 errors / 236 files`，净减少 `4 errors / 1 file`。
+- Django system check、Sentiment migration drift、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未改变 Sentiment/Agent Context API 成功响应结构或数据库结构。
