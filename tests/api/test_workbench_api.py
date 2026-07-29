@@ -29,7 +29,7 @@ def api_client():
 @pytest.fixture
 def authenticated_client(api_client, db):
     """Create an authenticated API client."""
-    user = User.objects.create_user(username='testuser', password='testpass')
+    user = User.objects.create_user(username="testuser", password="testpass")
     api_client.force_authenticate(user=user)
     return api_client, user
 
@@ -40,9 +40,9 @@ def ingestion_config(db):
     config, _ = PolicyIngestionConfig.objects.get_or_create(
         singleton_id=1,
         defaults={
-            'auto_approve_enabled': True,
-            'auto_approve_threshold': 0.85,
-        }
+            "auto_approve_enabled": True,
+            "auto_approve_threshold": 0.85,
+        },
     )
     return config
 
@@ -51,16 +51,16 @@ def ingestion_config(db):
 def gate_config(db):
     """Create sentiment gate config."""
     config, _ = SentimentGateConfig.objects.get_or_create(
-        asset_class='all',
+        asset_class="all",
         defaults={
-            'heat_l1_threshold': 30.0,
-            'heat_l2_threshold': 60.0,
-            'heat_l3_threshold': 85.0,
-            'sentiment_l1_threshold': -0.3,
-            'sentiment_l2_threshold': -0.6,
-            'sentiment_l3_threshold': -0.8,
-            'enabled': True,
-        }
+            "heat_l1_threshold": 30.0,
+            "heat_l2_threshold": 60.0,
+            "heat_l3_threshold": 85.0,
+            "sentiment_l1_threshold": -0.3,
+            "sentiment_l2_threshold": -0.6,
+            "sentiment_l3_threshold": -0.8,
+            "enabled": True,
+        },
     )
     return config
 
@@ -71,49 +71,53 @@ class TestWorkbenchSummaryAPI:
 
     def test_summary_requires_authentication(self, api_client):
         """Unauthenticated request should return 403 (DRF uses 403 for IsAuthenticated)."""
-        response = api_client.get('/api/policy/workbench/summary/')
+        response = api_client.get("/api/policy/workbench/summary/")
         # DRF returns 403 Forbidden for IsAuthenticated when not logged in
         assert response.status_code in [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]
 
-    def test_summary_returns_correct_structure(self, authenticated_client, ingestion_config, gate_config):
+    def test_summary_returns_correct_structure(
+        self, authenticated_client, ingestion_config, gate_config
+    ):
         """Summary should return correct data structure."""
         client, user = authenticated_client
 
-        response = client.get('/api/policy/workbench/summary/')
+        response = client.get("/api/policy/workbench/summary/")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.data
 
         # Check required fields
-        assert 'policy_level' in data
-        assert 'global_heat_score' in data
-        assert 'global_sentiment_score' in data
-        assert 'global_gate_level' in data
-        assert 'pending_review_count' in data
-        assert 'sla_exceeded_count' in data
-        assert 'effective_today_count' in data
+        assert "policy_level" in data
+        assert "global_heat_score" in data
+        assert "global_sentiment_score" in data
+        assert "global_gate_level" in data
+        assert "pending_review_count" in data
+        assert "sla_exceeded_count" in data
+        assert "effective_today_count" in data
 
-    def test_summary_returns_correct_policy_level(self, authenticated_client, ingestion_config, gate_config):
+    def test_summary_returns_correct_policy_level(
+        self, authenticated_client, ingestion_config, gate_config
+    ):
         """Summary should return correct policy level from effective events."""
         client, user = authenticated_client
 
         # Create an effective policy event
         PolicyLog.objects.create(
             event_date=date.today(),
-            level='P2',
-            title='Test Policy Event',
-            description='Test description',
-            evidence_url='https://example.com/test',
-            event_type='policy',
+            level="P2",
+            title="Test Policy Event",
+            description="Test description",
+            evidence_url="https://example.com/test",
+            event_type="policy",
             gate_effective=True,
             effective_at=datetime.now(UTC),
             effective_by=user,
         )
 
-        response = client.get('/api/policy/workbench/summary/')
+        response = client.get("/api/policy/workbench/summary/")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['policy_level'] == 'P2'
+        assert response.data["policy_level"] == "P2"
 
 
 @pytest.mark.django_db
@@ -122,7 +126,7 @@ class TestWorkbenchItemsAPI:
 
     def test_items_requires_authentication(self, api_client):
         """Unauthenticated request should return 401 or 403."""
-        response = api_client.get('/api/policy/workbench/items/')
+        response = api_client.get("/api/policy/workbench/items/")
         # DRF can return 403 Forbidden instead of 401 Unauthorized
         # depending on authentication configuration
         assert response.status_code in [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]
@@ -131,15 +135,15 @@ class TestWorkbenchItemsAPI:
         """Items should return correct data structure."""
         client, user = authenticated_client
 
-        response = client.get('/api/policy/workbench/items/')
+        response = client.get("/api/policy/workbench/items/")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.data
 
-        assert 'success' in data
-        assert 'items' in data
-        assert 'total' in data
-        assert isinstance(data['items'], list)
+        assert "success" in data
+        assert "items" in data
+        assert "total" in data
+        assert isinstance(data["items"], list)
 
     def test_items_filter_by_event_type(self, authenticated_client):
         """Should filter items by event_type."""
@@ -148,29 +152,29 @@ class TestWorkbenchItemsAPI:
         # Create policy event
         PolicyLog.objects.create(
             event_date=date.today(),
-            level='P1',
-            title='Policy Event',
-            description='Test',
-            evidence_url='https://example.com/policy',
-            event_type='policy',
+            level="P1",
+            title="Policy Event",
+            description="Test",
+            evidence_url="https://example.com/policy",
+            event_type="policy",
         )
 
         # Create hotspot event
         PolicyLog.objects.create(
             event_date=date.today(),
-            level='P1',
-            title='Hotspot Event',
-            description='Test',
-            evidence_url='https://example.com/hotspot',
-            event_type='hotspot',
+            level="P1",
+            title="Hotspot Event",
+            description="Test",
+            evidence_url="https://example.com/hotspot",
+            event_type="hotspot",
             heat_score=70.0,
         )
 
-        response = client.get('/api/policy/workbench/items/?event_type=hotspot')
+        response = client.get("/api/policy/workbench/items/?event_type=hotspot")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['total'] == 1
-        assert response.data['items'][0]['event_type'] == 'hotspot'
+        assert response.data["total"] == 1
+        assert response.data["items"][0]["event_type"] == "hotspot"
 
     def test_items_filter_by_level(self, authenticated_client):
         """Should filter items by level."""
@@ -178,27 +182,27 @@ class TestWorkbenchItemsAPI:
 
         PolicyLog.objects.create(
             event_date=date.today(),
-            level='P1',
-            title='P1 Event',
-            description='Test',
-            evidence_url='https://example.com/p1',
-            event_type='policy',
+            level="P1",
+            title="P1 Event",
+            description="Test",
+            evidence_url="https://example.com/p1",
+            event_type="policy",
         )
 
         PolicyLog.objects.create(
             event_date=date.today(),
-            level='P3',
-            title='P3 Event',
-            description='Test',
-            evidence_url='https://example.com/p3',
-            event_type='policy',
+            level="P3",
+            title="P3 Event",
+            description="Test",
+            evidence_url="https://example.com/p3",
+            event_type="policy",
         )
 
-        response = client.get('/api/policy/workbench/items/?level=P3')
+        response = client.get("/api/policy/workbench/items/?level=P3")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['total'] == 1
-        assert response.data['items'][0]['level'] == 'P3'
+        assert response.data["total"] == 1
+        assert response.data["items"][0]["level"] == "P3"
 
     def test_items_pagination(self, authenticated_client):
         """Should support pagination."""
@@ -208,22 +212,22 @@ class TestWorkbenchItemsAPI:
         for i in range(10):
             PolicyLog.objects.create(
                 event_date=date.today(),
-                level='P1',
-                title=f'Event {i}',
-                description='Test',
-                evidence_url=f'https://example.com/{i}',
-                event_type='policy',
+                level="P1",
+                title=f"Event {i}",
+                description="Test",
+                evidence_url=f"https://example.com/{i}",
+                event_type="policy",
             )
 
-        response = client.get('/api/policy/workbench/items/?limit=5&offset=0')
+        response = client.get("/api/policy/workbench/items/?limit=5&offset=0")
 
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data['items']) == 5
-        assert response.data['total'] == 10
-        assert response.data['limit'] == 5
-        assert response.data['offset'] == 0
-        assert response.data['page'] == 1
-        assert response.data['page_size'] == 5
+        assert len(response.data["items"]) == 5
+        assert response.data["total"] == 10
+        assert response.data["limit"] == 5
+        assert response.data["offset"] == 0
+        assert response.data["page"] == 1
+        assert response.data["page_size"] == 5
 
 
 @pytest.mark.django_db
@@ -232,7 +236,7 @@ class TestApproveEventAPI:
 
     def test_approve_requires_authentication(self, api_client):
         """Unauthenticated request should return 401 or 403."""
-        response = api_client.post('/api/policy/workbench/items/1/approve/')
+        response = api_client.post("/api/policy/workbench/items/1/approve/")
         # DRF can return 403 Forbidden instead of 401 Unauthorized
         assert response.status_code in [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]
 
@@ -240,10 +244,10 @@ class TestApproveEventAPI:
         """Approve nonexistent event should return error."""
         client, user = authenticated_client
 
-        response = client.post('/api/policy/workbench/items/99999/approve/', {})
+        response = client.post("/api/policy/workbench/items/99999/approve/", {})
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert response.data['success'] is False
+        assert response.data["success"] is False
 
     def test_approve_success(self, authenticated_client):
         """Successful approve should return event_id."""
@@ -251,21 +255,23 @@ class TestApproveEventAPI:
 
         event = PolicyLog.objects.create(
             event_date=date.today(),
-            level='P2',
-            title='Test Event',
-            description='Test',
-            evidence_url='https://example.com/test',
-            event_type='policy',
-            audit_status='pending_review',
+            level="P2",
+            title="Test Event",
+            description="Test",
+            evidence_url="https://example.com/test",
+            event_type="policy",
+            audit_status="pending_review",
         )
 
-        response = client.post(f'/api/policy/workbench/items/{event.id}/approve/', {
-            'reason': 'Test approval'
-        })
+        response = client.post(
+            f"/api/policy/workbench/items/{event.id}/approve/", {"reason": "Test approval"}
+        )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['success'] is True
-        assert response.data['event_id'] == event.id
+        assert response.data["success"] is True
+        ingestion_config.refresh_from_db()
+        assert ingestion_config.updated_by == user
+        assert response.data["event_id"] == event.id
 
 
 @pytest.mark.django_db
@@ -278,20 +284,18 @@ class TestRejectEventAPI:
 
         event = PolicyLog.objects.create(
             event_date=date.today(),
-            level='P2',
-            title='Test Event',
-            description='Test',
-            evidence_url='https://example.com/test',
-            event_type='policy',
-            audit_status='pending_review',
+            level="P2",
+            title="Test Event",
+            description="Test",
+            evidence_url="https://example.com/test",
+            event_type="policy",
+            audit_status="pending_review",
         )
 
-        response = client.post(f'/api/policy/workbench/items/{event.id}/reject/', {
-            'reason': ''
-        })
+        response = client.post(f"/api/policy/workbench/items/{event.id}/reject/", {"reason": ""})
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert response.data['success'] is False
+        assert response.data["success"] is False
 
     def test_reject_success(self, authenticated_client):
         """Successful reject should return event_id."""
@@ -299,20 +303,20 @@ class TestRejectEventAPI:
 
         event = PolicyLog.objects.create(
             event_date=date.today(),
-            level='P2',
-            title='Test Event',
-            description='Test',
-            evidence_url='https://example.com/test',
-            event_type='policy',
-            audit_status='pending_review',
+            level="P2",
+            title="Test Event",
+            description="Test",
+            evidence_url="https://example.com/test",
+            event_type="policy",
+            audit_status="pending_review",
         )
 
-        response = client.post(f'/api/policy/workbench/items/{event.id}/reject/', {
-            'reason': 'Test rejection reason'
-        })
+        response = client.post(
+            f"/api/policy/workbench/items/{event.id}/reject/", {"reason": "Test rejection reason"}
+        )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['success'] is True
+        assert response.data["success"] is True
 
 
 @pytest.mark.django_db
@@ -325,20 +329,18 @@ class TestRollbackEventAPI:
 
         event = PolicyLog.objects.create(
             event_date=date.today(),
-            level='P2',
-            title='Test Event',
-            description='Test',
-            evidence_url='https://example.com/test',
-            event_type='policy',
+            level="P2",
+            title="Test Event",
+            description="Test",
+            evidence_url="https://example.com/test",
+            event_type="policy",
             gate_effective=True,
         )
 
-        response = client.post(f'/api/policy/workbench/items/{event.id}/rollback/', {
-            'reason': ''
-        })
+        response = client.post(f"/api/policy/workbench/items/{event.id}/rollback/", {"reason": ""})
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert response.data['success'] is False
+        assert response.data["success"] is False
 
     def test_rollback_success(self, authenticated_client):
         """Successful rollback should return event_id."""
@@ -346,22 +348,22 @@ class TestRollbackEventAPI:
 
         event = PolicyLog.objects.create(
             event_date=date.today(),
-            level='P2',
-            title='Test Event',
-            description='Test',
-            evidence_url='https://example.com/test',
-            event_type='policy',
+            level="P2",
+            title="Test Event",
+            description="Test",
+            evidence_url="https://example.com/test",
+            event_type="policy",
             gate_effective=True,
             effective_at=datetime.now(UTC),
             effective_by=user,
         )
 
-        response = client.post(f'/api/policy/workbench/items/{event.id}/rollback/', {
-            'reason': 'Test rollback reason'
-        })
+        response = client.post(
+            f"/api/policy/workbench/items/{event.id}/rollback/", {"reason": "Test rollback reason"}
+        )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['success'] is True
+        assert response.data["success"] is True
 
         # Verify gate_effective is now False
         event.refresh_from_db()
@@ -378,19 +380,17 @@ class TestOverrideEventAPI:
 
         event = PolicyLog.objects.create(
             event_date=date.today(),
-            level='P2',
-            title='Test Event',
-            description='Test',
-            evidence_url='https://example.com/test',
-            event_type='policy',
+            level="P2",
+            title="Test Event",
+            description="Test",
+            evidence_url="https://example.com/test",
+            event_type="policy",
         )
 
-        response = client.post(f'/api/policy/workbench/items/{event.id}/override/', {
-            'reason': ''
-        })
+        response = client.post(f"/api/policy/workbench/items/{event.id}/override/", {"reason": ""})
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert response.data['success'] is False
+        assert response.data["success"] is False
 
     def test_override_success(self, authenticated_client):
         """Successful override should update level and review notes."""
@@ -398,26 +398,29 @@ class TestOverrideEventAPI:
 
         event = PolicyLog.objects.create(
             event_date=date.today(),
-            level='P2',
-            title='Test Event',
-            description='Test',
-            evidence_url='https://example.com/test',
-            event_type='policy',
-            review_notes='',
+            level="P2",
+            title="Test Event",
+            description="Test",
+            evidence_url="https://example.com/test",
+            event_type="policy",
+            review_notes="",
         )
 
-        response = client.post(f'/api/policy/workbench/items/{event.id}/override/', {
-            'reason': 'Manual override due to exceptional context',
-            'new_level': 'P1',
-        })
+        response = client.post(
+            f"/api/policy/workbench/items/{event.id}/override/",
+            {
+                "reason": "Manual override due to exceptional context",
+                "new_level": "P1",
+            },
+        )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['success'] is True
-        assert response.data['event_id'] == event.id
+        assert response.data["success"] is True
+        assert response.data["event_id"] == event.id
 
         event.refresh_from_db()
-        assert event.level == 'P1'
-        assert event.review_notes == '[豁免] Manual override due to exceptional context'
+        assert event.level == "P1"
+        assert event.review_notes == "[豁免] Manual override due to exceptional context"
 
 
 @pytest.mark.django_db
@@ -426,7 +429,7 @@ class TestSentimentGateStateAPI:
 
     def test_gate_state_requires_authentication(self, api_client):
         """Unauthenticated request should return 401 or 403."""
-        response = api_client.get('/api/policy/sentiment-gate/state/')
+        response = api_client.get("/api/policy/sentiment-gate/state/")
         # DRF can return 403 Forbidden instead of 401 Unauthorized
         assert response.status_code in [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]
 
@@ -434,18 +437,18 @@ class TestSentimentGateStateAPI:
         """Gate state should return correct data structure."""
         client, user = authenticated_client
 
-        response = client.get('/api/policy/sentiment-gate/state/')
+        response = client.get("/api/policy/sentiment-gate/state/")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.data
 
-        assert 'success' in data
-        assert 'asset_class' in data
-        assert 'gate_level' in data
-        assert 'heat_score' in data
-        assert 'sentiment_score' in data
-        assert 'max_position_cap' in data
-        assert 'thresholds' in data
+        assert "success" in data
+        assert "asset_class" in data
+        assert "gate_level" in data
+        assert "heat_score" in data
+        assert "sentiment_score" in data
+        assert "max_position_cap" in data
+        assert "thresholds" in data
 
 
 @pytest.mark.django_db
@@ -456,28 +459,32 @@ class TestIngestionConfigAPI:
         """GET should return current config."""
         client, user = authenticated_client
 
-        response = client.get('/api/policy/ingestion-config/')
+        response = client.get("/api/policy/ingestion-config/")
 
         assert response.status_code == status.HTTP_200_OK
-        assert 'auto_approve_enabled' in response.data
-        assert 'auto_approve_threshold' in response.data
-        assert 'p23_sla_hours' in response.data
+        assert "auto_approve_enabled" in response.data
+        assert "auto_approve_threshold" in response.data
+        assert "p23_sla_hours" in response.data
 
     def test_put_ingestion_config(self, authenticated_client, ingestion_config):
         """PUT should update config."""
         client, user = authenticated_client
 
-        response = client.put('/api/policy/ingestion-config/', {
-            'auto_approve_enabled': True,
-            'auto_approve_min_level': 'P2',
-            'auto_approve_threshold': 0.90,
-            'p23_sla_hours': 3,
-            'normal_sla_hours': 24,
-            'version': 1,
-        }, format='json')
+        response = client.put(
+            "/api/policy/ingestion-config/",
+            {
+                "auto_approve_enabled": True,
+                "auto_approve_min_level": "P2",
+                "auto_approve_threshold": 0.90,
+                "p23_sla_hours": 3,
+                "normal_sla_hours": 24,
+                "version": 1,
+            },
+            format="json",
+        )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['success'] is True
+        assert response.data["success"] is True
 
 
 @pytest.mark.django_db
@@ -488,27 +495,31 @@ class TestSentimentGateConfigAPI:
         """PUT should update an existing gate config through the interface service."""
         client, user = authenticated_client
 
-        response = client.put('/api/policy/sentiment-gate-config/', {
-            'asset_class': 'all',
-            'heat_l1_threshold': 35.0,
-            'heat_l2_threshold': 65.0,
-            'heat_l3_threshold': 90.0,
-            'sentiment_l1_threshold': -0.25,
-            'sentiment_l2_threshold': -0.55,
-            'sentiment_l3_threshold': -0.75,
-            'max_position_cap_l2': 0.6,
-            'max_position_cap_l3': 0.3,
-            'enabled': True,
-        }, format='json')
+        response = client.put(
+            "/api/policy/sentiment-gate-config/",
+            {
+                "asset_class": "all",
+                "heat_l1_threshold": 35.0,
+                "heat_l2_threshold": 65.0,
+                "heat_l3_threshold": 90.0,
+                "sentiment_l1_threshold": -0.25,
+                "sentiment_l2_threshold": -0.55,
+                "sentiment_l3_threshold": -0.75,
+                "max_position_cap_l2": 0.6,
+                "max_position_cap_l3": 0.3,
+                "enabled": True,
+            },
+            format="json",
+        )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['success'] is True
-        assert response.data['asset_class'] == 'all'
-        assert response.data['created'] is False
+        assert response.data["success"] is True
+        assert response.data["asset_class"] == "all"
+        assert response.data["created"] is False
 
         gate_config.refresh_from_db()
         assert gate_config.heat_l1_threshold == 35.0
-        assert gate_config.version == response.data['version']
+        assert gate_config.version == response.data["version"]
         assert gate_config.updated_by == user
 
 
@@ -525,27 +536,27 @@ class TestWorkbenchBootstrapAPI:
         """Bootstrap should include active sources and recent fetch errors."""
         client, user = authenticated_client
         source = RSSSourceConfigModel.objects.create(
-            name='Policy Feed',
-            url='https://example.com/rss',
-            category='other',
+            name="Policy Feed",
+            url="https://example.com/rss",
+            category="other",
             is_active=True,
         )
         RSSFetchLog.objects.create(
             source=source,
-            status='error',
+            status="error",
             items_count=10,
             new_items_count=0,
-            error_message='upstream timeout',
+            error_message="upstream timeout",
         )
 
-        response = client.get('/api/policy/workbench/bootstrap/')
+        response = client.get("/api/policy/workbench/bootstrap/")
 
         assert response.status_code == status.HTTP_200_OK
         payload = response.data
-        assert payload['success'] is True
-        assert payload['filter_options']['sources'][0]['name'] == 'Policy Feed'
-        assert payload['fetch_status']['last_fetch_status'] == 'error'
-        assert payload['fetch_status']['recent_fetch_errors'][0]['source__name'] == 'Policy Feed'
+        assert payload["success"] is True
+        assert payload["filter_options"]["sources"][0]["name"] == "Policy Feed"
+        assert payload["fetch_status"]["last_fetch_status"] == "error"
+        assert payload["fetch_status"]["recent_fetch_errors"][0]["source__name"] == "Policy Feed"
 
 
 @pytest.mark.django_db
@@ -556,33 +567,33 @@ class TestWorkbenchItemDetailAPI:
         """Detail should resolve related RSS source and user names."""
         client, user = authenticated_client
         source = RSSSourceConfigModel.objects.create(
-            name='Detail Feed',
-            url='https://example.com/detail-rss',
-            category='other',
+            name="Detail Feed",
+            url="https://example.com/detail-rss",
+            category="other",
             is_active=True,
         )
         event = PolicyLog.objects.create(
             event_date=date.today(),
-            level='P2',
-            title='Detailed Event',
-            description='Detail payload',
-            evidence_url='https://example.com/detail',
-            event_type='policy',
+            level="P2",
+            title="Detailed Event",
+            description="Detail payload",
+            evidence_url="https://example.com/detail",
+            event_type="policy",
             gate_effective=True,
             effective_at=datetime.now(UTC),
             effective_by=user,
-            audit_status='manual_approved',
+            audit_status="manual_approved",
             reviewed_by=user,
             reviewed_at=datetime.now(UTC),
             rss_source=source,
-            rss_item_guid='guid-123',
+            rss_item_guid="guid-123",
         )
 
-        response = client.get(f'/api/policy/workbench/items/{event.id}/')
+        response = client.get(f"/api/policy/workbench/items/{event.id}/")
 
         assert response.status_code == status.HTTP_200_OK
         payload = response.data
-        assert payload['success'] is True
-        assert payload['item']['rss_source_name'] == 'Detail Feed'
-        assert payload['item']['effective_by_name'] == user.username
-        assert payload['item']['reviewed_by_name'] == user.username
+        assert payload["success"] is True
+        assert payload["item"]["rss_source_name"] == "Detail Feed"
+        assert payload["item"]["effective_by_name"] == user.username
+        assert payload["item"]["reviewed_by_name"] == user.username

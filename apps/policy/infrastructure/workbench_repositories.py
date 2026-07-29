@@ -32,6 +32,7 @@ class WorkbenchRepository:
             "auto_approve_threshold",
             "p23_sla_hours",
             "normal_sla_hours",
+            "updated_by",
         }
     )
 
