@@ -4,9 +4,13 @@ Tests for apps.equity.infrastructure.config_loader module
 Tests the stock screening rule loader that was moved from shared/infrastructure/.
 """
 
+from __future__ import annotations
+
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
+from django.db import DatabaseError
 
 
 class TestGetStockScreeningRule:
@@ -36,6 +40,58 @@ class TestGetStockScreeningRule:
         # This would require database mocking
         # The function should return None when no matching config exists
         pass
+
+    def test_discards_cache_values_outside_domain_contract(self, monkeypatch) -> None:
+        """Dynamic cache payloads cannot cross into the application as rules."""
+
+        from apps.equity.infrastructure import config_loader
+
+        deleted: list[str] = []
+
+        class _Manager:
+            def filter(self, **_kwargs: object) -> _Manager:
+                return self
+
+            def order_by(self, *_args: object) -> _Manager:
+                return self
+
+            def first(self) -> None:
+                return None
+
+        monkeypatch.setattr(config_loader.cache, "get", lambda _key: {"token": "private"})
+        monkeypatch.setattr(config_loader.cache, "delete", deleted.append)
+        monkeypatch.setattr(
+            config_loader,
+            "StockScreeningRuleConfigModel",
+            SimpleNamespace(_default_manager=_Manager()),
+        )
+
+        assert config_loader.get_stock_screening_rule("Recovery") is None
+        assert deleted == ["stock_screening_rule:Recovery"]
+
+    def test_database_error_logging_redacts_exception_body(
+        self,
+        monkeypatch,
+        caplog,
+    ) -> None:
+        """Configuration read failures publish only the exception class."""
+
+        from apps.equity.infrastructure import config_loader
+
+        class _Manager:
+            def filter(self, **_kwargs: object) -> object:
+                raise DatabaseError("database-password=private")
+
+        monkeypatch.setattr(config_loader.cache, "get", lambda _key: None)
+        monkeypatch.setattr(
+            config_loader,
+            "StockScreeningRuleConfigModel",
+            SimpleNamespace(_default_manager=_Manager()),
+        )
+
+        assert config_loader.get_stock_screening_rule("Recovery") is None
+        assert "DatabaseError" in caplog.text
+        assert "database-password" not in caplog.text
 
 
 class TestStockScreeningRuleEntity:

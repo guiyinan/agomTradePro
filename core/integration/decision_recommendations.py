@@ -2,17 +2,26 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol
+
+
+class DecisionRecommendationRepositoryProtocol(Protocol):
+    """Narrow read contract required by the integration bridge."""
+
+    def get_execution_plan_for_transaction(self, transaction_id: int) -> dict[str, Any] | None: ...
 
 
 class DecisionRecommendationPlanReader:
     """Read decision-rhythm execution plans through a lazy integration bridge."""
 
-    def __init__(self, recommendation_repo: Any | None = None) -> None:
+    def __init__(
+        self,
+        recommendation_repo: DecisionRecommendationRepositoryProtocol | None = None,
+    ) -> None:
         self._recommendation_repo = recommendation_repo
 
     @property
-    def recommendation_repo(self) -> Any:
+    def recommendation_repo(self) -> DecisionRecommendationRepositoryProtocol:
         """Return the owning decision-rhythm repository."""
 
         if self._recommendation_repo is None:

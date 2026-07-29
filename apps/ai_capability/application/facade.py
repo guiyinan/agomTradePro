@@ -500,12 +500,13 @@ class CapabilityRoutingFacade:
             )
 
             if ai_response.get("status") != "success":
-                return f"AI 调用失败: {ai_response.get('error_message', 'Unknown error')}"
+                return "AI 调用失败: ai_provider_request_failed"
 
-            return ai_response.get("content", "")
-        except Exception as e:
-            logger.exception("Chat execution failed")
-            return f"Chat execution failed: {str(e)}"
+            content = ai_response.get("content", "")
+            return content if isinstance(content, str) else ""
+        except Exception as exc:
+            logger.warning("Chat execution failed: %s", type(exc).__name__)
+            return "Chat execution failed: ai_provider_request_failed"
 
     def _build_answer_chain(
         self,
@@ -516,7 +517,7 @@ class CapabilityRoutingFacade:
         route: str,
     ) -> dict[str, Any]:
         """Build answer chain for debugging."""
-        steps = [
+        steps: list[dict[str, Any]] = [
             {
                 "title": "Capability Retrieval",
                 "summary": f"Retrieved {len(candidates)} candidates, top: {capability.name}",

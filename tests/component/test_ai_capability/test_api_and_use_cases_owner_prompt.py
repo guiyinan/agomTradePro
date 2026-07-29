@@ -41,3 +41,39 @@ def test_chat_fallback_uses_admin_configured_system_prompt(regular_user):
     assert sent_messages[0]["role"] == "system"
     assert sent_messages[0]["content"] == settings_obj.fallback_chat_system_prompt
     assert sent_messages[-1] == {"role": "user", "content": "系统推荐什么"}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("failure_mode", ["response", "exception"])
+def test_chat_fallback_does_not_reflect_provider_failure_details(regular_user, failure_mode):
+    use_case = RouteMessageUseCase()
+    secret = "postgresql://operator:secret@db.internal/catalog"
+
+    with patch("apps.ai_capability.application.use_cases.AIClientFactory") as mock_factory:
+        mock_client = mock_factory.return_value.get_client.return_value
+        if failure_mode == "response":
+            mock_client.chat_completion.return_value = {
+                "status": "error",
+                "error_message": secret,
+            }
+        else:
+            mock_client.chat_completion.side_effect = RuntimeError(secret)
+
+        response = use_case.execute(
+            RouteRequestDTO(
+                message="系统推荐什么",
+                entrypoint="terminal",
+                provider_name="openai-main",
+                model="gpt-4.1",
+                context={
+                    "user_id": regular_user.id,
+                    "user_is_admin": False,
+                    "mcp_enabled": True,
+                    "answer_chain_enabled": True,
+                },
+            )
+        )
+
+    assert response.decision == "chat"
+    assert secret not in response.reply
+    assert "ai_provider_request_failed" in response.reply

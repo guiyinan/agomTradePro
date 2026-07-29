@@ -228,6 +228,8 @@ def test_financial_sync_command_handles_empty_success_and_provider_error(monkeyp
     )
     assert len(saved) == 1
     assert "1 records, 1 errors" in output.getvalue()
+    assert "provider offline" not in errors.getvalue()
+    assert "RuntimeError" in errors.getvalue()
 
 
 def test_valuation_sync_and_quality_commands_map_success_and_failure(monkeypatch) -> None:
@@ -257,10 +259,10 @@ def test_valuation_sync_and_quality_commands_map_success_and_failure(monkeypatch
 
     class _FailedSync(_SyncUseCase):
         def execute(self, request: object):
-            return SimpleNamespace(success=False, error="sync failed", data={})
+            return SimpleNamespace(success=False, error="database-password=private", data={})
 
     monkeypatch.setattr(sync_equity_valuation, "SyncEquityValuationUseCase", _FailedSync)
-    with pytest.raises(CommandError, match="sync failed"):
+    with pytest.raises(CommandError, match="Equity valuation sync failed") as sync_error:
         sync_equity_valuation.Command(stdout=StringIO()).handle(
             start_date=None,
             end_date="2026-07-24",
@@ -269,6 +271,7 @@ def test_valuation_sync_and_quality_commands_map_success_and_failure(monkeypatch
             primary_source="akshare",
             fallback_source="tushare",
         )
+    assert "database-password" not in str(sync_error.value)
 
     class _Quality:
         def __init__(self, **kwargs: object) -> None:
@@ -288,18 +291,48 @@ def test_valuation_sync_and_quality_commands_map_success_and_failure(monkeypatch
 
     class _FailedQuality(_Quality):
         def execute(self, request: object):
-            return SimpleNamespace(success=False, error="quality failed", data={})
+            return SimpleNamespace(success=False, error="database-password=private", data={})
 
     monkeypatch.setattr(
         validate_equity_valuation_quality,
         "ValidateEquityValuationQualityUseCase",
         _FailedQuality,
     )
-    with pytest.raises(CommandError, match="quality failed"):
+    with pytest.raises(
+        CommandError,
+        match="Equity valuation quality validation failed",
+    ) as quality_error:
         validate_equity_valuation_quality.Command(stdout=StringIO()).handle(
             date=None,
             primary_source="akshare",
         )
+    assert "database-password" not in str(quality_error.value)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    (
+        ({"start_date": "2026-02-30"}, "YYYY-MM-DD"),
+        ({"days_back": True}, "days-back"),
+        ({"stock_codes": "000001.SZ"}, "stock-code"),
+    ),
+)
+def test_valuation_sync_command_rejects_invalid_dynamic_options(
+    kwargs: dict[str, object],
+    message: str,
+) -> None:
+    options: dict[str, object] = {
+        "start_date": None,
+        "end_date": None,
+        "days_back": 1,
+        "stock_codes": None,
+        "primary_source": "akshare",
+        "fallback_source": "tushare",
+    }
+    options.update(kwargs)
+
+    with pytest.raises(CommandError, match=message):
+        sync_equity_valuation.Command(stdout=StringIO()).handle(**options)
 
 
 def test_equity_valuation_scheduler_configures_three_task_shapes(monkeypatch) -> None:
@@ -347,3 +380,20 @@ def test_equity_valuation_scheduler_configures_three_task_shapes(monkeypatch) ->
     }
     assert all(task.enabled for task in tasks.values())
     assert "21:30" in output.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("hour", "minute", "message"),
+    ((24, 0, "hour"), (0, 60, "minute"), (True, 0, "hour")),
+)
+def test_equity_valuation_scheduler_rejects_invalid_time(
+    hour: object,
+    minute: object,
+    message: str,
+) -> None:
+    with pytest.raises(CommandError, match=message):
+        setup_equity_valuation_sync.Command(stdout=StringIO()).handle(
+            disable=False,
+            hour=hour,
+            minute=minute,
+        )

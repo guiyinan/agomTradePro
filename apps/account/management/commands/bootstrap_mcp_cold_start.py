@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from copy import deepcopy
 from datetime import date, timedelta
+from typing import Any
 
 from django.apps import apps as django_apps
 from django.conf import settings
@@ -35,7 +36,7 @@ class Command(BaseCommand):
         "动量轮动配置": "动量轮动策略",
     }
 
-    def handle(self, *args, **options):
+    def handle(self, *args: str, **options: Any) -> None:
         self._assert_dev_only_environment()
         self.stdout.write(self.style.SUCCESS("MCP cold-start bootstrap begin"))
 

@@ -10,66 +10,10 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 297,
-    "files_with_errors": 180
+    "errors": 178,
+    "files_with_errors": 117
   },
   "modules": {
-    "apps/account/application/tasks.py": {
-      "arg-type": 1
-    },
-    "apps/account/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/account/infrastructure/account_read_repository.py": {
-      "no-untyped-def": 1
-    },
-    "apps/account/infrastructure/broker_import_parser.py": {
-      "import-untyped": 1
-    },
-    "apps/account/infrastructure/config_summary_repository.py": {
-      "assignment": 1
-    },
-    "apps/account/infrastructure/documentation_models.py": {
-      "unused-ignore": 2
-    },
-    "apps/account/infrastructure/notification_service.py": {
-      "no-untyped-def": 1,
-      "type-arg": 2
-    },
-    "apps/account/infrastructure/portfolio_repository.py": {
-      "arg-type": 1,
-      "type-arg": 1
-    },
-    "apps/account/infrastructure/signals.py": {
-      "no-untyped-def": 1
-    },
-    "apps/account/interface/openapi.py": {
-      "misc": 1,
-      "no-untyped-def": 1
-    },
-    "apps/account/interface/sizing_views.py": {
-      "unused-ignore": 2
-    },
-    "apps/account/management/commands/bootstrap_mcp_cold_start.py": {
-      "no-untyped-def": 1
-    },
-    "apps/account/management/commands/init_classification.py": {
-      "no-untyped-def": 1
-    },
-    "apps/account/management/commands/init_docs.py": {
-      "no-untyped-def": 1
-    },
-    "apps/account/management/commands/init_enhanced_rules.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 2
-    },
-    "apps/account/management/commands/init_rules.py": {
-      "no-untyped-def": 1
-    },
-    "apps/account/management/commands/setup_account_risk_tasks.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 2
-    },
     "apps/agent_runtime/application/dtos.py": {
       "attr-defined": 1
     },
@@ -88,49 +32,6 @@
     },
     "apps/agent_runtime/infrastructure/repositories.py": {
       "misc": 2
-    },
-    "apps/ai_capability/application/facade.py": {
-      "assignment": 1,
-      "no-any-return": 1
-    },
-    "apps/ai_capability/application/query_services.py": {
-      "union-attr": 1
-    },
-    "apps/ai_capability/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/ai_capability/infrastructure/semantic_governance_repository.py": {
-      "arg-type": 1,
-      "misc": 1
-    },
-    "apps/ai_capability/interface/api_urls.py": {
-      "arg-type": 1
-    },
-    "apps/ai_capability/interface/mcp_access_views.py": {
-      "no-untyped-def": 1
-    },
-    "apps/ai_capability/interface/semantic_governance_serializers.py": {
-      "call-arg": 1,
-      "no-any-return": 1,
-      "type-arg": 1
-    },
-    "apps/ai_capability/interface/semantic_governance_views.py": {
-      "arg-type": 1
-    },
-    "apps/ai_capability/interface/views.py": {
-      "arg-type": 1
-    },
-    "apps/ai_capability/management/commands/govern_ai_capability_catalog.py": {
-      "no-untyped-def": 2
-    },
-    "apps/ai_capability/management/commands/init_ai_capability_catalog.py": {
-      "no-untyped-def": 2
-    },
-    "apps/ai_capability/management/commands/review_ai_capability_catalog.py": {
-      "no-untyped-def": 2
-    },
-    "apps/ai_capability/management/commands/sync_ai_capability_catalog.py": {
-      "no-untyped-def": 2
     },
     "apps/ai_provider/apps.py": {
       "no-untyped-def": 1
@@ -218,61 +119,8 @@
     "apps/data_center/infrastructure/market_breadth_repositories.py": {
       "misc": 1
     },
-    "apps/equity/application/market_sessions.py": {
-      "no-untyped-def": 1
-    },
-    "apps/equity/application/query_services.py": {
-      "type-arg": 1
-    },
-    "apps/equity/application/sector_market_gateway.py": {
-      "type-arg": 1
-    },
-    "apps/equity/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/equity/domain/services_technical.py": {
-      "arg-type": 1
-    },
-    "apps/equity/infrastructure/asset_master_queries.py": {
-      "arg-type": 1
-    },
     "apps/equity/infrastructure/asset_repository.py": {
-      "misc": 1,
-      "type-arg": 1
-    },
-    "apps/equity/infrastructure/config_loader.py": {
-      "no-any-return": 1
-    },
-    "apps/equity/interface/multidim_screen_views.py": {
-      "no-untyped-def": 2
-    },
-    "apps/equity/interface/page_views.py": {
-      "no-untyped-def": 5
-    },
-    "apps/equity/interface/sdk_contract_actions.py": {
-      "no-untyped-def": 2
-    },
-    "apps/equity/management/commands/backfill_equity_valuation.py": {
-      "no-untyped-def": 2
-    },
-    "apps/equity/management/commands/init_scoring_weights.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 2
-    },
-    "apps/equity/management/commands/setup_equity_valuation_sync.py": {
-      "import-untyped": 1,
-      "no-untyped-def": 2
-    },
-    "apps/equity/management/commands/sync_equity_financial.py": {
-      "assignment": 1,
-      "no-untyped-def": 2
-    },
-    "apps/equity/management/commands/sync_equity_valuation.py": {
-      "no-untyped-def": 2,
-      "union-attr": 1
-    },
-    "apps/equity/management/commands/validate_equity_valuation_quality.py": {
-      "no-untyped-def": 2
+      "misc": 1
     },
     "apps/events/application/dtos.py": {
       "no-untyped-def": 2
@@ -505,62 +353,6 @@
     },
     "apps/valuation/infrastructure/providers.py": {
       "attr-defined": 1
-    },
-    "core/asgi.py": {
-      "import-untyped": 3
-    },
-    "core/integration/decision_recommendations.py": {
-      "no-any-return": 1
-    },
-    "core/log_buffer.py": {
-      "type-arg": 1,
-      "var-annotated": 1
-    },
-    "core/management/commands/celery_beat_windows.py": {
-      "no-untyped-def": 2
-    },
-    "core/management/commands/celery_worker_windows.py": {
-      "no-untyped-def": 2
-    },
-    "core/management/commands/check_encryption_readiness.py": {
-      "no-untyped-def": 1
-    },
-    "core/management/commands/healthcheck.py": {
-      "no-untyped-def": 2
-    },
-    "core/middleware/logging.py": {
-      "attr-defined": 1,
-      "no-any-return": 1
-    },
-    "core/middleware/prometheus.py": {
-      "misc": 1,
-      "no-untyped-def": 1
-    },
-    "core/middleware/query_profiler.py": {
-      "no-untyped-def": 1,
-      "type-arg": 2
-    },
-    "core/settings/development.py": {
-      "attr-defined": 2,
-      "index": 1
-    },
-    "core/settings/development_sqlite.py": {
-      "assignment": 1
-    },
-    "core/settings/playwright.py": {
-      "index": 1
-    },
-    "core/staticfiles.py": {
-      "override": 2
-    },
-    "core/templatetags/alert_tags.py": {
-      "no-untyped-def": 4
-    },
-    "core/templatetags/factor_tags.py": {
-      "no-untyped-def": 4
-    },
-    "core/urls.py": {
-      "no-untyped-def": 3
     },
     "shared/apps.py": {
       "no-untyped-def": 1

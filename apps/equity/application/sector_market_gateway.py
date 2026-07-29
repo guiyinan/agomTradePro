@@ -12,7 +12,7 @@ from .query_services import fetch_index_daily_returns
 class EquityMarketReturnsGateway:
     def fetch_index_daily_returns(
         self, *, index_code: str, start_date: date, end_date: date, hydrate: bool = True
-    ) -> dict:
+    ) -> dict[date, float]:
         return fetch_index_daily_returns(
             index_code=index_code, start_date=start_date, end_date=end_date, hydrate=hydrate
         )

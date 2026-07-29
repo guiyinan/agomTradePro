@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from apps.account.application import tasks
+from core.exceptions import BusinessLogicError
 
 
 def _result(*, should_close: bool = True, partial_level: str | None = None) -> SimpleNamespace:
@@ -55,6 +56,29 @@ def test_stop_loss_take_profit_and_combined_tasks_report_counts(monkeypatch) -> 
     assert combined["stop_loss_triggered"] == 1
     assert combined["take_profit_triggered"] == 1
     assert ("stop", 1) in notifications and ("take", 1) in notifications
+
+
+def test_stop_loss_business_failure_redacts_exception_message(monkeypatch, caplog) -> None:
+    """Task results and logs must not publish credentials embedded in failures."""
+    secret = "postgresql://user:secret@database.invalid/account"
+
+    def _fail(*, user_id=None):
+        raise BusinessLogicError(secret)
+
+    monkeypatch.setattr(
+        tasks,
+        "AutoStopLossUseCase",
+        lambda: SimpleNamespace(check_and_execute_stop_loss=_fail),
+    )
+
+    result = tasks.check_stop_loss_task.run(user_id=1)
+
+    assert result == {
+        "status": "error",
+        "error": "stop_loss_business_logic_failed",
+        "error_type": "business_logic",
+    }
+    assert secret not in caplog.text
 
 
 def test_combined_task_retry_skips_already_completed_stop_loss_stage(

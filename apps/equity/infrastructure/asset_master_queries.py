@@ -25,11 +25,10 @@ class EquityAssetMasterQueryRepository:
 
         if not lookup_codes:
             return []
-        return list(
-            StockInfoModel._default_manager.filter(stock_code__in=lookup_codes).values(
-                "stock_code",
-                "name",
-                "sector",
-                "market",
-            )
+        rows = StockInfoModel._default_manager.filter(stock_code__in=lookup_codes).values(
+            "stock_code",
+            "name",
+            "sector",
+            "market",
         )
+        return [dict(row) for row in rows]

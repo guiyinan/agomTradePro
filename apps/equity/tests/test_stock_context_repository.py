@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
 
@@ -42,7 +43,7 @@ def test_stock_info_preserves_missing_listing_date_from_data_center() -> None:
 
 
 @pytest.mark.django_db
-def test_get_stock_context_rows_reads_financial_and_valuation_from_data_center():
+def test_get_stock_context_rows_reads_financial_and_valuation_from_data_center() -> None:
     StockInfoModel.objects.create(
         stock_code="000001.SZ",
         name="平安银行",
@@ -182,7 +183,7 @@ def test_get_stock_context_rows_reads_financial_and_valuation_from_data_center()
 
 
 @pytest.mark.django_db
-def test_get_stock_context_rows_does_not_fallback_to_legacy_equity_fundamentals():
+def test_get_stock_context_rows_does_not_fallback_to_legacy_equity_fundamentals() -> None:
     StockInfoModel.objects.create(
         stock_code="000001.SZ",
         name="平安银行",
@@ -247,7 +248,7 @@ def test_get_stock_context_rows_does_not_fallback_to_legacy_equity_fundamentals(
 
 
 @pytest.mark.django_db
-def test_resolve_stock_names_falls_back_to_data_center_asset_master():
+def test_resolve_stock_names_falls_back_to_data_center_asset_master() -> None:
     AssetMasterModel.objects.create(
         code="600025.SH",
         name="华能水电",
@@ -264,7 +265,7 @@ def test_resolve_stock_names_falls_back_to_data_center_asset_master():
 
 
 @pytest.mark.django_db
-def test_get_stock_context_rows_falls_back_to_data_center_asset_master_name():
+def test_get_stock_context_rows_falls_back_to_data_center_asset_master_name() -> None:
     AssetMasterModel.objects.create(
         code="600025.SH",
         name="华能水电股份有限公司",
@@ -280,7 +281,7 @@ def test_get_stock_context_rows_falls_back_to_data_center_asset_master_name():
 
 
 @pytest.mark.django_db
-def test_stock_context_and_name_resolution_supports_exchange_prefix_codes():
+def test_stock_context_and_name_resolution_supports_exchange_prefix_codes() -> None:
     AssetMasterModel.objects.create(
         code="600025.SH",
         name="华能水电股份有限公司",
@@ -297,11 +298,17 @@ def test_stock_context_and_name_resolution_supports_exchange_prefix_codes():
 
 
 @pytest.mark.django_db
-def test_get_stock_context_rows_backfills_missing_asset_master_name(monkeypatch):
-    calls: list[dict] = []
+def test_get_stock_context_rows_backfills_missing_asset_master_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
 
     class FakeAssetMasterBackfillService:
-        def backfill_codes(self, codes, include_remote=False):
+        def backfill_codes(
+            self,
+            codes: Iterable[str],
+            include_remote: bool = False,
+        ) -> None:
             calls.append({"codes": list(codes), "include_remote": include_remote})
             AssetMasterModel.objects.create(
                 code="600026.SH",
@@ -324,7 +331,7 @@ def test_get_stock_context_rows_backfills_missing_asset_master_name(monkeypatch)
 
 
 @pytest.mark.django_db
-def test_list_active_stock_codes_includes_price_covered_canonical_assets():
+def test_list_active_stock_codes_includes_price_covered_canonical_assets() -> None:
     AssetMasterModel.objects.create(
         code="600025.SH",
         name="华能水电",
@@ -351,7 +358,7 @@ def test_list_active_stock_codes_includes_price_covered_canonical_assets():
 
 
 @pytest.mark.django_db
-def test_list_active_stock_codes_merges_local_and_price_covered_codes_without_duplicates():
+def test_list_active_stock_codes_merges_local_and_price_covered_codes_without_duplicates() -> None:
     StockInfoModel.objects.create(
         stock_code="000001.SZ",
         name="平安银行",

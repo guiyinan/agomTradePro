@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 from apps.data_center.domain.enums import MarketExchange
 from apps.equity.application.repository_provider import get_equity_stock_repository
+
+
+class StockListingRepository(Protocol):
+    """Minimal stock-listing lookup required by page bootstrap metadata."""
+
+    def get_listing_exchange(self, stock_code: str) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -112,14 +119,12 @@ _MARKET_SESSION_PROFILES: dict[str, MarketSessionProfile] = {
 def get_equity_detail_market_session_profile(
     stock_code: str,
     *,
-    stock_repository=None,
+    stock_repository: StockListingRepository | None = None,
 ) -> dict[str, object]:
     """Resolve the market-session profile used by the equity detail page."""
 
     repository = stock_repository or get_equity_stock_repository()
-    exchange = ""
-    if hasattr(repository, "get_listing_exchange"):
-        exchange = str(repository.get_listing_exchange(stock_code) or "").upper()
+    exchange = str(repository.get_listing_exchange(stock_code) or "").upper()
 
     profile = _MARKET_SESSION_PROFILES.get(exchange)
     if profile is None:

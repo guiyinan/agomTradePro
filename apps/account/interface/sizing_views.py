@@ -1,44 +1,52 @@
 """Account sizing context API views."""
 
-from typing import Any
+from typing import Any, cast
 
-from django.utils import timezone  # type: ignore[import-untyped]
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.account.application.use_cases import GetSizingContextUseCase
 
 
-class SizingContextView(APIView):  # type: ignore[misc]
+class SizingContextView(APIView):
     """返回当前用户投资组合的宏观仓位系数上下文。"""
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request: Any) -> Any:
-        portfolio_id = request.query_params.get("portfolio_id")
-        if portfolio_id is None:
-            portfolio = request.user.portfolios.filter(is_active=True).first()
+    def get(self, request: Request) -> Response:
+        user = cast(Any, request.user)
+        raw_portfolio_id = request.query_params.get("portfolio_id")
+        if raw_portfolio_id is None:
+            portfolio = user.portfolios.filter(is_active=True).first()
             if portfolio is None:
                 return Response(
                     {"detail": "暂无投资组合"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            portfolio_id = portfolio.id
+            resolved_portfolio_id = int(portfolio.id)
+        else:
+            try:
+                resolved_portfolio_id = int(raw_portfolio_id)
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "portfolio_id 必须为整数"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        try:
-            portfolio_id = int(portfolio_id)
-        except (TypeError, ValueError):
+        if resolved_portfolio_id <= 0:
             return Response(
-                {"detail": "portfolio_id 必须为整数"},
+                {"detail": "portfolio_id 必须为正整数"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
             output = GetSizingContextUseCase().execute(
-                portfolio_id=portfolio_id,
-                user_id=request.user.id,
+                portfolio_id=resolved_portfolio_id,
+                user_id=int(user.id),
             )
         except ValueError as exc:
             return Response(

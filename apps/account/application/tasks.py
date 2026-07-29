@@ -32,6 +32,7 @@ from apps.account.application.stop_loss_use_cases import (
     TakeProfitCheckOutput,
 )
 from apps.account.application.volatility_use_cases import (
+    VolatilityAdjustmentOutput,
     VolatilityAdjustmentUseCase,
     VolatilityAnalysisOutput,
     VolatilityAnalysisUseCase,
@@ -108,7 +109,10 @@ def send_database_backup_email_task(self: Any) -> dict[str, str]:
         logger.info("数据库备份下载链接已发送至 %s", config.backup_email)
         return {"status": "sent", "email": config.backup_email}
     except Exception as exc:
-        logger.exception("数据库备份邮件发送失败: %s", exc)
+        logger.error(
+            "Database backup email task failed: error_type=%s",
+            exc.__class__.__name__,
+        )
         raise self.retry(exc=exc) from exc
 
 
@@ -153,7 +157,10 @@ def check_stop_loss_task(
 
     except (DataFetchError, DatabaseError) as exc:
         # Retryable data errors
-        logger.warning(f"止损检查任务失败（数据错误）: {exc}")
+        logger.warning(
+            "Stop-loss check data failure: error_type=%s",
+            exc.__class__.__name__,
+        )
         record_exception(exc, module="account", is_handled=True)
         try:
             raise self.retry(exc=exc)
@@ -162,16 +169,22 @@ def check_stop_loss_task(
             raise
     except BusinessLogicError as exc:
         # Non-retryable business logic errors
-        logger.error(f"止损检查任务失败（业务逻辑）: {exc}")
+        logger.error(
+            "Stop-loss check business failure: error_type=%s",
+            exc.__class__.__name__,
+        )
         record_exception(exc, module="account", is_handled=True)
         return {
             "status": "error",
-            "error": str(exc),
+            "error": "stop_loss_business_logic_failed",
             "error_type": "business_logic",
         }
     except Exception as exc:
         # Unexpected error
-        logger.exception(f"止损检查任务失败（未预期）: {exc}")
+        logger.error(
+            "Stop-loss check unexpected failure: error_type=%s",
+            exc.__class__.__name__,
+        )
         record_exception(exc, module="account", is_handled=False)
         raise self.retry(exc=exc) from exc
 
@@ -212,7 +225,10 @@ def check_take_profit_task(
         }
 
     except Exception as exc:
-        logger.error(f"止盈检查任务失败: {exc}")
+        logger.error(
+            "Take-profit check failed: error_type=%s",
+            exc.__class__.__name__,
+        )
         raise self.retry(exc=exc) from exc
 
 
@@ -249,7 +265,10 @@ def check_stop_loss_and_take_profit_task(
             if triggered_stop_losses:
                 _send_stop_loss_notifications(triggered_stop_losses, user_id)
         except Exception as exc:
-            logger.exception("组合风控任务止损阶段失败: %s", exc)
+            logger.error(
+                "Combined risk check stop-loss stage failed: error_type=%s",
+                exc.__class__.__name__,
+            )
             raise self.retry(
                 exc=exc,
                 kwargs={"user_id": user_id, "checkpoint": stage_counts},
@@ -268,7 +287,10 @@ def check_stop_loss_and_take_profit_task(
             if triggered_take_profits:
                 _send_take_profit_notifications(triggered_take_profits, user_id)
         except Exception as exc:
-            logger.exception("组合风控任务止盈阶段失败: %s", exc)
+            logger.error(
+                "Combined risk check take-profit stage failed: error_type=%s",
+                exc.__class__.__name__,
+            )
             raise self.retry(
                 exc=exc,
                 kwargs={"user_id": user_id, "checkpoint": stage_counts},
@@ -332,8 +354,12 @@ def _send_stop_loss_notifications(
                 )
                 logger.info(f"止损通知已发送至 {user_email}")
 
-        except Exception as e:
-            logger.error(f"发送止损通知失败: {e}")
+        except Exception as exc:
+            logger.error(
+                "Stop-loss notification delivery failed: position_id=%s error_type=%s",
+                result.position_id,
+                exc.__class__.__name__,
+            )
 
 
 def _send_take_profit_notifications(
@@ -380,8 +406,12 @@ def _send_take_profit_notifications(
                 )
                 logger.info(f"止盈通知已发送至 {user_email}")
 
-        except Exception as e:
-            logger.error(f"发送止盈通知失败: {e}")
+        except Exception as exc:
+            logger.error(
+                "Take-profit notification delivery failed: position_id=%s error_type=%s",
+                result.position_id,
+                exc.__class__.__name__,
+            )
 
 
 # ============================================================
@@ -481,8 +511,12 @@ def check_volatility_and_adjust_task(
                         analysis=analysis,
                     )
 
-            except Exception as e:
-                logger.error(f"处理投资组合 {portfolio['id']} 波动率检查失败: {e}")
+            except Exception as exc:
+                logger.error(
+                    "Portfolio volatility check failed: portfolio_id=%s error_type=%s",
+                    portfolio["id"],
+                    exc.__class__.__name__,
+                )
                 continue
 
         logger.info(
@@ -498,7 +532,10 @@ def check_volatility_and_adjust_task(
         }
 
     except Exception as exc:
-        logger.error(f"波动率检查任务失败: {exc}")
+        logger.error(
+            "Volatility check task failed: error_type=%s",
+            exc.__class__.__name__,
+        )
         raise self.retry(exc=exc) from exc
 
 
@@ -506,7 +543,7 @@ def _send_volatility_adjustment_notification(
     portfolio_id: int,
     user_id: int,
     analysis: VolatilityAnalysisOutput,
-    result: dict[str, Any],
+    result: VolatilityAdjustmentOutput,
 ) -> None:
     """
     发送波动率调整通知
@@ -556,8 +593,12 @@ def _send_volatility_adjustment_notification(
             )
             logger.info(f"波动率调整通知已发送至 {user_email}")
 
-    except Exception as e:
-        logger.error(f"发送波动率调整通知失败: {e}")
+    except Exception as exc:
+        logger.error(
+            "Volatility adjustment notification failed: portfolio_id=%s error_type=%s",
+            portfolio_id,
+            exc.__class__.__name__,
+        )
 
 
 def _send_volatility_warning_notification(

@@ -25,16 +25,21 @@ class DjangoAccountConfigSummaryRepository:
         metadata: dict[str, dict[str, Any]] = {}
         catalogs = IndicatorCatalogModel.objects.filter(is_active=True).order_by("code")
         rules: dict[str, IndicatorUnitRuleModel] = {}
-        for rule in IndicatorUnitRuleModel.objects.filter(is_active=True, source_type="").order_by(
-            "indicator_code", "-priority", "id"
-        ):
-            rules.setdefault(rule.indicator_code, rule)
+        for unit_rule in IndicatorUnitRuleModel.objects.filter(
+            is_active=True,
+            source_type="",
+        ).order_by("indicator_code", "-priority", "id"):
+            rules.setdefault(unit_rule.indicator_code, unit_rule)
 
         for catalog in catalogs:
-            rule = rules.get(catalog.code)
+            selected_rule = rules.get(catalog.code)
             unit = ""
-            if rule is not None:
-                unit = rule.display_unit or rule.original_unit or rule.storage_unit
+            if selected_rule is not None:
+                unit = (
+                    selected_rule.display_unit
+                    or selected_rule.original_unit
+                    or selected_rule.storage_unit
+                )
             extra = catalog.extra or {}
             metadata[catalog.code] = {
                 "name": catalog.name_cn,

@@ -4,12 +4,49 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from collections import deque
 from datetime import datetime
 from threading import Lock
+from typing import TypedDict
 
-_MAX_ENTRIES = max(100, int(os.getenv("ADMIN_LOG_BUFFER_SIZE", "5000")))
-_BUFFER = deque(maxlen=_MAX_ENTRIES)
+
+class LogEntry(TypedDict):
+    """One bounded server-log snapshot exposed to administrators."""
+
+    id: int
+    ts: str
+    level: str
+    logger: str
+    message: str
+
+
+_URI_CREDENTIAL_PATTERN = re.compile(r"(?i)([a-z][a-z0-9+.-]*://)[^\s/@:]+:[^\s/@]+@")
+_SECRET_ASSIGNMENT_PATTERN = re.compile(
+    r"(?i)\b(token|password|secret|api[_-]?key|authorization)\b(\s*[:=]\s*)([^\s,;]+)"
+)
+
+
+def _buffer_size() -> int:
+    """Return a safe bounded buffer size from the environment."""
+
+    try:
+        configured = int(os.getenv("ADMIN_LOG_BUFFER_SIZE", "5000"))
+    except (TypeError, ValueError):
+        configured = 5000
+    return min(max(configured, 100), 100_000)
+
+
+def _redact_message(message: str) -> str:
+    """Remove common credential forms before retaining log text in memory."""
+
+    bounded = message[:16_384]
+    bounded = _URI_CREDENTIAL_PATTERN.sub(r"\1<redacted>@", bounded)
+    return _SECRET_ASSIGNMENT_PATTERN.sub(r"\1\2<redacted>", bounded)
+
+
+_MAX_ENTRIES = _buffer_size()
+_BUFFER: deque[LogEntry] = deque(maxlen=_MAX_ENTRIES)
 _LOCK = Lock()
 _SEQ = 0
 
@@ -25,13 +62,13 @@ def append_record(record: logging.LogRecord, formatted_message: str) -> int:
                 "ts": datetime.fromtimestamp(record.created).strftime("%Y-%m-%d %H:%M:%S"),
                 "level": record.levelname,
                 "logger": record.name,
-                "message": formatted_message,
+                "message": _redact_message(formatted_message),
             }
         )
         return _SEQ
 
 
-def get_entries(since_id: int = 0, limit: int = 200) -> tuple[list[dict], int]:
+def get_entries(since_id: int = 0, limit: int = 200) -> tuple[list[LogEntry], int]:
     """Return entries with id > since_id and the latest cursor id."""
     since_id = max(0, int(since_id))
     limit = max(1, min(int(limit), 2000))

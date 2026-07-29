@@ -1,14 +1,21 @@
 import json
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
-from django_celery_beat.models import CrontabSchedule, IntervalSchedule, PeriodicTask
+from django_celery_beat.models import (  # type: ignore[import-untyped]
+    CrontabSchedule,
+    IntervalSchedule,
+    PeriodicTask,
+)
 
 
 class Command(BaseCommand):
     help = "Create/update periodic tasks for equity valuation sync and quality validation."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
+        """Register bounded scheduler options."""
+
         # AKShare's daily valuation cross-section can still be incomplete in the
         # early evening.  The production run on 2026-07-21 returned only 8/314
         # stocks at 18:30, but the same request completed after 21:30.
@@ -16,10 +23,19 @@ class Command(BaseCommand):
         parser.add_argument("--minute", type=int, default=30)
         parser.add_argument("--disable", action="store_true")
 
-    def handle(self, *args, **options):
-        enabled = not options["disable"]
-        hour = options["hour"]
-        minute = options["minute"]
+    def handle(self, *args: Any, **options: Any) -> None:
+        """Create or update the governed valuation scheduler tasks."""
+
+        disable = options.get("disable")
+        hour = options.get("hour")
+        minute = options.get("minute")
+        if not isinstance(disable, bool):
+            raise CommandError("disable must be a boolean flag")
+        if isinstance(hour, bool) or not isinstance(hour, int) or not 0 <= hour <= 23:
+            raise CommandError("hour must be an integer between 0 and 23")
+        if isinstance(minute, bool) or not isinstance(minute, int) or not 0 <= minute <= 59:
+            raise CommandError("minute must be an integer between 0 and 59")
+        enabled = not disable
 
         with transaction.atomic():
             crontab_kwargs = {

@@ -7,6 +7,7 @@
 
 import logging
 from collections.abc import Callable
+from ipaddress import ip_address
 
 from django.http import HttpRequest, HttpResponse
 
@@ -36,9 +37,9 @@ class TraceIDMiddleware:
 
     # 支持的请求头名称（优先级从高到低）
     TRACE_ID_HEADERS = [
-        'X-Trace-ID',      # 主要追踪 ID
-        'X-Request-ID',    # 兼容常见的 request_id header
-        'X-Correlation-ID', # 兼容 correlation_id
+        "X-Trace-ID",  # 主要追踪 ID
+        "X-Request-ID",  # 兼容常见的 request_id header
+        "X-Correlation-ID",  # 兼容 correlation_id
     ]
 
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
@@ -72,15 +73,15 @@ class TraceIDMiddleware:
             logger.debug(f"Generated new trace_id: {trace_id}")
 
         # 将 trace_id 附加到 request 对象，方便视图访问
-        request.trace_id = trace_id
+        request.__dict__["trace_id"] = trace_id
 
         try:
             # 处理请求
             response = self.get_response(request)
 
             # 添加 trace_id 到响应头（容错：测试桩可能返回非 HttpResponse 对象）
-            if hasattr(response, '__setitem__'):
-                response['X-Trace-ID'] = trace_id
+            if hasattr(response, "__setitem__"):
+                response["X-Trace-ID"] = trace_id
 
             return response
         finally:
@@ -106,10 +107,7 @@ class TraceIDMiddleware:
                 if self._is_valid_trace_id(trace_id):
                     return trace_id
                 else:
-                    logger.warning(
-                        f"Invalid trace_id format: {trace_id}. "
-                        f"Generating new trace_id."
-                    )
+                    logger.warning("Invalid incoming trace_id; generated a new trace_id")
 
         return None
 
@@ -139,7 +137,7 @@ class TraceIDMiddleware:
             return False
 
         # 检查是否包含有效的字符（字母、数字、横线、下划线）
-        valid_chars = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_')
+        valid_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
         return all(c in valid_chars for c in cleaned)
 
 
@@ -181,17 +179,17 @@ class RequestLoggingMiddleware:
         start_time = time.time()
 
         # 获取 trace_id（应该已经被 TraceIDMiddleware 设置）
-        get_trace_id() or '-'
+        get_trace_id() or "-"
 
         # 记录请求开始
         logger.info(
             f"Request started: {request.method} {request.path}",
             extra={
-                'request_method': request.method,
-                'request_path': request.path,
-                'remote_addr': self._get_client_ip(request),
-                'user_agent': request.headers.get('User-Agent', '-')[:256],  # 限制长度
-            }
+                "request_method": request.method,
+                "request_path": request.path,
+                "remote_addr": self._get_client_ip(request),
+                "user_agent": request.headers.get("User-Agent", "-")[:256],  # 限制长度
+            },
         )
 
         try:
@@ -208,27 +206,27 @@ class RequestLoggingMiddleware:
                 f"Request completed: {request.method} {request.path} - "
                 f"{response.status_code} ({duration_ms:.0f}ms)",
                 extra={
-                    'request_method': request.method,
-                    'request_path': request.path,
-                    'status_code': response.status_code,
-                    'duration_ms': round(duration_ms, 2),
-                }
+                    "request_method": request.method,
+                    "request_path": request.path,
+                    "status_code": response.status_code,
+                    "duration_ms": round(duration_ms, 2),
+                },
             )
 
             return response
 
-        except Exception as e:
+        except Exception as exc:
             # 记录请求异常
             duration_ms = (time.time() - start_time) * 1000
-            logger.exception(
+            logger.error(
                 f"Request failed: {request.method} {request.path} - "
-                f"{type(e).__name__} ({duration_ms:.0f}ms)",
+                f"{type(exc).__name__} ({duration_ms:.0f}ms)",
                 extra={
-                    'request_method': request.method,
-                    'request_path': request.path,
-                    'error_type': type(e).__name__,
-                    'duration_ms': round(duration_ms, 2),
-                }
+                    "request_method": request.method,
+                    "request_path": request.path,
+                    "error_type": type(exc).__name__,
+                    "duration_ms": round(duration_ms, 2),
+                },
             )
             raise
 
@@ -242,13 +240,23 @@ class RequestLoggingMiddleware:
         Returns:
             客户端 IP 地址
         """
-        x_forwarded_for = request.headers.get('X-Forwarded-For')
+        x_forwarded_for = request.headers.get("X-Forwarded-For")
         if x_forwarded_for:
             # X-Forwarded-For 可能包含多个 IP，取第一个
-            return x_forwarded_for.split(',')[0].strip()
+            candidate = x_forwarded_for.split(",")[0].strip()
+            return self._validated_ip(candidate)
 
-        x_real_ip = request.headers.get('X-Real-IP')
+        x_real_ip = request.headers.get("X-Real-IP")
         if x_real_ip:
-            return x_real_ip
+            return self._validated_ip(x_real_ip.strip())
 
-        return request.META.get('REMOTE_ADDR', '-')
+        return self._validated_ip(str(request.META.get("REMOTE_ADDR", "-")))
+
+    @staticmethod
+    def _validated_ip(candidate: str) -> str:
+        """Return a canonical IP address without retaining arbitrary header text."""
+
+        try:
+            return str(ip_address(candidate))
+        except ValueError:
+            return "-"

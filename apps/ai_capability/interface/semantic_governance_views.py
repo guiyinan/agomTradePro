@@ -84,10 +84,16 @@ class SemanticGovernanceApplyView(StaffSemanticGovernanceAPIView):
 
         serializer = SemanticBatchRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        operator_id = request.user.pk
+        if operator_id is None:
+            return Response(
+                {"error": "authenticated_user_required"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         try:
             result = self.build_service().apply(
                 serializer.to_domain(),
-                operator_id=request.user.pk,
+                operator_id=operator_id,
             )
         except SemanticIdempotencyConflict as exc:
             return Response(

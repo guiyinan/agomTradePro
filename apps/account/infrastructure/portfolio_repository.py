@@ -1,6 +1,7 @@
 """Portfolio aggregate repository owner."""
 
 import logging
+from collections.abc import Iterable
 from decimal import Decimal
 from typing import Any
 
@@ -64,7 +65,7 @@ class PortfolioRepository:
             "user_email": portfolio.user.email,
         }
 
-    def get_user_portfolios(self, user_id: int) -> list[dict]:
+    def get_user_portfolios(self, user_id: int) -> list[dict[str, Any]]:
         """获取用户的所有投资组合"""
         portfolios = PortfolioModel._default_manager.filter(user_id=user_id).order_by("-created_at")
         return [
@@ -185,9 +186,12 @@ class PortfolioRepository:
             positions=positions,
         )
 
-    def _convert_to_position_entities(self, models: list[PositionModel]) -> list[Position]:
+    def _convert_to_position_entities(
+        self,
+        models: Iterable[PositionModel],
+    ) -> list[Position]:
         """将ORM模型转换为Domain实体"""
-        entities = []
+        entities: list[Position] = []
         for model in models:
             entities.append(
                 Position(

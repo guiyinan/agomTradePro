@@ -8,7 +8,7 @@ class EquityConfig(AppConfig):
     name = "apps.equity"
     verbose_name = "个股分析"
 
-    def ready(self):
+    def ready(self) -> None:
         """Register equity-owned asset-analysis integrations."""
         logger = logging.getLogger(__name__)
         try:
@@ -32,4 +32,7 @@ class EquityConfig(AppConfig):
             register_equity_account_gateway()
             register_sector_market_gateway()
         except Exception as exc:
-            logger.error("Failed to register equity market providers: %s", exc)
+            logger.error(
+                "Failed to register equity market providers error_type=%s",
+                type(exc).__name__,
+            )

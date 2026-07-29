@@ -2,7 +2,7 @@
 AI Capability Catalog API URLs.
 """
 
-from django.urls import path
+from django.urls import URLPattern, URLResolver, path
 from rest_framework.routers import DefaultRouter
 
 from .api_views import (
@@ -30,7 +30,7 @@ from .semantic_governance_views import (
 router = DefaultRouter()
 router.register(r"capabilities", CapabilityViewSet, basename="capability")
 
-urlpatterns = [
+urlpatterns: list[URLPattern | URLResolver] = [
     path("", api_root, name="ai-capability-root"),
     path("route/", route_message, name="ai-capability-route"),
     path("web/", web_chat, name="ai-capability-web-chat"),

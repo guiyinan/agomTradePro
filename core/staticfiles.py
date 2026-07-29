@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 
 from django.contrib.staticfiles.finders import AppDirectoriesFinder
+from django.core.files.storage import Storage
 
 
 class ProjectAppDirectoriesFinder(AppDirectoriesFinder):
@@ -15,7 +16,7 @@ class ProjectAppDirectoriesFinder(AppDirectoriesFinder):
         "admin/js/popup_response.js",
     }
 
-    def list(self, ignore_patterns: list[str]) -> Iterator[tuple[str, object]]:
+    def list(self, ignore_patterns: Iterable[str] | None) -> Iterator[tuple[str, Storage]]:
         """Yield app static files, excluding duplicate Jazzmin admin shims."""
         for path, storage in super().list(ignore_patterns):
             normalized_path = path.replace("\\", "/")

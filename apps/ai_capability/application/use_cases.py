@@ -1156,12 +1156,12 @@ class RouteMessageUseCase:
             )
 
             if ai_response.get("status") != "success":
-                return f"AI 调用失败: {ai_response.get('error_message', 'Unknown error')}"
+                return "AI 调用失败: ai_provider_request_failed"
 
             return str(ai_response.get("content", "") or "")
-        except Exception as e:
-            logger.exception("Chat execution failed")
-            return f"Chat execution failed: {str(e)}"
+        except Exception as exc:
+            logger.warning("Chat execution failed: %s", type(exc).__name__)
+            return "Chat execution failed: ai_provider_request_failed"
 
     def _build_answer_chain(
         self,

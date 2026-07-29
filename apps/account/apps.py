@@ -6,7 +6,7 @@ class AccountConfig(AppConfig):
     name = "apps.account"
     verbose_name = "账户管理"
 
-    def ready(self):
+    def ready(self) -> None:
         """
         应用启动时导入信号处理器和 Celery 任务
         """

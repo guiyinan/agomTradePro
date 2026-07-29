@@ -245,6 +245,14 @@ def test_equity_financial_history_is_persisted_only_and_filters_period_type(
 
 
 @pytest.mark.django_db
+def test_equity_financial_history_rejects_invalid_path_stock_code(authenticated_client):
+    response = authenticated_client.get("/api/equity/financials/BAD:CODE/")
+
+    assert response.status_code == 400
+    assert "BAD:CODE" not in response.content.decode()
+
+
+@pytest.mark.django_db
 def test_equity_refresh_pool_requires_staff(authenticated_client):
     response = authenticated_client.post("/api/equity/pool/refresh/", {}, format="json")
 
@@ -336,7 +344,7 @@ def test_equity_refresh_pool_preserves_existing_pool_when_screen_is_empty(
 def test_equity_multidim_screen_returns_500_on_exception(authenticated_client):
     with patch(
         "apps.equity.application.services.EquityMultiDimScorer.screen_stocks",
-        side_effect=RuntimeError("boom"),
+        side_effect=RuntimeError("database-password=private"),
     ):
         response = authenticated_client.post(
             "/api/equity/multidim-screen/",
@@ -351,7 +359,32 @@ def test_equity_multidim_screen_returns_500_on_exception(authenticated_client):
     assert response.status_code == 500
     payload = response.json()
     assert payload["success"] is False
-    assert "筛选失败" in payload["message"]
+    assert payload["message"] == "筛选服务暂时不可用"
+    assert "database-password" not in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "payload",
+    (
+        {"filters": [], "context": {}},
+        {"filters": {"unknown": "value"}, "context": {}},
+        {"filters": {}, "context": {"sentiment_index": "NaN"}},
+        {"filters": {}, "context": {}, "max_count": 0},
+        {"filters": {}, "context": {}, "unexpected": True},
+    ),
+)
+def test_equity_multidim_screen_rejects_invalid_request_shapes(
+    authenticated_client,
+    payload,
+):
+    response = authenticated_client.post(
+        "/api/equity/multidim-screen/",
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
 
 
 @pytest.mark.django_db

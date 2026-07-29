@@ -49,7 +49,7 @@ class TechnicalChartService:
                     low=min(item.low for item in bucket),
                     close=last.close,
                     volume=sum(item.volume for item in bucket),
-                    amount=sum(item.amount for item in bucket),
+                    amount=sum((item.amount for item in bucket), Decimal("0")),
                     ma5=None,
                     ma20=None,
                     ma60=None,

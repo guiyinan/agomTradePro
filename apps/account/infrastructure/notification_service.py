@@ -6,6 +6,8 @@ Notification Service - Account Module
 """
 
 import logging
+from decimal import Decimal
+from typing import Any, TypedDict
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -21,6 +23,33 @@ from core.exceptions import ExternalServiceError
 logger = logging.getLogger(__name__)
 
 
+class StopLossMessageContext(TypedDict):
+    """Validated values rendered into a stop-loss notification."""
+
+    user_email: str
+    asset_code: str
+    trigger_type: str
+    trigger_price: Decimal
+    trigger_time: Any
+    trigger_reason: str
+    pnl: Decimal
+    pnl_pct: float
+    shares_closed: float | None
+
+
+class TakeProfitMessageContext(TypedDict):
+    """Validated values rendered into a take-profit notification."""
+
+    user_email: str
+    asset_code: str
+    trigger_price: Decimal
+    trigger_time: Any
+    trigger_reason: str
+    pnl: Decimal
+    pnl_pct: float
+    shares_closed: float | None
+
+
 class EmailStopLossNotificationService(StopLossNotificationPort):
     """
     邮件通知服务
@@ -29,8 +58,9 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
     同时记录事件到 events 模块以供审计。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         from apps.events.infrastructure.event_store import DatabaseEventStore
+
         self.event_store = DatabaseEventStore()
 
     def notify_stop_loss_triggered(self, data: StopLossNotificationData) -> bool:
@@ -57,8 +87,13 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
             )
             return True
 
-        except Exception as e:
-            logger.error(f"发送止损通知失败: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Stop-loss notification failed: user_id=%s position_id=%s error_type=%s",
+                data.user_id,
+                data.position_id,
+                exc.__class__.__name__,
+            )
             # 通知失败不应影响止损执行
             return False
 
@@ -86,8 +121,13 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
             )
             return True
 
-        except Exception as e:
-            logger.error(f"发送止盈通知失败: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Take-profit notification failed: user_id=%s position_id=%s error_type=%s",
+                data.user_id,
+                data.position_id,
+                exc.__class__.__name__,
+            )
             return False
 
     def _should_send_email(self, user_id: int) -> bool:
@@ -109,7 +149,7 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
             # 可以在这里添加用户偏好设置检查
             # 例如: user_profile.email_notifications_enabled
 
-            return getattr(settings, 'SEND_EMAIL_NOTIFICATIONS', False)
+            return getattr(settings, "SEND_EMAIL_NOTIFICATIONS", False)
 
         except User.DoesNotExist:
             logger.warning(f"用户 {user_id} 不存在，跳过邮件通知")
@@ -128,16 +168,16 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
         subject = f"止损触发通知 - {data.asset_code}"
 
         # 构建邮件内容
-        context = {
-            'user_email': data.user_email,
-            'asset_code': data.asset_code,
-            'trigger_type': data.trigger_type,
-            'trigger_price': data.trigger_price,
-            'trigger_time': data.trigger_time,
-            'trigger_reason': data.trigger_reason,
-            'pnl': data.pnl,
-            'pnl_pct': data.pnl_pct,
-            'shares_closed': data.shares_closed,
+        context: StopLossMessageContext = {
+            "user_email": data.user_email,
+            "asset_code": data.asset_code,
+            "trigger_type": data.trigger_type,
+            "trigger_price": data.trigger_price,
+            "trigger_time": data.trigger_time,
+            "trigger_reason": data.trigger_reason,
+            "pnl": data.pnl,
+            "pnl_pct": data.pnl_pct,
+            "shares_closed": data.shares_closed,
         }
 
         # 纯文本版本
@@ -147,19 +187,24 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
             send_mail(
                 subject=subject,
                 message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com"),
                 recipient_list=[data.user_email],
                 fail_silently=False,
             )
             logger.info(f"止损邮件已发送给 {data.user_email}")
             return True
 
-        except Exception as e:
-            logger.error(f"发送止损邮件失败: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Stop-loss email delivery failed: user_id=%s position_id=%s error_type=%s",
+                data.user_id,
+                data.position_id,
+                exc.__class__.__name__,
+            )
             raise ExternalServiceError(
-                message=f"邮件发送失败: {e}",
-                code="EMAIL_SEND_FAILED"
-            ) from e
+                message="邮件发送失败",
+                code="EMAIL_SEND_FAILED",
+            ) from exc
 
     def _send_take_profit_email(self, data: StopLossNotificationData) -> bool:
         """
@@ -174,15 +219,15 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
         subject = f"止盈触发通知 - {data.asset_code}"
 
         # 构建邮件内容
-        context = {
-            'user_email': data.user_email,
-            'asset_code': data.asset_code,
-            'trigger_price': data.trigger_price,
-            'trigger_time': data.trigger_time,
-            'trigger_reason': data.trigger_reason,
-            'pnl': data.pnl,
-            'pnl_pct': data.pnl_pct,
-            'shares_closed': data.shares_closed,
+        context: TakeProfitMessageContext = {
+            "user_email": data.user_email,
+            "asset_code": data.asset_code,
+            "trigger_price": data.trigger_price,
+            "trigger_time": data.trigger_time,
+            "trigger_reason": data.trigger_reason,
+            "pnl": data.pnl,
+            "pnl_pct": data.pnl_pct,
+            "shares_closed": data.shares_closed,
         }
 
         # 纯文本版本
@@ -192,23 +237,28 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
             send_mail(
                 subject=subject,
                 message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com"),
                 recipient_list=[data.user_email],
                 fail_silently=False,
             )
             logger.info(f"止盈邮件已发送给 {data.user_email}")
             return True
 
-        except Exception as e:
-            logger.error(f"发送止盈邮件失败: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Take-profit email delivery failed: user_id=%s position_id=%s error_type=%s",
+                data.user_id,
+                data.position_id,
+                exc.__class__.__name__,
+            )
             raise ExternalServiceError(
-                message=f"邮件发送失败: {e}",
-                code="EMAIL_SEND_FAILED"
-            ) from e
+                message="邮件发送失败",
+                code="EMAIL_SEND_FAILED",
+            ) from exc
 
-    def _build_stop_loss_text_message(self, context: dict) -> str:
+    def _build_stop_loss_text_message(self, context: StopLossMessageContext) -> str:
         """构建止损通知纯文本内容"""
-        pnl_sign = "+" if float(context['pnl']) >= 0 else ""
+        pnl_sign = "+" if float(context["pnl"]) >= 0 else ""
         return f"""
 您的持仓已触发止损。
 
@@ -228,9 +278,9 @@ AgomTradePro 智能投顾系统
 此邮件由系统自动发送，请勿回复。
 """.strip()
 
-    def _build_take_profit_text_message(self, context: dict) -> str:
+    def _build_take_profit_text_message(self, context: TakeProfitMessageContext) -> str:
         """构建止盈通知纯文本内容"""
-        pnl_sign = "+" if float(context['pnl']) >= 0 else ""
+        pnl_sign = "+" if float(context["pnl"]) >= 0 else ""
         return f"""
 您的持仓已触发止盈。
 
@@ -274,9 +324,13 @@ AgomTradePro 智能投顾系统
             self.event_store.append(event)
             logger.debug(f"止损事件已记录: position_id={data.position_id}")
 
-        except Exception as e:
+        except Exception as exc:
             # 事件记录失败不应影响止损执行
-            logger.warning(f"记录止损事件失败: {e}")
+            logger.warning(
+                "Stop-loss event persistence failed: position_id=%s error_type=%s",
+                data.position_id,
+                exc.__class__.__name__,
+            )
 
     def _log_take_profit_event(self, data: StopLossNotificationData) -> None:
         """
@@ -302,9 +356,13 @@ AgomTradePro 智能投顾系统
             self.event_store.append(event)
             logger.debug(f"止盈事件已记录: position_id={data.position_id}")
 
-        except Exception as e:
+        except Exception as exc:
             # 事件记录失败不应影响止盈执行
-            logger.warning(f"记录止盈事件失败: {e}")
+            logger.warning(
+                "Take-profit event persistence failed: position_id=%s error_type=%s",
+                data.position_id,
+                exc.__class__.__name__,
+            )
 
 
 class InMemoryStopLossNotificationService(StopLossNotificationPort):

@@ -3,7 +3,7 @@ URL configuration for AgomTradePro project.
 """
 
 from django.contrib import admin
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import include, path
 from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
@@ -81,7 +81,7 @@ from core.views_decision_funnel import (
 
 
 # API 根路径视图
-def api_root_view(request):
+def api_root_view(request: HttpRequest) -> JsonResponse:
     """API 根路径 - 返回可用的 API 端点列表"""
     return JsonResponse(
         {
@@ -126,7 +126,7 @@ def api_root_view(request):
     )
 
 
-def favicon_view(request):
+def favicon_view(request: HttpRequest) -> HttpResponse:
     """Return an empty favicon response to avoid repeated 404 noise in logs."""
     return HttpResponse(status=204)
 
@@ -569,7 +569,7 @@ urlpatterns = [
 
 
 # ========== Prometheus 指标端点 ==========
-def metrics_view(request):
+def metrics_view(request: HttpRequest) -> HttpResponse:
     """
     Prometheus 指标导出端点
 

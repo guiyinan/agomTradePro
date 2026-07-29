@@ -32,26 +32,21 @@ from .semantic_governance_serializers import (
 @login_required
 @require_GET
 def capability_gateway_page(request: HttpRequest) -> HttpResponse:
+    user_id = request.user.pk
+    if user_id is None:
+        return HttpResponse("authenticated_user_required", status=403)
     base_url = request.build_absolute_uri("/").rstrip("/")
     context = get_capability_gateway_page_context(
-        user_id=request.user.id,
+        user_id=user_id,
         base_url=base_url,
     )
     if request.user.is_staff:
-        semantic_service = SemanticGovernanceService(
-            get_capability_repository()
-        )
+        semantic_service = SemanticGovernanceService(get_capability_repository())
         context["semantic_governance"] = {
             **serialize_governance_snapshot(semantic_service.inspect()),
-            "audit": serialize_audit_entries(
-                semantic_service.list_audit(limit=50)
-            ),
-            "preview_url": reverse(
-                "api_ai_capabilities:semantic-governance-preview"
-            ),
-            "apply_url": reverse(
-                "api_ai_capabilities:semantic-governance-apply"
-            ),
+            "audit": serialize_audit_entries(semantic_service.list_audit(limit=50)),
+            "preview_url": reverse("api_ai_capabilities:semantic-governance-preview"),
+            "apply_url": reverse("api_ai_capabilities:semantic-governance-apply"),
         }
     new_token_payload = request.session.pop("self_new_token_payload", None)
     context["new_token_payload"] = new_token_payload

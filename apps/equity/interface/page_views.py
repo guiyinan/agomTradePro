@@ -5,7 +5,10 @@ Owns the login-required HTML page entries. The compatibility facade in
 import it here.
 """
 
+import re
+
 from django.contrib.auth.decorators import login_required
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 
@@ -14,13 +17,26 @@ from apps.equity.application.market_sessions import (
 )
 
 # ============================================================================
+
+_STOCK_CODE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,32}$")
+
+
+def _normalized_stock_code(stock_code: str) -> str:
+    """Return a bounded stock code suitable for page bootstrap reads."""
+
+    normalized = stock_code.strip().upper()
+    if _STOCK_CODE_PATTERN.fullmatch(normalized) is None:
+        raise Http404("Stock not found")
+    return normalized
+
+
 # 页面视图（前端）
 # ============================================================================
 
 
 @login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
-def screen_page(request):
+def screen_page(request: HttpRequest) -> HttpResponse:
     """
     个股筛选页面
 
@@ -31,22 +47,23 @@ def screen_page(request):
 
 @login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
-def detail_page(request, stock_code):
+def detail_page(request: HttpRequest, stock_code: str) -> HttpResponse:
     """
     个股详情页面
 
     GET /equity/detail/<stock_code>/
     """
+    normalized_code = _normalized_stock_code(stock_code)
     context = {
-        "stock_code": stock_code,
-        "market_session_profile": get_equity_detail_market_session_profile(stock_code),
+        "stock_code": normalized_code,
+        "market_session_profile": get_equity_detail_market_session_profile(normalized_code),
     }
     return render(request, "equity/detail.html", context)
 
 
 @login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
-def pool_page(request):
+def pool_page(request: HttpRequest) -> HttpResponse:
     """
     股票池管理页面
 
@@ -57,7 +74,7 @@ def pool_page(request):
 
 @login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
-def valuation_repair_page(request):
+def valuation_repair_page(request: HttpRequest) -> HttpResponse:
     """
     估值修复跟踪页面
 
@@ -83,7 +100,7 @@ def valuation_repair_page(request):
 
 @login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
-def valuation_repair_config_page(request):
+def valuation_repair_config_page(request: HttpRequest) -> HttpResponse:
     """
     估值修复配置管理页面
 

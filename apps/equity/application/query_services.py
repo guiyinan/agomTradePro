@@ -59,7 +59,7 @@ def fetch_index_daily_returns(
     start_date: date,
     end_date: date,
     hydrate: bool = True,
-) -> dict:
+) -> dict[date, float]:
     """Return daily index returns through the equity application boundary."""
 
     return get_equity_market_data_repository().get_index_daily_returns(
@@ -85,9 +85,7 @@ def list_stock_financial_payloads(
     )
     if report_type != "all":
         financials = [
-            item
-            for item in financials
-            if _resolved_financial_period_type(item) == report_type
+            item for item in financials if _resolved_financial_period_type(item) == report_type
         ]
     financials = financials[:limit]
     return [

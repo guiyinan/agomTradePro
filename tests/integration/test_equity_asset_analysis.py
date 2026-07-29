@@ -336,6 +336,32 @@ class TestDjangoEquityAssetRepository:
 
         assert stocks == []
 
+    @pytest.mark.parametrize(
+        ("filters", "max_count"),
+        (
+            ({"sector": ["银行"]}, 10),
+            ({"min_market_cap": Decimal("NaN")}, 10),
+            ({"min_market_cap": -1}, 10),
+            ({"min_market_cap": 20, "max_market_cap": 10}, 10),
+            ({"min_pe": float("inf")}, 10),
+            ({}, 0),
+            ({}, True),
+        ),
+    )
+    def test_get_assets_by_filter_rejects_invalid_dynamic_inputs(
+        self,
+        filters: dict[str, object],
+        max_count: object,
+    ) -> None:
+        """Repository callers cannot bypass finite and bounded filter contracts."""
+
+        with pytest.raises(ValueError):
+            DjangoEquityAssetRepository().get_assets_by_filter(
+                asset_type="equity",
+                filters=filters,
+                max_count=max_count,
+            )
+
 
 @pytest.mark.django_db
 class TestEquityMultiDimScorer:

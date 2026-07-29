@@ -4,24 +4,26 @@
 加载默认文档到数据库。
 """
 
+from typing import Any
+
 from django.core.management.base import BaseCommand
 
 from apps.account.infrastructure.models import DocumentationModel
 
 
 class Command(BaseCommand):
-    help = '初始化系统文档'
+    help = "初始化系统文档"
 
-    def handle(self, *args, **options):
+    def handle(self, *args: str, **options: Any) -> None:
         # 初始文档数据
         initial_docs = [
             {
-                'title': '投资信号与持仓关系',
-                'slug': 'signal-and-position',
-                'category': 'concept',
-                'order': 1,
-                'summary': '说明 AgomTradePro 中投资信号和持仓的关系，以及系统的工作流程',
-                'content': '''# 投资信号与持仓关系说明
+                "title": "投资信号与持仓关系",
+                "slug": "signal-and-position",
+                "category": "concept",
+                "order": 1,
+                "summary": "说明 AgomTradePro 中投资信号和持仓的关系，以及系统的工作流程",
+                "content": """# 投资信号与持仓关系说明
 
 ## 概述
 
@@ -283,15 +285,15 @@ PositionSignalLog (信号执行日志) [可选]
 > **AgomTradePro 是您的投资决策助手，不是自动交易机器人。**
 >
 > 系统帮您分析宏观环境、生成投资建议、监控风险，但最终决策和执行由您掌控。
-'''
+""",
             },
             {
-                'title': 'Regime 投资象限说明',
-                'slug': 'regime-guide',
-                'category': 'concept',
-                'order': 2,
-                'summary': 'Regime 框架四个象限的含义和对应的投资策略',
-                'content': '''# Regime 投资象限说明
+                "title": "Regime 投资象限说明",
+                "slug": "regime-guide",
+                "category": "concept",
+                "order": 2,
+                "summary": "Regime 框架四个象限的含义和对应的投资策略",
+                "content": """# Regime 投资象限说明
 
 ## 什么是 Regime 框架
 
@@ -420,15 +422,15 @@ Regime 框架通过**增长**和**通胀**两个维度，将宏观经济环境�
 ## 总结
 
 Regime 框架的核心思想是：**在不同的宏观环境下，不同的资产表现差异巨大**。通过识别当前环境并调整配置，可以获得更稳定的长期收益。
-'''
+""",
             },
             {
-                'title': '用户操作指南',
-                'slug': 'user-guide',
-                'category': 'user_guide',
-                'order': 3,
-                'summary': '系统各功能模块的使用说明',
-                'content': '''# 用户操作指南
+                "title": "用户操作指南",
+                "slug": "user-guide",
+                "category": "user_guide",
+                "order": 3,
+                "summary": "系统各功能模块的使用说明",
+                "content": """# 用户操作指南
 
 ## 快速开始
 
@@ -587,7 +589,7 @@ Regime 框架的核心思想是：**在不同的宏观环境下，不同的资�
 如有问题，请通过以下方式联系：
 - 系统管理员：admin@agomtradepro.com
 - GitHub Issues：https://github.com/your-repo/issues
-'''
+""",
             },
         ]
 
@@ -596,7 +598,7 @@ Regime 框架的核心思想是：**在不同的宏观环境下，不同的资�
 
         for doc_data in initial_docs:
             # 检查是否已存在同 slug 文档
-            existing = DocumentationModel._default_manager.filter(slug=doc_data['slug']).first()
+            existing = DocumentationModel._default_manager.filter(slug=doc_data["slug"]).first()
 
             if existing:
                 # 更新现有文档
@@ -611,5 +613,8 @@ Regime 框架的核心思想是：**在不同的宏观环境下，不同的资�
                 created_count += 1
                 self.stdout.write(f'[创建] {doc_data["title"]}')
 
-        self.stdout.write(self.style.SUCCESS(f'\n初始化完成！创建 {created_count} 篇文档，更新 {updated_count} 篇文档。'))
-
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"\n初始化完成！创建 {created_count} 篇文档，更新 {updated_count} 篇文档。"
+            )
+        )

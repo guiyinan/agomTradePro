@@ -3,8 +3,9 @@ Management command to review AI capability catalog.
 """
 
 import logging
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 
 from apps.ai_capability.infrastructure.repositories import DjangoCapabilityRepository
 
@@ -14,16 +15,17 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = "Review AI capability catalog status and issues"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--format",
             type=str,
+            choices=("text", "json"),
             default="text",
             help="Output format: text, json (default: text)",
         )
 
-    def handle(self, *args, **options):
-        output_format = options["format"]
+    def handle(self, *args: str, **options: Any) -> None:
+        output_format = str(options["format"])
 
         repo = DjangoCapabilityRepository()
         stats = repo.get_stats()

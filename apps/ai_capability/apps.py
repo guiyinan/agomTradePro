@@ -6,5 +6,5 @@ class AiCapabilityConfig(AppConfig):
     name = "apps.ai_capability"
     verbose_name = "AI Capability Catalog"
 
-    def ready(self):
+    def ready(self) -> None:
         pass

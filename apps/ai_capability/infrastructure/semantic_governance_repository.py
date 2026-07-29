@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import cast
 from uuid import uuid4
 
 from django.db import IntegrityError, transaction
@@ -10,6 +11,7 @@ from django.db import IntegrityError, transaction
 from apps.ai_capability.domain.semantic_governance import (
     SemanticAuditEntry,
     SemanticBatchPersistence,
+    SemanticCorrectionAction,
     SemanticCorrectionBatch,
     SemanticIdempotencyConflict,
     SemanticValueSnapshot,
@@ -96,9 +98,7 @@ class DjangoSemanticGovernanceRepository:
                 if stored is not None:
                     return self._validate_replay(stored, fingerprint)
 
-                capability_keys = [
-                    correction.capability_key for correction in batch.corrections
-                ]
+                capability_keys = [correction.capability_key for correction in batch.corrections]
                 locked_overrides = {
                     model.capability_key: model
                     for model in CapabilitySemanticOverrideModel.objects.select_for_update().filter(
@@ -112,17 +112,20 @@ class DjangoSemanticGovernanceRepository:
                     snapshot = snapshots[correction.capability_key]
                     override = locked_overrides.get(correction.capability_key)
                     if correction.action == "set":
+                        semantic_key = correction.semantic_key
+                        if semantic_key is None:
+                            raise ValueError("set action requires semantic_key")
                         override, _ = CapabilitySemanticOverrideModel.objects.update_or_create(
                             capability_key=correction.capability_key,
                             defaults={
-                                "semantic_key": correction.semantic_key,
+                                "semantic_key": semantic_key,
                                 "reason": batch.reason,
                                 "is_active": True,
                                 "updated_by_id": operator_id,
                             },
                         )
                         locked_overrides[correction.capability_key] = override
-                        new_effective_value = correction.semantic_key or ""
+                        new_effective_value = semantic_key
                     else:
                         if override is not None:
                             override.is_active = False
@@ -205,11 +208,14 @@ class DjangoSemanticGovernanceRepository:
     def _to_audit_entry(model: CapabilitySemanticAuditModel) -> SemanticAuditEntry:
         """Map an ORM audit row to its immutable Domain representation."""
 
+        if model.action not in {"set", "remove"}:
+            raise ValueError("semantic audit action is invalid")
+
         return SemanticAuditEntry(
             batch_id=model.batch_id,
             idempotency_key=model.idempotency_key,
             capability_key=model.capability_key,
-            action=model.action,
+            action=cast(SemanticCorrectionAction, model.action),
             old_collected_value=model.old_collected_value,
             old_effective_value=model.old_effective_value,
             new_effective_value=model.new_effective_value,

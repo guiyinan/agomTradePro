@@ -37,10 +37,12 @@ def _source_summary(source_type: str) -> dict[str, Any]:
         "terminal_enabled": sum(1 for item in capabilities if item.enabled_for_terminal),
         "chat_enabled": sum(1 for item in capabilities if item.enabled_for_chat),
         "agent_enabled": sum(1 for item in capabilities if item.enabled_for_agent),
-        "requires_confirmation": sum(
-            1 for item in capabilities if item.requires_confirmation
+        "requires_confirmation": sum(1 for item in capabilities if item.requires_confirmation),
+        "latest_sync_at": (
+            latest_sync.finished_at.isoformat()
+            if latest_sync is not None and latest_sync.finished_at is not None
+            else None
         ),
-        "latest_sync_at": latest_sync.finished_at.isoformat() if latest_sync else None,
         "status": "ok" if capabilities else "empty",
     }
 

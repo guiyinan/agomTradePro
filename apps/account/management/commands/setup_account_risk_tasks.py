@@ -1,17 +1,22 @@
 import json
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
-from django_celery_beat.models import CrontabSchedule, PeriodicTask, PeriodicTasks
+from django_celery_beat.models import (  # type: ignore[import-untyped]
+    CrontabSchedule,
+    PeriodicTask,
+    PeriodicTasks,
+)
 
 
 class Command(BaseCommand):
     help = "Create/update account stop-loss and take-profit periodic tasks."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--disable", action="store_true")
 
-    def handle(self, *args, **options):
+    def handle(self, *args: str, **options: Any) -> None:
         enabled = not options["disable"]
 
         crontab_kwargs = {
@@ -43,4 +48,6 @@ class Command(BaseCommand):
 
         status = "enabled" if enabled else "disabled"
         self.stdout.write(self.style.SUCCESS("Account risk periodic tasks configured"))
-        self.stdout.write(f"  - account-check-stop-loss-take-profit-intraday: {status} weekdays 10-15 */30")
+        self.stdout.write(
+            f"  - account-check-stop-loss-take-profit-intraday: {status} weekdays 10-15 */30"
+        )

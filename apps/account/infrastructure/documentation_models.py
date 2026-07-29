@@ -4,14 +4,14 @@
 存储面向用户的 Markdown 文档内容。
 """
 
-from django.db import models  # type: ignore[import-untyped]
+from django.db import models
 
 __all__ = [
     "DocumentationModel",
 ]
 
 
-class DocumentationModel(models.Model):  # type: ignore[misc]
+class DocumentationModel(models.Model):
     """
     文档表
 

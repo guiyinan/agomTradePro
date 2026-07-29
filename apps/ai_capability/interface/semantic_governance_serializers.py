@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 from rest_framework import serializers
 
@@ -18,7 +18,7 @@ from apps.ai_capability.domain.semantic_governance import (
 )
 
 
-class StrictFieldsSerializer(serializers.Serializer):
+class StrictFieldsSerializer(serializers.Serializer[dict[str, Any]]):
     """Reject keys that are not explicitly declared by the contract."""
 
     def to_internal_value(self, data: Any) -> dict[str, Any]:
@@ -27,10 +27,8 @@ class StrictFieldsSerializer(serializers.Serializer):
         if isinstance(data, Mapping):
             unknown_fields = sorted(set(data) - set(self.fields))
             if unknown_fields:
-                raise serializers.ValidationError(
-                    {"unknown_fields": unknown_fields}
-                )
-        return super().to_internal_value(data)
+                raise serializers.ValidationError({"unknown_fields": unknown_fields})
+        return cast(dict[str, Any], super().to_internal_value(data))
 
 
 class SemanticCorrectionSerializer(StrictFieldsSerializer):
@@ -68,7 +66,6 @@ class SemanticBatchRequestSerializer(StrictFieldsSerializer):
     corrections = SemanticCorrectionSerializer(
         many=True,
         allow_empty=False,
-        max_length=100,
     )
 
     def to_domain(self) -> SemanticCorrectionBatch:
@@ -76,16 +73,18 @@ class SemanticBatchRequestSerializer(StrictFieldsSerializer):
 
         if not hasattr(self, "validated_data"):
             raise RuntimeError("serializer must be validated before conversion")
+        validated_data = cast(dict[str, Any], self.validated_data)
+        corrections = cast(list[dict[str, Any]], validated_data["corrections"])
         return SemanticCorrectionBatch(
-            idempotency_key=self.validated_data["idempotency_key"],
-            reason=self.validated_data["reason"],
+            idempotency_key=str(validated_data["idempotency_key"]),
+            reason=str(validated_data["reason"]),
             corrections=tuple(
                 SemanticCorrection(
                     capability_key=correction["capability_key"],
                     action=correction["action"],
                     semantic_key=correction.get("semantic_key"),
                 )
-                for correction in self.validated_data["corrections"]
+                for correction in corrections
             ),
         )
 

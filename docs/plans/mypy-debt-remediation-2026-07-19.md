@@ -6387,3 +6387,22 @@
 - Decision Rhythm 参数、推荐、workspace、today queue、snapshot 与统一推荐组合 `248 passed`；新增/强化的 provider、文件大小、非有限数、证据不可变性与错误脱敏边界均纳入上述测试集。
 - 44 个改动生产文件增量 mypy 全部清零；全仓基线从 `377 errors / 223 files` 收紧为 `297 errors / 180 files`，净减少 `80 errors / 43 files`。
 - Django system check、Data Center/Decision Rhythm/Regime migration drift、54 个改动 Python 文件 Ruff、Black、isort、增量 mypy、架构增量护栏与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改公开 API 成功响应结构或数据库结构。
+
+## 第四百一十七批
+
+- 按剩余债务影响面继续四线并行收口 Equity、Account、Core 与 AI Capability；四条线分别限定 owner 范围和测试目录，统一由主线复核格式、增量类型、迁移漂移、架构与全仓基线。
+- Equity 多维筛选、页面/SDK、资产仓储、配置缓存和六个运维命令补齐精确输入/返回合同；嵌套 filters/context、未知字段、数量、区间、日期、股票代码与非有限数在进入查询前失败关闭，provider/数据库错误不再反射底层正文。
+- 多维筛选的请求 serializer 下沉到既有 Interface serializer 模块，owner view 保持结构预算内；技术指标 Decimal 聚合、市场收益、ORM values 与市场时段仓储协议同步收窄，污染配置缓存会被清理而非向运行链发布动态对象。
+- Account 读取/组合仓储、券商文件解析、通知、风险 task、signals、OpenAPI/DRF 与七个初始化/调度命令补齐类型合同；Excel/pandas 动态边界限制在窄 Protocol，通知上下文使用 TypedDict，风险任务与通知错误只发布稳定码和异常类型。
+- Account OpenAPI 的第三方无类型扩展基类通过 `TYPE_CHECKING` 精确投影，避免扩大 Any 或遗留 ignore；历史 migrations 全部保持零 diff，既有交易成本和配置数据迁移不在本批重开。
+- Core ASGI、URL、settings、staticfiles、中间件、模板标签、日志缓冲与 Windows Celery/healthcheck 命令完成全局类型收口；日志消息/URI 有界脱敏，非法 trace header 不回显，代理 IP 必须可解析，healthcheck/metrics 不再发布后端异常正文。
+- Query Profiler 仅保存去字面量的规范化 SQL、操作类型与耗时；Alert 标签改用自动转义 HTML，并拒绝 JavaScript/带凭据 URL；Factor 算术过滤拒绝 NaN/Infinity，普通非法文本继续保留历史回落语义。
+- AI Capability facade/use case、query、semantic governance repository/serializer/view、MCP access、URL 与四个 catalog 命令补齐精确合同；语义批次仍由 Domain 限制最多 100 条，持久化前验证 set/remove 不变量，AI provider 失败统一为稳定错误码且日志仅记录异常类型。
+
+## 第四百一十七批验证结果
+
+- Equity 全范围首轮 `420 passed`，唯一结构预算失败完成 serializer 下沉后，受影响结构/API `40 passed`、serializer `9 passed`；Account 两组风险任务、通知、仓储、导入、配置、命令与 API 回归合计 `167 passed`。
+- Core settings/middleware/template/commands 组合 `124 passed`，collectstatic dry-run 与 ASGI 实际导入通过；AI Capability 正常目录发现 `724 passed`，随后新增 provider 失败脱敏与 Terminal gateway 定向 `7 passed`。
+- 项目规定的 TUI Workbench、Terminal Agent、SDK Client 与内部 SSL 固定回归包 `238 passed`。
+- 66 个改动生产文件统一增量 mypy 清零；全仓基线从 `297 errors / 180 files` 收紧为 `178 errors / 117 files`，净减少 `119 errors / 63 files`。
+- Django system check、Account/AI Capability/Equity migration drift、74 个改动 Python 文件 Ruff、Black、isort、增量 mypy、架构增量护栏与全仓 debt baseline 刷新通过；历史 migration 无 diff，本批未新增数据库 migration 或修改数据库结构。

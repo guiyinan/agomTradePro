@@ -31,7 +31,12 @@ def _user_provisioning_signals_disabled() -> bool:
 
 
 @receiver(post_save, sender=User)
-def create_user_accounts(sender, instance, created, **kwargs):
+def create_user_accounts(
+    sender: type[User],
+    instance: User,
+    created: bool,
+    **kwargs: object,
+) -> None:
     """
     当用户创建时，自动创建实仓和模拟仓
 

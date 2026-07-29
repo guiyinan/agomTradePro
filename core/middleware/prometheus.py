@@ -12,8 +12,11 @@ Prometheus Metrics Middleware for API Requests
 import logging
 import time
 from collections.abc import Callable
+from typing import Any, cast
 
 from django.http import HttpRequest, HttpResponse
+from rest_framework.request import Request
+from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +38,12 @@ class PrometheusMetricsMiddleware:
     - 跳过 /metrics/ 端点本身
     """
 
-    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         # 跳过非 API 路径和 metrics 端点
-        if not request.path.startswith('/api/') or request.path == '/metrics/':
+        if not request.path.startswith("/api/") or request.path == "/metrics/":
             return self.get_response(request)
 
         # 记录开始时间
@@ -58,10 +61,7 @@ class PrometheusMetricsMiddleware:
         return response
 
     def _record_metrics(
-        self,
-        request: HttpRequest,
-        response: HttpResponse,
-        duration: float
+        self, request: HttpRequest, response: HttpResponse, duration: float
     ) -> None:
         """记录 Prometheus 指标"""
         try:
@@ -72,40 +72,41 @@ class PrometheusMetricsMiddleware:
             )
 
             # 获取视图名称（从 response 或 request）
-            view_name = getattr(response, 'view_name', None)
+            view_name = getattr(response, "view_name", None)
             if not view_name:
                 # 尝试从 resolver 获取
                 try:
                     resolver_match = request.resolver_match
                     if resolver_match:
-                        view_name = resolver_match.view_name or 'unknown'
+                        view_name = resolver_match.view_name or "unknown"
                         # 简化视图名称（去掉 app 前缀）
-                        if '.' in view_name:
-                            view_name = view_name.split('.')[-1]
+                        if "." in view_name:
+                            view_name = view_name.split(".")[-1]
                 except Exception:
-                    view_name = 'unknown'
+                    view_name = "unknown"
 
             # 标准化端点路径（移除参数）
             endpoint = self._normalize_path(request.path)
 
             # 记录请求总数
+            normalized_view_name = str(view_name or "unknown")[:128]
             api_request_total.labels(
                 method=request.method,
                 endpoint=endpoint,
                 status_code=str(response.status_code),
-                view_name=view_name,
+                view_name=normalized_view_name,
             ).inc()
 
             # 记录延迟
             api_request_latency_seconds.labels(
                 method=request.method,
                 endpoint=endpoint,
-                view_name=view_name,
+                view_name=normalized_view_name,
             ).observe(duration)
 
             # 记录错误（4xx/5xx）
             if response.status_code >= 400:
-                error_class = getattr(response, 'error_class', 'http_error')
+                error_class = str(getattr(response, "error_class", "http_error"))[:64]
                 api_error_total.labels(
                     method=request.method,
                     endpoint=endpoint,
@@ -113,9 +114,12 @@ class PrometheusMetricsMiddleware:
                     status_code=str(response.status_code),
                 ).inc()
 
-        except Exception as e:
+        except Exception as exc:
             # 指标记录失败不应影响业务
-            logger.warning(f"Failed to record Prometheus metrics: {e}")
+            logger.warning(
+                "Failed to record Prometheus metrics (error_type=%s)",
+                type(exc).__name__,
+            )
 
     def _normalize_path(self, path: str) -> str:
         """
@@ -128,17 +132,17 @@ class PrometheusMetricsMiddleware:
         import re
 
         # 移除查询字符串
-        path = path.split('?')[0]
+        path = path.split("?")[0]
 
         # 替换数字 ID 为 :id 占位符
-        path = re.sub(r'/\d+(?=/|$)', '/:id', path)
+        path = re.sub(r"/\d+(?=/|$)", "/:id", path)
 
         # 替换 UUID 为 :uuid 占位符
         path = re.sub(
-            r'/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=/|$)',
-            '/:uuid',
+            r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=/|$)",
+            "/:uuid",
             path,
-            flags=re.IGNORECASE
+            flags=re.IGNORECASE,
         )
 
         return path
@@ -151,7 +155,14 @@ class ResponseViewNameMixin:
     配合 PrometheusMetricsMiddleware 使用，自动记录视图名称。
     """
 
-    def finalize_response(self, request, response, *args, **kwargs):
+    def finalize_response(
+        self,
+        request: Request,
+        response: Response,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Response:
         # 添加视图名称到 response
-        response.view_name = self.__class__.__name__
-        return super().finalize_response(request, response, *args, **kwargs)
+        response.__dict__["view_name"] = self.__class__.__name__
+        parent = cast(Any, super())
+        return cast(Response, parent.finalize_response(request, response, *args, **kwargs))

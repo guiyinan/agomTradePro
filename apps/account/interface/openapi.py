@@ -1,6 +1,22 @@
 """OpenAPI authentication extensions for Account-owned identities."""
 
-from drf_spectacular.extensions import OpenApiAuthenticationExtension
+from importlib import import_module
+from typing import TYPE_CHECKING
+
+from drf_spectacular.openapi import AutoSchema
+
+if TYPE_CHECKING:
+
+    class OpenApiAuthenticationExtension:
+        """Typed projection of drf-spectacular's runtime extension base."""
+
+        target_class: str
+        name: str
+
+else:
+    OpenApiAuthenticationExtension = import_module(
+        "drf_spectacular.extensions"
+    ).OpenApiAuthenticationExtension
 
 
 class TerminalInternalAuthenticationScheme(OpenApiAuthenticationExtension):
@@ -9,7 +25,7 @@ class TerminalInternalAuthenticationScheme(OpenApiAuthenticationExtension):
     target_class = "apps.account.interface.authentication.TerminalInternalAuthentication"
     name = "agomInternalSignature"
 
-    def get_security_definition(self, auto_schema):
+    def get_security_definition(self, auto_schema: AutoSchema) -> dict[str, str]:
         """Return the OpenAPI security scheme for internal signed requests."""
 
         return {

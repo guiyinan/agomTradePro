@@ -1,11 +1,19 @@
 """ASGI entry point for HTTP and authenticated realtime WebSockets."""
 
 import os
+from importlib import import_module
+from typing import Any, cast
 
-from channels.auth import AuthMiddlewareStack
-from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.security.websocket import AllowedHostsOriginValidator
+from asgiref.typing import ASGIApplication
 from django.core.asgi import get_asgi_application
+
+channels_auth: Any = import_module("channels.auth")
+channels_routing: Any = import_module("channels.routing")
+channels_websocket_security: Any = import_module("channels.security.websocket")
+AuthMiddlewareStack = channels_auth.AuthMiddlewareStack
+ProtocolTypeRouter = channels_routing.ProtocolTypeRouter
+URLRouter = channels_routing.URLRouter
+AllowedHostsOriginValidator = channels_websocket_security.AllowedHostsOriginValidator
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.development")
 
@@ -17,20 +25,23 @@ from apps.realtime.interface.websocket_auth import (  # noqa: E402
 )
 
 
-def build_application() -> ProtocolTypeRouter:
+def build_application() -> ASGIApplication:
     """Build the ASGI router from the active environment settings."""
 
-    return ProtocolTypeRouter(
-        {
-            "http": django_asgi_app,
-            "websocket": AllowedHostsOriginValidator(
-                AuthMiddlewareStack(
-                    AuthorizationHeaderAuthMiddleware(
-                        URLRouter(websocket_urlpatterns),
+    return cast(
+        ASGIApplication,
+        ProtocolTypeRouter(
+            {
+                "http": django_asgi_app,
+                "websocket": AllowedHostsOriginValidator(
+                    AuthMiddlewareStack(
+                        AuthorizationHeaderAuthMiddleware(
+                            URLRouter(websocket_urlpatterns),
+                        )
                     )
-                )
-            ),
-        }
+                ),
+            }
+        ),
     )
 
 

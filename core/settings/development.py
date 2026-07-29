@@ -3,6 +3,7 @@ Django development settings for AgomTradePro project.
 """
 
 import os
+from typing import Any
 
 from core.log_file_paths import (
     get_celery_beat_log_path,
@@ -25,12 +26,10 @@ if not env("REDIS_URL", default=""):
 # DEBUG
 DEBUG = True
 # Development only: relax host checks for local debugging/tools.
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ["*"]
 
 # Database - 使用 PostgreSQL (从 .env 读取 DATABASE_URL)
-DATABASES = {
-    'default': env.db('DATABASE_URL', default='sqlite:///db.sqlite3')
-}
+DATABASES = {"default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3")}
 
 # Cache - default to local memory for development unless Redis cache is
 # explicitly requested. This keeps first-run/local UI flows responsive even
@@ -44,7 +43,9 @@ if USE_REDIS_CACHE and env("REDIS_URL", default=None):
             "TIMEOUT": 900,
             "KEY_PREFIX": "agomtradepro-dev",
             "OPTIONS": {
-                "socket_connect_timeout": env.float("DEV_REDIS_SOCKET_CONNECT_TIMEOUT", default=0.2),
+                "socket_connect_timeout": env.float(
+                    "DEV_REDIS_SOCKET_CONNECT_TIMEOUT", default=0.2
+                ),
                 "socket_timeout": env.float("DEV_REDIS_SOCKET_TIMEOUT", default=0.2),
                 "retry_on_timeout": False,
             },
@@ -71,13 +72,13 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers.DatabaseScheduler"
 
 # CSRF trusted origins (for development)
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost',
-    'http://localhost:8000',
-    'http://127.0.0.1',
-    'http://127.0.0.1:8000',
+    "http://localhost",
+    "http://localhost:8000",
+    "http://127.0.0.1",
+    "http://127.0.0.1:8000",
 ]
 # Allow cookie to work across localhost variants
-CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = "Lax"
 
 # Logging
 # 结构化日志配置 - 支持 trace_id/request_id 追踪
@@ -88,152 +89,155 @@ DEVELOPMENT_LOG_MAX_BYTES = get_development_log_max_bytes()
 DEVELOPMENT_LOG_BACKUP_COUNT = get_development_log_backup_count()
 CELERY_LOG_MAX_BYTES = get_celery_log_max_bytes()
 CELERY_LOG_BACKUP_COUNT = get_celery_log_backup_count()
-DEFAULT_HANDLERS = ['console', 'in_memory', 'file']
-DISABLE_CELERY_FILE_LOGS = (
-    os.getenv('DISABLE_CELERY_FILE_LOGS', 'false').lower() in {'1', 'true', 'yes'}
-    or os.getenv('DISABLE_CELERY_BEAT_FILE_LOG', 'false').lower() in {'1', 'true', 'yes'}
-)
-CELERY_WORKER_HANDLERS = DEFAULT_HANDLERS + ['celery_worker_file']
-CELERY_BEAT_HANDLERS = DEFAULT_HANDLERS + ['celery_beat_file']
+DEFAULT_HANDLERS = ["console", "in_memory", "file"]
+DISABLE_CELERY_FILE_LOGS = os.getenv("DISABLE_CELERY_FILE_LOGS", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+} or os.getenv("DISABLE_CELERY_BEAT_FILE_LOG", "false").lower() in {"1", "true", "yes"}
+CELERY_WORKER_HANDLERS = DEFAULT_HANDLERS + ["celery_worker_file"]
+CELERY_BEAT_HANDLERS = DEFAULT_HANDLERS + ["celery_beat_file"]
 if DISABLE_CELERY_FILE_LOGS:
     CELERY_WORKER_HANDLERS = DEFAULT_HANDLERS
     CELERY_BEAT_HANDLERS = DEFAULT_HANDLERS
-CELERY_LOG_LEVEL = normalize_log_level(os.getenv('CELERY_LOG_LEVEL') or os.getenv('DJANGO_LOG_LEVEL'))
+CELERY_LOG_LEVEL = normalize_log_level(
+    os.getenv("CELERY_LOG_LEVEL") or os.getenv("DJANGO_LOG_LEVEL")
+)
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'filters': {
-        'trace_context': {
-            '()': 'core.logging_utils.TraceContextFilter',
+LOGGING: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "trace_context": {
+            "()": "core.logging_utils.TraceContextFilter",
         },
     },
-    'formatters': {
+    "formatters": {
         # 结构化 JSON 格式（用于生产环境日志收集）
-        'structured': {
-            '()': 'core.logging_utils.StructuredFormatter',
+        "structured": {
+            "()": "core.logging_utils.StructuredFormatter",
         },
         # 详细结构化 JSON 格式（用于调试）
-        'structured_verbose': {
-            '()': 'core.logging_utils.StructuredFormatterVerbose',
+        "structured_verbose": {
+            "()": "core.logging_utils.StructuredFormatterVerbose",
         },
         # 简单文本格式（用于开发环境控制台）
-        'simple': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
+        "simple": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
         },
         # 带 trace_id 的简单文本格式
-        'simple_with_trace': {
-            'format': '{levelname} {asctime} {module} [trace_id={trace_id}] {message}',
-            'style': '{',
+        "simple_with_trace": {
+            "format": "{levelname} {asctime} {module} [trace_id={trace_id}] {message}",
+            "style": "{",
         },
     },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple_with_trace',
-            'filters': ['trace_context'],
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple_with_trace",
+            "filters": ["trace_context"],
         },
-        'console_json': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'structured',
-            'filters': ['trace_context'],
+        "console_json": {
+            "class": "logging.StreamHandler",
+            "formatter": "structured",
+            "filters": ["trace_context"],
         },
-        'in_memory': {
-            'class': 'core.logging_handlers.InMemoryLogHandler',
-            'formatter': 'simple',
+        "in_memory": {
+            "class": "core.logging_handlers.InMemoryLogHandler",
+            "formatter": "simple",
         },
-        'file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': str(DEVELOPMENT_LOG_FILE),
-            'encoding': 'utf-8',
-            'maxBytes': DEVELOPMENT_LOG_MAX_BYTES,
-            'backupCount': DEVELOPMENT_LOG_BACKUP_COUNT,
-            'formatter': 'simple_with_trace',
-            'filters': ['trace_context'],
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(DEVELOPMENT_LOG_FILE),
+            "encoding": "utf-8",
+            "maxBytes": DEVELOPMENT_LOG_MAX_BYTES,
+            "backupCount": DEVELOPMENT_LOG_BACKUP_COUNT,
+            "formatter": "simple_with_trace",
+            "filters": ["trace_context"],
         },
-        'celery_worker_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': str(CELERY_WORKER_LOG_FILE),
-            'encoding': 'utf-8',
-            'maxBytes': CELERY_LOG_MAX_BYTES,
-            'backupCount': CELERY_LOG_BACKUP_COUNT,
-            'formatter': 'simple_with_trace',
-            'filters': ['trace_context'],
+        "celery_worker_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(CELERY_WORKER_LOG_FILE),
+            "encoding": "utf-8",
+            "maxBytes": CELERY_LOG_MAX_BYTES,
+            "backupCount": CELERY_LOG_BACKUP_COUNT,
+            "formatter": "simple_with_trace",
+            "filters": ["trace_context"],
         },
-        'celery_beat_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': str(CELERY_BEAT_LOG_FILE),
-            'encoding': 'utf-8',
-            'maxBytes': CELERY_LOG_MAX_BYTES,
-            'backupCount': CELERY_LOG_BACKUP_COUNT,
-            'formatter': 'simple_with_trace',
-            'filters': ['trace_context'],
+        "celery_beat_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(CELERY_BEAT_LOG_FILE),
+            "encoding": "utf-8",
+            "maxBytes": CELERY_LOG_MAX_BYTES,
+            "backupCount": CELERY_LOG_BACKUP_COUNT,
+            "formatter": "simple_with_trace",
+            "filters": ["trace_context"],
         },
     },
-    'root': {
-        'handlers': DEFAULT_HANDLERS,
-        'level': 'INFO',
+    "root": {
+        "handlers": DEFAULT_HANDLERS,
+        "level": "INFO",
     },
-    'loggers': {
-        'django': {
-            'handlers': DEFAULT_HANDLERS,
-            'level': normalize_log_level(os.getenv('DJANGO_LOG_LEVEL')),
-            'propagate': False,
+    "loggers": {
+        "django": {
+            "handlers": DEFAULT_HANDLERS,
+            "level": normalize_log_level(os.getenv("DJANGO_LOG_LEVEL")),
+            "propagate": False,
         },
-        'django.request': {
-            'handlers': DEFAULT_HANDLERS,
-            'level': 'WARNING',
-            'propagate': False,
+        "django.request": {
+            "handlers": DEFAULT_HANDLERS,
+            "level": "WARNING",
+            "propagate": False,
         },
-        'django.server': {
-            'handlers': DEFAULT_HANDLERS,
-            'level': 'INFO',
-            'propagate': False,
+        "django.server": {
+            "handlers": DEFAULT_HANDLERS,
+            "level": "INFO",
+            "propagate": False,
         },
-        'apps': {
-            'handlers': DEFAULT_HANDLERS,
-            'level': 'INFO',
-            'propagate': False,
+        "apps": {
+            "handlers": DEFAULT_HANDLERS,
+            "level": "INFO",
+            "propagate": False,
         },
-        'core': {
-            'handlers': DEFAULT_HANDLERS,
-            'level': 'DEBUG',
-            'propagate': False,
+        "core": {
+            "handlers": DEFAULT_HANDLERS,
+            "level": "DEBUG",
+            "propagate": False,
         },
-        'celery': {
-            'handlers': CELERY_WORKER_HANDLERS,
-            'level': CELERY_LOG_LEVEL,
-            'propagate': False,
+        "celery": {
+            "handlers": CELERY_WORKER_HANDLERS,
+            "level": CELERY_LOG_LEVEL,
+            "propagate": False,
         },
-        'celery.task': {
-            'handlers': CELERY_WORKER_HANDLERS,
-            'level': CELERY_LOG_LEVEL,
-            'propagate': False,
+        "celery.task": {
+            "handlers": CELERY_WORKER_HANDLERS,
+            "level": CELERY_LOG_LEVEL,
+            "propagate": False,
         },
-        'celery.worker': {
-            'handlers': CELERY_WORKER_HANDLERS,
-            'level': CELERY_LOG_LEVEL,
-            'propagate': False,
+        "celery.worker": {
+            "handlers": CELERY_WORKER_HANDLERS,
+            "level": CELERY_LOG_LEVEL,
+            "propagate": False,
         },
-        'celery.app.trace': {
-            'handlers': CELERY_WORKER_HANDLERS,
-            'level': CELERY_LOG_LEVEL,
-            'propagate': False,
+        "celery.app.trace": {
+            "handlers": CELERY_WORKER_HANDLERS,
+            "level": CELERY_LOG_LEVEL,
+            "propagate": False,
         },
-        'celery.beat': {
-            'handlers': CELERY_BEAT_HANDLERS,
-            'level': CELERY_LOG_LEVEL,
-            'propagate': False,
+        "celery.beat": {
+            "handlers": CELERY_BEAT_HANDLERS,
+            "level": CELERY_LOG_LEVEL,
+            "propagate": False,
         },
     },
 }
 
 if DISABLE_CELERY_FILE_LOGS:
-    LOGGING['handlers'].pop('celery_worker_file', None)
-    LOGGING['handlers'].pop('celery_beat_file', None)
+    LOGGING["handlers"].pop("celery_worker_file", None)
+    LOGGING["handlers"].pop("celery_beat_file", None)
 
 # 环境变量控制是否使用 JSON 格式日志
-USE_JSON_LOGGING = os.getenv('USE_JSON_LOGGING', 'false').lower() == 'true'
+USE_JSON_LOGGING = os.getenv("USE_JSON_LOGGING", "false").lower() == "true"
 if USE_JSON_LOGGING:
-    LOGGING['handlers']['console']['formatter'] = 'structured'
+    LOGGING["handlers"]["console"]["formatter"] = "structured"

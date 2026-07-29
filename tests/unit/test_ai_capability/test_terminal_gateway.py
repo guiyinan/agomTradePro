@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from apps.ai_capability.application.facade import CapabilityRoutingFacade
+from apps.ai_capability.domain.entities import RoutingContext
 
 
 def test_terminal_gateway_returns_normalized_visible_mcp_capabilities():
@@ -117,3 +118,26 @@ def test_terminal_gateway_hides_staff_capability_from_non_admin_user():
         )
 
     assert result == []
+
+
+def test_terminal_gateway_chat_failure_does_not_reflect_provider_details():
+    facade = CapabilityRoutingFacade(
+        capability_repo=Mock(),
+        routing_log_repo=Mock(),
+    )
+    context = RoutingContext(
+        entrypoint="terminal",
+        session_id="session-1",
+        user_id=7,
+        provider_name="provider",
+        model="model",
+    )
+    secret = "postgresql://operator:secret@db.internal/catalog"
+
+    with patch("apps.ai_capability.application.facade.get_ai_client_factory") as factory:
+        client = factory.return_value.get_client.return_value
+        client.chat_completion.side_effect = RuntimeError(secret)
+        result = facade._execute_chat("status", context)
+
+    assert result == "Chat execution failed: ai_provider_request_failed"
+    assert secret not in result

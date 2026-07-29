@@ -4,8 +4,9 @@ Management command to initialize AI capability catalog.
 
 import logging
 import time
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 
 from apps.ai_capability.application.use_cases import SyncCapabilitiesUseCase
 
@@ -15,14 +16,14 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = "Initialize AI capability catalog from all sources"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--force",
             action="store_true",
             help="Force re-initialization even if catalog exists",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: str, **options: Any) -> None:
         time.time()
 
         self.stdout.write("Initializing AI capability catalog...")

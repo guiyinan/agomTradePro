@@ -6,6 +6,7 @@
 - 禁止业务逻辑
 """
 
+from math import isfinite
 from typing import Any, TypeAlias, cast
 
 from rest_framework import serializers
@@ -40,6 +41,88 @@ class StrictFieldsSerializer(serializers.Serializer[dict[str, Any]]):
                 {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
             )
         return cast(dict[str, Any], super().to_internal_value(data))
+
+
+class EquityMultiDimFiltersSerializer(StrictFieldsSerializer):
+    """Validate supported stock-universe filters."""
+
+    sector = serializers.CharField(required=False, max_length=100)
+    market = serializers.CharField(required=False, max_length=16)
+    min_market_cap = serializers.DecimalField(
+        required=False, max_digits=30, decimal_places=2, min_value=0
+    )
+    max_market_cap = serializers.DecimalField(
+        required=False, max_digits=30, decimal_places=2, min_value=0
+    )
+    min_pe = serializers.FloatField(required=False)
+    max_pe = serializers.FloatField(required=False)
+
+    def validate_min_pe(self, value: float) -> float:
+        """Reject non-finite lower PE bounds."""
+
+        if not isfinite(value):
+            raise serializers.ValidationError("min_pe must be finite")
+        return value
+
+    def validate_max_pe(self, value: float) -> float:
+        """Reject non-finite upper PE bounds."""
+
+        if not isfinite(value):
+            raise serializers.ValidationError("max_pe must be finite")
+        return value
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Reject inverted filter intervals."""
+
+        min_market_cap = attrs.get("min_market_cap")
+        max_market_cap = attrs.get("max_market_cap")
+        if min_market_cap is not None and max_market_cap is not None:
+            if min_market_cap > max_market_cap:
+                raise serializers.ValidationError("min_market_cap cannot exceed max_market_cap")
+        min_pe = attrs.get("min_pe")
+        max_pe = attrs.get("max_pe")
+        if min_pe is not None and max_pe is not None and min_pe > max_pe:
+            raise serializers.ValidationError("min_pe cannot exceed max_pe")
+        return attrs
+
+
+class EquityMultiDimContextSerializer(StrictFieldsSerializer):
+    """Validate the scoring context accepted by the endpoint."""
+
+    regime = serializers.ChoiceField(
+        required=False,
+        default="Recovery",
+        choices=("Recovery", "Overheat", "Stagflation", "Deflation"),
+    )
+    policy_level = serializers.ChoiceField(
+        required=False,
+        default="P0",
+        choices=("P0", "P1", "P2", "P3"),
+    )
+    sentiment_index = serializers.FloatField(
+        required=False, default=0.0, min_value=-3.0, max_value=3.0
+    )
+
+    def validate_sentiment_index(self, value: float) -> float:
+        """Reject non-finite sentiment values."""
+
+        if not isfinite(value):
+            raise serializers.ValidationError("sentiment_index must be finite")
+        return value
+
+
+class EquityMultiDimScreenRequestSerializer(StrictFieldsSerializer):
+    """Validate the complete multi-dimensional screening request."""
+
+    filters = EquityMultiDimFiltersSerializer(required=False, default=dict)
+    max_count = serializers.IntegerField(required=False, default=30, min_value=1, max_value=100)
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the public ``context`` field without shadowing DRF internals."""
+
+        fields = super().get_fields()
+        fields["context"] = EquityMultiDimContextSerializer(required=False, default=dict)
+        return fields
 
 
 class ScreenStocksRequestSerializer(StrictFieldsSerializer):

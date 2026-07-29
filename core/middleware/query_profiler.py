@@ -28,6 +28,7 @@ import re
 import time
 from collections import defaultdict
 from collections.abc import Callable
+from typing import Any, TypedDict
 
 from django.conf import settings
 from django.db import connection
@@ -40,6 +41,14 @@ DEFAULT_SLOW_QUERY_THRESHOLD_MS = 100
 DEFAULT_QUERY_PROFILER_ENABLED = False
 
 
+class SlowQuery(TypedDict):
+    """Redacted slow-query evidence retained for structured logging."""
+
+    sql: str
+    duration_ms: float
+    operation: str
+
+
 def get_profiler_config() -> tuple[bool, int]:
     """
     获取查询分析器配置
@@ -47,8 +56,8 @@ def get_profiler_config() -> tuple[bool, int]:
     Returns:
         (enabled, threshold_ms): 是否启用和阈值（毫秒）
     """
-    enabled = getattr(settings, 'QUERY_PROFILER_ENABLED', DEFAULT_QUERY_PROFILER_ENABLED)
-    threshold = getattr(settings, 'SLOW_QUERY_THRESHOLD_MS', DEFAULT_SLOW_QUERY_THRESHOLD_MS)
+    enabled = getattr(settings, "QUERY_PROFILER_ENABLED", DEFAULT_QUERY_PROFILER_ENABLED)
+    threshold = getattr(settings, "SLOW_QUERY_THRESHOLD_MS", DEFAULT_SLOW_QUERY_THRESHOLD_MS)
     return enabled, threshold
 
 
@@ -73,21 +82,21 @@ def normalize_sql(sql: str, max_length: int = 200) -> str:
         return ""
 
     # 移除多余的空白
-    sql = re.sub(r'\s+', ' ', sql.strip())
+    sql = re.sub(r"\s+", " ", sql.strip())
 
     # 替换字符串字面量
     sql = re.sub(r"'[^']*'", "?", sql)
     sql = re.sub(r'"[^"]*"', "?", sql)
 
     # 替换数字字面值
-    sql = re.sub(r'\b\d+\b', "?", sql)
+    sql = re.sub(r"\b\d+\b", "?", sql)
 
     # 替换 UUID
     sql = re.sub(
-        r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
         "?",
         sql,
-        flags=re.IGNORECASE
+        flags=re.IGNORECASE,
     )
 
     # 截断过长的 SQL
@@ -109,11 +118,11 @@ def extract_operation_type(sql: str) -> str:
     """
     sql_upper = sql.strip().upper()
 
-    for op in ['SELECT', 'INSERT', 'UPDATE', 'DELETE']:
+    for op in ["SELECT", "INSERT", "UPDATE", "DELETE"]:
         if sql_upper.startswith(op):
             return op
 
-    return 'OTHER'
+    return "OTHER"
 
 
 class QueryProfilerMiddleware:
@@ -138,7 +147,7 @@ class QueryProfilerMiddleware:
         if self.enabled:
             logger.info(
                 f"QueryProfiler enabled with threshold {self.threshold_ms}ms",
-                extra={'threshold_ms': self.threshold_ms}
+                extra={"threshold_ms": self.threshold_ms},
             )
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
@@ -177,10 +186,10 @@ class QueryProfilerMiddleware:
                 return
 
             # 计算总查询时间
-            total_query_time = sum(float(q['time']) for q in queries)
+            total_query_time = sum(float(q["time"]) for q in queries)
 
             # 获取 trace_id
-            trace_id = getattr(request, 'trace_id', '-')
+            trace_id = getattr(request, "trace_id", "-")
 
             # 记录查询统计
             logger.info(
@@ -188,23 +197,23 @@ class QueryProfilerMiddleware:
                 f"{total_query_time * 1000:.1f}ms total, "
                 f"{request_duration * 1000:.1f}ms request",
                 extra={
-                    'event': 'query_summary',
-                    'query_count': query_count,
-                    'total_query_time_ms': round(total_query_time * 1000, 2),
-                    'request_duration_ms': round(request_duration * 1000, 2),
-                    'trace_id': trace_id,
-                    'request_path': request.path,
-                    'request_method': request.method,
-                }
+                    "event": "query_summary",
+                    "query_count": query_count,
+                    "total_query_time_ms": round(total_query_time * 1000, 2),
+                    "request_duration_ms": round(request_duration * 1000, 2),
+                    "trace_id": trace_id,
+                    "request_path": request.path,
+                    "request_method": request.method,
+                },
             )
 
             # 检测慢查询
-            slow_queries = []
-            query_patterns = defaultdict(list)
+            slow_queries: list[SlowQuery] = []
+            query_patterns: defaultdict[str, list[float]] = defaultdict(list)
 
             for query in queries:
-                sql = query['sql']
-                duration_ms = float(query['time']) * 1000
+                sql = query["sql"]
+                duration_ms = float(query["time"]) * 1000
                 operation = extract_operation_type(sql)
 
                 # 记录 Prometheus 指标
@@ -212,11 +221,13 @@ class QueryProfilerMiddleware:
 
                 # 检测慢查询
                 if duration_ms >= self.threshold_ms:
-                    slow_queries.append({
-                        'sql': sql,
-                        'duration_ms': duration_ms,
-                        'operation': operation,
-                    })
+                    slow_queries.append(
+                        {
+                            "sql": normalize_sql(sql, max_length=500),
+                            "duration_ms": duration_ms,
+                            "operation": operation,
+                        }
+                    )
 
                 # 按模式聚合
                 pattern = normalize_sql(sql)
@@ -233,35 +244,38 @@ class QueryProfilerMiddleware:
             # 记录重复查询（N+1 问题检测）
             self._detect_n_plus_one(request, query_patterns, trace_id)
 
-        except Exception as e:
-            logger.warning(f"Query analysis failed: {e}", exc_info=True)
+        except Exception as exc:
+            logger.warning(
+                "Query analysis failed (error_type=%s)",
+                type(exc).__name__,
+            )
 
     def _log_slow_queries(
         self,
         request: HttpRequest,
-        slow_queries: list[dict],
+        slow_queries: list[SlowQuery],
         trace_id: str,
     ) -> None:
         """记录慢查询详情"""
         for i, query in enumerate(slow_queries, 1):
-            sql = query['sql']
-            duration_ms = query['duration_ms']
-            operation = query['operation']
+            sql = query["sql"]
+            duration_ms = query["duration_ms"]
+            operation = query["operation"]
 
             logger.warning(
                 f"Slow query #{i}/{len(slow_queries)}: {operation} "
                 f"took {duration_ms:.1f}ms (threshold: {self.threshold_ms}ms)",
                 extra={
-                    'event': 'slow_query',
-                    'sql': sql[:500],  # 限制长度
-                    'sql_hash': hash(normalize_sql(sql)),
-                    'duration_ms': round(duration_ms, 2),
-                    'threshold_ms': self.threshold_ms,
-                    'operation': operation,
-                    'trace_id': trace_id,
-                    'request_path': request.path,
-                    'request_method': request.method,
-                }
+                    "event": "slow_query",
+                    "sql": sql[:500],  # 限制长度
+                    "sql_hash": hash(normalize_sql(sql)),
+                    "duration_ms": round(duration_ms, 2),
+                    "threshold_ms": self.threshold_ms,
+                    "operation": operation,
+                    "trace_id": trace_id,
+                    "request_path": request.path,
+                    "request_method": request.method,
+                },
             )
 
     def _log_query_patterns(
@@ -272,11 +286,7 @@ class QueryProfilerMiddleware:
     ) -> None:
         """记录查询模式统计"""
         # 按总耗时排序
-        sorted_patterns = sorted(
-            query_patterns.items(),
-            key=lambda x: sum(x[1]),
-            reverse=True
-        )
+        sorted_patterns = sorted(query_patterns.items(), key=lambda x: sum(x[1]), reverse=True)
 
         # 只记录最慢的 5 个模式
         top_patterns = sorted_patterns[:5]
@@ -287,17 +297,16 @@ class QueryProfilerMiddleware:
             avg_time = total_time / count
 
             logger.debug(
-                f"Query pattern: {count}x, "
-                f"{total_time:.1f}ms total, {avg_time:.1f}ms avg",
+                f"Query pattern: {count}x, " f"{total_time:.1f}ms total, {avg_time:.1f}ms avg",
                 extra={
-                    'event': 'query_pattern',
-                    'pattern': pattern[:200],
-                    'count': count,
-                    'total_time_ms': round(total_time, 2),
-                    'avg_time_ms': round(avg_time, 2),
-                    'trace_id': trace_id,
-                    'request_path': request.path,
-                }
+                    "event": "query_pattern",
+                    "pattern": pattern[:200],
+                    "count": count,
+                    "total_time_ms": round(total_time, 2),
+                    "avg_time_ms": round(avg_time, 2),
+                    "trace_id": trace_id,
+                    "request_path": request.path,
+                },
             )
 
     def _detect_n_plus_one(
@@ -309,7 +318,7 @@ class QueryProfilerMiddleware:
         """检测 N+1 查询问题"""
         for pattern, durations in query_patterns.items():
             # 如果相同模式查询超过 5 次，可能是 N+1 问题
-            if len(durations) > 5 and 'SELECT' in pattern.upper():
+            if len(durations) > 5 and "SELECT" in pattern.upper():
                 total_time = sum(durations)
 
                 logger.warning(
@@ -317,13 +326,13 @@ class QueryProfilerMiddleware:
                     f"{len(durations)} similar SELECT queries, "
                     f"{total_time:.1f}ms total",
                     extra={
-                        'event': 'n_plus_one_warning',
-                        'pattern': pattern[:200],
-                        'count': len(durations),
-                        'total_time_ms': round(total_time, 2),
-                        'trace_id': trace_id,
-                        'request_path': request.path,
-                    }
+                        "event": "n_plus_one_warning",
+                        "pattern": pattern[:200],
+                        "count": len(durations),
+                        "total_time_ms": round(total_time, 2),
+                        "trace_id": trace_id,
+                        "request_path": request.path,
+                    },
                 )
 
     def _record_query_metrics(self, operation: str, duration_ms: float) -> None:
@@ -332,12 +341,16 @@ class QueryProfilerMiddleware:
             from core.metrics import db_query_latency_seconds
 
             db_query_latency_seconds.labels(
-                database='default',
-                operation=operation.lower()
-            ).observe(duration_ms / 1000)  # 转换为秒
+                database="default", operation=operation.lower()
+            ).observe(
+                duration_ms / 1000
+            )  # 转换为秒
 
-        except Exception as e:
-            logger.warning(f"Failed to record query metrics: {e}")
+        except Exception as exc:
+            logger.warning(
+                "Failed to record query metrics (error_type=%s)",
+                type(exc).__name__,
+            )
 
 
 class QuerySummary:
@@ -347,7 +360,7 @@ class QuerySummary:
     用于聚合和统计查询性能数据。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.total_queries: int = 0
         self.total_time_ms: float = 0
         self.slow_queries: int = 0
@@ -374,7 +387,7 @@ class QuerySummary:
             pattern = normalize_sql(sql)
             self.slow_query_patterns[pattern].append(duration_ms)
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """
         获取统计摘要
 
@@ -382,17 +395,19 @@ class QuerySummary:
             统计摘要字典
         """
         return {
-            'total_queries': self.total_queries,
-            'total_time_ms': round(self.total_time_ms, 2),
-            'slow_queries': self.slow_queries,
-            'avg_time_ms': round(self.total_time_ms / self.total_queries, 2) if self.total_queries > 0 else 0,
-            'operation_counts': dict(self.operation_counts),
-            'slow_query_patterns': {
+            "total_queries": self.total_queries,
+            "total_time_ms": round(self.total_time_ms, 2),
+            "slow_queries": self.slow_queries,
+            "avg_time_ms": (
+                round(self.total_time_ms / self.total_queries, 2) if self.total_queries > 0 else 0
+            ),
+            "operation_counts": dict(self.operation_counts),
+            "slow_query_patterns": {
                 pattern: {
-                    'count': len(durations),
-                    'total_ms': round(sum(durations), 2),
-                    'avg_ms': round(sum(durations) / len(durations), 2),
-                    'max_ms': round(max(durations), 2),
+                    "count": len(durations),
+                    "total_ms": round(sum(durations), 2),
+                    "avg_ms": round(sum(durations) / len(durations), 2),
+                    "max_ms": round(max(durations), 2),
                 }
                 for pattern, durations in self.slow_query_patterns.items()
             },

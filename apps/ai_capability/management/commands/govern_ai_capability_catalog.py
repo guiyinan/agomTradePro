@@ -1,8 +1,9 @@
 """Management command to govern AI capability routing policy."""
 
 import json
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 
 from apps.ai_capability.application.governance_services import (
     CapabilityCatalogGovernanceService,
@@ -12,7 +13,7 @@ from apps.ai_capability.application.governance_services import (
 class Command(BaseCommand):
     help = "Apply conservative governance to the AI capability catalog"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--apply",
             action="store_true",
@@ -30,7 +31,7 @@ class Command(BaseCommand):
             help="Output format: text or json.",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: str, **options: Any) -> None:
         service = CapabilityCatalogGovernanceService()
         result = service.execute(
             apply=bool(options["apply"]),

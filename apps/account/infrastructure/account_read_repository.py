@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.account.infrastructure.models import (
     AssetMetadataModel,
+    PortfolioModel,
     PortfolioObserverGrantModel,
     PositionModel,
 )
@@ -17,7 +18,10 @@ from apps.account.infrastructure.models import (
 class AccountReadRepository:
     """Provide account projections without synchronizing or mutating ledgers."""
 
-    def list_open_legacy_position_payloads(self, portfolio) -> list[dict[str, Any]]:
+    def list_open_legacy_position_payloads(
+        self,
+        portfolio: PortfolioModel,
+    ) -> list[dict[str, Any]]:
         """Return open position payloads for one already-authorized portfolio."""
 
         positions = list(
@@ -28,9 +32,7 @@ class AccountReadRepository:
         asset_codes = [position.asset_code for position in positions]
         metadata_by_code = {
             item.asset_code: item
-            for item in AssetMetadataModel._default_manager.filter(
-                asset_code__in=asset_codes
-            )
+            for item in AssetMetadataModel._default_manager.filter(asset_code__in=asset_codes)
         }
         return [
             {
@@ -78,8 +80,7 @@ class AccountReadRepository:
             .values_list("owner_user_id", flat=True)
         )
         positions = PositionModel._default_manager.filter(
-            Q(portfolio__user_id=user_id)
-            | Q(portfolio__user_id__in=observable_owner_ids)
+            Q(portfolio__user_id=user_id) | Q(portfolio__user_id__in=observable_owner_ids)
         ).select_related(
             "portfolio",
             "category",

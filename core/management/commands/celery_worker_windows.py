@@ -9,97 +9,123 @@ Celery 在 Windows 上不支持 prefork pool（多进程），本命令自动使
     python manage.py celery_worker_windows --queues=celery,qlib_infer,qlib_train
 """
 
+import re
 import sys
+from argparse import ArgumentParser
+from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
+
+_LOG_LEVELS = frozenset({"debug", "info", "warning", "error", "critical"})
+_QUEUE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+(?:,[A-Za-z0-9_.-]+)*$")
+_HOSTNAME_PATTERN = re.compile(r"^[A-Za-z0-9_.@%:-]{1,128}$")
 
 
 class Command(BaseCommand):
-    help = 'Run Celery worker with Windows-compatible settings (solo pool)'
+    help = "Run Celery worker with Windows-compatible settings (solo pool)"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
-            '--loglevel',
+            "--loglevel",
             type=str,
-            default='info',
-            help='Logging level (debug, info, warning, error, critical)',
+            default="info",
+            help="Logging level (debug, info, warning, error, critical)",
         )
         parser.add_argument(
-            '--concurrency',
+            "--concurrency",
             type=int,
             default=1,
-            help='Concurrency level (default: 1 for solo pool)',
+            help="Concurrency level (default: 1 for solo pool)",
         )
         parser.add_argument(
-            '-Q',
-            '--queues',
+            "-Q",
+            "--queues",
             type=str,
             default=None,
-            help='Comma-separated Celery queues to consume, for example: celery,qlib_infer,qlib_train',
+            help="Comma-separated Celery queues to consume, for example: celery,qlib_infer,qlib_train",
         )
         parser.add_argument(
-            '-n',
-            '--hostname',
+            "-n",
+            "--hostname",
             type=str,
             default=None,
-            help='Optional Celery worker hostname, for example: readiness@%%h',
+            help="Optional Celery worker hostname, for example: readiness@%%h",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         # 检测操作系统
-        is_windows = sys.platform == 'win32'
+        is_windows = sys.platform == "win32"
 
         if is_windows:
-            self.stdout.write(self.style.WARNING('Running on Windows - using solo pool'))
-            self.stdout.write(self.style.WARNING('Note: solo pool does not support multiple processes'))
-            self.stdout.write(self.style.WARNING('For production, use Linux with prefork pool'))
+            self.stdout.write(self.style.WARNING("Running on Windows - using solo pool"))
+            self.stdout.write(
+                self.style.WARNING("Note: solo pool does not support multiple processes")
+            )
+            self.stdout.write(self.style.WARNING("For production, use Linux with prefork pool"))
         else:
-            self.stdout.write(self.style.SUCCESS('Running on Linux - using prefork pool'))
+            self.stdout.write(self.style.SUCCESS("Running on Linux - using prefork pool"))
 
         # 导入 Celery 应用
         from core.celery import app
 
         # 启动 worker
-        loglevel = options['loglevel']
-        queues = options.get('queues')
-        hostname = options.get('hostname')
+        loglevel = options.get("loglevel")
+        concurrency = options.get("concurrency")
+        queues = options.get("queues")
+        hostname = options.get("hostname")
+
+        if not isinstance(loglevel, str) or loglevel.lower() not in _LOG_LEVELS:
+            raise CommandError("Unsupported Celery log level")
+        if (
+            isinstance(concurrency, bool)
+            or not isinstance(concurrency, int)
+            or not 1 <= concurrency <= 256
+        ):
+            raise CommandError("Celery concurrency must be between 1 and 256")
+        if queues is not None and (
+            not isinstance(queues, str) or not _QUEUE_PATTERN.fullmatch(queues)
+        ):
+            raise CommandError("Invalid Celery queue list")
+        if hostname is not None and (
+            not isinstance(hostname, str) or not _HOSTNAME_PATTERN.fullmatch(hostname)
+        ):
+            raise CommandError("Invalid Celery hostname")
+        loglevel = loglevel.lower()
 
         if is_windows:
             # Windows: 使用 solo pool
             self.stdout.write(
-                self.style.SUCCESS(
-                    f'Starting Celery worker with solo pool (loglevel={loglevel})'
-                )
+                self.style.SUCCESS(f"Starting Celery worker with solo pool (loglevel={loglevel})")
             )
 
             # 使用 solo pool 启动
             argv = [
-                'worker',
-                '--loglevel=' + loglevel,
-                '--pool=solo',
-                '--concurrency=' + str(options['concurrency']),
+                "worker",
+                "--loglevel=" + loglevel,
+                "--pool=solo",
+                "--concurrency=" + str(concurrency),
             ]
         else:
             # Linux: 使用 prefork pool
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'Starting Celery worker with prefork pool (loglevel={loglevel})'
+                    f"Starting Celery worker with prefork pool (loglevel={loglevel})"
                 )
             )
 
             argv = [
-                'worker',
-                '--loglevel=' + loglevel,
-                '--pool=prefork',
-                '--concurrency=' + str(options['concurrency']),
+                "worker",
+                "--loglevel=" + loglevel,
+                "--pool=prefork",
+                "--concurrency=" + str(concurrency),
             ]
 
         if queues:
-            self.stdout.write(self.style.WARNING(f'Queues: {queues}'))
-            argv.append('--queues=' + queues)
+            self.stdout.write(self.style.WARNING(f"Queues: {queues}"))
+            argv.append("--queues=" + queues)
 
         if hostname:
-            self.stdout.write(self.style.WARNING(f'Hostname: {hostname}'))
-            argv.append('--hostname=' + hostname)
+            self.stdout.write(self.style.WARNING(f"Hostname: {hostname}"))
+            argv.append("--hostname=" + hostname)
 
         app.worker_main(argv)
