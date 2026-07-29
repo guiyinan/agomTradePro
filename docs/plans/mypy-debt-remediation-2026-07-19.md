@@ -6294,3 +6294,18 @@
 - AI Provider 模型边界、加密与 Admin 守卫专项 `22 passed`；全部 AI Provider 单元/组件/API 回归 `130 passed`；Prompt、Terminal、TUI、SDK 与内部 SSL 跨模块消费者组合 `278 passed`。
 - `apps/ai_provider/infrastructure/models.py` 增量 mypy 清零并退出债务清单，Admin 联合检查保持零回归；全仓基线从 `422 errors / 240 files` 收紧为 `419 errors / 239 files`，净减少 `3 errors / 1 file`。
 - Django system check、AI Provider migration drift、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未改变 AI Provider API 成功响应结构或数据库结构。
+
+## 第四百一十一批
+
+- 按“Sector 直接 ORM 可持久化 NaN/Infinity 与矛盾 OHLC × 层级和成分有效期可自相矛盾 × Regime 偏好可越界 × 生成行情/指标可由 Admin 人工改删 × Admin 使用裸泛型”收口板块持久化与治理入口。
+- 五类 Sector 模型统一在普通 ORM save/update_or_create 前执行原始值与规范值校验，同时保留数据库唯一约束作为并发写入真源；字符串日期等 Django 正常字段转换继续兼容，bool 数值在转换前失败关闭。
+- 板块信息要求有界代码/名称，SW1 禁止父级，SW2/SW3 必须具备非自身父级；成分关系要求 exit date 不早于 enter date，current 状态与 exit date 一致。
+- 指数日线要求 OHLC 为有限正数且 low/open/close/high 内部一致，成交量和成交额非负，涨跌幅有限，换手率有限非负；相对强弱、动量与 beta 必须有限，momentum window 限制为 `1..10000`。
+- Regime-sector preference 仅接受四种正式 Regime、有限 `0..1` 权重及有界行业名称；Equity 配置初始化和 Sector rotation 不再可能消费 NaN 或越界偏好。
+- 5 个 Sector Admin 全部迁移到 `TypedModelAdmin`；指数、成分关系和相对强弱作为 provider 生成证据禁止后台新增、修改和删除，Sector 信息与 Regime 偏好继续保留受控配置编辑能力。
+
+## 第四百一十一批验证结果
+
+- Sector 模型/Admin 边界、持久化、公开 API、Realtime 与 Equity 配置组合 `42 passed`；全部文件名含 Sector 的 Domain/Application/Repository/API 集成回归 `99 passed`；账户初始化命令消费者 `13 passed`。
+- `apps/sector/infrastructure/models.py` 与 `apps/sector/interface/admin.py` 增量 mypy 清零并退出债务清单；全仓基线从 `419 errors / 239 files` 收紧为 `410 errors / 237 files`，净减少 `9 errors / 2 files`。
+- Django system check、Sector migration drift、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未改变 Sector/Realtime API 成功响应结构或数据库结构。

@@ -3,17 +3,20 @@ Django Admin configuration for Sector Module.
 """
 
 from django.contrib import admin
+from django.http import HttpRequest
 
 from apps.sector.models import (
     SectorConstituentModel,
     SectorIndexModel,
     SectorInfoModel,
+    SectorPreferenceConfigModel,
     SectorRelativeStrengthModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 @admin.register(SectorInfoModel)
-class SectorInfoAdmin(admin.ModelAdmin):
+class SectorInfoAdmin(TypedModelAdmin[SectorInfoModel]):
     """Admin interface for SectorInfo"""
 
     list_display = ["sector_code", "sector_name", "level", "parent_code", "is_active", "created_at"]
@@ -30,7 +33,7 @@ class SectorInfoAdmin(admin.ModelAdmin):
 
 
 @admin.register(SectorIndexModel)
-class SectorIndexAdmin(admin.ModelAdmin):
+class SectorIndexAdmin(TypedModelAdmin[SectorIndexModel]):
     """Admin interface for SectorIndex"""
 
     list_display = [
@@ -45,7 +48,19 @@ class SectorIndexAdmin(admin.ModelAdmin):
     list_filter = ["trade_date"]
     search_fields = ["sector_code"]
     date_hierarchy = "trade_date"
-    readonly_fields = ["created_at"]
+    readonly_fields = [
+        "sector_code",
+        "trade_date",
+        "open_price",
+        "high",
+        "low",
+        "close",
+        "change_pct",
+        "volume",
+        "amount",
+        "turnover_rate",
+        "created_at",
+    ]
 
     fieldsets = (
         ("基本信息", {"fields": ("sector_code", "trade_date")}),
@@ -54,16 +69,45 @@ class SectorIndexAdmin(admin.ModelAdmin):
         ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
 
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Keep provider-generated index evidence out of manual Admin writes."""
+
+        del request
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: SectorIndexModel | None = None,
+    ) -> bool:
+        del request, obj
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: SectorIndexModel | None = None,
+    ) -> bool:
+        del request, obj
+        return False
+
 
 @admin.register(SectorConstituentModel)
-class SectorConstituentAdmin(admin.ModelAdmin):
+class SectorConstituentAdmin(TypedModelAdmin[SectorConstituentModel]):
     """Admin interface for SectorConstituent"""
 
     list_display = ["sector_code", "stock_code", "enter_date", "exit_date", "is_current"]
     list_filter = ["is_current", "enter_date"]
     search_fields = ["sector_code", "stock_code"]
     date_hierarchy = "enter_date"
-    readonly_fields = ["created_at"]
+    readonly_fields = [
+        "sector_code",
+        "stock_code",
+        "enter_date",
+        "exit_date",
+        "is_current",
+        "created_at",
+    ]
 
     fieldsets = (
         ("关系信息", {"fields": ("sector_code", "stock_code")}),
@@ -72,9 +116,31 @@ class SectorConstituentAdmin(admin.ModelAdmin):
         ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
 
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Keep provider-generated membership evidence out of manual Admin writes."""
+
+        del request
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: SectorConstituentModel | None = None,
+    ) -> bool:
+        del request, obj
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: SectorConstituentModel | None = None,
+    ) -> bool:
+        del request, obj
+        return False
+
 
 @admin.register(SectorRelativeStrengthModel)
-class SectorRelativeStrengthAdmin(admin.ModelAdmin):
+class SectorRelativeStrengthAdmin(TypedModelAdmin[SectorRelativeStrengthModel]):
     """Admin interface for SectorRelativeStrength"""
 
     list_display = [
@@ -88,10 +154,50 @@ class SectorRelativeStrengthAdmin(admin.ModelAdmin):
     list_filter = ["trade_date", "momentum_window"]
     search_fields = ["sector_code"]
     date_hierarchy = "trade_date"
-    readonly_fields = ["created_at"]
+    readonly_fields = [
+        "sector_code",
+        "trade_date",
+        "relative_strength",
+        "momentum",
+        "momentum_window",
+        "beta",
+        "created_at",
+    ]
 
     fieldsets = (
         ("基本信息", {"fields": ("sector_code", "trade_date")}),
         ("相对强弱指标", {"fields": ("relative_strength", "momentum", "momentum_window", "beta")}),
         ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Keep generated relative-strength evidence out of manual Admin writes."""
+
+        del request
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: SectorRelativeStrengthModel | None = None,
+    ) -> bool:
+        del request, obj
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: SectorRelativeStrengthModel | None = None,
+    ) -> bool:
+        del request, obj
+        return False
+
+
+@admin.register(SectorPreferenceConfigModel)
+class SectorPreferenceConfigAdmin(TypedModelAdmin[SectorPreferenceConfigModel]):
+    """Govern editable regime-to-sector preference configuration."""
+
+    list_display = ["regime", "sector_name", "weight", "is_active", "updated_at"]
+    list_filter = ["regime", "is_active"]
+    search_fields = ["sector_name"]
+    readonly_fields = ["created_at", "updated_at"]

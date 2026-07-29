@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 419,
-    "files_with_errors": 239
+    "errors": 410,
+    "files_with_errors": 237
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -606,15 +606,9 @@
       "no-untyped-def": 1,
       "type-arg": 1
     },
-    "apps/sector/infrastructure/models.py": {
-      "no-untyped-def": 5
-    },
     "apps/sector/infrastructure/repositories.py": {
       "arg-type": 1,
       "no-untyped-def": 1
-    },
-    "apps/sector/interface/admin.py": {
-      "type-arg": 4
     },
     "apps/sector/interface/api_urls.py": {
       "no-untyped-def": 1
