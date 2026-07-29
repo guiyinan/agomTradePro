@@ -6245,3 +6245,20 @@
 - Navigator 权重/风险策略、配置隔离、关注指标和 movement 专项 `42 passed`；全部文件名含 Regime 的 Domain、Application、任务、仓储、编排、Data Center provider、API、Audit Attribution 与 AI Capability 回归 `286 passed`。
 - `apps/regime/domain/entities.py` 与 `navigator_services.py` 增量 mypy 清零并退出债务清单；全仓基线从 `439 errors / 246 files` 收紧为 `433 errors / 244 files`，净减少 `6 errors / 2 files`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改公开 API 成功响应或数据库结构。
+
+## 第四百零八批
+
+- 按“Prompt 模型 `clean()` 不在 ORM create/save 自动执行 × 活跃链可持久化空/冲突步骤 × 执行与聊天证据仅 Admin 只读但模型可改删 × 原始凭据/DSN/错误正文进入 trace writer、数据库和日志”收口 Prompt 配置与证据持久化链。
+- Legacy PromptTemplate 每次 ORM/repository 写入均执行完整模型验证；temperature 拒绝 bool、NaN/Infinity 和 `0..2` 外值，max_tokens 限制为 `1..200000`，模板/系统提示/描述、placeholder 数量和 JSON 大小有界。
+- placeholder 名称、类型、required、function 配置、有限 JSON、未知字段和名称唯一性在发布前规范化；调用方容器经 JSON round-trip 隔离，动态对象或非有限默认值不能进入模板事实。
+- ChainConfig 每次写入验证 active chain 非空、最多 100 步、唯一 step ID、合法 order/input mapping/tool list；重复 order 仅允许同一 parallel group，并保留 inactive 空链作为初始化命令的受控占位记录。
+- PromptExecutionLog 与 ChatSession 变为 append-only 证据模型；插入后实例更新和删除失败关闭。执行耗时、token、总量勾稽和成本必须非负有限，错误/超时只保存稳定错误码。
+- rendered prompt、AI response、chat、placeholder/context、tool arguments 和 structured output 在 writer 前及模型插入前双重脱敏；password/token/API key/Authorization/Bearer、credential、private key、cookie、session 和带用户名密码的 HTTP/PostgreSQL/Redis URL 不再进入证据或日志。
+- 动态 trace JSON 限制深度、节点/集合数量、单字符串与总字节；NaN/Infinity、未知对象和超大 payload 使用稳定占位，避免审计旁路因序列化或内存放大阻断主流程。
+- Execution logger 使用精确 writer Protocol 与 ToolCallRecord 容器合同；持久化异常日志仅发布异常类型，Repository 将 Django/数据库/类型验证失败收敛为 `prompt_execution_log_write_failed`。
+
+## 第四百零八批验证结果
+
+- Prompt 模型采样策略、placeholder/chain、证据脱敏、token 勾稽、append-only 与 trace writer 专项 `11 passed`；全 Prompt Domain、序列化、接口服务、初始化命令、宏观适配、evaluation gate、API 和 AI Capability owner 回归 `131 passed`。
+- `apps/prompt/infrastructure/models.py` 与 `apps/prompt/application/trace_logging.py` 增量 mypy 清零并退出债务清单；Repository 联合检查保持零回归，全仓基线从 `433 errors / 244 files` 收紧为 `427 errors / 242 files`，净减少 `6 errors / 2 files`。
+- Django system check、Prompt migration drift、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改公开 API 成功响应或数据库结构。

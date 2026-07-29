@@ -6,6 +6,8 @@ Infrastructure layer implementation using Django ORM.
 
 from typing import Any
 
+from django.core.exceptions import ValidationError
+from django.db import DatabaseError
 from django.utils import timezone
 
 from ..domain.entities import (
@@ -513,7 +515,10 @@ class DjangoExecutionLogRepository:
         Returns:
             创建的日志ORM对象
         """
-        return self._model.objects.create(**log_data)
+        try:
+            return self._model.objects.create(**log_data)
+        except (DatabaseError, ValidationError, TypeError, ValueError) as exc:
+            raise RuntimeError("prompt_execution_log_write_failed") from exc
 
     def get_logs_by_execution_id(self, execution_id: str) -> list[PromptExecutionLogORM]:
         """根据执行ID获取日志
