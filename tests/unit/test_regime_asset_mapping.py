@@ -95,3 +95,53 @@ class TestMapRegimeToAssetGuidance:
         result = map_regime_to_asset_guidance(RegimeType.RECOVERY, 0.8)
         categories = {wr["category"] for wr in result["weight_ranges"]}
         assert categories == {"equity", "bond", "commodity", "cash"}
+
+    @pytest.mark.parametrize("confidence", [True, -0.1, 1.1, float("nan"), float("inf")])
+    def test_invalid_confidence_is_rejected(self, confidence):
+        with pytest.raises(ValueError, match="confidence"):
+            map_regime_to_asset_guidance(RegimeType.RECOVERY, confidence)
+
+    @pytest.mark.parametrize(
+        "ranges",
+        [
+            {"Recovery": {"equity": (0.8, 0.2), "cash": (0.2, 0.2)}},
+            {"Recovery": {"equity": (float("nan"), 0.8), "cash": (0.2, 0.2)}},
+            {"Recovery": {"equity": (0.1, 0.4), "cash": (0.1, 0.4)}},
+        ],
+    )
+    def test_invalid_or_infeasible_weight_ranges_are_rejected(self, ranges):
+        with pytest.raises(ValueError):
+            RegimeAssetConfig(asset_ranges=ranges)
+
+    @pytest.mark.parametrize(
+        "config_kwargs",
+        [
+            {"risk_budget": {"Recovery": float("nan")}},
+            {"risk_budget": {"Recovery": 1.1}},
+            {"low_confidence_threshold": float("inf")},
+            {"low_confidence_discount": -0.1},
+        ],
+    )
+    def test_invalid_risk_policy_is_rejected(self, config_kwargs):
+        with pytest.raises(ValueError):
+            RegimeAssetConfig(**config_kwargs)
+
+    def test_custom_config_is_detached_from_inputs_and_outputs(self):
+        ranges = {"Recovery": {"equity": (0.3, 0.5), "bond": (0.5, 0.7)}}
+        sectors = {"Recovery": ["科技"]}
+        config = RegimeAssetConfig(
+            asset_ranges=ranges,
+            risk_budget={"Recovery": 0.9},
+            sectors=sectors,
+            styles={"Recovery": ["成长"]},
+        )
+        ranges["Recovery"]["equity"] = (0.0, 0.0)
+        sectors["Recovery"].append("污染")
+
+        first = map_regime_to_asset_guidance(RegimeType.RECOVERY, 0.8, config=config)
+        first["sectors"].append("调用方修改")
+        second = map_regime_to_asset_guidance(RegimeType.RECOVERY, 0.8, config=config)
+
+        equity = next(item for item in second["weight_ranges"] if item["category"] == "equity")
+        assert equity == {"category": "equity", "lower": 0.3, "upper": 0.5, "label": "权益类"}
+        assert second["sectors"] == ["科技"]

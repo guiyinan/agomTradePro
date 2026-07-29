@@ -10,9 +10,116 @@ Application 层可从数据库加载配置并传入覆盖默认值。
 - determine_watch_indicators: 确定关注指标
 """
 
+import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from types import MappingProxyType
+from typing import TypedDict
 
 from apps.regime.domain.services_v2 import RegimeType, TrendIndicator
+
+
+class AssetWeightRangePayload(TypedDict):
+    """One normalized allocation range published by the navigator."""
+
+    category: str
+    lower: float
+    upper: float
+    label: str
+
+
+class RegimeAssetGuidancePayload(TypedDict):
+    """Asset guidance payload consumed by the navigator use case."""
+
+    weight_ranges: list[AssetWeightRangePayload]
+    risk_budget: float
+    sectors: list[str]
+    styles: list[str]
+    reasoning: str
+
+
+class WatchIndicatorPayload(TypedDict):
+    """One normalized indicator watch rule."""
+
+    code: str
+    name: str
+    threshold: str
+    significance: str
+
+
+_REGIME_NAMES = frozenset(regime.value for regime in RegimeType)
+_ASSET_CATEGORIES = frozenset({"equity", "bond", "commodity", "cash"})
+_WATCH_FIELDS = ("code", "name", "threshold", "significance")
+
+
+def _unit_float(value: object, *, field_name: str) -> float:
+    """Return a finite unit-interval value and reject bool coercion."""
+
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{field_name} must be a finite number between 0 and 1")
+    normalized = float(value)
+    if not math.isfinite(normalized) or not 0.0 <= normalized <= 1.0:
+        raise ValueError(f"{field_name} must be a finite number between 0 and 1")
+    return normalized
+
+
+def _regime_name(value: object, *, field_name: str) -> str:
+    """Validate one configured Regime identifier."""
+
+    if not isinstance(value, str) or value not in _REGIME_NAMES:
+        raise ValueError(f"{field_name} must identify a supported Regime")
+    return value
+
+
+def _text_list(values: object, *, field_name: str) -> tuple[str, ...]:
+    """Detach a bounded list of non-empty display labels."""
+
+    if isinstance(values, str) or not isinstance(values, Sequence) or len(values) > 100:
+        raise ValueError(f"{field_name} must contain at most 100 labels")
+    normalized: list[str] = []
+    for value in values:
+        if (
+            not isinstance(value, str)
+            or not value.strip()
+            or len(value) > 100
+            or any(character in value for character in "\r\n\x00")
+        ):
+            raise ValueError(f"{field_name} contains an invalid label")
+        normalized.append(value.strip())
+    return tuple(normalized)
+
+
+def _watch_rule(rule: object, *, field_name: str) -> Mapping[str, str]:
+    """Validate and detach one watch-indicator rule."""
+
+    if not isinstance(rule, Mapping) or set(rule) != set(_WATCH_FIELDS):
+        raise ValueError(f"{field_name} must contain the canonical watch fields")
+    normalized: dict[str, str] = {}
+    for key in _WATCH_FIELDS:
+        value = rule[key]
+        if (
+            not isinstance(value, str)
+            or not value.strip()
+            or len(value) > 500
+            or any(character in value for character in "\r\n\x00")
+        ):
+            raise ValueError(f"{field_name}.{key} is invalid")
+        normalized[key] = value.strip()
+    if normalized["significance"] not in {"high", "medium", "low"}:
+        raise ValueError(f"{field_name}.significance is invalid")
+    return MappingProxyType(normalized)
+
+
+def _watch_payload(rule: Mapping[str, str]) -> WatchIndicatorPayload:
+    """Return a detached typed payload for one validated watch rule."""
+
+    return {
+        "code": rule["code"],
+        "name": rule["name"],
+        "threshold": rule["threshold"],
+        "significance": rule["significance"],
+    }
+
 
 # ==================== 配置 Dataclass（Domain 层默认值） ====================
 
@@ -23,8 +130,9 @@ class RegimeAssetConfig:
 
     所有值为默认值，可由 DB 覆盖。
     """
+
     # {regime_name: {category: (lower, upper)}}
-    asset_ranges: dict[str, dict[str, tuple[float, float]]] = field(
+    asset_ranges: Mapping[str, Mapping[str, tuple[float, float]]] = field(
         default_factory=lambda: {
             "Recovery": {
                 "equity": (0.50, 0.70),
@@ -53,38 +161,121 @@ class RegimeAssetConfig:
         }
     )
 
-    risk_budget: dict[str, float] = field(default_factory=lambda: {
-        "Recovery": 0.85,
-        "Overheat": 0.70,
-        "Stagflation": 0.50,
-        "Deflation": 0.60,
-    })
+    risk_budget: Mapping[str, float] = field(
+        default_factory=lambda: {
+            "Recovery": 0.85,
+            "Overheat": 0.70,
+            "Stagflation": 0.50,
+            "Deflation": 0.60,
+        }
+    )
 
     # {regime_name: [sector_names]}
-    sectors: dict[str, list[str]] = field(default_factory=lambda: {
-        "Recovery": ["消费", "科技", "金融"],
-        "Overheat": ["能源", "材料", "公用事业"],
-        "Stagflation": ["公用事业", "医药", "必选消费"],
-        "Deflation": ["债券ETF", "货币基金", "高股息"],
-    })
+    sectors: Mapping[str, Sequence[str]] = field(
+        default_factory=lambda: {
+            "Recovery": ["消费", "科技", "金融"],
+            "Overheat": ["能源", "材料", "公用事业"],
+            "Stagflation": ["公用事业", "医药", "必选消费"],
+            "Deflation": ["债券ETF", "货币基金", "高股息"],
+        }
+    )
 
-    styles: dict[str, list[str]] = field(default_factory=lambda: {
-        "Recovery": ["成长", "中小盘"],
-        "Overheat": ["价值", "周期"],
-        "Stagflation": ["防御", "红利"],
-        "Deflation": ["债券", "红利", "低波"],
-    })
+    styles: Mapping[str, Sequence[str]] = field(
+        default_factory=lambda: {
+            "Recovery": ["成长", "中小盘"],
+            "Overheat": ["价值", "周期"],
+            "Stagflation": ["防御", "红利"],
+            "Deflation": ["债券", "红利", "低波"],
+        }
+    )
 
     # 低置信度风险预算折扣因子
     low_confidence_threshold: float = 0.3
     low_confidence_discount: float = 0.8
 
-    category_labels: dict[str, str] = field(default_factory=lambda: {
-        "equity": "权益类",
-        "bond": "债券类",
-        "commodity": "商品类",
-        "cash": "现金类",
-    })
+    category_labels: Mapping[str, str] = field(
+        default_factory=lambda: {
+            "equity": "权益类",
+            "bond": "债券类",
+            "commodity": "商品类",
+            "cash": "现金类",
+        }
+    )
+
+    def __post_init__(self) -> None:
+        """Validate and detach allocation policy loaded from persistence."""
+
+        if not isinstance(self.asset_ranges, Mapping):
+            raise ValueError("asset_ranges must be a mapping")
+        normalized_ranges: dict[str, Mapping[str, tuple[float, float]]] = {}
+        for raw_regime, categories in self.asset_ranges.items():
+            regime_name = _regime_name(raw_regime, field_name="asset_ranges key")
+            if not isinstance(categories, Mapping) or not categories:
+                raise ValueError(f"asset_ranges[{regime_name}] must not be empty")
+            normalized_categories: dict[str, tuple[float, float]] = {}
+            for category, bounds in categories.items():
+                if not isinstance(category, str) or category not in _ASSET_CATEGORIES:
+                    raise ValueError("asset range category is unsupported")
+                if not isinstance(bounds, Sequence) or len(bounds) != 2:
+                    raise ValueError(f"asset_ranges[{regime_name}][{category}] is invalid")
+                lower = _unit_float(bounds[0], field_name=f"{regime_name}.{category}.lower")
+                upper = _unit_float(bounds[1], field_name=f"{regime_name}.{category}.upper")
+                if lower > upper:
+                    raise ValueError(f"{regime_name}.{category} lower exceeds upper")
+                normalized_categories[category] = (lower, upper)
+            lower_total = math.fsum(bounds[0] for bounds in normalized_categories.values())
+            upper_total = math.fsum(bounds[1] for bounds in normalized_categories.values())
+            if lower_total > 1.0 + 1e-9 or upper_total < 1.0 - 1e-9:
+                raise ValueError(f"asset_ranges[{regime_name}] cannot form a full allocation")
+            normalized_ranges[regime_name] = MappingProxyType(normalized_categories)
+
+        if not isinstance(self.risk_budget, Mapping):
+            raise ValueError("risk_budget must be a mapping")
+        normalized_budgets = {
+            _regime_name(name, field_name="risk_budget key"): _unit_float(
+                value, field_name=f"risk_budget[{name}]"
+            )
+            for name, value in self.risk_budget.items()
+        }
+
+        normalized_text_maps: dict[str, Mapping[str, tuple[str, ...]]] = {}
+        for field_name, values in (("sectors", self.sectors), ("styles", self.styles)):
+            if not isinstance(values, Mapping):
+                raise ValueError(f"{field_name} must be a mapping")
+            normalized_text_maps[field_name] = MappingProxyType(
+                {
+                    _regime_name(name, field_name=f"{field_name} key"): _text_list(
+                        labels, field_name=f"{field_name}[{name}]"
+                    )
+                    for name, labels in values.items()
+                }
+            )
+
+        if not isinstance(self.category_labels, Mapping):
+            raise ValueError("category_labels must be a mapping")
+        normalized_labels: dict[str, str] = {}
+        for category, label in self.category_labels.items():
+            if category not in _ASSET_CATEGORIES:
+                raise ValueError("category label key is unsupported")
+            normalized_labels[category] = _text_list(
+                [label], field_name=f"category_labels[{category}]"
+            )[0]
+
+        object.__setattr__(self, "asset_ranges", MappingProxyType(normalized_ranges))
+        object.__setattr__(self, "risk_budget", MappingProxyType(normalized_budgets))
+        object.__setattr__(self, "sectors", normalized_text_maps["sectors"])
+        object.__setattr__(self, "styles", normalized_text_maps["styles"])
+        object.__setattr__(self, "category_labels", MappingProxyType(normalized_labels))
+        object.__setattr__(
+            self,
+            "low_confidence_threshold",
+            _unit_float(self.low_confidence_threshold, field_name="low_confidence_threshold"),
+        )
+        object.__setattr__(
+            self,
+            "low_confidence_discount",
+            _unit_float(self.low_confidence_discount, field_name="low_confidence_discount"),
+        )
 
     @classmethod
     def defaults(cls) -> "RegimeAssetConfig":
@@ -97,45 +288,78 @@ class WatchIndicatorConfig:
 
     定义各场景下需要关注的指标及其阈值描述。
     """
+
     # 基础指标（总是显示）
-    base_indicators: list[dict[str, str]] = field(default_factory=lambda: [
-        {
-            "code": "PMI",
-            "name": "制造业PMI",
-            "threshold": "跌破50 → 收缩；站上50 → 扩张",
-            "significance": "high",
-        },
-        {
-            "code": "CPI",
-            "name": "居民消费价格指数",
-            "threshold": "> 2% → 高通胀；< 0 → 通缩",
-            "significance": "high",
-        },
-    ])
+    base_indicators: Sequence[Mapping[str, str]] = field(
+        default_factory=lambda: [
+            {
+                "code": "PMI",
+                "name": "制造业PMI",
+                "threshold": "跌破50 → 收缩；站上50 → 扩张",
+                "significance": "high",
+            },
+            {
+                "code": "CPI",
+                "name": "居民消费价格指数",
+                "threshold": "> 2% → 高通胀；< 0 → 通缩",
+                "significance": "high",
+            },
+        ]
+    )
 
     # 通胀预警指标
-    inflation_indicator: dict[str, str] = field(default_factory=lambda: {
-        "code": "CN_NHCI",
-        "name": "南华商品指数",
-        "threshold": "持续上涨 → 通胀压力加大",
-        "significance": "medium",
-    })
+    inflation_indicator: Mapping[str, str] = field(
+        default_factory=lambda: {
+            "code": "CN_NHCI",
+            "name": "南华商品指数",
+            "threshold": "持续上涨 → 通胀压力加大",
+            "significance": "medium",
+        }
+    )
 
     # 利差指标
-    term_spread_indicator: dict[str, str] = field(default_factory=lambda: {
-        "code": "CN_TERM_SPREAD_10Y2Y",
-        "name": "国债利差(10Y-2Y)",
-        "threshold": "倒挂 → 衰退预警；走扩 → 增长预期改善",
-        "significance": "high",
-    })
+    term_spread_indicator: Mapping[str, str] = field(
+        default_factory=lambda: {
+            "code": "CN_TERM_SPREAD_10Y2Y",
+            "name": "国债利差(10Y-2Y)",
+            "threshold": "倒挂 → 衰退预警；走扩 → 增长预期改善",
+            "significance": "high",
+        }
+    )
 
     # 信贷指标
-    credit_indicator: dict[str, str] = field(default_factory=lambda: {
-        "code": "CN_NEW_CREDIT",
-        "name": "新增信贷",
-        "threshold": "同比增速回升 → 经济见底信号",
-        "significance": "medium",
-    })
+    credit_indicator: Mapping[str, str] = field(
+        default_factory=lambda: {
+            "code": "CN_NEW_CREDIT",
+            "name": "新增信贷",
+            "threshold": "同比增速回升 → 经济见底信号",
+            "significance": "medium",
+        }
+    )
+
+    def __post_init__(self) -> None:
+        """Validate and detach every published watch rule."""
+
+        if isinstance(self.base_indicators, str) or not isinstance(self.base_indicators, Sequence):
+            raise ValueError("base_indicators must be a sequence")
+        object.__setattr__(
+            self,
+            "base_indicators",
+            tuple(
+                _watch_rule(rule, field_name=f"base_indicators[{index}]")
+                for index, rule in enumerate(self.base_indicators)
+            ),
+        )
+        for field_name in (
+            "inflation_indicator",
+            "term_spread_indicator",
+            "credit_indicator",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _watch_rule(getattr(self, field_name), field_name=field_name),
+            )
 
     @classmethod
     def defaults(cls) -> "WatchIndicatorConfig":
@@ -157,6 +381,12 @@ def assess_regime_movement(
     Returns:
         (direction, transition_target, probability, reasons)
     """
+    if not isinstance(regime, RegimeType):
+        raise ValueError("regime must be a RegimeType")
+    if not isinstance(trend_indicators, list) or any(
+        not isinstance(indicator, TrendIndicator) for indicator in trend_indicators
+    ):
+        raise ValueError("trend_indicators must contain TrendIndicator values")
     pmi_trend: TrendIndicator | None = None
     cpi_trend: TrendIndicator | None = None
     reasons: list[str] = []
@@ -215,7 +445,7 @@ def map_regime_to_asset_guidance(
     regime: RegimeType,
     confidence: float,
     config: RegimeAssetConfig | None = None,
-) -> dict:
+) -> RegimeAssetGuidancePayload:
     """
     将 regime 映射为资产配置指引
 
@@ -227,14 +457,19 @@ def map_regime_to_asset_guidance(
     Returns:
         dict with 'weight_ranges', 'risk_budget', 'sectors', 'styles', 'reasoning'
     """
-    if config is None:
-        config = RegimeAssetConfig.defaults()
+    if not isinstance(regime, RegimeType):
+        raise ValueError("regime must be a RegimeType")
+    confidence = _unit_float(confidence, field_name="confidence")
+    if config is not None and not isinstance(config, RegimeAssetConfig):
+        raise ValueError("config must be a RegimeAssetConfig")
+    config = config or RegimeAssetConfig.defaults()
+    defaults = RegimeAssetConfig.defaults()
 
     regime_name = regime.value
-    ranges = config.asset_ranges.get(regime_name, config.asset_ranges.get("Deflation", {}))
-    risk_budget = config.risk_budget.get(regime_name, 0.5)
-    sectors = config.sectors.get(regime_name, [])
-    styles = config.styles.get(regime_name, [])
+    ranges = config.asset_ranges.get(regime_name, defaults.asset_ranges[regime_name])
+    risk_budget = config.risk_budget.get(regime_name, defaults.risk_budget[regime_name])
+    sectors = config.sectors.get(regime_name, defaults.sectors[regime_name])
+    styles = config.styles.get(regime_name, defaults.styles[regime_name])
 
     if confidence < config.low_confidence_threshold:
         risk_budget *= config.low_confidence_discount
@@ -250,8 +485,8 @@ def map_regime_to_asset_guidance(
             for cat, (lo, hi) in ranges.items()
         ],
         "risk_budget": risk_budget,
-        "sectors": sectors,
-        "styles": styles,
+        "sectors": list(sectors),
+        "styles": list(styles),
         "reasoning": _build_regime_reasoning(regime_name, confidence, config),
     }
 
@@ -261,7 +496,7 @@ def determine_watch_indicators(
     direction: str,
     transition_target: str | None,
     config: WatchIndicatorConfig | None = None,
-) -> list[dict]:
+) -> list[WatchIndicatorPayload]:
     """
     确定当前应关注的指标
 
@@ -271,19 +506,26 @@ def determine_watch_indicators(
         transition_target: 转折目标
         config: 关注指标配置（None 则使用默认值）
     """
-    if config is None:
-        config = WatchIndicatorConfig.defaults()
+    if not isinstance(regime, RegimeType):
+        raise ValueError("regime must be a RegimeType")
+    if direction not in {"stable", "transitioning"}:
+        raise ValueError("direction must be stable or transitioning")
+    if transition_target is not None and transition_target not in _REGIME_NAMES:
+        raise ValueError("transition_target must identify a supported Regime")
+    if config is not None and not isinstance(config, WatchIndicatorConfig):
+        raise ValueError("config must be a WatchIndicatorConfig")
+    config = config or WatchIndicatorConfig.defaults()
 
-    indicators: list[dict] = list(config.base_indicators)
+    indicators = [_watch_payload(rule) for rule in config.base_indicators]
 
     if transition_target == "Stagflation" or regime == RegimeType.OVERHEAT:
-        indicators.append(dict(config.inflation_indicator))
+        indicators.append(_watch_payload(config.inflation_indicator))
 
     if transition_target in ("Deflation", "Recovery") or direction == "transitioning":
-        indicators.append(dict(config.term_spread_indicator))
+        indicators.append(_watch_payload(config.term_spread_indicator))
 
     if transition_target == "Recovery" or regime == RegimeType.DEFLATION:
-        indicators.append(dict(config.credit_indicator))
+        indicators.append(_watch_payload(config.credit_indicator))
 
     return indicators
 

@@ -1,11 +1,12 @@
 """Tests for Regime Movement Assessment"""
 
-
 from apps.regime.domain.navigator_services import assess_regime_movement
 from apps.regime.domain.services_v2 import RegimeType, TrendIndicator
 
 
-def _make_trend(code: str, direction: str, strength: str = "moderate", momentum_z: float = 0.5) -> TrendIndicator:
+def _make_trend(
+    code: str, direction: str, strength: str = "moderate", momentum_z: float = 0.5
+) -> TrendIndicator:
     return TrendIndicator(
         indicator_code=code,
         current_value=50.0,
@@ -23,7 +24,7 @@ class TestAssessRegimeMovement:
         """Recovery + PMI up + CPI stable → stable"""
         trends = [
             _make_trend("PMI", "up", "moderate"),
-            _make_trend("CPI", "flat", "weak"),
+            _make_trend("CPI", "neutral", "weak"),
         ]
         direction, target, prob, reasons = assess_regime_movement(RegimeType.RECOVERY, trends)
         assert direction == "stable"
@@ -46,7 +47,7 @@ class TestAssessRegimeMovement:
         """Recovery + PMI down + CPI flat → transition to Deflation"""
         trends = [
             _make_trend("PMI", "down", "moderate", -0.5),
-            _make_trend("CPI", "flat", "weak"),
+            _make_trend("CPI", "neutral", "weak"),
         ]
         direction, target, prob, reasons = assess_regime_movement(RegimeType.RECOVERY, trends)
         assert direction == "transitioning"
@@ -100,7 +101,7 @@ class TestAssessRegimeMovement:
     def test_stagflation_cpi_down_pmi_stable_transitions_to_recovery(self):
         """Stagflation + CPI down + PMI stable → transition to Recovery"""
         trends = [
-            _make_trend("PMI", "flat", "weak"),
+            _make_trend("PMI", "neutral", "weak"),
             _make_trend("CPI", "down", "moderate"),
         ]
         direction, target, prob, reasons = assess_regime_movement(RegimeType.STAGFLATION, trends)
@@ -112,7 +113,7 @@ class TestAssessRegimeMovement:
         """Deflation + PMI up + CPI flat → transition to Recovery"""
         trends = [
             _make_trend("PMI", "up", "moderate"),
-            _make_trend("CPI", "flat", "weak"),
+            _make_trend("CPI", "neutral", "weak"),
         ]
         direction, target, prob, reasons = assess_regime_movement(RegimeType.DEFLATION, trends)
         assert direction == "transitioning"

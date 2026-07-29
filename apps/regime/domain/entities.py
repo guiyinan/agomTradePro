@@ -6,6 +6,31 @@ Pure data classes using only Python standard library.
 
 from dataclasses import dataclass
 from datetime import date
+from typing import TypedDict
+
+
+class KalmanStatePayload(TypedDict):
+    """Serialized Kalman state contract."""
+
+    level: float
+    slope: float
+    level_variance: float
+    slope_variance: float
+    level_slope_cov: float
+
+
+class ConfidenceBreakdownPayload(TypedDict):
+    """Serialized confidence evidence contract."""
+
+    total_confidence: float
+    data_freshness_component: float
+    predictive_power_component: float
+    consistency_component: float
+    base_component: float
+    days_since_last_update: int
+    has_daily_data: bool
+    daily_consistent: bool
+    indicators_count: int
 
 
 @dataclass(frozen=True)
@@ -33,13 +58,16 @@ class KalmanFilterParams:
 @dataclass(frozen=True)
 class KalmanState:
     """Kalman 滤波器的当前状态（可持久化）"""
+
     level: float
     slope: float
     level_variance: float
     slope_variance: float
     level_slope_cov: float
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> KalmanStatePayload:
+        """Serialize the state without weakening its field types."""
+
         return {
             "level": self.level,
             "slope": self.slope,
@@ -49,13 +77,22 @@ class KalmanState:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "KalmanState":
-        return cls(**d)
+    def from_dict(cls, payload: KalmanStatePayload) -> "KalmanState":
+        """Restore a state from its exact serialized contract."""
+
+        return cls(
+            level=payload["level"],
+            slope=payload["slope"],
+            level_variance=payload["level_variance"],
+            slope_variance=payload["slope_variance"],
+            level_slope_cov=payload["level_slope_cov"],
+        )
 
 
 @dataclass(frozen=True)
 class RegimeSnapshot:
     """Regime 状态快照"""
+
     growth_momentum_z: float
     inflation_momentum_z: float
     distribution: dict[str, float]
@@ -81,6 +118,7 @@ class RegimeSnapshot:
 
 # ==================== Phase 4: Probability Confidence Model ====================
 
+
 @dataclass(frozen=True)
 class RegimeProbabilities:
     """Regime 概率分布
@@ -88,6 +126,7 @@ class RegimeProbabilities:
     包含四个象限的概率分布和整体置信度。
     置信度基于数据新鲜度、历史预测能力和指标一致性计算。
     """
+
     growth_reflation: float  # 增长+通胀 (Overheat)
     growth_disinflation: float  # 增长+通缩 (Recovery)
     stagnation_reflation: float  # 停滞+通胀 (Stagflation)
@@ -117,8 +156,14 @@ class RegimeProbabilities:
 
     def normalize(self) -> "RegimeProbabilities":
         """归一化概率分布（确保总和为1）"""
-        total = sum([self.growth_reflation, self.growth_disinflation,
-                     self.stagnation_reflation, self.stagnation_disinflation])
+        total = sum(
+            [
+                self.growth_reflation,
+                self.growth_disinflation,
+                self.stagnation_reflation,
+                self.stagnation_disinflation,
+            ]
+        )
         if total == 0:
             return self
 
@@ -140,6 +185,7 @@ class ConfidenceConfig:
 
     所有阈值可配置，支持动态调整。
     """
+
     # 新鲜度系数
     day_0_coefficient: float  # 发布当天系数
     day_7_coefficient: float  # 发布 1 周后系数
@@ -175,6 +221,7 @@ class IndicatorPredictivePower:
 
     存储指标的历史预测表现，用于贝叶斯置信度计算。
     """
+
     indicator_code: str  # CN_TERM_SPREAD_10Y1Y
 
     # 历史预测表现
@@ -207,7 +254,7 @@ class IndicatorPredictivePower:
     def predictive_power_score(self) -> float:
         """综合预测能力评分 (0-1)"""
         # 结合 F1 分数和稳定性评分
-        return (self.f1_score * 0.7 + self.stability_score * 0.3)
+        return self.f1_score * 0.7 + self.stability_score * 0.3
 
     @property
     def reliability_score(self) -> float:
@@ -216,8 +263,7 @@ class IndicatorPredictivePower:
         考虑真阳性率和假阳性率
         """
         # 高真阳性率 + 低假阳性率 = 高可靠性
-        return (self.true_positive_rate * 0.6 +
-                (1 - self.false_positive_rate) * 0.4)
+        return self.true_positive_rate * 0.6 + (1 - self.false_positive_rate) * 0.4
 
     @property
     def is_decay_detected(self) -> bool:
@@ -229,6 +275,7 @@ class IndicatorPredictivePower:
 @dataclass(frozen=True)
 class SignalConflict:
     """信号冲突记录"""
+
     daily_signal: str  # BULLISH, BEARISH, NEUTRAL
     weekly_signal: str | None
     monthly_signal: str
@@ -251,6 +298,7 @@ class ConfidenceBreakdown:
 
     展示置信度的各组成部分。
     """
+
     total_confidence: float  # 总置信度 (0-1)
 
     # 分量
@@ -265,7 +313,7 @@ class ConfidenceBreakdown:
     daily_consistent: bool  # 日度数据是否一致
     indicators_count: int  # 参与指标数量
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> ConfidenceBreakdownPayload:
         """转换为字典"""
         return {
             "total_confidence": self.total_confidence,
@@ -289,6 +337,7 @@ class RegimeMovement:
 
     描述当前 regime 是稳定还是正在向另一个象限转移。
     """
+
     direction: str  # 'stable', 'transitioning'
     transition_target: str | None  # 目标象限名称，如 "Overheat"
     transition_probability: float  # 0-1, 转折概率
@@ -299,10 +348,11 @@ class RegimeMovement:
 @dataclass(frozen=True)
 class AssetWeightRange:
     """资产类别权重区间"""
+
     category: str  # 'equity', 'bond', 'commodity', 'cash'
-    lower: float   # 下限百分比 (0-1)
-    upper: float   # 上限百分比 (0-1)
-    label: str     # 中文标签，如 "权益类"
+    lower: float  # 下限百分比 (0-1)
+    upper: float  # 上限百分比 (0-1)
+    label: str  # 中文标签，如 "权益类"
 
 
 @dataclass(frozen=True)
@@ -312,6 +362,7 @@ class RegimeAssetGuidance:
     基于当前 regime 给出的大方向资产配置建议。
     提供的是区间而非精确值——精确值由 Pulse 微调产生。
     """
+
     weight_ranges: list[AssetWeightRange]
     risk_budget_pct: float  # 总仓位上限 (0-1)
     recommended_sectors: list[str]  # ["消费", "科技"] 等
@@ -322,10 +373,11 @@ class RegimeAssetGuidance:
 @dataclass(frozen=True)
 class WatchIndicator:
     """关注指标"""
-    code: str            # 指标代码
-    name: str            # 人类可读名称
-    threshold: str       # "PMI 跌破 50" 等描述
-    significance: str    # 'high', 'medium', 'low'
+
+    code: str  # 指标代码
+    name: str  # 人类可读名称
+    threshold: str  # "PMI 跌破 50" 等描述
+    significance: str  # 'high', 'medium', 'low'
 
 
 @dataclass(frozen=True)
@@ -335,9 +387,10 @@ class RegimeNavigatorOutput:
     组合 RegimeCalculationResult + Movement + AssetGuidance + WatchIndicators。
     这是 Regime 模块对外输出的最完整形态。
     """
+
     # 基础 regime 判定（复用现有 V2 结果）
-    regime_name: str          # e.g. "Recovery"
-    confidence: float         # 置信度 0-1
+    regime_name: str  # e.g. "Recovery"
+    confidence: float  # 置信度 0-1
     distribution: dict[str, float]  # 四象限概率分布
 
     # 扩展：移动方向
@@ -355,4 +408,4 @@ class RegimeNavigatorOutput:
 
     @property
     def is_transitioning(self) -> bool:
-        return self.movement.direction == 'transitioning'
+        return self.movement.direction == "transitioning"

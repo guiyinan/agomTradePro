@@ -6229,3 +6229,19 @@
 - PIT 历史修订、同时间戳稳定选择、冻结后版本隔离、payload 篡改、清单冲突与重复 ID 专项 `7 passed`；Data Center API、Research promotion、Decision Rhythm 输入快照和关键数据安全扩展组合 `27 passed`。
 - `apps/data_center/infrastructure/pit_repository.py` 增量 mypy 清零并退出债务清单；全仓基线从 `441 errors / 247 files` 收紧为 `439 errors / 246 files`，净减少 `2 errors / 1 file`。
 - Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改公开 API 成功响应或数据库结构。
+
+## 第四百零七批
+
+- 按“Regime 核心实体序列化裸 dict × 数据库资产配置可发布 NaN/越界/倒置或不可成仓区间 × frozen 配置仍向调用方暴露嵌套可变对象 × Navigator 输出无精确合同”收口象限导航 Domain 链。
+- Kalman state 与 confidence breakdown 新增精确 TypedDict 序列化合同；Navigator 权重区间、资产指引和关注指标输出同样发布可被 Application 静态消费的字段合同，不再依赖裸容器和动态值推断。
+- `RegimeAssetConfig` 在构造时验证正式 Regime/资产类别、有限 `0..1` 风险预算与置信度策略、区间上下限及组合可行性；倒置区间、NaN/Infinity、bool、越界值和无法形成 100% 配置的区间失败关闭。
+- 资产区间、风险预算、板块、风格、类别标签和关注指标规则统一深度复制为只读映射/tuple；调用方修改原始数据库 payload 或返回的 sectors/watch list，不再回写已加载的运行时配置。
+- 部分数据库覆盖只替换其明确发布的 Regime 字段，缺失 Regime 的权重、预算、板块与风格回落到 Domain 默认值，不再错误借用同一自定义配置中的 Deflation 或空值。
+- Navigator 入口要求正式 RegimeType、有限 `0..1` confidence、合法 movement direction/transition target 和 TrendIndicator 列表；关注指标字段、显著性、长度与控制字符在发布前验证。
+- Regime movement 测试同步使用 V2 正式 `neutral` 方向，移除历史 `flat` 测试载荷与当前 Domain 合同的漂移。
+
+## 第四百零七批验证结果
+
+- Navigator 权重/风险策略、配置隔离、关注指标和 movement 专项 `42 passed`；全部文件名含 Regime 的 Domain、Application、任务、仓储、编排、Data Center provider、API、Audit Attribution 与 AI Capability 回归 `286 passed`。
+- `apps/regime/domain/entities.py` 与 `navigator_services.py` 增量 mypy 清零并退出债务清单；全仓基线从 `439 errors / 246 files` 收紧为 `433 errors / 244 files`，净减少 `6 errors / 2 files`。
+- Django system check、改动文件 Ruff、Black、isort、增量 mypy 与全仓 debt baseline 刷新通过；本批未新增数据库 migration，未修改公开 API 成功响应或数据库结构。

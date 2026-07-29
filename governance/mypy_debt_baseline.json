@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 439,
-    "files_with_errors": 246
+    "errors": 433,
+    "files_with_errors": 244
   },
   "modules": {
     "apps/account/application/tasks.py": {
@@ -585,12 +585,6 @@
     },
     "apps/regime/domain/action_mapper.py": {
       "type-arg": 1
-    },
-    "apps/regime/domain/entities.py": {
-      "type-arg": 3
-    },
-    "apps/regime/domain/navigator_services.py": {
-      "type-arg": 3
     },
     "apps/regime/domain/protocols.py": {
       "type-arg": 1
