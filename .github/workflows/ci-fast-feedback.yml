@@ -255,6 +255,12 @@ jobs:
           python scripts/check_mypy_debt_ceiling.py \
             --reference-ref "${{ needs.detect-tests.outputs.base-ref }}"
 
+      - name: Enforce critical Celery task contracts
+        run: |
+          python scripts/check_celery_task_contracts.py \
+            --base-ref "${{ needs.detect-tests.outputs.base-ref }}" \
+            --head-ref "${{ needs.detect-tests.outputs.head-ref }}"
+
       - name: Run incremental domain coverage gate
         if: steps.targets.outputs.domain-coverage-count != '0'
         run: |

@@ -337,6 +337,7 @@ CORE_GUARDRAIL_TESTS = [
     "tests/guardrails/test_no_501_on_primary_paths.py",
     "tests/guardrails/test_security_hardening_guardrails.py",
     "tests/guardrails/test_api_contract_minimal.py",  # API 合同最小集测试
+    "tests/guardrails/test_celery_task_contracts.py",
     "tests/critical/",
 ]
 

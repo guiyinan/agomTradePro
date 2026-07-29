@@ -143,7 +143,7 @@ def test_task_signal_lifecycle_records_start_retry_failure_and_revocation(
         einfo=SimpleNamespace(exception=RuntimeError("boom"), traceback="failure trace"),
     )
     assert repository.record.status is TaskStatus.FAILURE
-    assert repository.record.exception == "boom"
+    assert repository.record.exception == "RuntimeError"
 
     tasks.task_revoked_handler(task_id="task-1", terminated=True, expired=False)
     assert repository.record.status is TaskStatus.REVOKED

@@ -90,6 +90,16 @@ python scripts/scaffold_application_providers.py \
    - Dashboard 的 ORM / read model 留在 Infrastructure
    - Application 层对 Django repository class 的直接依赖降到最小并可扫描
 
+### 0.5) Celery 关键任务契约
+
+1. 数据新鲜度或数据写入任务必须在任务入口校验参数，不能只依赖 HTTP Serializer。
+2. 批量执行结果必须提供规范化 `outcome`，并区分请求、成功、失败和实际写入数量。
+3. 全部失败不得返回 `success=true`；部分失败、零产出和业务阻断必须是不同状态。
+4. Task Monitor 和指标必须读取业务结果，不能把“Celery 函数正常返回”误当成“业务成功”。
+5. 关键任务及其失败矩阵证据登记在 `governance/celery_task_contracts.json`。
+6. 本地门禁：`python scripts/check_celery_task_contracts.py`。
+7. 完整契约与登记方式见 [Celery 关键任务契约护栏](celery-task-contract-guard.md)。
+
 ### 1) 配置唯一来源（Single Source of Truth）
 
 1. 所有业务阈值必须通过 `ConfigHelper + ConfigKeys` 读取。

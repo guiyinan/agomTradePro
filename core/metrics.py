@@ -25,6 +25,11 @@ from typing import NotRequired, ParamSpec, TypedDict, TypeVar, cast
 
 from prometheus_client import Counter, Gauge, Histogram
 
+from shared.domain.task_outcomes import (
+    TaskBusinessOutcome,
+    resolve_task_business_outcome,
+)
+
 logger = logging.getLogger(__name__)
 
 P = ParamSpec("P")
@@ -309,7 +314,7 @@ def record_celery_task(
 
     Args:
         task_name: 任务名称
-        status: 任务状态（success/failure/retry/timeout）
+        status: 技术或业务状态（如 success/failed/partial/retry/timeout）
         duration_seconds: 任务执行时间（秒）
         retry_reason: 重试原因（status=retry 时）
     """
@@ -319,7 +324,18 @@ def record_celery_task(
         normalized_status = (
             requested_status
             if requested_status
-            in {"success", "failure", "retry", "timeout", "revoked", "terminated"}
+            in {
+                "success",
+                "failure",
+                "failed",
+                "partial",
+                "noop",
+                "blocked",
+                "retry",
+                "timeout",
+                "revoked",
+                "terminated",
+            }
             else "unknown"
         )
         normalized_duration = _finite_non_negative(duration_seconds)
@@ -500,9 +516,19 @@ def track_celery_task(task_func: Callable[P, R]) -> Callable[P, R]:
             # 执行任务
             result = task_func(*args, **kwargs)
 
-            # 记录成功指标
+            # 正常返回不等于业务成功；优先读取规范化 outcome。
+            business_outcome = resolve_task_business_outcome(result)
+            metric_status = (
+                "success"
+                if business_outcome is TaskBusinessOutcome.UNKNOWN
+                else business_outcome.value
+            )
             duration = perf_counter() - start_time
-            record_celery_task(task_name=task_name, status="success", duration_seconds=duration)
+            record_celery_task(
+                task_name=task_name,
+                status=metric_status,
+                duration_seconds=duration,
+            )
 
             return result
 

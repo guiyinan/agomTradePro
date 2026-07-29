@@ -431,7 +431,21 @@ test_score = StockScore(
 )
 ```
 
-### 11. TUI 面向用户设计约束
+### 11. Celery 批量任务契约（数据新鲜度/数据写入）
+
+凡直接影响数据新鲜度或批量写入的 Celery 任务，必须满足以下约束：
+
+- 在 Celery/Application 入口校验任务参数；HTTP Serializer 不能替代任务边界校验，因为 beat、CLI、测试和其他任务都可直接调用任务
+- 业务结果必须发布规范化 `outcome`：`success / partial / noop / blocked / failed`；兼容字段 `success` 不得作为唯一判定依据
+- 批量任务必须区分 `requested / succeeded / failed / stored`，且计数单位一致；逐项错误非空时不得无条件返回成功
+- 全部项目失败时必须为 `outcome=failed` 且 `success=false`；部分失败必须为 `outcome=partial`；零写入必须为 `outcome=noop` 或 `failed`，并提供原因
+- Task Monitor、指标和告警必须读取业务 `outcome`，不得只依赖 Celery 自身的 `SUCCESS/FAILURE`
+- 新增或修改关键任务时，必须更新 `governance/celery_task_contracts.json`，并为适用场景登记精确测试：非法输入、全成功、部分失败、全部失败、零产出、业务阻断
+- PR 必须运行 `python scripts/check_celery_task_contracts.py`；CI 还会差异扫描新增的 Application `@shared_task`，未登记的新任务直接失败
+
+详细规则：`docs/development/celery-task-contract-guard.md`
+
+### 12. TUI 面向用户设计约束
 
 `/tui/` 是面向用户完成任务的产品界面，不是 API 目录或调试壳。新增或修改 TUI metadata、runtime injection、promotion 脚本时，必须同时满足以下规则：
 

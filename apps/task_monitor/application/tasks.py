@@ -35,6 +35,7 @@ from apps.task_monitor.domain.entities import (
 )
 from apps.task_monitor.domain.interfaces import TaskRecordRepositoryProtocol
 from shared.config.secrets import get_secrets
+from shared.domain.task_outcomes import task_business_failure_message
 from shared.infrastructure.alert_service import create_default_alert_service
 
 logger = logging.getLogger(__name__)
@@ -151,6 +152,7 @@ def task_postrun_handler(
 
         # 同时读取 Celery 技术状态和规范化业务 outcome。
         status = _resolve_terminal_status(state=state, retval=retval)
+        business_failure = task_business_failure_message(retval)
 
         # 计算运行时长
         runtime_seconds = None
@@ -174,7 +176,7 @@ def task_postrun_handler(
             started_at=existing.started_at,
             finished_at=timezone.now(),
             result=result,
-            exception=None,
+            exception=business_failure,
             traceback=None,
             runtime_seconds=runtime_seconds,
             retries=existing.retries,

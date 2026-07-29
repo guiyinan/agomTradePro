@@ -491,10 +491,12 @@ class CeleryHealthChecker(CeleryHealthCheckerProtocol):
             # 获取 Worker 信息
             try:
                 inspect = self.celery_app.control.inspect(timeout=2.0)
-                active_workers = list(inspect.active().keys()) if inspect.active() else []
+                active_tasks = inspect.active()
+                active_workers = list(active_tasks.keys()) if active_tasks else []
+                if not active_workers:
+                    is_healthy = False
 
                 # 获取任务统计
-                active_tasks = inspect.active()
                 if active_tasks:
                     for worker_tasks in active_tasks.values():
                         active_tasks_count += len(worker_tasks)
@@ -511,6 +513,7 @@ class CeleryHealthChecker(CeleryHealthCheckerProtocol):
 
             except Exception as e:
                 logger.warning(f"Failed to get worker/task info: {e}")
+                is_healthy = False
 
         except Exception as e:
             logger.error(f"Health check failed: {e}")

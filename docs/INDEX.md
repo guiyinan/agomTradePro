@@ -146,7 +146,7 @@
 | [web-to-tui-m5-rollback-drill-evidence-2026-07-27.md](plans/web-to-tui-m5-rollback-drill-evidence-2026-07-27.md) | **Web → TUI M5 回滚演练（隔离 reverse/restore、旧 graph 兼容与 registry 回滚发布）** | ✅ 本地演练通过；不解除 14 日与生产门禁 |
 | [web-to-tui-m5-browser-uat-evidence-2026-07-27.md](plans/web-to-tui-m5-browser-uat-evidence-2026-07-27.md) | **Web → TUI M5 浏览器 UAT（角色边界、矩阵深链、直读/参数读取与生命周期）** | ✅ 自动化 15/15；主任务 UAT 108/108；Classic 清理仍 DENY |
 | [web-to-tui-m5-route-closure-evidence-2026-07-27.md](plans/web-to-tui-m5-route-closure-evidence-2026-07-27.md) | **Web → TUI M5 逐 Route 清理证据（认证边界、兼容目标与状态/回滚范围）** | ✅ 六类 scope 均为 108/108；不替代生产门禁 |
-| [qmt-live-trading-bridge-plan.md](plan/qmt-live-trading-bridge-plan.md) | **QMT 本地执行桥与 VPS 实盘交易接入计划（Web / TUI / MCP / 权限 / 风控 / 对账）** | 仓库 MVP 已实现；待目标券商 Phase 0 与仿真实测 |
+| [qmt-live-trading-bridge-plan.md](plans/qmt-live-trading-bridge-plan.md) | **QMT 本地执行桥与 VPS 实盘交易接入计划（Web / TUI / MCP / 权限 / 风控 / 对账）** | 仓库 MVP 已实现；待目标券商 Phase 0 与仿真实测 |
 | [adr-0002-qmt-local-execution-bridge.md](architecture/adr-0002-qmt-local-execution-bridge.md) | QMT 本地 Agent + VPS 控制面架构决策 | 已接受 |
 | [qmt-agent-runbook.md](operations/qmt-agent-runbook.md) | Windows QMT Agent 安装、分级启用、停止与故障处理 | 可执行 |
 | [qmt-agent-local-install-package.md](operations/qmt-agent-local-install-package.md) | 国金普通 QMT `userdata` 本地 Agent ZIP 安装包、DPAPI Token、权限诊断与卸载 | 可执行 |
@@ -176,6 +176,7 @@
 | [maintainability-refactoring-plan-2026-07-20.md](plans/maintainability-refactoring-plan-2026-07-20.md) | **代码库可维护性定向重构计划（R0-R2）** | ✅ R2 已完成 |
 | [testing-improvement-plan-2026-07-24.md](plans/testing-improvement-plan-2026-07-24.md) | **分层测试与 TDD 反馈环提升计划（T0-T5）** | ✅ 2026-07-24 已完成 |
 | [test-coverage-weakness-remediation-progress-2026-07-24.md](plans/test-coverage-weakness-remediation-progress-2026-07-24.md) | **覆盖率薄弱环节整改实施记录（T0-T3A）** | 进行中：独立分支、branch/multi-scope 基线重采 |
+| [test-coverage-weakness-remediation-2026-07-24.md](plans/test-coverage-weakness-remediation-2026-07-24.md) | **测试覆盖薄弱环节整改计划（统计边界、分支覆盖、风险模块与生产集成）** | 已合入 next-development |
 | [maintainability-r2/r2-stage-record-2026-07-20.md](plans/maintainability-r2/r2-stage-record-2026-07-20.md) | **R2 测试收敛阶段记录与回归证据** | ✅ 2026-07-20 已完成 |
 | [maintainability-r3-lite/r3-lite-stage-record-2026-07-20.md](plans/maintainability-r3-lite/r3-lite-stage-record-2026-07-20.md) | **R3-lite 估值 owner 拆分与稳定性收口记录** | ✅ 2026-07-20 已完成 |
 | [maintainability-stability/stability-closeout-2026-07-20.md](plans/maintainability-stability/stability-closeout-2026-07-20.md) | **R2 + R3-lite 集成契约稳定性收口记录** | ✅ 2026-07-20 已完成 |
@@ -189,9 +190,10 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [master-test-strategy-2026-02.md](testing/master-test-strategy-2026-02.md) | **全面测试策略（L0-L7、关键可靠性、测试分层与覆盖率门禁）** | ✅ 2026-07-24 更新 |
-| [critical-reliability-test-closure-2026-07-22.md](plan/critical-reliability-test-closure-2026-07-22.md) | **数据到对账关键可靠性测试与发布门禁收口记录** | ✅ 本地收口，等待 PostgreSQL Nightly |
+| [critical-reliability-test-closure-2026-07-22.md](plans/critical-reliability-test-closure-2026-07-22.md) | **数据到对账关键可靠性测试与发布门禁收口记录** | ✅ 本地收口，等待 PostgreSQL Nightly |
 | [smart-test-selection.md](development/ci/smart-test-selection.md) | **增量测试映射、未知 App 全量回退与关键集合选择规则** | ✅ 2026-07-22 更新 |
 | [coverage-governance.md](development/ci/coverage-governance.md) | **多范围行/分支覆盖率真源、报告与 ratchet 规则** | ✅ 2026-07-24 新增 |
+| [celery-task-contract-guard.md](development/celery-task-contract-guard.md) | **Celery 技术状态、业务 outcome 与关键任务测试契约门禁** | ✅ 已纳入 fast feedback |
 | [personal-investment-readiness-2026-06-30.md](testing/personal-investment-readiness-2026-06-30.md) | **个人投研系统可用性验收记录（readiness / Qlib / Alpha / 决策数据 / 连续运行证据）** | ✅ 2026-06-30 更新 |
 | [0.8.0-release-regression-report-2026-07-05.md](testing/0.8.0-release-regression-report-2026-07-05.md) | **0.8.0 发布回归报告（版本 / TUI / 治理 / readiness）** | ✅ 2026-07-05 新增 |
 | [post-0.8.0-stabilization-checkpoint-2026-07-08.md](testing/post-0.8.0-stabilization-checkpoint-2026-07-08.md) | **0.8.0 发布后稳定化检查点（live health / 回归 / readiness 阻塞项）** | ✅ 2026-07-08 新增 |

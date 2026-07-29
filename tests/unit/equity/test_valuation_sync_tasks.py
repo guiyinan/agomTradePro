@@ -26,6 +26,7 @@ def test_sync_validate_scan_task_skips_scan_when_gate_blocked():
         result = sync_validate_scan_equity_valuation_task(days_back=1)
 
         assert result["success"] is True
+        assert result["outcome"] == "blocked"
         assert result["stage"] == "gate_blocked"
         assert result["scan_skipped"] is True
         ScanUC.return_value.execute.assert_not_called()
@@ -60,6 +61,7 @@ def test_sync_validate_scan_task_runs_scan_when_gate_passed():
         result = sync_validate_scan_equity_valuation_task(days_back=1)
 
         assert result["success"] is True
+        assert result["outcome"] == "success"
         assert result["stage"] == "scan"
         assert result["scan"]["saved_count"] == 4
 
@@ -89,6 +91,7 @@ def test_sync_validate_scan_task_stops_when_sync_writes_no_records():
         result = sync_validate_scan_equity_valuation_task(days_back=1)
 
         assert result["success"] is False
+        assert result["outcome"] == "failed"
         assert result["stage"] == "sync"
         assert result["error"] == "估值同步未写入任何记录"
         validate_use_case.assert_not_called()
@@ -103,6 +106,7 @@ def test_sync_valuation_task_rejects_boolean_days_before_repository_access():
 
     assert result == {
         "success": False,
+        "outcome": "failed",
         "error": "days_back 必须是整数",
         "stage": "input",
     }
@@ -121,6 +125,7 @@ def test_sync_valuation_task_fails_when_success_response_has_no_records():
         result = sync_equity_valuation_task(days_back=1)
 
     assert result["success"] is False
+    assert result["outcome"] == "failed"
     assert result["stage"] == "sync"
     assert result["sync"] == {"requested_count": 2, "synced_count": 0}
 
@@ -148,8 +153,13 @@ def test_sync_financial_data_task_uses_explicit_codes_without_legacy_filter():
         )
 
         assert result["success"] is True
+        assert result["outcome"] == "success"
         assert result["synced_count"] == 10
+        assert result["stored_record_count"] == 10
         assert result["total_stocks"] == 1
+        assert result["requested_stock_count"] == 1
+        assert result["succeeded_stock_count"] == 1
+        assert result["failed_stock_count"] == 0
         stock_repo_cls.return_value.list_active_stock_codes.assert_not_called()
         make_sync_uc.return_value.execute.assert_called_once()
         request = make_sync_uc.return_value.execute.call_args.args[0]
@@ -164,7 +174,12 @@ def test_sync_financial_data_task_does_not_expand_explicit_empty_list():
     ) as stock_repo_cls:
         result = sync_financial_data_task(stock_codes=[])
 
-    assert result == {"success": False, "error": "没有找到活跃股票"}
+    assert result == {
+        "success": False,
+        "outcome": "failed",
+        "error": "没有找到活跃股票",
+        "stage": "input",
+    }
     stock_repo_cls.return_value.list_active_stock_codes.assert_not_called()
 
 
@@ -187,10 +202,14 @@ def test_sync_financial_data_task_reports_complete_failure():
         )
 
     assert result["success"] is False
+    assert result["outcome"] == "failed"
     assert result["partial_success"] is False
     assert result["synced_count"] == 0
     assert result["error_count"] == 2
     assert result["total_stocks"] == 2
+    assert result["requested_stock_count"] == 2
+    assert result["succeeded_stock_count"] == 0
+    assert result["failed_stock_count"] == 2
     assert result["errors"] == [
         "000001.SZ: 同步失败",
         "600000.SH: 同步失败",
@@ -219,9 +238,33 @@ def test_sync_financial_data_task_reports_partial_success():
         )
 
     assert result["success"] is True
+    assert result["outcome"] == "partial"
     assert result["partial_success"] is True
     assert result["synced_count"] == 4
     assert result["error_count"] == 1
+
+
+def test_sync_financial_data_task_reports_explicit_noop_for_zero_records():
+    with (
+        patch(
+            "apps.equity.application.tasks_valuation_sync.get_active_provider_id_by_source",
+            return_value=3,
+        ),
+        patch(
+            "apps.equity.application.tasks_valuation_sync.make_sync_financial_use_case"
+        ) as make_sync_use_case,
+    ):
+        make_sync_use_case.return_value.execute.return_value = MagicMock(stored_count=0)
+
+        result = sync_financial_data_task(
+            periods=8,
+            stock_codes=["000001.SZ"],
+        )
+
+    assert result["success"] is True
+    assert result["outcome"] == "noop"
+    assert result["stored_record_count"] == 0
+    assert result["noop_reason"] == "provider completed without new financial records"
 
 
 def test_sync_financial_data_task_rejects_invalid_periods_before_repository_access():
@@ -232,7 +275,36 @@ def test_sync_financial_data_task_rejects_invalid_periods_before_repository_acce
 
     assert result == {
         "success": False,
+        "outcome": "failed",
         "error": "periods 必须在 1..40 之间",
         "stage": "input",
     }
+    stock_repository.assert_not_called()
+
+
+def test_sync_financial_data_task_rejects_malformed_stock_code_before_provider_access():
+    with patch(
+        "apps.equity.application.tasks_valuation_sync.get_active_provider_id_by_source"
+    ) as provider_lookup:
+        result = sync_financial_data_task(stock_codes=["000001.SZ;DROP"])
+
+    assert result["success"] is False
+    assert result["outcome"] == "failed"
+    assert result["stage"] == "input"
+    provider_lookup.assert_not_called()
+
+
+def test_validate_valuation_task_rejects_invalid_source_before_repository_access():
+    with patch(
+        "apps.equity.application.tasks_valuation_sync.get_equity_stock_repository"
+    ) as stock_repository:
+        from apps.equity.application.tasks_valuation_sync import (
+            validate_equity_valuation_quality_task,
+        )
+
+        result = validate_equity_valuation_quality_task(primary_source="")
+
+    assert result["success"] is False
+    assert result["outcome"] == "failed"
+    assert result["stage"] == "input"
     stock_repository.assert_not_called()

@@ -172,7 +172,7 @@ The project uses `exec()` and `eval()` to execute user-defined code for trading 
 1. Install and run `pip-audit` regularly:
    ```bash
    pip install pip-audit
-   pip-audit --desc --format json > docs/plan/m0-baseline/pip-audit-report.json
+   pip-audit --desc --format json > docs/plans/m0-baseline/pip-audit-report.json
    ```
 
 2. Pin specific versions in production requirements
@@ -303,19 +303,19 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 ### pip-audit (Dependency Vulnerability Scanner)
 ```bash
 pip install pip-audit
-pip-audit --format json > docs/plan/m0-baseline/pip-audit-report.json
+pip-audit --format json > docs/plans/m0-baseline/pip-audit-report.json
 ```
 
 ### bandit (Python Security Linter)
 ```bash
 pip install bandit
-bandit -r apps/ -f json > docs/plan/m0-baseline/bandit-report.json
+bandit -r apps/ -f json > docs/plans/m0-baseline/bandit-report.json
 ```
 
 ### safety (Security Vulnerability Checker)
 ```bash
 pip install safety
-safety check --json > docs/plan/m0-baseline/safety-report.json
+safety check --json > docs/plans/m0-baseline/safety-report.json
 ```
 
 ---

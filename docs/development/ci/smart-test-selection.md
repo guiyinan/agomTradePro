@@ -146,4 +146,4 @@ pytest tests/guardrails/test_api_contract_minimal.py -v
 - `tests/guardrails/test_api_contract_minimal.py` - API 合同最小集测试
 - `tests/critical/` - 关键可靠性发布阻断集合
 - `tests/migrations/test_research_integrity_migrations.py` - 研究完整性关键迁移验证
-- `docs/plan/critical-reliability-test-closure-2026-07-22.md` - 本轮实施与验证记录
+- `docs/plans/critical-reliability-test-closure-2026-07-22.md` - 本轮实施与验证记录

@@ -27,6 +27,7 @@ from apps.equity.application.use_cases_valuation_sync import (
     ValidateEquityValuationQualityRequest,
     ValidateEquityValuationQualityUseCase,
 )
+from shared.domain.task_outcomes import TaskBusinessOutcome
 
 TaskPayload: TypeAlias = dict[str, object]
 
@@ -90,7 +91,11 @@ def _copy_payload(data: object) -> TaskPayload | None:
 def _failure_payload(error: str, *, stage: str | None = None) -> TaskPayload:
     """Build one stable task failure payload."""
 
-    payload: TaskPayload = {"success": False, "error": error}
+    payload: TaskPayload = {
+        "success": False,
+        "outcome": TaskBusinessOutcome.FAILED.value,
+        "error": error,
+    }
     if stage is not None:
         payload["stage"] = stage
     return payload
@@ -180,11 +185,13 @@ def sync_equity_valuation_task(
     if not _has_synced_valuation_records(payload):
         return {
             "success": False,
+            "outcome": TaskBusinessOutcome.FAILED.value,
             "stage": "sync",
             "error": "估值同步未写入任何记录",
             "sync": payload,
         }
     payload["success"] = True
+    payload["outcome"] = TaskBusinessOutcome.SUCCESS.value
     return payload
 
 
@@ -213,6 +220,7 @@ def validate_equity_valuation_quality_task(
     if payload is None:
         return _failure_payload("估值质量校验未返回结果", stage="validate")
     payload["success"] = True
+    payload["outcome"] = TaskBusinessOutcome.SUCCESS.value
     return payload
 
 
@@ -273,6 +281,7 @@ def sync_validate_scan_equity_valuation_task(
     if not _has_synced_valuation_records(sync_payload):
         return {
             "success": False,
+            "outcome": TaskBusinessOutcome.FAILED.value,
             "stage": "sync",
             "error": "估值同步未写入任何记录",
             "sync": sync_payload,
@@ -284,6 +293,7 @@ def sync_validate_scan_equity_valuation_task(
     if not validate_response.success:
         return {
             "success": False,
+            "outcome": TaskBusinessOutcome.FAILED.value,
             "stage": "validate",
             "sync": sync_payload,
             "error": validate_response.error or "估值质量校验失败",
@@ -292,6 +302,7 @@ def sync_validate_scan_equity_valuation_task(
     if validate_payload is None:
         return {
             "success": False,
+            "outcome": TaskBusinessOutcome.FAILED.value,
             "stage": "validate",
             "sync": sync_payload,
             "error": "估值质量校验未返回结果",
@@ -300,6 +311,7 @@ def sync_validate_scan_equity_valuation_task(
     if validate_payload.get("is_gate_passed") is not True:
         return {
             "success": True,
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
             "stage": "gate_blocked",
             "sync": sync_payload,
             "validate": validate_payload,
@@ -319,6 +331,11 @@ def sync_validate_scan_equity_valuation_task(
     )
     return {
         "success": scan_response.success,
+        "outcome": (
+            TaskBusinessOutcome.SUCCESS.value
+            if scan_response.success
+            else TaskBusinessOutcome.FAILED.value
+        ),
         "stage": "scan",
         "sync": sync_payload,
         "validate": validate_payload,
@@ -386,11 +403,14 @@ def sync_financial_data_task(
             return _failure_payload(str(exc), stage="input")
 
     if not active_stock_codes:
-        return {"success": False, "error": "没有找到活跃股票"}
+        return _failure_payload("没有找到活跃股票", stage="input")
 
     provider_id = get_active_provider_id_by_source(normalized_source)
     if provider_id is None:
-        return {"success": False, "error": f"未找到启用的数据源: {normalized_source}"}
+        return _failure_payload(
+            f"未找到启用的数据源: {normalized_source}",
+            stage="input",
+        )
 
     sync_use_case = make_sync_financial_use_case()
     synced_count = 0
@@ -424,11 +444,31 @@ def sync_financial_data_task(
             if len(errors) < 10:  # 只记录前 10 个错误
                 errors.append(f"{stock_code}: 同步失败")
 
-    return {
-        "success": error_count < len(active_stock_codes),
-        "partial_success": 0 < error_count < len(active_stock_codes),
+    total_stocks = len(active_stock_codes)
+    succeeded_stock_count = total_stocks - error_count
+    is_partial = 0 < error_count < total_stocks
+    if error_count == total_stocks:
+        outcome = TaskBusinessOutcome.FAILED
+    elif is_partial:
+        outcome = TaskBusinessOutcome.PARTIAL
+    elif synced_count == 0:
+        outcome = TaskBusinessOutcome.NOOP
+    else:
+        outcome = TaskBusinessOutcome.SUCCESS
+
+    payload: TaskPayload = {
+        "success": outcome is not TaskBusinessOutcome.FAILED,
+        "outcome": outcome.value,
+        "partial_success": is_partial,
         "synced_count": synced_count,
+        "stored_record_count": synced_count,
         "error_count": error_count,
-        "total_stocks": len(active_stock_codes),
+        "total_stocks": total_stocks,
+        "requested_stock_count": total_stocks,
+        "succeeded_stock_count": succeeded_stock_count,
+        "failed_stock_count": error_count,
         "errors": errors,
     }
+    if outcome is TaskBusinessOutcome.NOOP:
+        payload["noop_reason"] = "provider completed without new financial records"
+    return payload
