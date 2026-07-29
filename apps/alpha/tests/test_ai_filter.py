@@ -145,7 +145,7 @@ def test_ai_filter_preserves_original_top_n_when_ai_call_fails(monkeypatch):
     assert ai_meta["status"] == "failed"
     assert ai_meta["input_count"] == 3
     assert ai_meta["kept_count"] == 2
-    assert "provider timeout" in ai_meta["failure_reason"]
+    assert ai_meta["failure_reason"] == "alpha_ai_filter_failed"
 
 
 def test_ai_filter_preserves_original_top_n_when_ai_json_is_invalid(monkeypatch):
@@ -165,7 +165,7 @@ def test_ai_filter_preserves_original_top_n_when_ai_json_is_invalid(monkeypatch)
 
     assert [score.code for score in result.scores] == ["000001.SZ", "000002.SZ"]
     assert result.metadata["ai_filter"]["status"] == "failed"
-    assert "invalid_json" in result.metadata["ai_filter"]["failure_reason"]
+    assert result.metadata["ai_filter"]["failure_reason"] == "alpha_ai_filter_failed"
 
 
 def test_ai_filter_handles_missing_stock_context(monkeypatch):
