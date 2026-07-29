@@ -83,7 +83,10 @@ def test_mypy_debt_is_precisely_governed_without_broad_ignores() -> None:
         "exclude": r"(^|[\\/])(tests|migrations)([\\/]|$)",
         "follow_imports": "skip",
     }
-    assert full_baseline["summary"]["errors"] > 0
+    governed_error_count = sum(
+        sum(error_counts.values()) for error_counts in full_baseline["modules"].values()
+    )
+    assert full_baseline["summary"]["errors"] == governed_error_count
     assert full_baseline["summary"]["files_with_errors"] == len(full_baseline["modules"])
 
     nightly_text = (REPO_ROOT / ".github" / "workflows" / "nightly-tests.yml").read_text(

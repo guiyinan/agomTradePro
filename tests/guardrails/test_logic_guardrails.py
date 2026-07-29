@@ -67,15 +67,17 @@ def test_guardrail_no_data_loss_when_processing_fails():
     )
     use_case._matcher_class = _MatcherRaises
     use_case._adapter_factory = {
-        "feedparser": _DummyAdapter([
-            RSSItem(
-                title=f"title-{unique}",
-                link=f"https://example.com/{unique}",
-                guid=guid,
-                pub_date=datetime.now(),
-                description="desc",
-            )
-        ])
+        "feedparser": _DummyAdapter(
+            [
+                RSSItem(
+                    title=f"title-{unique}",
+                    link=f"https://example.com/{unique}",
+                    guid=guid,
+                    pub_date=datetime.now(),
+                    description="desc",
+                )
+            ]
+        )
     }
 
     result = use_case._fetch_single_source(source, force_refetch=False)
@@ -139,7 +141,7 @@ def test_guardrail_policy_routes_no_conflict():
     防止 API 请求返回 HTML 页面的路由冲突回归。
     """
     urls_content = Path("apps/policy/interface/urls.py").read_text(encoding="utf-8")
-    lines = urls_content.split('\n')
+    lines = urls_content.split("\n")
 
     events_routes = []
     for i, line in enumerate(lines, 1):
@@ -189,8 +191,16 @@ def test_guardrail_audit_uses_correct_regime_names():
     audit_content = Path("apps/audit/application/use_cases.py").read_text(encoding="utf-8")
 
     # 检查不应出现的旧名称
-    wrong_names = ["'GROWTH'", "'REFLATION'", "'RECESSION'", "'STAGFLATION'",
-                   '"GROWTH"', '"REFLATION"', '"RECESSION"', '"STAGFLATION"']
+    wrong_names = [
+        "'GROWTH'",
+        "'REFLATION'",
+        "'RECESSION'",
+        "'STAGFLATION'",
+        '"GROWTH"',
+        '"REFLATION"',
+        '"RECESSION"',
+        '"STAGFLATION"',
+    ]
 
     for wrong in wrong_names:
         assert wrong not in audit_content, f"Audit 使用了错误的 Regime 名称: {wrong}"
@@ -207,7 +217,9 @@ def test_guardrail_policy_repository_has_delete_by_id():
     from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 
     repo = DjangoPolicyRepository()
-    assert hasattr(repo, 'delete_event_by_id'), "DjangoPolicyRepository 缺少 delete_event_by_id 方法"
+    assert hasattr(
+        repo, "delete_event_by_id"
+    ), "DjangoPolicyRepository 缺少 delete_event_by_id 方法"
 
 
 @pytest.mark.guardrail
@@ -221,7 +233,9 @@ def test_guardrail_policy_repository_has_get_events_by_date():
     from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 
     repo = DjangoPolicyRepository()
-    assert hasattr(repo, 'get_events_by_date'), "DjangoPolicyRepository 缺少 get_events_by_date 方法"
+    assert hasattr(
+        repo, "get_events_by_date"
+    ), "DjangoPolicyRepository 缺少 get_events_by_date 方法"
 
 
 @pytest.mark.guardrail
@@ -271,14 +285,9 @@ def test_guardrail_macro_governance_snapshot_stays_clean():
     任何新增 alias/source/缺口/配对问题都应先修 catalog 或同步链，再允许合入。
     """
     payload = load_macro_governance_payload()
-    governed_codes = [
-        row["code"]
-        for row in payload["indicator_rows"]
-        if "healthy" in row["tags"] or "missing_supported" in row["tags"]
-    ]
+    governed_codes = [row["code"] for row in payload["indicator_rows"]]
     catalogs = {
-        item.code: item
-        for item in IndicatorCatalogModel.objects.filter(code__in=governed_codes)
+        item.code: item for item in IndicatorCatalogModel.objects.filter(code__in=governed_codes)
     }
 
     for code in governed_codes:

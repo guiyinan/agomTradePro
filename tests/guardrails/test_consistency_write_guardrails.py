@@ -12,12 +12,12 @@ def _read(relative_path: str) -> str:
 def test_high_risk_write_paths_use_transactions() -> None:
     strategy_views = _read("apps/strategy/interface/views.py")
     beta_gate_views = _read("apps/beta_gate/interface/views.py")
-    regime_views = _read("apps/regime/infrastructure/views.py")
+    regime_repository = _read("apps/regime/infrastructure/repositories.py")
     account_views = _read("apps/account/interface/views.py")
 
     assert "with transaction.atomic()" in strategy_views
     assert "with transaction.atomic()" in beta_gate_views
-    assert "transaction.on_commit" in regime_views
+    assert "transaction.on_commit" in regime_repository
     assert "with transaction.atomic()" not in account_views
     assert "interface_services.register_user(" in account_views
     assert "interface_services.update_system_settings(" in account_views
@@ -25,7 +25,7 @@ def test_high_risk_write_paths_use_transactions() -> None:
 
 
 def test_prompt_force_reload_no_longer_deletes_before_recreate() -> None:
-    prompt_command = _read("apps/prompt/interface/__init__.py")
+    prompt_command = _read("apps/prompt/management/commands/init_prompt_templates.py")
 
     assert "existing_orm.delete()" not in prompt_command
     assert "repository.update_template" in prompt_command
