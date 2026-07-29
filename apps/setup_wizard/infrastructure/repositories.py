@@ -6,8 +6,10 @@ Repository implementations for Setup Wizard.
 
 from datetime import UTC, datetime
 from typing import Protocol
+from urllib.parse import urlsplit
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.base_user import AbstractBaseUser
 
 from apps.setup_wizard.domain.entities import (
     AdminConfig,
@@ -20,7 +22,7 @@ from apps.setup_wizard.domain.entities import (
 )
 from apps.setup_wizard.infrastructure.models import SetupStateModel
 
-User = get_user_model()
+UserModel = get_user_model()
 
 
 class SetupStateRepositoryProtocol(Protocol):
@@ -53,8 +55,8 @@ class SetupStateRepository:
             except ValueError:
                 current_step = WizardStep.WELCOME
 
-            completed_steps = []
-            for step_str in model.completed_steps or []:
+            completed_steps: list[WizardStep] = []
+            for step_str in _normalized_step_values(model.completed_steps):
                 try:
                     completed_steps.append(WizardStep(step_str))
                 except ValueError:
@@ -87,10 +89,24 @@ class SetupStateRepository:
 
         if state.progress:
             model.current_step = state.progress.current_step.value
-            model.completed_steps = [s.value for s in state.progress.completed_steps]
+            model.completed_steps = list(
+                dict.fromkeys(s.value for s in state.progress.completed_steps)
+            )
 
             if state.status == SetupStatus.COMPLETED:
+                model.current_step = WizardStep.COMPLETE.value
+                if WizardStep.COMPLETE.value not in model.completed_steps:
+                    model.completed_steps.append(WizardStep.COMPLETE.value)
                 model.completed_at = datetime.now(UTC)
+            else:
+                model.completed_at = None
+
+        if state.status == SetupStatus.COMPLETED and not state.progress:
+            model.current_step = WizardStep.COMPLETE.value
+            model.completed_steps = [WizardStep.COMPLETE.value]
+            model.completed_at = datetime.now(UTC)
+        elif state.status != SetupStatus.COMPLETED and not state.progress:
+            model.completed_at = None
 
         model.save(
             update_fields=[
@@ -109,10 +125,10 @@ class SetupStateRepository:
         model = SetupStateModel.get_instance()
         model.current_step = step.value
 
-        if completed and step not in [WizardStep(s) for s in (model.completed_steps or [])]:
-            completed_steps = model.completed_steps or []
+        completed_steps = _normalized_step_values(model.completed_steps)
+        if completed and step.value not in completed_steps:
             completed_steps.append(step.value)
-            model.completed_steps = completed_steps
+        model.completed_steps = completed_steps
 
         model.save(update_fields=["current_step", "completed_steps", "updated_at"])
 
@@ -122,7 +138,19 @@ class SetupStateRepository:
         model.is_completed = True
         model.completed_at = datetime.now(UTC)
         model.current_step = WizardStep.COMPLETE.value
-        model.save()
+        completed_steps = _normalized_step_values(model.completed_steps)
+        if WizardStep.COMPLETE.value not in completed_steps:
+            completed_steps.append(WizardStep.COMPLETE.value)
+        model.completed_steps = completed_steps
+        model.save(
+            update_fields=[
+                "is_completed",
+                "completed_at",
+                "current_step",
+                "completed_steps",
+                "updated_at",
+            ]
+        )
 
 
 class AdminRepository:
@@ -130,9 +158,9 @@ class AdminRepository:
 
     def has_admin_user(self) -> bool:
         """检查是否存在管理员用户"""
-        return User.objects.filter(is_superuser=True).exists()
+        return UserModel._default_manager.filter(is_superuser=True).exists()
 
-    def create_admin_user(self, config: AdminConfig) -> User:
+    def create_admin_user(self, config: AdminConfig) -> AbstractBaseUser:
         """
         创建管理员用户
 
@@ -142,8 +170,14 @@ class AdminRepository:
         Returns:
             创建的用户对象
         """
-        user = User.objects.create_superuser(
-            username=config.username,
+        is_valid, message = config.validate_password_strength()
+        if not is_valid:
+            raise ValueError(message)
+        username = config.username.strip()
+        if not username or len(username) > 150:
+            raise ValueError("Administrator username must contain 1 to 150 characters.")
+        user = UserModel._default_manager.create_superuser(
+            username=username,
             email=config.email or "",
             password=config.password,
         )
@@ -161,7 +195,7 @@ class AdminRepository:
         Returns:
             是否验证通过
         """
-        admin_users = User.objects.filter(is_superuser=True)
+        admin_users = UserModel._default_manager.filter(is_superuser=True)
         for user in admin_users:
             if user.check_password(password):
                 return True
@@ -175,7 +209,7 @@ class AdminRepository:
             config: 管理员配置
         """
         model = SetupStateModel.get_instance()
-        model.admin_username = config.username
+        model.admin_username = config.username.strip()
         model.admin_email = config.email or ""
         model.save(update_fields=["admin_username", "admin_email", "updated_at"])
 
@@ -187,8 +221,7 @@ class AIProviderRepository:
         """
         保存 AI Provider 配置
 
-        优先使用加密字段 api_key_encrypted 存储，
-        仅在加密服务不可用时回退到明文存储。
+        API key 只允许写入加密字段；加密服务不可用时拒绝持久化。
 
         Args:
             config: AI Provider 配置
@@ -196,7 +229,7 @@ class AIProviderRepository:
         from apps.ai_provider.infrastructure.models import AIProviderConfig
         from shared.infrastructure.crypto import get_encryption_service
 
-        defaults = {
+        defaults: dict[str, object] = {
             "provider_type": config.provider_type,
             "base_url": config.base_url,
             "default_model": config.default_model,
@@ -204,12 +237,17 @@ class AIProviderRepository:
             "priority": config.priority,
         }
 
+        api_key = (
+            _validated_secret(config.api_key, field_name="AI provider API key")
+            if config.api_key
+            else ""
+        )
         crypto = get_encryption_service()
-        if crypto and config.api_key:
-            defaults["api_key_encrypted"] = crypto.encrypt(config.api_key)
+        if api_key:
+            if crypto is None:
+                raise ValueError("AI provider credential encryption is unavailable.")
+            defaults["api_key_encrypted"] = crypto.encrypt(api_key)
             defaults["api_key"] = ""  # Clear deprecated plaintext field
-        else:
-            defaults["api_key"] = config.api_key
 
         AIProviderConfig.objects.update_or_create(
             name=config.name,
@@ -236,22 +274,25 @@ class DataSourceRepository:
         from apps.data_center.infrastructure.models import ProviderConfigModel
 
         if config.tushare_token:
+            tushare_token = _validated_secret(config.tushare_token, field_name="Tushare token")
+            tushare_url = _validated_http_url(config.tushare_http_url)
             ProviderConfigModel.objects.update_or_create(
                 source_type="tushare",
                 defaults={
                     "name": "Tushare Pro",
-                    "api_key": config.tushare_token,
-                    "http_url": config.tushare_http_url or "",
+                    "api_key": tushare_token,
+                    "http_url": tushare_url,
                     "is_active": True,
                 },
             )
 
         if config.fred_api_key:
+            fred_api_key = _validated_secret(config.fred_api_key, field_name="FRED API key")
             ProviderConfigModel.objects.update_or_create(
                 source_type="fred",
                 defaults={
                     "name": "FRED",
-                    "api_key": config.fred_api_key,
+                    "api_key": fred_api_key,
                     "is_active": True,
                 },
             )
@@ -261,3 +302,40 @@ class DataSourceRepository:
         from apps.data_center.infrastructure.models import ProviderConfigModel
 
         return ProviderConfigModel.objects.filter(is_active=True).exists()
+
+
+def _normalized_step_values(raw_steps: object) -> list[str]:
+    """Return unique known step values from persisted JSON evidence."""
+    if not isinstance(raw_steps, list):
+        return []
+    valid_steps = {step.value for step in WizardStep}
+    return list(
+        dict.fromkeys(step for step in raw_steps if isinstance(step, str) and step in valid_steps)
+    )
+
+
+def _validated_secret(value: str, *, field_name: str) -> str:
+    """Validate a bounded credential without exposing it in failures."""
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be text.")
+    normalized = value.strip()
+    if not normalized or len(normalized) > 4096:
+        raise ValueError(f"{field_name} must contain 1 to 4096 characters.")
+    if any(ord(character) < 32 or ord(character) == 127 for character in normalized):
+        raise ValueError(f"{field_name} contains invalid control characters.")
+    return normalized
+
+
+def _validated_http_url(value: str | None) -> str:
+    """Validate an optional credential-free HTTP(S) provider endpoint."""
+    if value is None or not value.strip():
+        return ""
+    normalized = value.strip()
+    if len(normalized) > 500:
+        raise ValueError("Tushare HTTP URL is too long.")
+    parsed = urlsplit(normalized)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Tushare HTTP URL must be an absolute HTTP(S) URL.")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("Tushare HTTP URL cannot contain credentials, query, or fragment.")
+    return normalized

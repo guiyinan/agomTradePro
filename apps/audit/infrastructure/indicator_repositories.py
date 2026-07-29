@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import date
 
 from apps.audit.domain.interfaces import (
     IndicatorPerformanceRecord,
@@ -23,85 +21,19 @@ from apps.data_center.infrastructure.macro_fact_selection import (
 )
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 
+from .indicator_repository_values import MacroFactCandidate as _MacroFactCandidate
+from .indicator_repository_values import json_float_mapping as _json_float_mapping
+from .indicator_repository_values import json_mapping as _json_mapping
+from .indicator_repository_values import json_object_list as _json_object_list
+from .indicator_repository_values import nonnegative_int as _nonnegative_int
+from .indicator_repository_values import optional_finite_float as _optional_finite_float
+from .indicator_repository_values import required_finite_float as _required_finite_float
 from .models import (
     IndicatorPerformanceModel,
     IndicatorThresholdConfigModel,
 )
 
 __all__ = ["IndicatorRepositoryMixin"]
-
-
-@dataclass
-class _MacroFactCandidate:
-    """Typed projection used by the canonical macro-fact selector."""
-
-    indicator_code: str
-    reporting_period: date
-    value: float
-    source: str
-    revision_number: int
-    published_at: date | None
-    fetched_at: datetime
-    extra: Mapping[str, object]
-
-
-def _optional_finite_float(value: object) -> float | None:
-    """Return a finite float while preserving a legitimate zero."""
-
-    if (
-        value is None
-        or isinstance(value, bool)
-        or not isinstance(value, (int, float, Decimal, str))
-    ):
-        return None
-    try:
-        numeric = float(value)
-    except (TypeError, ValueError, OverflowError):
-        return None
-    return numeric if math.isfinite(numeric) else None
-
-
-def _required_finite_float(value: object, *, field_name: str) -> float:
-    """Return a finite float or reject corrupted persisted input."""
-
-    numeric = _optional_finite_float(value)
-    if numeric is None:
-        raise ValueError(f"{field_name} must be finite")
-    return numeric
-
-
-def _nonnegative_int(value: object, *, field_name: str) -> int:
-    """Return a non-negative integer without accepting booleans."""
-
-    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise ValueError(f"{field_name} must be a non-negative integer")
-    return value
-
-
-def _json_mapping(value: object) -> dict[str, object]:
-    """Narrow a JSON object to string-keyed metadata."""
-
-    if not isinstance(value, Mapping):
-        return {}
-    return {str(key): item for key, item in value.items()}
-
-
-def _json_float_mapping(value: object) -> dict[str, float]:
-    """Narrow JSON numeric mappings and drop invalid values."""
-
-    return {
-        str(key): numeric
-        for key, item in _json_mapping(value).items()
-        if (numeric := _optional_finite_float(item)) is not None
-    }
-
-
-def _json_object_list(value: object) -> list[dict[str, object]]:
-    """Narrow a JSON list to object entries."""
-
-    if not isinstance(value, list):
-        return []
-    return [_json_mapping(item) for item in value if isinstance(item, Mapping)]
 
 
 class IndicatorRepositoryMixin:

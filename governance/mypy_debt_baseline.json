@@ -10,81 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 27,
-    "files_with_errors": 24
+    "errors": 0,
+    "files_with_errors": 0
   },
-  "modules": {
-    "apps/agent_runtime/infrastructure/repositories.py": {
-      "misc": 2
-    },
-    "apps/ai_provider/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/ai_provider/infrastructure/management/commands/encrypt_api_keys.py": {
-      "no-untyped-def": 2
-    },
-    "apps/ai_provider/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/backtest/infrastructure/adapters/tushare_price_adapter.py": {
-      "no-redef": 1
-    },
-    "apps/backtest/interface/__init__.py": {
-      "var-annotated": 1
-    },
-    "apps/backtest/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/beta_gate/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/data_center/infrastructure/market_breadth_repositories.py": {
-      "misc": 1
-    },
-    "apps/equity/infrastructure/asset_repository.py": {
-      "misc": 1
-    },
-    "apps/filter/interface/deprecation.py": {
-      "misc": 1
-    },
-    "apps/filter/interface/urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/portfolio/interface/admin.py": {
-      "type-arg": 1
-    },
-    "apps/sentiment/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/sentiment/interface/api_urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/sentiment/interface/urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/setup_wizard/apps.py": {
-      "no-untyped-def": 1
-    },
-    "apps/setup_wizard/infrastructure/models.py": {
-      "no-untyped-def": 1
-    },
-    "apps/setup_wizard/infrastructure/repositories.py": {
-      "valid-type": 1
-    },
-    "apps/setup_wizard/management/commands/bootstrap_local_env.py": {
-      "no-untyped-def": 2
-    },
-    "apps/signal/interface/admin.py": {
-      "type-arg": 1
-    },
-    "apps/signal/interface/urls.py": {
-      "no-untyped-def": 1
-    },
-    "apps/simulated_trading/management/commands/repair_personal_account_readiness.py": {
-      "no-untyped-def": 1
-    },
-    "apps/valuation/infrastructure/providers.py": {
-      "attr-defined": 1
-    }
-  }
+  "modules": {}
 }

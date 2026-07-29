@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any, cast
 
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncDate
@@ -40,6 +41,7 @@ class SectorMembershipRepository:
     def get_members(
         self, sector_code: str, as_of: date | None = None
     ) -> list[SectorMembershipFact]:
+        sector_code = _validated_code(sector_code, field_name="sector_code")
         qs = SectorMembershipFactModel.objects.filter(sector_code=sector_code)
         if as_of:
             qs = qs.filter(effective_date__lte=as_of).filter(expiry_date__isnull=True) | qs.filter(
@@ -50,6 +52,7 @@ class SectorMembershipRepository:
     def get_sectors_for_asset(
         self, asset_code: str, as_of: date | None = None
     ) -> list[SectorMembershipFact]:
+        asset_code = _validated_code(asset_code, field_name="asset_code")
         qs = SectorMembershipFactModel.objects.filter(asset_code=asset_code)
         if as_of:
             qs = qs.filter(effective_date__lte=as_of).filter(expiry_date__isnull=True) | qs.filter(
@@ -89,7 +92,7 @@ class NewsRepository:
             source=m.source,
             external_id=m.external_id,
             sentiment_score=m.sentiment_score,
-            extra=m.extra or {},
+            extra=dict(m.extra or {}),
             fetched_at=m.fetched_at,
         )
 
@@ -98,6 +101,9 @@ class NewsRepository:
         asset_code: str | None = None,
         limit: int = 50,
     ) -> list[NewsFact]:
+        limit = _validated_limit(limit)
+        if asset_code is not None:
+            asset_code = _validated_code(asset_code, field_name="asset_code")
         qs = NewsFactModel.objects.all()
         if not asset_code:
             return [self._from_model(m) for m in qs.order_by("-published_at")[:limit]]
@@ -114,6 +120,8 @@ class NewsRepository:
         limit: int = 50,
     ) -> list[NewsFact]:
         """Return market-wide news published on one date."""
+
+        limit = _validated_limit(limit)
 
         rows = NewsFactModel.objects.filter(asset_code="", published_at__date=target_date).order_by(
             "-published_at", "-id"
@@ -160,6 +168,7 @@ class NewsRepository:
         start: date | None = None,
         end: date | None = None,
     ) -> list[MarketNewsDailyMetrics]:
+        _validate_date_range(start, end)
         qs = NewsFactModel.objects.filter(asset_code="")
         if start:
             qs = qs.filter(published_at__date__gte=start)
@@ -167,7 +176,8 @@ class NewsRepository:
             qs = qs.filter(published_at__date__lte=end)
 
         rows = (
-            qs.annotate(observed_date=TruncDate("published_at"))
+            cast(Any, qs)
+            .annotate(observed_date=TruncDate("published_at"))
             .values("observed_date")
             .annotate(
                 news_count=Count("id"),
@@ -213,7 +223,7 @@ class CapitalFlowRepository:
             small_net=float(m.small_net) if m.small_net is not None else None,
             source=m.source,
             fetched_at=m.fetched_at,
-            extra=m.extra or {},
+            extra=dict(m.extra or {}),
         )
 
     def get_series(
@@ -223,18 +233,25 @@ class CapitalFlowRepository:
         end: date | None = None,
         limit: int | None = None,
     ) -> list[CapitalFlowFact]:
+        asset_code = _validated_code(asset_code, field_name="asset_code")
+        _validate_date_range(start, end)
+        if limit is not None:
+            limit = _validated_limit(limit)
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = CapitalFlowFactModel.objects.filter(asset_code=candidate)
             if start:
                 qs = qs.filter(flow_date__gte=start)
             if end:
                 qs = qs.filter(flow_date__lte=end)
-            rows = list(qs.order_by("-flow_date") if limit is None else qs.order_by("-flow_date")[:limit])
+            rows = list(
+                qs.order_by("-flow_date") if limit is None else qs.order_by("-flow_date")[:limit]
+            )
             if rows:
                 return [self._from_model(m) for m in rows]
         return []
 
     def get_latest(self, asset_code: str) -> CapitalFlowFact | None:
+        asset_code = _validated_code(asset_code, field_name="asset_code")
         for candidate in _resolve_asset_code_candidates(asset_code):
             m = (
                 CapitalFlowFactModel.objects.filter(asset_code=candidate)
@@ -264,3 +281,26 @@ class CapitalFlowRepository:
             )
             count += 1
         return count
+
+
+def _validated_code(value: str, *, field_name: str) -> str:
+    """Validate a bounded lookup code before building an ORM query."""
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be text.")
+    normalized = value.strip()
+    if not normalized or len(normalized) > 64:
+        raise ValueError(f"{field_name} must contain 1 to 64 characters.")
+    return normalized
+
+
+def _validated_limit(limit: int) -> int:
+    """Reject unbounded, boolean, and non-positive query limits."""
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 1000:
+        raise ValueError("limit must be an integer between 1 and 1000.")
+    return limit
+
+
+def _validate_date_range(start: date | None, end: date | None) -> None:
+    """Reject inverted date ranges before querying storage."""
+    if start is not None and end is not None and start > end:
+        raise ValueError("start cannot be after end.")

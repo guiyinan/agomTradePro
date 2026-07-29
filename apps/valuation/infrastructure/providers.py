@@ -5,29 +5,46 @@ from __future__ import annotations
 import logging
 from datetime import date
 from decimal import Decimal
-from typing import Any
+from importlib import import_module
+from typing import Any, Protocol, cast
 
 from ..domain.rules import ValuationPayloadPolicy
 
 logger = logging.getLogger(__name__)
 
 
+class _LegacyValuationServiceProtocol(Protocol):
+    """Optional legacy valuation service boundary."""
+
+    def get_latest_valuation(self, security_code: str) -> object | None: ...
+
+
 class AssetAnalysisValuationSource:
     """Adapt asset-analysis valuation results to the canonical payload."""
 
     def __init__(self) -> None:
-        self._service: Any = None
+        self._service: _LegacyValuationServiceProtocol | None = None
 
     def get_payload(self, security_code: str) -> dict[str, Any] | None:
         """Return the latest asset-analysis valuation when available."""
         if self._service is None:
             try:
-                from apps.asset_analysis.application.services import ValuationService
-
-                self._service = ValuationService()
-            except ImportError:
+                services_module = import_module("apps.asset_analysis.application.services")
+                service_class = vars(services_module).get("ValuationService")
+                if not callable(service_class):
+                    return None
+                self._service = cast(_LegacyValuationServiceProtocol, service_class())
+            except (AttributeError, ImportError, TypeError):
                 return None
-        valuation = self._service.get_latest_valuation(security_code)
+        try:
+            valuation = self._service.get_latest_valuation(security_code)
+        except Exception as exc:
+            logger.debug(
+                "Legacy formal valuation lookup failed for %s: error_type=%s",
+                security_code,
+                exc.__class__.__name__,
+            )
+            return None
         if valuation is None:
             return None
         return {
@@ -85,7 +102,11 @@ class DataCenterValuationFactSource:
                 facts = [latest] if latest is not None else []
             return [self._normalize(fact) for fact in facts]
         except Exception as exc:
-            logger.debug("Data center valuation fact lookup failed for %s: %s", security_code, exc)
+            logger.debug(
+                "Data center valuation fact lookup failed for %s: error_type=%s",
+                security_code,
+                exc.__class__.__name__,
+            )
             return []
 
     @staticmethod
@@ -119,7 +140,11 @@ class ObservableMarketPriceSource:
             latest = RedisRealtimePriceRepository().get_latest_price(security_code)
             return ObservableMarketPriceSource._extract_price(latest)
         except Exception as exc:
-            logger.debug("Realtime price unavailable for %s: %s", security_code, exc)
+            logger.debug(
+                "Realtime price unavailable for %s: error_type=%s",
+                security_code,
+                exc.__class__.__name__,
+            )
             return Decimal("0")
 
     @staticmethod
@@ -130,7 +155,11 @@ class ObservableMarketPriceSource:
             latest = PriceBarRepository().get_latest(security_code)
             return ObservableMarketPriceSource._extract_price(latest)
         except Exception as exc:
-            logger.debug("Latest close unavailable for %s: %s", security_code, exc)
+            logger.debug(
+                "Latest close unavailable for %s: error_type=%s",
+                security_code,
+                exc.__class__.__name__,
+            )
             return Decimal("0")
 
     @staticmethod

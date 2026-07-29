@@ -474,8 +474,8 @@ class TestContextProviders:
         bundle = builder.build(scope=["macro"])
 
         assert "macro" in bundle.sections
-        assert "构建失败" in bundle.sections["macro"].summary
-        assert "adapter failed" in bundle.sections["macro"].summary
+        assert bundle.sections["macro"].summary == "macro 数据构建失败"
+        assert "adapter failed" not in bundle.sections["macro"].summary
         assert bundle.sections["macro"].raw_data is None
 
     def test_context_bundle_summary_text(self):

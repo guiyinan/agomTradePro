@@ -5,6 +5,7 @@ Provides API-only routes for /api/beta-gate/.
 """
 
 from django.urls import include, path
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
@@ -16,11 +17,17 @@ app_name = "api_beta_gate"
 router = DefaultRouter()
 router.register(r"configs", beta_gate_views.GateConfigViewSet, basename="gate-config")
 router.register(r"decisions", beta_gate_views.GateDecisionViewSet, basename="gate-decision")
-router.register(r"universe", beta_gate_views.VisibilityUniverseViewSet, basename="visibility-universe")
+router.register(
+    r"universe", beta_gate_views.VisibilityUniverseViewSet, basename="visibility-universe"
+)
 
 
 class BetaGateApiHomeView(APIView):
-    def get(self, request):
+    """Publish the stable Beta Gate API discovery document."""
+
+    def get(self, request: Request) -> Response:
+        """Return API discovery metadata."""
+
         return Response(
             {
                 "message": "AgomTradePro Beta Gate API",
@@ -39,7 +46,19 @@ urlpatterns = [
     path("", include(router.urls)),
     path("health/", BetaGateApiHomeView.as_view(), name="health"),
     path("test/", beta_gate_views.BetaGateTestAPIView.as_view(), name="test"),
-    path("version/compare/", beta_gate_views.BetaGateVersionCompareAPIView.as_view(), name="version-compare"),
-    path("config/rollback/<str:config_id>/", beta_gate_views.RollbackConfigView.as_view(), name="rollback"),
-    path("config/suggest/", beta_gate_views.BetaGateJsonSuggestAPIView.as_view(), name="config-suggest"),
+    path(
+        "version/compare/",
+        beta_gate_views.BetaGateVersionCompareAPIView.as_view(),
+        name="version-compare",
+    ),
+    path(
+        "config/rollback/<str:config_id>/",
+        beta_gate_views.RollbackConfigView.as_view(),
+        name="rollback",
+    ),
+    path(
+        "config/suggest/",
+        beta_gate_views.BetaGateJsonSuggestAPIView.as_view(),
+        name="config-suggest",
+    ),
 ]

@@ -6,7 +6,7 @@ import json
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.simulated_trading.application.readiness_services import (
     AccountReadinessRepairRequest,
@@ -17,7 +17,7 @@ from apps.simulated_trading.application.readiness_services import (
 class Command(BaseCommand):
     help = "Ensure personal readiness runs have at least one positive-equity account."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--user-id", type=int, default=None, help="Repair one user.")
         parser.add_argument(
             "--account-id",
@@ -43,16 +43,22 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
+        user_id = _parse_optional_positive_id(options.get("user_id"), "user-id")
+        account_id = _parse_optional_positive_id(options.get("account_id"), "account-id")
+        if user_id is not None and account_id is not None:
+            raise CommandError("user-id and account-id are mutually exclusive")
+        dry_run = _parse_bool_option(options.get("dry_run", False), "dry-run")
+        print_json = _parse_bool_option(options.get("print_json", False), "json")
         initial_capital = _parse_capital(options["initial_capital"])
         payload = repair_personal_account_readiness(
             AccountReadinessRepairRequest(
-                user_id=options.get("user_id"),
-                account_id=options.get("account_id"),
+                user_id=user_id,
+                account_id=account_id,
                 initial_capital=initial_capital,
-                dry_run=bool(options.get("dry_run")),
+                dry_run=dry_run,
             )
         )
-        if options.get("print_json"):
+        if print_json:
             self.stdout.write(json.dumps(payload, ensure_ascii=False, indent=2))
             return
 
@@ -83,6 +89,24 @@ def _parse_capital(value: Any) -> Decimal:
         capital = Decimal(str(value))
     except (InvalidOperation, ValueError) as exc:
         raise CommandError("initial-capital must be a positive decimal") from exc
-    if capital <= 0:
+    if not capital.is_finite() or capital <= 0:
         raise CommandError("initial-capital must be positive")
+    if capital > Decimal("1000000000000000000"):
+        raise CommandError("initial-capital exceeds the supported maximum")
     return capital
+
+
+def _parse_optional_positive_id(value: Any, option_name: str) -> int | None:
+    """Validate a management-command identifier without bool coercion."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise CommandError(f"{option_name} must be a positive integer")
+    return int(value)
+
+
+def _parse_bool_option(value: Any, option_name: str) -> bool:
+    """Reject truthy non-boolean values supplied by direct command callers."""
+    if not isinstance(value, bool):
+        raise CommandError(f"{option_name} must be a boolean value")
+    return value

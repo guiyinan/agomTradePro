@@ -10,6 +10,6 @@ class SetupWizardConfig(AppConfig):
     name = "apps.setup_wizard"
     verbose_name = "安装向导"
 
-    def ready(self):
+    def ready(self) -> None:
         """应用启动时执行"""
         pass

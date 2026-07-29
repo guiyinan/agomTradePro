@@ -401,6 +401,20 @@ def test_news_repository_aggregate_market_daily_computes_ratio():
     assert metrics[0].positive_ratio == 0.5
 
 
+@pytest.mark.parametrize("limit", [0, -1, True, 1001])
+def test_news_repository_rejects_invalid_query_limits(limit):
+    with pytest.raises(ValueError, match="limit"):
+        NewsRepository().get_recent(limit=limit)
+
+
+def test_news_repository_rejects_inverted_aggregation_range():
+    with pytest.raises(ValueError, match="start cannot be after end"):
+        NewsRepository().aggregate_market_daily(
+            start=date(2026, 5, 20),
+            end=date(2026, 5, 19),
+        )
+
+
 @pytest.mark.django_db
 def test_data_center_diagnostic_repository_summarizes_active_stock_fact_coverage():
     AssetMasterModel.objects.create(

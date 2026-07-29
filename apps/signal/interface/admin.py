@@ -5,10 +5,11 @@ Django Admin for Investment Signals.
 from django.contrib import admin
 
 from apps.signal.models import InvestmentSignalModel
+from shared.infrastructure.django_admin import TypedModelAdmin
 
 
 @admin.register(InvestmentSignalModel)
-class InvestmentSignalAdmin(admin.ModelAdmin):
+class InvestmentSignalAdmin(TypedModelAdmin[InvestmentSignalModel]):
     """Admin interface for InvestmentSignalModel"""
 
     list_display = [

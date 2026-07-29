@@ -5,10 +5,14 @@ Provide a thin Django ORM wrapper so application use cases do not
 import ORM models directly.
 """
 
+import json
+from collections import Counter
 from datetime import datetime
-from typing import Any
+from decimal import Decimal, InvalidOperation
+from typing import Any, cast
 
 from django.contrib.auth import get_user_model
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Count, Prefetch, Q, QuerySet
 
 from apps.agent_runtime.domain.entities import AgentProposal, AgentTask
@@ -23,6 +27,56 @@ from apps.agent_runtime.infrastructure.models import (
     AgentTaskStepModel,
     AgentTimelineEventModel,
 )
+from apps.audit.domain.entities import mask_sensitive_params, mask_sensitive_text
+
+_MAX_AGENT_EVIDENCE_BYTES = 1_048_576
+
+
+def _sanitize_evidence(payload: dict[str, Any]) -> dict[str, Any]:
+    """Detach, redact, and bound JSON evidence before ORM persistence."""
+
+    masked = mask_sensitive_params(payload)
+    if not isinstance(masked, dict):
+        raise ValueError("agent_evidence_payload_invalid")
+    try:
+        encoded = json.dumps(
+            masked,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+            cls=DjangoJSONEncoder,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("agent_evidence_payload_invalid") from exc
+    if len(encoded) > _MAX_AGENT_EVIDENCE_BYTES:
+        raise ValueError("agent_evidence_payload_too_large")
+    detached = json.loads(encoded.decode("utf-8"))
+    if not isinstance(detached, dict):
+        raise ValueError("agent_evidence_payload_invalid")
+    return cast(dict[str, Any], detached)
+
+
+def _nonnegative_int(value: object, *, field_name: str) -> int:
+    """Validate one exact non-negative integer from a dynamic execution boundary."""
+
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{field_name}_invalid")
+    return value
+
+
+def _nonnegative_decimal(value: object, *, field_name: str) -> Decimal:
+    """Validate one finite non-negative decimal from execution evidence."""
+
+    if isinstance(value, bool) or not isinstance(value, int | float | Decimal | str):
+        raise ValueError(f"{field_name}_invalid")
+    try:
+        normalized = Decimal(str(value))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(f"{field_name}_invalid") from exc
+    if not normalized.is_finite() or normalized < 0:
+        raise ValueError(f"{field_name}_invalid")
+    return normalized
 
 
 def _flat_string_choices(choices: object) -> list[tuple[str, str]]:
@@ -188,7 +242,7 @@ class AgentTimelineRepository:
             event_type=event_type,
             event_source=event_source,
             step_index=step_index,
-            event_payload=event_payload,
+            event_payload=_sanitize_evidence(event_payload),
         )
         return int(model.id)
 
@@ -221,7 +275,9 @@ class AgentProposalRepository:
             approval_required=approval_required,
             approval_status=approval_status,
             proposal_payload=proposal_payload,
-            approval_reason=approval_reason,
+            approval_reason=(
+                mask_sensitive_text(approval_reason)[:2_000] if approval_reason else None
+            ),
             created_by_id=created_by,
         )
         return model.to_domain_entity()
@@ -267,8 +323,8 @@ class AgentProposalRepository:
             proposal_id=proposal_id,
             decision=decision,
             reason_code=reason_code,
-            message=message,
-            evidence=evidence,
+            message=mask_sensitive_text(message)[:2_000],
+            evidence=_sanitize_evidence(evidence),
             requires_human=requires_human,
         )
         return {
@@ -315,23 +371,32 @@ class AgentProposalRepository:
 
             if not is_prompt_version_active(execution_output["prompt_version_id"]):
                 raise ValueError("agent execution prompt version is not active")
+        safe_execution_output = _sanitize_evidence(execution_output)
+        actual_tokens = _nonnegative_int(
+            safe_execution_output.get("actual_tokens", 0),
+            field_name="actual_tokens",
+        )
+        actual_cost = _nonnegative_decimal(
+            safe_execution_output.get("actual_cost", 0),
+            field_name="actual_cost",
+        )
         model = AgentExecutionRecordModel._default_manager.create(
             request_id=request_id,
             task_id=task_id,
             proposal_id=proposal_id,
             execution_status=execution_status,
-            execution_output=execution_output,
+            execution_output=safe_execution_output,
             started_at=started_at,
             completed_at=completed_at,
-            prompt_version_id=str(execution_output.get("prompt_version_id") or ""),
-            model_version=str(execution_output.get("model_version") or ""),
-            output_schema_version=str(execution_output.get("output_schema_version") or ""),
-            eval_baseline_id=str(execution_output.get("eval_baseline_id") or ""),
+            prompt_version_id=str(safe_execution_output.get("prompt_version_id") or ""),
+            model_version=str(safe_execution_output.get("model_version") or ""),
+            output_schema_version=str(safe_execution_output.get("output_schema_version") or ""),
+            eval_baseline_id=str(safe_execution_output.get("eval_baseline_id") or ""),
             decision_input_snapshot_id=str(
-                execution_output.get("decision_input_snapshot_id") or ""
+                safe_execution_output.get("decision_input_snapshot_id") or ""
             ),
-            actual_tokens=int(execution_output.get("actual_tokens") or 0),
-            actual_cost=execution_output.get("actual_cost") or 0,
+            actual_tokens=actual_tokens,
+            actual_cost=actual_cost,
         )
         return int(model.id)
 
@@ -365,8 +430,8 @@ class AgentHandoffRepository:
             task_id=task_id,
             from_agent=from_agent,
             to_agent=to_agent,
-            handoff_reason=handoff_reason,
-            handoff_payload=handoff_payload,
+            handoff_reason=mask_sensitive_text(handoff_reason)[:2_000],
+            handoff_payload=_sanitize_evidence(handoff_payload),
             handoff_status=handoff_status,
         )
         return model.id
@@ -409,14 +474,10 @@ class AgentOperatorRepository:
         """Return aggregate counts for operator overview cards."""
 
         task_counts = dict(
-            AgentTaskModel._default_manager.values("status")
-            .annotate(count=Count("id"))
-            .values_list("status", "count")
+            Counter(AgentTaskModel._default_manager.values_list("status", flat=True).iterator())
         )
         proposal_counts = dict(
-            AgentProposalModel._default_manager.values("status")
-            .annotate(count=Count("id"))
-            .values_list("status", "count")
+            Counter(AgentProposalModel._default_manager.values_list("status", flat=True).iterator())
         )
         needs_attention = AgentTaskModel._default_manager.filter(
             Q(requires_human=True) | Q(status__in=["needs_human", "failed"])

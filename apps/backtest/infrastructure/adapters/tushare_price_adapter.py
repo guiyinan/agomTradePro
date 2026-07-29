@@ -8,10 +8,14 @@ internal repositories instead of importing external SDKs directly.
 from __future__ import annotations
 
 import logging
+import math
 from datetime import date, timedelta
+
+from django.db import DatabaseError
 
 from .base import (
     AssetPricePoint,
+    AssetPriceValidationError,
     BaseAssetPriceAdapter,
     get_asset_class_tickers,
 )
@@ -37,9 +41,10 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
 
     source_name = "data_center_tushare_compat"
 
-    def __init__(self, token: str | None = None, http_url: str | None = None):
-        self._token = token
-        self._http_url = http_url
+    def __init__(self, token: str | None = None, http_url: str | None = None) -> None:
+        # Compatibility arguments are deliberately not retained: this adapter no
+        # longer performs outbound requests and must not keep credentials alive.
+        del token, http_url
         from apps.data_center.infrastructure.repositories import PriceBarRepository
 
         self._bars = PriceBarRepository()
@@ -50,6 +55,8 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
         return get_tushare_asset_tickers().get(asset_class) is not None
 
     def get_price(self, asset_class: str, as_of_date: date) -> float | None:
+        if type(as_of_date) is not date:
+            raise ValueError("as_of_date must be a date")
         if asset_class == "cash":
             return 1.0
 
@@ -58,13 +65,25 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
             return None
         try:
             bars = self._bars.get_bars(ticker, start=as_of_date, end=as_of_date, limit=1)
-            return float(bars[0].close) if bars else None
-        except Exception:
+            if not bars:
+                return None
+            price = float(bars[0].close)
+            if not math.isfinite(price) or price <= 0:
+                raise AssetPriceValidationError("stored price is not positive and finite")
+            return price
+        except (
+            ArithmeticError,
+            AssetPriceValidationError,
+            DatabaseError,
+            LookupError,
+            TypeError,
+            ValueError,
+        ) as exc:
             logger.warning(
-                "Failed to read asset price from data_center: %s @ %s",
+                "Failed to read asset price from data_center: %s @ %s (%s)",
                 asset_class,
                 as_of_date,
-                exc_info=True,
+                type(exc).__name__,
             )
             return None
 
@@ -74,11 +93,15 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
         start_date: date,
         end_date: date,
     ) -> list[AssetPricePoint]:
+        if type(start_date) is not date or type(end_date) is not date:
+            raise ValueError("price range bounds must be dates")
+        if start_date > end_date:
+            raise ValueError("start_date must not be after end_date")
         if asset_class == "cash":
-            points: list[AssetPricePoint] = []
+            cash_points: list[AssetPricePoint] = []
             current = start_date
             while current <= end_date:
-                points.append(
+                cash_points.append(
                     AssetPricePoint(
                         asset_class=asset_class,
                         price=1.0,
@@ -87,7 +110,7 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
                     )
                 )
                 current += timedelta(days=1)
-            return points
+            return cash_points
 
         ticker = get_tushare_asset_tickers().get(asset_class)
         if not ticker:
@@ -97,24 +120,31 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
             history = list(
                 reversed(self._bars.get_bars(ticker, start=start_date, end=end_date, limit=5000))
             )
-        except Exception:
+        except (ArithmeticError, DatabaseError, LookupError, TypeError, ValueError) as exc:
             logger.warning(
-                "Failed to read asset price history from data_center: %s %s~%s",
+                "Failed to read asset price history from data_center: %s %s~%s (%s)",
                 asset_class,
                 start_date,
                 end_date,
-                exc_info=True,
+                type(exc).__name__,
             )
             return []
 
         points: list[AssetPricePoint] = []
         for item in history:
-            points.append(
-                AssetPricePoint(
-                    asset_class=asset_class,
-                    price=float(item.close),
-                    as_of_date=item.bar_date,
-                    source=str(item.source or self.source_name),
+            try:
+                points.append(
+                    AssetPricePoint(
+                        asset_class=asset_class,
+                        price=float(item.close),
+                        as_of_date=item.bar_date,
+                        source=str(item.source or self.source_name),
+                    )
                 )
-            )
+            except (ArithmeticError, AssetPriceValidationError, TypeError, ValueError) as exc:
+                logger.warning(
+                    "Skipped invalid asset price point: %s (%s)",
+                    asset_class,
+                    type(exc).__name__,
+                )
         return points

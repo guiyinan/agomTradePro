@@ -9,9 +9,11 @@ Usage:
     python manage.py encrypt_api_keys --dry-run
     python manage.py encrypt_api_keys --force
 """
-import logging
 
-from django.core.management.base import BaseCommand, CommandError
+import logging
+from typing import Any, Literal
+
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
 from apps.ai_provider.infrastructure.models import AIProviderConfig
@@ -21,26 +23,26 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = 'Encrypt existing plaintext API keys in AIProviderConfig'
+    help = "Encrypt existing plaintext API keys in AIProviderConfig"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
-            '--dry-run',
-            action='store_true',
-            dest='dry_run',
-            help='Show what would be encrypted without making changes',
+            "--dry-run",
+            action="store_true",
+            dest="dry_run",
+            help="Show what would be encrypted without making changes",
         )
         parser.add_argument(
-            '--force',
-            action='store_true',
-            dest='force',
-            help='Encrypt even if api_key_encrypted already has a value',
+            "--force",
+            action="store_true",
+            dest="force",
+            help="Encrypt even if api_key_encrypted already has a value",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: str, **options: Any) -> None:
         """Execute the encryption command."""
-        dry_run = options.get('dry_run', False)
-        force = options.get('force', False)
+        dry_run = options.get("dry_run", False)
+        force = options.get("force", False)
 
         # Check encryption service availability
         try:
@@ -50,13 +52,15 @@ class Command(BaseCommand):
                     "Encryption service not available. "
                     "Please set AGOMTRADEPRO_ENCRYPTION_KEY environment variable."
                 )
-        except Exception as e:
-            raise CommandError(f"Failed to initialize encryption service: {e}") from e
+        except CommandError:
+            raise
+        except Exception as exc:
+            raise CommandError(
+                "Failed to initialize encryption service " f"({exc.__class__.__name__})"
+            ) from exc
 
         # Find all providers with plaintext API keys
-        providers_to_encrypt = AIProviderConfig.objects.exclude(
-            api_key=''
-        ).filter(
+        providers_to_encrypt = AIProviderConfig.objects.exclude(api_key="").filter(
             api_key__isnull=False
         )
 
@@ -77,18 +81,13 @@ class Command(BaseCommand):
         error_count = 0
 
         for provider in providers_to_encrypt:
-            result = self._encrypt_provider(
-                provider,
-                crypto_service,
-                dry_run=dry_run,
-                force=force
-            )
+            result = self._encrypt_provider(provider, crypto_service, dry_run=dry_run, force=force)
 
-            if result == 'encrypted':
+            if result == "encrypted":
                 encrypted_count += 1
-            elif result == 'skipped':
+            elif result == "skipped":
                 skipped_count += 1
-            elif result == 'error':
+            elif result == "error":
                 error_count += 1
 
         # Summary
@@ -109,8 +108,8 @@ class Command(BaseCommand):
         provider: AIProviderConfig,
         crypto_service: FieldEncryptionService,
         dry_run: bool = False,
-        force: bool = False
-    ) -> str:
+        force: bool = False,
+    ) -> Literal["encrypted", "skipped", "error"]:
         """
         Encrypt a single provider's API key.
 
@@ -125,46 +124,39 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"  [{provider_name}] Already encrypted, use --force to re-encrypt"
                 )
-                return 'skipped'
+                return "skipped"
 
             # Check if plaintext key exists
             if not provider.api_key:
-                self.stdout.write(
-                    f"  [{provider_name}] No plaintext API key to encrypt"
-                )
-                return 'skipped'
+                self.stdout.write(f"  [{provider_name}] No plaintext API key to encrypt")
+                return "skipped"
 
             # Display what will be encrypted
-            masked_key = self._mask_key(provider.api_key)
-            self.stdout.write(
-                f"  [{provider_name}] Encrypting: {masked_key}"
-            )
+            self.stdout.write(f"  [{provider_name}] Encrypting: {self._mask_key(provider.api_key)}")
 
             if not dry_run:
                 with transaction.atomic():
                     # Encrypt the API key
                     encrypted_key = crypto_service.encrypt(provider.api_key)
+                    if not crypto_service.is_encrypted(encrypted_key):
+                        raise RuntimeError("api_key_encryption_output_invalid")
 
                     # Update the provider
                     provider.api_key_encrypted = encrypted_key
-                    provider.api_key = ''  # Clear plaintext
-                    provider.save(update_fields=['api_key_encrypted', 'api_key'])
+                    provider.api_key = ""  # Clear plaintext
+                    provider.save(update_fields=["api_key_encrypted", "api_key"])
 
-            return 'encrypted'
+            return "encrypted"
 
-        except Exception as e:
+        except Exception as exc:
             self.stdout.write(
-                self.style.ERROR(
-                    f"  [{provider_name}] Error: {e}"
-                )
+                self.style.ERROR(f"  [{provider_name}] Error ({exc.__class__.__name__})")
             )
-            return 'error'
+            return "error"
 
     @staticmethod
     def _mask_key(api_key: str, visible_chars: int = 8) -> str:
         """Mask an API key for display."""
         if not api_key:
-            return '(empty)'
-        if len(api_key) <= visible_chars:
-            return '***'
-        return f"{api_key[:visible_chars]}{'*' * 10}..."
+            return "(empty)"
+        return "***"

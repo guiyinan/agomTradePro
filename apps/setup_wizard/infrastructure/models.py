@@ -4,7 +4,12 @@ ORM Models for Setup Wizard.
 存储安装向导的状态和配置。
 """
 
+from typing import Any
+
+from django.core.exceptions import ValidationError
 from django.db import models
+
+from apps.setup_wizard.domain.entities import WizardStep
 
 
 class SetupStateModel(models.Model):
@@ -31,7 +36,7 @@ class SetupStateModel(models.Model):
         verbose_name = "安装向导状态"
         verbose_name_plural = "安装向导状态"
 
-    def __str__(self):
+    def __str__(self) -> str:
         status = "已完成" if self.is_completed else "进行中"
         return f"安装向导 - {status}"
 
@@ -42,5 +47,41 @@ class SetupStateModel(models.Model):
 
         如果不存在则创建一条新记录。
         """
-        instance, _ = cls.objects.get_or_create(pk=1)
+        instance, _ = cls._default_manager.get_or_create(pk=1)
         return instance
+
+    def clean(self) -> None:
+        """Reject inconsistent or malformed singleton state evidence."""
+        super().clean()
+        valid_steps = {step.value for step in WizardStep}
+        if self.current_step not in valid_steps:
+            raise ValidationError({"current_step": "Unknown setup wizard step."})
+        if not isinstance(self.completed_steps, list):
+            raise ValidationError({"completed_steps": "Expected a list of setup steps."})
+        if any(
+            not isinstance(step, str) or step not in valid_steps for step in self.completed_steps
+        ):
+            raise ValidationError({"completed_steps": "Contains an unknown setup step."})
+        if len(set(self.completed_steps)) != len(self.completed_steps):
+            raise ValidationError({"completed_steps": "Setup steps must be unique."})
+        if self.is_completed:
+            if self.current_step != WizardStep.COMPLETE.value:
+                raise ValidationError({"current_step": "Completed setup must be at complete."})
+            if WizardStep.COMPLETE.value not in self.completed_steps:
+                raise ValidationError(
+                    {"completed_steps": "Completed setup must include the complete step."}
+                )
+            if self.completed_at is None:
+                raise ValidationError({"completed_at": "Completed setup requires a timestamp."})
+        elif self.completed_at is not None:
+            raise ValidationError(
+                {"completed_at": "Incomplete setup cannot have a completion timestamp."}
+            )
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Persist only the validated singleton setup record."""
+        if self.pk not in (None, 1):
+            raise ValidationError("Setup state is a singleton with primary key 1.")
+        self.pk = 1
+        self.full_clean()
+        super().save(*args, **kwargs)

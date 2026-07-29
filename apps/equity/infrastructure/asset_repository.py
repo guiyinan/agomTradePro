@@ -7,6 +7,7 @@ stable import surface; do not import it here.
 
 from decimal import Decimal, InvalidOperation
 from math import isfinite
+from typing import Any, cast
 
 from django.db import models
 
@@ -99,10 +100,12 @@ class DjangoEquityAssetRepository:
         valuation_exists = ValuationModel._default_manager.filter(
             stock_code=models.OuterRef("stock_code")
         )
-        queryset = (
-            queryset.annotate(has_valuation=models.Exists(valuation_exists))
+        queryset = cast(
+            models.QuerySet[StockInfoModel],
+            cast(Any, queryset)
+            .annotate(has_valuation=models.Exists(valuation_exists))
             .filter(has_valuation=True)
-            .order_by("stock_code")
+            .order_by("stock_code"),
         )
 
         # 获取所有股票后再过滤（因为需要关联估值表）

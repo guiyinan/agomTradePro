@@ -1,7 +1,7 @@
 """Structure contracts for the split audit large files.
 
 Covers three remediations:
-- apps.audit.domain.services          -> 4 pure-Python owner modules + facade
+- apps.audit.domain.services          -> 5 pure-Python owner modules + facade
 - apps.audit.infrastructure.repositories -> 4 mixin owner modules + facade
 - apps.audit.application.use_cases    -> 3 owner modules + facade
 """
@@ -21,6 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DOMAIN_FACADE = "apps.audit.domain.services"
 DOMAIN_OWNERS = (
     "apps.audit.domain.attribution_services",
+    "apps.audit.domain.regime_accuracy_services",
     "apps.audit.domain.brinson_services",
     "apps.audit.domain.performance_services",
     "apps.audit.domain.operation_log_services",
@@ -31,6 +32,11 @@ REPOSITORY_OWNERS = (
     "apps.audit.infrastructure.indicator_repositories",
     "apps.audit.infrastructure.validation_repositories",
     "apps.audit.infrastructure.operation_log_repositories",
+)
+REPOSITORY_SUPPORT_MODULES = (
+    "apps.audit.infrastructure.attribution_repository_validators",
+    "apps.audit.infrastructure.indicator_repository_values",
+    "apps.audit.infrastructure.validation_repository_values",
 )
 USE_CASE_FACADE = "apps.audit.application.use_cases"
 USE_CASE_OWNERS = (
@@ -239,13 +245,17 @@ def test_audit_split_modules_stay_bounded_and_one_way() -> None:
     budgets = {
         DOMAIN_FACADE: 150,
         "apps.audit.domain.attribution_services": 450,
+        "apps.audit.domain.regime_accuracy_services": 180,
         "apps.audit.domain.brinson_services": 300,
         "apps.audit.domain.performance_services": 650,
         "apps.audit.domain.operation_log_services": 300,
         REPOSITORY_FACADE: 150,
         "apps.audit.infrastructure.attribution_repositories": 300,
+        "apps.audit.infrastructure.attribution_repository_validators": 220,
         "apps.audit.infrastructure.indicator_repositories": 600,
+        "apps.audit.infrastructure.indicator_repository_values": 120,
         "apps.audit.infrastructure.validation_repositories": 350,
+        "apps.audit.infrastructure.validation_repository_values": 240,
         "apps.audit.infrastructure.operation_log_repositories": 600,
         USE_CASE_FACADE: 150,
         "apps.audit.application.attribution_use_cases": 650,
@@ -256,6 +266,7 @@ def test_audit_split_modules_stay_bounded_and_one_way() -> None:
     facade_by_owner = {
         **dict.fromkeys(DOMAIN_OWNERS, DOMAIN_FACADE),
         **dict.fromkeys(REPOSITORY_OWNERS, REPOSITORY_FACADE),
+        **dict.fromkeys(REPOSITORY_SUPPORT_MODULES, REPOSITORY_FACADE),
         **dict.fromkeys(USE_CASE_OWNERS, USE_CASE_FACADE),
     }
     for module_name, budget in budgets.items():

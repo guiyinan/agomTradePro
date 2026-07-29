@@ -6442,3 +6442,21 @@
 - Fund/Hedge 广泛回归首轮 `266 passed`，契约调整后命令定向 `5 passed`；Events/Policy 首轮有效用例 `17 passed`，修正 pytest 参数名冲突后安全 URL 与异常脱敏定向 `4 passed`；全批新增边界测试统一复核两组各 `29 passed`。
 - 49 个直接及受类型传播影响的生产文件增量 mypy 清零；全仓基线从 `100 errors / 72 files` 收紧为 `27 errors / 24 files`，净减少 `73 errors / 48 files`。
 - Django system check、10 个受影响 App migration drift、改动文件 Ruff/Black/isort、增量 mypy 与全仓 debt baseline 刷新通过；Audit 目录专项通过，但仓库既有结构预算检查仍报告未改动的 `attribution_services.py` 为 `467 > 450`，转入下一批独立拆分处理。本批未新增数据库 migration、未修改数据库结构或公开成功响应合同。
+
+## 第四百二十批
+
+- 将最后 24 个债务文件按 Agent Runtime/AI Provider/Valuation、Backtest/Beta Gate/Filter/Signal、Data Center/Portfolio/Sentiment/Setup Wizard/Simulated Trading 三条 owner 线并行清零；主线同步解决 Audit 结构预算和全仓模式才暴露的 Django ORM 动态注解类型。
+- Agent Runtime 仓储的 timeline、guardrail、execution 与 handoff 证据在入库前递归脱敏、JSON 分离并限制为 1 MiB；token/cost 拒绝 bool、字符串、负值和 NaN/Infinity。operator 状态计数改为明确值流聚合，不再依赖 mypy 无法验证的动态 annotation 字段。
+- AI Provider 加密命令补齐 CLI 合同，密钥和底层异常正文不进入输出，并验证正式密文前缀；Valuation legacy provider 通过窄 Protocol 隔离已移除服务，缺失或失败时由既有 canonical snapshot/fact/price 链安全降级。
+- Backtest Tushare 兼容适配器不再驻留废弃 token/http URL，日期、顺序、单点和历史价格在发布前验证，NaN/Infinity、非正值与坏历史行失败关闭或隔离；Beta Gate、Filter、Signal URL/API/Admin 使用精确 DRF/Protocol/TypedModelAdmin 合同。
+- Setup Wizard 完成证据、单例和命令参数严格验证；AI key 加密不可用时拒绝明文回退，truthy 布尔、非有限数和冲突目标失败关闭。Data Center 市场查询限制 code、日期和 limit，Portfolio Admin 不可变字段全量只读；Sentiment 与 readiness 命令补齐正式类型边界。
+- Audit 将 Regime 准确率/信息比率从启发式归因 owner 拆出，并把 attribution、indicator、validation 仓储的验证与序列化 helper 下沉到三个独立 support 模块；原 owner 分别降至 320、299、595、288 个非空行，结构预算恢复通过且未提高预算。
+- 全仓 Django plugin 最终发现的 4 条动态 annotation 债务通过 ORM 边界局部收窄和显式聚合修复；不使用新增 ignore，也不把 ORM 动态类型带入 Domain/Application。
+
+## 第四百二十批验证结果
+
+- Agent Runtime/AI Provider/Valuation `73 passed`；Backtest/Beta Gate/Filter/Signal `90 passed`；Data Center/Portfolio/Sentiment/Setup Wizard/readiness 两组共 `71 passed`。
+- Audit 结构、领域归因和三类真实仓储完整组合 `100 passed`；provider 故障摘要旧测试同步稳定脱敏合同定向 `1 passed`；最终 ORM 改写的 Agent operator、Data Center 与 Equity 集成组合 `60 passed`。
+- 项目规定的 TUI Workbench、Terminal Agent、SDK Client 与内部 SSL 固定回归包 `238 passed`。
+- 32 个改动生产文件增量 mypy 清零；全仓基线从 `27 errors / 24 files` 收紧为 `0 errors / 0 files`，历史生产 mypy 债务全部清零。
+- 41 个改动 Python 文件 Black/isort/Ruff 通过；Django system check、14 个受影响 App migration drift 与全仓 debt ceiling 通过。本批未新增数据库 migration、未修改数据库结构或公开成功响应合同。

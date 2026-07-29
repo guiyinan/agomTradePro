@@ -1,6 +1,7 @@
 """AI provider API URL configuration."""
 
 from django.urls import include, path
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
@@ -21,7 +22,11 @@ me_router.register(r"me/quota", views.UserFallbackQuotaViewSet, basename="my-quo
 
 
 class AIProviderApiRootView(APIView):
-    def get(self, request):
+    """Return stable discovery links for the AI-provider API."""
+
+    def get(self, request: Request) -> Response:
+        """Return endpoints without exposing provider credentials or configuration."""
+
         return Response(
             {
                 "endpoints": {

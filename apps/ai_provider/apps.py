@@ -8,7 +8,7 @@ class AIProviderConfig(AppConfig):
     name = "apps.ai_provider"
     verbose_name = "AI Provider Management"
 
-    def ready(self):
+    def ready(self) -> None:
         """Import admin module when app is ready"""
         from .application.config_summary_service import (
             configure_ai_provider_config_summary_repository,
@@ -17,8 +17,6 @@ class AIProviderConfig(AppConfig):
             DjangoAIProviderConfigSummaryRepository,
         )
 
-        configure_ai_provider_config_summary_repository(
-            DjangoAIProviderConfigSummaryRepository()
-        )
+        configure_ai_provider_config_summary_repository(DjangoAIProviderConfigSummaryRepository())
 
         import apps.ai_provider.interface.admin  # noqa: F401

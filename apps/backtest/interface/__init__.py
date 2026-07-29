@@ -8,4 +8,4 @@ Interface Layer for Backtest Module.
 - admin: Django Admin 配置
 """
 
-__all__ = []
+__all__: list[str] = []

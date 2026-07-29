@@ -1,6 +1,7 @@
 """Backtest API URL configuration."""
 
 from django.urls import include, path
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
@@ -14,7 +15,11 @@ router.register(r"backtests", views.BacktestViewSet, basename="backtest")
 
 
 class BacktestApiRootView(APIView):
-    def get(self, request):
+    """Publish the stable Backtest API discovery document."""
+
+    def get(self, request: Request) -> Response:
+        """Return API discovery metadata."""
+
         return Response(
             {
                 "endpoints": {

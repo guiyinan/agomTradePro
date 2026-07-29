@@ -12,6 +12,7 @@ from apps.simulated_trading.application.readiness_services import (
     repair_personal_account_readiness,
 )
 from apps.simulated_trading.management.commands.repair_personal_account_readiness import (
+    Command,
     _parse_capital,
 )
 
@@ -140,3 +141,34 @@ def test_repair_personal_account_readiness_skips_when_positive_equity_exists(
 def test_parse_capital_rejects_non_positive_values():
     with pytest.raises(CommandError):
         _parse_capital("0")
+
+
+@pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity"])
+def test_parse_capital_rejects_non_finite_values(value):
+    with pytest.raises(CommandError, match="positive"):
+        _parse_capital(value)
+
+
+def test_repair_command_rejects_ambiguous_target_scope(monkeypatch):
+    called = False
+
+    def _repair(request):
+        nonlocal called
+        called = True
+        return {}
+
+    monkeypatch.setattr(
+        "apps.simulated_trading.management.commands.repair_personal_account_readiness.repair_personal_account_readiness",
+        _repair,
+    )
+
+    with pytest.raises(CommandError, match="mutually exclusive"):
+        Command().handle(
+            user_id=1,
+            account_id=2,
+            initial_capital="100.00",
+            dry_run=True,
+            print_json=False,
+        )
+
+    assert called is False
