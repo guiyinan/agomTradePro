@@ -164,8 +164,8 @@ python -m pytest `
   tests/unit/terminal/test_tui_information_architecture.py `
   tests/unit/test_decision_rhythm_models_structure.py -q
 
-# Unit 与 Domain 覆盖
-python -m pytest tests/unit/ -q --cov=apps --cov-report=term-missing
+# Unit 与 Domain 覆盖（branch-aware，多范围 source 由 .coveragerc 提供）
+python -m pytest tests/unit/ -q --cov --cov-config=.coveragerc --cov-report=term-missing
 
 # API / migration / integration
 python -m pytest tests/api/ tests/migrations/ -q
@@ -228,6 +228,7 @@ Playwright 必须通过 `scripts/run_live_server_pytest.py` 管理 live server�
 - 分层清单：`governance/test_tier_inventory.json`。
 - 旧测试 ID 到新位置映射：`governance/test_id_migrations_2026-07-24.json`。
 - 覆盖率门禁：`scripts/check_coverage_ratchet.py`。
+- 多范围报告投影：`scripts/generate_coverage_reports.py`。
 - fast suite：`scripts/run_fast_tests.py`，由 `tests/support/fast_suite_guard.py` 阻止数据库初始化。
 - PR、Nightly、RC 工作流统一使用上述真源，不再各自维护覆盖率 omit 或门限。
 
@@ -251,7 +252,11 @@ Playwright 必须通过 `scripts/run_live_server_pytest.py` 管理 live server�
 | 增量 mypy | `14 source files / 0 regressions` |
 | 全仓 mypy 债务上限 | `3916 errors / 658 files`，只降不升 |
 
-覆盖率报告保存在 `reports/quality/coverage-final.xml`；浏览器 JUnit、server log 和 pytest log 保存在 `reports/quality/local-smoke*` 与 `reports/quality/local-uat*`。
+该结果是整改前的 `apps` 行覆盖快照。后续 branch-aware
+`apps/core/shared/sdk` 报告与 manifest 保存在 `reports/quality/coverage-*`；
+浏览器 JUnit、server log 和 pytest log 继续独立保存在
+`reports/quality/local-smoke*` 与 `reports/quality/local-uat*`。最新规则见
+`docs/development/ci/coverage-governance.md`。
 
 ### 10.3 已知非阻断项与回滚点
 

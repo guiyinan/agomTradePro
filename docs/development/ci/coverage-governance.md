@@ -1,0 +1,88 @@
+# Coverage governance
+
+## Source of truth
+
+Coverage configuration is owned by `.coveragerc`. Thresholds and completion targets are owned by
+`governance/testing_quality_baseline.json`. Workflows must not duplicate those values.
+
+Python coverage is collected once and then projected into independent reports:
+
+| Scope | Included source | Report |
+|---|---|---|
+| `apps` | `apps/` | `reports/quality/coverage-apps.xml` |
+| `core` | `core/` | `reports/quality/coverage-core.xml` |
+| `shared` | `shared/` | `reports/quality/coverage-shared.xml` |
+| `sdk` | `sdk/agomtradepro/`, `sdk/agomtradepro_mcp/` | `reports/quality/coverage-sdk.xml` |
+| combined/final | all configured Python sources | `reports/quality/coverage-final.xml` |
+
+`scripts/generate_coverage_reports.py` is the only report projection command. It also writes
+`coverage-manifest.json` with the commit SHA, UTC generation time, configuration digest and report
+digests. `git_dirty` must be `false` for release evidence.
+
+`coverage-final-details.json` preserves coverage.py's executable/missing line and branch-arc data.
+`coverage-inventory.json` aggregates the same evidence by source scope, app module, architecture
+layer, and file so prioritization does not depend on manually reading XML.
+
+`scripts/generate_quality_report.py` reads those four scope reports and publishes their line and
+branch values independently. Its `overall_coverage` is the `apps` repository value, not an average
+of cumulative Unit/Integration/Guardrail reports.
+
+## Branch measurement
+
+Branch measurement is enabled globally. A report with `branches-valid=0` is rejected for every
+required scope, even when its temporary branch threshold is zero. This prevents an old line-only
+report from satisfying the gate.
+
+The ratchet evaluates:
+
+- `apps` repository line and branch coverage;
+- per-App line coverage;
+- optional per-App overrides from `coverage.module_minimums`, used to lock completed remediation
+  modules above the shared core/default floor;
+- Domain line and branch coverage;
+- independent line and branch totals for `apps/core/shared/sdk`;
+- missing required reports.
+
+New scopes begin with an observed baseline after a complete merged run. A temporary zero threshold
+means “baseline collection is not complete”; it is not an accepted completion state. After T0
+evidence is generated, each value must be replaced with the rounded-down reproducible result and
+may only increase.
+
+## Local evidence workflow
+
+Each pytest layer appends to the same coverage data:
+
+```powershell
+python -m coverage erase
+python -m pytest tests/unit/ -q --cov --cov-config=.coveragerc
+python -m pytest tests/component/ -q --cov --cov-config=.coveragerc --cov-append
+python -m pytest tests/api/ tests/migrations/ -q `
+  --cov --cov-config=.coveragerc --cov-append
+python -m pytest tests/integration/ `
+  -m "not live_required and not optional_runtime and not diagnostic" `
+  -q --cov --cov-config=.coveragerc --cov-append
+python -m pytest apps/ sdk/tests/ tests/e2e/ tests/guardrails/ -q `
+  --cov --cov-config=.coveragerc --cov-append
+python scripts/generate_coverage_reports.py --check
+```
+
+Do not run a second non-append pytest-cov command while a merged collection is in progress; it can
+erase the shared `.coverage` file.
+
+## Browser and frontend evidence
+
+Browser coverage and Python import coverage are different evidence:
+
+- `npm run test:tui-js:ci` writes `reports/quality/frontend-node-tests.xml`;
+- Playwright writes JUnit, logs, screenshots, video or trace for user journeys;
+- Playwright does not publish Python line coverage;
+- Node and Playwright results are never merged into Python XML.
+
+This keeps “Django modules were imported while a browser test ran” from being presented as proof
+that frontend behavior or server branches were exercised.
+
+## Failure handling
+
+A complete baseline records every suite exit code. A failed layer does not authorize lowering a
+threshold, increasing `omit`, or adding a skip. Fix the failure or record the suite as an explicit
+unverified risk. Live network and optional runtime suites remain separately reported.

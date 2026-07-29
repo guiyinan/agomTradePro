@@ -552,6 +552,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     module_names = [
         "agomtradepro_mcp.tools.ai_provider_tools",
         "agomtradepro_mcp.tools.prompt_tools",
+        "agomtradepro_mcp.tools.policy_tools",
         "agomtradepro_mcp.tools.audit_tools",
         "agomtradepro_mcp.tools.events_tools",
         "agomtradepro_mcp.tools.decision_rhythm_tools",

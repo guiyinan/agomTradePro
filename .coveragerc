@@ -1,7 +1,11 @@
 [run]
-branch = false
+branch = true
 source =
     apps
+    core
+    shared
+    sdk/agomtradepro
+    sdk/agomtradepro_mcp
 parallel = true
 omit =
     */migrations/*

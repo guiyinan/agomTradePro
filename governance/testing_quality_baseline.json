@@ -1,10 +1,109 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "coverage": {
     "repository_minimum": 80.0,
+    "repository_branch_minimum": 62.8,
     "default_module_minimum": 70.0,
     "core_module_minimum": 80.0,
+    "module_minimums": {
+      "account": 85.0,
+      "ai_capability": 80.0,
+      "ai_provider": 80.0,
+      "alpha": 85.0,
+      "dashboard": 80.0,
+      "data_center": 85.0,
+      "decision_rhythm": 85.0,
+      "events": 80.0,
+      "factor": 80.0,
+      "fund": 80.0,
+      "hedge": 80.0,
+      "policy": 85.0,
+      "prompt": 80.0,
+      "pulse": 80.0,
+      "sector": 80.0,
+      "sentiment": 80.0,
+      "simulated_trading": 85.0,
+      "task_monitor": 80.0,
+      "terminal": 80.0
+    },
     "domain_module_minimum": 90.0,
+    "domain_branch_minimum": 0.0,
+    "domain_branch_minimums": {
+      "account": 84.8,
+      "agent_runtime": 100.0,
+      "ai_capability": 85.5,
+      "ai_provider": 100.0,
+      "alpha": 100.0,
+      "alpha_trigger": 89.5,
+      "asset_analysis": 100.0,
+      "audit": 85.3,
+      "backtest": 81.9,
+      "beta_gate": 95.5,
+      "broker_execution": 77.2,
+      "config_center": 100.0,
+      "dashboard": 90.6,
+      "data_center": 89.0,
+    "decision_rhythm": 80.4,
+      "equity": 89.4,
+      "events": 79.5,
+      "factor": 90.4,
+      "filter": 90.0,
+      "fund": 95.5,
+      "hedge": 87.3,
+      "macro": 93.7,
+      "operational_readiness": 100.0,
+      "policy": 90.0,
+      "portfolio": 85.5,
+      "prompt": 88.4,
+      "pulse": 87.5,
+      "realtime": 97.3,
+      "regime": 84.0,
+      "research": 100.0,
+      "risk_center": 97.2,
+      "rotation": 94.2,
+      "sector": 100.0,
+      "sentiment": 100.0,
+      "setup_wizard": 93.4,
+      "share": 79.1,
+      "signal": 86.4,
+      "simulated_trading": 83.6,
+      "strategy": 93.2,
+      "task_monitor": 50.0,
+      "terminal": 75.0,
+      "valuation": 95.7
+    },
+    "require_branch_coverage": true,
+    "required_scopes": [
+      "apps",
+      "core",
+      "shared",
+      "sdk"
+    ],
+    "scope_minimums": {
+      "apps": {
+        "line": 80.0,
+        "branch": 62.8
+      },
+      "core": {
+        "line": 80.0,
+        "branch": 51.3
+      },
+      "shared": {
+        "line": 80.0,
+        "branch": 50.2
+      },
+      "sdk": {
+        "line": 80.0,
+        "branch": 52.3
+      }
+    },
+    "completion_targets": {
+      "apps_line": 85.0,
+      "core_line": 80.0,
+      "shared_line": 80.0,
+      "sdk_line": 80.0,
+      "domain_branch": 80.0
+    },
     "core_modules": [
       "account",
       "alpha",

@@ -262,7 +262,7 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
             )
             expired.update(status=LiveOrderStatus.EXPIRED.value, version=F("version") + 1)
             candidates = list(
-                LiveOrderModel._default_manager.select_for_update()
+                LiveOrderModel._default_manager.select_for_update(of=("self",))
                 .filter(
                     agent=agent,
                     account_id__in=account_ids,

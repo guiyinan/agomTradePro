@@ -179,8 +179,10 @@ class ExecutePromptUseCase:
     def _resolve_provider_ref(request: Any) -> Any:
         """Support both provider_ref and the legacy provider_name field."""
         if isinstance(request, dict):
-            return request.get("provider_ref", request.get("provider_name"))
-        return getattr(request, "provider_ref", getattr(request, "provider_name", None))
+            provider_ref = request.get("provider_ref")
+            return provider_ref if provider_ref is not None else request.get("provider_name")
+        provider_ref = getattr(request, "provider_ref", None)
+        return provider_ref if provider_ref is not None else getattr(request, "provider_name", None)
 
     @staticmethod
     def _resolve_user_ref(request: Any) -> Any:

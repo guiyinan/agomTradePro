@@ -17,7 +17,10 @@ from apps.policy.domain.entities import (
 )
 from apps.policy.infrastructure.adapters import feedparser_adapter
 from apps.policy.infrastructure.adapters.ai_policy_classifier import AIPolicyClassifier
-from apps.policy.infrastructure.adapters.base import PolicyAdapterError
+from apps.policy.infrastructure.adapters.base import (
+    PolicyAdapterError,
+    PolicySourceUnavailableError,
+)
 from apps.policy.infrastructure.adapters.content_extractor import (
     BaseContentExtractor,
     ContentExtractorError,
@@ -27,6 +30,7 @@ from apps.policy.infrastructure.adapters.content_extractor import (
 from apps.policy.infrastructure.adapters.news_adapter import (
     NewsPolicyAdapter,
     NewsSourceConfig,
+    RSSPolicyAdapter,
 )
 from apps.policy.infrastructure.adapters.rss_adapter import RSSFetchError
 
@@ -110,7 +114,9 @@ def test_news_adapter_availability_classification_date_parsing_and_fetch(monkeyp
     assert adapter.is_available() is False
 
 
-def test_news_adapter_rejects_unsafe_config_and_redacts_provider_failures(monkeypatch) -> None:
+def test_news_adapter_rejects_unsafe_config_and_redacts_provider_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Provider credentials and exception details must not escape the adapter boundary."""
     with pytest.raises(ValueError, match="must not contain credentials"):
         NewsSourceConfig("unsafe", "https://user:secret@news.test")
@@ -128,6 +134,87 @@ def test_news_adapter_rejects_unsafe_config_and_redacts_provider_failures(monkey
     with pytest.raises(PolicyAdapterError, match="^policy_news_fetch_failed$") as error:
         adapter.fetch_policy_events()
     assert "secret" not in str(error.value)
+
+
+def test_news_adapter_unavailable_search_and_malformed_item_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """News ingestion rejects unavailable sources and wraps search failures consistently."""
+    adapter = NewsPolicyAdapter(NewsSourceConfig("fake", "https://news.test"))
+    monkeypatch.setattr(adapter, "is_available", lambda: False)
+    with pytest.raises(PolicySourceUnavailableError, match="unavailable"):
+        adapter.fetch_policy_events()
+
+    monkeypatch.setattr(adapter, "is_available", lambda: True)
+    monkeypatch.setattr(
+        adapter,
+        "_search_policy_news",
+        lambda start, end: (_ for _ in ()).throw(RuntimeError("search API offline")),
+    )
+    with pytest.raises(PolicyAdapterError, match="^policy_news_fetch_failed$"):
+        adapter.fetch_policy_events()
+
+    class _MalformedItem(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            raise TypeError("malformed item")
+
+    assert adapter._parse_news_to_event(_MalformedItem()) is None
+    fresh_adapter = NewsPolicyAdapter(NewsSourceConfig("fresh", "https://news.test"))
+    assert fresh_adapter._search_policy_news(date(2026, 7, 1), date(2026, 7, 24)) == []
+
+
+def test_rss_policy_adapter_maps_unknown_levels_and_reports_repository_availability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """RSS pipeline reads bounded events and maps unknown stored levels fail-closed."""
+    from apps.policy.infrastructure import models as policy_models
+
+    rows = [
+        SimpleNamespace(
+            event_date=date(2026, 7, 24),
+            level="P2",
+            title="valid",
+            description="valid event",
+            evidence_url="https://evidence.test/valid",
+        ),
+        SimpleNamespace(
+            event_date=date(2026, 7, 23),
+            level="legacy-unknown",
+            title="unknown",
+            description="legacy event",
+            evidence_url="https://evidence.test/unknown",
+        ),
+    ]
+
+    class _Query(list[SimpleNamespace]):
+        def order_by(self, *args: str) -> _Query:
+            return self
+
+    manager = SimpleNamespace(
+        filter=lambda **kwargs: _Query(rows),
+        exists=lambda: True,
+    )
+    monkeypatch.setattr(
+        policy_models,
+        "PolicyLog",
+        SimpleNamespace(_default_manager=manager),
+    )
+    adapter = RSSPolicyAdapter()
+    events = adapter.fetch_policy_events()
+    assert [event.level for event in events] == [PolicyLevel.P2, PolicyLevel.P0]
+    assert adapter.is_available() is True
+    assert adapter.get_source_name() == "RSS Pipeline (PolicyLog)"
+
+    monkeypatch.setattr(
+        policy_models,
+        "PolicyLog",
+        SimpleNamespace(
+            _default_manager=SimpleNamespace(
+                exists=lambda: (_ for _ in ()).throw(RuntimeError("table missing"))
+            )
+        ),
+    )
+    assert adapter.is_available() is False
 
 
 def _rss_item() -> RSSItem:

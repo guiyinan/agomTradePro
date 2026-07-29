@@ -107,6 +107,83 @@ def test_content_extractors_clean_proxy_select_fallback_and_custom_paths(monkeyp
         module.create_content_extractor("unknown")
 
 
+def test_readability_extractor_handles_optional_dependencies_fallback_and_http_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Readability extraction has explicit dependency, HTML fallback, and HTTP failures."""
+    extractor = module.ReadabilityExtractor()
+    with monkeypatch.context() as scoped:
+        scoped.setattr(module, "Document", None)
+        with pytest.raises(module.ContentExtractorError, match="readability-lxml"):
+            extractor.extract("https://example.test")
+
+    class _Document:
+        def __init__(self, html: str) -> None:
+            self.html = html
+
+        def summary(self) -> str:
+            return "<article>policy evidence body</article>"
+
+    _Client.response_text = "<html>source</html>"
+    monkeypatch.setattr(module, "Document", _Document)
+    monkeypatch.setattr(module.httpx, "Client", _Client)
+    with monkeypatch.context() as scoped:
+        scoped.setattr(module, "BeautifulSoup", None)
+        assert extractor.extract("https://example.test") == "policy evidence body"
+
+    class _HTTPFailureClient(_Client):
+        def get(self, url: str, headers: dict[str, str]) -> _Response:
+            raise module.httpx.HTTPError("upstream timeout")
+
+    monkeypatch.setattr(module.httpx, "Client", _HTTPFailureClient)
+    with pytest.raises(module.ContentExtractorError, match="HTTP error"):
+        extractor.extract("https://example.test")
+
+    monkeypatch.setattr(module.httpx, "Client", _Client)
+    monkeypatch.setattr(
+        module,
+        "Document",
+        lambda html: (_ for _ in ()).throw(ValueError("malformed document")),
+    )
+    with pytest.raises(module.ContentExtractorError, match="Failed to extract"):
+        extractor.extract("https://example.test")
+
+
+def test_beautifulsoup_extractor_reports_missing_dependencies_content_and_selector(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """BeautifulSoup extraction distinguishes dependency and content failures."""
+    extractor = module.BeautifulSoupExtractor()
+    with monkeypatch.context() as scoped:
+        scoped.setattr(module, "BeautifulSoup", None)
+        with pytest.raises(module.ContentExtractorError, match="beautifulsoup4"):
+            extractor.extract("https://example.test")
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(module, "httpx", None)
+        with pytest.raises(module.ContentExtractorError, match="httpx"):
+            extractor.extract("https://example.test")
+        with pytest.raises(module.ContentExtractorError, match="httpx"):
+            extractor.extract_with_custom_selector("https://example.test", ".article")
+
+    _Client.response_text = "<html><body><div>short</div></body></html>"
+    monkeypatch.setattr(module.httpx, "Client", _Client)
+    with pytest.raises(module.ContentExtractorError, match="Could not extract"):
+        extractor.extract("https://example.test")
+    with pytest.raises(module.ContentExtractorError, match="Element not found"):
+        extractor.extract_with_custom_selector("https://example.test", ".missing")
+
+    class _HTTPFailureClient(_Client):
+        def get(self, url: str, headers: dict[str, str]) -> _Response:
+            raise module.httpx.HTTPError("upstream timeout")
+
+    monkeypatch.setattr(module.httpx, "Client", _HTTPFailureClient)
+    with pytest.raises(module.ContentExtractorError, match="HTTP error"):
+        extractor.extract("https://example.test")
+    with pytest.raises(module.ContentExtractorError, match="HTTP error"):
+        extractor.extract_with_custom_selector("https://example.test", ".article")
+
+
 def _event(level: PolicyLevel = PolicyLevel.P1) -> PolicyEvent:
     return PolicyEvent(
         event_date=date(2026, 7, 24),

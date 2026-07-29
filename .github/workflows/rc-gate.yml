@@ -137,11 +137,7 @@ jobs:
             --server-log reports/journey-server.log \
             --pytest-log reports/journey-pytest.log \
             -- \
-            tests/playwright/tests/uat/ -v --tb=short \
-            --cov=apps \
-            --cov-report=xml:reports/coverage-rc.xml \
-            --cov-report=html:reports/coverage-html \
-            --cov-report=term-missing
+            tests/playwright/tests/uat/ -v --tb=short
 
       - name: Journey Tests (Skipped)
         if: github.event.inputs.skip_journey == 'true'
@@ -323,14 +319,12 @@ jobs:
           path: reports/quality/
           retention-days: 90
 
-      - name: Upload Coverage Report
+      - name: Upload Journey Evidence
         uses: actions/upload-artifact@v6
         if: github.event.inputs.skip_journey != 'true'
         with:
-          name: rc-coverage-report
+          name: rc-journey-evidence
           path: |
-            reports/coverage-rc.xml
-            reports/coverage-html/
             reports/journey-results.xml
             reports/journey-server.log
             reports/journey-pytest.log

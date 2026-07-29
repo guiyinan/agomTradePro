@@ -7,7 +7,7 @@ AgomTradePro MCP Tools - Account 账户管理工具
 import csv
 import io
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from mcp.server.fastmcp import FastMCP
 
@@ -22,6 +22,16 @@ def _extract_results(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, list):
         return payload
     return []
+
+
+def _list_endpoint_rows(
+    client: AgomTradeProClient,
+    endpoint: str,
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Read and normalize one paginated account endpoint."""
+    return _extract_results(client.get(endpoint, params={"limit": limit}))
 
 
 def _parse_bool(value: Any, default: bool = False) -> bool:
@@ -77,9 +87,10 @@ def _normalize_position_input(row: dict[str, Any]) -> dict[str, Any]:
         result["category"] = row.get("category")
     if row.get("currency") not in (None, ""):
         result["currency"] = row.get("currency")
-    if row.get("source_id") not in (None, ""):
+    source_id_raw = row.get("source_id")
+    if source_id_raw not in (None, ""):
         try:
-            result["source_id"] = int(row.get("source_id"))
+            result["source_id"] = int(str(source_id_raw))
         except (ValueError, TypeError):
             raise ValueError("source_id 必须是整数") from None
 
@@ -623,11 +634,14 @@ def register_account_tools(server: FastMCP) -> None:
         """
         reader = csv.DictReader(io.StringIO(csv_text.strip()))
         rows = [dict(r) for r in reader]
-        return import_positions_json(
-            portfolio_id=portfolio_id,
-            positions=rows,
-            mode=mode,
-            dry_run=dry_run,
+        return cast(
+            dict[str, Any],
+            import_positions_json(
+                portfolio_id=portfolio_id,
+                positions=rows,
+                mode=mode,
+                dry_run=dry_run,
+            ),
         )
 
     @server.tool()
@@ -744,11 +758,14 @@ def register_account_tools(server: FastMCP) -> None:
 
         JSON 会转换为与 CSV 相同的列契约后走统一导入预览接口。
         """
-        return preview_broker_trades_csv(
-            portfolio_id=portfolio_id,
-            csv_text=_broker_trades_to_csv(trades),
-            broker_name=broker_name,
-            filename="broker_trades.json.csv",
+        return cast(
+            dict[str, Any],
+            preview_broker_trades_csv(
+                portfolio_id=portfolio_id,
+                csv_text=_broker_trades_to_csv(trades),
+                broker_name=broker_name,
+                filename="broker_trades.json.csv",
+            ),
         )
 
     @server.tool()
@@ -762,11 +779,14 @@ def register_account_tools(server: FastMCP) -> None:
 
         JSON 会转换为与 CSV 相同的列契约后走统一导入确认接口。
         """
-        return import_broker_trades_csv(
-            portfolio_id=portfolio_id,
-            csv_text=_broker_trades_to_csv(trades),
-            broker_name=broker_name,
-            filename="broker_trades.json.csv",
+        return cast(
+            dict[str, Any],
+            import_broker_trades_csv(
+                portfolio_id=portfolio_id,
+                csv_text=_broker_trades_to_csv(trades),
+                broker_name=broker_name,
+                filename="broker_trades.json.csv",
+            ),
         )
 
     @server.tool()
@@ -863,11 +883,14 @@ def register_account_tools(server: FastMCP) -> None:
         """
         reader = csv.DictReader(io.StringIO(csv_text.strip()))
         rows = [dict(r) for r in reader]
-        return import_transactions_json(
-            portfolio_id=portfolio_id,
-            transactions=rows,
-            mode=mode,
-            dry_run=dry_run,
+        return cast(
+            dict[str, Any],
+            import_transactions_json(
+                portfolio_id=portfolio_id,
+                transactions=rows,
+                mode=mode,
+                dry_run=dry_run,
+            ),
         )
 
     @server.tool()
@@ -1018,11 +1041,14 @@ def register_account_tools(server: FastMCP) -> None:
         """
         reader = csv.DictReader(io.StringIO(csv_text.strip()))
         rows = [dict(r) for r in reader]
-        return import_capital_flows_json(
-            portfolio_id=portfolio_id,
-            capital_flows=rows,
-            mode=mode,
-            dry_run=dry_run,
+        return cast(
+            dict[str, Any],
+            import_capital_flows_json(
+                portfolio_id=portfolio_id,
+                capital_flows=rows,
+                mode=mode,
+                dry_run=dry_run,
+            ),
         )
 
     @server.tool()
@@ -1203,7 +1229,7 @@ def register_account_tools(server: FastMCP) -> None:
                 "is_shanghai": is_shanghai,
             },
         )
-        return result.get("data", result)
+        return cast(dict[str, Any], result.get("data", result))
 
     def export_account_bundle_csv(
         portfolio_id: int,

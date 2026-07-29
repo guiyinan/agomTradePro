@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 # 全局仓储实例
 _repository: TaskRecordRepositoryProtocol | None = None
+_FAILED_BUSINESS_OUTCOMES = {"failed", "partial", "blocked"}
 
 
 def get_repository() -> TaskRecordRepositoryProtocol:
@@ -64,6 +65,20 @@ def get_use_case() -> RecordTaskExecutionUseCase:
         repository=get_repository(),
         alert_channels=[alert_service],
     )
+
+
+def _resolve_terminal_status(*, state: str | None, retval: Any) -> TaskStatus:
+    """Resolve technical state together with a task's normalized business outcome."""
+
+    if state == "FAILURE":
+        return TaskStatus.FAILURE
+    if state == "REVOKED":
+        return TaskStatus.REVOKED
+    if isinstance(retval, dict):
+        outcome = str(retval.get("outcome", "")).strip().lower()
+        if outcome in _FAILED_BUSINESS_OUTCOMES:
+            return TaskStatus.FAILURE
+    return TaskStatus.SUCCESS
 
 
 # ========== Celery 信号处理 ==========
@@ -134,14 +149,8 @@ def task_postrun_handler(
         if not existing:
             return
 
-        # 确定状态
-        status = TaskStatus.SUCCESS
-        if state == "SUCCESS":
-            status = TaskStatus.SUCCESS
-        elif state == "FAILURE":
-            status = TaskStatus.FAILURE
-        elif state == "REVOKED":
-            status = TaskStatus.REVOKED
+        # 同时读取 Celery 技术状态和规范化业务 outcome。
+        status = _resolve_terminal_status(state=state, retval=retval)
 
         # 计算运行时长
         runtime_seconds = None

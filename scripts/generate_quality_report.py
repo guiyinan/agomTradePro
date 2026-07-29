@@ -6,6 +6,7 @@ Generates quality metrics reports from test runs and coverage data.
 Usage:
     python scripts/generate_quality_report.py --type nightly|pr|rc
 """
+
 import argparse
 import json
 import os
@@ -14,6 +15,9 @@ import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+TESTING_BASELINE_PATH = REPO_ROOT / "governance" / "testing_quality_baseline.json"
 
 
 def parse_coverage_xml(xml_path: str) -> dict[str, Any]:
@@ -28,24 +32,41 @@ def parse_coverage_xml(xml_path: str) -> dict[str, Any]:
         coverage = root.attrib.get("line-rate", "0")
         lines_valid = int(root.attrib.get("lines-valid", 0))
         lines_covered = int(root.attrib.get("lines-covered", 0))
+        branches_valid = int(root.attrib.get("branches-valid", 0))
+        branches_covered = int(root.attrib.get("branches-covered", 0))
 
         packages = []
         for package in root.findall(".//package"):
             package_name = package.attrib.get("name", "unknown")
             package_coverage = float(package.attrib.get("line-rate", 0))
-            packages.append({
-                "name": package_name,
-                "coverage": package_coverage,
-            })
+            packages.append(
+                {
+                    "name": package_name,
+                    "coverage": package_coverage,
+                }
+            )
 
         return {
             "coverage_percent": round(float(coverage) * 100, 2),
             "lines_valid": lines_valid,
             "lines_covered": lines_covered,
+            "branch_coverage_percent": (
+                round(branches_covered * 100 / branches_valid, 2) if branches_valid else None
+            ),
+            "branches_valid": branches_valid,
+            "branches_covered": branches_covered,
             "packages": packages,
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+def load_repository_coverage_minimum(
+    baseline_path: Path = TESTING_BASELINE_PATH,
+) -> float:
+    """Load the repository threshold from the single testing baseline."""
+    payload = json.loads(baseline_path.read_text(encoding="utf-8"))
+    return float(payload["coverage"]["repository_minimum"])
 
 
 def generate_nightly_report(args: argparse.Namespace) -> dict[str, Any]:
@@ -55,10 +76,11 @@ def generate_nightly_report(args: argparse.Namespace) -> dict[str, Any]:
         "run_type": "nightly",
         "workflow": {
             "run_id": os.environ.get("GITHUB_RUN_ID", "local"),
-            "run_url": os.environ.get("GITHUB_SERVER_URL", "") + "/" +
-                     os.environ.get("GITHUB_REPOSITORY", "") +
-                     "/actions/runs/" +
-                     os.environ.get("GITHUB_RUN_ID", ""),
+            "run_url": os.environ.get("GITHUB_SERVER_URL", "")
+            + "/"
+            + os.environ.get("GITHUB_REPOSITORY", "")
+            + "/actions/runs/"
+            + os.environ.get("GITHUB_RUN_ID", ""),
         },
         "test_suites": {
             "unit": {"status": "pending", "coverage": None},
@@ -66,6 +88,7 @@ def generate_nightly_report(args: argparse.Namespace) -> dict[str, Any]:
             "guardrails": {"status": "pending", "coverage": None},
             "playwright_smoke": {"status": "pending"},
         },
+        "coverage_scopes": {},
     }
 
     # Parse coverage reports if they exist
@@ -85,16 +108,21 @@ def generate_nightly_report(args: argparse.Namespace) -> dict[str, Any]:
                 report["test_suites"][suite]["status"] = "failed"
                 report["test_suites"][suite]["error"] = metrics["error"]
 
-    # Calculate overall coverage
-    coverages = [
-        s["coverage"]
-        for s in report["test_suites"].values()
-        if isinstance(s.get("coverage"), int | float)
-    ]
-    if coverages:
-        report["overall_coverage"] = round(sum(coverages) / len(coverages), 2)
-    else:
-        report["overall_coverage"] = 0.0
+    scope_files = {
+        "apps": "reports/quality/coverage-apps.xml",
+        "core": "reports/quality/coverage-core.xml",
+        "shared": "reports/quality/coverage-shared.xml",
+        "sdk": "reports/quality/coverage-sdk.xml",
+    }
+    for scope, filename in scope_files.items():
+        metrics = parse_coverage_xml(filename)
+        report["coverage_scopes"][scope] = metrics
+
+    apps_metrics = report["coverage_scopes"]["apps"]
+    report["overall_coverage"] = (
+        apps_metrics["coverage_percent"] if "error" not in apps_metrics else 0.0
+    )
+    report["coverage_threshold"] = load_repository_coverage_minimum()
 
     return report
 
@@ -145,17 +173,14 @@ def generate_rc_report(args: argparse.Namespace) -> dict[str, Any]:
         checks["api_naming"] = {
             "status": "passed" if result.returncode == 0 else "failed",
             "threshold": "100%",
-            "description": "API routes follow /api/{module}/{resource}/ convention"
+            "description": "API routes follow /api/{module}/{resource}/ convention",
         }
         if result.returncode == 0:
             checks_passed += 1
         else:
             checks_failed += 1
     except Exception as e:
-        checks["api_naming"] = {
-            "status": "failed",
-            "error": str(e)
-        }
+        checks["api_naming"] = {"status": "failed", "error": str(e)}
         checks_failed += 1
 
     # 2. Navigation 404 check
@@ -169,17 +194,14 @@ def generate_rc_report(args: argparse.Namespace) -> dict[str, Any]:
         checks["navigation_404"] = {
             "status": "passed" if result.returncode == 0 else "failed",
             "threshold": "0",
-            "description": "Main navigation has no 404 errors"
+            "description": "Main navigation has no 404 errors",
         }
         if result.returncode == 0:
             checks_passed += 1
         else:
             checks_failed += 1
     except Exception as e:
-        checks["navigation_404"] = {
-            "status": "skipped",
-            "error": str(e)
-        }
+        checks["navigation_404"] = {"status": "skipped", "error": str(e)}
 
     # 3. Main Chain 501 check
     try:
@@ -192,45 +214,45 @@ def generate_rc_report(args: argparse.Namespace) -> dict[str, Any]:
         checks["main_chain_501"] = {
             "status": "passed" if result.returncode == 0 else "failed",
             "threshold": "0",
-            "description": "Main chain APIs have no 501 responses"
+            "description": "Main chain APIs have no 501 responses",
         }
         if result.returncode == 0:
             checks_passed += 1
         else:
             checks_failed += 1
     except Exception as e:
-        checks["main_chain_501"] = {
-            "status": "failed",
-            "error": str(e)
-        }
+        checks["main_chain_501"] = {"status": "failed", "error": str(e)}
         checks_failed += 1
 
     # 4. P0/P1 defects check
     from pathlib import Path
+
     critical_paths = [
-        'apps/account/interface/views.py',
-        'apps/strategy/interface/views.py',
-        'apps/simulated_trading/interface/views.py',
-        'apps/backtest/interface/views.py',
-        'apps/audit/interface/views.py',
+        "apps/account/interface/views.py",
+        "apps/strategy/interface/views.py",
+        "apps/simulated_trading/interface/views.py",
+        "apps/backtest/interface/views.py",
+        "apps/audit/interface/views.py",
     ]
     blockers = []
     for path in critical_paths:
         p = Path(path)
         if p.exists():
-            content = p.read_text(encoding='utf-8')
-            if 'TODO' in content or 'FIXME' in content:
-                lines = content.split('\n')
+            content = p.read_text(encoding="utf-8")
+            if "TODO" in content or "FIXME" in content:
+                lines = content.split("\n")
                 for i, line in enumerate(lines, 1):
-                    if ('TODO' in line or 'FIXME' in line) and ('implement' in line.lower() or 'placeholder' in line.lower()):
-                        blockers.append(f'{path}:{i}')
+                    if ("TODO" in line or "FIXME" in line) and (
+                        "implement" in line.lower() or "placeholder" in line.lower()
+                    ):
+                        blockers.append(f"{path}:{i}")
 
     p0_count = len(blockers)
     checks["p0_p1_defects"] = {
         "status": "passed" if p0_count == 0 else "failed",
         "value": f"P0={p0_count}",
         "threshold": "P0=0, P1<=2",
-        "description": "No P0 critical defects"
+        "description": "No P0 critical defects",
     }
     if p0_count == 0:
         checks_passed += 1
@@ -254,19 +276,19 @@ def generate_rc_report(args: argparse.Namespace) -> dict[str, Any]:
             "navigation_404": checks.get("navigation_404", {}),
             "main_chain_501": checks.get("main_chain_501", {}),
             "p0_p1_defects": checks.get("p0_p1_defects", {}),
-            "coverage_threshold": 80.0,
+            "coverage_threshold": load_repository_coverage_minimum(),
             "journey_tests": {
                 "status": "skipped" if args.skip_journey else "pending",
                 "threshold": ">= 90%",
-                "description": "Journey tests pass rate"
+                "description": "Journey tests pass rate",
             },
         },
         "summary": {
             "total_checks": 4 + (0 if args.skip_journey else 1),
             "passed": checks_passed,
             "failed": checks_failed,
-            "overall_status": "passed" if checks_failed == 0 else "failed"
-        }
+            "overall_status": "passed" if checks_failed == 0 else "failed",
+        },
     }
 
     return report
@@ -289,9 +311,7 @@ def save_report(report: dict[str, Any], output_dir: str) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate quality reports for CI/CD"
-    )
+    parser = argparse.ArgumentParser(description="Generate quality reports for CI/CD")
     parser.add_argument(
         "--type",
         choices=["nightly", "pr", "rc"],
