@@ -535,12 +535,19 @@
 
     function renderRegimePanel(viewModel) {
         const fields = fieldsToMap(viewModel.fields || []);
-        const regime = pickField(fields, ["current_regime", "dominant_regime", "regime", "regime_name", "state", "name"]) || "UNKNOWN";
-        const confidence = formatConfidence(
-            pickField(fields, ["confidence", "regime_confidence", "confidence_pct"]),
-        );
-        const trend = pickField(fields, ["trend", "movement", "transition_target", "status"]) || "-";
-        const warning = pickField(fields, ["warning", "transition_warning", "risk", "alerts"]) || "-";
+        const regime = pickField(fields, ["current_regime", "dominant_regime", "regime", "regime_name", "state", "name"]);
+        const confidenceValue = pickField(fields, ["confidence", "regime_confidence", "confidence_pct"]);
+        const trend = pickField(fields, ["trend", "movement", "transition_target", "status"]);
+        const warning = pickField(fields, ["warning", "transition_warning", "risk", "alerts"]);
+        if (![regime, confidenceValue, trend, warning].every(hasDisplayValue)) {
+            return `
+                <div class="tui-panel-placeholder tui-contract-error" data-render-contract-error="regime_quadrant">
+                    <div>Regime 结果数据不完整，已停止展示占位判断。</div>
+                    <small>请刷新后重试；若持续出现，请检查数据同步与结果投影。</small>
+                </div>
+            `;
+        }
+        const confidence = formatConfidence(confidenceValue);
         const marker = regimeMarkerSpec(regime);
         return `
             <div class="tui-quadrant">
@@ -561,6 +568,9 @@
     }
 
     function formatConfidence(value) {
+        if (!hasDisplayValue(value)) {
+            return displayValue(value);
+        }
         const number = Number(value);
         if (!Number.isFinite(number)) {
             return displayValue(value);
@@ -774,6 +784,9 @@
     function formatPanelFieldValue(value, format) {
         const normalizedFormat = String(format || "text").trim();
         if (normalizedFormat === "money") {
+            if (!hasDisplayValue(value)) {
+                return displayValue(value);
+            }
             const number = Number(value);
             return Number.isFinite(number)
                 ? `${number.toLocaleString("zh-CN", { maximumFractionDigits: 2 })} 元`

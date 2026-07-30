@@ -166,7 +166,7 @@
       "view_type": "status",
       "default_action_key": "regime.current",
       "user_experience": {
-        "journey": "daily_decision",
+        "journey": "workspace",
         "primary_task": "确认当前宏观象限与战术脉搏。",
         "primary_outcome": "形成当天环境判断。",
         "empty_state_hint": "无数据时检查数据新鲜度与同步状态。",
@@ -197,11 +197,30 @@
         },
         {
           "key": "pulse-turning",
-          "title": "脉搏转折",
-          "kind": "detail",
+          "title": "当前脉搏指标",
+          "kind": "datagrid",
           "action_key": "pulse.current",
+          "max_rows": 7,
+          "columns": [
+            {
+              "key": "name",
+              "label": "指标"
+            },
+            {
+              "key": "signal",
+              "label": "信号"
+            },
+            {
+              "key": "direction",
+              "label": "方向"
+            },
+            {
+              "key": "is_stale",
+              "label": "过期"
+            }
+          ],
           "user_priority": "p0",
-          "presentation_semantic": "primary_status",
+          "presentation_semantic": "primary_list",
           "empty_message": "暂无脉搏指标。",
           "row_actions": []
         },
@@ -246,7 +265,7 @@
       "view_type": "datagrid",
       "default_action_key": "policy.queue_summary",
       "user_experience": {
-        "journey": "daily_decision",
+        "journey": "workspace",
         "primary_task": "确认政策档位与待处理政策事件。",
         "primary_outcome": "形成政策上下文和待审清单。",
         "empty_state_hint": "暂无政策事件时检查采集状态。",
@@ -313,7 +332,7 @@
       "view_type": "detail",
       "default_action_key": "auto.api.get.api.decision.workspace.aggregated",
       "user_experience": {
-        "journey": "daily_decision",
+        "journey": "workspace",
         "primary_task": "形成今日决策建议或执行计划。",
         "primary_outcome": "得到可解释、可证伪的行动结论。",
         "empty_state_hint": "上下文不足时按提示补齐环境、信号或账户信息。",
@@ -381,7 +400,7 @@
       "view_type": "datagrid",
       "default_action_key": "auto.api.get.api.alpha-triggers.candidates.actionable",
       "user_experience": {
-        "journey": "daily_decision",
+        "journey": "workspace",
         "primary_task": "筛出今天最值得推进的有效候选。",
         "primary_outcome": "得到候选优先级与信号依据。",
         "empty_state_hint": "无候选时核对信号、触发器与情绪过滤条件。",
@@ -449,7 +468,7 @@
       "view_type": "datagrid",
       "default_action_key": "auto.api.get.api.account.health",
       "user_experience": {
-        "journey": "daily_decision",
+        "journey": "workspace",
         "primary_task": "确认账户健康、持仓和组合状态。",
         "primary_outcome": "得到执行前账户与仓位结论。",
         "empty_state_hint": "无账户数据时先完成账户初始化或授权。",
@@ -517,7 +536,7 @@
       "view_type": "status",
       "default_action_key": "auto.api.get.api.beta-gate.decisions",
       "user_experience": {
-        "journey": "daily_decision",
+        "journey": "workspace",
         "primary_task": "确认市场暴露是否放行以及当前主动风控约束。",
         "primary_outcome": "得到策略、仓位、对冲与风险边界。",
         "empty_state_hint": "无决策时先检查 Beta Gate 配置和风控策略。",
@@ -585,7 +604,7 @@
       "view_type": "status",
       "default_action_key": "auto.api.get.api.audit.health",
       "user_experience": {
-        "journey": "daily_decision",
+        "journey": "workspace",
         "primary_task": "检查事件与审计证据并完成今日留痕。",
         "primary_outcome": "形成可追溯的事件、提醒和复盘记录。",
         "empty_state_hint": "暂无事件时确认审计健康与订阅状态。",
@@ -650,7 +669,7 @@
       "view_type": "datagrid",
       "default_action_key": "auto.api.get.api.asset-analysis.pool-summary",
       "user_experience": {
-        "journey": "research",
+        "journey": "workspace",
         "primary_task": "从资产池、因子和回测证据完成资产研究。",
         "primary_outcome": "得到可比较的资产研究结论。",
         "empty_state_hint": "资产池为空时检查数据和筛选条件。",
@@ -703,7 +722,7 @@
       "view_type": "detail",
       "default_action_key": "terminal.agent_chat",
       "user_experience": {
-        "journey": "assistant",
+        "journey": "workspace",
         "primary_task": "向 AI 助手提问并处理需要人工关注的任务。",
         "primary_outcome": "得到可执行的分析或任务结果。",
         "empty_state_hint": "输入问题开始对话。",

@@ -428,7 +428,12 @@ async function openHarness(url = "https://app.test/", options = {}) {
                         kind: "detail",
                         title: "当前 Regime",
                         status: "正常",
-                        fields: [{ label: "状态", key: "state", value: "Recovery" }],
+                        fields: options.regimeFields || [
+                            { label: "当前判断", key: "current_regime", value: "复苏" },
+                            { label: "置信度", key: "confidence", value: "36.88" },
+                            { label: "增长与通胀趋势", key: "trend", value: "增长上行 / 通胀下行" },
+                            { label: "拐点预警", key: "warning", value: "无" },
+                        ],
                     },
                 }),
             });
@@ -634,12 +639,42 @@ test("dashboard auto-loads passive reads and never auto-runs sensitive actions",
         const marker = page.locator('[data-dashboard-panel="regime"] .q-marker');
         await marker.waitFor({ state: "visible" });
         assert.equal(await marker.getAttribute("style"), "left:25%;top:25%");
+        const regimePanelText = await page.locator('[data-dashboard-panel="regime"]').innerText();
+        assert.match(regimePanelText, /当前判断:\s*复苏/);
+        assert.match(regimePanelText, /置信度:\s*36\.9%/);
+        assert.match(regimePanelText, /趋势:\s*增长上行 \/ 通胀下行/);
+        assert.match(regimePanelText, /拐点预警:\s*无/);
         assert.match(
             await page.locator('[data-dashboard-panel="unsafe"]').innerText(),
             /敏感操作/,
         );
         assert.equal(secureRequests, 0);
         assert.equal(adminReadRequests, 1);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("regime dashboard fails closed when its result contract drifts", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.dashboard",
+        {
+            waitForInitialRows: false,
+            regimeFields: [
+                { label: "说明 / 象限", key: "summary.quadrant", value: "复苏" },
+                { label: "说明 / 置信度", key: "summary.confidence_percent", value: "36.88" },
+            ],
+        },
+    );
+    try {
+        const contractError = page.locator(
+            '[data-dashboard-panel="regime"] [data-render-contract-error="regime_quadrant"]',
+        );
+        await contractError.waitFor({ state: "visible" });
+        const panelText = await page.locator('[data-dashboard-panel="regime"]').innerText();
+        assert.match(panelText, /结果数据不完整/);
+        assert.doesNotMatch(panelText, /UNKNOWN/);
+        assert.doesNotMatch(panelText, /0%/);
     } finally {
         await browser.close();
     }

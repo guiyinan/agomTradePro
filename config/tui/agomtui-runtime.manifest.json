@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "7e706d07caacca8b3e56a486d8c0b6b6ed2cdf37",
-  "build_id": "agomtui-runtime-0.2.0+2c94ba7ab80a",
+  "upstream_commit": "aaeccf18db3addb4d3199ee203b6ecc39dde0ac0",
+  "build_id": "agomtui-runtime-0.2.0+061104d182f9",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -22,12 +22,12 @@
     "frontend/agomtui-runtime/src/state.js": "253fa9b01e754a67060786d13f68cc153c5b20fbd3d0b71212946bd36075b6b7",
     "frontend/tui-workbench/src/00-runtime.js": "9230acf7e2ea13e53b16fc5f23fa9e9dedcf4a1fc575ac590c3d332f8d30312f",
     "frontend/tui-workbench/src/10-navigation.js": "8e85c36b222dc077530be3373d951231a0fd08acda6a38812ce3b315fdfd015a",
-    "frontend/tui-workbench/src/20-dashboard.js": "9c1855bc02bc89413be4d1771e7ecdf68d533ebc680bfb2c35f34c8f0d748a18",
+    "frontend/tui-workbench/src/20-dashboard.js": "31f16ad9e4e2a0aae6980c8fae0bbba21675847fa8852ced017fa0ece6c75408",
     "frontend/tui-workbench/src/30-actions.js": "b496fe595d6fbac8191919cb1ea479d0de4bc211ac754e676eda9db549173421",
-    "frontend/tui-workbench/src/40-views.js": "212dfc2b66bb9106fdf97b9372221d7f99f25930c1553fe6228791ccdbe23fe4",
+    "frontend/tui-workbench/src/40-views.js": "ed26e633590c6fda2518574eea2da664755e711ed11f1580c4a59493419357d9",
     "frontend/tui-workbench/src/50-shell.js": "01e25c11eda8cc84fd1206fae7546972692dcafc5693da3e4039719386658ff3",
     "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
-    "static/js/tui-workbench.js": "9f754fe22a7e57f5ab5796e8eb6f20df7f4ea2efbede354e8978741bace03945",
+    "static/js/tui-workbench.js": "8cc9c5bbd5a8e22be98ec316ac6c777786a072ad491549f1b248c3ddf14962f6",
     "static/css/tui-workbench.css": "bb896bc54094867190d63a1692fb86f85cba3f3c6782553a33176a79a71f268b"
   }
 }

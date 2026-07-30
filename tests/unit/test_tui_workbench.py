@@ -5705,6 +5705,74 @@ def test_tui_service_status_action_prefers_detail_over_nested_list_detection(tui
     assert payload["view_model"]["nested"][0]["key"] == "indicators"
 
 
+def test_tui_service_projects_regime_overview_for_quadrant_panel(tui_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "available": True,
+                    "summary": {
+                        "as_of_date": "2026-07-30",
+                        "source": "akshare",
+                        "quadrant": "Recovery",
+                        "confidence_percent": 36.88,
+                        "growth_level": 50.3,
+                        "growth_trend": "up",
+                        "inflation_level": 1.0,
+                        "inflation_trend": "down",
+                        "warning_count": 1,
+                        "warnings": ["默认数据源无数据，已切换到备用源。"],
+                        "error": "",
+                    },
+                    "distribution": [{"regime": "Recovery", "probability_percent": 36.88}],
+                    "momentum": [{"date": "2026-06-30", "growth": 50.3, "inflation": 1.0}],
+                    "history": [{"date": "2026-07-30", "regime": "Recovery"}],
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "regime.current",
+                        "label": "当前宏观象限",
+                        "method": "GET",
+                        "endpoint": "/api/regime/tui/overview/",
+                        "intent": "read_macro_state",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "read",
+                        "fields": [],
+                        "view_model": {"kind": "detail"},
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(
+        action_key="regime.current",
+        params={},
+        user=tui_user,
+    )
+
+    view_model = payload["view_model"]
+    fields = {field["key"]: field["value"] for field in view_model["fields"]}
+    assert view_model["kind"] == "detail"
+    assert view_model["status"] == "正常"
+    assert fields["current_regime"] == "复苏"
+    assert fields["confidence"] == "36.88"
+    assert fields["trend"] == "增长上行 / 通胀下行"
+    assert fields["warning"] == "默认数据源无数据，已切换到备用源。"
+    assert fields["data_source"] == "akshare"
+    assert view_model["debug_hidden_fields"] == ["distribution", "momentum", "history"]
+
+
 def test_tui_service_detail_model_flattens_one_level_nested_objects(tui_user):
     class FakeExecutor:
         def execute(self, **kwargs):

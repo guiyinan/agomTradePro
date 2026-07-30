@@ -272,11 +272,30 @@
         },
         {
           "key": "pulse-turning",
-          "title": "脉搏转折",
-          "kind": "detail",
+          "title": "当前脉搏指标",
+          "kind": "datagrid",
           "action_key": "pulse.current",
+          "max_rows": 7,
+          "columns": [
+            {
+              "key": "name",
+              "label": "指标"
+            },
+            {
+              "key": "signal",
+              "label": "信号"
+            },
+            {
+              "key": "direction",
+              "label": "方向"
+            },
+            {
+              "key": "is_stale",
+              "label": "过期"
+            }
+          ],
           "user_priority": "p0",
-          "presentation_semantic": "primary_status",
+          "presentation_semantic": "primary_list",
           "empty_message": "暂无脉搏指标。",
           "row_actions": []
         },

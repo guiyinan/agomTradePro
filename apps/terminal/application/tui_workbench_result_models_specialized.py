@@ -60,7 +60,89 @@ class TuiWorkbenchSpecializedResultMixin:
             "capability-router.revoke-my-mcp-token",
         } and isinstance(payload, dict):
             return self._mcp_self_service_mutation_result_model(action, payload)
+        if (
+            action_key == "regime.current"
+            and isinstance(payload, dict)
+            and isinstance(payload.get("summary"), dict)
+        ):
+            return self._regime_current_result_model(action, payload, status_code)
         return None
+
+    def _regime_current_result_model(
+        self,
+        action: dict[str, Any],
+        payload: dict[str, Any],
+        status_code: int,
+    ) -> dict[str, Any]:
+        """Project the Regime overview response onto the quadrant renderer contract."""
+
+        summary = self._mapping(payload.get("summary"))
+        available = bool(payload.get("available"))
+        regime = self._display_value(summary.get("quadrant") or "Unknown")
+        confidence = self._display_value(summary.get("confidence_percent"))
+        growth_trend = self._regime_trend_label(summary.get("growth_trend"))
+        inflation_trend = self._regime_trend_label(summary.get("inflation_trend"))
+        trend = f"增长{growth_trend} / 通胀{inflation_trend}"
+        raw_warnings = summary.get("warnings")
+        warnings = (
+            [self._operator_text(item) for item in raw_warnings]
+            if isinstance(raw_warnings, list)
+            else []
+        )
+        error = self._operator_text(summary.get("error") or "")
+        warning = error or (warnings[0] if warnings else "无")
+        status = self._status_label(status_code, payload) if available else "数据不足"
+        return {
+            "kind": "detail",
+            "title": self._action_title(action),
+            "status": status,
+            "fields": [
+                {"key": "current_regime", "label": "当前判断", "value": regime},
+                {"key": "confidence", "label": "置信度", "value": confidence},
+                {"key": "trend", "label": "增长与通胀趋势", "value": trend},
+                {"key": "warning", "label": "拐点预警", "value": warning},
+                {
+                    "key": "growth_level",
+                    "label": "增长水平",
+                    "value": self._display_value(summary.get("growth_level")),
+                },
+                {
+                    "key": "inflation_level",
+                    "label": "通胀水平",
+                    "value": self._display_value(summary.get("inflation_level")),
+                },
+                {
+                    "key": "data_source",
+                    "label": "数据来源",
+                    "value": self._display_value(summary.get("source")),
+                },
+                {
+                    "key": "as_of_date",
+                    "label": "分析日期",
+                    "value": self._display_value(summary.get("as_of_date")),
+                },
+            ],
+            "nested": [],
+            "business_summary": f"当前判断 {regime}；置信度 {confidence}%",
+            "blocking_reason": error if not available else "",
+            "next_steps": [],
+            "debug_hidden_fields": ["distribution", "momentum", "history"],
+        }
+
+    def _regime_trend_label(self, value: Any) -> str:
+        """Translate the bounded Regime trend vocabulary for operator display."""
+
+        normalized = str(value or "flat").strip().lower()
+        return {
+            "up": "上行",
+            "rising": "上行",
+            "improving": "改善",
+            "down": "下行",
+            "falling": "下行",
+            "deteriorating": "走弱",
+            "flat": "持平",
+            "stable": "稳定",
+        }.get(normalized, self._display_value(value))
 
     def _advisor_today_sheet_model(
         self, action: dict[str, Any], payload: dict[str, Any]

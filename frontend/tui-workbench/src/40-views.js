@@ -628,6 +628,9 @@
     }
 
     function formatNumber(value) {
+        if (value === null || value === undefined || String(value).trim() === "") {
+            return "-";
+        }
         const number = Number(value);
         if (!Number.isFinite(number)) {
             return String(value ?? "-");

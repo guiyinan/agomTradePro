@@ -168,8 +168,23 @@ def test_macro_overview_publishes_portable_pulse_history_chart() -> None:
     payload = validate_tui_metadata(json.loads(PUBLISHED_PATH.read_text(encoding="utf-8")))
     screen = next(item for item in payload["screens"] if item["key"] == "macro-regime.overview")
     action = next(item for item in payload["actions"] if item["key"] == "pulse.history")
+    pulse_current = next(item for item in payload["actions"] if item["key"] == "pulse.current")
 
     panel = next(item for item in screen["dashboard_panels"] if item["key"] == "pulse-trend")
+    current_panel = next(
+        item for item in screen["dashboard_panels"] if item["key"] == "pulse-turning"
+    )
+    assert current_panel["title"] == "当前脉搏指标"
+    assert current_panel["kind"] == "datagrid"
+    assert current_panel["presentation_semantic"] == "primary_list"
+    assert current_panel["max_rows"] == 7
+    assert [column["key"] for column in current_panel["columns"]] == [
+        "name",
+        "signal",
+        "direction",
+        "is_stale",
+    ]
+    assert pulse_current["view_model"]["kind"] == current_panel["kind"]
     assert panel["kind"] == "chart"
     assert panel["action_key"] == "pulse.history"
     assert panel["empty_message"] == "暂无脉搏趋势数据。"
