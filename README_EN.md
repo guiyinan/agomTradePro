@@ -26,6 +26,12 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-07-30
+
+- Repository branches have been consolidated: verified governance, TUI migration, and quality-remediation work now converges on `dev/next-development`, with `main` fast-forwarded to the same tested commit; the two long-lived lines remain stable `main` and continuously governed `dev/next-development`
+- Production Python type debt and large-file remediation allowances are now at zero, while cross-platform mypy, architecture-boundary, governance-consistency, and automation gates have been reconciled across Windows and Linux CI
+- Web → TUI migration evidence, rollback points, and release preflight checks are now consolidated; Celery batch tasks also publish normalized business `outcome` contracts so monitoring no longer relies on Celery runtime status alone
+
 ### 2026-07-21
 
 - TUI information architecture is now consolidated into an independent, versioned configuration source of truth; task-screen navigation, default actions, and contextual behavior share the same IA rules, backed by static-contract, accessibility, and security gates
