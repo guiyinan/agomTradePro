@@ -140,6 +140,7 @@ ALLOWED_TUI_PRESENTATION_SEMANTICS = {
     "copyable_secret",
     "endpoint_list",
     "multiline_prompt",
+    "setup_guide",
     "next_step",
     "supporting_detail",
     "debug_only",

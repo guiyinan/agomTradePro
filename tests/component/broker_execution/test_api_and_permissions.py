@@ -133,6 +133,71 @@ def test_unauthenticated_api_and_page_are_rejected() -> None:
 
 
 @pytest.mark.django_db
+def test_qmt_onboarding_is_admin_only_and_returns_safe_setup_materials() -> None:
+    admin_user = _user("qmt-onboarding-admin", "admin", superuser=True)
+    owner = _user("qmt-onboarding-owner", "owner")
+    agent, _ = _binding(owner, account_id=17)
+    agent.status = BrokerAgentModel.STATUS_ONLINE
+    agent.qmt_connected = True
+    agent.last_heartbeat_at = timezone.now()
+    agent.save(
+        update_fields=[
+            "status",
+            "qmt_connected",
+            "last_heartbeat_at",
+            "updated_at",
+        ]
+    )
+    client = Client()
+
+    client.force_login(owner)
+    forbidden = client.get("/api/broker-execution/qmt-onboarding/")
+    assert forbidden.status_code == 403
+
+    client.force_login(admin_user)
+    response = client.get("/api/broker-execution/qmt-onboarding/")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["setup_state"] == "QMT 已连接"
+    assert data["server_address"] == "http://testserver"
+    assert "Install.ps1" in data["windows_install_command"]
+    assert "Set-AgentToken.ps1" in data["token_setup_command"]
+    assert "Test-Connection.ps1" in data["verification_command"]
+    assert "自动执行保持关闭" in data["safety_notice"]
+    assert data["connections"][0]["agent_id"] == agent.agent_id
+    assert data["connections"][0]["heartbeat_fresh"] is True
+    assert data["connections"][0]["must_not_use_for_decision"] is False
+    assert data["settings"][0]["account_id"] == 17
+    assert data["settings"][0]["allowed_symbols"] == ["510300.SH"]
+    assert "broker-17" not in json.dumps(data, ensure_ascii=False)
+
+    stale_observed_at = timezone.now() - timedelta(minutes=2)
+    agent.last_heartbeat_at = stale_observed_at
+    agent.save(update_fields=["last_heartbeat_at", "updated_at"])
+    stale = client.get("/api/broker-execution/qmt-onboarding/").json()["data"]
+    assert stale["setup_state"] == "等待本地 Agent 连接"
+    assert stale["connections"][0]["last_heartbeat_at"] == stale_observed_at.isoformat()
+    assert stale["connections"][0]["heartbeat_fresh"] is False
+    assert stale["connections"][0]["must_not_use_for_decision"] is True
+
+
+@pytest.mark.django_db
+def test_qmt_onboarding_falls_back_to_safe_not_bound_state() -> None:
+    admin_user = _user("qmt-onboarding-empty-admin", "admin", superuser=True)
+    client = Client()
+    client.force_login(admin_user)
+
+    data = client.get("/api/broker-execution/qmt-onboarding/").json()["data"]
+
+    assert data["setup_state"] == "尚未绑定账户"
+    assert data["agent_count"] == 0
+    assert data["connected_agent_count"] == 0
+    assert data["bound_account_count"] == 0
+    assert data["connections"] == []
+    assert data["settings"] == []
+
+
+@pytest.mark.django_db
 def test_order_catalog_supports_an_order_not_yet_assigned_to_an_agent() -> None:
     owner = _user("unassigned-order-owner", "owner")
     order = LiveOrderModel.objects.create(

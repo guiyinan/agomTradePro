@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-21",
+  "version": "2026-07-31",
   "groups": [
     {"key": "daily", "label": "每日决策"},
     {"key": "research", "label": "研究与工具"},
@@ -158,6 +158,7 @@
     {"key": "account.self-service", "label": "我的账户设置", "module_key": "research-tools", "group": "research", "audience": "authenticated", "sources": ["account.self-service"]},
     {"key": "system.settings", "label": "系统设置", "module_key": "system-governance", "group": "system", "audience": "admin", "sources": ["system.settings"]},
     {"key": "system.qlib-center", "label": "Qlib 配置与训练", "module_key": "system-governance", "group": "system", "audience": "admin", "sources": ["system.qlib-center"]},
+    {"key": "broker-execution.qmt-setup", "label": "QMT 接入与设置", "module_key": "system-governance", "group": "system", "audience": "admin", "sources": ["broker-execution.qmt-setup"]},
     {"key": "prompt.workbench", "label": "Prompt 模板与链", "module_key": "research-tools", "group": "research", "audience": "authenticated", "sources": ["prompt.workbench"]}
   ],
   "workflow": [

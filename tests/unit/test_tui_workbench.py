@@ -1137,12 +1137,18 @@ def test_tui_broker_execution_covers_admin_onboarding_without_raw_json(
     user_actions = {action["key"]: action for action in user_response.json()["actions"]}
 
     client.force_login(tui_admin_user)
-    admin_response = client.get("/api/tui/screens/execution.accounts/")
+    admin_response = client.get("/api/tui/screens/broker-execution.qmt-setup/")
     assert admin_response.status_code == 200
+    screen = admin_response.json()["screen"]
+    assert screen["label"] == "QMT 接入与设置"
+    panels = {panel["key"]: panel for panel in screen["dashboard_panels"]}
+    assert panels["qmt-setup-guide"]["presentation_semantic"] == "setup_guide"
+    assert panels["qmt-update-settings"]["action_key"] == ("broker-execution.settings-preview")
     actions = {action["key"]: action for action in admin_response.json()["actions"]}
     admin_keys = {
-        "broker-execution.advisor-draft-preview",
-        "broker-execution.advisor-draft",
+        "broker-execution.qmt-onboarding-guide",
+        "broker-execution.qmt-onboarding-connections",
+        "broker-execution.qmt-onboarding-settings",
         "broker-execution.agent-binding-preview",
         "broker-execution.agent-binding",
         "broker-execution.account-access-list",
@@ -1159,6 +1165,10 @@ def test_tui_broker_execution_covers_admin_onboarding_without_raw_json(
     }
     assert admin_keys <= actions.keys()
     assert admin_keys.isdisjoint(user_actions)
+    assert actions["broker-execution.qmt-onboarding-guide"]["result_semantics"] == [
+        "primary_status",
+        "setup_guide",
+    ]
     rotate = actions["broker-execution.credential-rotate"]
     assert rotate["result_semantics"] == ["copyable_secret"]
     assert all(

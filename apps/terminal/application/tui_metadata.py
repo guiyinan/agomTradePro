@@ -987,6 +987,8 @@ def _default_panel_presentation_semantic(panel: dict[str, Any]) -> str:
         return "supporting_list"
     if "prompt" in key or "prompt" in title:
         return "multiline_prompt"
+    if "guide" in key or "指引" in title:
+        return "setup_guide"
     if "endpoint" in key or "endpoint" in title:
         return "endpoint_list"
     if "status" in key or "状态" in title:
@@ -1006,7 +1008,12 @@ def _validate_dashboard_panel(screen: dict[str, Any], panel: dict[str, Any]) -> 
             f"Dashboard panel has unsupported presentation_semantic: "
             f"{screen['key']}.{panel['key']}.{presentation_semantic}"
         )
-    if presentation_semantic in {"copyable_secret", "endpoint_list", "multiline_prompt"}:
+    if presentation_semantic in {
+        "copyable_secret",
+        "endpoint_list",
+        "multiline_prompt",
+        "setup_guide",
+    }:
         if str(panel.get("kind") or "") != "detail":
             raise TuiMetadataValidationError(
                 f"Copyable/detail artifact panel must use detail kind: "
@@ -1039,6 +1046,8 @@ def _default_result_semantics(action: dict[str, Any]) -> list[str]:
     semantics: list[str] = []
     if "mcp-self-status" in action_key or "create-my-mcp-token" in action_key:
         semantics.extend(["primary_status", "copyable_secret"])
+    elif "onboarding" in action_key or "setup-guide" in action_key:
+        semantics.extend(["primary_status", "setup_guide"])
     elif "endpoint" in action_key:
         semantics.append("endpoint_list")
     elif "prompt" in action_key:
@@ -1067,7 +1076,12 @@ def _validate_result_semantics(action: dict[str, Any]) -> None:
             raise TuiMetadataValidationError(
                 f"Action result_semantics has unsupported value: {action['key']}.{semantic}"
             )
-        if semantic in {"copyable_secret", "endpoint_list", "multiline_prompt"}:
+        if semantic in {
+            "copyable_secret",
+            "endpoint_list",
+            "multiline_prompt",
+            "setup_guide",
+        }:
             if view_type != "detail" and view_model_kind not in {"", "detail"}:
                 raise TuiMetadataValidationError(
                     f"Copyable/detail artifact action must use detail view: {action['key']}"
