@@ -19,6 +19,7 @@ class MarketPriceResult:
     source: str
     freshness: PriceFreshness
     is_fallback: bool = False
+    observed_at: datetime | None = None
 
     def __post_init__(self) -> None:
         """Reject invalid prices and unauditable provenance at the boundary."""
@@ -51,6 +52,12 @@ class MarketPriceResult:
             raise ValueError("价格结果新鲜度类型无效")
         if not isinstance(self.is_fallback, bool):
             raise ValueError("价格结果 fallback 标记无效")
+        if self.observed_at is not None and (
+            self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None
+        ):
+            raise ValueError("价格结果观测时间必须包含时区")
+        if self.freshness == "realtime" and self.observed_at is None:
+            raise ValueError("实时价格结果必须包含源观测时间")
 
 
 class MarketPriceMetadata(TypedDict):
@@ -59,7 +66,8 @@ class MarketPriceMetadata(TypedDict):
     price: Decimal
     asset_code: str
     source: str
-    timestamp: datetime
+    timestamp: datetime | None
+    observed_at: datetime | None
     trade_date: date | None
     requested_trade_date: date | None
     freshness: str

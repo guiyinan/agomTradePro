@@ -67,7 +67,9 @@ class RegimeDataAdapter:
         try:
             current = resolve_current_regime(as_of_date=as_of_date or date.today())
             return {
-                "as_of_date": current.observed_at.isoformat(),
+                "as_of_date": (
+                    current.observed_at.isoformat() if current.observed_at is not None else None
+                ),
                 "dominant_regime": current.dominant_regime,
                 "dominant_regime_name": self.REGIME_NAMES.get(
                     current.dominant_regime, current.dominant_regime
@@ -76,6 +78,8 @@ class RegimeDataAdapter:
                 "growth_z": 0.0,
                 "inflation_z": 0.0,
                 "distribution": {},
+                "must_not_use_for_decision": current.must_not_use_for_decision,
+                "blocked_reason": current.blocked_reason,
             }
         except Exception:
             return None

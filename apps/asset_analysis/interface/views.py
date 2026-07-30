@@ -12,12 +12,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.asset_analysis.application.interface_services import (
+    AssetPoolContextPayload,
     build_asset_pool_context,
     execute_multidim_screen,
     get_current_weight_config,
     get_weight_configs,
 )
-from apps.asset_analysis.domain.value_objects import ScoreContext
 from apps.asset_analysis.interface.serializers import (
     ScreenRequestSerializer,
     ScreenResponseSerializer,
@@ -55,7 +55,18 @@ class MultiDimScreenAPIView(APIView):
         validated_data = request_serializer.validated_data
 
         # 2. 构建评分上下文（从实际系统获取数据）
-        context = self._build_score_context(validated_data)
+        context_payload = self._build_score_context(validated_data)
+        if context_payload.sentiment_must_not_use_for_decision:
+            return Response(
+                {
+                    "success": False,
+                    "message": "当前情绪数据未通过新鲜度校验，筛选已阻断",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": context_payload.sentiment_blocked_reason,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        context = context_payload.score_context
 
         # 3. 构建请求 DTO
         from apps.asset_analysis.application.dtos import ScreenRequest
@@ -77,18 +88,20 @@ class MultiDimScreenAPIView(APIView):
         )
         return Response(response_serializer.data, status=http_status)
 
-    def _build_score_context(self, validated_data: dict[str, Any]) -> ScoreContext:
+    def _build_score_context(
+        self,
+        validated_data: dict[str, Any],
+    ) -> AssetPoolContextPayload:
         """
         构建评分上下文
 
         从系统中获取实际的 Regime、Policy、Sentiment 数据。
         """
-        payload = build_asset_pool_context(
+        return build_asset_pool_context(
             regime_override=validated_data.get("regime"),
             policy_level_override=validated_data.get("policy_level"),
             sentiment_index_override=validated_data.get("sentiment_index"),
         )
-        return payload.score_context
 
 
 class WeightConfigsAPIView(APIView):

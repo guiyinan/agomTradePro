@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Protocol
+
+from apps.realtime.domain.rules import daily_market_observation_status
 
 from .price_polling_service import PricePollingUseCase
 
@@ -46,6 +49,10 @@ def list_sector_performance_payloads(
         latest = repository.get_latest_sector_index(sector.sector_code)
         if latest is None:
             continue
+        is_stale, staleness_days = daily_market_observation_status(
+            latest.trade_date,
+            as_of_date=date.today(),
+        )
         results.append(
             {
                 "sector_code": sector.sector_code,
@@ -56,6 +63,12 @@ def list_sector_performance_payloads(
                 "change_percent": latest.change_pct,
                 "volume": latest.volume,
                 "amount": latest.amount,
+                "observed_at": latest.trade_date.isoformat(),
+                "freshness_status": "stale" if is_stale else "fresh",
+                "staleness_days": staleness_days,
+                "is_stale": is_stale,
+                "must_not_use_for_decision": is_stale,
+                "blocked_reason": "sector_price_stale" if is_stale else "",
             }
         )
     return sorted(

@@ -8,6 +8,12 @@ from decimal import Decimal
 from importlib import import_module
 from typing import Any, Protocol, cast
 
+from apps.data_center.application.price_service import (
+    PriceLookupResult,
+    UnifiedPriceService,
+)
+from core.exceptions import DataFetchError
+
 from ..domain.rules import ValuationPayloadPolicy
 
 logger = logging.getLogger(__name__)
@@ -17,6 +23,17 @@ class _LegacyValuationServiceProtocol(Protocol):
     """Optional legacy valuation service boundary."""
 
     def get_latest_valuation(self, security_code: str) -> object | None: ...
+
+
+class _CanonicalPriceServiceProtocol(Protocol):
+    """Decision-safe latest-price boundary owned by data_center."""
+
+    def require_latest_price_result(
+        self,
+        asset_code: str,
+        asset_type: str | None = None,
+    ) -> PriceLookupResult:
+        """Return a freshness-validated canonical price result."""
 
 
 class AssetAnalysisValuationSource:
@@ -120,54 +137,34 @@ class DataCenterValuationFactSource:
 
 
 class ObservableMarketPriceSource:
-    """Resolve realtime price first, then the latest canonical close."""
+    """Adapt the canonical decision-safe price result for valuation."""
+
+    def __init__(
+        self,
+        price_service: _CanonicalPriceServiceProtocol | None = None,
+    ) -> None:
+        self._price_service = price_service or UnifiedPriceService()
 
     def get_latest(self, security_code: str) -> tuple[Decimal, str]:
-        """Return the latest positive price and its source."""
-        price = self._get_realtime_price(security_code)
-        if price > 0:
-            return price, "realtime_price_cache"
-        price = self._get_latest_close_price(security_code)
-        if price > 0:
-            return price, "data_center_latest_close"
-        return Decimal("0"), "unavailable"
-
-    @staticmethod
-    def _get_realtime_price(security_code: str) -> Decimal:
+        """Return a freshness-validated positive price and provenance label."""
         try:
-            from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
-
-            latest = RedisRealtimePriceRepository().get_latest_price(security_code)
-            return ObservableMarketPriceSource._extract_price(latest)
-        except Exception as exc:
+            result = self._price_service.require_latest_price_result(security_code)
+        except (DataFetchError, ValueError) as exc:
             logger.debug(
-                "Realtime price unavailable for %s: error_type=%s",
+                "Canonical market price unavailable for %s: error_type=%s",
                 security_code,
                 exc.__class__.__name__,
             )
-            return Decimal("0")
+            return Decimal("0"), "unavailable"
 
-    @staticmethod
-    def _get_latest_close_price(security_code: str) -> Decimal:
-        try:
-            from apps.data_center.infrastructure.repositories import PriceBarRepository
-
-            latest = PriceBarRepository().get_latest(security_code)
-            return ObservableMarketPriceSource._extract_price(latest)
-        except Exception as exc:
-            logger.debug(
-                "Latest close unavailable for %s: error_type=%s",
-                security_code,
-                exc.__class__.__name__,
-            )
-            return Decimal("0")
-
-    @staticmethod
-    def _extract_price(price_obj: Any) -> Decimal:
-        if price_obj is None:
-            return Decimal("0")
-        for attr in ("price", "current_price", "close"):
-            amount = ValuationPayloadPolicy.to_decimal(getattr(price_obj, attr, None))
-            if amount > 0:
-                return amount
-        return Decimal("0")
+        price = ValuationPayloadPolicy.to_decimal(result.price)
+        source = result.source.strip()
+        freshness = result.freshness.strip()
+        if (
+            not price.is_finite()
+            or price <= Decimal("0")
+            or not source
+            or freshness not in {"realtime", "close_fallback"}
+        ):
+            return Decimal("0"), "unavailable"
+        return price, f"{source}:{freshness}"

@@ -83,7 +83,7 @@ class RegimeAnalysisOutput:
     """Regime分析输出"""
 
     current_regime: str
-    regime_date: date
+    regime_date: date | None
     match_analysis: RegimeMatchAnalysis
     asset_allocation: list[AssetAllocation]
     risk_assessment: dict[str, Any]
@@ -328,6 +328,8 @@ class AnalyzePortfolioUseCase:
 
         # 2. 获取当前Regime
         latest_regime = resolve_current_regime(as_of_date=date.today())
+        if latest_regime.must_not_use_for_decision:
+            raise ValueError(f"当前 Regime 数据不可用于决策: {latest_regime.blocked_reason}")
         current_regime = latest_regime.dominant_regime
         regime_date = latest_regime.observed_at
 
@@ -679,6 +681,11 @@ class GetSizingContextUseCase:
             regime_result = resolve_current_regime(as_of_date=target_date)
             regime_name = regime_result.dominant_regime
             regime_confidence = float(regime_result.confidence)
+            if regime_result.must_not_use_for_decision:
+                regime_unavailable = True
+                regime_name = "Unknown"
+                regime_confidence = 0.0
+                warnings.append(regime_result.blocked_reason or "regime_stale")
             if regime_result.is_fallback and regime_result.warnings:
                 warnings.extend(regime_result.warnings)
         except Exception:

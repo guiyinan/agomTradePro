@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pandas as pd
@@ -214,3 +214,61 @@ def test_composite_price_provider_merges_partial_batch_results() -> None:
     prices = provider.get_realtime_prices_batch(["510300.SH", "000001.SZ"])
 
     assert [price.asset_code for price in prices] == ["510300.SH", "000001.SZ"]
+
+
+def test_composite_price_provider_skips_stale_result_and_uses_next_provider() -> None:
+    """A persisted stale quote must not prevent the live failover provider from running."""
+
+    reference_time = datetime.now(UTC)
+
+    class _StubProvider:
+        def __init__(self, price: RealtimePrice) -> None:
+            self.price = price
+            self.calls: list[list[str]] = []
+
+        def get_realtime_price(self, asset_code: str) -> RealtimePrice:
+            return self.price
+
+        def get_realtime_prices_batch(
+            self,
+            asset_codes: list[str],
+        ) -> list[RealtimePrice]:
+            self.calls.append(asset_codes)
+            return [self.price]
+
+        def is_available(self) -> bool:
+            return True
+
+    stale_provider = _StubProvider(
+        RealtimePrice(
+            asset_code="000001.SH",
+            asset_type=AssetType.INDEX,
+            price=Decimal("3880.10"),
+            change=None,
+            change_pct=None,
+            volume=100,
+            timestamp=reference_time - timedelta(days=100),
+            source="data_center",
+        )
+    )
+    live_price = RealtimePrice(
+        asset_code="000001.SH",
+        asset_type=AssetType.INDEX,
+        price=Decimal("3804.69"),
+        change=None,
+        change_pct=None,
+        volume=200,
+        timestamp=reference_time,
+        source="tencent",
+    )
+    live_provider = _StubProvider(live_price)
+    provider = CompositePriceDataProvider(
+        [stale_provider, live_provider],
+        max_price_age_seconds=300,
+    )
+
+    prices = provider.get_realtime_prices_batch(["000001.SH"])
+
+    assert prices == [live_price]
+    assert stale_provider.calls == [["000001.SH"]]
+    assert live_provider.calls == [["000001.SH"]]

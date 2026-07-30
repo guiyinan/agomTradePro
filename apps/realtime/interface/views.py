@@ -239,6 +239,9 @@ class MarketSummaryView(View):
 
         payload: dict[str, Any] = {
             "success": available_count > 0,
+            "available_index_count": available_count,
+            "requested_index_count": len(self.INDEX_CODES),
+            "is_partial": available_count < len(self.INDEX_CODES),
             "stats_available": False,
             "message": (
                 "Major index snapshot is available; breadth statistics are unavailable in the current realtime data providers."
@@ -254,6 +257,34 @@ class MarketSummaryView(View):
             "total_volume": total_volume,
             "total_value": 0,
         }
+        missing_index_codes = [
+            asset_code
+            for asset_code in self.INDEX_CODES.values()
+            if asset_code not in prices_by_code
+        ]
+        is_reliable = not missing_index_codes
+        blocked_reason = (
+            "主要指数行情不完整，当前市场概况仅可用于诊断，不得直接用于投资决策。"
+            if missing_index_codes
+            else ""
+        )
+        payload.update(
+            {
+                "is_reliable": is_reliable,
+                "is_stale": False,
+                "must_not_use_for_decision": not is_reliable,
+                "blocked_reason": blocked_reason,
+                "contract": {
+                    "observed_at": latest_timestamp,
+                    "market_data_as_of": latest_timestamp,
+                    "is_reliable": is_reliable,
+                    "is_stale": False,
+                    "must_not_use_for_decision": not is_reliable,
+                    "blocked_reason": blocked_reason,
+                    "missing_index_codes": missing_index_codes,
+                },
+            }
+        )
         payload.update(index_payload)
         return JsonResponse(payload, status=200 if available_count else 503)
 
@@ -298,14 +329,20 @@ class RealtimePriceView(View):
             asset_codes = [code.strip() for code in asset_codes_str.split(",") if code.strip()]
             prices = self.use_case.get_latest_prices(asset_codes)
 
+            is_reliable = len(prices) == len(asset_codes) and bool(asset_codes)
+            blocked_reason = "" if is_reliable else "realtime_price_snapshot_incomplete"
             return JsonResponse(
                 {
-                    "success_flag": True,
+                    "success_flag": bool(prices),
                     "timestamp": prices[0].get("timestamp") if prices else None,
                     "prices": prices,
                     "total": len(asset_codes),
                     "success": len(prices),
                     "failed": len(asset_codes) - len(prices),
+                    "is_reliable": is_reliable,
+                    "is_stale": False,
+                    "must_not_use_for_decision": not is_reliable,
+                    "blocked_reason": blocked_reason,
                 }
             )
         else:
@@ -366,6 +403,15 @@ class SingleAssetPriceView(View):
 
         payload: dict[str, Any] = {"success": True}
         payload.update(prices[0])
+        payload.update(
+            {
+                "observed_at": prices[0].get("timestamp"),
+                "freshness_status": "fresh",
+                "is_stale": False,
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
+            }
+        )
         return JsonResponse(payload)
 
 
@@ -390,11 +436,16 @@ class TopMoversView(APIView):
         query = TopMoversQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
         results = list_cached_top_movers_payloads(**query.validated_data)
+        is_reliable = bool(results)
         return Response(
             {
                 "results": results,
                 "count": len(results),
                 "source": "cached_monitored_prices",
+                "is_reliable": is_reliable,
+                "is_stale": False,
+                "must_not_use_for_decision": not is_reliable,
+                "blocked_reason": "" if is_reliable else "fresh_cached_prices_unavailable",
             }
         )
 

@@ -396,5 +396,6 @@ AgomTradePro 侧已完成：
 - VPS 发布/验收/回滚合同测试 31 passed；本地 `--check` 已确认 DB registry id 3 与 release canonical hash 一致。
 - 高风险固定回归包连同部署测试 260 passed；IA、metadata compiler 与用户面契约补充回归 54 passed；TUI JavaScript 行为测试 15 passed，`check:tui` 通过。
 - dev 分支首次远端验证暴露的四类门禁问题已完成代码收口：TUI 增量 mypy 类型回归已消除；Gitleaks 仅对生成图中两个明确的相关性窗口字段键放行；governed MCP read/write 均由目录投影契约覆盖，write guard 直接识别遍历全部 manifest 与 legacy alias 的矩阵证据，不再重复硬编码能力名；Alpha 与 Dashboard 契约测试均隔离股票名称 read-through backfill，Nightly API/迁移阶段增加单测级 timeout 与 faulthandler，transactional migration tests 使用 serialized rollback 并从真实前置边界重放 data-center seed migration，杜绝公网调用和跨测试残留状态造成的假失败；治理测试计数已重新棘轮，mypy guardrail 与 Fast Feedback 使用同一个逐文件、逐错误码精确债务上限，禁止 broad ignore 与新增回归；pyqlib 来源校验以 distribution 实际安装文件为准，兼容位于工作区内的项目虚拟环境，同时继续拒绝同名源码遮蔽。
+- TUI metadata 校验器的 schema 路径、允许值和治理枚举已拆入独立常量模块，原校验入口与导出名称保持兼容，主文件重新满足大文件治理阈值。
 
 配套整改剩余项：AgomTUI 当前 validator 尚未支持本项目既有的 panel `empty_message/error_message/stale_message/row_actions` 契约，跨仓库 validator/check-usability 与同源 UAT 继续由 `agomtui-portability-remediation-2026-07-21.md` 独立收口，不在本次 AgomTradePro 业务 metadata 发布中修改外部仓库。

@@ -8,8 +8,6 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
-from django.utils import timezone
-
 from apps.account.application.market_price_contracts import (
     MarketPriceMetadata,
     MarketPriceProvider,
@@ -114,7 +112,8 @@ class MarketPriceService:
             "price": validated.price,
             "asset_code": result.normalized_code,
             "source": result.source,
-            "timestamp": timezone.now(),
+            "timestamp": result.observed_at,
+            "observed_at": result.observed_at,
             "trade_date": result.as_of,
             "requested_trade_date": trade_date,
             "freshness": result.freshness,

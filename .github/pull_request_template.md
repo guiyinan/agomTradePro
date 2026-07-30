@@ -9,6 +9,16 @@
 - [ ] Relevant docs were updated
 - [ ] Architecture boundaries in `AGENTS.md` still hold
 
+## Current-data Freshness Checklist
+
+Complete this section when the PR touches a `current` / `latest` / `realtime` / market-summary decision-data surface.
+
+- [ ] Source observation time is preserved; historical data is never stamped with request time
+- [ ] Stale provider results continue failover instead of counting as a successful hit
+- [ ] Response exposes observation/freshness status and blocks decision use when unreliable
+- [ ] `governance/current_data_contracts.json` and its stale/fresh/fallback test evidence were updated
+- [ ] `python scripts/check_current_data_contracts.py` passed
+
 ## MCP Consolidation Checklist
 
 Complete this section when the PR touches `sdk/agomtradepro_mcp/`, `apps/ai_capability/`, MCP workflows, or MCP governance docs.

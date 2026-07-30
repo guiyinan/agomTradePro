@@ -58,6 +58,18 @@ class AssetPoolScreenAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+        if context_payload.sentiment_must_not_use_for_decision:
+            return Response(
+                {
+                    "success": False,
+                    "error": "当前情绪数据未通过新鲜度校验，资产筛选已阻断",
+                    "error_code": "ASSET_POOL_SENTIMENT_STALE",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": context_payload.sentiment_blocked_reason,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         # 3. 根据资产类型执行筛选
         try:
             if asset_type == "equity":
@@ -142,6 +154,12 @@ class AssetPoolScreenAPIView(APIView):
                     "regime": context_payload.current_regime,
                     "policy_level": context_payload.policy_level,
                     "sentiment_index": context_payload.sentiment_index,
+                    "sentiment_observed_at": context_payload.sentiment_observed_at,
+                    "sentiment_freshness_status": context_payload.sentiment_freshness_status,
+                    "sentiment_must_not_use_for_decision": (
+                        context_payload.sentiment_must_not_use_for_decision
+                    ),
+                    "sentiment_blocked_reason": context_payload.sentiment_blocked_reason,
                     "active_signals_count": len(context_payload.active_signals),
                 },
                 "pools_summary": pool_manager.get_pool_summary(pools),

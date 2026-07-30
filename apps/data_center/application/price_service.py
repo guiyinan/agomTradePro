@@ -6,16 +6,22 @@ This is the canonical price lookup entry for business modules.
 
 import logging
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any, TypedDict, cast
 
+from apps.data_center.application.dtos import LatestQuoteRequest, QuoteResponse
+from apps.data_center.application.query_use_cases import (
+    QueryLatestQuoteUseCase,
+    latest_daily_market_observation_is_current,
+)
 from apps.data_center.composition import (
     get_fund_nav_repository,
     get_price_bar_repository,
     get_quote_snapshot_repository,
 )
-from apps.data_center.domain.entities import FundNavFact, PriceBar, QuoteSnapshot
+from apps.data_center.domain.entities import FundNavFact, PriceBar
 from apps.data_center.domain.protocols import (
     FundNavRepositoryProtocol,
     PriceBarRepositoryProtocol,
@@ -46,6 +52,7 @@ class PriceLookupResult:
     source: str
     freshness: str
     is_fallback: bool = False
+    observed_at: datetime | None = None
 
     def __post_init__(self) -> None:
         """Reject unusable prices and unauditable result metadata."""
@@ -60,13 +67,32 @@ class PriceLookupResult:
             raise ValueError("价格查询结果缺少数据来源")
         if self.freshness not in {"historical", "realtime", "close_fallback"}:
             raise ValueError("价格查询结果新鲜度类型无效")
+        if self.observed_at is not None and (
+            self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None
+        ):
+            raise ValueError("价格查询结果观测时间必须包含时区")
+        if self.freshness == "realtime" and self.observed_at is None:
+            raise ValueError("实时价格查询结果必须包含源观测时间")
 
 
 class UnifiedPriceService:
     """Unified price lookup over standardized data-center repositories."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        latest_quote_max_age_hours: float = QueryLatestQuoteUseCase.DEFAULT_MAX_AGE_HOURS,
+        now_provider: Callable[[], datetime] | None = None,
+    ) -> None:
+        if (
+            isinstance(latest_quote_max_age_hours, bool)
+            or not isinstance(latest_quote_max_age_hours, int | float)
+            or not math.isfinite(float(latest_quote_max_age_hours))
+            or float(latest_quote_max_age_hours) <= 0.0
+        ):
+            raise ValueError("latest_quote_max_age_hours 必须为正有限数")
         self._fund_adapter: Any | None = None
+        self._latest_quote_max_age_hours = float(latest_quote_max_age_hours)
+        self._now_provider = now_provider or (lambda: datetime.now(UTC))
         self._dc_price_repo: PriceBarRepositoryProtocol = get_price_bar_repository()
         self._dc_quote_repo: QuoteSnapshotRepositoryProtocol = get_quote_snapshot_repository()
         self._dc_fund_nav_repo: FundNavRepositoryProtocol = get_fund_nav_repository()
@@ -139,6 +165,19 @@ class UnifiedPriceService:
         asset_type: str | None = None,
     ) -> float:
         return self.require_price(
+            asset_code=asset_code,
+            trade_date=None,
+            asset_type=asset_type,
+        )
+
+    def require_latest_price_result(
+        self,
+        asset_code: str,
+        asset_type: str | None = None,
+    ) -> PriceLookupResult:
+        """Return the latest decision-safe price with source observation metadata."""
+
+        return self.require_price_result(
             asset_code=asset_code,
             trade_date=None,
             asset_type=asset_type,
@@ -224,6 +263,7 @@ class UnifiedPriceService:
                 raw_source=quote.source,
                 freshness="realtime",
                 is_fallback=False,
+                observed_at=quote.snapshot_at,
             )
             if result is not None:
                 return result
@@ -271,6 +311,7 @@ class UnifiedPriceService:
         raw_source: object,
         freshness: str,
         is_fallback: bool,
+        observed_at: datetime | None = None,
     ) -> PriceLookupResult | None:
         """Build a canonical result only from positive, attributable prices."""
 
@@ -292,14 +333,32 @@ class UnifiedPriceService:
             source=raw_source.strip(),
             freshness=freshness,
             is_fallback=is_fallback,
+            observed_at=observed_at,
         )
 
-    def _get_realtime_quote(self, normalized_code: str) -> QuoteSnapshot | None:
+    def _get_realtime_quote(self, normalized_code: str) -> QuoteResponse | None:
         try:
-            return self._dc_quote_repo.get_latest(normalized_code)
+            quote = QueryLatestQuoteUseCase(self._dc_quote_repo).execute(
+                LatestQuoteRequest(
+                    asset_code=normalized_code,
+                    max_age_hours=self._latest_quote_max_age_hours,
+                )
+            )
         except Exception as exc:
             logger.debug("Realtime quote lookup failed for %s: %s", normalized_code, exc)
             return None
+        if quote is None:
+            return None
+        if quote.must_not_use_for_decision:
+            logger.info(
+                "Realtime quote rejected by freshness contract: asset_code=%s "
+                "observed_at=%s freshness_status=%s",
+                normalized_code,
+                quote.snapshot_at.isoformat(),
+                quote.freshness_status,
+            )
+            return None
+        return quote
 
     def _get_historical_price(self, normalized_code: str, trade_date: date) -> PriceBar | None:
         try:
@@ -321,7 +380,21 @@ class UnifiedPriceService:
 
     def _get_recent_close(self, normalized_code: str) -> PriceBar | None:
         try:
-            return self._dc_price_repo.get_latest(normalized_code)
+            latest = self._dc_price_repo.get_latest(normalized_code)
+            if latest is None:
+                return None
+            if not latest_daily_market_observation_is_current(
+                asset_code=normalized_code,
+                observed_at=latest.bar_date,
+                now=self._now_provider(),
+            ):
+                logger.info(
+                    "Daily close rejected by freshness contract: asset_code=%s as_of=%s",
+                    normalized_code,
+                    latest.bar_date.isoformat(),
+                )
+                return None
+            return latest
         except Exception as exc:
             logger.debug("Recent close lookup failed for %s: %s", normalized_code, exc)
             return None
@@ -353,7 +426,18 @@ class UnifiedPriceService:
                 if latest_fact is not None:
                     result = self._fund_fact_price(latest_fact)
                     if result is not None:
-                        return result
+                        if latest_daily_market_observation_is_current(
+                            asset_code=normalized_code,
+                            observed_at=result["as_of"],
+                            now=self._now_provider(),
+                        ):
+                            return result
+                        logger.info(
+                            "Stored fund NAV rejected by freshness contract: "
+                            "asset_code=%s as_of=%s",
+                            normalized_code,
+                            result["as_of"].isoformat(),
+                        )
         except Exception as exc:
             logger.debug("Fund NAV repository lookup failed for %s: %s", bare_code, exc)
 
@@ -396,6 +480,17 @@ class UnifiedPriceService:
             return None
         if not math.isfinite(price) or price <= 0:
             logger.debug("Fund NAV price is invalid for %s: %r", bare_code, price)
+            return None
+        if trade_date is None and not latest_daily_market_observation_is_current(
+            asset_code=normalized_code,
+            observed_at=nav_date,
+            now=self._now_provider(),
+        ):
+            logger.info(
+                "External fund NAV rejected by freshness contract: asset_code=%s as_of=%s",
+                normalized_code,
+                nav_date.isoformat(),
+            )
             return None
 
         return {

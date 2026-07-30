@@ -45,6 +45,10 @@ def test_regime_interface_resolves_current_provider_at_call_time(monkeypatch):
             inflation_value=0.1,
             is_fallback=False,
             warnings=[],
+            diagnostic_regime="Recovery",
+            is_stale=False,
+            must_not_use_for_decision=False,
+            blocked_reason="",
         ),
     )
 
@@ -52,6 +56,8 @@ def test_regime_interface_resolves_current_provider_at_call_time(monkeypatch):
 
     assert payload["data"]["observed_at"] == observed_at
     assert payload["data"]["dominant_regime"] == "Recovery"
+    assert payload["data"]["must_not_use_for_decision"] is False
+    assert payload["data"]["contract"]["market_data_as_of"] == observed_at
 
 
 @pytest.mark.django_db

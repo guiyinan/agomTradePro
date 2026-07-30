@@ -6,6 +6,7 @@ from datetime import date
 from typing import Any
 
 from apps.ai_provider.application.repository_provider import get_ai_provider_repository
+from apps.sentiment.application.current_sentiment import resolve_current_sentiment
 from apps.sentiment.application.repository_provider import (
     get_sentiment_analysis_log_repository,
     get_sentiment_cache_repository,
@@ -65,12 +66,29 @@ def get_sentiment_index_payload(target_date: date | None = None) -> dict[str, An
     """Return one sentiment index payload by date or the latest available."""
 
     repository = get_sentiment_index_repository()
-    index = (
-        repository.get_by_date(target_date) if target_date is not None else repository.get_latest()
-    )
+    current = None
+    if target_date is not None:
+        index = repository.get_by_date(target_date)
+    else:
+        current = resolve_current_sentiment()
+        index = current.diagnostic_index
     if index is None:
         return None
-    return index.to_dict()
+    payload = index.to_dict()
+    if current is not None:
+        payload.update(
+            {
+                "observed_at": (
+                    current.observed_at.isoformat() if current.observed_at is not None else None
+                ),
+                "freshness_status": current.freshness_status,
+                "staleness_days": current.staleness_days,
+                "is_stale": current.freshness_status == "stale",
+                "must_not_use_for_decision": current.must_not_use_for_decision,
+                "blocked_reason": current.blocked_reason,
+            }
+        )
+    return payload
 
 
 def get_sentiment_index_range_payload(*, start_date: date, end_date: date) -> dict[str, Any]:
@@ -98,12 +116,18 @@ def get_sentiment_health_payload() -> dict[str, Any]:
 
     provider_repository = get_ai_provider_repository()
     ai_available = len(provider_repository.get_active_providers()) > 0
-    latest_index_date = get_sentiment_index_repository().get_latest_index_date()
+    current = resolve_current_sentiment()
+    latest_index_date = current.observed_at
     return {
-        "status": "healthy" if ai_available else "degraded",
+        "status": (
+            "healthy" if ai_available and not current.must_not_use_for_decision else "degraded"
+        ),
         "ai_provider_available": ai_available,
         "cache_count": get_sentiment_cache_repository().count(),
         "latest_index_date": latest_index_date.isoformat() if latest_index_date else None,
+        "freshness_status": current.freshness_status,
+        "must_not_use_for_decision": current.must_not_use_for_decision,
+        "blocked_reason": current.blocked_reason,
     }
 
 
@@ -120,13 +144,20 @@ def clear_sentiment_cache_payload(*, text: str | None = None) -> dict[str, Any]:
 def get_sentiment_dashboard_context() -> dict[str, Any]:
     """Build the dashboard page context."""
 
-    latest_index = get_sentiment_index_repository().get_latest()
+    current = resolve_current_sentiment()
+    latest_index = current.index
     recent_indices = get_sentiment_index_repository().get_recent(days=30)
     ai_available = len(get_ai_provider_repository().get_active_providers()) > 0
     return {
         "latest_index": latest_index.to_dict() if latest_index else None,
         "recent_indices": [index.to_dict() for index in recent_indices],
         "ai_available": ai_available,
+        "sentiment_freshness": {
+            "observed_at": current.observed_at,
+            "freshness_status": current.freshness_status,
+            "must_not_use_for_decision": current.must_not_use_for_decision,
+            "blocked_reason": current.blocked_reason,
+        },
     }
 
 

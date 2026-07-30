@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING, Any
 from django.utils import timezone
 
 from apps.pulse.application.use_cases import GetLatestPulseUseCase
+from apps.regime.application.current_regime import resolve_current_regime
 from apps.regime.application.navigator_use_cases import (
     BuildRegimeNavigatorUseCase,
     GetActionRecommendationUseCase,
 )
-from apps.regime.application.repository_provider import get_regime_repository
 from apps.rotation.application.integration_service import RotationIntegrationService
 
 logger = logging.getLogger(__name__)
@@ -105,6 +105,8 @@ class DecisionStep1Response:
     overall_verdict: str
     regime_freshness: dict[str, Any]
     pulse_freshness: dict[str, Any]
+    must_not_use_for_decision: bool = False
+    blocked_reason: str = ""
 
 
 @dataclass
@@ -115,6 +117,8 @@ class DecisionStep2Response:
     asset_weights: dict[str, float]
     risk_budget_pct: float
     recommendation_freshness: dict[str, Any]
+    must_not_use_for_decision: bool = False
+    blocked_reason: str = ""
 
 
 @dataclass
@@ -204,40 +208,39 @@ class DecisionContextUseCase:
         """
         target_date = as_of_date or date.today()
 
-        # 1. Regime - prefer the latest persisted snapshot for page rendering.
+        # 1. Regime - use the canonical freshness-aware resolver.
         regime_name = "UNKNOWN"
+        regime_blocked = True
         regime_freshness = _build_freshness_payload(
             label="Regime 快照",
             observed_at=None,
             source="missing",
         )
         try:
-            latest_regime = get_regime_repository().get_latest_snapshot(before_date=target_date)
-            if latest_regime is not None:
-                regime_name = latest_regime.dominant_regime or "UNKNOWN"
-                regime_freshness = _build_freshness_payload(
-                    label="Regime 快照",
-                    observed_at=latest_regime.observed_at,
-                    source="regime_snapshot",
-                )
-            else:
-                navigator = self.nav_usecase.execute(target_date)
-                regime_name = navigator.regime_name if navigator else "UNKNOWN"
-                regime_freshness = _build_freshness_payload(
-                    label="Regime 快照",
-                    observed_at=target_date,
-                    source="live_regime_fallback",
-                )
+            latest_regime = resolve_current_regime(as_of_date=target_date)
+            regime_blocked = latest_regime.must_not_use_for_decision
+            regime_name = latest_regime.dominant_regime or "UNKNOWN"
+            regime_freshness = {
+                "label": "Regime 快照",
+                "observed_at": latest_regime.observed_at,
+                "observed_at_display": (
+                    latest_regime.observed_at.isoformat()
+                    if latest_regime.observed_at is not None
+                    else "-"
+                ),
+                "expires_at": None,
+                "expires_at_display": "-",
+                "source": "regime_current_resolver",
+                "source_label": "当前 Regime 解析器",
+                "is_stale": latest_regime.is_stale,
+                "status_label": "已阻断" if regime_blocked else "有效",
+                "badge_class": "danger" if regime_blocked else "success",
+                "note": latest_regime.blocked_reason or "宏观源观测时间已通过新鲜度校验。",
+                "must_not_use_for_decision": regime_blocked,
+                "blocked_reason": latest_regime.blocked_reason,
+            }
         except Exception as e:
-            logger.warning(f"Failed to fetch cached regime snapshot in DecisionContext: {e}")
-            navigator = self.nav_usecase.execute(target_date)
-            regime_name = navigator.regime_name if navigator else "UNKNOWN"
-            regime_freshness = _build_freshness_payload(
-                label="Regime 快照",
-                observed_at=target_date,
-                source="live_regime_fallback",
-                fallback_note="夜间 Regime 快照读取失败，当前结果来自页面级实时回退。",
-            )
+            logger.warning(f"Failed to resolve current Regime in DecisionContext: {e}")
 
         # 2. Pulse
         pulse = None
@@ -263,12 +266,15 @@ class DecisionContextUseCase:
 
         pulse_composite = pulse.composite_score if pulse else 0.0
         regime_strength = pulse.regime_strength if pulse else "moderate"
+        pulse_blocked = pulse is None or not bool(getattr(pulse, "is_reliable", True))
 
         # 3. Policy (assuming normal for now until policy module is fully integrated here)
         policy_level = "正常"
 
         # 4. Overall Verdict (Logic from phase-2-decision-funnel document)
-        if regime_name == "Stagflation" and regime_strength == "weak":
+        if regime_blocked or pulse_blocked:
+            verdict = "当前决策数据不可靠，禁止生成投资结论"
+        elif regime_name == "Stagflation" and regime_strength == "weak":
             verdict = "不建议新增仓位 (滞胀且脉搏偏弱)"
         elif regime_strength == "weak":
             verdict = "谨慎投资 (系统脉搏偏弱)"
@@ -283,6 +289,10 @@ class DecisionContextUseCase:
             overall_verdict=verdict,
             regime_freshness=regime_freshness,
             pulse_freshness=pulse_freshness,
+            must_not_use_for_decision=regime_blocked or pulse_blocked,
+            blocked_reason=(
+                "regime_data_unavailable" if regime_blocked else "pulse_data_unreliable"
+            ),
         )
 
     def get_step2_direction(self, as_of_date: date | None = None) -> DecisionStep2Response:
@@ -297,13 +307,15 @@ class DecisionContextUseCase:
         if not action_rec:
             return DecisionStep2Response(
                 action_recommendation={},
-                asset_weights={"equity": 0.5, "bond": 0.3, "commodity": 0.1, "cash": 0.1},
-                risk_budget_pct=0.5,
+                asset_weights={},
+                risk_budget_pct=0.0,
                 recommendation_freshness=_build_freshness_payload(
                     label="配置建议快照",
                     observed_at=None,
                     source="missing",
                 ),
+                must_not_use_for_decision=True,
+                blocked_reason="action_recommendation_missing",
             )
 
         recommendation_freshness = _build_freshness_payload(
@@ -315,6 +327,11 @@ class DecisionContextUseCase:
             ),
         )
 
+        action_blocked = bool(getattr(action_rec, "must_not_use_for_decision", False))
+        action_blocked_reason = str(getattr(action_rec, "blocked_reason", "") or "")
+        recommendation_freshness["must_not_use_for_decision"] = action_blocked
+        recommendation_freshness["blocked_reason"] = action_blocked_reason
+
         return DecisionStep2Response(
             action_recommendation={
                 "reasoning": action_rec.reasoning,
@@ -323,9 +340,11 @@ class DecisionContextUseCase:
                 "position_limit_pct": action_rec.position_limit_pct,
                 "recommended_sectors": action_rec.recommended_sectors,
             },
-            asset_weights=action_rec.asset_weights,
-            risk_budget_pct=action_rec.risk_budget_pct,
+            asset_weights={} if action_blocked else action_rec.asset_weights,
+            risk_budget_pct=0.0 if action_blocked else action_rec.risk_budget_pct,
             recommendation_freshness=recommendation_freshness,
+            must_not_use_for_decision=action_blocked,
+            blocked_reason=action_blocked_reason,
         )
 
     def get_step3_sectors(

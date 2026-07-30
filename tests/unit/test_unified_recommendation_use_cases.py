@@ -61,6 +61,7 @@ class MockFeatureDataProvider:
         self._policy_level = "LEVEL_2"
         self._beta_gate_results: dict[str, bool] = {}
         self._scores: dict[str, dict[str, float]] = {}
+        self._feature_contracts: dict[str, dict[str, dict[str, object]]] = {}
 
     def get_regime(self) -> dict[str, Any] | None:
         return self._regime
@@ -86,6 +87,12 @@ class MockFeatureDataProvider:
     def get_alpha_model_score(self, security_code: str) -> float:
         return self._scores.get(security_code, {}).get("alpha", 0.85)
 
+    def get_feature_freshness_contracts(
+        self,
+        security_code: str,
+    ) -> dict[str, dict[str, object]]:
+        return self._feature_contracts.get(security_code, {})
+
     def set_beta_gate(self, security_code: str, passed: bool):
         self._beta_gate_results[security_code] = passed
 
@@ -93,6 +100,13 @@ class MockFeatureDataProvider:
         if security_code not in self._scores:
             self._scores[security_code] = {}
         self._scores[security_code].update(scores)
+
+    def set_feature_contracts(
+        self,
+        security_code: str,
+        contracts: dict[str, dict[str, object]],
+    ) -> None:
+        self._feature_contracts[security_code] = contracts
 
 
 class MockValuationProvider:
@@ -318,6 +332,79 @@ class TestGenerateUnifiedRecommendationsUseCase:
         assert recommendation.beta_gate_passed is False
         assert "BETA_GATE_BLOCKED" in recommendation.reason_codes
         assert "Beta Gate 未通过" in recommendation.human_rationale
+
+    def test_generate_holds_when_sentiment_feature_is_unavailable(self, setup):
+        """过期舆情即使其他分数足够高，也不得形成方向性推荐。"""
+        setup["feature_provider"].set_scores(
+            "000001.SZ",
+            {
+                "sentiment": 0.5,
+                "flow": 0.8,
+                "technical": 0.8,
+                "fundamental": 0.8,
+                "alpha": 0.9,
+            },
+        )
+        setup["feature_provider"].set_feature_contracts(
+            "000001.SZ",
+            {
+                "sentiment": {
+                    "observed_at": "2026-07-27",
+                    "freshness_status": "stale",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "sentiment_index_stale",
+                }
+            },
+        )
+
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001",
+                security_codes=["000001.SZ"],
+            )
+        )
+
+        assert response.success is True
+        recommendation = response.recommendations[0]
+        assert recommendation.side == "HOLD"
+        assert "FEATURE_BLOCKED_SENTIMENT_INDEX_STALE" in recommendation.reason_codes
+        assert "sentiment_index_stale" in recommendation.human_rationale
+        snapshot = next(iter(setup["recommendation_repo"]._snapshots.values()))
+        assert snapshot.extra_features["feature_freshness"]["sentiment"] == {
+            "observed_at": "2026-07-27",
+            "freshness_status": "stale",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "sentiment_index_stale",
+        }
+
+    def test_generate_holds_when_regime_is_blocked(self, setup):
+        """Regime resolver 的阻断状态必须贯穿快照与推荐。"""
+        setup["feature_provider"]._regime = {
+            "regime": "",
+            "confidence": 0.0,
+            "observed_at": None,
+            "freshness_status": "stale",
+            "must_not_use_for_decision": True,
+            "blocked_reason": "regime_inputs_stale",
+        }
+        setup["feature_provider"].set_scores("000001.SZ", {"alpha": 0.9})
+
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(
+                account_id="account_001",
+                security_codes=["000001.SZ"],
+            )
+        )
+
+        assert response.success is True
+        recommendation = response.recommendations[0]
+        assert recommendation.side == "HOLD"
+        assert "FEATURE_BLOCKED_REGIME_INPUTS_STALE" in recommendation.reason_codes
+        snapshot = next(iter(setup["recommendation_repo"]._snapshots.values()))
+        assert (
+            snapshot.extra_features["feature_freshness"]["regime"]["must_not_use_for_decision"]
+            is True
+        )
 
     def test_generate_with_valuation_data(self, setup):
         """测试包含估值数据"""

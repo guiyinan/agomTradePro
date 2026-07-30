@@ -12,6 +12,7 @@ All business modules should use this resolver to avoid divergent regime chains.
 
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
 from apps.regime.application.repository_provider import (
     build_macro_repository_adapter,
@@ -28,7 +29,7 @@ class CurrentRegimeResult:
 
     dominant_regime: str
     confidence: float
-    observed_at: date
+    observed_at: date | None
     data_source: str
     warnings: list[str]
     distribution: dict[str, float] | None = None
@@ -41,6 +42,51 @@ class CurrentRegimeResult:
     inflation_value: float | None = None
     growth_momentum_z: float | None = None
     inflation_momentum_z: float | None = None
+    diagnostic_regime: str | None = None
+    is_stale: bool = False
+    must_not_use_for_decision: bool = False
+    blocked_reason: str = ""
+
+
+REGIME_MAX_MACRO_AGE_DAYS = 45
+
+
+def _latest_raw_observation_date(rows: object) -> date | None:
+    """Return the latest valid source date from one raw indicator series."""
+
+    if not isinstance(rows, list):
+        return None
+    dates: list[date] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        raw_date = row.get("date")
+        if not isinstance(raw_date, str):
+            continue
+        try:
+            dates.append(date.fromisoformat(raw_date))
+        except ValueError:
+            continue
+    return max(dates) if dates else None
+
+
+def _calculation_observed_at(response: Any) -> date | None:
+    """Return the oldest latest observation required by the Regime calculation."""
+
+    raw_data = response.raw_data if isinstance(response.raw_data, dict) else {}
+    growth_date = _latest_raw_observation_date(raw_data.get("growth"))
+    inflation_date = _latest_raw_observation_date(raw_data.get("inflation"))
+    if growth_date is None or inflation_date is None:
+        return None
+    return min(growth_date, inflation_date)
+
+
+def _regime_is_stale(observed_at: date | None, *, as_of_date: date) -> bool:
+    """Return whether source macro observations are unsafe for a current Regime."""
+
+    if observed_at is None or observed_at > as_of_date:
+        return True
+    return (as_of_date - observed_at).days > REGIME_MAX_MACRO_AGE_DAYS
 
 
 # 全局提供者 (延迟初始化)
@@ -135,10 +181,17 @@ def resolve_current_regime(
             warnings.append("PMI 趋势数据缺失，growth_momentum_z 不可用")
         if inflation_trend is None:
             warnings.append("CPI 趋势数据缺失，inflation_momentum_z 不可用")
+        diagnostic_regime = response.result.regime.value
+        observed_at = _calculation_observed_at(response)
+        is_stale = _regime_is_stale(observed_at, as_of_date=target_date)
+        if observed_at is None:
+            warnings.append("Regime 计算缺少可审计的宏观源观测日期")
+        elif is_stale:
+            warnings.append("Regime 宏观源观测已超过 freshness 阈值")
         return CurrentRegimeResult(
-            dominant_regime=response.result.regime.value,
+            dominant_regime="Unknown" if is_stale else diagnostic_regime,
             confidence=float(response.result.confidence),
-            observed_at=target_date,
+            observed_at=observed_at,
             data_source=source,
             warnings=warnings,
             distribution=dict(response.result.distribution or {}),
@@ -153,14 +206,21 @@ def resolve_current_regime(
             inflation_momentum_z=(
                 float(inflation_trend.momentum_z) if inflation_trend is not None else None
             ),
+            diagnostic_regime=diagnostic_regime,
+            is_stale=is_stale,
+            must_not_use_for_decision=is_stale,
+            blocked_reason="regime_macro_observation_stale" if is_stale else "",
         )
 
     latest = get_regime_repository().get_latest_snapshot()
     if latest:
         warnings = list(response.warnings or [])
         warnings.append("V2 实时计算失败，回退到历史快照")
+        is_stale = _regime_is_stale(latest.observed_at, as_of_date=target_date)
+        if is_stale:
+            warnings.append("历史 Regime 快照已超过 freshness 阈值")
         return CurrentRegimeResult(
-            dominant_regime=latest.dominant_regime,
+            dominant_regime="Unknown" if is_stale else latest.dominant_regime,
             confidence=float(latest.confidence or 0.0),
             observed_at=latest.observed_at,
             data_source=source,
@@ -169,6 +229,10 @@ def resolve_current_regime(
             is_fallback=True,
             growth_momentum_z=float(latest.growth_momentum_z),
             inflation_momentum_z=float(latest.inflation_momentum_z),
+            diagnostic_regime=latest.dominant_regime,
+            is_stale=is_stale,
+            must_not_use_for_decision=is_stale,
+            blocked_reason="regime_snapshot_stale" if is_stale else "",
         )
 
     warnings = list(response.warnings or [])
@@ -178,9 +242,13 @@ def resolve_current_regime(
     return CurrentRegimeResult(
         dominant_regime="Unknown",
         confidence=0.0,
-        observed_at=target_date,
+        observed_at=None,
         data_source=source,
         warnings=warnings,
         distribution=None,
         is_fallback=True,
+        diagnostic_regime=None,
+        is_stale=True,
+        must_not_use_for_decision=True,
+        blocked_reason="regime_data_unavailable",
     )

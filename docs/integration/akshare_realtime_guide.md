@@ -247,6 +247,13 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
 
 ## 更新日志
 
+### 2026-07-30
+
+- `/api/realtime/market-summary/` 只接受 realtime 缓存窗口内的观测值；持久化历史快照或日线不能冒充实时命中。
+- `CompositePriceDataProvider` 遇到过期结果会继续尝试后续数据源；全部数据源都没有新鲜结果时返回不可用，不展示旧值。
+- 日线兜底保留真实收盘观测时间，不再用请求时刻覆盖数据日期。
+- 响应通过 `contract.market_data_as_of`、`contract.missing_index_codes` 与 `contract.must_not_use_for_decision` 公开观测时间和决策阻断状态，Terminal/MCP 必须遵守该契约。
+
 ### 2026-01-14
 
 - ✅ 新增 `AKSharePriceDataProvider` 类

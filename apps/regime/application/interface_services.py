@@ -74,6 +74,18 @@ def get_regime_current_payload(*, as_of_date: date | None = None) -> dict[str, A
             "inflation_value": latest.inflation_value,
             "is_fallback": latest.is_fallback,
             "warnings": latest.warnings,
+            "diagnostic_regime": latest.diagnostic_regime,
+            "is_stale": latest.is_stale,
+            "must_not_use_for_decision": latest.must_not_use_for_decision,
+            "blocked_reason": latest.blocked_reason,
+            "contract": {
+                "observed_at": latest.observed_at,
+                "market_data_as_of": latest.observed_at,
+                "freshness_status": "stale" if latest.is_stale else "fresh",
+                "is_stale": latest.is_stale,
+                "must_not_use_for_decision": latest.must_not_use_for_decision,
+                "blocked_reason": latest.blocked_reason,
+            },
         },
     }
 

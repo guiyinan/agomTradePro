@@ -9,7 +9,7 @@ validation rules. Shared helpers and dependency wiring live in
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from importlib import import_module
 from types import ModuleType
@@ -21,6 +21,7 @@ from django.utils import timezone
 from apps.data_center.composition import get_akshare_module
 from apps.data_center.domain.protocols import QuoteSnapshotRepositoryProtocol
 from apps.equity.domain.entities import IntradayPricePoint
+from apps.realtime.domain.entities import PricePollingConfig
 from core.exceptions import DataFetchError, DataValidationError
 
 logger = logging.getLogger(__name__)
@@ -351,14 +352,29 @@ class StockIntradayRepositoryMixin:
                 RedisRealtimePriceRepository,
             )
 
+            config = PricePollingConfig()
+            reference_time = timezone.now()
+            max_age = timedelta(seconds=config.max_price_age_seconds)
             cached_price = RedisRealtimePriceRepository().get_latest_price(stock_code)
-            if cached_price is not None:
+            if cached_price is not None and cached_price.is_fresh(
+                reference_time=reference_time,
+                max_age=max_age,
+            ):
                 cached_decimal = self._safe_decimal(cached_price.price)
                 if cached_decimal is not None and cached_decimal > 0:
                     return cached_decimal
+            elif cached_price is not None:
+                logger.info(
+                    "Skip unusable cached validation price for %s: observed_at=%s",
+                    stock_code,
+                    cached_price.timestamp,
+                )
 
             realtime_price = AKSharePriceDataProvider().get_realtime_price(stock_code)
-            if realtime_price is None:
+            if realtime_price is None or not realtime_price.is_fresh(
+                reference_time=timezone.now(),
+                max_age=max_age,
+            ):
                 return None
 
             realtime_decimal = self._safe_decimal(realtime_price.price)

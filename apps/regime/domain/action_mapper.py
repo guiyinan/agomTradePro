@@ -7,7 +7,7 @@ Regime Action Mapper - 将 Regime 导航仪 + Pulse 脉搏转化为可执行的�
 
 import math
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from typing import TypedDict
 
 
@@ -17,6 +17,27 @@ class WeightRange(TypedDict):
     category: str
     lower: float
     upper: float
+
+
+def cached_action_is_stale(
+    observed_at: date,
+    *,
+    as_of_date: date,
+    max_business_days: int = 1,
+) -> bool:
+    """Return whether a persisted daily action is too old for current decisions."""
+
+    if max_business_days < 0:
+        raise ValueError("max_business_days must be non-negative")
+    if observed_at > as_of_date:
+        return True
+    current = observed_at + timedelta(days=1)
+    age = 0
+    while current <= as_of_date:
+        if current.weekday() < 5:
+            age += 1
+        current += timedelta(days=1)
+    return age > max_business_days
 
 
 @dataclass(frozen=True)

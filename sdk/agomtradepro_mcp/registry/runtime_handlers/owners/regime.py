@@ -21,7 +21,11 @@ def _fallback_get_current_regime() -> dict[str, Any]:
         "inflation_indicator": regime.inflation_indicator,
         "growth_value": regime.growth_value,
         "inflation_value": regime.inflation_value,
-        "observed_at": regime.observed_at.isoformat(),
+        "observed_at": regime.observed_at.isoformat() if regime.observed_at else None,
+        "diagnostic_regime": getattr(regime, "diagnostic_regime", None),
+        "is_stale": bool(getattr(regime, "is_stale", False)),
+        "must_not_use_for_decision": bool(getattr(regime, "must_not_use_for_decision", False)),
+        "blocked_reason": str(getattr(regime, "blocked_reason", "") or ""),
     }
 
 

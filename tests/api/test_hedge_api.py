@@ -107,6 +107,39 @@ def test_latest_snapshots_return_persisted_state_contract(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_latest_snapshots_fail_closed_when_persisted_state_is_stale(
+    authenticated_client,
+    hedge_pair,
+):
+    """The endpoint must expose source age and block stale hedge decisions."""
+
+    from datetime import date
+
+    from apps.hedge.infrastructure.models import HedgePortfolioSnapshotModel
+
+    HedgePortfolioSnapshotModel.objects.create(
+        pair=hedge_pair,
+        trade_date=date(2020, 1, 2),
+        long_weight=0.6,
+        hedge_weight=0.4,
+        hedge_ratio=0.7,
+        current_correlation=-0.6,
+        hedge_effectiveness=0.8,
+    )
+
+    response = authenticated_client.get("/api/hedge/snapshots/latest/")
+
+    assert response.status_code == 200
+    row = response.json()["results"][0]
+    assert row["observed_at"] == "2020-01-02"
+    assert row["freshness_status"] == "stale"
+    assert row["staleness_days"] > 1
+    assert row["is_stale"] is True
+    assert row["must_not_use_for_decision"] is True
+    assert row["blocked_reason"] == "hedge_snapshot_stale"
+
+
+@pytest.mark.django_db
 def test_pairs_correlation_matrix_uses_asset_codes_and_window_days(authenticated_client):
     with patch(
         "apps.hedge.interface.views.interface_services.get_correlation_matrix_payload",

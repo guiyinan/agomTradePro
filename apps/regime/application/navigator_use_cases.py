@@ -16,15 +16,16 @@ from apps.pulse.application.query_services import (
     list_active_navigator_asset_config_payloads,
 )
 from apps.pulse.domain.entities import PulseSnapshot
+from apps.regime.application.current_regime import resolve_current_regime
 from apps.regime.application.repository_provider import (
     get_default_macro_repository,
     get_navigator_repository,
-    get_regime_repository,
 )
 from apps.regime.domain.action_mapper import (
     ActionMapperConfig,
     RegimeActionRecommendation,
     WeightRange,
+    cached_action_is_stale,
     map_regime_pulse_to_action,
 )
 from apps.regime.domain.entities import (
@@ -144,6 +145,8 @@ def _build_cached_action_recommendation(
     as_of_date: date,
     confidence: float,
     pulse_snapshot: PulseSnapshot | None = None,
+    regime_must_not_use_for_decision: bool = False,
+    regime_blocked_reason: str = "",
 ) -> RegimeActionRecommendation:
     """Rehydrate a UI-friendly action recommendation from the latest persisted log."""
     config = ActionMapperConfig.defaults()
@@ -157,7 +160,15 @@ def _build_cached_action_recommendation(
     regime_name = str(getattr(cached_action, "regime_name", "") or "Unknown")
     observed_at = getattr(cached_action, "observed_at", as_of_date)
     blocked_reason = str(getattr(cached_action, "blocked_reason", "") or "")
-    must_not_use_for_decision = bool(getattr(cached_action, "must_not_use_for_decision", False))
+    action_is_stale = cached_action_is_stale(observed_at, as_of_date=as_of_date)
+    persisted_block = bool(getattr(cached_action, "must_not_use_for_decision", False))
+    must_not_use_for_decision = (
+        persisted_block or action_is_stale or regime_must_not_use_for_decision
+    )
+    if not blocked_reason and action_is_stale:
+        blocked_reason = "cached_action_stale"
+    if not blocked_reason and regime_must_not_use_for_decision:
+        blocked_reason = regime_blocked_reason or "regime_data_unavailable"
 
     return RegimeActionRecommendation(
         asset_weights=dict(getattr(cached_action, "asset_weights", {}) or {}),
@@ -176,7 +187,7 @@ def _build_cached_action_recommendation(
         confidence=float(confidence or 0.0),
         must_not_use_for_decision=must_not_use_for_decision,
         blocked_reason=blocked_reason,
-        blocked_code="pulse_unreliable" if must_not_use_for_decision else "",
+        blocked_code=blocked_reason if must_not_use_for_decision else "",
         pulse_observed_at=getattr(pulse_snapshot, "observed_at", None),
         pulse_is_reliable=bool(getattr(pulse_snapshot, "is_reliable", True)),
         stale_indicator_codes=[
@@ -349,9 +360,7 @@ class GetActionRecommendationUseCase:
                     before_date=target_date
                 )
                 if cached_action is not None:
-                    latest_regime = get_regime_repository().get_latest_snapshot(
-                        before_date=target_date
-                    )
+                    latest_regime = resolve_current_regime(as_of_date=target_date)
                     pulse_snapshot = None
                     try:
                         from apps.pulse.application.use_cases import GetLatestPulseUseCase
@@ -367,15 +376,19 @@ class GetActionRecommendationUseCase:
                             exc,
                         )
 
-                return _build_cached_action_recommendation(
-                    cached_action=cast(
-                        CachedActionRecommendationProtocol,
-                        cached_action,
-                    ),
-                    as_of_date=target_date,
-                    confidence=float(getattr(latest_regime, "confidence", 0.0) or 0.0),
-                    pulse_snapshot=pulse_snapshot,
-                )
+                    return _build_cached_action_recommendation(
+                        cached_action=cast(
+                            CachedActionRecommendationProtocol,
+                            cached_action,
+                        ),
+                        as_of_date=target_date,
+                        confidence=float(getattr(latest_regime, "confidence", 0.0) or 0.0),
+                        pulse_snapshot=pulse_snapshot,
+                        regime_must_not_use_for_decision=bool(
+                            latest_regime.must_not_use_for_decision
+                        ),
+                        regime_blocked_reason=latest_regime.blocked_reason,
+                    )
 
             # 1. 获取导航仪输出
             nav_use_case = BuildRegimeNavigatorUseCase(macro_repo=self.macro_repo)

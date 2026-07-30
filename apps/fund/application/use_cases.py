@@ -14,7 +14,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Protocol
 
-from apps.regime.application.repository_provider import get_regime_repository
+from apps.regime.application.current_regime import resolve_current_regime
 from apps.regime.domain.services_v2 import RegimeType
 from core.exceptions import MissingConfigError
 
@@ -168,12 +168,10 @@ class ScreenFundsUseCase:
             if request.regime:
                 regime = request.regime
             else:
-                latest_regime = get_regime_repository().get_latest_snapshot(
-                    before_date=date.today()
-                )
-                if latest_regime is None:
+                latest_regime = resolve_current_regime(as_of_date=date.today())
+                if latest_regime.must_not_use_for_decision:
                     raise ValueError(
-                        "No persisted Regime snapshot is available; provide regime explicitly."
+                        "Current Regime is not decision-safe; provide regime explicitly."
                     )
                 regime = latest_regime.dominant_regime
             if regime not in VALID_REGIMES:

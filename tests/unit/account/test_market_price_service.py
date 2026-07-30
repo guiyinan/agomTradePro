@@ -4,7 +4,7 @@ Account Module Unit Tests - Market Price Service
 单元测试：市场价格服务的基本功能
 """
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
@@ -25,6 +25,7 @@ def _price_result(
     source: str = "test_quote",
     freshness: PriceFreshness = "realtime",
     is_fallback: bool = False,
+    observed_at: datetime | None = None,
 ) -> MarketPriceResult:
     """Build a valid canonical provider result for service tests."""
 
@@ -35,6 +36,11 @@ def _price_result(
         source=source,
         freshness=freshness,
         is_fallback=is_fallback,
+        observed_at=(
+            observed_at
+            if observed_at is not None
+            else datetime(2026, 7, 30, 10, 0, tzinfo=UTC) if freshness == "realtime" else None
+        ),
     )
 
 
@@ -308,11 +314,30 @@ class TestMarketPriceServiceUnit:
         assert result["price"] == Decimal("15.75")
         assert result["asset_code"] == "000001.SZ"
         assert result["source"] == "stored_close"
-        assert isinstance(result["timestamp"], datetime)
+        assert result["timestamp"] is None
+        assert result["observed_at"] is None
         assert result["trade_date"] == date(2024, 1, 12)
         assert result["requested_trade_date"] is None
         assert result["freshness"] == "close_fallback"
         assert result["is_fallback"] is True
+
+    def test_get_price_with_metadata_preserves_source_observation_time(self):
+        """Account metadata must not replace quote observation time with request time."""
+
+        observed_at = datetime(2026, 7, 30, 10, 5, tzinfo=UTC)
+        service = MarketPriceService()
+        mock_provider = Mock()
+        mock_provider.get_price_result.return_value = _price_result(
+            15.75,
+            observed_at=observed_at,
+        )
+        service._provider = mock_provider
+
+        result = service.get_price_with_metadata("000001.SZ")
+
+        assert result is not None
+        assert result["timestamp"] == observed_at
+        assert result["observed_at"] == observed_at
 
     def test_get_price_with_metadata_returns_none_on_failure(self):
         """测试获取价格元数据失败返回 None"""

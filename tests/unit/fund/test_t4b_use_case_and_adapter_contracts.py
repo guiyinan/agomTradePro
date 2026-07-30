@@ -89,12 +89,14 @@ def test_screen_funds_uses_persisted_regime_defaults_and_reports_absence() -> No
     ]
     repository.resolve_research_window.return_value = (date.today(), date.today())
     repository.get_persisted_funds_with_performance.return_value = []
-    regime_repository = Mock()
-    regime_repository.get_latest_snapshot.return_value = SimpleNamespace(dominant_regime="Recovery")
+    regime_result = SimpleNamespace(
+        dominant_regime="Recovery",
+        must_not_use_for_decision=False,
+    )
 
     with patch(
-        "apps.fund.application.use_cases.get_regime_repository",
-        return_value=regime_repository,
+        "apps.fund.application.use_cases.resolve_current_regime",
+        return_value=regime_result,
     ):
         result = ScreenFundsUseCase(repository).execute(ScreenFundsRequest())
 
@@ -104,10 +106,10 @@ def test_screen_funds_uses_persisted_regime_defaults_and_reports_absence() -> No
     assert result.screening_criteria["investment_styles"] == ["成长", "平衡", "价值"]
     assert result.screening_criteria["min_scale"] == "0"
 
-    regime_repository.get_latest_snapshot.return_value = None
+    regime_result.must_not_use_for_decision = True
     with patch(
-        "apps.fund.application.use_cases.get_regime_repository",
-        return_value=regime_repository,
+        "apps.fund.application.use_cases.resolve_current_regime",
+        return_value=regime_result,
     ):
         failed = ScreenFundsUseCase(repository).execute(ScreenFundsRequest())
     assert failed.success is False

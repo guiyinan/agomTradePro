@@ -12,7 +12,7 @@ Uses only:
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 from apps.hedge.domain.entities import (
     CorrelationMetric,
@@ -24,6 +24,27 @@ from apps.hedge.domain.entities import (
     HedgePortfolio,
 )
 from shared.domain.correlation import RollingCorrelationCalculator
+
+
+def hedge_snapshot_freshness(
+    trade_date: date,
+    *,
+    as_of_date: date,
+    max_business_days: int = 1,
+) -> tuple[bool, int]:
+    """Return stale state and weekday age for a hedge portfolio snapshot."""
+
+    if max_business_days < 0:
+        raise ValueError("max_business_days must be non-negative")
+    if trade_date > as_of_date:
+        return (True, 0)
+    current = trade_date + timedelta(days=1)
+    age = 0
+    while current <= as_of_date:
+        if current.weekday() < 5:
+            age += 1
+        current += timedelta(days=1)
+    return (age > max_business_days, age)
 
 
 @dataclass

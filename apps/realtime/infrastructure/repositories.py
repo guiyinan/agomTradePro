@@ -8,11 +8,12 @@ Following AgomSaaS architecture rules:
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from importlib import import_module
 from types import ModuleType
 from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 from django.core.cache import cache
 from django.db import transaction
@@ -51,6 +52,17 @@ from apps.realtime.domain.protocols import (
 from shared.infrastructure.sdk_bridge import get_akshare_module as _load_akshare_module
 
 logger = logging.getLogger(__name__)
+_CHINA_MARKET_TIMEZONE = ZoneInfo("Asia/Shanghai")
+
+
+def _daily_bar_observed_at(bar_date: date) -> datetime:
+    """Return the actual China-market close time represented by a daily bar."""
+
+    return datetime.combine(
+        bar_date,
+        time(hour=15),
+        tzinfo=_CHINA_MARKET_TIMEZONE,
+    ).astimezone(UTC)
 
 
 def get_akshare_module() -> ModuleType:
@@ -396,7 +408,7 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
                 change=None,
                 change_pct=None,
                 volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
-                timestamp=timezone.now(),
+                timestamp=_daily_bar_observed_at(latest_bar.bar_date),
                 source=latest_bar.source or "data_center",
             )
 
@@ -690,7 +702,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             change=None,
             change_pct=None,
             volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
-            timestamp=timezone.now(),
+            timestamp=_daily_bar_observed_at(latest_bar.bar_date),
             source=latest_bar.source or "data_center",
         )
 
@@ -890,7 +902,7 @@ class DataCenterPriceDataProvider(PriceDataProviderProtocol):
                 change=None,
                 change_pct=None,
                 volume=int(bar.volume) if bar.volume is not None else None,
-                timestamp=timezone.now(),
+                timestamp=_daily_bar_observed_at(bar.bar_date),
                 source=bar.source,
             )
         except Exception:
@@ -930,8 +942,24 @@ class CompositePriceDataProvider(PriceDataProviderProtocol):
     支持多个数据源，自动故障转移
     """
 
-    def __init__(self, providers: list[PriceDataProviderProtocol]):
+    def __init__(
+        self,
+        providers: list[PriceDataProviderProtocol],
+        *,
+        max_price_age_seconds: int = 300,
+    ) -> None:
+        if max_price_age_seconds <= 0:
+            raise ValueError("max_price_age_seconds must be positive")
         self.providers = providers
+        self.max_price_age = timedelta(seconds=max_price_age_seconds)
+
+    def _is_fresh(self, price: RealtimePrice) -> bool:
+        """Reject stale provider results so failover can continue."""
+
+        return price.is_fresh(
+            reference_time=timezone.now(),
+            max_age=self.max_price_age,
+        )
 
     def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         """依次尝试从各个数据源获取价格"""
@@ -940,8 +968,15 @@ class CompositePriceDataProvider(PriceDataProviderProtocol):
         for provider in self.providers:
             try:
                 price = provider.get_realtime_price(asset_code)
-                if price:
+                if price and self._is_fresh(price):
                     return price
+                if price:
+                    logger.warning(
+                        "Ignoring stale realtime price from %s for %s observed_at=%s",
+                        provider.__class__.__name__,
+                        asset_code,
+                        price.timestamp.isoformat(),
+                    )
             except Exception as e:
                 last_error = e
                 logger.warning(f"Provider {provider.__class__.__name__} failed: {e}")
@@ -967,7 +1002,15 @@ class CompositePriceDataProvider(PriceDataProviderProtocol):
                 continue
 
             for price in prices:
-                prices_by_code[price.asset_code] = price
+                if self._is_fresh(price):
+                    prices_by_code[price.asset_code] = price
+                else:
+                    logger.warning(
+                        "Ignoring stale realtime price from %s for %s observed_at=%s",
+                        provider.__class__.__name__,
+                        price.asset_code,
+                        price.timestamp.isoformat(),
+                    )
 
             missing_codes = [
                 asset_code for asset_code in missing_codes if asset_code not in prices_by_code

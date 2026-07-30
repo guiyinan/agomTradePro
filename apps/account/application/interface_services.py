@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from typing import Any
 from urllib.parse import urlparse
@@ -22,6 +23,10 @@ from apps.account.application.repository_provider import (
 from apps.account.application.use_cases import (
     CreatePositionFromBacktestInput,
     CreatePositionFromBacktestUseCase,
+)
+from apps.account.domain.services import (
+    ExchangeRateFreshnessAssessment,
+    assess_exchange_rate_freshness,
 )
 
 
@@ -52,6 +57,34 @@ class RegisteredUserOutcome:
     user: Any
     approval_status: str
     display_name: str
+
+
+@dataclass(frozen=True)
+class LatestExchangeRateResult:
+    """Latest stored FX record plus its current-decision freshness contract."""
+
+    record: Any
+    effective_date: date
+    freshness_status: str
+    staleness_days: int
+    is_stale: bool
+    must_not_use_for_decision: bool
+    blocked_reason: str
+
+
+class ExchangeRateDecisionBlockedError(ValueError):
+    """Raised when an implicit-latest FX conversion is not decision-safe."""
+
+    def __init__(self, assessment: ExchangeRateFreshnessAssessment) -> None:
+        self.freshness_status = assessment.freshness_status
+        self.staleness_days = assessment.staleness_days
+        self.blocked_reason = assessment.blocked_reason
+        if assessment.freshness_status == "future":
+            message = "Latest exchange rate is future-dated and cannot be used"
+        else:
+            age = assessment.staleness_days
+            message = f"Latest exchange rate is stale ({age} business days old)"
+        super().__init__(message)
 
 
 _interface_repo = AccountInterfaceRepository
@@ -723,10 +756,24 @@ def delete_exchange_rate(*, exchange_rate_id: int) -> None:
     _classification_repo().delete_exchange_rate(exchange_rate_id=exchange_rate_id)
 
 
-def get_latest_exchange_rate(*, from_code: str, to_code: str) -> Any:
-    """Return the latest exchange rate model for one pair."""
+def get_latest_exchange_rate(
+    *,
+    from_code: str,
+    to_code: str,
+    as_of_date: date | None = None,
+) -> LatestExchangeRateResult | None:
+    """Return the latest FX record with current-decision freshness metadata."""
 
-    return _classification_repo().get_latest_exchange_rate(from_code=from_code, to_code=to_code)
+    record = _classification_repo().get_latest_exchange_rate(
+        from_code=from_code,
+        to_code=to_code,
+    )
+    if record is None:
+        return None
+    return _build_latest_exchange_rate_result(
+        record,
+        as_of_date=as_of_date or timezone.localdate(),
+    )
 
 
 def convert_currency_amount(
@@ -734,11 +781,32 @@ def convert_currency_amount(
     amount: Decimal,
     from_currency: str,
     to_currency: str,
-    date_value: Any = None,
+    date_value: date | None = None,
 ) -> dict[str, Any]:
-    """Convert one amount and return the rate metadata used."""
+    """Convert one amount, blocking unsafe implicit-latest FX observations."""
 
     repository = _classification_repo()
+    return _convert_currency_amount_with_repository(
+        repository=repository,
+        amount=amount,
+        from_currency=from_currency,
+        to_currency=to_currency,
+        date_value=date_value,
+        as_of_date=timezone.localdate(),
+    )
+
+
+def _convert_currency_amount_with_repository(
+    *,
+    repository: Any,
+    amount: Decimal,
+    from_currency: str,
+    to_currency: str,
+    date_value: date | None,
+    as_of_date: date,
+) -> dict[str, Any]:
+    """Convert with one repository while enforcing implicit-latest safety."""
+
     requested_codes = {from_currency, to_currency}
     if not repository.active_currency_codes_exist(requested_codes):
         raise ValueError("Currency must be active and registered")
@@ -757,11 +825,52 @@ def convert_currency_amount(
     if rate_model is None:
         raise ValueError(f"No exchange rate found for {from_currency} -> {to_currency}")
 
+    if date_value is None:
+        latest = _build_latest_exchange_rate_result(
+            rate_model,
+            as_of_date=as_of_date,
+        )
+        if latest.must_not_use_for_decision:
+            raise ExchangeRateDecisionBlockedError(
+                ExchangeRateFreshnessAssessment(
+                    freshness_status=latest.freshness_status,
+                    staleness_days=latest.staleness_days,
+                    is_stale=latest.is_stale,
+                    must_not_use_for_decision=latest.must_not_use_for_decision,
+                    blocked_reason=latest.blocked_reason,
+                )
+            )
+
     return {
         "converted_amount": rate_model.convert(amount),
         "rate_used": rate_model.rate,
         "rate_date": rate_model.effective_date,
     }
+
+
+def _build_latest_exchange_rate_result(
+    record: Any,
+    *,
+    as_of_date: date,
+) -> LatestExchangeRateResult:
+    """Build application output without laundering the source effective date."""
+
+    effective_date = getattr(record, "effective_date", None)
+    if type(effective_date) is not date:
+        raise ValueError("Exchange rate effective_date must be a date")
+    assessment = assess_exchange_rate_freshness(
+        effective_date,
+        as_of_date=as_of_date,
+    )
+    return LatestExchangeRateResult(
+        record=record,
+        effective_date=effective_date,
+        freshness_status=assessment.freshness_status,
+        staleness_days=assessment.staleness_days,
+        is_stale=assessment.is_stale,
+        must_not_use_for_decision=assessment.must_not_use_for_decision,
+        blocked_reason=assessment.blocked_reason,
+    )
 
 
 def get_portfolio_allocation_payload(
@@ -797,11 +906,15 @@ def get_portfolio_allocation_payload(
                 },
             )
             bucket["amount"] += amount
-            amount_base = repository.convert_amount(
+            conversion = _convert_currency_amount_with_repository(
+                repository=repository,
                 amount=amount,
-                from_code=currency_code,
-                to_code=base_currency_code,
+                from_currency=currency_code,
+                to_currency=base_currency_code,
+                date_value=None,
+                as_of_date=timezone.localdate(),
             )
+            amount_base = conversion["converted_amount"]
             bucket["amount_base"] += amount_base
             total_value_base += amount_base
 

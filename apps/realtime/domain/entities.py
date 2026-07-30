@@ -9,7 +9,7 @@ Following AgomSaaS architecture rules:
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 
@@ -145,6 +145,23 @@ class RealtimePrice:
     timestamp: datetime
     source: str
 
+    def is_fresh(
+        self,
+        *,
+        reference_time: datetime,
+        max_age: timedelta,
+    ) -> bool:
+        """Return whether this aware observation is usable as a realtime quote."""
+
+        if max_age <= timedelta(0):
+            raise ValueError("max_age must be positive")
+        if self.timestamp.tzinfo is None or self.timestamp.utcoffset() is None:
+            return False
+        if reference_time.tzinfo is None or reference_time.utcoffset() is None:
+            return False
+        age = reference_time - self.timestamp
+        return timedelta(0) <= age <= max_age
+
     def to_dict(self) -> dict[str, object]:
         """转换为字典格式（用于API响应）"""
         return {
@@ -222,6 +239,7 @@ class PricePollingConfig:
         max_retries: 最大重试次数
         retry_delay: 重试延迟（秒）
         timeout: 请求超时（秒）
+        max_price_age_seconds: realtime 命中允许的最大观测年龄（秒）
     """
 
     polling_interval: int = 30  # 默认30秒
@@ -229,6 +247,7 @@ class PricePollingConfig:
     max_retries: int = 3  # 最多重试3次
     retry_delay: int = 5  # 重试延迟5秒
     timeout: int = 30  # 请求超时30秒
+    max_price_age_seconds: int = 300  # 与 Redis realtime 缓存 TTL 一致
 
     def to_dict(self) -> dict[str, object]:
         """转换为字典格式"""
@@ -238,6 +257,7 @@ class PricePollingConfig:
             "max_retries": self.max_retries,
             "retry_delay": self.retry_delay,
             "timeout": self.timeout,
+            "max_price_age_seconds": self.max_price_age_seconds,
         }
 
 
@@ -270,6 +290,8 @@ class PriceSnapshot:
 
     def to_dict(self) -> dict[str, object]:
         """转换为字典格式"""
+        is_reliable = self.total_assets > 0 and self.failed_count == 0
+        blocked_reason = "" if is_reliable else "realtime_price_snapshot_incomplete"
         return {
             "timestamp": self.timestamp.isoformat(),
             "prices": [price.to_dict() for price in self.prices],
@@ -277,4 +299,8 @@ class PriceSnapshot:
             "success_count": self.success_count,
             "failed_count": self.failed_count,
             "success_rate": self.success_rate,
+            "is_reliable": is_reliable,
+            "is_stale": False,
+            "must_not_use_for_decision": not is_reliable,
+            "blocked_reason": blocked_reason,
         }

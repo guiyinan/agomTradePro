@@ -44,6 +44,7 @@ class DataCenterPriceProvider:
             source=result.source,
             freshness=cast(PriceFreshness, result.freshness),
             is_fallback=result.is_fallback,
+            observed_at=result.observed_at,
         )
 
     def get_latest_price(self, asset_code: str) -> float | None:

@@ -109,6 +109,8 @@ class RotationSignalSerializer(serializers.ModelSerializer[Any]):
     staleness_days = serializers.SerializerMethodField()
     actionable = serializers.SerializerMethodField()
     execution_block_reason = serializers.SerializerMethodField()
+    must_not_use_for_decision = serializers.SerializerMethodField()
+    blocked_reason = serializers.SerializerMethodField()
 
     class Meta:
         model = RotationSignalModel
@@ -129,6 +131,8 @@ class RotationSignalSerializer(serializers.ModelSerializer[Any]):
             "staleness_days",
             "actionable",
             "execution_block_reason",
+            "must_not_use_for_decision",
+            "blocked_reason",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
@@ -196,6 +200,14 @@ class RotationSignalSerializer(serializers.ModelSerializer[Any]):
         if self.get_is_stale(obj):
             return "stale_rotation_signal"
         return f"rotation_data_quality_{self.get_data_quality(obj)['status']}"
+
+    def get_must_not_use_for_decision(self, obj: RotationSignalRecord) -> bool:
+        """Expose the standard fail-closed decision safety flag."""
+        return not self.get_actionable(obj)
+
+    def get_blocked_reason(self, obj: RotationSignalRecord) -> str:
+        """Expose the standard decision block reason without nullable ambiguity."""
+        return self.get_execution_block_reason(obj) or ""
 
 
 class RotationPortfolioSerializer(serializers.ModelSerializer[Any]):

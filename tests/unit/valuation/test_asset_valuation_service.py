@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from apps.valuation.application.use_cases import AssetValuationService
 from apps.valuation.domain.entities import ValuationSnapshot
+from apps.valuation.infrastructure.providers import ObservableMarketPriceSource
 
 
 class _FormalSource:
@@ -18,15 +21,20 @@ class _FormalSource:
 
 
 class _SnapshotSource:
-    def __init__(self, payloads: list[dict] | None = None) -> None:
+    def __init__(
+        self,
+        payloads: list[dict] | None = None,
+        today_fallback: ValuationSnapshot | None = None,
+    ) -> None:
         self.payloads = payloads or []
+        self.today_fallback = today_fallback
         self.saved: ValuationSnapshot | None = None
 
     def list_recent_payloads(self, security_code: str) -> list[dict]:
         return self.payloads
 
     def get_today_fallback(self, security_code: str, today: date) -> ValuationSnapshot | None:
-        return None
+        return self.today_fallback
 
     def save_fallback(self, snapshot: ValuationSnapshot) -> ValuationSnapshot:
         self.saved = snapshot
@@ -55,8 +63,9 @@ def _service(
     snapshots: list[dict] | None = None,
     facts: list[dict] | None = None,
     price: Decimal = Decimal("0"),
+    today_fallback: ValuationSnapshot | None = None,
 ) -> tuple[AssetValuationService, _SnapshotSource]:
-    snapshot_source = _SnapshotSource(snapshots)
+    snapshot_source = _SnapshotSource(snapshots, today_fallback)
     return (
         AssetValuationService(
             formal_source=_FormalSource(formal),
@@ -126,3 +135,75 @@ def test_missing_formal_sources_create_explicit_price_fallback() -> None:
     assert result["valuation_source"] == "current_price_fallback"
     assert snapshot_source.saved is not None
     assert snapshot_source.saved.input_parameters["source"] == "test_price"
+
+
+def test_observable_market_price_uses_canonical_freshness_service() -> None:
+    """Valuation cannot bypass the unified stale-quote and stale-close boundary."""
+
+    unified = SimpleNamespace(
+        require_latest_price_result=lambda _code: SimpleNamespace(
+            price=10.25,
+            source="daily_close",
+            freshness="close_fallback",
+        )
+    )
+    with patch(
+        "apps.valuation.infrastructure.providers.UnifiedPriceService",
+        return_value=unified,
+    ):
+        price, source = ObservableMarketPriceSource().get_latest("000001.SZ")
+
+    assert price == Decimal("10.25")
+    assert source == "daily_close:close_fallback"
+
+
+def test_persisted_price_fallback_cannot_bypass_canonical_price() -> None:
+    """A historical FALLBACK row is not a formal valuation source."""
+
+    service, snapshot_source = _service(
+        snapshots=[
+            {
+                "fair_value": 99,
+                "entry_price_low": 95,
+                "entry_price_high": 101,
+                "target_price_low": 110,
+                "target_price_high": 120,
+                "stop_loss_price": 90,
+                "valuation_method": "FALLBACK",
+                "calculated_at": date(2026, 7, 20),
+            }
+        ],
+        price=Decimal("10"),
+    )
+
+    result = service.get_valuation("000001.SZ")
+
+    assert result is not None
+    assert result["fair_value"] == 10.0
+    assert snapshot_source.saved is not None
+    assert snapshot_source.saved.fair_value == Decimal("10")
+
+
+def test_today_fallback_cannot_bypass_unavailable_canonical_price() -> None:
+    """Even today's fallback must be revalidated through the canonical source."""
+
+    existing = ValuationSnapshot(
+        snapshot_id="vs_existing",
+        security_code="000001.SZ",
+        valuation_method="FALLBACK",
+        fair_value=Decimal("99"),
+        entry_price_low=Decimal("95"),
+        entry_price_high=Decimal("101"),
+        target_price_low=Decimal("110"),
+        target_price_high=Decimal("120"),
+        stop_loss_price=Decimal("90"),
+        calculated_at=datetime(2026, 7, 20, 9, tzinfo=UTC),
+        input_parameters={"source": "old_price:realtime"},
+    )
+    service, snapshot_source = _service(
+        price=Decimal("0"),
+        today_fallback=existing,
+    )
+
+    assert service.get_valuation("000001.SZ") is None
+    assert snapshot_source.saved is None

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
+
+from django.utils import timezone
 
 from apps.hedge.application.repository_provider import (
     HedgeIntegrationService,
@@ -30,6 +33,7 @@ from apps.hedge.application.use_cases import (
     ResolveHedgeAlertUseCase,
 )
 from apps.hedge.domain.entities import HedgeEffectiveness
+from apps.hedge.domain.services import hedge_snapshot_freshness
 
 HEDGE_METHOD_CHOICES = [
     ("beta", "Beta对冲"),
@@ -177,20 +181,31 @@ def get_correlation_metric_payload(
     }
 
 
-def get_latest_snapshots_payload() -> dict[str, Any]:
+def get_latest_snapshots_payload(*, as_of_date: date | None = None) -> dict[str, Any]:
     """Return the latest snapshot payload for all active hedge pairs."""
 
     service = _get_integration_service()
     snapshots: list[dict[str, Any]] = []
+    effective_as_of_date = as_of_date or timezone.localdate()
 
     for pair in service.get_all_pairs(active_only=True):
         latest = service.get_hedge_portfolio(pair.name)
         if latest is None:
             continue
+        is_stale, staleness_days = hedge_snapshot_freshness(
+            latest.trade_date,
+            as_of_date=effective_as_of_date,
+        )
         snapshots.append(
             {
                 "pair_name": latest.pair_name,
                 "trade_date": latest.trade_date.isoformat(),
+                "observed_at": latest.trade_date.isoformat(),
+                "freshness_status": "stale" if is_stale else "fresh",
+                "staleness_days": staleness_days,
+                "is_stale": is_stale,
+                "must_not_use_for_decision": is_stale,
+                "blocked_reason": "hedge_snapshot_stale" if is_stale else "",
                 "long_weight": round(latest.long_weight * 100, 2),
                 "hedge_weight": round(latest.hedge_weight * 100, 2),
                 "hedge_ratio": round(latest.hedge_ratio, 3),

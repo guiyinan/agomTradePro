@@ -716,6 +716,8 @@ def test_rotation_latest_signal_exposes_quality_metadata(authenticated_client):
     assert "staleness_days" in row
     assert row["action_required"] == "rebalance"
     assert row["actionable"] is False
+    assert row["must_not_use_for_decision"] is True
+    assert row["blocked_reason"] == row["execution_block_reason"]
     assert row["execution_block_reason"] in {
         "stale_rotation_signal",
         "rotation_data_quality_degraded",
@@ -754,6 +756,8 @@ def test_rotation_latest_signal_treats_risk_parity_allocation_as_quality_coverag
     assert row["data_quality"]["warnings"] == []
     assert row["actionable"] is True
     assert row["execution_block_reason"] is None
+    assert row["must_not_use_for_decision"] is False
+    assert row["blocked_reason"] == ""
 
 
 @pytest.mark.django_db

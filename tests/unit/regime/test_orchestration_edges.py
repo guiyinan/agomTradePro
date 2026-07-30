@@ -110,6 +110,26 @@ def test_calculation_skip_fallback_and_notification_skip(monkeypatch) -> None:
     assert fallback["is_fallback"] is True
     assert fallback["data_source"] == "cached"
 
+    monkeypatch.setattr(
+        current_regime,
+        "resolve_current_regime",
+        lambda **kwargs: SimpleNamespace(
+            observed_at=None,
+            dominant_regime="Unknown",
+            confidence=0.0,
+            warnings=["missing"],
+            data_source="none",
+            is_fallback=True,
+            must_not_use_for_decision=True,
+            blocked_reason="regime_data_unavailable",
+        ),
+    )
+    blocked = orchestration.calculate_regime_after_sync(as_of_date="2026-07-24")
+    assert blocked["status"] == "blocked"
+    assert blocked["observed_at"] is None
+    assert blocked["must_not_use_for_decision"] is True
+    assert blocked["blocked_reason"] == "regime_data_unavailable"
+
 
 def test_invalid_daily_signal_payload_fails_closed(monkeypatch) -> None:
     monkeypatch.setattr(orchestration, "build_macro_data_provider", lambda: object())

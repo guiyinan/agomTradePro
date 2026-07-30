@@ -1,5 +1,5 @@
 from concurrent.futures import TimeoutError as FutureTimeoutError
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
@@ -17,6 +17,7 @@ def client():
 
 @pytest.mark.django_db
 def test_market_summary_returns_major_index_snapshot(client):
+    observed_at = datetime.now(UTC).isoformat()
     mock_use_case = Mock()
     mock_use_case.get_latest_prices.return_value = [
         {
@@ -25,7 +26,7 @@ def test_market_summary_returns_major_index_snapshot(client):
             "change": 12.3,
             "change_pct": 0.39,
             "volume": 1000,
-            "timestamp": "2026-04-02T10:30:00+00:00",
+            "timestamp": observed_at,
         },
         {
             "asset_code": "399006.SZ",
@@ -33,7 +34,7 @@ def test_market_summary_returns_major_index_snapshot(client):
             "change": -5.1,
             "change_pct": -0.24,
             "volume": 500,
-            "timestamp": "2026-04-02T10:31:00+00:00",
+            "timestamp": observed_at,
         },
     ]
 
@@ -48,7 +49,11 @@ def test_market_summary_returns_major_index_snapshot(client):
     assert payload["cyb_index"] == 2100.1
     assert payload["total_volume"] == 1500
     assert payload["stats_available"] is False
-    assert payload["timestamp"] == "2026-04-02T10:31:00+00:00"
+    assert payload["timestamp"] == observed_at
+    assert payload["available_index_count"] == 2
+    assert payload["is_partial"] is True
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["contract"]["missing_index_codes"] == ["399001.SZ"]
 
 
 @pytest.mark.django_db
@@ -66,7 +71,48 @@ def test_market_summary_returns_503_when_all_indexes_missing(client):
     assert payload["sh_index"] is None
     assert payload["sz_index"] is None
     assert payload["cyb_index"] is None
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["contract"]["is_reliable"] is False
     assert "cache or configured providers" in payload["message"]
+
+
+@pytest.mark.django_db
+def test_market_summary_marks_complete_fresh_index_set_reliable(client):
+    observed_at = datetime.now(UTC).isoformat()
+    mock_use_case = Mock()
+    mock_use_case.get_latest_prices.return_value = [
+        {
+            "asset_code": code,
+            "price": price,
+            "change": None,
+            "change_pct": None,
+            "volume": 100,
+            "timestamp": observed_at,
+        }
+        for code, price in (
+            ("000001.SH", 3804.69),
+            ("399001.SZ", 13285.80),
+            ("399006.SZ", 3244.62),
+        )
+    ]
+
+    with patch("apps.realtime.interface.views.PricePollingUseCase", return_value=mock_use_case):
+        response = client.get("/api/realtime/market-summary/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["available_index_count"] == 3
+    assert payload["is_partial"] is False
+    assert payload["must_not_use_for_decision"] is False
+    assert payload["contract"] == {
+        "observed_at": observed_at,
+        "market_data_as_of": observed_at,
+        "is_reliable": True,
+        "is_stale": False,
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+        "missing_index_codes": [],
+    }
 
 
 @pytest.mark.django_db
@@ -80,9 +126,12 @@ def test_realtime_health_timeout_returns_unhealthy_payload(client):
     mock_executor = Mock()
     mock_executor.submit.return_value = mock_future
 
-    with patch("apps.realtime.interface.views.PricePollingUseCase", return_value=mock_use_case), patch(
-        "apps.realtime.interface.views.ThreadPoolExecutor",
-        return_value=mock_executor,
+    with (
+        patch("apps.realtime.interface.views.PricePollingUseCase", return_value=mock_use_case),
+        patch(
+            "apps.realtime.interface.views.ThreadPoolExecutor",
+            return_value=mock_executor,
+        ),
     ):
         response = client.get("/api/realtime/health/")
 
@@ -132,6 +181,9 @@ def test_sector_performance_is_strict_authenticated_persisted_read(client):
     assert response.json()["count"] == 1
     assert response.json()["results"][0]["sector_code"] == sector.sector_code
     assert response.json()["results"][0]["change_percent"] == 1.2
+    assert response.json()["results"][0]["is_stale"] is True
+    assert response.json()["results"][0]["must_not_use_for_decision"] is True
+    assert response.json()["results"][0]["blocked_reason"] == "sector_price_stale"
     assert unknown_response.status_code == 400
     assert "Unknown query parameters: refresh" in str(unknown_response.json())
     after = {
@@ -171,6 +223,10 @@ def test_top_movers_is_authenticated_cached_read(client):
         "results": cached,
         "count": 2,
         "source": "cached_monitored_prices",
+        "is_reliable": True,
+        "is_stale": False,
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
     }
     query.assert_called_once_with(direction="up", limit=2)
 

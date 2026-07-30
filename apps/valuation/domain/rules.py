@@ -36,7 +36,10 @@ class ValuationPayloadPolicy:
             return False
         if payload.get("is_legacy") is True:
             return False
-        if str(payload.get("valuation_method") or "").lower() == "legacy":
+        if str(payload.get("valuation_method") or "").lower() in {
+            "fallback",
+            "legacy",
+        }:
             return False
         if not cls._has_acceptable_quality(payload):
             return False

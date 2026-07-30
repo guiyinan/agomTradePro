@@ -172,9 +172,7 @@ def asset_screen_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     统一的多资产筛选和资产池管理界面
     """
     from apps.policy.application.repository_provider import get_current_policy_repository
-    from apps.sentiment.application.repository_provider import (
-        get_sentiment_index_repository,
-    )
+    from apps.sentiment.application.current_sentiment import resolve_current_sentiment
 
     # 获取当前上下文信息
     current_regime = resolve_current_regime()
@@ -182,8 +180,8 @@ def asset_screen_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     policy_repo = get_current_policy_repository()
     latest_policy = policy_repo.get_current_policy_level()
 
-    sentiment_repo = get_sentiment_index_repository()
-    latest_sentiment = sentiment_repo.get_latest()
+    current_sentiment = resolve_current_sentiment()
+    latest_sentiment = current_sentiment.index
 
     regime_display = {
         "Recovery": "复苏",
@@ -207,8 +205,12 @@ def asset_screen_view(request: AuthenticatedHttpRequest) -> HttpResponse:
             policy_display.get(latest_policy.value) if latest_policy else "P1（宽松）"
         ),
         "sentiment_index": (
-            f"{latest_sentiment.composite_index:.2f}" if latest_sentiment else "0.00"
+            f"{latest_sentiment.composite_index:.2f}" if latest_sentiment else "N/A"
         ),
+        "sentiment_observed_at": current_sentiment.observed_at,
+        "sentiment_freshness_status": current_sentiment.freshness_status,
+        "sentiment_must_not_use_for_decision": current_sentiment.must_not_use_for_decision,
+        "sentiment_blocked_reason": current_sentiment.blocked_reason,
     }
 
     return render(request, "asset_analysis/screen.html", context)

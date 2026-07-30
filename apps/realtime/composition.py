@@ -27,7 +27,10 @@ def get_realtime_price_repository() -> RealtimePriceRepositoryProtocol:
     return RedisRealtimePriceRepository()
 
 
-def get_realtime_price_provider() -> PriceDataProviderProtocol:
+def get_realtime_price_provider(
+    *,
+    max_price_age_seconds: int = 300,
+) -> PriceDataProviderProtocol:
     """Build the default failover chain for realtime prices."""
     from apps.realtime.infrastructure.repositories import (
         AKSharePriceDataProvider,
@@ -42,7 +45,10 @@ def get_realtime_price_provider() -> PriceDataProviderProtocol:
     except Exception:
         pass
     providers.extend([AKSharePriceDataProvider(), TusharePriceDataProvider()])
-    return CompositePriceDataProvider(providers)
+    return CompositePriceDataProvider(
+        providers,
+        max_price_age_seconds=max_price_age_seconds,
+    )
 
 
 def get_watchlist_provider() -> WatchlistProviderProtocol:

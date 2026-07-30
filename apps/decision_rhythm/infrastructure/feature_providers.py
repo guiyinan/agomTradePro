@@ -10,15 +10,19 @@ Bottom-up（舆情/资金/技术/基本面/Alpha）特征获取。
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
+from django.utils import timezone
+
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
+from apps.realtime.domain.entities import PricePollingConfig
 from shared.numeric import safe_float
 
 from ..application.use_cases import (
     CandidateProviderProtocol,
     FeatureDataProviderProtocol,
+    FeatureFreshnessContract,
     SignalProviderProtocol,
 )
 from .valuation_provider import AssetValuationProvider
@@ -29,7 +33,6 @@ if TYPE_CHECKING:
     from apps.equity.infrastructure.repositories import DjangoStockRepository
     from apps.policy.infrastructure.repositories import DjangoPolicyRepository
     from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
-    from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
 
 logger = logging.getLogger(__name__)
 
@@ -102,11 +105,24 @@ class RegimeFeatureProvider:
                 "data_source": result.data_source,
                 "is_fallback": result.is_fallback,
                 "warnings": result.warnings,
+                "freshness_status": "stale" if result.is_stale else "fresh",
+                "must_not_use_for_decision": result.must_not_use_for_decision,
+                "blocked_reason": result.blocked_reason,
             }
 
         except Exception as e:
             logger.error(f"Failed to get regime: {e}", exc_info=True)
-            return None
+            return {
+                "regime": "",
+                "confidence": 0.0,
+                "observed_at": None,
+                "data_source": "",
+                "is_fallback": False,
+                "warnings": ["regime_resolution_failed"],
+                "freshness_status": "unavailable",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "regime_resolution_failed",
+            }
 
 
 class PolicyFeatureProvider:
@@ -251,15 +267,16 @@ class SentimentFeatureProvider:
     """
 
     def __init__(self) -> None:
-        self._sentiment_repository: SentimentIndexRepository | None = None
+        self._sentiment_freshness: dict[str, FeatureFreshnessContract] = {}
 
-    def _get_sentiment_repository(self) -> SentimentIndexRepository:
-        """延迟加载 repository"""
-        if self._sentiment_repository is None:
-            from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
+    def get_feature_freshness_contracts(
+        self,
+        security_code: str,
+    ) -> dict[str, FeatureFreshnessContract]:
+        """Return the latest sentiment quality contract for one security."""
 
-            self._sentiment_repository = SentimentIndexRepository()
-        return self._sentiment_repository
+        contract = self._sentiment_freshness.get(security_code)
+        return {"sentiment": contract} if contract is not None else {}
 
     def get_sentiment_score(self, security_code: str) -> float:
         """
@@ -272,23 +289,36 @@ class SentimentFeatureProvider:
             舆情分数 (0-1)
         """
         try:
-            from datetime import date
+            from apps.sentiment.application.current_sentiment import resolve_current_sentiment
 
-            repo = self._get_sentiment_repository()
-
-            # 获取最新的舆情指数（市场级别）
-            latest = repo.get_by_date(date.today())
-
-            if latest and hasattr(latest, "composite_index"):
+            result = resolve_current_sentiment()
+            self._sentiment_freshness[security_code] = FeatureFreshnessContract(
+                observed_at=result.observed_at.isoformat() if result.observed_at else None,
+                freshness_status=result.freshness_status,
+                must_not_use_for_decision=result.must_not_use_for_decision,
+                blocked_reason=result.blocked_reason,
+            )
+            if not result.must_not_use_for_decision and result.index is not None:
                 # composite_index 范围是 -3.0 到 +3.0，归一化到 0-1
-                score = float(latest.composite_index)
+                score = float(result.index.composite_index)
                 normalized = (score + 3.0) / 6.0  # -3~3 -> 0~1
                 return max(0.0, min(1.0, normalized))
 
+            logger.warning(
+                "Sentiment feature blocked for %s: %s",
+                security_code,
+                result.blocked_reason,
+            )
             return 0.5  # 默认中性
 
         except Exception as e:
             logger.warning(f"Failed to get sentiment score for {security_code}: {e}")
+            self._sentiment_freshness[security_code] = FeatureFreshnessContract(
+                observed_at=None,
+                freshness_status="unavailable",
+                must_not_use_for_decision=True,
+                blocked_reason="sentiment_resolution_failed",
+            )
             return 0.5
 
 
@@ -299,8 +329,19 @@ class FlowFeatureProvider:
     从账户或行情数据获取资金流向分数。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, polling_config: PricePollingConfig | None = None) -> None:
         self._flow_repository: RedisRealtimePriceRepository | None = None
+        self._polling_config = polling_config or PricePollingConfig()
+        self._flow_freshness: dict[str, FeatureFreshnessContract] = {}
+
+    def get_feature_freshness_contracts(
+        self,
+        security_code: str,
+    ) -> dict[str, FeatureFreshnessContract]:
+        """Return the latest flow quality contract for one security."""
+
+        contract = self._flow_freshness.get(security_code)
+        return {"flow": contract} if contract is not None else {}
 
     def _get_flow_repository(self) -> RedisRealtimePriceRepository:
         """延迟加载 repository"""
@@ -324,8 +365,20 @@ class FlowFeatureProvider:
             # 尝试从行情数据获取资金流向
             repo = self._get_flow_repository()
             price = repo.get_latest_price(security_code)
+            reference_time = timezone.now()
 
-            if price:
+            if price is not None and price.is_fresh(
+                reference_time=reference_time,
+                max_age=timedelta(
+                    seconds=self._polling_config.max_price_age_seconds,
+                ),
+            ):
+                self._flow_freshness[security_code] = FeatureFreshnessContract(
+                    observed_at=price.timestamp.isoformat(),
+                    freshness_status="fresh",
+                    must_not_use_for_decision=False,
+                    blocked_reason="",
+                )
                 # 使用成交量作为资金流向的代理指标
                 # 成交量越大，表示资金越活跃
                 if hasattr(price, "volume") and price.volume:
@@ -338,11 +391,48 @@ class FlowFeatureProvider:
                         mid_point = 100_000_000  # 1亿
                         score = 1 / (1 + math.exp(-(volume - mid_point) / mid_point))
                         return max(0.0, min(1.0, score))
+                self._flow_freshness[security_code] = FeatureFreshnessContract(
+                    observed_at=price.timestamp.isoformat(),
+                    freshness_status="insufficient",
+                    must_not_use_for_decision=True,
+                    blocked_reason="flow_volume_missing",
+                )
+            elif price is not None:
+                if timezone.is_naive(price.timestamp):
+                    status = "naive"
+                elif price.timestamp > reference_time:
+                    status = "future"
+                else:
+                    status = "stale"
+                self._flow_freshness[security_code] = FeatureFreshnessContract(
+                    observed_at=price.timestamp.isoformat(),
+                    freshness_status=status,
+                    must_not_use_for_decision=True,
+                    blocked_reason=f"flow_price_{status}",
+                )
+                logger.info(
+                    "Ignore unusable flow observation for %s: observed_at=%s",
+                    security_code,
+                    price.timestamp,
+                )
+            else:
+                self._flow_freshness[security_code] = FeatureFreshnessContract(
+                    observed_at=None,
+                    freshness_status="missing",
+                    must_not_use_for_decision=True,
+                    blocked_reason="flow_price_missing",
+                )
 
             return 0.5
 
         except Exception as e:
             logger.warning(f"Failed to get flow score for {security_code}: {e}")
+            self._flow_freshness[security_code] = FeatureFreshnessContract(
+                observed_at=None,
+                freshness_status="unavailable",
+                must_not_use_for_decision=True,
+                blocked_reason="flow_provider_failed",
+            )
             return 0.5
 
 
@@ -611,6 +701,17 @@ class CompositeFeatureProvider(
 
     def get_flow_score(self, security_code: str) -> float:
         return FlowFeatureProvider.get_flow_score(self, security_code)
+
+    def get_feature_freshness_contracts(
+        self,
+        security_code: str,
+    ) -> dict[str, FeatureFreshnessContract]:
+        """Merge optional freshness metadata from bottom-up providers."""
+
+        return {
+            **SentimentFeatureProvider.get_feature_freshness_contracts(self, security_code),
+            **FlowFeatureProvider.get_feature_freshness_contracts(self, security_code),
+        }
 
     def get_technical_score(self, security_code: str) -> float:
         return TechnicalFeatureProvider.get_technical_score(self, security_code)

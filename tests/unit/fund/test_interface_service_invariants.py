@@ -86,8 +86,13 @@ def test_dashboard_does_not_fabricate_missing_macro_state(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         interface_services,
-        "get_sentiment_index_repository",
-        lambda: SimpleNamespace(get_latest=lambda: None),
+        "resolve_current_sentiment",
+        lambda: SimpleNamespace(
+            index=None,
+            freshness_status="missing",
+            must_not_use_for_decision=True,
+            blocked_reason="sentiment_index_missing",
+        ),
     )
     monkeypatch.setattr(
         interface_services,

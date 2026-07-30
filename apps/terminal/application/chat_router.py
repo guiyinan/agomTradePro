@@ -269,16 +269,23 @@ class TerminalChatRouterService:
         policy_repo = get_current_policy_repository()
         policy = policy_repo.get_current_policy_level()
 
-        reply = "\n".join(
-            [
-                "## Current Market Regime",
-                f"- **Regime**: `{regime.dominant_regime}`",
-                f"- **Confidence**: `{regime.confidence * 100:.1f}%`",
-                f"- **Source**: `{regime.data_source}`",
-                f"- **Observed At**: `{regime.observed_at}`",
-                f"- **Policy Level**: `{policy.value}`",
-            ]
-        )
+        regime_blocked = bool(getattr(regime, "must_not_use_for_decision", False))
+        reply_lines = [
+            "## Current Market Regime",
+            f"- **Regime**: `{regime.dominant_regime}`",
+            f"- **Confidence**: `{regime.confidence * 100:.1f}%`",
+            f"- **Source**: `{regime.data_source}`",
+            f"- **Observed At**: `{regime.observed_at}`",
+            f"- **Policy Level**: `{policy.value}`",
+        ]
+        if regime_blocked:
+            reply_lines.append(
+                "- **Decision Safety**: `BLOCKED` — 当前 Regime 仅供诊断，不得用于投资决策。"
+            )
+            reply_lines.append(
+                f"- **Blocked Reason**: `{getattr(regime, 'blocked_reason', '') or 'regime_data_unavailable'}`"
+            )
+        reply = "\n".join(reply_lines)
 
         return {
             "reply": reply,
@@ -289,6 +296,12 @@ class TerminalChatRouterService:
                 "route": "market_regime",
                 "intent": decision.intent,
                 "intent_confidence": decision.confidence,
+                "current_data_contract": {
+                    "observed_at": regime.observed_at,
+                    "is_stale": bool(getattr(regime, "is_stale", False)),
+                    "must_not_use_for_decision": regime_blocked,
+                    "blocked_reason": str(getattr(regime, "blocked_reason", "") or ""),
+                },
                 **self._metadata_answer_chain(
                     answer_chain_enabled,
                     self._build_regime_chain(decision, regime, policy, user_is_admin),

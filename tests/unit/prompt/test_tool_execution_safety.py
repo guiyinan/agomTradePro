@@ -1,5 +1,6 @@
 """Safety coverage for Prompt Agent tool-provider execution."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -50,3 +51,27 @@ def test_regime_failure_does_not_fabricate_recovery_state(
     }
     assert "Recovery" not in str(result)
     assert "must-not-leak" not in str(result)
+
+
+def test_regime_adapter_preserves_missing_observation_and_decision_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prompt context must not convert a missing source date into request time."""
+    monkeypatch.setattr(
+        regime_adapter_module,
+        "resolve_current_regime",
+        lambda **kwargs: SimpleNamespace(
+            observed_at=None,
+            dominant_regime="Unknown",
+            confidence=0.0,
+            must_not_use_for_decision=True,
+            blocked_reason="regime_data_unavailable",
+        ),
+    )
+
+    result = RegimeDataAdapter().get_current_regime()
+
+    assert result is not None
+    assert result["as_of_date"] is None
+    assert result["must_not_use_for_decision"] is True
+    assert result["blocked_reason"] == "regime_data_unavailable"

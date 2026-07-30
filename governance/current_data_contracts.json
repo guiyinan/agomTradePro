@@ -1,0 +1,624 @@
+{
+  "schema_version": 1,
+  "contracts": [
+    {
+      "id": "realtime.market_summary",
+      "surface": "GET /api/realtime/market-summary/ + MCP get_market_summary",
+      "source_files": [
+        "apps/realtime/domain/entities.py",
+        "apps/realtime/application/price_polling_service.py",
+        "apps/realtime/infrastructure/repositories.py",
+        "apps/realtime/interface/views.py",
+        "sdk/agomtradepro_mcp/tools/realtime_tools.py"
+      ],
+      "required_markers": {
+        "apps/realtime/domain/entities.py": [
+          "def is_fresh("
+        ],
+        "apps/realtime/application/price_polling_service.py": [
+          "price.is_fresh(reference_time="
+        ],
+        "apps/realtime/infrastructure/repositories.py": [
+          "_daily_bar_observed_at(",
+          "Ignoring stale realtime price"
+        ],
+        "apps/realtime/interface/views.py": [
+          "\"market_data_as_of\": latest_timestamp",
+          "\"must_not_use_for_decision\": not is_reliable"
+        ],
+        "sdk/agomtradepro_mcp/tools/realtime_tools.py": [
+          "contract.must_not_use_for_decision=true"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "observation_boundary",
+          "test_file": "tests/unit/domain/test_realtime_domain_edges.py",
+          "test_function": "test_realtime_price_freshness_rejects_old_future_and_naive_timestamps"
+        },
+        {
+          "case": "fallback_continues",
+          "test_file": "tests/unit/test_realtime_akshare_provider.py",
+          "test_function": "test_composite_price_provider_skips_stale_result_and_uses_next_provider"
+        },
+        {
+          "case": "stale_cache_replaced",
+          "test_file": "tests/component/test_realtime_views.py",
+          "test_function": "test_price_polling_use_case_replaces_stale_cached_price_from_provider"
+        },
+        {
+          "case": "incomplete_contract_blocked",
+          "test_file": "tests/api/test_realtime_api.py",
+          "test_function": "test_market_summary_returns_major_index_snapshot"
+        }
+      ]
+    },
+    {
+      "id": "data_center.latest_quote",
+      "surface": "GET /api/data-center/prices/quotes/",
+      "source_files": [
+        "apps/data_center/application/query_use_cases.py",
+        "apps/data_center/interface/api_views.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/query_use_cases.py": [
+          "freshness_status = \"stale\" if quote_is_stale else \"fresh\"",
+          "must_not_use_for_decision=quote_is_stale"
+        ],
+        "apps/data_center/interface/api_views.py": [
+          "strict_freshness and result.must_not_use_for_decision"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_blocked",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_marks_stale_quote_as_non_decision_grade"
+        },
+        {
+          "case": "latest_session_accepted",
+          "test_file": "tests/unit/data_center/test_use_cases.py",
+          "test_function": "test_accepts_latest_completed_session_quote_on_weekend"
+        },
+        {
+          "case": "strict_api_blocked",
+          "test_file": "tests/api/test_data_center_route_cleanup.py",
+          "test_function": "test_data_center_quotes_strict_freshness_blocks_stale_snapshot"
+        }
+      ]
+    },
+    {
+      "id": "data_center.unified_price",
+      "surface": "UnifiedPriceService -> Account/Simulated Trading",
+      "source_files": [
+        "apps/data_center/application/price_service.py",
+        "apps/account/application/market_price_contracts.py",
+        "apps/account/infrastructure/market_price_service.py",
+        "apps/simulated_trading/infrastructure/price_provider.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/price_service.py": [
+          "QueryLatestQuoteUseCase(self._dc_quote_repo).execute(",
+          "observed_at=quote.snapshot_at"
+        ],
+        "apps/account/application/market_price_contracts.py": [
+          "实时价格结果必须包含源观测时间"
+        ],
+        "apps/account/infrastructure/market_price_service.py": [
+          "\"timestamp\": result.observed_at",
+          "\"observed_at\": result.observed_at"
+        ],
+        "apps/simulated_trading/infrastructure/price_provider.py": [
+          "observed_at=result.observed_at"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_quote_falls_back",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_get_latest_price_rejects_stale_quote_and_uses_close_fallback"
+        },
+        {
+          "case": "realtime_requires_observation",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_price_lookup_result_requires_real_observation_time_for_realtime"
+        },
+        {
+          "case": "observation_preserved",
+          "test_file": "tests/unit/account/test_market_price_service.py",
+          "test_function": "test_get_price_with_metadata_preserves_source_observation_time"
+        }
+      ]
+    },
+    {
+      "id": "pulse.current",
+      "surface": "GET /api/pulse/current/",
+      "source_files": [
+        "apps/pulse/interface/api_views.py"
+      ],
+      "required_markers": {
+        "apps/pulse/interface/api_views.py": [
+          "must_not_use_for_decision = not snapshot.is_reliable",
+          "\"market_data_as_of\": market_data_as_of"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_snapshot_blocked",
+          "test_file": "tests/api/test_pulse_api.py",
+          "test_function": "test_pulse_current_api_marks_stale_snapshot_as_diagnostic_only"
+        }
+      ]
+    },
+    {
+      "id": "regime.action_recommendation",
+      "surface": "GET /api/regime/action/",
+      "source_files": [
+        "apps/regime/application/navigator_use_cases.py",
+        "apps/regime/interface/api_views.py"
+      ],
+      "required_markers": {
+        "apps/regime/application/navigator_use_cases.py": [
+          "must_not_use_for_decision=True",
+          "blocked_code=blocked_code"
+        ],
+        "apps/regime/interface/api_views.py": [
+          "\"must_not_use_for_decision\": contract[\"must_not_use_for_decision\"]"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "unreliable_pulse_blocks_action",
+          "test_file": "tests/api/test_regime_action_api.py",
+          "test_function": "test_regime_action_api_returns_blocked_contract_for_unreliable_pulse"
+        }
+      ]
+    },
+    {
+      "id": "data_center.market_thermometer",
+      "surface": "GET /api/data-center/market-thermometer/current/",
+      "source_files": [
+        "apps/data_center/application/market_thermometer_calculate.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/market_thermometer_calculate.py": [
+          "must_not_use_for_decision = len(valid_components) < config.min_valid_components",
+          "if persist and (persist_blocked or not snapshot.must_not_use_for_decision)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_snapshot_recalculated",
+          "test_file": "tests/unit/data_center/test_market_thermometer.py",
+          "test_function": "test_build_current_payload_recalculates_when_latest_snapshot_is_stale"
+        }
+      ]
+    },
+    {
+      "id": "realtime.price_polling_side_effects",
+      "surface": "PricePollingService persistence, alerts, positions, and cached movers",
+      "source_files": [
+        "apps/realtime/application/price_polling_service.py"
+      ],
+      "required_markers": {
+        "apps/realtime/application/price_polling_service.py": [
+          "def _fresh_prices(",
+          "prices = self._fresh_prices(",
+          "def get_cached_monitored_prices("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_provider_has_no_side_effects",
+          "test_file": "tests/component/test_realtime_views.py",
+          "test_function": "test_price_polling_service_rejects_stale_provider_prices_before_side_effects"
+        },
+        {
+          "case": "single_stale_observation_rejected",
+          "test_file": "tests/component/test_realtime_views.py",
+          "test_function": "test_poll_single_asset_rejects_stale_provider_observation"
+        },
+        {
+          "case": "stale_cache_excluded",
+          "test_file": "tests/component/test_realtime_views.py",
+          "test_function": "test_cached_monitored_prices_exclude_stale_observations"
+        }
+      ]
+    },
+    {
+      "id": "realtime.sector_performance",
+      "surface": "GET /api/realtime/sectors/",
+      "source_files": [
+        "apps/realtime/application/query_services.py",
+        "apps/realtime/interface/views.py"
+      ],
+      "required_markers": {
+        "apps/realtime/application/query_services.py": [
+          "daily_market_observation_status(",
+          "\"must_not_use_for_decision\": is_stale"
+        ],
+        "apps/realtime/interface/views.py": [
+          "results = list_realtime_sector_performance_payloads()"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "sector_rows_publish_contract",
+          "test_file": "tests/api/test_realtime_api.py",
+          "test_function": "test_sector_performance_is_strict_authenticated_persisted_read"
+        }
+      ]
+    },
+    {
+      "id": "data_center.close_and_nav_fallbacks",
+      "surface": "UnifiedPriceService daily close and fund NAV fallback chain",
+      "source_files": [
+        "apps/data_center/application/price_service.py",
+        "apps/data_center/application/query_use_cases.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/price_service.py": [
+          "def require_latest_price_result(",
+          "latest_daily_market_observation_is_current(",
+          "Stored fund NAV rejected by freshness contract"
+        ],
+        "apps/data_center/application/query_use_cases.py": [
+          "def latest_daily_market_observation_is_current("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_close_rejected",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_get_latest_price_rejects_stale_close_fallback"
+        },
+        {
+          "case": "stale_nav_rejected",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_latest_fund_nav_rejects_stale_observation"
+        },
+        {
+          "case": "stale_nav_continues_failover",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_stale_stored_fund_nav_continues_to_fresh_adapter"
+        }
+      ]
+    },
+    {
+      "id": "valuation.current_price_fallback",
+      "surface": "Asset valuation observable market-price fallback",
+      "source_files": [
+        "apps/valuation/infrastructure/providers.py",
+        "apps/valuation/application/use_cases.py"
+      ],
+      "required_markers": {
+        "apps/valuation/infrastructure/providers.py": [
+          "self._price_service.require_latest_price_result(security_code)",
+          "return price, f\"{source}:{freshness}\""
+        ],
+        "apps/valuation/application/use_cases.py": [
+          "snapshot.valuation_method != \"FALLBACK\"",
+          "def _matches_current_price("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "canonical_price_service_used",
+          "test_file": "tests/unit/valuation/test_asset_valuation_service.py",
+          "test_function": "test_observable_market_price_uses_canonical_freshness_service"
+        },
+        {
+          "case": "persisted_fallback_cannot_bypass",
+          "test_file": "tests/unit/valuation/test_asset_valuation_service.py",
+          "test_function": "test_persisted_price_fallback_cannot_bypass_canonical_price"
+        },
+        {
+          "case": "today_fallback_revalidated",
+          "test_file": "tests/unit/valuation/test_asset_valuation_service.py",
+          "test_function": "test_today_fallback_cannot_bypass_unavailable_canonical_price"
+        }
+      ]
+    },
+    {
+      "id": "regime.current",
+      "surface": "GET /api/regime/current/ -> SDK/MCP/Terminal",
+      "source_files": [
+        "apps/regime/application/current_regime.py",
+        "apps/regime/application/interface_services.py",
+        "apps/regime/application/orchestration.py",
+        "apps/prompt/infrastructure/adapters/regime_adapter.py",
+        "sdk/agomtradepro/modules/regime.py",
+        "apps/terminal/application/chat_router.py"
+      ],
+      "required_markers": {
+        "apps/regime/application/current_regime.py": [
+          "REGIME_MAX_MACRO_AGE_DAYS",
+          "blocked_reason=\"regime_macro_observation_stale\" if is_stale else \"\"",
+          "blocked_reason=\"regime_data_unavailable\""
+        ],
+        "apps/regime/application/interface_services.py": [
+          "\"must_not_use_for_decision\": latest.must_not_use_for_decision"
+        ],
+        "apps/regime/application/orchestration.py": [
+          "\"status\": \"blocked\" if must_not_use_for_decision else \"success\"",
+          "result.observed_at.isoformat() if result.observed_at is not None else None"
+        ],
+        "apps/prompt/infrastructure/adapters/regime_adapter.py": [
+          "current.observed_at.isoformat() if current.observed_at is not None else None",
+          "\"must_not_use_for_decision\": current.must_not_use_for_decision"
+        ],
+        "sdk/agomtradepro/modules/regime.py": [
+          "contract.get(\"must_not_use_for_decision\", False)"
+        ],
+        "apps/terminal/application/chat_router.py": [
+          "\"current_data_contract\""
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "macro_observation_preserved_and_stale_blocked",
+          "test_file": "tests/unit/regime/test_current_regime_freshness.py",
+          "test_function": "test_current_regime_preserves_macro_observation_and_blocks_stale_result"
+        },
+        {
+          "case": "sdk_missing_observation_not_laundered",
+          "test_file": "sdk/tests/test_sdk/test_regime_module.py",
+          "test_function": "test_get_current_preserves_missing_observation_and_decision_block"
+        },
+        {
+          "case": "terminal_discloses_block",
+          "test_file": "tests/unit/terminal/test_chat_router.py",
+          "test_function": "test_regime_response_discloses_stale_decision_block"
+        },
+        {
+          "case": "prompt_missing_observation_not_laundered",
+          "test_file": "tests/unit/prompt/test_tool_execution_safety.py",
+          "test_function": "test_regime_adapter_preserves_missing_observation_and_decision_block"
+        },
+        {
+          "case": "orchestration_missing_observation_blocked",
+          "test_file": "tests/unit/regime/test_orchestration_edges.py",
+          "test_function": "test_calculation_skip_fallback_and_notification_skip"
+        }
+      ]
+    },
+    {
+      "id": "sentiment.current",
+      "surface": "Latest sentiment -> Fund and Asset Analysis decision consumers",
+      "source_files": [
+        "apps/sentiment/application/current_sentiment.py",
+        "apps/sentiment/application/interface_services.py",
+        "apps/asset_analysis/interface/pool_views.py",
+        "apps/fund/application/interface_services.py"
+      ],
+      "required_markers": {
+        "apps/sentiment/application/current_sentiment.py": [
+          "def resolve_current_sentiment(",
+          "blocked_reason=\"sentiment_index_stale\"",
+          "blocked_reason=\"sentiment_data_insufficient\""
+        ],
+        "apps/sentiment/application/interface_services.py": [
+          "\"must_not_use_for_decision\": current.must_not_use_for_decision"
+        ],
+        "apps/asset_analysis/interface/pool_views.py": [
+          "context_payload.sentiment_must_not_use_for_decision"
+        ],
+        "apps/fund/application/interface_services.py": [
+          "resolve_current_sentiment()"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_sentiment_blocked",
+          "test_file": "tests/unit/sentiment/test_current_sentiment_contract.py",
+          "test_function": "test_current_sentiment_blocks_stale_latest_row"
+        },
+        {
+          "case": "insufficient_sentiment_blocked",
+          "test_file": "tests/unit/sentiment/test_current_sentiment_contract.py",
+          "test_function": "test_current_sentiment_blocks_insufficient_same_day_data"
+        },
+        {
+          "case": "asset_pool_cannot_neutralize_stale_sentiment",
+          "test_file": "tests/unit/asset_analysis/test_current_sentiment_safety.py",
+          "test_function": "test_asset_pool_context_does_not_score_with_stale_sentiment"
+        }
+      ]
+    },
+    {
+      "id": "regime.cached_action_and_decision_context",
+      "surface": "Cached action recommendation and core decision steps",
+      "source_files": [
+        "apps/regime/domain/action_mapper.py",
+        "apps/regime/application/navigator_use_cases.py",
+        "core/application/decision_context.py"
+      ],
+      "required_markers": {
+        "apps/regime/domain/action_mapper.py": [
+          "def cached_action_is_stale("
+        ],
+        "apps/regime/application/navigator_use_cases.py": [
+          "action_is_stale = cached_action_is_stale(",
+          "latest_regime = resolve_current_regime(as_of_date=target_date)"
+        ],
+        "core/application/decision_context.py": [
+          "latest_regime = resolve_current_regime(as_of_date=target_date)",
+          "blocked_reason=\"action_recommendation_missing\""
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "cached_action_stale_blocked",
+          "test_file": "tests/unit/regime/test_navigator_use_cases.py",
+          "test_function": "test_cached_action_recommendation_blocks_stale_log"
+        },
+        {
+          "case": "stale_regime_blocks_step1",
+          "test_file": "tests/unit/core/test_decision_context.py",
+          "test_function": "test_step1_context_blocks_stale_regime_even_with_strong_pulse"
+        },
+        {
+          "case": "blocked_action_has_no_weights",
+          "test_file": "tests/unit/core/test_decision_context.py",
+          "test_function": "test_step2_direction_removes_weights_from_blocked_cached_action"
+        }
+      ]
+    },
+    {
+      "id": "account.latest_exchange_rate",
+      "surface": "Latest FX rate, implicit conversion, and portfolio currency allocation",
+      "source_files": [
+        "apps/account/domain/services.py",
+        "apps/account/application/interface_services.py"
+      ],
+      "required_markers": {
+        "apps/account/domain/services.py": [
+          "def assess_exchange_rate_freshness(",
+          "blocked_reason=\"exchange_rate_future_dated\"",
+          "blocked_reason=\"exchange_rate_stale\" if is_stale else \"\""
+        ],
+        "apps/account/application/interface_services.py": [
+          "if latest.must_not_use_for_decision:",
+          "assessment = assess_exchange_rate_freshness("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "latest_contract",
+          "test_file": "tests/api/test_account_api_edges.py",
+          "test_function": "test_account_exchange_rate_latest_contract"
+        },
+        {
+          "case": "stale_implicit_conversion_blocked",
+          "test_file": "tests/api/test_account_api_edges.py",
+          "test_function": "test_account_exchange_rate_convert_rejects_stale_implicit_latest_rate"
+        },
+        {
+          "case": "future_implicit_conversion_blocked",
+          "test_file": "tests/api/test_account_api_edges.py",
+          "test_function": "test_account_exchange_rate_convert_rejects_future_implicit_latest_rate"
+        },
+        {
+          "case": "portfolio_allocation_cannot_bypass",
+          "test_file": "tests/unit/account/test_t3a_interface_service_boundary_contracts.py",
+          "test_function": "test_currency_allocation_blocks_stale_implicit_exchange_rate"
+        }
+      ]
+    },
+    {
+      "id": "hedge.latest_snapshot",
+      "surface": "GET /api/hedge/snapshots/latest/",
+      "source_files": [
+        "apps/hedge/domain/services.py",
+        "apps/hedge/application/interface_services.py"
+      ],
+      "required_markers": {
+        "apps/hedge/domain/services.py": [
+          "def hedge_snapshot_freshness("
+        ],
+        "apps/hedge/application/interface_services.py": [
+          "is_stale, staleness_days = hedge_snapshot_freshness(",
+          "\"blocked_reason\": \"hedge_snapshot_stale\" if is_stale else \"\""
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "weekday_freshness_rule",
+          "test_file": "tests/unit/hedge/test_t4b_adapter_and_payload_contracts.py",
+          "test_function": "test_hedge_snapshot_freshness_counts_weekdays_and_fails_closed"
+        },
+        {
+          "case": "fresh_snapshot_actionable",
+          "test_file": "tests/unit/hedge/test_t4b_adapter_and_payload_contracts.py",
+          "test_function": "test_latest_hedge_snapshot_payload_keeps_fresh_observation_actionable"
+        },
+        {
+          "case": "stale_api_snapshot_blocked",
+          "test_file": "tests/api/test_hedge_api.py",
+          "test_function": "test_latest_snapshots_fail_closed_when_persisted_state_is_stale"
+        }
+      ]
+    },
+    {
+      "id": "rotation.latest_signal",
+      "surface": "GET /api/rotation/signals/latest/",
+      "source_files": [
+        "apps/rotation/interface/serializers.py"
+      ],
+      "required_markers": {
+        "apps/rotation/interface/serializers.py": [
+          "must_not_use_for_decision = serializers.SerializerMethodField()",
+          "blocked_reason = serializers.SerializerMethodField()"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "latest_signal_contract",
+          "test_file": "tests/api/test_rotation_api_edges.py",
+          "test_function": "test_rotation_latest_signal_exposes_quality_metadata"
+        }
+      ]
+    },
+    {
+      "id": "equity.intraday_validation_price",
+      "surface": "Equity intraday fallback consistency validation",
+      "source_files": [
+        "apps/equity/infrastructure/intraday_repository.py"
+      ],
+      "required_markers": {
+        "apps/equity/infrastructure/intraday_repository.py": [
+          "cached_price.is_fresh(",
+          "realtime_price.is_fresh("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_cache_continues_to_provider",
+          "test_file": "tests/unit/test_equity_repository_intraday.py",
+          "test_function": "test_intraday_validation_price_skips_stale_cache_and_uses_live_provider"
+        },
+        {
+          "case": "fresh_cache_accepted",
+          "test_file": "tests/unit/test_equity_repository_intraday.py",
+          "test_function": "test_intraday_validation_price_uses_fresh_cache_without_remote_call"
+        }
+      ]
+    },
+    {
+      "id": "decision_rhythm.feature_freshness",
+      "surface": "Decision Rhythm feature snapshot and unified recommendation",
+      "source_files": [
+        "apps/decision_rhythm/infrastructure/feature_providers.py",
+        "apps/decision_rhythm/application/decision_recommendation_use_cases.py"
+      ],
+      "required_markers": {
+        "apps/decision_rhythm/infrastructure/feature_providers.py": [
+          "resolve_current_sentiment()",
+          "resolve_current_regime()",
+          "def get_feature_freshness_contracts("
+        ],
+        "apps/decision_rhythm/application/decision_recommendation_use_cases.py": [
+          "extra_features={\"feature_freshness\": feature_freshness}",
+          "FEATURE_BLOCKED_"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stale_flow_neutralized_and_blocked",
+          "test_file": "tests/unit/decision_rhythm/test_flow_feature_freshness.py",
+          "test_function": "test_flow_score_returns_neutral_for_unusable_cache"
+        },
+        {
+          "case": "stale_sentiment_forces_hold",
+          "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
+          "test_function": "test_generate_holds_when_sentiment_feature_is_unavailable"
+        },
+        {
+          "case": "blocked_regime_forces_hold",
+          "test_file": "tests/unit/test_unified_recommendation_use_cases.py",
+          "test_function": "test_generate_holds_when_regime_is_blocked"
+        }
+      ]
+    }
+  ]
+}

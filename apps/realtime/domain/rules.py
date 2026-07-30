@@ -1,8 +1,30 @@
 """Realtime domain rules."""
 
+from datetime import date, timedelta
 from decimal import Decimal
 
 from apps.realtime.domain.entities import AlertCondition, PriceUpdateStatus
+
+
+def daily_market_observation_status(
+    observed_at: date,
+    *,
+    as_of_date: date,
+    max_business_days: int = 1,
+) -> tuple[bool, int]:
+    """Return stale state and weekday age for one daily market observation."""
+
+    if max_business_days < 0:
+        raise ValueError("max_business_days must be non-negative")
+    if observed_at > as_of_date:
+        return (True, 0)
+    current = observed_at + timedelta(days=1)
+    age = 0
+    while current <= as_of_date:
+        if current.weekday() < 5:
+            age += 1
+        current += timedelta(days=1)
+    return (age > max_business_days, age)
 
 
 def should_trigger_alert(

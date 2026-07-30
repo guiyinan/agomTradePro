@@ -12,7 +12,7 @@ from typing import Literal
 # Regime 相关类型
 # =============================================================================
 
-RegimeType = Literal["Recovery", "Overheat", "Stagflation", "Deflation"]
+RegimeType = Literal["Recovery", "Overheat", "Stagflation", "Deflation", "Unknown"]
 GrowthLevel = Literal["up", "down", "neutral"]
 InflationLevel = Literal["up", "down", "neutral"]
 
@@ -35,7 +35,7 @@ class RegimeState:
     """
 
     dominant_regime: RegimeType
-    observed_at: date
+    observed_at: date | None
     growth_level: GrowthLevel
     inflation_level: InflationLevel
     growth_indicator: str
@@ -43,6 +43,10 @@ class RegimeState:
     growth_value: float | None = None
     inflation_value: float | None = None
     confidence: float | None = None
+    diagnostic_regime: str | None = None
+    is_stale: bool = False
+    must_not_use_for_decision: bool = False
+    blocked_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -147,6 +151,7 @@ class CreateSignalParams:
 # =============================================================================
 # Macro 相关类型
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class MacroIndicator:
@@ -340,6 +345,7 @@ class SentimentGateState:
 # Backtest 相关类型
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class BacktestParams:
     """
@@ -383,6 +389,7 @@ class BacktestResult:
 # =============================================================================
 # Account 相关类型
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class Position:

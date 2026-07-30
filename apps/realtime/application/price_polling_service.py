@@ -11,6 +11,7 @@ Following AgomSaaS architecture rules:
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any, Protocol, TypedDict, cast
 
@@ -122,13 +123,20 @@ class PricePollingService:
         logger.info(f"Monitoring {total_assets} assets")
 
         # 2. Read old values before any provider fetch or persistence write.
+        reference_time = timezone.now()
         old_prices = {
             price.asset_code: price.price
-            for price in self.price_repository.get_latest_prices(asset_codes)
+            for price in self._fresh_prices(
+                self.price_repository.get_latest_prices(asset_codes),
+                reference_time=reference_time,
+            )
         }
 
         # 3. 批量获取价格
-        prices = self.price_provider.get_realtime_prices_batch(asset_codes)
+        prices = self._fresh_prices(
+            self.price_provider.get_realtime_prices_batch(asset_codes),
+            reference_time=reference_time,
+        )
 
         # 4. 保存价格到缓存
         if prices:
@@ -221,7 +229,10 @@ class PricePollingService:
         # 获取新价格
         new_price = self.price_provider.get_realtime_price(asset_code)
 
-        if new_price is None:
+        if new_price is None or not new_price.is_fresh(
+            reference_time=timezone.now(),
+            max_age=timedelta(seconds=self.config.max_price_age_seconds),
+        ):
             logger.warning(f"Failed to get price for {asset_code}")
             return PriceUpdate(
                 asset_code=asset_code,
@@ -257,6 +268,28 @@ class PricePollingService:
         )
 
         return update
+
+    def _fresh_prices(
+        self,
+        prices: list[RealtimePrice],
+        *,
+        reference_time: datetime,
+    ) -> list[RealtimePrice]:
+        """Reject stale or future provider observations before any side effect."""
+
+        max_age = timedelta(seconds=self.config.max_price_age_seconds)
+        fresh: list[RealtimePrice] = []
+        for price in prices:
+            if price.is_fresh(reference_time=reference_time, max_age=max_age):
+                fresh.append(price)
+                continue
+            logger.warning(
+                "Ignoring stale realtime provider price asset_code=%s observed_at=%s source=%s",
+                price.asset_code,
+                price.timestamp.isoformat(),
+                price.source,
+            )
+        return fresh
 
     def _update_position_prices(self, prices: list[RealtimePrice]) -> list[PriceUpdate]:
         """更新持仓模型中的当前价格
@@ -305,8 +338,11 @@ class PricePollingUseCase:
 
     def __init__(self) -> None:
         # 初始化依赖
+        self.config = PricePollingConfig()
         self.price_repository = get_realtime_price_repository()
-        self.price_provider = get_realtime_price_provider()
+        self.price_provider = get_realtime_price_provider(
+            max_price_age_seconds=self.config.max_price_age_seconds,
+        )
         self.watchlist_provider = get_watchlist_provider()
 
         # 创建价格轮询服务
@@ -314,7 +350,7 @@ class PricePollingUseCase:
             price_repository=self.price_repository,
             price_provider=self.price_provider,
             watchlist_provider=self.watchlist_provider,
-            config=PricePollingConfig(),
+            config=self.config,
             subscription_repository=get_price_subscription_repository(),
             alert_repository=get_price_alert_repository(),
             notifier=get_realtime_channel_notifier(),
@@ -338,12 +374,22 @@ class PricePollingUseCase:
         Returns:
             价格字典列表
         """
-        cached_prices = self.price_repository.get_latest_prices(asset_codes)
+        reference_time = timezone.now()
+        max_age = timedelta(seconds=self.config.max_price_age_seconds)
+        cached_prices = [
+            price
+            for price in self.price_repository.get_latest_prices(asset_codes)
+            if price.is_fresh(reference_time=reference_time, max_age=max_age)
+        ]
         prices_by_code = {price.asset_code: price for price in cached_prices}
         missing_codes = [code for code in asset_codes if code not in prices_by_code]
 
         if missing_codes:
-            fetched_prices = self.price_provider.get_realtime_prices_batch(missing_codes)
+            fetched_prices = [
+                price
+                for price in self.price_provider.get_realtime_prices_batch(missing_codes)
+                if price.is_fresh(reference_time=timezone.now(), max_age=max_age)
+            ]
             if fetched_prices:
                 self.price_repository.save_prices_batch(fetched_prices)
                 for price in fetched_prices:
@@ -359,9 +405,12 @@ class PricePollingUseCase:
         """Return cached prices for monitored assets without provider fallback or writes."""
 
         asset_codes = sorted(set(self.watchlist_provider.get_all_monitored_assets()))
+        reference_time = timezone.now()
+        max_age = timedelta(seconds=self.config.max_price_age_seconds)
         return [
             cast(dict[str, Any], price.to_dict())
             for price in self.price_repository.get_latest_prices(asset_codes)
+            if price.is_fresh(reference_time=reference_time, max_age=max_age)
         ]
 
     def check_provider_availability(self, timeout_seconds: float = 2.0) -> tuple[bool, str | None]:

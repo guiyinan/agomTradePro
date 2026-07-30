@@ -356,16 +356,21 @@ def calculate_regime_after_sync(
             "falling back to current resolver"
         )
         result = resolve_current_regime(as_of_date=target_date, use_pit=use_pit)
+        must_not_use_for_decision = bool(getattr(result, "must_not_use_for_decision", False))
 
         return {
-            "status": "success",
+            "status": "blocked" if must_not_use_for_decision else "success",
             "as_of_date": str(target_date),
-            "observed_at": result.observed_at.isoformat(),
+            "observed_at": (
+                result.observed_at.isoformat() if result.observed_at is not None else None
+            ),
             "dominant_regime": result.dominant_regime,
             "confidence": result.confidence,
             "warnings": result.warnings,
             "data_source": result.data_source,
             "is_fallback": result.is_fallback,
+            "must_not_use_for_decision": must_not_use_for_decision,
+            "blocked_reason": str(getattr(result, "blocked_reason", "") or ""),
         }
 
     except Exception as exc:

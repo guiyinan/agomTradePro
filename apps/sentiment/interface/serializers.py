@@ -60,6 +60,12 @@ class SentimentIndexSerializer(serializers.Serializer[dict[str, Any]]):
     data_sufficient = serializers.BooleanField(help_text="数据是否充足（区分无数据和中性情绪）")
     sector_sentiment = serializers.DictField(help_text="行业情绪分布")
     sources = serializers.DictField(help_text="数据来源统计")
+    observed_at = serializers.DateField(required=False, allow_null=True)
+    freshness_status = serializers.CharField(required=False)
+    staleness_days = serializers.IntegerField(required=False, allow_null=True)
+    is_stale = serializers.BooleanField(required=False)
+    must_not_use_for_decision = serializers.BooleanField(required=False)
+    blocked_reason = serializers.CharField(required=False, allow_blank=True)
 
 
 class SentimentIndexListSerializer(serializers.Serializer[dict[str, Any]]):

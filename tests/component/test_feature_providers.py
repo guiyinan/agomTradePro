@@ -34,14 +34,17 @@ class TestRegimeFeatureProvider:
     def test_get_regime_success(self):
         """测试成功获取 Regime"""
         with patch("apps.regime.application.current_regime.resolve_current_regime") as mock_resolve:
-            mock_result = MagicMock()
-            mock_result.dominant_regime = "GROWTH_INFLATION"
-            mock_result.confidence = 0.85
-            mock_result.observed_at = date.today()
-            mock_result.data_source = "tushare"
-            mock_result.is_fallback = False
-            mock_result.warnings = []
-            mock_resolve.return_value = mock_result
+            mock_resolve.return_value = SimpleNamespace(
+                dominant_regime="GROWTH_INFLATION",
+                confidence=0.85,
+                observed_at=date.today(),
+                data_source="tushare",
+                is_fallback=False,
+                warnings=[],
+                is_stale=False,
+                must_not_use_for_decision=False,
+                blocked_reason="",
+            )
 
             provider = RegimeFeatureProvider()
             result = provider.get_regime()
@@ -50,6 +53,7 @@ class TestRegimeFeatureProvider:
             assert result["regime"] == "GROWTH_INFLATION"
             assert result["confidence"] == 0.85
             assert result["is_fallback"] is False
+            assert result["must_not_use_for_decision"] is False
 
     def test_get_regime_failure(self):
         """测试获取 Regime 失败"""
@@ -59,7 +63,9 @@ class TestRegimeFeatureProvider:
             provider = RegimeFeatureProvider()
             result = provider.get_regime()
 
-            assert result is None
+            assert result is not None
+            assert result["must_not_use_for_decision"] is True
+            assert result["blocked_reason"] == "regime_resolution_failed"
 
 
 class TestPolicyFeatureProvider:
@@ -169,13 +175,15 @@ class TestSentimentFeatureProvider:
     def test_get_sentiment_score_success(self):
         """测试成功获取舆情分数"""
         with patch(
-            "apps.sentiment.infrastructure.repositories.SentimentIndexRepository"
-        ) as mock_repo_class:
-            mock_repo = MagicMock()
-            mock_sentiment = MagicMock()
-            mock_sentiment.composite_index = 1.5  # -3~3 范围，1.5 归一化后为 (1.5+3)/6 = 0.75
-            mock_repo.get_by_date.return_value = mock_sentiment
-            mock_repo_class.return_value = mock_repo
+            "apps.sentiment.application.current_sentiment.resolve_current_sentiment"
+        ) as mock_resolve:
+            mock_resolve.return_value = SimpleNamespace(
+                index=SimpleNamespace(composite_index=1.5),
+                observed_at=date.today(),
+                freshness_status="fresh",
+                must_not_use_for_decision=False,
+                blocked_reason="",
+            )
 
             provider = SentimentFeatureProvider()
             result = provider.get_sentiment_score("000001.SZ")
@@ -186,16 +194,23 @@ class TestSentimentFeatureProvider:
     def test_get_sentiment_score_default(self):
         """测试获取舆情分数失败时返回默认值"""
         with patch(
-            "apps.sentiment.infrastructure.repositories.SentimentIndexRepository"
-        ) as mock_repo_class:
-            mock_repo = MagicMock()
-            mock_repo.get_by_date.return_value = None
-            mock_repo_class.return_value = mock_repo
+            "apps.sentiment.application.current_sentiment.resolve_current_sentiment"
+        ) as mock_resolve:
+            mock_resolve.return_value = SimpleNamespace(
+                index=None,
+                observed_at=date.today(),
+                freshness_status="insufficient",
+                must_not_use_for_decision=True,
+                blocked_reason="sentiment_data_insufficient",
+            )
 
             provider = SentimentFeatureProvider()
             result = provider.get_sentiment_score("000001.SZ")
 
             assert result == 0.5
+            contract = provider.get_feature_freshness_contracts("000001.SZ")["sentiment"]
+            assert contract["must_not_use_for_decision"] is True
+            assert contract["blocked_reason"] == "sentiment_data_insufficient"
 
 
 class TestFlowFeatureProvider:
@@ -395,8 +410,8 @@ class TestCompositeFeatureProvider:
                 "apps.policy.infrastructure.repositories.DjangoPolicyRepository"
             ) as mock_policy_repo_class,
             patch(
-                "apps.sentiment.infrastructure.repositories.SentimentIndexRepository"
-            ) as mock_sentiment_repo_class,
+                "apps.sentiment.application.current_sentiment.resolve_current_sentiment"
+            ) as mock_sentiment_resolver,
         ):
             mock_policy_repo = MagicMock()
             mock_policy_level = MagicMock()
@@ -404,17 +419,19 @@ class TestCompositeFeatureProvider:
             mock_policy_repo.get_current_policy_level.return_value = mock_policy_level
             mock_policy_repo_class.return_value = mock_policy_repo
 
-            mock_sentiment_repo = MagicMock()
-            mock_latest = MagicMock()
-            mock_latest.composite_index = 1.2
-            mock_sentiment_repo.get_by_date.return_value = mock_latest
-            mock_sentiment_repo_class.return_value = mock_sentiment_repo
+            mock_sentiment_resolver.return_value = SimpleNamespace(
+                index=SimpleNamespace(composite_index=1.2),
+                observed_at=date.today(),
+                freshness_status="fresh",
+                must_not_use_for_decision=False,
+                blocked_reason="",
+            )
 
             provider = CompositeFeatureProvider()
 
             assert provider.get_policy_level() == "LEVEL_2"
             assert provider.get_sentiment_score("000001.SZ") > 0.5
-            mock_sentiment_repo.get_by_date.assert_called_once()
+            mock_sentiment_resolver.assert_called_once_with()
 
     def test_composite_provider_initializes_use_case_and_service_slots(self):
         """测试组合提供者会初始化独立的 use case / service 槽位。"""
@@ -491,8 +508,8 @@ class TestAssetValuationProvider:
                 "apps.data_center.infrastructure.repositories.ValuationFactRepository"
             ) as mock_fact_repo_class,
             patch(
-                "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
-            ) as mock_price_repo_class,
+                "apps.valuation.infrastructure.providers.UnifiedPriceService"
+            ) as mock_price_service_class,
         ):
             mock_fact_repo = MagicMock()
             mock_fact_repo.get_latest.return_value = SimpleNamespace(
@@ -511,7 +528,7 @@ class TestAssetValuationProvider:
         assert result["entry_price_high"] == 12.6
         assert result["target_price_low"] == 13.8
         assert result["target_price_high"] == 15.0
-        mock_price_repo_class.assert_not_called()
+        mock_price_service_class.return_value.require_latest_price_result.assert_not_called()
 
     @pytest.mark.django_db
     def test_get_valuation_rejects_stale_data_center_fact(self):
@@ -523,8 +540,8 @@ class TestAssetValuationProvider:
                 "apps.data_center.infrastructure.repositories.ValuationFactRepository"
             ) as mock_fact_repo_class,
             patch(
-                "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
-            ) as mock_price_repo_class,
+                "apps.valuation.infrastructure.providers.UnifiedPriceService"
+            ) as mock_price_service_class,
         ):
             mock_fact_repo = MagicMock()
             mock_fact_repo.get_latest.return_value = SimpleNamespace(
@@ -533,9 +550,13 @@ class TestAssetValuationProvider:
                 extra={"intrinsic_value_per_share": "12.00", "quality_flag": "ok"},
             )
             mock_fact_repo_class.return_value = mock_fact_repo
-            mock_price_repo = MagicMock()
-            mock_price_repo.get_latest_price.return_value = SimpleNamespace(price=Decimal("10.00"))
-            mock_price_repo_class.return_value = mock_price_repo
+            mock_price_service_class.return_value.require_latest_price_result.return_value = (
+                SimpleNamespace(
+                    price=Decimal("10.00"),
+                    source="component_quote",
+                    freshness="realtime",
+                )
+            )
 
             provider = AssetValuationProvider()
             result = provider.get_valuation("000004.SZ")
@@ -554,8 +575,8 @@ class TestAssetValuationProvider:
                 "apps.data_center.infrastructure.repositories.ValuationFactRepository"
             ) as mock_fact_repo_class,
             patch(
-                "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
-            ) as mock_price_repo_class,
+                "apps.valuation.infrastructure.providers.UnifiedPriceService"
+            ) as mock_price_service_class,
         ):
             mock_fact_repo = MagicMock()
             mock_fact_repo.get_latest.return_value = SimpleNamespace(
@@ -567,9 +588,13 @@ class TestAssetValuationProvider:
                 },
             )
             mock_fact_repo_class.return_value = mock_fact_repo
-            mock_price_repo = MagicMock()
-            mock_price_repo.get_latest_price.return_value = SimpleNamespace(price=Decimal("10.00"))
-            mock_price_repo_class.return_value = mock_price_repo
+            mock_price_service_class.return_value.require_latest_price_result.return_value = (
+                SimpleNamespace(
+                    price=Decimal("10.00"),
+                    source="component_quote",
+                    freshness="realtime",
+                )
+            )
 
             provider = AssetValuationProvider()
             result = provider.get_valuation("000005.SZ")
@@ -586,8 +611,8 @@ class TestAssetValuationProvider:
                 "apps.data_center.infrastructure.repositories.ValuationFactRepository"
             ) as mock_fact_repo_class,
             patch(
-                "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
-            ) as mock_price_repo_class,
+                "apps.valuation.infrastructure.providers.UnifiedPriceService"
+            ) as mock_price_service_class,
         ):
             mock_fact_repo = MagicMock()
             mock_fact_repo.get_series.return_value = [
@@ -613,7 +638,7 @@ class TestAssetValuationProvider:
         assert result["valuation_source"] == "data_center_valuation_fact"
         assert result["fair_value"] == 11.8
         mock_fact_repo.get_latest.assert_not_called()
-        mock_price_repo_class.assert_not_called()
+        mock_price_service_class.return_value.require_latest_price_result.assert_not_called()
 
     @pytest.mark.django_db
     def test_get_valuation_rejects_legacy_snapshot(self):
@@ -636,11 +661,15 @@ class TestAssetValuationProvider:
         )
 
         with patch(
-            "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
-        ) as mock_price_repo_class:
-            mock_price_repo = MagicMock()
-            mock_price_repo.get_latest_price.return_value = SimpleNamespace(price=Decimal("10.00"))
-            mock_price_repo_class.return_value = mock_price_repo
+            "apps.valuation.infrastructure.providers.UnifiedPriceService"
+        ) as mock_price_service_class:
+            mock_price_service_class.return_value.require_latest_price_result.return_value = (
+                SimpleNamespace(
+                    price=Decimal("10.00"),
+                    source="component_quote",
+                    freshness="realtime",
+                )
+            )
 
             provider = AssetValuationProvider()
             result = provider.get_valuation("000006.SZ")
@@ -657,11 +686,15 @@ class TestAssetValuationProvider:
         from apps.decision_rhythm.infrastructure.models import ValuationSnapshotModel
 
         with patch(
-            "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
-        ) as mock_repo_class:
-            mock_repo = MagicMock()
-            mock_repo.get_latest_price.return_value = SimpleNamespace(price=Decimal("10.00"))
-            mock_repo_class.return_value = mock_repo
+            "apps.valuation.infrastructure.providers.UnifiedPriceService"
+        ) as mock_price_service_class:
+            mock_price_service_class.return_value.require_latest_price_result.return_value = (
+                SimpleNamespace(
+                    price=Decimal("10.00"),
+                    source="component_quote",
+                    freshness="realtime",
+                )
+            )
 
             provider = AssetValuationProvider()
             result = provider.get_valuation("000002.SZ")

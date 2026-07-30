@@ -9,7 +9,7 @@ Account Module Integration Tests - 持仓价格来源于 Data Center
 - 所有测试通过
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import Mock
 
@@ -47,6 +47,7 @@ def _price_result(
         source=source,
         freshness="realtime",
         is_fallback=False,
+        observed_at=datetime(2026, 7, 30, 10, 0, tzinfo=UTC),
     )
 
 

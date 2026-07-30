@@ -104,19 +104,20 @@ class AssetValuationService:
                 if fact_payload is not None:
                     return fact_payload
 
+            price, raw_source = self._market_price_source.get_latest(normalized_code)
+            source = self._normalize_provenance(raw_source)
+            if not self._is_positive_finite_price(price) or source is None:
+                return None
+
             fallback = self._snapshot_source.get_today_fallback(normalized_code, today)
-            if fallback is None:
-                price, raw_source = self._market_price_source.get_latest(normalized_code)
-                source = self._normalize_provenance(raw_source)
-                if not self._is_positive_finite_price(price) or source is None:
-                    return None
+            if not self._matches_current_price(fallback, normalized_code, price, source):
                 fallback = self._snapshot_service.create_current_price_fallback_snapshot(
                     security_code=normalized_code,
                     current_price=price,
                     source=source,
                 )
                 fallback = self._snapshot_source.save_fallback(fallback)
-            if not self._is_valid_fallback(fallback, normalized_code):
+            if fallback is None or not self._is_valid_fallback(fallback, normalized_code):
                 return None
             fallback_payload = ValuationPayloadPolicy.snapshot_to_payload(
                 fallback,
@@ -190,6 +191,21 @@ class AssetValuationService:
                 snapshot.stop_loss_price,
             )
         )
+
+    @classmethod
+    def _matches_current_price(
+        cls,
+        snapshot: ValuationSnapshot | None,
+        security_code: str,
+        price: Decimal,
+        source: str,
+    ) -> bool:
+        """Return whether a cached fallback matches a freshly validated observation."""
+
+        if snapshot is None or not cls._is_valid_fallback(snapshot, security_code):
+            return False
+        stored_source = snapshot.input_parameters.get("source")
+        return snapshot.fair_value == price and stored_source == source
 
 
 __all__ = [

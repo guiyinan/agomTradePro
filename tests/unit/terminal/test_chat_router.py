@@ -66,3 +66,43 @@ def test_admin_regime_chain_contains_typed_technical_details() -> None:
     details = chain["steps"][1]["technical_details"]
     assert "CurrentRegimeResult.data_source=data-center" in details
     assert "PolicyLevel.value=P1" in details
+
+
+def test_regime_response_discloses_stale_decision_block() -> None:
+    service = TerminalChatRouterService()
+    blocked = CurrentRegimeResult(
+        dominant_regime="Unknown",
+        confidence=0.7,
+        observed_at=date(2026, 4, 1),
+        data_source="data-center",
+        warnings=["stale"],
+        diagnostic_regime="Recovery",
+        is_stale=True,
+        must_not_use_for_decision=True,
+        blocked_reason="regime_macro_observation_stale",
+    )
+    repository = type(
+        "_PolicyRepository",
+        (),
+        {"get_current_policy_level": lambda self: PolicyLevel.P1},
+    )()
+
+    with (
+        patch(
+            "apps.terminal.application.chat_router.resolve_current_regime",
+            return_value=blocked,
+        ),
+        patch(
+            "apps.terminal.application.chat_router.get_current_policy_repository",
+            return_value=repository,
+        ),
+    ):
+        response = service._build_regime_response(
+            session_id="session-1",
+            decision=TerminalIntentDecision(intent="market_regime", confidence=0.95),
+            answer_chain_enabled=True,
+            user_is_admin=False,
+        )
+
+    assert "Decision Safety**: `BLOCKED`" in response["reply"]
+    assert response["metadata"]["current_data_contract"]["must_not_use_for_decision"] is True

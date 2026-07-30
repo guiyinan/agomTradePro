@@ -8,6 +8,7 @@ import pytest
 
 from apps.hedge.application import interface_services
 from apps.hedge.domain.entities import HedgeEffectiveness
+from apps.hedge.domain.services import hedge_snapshot_freshness
 from apps.hedge.infrastructure import adapters
 
 
@@ -16,6 +17,30 @@ def test_base_adapter_contract_is_abstract_by_behavior() -> None:
         adapters.HedgeDataSource().get_asset_prices(
             "510300",
             date(2026, 7, 25),
+        )
+
+
+def test_hedge_snapshot_freshness_counts_weekdays_and_fails_closed() -> None:
+    """Weekend gaps stay fresh, while excess and future ages are blocked."""
+
+    assert hedge_snapshot_freshness(
+        date(2026, 7, 24),
+        as_of_date=date(2026, 7, 27),
+    ) == (False, 1)
+    assert hedge_snapshot_freshness(
+        date(2026, 7, 24),
+        as_of_date=date(2026, 7, 28),
+    ) == (True, 2)
+    assert hedge_snapshot_freshness(
+        date(2026, 7, 29),
+        as_of_date=date(2026, 7, 28),
+    ) == (True, 0)
+
+    with pytest.raises(ValueError, match="max_business_days must be non-negative"):
+        hedge_snapshot_freshness(
+            date(2026, 7, 28),
+            as_of_date=date(2026, 7, 28),
+            max_business_days=-1,
         )
 
 
@@ -303,7 +328,7 @@ def test_interface_operational_payloads_serialize_dates_counts_and_defaults() ->
         "_get_integration_service",
         return_value=service,
     ):
-        snapshots = interface_services.get_latest_snapshots_payload()
+        snapshots = interface_services.get_latest_snapshots_payload(as_of_date=date(2026, 7, 30))
         updated = interface_services.update_all_portfolios_payload()
         recent = interface_services.get_recent_alerts_payload(days=7)
         monitored = interface_services.monitor_hedge_pairs_payload()
@@ -312,6 +337,12 @@ def test_interface_operational_payloads_serialize_dates_counts_and_defaults() ->
 
     assert snapshots["count"] == 1
     assert snapshots["results"][0]["long_weight"] == 60.0
+    assert snapshots["results"][0]["observed_at"] == "2026-07-25"
+    assert snapshots["results"][0]["freshness_status"] == "stale"
+    assert snapshots["results"][0]["staleness_days"] == 4
+    assert snapshots["results"][0]["is_stale"] is True
+    assert snapshots["results"][0]["must_not_use_for_decision"] is True
+    assert snapshots["results"][0]["blocked_reason"] == "hedge_snapshot_stale"
     assert updated["portfolios"][0]["hedge_ratio"] == 0.755
     assert recent["results"][0]["alert_type"] == "correlation"
     assert monitored["generated_alerts"] == 1
@@ -321,6 +352,39 @@ def test_interface_operational_payloads_serialize_dates_counts_and_defaults() ->
         "method": "unknown",
         "details": {},
     }
+
+
+def test_latest_hedge_snapshot_payload_keeps_fresh_observation_actionable() -> None:
+    """A snapshot within one business day preserves its source date and stays usable."""
+
+    service = Mock()
+    service.get_all_pairs.return_value = [SimpleNamespace(name="active")]
+    service.get_hedge_portfolio.return_value = SimpleNamespace(
+        pair_name="active",
+        trade_date=date(2026, 7, 24),
+        long_weight=0.6,
+        hedge_weight=0.4,
+        hedge_ratio=0.7,
+        current_correlation=-0.6,
+        hedge_effectiveness=0.8,
+        rebalance_needed=False,
+        rebalance_reason=None,
+    )
+
+    with patch.object(
+        interface_services,
+        "_get_integration_service",
+        return_value=service,
+    ):
+        payload = interface_services.get_latest_snapshots_payload(as_of_date=date(2026, 7, 27))
+
+    row = payload["results"][0]
+    assert row["observed_at"] == "2026-07-24"
+    assert row["freshness_status"] == "fresh"
+    assert row["staleness_days"] == 1
+    assert row["is_stale"] is False
+    assert row["must_not_use_for_decision"] is False
+    assert row["blocked_reason"] == ""
 
 
 def test_interface_deactivate_pair_composes_repository_and_use_case() -> None:

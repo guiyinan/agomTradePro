@@ -7,7 +7,7 @@ Account Domain Services
 
 import math
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, TypedDict
 
@@ -31,6 +31,63 @@ class PositionCalculationResult:
     notional: Decimal  # 建议投入金额
     cash_required: Decimal  # 所需现金
     max_loss: Decimal  # 最大可能损失（基于证伪阈值）
+
+
+@dataclass(frozen=True)
+class ExchangeRateFreshnessAssessment:
+    """Decision-safety assessment for one exchange-rate observation."""
+
+    freshness_status: str
+    staleness_days: int
+    is_stale: bool
+    must_not_use_for_decision: bool
+    blocked_reason: str
+
+
+def assess_exchange_rate_freshness(
+    effective_date: date,
+    *,
+    as_of_date: date,
+    max_business_days: int = 1,
+) -> ExchangeRateFreshnessAssessment:
+    """Assess an FX observation without replacing its effective date.
+
+    Currency observations are daily data. Weekend days therefore do not age
+    an otherwise current Friday observation, while future-dated observations
+    are always blocked from current-decision use.
+    """
+
+    if (
+        isinstance(max_business_days, bool)
+        or not isinstance(max_business_days, int)
+        or max_business_days < 0
+    ):
+        raise ValueError("max_business_days must be a non-negative integer")
+
+    if effective_date > as_of_date:
+        return ExchangeRateFreshnessAssessment(
+            freshness_status="future",
+            staleness_days=0,
+            is_stale=True,
+            must_not_use_for_decision=True,
+            blocked_reason="exchange_rate_future_dated",
+        )
+
+    current = effective_date + timedelta(days=1)
+    staleness_days = 0
+    while current <= as_of_date:
+        if current.weekday() < 5:
+            staleness_days += 1
+        current += timedelta(days=1)
+
+    is_stale = staleness_days > max_business_days
+    return ExchangeRateFreshnessAssessment(
+        freshness_status="stale" if is_stale else "fresh",
+        staleness_days=staleness_days,
+        is_stale=is_stale,
+        must_not_use_for_decision=is_stale,
+        blocked_reason="exchange_rate_stale" if is_stale else "",
+    )
 
 
 class PositionService:

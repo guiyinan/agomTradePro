@@ -1,6 +1,6 @@
 """Durable alert and price-update boundaries for Realtime."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -166,6 +166,42 @@ def test_price_value_objects_serialize_missing_and_present_values() -> None:
         timestamp=timestamp,
     )
     assert zero.price_change_pct is None
+
+
+def test_realtime_price_freshness_rejects_old_future_and_naive_timestamps() -> None:
+    """Realtime quotes are usable only inside a bounded aware observation window."""
+
+    observed_at = datetime(2026, 7, 30, 10, 0, tzinfo=UTC)
+    reference_time = observed_at + timedelta(minutes=5)
+
+    def _price(timestamp: datetime) -> RealtimePrice:
+        return RealtimePrice(
+            asset_code="000001.SH",
+            asset_type=AssetType.INDEX,
+            price=Decimal("3800"),
+            change=None,
+            change_pct=None,
+            volume=100,
+            timestamp=timestamp,
+            source="test",
+        )
+
+    assert _price(observed_at).is_fresh(
+        reference_time=reference_time,
+        max_age=timedelta(minutes=5),
+    )
+    assert not _price(observed_at - timedelta(seconds=1)).is_fresh(
+        reference_time=reference_time,
+        max_age=timedelta(minutes=5),
+    )
+    assert not _price(reference_time + timedelta(seconds=1)).is_fresh(
+        reference_time=reference_time,
+        max_age=timedelta(minutes=5),
+    )
+    assert not _price(datetime(2026, 7, 30, 10, 0)).is_fresh(
+        reference_time=reference_time,
+        max_age=timedelta(minutes=5),
+    )
 
 
 def test_price_update_service_overrides_status_on_explicit_error() -> None:

@@ -97,7 +97,7 @@ class _ClassificationRepository:
         self.calls: list[tuple[str, object]] = []
         self.rate_model: object | None = SimpleNamespace(
             rate=Decimal("7.2"),
-            effective_date=date(2026, 7, 25),
+            effective_date=date.today(),
             convert=lambda amount: amount * Decimal("7.2"),
         )
 
@@ -307,6 +307,11 @@ def test_classification_crud_and_currency_conversion(
             to_currency="CNY",
         )
 
+    classification.rate_model = SimpleNamespace(
+        rate=Decimal("7.2"),
+        effective_date=date.today(),
+        convert=lambda amount: amount * Decimal("7.2"),
+    )
     currency = interface_services.get_portfolio_allocation_payload(
         portfolio_id=9,
         user_id=7,
@@ -318,9 +323,30 @@ def test_classification_crud_and_currency_conversion(
         dimension="category",
     )
     assert currency is not None
-    assert currency["total_value_base"] == Decimal("30")
+    assert currency["total_value_base"] == Decimal("92.0")
     assert category is not None
     assert category["total_value"] == Decimal("30")
+
+
+def test_currency_allocation_blocks_stale_implicit_exchange_rate(
+    interface_repositories: tuple[_InterfaceRepository, _ClassificationRepository],
+) -> None:
+    _, classification = interface_repositories
+    classification.rate_model = SimpleNamespace(
+        rate=Decimal("7.2"),
+        effective_date=date(2026, 1, 1),
+        convert=lambda amount: amount * Decimal("7.2"),
+    )
+
+    with pytest.raises(
+        interface_services.ExchangeRateDecisionBlockedError,
+        match="stale",
+    ):
+        interface_services.get_portfolio_allocation_payload(
+            portfolio_id=9,
+            user_id=7,
+            dimension="currency",
+        )
 
 
 def test_token_permission_creation_revocation_and_capital_flow(

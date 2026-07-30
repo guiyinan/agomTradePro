@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict, runtime_checkable
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
@@ -67,6 +67,25 @@ class FeatureDataProviderProtocol(Protocol):
     def get_alpha_model_score(self, security_code: str) -> float:
         """获取 Alpha 模型分数"""
         ...
+
+
+class FeatureFreshnessContract(TypedDict):
+    """Decision-safety metadata for one feature observation."""
+
+    observed_at: str | None
+    freshness_status: str
+    must_not_use_for_decision: bool
+    blocked_reason: str
+
+
+@runtime_checkable
+class FeatureFreshnessProviderProtocol(Protocol):
+    """Optional extension that preserves feature observation quality."""
+
+    def get_feature_freshness_contracts(
+        self,
+        security_code: str,
+    ) -> dict[str, FeatureFreshnessContract]: ...
 
 
 class ValuationProviderProtocol(Protocol):
@@ -287,7 +306,13 @@ class GenerateUnifiedRecommendationsUseCase:
                 # 检查 Beta Gate
                 beta_gate_passed = self.feature_provider.check_beta_gate(security_code)
 
-                # 收集特征
+                # 收集特征，并在取值后读取提供者保留的源观测质量。
+                sentiment_score = self.feature_provider.get_sentiment_score(security_code)
+                flow_score = self.feature_provider.get_flow_score(security_code)
+                feature_freshness = self._get_feature_freshness_contracts(security_code)
+                regime_freshness = self._get_regime_freshness_contract(regime_data)
+                if regime_freshness is not None:
+                    feature_freshness["regime"] = regime_freshness
                 snapshot = DecisionFeatureSnapshot(
                     snapshot_id=f"fsn_{uuid4().hex[:12]}",
                     security_code=security_code,
@@ -296,11 +321,12 @@ class GenerateUnifiedRecommendationsUseCase:
                     regime_confidence=regime_data.get("confidence", 0.0) if regime_data else 0.0,
                     policy_level=policy_level or "",
                     beta_gate_passed=beta_gate_passed,
-                    sentiment_score=self.feature_provider.get_sentiment_score(security_code),
-                    flow_score=self.feature_provider.get_flow_score(security_code),
+                    sentiment_score=sentiment_score,
+                    flow_score=flow_score,
                     technical_score=self.feature_provider.get_technical_score(security_code),
                     fundamental_score=self.feature_provider.get_fundamental_score(security_code),
                     alpha_model_score=self.feature_provider.get_alpha_model_score(security_code),
+                    extra_features={"feature_freshness": feature_freshness},
                 )
 
                 # 保存特征快照
@@ -324,7 +350,8 @@ class GenerateUnifiedRecommendationsUseCase:
                     sell_score_threshold=sell_score_threshold,
                     sell_alpha_threshold=sell_alpha_threshold,
                 )
-                if not beta_gate_passed:
+                feature_blocked_reasons = self._get_blocked_feature_reasons(feature_freshness)
+                if not beta_gate_passed or feature_blocked_reasons:
                     side = "HOLD"
 
                 # 获取来源信号
@@ -361,10 +388,17 @@ class GenerateUnifiedRecommendationsUseCase:
                     fundamental_score=snapshot.fundamental_score,
                     alpha_model_score=snapshot.alpha_model_score,
                     composite_score=composite_score,
-                    confidence=min(snapshot.regime_confidence + snapshot.alpha_model_score, 1.0)
-                    / 2,
+                    confidence=(
+                        0.0
+                        if feature_blocked_reasons
+                        else min(snapshot.regime_confidence + snapshot.alpha_model_score, 1.0) / 2
+                    ),
                     reason_codes=penalty_reasons
                     + valuation_reason_codes
+                    + [
+                        f"FEATURE_BLOCKED_{reason.upper().replace('-', '_')}"
+                        for reason in feature_blocked_reasons
+                    ]
                     + self._generate_reason_codes(snapshot, composite_score),
                     human_rationale=self._generate_rationale(snapshot, composite_score, side),
                     fair_value=(
@@ -465,6 +499,46 @@ class GenerateUnifiedRecommendationsUseCase:
         else:
             return "HOLD"
 
+    def _get_feature_freshness_contracts(
+        self,
+        security_code: str,
+    ) -> dict[str, FeatureFreshnessContract]:
+        """Read the optional freshness extension without changing score providers."""
+
+        if not isinstance(self.feature_provider, FeatureFreshnessProviderProtocol):
+            return {}
+        return dict(self.feature_provider.get_feature_freshness_contracts(security_code))
+
+    @staticmethod
+    def _get_regime_freshness_contract(
+        regime_data: dict[str, Any] | None,
+    ) -> FeatureFreshnessContract | None:
+        """Preserve explicit Regime decision-safety metadata when published."""
+
+        if regime_data is None or "must_not_use_for_decision" not in regime_data:
+            return None
+        observed_at = regime_data.get("observed_at")
+        return FeatureFreshnessContract(
+            observed_at=str(observed_at) if observed_at is not None else None,
+            freshness_status=str(regime_data.get("freshness_status") or "unknown"),
+            must_not_use_for_decision=bool(regime_data["must_not_use_for_decision"]),
+            blocked_reason=str(regime_data.get("blocked_reason") or ""),
+        )
+
+    @staticmethod
+    def _get_blocked_feature_reasons(
+        contracts: dict[str, FeatureFreshnessContract],
+    ) -> list[str]:
+        """Return stable reasons for observations unsafe for recommendations."""
+
+        return sorted(
+            {
+                contract["blocked_reason"] or f"{feature_name}_unavailable"
+                for feature_name, contract in contracts.items()
+                if contract["must_not_use_for_decision"]
+            }
+        )
+
     def _generate_reason_codes(
         self,
         snapshot: "DecisionFeatureSnapshot",
@@ -539,6 +613,19 @@ class GenerateUnifiedRecommendationsUseCase:
 
         if not snapshot.beta_gate_passed:
             parts.append("Beta Gate 未通过，当前仅展示观察，不进入执行")
+
+        freshness = snapshot.extra_features.get("feature_freshness")
+        if isinstance(freshness, dict):
+            blocked_reasons = sorted(
+                {
+                    str(contract.get("blocked_reason") or f"{name}_unavailable")
+                    for name, contract in freshness.items()
+                    if isinstance(contract, dict)
+                    and bool(contract.get("must_not_use_for_decision"))
+                }
+            )
+            if blocked_reasons:
+                parts.append(f"特征数据不可用于决策({', '.join(blocked_reasons)})")
 
         return "。".join(parts) + "。"
 
@@ -683,6 +770,8 @@ class GetConflictsUseCase:
 
 __all__ = [
     "FeatureDataProviderProtocol",
+    "FeatureFreshnessContract",
+    "FeatureFreshnessProviderProtocol",
     "ValuationProviderProtocol",
     "SignalProviderProtocol",
     "CandidateProviderProtocol",

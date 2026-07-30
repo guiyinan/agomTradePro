@@ -346,6 +346,10 @@ pytest tests/integration/test_complete_investment_flow.py tests/integration/test
 set AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1
 pytest tests/integration/test_realtime_monitoring_flow.py -v -m live_required
 
+# 当前数据 observation/freshness/failover 契约门禁
+python scripts/check_current_data_contracts.py
+pytest tests/unit/ci/test_check_current_data_contracts.py -q
+
 # 运行可选重依赖测试（例如 Qlib / worker）
 pytest tests/integration/test_qlib_integration.py -v -m optional_runtime
 

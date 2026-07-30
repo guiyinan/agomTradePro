@@ -1,6 +1,6 @@
 """Tests for the Simulated Trading canonical price adapter."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from unittest.mock import Mock
 
 from apps.account.application.market_price_contracts import MarketPriceResult
@@ -51,3 +51,27 @@ def test_get_price_result_preserves_unavailable_result() -> None:
     provider._price_service = price_service
 
     assert provider.get_price_result("000001.SZ") is None
+
+
+def test_get_price_result_preserves_realtime_observation_time() -> None:
+    """The adapter cannot drop the exact observation time of a realtime quote."""
+
+    observed_at = datetime(2026, 7, 30, 10, 5, tzinfo=UTC)
+    upstream = PriceLookupResult(
+        requested_code="000001.SZ",
+        normalized_code="000001.SZ",
+        price=12.5,
+        as_of=None,
+        source="tencent",
+        freshness="realtime",
+        observed_at=observed_at,
+    )
+    price_service = Mock()
+    price_service.get_price_result.return_value = upstream
+    provider = DataCenterPriceProvider.__new__(DataCenterPriceProvider)
+    provider._price_service = price_service
+
+    result = provider.get_price_result("000001.SZ")
+
+    assert result is not None
+    assert result.observed_at == observed_at

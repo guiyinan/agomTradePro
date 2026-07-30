@@ -445,7 +445,20 @@ test_score = StockScore(
 
 详细规则：`docs/development/celery-task-contract-guard.md`
 
-### 12. TUI 面向用户设计约束
+### 12. 当前数据新鲜度语义契约
+
+凡接口、SDK、MCP、Terminal 或内部服务使用 `current`、`latest`、`realtime`、`summary` 等语义发布决策数据，必须满足：
+
+- `latest` 只表示排序最新，不自动等于 `fresh/current`；必须基于源观测时间执行 freshness 校验。
+- 源 `observed_at / snapshot_at / bar_date / as_of` 不可被请求时间、计算时间或序列化时间覆盖；历史日线不得用 `timezone.now()` 包装成实时行情。
+- failover 遇到过期结果必须继续尝试后续数据源；不得把“非空旧值”当成成功命中并截断降级链。
+- 面向决策的响应必须发布源观测时间、freshness/reliability 状态、`must_not_use_for_decision` 与稳定阻断原因。
+- 新增或修改当前数据面时，必须更新 `governance/current_data_contracts.json`，登记 stale、fresh、fallback 与 observation-preservation 测试证据。
+- PR 必须运行 `python scripts/check_current_data_contracts.py`；AST 门禁会拒绝历史价格/元数据的时间戳洗白。
+
+详细规则：`docs/development/data-freshness-contract-guard.md`
+
+### 13. TUI 面向用户设计约束
 
 `/tui/` 是面向用户完成任务的产品界面，不是 API 目录或调试壳。新增或修改 TUI metadata、runtime injection、promotion 脚本时，必须同时满足以下规则：
 
@@ -459,7 +472,7 @@ test_score = StockScore(
 
 设计标准文档：`docs/development/tui-user-facing-design-standard.md`
 
-### 12. Web → TUI 迁移期页面冻结约束（临时）
+### 14. Web → TUI 迁移期页面冻结约束（临时）
 
 在 `docs/plans/web-to-tui-migration-plan-2026-07-25.md` 完成并归档前：
 

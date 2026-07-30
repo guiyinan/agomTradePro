@@ -24,7 +24,7 @@ from apps.asset_analysis.application.use_cases import GetWeightConfigsUseCase, M
 from apps.asset_analysis.domain.value_objects import ScoreContext
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.sentiment.application.repository_provider import get_sentiment_index_repository
+from apps.sentiment.application.current_sentiment import resolve_current_sentiment
 
 
 @dataclass(frozen=True)
@@ -36,6 +36,10 @@ class AssetPoolContextPayload:
     policy_level: str
     sentiment_index: float
     active_signals: list[Any]
+    sentiment_must_not_use_for_decision: bool = False
+    sentiment_blocked_reason: str = ""
+    sentiment_observed_at: date | None = None
+    sentiment_freshness_status: str = "scenario_override"
 
 
 def build_asset_pool_context(
@@ -58,11 +62,21 @@ def build_asset_pool_context(
         latest_policy = get_current_policy_repository().get_current_policy_level()
         policy_level = latest_policy.value if latest_policy else "P1"
 
+    sentiment_observed_at: date | None
     if sentiment_index_override is not None:
         sentiment_index = sentiment_index_override
+        sentiment_blocked = False
+        sentiment_blocked_reason = ""
+        sentiment_observed_at = date.today()
+        sentiment_freshness_status = "scenario_override"
     else:
-        latest_sentiment = get_sentiment_index_repository().get_latest()
+        current_sentiment = resolve_current_sentiment()
+        latest_sentiment = current_sentiment.index
         sentiment_index = latest_sentiment.composite_index * 3 if latest_sentiment else 0.0
+        sentiment_blocked = current_sentiment.must_not_use_for_decision
+        sentiment_blocked_reason = current_sentiment.blocked_reason
+        sentiment_observed_at = current_sentiment.observed_at
+        sentiment_freshness_status = current_sentiment.freshness_status
 
     if active_signals_override is not None:
         active_signals = active_signals_override
@@ -81,6 +95,10 @@ def build_asset_pool_context(
         policy_level=policy_level,
         sentiment_index=sentiment_index,
         active_signals=active_signals,
+        sentiment_must_not_use_for_decision=sentiment_blocked,
+        sentiment_blocked_reason=sentiment_blocked_reason,
+        sentiment_observed_at=sentiment_observed_at,
+        sentiment_freshness_status=sentiment_freshness_status,
     )
 
 

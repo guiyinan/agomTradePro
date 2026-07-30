@@ -14,6 +14,7 @@ from rest_framework.serializers import BaseSerializer
 from rest_framework.views import APIView
 
 from apps.account.application.interface_services import (
+    ExchangeRateDecisionBlockedError,
     convert_currency_amount,
     create_asset_category,
     create_exchange_rate,
@@ -94,7 +95,7 @@ class AssetCategoryViewSet(viewsets.ModelViewSet[Any]):
 
     def get_permissions(self) -> list[BasePermission]:
         """只有管理员可以创建/更新/删除分类"""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsAdminUser()]
         return [IsAuthenticated()]
 
@@ -119,7 +120,7 @@ class AssetCategoryViewSet(viewsets.ModelViewSet[Any]):
 
         delete_asset_category(category_id=instance.id)
 
-    @typed_action(detail=False, methods=['get'])
+    @typed_action(detail=False, methods=["get"])
     def roots(self, request: Request) -> Response:
         """
         获取一级分类
@@ -128,12 +129,9 @@ class AssetCategoryViewSet(viewsets.ModelViewSet[Any]):
         """
         categories = get_asset_category_roots()
         serializer = AssetCategorySerializer(categories, many=True)
-        return Response({
-            'success': True,
-            'data': serializer.data
-        })
+        return Response({"success": True, "data": serializer.data})
 
-    @typed_action(detail=False, methods=['get'])
+    @typed_action(detail=False, methods=["get"])
     def tree(self, request: Request) -> Response:
         """
         获取完整分类树
@@ -142,12 +140,9 @@ class AssetCategoryViewSet(viewsets.ModelViewSet[Any]):
         """
         roots = get_asset_category_tree_roots()
         serializer = AssetCategoryTreeSerializer(roots, many=True)
-        return Response({
-            'success': True,
-            'data': serializer.data
-        })
+        return Response({"success": True, "data": serializer.data})
 
-    @typed_action(detail=True, methods=['get'])
+    @typed_action(detail=True, methods=["get"])
     def children(self, request: Request, pk: str | None = None) -> Response:
         """
         获取子分类
@@ -157,13 +152,11 @@ class AssetCategoryViewSet(viewsets.ModelViewSet[Any]):
         category = self.get_object()
         children = get_asset_category_children(category_id=category.id)
         serializer = AssetCategorySerializer(children, many=True)
-        return Response({
-            'success': True,
-            'data': serializer.data
-        })
+        return Response({"success": True, "data": serializer.data})
 
 
 # ==================== Currency ViewSet ====================
+
 
 class CurrencyViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     """
@@ -182,7 +175,7 @@ class CurrencyViewSet(viewsets.ReadOnlyModelViewSet[Any]):
 
         return get_currency_queryset()
 
-    @typed_action(detail=False, methods=['get'])
+    @typed_action(detail=False, methods=["get"])
     def base(self, request: Request) -> Response:
         """
         获取基准货币
@@ -191,16 +184,17 @@ class CurrencyViewSet(viewsets.ReadOnlyModelViewSet[Any]):
         """
         currency = get_base_currency()
         if not currency:
-            return Response({
-                'success': False,
-                'error': 'No base currency found'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"success": False, "error": "No base currency found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         serializer = CurrencySerializer(currency)
         return Response(serializer.data)
 
 
 # ==================== Exchange Rate ViewSet ====================
+
 
 class ExchangeRateViewSet(viewsets.ModelViewSet[Any]):
     """
@@ -222,13 +216,13 @@ class ExchangeRateViewSet(viewsets.ModelViewSet[Any]):
 
     def get_serializer_class(self) -> type[BaseSerializer[Any]]:
         """根据操作选择 serializer"""
-        if self.action == 'create':
+        if self.action == "create":
             return ExchangeRateCreateSerializer
         return ExchangeRateSerializer
 
     def get_permissions(self) -> list[BasePermission]:
         """只有管理员可以创建/更新/删除汇率"""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsAdminUser()]
         return [IsAuthenticated()]
 
@@ -252,8 +246,8 @@ class ExchangeRateViewSet(viewsets.ModelViewSet[Any]):
 
     @typed_action(
         detail=False,
-        methods=['get'],
-        url_path='latest/(?P<from_code>[^/]+)/(?P<to_code>[^/]+)',
+        methods=["get"],
+        url_path="latest/(?P<from_code>[^/]+)/(?P<to_code>[^/]+)",
     )
     def latest(
         self,
@@ -274,23 +268,34 @@ class ExchangeRateViewSet(viewsets.ModelViewSet[Any]):
             to_code,
             field_name="to_code",
         )
-        rate = get_latest_exchange_rate(
+        latest = get_latest_exchange_rate(
             from_code=normalized_from,
             to_code=normalized_to,
         )
-        if not rate:
-            return Response({
-                'success': False,
-                'error': (
-                    f'No exchange rate found for '
-                    f'{normalized_from} -> {normalized_to}'
-                ),
-            }, status=status.HTTP_404_NOT_FOUND)
+        if latest is None:
+            return Response(
+                {
+                    "success": False,
+                    "error": f"No exchange rate found for {normalized_from} -> {normalized_to}",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-        serializer = ExchangeRateSerializer(rate)
-        return Response(serializer.data)
+        serializer = ExchangeRateSerializer(latest.record)
+        payload = dict(serializer.data)
+        payload.update(
+            {
+                "effective_date": latest.effective_date,
+                "freshness_status": latest.freshness_status,
+                "staleness_days": latest.staleness_days,
+                "is_stale": latest.is_stale,
+                "must_not_use_for_decision": latest.must_not_use_for_decision,
+                "blocked_reason": latest.blocked_reason,
+            }
+        )
+        return Response(payload)
 
-    @typed_action(detail=False, methods=['post'])
+    @typed_action(detail=False, methods=["post"])
     def convert(self, request: Request) -> Response:
         """
         货币转换
@@ -305,33 +310,45 @@ class ExchangeRateViewSet(viewsets.ModelViewSet[Any]):
         """
         serializer = CurrencyConvertSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
 
         try:
             conversion = convert_currency_amount(
-                amount=data['amount'],
-                from_currency=data['from_currency'],
-                to_currency=data['to_currency'],
-                date_value=data.get('date'),
+                amount=data["amount"],
+                from_currency=data["from_currency"],
+                to_currency=data["to_currency"],
+                date_value=data.get("date"),
             )
 
-            return Response({
-                'success': True,
-                'converted_amount': conversion['converted_amount'],
-                'rate_used': conversion['rate_used'],
-                'rate_date': conversion['rate_date'],
-            })
+            return Response(
+                {
+                    "success": True,
+                    "converted_amount": conversion["converted_amount"],
+                    "rate_used": conversion["rate_used"],
+                    "rate_date": conversion["rate_date"],
+                }
+            )
 
+        except ExchangeRateDecisionBlockedError as exc:
+            return Response(
+                {
+                    "success": False,
+                    "error": str(exc),
+                    "freshness_status": exc.freshness_status,
+                    "staleness_days": exc.staleness_days,
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": exc.blocked_reason,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except ValueError as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ==================== Portfolio Allocation API ====================
+
 
 class PortfolioAllocationView(APIView):
     """
@@ -353,11 +370,9 @@ class PortfolioAllocationView(APIView):
             raise ValidationError(
                 {"detail": f"不支持的查询参数: {', '.join(sorted(unknown_params))}"}
             )
-        dimension = request.query_params.get('dimension', 'category')
+        dimension = request.query_params.get("dimension", "category")
         if dimension not in ("category", "currency"):
-            raise ValidationError(
-                {"dimension": "必须为 category 或 currency"}
-            )
+            raise ValidationError({"dimension": "必须为 category 或 currency"})
         if portfolio_id <= 0:
             raise ValidationError({"portfolio_id": "必须是正整数"})
         try:
@@ -374,24 +389,24 @@ class PortfolioAllocationView(APIView):
         if payload is None:
             return Response(
                 {
-                    'success': False,
-                    'error': f'Portfolio not found: {portfolio_id}',
+                    "success": False,
+                    "error": f"Portfolio not found: {portfolio_id}",
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer_class = CurrencyAllocationSerializer if dimension == 'currency' else AssetAllocationSerializer
-        serializer = serializer_class(payload['data'], many=True)
+        serializer_class = (
+            CurrencyAllocationSerializer if dimension == "currency" else AssetAllocationSerializer
+        )
+        serializer = serializer_class(payload["data"], many=True)
         response_payload: dict[str, Any] = {
-            'success': True,
-            'dimension': payload['dimension'],
-            'data': serializer.data,
+            "success": True,
+            "dimension": payload["dimension"],
+            "data": serializer.data,
         }
-        if payload['dimension'] == 'currency':
-            response_payload['base_currency'] = payload['base_currency']
-            response_payload['total_value_base'] = payload['total_value_base']
+        if payload["dimension"] == "currency":
+            response_payload["base_currency"] = payload["base_currency"]
+            response_payload["total_value_base"] = payload["total_value_base"]
         else:
-            response_payload['total_value'] = payload['total_value']
+            response_payload["total_value"] = payload["total_value"]
         return Response(response_payload)
-
-

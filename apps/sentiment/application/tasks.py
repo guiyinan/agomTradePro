@@ -332,36 +332,39 @@ def check_sentiment_data_freshness(self: BoundTask) -> dict[str, object]:
 
     检查最近的情绪指数数据是否存在，用于监控。
     """
-    from apps.sentiment.application.repository_provider import get_sentiment_index_repository
+    from apps.sentiment.application.current_sentiment import resolve_current_sentiment
 
     try:
-        index_repo = get_sentiment_index_repository()
-        latest = index_repo.get_latest()
+        current = resolve_current_sentiment()
+        latest = current.diagnostic_index
 
         if not latest:
             return {
                 "status": "warning",
                 "message": "没有情绪指数数据",
+                "freshness_status": current.freshness_status,
+                "must_not_use_for_decision": True,
+                "blocked_reason": current.blocked_reason,
             }
 
-        # 检查数据是否是最新的
-        today = date.today()
-        latest_date = latest.index_date.date()
-
-        if latest_date == today:
+        if not current.must_not_use_for_decision:
             return {
                 "status": "ok",
                 "message": f"今日数据已更新: {latest.composite_index:.2f}",
-                "latest_date": str(latest_date),
+                "latest_date": str(current.observed_at),
                 "composite_index": latest.composite_index,
+                "freshness_status": current.freshness_status,
+                "must_not_use_for_decision": False,
+                "blocked_reason": "",
             }
-        else:
-            days_diff = (today - latest_date).days
-            return {
-                "status": "warning",
-                "message": f"数据过期 {days_diff} 天",
-                "latest_date": str(latest_date),
-            }
+        return {
+            "status": "warning",
+            "message": f"情绪数据不可用于决策: {current.blocked_reason}",
+            "latest_date": str(current.observed_at),
+            "freshness_status": current.freshness_status,
+            "must_not_use_for_decision": True,
+            "blocked_reason": current.blocked_reason,
+        }
 
     except Exception as exc:
         logger.exception("检查情绪数据新鲜度失败")

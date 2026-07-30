@@ -77,7 +77,9 @@ def register_realtime_tools(server: FastMCP) -> None:
         获取市场概况
 
         Returns:
-            市场概况，包括主要指数、涨跌统计、成交额等
+            市场概况，包括主要指数、观测时间与完整性契约。
+            contract.market_data_as_of 是行情实际观测时间；
+            contract.must_not_use_for_decision=true 时不得给出确定性投资建议。
 
         Example:
             >>> summary = get_market_summary()
@@ -184,4 +186,3 @@ def register_realtime_tools(server: FastMCP) -> None:
         """
         client = AgomTradeProClient()
         client.realtime.delete_alert(alert_id)
-

@@ -18,14 +18,6 @@ class _FakeNavigatorRepository:
         raise AssertionError("read-only action recommendation must not be persisted")
 
 
-class _FakeRegimeRepository:
-    def __init__(self, confidence=0.83):
-        self._snapshot = SimpleNamespace(confidence=confidence)
-
-    def get_latest_snapshot(self, before_date=None):
-        return self._snapshot
-
-
 def test_get_action_recommendation_prefers_cached_log(monkeypatch):
     cached_log = SimpleNamespace(
         observed_at=date(2026, 5, 8),
@@ -44,8 +36,12 @@ def test_get_action_recommendation_prefers_cached_log(monkeypatch):
         lambda: _FakeNavigatorRepository(cached_log),
     )
     monkeypatch.setattr(
-        "apps.regime.application.navigator_use_cases.get_regime_repository",
-        lambda: _FakeRegimeRepository(),
+        "apps.regime.application.navigator_use_cases.resolve_current_regime",
+        lambda **_: SimpleNamespace(
+            confidence=0.83,
+            must_not_use_for_decision=False,
+            blocked_reason="",
+        ),
     )
     monkeypatch.setattr(
         "apps.pulse.application.use_cases.GetLatestPulseUseCase",
@@ -77,6 +73,45 @@ def test_get_action_recommendation_prefers_cached_log(monkeypatch):
     assert result.recommended_sectors == ["科技", "消费"]
     assert result.confidence == 0.83
     assert "已复用" in result.reasoning
+
+
+def test_cached_action_recommendation_blocks_stale_log(monkeypatch):
+    cached_log = SimpleNamespace(
+        observed_at=date(2026, 5, 8),
+        regime_name="Recovery",
+        pulse_strength="strong",
+        asset_weights={"equity": 0.6, "cash": 0.4},
+        risk_budget_pct=0.7,
+        recommended_sectors=[],
+        benefiting_styles=[],
+        must_not_use_for_decision=False,
+        blocked_reason="",
+    )
+    monkeypatch.setattr(
+        "apps.regime.application.navigator_use_cases.get_navigator_repository",
+        lambda: _FakeNavigatorRepository(cached_log),
+    )
+    monkeypatch.setattr(
+        "apps.regime.application.navigator_use_cases.resolve_current_regime",
+        lambda **_: SimpleNamespace(
+            confidence=0.8,
+            must_not_use_for_decision=False,
+            blocked_reason="",
+        ),
+    )
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases.GetLatestPulseUseCase",
+        lambda: SimpleNamespace(execute=lambda **_: None),
+    )
+
+    result = GetActionRecommendationUseCase().execute(
+        date(2026, 5, 12),
+        prefer_cached=True,
+    )
+
+    assert result is not None
+    assert result.must_not_use_for_decision is True
+    assert result.blocked_reason == "cached_action_stale"
 
 
 def test_get_action_recommendation_can_compute_without_refresh_or_persistence(monkeypatch):

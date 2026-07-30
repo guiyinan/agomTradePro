@@ -52,7 +52,7 @@ def _previous_weekday(target_date: date) -> date:
     return previous_day
 
 
-def _latest_completed_cn_quote_session(now: datetime) -> date | None:
+def latest_completed_cn_market_session(now: datetime) -> date | None:
     """Return the latest completed A-share quote session for non-live periods."""
 
     local_now = now.astimezone(CN_MARKET_TZ)
@@ -65,6 +65,36 @@ def _latest_completed_cn_quote_session(now: datetime) -> date | None:
     if current_time >= CN_MARKET_CLOSE:
         return current_date
     return None
+
+
+def latest_daily_market_observation_is_current(
+    *,
+    asset_code: str,
+    observed_at: date,
+    now: datetime | None = None,
+    max_business_days: int = 1,
+) -> bool:
+    """Return whether a daily observation is safe for a latest-price fallback."""
+
+    if max_business_days < 0:
+        raise ValueError("max_business_days must be non-negative")
+    current_now = now or datetime.now(UTC)
+    if current_now.tzinfo is None:
+        current_now = current_now.replace(tzinfo=UTC)
+    if _is_cn_listed_asset(asset_code):
+        expected_session = latest_completed_cn_market_session(current_now)
+        return expected_session is not None and observed_at == expected_session
+
+    target_date = current_now.astimezone(CN_MARKET_TZ).date()
+    if observed_at > target_date:
+        return False
+    current = observed_at + timedelta(days=1)
+    age = 0
+    while current <= target_date:
+        if current.weekday() < 5:
+            age += 1
+        current += timedelta(days=1)
+    return age <= max_business_days
 
 
 def _is_cn_listed_asset(asset_code: str) -> bool:
@@ -571,7 +601,7 @@ class QueryLatestQuoteUseCase:
         snapshot_local = normalized_snapshot_at.astimezone(CN_MARKET_TZ)
         if (
             quote_is_stale
-            and (latest_completed_session := _latest_completed_cn_quote_session(current_now))
+            and (latest_completed_session := latest_completed_cn_market_session(current_now))
             is not None
             and _is_cn_listed_asset(asset_code)
             and snapshot_local.date() == latest_completed_session
@@ -629,4 +659,6 @@ __all__ = [
     "QueryMacroSeriesUseCase",
     "QueryPriceHistoryUseCase",
     "ResolveAssetUseCase",
+    "latest_completed_cn_market_session",
+    "latest_daily_market_observation_is_current",
 ]

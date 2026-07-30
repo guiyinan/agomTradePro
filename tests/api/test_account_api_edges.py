@@ -931,6 +931,136 @@ def test_account_exchange_rate_latest_contract(authenticated_client):
     assert payload["from_currency_code"] == "USD"
     assert payload["to_currency_code"] == "CNY"
     assert Decimal(str(payload["rate"])) == Decimal("7.123400")
+    assert payload["effective_date"] == "2026-04-01"
+    assert payload["freshness_status"] == "stale"
+    assert payload["staleness_days"] > 1
+    assert payload["is_stale"] is True
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["blocked_reason"] == "exchange_rate_stale"
+
+
+@pytest.mark.django_db
+def test_account_exchange_rate_latest_marks_current_observation_fresh(
+    authenticated_client,
+):
+    usd = CurrencyModel.objects.create(
+        code="USD",
+        name="美元",
+        symbol="$",
+        is_base=False,
+        is_active=True,
+        precision=2,
+    )
+    cny = CurrencyModel.objects.create(
+        code="CNY",
+        name="人民币",
+        symbol="¥",
+        is_base=True,
+        is_active=True,
+        precision=2,
+    )
+    ExchangeRateModel.objects.create(
+        from_currency=usd,
+        to_currency=cny,
+        rate=Decimal("7.123400"),
+        effective_date=timezone.localdate(),
+    )
+
+    response = authenticated_client.get("/api/account/exchange-rates/latest/usd/cny/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["freshness_status"] == "fresh"
+    assert payload["staleness_days"] == 0
+    assert payload["is_stale"] is False
+    assert payload["must_not_use_for_decision"] is False
+    assert payload["blocked_reason"] == ""
+
+
+@pytest.mark.django_db
+def test_account_exchange_rate_convert_rejects_stale_implicit_latest_rate(
+    authenticated_client,
+):
+    usd = CurrencyModel.objects.create(
+        code="USD",
+        name="美元",
+        symbol="$",
+        is_base=False,
+        is_active=True,
+        precision=2,
+    )
+    cny = CurrencyModel.objects.create(
+        code="CNY",
+        name="人民币",
+        symbol="¥",
+        is_base=True,
+        is_active=True,
+        precision=2,
+    )
+    ExchangeRateModel.objects.create(
+        from_currency=usd,
+        to_currency=cny,
+        rate=Decimal("7.123400"),
+        effective_date=date(2026, 4, 1),
+    )
+
+    response = authenticated_client.post(
+        "/api/account/exchange-rates/convert/",
+        {
+            "amount": "100.00",
+            "from_currency": "USD",
+            "to_currency": "CNY",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+    assert "stale" in response.json()["error"]
+
+
+@pytest.mark.django_db
+def test_account_exchange_rate_convert_rejects_future_implicit_latest_rate(
+    authenticated_client,
+):
+    usd = CurrencyModel.objects.create(
+        code="USD",
+        name="美元",
+        symbol="$",
+        is_base=False,
+        is_active=True,
+        precision=2,
+    )
+    cny = CurrencyModel.objects.create(
+        code="CNY",
+        name="人民币",
+        symbol="¥",
+        is_base=True,
+        is_active=True,
+        precision=2,
+    )
+    ExchangeRateModel.objects.create(
+        from_currency=usd,
+        to_currency=cny,
+        rate=Decimal("7.123400"),
+        effective_date=timezone.localdate() + timedelta(days=1),
+    )
+
+    response = authenticated_client.post(
+        "/api/account/exchange-rates/convert/",
+        {
+            "amount": "100.00",
+            "from_currency": "USD",
+            "to_currency": "CNY",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["success"] is False
+    assert payload["blocked_reason"] == "exchange_rate_future_dated"
+    assert payload["must_not_use_for_decision"] is True
 
 
 @pytest.mark.django_db
@@ -1083,7 +1213,7 @@ def test_account_portfolio_allocation_currency_contract(authenticated_client, au
         from_currency=usd,
         to_currency=cny,
         rate=Decimal("7.200000"),
-        effective_date=date(2026, 4, 1),
+        effective_date=timezone.localdate(),
     )
 
     response = authenticated_client.get(

@@ -29,7 +29,7 @@ from apps.fund.application.use_cases import (
 from apps.fund.domain.entities import FundHolding, FundInfo, FundNetValue, FundScore
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.sentiment.application.repository_provider import get_sentiment_index_repository
+from apps.sentiment.application.current_sentiment import resolve_current_sentiment
 from apps.signal.application.repository_provider import get_signal_repository
 
 
@@ -46,7 +46,8 @@ def build_dashboard_context() -> dict[str, Any]:
 
     latest_regime = resolve_current_regime(as_of_date=date.today())
     latest_policy = get_current_policy_repository().get_current_policy_level()
-    latest_sentiment = get_sentiment_index_repository().get_latest()
+    current_sentiment = resolve_current_sentiment()
+    latest_sentiment = current_sentiment.index
     active_signals = get_signal_repository().get_active_signals()
 
     regime_display = {
@@ -112,6 +113,9 @@ def build_dashboard_context() -> dict[str, Any]:
             if latest_sentiment and sentiment_is_valid
             else "-"
         ),
+        "sentiment_freshness_status": current_sentiment.freshness_status,
+        "sentiment_must_not_use_for_decision": current_sentiment.must_not_use_for_decision,
+        "sentiment_blocked_reason": current_sentiment.blocked_reason,
         "active_signals_count": len(active_signals),
     }
 

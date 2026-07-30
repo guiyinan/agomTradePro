@@ -218,7 +218,9 @@ class RegimeModule(BaseModule):
                 regime = item.get("dominant_regime")
                 if regime:
                     counts[regime] = counts.get(regime, 0) + 1
-            stats = [{"dominant_regime": regime, "count": count} for regime, count in counts.items()]
+            stats = [
+                {"dominant_regime": regime, "count": count} for regime, count in counts.items()
+            ]
         else:
             stats = []
 
@@ -252,8 +254,10 @@ class RegimeModule(BaseModule):
             from datetime import datetime
 
             observed_at = datetime.fromisoformat(observed_at).date()
-        elif observed_at is None:
-            observed_at = date.today()
+        elif observed_at is not None and not isinstance(observed_at, date):
+            raise ValidationError("observed_at must be an ISO date or null")
+
+        contract = data.get("contract") if isinstance(data.get("contract"), dict) else {}
 
         return RegimeState(
             dominant_regime=data["dominant_regime"],
@@ -265,6 +269,17 @@ class RegimeModule(BaseModule):
             growth_value=data.get("growth_value"),
             inflation_value=data.get("inflation_value"),
             confidence=data.get("confidence"),
+            diagnostic_regime=data.get("diagnostic_regime"),
+            is_stale=bool(data.get("is_stale", contract.get("is_stale", False))),
+            must_not_use_for_decision=bool(
+                data.get(
+                    "must_not_use_for_decision",
+                    contract.get("must_not_use_for_decision", False),
+                )
+            ),
+            blocked_reason=str(
+                data.get("blocked_reason", contract.get("blocked_reason", "")) or ""
+            ),
         )
 
     @staticmethod

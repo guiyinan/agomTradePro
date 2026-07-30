@@ -82,6 +82,26 @@ class TestRegimeModule:
                 },
             )
 
+    def test_get_current_preserves_missing_observation_and_decision_block(self, client):
+        response = {
+            "dominant_regime": "Unknown",
+            "observed_at": None,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "regime_data_unavailable",
+            "contract": {
+                "is_stale": True,
+                "must_not_use_for_decision": True,
+            },
+        }
+
+        with patch.object(client, "_request", return_value=response):
+            regime = client.regime.get_current()
+
+        assert regime.observed_at is None
+        assert regime.is_stale is True
+        assert regime.must_not_use_for_decision is True
+        assert regime.blocked_reason == "regime_data_unavailable"
+
     def test_calculate_snapshot_returns_canonical_envelope(self, client):
         response = {
             "success": True,
@@ -94,11 +114,14 @@ class TestRegimeModule:
         }
 
         with patch.object(client, "_request", return_value=response) as mock_request:
-            assert client.regime.calculate_snapshot(
-                as_of_date=date(2024, 1, 1),
-                use_pit=False,
-                data_source="tushare",
-            ) == response
+            assert (
+                client.regime.calculate_snapshot(
+                    as_of_date=date(2024, 1, 1),
+                    use_pit=False,
+                    data_source="tushare",
+                )
+                == response
+            )
 
         mock_request.assert_called_once_with(
             "POST",
@@ -152,7 +175,7 @@ class TestRegimeModule:
                 {"dominant_regime": "Recovery", "count": 2, "percentage": 50.0},
                 {"dominant_regime": "Overheat", "count": 1, "percentage": 25.0},
                 {"dominant_regime": "Deflation", "count": 1, "percentage": 25.0},
-            ]
+            ],
         }
 
         with patch.object(client, "_request", return_value=mock_response) as mock_request:
