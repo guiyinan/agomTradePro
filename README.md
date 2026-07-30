@@ -983,6 +983,8 @@ REST API 路径：OpenAPI 快照
 
 欢迎贡献！提交 PR 前请阅读[开发规范](docs/development/outsourcing-work-guidelines.md)。
 
+当前治理阶段以 `dev/next-development` 为集成主线：短期 `dev/*` 分支从这里切出并合回这里；完成集成回归后，再将同一提交快进到稳定展示分支 `main`。分支命名与提交要求见 [Git 工作流](docs/GIT_WORKFLOW.md)。
+
 ```bash
 # 格式化
 black . && isort . && ruff check .

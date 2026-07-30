@@ -913,6 +913,8 @@ Documentation files: docs/INDEX.md
 
 Contributions are welcome! Please read the [development guidelines](docs/development/outsourcing-work-guidelines.md) before submitting PRs.
 
+During the current governance phase, `dev/next-development` is the integration line: short-lived `dev/*` branches start from and merge back into it, while the same tested commit is later fast-forwarded to the stable public `main` branch. See the [Git workflow](docs/GIT_WORKFLOW.md) for naming and commit conventions.
+
 ```bash
 # Format
 black . && isort . && ruff check .
