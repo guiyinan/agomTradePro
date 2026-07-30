@@ -397,15 +397,24 @@
     function renderKpiTrendMarkup(viewModel, options = {}) {
         const points = (viewModel.trend || []).map(normalizePoint).filter(Boolean);
         const values = points.map((point) => point.value);
-        const first = values[0] || 0;
-        const last = values.length ? values[values.length - 1] : Number.parseFloat(viewModel.value) || 0;
+        const explicitValue = Number.parseFloat(viewModel.value);
+        if (!values.length && !Number.isFinite(explicitValue)) {
+            return `
+                <div class="tui-panel-placeholder tui-contract-error" data-render-contract-error="kpi_trend">
+                    <div>指标结果数据不完整，已停止展示占位数值。</div>
+                    <small>请刷新后重试；若持续出现，请检查数据同步与结果投影。</small>
+                </div>
+            `;
+        }
+        const first = values.length ? values[0] : explicitValue;
+        const last = values.length ? values[values.length - 1] : explicitValue;
         const delta = last - first;
         const directionClass = delta >= 0 ? "is-up" : "is-down";
         return `
             <section class="tui-rich-view tui-kpi-view ${options.compact ? "is-compact" : ""}">
                 <div class="tui-kpi-main">
                     <span>${escapeHtml(viewModel.label || viewModel.title || "KPI")}</span>
-                    <strong>${escapeHtml(viewModel.value || formatNumber(last))}</strong>
+                    <strong>${escapeHtml(hasDisplayValue(viewModel.value) ? viewModel.value : formatNumber(last))}</strong>
                     <em class="${directionClass}">${delta >= 0 ? "+" : ""}${escapeHtml(formatNumber(delta))}</em>
                 </div>
                 ${points.length ? `<div class="tui-kpi-spark">${renderLineSvg(points, { spark: true })}</div>` : ""}

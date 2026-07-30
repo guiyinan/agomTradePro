@@ -205,6 +205,16 @@ ALLOWED_TUI_DASHBOARD_FIELD_FORMATS = {
     "percentage",
     "datetime",
 }
+STRICT_TUI_DASHBOARD_PANEL_ACTION_KINDS = {
+    "datagrid": {"datagrid"},
+    "regime_quadrant": {"detail", "status"},
+    "chart": {"chart"},
+    "image": {"image"},
+    "kpi_trend": {"kpi_trend"},
+    "table_chart": {"table_chart"},
+    "host_slot": {"host_slot"},
+    "custom": {"custom"},
+}
 ALLOWED_TUI_SOURCE_PREFIXES = (
     "approved:",
     "api-collector:",
@@ -467,6 +477,12 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                 raise TuiMetadataValidationError(
                     f"Dashboard panel references unknown action: {screen['key']}.{panel['key']}"
                 )
+            if action_key:
+                _validate_dashboard_panel_action_kind(
+                    screen=screen,
+                    panel=panel,
+                    action=action_by_key[action_key],
+                )
             target_screen = str(panel.get("target_screen") or "").strip()
             if target_screen and target_screen not in screen_keys:
                 raise TuiMetadataValidationError(
@@ -568,6 +584,31 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
     )
     _validate_with_json_schema(payload)
     return payload
+
+
+def _validate_dashboard_panel_action_kind(
+    *,
+    screen: dict[str, Any],
+    panel: dict[str, Any],
+    action: dict[str, Any],
+) -> None:
+    """Reject strict dashboard renderers wired to incompatible action results."""
+
+    panel_kind = str(panel.get("kind") or "").strip()
+    expected_kinds = STRICT_TUI_DASHBOARD_PANEL_ACTION_KINDS.get(panel_kind)
+    if expected_kinds is None:
+        return
+    view_model = action.get("view_model")
+    configured_kind = (
+        str(view_model.get("kind") or "").strip() if isinstance(view_model, dict) else ""
+    )
+    action_kind = configured_kind or str(action.get("view_type") or "").strip()
+    if action_kind in expected_kinds:
+        return
+    raise TuiMetadataValidationError(
+        "Dashboard panel/action kind mismatch: "
+        f"{screen['key']}.{panel['key']} panel={panel_kind} action={action_kind or 'unset'}"
+    )
 
 
 def _validate_dashboard_row_actions(

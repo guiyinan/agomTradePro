@@ -3341,6 +3341,22 @@ def test_tui_metadata_validator_rejects_unknown_dashboard_layout():
         validate_tui_metadata(payload)
 
 
+def test_tui_metadata_validator_rejects_dashboard_panel_action_kind_drift():
+    payload = _metadata_payload()
+    payload["screens"][0]["dashboard_panels"] = [
+        {
+            "key": "trend",
+            "title": "Trend",
+            "kind": "chart",
+            "action_key": "sample.list",
+            "user_priority": "p0",
+        }
+    ]
+
+    with pytest.raises(TuiMetadataValidationError, match="panel/action kind mismatch"):
+        validate_tui_metadata(payload)
+
+
 def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():
     payload = _metadata_payload()
     payload["field_aliases"] = {"company.keyword": ["keyword", "company_name"]}

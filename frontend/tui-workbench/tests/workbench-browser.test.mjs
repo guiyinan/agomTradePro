@@ -88,6 +88,7 @@ const actions = [
     action("test.next", { label: "下一动作", sequence: 7 }),
     action("test.regime", { label: "Regime 面板", sequence: 8 }),
     action("test.chart", { label: "趋势图", view_type: "chart", sequence: 9 }),
+    action("test.kpi", { label: "关键指标", view_type: "kpi_trend", sequence: 10 }),
     action("test.admin-read", {
         label: "管理员只读状态",
         risk: "admin",
@@ -474,6 +475,23 @@ async function openHarness(url = "https://app.test/", options = {}) {
             });
             return;
         }
+        if (url.pathname.includes("/actions/test.kpi/run/")) {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: actions.find((item) => item.key === "test.kpi"),
+                    view_model: {
+                        kind: "kpi_trend",
+                        title: "关键指标",
+                        status: "正常",
+                        value: "",
+                        trend: [],
+                    },
+                }),
+            });
+            return;
+        }
         const actionKey = decodeURIComponent(url.pathname.match(/\/actions\/([^/]+)\/run\//)?.[1] || "");
         await route.fulfill({
             status: 200,
@@ -675,6 +693,24 @@ test("regime dashboard fails closed when its result contract drifts", async () =
         assert.match(panelText, /结果数据不完整/);
         assert.doesNotMatch(panelText, /UNKNOWN/);
         assert.doesNotMatch(panelText, /0%/);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("blank KPI results fail closed instead of rendering a synthetic zero", async () => {
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.grid&action=test.kpi",
+        { waitForInitialRows: false },
+    );
+    try {
+        const contractError = page.locator(
+            '[data-main-panel] [data-render-contract-error="kpi_trend"]',
+        );
+        await contractError.waitFor({ state: "visible" });
+        const resultText = await page.locator("[data-main-panel]").innerText();
+        assert.match(resultText, /指标结果数据不完整/);
+        assert.doesNotMatch(resultText, /\b0(?:\.0+)?\b/);
     } finally {
         await browser.close();
     }

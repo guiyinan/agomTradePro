@@ -10765,27 +10765,57 @@
     {
       "key": "auto.api.get.api.dashboard.allocation",
       "label": "资产配置",
-      "endpoint": "/api/dashboard/allocation/",
-      "intent": "auto_safe_read_candidate",
+      "endpoint": "/api/dashboard/tui/overview/",
+      "intent": "chart_owned_asset_allocation",
       "screen_key": "command-center.overview",
-      "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "03 今日信号",
-      "sequence": 300,
+      "view_type": "chart",
+      "description": "以占比饼图查看本人当前资产配置。",
+      "source": "approved:runtime-dashboard-overview",
+      "view_model": {
+        "kind": "chart",
+        "chart_type": "pie",
+        "rows_path": "allocation",
+        "columns": [
+          {
+            "key": "asset_class",
+            "label": "资产类别"
+          },
+          {
+            "key": "weight_percent",
+            "label": "配置占比（%）"
+          }
+        ]
+      },
+      "task_group": "01 指挥概览",
+      "sequence": 50,
       "task_tier": "support"
     },
     {
       "key": "auto.api.get.api.dashboard.performance",
       "label": "组合表现",
-      "endpoint": "/api/dashboard/performance/",
-      "intent": "auto_safe_read_candidate",
+      "endpoint": "/api/dashboard/tui/overview/",
+      "intent": "chart_owned_portfolio_performance",
       "screen_key": "command-center.overview",
-      "view_type": "status",
-      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "03 今日信号",
-      "sequence": 300,
+      "view_type": "chart",
+      "description": "按日期查看本人组合收益率变化。",
+      "source": "approved:runtime-dashboard-overview",
+      "view_model": {
+        "kind": "chart",
+        "chart_type": "line",
+        "rows_path": "performance",
+        "columns": [
+          {
+            "key": "date",
+            "label": "日期"
+          },
+          {
+            "key": "return_pct",
+            "label": "收益率（%）"
+          }
+        ]
+      },
+      "task_group": "01 指挥概览",
+      "sequence": 60,
       "task_tier": "support"
     },
     {

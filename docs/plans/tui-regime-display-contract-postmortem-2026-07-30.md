@@ -37,6 +37,7 @@
 - 审计 76 个 dashboard panel：唯一专用 `regime_quadrant` 已建立稳定投影；4 个 chart panel 均使用 portable chart 契约。
 - 审计发现 `pulse-turning` 名称/类型与 `pulse.current` 的指标表契约不一致，已改为“当前脉搏指标” datagrid，并只展示指标、信号、方向和过期状态。
 - 验证候选图时发现 generated graph 仍使用已废弃的 `daily_decision/research/assistant` journey 值；已与 published/IA 统一为 `workspace`，恢复 generated 与 published 双图校验。
+- 全量 kind 校验发现首页资产配置与组合表现仍由旧 `status` 基线依赖运行时 patch 转成 chart；已把 generated/published 直接同步为正式 portable chart 契约。
 
 ## 5. 长期门禁
 
@@ -45,6 +46,7 @@
 3. P0 dashboard 验收必须使用一组非零、非空的代表数据，比较 API 真值与页面值。
 4. panel `kind`、action `view_model.kind` 和 `presentation_semantic` 必须一致；有宿主聚合适配器的例外需在测试中明确登记。
 5. 任何空值数值格式化必须先判空；`Number("")`、隐式布尔转换等不得出现在用户结果路径。
+6. Metadata validator 对 `datagrid/chart/image/kpi_trend/table_chart/host_slot/custom/regime_quadrant` 执行 panel/action kind 一致性校验，发布前直接拒绝错配。
 
 ## 6. 完成标准
 
