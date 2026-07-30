@@ -14,9 +14,9 @@ from math import isfinite
 from types import CodeType
 from typing import Any, TypeVar, cast
 
-from RestrictedPython import compile_restricted  # type: ignore[import-untyped]
-from RestrictedPython.Eval import default_guarded_getattr  # type: ignore[import-untyped]
-from RestrictedPython.Guards import (  # type: ignore[import-untyped]
+from RestrictedPython import compile_restricted
+from RestrictedPython.Eval import default_guarded_getattr
+from RestrictedPython.Guards import (
     full_write_guard,
     guarded_iter_unpack_sequence,
     guarded_unpack_sequence,

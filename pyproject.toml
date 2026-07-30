@@ -217,6 +217,12 @@ module = [
     "celery.*",
     "rest_framework.*",
     "drf_spectacular.*",
+    "RestrictedPython",
+    "RestrictedPython.*",
+    "qlib",
+    "qlib.*",
+    "sentry_sdk",
+    "sentry_sdk.*",
 ]
 ignore_missing_imports = true
 

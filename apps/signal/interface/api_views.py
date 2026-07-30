@@ -24,6 +24,7 @@ from apps.signal.application.query_services import (
     validate_existing_signal_payload,
     validate_signal_eligibility_payload,
 )
+from shared.request_payload import request_data_mapping
 
 from .serializers import (
     InvestmentSignalCreateSerializer,
@@ -197,7 +198,8 @@ class SignalViewSet(viewsets.GenericViewSet[Any]):
     @action(detail=True, methods=["post"])
     def reject(self, request: Request, pk: str | None = None) -> Response:
         """拒绝信号。"""
-        reason = request.data.get("reason", "手动拒绝")
+        request_payload = request_data_mapping(request)
+        reason = request_payload.get("reason", "手动拒绝")
         if not isinstance(reason, str) or not reason.strip() or len(reason) > 1000:
             return Response(
                 {"reason": ["reason must be a non-empty string up to 1000 characters"]},
@@ -215,7 +217,8 @@ class SignalViewSet(viewsets.GenericViewSet[Any]):
     @action(detail=True, methods=["post"])
     def invalidate(self, request: Request, pk: str | None = None) -> Response:
         """证伪信号。"""
-        reason = request.data.get("reason", "手动证伪")
+        request_payload = request_data_mapping(request)
+        reason = request_payload.get("reason", "手动证伪")
         if not isinstance(reason, str) or not reason.strip() or len(reason) > 1000:
             return Response(
                 {"reason": ["reason must be a non-empty string up to 1000 characters"]},

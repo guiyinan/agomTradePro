@@ -17,6 +17,7 @@ from apps.asset_analysis.application.pool_service import AssetPoolManager
 from apps.asset_analysis.application.repository_provider import (
     get_asset_pool_query_repository,
 )
+from shared.request_payload import request_data_mapping
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +37,12 @@ class AssetPoolScreenAPIView(APIView):
             asset_type: 资产类型 (equity/fund/bond/wealth/commodity)
         """
         # 1. 获取筛选条件
-        regime = request.data.get("regime")
-        min_score = request.data.get("min_score", 0)
-        max_score = request.data.get("max_score", 100)
-        risk_level = request.data.get("risk_level")
-        pool_types = request.data.get("pool_types", ["investable", "watch", "candidate"])
+        request_payload = request_data_mapping(request)
+        regime = request_payload.get("regime")
+        min_score = request_payload.get("min_score", 0)
+        max_score = request_payload.get("max_score", 100)
+        risk_level = request_payload.get("risk_level")
+        pool_types = request_payload.get("pool_types", ["investable", "watch", "candidate"])
 
         # 2. 获取评分上下文
         try:
@@ -59,9 +61,15 @@ class AssetPoolScreenAPIView(APIView):
         # 3. 根据资产类型执行筛选
         try:
             if asset_type == "equity":
-                scored_assets = screen_equity_assets(context_payload.score_context, request.data)
+                scored_assets = screen_equity_assets(
+                    context_payload.score_context,
+                    request_payload,
+                )
             elif asset_type == "fund":
-                scored_assets = screen_fund_assets(context_payload.score_context, request.data)
+                scored_assets = screen_fund_assets(
+                    context_payload.score_context,
+                    request_payload,
+                )
             else:
                 return Response(
                     {"success": False, "error": f"暂不支持 {asset_type} 资产类型"},

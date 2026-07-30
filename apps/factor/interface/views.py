@@ -28,6 +28,7 @@ from apps.factor.interface.serializers import (
     FactorWeightMutationSerializer,
     FactorWeightRemovalSerializer,
 )
+from shared.request_payload import request_data_mapping
 
 
 def _parse_factor_explanation_input(
@@ -366,8 +367,9 @@ class FactorScoreViewSet(viewsets.ViewSet):
     def explain_stock(self, request: Request) -> Response:
         """Explain one stock factor score."""
 
+        request_payload = request_data_mapping(request)
         try:
-            stock_code, factor_weights = _parse_factor_explanation_input(request.data)
+            stock_code, factor_weights = _parse_factor_explanation_input(request_payload)
         except ValueError as exc:
             return Response(
                 {"error": str(exc)},
@@ -442,8 +444,9 @@ class FactorActionViewSet(viewsets.ViewSet):
     def get_top_stocks(self, request: Request) -> Response:
         """Get top stocks by factor preferences."""
 
-        factor_preferences = request.data.get("factor_preferences", {})
-        top_n = request.data.get("top_n", 30)
+        request_payload = request_data_mapping(request)
+        factor_preferences = request_payload.get("factor_preferences", {})
+        top_n = request_payload.get("top_n", 30)
         if not isinstance(factor_preferences, dict):
             return Response(
                 {"error": "factor_preferences must be an object"},
@@ -477,8 +480,9 @@ class FactorActionViewSet(viewsets.ViewSet):
     def create_portfolio_action(self, request: Request) -> Response:
         """Create a factor portfolio from a config name."""
 
-        config_name = request.data.get("config_name")
-        trade_date_value = request.data.get("trade_date")
+        request_payload = request_data_mapping(request)
+        config_name = request_payload.get("config_name")
+        trade_date_value = request_payload.get("trade_date")
 
         if not config_name:
             return Response(
@@ -520,8 +524,9 @@ class FactorActionViewSet(viewsets.ViewSet):
     def explain_stock_action(self, request: Request) -> Response:
         """Explain one stock factor score breakdown."""
 
+        request_payload = request_data_mapping(request)
         try:
-            stock_code, factor_weights = _parse_factor_explanation_input(request.data)
+            stock_code, factor_weights = _parse_factor_explanation_input(request_payload)
         except ValueError as exc:
             return Response(
                 {"error": str(exc)},

@@ -11,6 +11,8 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from shared.request_payload import request_data_mapping
+
 from ..application.dtos import RouteRequestDTO
 from ..application.governance_services import CapabilityCatalogGovernanceService
 from ..application.interface_services import (
@@ -455,8 +457,9 @@ def sync_capabilities(request: Request) -> Response:
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    sync_type = request.data.get("sync_type", "full")
-    source = request.data.get("source")
+    request_payload = request_data_mapping(request)
+    sync_type = request_payload.get("sync_type", "full")
+    source = request_payload.get("source")
     if not isinstance(sync_type, str) or sync_type not in {"full", "incremental"}:
         return Response(
             {"error": "sync_type must be 'full' or 'incremental'"},

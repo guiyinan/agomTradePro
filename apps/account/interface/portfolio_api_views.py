@@ -14,6 +14,7 @@ from rest_framework.response import Response
 
 from apps.account.application import portfolio_api_services
 from apps.account.application.business_provider_gateway import log_audit_operation
+from shared.request_payload import request_data_mapping
 
 from .permissions import ObserverAccessPermission
 from .serializers import (
@@ -262,7 +263,8 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet[Any]):
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Create one position through the application service boundary."""
 
-        portfolio_id_raw = request.data.get("portfolio")
+        request_payload = request_data_mapping(request)
+        portfolio_id_raw = request_payload.get("portfolio")
         if portfolio_id_raw in (None, ""):
             return Response(
                 {"success": False, "error": "缺少 portfolio 参数"},
@@ -445,7 +447,8 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet[Any]):
     def close(self, request: Request, pk: Any = None) -> Response:
         """Close one position through the application service boundary."""
 
-        close_shares_raw = request.data.get("shares")
+        request_payload = request_data_mapping(request)
+        close_shares_raw = request_payload.get("shares")
         close_shares = float(close_shares_raw) if close_shares_raw is not None else None
 
         try:

@@ -19,7 +19,7 @@ JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
 def _normalize_qlib_region(region_value: object) -> str:
     """Normalize runtime region values for qlib.init()."""
     try:
-        from qlib.constant import REG_CN, REG_US  # type: ignore[import-untyped]
+        from qlib.constant import REG_CN, REG_US
     except Exception:
         REG_CN = "cn"
         REG_US = "us"
@@ -83,12 +83,12 @@ def _install_qlib_pandas_compat() -> None:
         return
 
     pd = cast(Callable[[], Any], get_pandas)()
-    import qlib.data as qlib_data  # type: ignore[import-untyped]
-    import qlib.data.data as qlib_data_module  # type: ignore[import-untyped]
-    import qlib.data.dataset.processor as qlib_processor  # type: ignore[import-untyped]
-    import qlib.data.dataset.utils as qlib_dataset_utils  # type: ignore[import-untyped]
-    import qlib.utils.paral as qlib_paral  # type: ignore[import-untyped]
-    from qlib.config import C  # type: ignore[import-untyped]
+    import qlib.data as qlib_data
+    import qlib.data.data as qlib_data_module
+    import qlib.data.dataset.processor as qlib_processor
+    import qlib.data.dataset.utils as qlib_dataset_utils
+    import qlib.utils.paral as qlib_paral
+    from qlib.config import C
 
     original_datetime_groupby_apply = qlib_paral.datetime_groupby_apply
     original_fetch_df_by_index = qlib_dataset_utils.fetch_df_by_index

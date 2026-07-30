@@ -27,6 +27,7 @@ from apps.dashboard.application.query_services import (
     build_auto_advisor_weekly_report_payload,
 )
 from core.cache_utils import CACHE_TTL, cached_api
+from shared.request_payload import request_data_mapping
 
 
 class _DashboardViewsProtocol(Protocol):
@@ -164,7 +165,7 @@ def auto_advisor_query(request: Request) -> Response:
 
 def _request_param(request: Request, key: str) -> object:
     if request.method == "POST":
-        return request.data.get(key)
+        return request_data_mapping(request).get(key)
     return request.GET.get(key)
 
 

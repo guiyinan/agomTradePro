@@ -207,14 +207,14 @@ def _train_qlib_model(
     del model_path  # Artifact persistence is handled separately.
     try:
         pd = get_pandas()
-        import qlib  # type: ignore[import-untyped]
-        from qlib.contrib.data.handler import Alpha158, Alpha360  # type: ignore[import-untyped]
-        from qlib.contrib.model.gbdt import LGBModel  # type: ignore[import-untyped]
-        from qlib.contrib.model.mlptron import MLPTPModel  # type: ignore[import-untyped]
-        from qlib.contrib.model.pytorch_gru import GRUModel  # type: ignore[import-untyped]
-        from qlib.contrib.model.pytorch_lstm import LSTMModel  # type: ignore[import-untyped]
-        from qlib.data import D  # type: ignore[import-untyped]
-        from qlib.data.dataset import DatasetH  # type: ignore[import-untyped]
+        import qlib
+        from qlib.contrib.data.handler import Alpha158, Alpha360
+        from qlib.contrib.model.gbdt import LGBModel
+        from qlib.contrib.model.mlptron import MLPTPModel
+        from qlib.contrib.model.pytorch_gru import GRUModel
+        from qlib.contrib.model.pytorch_lstm import LSTMModel
+        from qlib.data import D
+        from qlib.data.dataset import DatasetH
 
         qlib_config = _get_runtime_qlib_config()
         if not qlib_config.get("enabled"):

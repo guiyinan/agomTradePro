@@ -25,6 +25,7 @@ from apps.hedge.interface.serializers import (
     HedgeRatioRequestSerializer,
     RecentAlertsRequestSerializer,
 )
+from shared.request_payload import request_data_mapping
 
 
 class HedgePairViewSet(viewsets.ModelViewSet[Any]):
@@ -126,12 +127,13 @@ class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet[Any]):
     @action(detail=False, methods=["post"])
     def calculate(self, request: Request) -> Response:
         """Calculate correlation for a pair of assets"""
-        if not request.data.get("asset1") or not request.data.get("asset2"):
+        request_payload = request_data_mapping(request)
+        if not request_payload.get("asset1") or not request_payload.get("asset2"):
             return Response(
                 {"error": "asset1 and asset2 are required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        serializer = CorrelationCalculationRequestSerializer(data=request.data)
+        serializer = CorrelationCalculationRequestSerializer(data=request_payload)
         serializer.is_valid(raise_exception=True)
         asset1 = cast(str, serializer.validated_data["asset1"])
         asset2 = cast(str, serializer.validated_data["asset2"])
@@ -253,12 +255,13 @@ class HedgeActionViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"])
     def calculate_correlation(self, request: Request) -> Response:
         """Calculate correlation between two assets"""
-        if not request.data.get("asset1") or not request.data.get("asset2"):
+        request_payload = request_data_mapping(request)
+        if not request_payload.get("asset1") or not request_payload.get("asset2"):
             return Response(
                 {"error": "asset1 and asset2 are required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        serializer = CorrelationCalculationRequestSerializer(data=request.data)
+        serializer = CorrelationCalculationRequestSerializer(data=request_payload)
         serializer.is_valid(raise_exception=True)
         asset1 = cast(str, serializer.validated_data["asset1"])
         asset2 = cast(str, serializer.validated_data["asset2"])
@@ -281,12 +284,13 @@ class HedgeActionViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"])
     def check_hedge_ratio(self, request: Request) -> Response:
         """Calculate hedge ratio for a pair"""
-        if not request.data.get("pair_name"):
+        request_payload = request_data_mapping(request)
+        if not request_payload.get("pair_name"):
             return Response(
                 {"error": "pair_name is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        serializer = HedgeRatioRequestSerializer(data=request.data)
+        serializer = HedgeRatioRequestSerializer(data=request_payload)
         serializer.is_valid(raise_exception=True)
         pair_name = cast(str, serializer.validated_data["pair_name"])
 
@@ -302,12 +306,13 @@ class HedgeActionViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"])
     def get_correlation_matrix(self, request: Request) -> Response:
         """Get correlation matrix for multiple assets"""
-        if not request.data.get("asset_codes"):
+        request_payload = request_data_mapping(request)
+        if not request_payload.get("asset_codes"):
             return Response(
                 {"error": "asset_codes is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        serializer = CorrelationMatrixRequestSerializer(data=request.data)
+        serializer = CorrelationMatrixRequestSerializer(data=request_payload)
         serializer.is_valid(raise_exception=True)
         asset_codes = cast(list[str], serializer.validated_data["asset_codes"])
         window_days = cast(int, serializer.validated_data["window_days"])

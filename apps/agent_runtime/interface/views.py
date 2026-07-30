@@ -1,8 +1,7 @@
 """
 DRF Views for Agent Runtime API.
 
-WP-M1-06: API Endpoints (025-026)
-WP-M3-01: Proposal lifecycle endpoints
+WP-M1-06 covers API Endpoints (025-026); WP-M3-01 covers proposal lifecycle endpoints.
 FROZEN: Only endpoints explicitly listed in the contract are exposed.
 See: docs/plans/ai-native/schema-contract.md
 """
@@ -74,6 +73,7 @@ from apps.agent_runtime.interface.serializers import (
     AgentTaskSerializer,
     AgentTimelineEventSerializer,
 )
+from shared.request_payload import request_data_mapping
 
 logger = logging.getLogger(__name__)
 
@@ -478,8 +478,8 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet[Any]):
         try:
             input_dto = ResumeTaskInput(
                 task_id=int(pk),
-                target_status=request.data.get("target_status"),
-                reason=request.data.get("reason"),
+                target_status=request_data_mapping(request).get("target_status"),
+                reason=request_data_mapping(request).get("reason"),
                 actor=self._build_actor(request),
             )
 
@@ -541,7 +541,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet[Any]):
         """
         request_id = self._lookup_task_request_id(pk) or generate_request_id()
 
-        reason = request.data.get("reason", "")
+        reason = request_data_mapping(request).get("reason", "")
 
         if not reason:
             return build_error_response(
@@ -664,8 +664,8 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet[Any]):
             HandoffTaskUseCase,
         )
 
-        to_agent = request.data.get("to_agent", "")
-        handoff_reason = request.data.get("handoff_reason", "")
+        to_agent = (request_payload := request_data_mapping(request)).get("to_agent", "")
+        handoff_reason = request_payload.get("handoff_reason", "")
 
         if not to_agent or not handoff_reason:
             return build_error_response(
@@ -682,8 +682,8 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet[Any]):
                     task_id=int(pk),
                     to_agent=to_agent,
                     handoff_reason=handoff_reason,
-                    recommended_next_action=request.data.get("recommended_next_action"),
-                    open_risks=request.data.get("open_risks"),
+                    recommended_next_action=request_payload.get("recommended_next_action"),
+                    open_risks=request_payload.get("open_risks"),
                     actor=self._build_actor(request),
                 )
             )
@@ -1078,7 +1078,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
             use_case = ApproveProposalUseCase()
             output = use_case.execute(
                 proposal_id=int(pk),
-                reason=request.data.get("reason"),
+                reason=request_data_mapping(request).get("reason"),
                 actor=self._get_actor(request),
             )
 
@@ -1131,7 +1131,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
             use_case = RejectProposalUseCase()
             output = use_case.execute(
                 proposal_id=int(pk),
-                reason=request.data.get("reason"),
+                reason=request_data_mapping(request).get("reason"),
                 actor=self._get_actor(request),
             )
 

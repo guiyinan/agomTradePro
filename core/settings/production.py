@@ -365,14 +365,14 @@ LOGGING = {
 # ---------------------
 _sentry_dsn = os.environ.get("SENTRY_DSN", "")
 if _sentry_dsn:
-    import sentry_sdk  # type: ignore[import-not-found]
-    from sentry_sdk.integrations.celery import (  # type: ignore[import-not-found]
+    import sentry_sdk
+    from sentry_sdk.integrations.celery import (
         CeleryIntegration,
     )
-    from sentry_sdk.integrations.django import (  # type: ignore[import-not-found]
+    from sentry_sdk.integrations.django import (
         DjangoIntegration,
     )
-    from sentry_sdk.integrations.logging import (  # type: ignore[import-not-found]
+    from sentry_sdk.integrations.logging import (
         LoggingIntegration,
     )
 

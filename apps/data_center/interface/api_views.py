@@ -1,8 +1,7 @@
 """
 Data Center — Interface Layer API Views
 
-Phase 1:
-  GET/POST  /api/data-center/providers/
+Phase 1: GET/POST  /api/data-center/providers/
   GET/PATCH /api/data-center/providers/{id}/
   DELETE    /api/data-center/providers/{id}/
   POST      /api/data-center/providers/{id}/test/
@@ -138,6 +137,7 @@ from apps.data_center.interface.serializers import (
 )
 from apps.data_center.provider_runtime import get_registry, refresh_registry
 from shared.numeric import safe_float
+from shared.request_payload import request_data_mapping
 
 logger = logging.getLogger(__name__)
 
@@ -1130,7 +1130,7 @@ def market_thermometer_me(request: Request) -> Response:
 def market_thermometer_calculate(request: Request) -> Response:
     """Trigger a manual market-thermometer recalculation."""
 
-    raw_date = str(request.data.get("as_of_date") or "").strip()
+    raw_date = str(request_data_mapping(request).get("as_of_date") or "").strip()
     as_of_date = date.fromisoformat(raw_date) if raw_date else None
     snapshot = make_calculate_market_thermometer_use_case().execute(as_of_date=as_of_date)
     return Response(snapshot.to_dict())
@@ -1141,7 +1141,7 @@ def market_thermometer_calculate(request: Request) -> Response:
 def market_thermometer_sync_inputs(request: Request) -> Response:
     """Trigger input synchronization for the market thermometer."""
 
-    raw_date = str(request.data.get("as_of_date") or "").strip()
+    raw_date = str(request_data_mapping(request).get("as_of_date") or "").strip()
     as_of_date = date.fromisoformat(raw_date) if raw_date else None
     payload = make_sync_market_thermometer_inputs_use_case().execute(as_of_date=as_of_date)
     return Response(payload)

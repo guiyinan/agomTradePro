@@ -30,6 +30,7 @@ from apps.rotation.interface.serializers import (
     RotationSignalSerializer,
     RotationTemplateSerializer,
 )
+from shared.request_payload import request_data_mapping
 
 
 class AssetClassViewSet(viewsets.ModelViewSet[Any]):
@@ -245,8 +246,9 @@ class RotationActionViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="compare")
     def compare_assets(self, request: Request) -> Response:
         """Compare multiple assets"""
-        asset_codes = request.data.get("asset_codes", [])
-        lookback_days = request.data.get("lookback_days", 60)
+        request_payload = request_data_mapping(request)
+        asset_codes = request_payload.get("asset_codes", [])
+        lookback_days = request_payload.get("lookback_days", 60)
 
         if (
             not isinstance(asset_codes, list)
@@ -279,8 +281,9 @@ class RotationActionViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="correlation")
     def correlation_matrix(self, request: Request) -> Response:
         """Get correlation matrix for assets"""
-        asset_codes = request.data.get("asset_codes", [])
-        window_days = request.data.get("window_days", 60)
+        request_payload = request_data_mapping(request)
+        asset_codes = request_payload.get("asset_codes", [])
+        window_days = request_payload.get("window_days", 60)
 
         if (
             not isinstance(asset_codes, list)
@@ -313,8 +316,9 @@ class RotationActionViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="generate-signal")
     def generate_signal_action(self, request: Request) -> Response:
         """Generate rotation signal for a configuration"""
-        config_name = request.data.get("config_name")
-        signal_date = request.data.get("signal_date")
+        request_payload = request_data_mapping(request)
+        config_name = request_payload.get("config_name")
+        signal_date = request_payload.get("signal_date")
 
         if not isinstance(config_name, str) or not config_name.strip():
             return Response(
@@ -545,7 +549,8 @@ class PortfolioRotationConfigViewSet(viewsets.ModelViewSet[Any]):
         Body: {"template_key": "conservative"}
         """
         config = self.get_object()
-        template_key = request.data.get("template_key")
+        request_payload = request_data_mapping(request)
+        template_key = request_payload.get("template_key")
 
         if not template_key:
             return Response({"error": "template_key 不能为空"}, status=status.HTTP_400_BAD_REQUEST)

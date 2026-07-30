@@ -10,6 +10,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from shared.request_payload import request_data_mapping
+
 from ..application.dtos import (
     ConflictsListDTO,
     RecommendationsListDTO,
@@ -203,10 +205,11 @@ class RecommendationUserActionView(APIView):
     }
 
     def post(self, request: Request) -> Response:
-        recommendation_id = _optional_text((request.data or {}).get("recommendation_id"))
-        action = str((request.data or {}).get("action") or "").strip().lower()
-        account_id = _optional_text((request.data or {}).get("account_id"))
-        note = str((request.data or {}).get("note") or "").strip()
+        request_payload = request_data_mapping(request)
+        recommendation_id = _optional_text(request_payload.get("recommendation_id"))
+        action = str(request_payload.get("action") or "").strip().lower()
+        account_id = _optional_text(request_payload.get("account_id"))
+        note = str(request_payload.get("note") or "").strip()
 
         if not recommendation_id:
             return Response(
@@ -392,11 +395,12 @@ class UpdateModelParamView(APIView):
             env: 环境（默认 dev）
             updated_reason: 变更原因（必填）
         """
-        param_key = _optional_text(request.data.get("param_key"))
-        param_value = request.data.get("param_value")
-        param_type = str(request.data.get("param_type", "float"))
-        env = str(request.data.get("env", "dev"))
-        updated_reason = str(request.data.get("updated_reason", ""))
+        request_payload = request_data_mapping(request)
+        param_key = _optional_text(request_payload.get("param_key"))
+        param_value = request_payload.get("param_value")
+        param_type = str(request_payload.get("param_type", "float"))
+        env = str(request_payload.get("env", "dev"))
+        updated_reason = str(request_payload.get("updated_reason", ""))
 
         if not param_key or param_value is None:
             return Response(

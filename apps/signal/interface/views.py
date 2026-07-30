@@ -35,6 +35,7 @@ from apps.signal.application.use_cases import (
     ValidateSignalRequest,
     ValidateSignalUseCase,
 )
+from shared.request_payload import request_data_mapping
 
 
 @login_required
@@ -415,7 +416,8 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
         """Collect signals from all modules"""
         from apps.signal.application.unified_service import UnifiedSignalService
 
-        signal_date_str = request.data.get("date")
+        request_payload = request_data_mapping(request)
+        signal_date_str = request_payload.get("date")
         if signal_date_str:
             try:
                 calc_date = date.fromisoformat(signal_date_str)

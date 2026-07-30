@@ -231,9 +231,9 @@ def _execute_qlib_prediction(
     try:
         # 尝试导入 Qlib
         pd = cast(Callable[[], Any], get_pandas)()
-        import qlib  # type: ignore[import-untyped]
-        from qlib.data import D  # type: ignore[import-untyped]
-        from qlib.data.dataset import DatasetH  # type: ignore[import-untyped]
+        import qlib
+        from qlib.data import D
+        from qlib.data.dataset import DatasetH
 
         # 获取 Qlib 配置（优先从数据库读取）
         qlib_config = _get_runtime_qlib_config()
