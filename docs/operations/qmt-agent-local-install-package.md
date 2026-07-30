@@ -45,6 +45,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_qmt_agent_pa
 
 构建脚本生成 ZIP 和同名 `.sha256` 文件。ZIP 内的 `manifest.json` 记录所有文件的大小和 SHA-256，且明确标记不包含秘密、QMT 和 xtquant wheel。
 
+### 3.1 在 TUI 完成服务端接入
+
+管理员可在 TUI 的“系统治理 → QMT 接入与设置”完成服务端准备，不再需要从“账户与持仓”的通用动作列表里寻找 QMT 配置：
+
+1. 先读取“QMT 接入指引”，复制安装包构建、Windows 安装、Token 保存和只读验收命令；
+2. 预览并确认 Agent 与系统账户绑定；
+3. 核对当前执行门禁，完成额度、白名单、交易时段和快照时效设置；
+4. 创建一次性 Agent 凭证，立即复制 Token 并在 Windows 使用 DPAPI 保存；
+5. 安装后查看 Agent/QMT 连接与最后心跳，必要时下发一次全量同步；
+6. 只读探针与仿真验收完成前保持自动执行关闭。
+
+该工作区只对管理员开放；普通用户仍在“账户与持仓”查看实盘就绪结论、订单和已授权连接，不会看到凭证、绑定或门禁变更动作。
+
 ## 4. 安装
 
 先安装一个 64 位 Python 3.11。不要使用 QMT 自带的 Python 3.6 运行 Agom Agent。
