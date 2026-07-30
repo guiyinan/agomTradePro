@@ -27,17 +27,14 @@ class FundTuiMultiDimScreenRequestSerializer(serializers.Serializer[Any]):
     )
     regime = serializers.ChoiceField(
         choices=tuple(regime.value for regime in RegimeType),
-        required=False,
-        allow_null=True,
+        required=True,
     )
     policy_level = serializers.ChoiceField(
         choices=("P0", "P1", "P2", "P3"),
-        required=False,
-        allow_null=True,
+        required=True,
     )
     sentiment_index = serializers.FloatField(
-        required=False,
-        allow_null=True,
+        required=True,
         min_value=-1,
         max_value=1,
     )

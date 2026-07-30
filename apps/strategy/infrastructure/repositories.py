@@ -54,10 +54,6 @@ from apps.strategy.infrastructure.strategy_interface_repository import (
     StrategyInterfaceRepository as StrategyInterfaceRepository,
 )
 
-from .strategy_interface_repository import (
-    StrategyInterfaceRepository as StrategyInterfaceRepository,
-)
-
 if TYPE_CHECKING:
     from apps.strategy.application.execution_gateway import InspectionSelection
 

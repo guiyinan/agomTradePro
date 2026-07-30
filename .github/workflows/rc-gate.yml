@@ -121,23 +121,28 @@ jobs:
       # Check 6: Critical journey tests >= 90%
       - name: Run Journey Tests
         if: github.event.inputs.skip_journey != 'true'
+        env:
+          AGOM_PLAYWRIGHT_DB_PATH: ${{ runner.temp }}/agomtradepro-rc-playwright.sqlite3
+          DJANGO_SETTINGS_MODULE: core.settings.playwright
         run: |
           echo "==================================="
           echo "Check 6: Journey Tests (>= 90%)"
           echo "==================================="
+          rm -f "${AGOM_PLAYWRIGHT_DB_PATH}"
+          python manage.py migrate --noinput --settings=core.settings.playwright
           python scripts/run_live_server_pytest.py \
             --suite-name rc-journey-tests \
             --host 127.0.0.1 \
             --port 8000 \
             --base-url http://127.0.0.1:8000 \
-            --settings-module core.settings.development_sqlite \
+            --settings-module core.settings.playwright \
             --health-timeout 180 \
             --min-tests 20 \
             --junitxml reports/journey-results.xml \
             --server-log reports/journey-server.log \
             --pytest-log reports/journey-pytest.log \
             -- \
-            tests/playwright/tests/uat/ -v --tb=short
+            tests/playwright/tests/uat/ -v --tb=short --reuse-db
 
       - name: Journey Tests (Skipped)
         if: github.event.inputs.skip_journey == 'true'

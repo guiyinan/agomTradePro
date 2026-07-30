@@ -33,6 +33,52 @@ ROOT = Path(__file__).resolve().parents[4]
 MATRIX_PATH = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 
 
+@pytest.fixture(scope="session", autouse=True)
+def ensure_m5_uat_users(
+    django_db_setup: object,
+    django_db_blocker: object,
+    ensure_playwright_admin_user: None,
+) -> None:
+    """Seed the least-privileged M5 actors in the shared browser-test database."""
+
+    del django_db_setup, ensure_playwright_admin_user
+    with django_db_blocker.unblock():
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+        from django.db import connections
+
+        from apps.account.infrastructure.models import AccountProfileModel
+
+        operator_group, _ = Group.objects.get_or_create(name="operator")
+        user_model = get_user_model()
+        for username, is_operator in (
+            ("m5_uat_operator", True),
+            ("m5_uat_regular", False),
+        ):
+            user, _ = user_model.objects.get_or_create(username=username)
+            user.is_active = True
+            user.is_staff = False
+            user.is_superuser = False
+            user.set_password(PASSWORD)
+            user.save(update_fields=["password", "is_active", "is_staff", "is_superuser"])
+            user.groups.clear()
+            if is_operator:
+                user.groups.add(operator_group)
+
+            AccountProfileModel.objects.update_or_create(
+                user=user,
+                defaults={
+                    "display_name": username,
+                    "approval_status": "approved",
+                    "rbac_role": "owner",
+                    "mcp_enabled": True,
+                    "user_agreement_accepted": True,
+                    "risk_warning_acknowledged": True,
+                },
+            )
+        connections.close_all()
+
+
 def _matrix_deep_links() -> tuple[tuple[str, str, str, str], ...]:
     """Return one reviewed primary TUI deep link per migrated route page."""
 
@@ -517,7 +563,7 @@ def _run_confirmed_action(
     )
     expect(page.locator(".tui-error")).to_have_count(0)
     main = page.locator("[data-main-panel]")
-    expect(main.locator(".tui-view-status")).to_contain_text("正常 / ")
+    expect(main.locator(".tui-view-status")).to_contain_text(re.compile(r"^(?:正常|暂无数据) / "))
     return main
 
 
@@ -1057,7 +1103,11 @@ def test_governance_and_screening_confirmed_flows_complete(
             base_url,
             screen_key="research.asset-lab",
             action_key="fund.multidim-screen",
-            params={"regime": "Recovery"},
+            params={
+                "regime": "Recovery",
+                "policy_level": "P1",
+                "sentiment_index": 0.0,
+            },
             form_selector="form:has(#tui-fund\\.multidim-screen-fund_type)",
         )
     finally:

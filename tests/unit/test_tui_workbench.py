@@ -1113,6 +1113,12 @@ def test_tui_fund_research_exposes_flat_multidim_and_detail_workflows(
     }
     assert "filters" not in multidim_fields
     assert "context" not in multidim_fields
+    multidim_by_key = {field["key"]: field for field in actions["fund.multidim-screen"]["fields"]}
+    assert multidim_by_key["regime"]["required"] is True
+    assert multidim_by_key["policy_level"]["required"] is True
+    assert multidim_by_key["policy_level"]["default"] == "P1"
+    assert multidim_by_key["sentiment_index"]["required"] is True
+    assert multidim_by_key["sentiment_index"]["default"] == 0.0
     assert actions["fund.performance"]["confirmation_required"] is True
 
 

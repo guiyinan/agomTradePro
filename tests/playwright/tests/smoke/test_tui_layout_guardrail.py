@@ -199,7 +199,7 @@ def test_operator_home_adaptive_grid_has_no_panel_overlap(
     grid = authenticated_page.locator(".tui-dashboard-grid")
     expect(grid).to_be_visible()
     panels = grid.locator(".tui-dash-panel")
-    expect(panels).to_have_count(5)
+    expect(panels).to_have_count(8)
 
     rectangles = panels.evaluate_all("""elements => elements.map((element) => {
             const rect = element.getBoundingClientRect();

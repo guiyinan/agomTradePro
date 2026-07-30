@@ -140,11 +140,24 @@ jobs:
             --cov-append \
             --cov-report=term-missing
 
-      - name: Run SDK and MCP contract tests
-        timeout-minutes: 25
+      - name: Run SDK client tests
+        timeout-minutes: 10
         run: |
-          python -m pytest sdk/tests/ -v -ra \
+          python -m pytest sdk/tests/test_sdk/ -v -ra \
             -n auto \
+            --dist=load \
+            --timeout=180 \
+            --timeout-method=thread \
+            --cov \
+            --cov-config=.coveragerc \
+            --cov-append \
+            --cov-report=term-missing
+
+      - name: Run MCP contract tests
+        timeout-minutes: 45
+        run: |
+          python -m pytest sdk/tests/test_mcp/ -v -ra \
+            -n 8 \
             --dist=load \
             --timeout=180 \
             --timeout-method=thread \

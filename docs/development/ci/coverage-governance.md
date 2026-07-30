@@ -48,6 +48,13 @@ means “baseline collection is not complete”; it is not an accepted completio
 evidence is generated, each value must be replaced with the rounded-down reproducible result and
 may only increase.
 
+When independently developed branches change a scope's executable-branch denominator before they
+are integrated, the integration branch must run the complete collection again and record a fresh
+merged baseline. This is a denominator reconciliation, not permission to lower a threshold for an
+unchanged code tree. The 2026-07-29 consolidation rebuilt the Domain branch baselines after 64
+Domain files changed by 4,710 insertions and 2,178 deletions; subsequent changes ratchet from that
+merged result.
+
 ## Local evidence workflow
 
 Each pytest layer appends to the same coverage data:

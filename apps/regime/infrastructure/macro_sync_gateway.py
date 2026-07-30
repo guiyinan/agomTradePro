@@ -8,6 +8,7 @@ from typing import Any
 
 from celery import signature
 
+
 class DjangoMacroSyncTaskGateway:
     """使用延迟导入构建 macro 同步任务签名。"""
 

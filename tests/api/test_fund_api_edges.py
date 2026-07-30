@@ -517,3 +517,19 @@ def test_fund_multidim_screen_folds_flat_tui_fields_at_interface_boundary(
         },
         max_count=20,
     )
+
+
+def test_fund_tui_multidim_screen_requires_complete_scoring_context(
+    authenticated_client,
+):
+    """The flat TUI contract rejects context that Application cannot score."""
+
+    response = authenticated_client.post(
+        "/api/fund/tui-multidim-screen/",
+        {"regime": "Recovery", "max_count": 20},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "VALIDATION_ERROR"
+    assert set(response.json()["details"]) == {"policy_level", "sentiment_index"}
