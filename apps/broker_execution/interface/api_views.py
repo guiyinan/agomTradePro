@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 from uuid import UUID
 
+from django.conf import settings
 from rest_framework import status
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -248,6 +249,28 @@ class BrokerExecutionConnectionView(APIView):
                 permissions=action_permissions(request.user),
             )
         except BrokerExecutionPermissionError as exc:
+            return _error_response(exc)
+
+
+class BrokerExecutionQmtOnboardingView(APIView):
+    """Return administrator-only QMT setup guidance and persisted settings."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        public_base_url = str(getattr(settings, "APP_BASE_URL", "") or "").strip()
+        server_address = public_base_url or request.build_absolute_uri("/").rstrip("/")
+        try:
+            return _success(
+                BrokerExecutionQueryService().qmt_onboarding(
+                    actor=request.user,
+                    server_address=server_address,
+                )
+            )
+        except (
+            BrokerExecutionPermissionError,
+            BrokerExecutionValidationError,
+        ) as exc:
             return _error_response(exc)
 
 

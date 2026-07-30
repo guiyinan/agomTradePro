@@ -619,6 +619,46 @@
           "test_function": "test_generate_holds_when_regime_is_blocked"
         }
       ]
+    },
+    {
+      "id": "broker_execution.qmt_onboarding",
+      "surface": "GET /api/broker-execution/qmt-onboarding/ + TUI QMT 接入与设置",
+      "source_files": [
+        "apps/broker_execution/application/query_services.py",
+        "apps/broker_execution/interface/api_views.py"
+      ],
+      "required_markers": {
+        "apps/broker_execution/application/query_services.py": [
+          "_QMT_HEARTBEAT_FRESHNESS = timedelta(seconds=90)",
+          "\"last_heartbeat_at\": agent.get(\"last_heartbeat_at\")",
+          "\"must_not_use_for_decision\": not qmt_connected"
+        ],
+        "apps/broker_execution/interface/api_views.py": [
+          "class BrokerExecutionQmtOnboardingView(APIView):"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "fresh_heartbeat_accepted",
+          "test_file": "tests/component/broker_execution/test_api_and_permissions.py",
+          "test_function": "test_qmt_onboarding_is_admin_only_and_returns_safe_setup_materials"
+        },
+        {
+          "case": "stale_heartbeat_blocked",
+          "test_file": "tests/component/broker_execution/test_api_and_permissions.py",
+          "test_function": "test_qmt_onboarding_is_admin_only_and_returns_safe_setup_materials"
+        },
+        {
+          "case": "observation_timestamp_preserved",
+          "test_file": "tests/component/broker_execution/test_api_and_permissions.py",
+          "test_function": "test_qmt_onboarding_is_admin_only_and_returns_safe_setup_materials"
+        },
+        {
+          "case": "empty_state_safe_fallback",
+          "test_file": "tests/component/broker_execution/test_api_and_permissions.py",
+          "test_function": "test_qmt_onboarding_falls_back_to_safe_not_bound_state"
+        }
+      ]
     }
   ]
 }

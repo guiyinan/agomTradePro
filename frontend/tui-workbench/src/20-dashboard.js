@@ -131,6 +131,7 @@
             copyable_secret: "凭证",
             endpoint_list: "地址",
             multiline_prompt: "提示词",
+            setup_guide: "接入指引",
             next_step: "下一步",
             supporting_detail: "摘要",
             debug_only: "调试",
@@ -720,6 +721,7 @@
             hasSemantic(semantics, "copyable_secret") ? "is-copyable-secret" : "",
             hasSemantic(semantics, "endpoint_list") ? "is-endpoint-list" : "",
             hasSemantic(semantics, "multiline_prompt") ? "is-multiline-prompt" : "",
+            hasSemantic(semantics, "setup_guide") ? "is-setup-guide" : "",
         ].filter(Boolean).join(" ");
         const statusHero = hasSemantic(semantics, "primary_status")
             ? `
