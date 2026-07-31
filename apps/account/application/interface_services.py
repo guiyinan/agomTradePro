@@ -6,9 +6,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from ipaddress import ip_address
 from typing import Any
 from urllib.parse import urlparse
 
+from django.conf import settings
 from django.utils import timezone
 
 from apps.account.application.rbac import ROLE_CHOICES
@@ -97,6 +99,40 @@ TOKEN_ACCESS_LEVEL_CHOICES = (
     (TOKEN_ACCESS_LEVEL_READ_ONLY, "只读"),
     (TOKEN_ACCESS_LEVEL_READ_WRITE, "读写"),
 )
+
+
+def resolve_mcp_public_base_url(observed_base_url: str) -> str:
+    """Return the canonical public origin used in MCP access artifacts.
+
+    ``APP_BASE_URL`` is the production source of truth.  Falling back to the
+    observed request origin keeps local development and tests convenient while
+    preventing a request made through a bare VPS IP from poisoning copy-ready
+    production endpoints.
+    """
+
+    configured_base_url = str(getattr(settings, "APP_BASE_URL", "") or "").strip()
+    if not configured_base_url and not bool(getattr(settings, "DEBUG", False)):
+        public_https_enabled = bool(getattr(settings, "PUBLIC_HTTPS_ENABLED", False))
+        if public_https_enabled:
+            for allowed_host in getattr(settings, "ALLOWED_HOSTS", []):
+                host = str(allowed_host or "").strip().lstrip(".")
+                if not host or host in {"*", "localhost", "web"}:
+                    continue
+                try:
+                    ip_address(host)
+                except ValueError:
+                    if "." in host and ":" not in host:
+                        configured_base_url = f"https://{host}"
+                        break
+    candidate = (configured_base_url or observed_base_url).strip().rstrip("/")
+    parsed = urlparse(candidate)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("MCP public base URL must be an absolute HTTP(S) origin")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("MCP public base URL must not contain credentials, query, or fragment")
+    if parsed.path not in {"", "/"}:
+        raise ValueError("MCP public base URL must not contain a path")
+    return candidate
 
 
 def get_system_settings() -> Any:
@@ -347,12 +383,32 @@ def build_self_mcp_api_payload(
         self_service_blocking_reason = ""
 
     parsed_base_url = urlparse(normalized_base_url)
-    same_machine_only = parsed_base_url.hostname in {"127.0.0.1", "localhost", "::1"}
-    environment_statement = (
-        "当前地址仅能在同一台机器上使用；如需远程接入，请先配置可访问的服务地址。"
-        if same_machine_only
-        else "当前地址可用于此环境；实际可达范围仍取决于网络和部署配置。"
-    )
+    same_machine_only = parsed_base_url.hostname in {
+        "127.0.0.1",
+        "localhost",
+        "::1",
+        "testserver",
+    }
+    https_enabled = parsed_base_url.scheme == "https"
+    if https_enabled:
+        transport_security = "https"
+        certificate_validation = "required"
+        environment_statement = "当前为规范 HTTPS 地址；客户端必须校验域名与证书链。"
+    elif same_machine_only:
+        transport_security = "local_http"
+        certificate_validation = "not_applicable"
+        environment_statement = "当前地址仅能在同一台机器上使用；远程接入前必须配置 HTTPS 域名。"
+    else:
+        transport_security = "insecure_http"
+        certificate_validation = "unavailable"
+        environment_statement = (
+            "当前为远程 HTTP 地址，不可用于 MCP 接入；请先配置可验证的 HTTPS 域名。"
+        )
+
+    if self_service_state == "ready" and not https_enabled and not same_machine_only:
+        self_service_state = "unavailable"
+        self_service_blocking_reason = "https_required"
+
     access_package = {
         "token": str(preferred_token.get("plaintext") or "").strip(),
         "token_preview": str(preferred_token.get("preview") or "").strip(),
@@ -361,6 +417,8 @@ def build_self_mcp_api_payload(
         "agent_prompt": prompt_payload["agent_bootstrap_prompt"],
         "base_url": normalized_base_url,
         "same_machine_only": same_machine_only,
+        "transport_security": transport_security,
+        "certificate_validation": certificate_validation,
         "environment_statement": environment_statement,
     }
     return {
@@ -408,12 +466,25 @@ def build_mcp_access_verification_payload(
         and self_service.get("mcp_enabled")
         and self_service.get("self_service_state") != "disabled"
     )
+    access_package = dict(self_service.get("access_package") or {})
+    transport_security = str(access_package.get("transport_security") or "")
+    transport_ready = transport_security in {"https", "local_http"}
+    transport_detail = {
+        "https": "正在使用规范 HTTPS 地址，客户端必须验证域名与证书链。",
+        "local_http": "正在使用本机回环 HTTP，仅允许同机开发接入。",
+    }.get(transport_security, "当前是远程 HTTP 地址，请先配置可验证的 HTTPS 域名。")
     checks = [
         {
             "key": "token",
             "label": "当前凭证",
             "status": "ready" if token_ready else "unavailable",
             "detail": "当前账号已有可用凭证。" if token_ready else "当前账号还没有可用凭证。",
+        },
+        {
+            "key": "transport",
+            "label": "HTTPS 与证书",
+            "status": "ready" if transport_ready else "unavailable",
+            "detail": transport_detail,
         },
         {
             "key": "routing",

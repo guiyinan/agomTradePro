@@ -31,7 +31,8 @@ UserModel = get_user_model()
 def _base_url(request: Request) -> str:
     """Return one normalized external base URL for prompt payloads."""
 
-    return str(request.build_absolute_uri("/")).rstrip("/")
+    observed_base_url = str(request.build_absolute_uri("/")).rstrip("/")
+    return interface_services.resolve_mcp_public_base_url(observed_base_url)
 
 
 def _request_user_id(request: Request) -> int:

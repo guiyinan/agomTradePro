@@ -54,6 +54,13 @@ Deployment entry points reject bare IP addresses, URL schemes, paths, and ports;
 passing a VPS IP as `DOMAIN` makes Caddy enable unusable IP-based automatic
 HTTPS. Leave `DOMAIN` empty only for an explicitly HTTP-only environment.
 
+When `DOMAIN` is configured, the deploy helper also publishes
+`APP_BASE_URL=https://<DOMAIN>` as the canonical user-facing origin. TUI MCP
+access packages must use this HTTPS origin even when a user opened the site by
+bare IP. Plain HTTP requests to the VPS IP are redirected to the canonical
+domain, and deployment is not accepted until the public HTTPS health probe and
+certificate-chain validation succeed.
+
 ## Rollback points and remaining risk
 
 Each release retains the previous release path, image reference, environment

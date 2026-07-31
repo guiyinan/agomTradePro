@@ -564,6 +564,7 @@ class TuiWorkbenchSpecializedResultMixin:
                     "当前部署密钥无法解密历史令牌；请恢复与数据库匹配的加密密钥。"
                 ),
                 "token_plaintext_unavailable": "当前令牌明文不可恢复，请重新签发令牌。",
+                "https_required": "当前发布的是远程 HTTP 地址；请改用配置了有效证书的 HTTPS 域名。",
             }
             state = str(payload.get("self_service_state") or "unavailable")
             blocking_reason_code = str(payload.get("self_service_blocking_reason") or "")
@@ -576,6 +577,11 @@ class TuiWorkbenchSpecializedResultMixin:
                     (
                         "Capability Catalog: "
                         f"{access_package.get('capability_catalog_endpoint') or '-'}"
+                    ),
+                    (
+                        "Transport Security: "
+                        f"{access_package.get('transport_security') or '-'}; "
+                        "certificate verification required"
                     ),
                     "",
                     str(access_package.get("agent_prompt") or "未生成接入提示词"),
@@ -611,6 +617,19 @@ class TuiWorkbenchSpecializedResultMixin:
                         "label": "完整接入包",
                         "value": access_package_text,
                         "presentation": "multiline",
+                    },
+                    {
+                        "key": "transport_security",
+                        "label": "连接安全",
+                        "value": {
+                            "https": "HTTPS（必须校验证书）",
+                            "local_http": "本机 HTTP（仅限同机）",
+                            "insecure_http": "远程 HTTP（不可接入）",
+                        }.get(
+                            str(access_package.get("transport_security") or ""),
+                            "未确认",
+                        ),
+                        "presentation": "metadata",
                     },
                     {
                         "key": "environment_statement",

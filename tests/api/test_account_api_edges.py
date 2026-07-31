@@ -306,6 +306,49 @@ def test_account_mcp_self_contract(authenticated_client, auth_user):
 
 
 @pytest.mark.django_db
+def test_account_mcp_self_uses_configured_https_origin_instead_of_request_ip(
+    authenticated_client,
+    auth_user,
+    settings,
+):
+    settings.APP_BASE_URL = "https://demo.agomtrade.pro/"
+    settings.ALLOWED_HOSTS = [*settings.ALLOWED_HOSTS, "62.171.144.39"]
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = True
+    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="canonical-https-token",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+
+    response = authenticated_client.get(
+        "/api/account/mcp/self/",
+        HTTP_HOST="62.171.144.39",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["base_url"] == "https://demo.agomtrade.pro"
+    assert payload["route_endpoint"].startswith("https://demo.agomtrade.pro/")
+    assert payload["access_package"]["transport_security"] == "https"
+    assert payload["access_package"]["certificate_validation"] == "required"
+    assert payload["self_service_state"] == "ready"
+
+
+def test_mcp_public_origin_falls_back_to_production_https_domain(settings):
+    settings.APP_BASE_URL = ""
+    settings.DEBUG = False
+    settings.PUBLIC_HTTPS_ENABLED = True
+    settings.ALLOWED_HOSTS = ["62.171.144.39", "demo.agomtrade.pro", "localhost"]
+
+    base_url = account_interface_services.resolve_mcp_public_base_url("http://62.171.144.39")
+
+    assert base_url == "https://demo.agomtrade.pro"
+
+
+@pytest.mark.django_db
 def test_admin_user_access_governance_contract_and_mutations(
     admin_authenticated_client,
     admin_user,
@@ -498,7 +541,30 @@ def test_account_mcp_self_marks_loopback_access_as_same_machine_only(auth_user):
     )
 
     assert payload["access_package"]["same_machine_only"] is True
+    assert payload["access_package"]["transport_security"] == "local_http"
     assert "同一台机器" in payload["access_package"]["environment_statement"]
+
+
+@pytest.mark.django_db
+def test_account_mcp_self_blocks_remote_http_access_package(auth_user):
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = True
+    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="remote-http-token",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+
+    payload = account_interface_services.build_self_mcp_api_payload(
+        auth_user.id,
+        base_url="http://203.0.113.10",
+    )
+
+    assert payload["self_service_state"] == "unavailable"
+    assert payload["self_service_blocking_reason"] == "https_required"
+    assert payload["access_package"]["transport_security"] == "insecure_http"
 
 
 @pytest.mark.django_db
@@ -602,6 +668,7 @@ def test_account_mcp_verify_is_read_only_and_bounded(
     assert payload["state"] in {"ready", "unavailable"}
     assert [check["key"] for check in payload["checks"]] == [
         "token",
+        "transport",
         "routing",
         "catalog",
     ]
@@ -638,6 +705,7 @@ def test_account_mcp_verify_reports_partial_readiness_without_ai_execution(
     assert payload["state"] == "unavailable"
     assert {item["key"]: item["status"] for item in payload["checks"]} == {
         "token": "ready",
+        "transport": "ready",
         "routing": "unavailable",
         "catalog": "ready",
     }

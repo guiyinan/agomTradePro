@@ -103,6 +103,17 @@ def test_remote_deploy_blocks_release_on_macro_governance_drift():
     assert "macro data-governance drift check failed" in script
 
 
+def test_remote_deploy_publishes_canonical_https_origin_and_validates_tls():
+    script = remote_build_deploy_vps._build_remote_deploy_script()
+
+    assert 'EFFECTIVE_APP_BASE_URL="https://$EFFECTIVE_DOMAIN"' in script
+    assert 'set_env_kv "APP_BASE_URL" "$EFFECTIVE_APP_BASE_URL"' in script
+    assert "redir https://$EFFECTIVE_DOMAIN{uri} permanent" in script
+    assert 'HEALTH_URL="https://$EFFECTIVE_DOMAIN/api/health/"' in script
+    assert 'HEALTH_RESOLVE="--resolve $EFFECTIVE_DOMAIN:443:127.0.0.1"' in script
+    assert "curl -fsS --max-time 10 $HEALTH_RESOLVE" in script
+
+
 def test_remote_deploy_publishes_and_verifies_tui_release_metadata():
     script = (
         Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"

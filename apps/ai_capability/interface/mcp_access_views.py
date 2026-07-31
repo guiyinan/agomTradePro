@@ -24,7 +24,9 @@ class MCPAccessVerificationView(APIView):
         user_id = request.user.pk
         if user_id is None:
             return Response({"error": "authenticated_user_required"}, status=403)
-        base_url = request.build_absolute_uri("/").rstrip("/")
+        base_url = account_interface_services.resolve_mcp_public_base_url(
+            request.build_absolute_uri("/").rstrip("/")
+        )
         readiness = interface_services.inspect_mcp_access_readiness()
         self_service = account_interface_services.build_self_mcp_api_payload(
             user_id,
