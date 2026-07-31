@@ -23,3 +23,7 @@ class TuiScreenForbiddenError(TuiScreenNavigationError):
     """Raised when the current user is outside a screen's audience."""
 
     error_code = "tui_screen_forbidden"
+
+
+class TuiActionBusyError(RuntimeError):
+    """Raised when the bounded same-process TUI action pool is saturated."""

@@ -112,6 +112,7 @@
           "action_key": "dashboard.overview-summary",
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
+          "max_rows": 11,
           "empty_message": "暂无投资指挥摘要。",
           "error_message": "投资指挥摘要加载失败，请稍后重试。",
           "row_actions": []
@@ -125,6 +126,32 @@
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "暂无环境摘要，请进入环境与脉搏检查数据。",
+          "columns": [
+            {
+              "key": "area",
+              "label": "范围"
+            },
+            {
+              "key": "status",
+              "label": "状态"
+            },
+            {
+              "key": "freshness",
+              "label": "时效"
+            },
+            {
+              "key": "reliability",
+              "label": "可靠性"
+            },
+            {
+              "key": "observed_at",
+              "label": "观测时间"
+            },
+            {
+              "key": "summary",
+              "label": "结论"
+            }
+          ],
           "row_actions": []
         },
         {
@@ -136,6 +163,24 @@
           "user_priority": "p1",
           "presentation_semantic": "supporting_detail",
           "empty_message": "暂无账户与信号摘要。",
+          "columns": [
+            {
+              "key": "area",
+              "label": "范围"
+            },
+            {
+              "key": "status",
+              "label": "状态"
+            },
+            {
+              "key": "value",
+              "label": "数量"
+            },
+            {
+              "key": "summary",
+              "label": "摘要"
+            }
+          ],
           "row_actions": []
         },
         {
@@ -147,7 +192,29 @@
           "audience": "admin",
           "user_priority": "p1",
           "presentation_semantic": "supporting_detail",
-          "empty_message": "暂无数据与任务异常。",
+          "empty_message": "当前没有数据与任务异常。",
+          "columns": [
+            {
+              "key": "title",
+              "label": "检查项"
+            },
+            {
+              "key": "status",
+              "label": "状态"
+            },
+            {
+              "key": "blocking_reason",
+              "label": "原因"
+            },
+            {
+              "key": "next_action",
+              "label": "下一步"
+            },
+            {
+              "key": "observed_at",
+              "label": "检查时间"
+            }
+          ],
           "row_actions": []
         },
         {
@@ -24516,7 +24583,7 @@
     "classic_templates": 130
   },
   "generation_note": "Candidate metadata generated at compile time. Review graph and separate evidence before publishing.",
-  "ia_version": "2026-07-21",
+  "ia_version": "2026-07-31",
   "legacy_screen_aliases": {
     "command-center.dashboard": "command-center.overview",
     "macro-regime.navigator": "macro-regime.overview",

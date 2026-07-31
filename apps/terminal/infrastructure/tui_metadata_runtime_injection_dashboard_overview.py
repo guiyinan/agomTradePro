@@ -52,7 +52,7 @@ RUNTIME_DASHBOARD_OVERVIEW_ACTIONS: tuple[dict[str, Any], ...] = (
         view_type="detail",
         description="查看环境、资产、收益、仓位、信号和数据健康的 P0 摘要。",
         sequence=40,
-        view_model={"kind": "detail", "title_path": "summary.display_name"},
+        view_model={"kind": "detail"},
         task_tier="primary",
     ),
     _action(

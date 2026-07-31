@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import json
+from threading import BoundedSemaphore
 from typing import Any
 from urllib.parse import urlparse
 
 from django.conf import settings
 from django.urls import resolve
 from rest_framework.test import APIRequestFactory
+
+from apps.terminal.application.tui_errors import TuiActionBusyError
+
+_TUI_ACTION_GATE = BoundedSemaphore(
+    value=max(1, int(getattr(settings, "TUI_ACTION_MAX_CONCURRENCY", 4)))
+)
 
 
 class TuiInternalActionExecutor:
@@ -43,34 +50,39 @@ class TuiInternalActionExecutor:
     ) -> dict[str, Any]:
         """Execute an internal API endpoint and normalize its response."""
 
-        method = method.upper()
-        endpoint = "/" + endpoint.lstrip("/")
-        request_method = getattr(self._factory, method.lower())
-        request_options = {"HTTP_HOST": self._request_host()}
-        if method == "GET":
-            request = request_method(endpoint, data=params, **request_options)
-        else:
-            request = request_method(endpoint, data=body, format="json", **request_options)
-        request.user = user
-        if session is not None:
-            request.session = session
+        if not _TUI_ACTION_GATE.acquire(blocking=False):
+            raise TuiActionBusyError("TUI action concurrency limit reached")
+        try:
+            method = method.upper()
+            endpoint = "/" + endpoint.lstrip("/")
+            request_method = getattr(self._factory, method.lower())
+            request_options = {"HTTP_HOST": self._request_host()}
+            if method == "GET":
+                request = request_method(endpoint, data=params, **request_options)
+            else:
+                request = request_method(endpoint, data=body, format="json", **request_options)
+            request.user = user
+            if session is not None:
+                request.session = session
 
-        match = resolve(endpoint)
-        request.resolver_match = match
-        response = match.func(request, *match.args, **match.kwargs)
-        status_code = getattr(response, "status_code", 200)
-        payload = getattr(response, "data", None)
-        if payload is None:
-            content = getattr(response, "content", b"")
-            text = content.decode("utf-8", errors="replace") if content else ""
-            try:
-                payload = json.loads(text) if text else ""
-            except json.JSONDecodeError:
-                payload = text
-        return {
-            "status_code": status_code,
-            "payload": payload,
-        }
+            match = resolve(endpoint)
+            request.resolver_match = match
+            response = match.func(request, *match.args, **match.kwargs)
+            status_code = getattr(response, "status_code", 200)
+            payload = getattr(response, "data", None)
+            if payload is None:
+                content = getattr(response, "content", b"")
+                text = content.decode("utf-8", errors="replace") if content else ""
+                try:
+                    payload = json.loads(text) if text else ""
+                except json.JSONDecodeError:
+                    payload = text
+            return {
+                "status_code": status_code,
+                "payload": payload,
+            }
+        finally:
+            _TUI_ACTION_GATE.release()
 
 
 def get_tui_action_executor() -> TuiInternalActionExecutor:

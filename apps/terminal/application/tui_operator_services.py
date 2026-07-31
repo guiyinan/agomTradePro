@@ -363,15 +363,32 @@ def _regime_market_row() -> dict[str, Any]:
     warnings = list(data.get("warnings") or [])
     regime = str(data.get("dominant_regime") or "UNKNOWN")
     confidence = float(data.get("confidence") or 0.0)
+    contract = dict(data.get("contract") or {})
+    is_stale = bool(data.get("is_stale") or contract.get("is_stale"))
+    must_not_use = bool(
+        data.get("must_not_use_for_decision") or contract.get("must_not_use_for_decision")
+    )
+    blocked_reason = str(data.get("blocked_reason") or contract.get("blocked_reason") or "").strip()
     severity = "ok"
-    if regime == "UNKNOWN":
+    if regime == "UNKNOWN" or must_not_use:
         severity = "blocked"
     elif warnings or confidence < 0.5 or bool(data.get("is_fallback")):
         severity = "warning"
+    freshness = "已过期" if is_stale else "新鲜"
+    reliability = "不可用于决策" if must_not_use else ("降级" if severity == "warning" else "可靠")
+    summary = (
+        blocked_reason
+        or (str(warnings[0]) if warnings else "")
+        or (f"置信度 {confidence:.2f}" if confidence else "当前环境不可用")
+    )
     return {
         "area": "Regime",
         "status": regime,
-        "summary": f"置信度 {confidence:.2f}" if confidence else "当前环境不可用",
+        "summary": summary,
+        "freshness": freshness,
+        "reliability": reliability,
+        "must_not_use_for_decision": must_not_use,
+        "blocking_reason": blocked_reason,
         "observed_at": _iso(data.get("observed_at")),
         "next_action": "查看环境判断",
         "target_screen": "macro-regime.overview",
@@ -388,6 +405,8 @@ def _policy_market_row() -> dict[str, Any]:
         "area": "Policy",
         "status": level,
         "summary": "当前存在政策干预" if intervention else "政策状态可用",
+        "freshness": "新鲜",
+        "reliability": "不可用于决策" if level == "UNKNOWN" else "可靠",
         "observed_at": _iso(payload.get("as_of_date")),
         "next_action": "查看政策档位",
         "target_screen": "macro-regime.policy",
@@ -402,6 +421,8 @@ def _pulse_market_row() -> dict[str, Any]:
             "area": "Pulse",
             "status": "NO_DATA",
             "summary": "当前没有可用脉搏快照。",
+            "freshness": "无数据",
+            "reliability": "不可用于决策",
             "observed_at": "",
             "next_action": "查看脉搏层",
             "target_screen": "macro-regime.pulse",
@@ -412,6 +433,8 @@ def _pulse_market_row() -> dict[str, Any]:
         "area": "Pulse",
         "status": str(snapshot.regime_strength or "unknown").upper(),
         "summary": "存在转折预警" if snapshot.transition_warning else "脉搏层正常",
+        "freshness": "新鲜",
+        "reliability": "可靠" if snapshot.is_reliable else "降级",
         "observed_at": _iso(snapshot.observed_at),
         "next_action": "查看脉搏层",
         "target_screen": "macro-regime.pulse",
@@ -428,6 +451,8 @@ def _decision_data_market_row() -> dict[str, Any]:
         "area": "Decision Data",
         "status": str(payload.get("status") or "unknown").upper(),
         "summary": blocked_reasons[0] if blocked_reasons else "决策数据链路可用",
+        "freshness": str(payload.get("freshness_status") or "待确认"),
+        "reliability": "不可用于决策" if blocked else "可靠",
         "observed_at": _iso(
             thermometer.get("as_of_date")
             or thermometer.get("snapshot_date")

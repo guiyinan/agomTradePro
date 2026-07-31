@@ -17,6 +17,7 @@ from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
 from apps.share.infrastructure.models import ShareLinkModel, ShareSnapshotModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from apps.terminal.application.tui_errors import TuiActionBusyError
 from apps.terminal.application.tui_metadata import (
     TuiMetadataValidationError,
     compact_tui_metadata_payload,
@@ -2743,6 +2744,22 @@ def test_tui_action_api_returns_task_level_unavailable_error(
     }
     assert "private upstream" not in str(payload)
 
+    def raise_busy(*args, **kwargs):
+        raise TuiActionBusyError("private saturation details")
+
+    monkeypatch.setattr(TuiWorkbenchService, "run_action", raise_busy)
+    busy_response = client.post(
+        f"/api/tui/actions/{action_key}/run/",
+        data={"params": {}},
+        content_type="application/json",
+    )
+    assert busy_response.status_code == 503
+    assert busy_response["Retry-After"] == "5"
+    busy_payload = busy_response.json()
+    assert busy_payload["error_code"] == "tui_action_busy"
+    assert busy_payload["title"] == "系统繁忙"
+    assert "private saturation" not in str(busy_payload)
+
 
 def test_tui_screen_payload_exposes_registry_identity(client, tui_user):
     client.force_login(tui_user)
@@ -2834,7 +2851,16 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
     ]
     assert panels[0]["action_key"] == "decision.workspace.today_queue"
     assert panels[1]["action_key"] == "dashboard.overview-summary"
+    assert panels[1]["max_rows"] == 11
     assert panels[2]["action_key"] == "operator.home.market_context"
+    assert [column["label"] for column in panels[2]["columns"]] == [
+        "范围",
+        "状态",
+        "时效",
+        "可靠性",
+        "观测时间",
+        "结论",
+    ]
     assert panels[3]["action_key"] == "operator.home.account_signal_summary"
     assert panels[4]["action_key"] == "dashboard.v1_summary"
     assert panels[4]["field_rules"] == [
@@ -5797,6 +5823,75 @@ def test_tui_service_projects_regime_overview_for_quadrant_panel(tui_user):
     assert fields["warning"] == "默认数据源无数据，已切换到备用源。"
     assert fields["data_source"] == "akshare"
     assert view_model["debug_hidden_fields"] == ["distribution", "momentum", "history"]
+
+
+def test_tui_service_projects_investment_command_summary_for_users(tui_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "summary": {
+                        "display_name": "Internal User Name",
+                        "current_regime": "Recovery",
+                        "regime_confidence_percent": 36.877941,
+                        "total_assets": 1_000_000.0,
+                        "total_return": 25_000.0,
+                        "total_return_percent": 2.5,
+                        "cash_balance": 200_000.0,
+                        "invested_value": 800_000.0,
+                        "invested_ratio_percent": 80.0,
+                        "active_signal_count": 3,
+                        "pending_review_count": 2,
+                        "regime_data_health": "degraded",
+                    },
+                    "allocation": [],
+                    "performance": [],
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "dashboard.overview-summary",
+                        "label": "投资指挥摘要",
+                        "method": "GET",
+                        "endpoint": "/api/dashboard/tui/overview/",
+                        "intent": "inspect_investment_command_summary",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "read",
+                        "fields": [],
+                        "view_model": {"kind": "detail"},
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(
+        action_key="dashboard.overview-summary",
+        params={},
+        user=tui_user,
+    )
+
+    view_model = payload["view_model"]
+    fields = {field["key"]: field for field in view_model["fields"]}
+    assert "display_name" not in fields
+    assert fields["current_regime"]["value"] == "复苏"
+    assert fields["regime_confidence"]["value"] == "36.9%"
+    assert fields["total_assets"]["value"] == "1,000,000.00 元"
+    assert fields["invested_ratio"]["value"] == "80.0%"
+    assert fields["pending_review_count"]["value"] == "2 项"
+    assert view_model["business_summary"] == (
+        "当前环境 复苏；仓位 80.0%；活跃信号 3 个；待复核 2 项。"
+    )
+    assert "Internal User Name" not in str(view_model)
 
 
 def test_tui_service_detail_model_flattens_one_level_nested_objects(tui_user):

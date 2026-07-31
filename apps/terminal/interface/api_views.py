@@ -49,7 +49,11 @@ from ..application.repository_provider import (
     get_tui_action_executor,
     get_tui_metadata_repository,
 )
-from ..application.tui_errors import TuiScreenForbiddenError, TuiScreenNotFoundError
+from ..application.tui_errors import (
+    TuiActionBusyError,
+    TuiScreenForbiddenError,
+    TuiScreenNotFoundError,
+)
 from ..application.tui_operator_services import (
     build_operator_governance_queue_payload,
     build_operator_home_payload,
@@ -745,6 +749,18 @@ class TuiWorkbenchActionRunView(APIView):
                     recovery_actions=task_recovery_actions,
                 ),
                 status=status.HTTP_403_FORBIDDEN,
+            )
+        except TuiActionBusyError:
+            return Response(
+                _tui_error_payload(
+                    request=request,
+                    error_code="tui_action_busy",
+                    title="系统繁忙",
+                    detail="已有较多任务正在执行，请稍后重试。",
+                    recovery_actions=task_recovery_actions,
+                ),
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                headers={"Retry-After": "5"},
             )
         except (OperationalError, ProgrammingError) as exc:
             logger.exception("TUI action database readiness failed: %s", exc)

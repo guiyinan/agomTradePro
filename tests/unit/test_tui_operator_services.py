@@ -95,6 +95,33 @@ def test_operator_home_payload_exposes_fixed_sections_and_badges(monkeypatch):
     )
 
 
+def test_regime_market_row_preserves_stale_decision_block(monkeypatch):
+    monkeypatch.setattr(
+        operator_services,
+        "get_regime_current_payload",
+        lambda **kwargs: {
+            "data": {
+                "dominant_regime": "Recovery",
+                "confidence": 0.36,
+                "observed_at": "2026-06-30",
+                "is_stale": True,
+                "must_not_use_for_decision": True,
+                "blocked_reason": "宏观观测已超过允许时效。",
+                "warnings": ["数据过期"],
+            }
+        },
+    )
+
+    row = operator_services._regime_market_row()
+
+    assert row["severity"] == "blocked"
+    assert row["freshness"] == "已过期"
+    assert row["reliability"] == "不可用于决策"
+    assert row["observed_at"] == "2026-06-30"
+    assert row["summary"] == "宏观观测已超过允许时效。"
+    assert row["must_not_use_for_decision"] is True
+
+
 def test_operator_governance_queue_sorts_by_severity_then_recent(monkeypatch):
     monkeypatch.setattr(
         operator_services,
