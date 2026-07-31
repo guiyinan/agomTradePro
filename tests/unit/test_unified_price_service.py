@@ -16,7 +16,16 @@ from core.exceptions import DataFetchError
 def _after_close_now() -> datetime:
     """Return a deterministic post-close instant for today's local test date."""
 
-    return datetime.combine(date.today(), time(8, 0), tzinfo=UTC)
+    return datetime.combine(_test_session_date(), time(8, 0), tzinfo=UTC)
+
+
+def _test_session_date() -> date:
+    """Return a weekday so freshness tests do not depend on CI calendar timing."""
+
+    session_date = date.today()
+    while session_date.weekday() >= 5:
+        session_date -= timedelta(days=1)
+    return session_date
 
 
 def test_normalize_asset_code_handles_bare_exchange_codes():
@@ -93,7 +102,7 @@ def test_get_latest_price_rejects_stale_quote_and_uses_close_fallback():
     service._dc_price_repo = Mock()
     service._dc_price_repo.get_latest.return_value = SimpleNamespace(
         asset_code="510300.SH",
-        bar_date=date.today(),
+        bar_date=_test_session_date(),
         close=4.95,
         source="daily_close",
     )
@@ -116,7 +125,7 @@ def test_get_latest_price_rejects_stale_close_fallback():
     service._dc_price_repo = Mock()
     service._dc_price_repo.get_latest.return_value = SimpleNamespace(
         asset_code="510300.SH",
-        bar_date=date.today() - timedelta(days=30),
+        bar_date=_test_session_date() - timedelta(days=30),
         close=4.95,
         source="stale_daily_close",
     )
@@ -131,7 +140,7 @@ def test_get_latest_price_falls_back_to_recent_close():
     service._dc_price_repo = Mock()
     service._dc_price_repo.get_latest.return_value = SimpleNamespace(
         asset_code="510300.SH",
-        bar_date=date.today(),
+        bar_date=_test_session_date(),
         open=4.9,
         high=5.0,
         low=4.8,
@@ -206,7 +215,7 @@ def test_fund_price_can_read_from_data_center_nav():
     service._dc_fund_nav_repo.get_latest.return_value = SimpleNamespace(
         fund_code="110011",
         nav=1.2345,
-        nav_date=date.today(),
+        nav_date=_test_session_date(),
         source="dc_tushare",
     )
 
@@ -228,7 +237,7 @@ def test_latest_fund_nav_rejects_stale_observation():
     service._dc_fund_nav_repo.get_latest.return_value = SimpleNamespace(
         fund_code="110011",
         nav=1.2345,
-        nav_date=date.today() - timedelta(days=30),
+        nav_date=_test_session_date() - timedelta(days=30),
         source="stale_nav",
     )
     service._fund_adapter = SimpleNamespace(fetch_fund_nav_em=lambda _code: None)
@@ -246,12 +255,12 @@ def test_stale_stored_fund_nav_continues_to_fresh_adapter():
     service._dc_fund_nav_repo.get_latest.return_value = SimpleNamespace(
         fund_code="110011",
         nav=1.1,
-        nav_date=date.today() - timedelta(days=30),
+        nav_date=_test_session_date() - timedelta(days=30),
         source="stale_nav",
     )
     service._fund_adapter = SimpleNamespace(
         fetch_fund_nav_em=lambda _code: pd.DataFrame(
-            [{"nav_date": date.today().isoformat(), "unit_nav": 1.2345}]
+            [{"nav_date": _test_session_date().isoformat(), "unit_nav": 1.2345}]
         )
     )
 
@@ -292,7 +301,7 @@ def test_invalid_realtime_price_falls_back_to_valid_close(invalid_price):
     service._dc_price_repo = Mock()
     service._dc_price_repo.get_latest.return_value = SimpleNamespace(
         close=4.95,
-        bar_date=date.today(),
+        bar_date=_test_session_date(),
         source="daily_close",
     )
 
