@@ -1,7 +1,7 @@
 {
   "version": "2026-07-29.v17",
   "description": "Exact dependency budget after integrating the TUI task workbench and operator composition roots; no bidirectional pairs or cycles are allowed.",
-  "max_app_import_edges": 202,
+  "max_app_import_edges": 201,
   "max_outbound_modules_per_app": 24,
   "max_inbound_modules_per_app": 24,
   "max_outbound_modules_by_app": {
