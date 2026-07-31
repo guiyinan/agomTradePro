@@ -40,6 +40,10 @@ jobs:
           pip install -e sdk/
           python -m playwright install chromium
           npm ci
+          # The Node contract suite is pinned by package-lock.json and needs
+          # its own Playwright browser revision. The Python install above can
+          # resolve a newer revision for the Django smoke suite.
+          npx playwright install --with-deps chromium
 
       - name: Prepare database
         run: python manage.py migrate --noinput
@@ -340,6 +344,7 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql://agomtradepro:critical-test-password@127.0.0.1:5432/agomtradepro_critical
+      DJANGO_SETTINGS_MODULE: core.settings.development
       SECRET_KEY: nightly-critical-postgres-secret-key-12345678901234567890
       ALLOWED_HOSTS: localhost,127.0.0.1,testserver
     steps:
