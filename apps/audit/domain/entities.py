@@ -437,13 +437,14 @@ class OperationLog:
         sdk_version: str = "",
         request_method: str = "MCP",
         request_path: str = "",
+        log_id: str | None = None,
     ) -> "OperationLog":
         """创建操作日志实体"""
         import uuid
         from datetime import datetime
 
-        # 生成 UUID
-        log_id = str(uuid.uuid4())
+        # 客户端投递 ID 在网络重试时保持不变；旧调用仍由 Domain 生成 UUID。
+        log_id = log_id or str(uuid.uuid4())
 
         # 时间戳
         timestamp = datetime.now(UTC).isoformat()

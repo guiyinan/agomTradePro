@@ -43,6 +43,7 @@ class LogOperationRequest:
     """记录操作日志请求"""
 
     request_id: str
+    delivery_id: str | None = None
     user_id: int | None = None
     username: str = "anonymous"
     source: str = "MCP"  # MCP/SDK/API
@@ -107,6 +108,7 @@ class LogOperationUseCase:
             # 创建日志实体 - 工厂函数会自动推断模块和动作
             log = OperationLogFactory.create_from_mcp_call(
                 request_id=request.request_id,
+                delivery_id=request.delivery_id,
                 tool_name=request.mcp_tool_name or "unknown",
                 user_id=request.user_id,
                 username=request.username,

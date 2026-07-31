@@ -83,6 +83,87 @@ class TestAuditInternalIngest:
         assert "raw-token" not in log.response_text
         assert "db-secret" not in log.exception_traceback
 
+    def test_retry_with_same_delivery_id_is_idempotent(self) -> None:
+        """A client retry returns the original log instead of duplicating it."""
+
+        client = APIClient()
+        delivery_id = str(uuid.uuid4())
+        payload = {
+            "delivery_id": delivery_id,
+            "request_id": "req-idempotent-001",
+            "source": "MCP",
+            "operation_type": "MCP_CALL",
+            "module": "regime",
+            "action": "READ",
+            "mcp_tool_name": "get_regime",
+            "response_status": 200,
+        }
+        ts = str(int(time.time()))
+        secret = "test-audit-secret"
+        signature = _sign(secret, ts, payload)
+
+        with override_settings(AUDIT_INTERNAL_SECRET_KEY=secret, DEBUG=False):
+            first = client.post(
+                "/api/audit/internal/operation-logs/",
+                data=payload,
+                format="json",
+                HTTP_X_AUDIT_TIMESTAMP=ts,
+                HTTP_X_AUDIT_SIGNATURE=signature,
+            )
+            second = client.post(
+                "/api/audit/internal/operation-logs/",
+                data=payload,
+                format="json",
+                HTTP_X_AUDIT_TIMESTAMP=ts,
+                HTTP_X_AUDIT_SIGNATURE=signature,
+            )
+
+        assert first.status_code == 201
+        assert second.status_code == 201
+        assert first.json()["log_id"] == delivery_id
+        assert second.json()["log_id"] == delivery_id
+        assert OperationLogModel._default_manager.filter(id=delivery_id).count() == 1
+
+    def test_reused_delivery_id_with_different_payload_is_rejected(self) -> None:
+        """A delivery ID cannot suppress a different audit event."""
+
+        client = APIClient()
+        delivery_id = str(uuid.uuid4())
+        first_payload = {
+            "delivery_id": delivery_id,
+            "request_id": "req-idempotent-002",
+            "source": "MCP",
+            "operation_type": "MCP_CALL",
+            "module": "regime",
+            "action": "READ",
+            "mcp_tool_name": "get_regime",
+        }
+        second_payload = {**first_payload, "action": "UPDATE"}
+        secret = "test-audit-secret"
+
+        with override_settings(AUDIT_INTERNAL_SECRET_KEY=secret, DEBUG=False):
+            first_ts = str(int(time.time()))
+            first = client.post(
+                "/api/audit/internal/operation-logs/",
+                data=first_payload,
+                format="json",
+                HTTP_X_AUDIT_TIMESTAMP=first_ts,
+                HTTP_X_AUDIT_SIGNATURE=_sign(secret, first_ts, first_payload),
+            )
+            second_ts = str(int(time.time()))
+            second = client.post(
+                "/api/audit/internal/operation-logs/",
+                data=second_payload,
+                format="json",
+                HTTP_X_AUDIT_TIMESTAMP=second_ts,
+                HTTP_X_AUDIT_SIGNATURE=_sign(secret, second_ts, second_payload),
+            )
+
+        assert first.status_code == 201
+        assert second.status_code == 202
+        assert second.json()["success"] is False
+        assert OperationLogModel._default_manager.filter(id=delivery_id).count() == 1
+
     def test_ingest_does_not_use_general_anonymous_throttle(self) -> None:
         """Signed internal audit traffic must not consume the public anon bucket."""
 

@@ -505,6 +505,7 @@ class TestIntegrationWithUseCase:
             call_args = mock_record.call_args
             assert call_args[1]["component"] == "database"
 
+    @pytest.mark.django_db
     def test_repository_records_failure_on_save_error(self):
         """测试 Repository 在保存失败时记录错误"""
         from apps.audit.domain.entities import OperationAction, OperationSource, OperationType

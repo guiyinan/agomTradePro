@@ -23,7 +23,9 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 MAX_RESPONSE_TEXT_LENGTH = 200000
-DEFAULT_AUDIT_TIMEOUT_SECONDS = 1.0
+DEFAULT_AUDIT_TIMEOUT_SECONDS = 5.0
+DEFAULT_AUDIT_MAX_ATTEMPTS = 2
+DEFAULT_AUDIT_RETRY_BACKOFF_SECONDS = 0.25
 AuditSink = Callable[[dict[str, Any]], str | None]
 _AUDIT_SINK: ContextVar[AuditSink | None] = ContextVar("agom_mcp_audit_sink", default=None)
 
@@ -75,7 +77,7 @@ class AuditContext:
     start_time: float = field(default_factory=time.time)
 
     @classmethod
-    def create(cls, **kwargs) -> AuditContext:
+    def create(cls, **kwargs: Any) -> AuditContext:
         """创建审计上下文"""
         return cls(
             request_id=kwargs.get("request_id") or str(uuid.uuid4()),
@@ -426,61 +428,92 @@ class AuditLogger:
         try:
             import requests
 
-            # 生成时间戳
-            timestamp = str(int(time.time()))
-
-            # 计算签名
-            signature = self._compute_signature(timestamp, data)
-
-            headers = {
-                "Content-Type": "application/json",
-                "X-Audit-Timestamp": timestamp,
-                "X-Audit-Signature": signature,
-            }
-            api_token = os.getenv("AGOMTRADEPRO_API_TOKEN", "").strip()
-            if api_token:
-                headers["Authorization"] = f"Token {api_token}"
-
-            try:
-                timeout = max(
-                    0.1,
-                    float(
-                        os.getenv(
-                            "AGOMTRADEPRO_AUDIT_TIMEOUT_SECONDS",
-                            str(DEFAULT_AUDIT_TIMEOUT_SECONDS),
-                        )
-                    ),
-                )
-            except ValueError:
-                timeout = DEFAULT_AUDIT_TIMEOUT_SECONDS
-
-            response = requests.post(
-                self.backend_url,
-                json=data,
-                headers=headers,
-                timeout=timeout,
+            payload = dict(data)
+            payload.setdefault("delivery_id", str(uuid.uuid4()))
+            timeout = self._read_float_setting(
+                "AGOMTRADEPRO_AUDIT_TIMEOUT_SECONDS",
+                DEFAULT_AUDIT_TIMEOUT_SECONDS,
+                minimum=0.1,
+                maximum=30.0,
             )
+            max_attempts = self._read_int_setting(
+                "AGOMTRADEPRO_AUDIT_MAX_ATTEMPTS",
+                DEFAULT_AUDIT_MAX_ATTEMPTS,
+                minimum=1,
+                maximum=5,
+            )
+            retry_backoff = self._read_float_setting(
+                "AGOMTRADEPRO_AUDIT_RETRY_BACKOFF_SECONDS",
+                DEFAULT_AUDIT_RETRY_BACKOFF_SECONDS,
+                minimum=0.0,
+                maximum=5.0,
+            )
+            last_network_error: Exception | None = None
 
-            if response.status_code in (200, 201):
-                result = response.json()
-                if isinstance(result, dict) and result.get("success") is False:
-                    logger.warning("审计日志写入被后端拒绝: " f"response={str(result)[:200]}")
-                    self._failure_count += 1
-                    return None
-                log_id = result.get("log_id")
-                logger.debug(f"审计日志已记录: log_id={log_id}")
-                return log_id
-            else:
+            for attempt in range(1, max_attempts + 1):
+                timestamp = str(int(time.time()))
+                headers = {
+                    "Content-Type": "application/json",
+                    "X-Audit-Timestamp": timestamp,
+                    "X-Audit-Signature": self._compute_signature(timestamp, payload),
+                }
+                api_token = os.getenv("AGOMTRADEPRO_API_TOKEN", "").strip()
+                if api_token:
+                    headers["Authorization"] = f"Token {api_token}"
+
+                try:
+                    response = requests.post(
+                        self.backend_url,
+                        json=payload,
+                        headers=headers,
+                        timeout=timeout,
+                    )
+                except requests.RequestException as exc:
+                    last_network_error = exc
+                    if attempt < max_attempts:
+                        logger.info(
+                            "审计日志发送失败，将重试: attempt=%s/%s, error=%s",
+                            attempt,
+                            max_attempts,
+                            exc,
+                        )
+                        if retry_backoff:
+                            time.sleep(retry_backoff * attempt)
+                        continue
+                    break
+
+                if response.status_code in (200, 201):
+                    result = response.json()
+                    if isinstance(result, dict) and result.get("success") is False:
+                        logger.warning("审计日志写入被后端拒绝: response=%s", str(result)[:200])
+                        self._failure_count += 1
+                        return None
+                    raw_log_id = result.get("log_id")
+                    log_id = str(raw_log_id) if raw_log_id is not None else None
+                    logger.debug("审计日志已记录: log_id=%s", log_id)
+                    return log_id
+
+                retryable_status = response.status_code == 429 or response.status_code >= 500
+                if retryable_status and attempt < max_attempts:
+                    logger.info(
+                        "审计日志写入暂时失败，将重试: attempt=%s/%s, status=%s",
+                        attempt,
+                        max_attempts,
+                        response.status_code,
+                    )
+                    if retry_backoff:
+                        time.sleep(retry_backoff * attempt)
+                    continue
+
                 logger.warning(
-                    f"审计日志写入失败: status={response.status_code}, "
-                    f"response={response.text[:200]}"
+                    "审计日志写入失败: status=%s, response=%s",
+                    response.status_code,
+                    response.text[:200],
                 )
                 self._failure_count += 1
                 return None
 
-        except requests.RequestException as e:
-            # 网络错误不阻塞主流程
-            logger.warning(f"审计日志发送失败（网络错误）: {e}")
+            logger.warning("审计日志发送失败（网络错误）: %s", last_network_error)
             self._failure_count += 1
             return None
         except Exception as e:
@@ -488,6 +521,38 @@ class AuditLogger:
             logger.error(f"审计日志发送失败: {e}", exc_info=True)
             self._failure_count += 1
             return None
+
+    @staticmethod
+    def _read_float_setting(
+        name: str,
+        default: float,
+        *,
+        minimum: float,
+        maximum: float,
+    ) -> float:
+        """Read a bounded floating-point audit setting from the environment."""
+
+        try:
+            value = float(os.getenv(name, str(default)))
+        except ValueError:
+            value = default
+        return min(max(value, minimum), maximum)
+
+    @staticmethod
+    def _read_int_setting(
+        name: str,
+        default: int,
+        *,
+        minimum: int,
+        maximum: int,
+    ) -> int:
+        """Read a bounded integer audit setting from the environment."""
+
+        try:
+            value = int(os.getenv(name, str(default)))
+        except ValueError:
+            value = default
+        return min(max(value, minimum), maximum)
 
     def _compute_signature(self, timestamp: str, data: dict[str, Any]) -> str:
         """计算签名"""

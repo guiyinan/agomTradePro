@@ -260,6 +260,7 @@ class OperationLogIngestSerializer(serializers.Serializer[dict[str, Any]]):
     """操作日志内部写入序列化器"""
 
     request_id = serializers.CharField(required=True)
+    delivery_id = serializers.UUIDField(required=False, allow_null=True)
     user_id = serializers.IntegerField(required=False, allow_null=True)
     username = serializers.CharField(required=False, default="anonymous")
     operation_type = serializers.CharField(required=False, default="MCP_CALL")

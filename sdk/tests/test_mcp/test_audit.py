@@ -1,4 +1,5 @@
 from unittest.mock import Mock
+from uuid import UUID
 
 from agomtradepro_mcp.audit import AuditContext, AuditLogger, use_audit_sink
 
@@ -34,7 +35,8 @@ def test_send_audit_log_forwards_user_access_token(monkeypatch) -> None:
     assert logger._send_audit_log({"request_id": "r-token"}) == "log-1"
     headers = fake_requests.post.call_args.kwargs["headers"]
     assert headers["Authorization"] == "Token user-access-token"
-    assert fake_requests.post.call_args.kwargs["timeout"] == 1.0
+    assert fake_requests.post.call_args.kwargs["timeout"] == 5.0
+    UUID(fake_requests.post.call_args.kwargs["json"]["delivery_id"])
 
 
 def test_scoped_audit_sink_bypasses_backend_http(monkeypatch) -> None:
@@ -101,6 +103,7 @@ def test_log_mcp_call_non_blocking_on_network_error(monkeypatch) -> None:
 
     logger = AuditLogger(secret_key="k")
     ctx = AuditContext.create(request_id="req-1", username="u")
+    monkeypatch.setenv("AGOMTRADEPRO_AUDIT_MAX_ATTEMPTS", "1")
 
     monkeypatch.setattr(
         requests,
@@ -116,6 +119,34 @@ def test_log_mcp_call_non_blocking_on_network_error(monkeypatch) -> None:
         context=ctx,
     )
     assert result is None
+
+
+def test_send_audit_log_retries_with_same_delivery_id(monkeypatch) -> None:
+    """A timed-out write can be retried without creating a second audit event."""
+
+    import requests
+
+    logger = AuditLogger(secret_key="k")
+    monkeypatch.setenv("AGOMTRADEPRO_AUDIT_MAX_ATTEMPTS", "2")
+    monkeypatch.setenv("AGOMTRADEPRO_AUDIT_RETRY_BACKOFF_SECONDS", "0")
+
+    class FakeResponse:
+        status_code = 201
+        text = '{"success": true, "log_id": "log-retried"}'
+
+        @staticmethod
+        def json() -> dict[str, object]:
+            return {"success": True, "log_id": "log-retried"}
+
+    post = Mock(side_effect=[requests.ReadTimeout("first attempt"), FakeResponse()])
+    monkeypatch.setattr(requests, "post", post)
+
+    assert logger._send_audit_log({"request_id": "req-retry"}) == "log-retried"
+    assert post.call_count == 2
+    first_payload = post.call_args_list[0].kwargs["json"]
+    second_payload = post.call_args_list[1].kwargs["json"]
+    assert first_payload["delivery_id"] == second_payload["delivery_id"]
+    UUID(first_payload["delivery_id"])
 
 
 def test_log_mcp_call_includes_response_payload_and_traceback(monkeypatch) -> None:

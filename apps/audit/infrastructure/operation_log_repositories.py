@@ -48,39 +48,49 @@ class OperationLogRepositoryMixin:
         Returns:
             str: 日志 ID
         """
+        from django.db import IntegrityError, transaction
+
         from .models import OperationLogModel
 
         try:
-            model = OperationLogModel._default_manager.create(
-                id=log_entity.id,
-                request_id=log_entity.request_id,
-                user_id=log_entity.user_id,
-                username=log_entity.username,
-                ip_address=log_entity.ip_address,
-                user_agent=log_entity.user_agent,
-                source=log_entity.source.value,
-                client_id=log_entity.client_id,
-                operation_type=log_entity.operation_type.value,
-                module=log_entity.module,
-                action=log_entity.action.value,
-                resource_type=log_entity.resource_type,
-                resource_id=log_entity.resource_id,
-                mcp_tool_name=log_entity.mcp_tool_name,
-                mcp_client_id=log_entity.mcp_client_id,
-                mcp_role=log_entity.mcp_role,
-                sdk_version=log_entity.sdk_version,
-                request_method=log_entity.request_method,
-                request_path=log_entity.request_path,
-                request_params=log_entity.request_params,
-                response_payload=log_entity.response_payload,
-                response_text=log_entity.response_text,
-                response_status=log_entity.response_status,
-                response_message=log_entity.response_message,
-                error_code=log_entity.error_code,
-                exception_traceback=log_entity.exception_traceback,
-                duration_ms=log_entity.duration_ms,
-                checksum=log_entity.checksum,
-            )
+            try:
+                with transaction.atomic():
+                    model = OperationLogModel._default_manager.create(
+                        id=log_entity.id,
+                        request_id=log_entity.request_id,
+                        user_id=log_entity.user_id,
+                        username=log_entity.username,
+                        ip_address=log_entity.ip_address,
+                        user_agent=log_entity.user_agent,
+                        source=log_entity.source.value,
+                        client_id=log_entity.client_id,
+                        operation_type=log_entity.operation_type.value,
+                        module=log_entity.module,
+                        action=log_entity.action.value,
+                        resource_type=log_entity.resource_type,
+                        resource_id=log_entity.resource_id,
+                        mcp_tool_name=log_entity.mcp_tool_name,
+                        mcp_client_id=log_entity.mcp_client_id,
+                        mcp_role=log_entity.mcp_role,
+                        sdk_version=log_entity.sdk_version,
+                        request_method=log_entity.request_method,
+                        request_path=log_entity.request_path,
+                        request_params=log_entity.request_params,
+                        response_payload=log_entity.response_payload,
+                        response_text=log_entity.response_text,
+                        response_status=log_entity.response_status,
+                        response_message=log_entity.response_message,
+                        error_code=log_entity.error_code,
+                        exception_traceback=log_entity.exception_traceback,
+                        duration_ms=log_entity.duration_ms,
+                        checksum=log_entity.checksum,
+                    )
+            except IntegrityError:
+                existing = OperationLogModel._default_manager.filter(id=log_entity.id).first()
+                if existing is None or not self._matches_idempotent_delivery(existing, log_entity):
+                    raise
+                logger.info("操作日志幂等重放: log_id=%s", existing.id)
+                return str(existing.id)
             logger.debug(
                 f"操作日志保存成功: log_id={model.id}, "
                 f"user={log_entity.username}, module={log_entity.module}"
@@ -109,6 +119,40 @@ class OperationLogRepositoryMixin:
             )
             # 重新抛出异常，让上层用例处理
             raise
+
+    @staticmethod
+    def _matches_idempotent_delivery(model: OperationLogModel, log_entity: OperationLog) -> bool:
+        """Return whether an existing row represents the same audit delivery."""
+
+        expected: dict[str, object] = {
+            "request_id": log_entity.request_id,
+            "user_id": log_entity.user_id,
+            "username": log_entity.username,
+            "ip_address": log_entity.ip_address,
+            "user_agent": log_entity.user_agent,
+            "source": log_entity.source.value,
+            "client_id": log_entity.client_id,
+            "operation_type": log_entity.operation_type.value,
+            "module": log_entity.module,
+            "action": log_entity.action.value,
+            "resource_type": log_entity.resource_type,
+            "resource_id": log_entity.resource_id,
+            "mcp_tool_name": log_entity.mcp_tool_name,
+            "mcp_client_id": log_entity.mcp_client_id,
+            "mcp_role": log_entity.mcp_role,
+            "sdk_version": log_entity.sdk_version,
+            "request_method": log_entity.request_method,
+            "request_path": log_entity.request_path,
+            "request_params": log_entity.request_params,
+            "response_payload": log_entity.response_payload,
+            "response_text": log_entity.response_text,
+            "response_status": log_entity.response_status,
+            "response_message": log_entity.response_message,
+            "error_code": log_entity.error_code,
+            "exception_traceback": log_entity.exception_traceback,
+            "duration_ms": log_entity.duration_ms,
+        }
+        return all(getattr(model, field) == value for field, value in expected.items())
 
     def query_operation_logs(
         self,

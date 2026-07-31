@@ -27,6 +27,7 @@ class OperationLogFactory:
     def create_from_mcp_call(
         request_id: str,
         tool_name: str,
+        delivery_id: str | None = None,
         user_id: int | None = None,
         username: str = "anonymous",
         source: str | None = None,
@@ -58,6 +59,7 @@ class OperationLogFactory:
         Args:
             request_id: 链路追踪ID
             tool_name: MCP 工具名
+            delivery_id: 客户端生成的幂等投递 ID
             user_id: 用户ID
             username: 用户名
             source: 来源（MCP/SDK/API），不传则自动推断
@@ -123,6 +125,7 @@ class OperationLogFactory:
             request_path = f"/mcp/tools/{tool_name}"
 
         return OperationLog.create(
+            log_id=delivery_id,
             request_id=request_id,
             user_id=user_id,
             username=username,

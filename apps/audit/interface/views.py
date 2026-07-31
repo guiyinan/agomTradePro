@@ -894,6 +894,7 @@ class OperationLogIngestView(APIView):
 
         response = log_operation_payload(
             request_id=data.get("request_id", ""),
+            delivery_id=(str(data["delivery_id"]) if data.get("delivery_id") else None),
             user_id=(
                 _optional_user_id(authenticated_user) if authenticated_user else data.get("user_id")
             ),
