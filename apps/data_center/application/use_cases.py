@@ -24,6 +24,7 @@ from apps.data_center.application.provider_catalog_use_cases import (
 from apps.data_center.application.query_use_cases import (
     DEFAULT_LATEST_QUOTE_MAX_AGE_HOURS,
     GetProviderStatusUseCase,
+    latest_completed_cn_market_session,
     QueryLatestQuoteUseCase,
     QueryMacroSeriesUseCase,
     QueryPriceHistoryUseCase,
@@ -56,6 +57,7 @@ __all__ = [
     "DEFAULT_DECISION_MACRO_INDICATORS",
     "DEFAULT_LATEST_QUOTE_MAX_AGE_HOURS",
     "GetProviderStatusUseCase",
+    "latest_completed_cn_market_session",
     "ManageIndicatorCatalogUseCase",
     "ManageIndicatorUnitRuleUseCase",
     "ManageProviderConfigUseCase",

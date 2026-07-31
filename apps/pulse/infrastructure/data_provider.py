@@ -21,6 +21,7 @@ from apps.data_center.infrastructure.seed_data.macro_indicator_governance import
 )
 from apps.pulse.domain.entities import PulseConfig, PulseIndicatorReading
 from shared.date_utils import business_day_age
+from shared.infrastructure.decision_safe_series_registry import get_sentiment_series_loader
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -535,9 +536,11 @@ class DjangoPulseDataProvider:
     def _load_sentiment_module_series(as_of_date: date) -> list[PulseSeriesPoint]:
         """Load the sentiment module index without laundering blocked observations."""
 
-        from apps.sentiment.application.pulse_facade import get_sentiment_pulse_series
-
-        result = get_sentiment_pulse_series(
+        loader = get_sentiment_series_loader()
+        if loader is None:
+            logger.warning("Blocked Pulse text sentiment input: sentiment loader unavailable")
+            return []
+        result = loader(
             as_of_date=as_of_date,
             lookback_days=365,
         )

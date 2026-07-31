@@ -21,12 +21,11 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime
-from math import isfinite
 from typing import Any
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.exceptions import NotAuthenticated, ValidationError
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -34,13 +33,11 @@ from rest_framework.response import Response
 from apps.data_center.application.dtos import (
     CreateIndicatorCatalogRequest,
     CreateIndicatorUnitRuleRequest,
-    CreateProviderRequest,
     CreatePublisherCatalogRequest,
     DecisionReliabilityRepairRequest,
     LatestQuoteRequest,
     MacroSeriesRequest,
     PriceHistoryRequest,
-    ProviderResponse,
     ResolveAssetRequest,
     SyncCapitalFlowRequest,
     SyncFinancialRequest,
@@ -53,7 +50,6 @@ from apps.data_center.application.dtos import (
     SyncValuationRequest,
     UpdateIndicatorCatalogRequest,
     UpdateIndicatorUnitRuleRequest,
-    UpdateProviderRequest,
     UpdatePublisherCatalogRequest,
 )
 from apps.data_center.application.interface_services import (
@@ -69,7 +65,6 @@ from apps.data_center.application.interface_services import (
     make_manage_indicator_unit_rule_use_case,
     make_manage_market_thermometer_config_use_case,
     make_manage_market_thermometer_user_override_use_case,
-    make_manage_provider_config_use_case,
     make_manage_publisher_catalog_use_case,
     make_query_capital_flows_use_case,
     make_query_financials_use_case,
@@ -106,6 +101,17 @@ from apps.data_center.composition import (
     make_query_pit_manifest_use_case,
 )
 from apps.data_center.domain.pit import KnowledgeScope
+from apps.data_center.interface.auth_helpers import _authenticated_user_id
+from apps.data_center.interface.query_params import (
+    _parse_bool_param,
+    _parse_positive_float_param,
+    _parse_positive_int_param,
+)
+from apps.data_center.interface.provider_api_views import (
+    provider_detail,
+    provider_list_create,
+    provider_status,
+)
 from apps.data_center.interface.pit_serializers import (
     BuildPITManifestSerializer,
     serialize_pit_manifest,
@@ -121,9 +127,6 @@ from apps.data_center.interface.serializers import (
     MarketThermometerImportSerializer,
     MarketThermometerUserOverrideSerializer,
     ProductionCoverageUniverseConfigSerializer,
-    ProviderConfigListSerializer,
-    ProviderConfigSerializer,
-    ProviderHealthSnapshotSerializer,
     PublisherCatalogSerializer,
     SyncCapitalFlowRequestSerializer,
     SyncFinancialRequestSerializer,
@@ -135,156 +138,10 @@ from apps.data_center.interface.serializers import (
     SyncSectorMembershipRequestSerializer,
     SyncValuationRequestSerializer,
 )
-from apps.data_center.provider_runtime import get_registry, refresh_registry
-from shared.config.tushare import (
-    TUSHARE_REQUEST_MODE_SDK_PATH,
-    TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
-    TUSHARE_REQUEST_MODE_VALUES,
-)
 from shared.numeric import safe_float
 from shared.request_payload import request_data_mapping
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_bool_param(
-    raw_value: str | None,
-    *,
-    field_name: str,
-    default: bool = False,
-) -> bool:
-    if raw_value is None or raw_value == "":
-        return default
-
-    normalized = str(raw_value).strip().lower()
-    if normalized in {"1", "true", "yes", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "off"}:
-        return False
-    raise ValueError(f"{field_name} 必须是布尔值")
-
-
-def _parse_positive_float_param(
-    raw_value: str | None,
-    *,
-    field_name: str,
-    default: float,
-) -> float:
-    if raw_value is None or raw_value == "":
-        return default
-
-    try:
-        value = float(raw_value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} 必须是数字") from exc
-
-    if not isfinite(value) or value <= 0:
-        raise ValueError(f"{field_name} 必须是大于 0 的有限数字")
-    return value
-
-
-def _parse_positive_int_param(
-    raw_value: str | None,
-    *,
-    field_name: str,
-    default: int,
-) -> int:
-    if raw_value is None or raw_value == "":
-        return default
-
-    try:
-        value = int(raw_value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} 必须是整数") from exc
-
-    if value <= 0:
-        raise ValueError(f"{field_name} 必须大于 0")
-    return value
-
-
-def _get_provider_health_metric(
-    extra_config: dict[str, Any],
-    capability: str,
-) -> dict[str, Any]:
-    if capability and capability != "N/A":
-        health_metrics = extra_config.get("health_metrics") or {}
-        metric = health_metrics.get(capability)
-        if isinstance(metric, dict):
-            return dict(metric)
-    return {}
-
-
-def _enrich_provider_status_snapshot(
-    snapshot: dict[str, Any],
-    extra_config: dict[str, Any],
-) -> dict[str, Any]:
-    capability = str(snapshot.get("capability") or "")
-    metric = _get_provider_health_metric(extra_config, capability)
-    enriched = dict(snapshot)
-
-    if enriched.get("last_success_at") in (None, ""):
-        enriched["last_success_at"] = metric.get("last_success_at") or extra_config.get(
-            "provider_last_success_at"
-        )
-    if enriched.get("avg_latency_ms") in (None, ""):
-        raw_latency = metric.get(
-            "avg_latency_ms",
-            extra_config.get("provider_avg_latency_ms"),
-        )
-        latency = safe_float(raw_latency)
-        enriched["avg_latency_ms"] = latency if latency is not None and latency >= 0 else None
-    if not enriched.get("consecutive_failures"):
-        failures = safe_float(metric.get("consecutive_failures"))
-        if failures is not None and failures >= 0 and failures.is_integer():
-            enriched["consecutive_failures"] = int(failures)
-
-    return enriched
-
-
-def _safe_provider_payload(provider: ProviderResponse) -> dict[str, Any]:
-    serializer = ProviderConfigListSerializer(provider.to_dict())
-    return dict(serializer.data)
-
-
-def _optional_masked_secret(value: object) -> str | None:
-    """Treat a blank masked credential as an instruction to preserve its value."""
-
-    if not isinstance(value, str) or not value.strip():
-        return None
-    return value
-
-
-def _provider_extra_config_with_tushare_mode(
-    *,
-    existing: dict[str, Any],
-    submitted: dict[str, Any] | None,
-    submitted_mode: object,
-    source_type: str,
-    http_url: str,
-) -> dict[str, Any]:
-    """Shape the explicit Tushare transport field into provider extra config."""
-
-    extra_config = dict(submitted) if submitted is not None else dict(existing)
-    explicit_mode = submitted_mode.strip() if isinstance(submitted_mode, str) else ""
-
-    if source_type != "tushare":
-        if explicit_mode:
-            raise ValidationError({"tushare_request_mode": "连接方式仅适用于 Tushare 服务商。"})
-        extra_config.pop("tushare_request_mode", None)
-        return extra_config
-
-    if explicit_mode:
-        extra_config["tushare_request_mode"] = explicit_mode
-
-    raw_mode = extra_config.get("tushare_request_mode", TUSHARE_REQUEST_MODE_SDK_PATH)
-    mode = raw_mode.strip() if isinstance(raw_mode, str) else ""
-    if mode not in TUSHARE_REQUEST_MODE_VALUES:
-        raise ValidationError({"tushare_request_mode": "请选择标准 Tushare 或统一中继。"})
-    if mode == TUSHARE_REQUEST_MODE_UNIFIED_RELAY and not http_url.strip():
-        raise ValidationError({"http_url": "统一中继连接必须填写服务地址。"})
-
-    extra_config["tushare_request_mode"] = mode
-    return extra_config
 
 
 def _make_decision_repair_use_case(
@@ -293,13 +150,6 @@ def _make_decision_repair_use_case(
     return make_decision_repair_use_case(user)
 
 
-def _authenticated_user_id(request: Request) -> int:
-    """Return a persisted integer user ID or reject the request."""
-
-    user_id = request.user.id
-    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
-        raise NotAuthenticated("Authenticated user identity is unavailable.")
-    return user_id
 
 
 # ---------------------------------------------------------------------------
@@ -684,51 +534,6 @@ def provider_test_connection(request: Request, provider_id: int) -> Response:
 # ---------------------------------------------------------------------------
 
 
-@api_view(["GET"])
-@permission_classes([IsAdminUser])
-def provider_status(request: Request) -> Response:
-    """GET /api/data-center/providers/status/ — per-provider health snapshot.
-
-    Returns one entry per active provider configured in the DB.
-    The ``status`` field reflects live circuit-breaker state when the provider
-    has been exercised through the registry; otherwise it reads ``unknown``.
-    """
-    # Build a lookup: provider_name → [snapshot] from live registry
-    live: dict[str, list[dict[str, Any]]] = {}
-    for snap in get_registry().get_all_statuses():
-        live.setdefault(snap.provider_name, []).append(snap.to_dict())
-
-    providers = sorted(
-        (
-            provider
-            for provider in make_manage_provider_config_use_case().list_all()
-            if provider.is_active
-        ),
-        key=lambda provider: (provider.priority, provider.name),
-    )
-    results: list[dict[str, Any]] = []
-    for provider in providers:
-        extra_config = provider.extra_config or {}
-        if provider.name in live:
-            results.extend(
-                _enrich_provider_status_snapshot(snapshot, extra_config)
-                for snapshot in live[provider.name]
-            )
-        else:
-            # Provider configured but not yet exercised through registry
-            results.append(
-                {
-                    "provider_name": provider.name,
-                    "capability": "N/A",
-                    "status": "unknown",
-                    "consecutive_failures": 0,
-                    "last_success_at": extra_config.get("provider_last_success_at"),
-                    "avg_latency_ms": extra_config.get("provider_avg_latency_ms"),
-                }
-            )
-
-    serializer = ProviderHealthSnapshotSerializer(results, many=True)
-    return Response({"results": serializer.data})
 
 
 # ---------------------------------------------------------------------------

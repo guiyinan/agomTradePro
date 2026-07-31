@@ -46,7 +46,7 @@
     "research": 0,
     "task_monitor": 1,
     "terminal": 24,
-    "valuation": 2
+    "valuation": 1
   },
   "max_inbound_modules_by_app": {
     "account": 12,
@@ -75,7 +75,7 @@
     "policy": 12,
     "prompt": 4,
     "pulse": 7,
-    "realtime": 5,
+    "realtime": 4,
     "regime": 22,
     "risk_center": 4,
     "rotation": 4,
