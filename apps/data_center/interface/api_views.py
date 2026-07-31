@@ -105,8 +105,10 @@ from apps.data_center.interface.pit_serializers import (
     BuildPITManifestSerializer,
     serialize_pit_manifest,
 )
-from apps.data_center.interface.provider_api_views import provider_detail  # noqa: F401
-from apps.data_center.interface.provider_api_views import provider_list_create  # noqa: F401
+from apps.data_center.interface.provider_api_views import (
+    provider_detail,  # noqa: F401
+    provider_list_create,  # noqa: F401
+)
 from apps.data_center.interface.provider_api_views import provider_status as _provider_status
 from apps.data_center.interface.query_params import (
     _parse_bool_param,
