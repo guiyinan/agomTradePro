@@ -15,17 +15,27 @@ from typing import Protocol
 class DecisionSafeSeriesPoint(Protocol):
     """One source observation supplied through the registry."""
 
-    observed_at: date
-    value: float
+    @property
+    def observed_at(self) -> date: ...
+
+    @property
+    def value(self) -> float: ...
 
 
 class DecisionSafeSeriesResult(Protocol):
     """A series together with its explicit decision-safety state."""
 
-    points: Sequence[DecisionSafeSeriesPoint]
-    observed_at: date | None
-    must_not_use_for_decision: bool
-    blocked_reason: str
+    @property
+    def points(self) -> Sequence[DecisionSafeSeriesPoint]: ...
+
+    @property
+    def observed_at(self) -> date | None: ...
+
+    @property
+    def must_not_use_for_decision(self) -> bool: ...
+
+    @property
+    def blocked_reason(self) -> str: ...
 
 
 class DecisionSafeSeriesLoader(Protocol):
