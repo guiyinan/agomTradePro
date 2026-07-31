@@ -2,10 +2,10 @@
   "version": "tui-workbench.v2",
   "registry_key": "default",
   "source_evidence_counts": {
-    "api_safe_read": 520,
-    "sdk_methods": 463,
+    "api_safe_read": 511,
+    "sdk_methods": 475,
     "mcp_tools": 378,
-    "classic_templates": 130
+    "classic_templates": 125
   },
   "source_evidence": {
     "api_safe_read": [
@@ -343,6 +343,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.decision-rhythm.input-snapshots.str:snapshot_id",
+        "name": "Get Decision Rhythm Input Snapshots Str:Snapshot Id",
+        "method": "GET",
+        "endpoint": "/api/decision-rhythm/input-snapshots/<str:snapshot_id>/",
+        "category": "decision-rhythm",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.decision-rhythm.trend-data",
         "name": "Get Decision Rhythm Trend Data",
         "method": "GET",
@@ -505,15 +514,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.alpha-triggers.candidates.pk.update-status",
-        "name": "Get Candidates Pk Update Status",
-        "method": "GET",
-        "endpoint": "/api/alpha-triggers/candidates/<pk>/update-status/",
-        "category": "alpha-triggers",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.alpha-triggers",
         "name": "Get Alpha Triggers",
         "method": "GET",
@@ -617,6 +617,15 @@
         "name": "Get Account Profile",
         "method": "GET",
         "endpoint": "/api/account/profile/",
+        "category": "account",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.account.tui.volatility",
+        "name": "Get Account Tui Volatility",
+        "method": "GET",
+        "endpoint": "/api/account/tui/volatility/",
         "category": "account",
         "risk_level": "safe",
         "visibility": "internal"
@@ -820,15 +829,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.account.positions.pk.close",
-        "name": "Get Positions Pk Close",
-        "method": "GET",
-        "endpoint": "/api/account/positions/<pk>/close/",
-        "category": "account",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.account.transactions",
         "name": "Get Account Transactions",
         "method": "GET",
@@ -937,15 +937,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.account.trading-cost-configs.pk.calculate",
-        "name": "Get Trading Cost Configs Pk Calculate",
-        "method": "GET",
-        "endpoint": "/api/account/trading-cost-configs/<pk>/calculate/",
-        "category": "account",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.account",
         "name": "Get Account",
         "method": "GET",
@@ -968,6 +959,15 @@
         "name": "Get Account Volatility",
         "method": "GET",
         "endpoint": "/api/account/volatility/",
+        "category": "account",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.account.backtests.int:backtest_id.apply",
+        "name": "Get Backtests Int:Backtest Id Apply",
+        "method": "GET",
+        "endpoint": "/api/account/backtests/<int:backtest_id>/apply/",
         "category": "account",
         "risk_level": "safe",
         "visibility": "internal"
@@ -1058,15 +1058,6 @@
         "name": "Get Account Exchange Rates",
         "method": "GET",
         "endpoint": "/api/account/exchange-rates/",
-        "category": "account",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.account.exchange-rates.convert",
-        "name": "Get Account Exchange Rates Convert",
-        "method": "GET",
-        "endpoint": "/api/account/exchange-rates/convert/",
         "category": "account",
         "risk_level": "safe",
         "visibility": "internal"
@@ -1225,6 +1216,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.simulated-trading.accounts.int:account_id.inspection-notification",
+        "name": "Get Accounts Int:Account Id Inspection Notification",
+        "method": "GET",
+        "endpoint": "/api/simulated-trading/accounts/<int:account_id>/inspection-notification/",
+        "category": "simulated-trading",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.simulated-trading.fee-configs",
         "name": "Get Simulated Trading Fee Configs",
         "method": "GET",
@@ -1279,6 +1279,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.strategy.tui.strategies.int:strategy_id.preview",
+        "name": "Get Strategies Int:Strategy Id Preview",
+        "method": "GET",
+        "endpoint": "/api/strategy/tui/strategies/<int:strategy_id>/preview/",
+        "category": "strategy",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.strategy.strategies",
         "name": "Get Strategy Strategies",
         "method": "GET",
@@ -1306,37 +1315,10 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.strategy.strategies.pk.activate",
-        "name": "Get Strategies Pk Activate",
-        "method": "GET",
-        "endpoint": "/api/strategy/strategies/<pk>/activate/",
-        "category": "strategy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.strategy.strategies.pk.ai_config",
         "name": "Get Strategies Pk Ai_Config",
         "method": "GET",
         "endpoint": "/api/strategy/strategies/<pk>/ai_config/",
-        "category": "strategy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.strategy.strategies.pk.deactivate",
-        "name": "Get Strategies Pk Deactivate",
-        "method": "GET",
-        "endpoint": "/api/strategy/strategies/<pk>/deactivate/",
-        "category": "strategy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.strategy.strategies.pk.evaluate_position_management",
-        "name": "Get Strategies Pk Evaluate_Position_Management",
-        "method": "GET",
-        "endpoint": "/api/strategy/strategies/<pk>/evaluate_position_management/",
         "category": "strategy",
         "risk_level": "safe",
         "visibility": "internal"
@@ -1432,15 +1414,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.strategy.position-rules.pk.evaluate",
-        "name": "Get Position Rules Pk Evaluate",
-        "method": "GET",
-        "endpoint": "/api/strategy/position-rules/<pk>/evaluate/",
-        "category": "strategy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.strategy.rules",
         "name": "Get Strategy Rules",
         "method": "GET",
@@ -1454,24 +1427,6 @@
         "name": "Get Strategy Rules Pk",
         "method": "GET",
         "endpoint": "/api/strategy/rules/<pk>/",
-        "category": "strategy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.strategy.rules.pk.disable",
-        "name": "Get Rules Pk Disable",
-        "method": "GET",
-        "endpoint": "/api/strategy/rules/<pk>/disable/",
-        "category": "strategy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.strategy.rules.pk.enable",
-        "name": "Get Rules Pk Enable",
-        "method": "GET",
-        "endpoint": "/api/strategy/rules/<pk>/enable/",
         "category": "strategy",
         "risk_level": "safe",
         "visibility": "internal"
@@ -1535,24 +1490,6 @@
         "name": "Get Strategy Assignments Pk",
         "method": "GET",
         "endpoint": "/api/strategy/assignments/<pk>/",
-        "category": "strategy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.strategy.assignments.pk.activate",
-        "name": "Get Assignments Pk Activate",
-        "method": "GET",
-        "endpoint": "/api/strategy/assignments/<pk>/activate/",
-        "category": "strategy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.strategy.assignments.pk.deactivate",
-        "name": "Get Assignments Pk Deactivate",
-        "method": "GET",
-        "endpoint": "/api/strategy/assignments/<pk>/deactivate/",
         "category": "strategy",
         "risk_level": "safe",
         "visibility": "internal"
@@ -1657,6 +1594,33 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.regime.current",
+        "name": "Get Regime Current",
+        "method": "GET",
+        "endpoint": "/api/regime/current/",
+        "category": "regime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.regime.distribution",
+        "name": "Get Regime Distribution",
+        "method": "GET",
+        "endpoint": "/api/regime/distribution/",
+        "category": "regime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.regime.history",
+        "name": "Get Regime History",
+        "method": "GET",
+        "endpoint": "/api/regime/history/",
+        "category": "regime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.regime",
         "name": "Get Regime",
         "method": "GET",
@@ -1711,6 +1675,33 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.regime.tui.overview",
+        "name": "Get Regime Tui Overview",
+        "method": "GET",
+        "endpoint": "/api/regime/tui/overview/",
+        "category": "regime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.macro.tui.overview",
+        "name": "Get Macro Tui Overview",
+        "method": "GET",
+        "endpoint": "/api/macro/tui/overview/",
+        "category": "macro",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.macro.tui.trend-filter",
+        "name": "Get Macro Tui Trend Filter",
+        "method": "GET",
+        "endpoint": "/api/macro/tui/trend-filter/",
+        "category": "macro",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.pulse",
         "name": "Get Pulse",
         "method": "GET",
@@ -1738,6 +1729,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.policy.rss.reader",
+        "name": "Get Policy Rss Reader",
+        "method": "GET",
+        "endpoint": "/api/policy/rss/reader/",
+        "category": "policy",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.policy.status",
         "name": "Get Policy Status",
         "method": "GET",
@@ -1760,15 +1760,6 @@
         "name": "Get Policy Events Str:Event Date",
         "method": "GET",
         "endpoint": "/api/policy/events/<str:event_date>/",
-        "category": "policy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.policy.audit.queue",
-        "name": "Get Policy Audit Queue",
-        "method": "GET",
-        "endpoint": "/api/policy/audit/queue/",
         "category": "policy",
         "risk_level": "safe",
         "visibility": "internal"
@@ -1828,78 +1819,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.policy.rss.sources",
-        "name": "Get Policy Rss Sources",
-        "method": "GET",
-        "endpoint": "/api/policy/rss/sources/",
-        "category": "policy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.policy.rss.sources.fetch_all",
-        "name": "Get Rss Sources Fetch_All",
-        "method": "GET",
-        "endpoint": "/api/policy/rss/sources/fetch_all/",
-        "category": "policy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.policy.rss.sources.pk",
-        "name": "Get Rss Sources Pk",
-        "method": "GET",
-        "endpoint": "/api/policy/rss/sources/<pk>/",
-        "category": "policy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.policy.rss.sources.pk.trigger_fetch",
-        "name": "Get Sources Pk Trigger_Fetch",
-        "method": "GET",
-        "endpoint": "/api/policy/rss/sources/<pk>/trigger_fetch/",
-        "category": "policy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.policy.rss.logs",
-        "name": "Get Policy Rss Logs",
-        "method": "GET",
-        "endpoint": "/api/policy/rss/logs/",
-        "category": "policy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.policy.rss.logs.pk",
-        "name": "Get Rss Logs Pk",
-        "method": "GET",
-        "endpoint": "/api/policy/rss/logs/<pk>/",
-        "category": "policy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.policy.rss.keywords",
-        "name": "Get Policy Rss Keywords",
-        "method": "GET",
-        "endpoint": "/api/policy/rss/keywords/",
-        "category": "policy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.policy.rss.keywords.pk",
-        "name": "Get Rss Keywords Pk",
-        "method": "GET",
-        "endpoint": "/api/policy/rss/keywords/<pk>/",
-        "category": "policy",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.policy",
         "name": "Get Policy",
         "method": "GET",
@@ -1924,7 +1843,7 @@
         "endpoint": "/api/signal/health/",
         "category": "signal",
         "risk_level": "safe",
-        "visibility": "internal"
+        "visibility": "public"
       },
       {
         "key": "api.get.api.signal",
@@ -1940,15 +1859,6 @@
         "name": "Get Signal Active",
         "method": "GET",
         "endpoint": "/api/signal/active/",
-        "category": "signal",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.signal.check_eligibility",
-        "name": "Get Signal Check_Eligibility",
-        "method": "GET",
-        "endpoint": "/api/signal/check_eligibility/",
         "category": "signal",
         "risk_level": "safe",
         "visibility": "internal"
@@ -1972,33 +1882,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.signal.pk.invalidate",
-        "name": "Get Signal Pk Invalidate",
-        "method": "GET",
-        "endpoint": "/api/signal/<pk>/invalidate/",
-        "category": "signal",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.signal.pk.reject",
-        "name": "Get Signal Pk Reject",
-        "method": "GET",
-        "endpoint": "/api/signal/<pk>/reject/",
-        "category": "signal",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.signal.pk.validate",
-        "name": "Get Signal Pk Validate",
-        "method": "GET",
-        "endpoint": "/api/signal/<pk>/validate/",
-        "category": "signal",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.signal.unified",
         "name": "Get Signal Unified",
         "method": "GET",
@@ -2012,15 +1895,6 @@
         "name": "Get Signal Unified By_Asset",
         "method": "GET",
         "endpoint": "/api/signal/unified/by_asset/",
-        "category": "signal",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.signal.unified.collect",
-        "name": "Get Signal Unified Collect",
-        "method": "GET",
-        "endpoint": "/api/signal/unified/collect/",
         "category": "signal",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2080,28 +1954,10 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.filter.compare",
-        "name": "Get Filter Compare",
-        "method": "GET",
-        "endpoint": "/api/filter/compare/",
-        "category": "filter",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.filter.config.indicator_code",
         "name": "Get Filter Config Indicator Code",
         "method": "GET",
         "endpoint": "/api/filter/config/<indicator_code>/",
-        "category": "filter",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.filter.get-data",
-        "name": "Get Filter Get Data",
-        "method": "GET",
-        "endpoint": "/api/filter/get-data/",
         "category": "filter",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2140,7 +1996,7 @@
         "endpoint": "/api/filter/health/",
         "category": "filter",
         "risk_level": "safe",
-        "visibility": "internal"
+        "visibility": "public"
       },
       {
         "key": "api.get.api.backtest",
@@ -2197,15 +2053,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.backtest.backtests.pk.rerun",
-        "name": "Get Backtests Pk Rerun",
-        "method": "GET",
-        "endpoint": "/api/backtest/backtests/<pk>/rerun/",
-        "category": "backtest",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.backtest",
         "name": "Get Backtest",
         "method": "GET",
@@ -2228,6 +2075,60 @@
         "name": "Get Audit",
         "method": "GET",
         "endpoint": "/api/audit/",
+        "category": "audit",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.audit.tui.overview",
+        "name": "Get Audit Tui Overview",
+        "method": "GET",
+        "endpoint": "/api/audit/tui/overview/",
+        "category": "audit",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.audit.tui.reports",
+        "name": "Get Audit Tui Reports",
+        "method": "GET",
+        "endpoint": "/api/audit/tui/reports/",
+        "category": "audit",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.audit.tui.attribution.int:report_id",
+        "name": "Get Tui Attribution Int:Report Id",
+        "method": "GET",
+        "endpoint": "/api/audit/tui/attribution/<int:report_id>/",
+        "category": "audit",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.audit.tui.indicator-performance",
+        "name": "Get Audit Tui Indicator Performance",
+        "method": "GET",
+        "endpoint": "/api/audit/tui/indicator-performance/",
+        "category": "audit",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.audit.tui.thresholds",
+        "name": "Get Audit Tui Thresholds",
+        "method": "GET",
+        "endpoint": "/api/audit/tui/thresholds/",
+        "category": "audit",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.audit.tui.manual-trades",
+        "name": "Get Audit Tui Manual Trades",
+        "method": "GET",
+        "endpoint": "/api/audit/tui/manual-trades/",
         "category": "audit",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2348,6 +2249,114 @@
         "category": "audit",
         "risk_level": "safe",
         "visibility": "public"
+      },
+      {
+        "key": "api.get.api.audit.forecast-scoreboard",
+        "name": "Get Audit Forecast Scoreboard",
+        "method": "GET",
+        "endpoint": "/api/audit/forecast-scoreboard/",
+        "category": "audit",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.regime-correlation.stock_code",
+        "name": "Get Equity Regime Correlation Stock Code",
+        "method": "GET",
+        "endpoint": "/api/equity/regime-correlation/<stock_code>/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.valuation.stock_code",
+        "name": "Get Equity Valuation Stock Code",
+        "method": "GET",
+        "endpoint": "/api/equity/valuation/<stock_code>/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.financials.stock_code",
+        "name": "Get Equity Financials Stock Code",
+        "method": "GET",
+        "endpoint": "/api/equity/financials/<stock_code>/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.pool",
+        "name": "Get Equity Pool",
+        "method": "GET",
+        "endpoint": "/api/equity/pool/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.valuation-repair.stock_code.[^.]+).history",
+        "name": "Get <Stock_Code>[^ ]+) History",
+        "method": "GET",
+        "endpoint": "/api/equity/valuation-repair/<stock_code>[^/]+)/history/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.valuation-repair.stock_code.[^.]+)",
+        "name": "Get Valuation Repair <Stock_Code>[^ ]+)",
+        "method": "GET",
+        "endpoint": "/api/equity/valuation-repair/<stock_code>[^/]+)/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.intraday.stock_code",
+        "name": "Get Equity Intraday Stock Code",
+        "method": "GET",
+        "endpoint": "/api/equity/intraday/<stock_code>/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.valuation-repair-list",
+        "name": "Get Equity Valuation Repair List",
+        "method": "GET",
+        "endpoint": "/api/equity/valuation-repair-list/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.technical.stock_code",
+        "name": "Get Equity Technical Stock Code",
+        "method": "GET",
+        "endpoint": "/api/equity/technical/<stock_code>/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.valuation-data.freshness",
+        "name": "Get Equity Valuation Data Freshness",
+        "method": "GET",
+        "endpoint": "/api/equity/valuation-data/freshness/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.equity.valuation-data.quality-latest",
+        "name": "Get Equity Valuation Data Quality Latest",
+        "method": "GET",
+        "endpoint": "/api/equity/valuation-data/quality-latest/",
+        "category": "equity",
+        "risk_level": "safe",
+        "visibility": "internal"
       },
       {
         "key": "api.get.api.equity",
@@ -2476,6 +2485,24 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.sector.rotation",
+        "name": "Get Sector Rotation",
+        "method": "GET",
+        "endpoint": "/api/sector/rotation/",
+        "category": "sector",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.sector.score.sector_identifier",
+        "name": "Get Sector Score Sector Identifier",
+        "method": "GET",
+        "endpoint": "/api/sector/score/<sector_identifier>/",
+        "category": "sector",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.sector",
         "name": "Get Sector",
         "method": "GET",
@@ -2543,6 +2570,15 @@
         "name": "Get Ai Me Logs",
         "method": "GET",
         "endpoint": "/api/ai/me/logs/",
+        "category": "ai",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai.me.quota.current",
+        "name": "Get Me Quota Current",
+        "method": "GET",
+        "endpoint": "/api/ai/me/quota/current/",
         "category": "ai",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2629,33 +2665,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.prompt.logs",
-        "name": "Get Prompt Logs",
-        "method": "GET",
-        "endpoint": "/api/prompt/logs/",
-        "category": "prompt",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.prompt.logs.recent",
-        "name": "Get Prompt Logs Recent",
-        "method": "GET",
-        "endpoint": "/api/prompt/logs/recent/",
-        "category": "prompt",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.prompt.logs.pk",
-        "name": "Get Prompt Logs Pk",
-        "method": "GET",
-        "endpoint": "/api/prompt/logs/<pk>/",
-        "category": "prompt",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.prompt",
         "name": "Get Prompt",
         "method": "GET",
@@ -2688,6 +2697,105 @@
         "method": "GET",
         "endpoint": "/api/prompt/chat/models",
         "category": "prompt",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts",
+        "name": "Get Prompts",
+        "method": "GET",
+        "endpoint": "/api/prompts/",
+        "category": "prompts",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts.templates",
+        "name": "Get Prompts Templates",
+        "method": "GET",
+        "endpoint": "/api/prompts/templates/",
+        "category": "prompts",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts.templates.categories",
+        "name": "Get Prompts Templates Categories",
+        "method": "GET",
+        "endpoint": "/api/prompts/templates/categories/",
+        "category": "prompts",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts.templates.pk",
+        "name": "Get Prompts Templates Pk",
+        "method": "GET",
+        "endpoint": "/api/prompts/templates/<pk>/",
+        "category": "prompts",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts.chains",
+        "name": "Get Prompts Chains",
+        "method": "GET",
+        "endpoint": "/api/prompts/chains/",
+        "category": "prompts",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts.chains.execution_modes",
+        "name": "Get Prompts Chains Execution_Modes",
+        "method": "GET",
+        "endpoint": "/api/prompts/chains/execution_modes/",
+        "category": "prompts",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts.chains.pk",
+        "name": "Get Prompts Chains Pk",
+        "method": "GET",
+        "endpoint": "/api/prompts/chains/<pk>/",
+        "category": "prompts",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts",
+        "name": "Get Prompts",
+        "method": "GET",
+        "endpoint": "/api/prompts/",
+        "category": "prompts",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts.drf_format_suffix:format",
+        "name": "Get Prompts Drf Format Suffix:Format",
+        "method": "GET",
+        "endpoint": "/api/prompts/<drf_format_suffix:format>",
+        "category": "prompts",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts.chat.providers",
+        "name": "Get Prompts Chat Providers",
+        "method": "GET",
+        "endpoint": "/api/prompts/chat/providers",
+        "category": "prompts",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.prompts.chat.models",
+        "name": "Get Prompts Chat Models",
+        "method": "GET",
+        "endpoint": "/api/prompts/chat/models",
+        "category": "prompts",
         "risk_level": "safe",
         "visibility": "internal"
       },
@@ -2836,55 +2944,10 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.factor.configs.pk.activate",
-        "name": "Get Configs Pk Activate",
-        "method": "GET",
-        "endpoint": "/api/factor/configs/<pk>/activate/",
-        "category": "factor",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.factor.configs.pk.deactivate",
-        "name": "Get Configs Pk Deactivate",
-        "method": "GET",
-        "endpoint": "/api/factor/configs/<pk>/deactivate/",
-        "category": "factor",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.factor.configs.pk.generate_portfolio",
-        "name": "Get Configs Pk Generate_Portfolio",
-        "method": "GET",
-        "endpoint": "/api/factor/configs/<pk>/generate_portfolio/",
-        "category": "factor",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.factor",
         "name": "Get Factor",
         "method": "GET",
         "endpoint": "/api/factor/",
-        "category": "factor",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.factor.create-portfolio",
-        "name": "Get Factor Create Portfolio",
-        "method": "GET",
-        "endpoint": "/api/factor/create-portfolio/",
-        "category": "factor",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.factor.explain-stock",
-        "name": "Get Factor Explain Stock",
-        "method": "GET",
-        "endpoint": "/api/factor/explain-stock/",
         "category": "factor",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2912,15 +2975,6 @@
         "name": "Get Factor Portfolio",
         "method": "GET",
         "endpoint": "/api/factor/portfolio/",
-        "category": "factor",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.factor.top-stocks",
-        "name": "Get Factor Top Stocks",
-        "method": "GET",
-        "endpoint": "/api/factor/top-stocks/",
         "category": "factor",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2980,15 +3034,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.rotation.assets.import-defaults",
-        "name": "Get Rotation Assets Import Defaults",
-        "method": "GET",
-        "endpoint": "/api/rotation/assets/import-defaults/",
-        "category": "rotation",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.rotation.assets.import-defaults-preview",
         "name": "Get Rotation Assets Import Defaults Preview",
         "method": "GET",
@@ -3043,15 +3088,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.rotation.asset-classes.import-defaults",
-        "name": "Get Rotation Asset Classes Import Defaults",
-        "method": "GET",
-        "endpoint": "/api/rotation/asset-classes/import-defaults/",
-        "category": "rotation",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.rotation.asset-classes.import-defaults-preview",
         "name": "Get Rotation Asset Classes Import Defaults Preview",
         "method": "GET",
@@ -3101,33 +3137,6 @@
         "name": "Get Rotation Configs Pk",
         "method": "GET",
         "endpoint": "/api/rotation/configs/<pk>/",
-        "category": "rotation",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.rotation.configs.pk.activate",
-        "name": "Get Configs Pk Activate",
-        "method": "GET",
-        "endpoint": "/api/rotation/configs/<pk>/activate/",
-        "category": "rotation",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.rotation.configs.pk.deactivate",
-        "name": "Get Configs Pk Deactivate",
-        "method": "GET",
-        "endpoint": "/api/rotation/configs/<pk>/deactivate/",
-        "category": "rotation",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.rotation.configs.pk.generate_signal",
-        "name": "Get Configs Pk Generate_Signal",
-        "method": "GET",
-        "endpoint": "/api/rotation/configs/<pk>/generate_signal/",
         "category": "rotation",
         "risk_level": "safe",
         "visibility": "internal"
@@ -3205,55 +3214,10 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.rotation.account-configs.pk.apply-template",
-        "name": "Get Account Configs Pk Apply Template",
-        "method": "GET",
-        "endpoint": "/api/rotation/account-configs/<pk>/apply-template/",
-        "category": "rotation",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.rotation",
         "name": "Get Rotation",
         "method": "GET",
         "endpoint": "/api/rotation/",
-        "category": "rotation",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.rotation.clear-cache",
-        "name": "Get Rotation Clear Cache",
-        "method": "GET",
-        "endpoint": "/api/rotation/clear-cache/",
-        "category": "rotation",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.rotation.compare",
-        "name": "Get Rotation Compare",
-        "method": "GET",
-        "endpoint": "/api/rotation/compare/",
-        "category": "rotation",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.rotation.correlation",
-        "name": "Get Rotation Correlation",
-        "method": "GET",
-        "endpoint": "/api/rotation/correlation/",
-        "category": "rotation",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.rotation.generate-signal",
-        "name": "Get Rotation Generate Signal",
-        "method": "GET",
-        "endpoint": "/api/rotation/generate-signal/",
         "category": "rotation",
         "risk_level": "safe",
         "visibility": "internal"
@@ -3511,15 +3475,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.hedge.pairs.correlation_matrix",
-        "name": "Get Hedge Pairs Correlation_Matrix",
-        "method": "GET",
-        "endpoint": "/api/hedge/pairs/correlation_matrix/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.hedge.pairs.pk",
         "name": "Get Hedge Pairs Pk",
         "method": "GET",
@@ -3529,46 +3484,10 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.hedge.pairs.pk.activate",
-        "name": "Get Pairs Pk Activate",
-        "method": "GET",
-        "endpoint": "/api/hedge/pairs/<pk>/activate/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.hedge.pairs.pk.check_effectiveness",
-        "name": "Get Pairs Pk Check_Effectiveness",
-        "method": "GET",
-        "endpoint": "/api/hedge/pairs/<pk>/check_effectiveness/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.hedge.pairs.pk.deactivate",
-        "name": "Get Pairs Pk Deactivate",
-        "method": "GET",
-        "endpoint": "/api/hedge/pairs/<pk>/deactivate/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.hedge.correlations",
         "name": "Get Hedge Correlations",
         "method": "GET",
         "endpoint": "/api/hedge/correlations/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.hedge.correlations.calculate",
-        "name": "Get Hedge Correlations Calculate",
-        "method": "GET",
-        "endpoint": "/api/hedge/correlations/calculate/",
         "category": "hedge",
         "risk_level": "safe",
         "visibility": "internal"
@@ -3601,15 +3520,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.hedge.snapshots.update_all",
-        "name": "Get Hedge Snapshots Update_All",
-        "method": "GET",
-        "endpoint": "/api/hedge/snapshots/update_all/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.hedge.snapshots.pk",
         "name": "Get Hedge Snapshots Pk",
         "method": "GET",
@@ -3637,15 +3547,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.hedge.alerts.monitor",
-        "name": "Get Hedge Alerts Monitor",
-        "method": "GET",
-        "endpoint": "/api/hedge/alerts/monitor/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.hedge.alerts.pk",
         "name": "Get Hedge Alerts Pk",
         "method": "GET",
@@ -3655,46 +3556,10 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.hedge.alerts.pk.resolve",
-        "name": "Get Alerts Pk Resolve",
-        "method": "GET",
-        "endpoint": "/api/hedge/alerts/<pk>/resolve/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.hedge.actions",
         "name": "Get Hedge Actions",
         "method": "GET",
         "endpoint": "/api/hedge/actions/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.hedge.actions.calculate_correlation",
-        "name": "Get Hedge Actions Calculate_Correlation",
-        "method": "GET",
-        "endpoint": "/api/hedge/actions/calculate_correlation/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.hedge.actions.check_hedge_ratio",
-        "name": "Get Hedge Actions Check_Hedge_Ratio",
-        "method": "GET",
-        "endpoint": "/api/hedge/actions/check_hedge_ratio/",
-        "category": "hedge",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.hedge.actions.get_correlation_matrix",
-        "name": "Get Hedge Actions Get_Correlation_Matrix",
-        "method": "GET",
-        "endpoint": "/api/hedge/actions/get_correlation_matrix/",
         "category": "hedge",
         "risk_level": "safe",
         "visibility": "internal"
@@ -3808,6 +3673,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.sentiment.tui.overview",
+        "name": "Get Sentiment Tui Overview",
+        "method": "GET",
+        "endpoint": "/api/sentiment/tui/overview/",
+        "category": "sentiment",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.system",
         "name": "Get System",
         "method": "GET",
@@ -3817,55 +3691,19 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.system.status.str:task_id",
-        "name": "Get System Status Str:Task Id",
-        "method": "GET",
-        "endpoint": "/api/system/status/<str:task_id>/",
-        "category": "system",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.system.list",
-        "name": "Get System List",
-        "method": "GET",
-        "endpoint": "/api/system/list/",
-        "category": "system",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.system.statistics",
-        "name": "Get System Statistics",
-        "method": "GET",
-        "endpoint": "/api/system/statistics/",
-        "category": "system",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.system.dashboard",
-        "name": "Get System Dashboard",
-        "method": "GET",
-        "endpoint": "/api/system/dashboard/",
-        "category": "system",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.system.celery.health",
-        "name": "Get System Celery Health",
-        "method": "GET",
-        "endpoint": "/api/system/celery/health/",
-        "category": "system",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.dashboard",
         "name": "Get Dashboard",
         "method": "GET",
         "endpoint": "/api/dashboard/",
+        "category": "dashboard",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.dashboard.tui.overview",
+        "name": "Get Dashboard Tui Overview",
+        "method": "GET",
+        "endpoint": "/api/dashboard/tui/overview/",
         "category": "dashboard",
         "risk_level": "safe",
         "visibility": "internal"
@@ -4141,15 +3979,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.share.links.pk.revoke",
-        "name": "Get Links Pk Revoke",
-        "method": "GET",
-        "endpoint": "/api/share/links/<pk>/revoke/",
-        "category": "share",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.share.links.pk.snapshots",
         "name": "Get Links Pk Snapshots",
         "method": "GET",
@@ -4195,15 +4024,6 @@
         "visibility": "public"
       },
       {
-        "key": "api.get.api.share.public.str:short_code.access",
-        "name": "Get Public Str:Short Code Access",
-        "method": "GET",
-        "endpoint": "/api/share/public/<str:short_code>/access/",
-        "category": "share",
-        "risk_level": "safe",
-        "visibility": "public"
-      },
-      {
         "key": "api.get.api.share.public.str:short_code.snapshot",
         "name": "Get Public Str:Short Code Snapshot",
         "method": "GET",
@@ -4218,6 +4038,33 @@
         "method": "GET",
         "endpoint": "/api/share/public/<str:short_code>/performance/",
         "category": "share",
+        "risk_level": "safe",
+        "visibility": "public"
+      },
+      {
+        "key": "api.get.api.agent-runtime.operator.tasks",
+        "name": "Get Agent Runtime Operator Tasks",
+        "method": "GET",
+        "endpoint": "/api/agent-runtime/operator/tasks/",
+        "category": "agent-runtime",
+        "risk_level": "safe",
+        "visibility": "public"
+      },
+      {
+        "key": "api.get.api.agent-runtime.operator.proposals",
+        "name": "Get Agent Runtime Operator Proposals",
+        "method": "GET",
+        "endpoint": "/api/agent-runtime/operator/proposals/",
+        "category": "agent-runtime",
+        "risk_level": "safe",
+        "visibility": "public"
+      },
+      {
+        "key": "api.get.api.agent-runtime.operator.proposals.int:proposal_id",
+        "name": "Get Operator Proposals Int:Proposal Id",
+        "method": "GET",
+        "endpoint": "/api/agent-runtime/operator/proposals/<int:proposal_id>/",
+        "category": "agent-runtime",
         "risk_level": "safe",
         "visibility": "public"
       },
@@ -4258,46 +4105,10 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.agent-runtime.tasks.pk.cancel",
-        "name": "Get Tasks Pk Cancel",
-        "method": "GET",
-        "endpoint": "/api/agent-runtime/tasks/<pk>/cancel/",
-        "category": "agent-runtime",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.agent-runtime.tasks.pk.handoff",
-        "name": "Get Tasks Pk Handoff",
-        "method": "GET",
-        "endpoint": "/api/agent-runtime/tasks/<pk>/handoff/",
-        "category": "agent-runtime",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.agent-runtime.tasks.pk.resume",
-        "name": "Get Tasks Pk Resume",
-        "method": "GET",
-        "endpoint": "/api/agent-runtime/tasks/<pk>/resume/",
-        "category": "agent-runtime",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.agent-runtime.tasks.pk.timeline",
         "name": "Get Tasks Pk Timeline",
         "method": "GET",
         "endpoint": "/api/agent-runtime/tasks/<pk>/timeline/",
-        "category": "agent-runtime",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.agent-runtime.proposals",
-        "name": "Get Agent Runtime Proposals",
-        "method": "GET",
-        "endpoint": "/api/agent-runtime/proposals/",
         "category": "agent-runtime",
         "risk_level": "safe",
         "visibility": "internal"
@@ -4312,19 +4123,46 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.agent-runtime.proposals.pk.reject",
-        "name": "Get Proposals Pk Reject",
+        "key": "api.get.api.agent-runtime.context.decision",
+        "name": "Get Agent Runtime Context Decision",
         "method": "GET",
-        "endpoint": "/api/agent-runtime/proposals/<pk>/reject/",
+        "endpoint": "/api/agent-runtime/context/decision/",
         "category": "agent-runtime",
         "risk_level": "safe",
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.agent-runtime.proposals.pk.submit-approval",
-        "name": "Get Proposals Pk Submit Approval",
+        "key": "api.get.api.agent-runtime.context.execution",
+        "name": "Get Agent Runtime Context Execution",
         "method": "GET",
-        "endpoint": "/api/agent-runtime/proposals/<pk>/submit-approval/",
+        "endpoint": "/api/agent-runtime/context/execution/",
+        "category": "agent-runtime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.agent-runtime.context.monitoring",
+        "name": "Get Agent Runtime Context Monitoring",
+        "method": "GET",
+        "endpoint": "/api/agent-runtime/context/monitoring/",
+        "category": "agent-runtime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.agent-runtime.context.ops",
+        "name": "Get Agent Runtime Context Ops",
+        "method": "GET",
+        "endpoint": "/api/agent-runtime/context/ops/",
+        "category": "agent-runtime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.agent-runtime.context.research",
+        "name": "Get Agent Runtime Context Research",
+        "method": "GET",
+        "endpoint": "/api/agent-runtime/context/research/",
         "category": "agent-runtime",
         "risk_level": "safe",
         "visibility": "internal"
@@ -4429,15 +4267,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.ai-capability.capabilities.pk",
-        "name": "Get Ai Capability Capabilities Pk",
-        "method": "GET",
-        "endpoint": "/api/ai-capability/capabilities/<pk>/",
-        "category": "ai-capability",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.ai-capability",
         "name": "Get Ai Capability",
         "method": "GET",
@@ -4452,6 +4281,78 @@
         "method": "GET",
         "endpoint": "/api/ai-capability/<drf_format_suffix:format>",
         "category": "ai-capability",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.broker-execution",
+        "name": "Get Broker Execution",
+        "method": "GET",
+        "endpoint": "/api/broker-execution/",
+        "category": "broker-execution",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.broker-execution.orders",
+        "name": "Get Broker Execution Orders",
+        "method": "GET",
+        "endpoint": "/api/broker-execution/orders/",
+        "category": "broker-execution",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.broker-execution.orders.uuid:client_order_id",
+        "name": "Get Broker Execution Orders Uuid:Client Order Id",
+        "method": "GET",
+        "endpoint": "/api/broker-execution/orders/<uuid:client_order_id>/",
+        "category": "broker-execution",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.broker-execution.connections",
+        "name": "Get Broker Execution Connections",
+        "method": "GET",
+        "endpoint": "/api/broker-execution/connections/",
+        "category": "broker-execution",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.broker-execution.qmt-onboarding",
+        "name": "Get Broker Execution Qmt Onboarding",
+        "method": "GET",
+        "endpoint": "/api/broker-execution/qmt-onboarding/",
+        "category": "broker-execution",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.broker-execution.reconciliations",
+        "name": "Get Broker Execution Reconciliations",
+        "method": "GET",
+        "endpoint": "/api/broker-execution/reconciliations/",
+        "category": "broker-execution",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.broker-execution.audit",
+        "name": "Get Broker Execution Audit",
+        "method": "GET",
+        "endpoint": "/api/broker-execution/audit/",
+        "category": "broker-execution",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.broker-execution.account-access",
+        "name": "Get Broker Execution Account Access",
+        "method": "GET",
+        "endpoint": "/api/broker-execution/account-access/",
+        "category": "broker-execution",
         "risk_level": "safe",
         "visibility": "internal"
       },
@@ -4528,15 +4429,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.ai-capabilities.capabilities.pk",
-        "name": "Get Ai Capabilities Capabilities Pk",
-        "method": "GET",
-        "endpoint": "/api/ai-capabilities/capabilities/<pk>/",
-        "category": "ai-capabilities",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.ai-capabilities",
         "name": "Get Ai Capabilities",
         "method": "GET",
@@ -4595,6 +4487,24 @@
         "name": "Get Data Center Prices Quotes",
         "method": "GET",
         "endpoint": "/api/data-center/prices/quotes/",
+        "category": "data-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.data-center.pit-manifests",
+        "name": "Get Data Center Pit Manifests",
+        "method": "GET",
+        "endpoint": "/api/data-center/pit-manifests/",
+        "category": "data-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.data-center.pit-manifests.str:manifest_id",
+        "name": "Get Data Center Pit Manifests Str:Manifest Id",
+        "method": "GET",
+        "endpoint": "/api/data-center/pit-manifests/<str:manifest_id>/",
         "category": "data-center",
         "risk_level": "safe",
         "visibility": "internal"
@@ -4677,6 +4587,15 @@
         "method": "GET",
         "endpoint": "/api/data-center/market-thermometer/me/",
         "category": "data-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.portfolio.transition-plans.str:plan_id",
+        "name": "Get Portfolio Transition Plans Str:Plan Id",
+        "method": "GET",
+        "endpoint": "/api/portfolio/transition-plans/<str:plan_id>/",
+        "category": "portfolio",
         "risk_level": "safe",
         "visibility": "internal"
       },
@@ -4983,8 +4902,8 @@
         "method": "create_trading_cost_config",
         "args": [
           "portfolio_id",
-          "commission_rate",
           "min_commission",
+          "commission_rate",
           "stamp_duty_rate",
           "transfer_fee_rate"
         ],
@@ -5819,6 +5738,103 @@
         ],
         "summary": "",
         "source": "sdk/agomtradepro/modules/beta_gate.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "overview",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "list_orders",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "get_order",
+        "args": [
+          "client_order_id"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "order_action",
+        "args": [
+          "client_order_id",
+          "action"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "approve_order",
+        "args": [
+          "client_order_id"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "reject_order",
+        "args": [
+          "client_order_id"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "request_cancel",
+        "args": [
+          "client_order_id"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "set_kill_switch",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "connections",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "reconciliations",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "resolve_reconciliation",
+        "args": [
+          "run_id"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
+      },
+      {
+        "module": "broker_execution",
+        "method": "audit",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/broker_execution.py"
       },
       {
         "module": "config_center",
@@ -9322,8 +9338,8 @@
         "tool": "create_trading_cost_config",
         "args": [
           "portfolio_id",
-          "commission_rate",
           "min_commission",
+          "commission_rate",
           "stamp_duty_rate",
           "transfer_fee_rate"
         ],
@@ -12677,32 +12693,6 @@
         }
       },
       {
-        "template": "apps/audit/templates/audit/attribution_report.html",
-        "features": {
-          "status_cards": 6,
-          "tabs": 0,
-          "filters": 1,
-          "tables": 3,
-          "modals": 0,
-          "batch_actions": 0,
-          "pagination": 1,
-          "onclick_actions": []
-        }
-      },
-      {
-        "template": "apps/audit/templates/audit/audit_page.html",
-        "features": {
-          "status_cards": 0,
-          "tabs": 0,
-          "filters": 1,
-          "tables": 0,
-          "modals": 0,
-          "batch_actions": 0,
-          "pagination": 1,
-          "onclick_actions": []
-        }
-      },
-      {
         "template": "apps/audit/templates/audit/base.html",
         "features": {
           "status_cards": 0,
@@ -12736,7 +12726,7 @@
           "filters": 5,
           "tables": 12,
           "modals": 0,
-          "batch_actions": 11,
+          "batch_actions": 12,
           "pagination": 1,
           "onclick_actions": []
         }
@@ -12898,6 +12888,19 @@
         }
       },
       {
+        "template": "apps/broker_execution/templates/broker_execution/workbench.html",
+        "features": {
+          "status_cards": 0,
+          "tabs": 0,
+          "filters": 7,
+          "tables": 24,
+          "modals": 0,
+          "batch_actions": 0,
+          "pagination": 2,
+          "onclick_actions": []
+        }
+      },
+      {
         "template": "apps/config_center/templates/config_center/qlib_center.html",
         "features": {
           "status_cards": 0,
@@ -12921,40 +12924,6 @@
           "batch_actions": 0,
           "pagination": 0,
           "onclick_actions": []
-        }
-      },
-      {
-        "template": "apps/data_center/templates/data_center/monitor.html",
-        "features": {
-          "status_cards": 0,
-          "tabs": 0,
-          "filters": 0,
-          "tables": 9,
-          "modals": 0,
-          "batch_actions": 0,
-          "pagination": 0,
-          "onclick_actions": [
-            "loadStatus"
-          ]
-        }
-      },
-      {
-        "template": "apps/data_center/templates/data_center/providers.html",
-        "features": {
-          "status_cards": 0,
-          "tabs": 0,
-          "filters": 2,
-          "tables": 8,
-          "modals": 0,
-          "batch_actions": 0,
-          "pagination": 0,
-          "onclick_actions": [
-            "editProvider",
-            "loadProviders",
-            "loadSettings",
-            "resetProviderForm",
-            "testProvider"
-          ]
         }
       },
       {
@@ -13437,19 +13406,6 @@
         }
       },
       {
-        "template": "core/templates/audit/audit_page.html",
-        "features": {
-          "status_cards": 0,
-          "tabs": 0,
-          "filters": 0,
-          "tables": 0,
-          "modals": 0,
-          "batch_actions": 0,
-          "pagination": 2,
-          "onclick_actions": []
-        }
-      },
-      {
         "template": "core/templates/backtest/create.html",
         "features": {
           "status_cards": 0,
@@ -13882,7 +13838,7 @@
         "features": {
           "status_cards": 0,
           "tabs": 2,
-          "filters": 5,
+          "filters": 6,
           "tables": 0,
           "modals": 0,
           "batch_actions": 0,
@@ -13965,33 +13921,6 @@
             "setDetailTableScope",
             "submitAIQuestion",
             "toggleCategory"
-          ]
-        }
-      },
-      {
-        "template": "core/templates/macro/data_controller.html",
-        "features": {
-          "status_cards": 0,
-          "tabs": 0,
-          "filters": 49,
-          "tables": 8,
-          "modals": 52,
-          "batch_actions": 10,
-          "pagination": 36,
-          "onclick_actions": [
-            "applyFilters",
-            "batchDelete",
-            "clearLog",
-            "closeFetchModal",
-            "closeRecordModal",
-            "deleteRecord",
-            "fetchData",
-            "goToPage",
-            "openCreateModal",
-            "openEditModal",
-            "openFetchModal",
-            "resetFilters",
-            "sortTable"
           ]
         }
       },
