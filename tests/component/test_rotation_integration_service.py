@@ -47,6 +47,7 @@ def test_generate_rotation_signal_treats_empty_allocation_as_expected_gap(monkey
 @pytest.mark.django_db
 def test_monthly_rotation_recommendation_stays_fresh_within_month(monkeypatch, caplog):
     service = rotation_services.RotationIntegrationService()
+    as_of_date = date(2026, 7, 15)
     config = RotationConfig(
         name="MomentumConfig",
         description="fallback config",
@@ -56,7 +57,7 @@ def test_monthly_rotation_recommendation_stays_fresh_within_month(monkeypatch, c
     model = SimpleNamespace(id=7)
     latest_signal = SimpleNamespace(
         config=SimpleNamespace(name="MomentumConfig"),
-        signal_date=date.today() - timedelta(days=1),
+        signal_date=as_of_date - timedelta(days=1),
         target_allocation={"510300": 1.0},
         current_regime="Recovery",
         action_required="hold",
@@ -68,6 +69,7 @@ def test_monthly_rotation_recommendation_stays_fresh_within_month(monkeypatch, c
     monkeypatch.setattr(service.config_repo, "get_model_by_name", lambda name: model)
     monkeypatch.setattr(service.signal_repo, "get_latest_signal", lambda config_id: latest_signal)
     monkeypatch.setattr(service, "generate_rotation_signal", lambda name: None)
+    monkeypatch.setattr(rotation_services.timezone, "localdate", lambda: as_of_date)
 
     with caplog.at_level(logging.WARNING):
         result = service.get_rotation_recommendation("momentum")

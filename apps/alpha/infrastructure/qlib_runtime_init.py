@@ -312,14 +312,14 @@ def _resolve_qlib_handler_class(feature_set_id: str | None) -> type[Any]:
         alpha360 = cast(type[Any], vars(handler_module)["Alpha360"])
     except ModuleNotFoundError:
 
-        class Alpha158Fallback:
+        class Alpha158:
             """Fallback handler marker used when pyqlib is not installed."""
 
-        class Alpha360Fallback:
+        class Alpha360:
             """Fallback handler marker used when pyqlib is not installed."""
 
-        alpha158 = Alpha158Fallback
-        alpha360 = Alpha360Fallback
+        alpha158 = Alpha158
+        alpha360 = Alpha360
 
     normalized = _normalize_qlib_feature_set_id(feature_set_id)
     if normalized == "alpha158":
