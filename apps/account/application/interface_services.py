@@ -180,6 +180,7 @@ def build_admin_mcp_user_detail_payload(*args: Any, **kwargs: Any) -> dict[str, 
 def build_mcp_agent_prompt_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return _mcp_access_services.build_mcp_agent_prompt_payload(*args, **kwargs)
 
+
 def get_active_portfolio_for_user(user_id: int) -> Any:
     """Return the user's active portfolio when available."""
 
