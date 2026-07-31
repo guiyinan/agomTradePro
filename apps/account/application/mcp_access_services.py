@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from django.conf import settings
+from django.utils import timezone
 
 from apps.account.application.repository_provider import (
     AccountInterfaceRepository,
