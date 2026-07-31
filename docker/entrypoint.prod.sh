@@ -142,12 +142,10 @@ if [ "$#" -eq 0 ] || [ "$1" = "daphne" ] || [ "$1" = "gunicorn" ]; then
   is_web_command=1
 fi
 
-run_startup_migrations="${AGOMTRADEPRO_AUTO_MIGRATE_ON_START:-}"
-if [ -z "$run_startup_migrations" ]; then
-  run_startup_migrations="$is_web_command"
-fi
+run_startup_migrations="${AGOMTRADEPRO_AUTO_MIGRATE_ON_START:-0}"
 
-if [ "$is_web_command" = "1" ]; then
+run_deploy_check="${AGOMTRADEPRO_CHECK_DEPLOY_ON_START:-0}"
+if [ "$is_web_command" = "1" ] && [ "$run_deploy_check" = "1" ]; then
   python manage.py check --deploy
 fi
 
@@ -156,22 +154,25 @@ if [ "$run_startup_migrations" = "1" ]; then
 fi
 
 if [ "$is_web_command" = "1" ]; then
-  if [ "${AGOMTRADEPRO_BOOTSTRAP_ON_START:-1}" = "1" ]; then
+  if [ "${AGOMTRADEPRO_BOOTSTRAP_ON_START:-0}" = "1" ]; then
     bootstrap_args=""
     if [ "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-0}" = "1" ]; then
       bootstrap_args="$bootstrap_args --with-alpha --alpha-universes ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300} --alpha-top-n ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"
     fi
     python manage.py bootstrap_cold_start $bootstrap_args
   fi
-  if ! python manage.py setup_macro_daily_sync \
+  if [ "${AGOMTRADEPRO_SETUP_SCHEDULE_ON_START:-0}" = "1" ] && ! python manage.py setup_macro_daily_sync \
     --hour "${MACRO_SYNC_HOUR:-8}" \
     --minute "${MACRO_SYNC_MINUTE:-5}"; then
     echo "WARNING: failed to configure macro periodic tasks" >&2
   fi
 fi
-python manage.py collectstatic --noinput
+run_collectstatic="${AGOMTRADEPRO_COLLECTSTATIC_ON_START:-0}"
+if [ "$run_collectstatic" = "1" ]; then
+  python manage.py collectstatic --noinput
+fi
 
-if [ -n "${DJANGO_SUPERUSER_USERNAME:-}" ] && [ -n "${DJANGO_SUPERUSER_PASSWORD:-}" ] && [ -n "${DJANGO_SUPERUSER_EMAIL:-}" ]; then
+if [ "${AGOMTRADEPRO_ENSURE_SUPERUSER_ON_START:-0}" = "1" ] && [ -n "${DJANGO_SUPERUSER_USERNAME:-}" ] && [ -n "${DJANGO_SUPERUSER_PASSWORD:-}" ] && [ -n "${DJANGO_SUPERUSER_EMAIL:-}" ]; then
 python <<'PY'
 import os
 import django

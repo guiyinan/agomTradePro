@@ -23,7 +23,9 @@ import tarfile
 import tempfile
 import time
 import zipfile
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Any, NoReturn
 
 
 def _info(msg: str) -> None:
@@ -34,7 +36,7 @@ def _warn(msg: str) -> None:
     print(f"[WARN] {msg}", file=sys.stderr)
 
 
-def _die(msg: str, code: int = 1) -> None:
+def _die(msg: str, code: int = 1) -> NoReturn:
     print(f"[ERROR] {msg}", file=sys.stderr)
     raise SystemExit(code)
 
@@ -136,29 +138,52 @@ def _resolve_sqlite_encryption_key(project_root: Path, explicit_key: str) -> str
     return key
 
 
-def _ssh_connect(host: str, port: int, username: str, password: str, timeout: int):
+def _ssh_connect(
+    host: str,
+    port: int,
+    username: str,
+    password: str,
+    timeout: int,
+) -> Any:
     try:
         import paramiko  # type: ignore
     except Exception as exc:
         _die(f"paramiko not available (pip install paramiko). Import error: {exc}")
 
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(
-        hostname=host,
-        port=port,
-        username=username,
-        password=password,
-        look_for_keys=False,
-        allow_agent=False,
-        timeout=timeout,
-        banner_timeout=timeout,
-        auth_timeout=timeout,
-    )
-    return client
+    connection_timeout = min(timeout, 30)
+    last_error: Exception | None = None
+    for attempt in range(1, 5):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            client.connect(
+                hostname=host,
+                port=port,
+                username=username,
+                password=password,
+                look_for_keys=False,
+                allow_agent=False,
+                timeout=connection_timeout,
+                banner_timeout=connection_timeout,
+                auth_timeout=connection_timeout,
+            )
+            return client
+        except (EOFError, OSError, paramiko.SSHException) as exc:
+            client.close()
+            last_error = exc
+            if attempt < 4:
+                delay = attempt * 2
+                _warn(
+                    f"SSH connection attempt {attempt}/4 failed "
+                    f"({type(exc).__name__}); retrying in {delay}s"
+                )
+                time.sleep(delay)
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("SSH connection failed without an exception")
 
 
-def _run(ssh, cmd: str, timeout: int) -> tuple[int, str, str]:
+def _run(ssh: Any, cmd: str, timeout: int) -> tuple[int, str, str]:
     _stdin, stdout, stderr = ssh.exec_command(cmd, timeout=timeout)
     channel = stdout.channel
     deadline = time.monotonic() + timeout
@@ -266,6 +291,7 @@ def _make_source_bundle(
     output_path: Path,
     include_sqlite: bool,
     sqlite_file: Path | None,
+    include_wheelhouse: bool,
 ) -> None:
     top_name = output_path.stem.replace(".tar", "")
     excludes = {
@@ -300,7 +326,11 @@ def _make_source_bundle(
     wheelhouse_root = project_root / ".cache" / "pip-wheels" / "linux-py311"
 
     with tarfile.open(output_path, "w:gz") as tar:
-        for path in project_root.rglob("*"):
+        for path in _source_bundle_paths(
+            project_root,
+            wheelhouse_root=wheelhouse_root,
+            include_wheelhouse=include_wheelhouse,
+        ):
             rel = path.relative_to(project_root)
             parts = rel.parts
             if not parts:
@@ -309,6 +339,8 @@ def _make_source_bundle(
                 try:
                     path.relative_to(wheelhouse_root)
                 except ValueError:
+                    continue
+                if not include_wheelhouse and path.name != ".keep":
                     continue
             if parts[0] in excludes:
                 continue
@@ -335,9 +367,42 @@ def _make_source_bundle(
             tar.add(sqlite_file, arcname=db_arcname, recursive=False)
 
 
+def _source_bundle_paths(
+    project_root: Path,
+    *,
+    wheelhouse_root: Path,
+    include_wheelhouse: bool,
+) -> Iterable[Path]:
+    """Yield tracked and relevant untracked paths without local runtime data."""
+
+    try:
+        raw_paths = subprocess.check_output(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            cwd=project_root,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        yield from project_root.rglob("*")
+        return
+
+    relative_paths = {
+        Path(os.fsdecode(raw_path)) for raw_path in raw_paths.split(b"\0") if raw_path
+    }
+    if include_wheelhouse and wheelhouse_root.is_dir():
+        relative_paths.update(
+            path.relative_to(project_root)
+            for path in wheelhouse_root.rglob("*")
+            if path.is_file() or path.is_symlink()
+        )
+    for relative_path in sorted(relative_paths, key=lambda path: path.as_posix()):
+        path = project_root / relative_path
+        if path.is_file() or path.is_symlink():
+            yield path
+
+
 def _upload_sqlite_to_git_clone_release(
     *,
-    ssh,
+    ssh: Any,
     sqlite_file: Path,
     target_dir: str,
     release_tag: str,
@@ -676,7 +741,7 @@ SRC_DIR="$(find "$WORK_ROOT" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
 [ -n "$SRC_DIR" ] || { echo "[ERROR] extracted source directory not found" >&2; exit 1; }
 cd "$SRC_DIR"
 
-if [ -f docker/entrypoint.prod.sh ]; then sed -i 's/\r$//' docker/entrypoint.prod.sh || true; fi
+find . -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
 if [ -f deploy/.env.vps.example ]; then sed -i 's/\r$//' deploy/.env.vps.example || true; fi
 
 mkdir -p "$TARGET_DIR/releases"
@@ -757,7 +822,7 @@ echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
 
 
 def _cleanup_remote_build_artifacts(
-    ssh,
+    ssh: Any,
     *,
     tag: str,
     remote_image_tar: str | None,
@@ -1189,6 +1254,15 @@ set_env_kv "POSTGRES_DB" "$POSTGRES_DB_VALUE"
 set_env_kv "POSTGRES_USER" "$POSTGRES_USER_VALUE"
 set_env_kv "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD_VALUE"
 set_env_kv "DATABASE_URL" "$DATABASE_URL_VALUE"
+# Deployment-only checks and mutations run explicitly below. Persist zeroes so
+# a routine web-container restart stays fast and never repeats them because an
+# older release left opt-in flags enabled in deploy/.env.
+set_env_kv "AGOMTRADEPRO_CHECK_DEPLOY_ON_START" "0"
+set_env_kv "AGOMTRADEPRO_AUTO_MIGRATE_ON_START" "0"
+set_env_kv "AGOMTRADEPRO_BOOTSTRAP_ON_START" "0"
+set_env_kv "AGOMTRADEPRO_COLLECTSTATIC_ON_START" "0"
+set_env_kv "AGOMTRADEPRO_SETUP_SCHEDULE_ON_START" "0"
+set_env_kv "AGOMTRADEPRO_ENSURE_SUPERUSER_ON_START" "0"
 _persist_secrets_env "POSTGRES_DB" "$POSTGRES_DB_VALUE"
 _persist_secrets_env "POSTGRES_USER" "$POSTGRES_USER_VALUE"
 _persist_secrets_env "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD_VALUE"
@@ -1209,7 +1283,10 @@ else
 fi
 
 if [ -n "$EFFECTIVE_DOMAIN" ]; then
-  set_env_kv "SECURE_SSL_REDIRECT" "True"
+  # Caddy owns the edge redirect. Keeping Django redirect disabled preserves
+  # internal service-to-service HTTP while SECURE_PROXY_SSL_HEADER still lets
+  # SecurityMiddleware publish HSTS and related headers on public HTTPS.
+  set_env_kv "SECURE_SSL_REDIRECT" "False"
   set_env_kv "SESSION_COOKIE_SECURE" "True"
   set_env_kv "CSRF_COOKIE_SECURE" "True"
   set_env_kv "SECURE_HSTS_SECONDS" "31536000"
@@ -1390,6 +1467,16 @@ if ! bash scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR"; then
   exit 1
 fi
 
+if ! compose run --rm --no-deps web python manage.py check --deploy; then
+  echo "[ERROR] Django production deployment checks failed" >&2
+  exit 1
+fi
+
+if ! compose run --rm --no-deps web python manage.py collectstatic --noinput; then
+  echo "[ERROR] static asset collection failed" >&2
+  exit 1
+fi
+
 if ! compose run --rm --no-deps web sh scripts/publish-tui-release.sh "$RELEASE_TAG"; then
   echo "[ERROR] TUI metadata publish or verification failed" >&2
   exit 1
@@ -1427,6 +1514,12 @@ fi
 if ! compose run --rm --no-deps web python manage.py setup_macro_daily_sync --hour "${MACRO_SYNC_HOUR:-8}" --minute "${MACRO_SYNC_MINUTE:-5}"; then
   echo "[WARN] failed to configure macro periodic tasks automatically" >&2
 fi
+
+# Superuser reconciliation is a deployment transaction, not a web-process
+# startup responsibility. The entrypoint only performs it for this explicit run.
+compose run --rm --no-deps \
+  -e AGOMTRADEPRO_ENSURE_SUPERUSER_ON_START=1 \
+  web true
 
 SERVICES="runtime_ns redis postgres web caddy"
 if [ "$ENABLE_RSSHUB" = "1" ]; then
@@ -1747,6 +1840,12 @@ def main() -> int:
     remote_dir = args.remote_dir.rstrip("/")
     remote_image_tar = posixpath.join(remote_dir, f"agomtradepro-web-{tag}.tar")
     sqlite_file = _latest_sqlite(project_root) if include_sqlite else None
+    include_wheelhouse = os.environ.get("AGOM_VPS_INCLUDE_WHEELHOUSE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
     if not args.git_clone:
         _info(f"Creating source bundle: {local_bundle}")
@@ -1756,6 +1855,7 @@ def main() -> int:
             output_path=local_bundle,
             include_sqlite=include_sqlite,
             sqlite_file=sqlite_file,
+            include_wheelhouse=include_wheelhouse,
         )
     else:
         _info("Skipping local source bundle (git-clone mode)")

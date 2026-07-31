@@ -80,18 +80,12 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 # Keep environment-specific mutations isolated from the shared base module.
 MIDDLEWARE = list(MIDDLEWARE)
-security_middleware_index = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
-MIDDLEWARE[security_middleware_index] = (
-    "core.middleware.security.SelectiveSSLRedirectSecurityMiddleware"
-)
 
 # Static files
 # In production we serve collected static assets via WhiteNoise by default so
 # the app remains self-contained even when Nginx is not fronting /static.
 if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
-    security_middleware_index = MIDDLEWARE.index(
-        "core.middleware.security.SelectiveSSLRedirectSecurityMiddleware"
-    )
+    security_middleware_index = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
     MIDDLEWARE.insert(
         security_middleware_index + 1,
         "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -141,8 +135,9 @@ DATABASES = {
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# HTTPS settings - secure by default in production
-SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+# HTTPS settings. Caddy owns the public HTTP-to-HTTPS redirect in the VPS
+# topology; Django still publishes security headers for proxied HTTPS traffic.
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
 SECURE_SSL_REDIRECT_EXEMPT_HOSTS = tuple(
     host.strip().lower()
     for host in env.list(
@@ -171,16 +166,25 @@ CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=True)
 SECURE_REFERRER_POLICY = env("SECURE_REFERRER_POLICY", default="strict-origin-when-cross-origin")
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# HSTS settings - only enable when using HTTPS
-if SECURE_SSL_REDIRECT:
-    SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
-    SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=True)
-else:
+# HSTS remains independent from Django's redirect switch because TLS terminates
+# at Caddy and SECURE_PROXY_SSL_HEADER preserves the original request scheme.
+SECURE_HSTS_SECONDS = env.int(
+    "SECURE_HSTS_SECONDS",
+    default=31536000 if SECURE_SSL_REDIRECT else 0,
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=True)
+PUBLIC_HTTPS_ENABLED = SECURE_SSL_REDIRECT or SECURE_HSTS_SECONDS > 0
+if not PUBLIC_HTTPS_ENABLED:
     # COOP is only meaningful on potentially trustworthy origins (HTTPS/localhost).
     # Disable it for plain HTTP deployments to avoid browser warnings like:
     # "Cross-Origin-Opener-Policy header has been ignored, because the URL's origin was untrustworthy".
     SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+
+# Caddy is the only public listener in the VPS topology and owns the edge
+# HTTP-to-HTTPS redirect. Django's deploy check cannot observe that proxy
+# boundary, so suppress only its redirect-specific false positive.
+SILENCED_SYSTEM_CHECKS = ["security.W008"]
 
 # CORS and CSRF trusted origins for production
 # Allow VPS IP and configured domains
@@ -195,7 +199,7 @@ CSRF_TRUSTED_ORIGINS = env.list(
 )
 
 # If using HTTPS, add https:// versions
-if SECURE_SSL_REDIRECT:
+if PUBLIC_HTTPS_ENABLED:
     CORS_ALLOWED_ORIGINS.extend([f"https://{host}" for host in ALLOWED_HOSTS])
     CSRF_TRUSTED_ORIGINS.extend([f"https://{host}" for host in ALLOWED_HOSTS])
 

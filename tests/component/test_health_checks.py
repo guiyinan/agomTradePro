@@ -4,10 +4,12 @@ Unit tests for health check endpoints.
 Tests the liveness and readiness probes for Kubernetes deployment.
 """
 
+import json
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from asgiref.sync import async_to_sync
 from django.test import Client
 from django.test.utils import override_settings
 
@@ -31,6 +33,44 @@ class TestHealthCheckEndpoints:
         data = response.json()
         assert data["status"] == "ok"
         assert "timestamp" in data
+
+        from core.asgi_liveness import LivenessApplication
+
+        async def fail_downstream(scope, receive, send):
+            raise AssertionError("ASGI liveness must not enter the Django application")
+
+        async def call_liveness():
+            messages = []
+
+            async def receive():
+                return {"type": "http.request", "body": b"", "more_body": False}
+
+            async def send(message):
+                messages.append(message)
+
+            await LivenessApplication(fail_downstream)(
+                {
+                    "type": "http",
+                    "asgi": {"version": "3.0"},
+                    "http_version": "1.1",
+                    "method": "GET",
+                    "scheme": "http",
+                    "path": "/api/health/",
+                    "raw_path": b"/api/health/",
+                    "query_string": b"",
+                    "root_path": "",
+                    "headers": [],
+                    "server": ("localhost", 80),
+                    "client": ("127.0.0.1", 12345),
+                },
+                receive,
+                send,
+            )
+            return messages
+
+        messages = async_to_sync(call_liveness)()
+        assert messages[0]["status"] == 200
+        assert json.loads(messages[1]["body"])["status"] == "ok"
 
     def test_readiness_probe_with_healthy_database(self, db, monkeypatch):
         """Test readiness probe returns 200 when database is healthy"""

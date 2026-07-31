@@ -1,22 +1,31 @@
 __SITE_ADDRESS__ {
     encode zstd gzip
 
-    # Security headers (CORS is handled by Django via django-cors-headers to avoid conflicting rules)
-    header {
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "SAMEORIGIN"
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy "strict-origin-when-cross-origin"
-    }
+    # Django owns dynamic-response security headers. Caddy adds the legacy XSS
+    # hint globally and supplies the remaining headers only for files it serves
+    # directly, avoiding duplicate response fields on proxied pages.
+    header X-XSS-Protection "1; mode=block"
 
     @static path /static/*
     handle @static {
+        header {
+            X-Content-Type-Options "nosniff"
+            X-Frame-Options "SAMEORIGIN"
+            Referrer-Policy "strict-origin-when-cross-origin"
+            Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        }
         root * /srv
         file_server
     }
 
     @media path /media/*
     handle @media {
+        header {
+            X-Content-Type-Options "nosniff"
+            X-Frame-Options "SAMEORIGIN"
+            Referrer-Policy "strict-origin-when-cross-origin"
+            Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        }
         root * /srv
         file_server
     }

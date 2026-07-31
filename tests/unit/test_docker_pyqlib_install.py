@@ -40,9 +40,7 @@ def test_production_images_include_postgresql_backup_client() -> None:
 def test_production_image_includes_tui_release_publisher() -> None:
     """The deploy-time TUI publisher must survive Docker context filtering."""
 
-    dockerignore_lines = (REPO_ROOT / ".dockerignore").read_text(
-        encoding="utf-8"
-    ).splitlines()
+    dockerignore_lines = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
     shell_script_exclusion = dockerignore_lines.index("scripts/*.sh")
     publisher_inclusion = dockerignore_lines.index("!scripts/publish-tui-release.sh")
 
@@ -55,6 +53,16 @@ def test_production_image_includes_tui_release_publisher() -> None:
 
 def test_linux_wheelhouse_directory_is_preserved_for_docker_copy() -> None:
     assert (REPO_ROOT / ".cache" / "pip-wheels" / "linux-py311" / ".keep").exists()
+    deploy_script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'os.environ.get("AGOM_VPS_INCLUDE_WHEELHOUSE", "")' in deploy_script
+    assert 'if not include_wheelhouse and path.name != ".keep":' in deploy_script
+    assert '"git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"' in (
+        deploy_script
+    )
+    assert "SSH connection attempt {attempt}/4 failed" in deploy_script
+    assert "find . -type f -name '*.sh' -exec sed -i 's/\\r$//' {} +" in deploy_script
 
 
 def test_vps_compose_worker_consumes_qlib_queues() -> None:
@@ -62,6 +70,8 @@ def test_vps_compose_worker_consumes_qlib_queues() -> None:
 
     assert "CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train" in compose
     assert "healthcheck:\n      disable: true" in compose
+    assert "curl -fsS --connect-timeout 2 --max-time 5" in compose
+    assert "curl -sS -o /dev/null -w '%{http_code}'" not in compose
 
 
 def test_vps_compose_uses_neutral_pid_namespace_service() -> None:
@@ -83,6 +93,10 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
         encoding="utf-8"
     )
     entrypoint = (REPO_ROOT / "docker" / "entrypoint.prod.sh").read_text(encoding="utf-8")
+    production_settings = (REPO_ROOT / "core" / "settings" / "production.py").read_text(
+        encoding="utf-8"
+    )
+    caddyfile = (REPO_ROOT / "docker" / "Caddyfile.template").read_text(encoding="utf-8")
 
     assert 'os.environ.get("AGOM_VPS_TIMEOUT", "3600")' in script
     assert "[int]$BuildTimeoutSeconds = 3600" in one_click_script
@@ -124,6 +138,16 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "POSTGRES_PASSWORD is required" in compose
     assert "DATABASE_URL is required" in compose
     assert "REALTIME_WEBSOCKET_ENABLED:-True" in compose
+    assert "SECURE_SSL_REDIRECT:-False" in compose
+    assert 'set_env_kv "SECURE_SSL_REDIRECT" "True"' not in script
+    assert (
+        'MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")' in production_settings
+    )
+    assert 'SILENCED_SYSTEM_CHECKS = ["security.W008"]' in production_settings
+    assert 'Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"' in caddyfile
+    assert 'X-Content-Type-Options "nosniff"' in caddyfile
+    assert 'Referrer-Policy "strict-origin-when-cross-origin"' in caddyfile
+    assert "?Strict-Transport-Security" not in caddyfile
     assert 'CMD ["daphne"]' in dockerfile
     assert "core.asgi:application" in entrypoint
     assert "core.wsgi:application" not in entrypoint
@@ -195,9 +219,25 @@ def test_windows_start_dev_uses_python_module_celery_and_all_queues() -> None:
 def test_web_startup_does_not_run_alpha_bootstrap_by_default() -> None:
     compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
     entrypoint = (REPO_ROOT / "docker" / "entrypoint.prod.sh").read_text(encoding="utf-8")
+    deploy_script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(
+        encoding="utf-8"
+    )
     env_example = (REPO_ROOT / "deploy" / ".env.vps.example").read_text(encoding="utf-8")
 
-    assert "AGOMTRADEPRO_BOOTSTRAP_ON_START: ${AGOMTRADEPRO_BOOTSTRAP_ON_START:-1}" in compose
+    assert "AGOMTRADEPRO_CHECK_DEPLOY_ON_START: ${AGOMTRADEPRO_CHECK_DEPLOY_ON_START:-0}" in compose
+    assert "AGOMTRADEPRO_AUTO_MIGRATE_ON_START: ${AGOMTRADEPRO_AUTO_MIGRATE_ON_START:-0}" in compose
+    assert "AGOMTRADEPRO_BOOTSTRAP_ON_START: ${AGOMTRADEPRO_BOOTSTRAP_ON_START:-0}" in compose
+    assert (
+        "AGOMTRADEPRO_COLLECTSTATIC_ON_START: ${AGOMTRADEPRO_COLLECTSTATIC_ON_START:-0}" in compose
+    )
+    assert (
+        "AGOMTRADEPRO_SETUP_SCHEDULE_ON_START: ${AGOMTRADEPRO_SETUP_SCHEDULE_ON_START:-0}"
+        in compose
+    )
+    assert (
+        "AGOMTRADEPRO_ENSURE_SUPERUSER_ON_START: ${AGOMTRADEPRO_ENSURE_SUPERUSER_ON_START:-0}"
+        in compose
+    )
     assert (
         "AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START: ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-0}"
         in compose
@@ -206,6 +246,23 @@ def test_web_startup_does_not_run_alpha_bootstrap_by_default() -> None:
     assert "AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START=1" not in env_example
     assert "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-0}" in entrypoint
     assert "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-1}" not in entrypoint
+    assert 'set_env_kv "AGOMTRADEPRO_CHECK_DEPLOY_ON_START" "0"' in deploy_script
+    assert 'set_env_kv "AGOMTRADEPRO_AUTO_MIGRATE_ON_START" "0"' in deploy_script
+    assert 'set_env_kv "AGOMTRADEPRO_BOOTSTRAP_ON_START" "0"' in deploy_script
+    assert 'set_env_kv "AGOMTRADEPRO_COLLECTSTATIC_ON_START" "0"' in deploy_script
+    assert 'set_env_kv "AGOMTRADEPRO_SETUP_SCHEDULE_ON_START" "0"' in deploy_script
+    assert 'set_env_kv "AGOMTRADEPRO_ENSURE_SUPERUSER_ON_START" "0"' in deploy_script
+    assert "${AGOMTRADEPRO_AUTO_MIGRATE_ON_START:-0}" in entrypoint
+    assert "${AGOMTRADEPRO_CHECK_DEPLOY_ON_START:-0}" in entrypoint
+    assert "${AGOMTRADEPRO_BOOTSTRAP_ON_START:-0}" in entrypoint
+    assert "${AGOMTRADEPRO_COLLECTSTATIC_ON_START:-0}" in entrypoint
+    assert "${AGOMTRADEPRO_SETUP_SCHEDULE_ON_START:-0}" in entrypoint
+    assert "${AGOMTRADEPRO_ENSURE_SUPERUSER_ON_START:-0}" in entrypoint
+    assert "-e AGOMTRADEPRO_ENSURE_SUPERUSER_ON_START=1" in deploy_script
+    assert "compose run --rm --no-deps web python manage.py check --deploy" in deploy_script
+    assert (
+        "compose run --rm --no-deps web python manage.py collectstatic --noinput" in deploy_script
+    )
 
 
 def test_config_center_initial_migration_uses_portable_boolean_default() -> None:

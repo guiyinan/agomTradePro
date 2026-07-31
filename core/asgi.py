@@ -4,8 +4,10 @@ import os
 from importlib import import_module
 from typing import Any, cast
 
-from asgiref.typing import ASGIApplication
+from asgiref.typing import ASGI3Application, ASGIApplication
 from django.core.asgi import get_asgi_application
+
+from core.asgi_liveness import LivenessApplication
 
 channels_auth: Any = import_module("channels.auth")
 channels_routing: Any = import_module("channels.routing")
@@ -32,7 +34,7 @@ def build_application() -> ASGIApplication:
         ASGIApplication,
         ProtocolTypeRouter(
             {
-                "http": django_asgi_app,
+                "http": LivenessApplication(cast(ASGI3Application, django_asgi_app)),
                 "websocket": AllowedHostsOriginValidator(
                     AuthMiddlewareStack(
                         AuthorizationHeaderAuthMiddleware(

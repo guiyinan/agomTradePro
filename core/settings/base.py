@@ -39,6 +39,7 @@ AUTOMATION_DEBUG_API_MAX_LIMIT = env.int("AUTOMATION_DEBUG_API_MAX_LIMIT", defau
 TUI_RUNTIME_CACHE_ENABLED = env.bool("TUI_RUNTIME_CACHE_ENABLED", default=True)
 TUI_RUNTIME_CACHE_TTL_SECONDS = env.int("TUI_RUNTIME_CACHE_TTL_SECONDS", default=300)
 TUI_OPTIMIZED_BOOTSTRAP_ENABLED = env.bool("TUI_OPTIMIZED_BOOTSTRAP_ENABLED", default=True)
+TUI_ACTION_MAX_CONCURRENCY = env.int("TUI_ACTION_MAX_CONCURRENCY", default=4)
 
 # Field-level encryption for sensitive data (API keys, etc.)
 # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
@@ -496,6 +497,9 @@ SPECTACULAR_SETTINGS = {
             ("hybrid", "混合模式"),
             ("ai_driven", "AI驱动"),
         ],
+        "BacktestRebalanceFrequencyEnum": ["monthly", "quarterly", "yearly"],
+        "FactorRebalanceFrequencyEnum": ["daily", "weekly", "monthly", "quarterly"],
+        "RegimeEnum": ["Recovery", "Overheat", "Stagflation", "Deflation"],
     },
     # UI optimizations
     "SWAGGER_UI_SETTINGS": {
