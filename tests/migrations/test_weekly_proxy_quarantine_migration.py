@@ -15,6 +15,19 @@ INDICATOR_CODES = (
     "CN_SCFI",
 )
 
+INDICATOR_DEFAULTS = {
+    "CN_POWER_GEN": ("发电量", "Power Generation", "%", "W", "growth"),
+    "CN_BLAST_FURNACE": (
+        "高炉开工率",
+        "Blast Furnace Utilization",
+        "%",
+        "W",
+        "growth",
+    ),
+    "CN_CCFI": ("中国出口集装箱运价指数", "CCFI", "指数", "W", "trade"),
+    "CN_SCFI": ("上海出口运价指数", "SCFI", "指数", "W", "trade"),
+}
+
 
 @pytest.mark.django_db(transaction=True)
 def test_migration_disables_and_quarantines_weekly_proxy_facts() -> None:
@@ -29,7 +42,19 @@ def test_migration_disables_and_quarantines_weekly_proxy_facts() -> None:
         OldFact = old_apps.get_model("data_center", "MacroFactModel")
         prior_descriptions = {}
         for index, code in enumerate(INDICATOR_CODES, start=1):
-            catalog = OldCatalog.objects.get(code=code)
+            name_cn, name_en, unit, period_type, category = INDICATOR_DEFAULTS[code]
+            catalog, _ = OldCatalog.objects.get_or_create(
+                code=code,
+                defaults={
+                    "name_cn": name_cn,
+                    "name_en": name_en,
+                    "default_unit": unit,
+                    "default_period_type": period_type,
+                    "category": category,
+                    "is_active": True,
+                    "extra": {},
+                },
+            )
             prior_descriptions[code] = catalog.description
             OldFact.objects.create(
                 indicator_code=code,
