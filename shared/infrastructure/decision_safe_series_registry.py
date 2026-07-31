@@ -36,7 +36,6 @@ class DecisionSafeSeriesLoader(Protocol):
         *,
         as_of_date: date,
         lookback_days: int,
-        max_business_days: int = 1,
     ) -> DecisionSafeSeriesResult: ...
 
 
