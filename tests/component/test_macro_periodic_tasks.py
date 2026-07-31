@@ -46,6 +46,38 @@ def test_development_settings_use_database_scheduler_and_canonical_regime_tasks(
     assert readiness_entry["kwargs"]["allow_unclosed_target_date"] is False
 
 
+def test_database_scheduler_entries_use_persisted_expiration_field() -> None:
+    """Periodic jobs must use only options persisted by django-celery-beat."""
+
+    settings_module = _reload_module("core.settings.development")
+    schedule = settings_module.CELERY_BEAT_SCHEDULE
+    allowed_options = {
+        "queue",
+        "exchange",
+        "routing_key",
+        "priority",
+        "headers",
+        "expire_seconds",
+    }
+
+    for task_name, entry in schedule.items():
+        options = entry.get("options", {})
+        unsupported_options = set(options) - allowed_options
+        assert not unsupported_options, (
+            f"{task_name} has unsupported options: {unsupported_options}"
+        )
+
+    assert schedule["broker-execution-maintenance"]["options"]["expire_seconds"] == 50
+    assert schedule["alpha-evaluate-alerts"]["options"]["expire_seconds"] == 60
+    assert schedule["alpha-check-queue-lag"]["options"]["expire_seconds"] == 60
+    assert schedule["sentiment-refresh-current-index"]["options"]["expire_seconds"] == 3300
+    assert schedule["daily-sync-and-calculate"]["kwargs"]["source"] == "akshare"
+    assert schedule["high-frequency-sync-bonds"]["kwargs"]["years_back"] == 1
+    assert schedule["high-frequency-recalculate-regime"]["kwargs"]["use_pit"] is True
+    assert schedule["alpha-cleanup-metrics"]["kwargs"]["days"] == 30
+    assert schedule["task-monitor-cleanup"]["kwargs"]["days_to_keep"] == 30
+
+
 @pytest.mark.django_db
 def test_setup_macro_daily_sync_reconciles_periodic_tasks() -> None:
     """The setup command should rewrite managed tasks onto the canonical regime orchestration chain."""

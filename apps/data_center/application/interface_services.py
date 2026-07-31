@@ -7,8 +7,14 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from typing import Any, Protocol, cast
 
-from apps.data_center.application.dtos import LatestQuoteRequest, SyncQuoteRequest
+from apps.data_center.application.dtos import (
+    LatestQuoteRequest,
+    SyncNewsRequest,
+    SyncQuoteRequest,
+    SyncResult,
+)
 from apps.data_center.application.on_demand import OnDemandDataCenterService
+from apps.data_center.application.provider_capabilities import SOURCE_TYPE_CAPABILITIES
 from apps.data_center.composition import (
     AssetRepository,
     CapitalFlowRepository,
@@ -41,8 +47,10 @@ from apps.data_center.domain.entities import (
     ProductionCoverageUniverseConfig,
     ProviderConfig,
 )
+from apps.data_center.domain.enums import DataCapability
 from apps.data_center.domain.protocols import ProviderRegistryProtocol
 from apps.task_monitor.application.tracking import record_pending_task
+from core.exceptions import DataFetchError
 
 from .business_runtime_gateway import fetch_latest_prices as _fetch_latest_prices
 from .business_runtime_gateway import load_alpha_homepage_data as _load_alpha_homepage_data
@@ -1009,6 +1017,72 @@ def make_sync_news_use_case() -> SyncNewsUseCase:
         fact_repo=NewsRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
+
+
+def sync_market_news_for_sentiment(*, limit: int = 100) -> SyncResult:
+    """Refresh broad-market news through the configured NEWS capability.
+
+    Provider choice remains database-driven. Recoverable failures advance to
+    the next active NEWS-capable provider; an empty but successful response is
+    retained as a diagnostic fallback because it may only mean that all fetched
+    articles were already persisted.
+    """
+
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 200:
+        raise ValueError("limit must be an integer between 1 and 200")
+
+    from apps.data_center.application.sync_use_cases import (
+        RECOVERABLE_DATA_CENTER_EXCEPTIONS,
+    )
+
+    providers = sorted(_make_provider_repo().list_active(), key=lambda item: item.priority)
+    candidates = [
+        provider
+        for provider in providers
+        if provider.id is not None
+        and DataCapability.NEWS.value in SOURCE_TYPE_CAPABILITIES.get(provider.source_type, ())
+    ]
+    if not candidates:
+        raise DataFetchError("No active data-center provider supports market news")
+
+    sync_use_case = make_sync_news_use_case()
+    empty_success: SyncResult | None = None
+    failures: list[str] = []
+    for provider in candidates:
+        provider_id = provider.id
+        if provider_id is None:
+            continue
+        try:
+            result = sync_use_case.execute(
+                SyncNewsRequest(
+                    provider_id=provider_id,
+                    asset_code="",
+                    limit=limit,
+                )
+            )
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
+            failures.append(f"{provider.name}:{type(exc).__name__}")
+            continue
+        if result.stored_count > 0:
+            if failures or empty_success is not None:
+                reasons = [*failures]
+                if empty_success is not None:
+                    reasons.append(f"{empty_success.provider_name}:empty_result")
+                return SyncResult(
+                    domain=result.domain,
+                    provider_name=result.provider_name,
+                    stored_count=result.stored_count,
+                    status="partial",
+                    error_message="fallback_used_after_" + ",".join(reasons),
+                )
+            return result
+        if empty_success is None:
+            empty_success = result
+
+    if empty_success is not None:
+        return empty_success
+    failure_summary = ", ".join(failures) or "no provider completed"
+    raise DataFetchError(f"Market news synchronization failed ({failure_summary})")
 
 
 def make_sync_capital_flow_use_case() -> SyncCapitalFlowUseCase:

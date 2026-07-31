@@ -739,7 +739,7 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 | `daily-signal-invalidation` | 每天 2:00 | 检查信号证伪条件 |
 | `hourly-stop-loss-check` | 每小时 | 检查止损触发 |
 | `daily-volatility-check` | 每天 1:00 | 检查波动率并调整 |
-| `daily-sentiment-index` | 每天 23:00 | 计算情感指数 |
+| `sentiment-refresh-current-index` | 工作日 09:15/10:15/11:15、13:15/14:15/15:15、18:15、23:15 | 先刷新全市场新闻，再计算带新鲜度阻断的情绪指数 |
 | `simulated-trading-daily` | 工作日 15:30 | 模拟盘自动交易 |
 | `simulated-trading-update-prices` | 工作日 16:00 | 更新持仓价格 |
 | `simulated-trading-calculate-performance` | 周日 2:00 | 计算绩效 |

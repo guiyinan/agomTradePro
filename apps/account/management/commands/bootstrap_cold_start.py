@@ -109,108 +109,7 @@ class Command(BaseCommand):
         decision_env = self._resolve_decision_env(str(options.get("decision_env", "")))
         self.stdout.write(self.style.SUCCESS("Cold-start bootstrap begin"))
 
-        steps = [
-            BootstrapStep(
-                name="account_classification",
-                check=lambda: CurrencyModel._default_manager.exists()
-                and AssetCategoryModel._default_manager.exists(),
-                run=lambda: self._run_command("init_classification"),
-            ),
-            BootstrapStep(
-                name="investment_rules",
-                check=lambda: InvestmentRuleModel._default_manager.filter(
-                    user__isnull=True
-                ).exists(),
-                run=lambda: self._run_command("init_enhanced_rules"),
-            ),
-            BootstrapStep(
-                name="system_docs",
-                check=lambda: DocumentationModel._default_manager.exists(),
-                run=lambda: self._run_command("init_docs"),
-            ),
-            BootstrapStep(
-                name="regime_thresholds",
-                check=lambda: RegimeThresholdConfig._default_manager.filter(
-                    is_active=True
-                ).exists(),
-                run=lambda: self._run_command("init_regime_thresholds"),
-            ),
-            BootstrapStep(
-                name="audit_indicator_thresholds",
-                check=lambda: IndicatorThresholdConfigModel._default_manager.exists(),
-                run=lambda: self._run_command("init_indicator_thresholds"),
-            ),
-            BootstrapStep(
-                name="audit_confidence_config",
-                check=lambda: ConfidenceConfigModel._default_manager.exists(),
-                run=lambda: self._run_command("init_confidence_config"),
-            ),
-            BootstrapStep(
-                name="equity_scoring_weights",
-                check=lambda: ScoringWeightConfigModel._default_manager.exists(),
-                run=self._bootstrap_scoring_weights,
-            ),
-            BootstrapStep(
-                name="equity_config",
-                check=self._equity_config_exists,
-                run=lambda: self._run_command("init_equity_config"),
-            ),
-            BootstrapStep(
-                name="prompt_templates",
-                check=lambda: PromptTemplateORM._default_manager.exists()
-                and ChainConfigORM._default_manager.exists(),
-                run=lambda: self._run_command("init_prompt_templates"),
-            ),
-            BootstrapStep(
-                name="scheduler_defaults",
-                check=self._scheduler_defaults_ready,
-                run=lambda: self._run_command("init_scheduler_defaults"),
-            ),
-            BootstrapStep(
-                name="authoritative_rss_sources",
-                check=self._authoritative_rss_sources_ready,
-                run=lambda: self._run_command("init_authoritative_rss_sources"),
-            ),
-            BootstrapStep(
-                name="macro_indicator_governance",
-                check=self._macro_indicator_governance_ready,
-                run=lambda: self._run_command("init_macro_indicator_governance"),
-            ),
-            BootstrapStep(
-                name="rotation_config",
-                check=lambda: AssetClassModel._default_manager.exists()
-                and RotationConfigModel._default_manager.exists()
-                and RotationTemplateModel._default_manager.exists(),
-                run=lambda: self._run_command("init_rotation"),
-            ),
-            BootstrapStep(
-                name="hedge_pairs",
-                check=lambda: HedgePairModel._default_manager.exists(),
-                run=lambda: self._run_command("init_hedge"),
-            ),
-            BootstrapStep(
-                name="factor_config",
-                check=lambda: FactorDefinitionModel._default_manager.exists()
-                and FactorPortfolioConfigModel._default_manager.exists(),
-                run=lambda: self._run_command("init_factors"),
-            ),
-            BootstrapStep(
-                name="mcp_cold_start_defaults",
-                check=self._mcp_cold_start_ready,
-                run=lambda: self._run_command("bootstrap_mcp_cold_start"),
-                optional=True,
-            ),
-            BootstrapStep(
-                name="decision_model_params",
-                check=lambda: self._decision_model_params_ready(decision_env),
-                run=lambda: self._run_command("init_decision_model_params", env=decision_env),
-            ),
-            BootstrapStep(
-                name="position_rules",
-                check=self._position_rules_ready,
-                run=lambda: self._run_command("init_position_rules"),
-            ),
-        ]
+        steps = self._build_steps(decision_env)
 
         applied = 0
         skipped = 0
@@ -273,6 +172,117 @@ class Command(BaseCommand):
             )
         )
 
+    def _build_steps(self, decision_env: str) -> list[BootstrapStep]:
+        """Build the ordered, inspectable cold-start configuration plan."""
+
+        return [
+            BootstrapStep(
+                name="account_classification",
+                check=lambda: CurrencyModel._default_manager.exists()
+                and AssetCategoryModel._default_manager.exists(),
+                run=lambda: self._run_command("init_classification"),
+            ),
+            BootstrapStep(
+                name="investment_rules",
+                check=lambda: InvestmentRuleModel._default_manager.filter(
+                    user__isnull=True
+                ).exists(),
+                run=lambda: self._run_command("init_enhanced_rules"),
+            ),
+            BootstrapStep(
+                name="system_docs",
+                check=lambda: DocumentationModel._default_manager.exists(),
+                run=lambda: self._run_command("init_docs"),
+            ),
+            BootstrapStep(
+                name="regime_thresholds",
+                check=lambda: RegimeThresholdConfig._default_manager.filter(
+                    is_active=True
+                ).exists(),
+                run=lambda: self._run_command("init_regime_thresholds"),
+            ),
+            BootstrapStep(
+                name="audit_indicator_thresholds",
+                check=lambda: IndicatorThresholdConfigModel._default_manager.exists(),
+                run=lambda: self._run_command("init_indicator_thresholds"),
+            ),
+            BootstrapStep(
+                name="audit_confidence_config",
+                check=lambda: ConfidenceConfigModel._default_manager.exists(),
+                run=lambda: self._run_command("init_confidence_config"),
+            ),
+            BootstrapStep(
+                name="equity_scoring_weights",
+                check=lambda: ScoringWeightConfigModel._default_manager.exists(),
+                run=self._bootstrap_scoring_weights,
+            ),
+            BootstrapStep(
+                name="equity_config",
+                check=self._equity_config_exists,
+                run=lambda: self._run_command("init_equity_config"),
+            ),
+            BootstrapStep(
+                name="prompt_templates",
+                check=lambda: PromptTemplateORM._default_manager.exists()
+                and ChainConfigORM._default_manager.exists(),
+                run=lambda: self._run_command("init_prompt_templates"),
+            ),
+            BootstrapStep(
+                name="scheduler_defaults",
+                check=self._scheduler_defaults_ready,
+                run=lambda: self._run_command("init_scheduler_defaults"),
+            ),
+            BootstrapStep(
+                name="policy_sentiment_gate_defaults",
+                check=self._policy_sentiment_gate_defaults_ready,
+                run=lambda: self._run_command("init_policy_sentiment_gate_defaults"),
+            ),
+            BootstrapStep(
+                name="authoritative_rss_sources",
+                check=self._authoritative_rss_sources_ready,
+                run=lambda: self._run_command("init_authoritative_rss_sources"),
+            ),
+            BootstrapStep(
+                name="macro_indicator_governance",
+                check=self._macro_indicator_governance_ready,
+                run=lambda: self._run_command("init_macro_indicator_governance"),
+            ),
+            BootstrapStep(
+                name="rotation_config",
+                check=lambda: AssetClassModel._default_manager.exists()
+                and RotationConfigModel._default_manager.exists()
+                and RotationTemplateModel._default_manager.exists(),
+                run=lambda: self._run_command("init_rotation"),
+            ),
+            BootstrapStep(
+                name="hedge_pairs",
+                check=lambda: HedgePairModel._default_manager.exists(),
+                run=lambda: self._run_command("init_hedge"),
+            ),
+            BootstrapStep(
+                name="factor_config",
+                check=lambda: FactorDefinitionModel._default_manager.exists()
+                and FactorPortfolioConfigModel._default_manager.exists(),
+                run=lambda: self._run_command("init_factors"),
+            ),
+            BootstrapStep(
+                name="mcp_cold_start_defaults",
+                check=self._mcp_cold_start_ready,
+                run=lambda: self._run_command("bootstrap_mcp_cold_start"),
+                optional=True,
+            ),
+            BootstrapStep(
+                name="decision_model_params",
+                check=lambda: self._decision_model_params_ready(decision_env),
+                run=lambda: self._run_command("init_decision_model_params", env=decision_env),
+            ),
+            BootstrapStep(
+                name="position_rules",
+                check=self._position_rules_ready,
+                run=lambda: self._run_command("init_position_rules"),
+            ),
+        ]
+
     def _resolve_decision_env(self, raw_env: str) -> str:
         if raw_env not in {"auto", "dev", "test", "prod"}:
             raise CommandError("--decision-env must be one of auto, dev, test, prod")
@@ -287,11 +297,7 @@ class Command(BaseCommand):
 
     @staticmethod
     def _require_positive_int(raw_value: object, option_name: str) -> int:
-        if (
-            isinstance(raw_value, bool)
-            or not isinstance(raw_value, int)
-            or raw_value <= 0
-        ):
+        if isinstance(raw_value, bool) or not isinstance(raw_value, int) or raw_value <= 0:
             raise CommandError(f"{option_name} must be a positive integer")
         return raw_value
 
@@ -388,8 +394,15 @@ class Command(BaseCommand):
             "account-check-stop-loss-take-profit-intraday",
             "dashboard-auto-advisor-weekly-report",
             "personal-readiness-daily-evidence",
+            "sentiment-refresh-current-index",
         }
         return expected_names.issubset(existing_names)
+
+    def _policy_sentiment_gate_defaults_ready(self) -> bool:
+        """Return whether the canonical all-assets gate row has been initialized."""
+
+        model = django_apps.get_model("policy", "SentimentGateConfig")
+        return bool(model._default_manager.filter(asset_class="all").exists())
 
     def _authoritative_rss_sources_ready(self) -> bool:
         return authoritative_rss_sources_ready()

@@ -337,7 +337,9 @@ def settings_view(request: HttpRequest) -> HttpResponse:
 def mcp_guide_view(request: HttpRequest) -> HttpResponse:
     """MCP/SDK integration guide for the current user."""
 
-    base_url = request.build_absolute_uri("/").rstrip("/")
+    base_url = interface_services.resolve_mcp_public_base_url(
+        request.build_absolute_uri("/").rstrip("/")
+    )
     context = interface_services.build_mcp_guide_context(
         _authenticated_user_id(request), base_url=base_url
     )

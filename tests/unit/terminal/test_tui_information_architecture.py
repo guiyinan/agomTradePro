@@ -48,13 +48,13 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert [group["key"] for group in registry["groups"]] == ["daily", "research", "system"]
     assert len(registry["published_screens"]) == 12
-    assert len(registry["runtime_screens"]) == 11
+    assert len(registry["runtime_screens"]) == 12
     assert len(registry["workflow"]) == 8
     assert sum(len(screen["sources"]) for screen in registry["published_screens"]) == 37
     assert (
         sum(len(screen.get("runtime_sources", [])) for screen in registry["published_screens"])
         + sum(len(screen["sources"]) for screen in registry["runtime_screens"])
-        == 18
+        == 19
     )
     assert aliases["macro-regime.pulse"] == "macro-regime.overview"
     assert aliases["command-center.auto-advisor"] == "command-center.decision-flow"
@@ -67,7 +67,7 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
     assert aliases["capability-router.admin-access"] == "capability-router.admin-access"
 
 
-def test_runtime_catalog_has_15_user_screens_and_23_admin_screens() -> None:
+def test_runtime_catalog_has_15_user_screens_and_24_admin_screens() -> None:
     payload = _runtime_payload()
     service = TuiWorkbenchService(metadata_repository=_StaticMetadataRepository(payload))
     user = SimpleNamespace(
@@ -89,7 +89,7 @@ def test_runtime_catalog_has_15_user_screens_and_23_admin_screens() -> None:
     admin_screens = _catalog_screen_keys(service.get_catalog(user=admin))
 
     assert len(user_screens) == 15
-    assert len(admin_screens) == 23
+    assert len(admin_screens) == 24
     assert "api-library.data-center" not in user_screens
     assert "ai-ops.system-providers" not in user_screens
     assert "capability-router.mcp-center" not in user_screens
@@ -110,7 +110,7 @@ def test_runtime_ia_is_idempotent_and_has_no_dangling_screen_references() -> Non
     assert normalized_twice == normalized_once
     screen_keys = {screen["key"] for screen in normalized_once["screens"]}
     action_keys = {action["key"] for action in normalized_once["actions"]}
-    assert len(screen_keys) == 23
+    assert len(screen_keys) == 24
     assert all(action["screen_key"] in screen_keys for action in normalized_once["actions"])
     assert all(
         not panel.get("action_key") or panel["action_key"] in action_keys
@@ -200,3 +200,16 @@ def test_macro_overview_publishes_portable_pulse_history_chart() -> None:
             {"key": "inflation_score", "label": "通胀"},
         ],
     }
+
+
+def test_macro_overview_publishes_independent_sentiment_panels() -> None:
+    payload = _runtime_payload()
+    screen = next(item for item in payload["screens"] if item["key"] == "macro-regime.overview")
+    panels = {item["key"]: item for item in screen["dashboard_panels"]}
+
+    assert panels["sentiment-status"]["kind"] == "detail"
+    assert panels["sentiment-status"]["action_key"] == "sentiment.awareness-summary"
+    assert panels["sentiment-status"]["user_priority"] == "p1"
+    assert panels["sentiment-trend"]["kind"] == "chart"
+    assert panels["sentiment-trend"]["action_key"] == "sentiment.awareness-trend"
+    assert panels["sentiment-trend"]["empty_message"] == "暂无可用的情绪趋势数据。"

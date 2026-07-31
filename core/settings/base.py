@@ -547,22 +547,22 @@ CELERY_BEAT_SCHEDULE = {
     "broker-execution-maintenance": {
         "task": "broker_execution.run_maintenance",
         "schedule": crontab(minute="*"),
-        "options": {"expires": 50},
+        "options": {"expire_seconds": 50},
     },
     "broker-execution-reconciliation-intraday": {
         "task": "broker_execution.generate_reconciliation_runs",
         "schedule": crontab(minute="*/5", hour="9-11,13-14", day_of_week="mon-fri"),
-        "options": {"expires": 240},
+        "options": {"expire_seconds": 240},
     },
     "broker-execution-reconciliation-eod": {
         "task": "broker_execution.generate_reconciliation_runs",
         "schedule": crontab(hour=16, minute=20, day_of_week="mon-fri"),
-        "options": {"expires": 1800},
+        "options": {"expire_seconds": 1800},
     },
     "daily-sync-and-calculate": {
         "task": "apps.regime.application.orchestration.sync_macro_then_refresh_regime",
         "schedule": crontab(hour=8, minute=5),  # 每天 8:05 执行
-        "options": {
+        "kwargs": {
             "source": "akshare",
             "indicator": None,
             "days_back": 60,
@@ -590,7 +590,7 @@ CELERY_BEAT_SCHEDULE = {
         "task": "signal.check_all_invalidations",
         "schedule": crontab(hour=2, minute=0),  # 每天凌晨 2:00
         "options": {
-            "expires": 3600,  # 1 小时超时
+            "expire_seconds": 3600,  # 1 小时超时
         },
     },
     # 可选：每日信号摘要
@@ -605,41 +605,47 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(
             hour=16, minute=30, day_of_week="mon-fri"
         ),  # 每个交易日 16:30（收盘后）
-        "options": {
+        "kwargs": {
             "source": "akshare",
             "years_back": 1,
-            "expires": 3600,  # 1 小时超时
+        },
+        "options": {
+            "expire_seconds": 3600,  # 1 小时超时
         },
     },
     "high-frequency-sync-commodities": {
         "task": "apps.macro.application.tasks.sync_high_frequency_commodities",
         "schedule": crontab(hour=16, minute=35, day_of_week="mon-fri"),  # 每个交易日 16:35
-        "options": {
+        "kwargs": {
             "source": "akshare",
             "years_back": 1,
-            "expires": 3600,
+        },
+        "options": {
+            "expire_seconds": 3600,
         },
     },
     "high-frequency-generate-signal": {
         "task": "apps.regime.application.orchestration.generate_daily_regime_signal",
         "schedule": crontab(hour=17, minute=0, day_of_week="mon-fri"),  # 每个交易日 17:00
         "options": {
-            "expires": 1800,  # 30 分钟超时
+            "expire_seconds": 1800,  # 30 分钟超时
         },
     },
     "high-frequency-recalculate-regime": {
         "task": "apps.regime.application.orchestration.recalculate_regime_with_daily_signal",
         "schedule": crontab(hour=17, minute=5, day_of_week="mon-fri"),  # 每个交易日 17:05
-        "options": {
+        "kwargs": {
             "use_pit": True,
-            "expires": 1800,
+        },
+        "options": {
+            "expire_seconds": 1800,
         },
     },
     "market-thermometer-refresh-post-close": {
         "task": "apps.data_center.application.tasks.refresh_market_thermometer_task",
         "schedule": crontab(hour="17-18", minute=20, day_of_week="mon-fri"),
         "options": {
-            "expires": 1800,
+            "expire_seconds": 1800,
         },
     },
     # ============================================================
@@ -648,7 +654,7 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.simulated_trading.application.tasks.daily_auto_trading_task",
         "schedule": crontab(hour=15, minute=30, day_of_week="mon-fri"),  # 每个交易日 15:30
         "options": {
-            "expires": 7200,  # 2 小时超时
+            "expire_seconds": 7200,  # 2 小时超时
         },
     },
     "simulated-update-prices": {
@@ -671,7 +677,7 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.account.application.tasks.check_stop_loss_and_take_profit_task",
         "schedule": crontab(hour="10-15", minute="*/30", day_of_week="mon-fri"),
         "options": {
-            "expires": 1800,
+            "expire_seconds": 1800,
         },
     },
     "simulated-daily-inspection": {
@@ -682,7 +688,7 @@ CELERY_BEAT_SCHEDULE = {
             "strategy_id": 4,
         },
         "options": {
-            "expires": 1800,
+            "expire_seconds": 1800,
         },
     },
     # ============================================
@@ -691,21 +697,21 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.simulated_trading.application.tasks.check_position_invalidation_task",
         "schedule": crontab(hour=10, minute=0, day_of_week="mon-fri"),  # 每个交易日 10:00
         "options": {
-            "expires": 1800,  # 30 分钟超时
+            "expire_seconds": 1800,  # 30 分钟超时
         },
     },
     "simulated-check-position-invalidation-afternoon": {
         "task": "apps.simulated_trading.application.tasks.check_position_invalidation_task",
         "schedule": crontab(hour=14, minute=0, day_of_week="mon-fri"),  # 每个交易日 14:00
         "options": {
-            "expires": 1800,  # 30 分钟超时
+            "expire_seconds": 1800,  # 30 分钟超时
         },
     },
     "simulated-notify-invalidated-positions": {
         "task": "apps.simulated_trading.application.tasks.notify_invalidated_positions_task",
         "schedule": crontab(hour=10, minute=5, day_of_week="mon-fri"),  # 每个交易日 10:05
         "options": {
-            "expires": 600,  # 10 分钟超时
+            "expire_seconds": 600,  # 10 分钟超时
         },
     },
     # ============================================
@@ -714,7 +720,7 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.simulated_trading.application.tasks.update_all_prices_after_close",
         "schedule": crontab(hour=16, minute=30, day_of_week="mon-fri"),  # 每个交易日 16:30
         "options": {
-            "expires": 3600,  # 1 小时超时
+            "expire_seconds": 3600,  # 1 小时超时
         },
     },
     # ============================================
@@ -731,7 +737,7 @@ CELERY_BEAT_SCHEDULE = {
             "only_missing": True,
         },
         "options": {
-            "expires": 7200,  # 2 小时超时
+            "expire_seconds": 7200,  # 2 小时超时
         },
     },
     "qlib-post-close-scoped-inference-recovery": {
@@ -746,7 +752,7 @@ CELERY_BEAT_SCHEDULE = {
             "only_missing": True,
         },
         "options": {
-            "expires": 1800,  # 30 分钟超时
+            "expire_seconds": 1800,  # 30 分钟超时
         },
     },
     "personal-readiness-daily-evidence": {
@@ -760,7 +766,7 @@ CELERY_BEAT_SCHEDULE = {
             "allow_unclosed_target_date": False,
         },
         "options": {
-            "expires": 7200,
+            "expire_seconds": 7200,
         },
     },
     "qlib-weekly-cache-refresh": {
@@ -771,7 +777,7 @@ CELERY_BEAT_SCHEDULE = {
             "days_back": 7,
         },
         "options": {
-            "expires": 14400,  # 4 小时超时
+            "expire_seconds": 14400,  # 4 小时超时
         },
     },
     # ============================================
@@ -780,43 +786,45 @@ CELERY_BEAT_SCHEDULE = {
         "task": "alpha.monitor.evaluate_alerts",
         "schedule": crontab(minute="*/1"),  # 每分钟执行一次
         "options": {
-            "expires": 60,  # 1 分钟超时
+            "expire_seconds": 60,  # 1 分钟超时
         },
     },
     "alpha-update-provider-metrics": {
         "task": "alpha.monitor.update_provider_metrics",
         "schedule": crontab(minute="*/5"),  # 每 5 分钟执行一次
         "options": {
-            "expires": 300,  # 5 分钟超时
+            "expire_seconds": 300,  # 5 分钟超时
         },
     },
     "alpha-check-queue-lag": {
         "task": "alpha.monitor.check_queue_lag",
         "schedule": crontab(minute="*/1"),  # 每分钟执行一次
         "options": {
-            "expires": 60,
+            "expire_seconds": 60,
         },
     },
     "alpha-calculate-ic-drift": {
         "task": "alpha.monitor.calculate_ic_drift",
         "schedule": crontab(hour=2, minute=0, day_of_week="sun"),  # 每周日凌晨 2:00
         "options": {
-            "expires": 1800,  # 30 分钟超时
+            "expire_seconds": 1800,  # 30 分钟超时
         },
     },
     "alpha-daily-report": {
         "task": "alpha.monitor.generate_daily_report",
         "schedule": crontab(hour=8, minute=0),  # 每天 8:00
         "options": {
-            "expires": 600,  # 10 分钟超时
+            "expire_seconds": 600,  # 10 分钟超时
         },
     },
     "alpha-cleanup-metrics": {
         "task": "alpha.monitor.cleanup_old_metrics",
         "schedule": crontab(hour=3, minute=0, day_of_week="sun"),  # 每周日凌晨 3:00
-        "options": {
+        "kwargs": {
             "days": 30,  # 保留 30 天
-            "expires": 3600,  # 1 小时超时
+        },
+        "options": {
+            "expire_seconds": 3600,  # 1 小时超时
         },
     },
     # ============================================
@@ -824,9 +832,11 @@ CELERY_BEAT_SCHEDULE = {
     "task-monitor-cleanup": {
         "task": "apps.task_monitor.application.tasks.cleanup_old_task_records",
         "schedule": crontab(hour=4, minute=0),  # 每天凌晨 4:00
-        "options": {
+        "kwargs": {
             "days_to_keep": 30,  # 保留 30 天
-            "expires": 3600,  # 1 小时超时
+        },
+        "options": {
+            "expire_seconds": 3600,  # 1 小时超时
         },
     },
     # ============================================
@@ -839,7 +849,7 @@ CELERY_BEAT_SCHEDULE = {
             "compress": True,
         },
         "options": {
-            "expires": 3600,  # 1 小时超时
+            "expire_seconds": 3600,  # 1 小时超时
         },
     },
     # ============================================
@@ -848,28 +858,39 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.policy.application.tasks.fetch_rss_sources",
         "schedule": crontab(hour="*/6", minute=0),  # 每 6 小时
         "options": {
-            "expires": 3600,  # 1 小时超时
+            "expire_seconds": 3600,  # 1 小时超时
         },
     },
     "policy-review-auto-assign": {
         "task": "apps.policy.application.tasks.auto_assign_pending_audits_task",
         "schedule": crontab(minute="*/15"),  # 每 15 分钟
         "options": {
-            "expires": 600,  # 10 分钟超时
+            "expire_seconds": 600,  # 10 分钟超时
         },
     },
     "policy-sla-monitor": {
         "task": "apps.policy.application.tasks.monitor_sla_exceeded_task",
         "schedule": crontab(minute="*/10"),  # 每 10 分钟
         "options": {
-            "expires": 300,  # 5 分钟超时
+            "expire_seconds": 300,  # 5 分钟超时
         },
     },
     "policy-gate-refresh": {
         "task": "apps.policy.application.tasks.refresh_gate_constraints_task",
         "schedule": crontab(minute="*/5"),  # 每 5 分钟
         "options": {
-            "expires": 180,  # 3 分钟超时
+            "expire_seconds": 180,  # 3 分钟超时
+        },
+    },
+    "sentiment-refresh-current-index": {
+        "task": "sentiment.refresh_current_sentiment_index",
+        "schedule": crontab(
+            minute=15,
+            hour="9-11,13-15,18,23",
+            day_of_week="mon-fri",
+        ),
+        "options": {
+            "expire_seconds": 3300,
         },
     },
     # ============================================
@@ -878,7 +899,7 @@ CELERY_BEAT_SCHEDULE = {
         "task": "pulse.calculate_weekly",
         "schedule": crontab(hour=17, minute=15, day_of_week="fri"),  # 每周五 17:15
         "options": {
-            "expires": 1800,  # 30 分钟超时
+            "expire_seconds": 1800,  # 30 分钟超时
         },
     },
     # ============================================

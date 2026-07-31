@@ -1083,6 +1083,7 @@ OLD_CORS_ALLOWED_ORIGINS=""
 OLD_CSRF_TRUSTED_ORIGINS=""
 OLD_CADDY_HTTP_PORT=""
 OLD_CADDY_HTTPS_PORT=""
+OLD_APP_BASE_URL=""
 OLD_AGOMTRADEPRO_BASE_URL=""
 OLD_AGOMTRADEPRO_API_TOKEN=""
 OLD_AGOMTRADEPRO_USERNAME=""
@@ -1108,6 +1109,7 @@ _read_old_keys() {
   [ -z "$OLD_CSRF_TRUSTED_ORIGINS" ] && OLD_CSRF_TRUSTED_ORIGINS="$(get_env_kv CSRF_TRUSTED_ORIGINS "$_src")"
   [ -z "$OLD_CADDY_HTTP_PORT" ] && OLD_CADDY_HTTP_PORT="$(get_env_kv CADDY_HTTP_PORT "$_src")"
   [ -z "$OLD_CADDY_HTTPS_PORT" ] && OLD_CADDY_HTTPS_PORT="$(get_env_kv CADDY_HTTPS_PORT "$_src")"
+  [ -z "$OLD_APP_BASE_URL" ] && OLD_APP_BASE_URL="$(get_env_kv APP_BASE_URL "$_src")"
   [ -z "$OLD_AGOMTRADEPRO_BASE_URL" ] && OLD_AGOMTRADEPRO_BASE_URL="$(get_env_kv AGOMTRADEPRO_BASE_URL "$_src")"
   [ -z "$OLD_AGOMTRADEPRO_API_TOKEN" ] && OLD_AGOMTRADEPRO_API_TOKEN="$(get_env_kv AGOMTRADEPRO_API_TOKEN "$_src")"
   [ -z "$OLD_AGOMTRADEPRO_USERNAME" ] && OLD_AGOMTRADEPRO_USERNAME="$(get_env_kv AGOMTRADEPRO_USERNAME "$_src")"
@@ -1400,6 +1402,19 @@ if [ -n "$EFFECTIVE_DOMAIN" ]; then
 fi
 
 set_env_kv "CADDY_HTTPS_PORT" "$EFFECTIVE_HTTPS_PORT"
+
+if [ -n "$EFFECTIVE_DOMAIN" ]; then
+  EFFECTIVE_APP_BASE_URL="https://$EFFECTIVE_DOMAIN"
+elif [ -n "$OLD_APP_BASE_URL" ]; then
+  EFFECTIVE_APP_BASE_URL="$OLD_APP_BASE_URL"
+elif [ "$EFFECTIVE_HTTP_PORT" = "80" ]; then
+  EFFECTIVE_APP_BASE_URL="http://$HOST"
+else
+  EFFECTIVE_APP_BASE_URL="http://$HOST:$EFFECTIVE_HTTP_PORT"
+fi
+set_env_kv "APP_BASE_URL" "$EFFECTIVE_APP_BASE_URL"
+_persist_secrets_env "APP_BASE_URL" "$EFFECTIVE_APP_BASE_URL"
+
 set_env_kv "AGOM_BACKUP_DIR" "$TARGET_DIR/backups/database"
 mkdir -p "$TARGET_DIR/backups/database"
 chown 1000:1000 "$TARGET_DIR/backups/database"
@@ -1432,6 +1447,18 @@ else
 fi
 
 sed "s|__SITE_ADDRESS__|$SITE_ADDR|g" docker/Caddyfile.template > docker/Caddyfile
+if [ -n "$EFFECTIVE_DOMAIN" ] && [ -n "$HOST" ]; then
+  HTTP_REDIRECT_HOST="$HOST"
+  case "$HTTP_REDIRECT_HOST" in
+    *:*) HTTP_REDIRECT_HOST="[$HTTP_REDIRECT_HOST]" ;;
+  esac
+  cat >> docker/Caddyfile <<EOF
+
+http://$HTTP_REDIRECT_HOST {
+    redir https://$EFFECTIVE_DOMAIN{uri} permanent
+}
+EOF
+fi
 chmod 600 deploy/.env "$SECRETS_FILE"
 
 compose() {
@@ -1535,12 +1562,21 @@ rm -f "$TARGET_DIR/.current-next"
 ln -s "$RELEASE_DIR" "$TARGET_DIR/.current-next"
 mv -Tf "$TARGET_DIR/.current-next" "$TARGET_DIR/current"
 
+if [ -n "$EFFECTIVE_DOMAIN" ]; then
+  HEALTH_URL="https://$EFFECTIVE_DOMAIN/api/health/"
+  HEALTH_RESOLVE="--resolve $EFFECTIVE_DOMAIN:443:127.0.0.1"
+else
+  HEALTH_URL="http://127.0.0.1:$EFFECTIVE_HTTP_PORT/api/health/"
+  HEALTH_RESOLVE=""
+fi
+
 TRIES=0
-until curl -fsS --max-time 5 "http://127.0.0.1:$PORT/api/health/" >/tmp/agomtradepro-health.json 2>/dev/null; do
+until curl -fsS --max-time 10 $HEALTH_RESOLVE "$HEALTH_URL" >/tmp/agomtradepro-health.json 2>/dev/null; do
   TRIES=$((TRIES + 1))
   if [ "$TRIES" -ge 20 ]; then
-    echo "[ERROR] health check failed after retries" >&2
+    echo "[ERROR] public health/TLS check failed after retries: $HEALTH_URL" >&2
     compose ps >&2 || true
+    docker logs --tail 200 agomtradepro-caddy-1 >&2 || true
     docker logs --tail 200 agomtradepro-web-1 >&2 || true
     exit 1
   fi

@@ -112,7 +112,13 @@ def test_daily_task_isolates_item_failures_and_persists_combined_index(
 
     result = calculate_daily_sentiment_index.run(target_date="2026-07-25")
 
-    assert result["status"] == "success"
+    assert result["status"] == "partial"
+    assert result["outcome"] == "partial"
+    assert result["success"] is False
+    assert result["requested"] == 6
+    assert result["succeeded"] == 5
+    assert result["failed"] == 1
+    assert result["stored"] == 1
     assert result["date"] == "2026-07-25"
     assert result["news_count"] == 3
     assert result["policy_events"] == 2
@@ -215,7 +221,7 @@ def test_batch_task_truncates_text_and_keeps_per_item_errors(
                 composite_index=-0.25,
             ),
             "warning",
-            "数据过期 3 天",
+            "sentiment_index_stale",
         ),
     ],
 )
@@ -226,9 +232,11 @@ def test_freshness_task_distinguishes_missing_current_and_stale(
     message_fragment: str,
 ) -> None:
     monkeypatch.setattr(
-        "apps.sentiment.application.repository_provider.get_sentiment_index_repository",
+        "apps.sentiment.application.current_sentiment.get_sentiment_index_repository",
         lambda: SimpleNamespace(get_latest=lambda: latest),
     )
+    if latest is not None and not hasattr(latest, "data_sufficient"):
+        latest.data_sufficient = True
 
     result = check_sentiment_data_freshness.run()
 
@@ -243,7 +251,7 @@ def test_freshness_task_reports_repository_error(
         raise RuntimeError("repository unavailable")
 
     monkeypatch.setattr(
-        "apps.sentiment.application.repository_provider.get_sentiment_index_repository",
+        "apps.sentiment.application.current_sentiment.get_sentiment_index_repository",
         lambda: SimpleNamespace(get_latest=fail),
     )
 

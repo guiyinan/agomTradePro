@@ -446,6 +446,10 @@ class SentimentGateStateOutput:
     sentiment_score: float | None = None
     max_position_cap: float | None = None
     thresholds: dict[str, float] | None = None
+    data_sufficient: bool = False
+    must_not_use_for_decision: bool = True
+    signal_paused: bool = True
+    blocked_reason: str = "policy_sentiment_gate_unavailable"
     error: str | None = None
 
 
@@ -476,6 +480,7 @@ class GetSentimentGateStateUseCase:
 
             # 获取该资产类的热度与情绪（简化：使用全局数据）
             global_heat, global_sentiment = self.workbench_repo.get_global_heat_sentiment()
+            data_sufficient = global_heat is not None or global_sentiment is not None
 
             # 计算闸门等级
             thresholds = SentimentGateThresholds(
@@ -493,7 +498,8 @@ class GetSentimentGateStateUseCase:
                 "max_position_cap_l2": gate_config.max_position_cap_l2,
                 "max_position_cap_l3": gate_config.max_position_cap_l3,
             }
-            max_cap = get_max_position_cap(gate_level, cap_config)
+            max_cap = get_max_position_cap(gate_level, cap_config) if data_sufficient else None
+            signal_paused = not data_sufficient or gate_level.value == "L3"
 
             return SentimentGateStateOutput(
                 success=True,
@@ -502,6 +508,12 @@ class GetSentimentGateStateUseCase:
                 heat_score=global_heat,
                 sentiment_score=global_sentiment,
                 max_position_cap=max_cap,
+                data_sufficient=data_sufficient,
+                must_not_use_for_decision=not data_sufficient,
+                signal_paused=signal_paused,
+                blocked_reason=(
+                    "" if data_sufficient else "policy_sentiment_gate_observation_missing"
+                ),
                 thresholds={
                     "heat_l1": gate_config.heat_l1_threshold,
                     "heat_l2": gate_config.heat_l2_threshold,

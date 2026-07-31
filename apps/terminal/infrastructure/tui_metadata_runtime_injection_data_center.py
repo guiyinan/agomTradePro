@@ -20,7 +20,9 @@ def _field(
     default: object | None = None,
     minimum: int | float | None = None,
     maximum: int | float | None = None,
-    options: list[str] | None = None,
+    options: list[str | dict[str, str]] | None = None,
+    placeholder: str | None = None,
+    presentation_semantic: str | None = None,
 ) -> dict[str, Any]:
     """Build one typed, bounded TUI field."""
 
@@ -40,6 +42,10 @@ def _field(
         field["max"] = maximum
     if options is not None:
         field["options"] = options
+    if placeholder is not None:
+        field["placeholder"] = placeholder
+    if presentation_semantic is not None:
+        field["presentation_semantic"] = presentation_semantic
     return field
 
 
@@ -150,8 +156,9 @@ _PROVIDER_COLUMNS: list[dict[str, str]] = [
     {"key": "source_type", "label": "类型"},
     {"key": "is_active", "label": "启用"},
     {"key": "priority", "label": "优先级"},
-    {"key": "http_url", "label": "地址"},
-    {"key": "description", "label": "说明"},
+    {"key": "has_api_key", "label": "密钥已配置"},
+    {"key": "tushare_request_mode_label", "label": "连接方式"},
+    {"key": "http_url", "label": "服务地址"},
 ]
 
 _PUBLISHER_COLUMNS: list[dict[str, str]] = [
@@ -294,6 +301,148 @@ RUNTIME_DATA_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
         },
     ),
     _action(
+        key="data-center.tushare-create",
+        label="新增 Tushare 连接",
+        endpoint="/api/data-center/providers/",
+        method="POST",
+        intent="create_tushare_provider_connection",
+        view_type="detail",
+        description="保存 Tushare 密钥、连接方式和服务地址；统一中继需要填写服务地址。",
+        task_group="02 服务商与健康",
+        sequence=31,
+        fields=[
+            _field("name", "连接名称", required=True, default="Tushare Pro", maximum=100),
+            _field(
+                "source_type",
+                "数据源",
+                input_type="select",
+                required=True,
+                default="tushare",
+                options=[{"value": "tushare", "label": "Tushare"}],
+            ),
+            _field(
+                "tushare_request_mode",
+                "连接方式",
+                input_type="select",
+                required=True,
+                default="unified_relay",
+                options=[
+                    {"value": "unified_relay", "label": "统一中继"},
+                    {"value": "sdk_path", "label": "标准 Tushare"},
+                ],
+            ),
+            _field(
+                "api_key",
+                "API Key",
+                input_type="password",
+                required=True,
+                maximum=500,
+                placeholder="输入密钥，保存后不再回显",
+                presentation_semantic="api_token",
+            ),
+            _field(
+                "http_url",
+                "服务地址",
+                placeholder="统一中继模式必填",
+                presentation_semantic="endpoint_url",
+            ),
+            _field(
+                "is_active",
+                "立即启用",
+                input_type="checkbox",
+                value_type="boolean",
+                default=True,
+            ),
+            _field(
+                "priority",
+                "优先级",
+                input_type="number",
+                value_type="integer",
+                default=1,
+                minimum=0,
+            ),
+            _field("description", "说明", input_type="textarea", maximum=2000),
+        ],
+        view_model={"kind": "detail"},
+        effect="create",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+    _action(
+        key="data-center.provider-update",
+        label="更新服务商连接",
+        endpoint="/api/data-center/providers/{provider_id}/",
+        method="PATCH",
+        intent="update_data_center_provider_connection",
+        view_type="detail",
+        description="更新指定服务商连接；密钥或其他留空项会保持现有设置。",
+        task_group="02 服务商与健康",
+        sequence=32,
+        fields=[
+            _field(
+                "provider_id",
+                "服务商编号",
+                binding="path",
+                input_type="number",
+                value_type="integer",
+                required=True,
+                minimum=1,
+                presentation_semantic="primary_selector",
+            ),
+            _field(
+                "tushare_request_mode",
+                "Tushare 连接方式",
+                input_type="select",
+                default="",
+                options=[
+                    {"value": "", "label": "保持现有设置"},
+                    {"value": "unified_relay", "label": "统一中继"},
+                    {"value": "sdk_path", "label": "标准 Tushare"},
+                ],
+            ),
+            _field(
+                "api_key",
+                "新 API Key",
+                input_type="password",
+                maximum=500,
+                placeholder="留空保持现有密钥",
+                presentation_semantic="api_token",
+            ),
+            _field(
+                "http_url",
+                "新服务地址",
+                placeholder="留空保持现有地址",
+                presentation_semantic="endpoint_url",
+            ),
+            _field(
+                "clear_service_address",
+                "清除现有服务地址",
+                input_type="checkbox",
+                value_type="boolean",
+                default=False,
+            ),
+            _field(
+                "priority",
+                "新优先级",
+                input_type="number",
+                value_type="integer",
+                minimum=0,
+                placeholder="留空保持现有优先级",
+            ),
+            _field(
+                "description",
+                "新说明",
+                input_type="textarea",
+                maximum=2000,
+                placeholder="留空保持现有说明",
+            ),
+        ],
+        view_model={"kind": "detail"},
+        effect="update",
+        confirmation_required=True,
+        audit_required=True,
+    ),
+    _action(
         key="data-center.provider-test",
         label="测试服务商连接",
         endpoint="/api/data-center/providers/{provider_id}/test/",
@@ -306,7 +455,7 @@ RUNTIME_DATA_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
         fields=[
             _field(
                 "provider_id",
-                "服务商 ID",
+                "服务商编号",
                 binding="path",
                 input_type="number",
                 value_type="integer",

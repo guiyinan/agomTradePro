@@ -335,10 +335,13 @@ class SentimentGateState:
     """
 
     gate_level: GateLevel
-    global_heat: float
-    global_sentiment: float
+    global_heat: float | None
+    global_sentiment: float | None
     max_position_cap: float | None = None
     signal_paused: bool = False
+    data_sufficient: bool = False
+    must_not_use_for_decision: bool = True
+    blocked_reason: str = "policy_sentiment_gate_unavailable"
 
 
 # =============================================================================

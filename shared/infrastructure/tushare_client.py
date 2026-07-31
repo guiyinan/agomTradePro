@@ -9,16 +9,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import partial
 from importlib import import_module
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Protocol, cast
 from urllib.parse import urlsplit
 
 import requests
 
 from shared.config.secrets import get_secrets
+from shared.config.tushare import (
+    TUSHARE_REQUEST_MODE_SDK_PATH,
+    TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+    TushareRequestMode,
+)
 
-TUSHARE_REQUEST_MODE_SDK_PATH: Literal["sdk_path"] = "sdk_path"
-TUSHARE_REQUEST_MODE_UNIFIED_RELAY: Literal["unified_relay"] = "unified_relay"
-TushareRequestMode = Literal["sdk_path", "unified_relay"]
 PandasDataFrame = Any
 pd = cast(Any, import_module("pandas"))
 

@@ -22,6 +22,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.realtime.application.market_summary_queries import get_market_breadth_payload
 from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.realtime.application.query_services import (
     list_cached_top_movers_payloads,
@@ -207,6 +208,7 @@ class MarketSummaryView(View):
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> JsonResponse:
         """GET /api/realtime/market-summary/"""
         prices = self.use_case.get_latest_prices(list(self.INDEX_CODES.values()))
+        breadth = get_market_breadth_payload()
         prices_by_code = {item["asset_code"]: item for item in prices}
         index_payload: dict[str, Any] = {}
         latest_timestamp: str | None = None
@@ -242,18 +244,23 @@ class MarketSummaryView(View):
             "available_index_count": available_count,
             "requested_index_count": len(self.INDEX_CODES),
             "is_partial": available_count < len(self.INDEX_CODES),
-            "stats_available": False,
+            "stats_available": breadth["stats_available"],
             "message": (
-                "Major index snapshot is available; breadth statistics are unavailable in the current realtime data providers."
-                if available_count
-                else "No realtime index snapshot is available from cache or configured providers."
+                "Major index snapshot and governed market breadth statistics are available."
+                if available_count and breadth["stats_available"]
+                else (
+                    "Major index snapshot is available; breadth statistics are unavailable or stale."
+                    if available_count
+                    else "No realtime index snapshot is available from cache or configured providers."
+                )
             ),
             "timestamp": latest_timestamp,
-            "up_count": 0,
-            "down_count": 0,
-            "flat_count": 0,
-            "limit_up_count": 0,
-            "limit_down_count": 0,
+            "up_count": breadth["up_count"],
+            "down_count": breadth["down_count"],
+            "flat_count": None,
+            "limit_up_count": breadth["limit_up_count"],
+            "limit_down_count": breadth["limit_down_count"],
+            "breadth_contract": breadth["contract"],
             "total_volume": total_volume,
             "total_value": 0,
         }

@@ -10,7 +10,9 @@ SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
 class MCPAccessVerificationCheckSerializer(serializers.Serializer[dict[str, Any]]):
     """One bounded MCP access readiness check."""
 
-    key = serializers.ChoiceField(choices=("token", "routing", "catalog"), read_only=True)
+    key = serializers.ChoiceField(
+        choices=("token", "transport", "routing", "catalog"), read_only=True
+    )
     status = serializers.ChoiceField(choices=("ready", "unavailable"), read_only=True)
 
     def get_fields(self) -> dict[str, SerializerField]:

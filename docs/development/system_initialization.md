@@ -84,12 +84,13 @@ python manage.py bootstrap_cold_start --with-alpha
 5. Audit 指标阈值与置信度配置
 6. Equity 权重与筛选配置
 7. Prompt 模板与 Chain
-8. 默认计划任务 (`init_scheduler_defaults`)
-9. 权威 RSS 源 (`init_authoritative_rss_sources`)
-10. Rotation / Hedge / Factor 默认配置
-11. MCP 冷启动默认值
-12. Decision Model Params
-13. 仓位管理规则
+8. 默认计划任务 (`init_scheduler_defaults`，含情绪刷新链路)
+9. Policy 情绪门控默认配置 (`init_policy_sentiment_gate_defaults`)
+10. 权威 RSS 源 (`init_authoritative_rss_sources`)
+11. Rotation / Hedge / Factor 默认配置
+12. MCP 冷启动默认值
+13. Decision Model Params
+14. 仓位管理规则
 
 `init_authoritative_rss_sources` 会启用 RSSHub 全局配置，并初始化政策/监管/财经新闻源：
 国家统计局、发改委、证监会、上交所、深交所、财联社、格隆汇。该命令会停用
@@ -339,6 +340,12 @@ python manage.py init_scheduler_defaults --disable
 - 宏观同步/Regime 周期任务
 - 股票估值同步/校验周期任务
 - 决策工作台夜间快照周期任务
+- 全市场新闻刷新 + 情绪指数计算任务（工作日 09:15/10:15/11:15、13:15/14:15/15:15、18:15、23:15）
+
+情绪刷新使用单个编排任务 `sentiment.refresh_current_sentiment_index`：先按数据库中
+声明 `NEWS` 能力的 Provider 刷新全市场新闻，再计算并保存同一观测日的指数。这样可避免
+“新闻尚未写入、指数任务已经运行”的跨任务竞态；无数据时仍保存诊断快照，但发布
+`outcome=blocked` 和 `must_not_use_for_decision=true`，不得解释为中性情绪。
 
 **任务存储方式**:
 

@@ -26,7 +26,7 @@ from typing import Any
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.exceptions import NotAuthenticated
+from rest_framework.exceptions import NotAuthenticated, ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -136,6 +136,11 @@ from apps.data_center.interface.serializers import (
     SyncValuationRequestSerializer,
 )
 from apps.data_center.provider_runtime import get_registry, refresh_registry
+from shared.config.tushare import (
+    TUSHARE_REQUEST_MODE_SDK_PATH,
+    TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+    TUSHARE_REQUEST_MODE_VALUES,
+)
 from shared.numeric import safe_float
 from shared.request_payload import request_data_mapping
 
@@ -241,6 +246,47 @@ def _safe_provider_payload(provider: ProviderResponse) -> dict[str, Any]:
     return dict(serializer.data)
 
 
+def _optional_masked_secret(value: object) -> str | None:
+    """Treat a blank masked credential as an instruction to preserve its value."""
+
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return value
+
+
+def _provider_extra_config_with_tushare_mode(
+    *,
+    existing: dict[str, Any],
+    submitted: dict[str, Any] | None,
+    submitted_mode: object,
+    source_type: str,
+    http_url: str,
+) -> dict[str, Any]:
+    """Shape the explicit Tushare transport field into provider extra config."""
+
+    extra_config = dict(submitted) if submitted is not None else dict(existing)
+    explicit_mode = submitted_mode.strip() if isinstance(submitted_mode, str) else ""
+
+    if source_type != "tushare":
+        if explicit_mode:
+            raise ValidationError({"tushare_request_mode": "连接方式仅适用于 Tushare 服务商。"})
+        extra_config.pop("tushare_request_mode", None)
+        return extra_config
+
+    if explicit_mode:
+        extra_config["tushare_request_mode"] = explicit_mode
+
+    raw_mode = extra_config.get("tushare_request_mode", TUSHARE_REQUEST_MODE_SDK_PATH)
+    mode = raw_mode.strip() if isinstance(raw_mode, str) else ""
+    if mode not in TUSHARE_REQUEST_MODE_VALUES:
+        raise ValidationError({"tushare_request_mode": "请选择标准 Tushare 或统一中继。"})
+    if mode == TUSHARE_REQUEST_MODE_UNIFIED_RELAY and not http_url.strip():
+        raise ValidationError({"http_url": "统一中继连接必须填写服务地址。"})
+
+    extra_config["tushare_request_mode"] = mode
+    return extra_config
+
+
 def _make_decision_repair_use_case(
     user: Any,
 ) -> RepairDecisionDataReliabilityUseCase:
@@ -282,6 +328,13 @@ def provider_list_create(request: Request) -> Response:
     create_serializer = ProviderConfigSerializer(data=request.data)
     create_serializer.is_valid(raise_exception=True)
     d = create_serializer.validated_data
+    extra_config = _provider_extra_config_with_tushare_mode(
+        existing={},
+        submitted=d.get("extra_config"),
+        submitted_mode=d.get("tushare_request_mode"),
+        source_type=d["source_type"],
+        http_url=d.get("http_url", ""),
+    )
     req = CreateProviderRequest(
         name=d["name"],
         source_type=d["source_type"],
@@ -291,7 +344,7 @@ def provider_list_create(request: Request) -> Response:
         api_secret=d.get("api_secret", ""),
         http_url=d.get("http_url", ""),
         api_endpoint=d.get("api_endpoint", ""),
-        extra_config=d.get("extra_config", {}),
+        extra_config=extra_config,
         description=d.get("description", ""),
     )
     created = use_case.create(req)
@@ -333,17 +386,32 @@ def provider_detail(request: Request, provider_id: int) -> Response:
     serializer = ProviderConfigSerializer(data=request.data, partial=partial)
     serializer.is_valid(raise_exception=True)
     d = serializer.validated_data
+    existing = use_case.get(provider_id)
+    if existing is None:
+        return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+    if d.get("clear_service_address") and d.get("http_url"):
+        raise ValidationError({"http_url": "新服务地址与清除现有服务地址不能同时提交。"})
+    source_type = d.get("source_type", existing.source_type)
+    http_url = "" if d.get("clear_service_address") else d.get("http_url", existing.http_url)
+    submitted_extra_config = d.get("extra_config") if "extra_config" in d else None
+    extra_config = _provider_extra_config_with_tushare_mode(
+        existing=existing.extra_config,
+        submitted=submitted_extra_config,
+        submitted_mode=d.get("tushare_request_mode"),
+        source_type=source_type,
+        http_url=http_url,
+    )
     req = UpdateProviderRequest(
         provider_id=provider_id,
         name=d.get("name"),
         source_type=d.get("source_type"),
         is_active=d.get("is_active"),
         priority=d.get("priority"),
-        api_key=d.get("api_key"),
-        api_secret=d.get("api_secret"),
-        http_url=d.get("http_url"),
+        api_key=_optional_masked_secret(d.get("api_key")),
+        api_secret=_optional_masked_secret(d.get("api_secret")),
+        http_url=http_url if "http_url" in d or d.get("clear_service_address") else None,
         api_endpoint=d.get("api_endpoint"),
-        extra_config=d.get("extra_config"),
+        extra_config=extra_config,
         description=d.get("description"),
     )
     updated = use_case.update(req)

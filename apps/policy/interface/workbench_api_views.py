@@ -487,6 +487,10 @@ class SentimentGateStateView(APIView):
                         "heat_score": output.heat_score,
                         "sentiment_score": output.sentiment_score,
                         "max_position_cap": output.max_position_cap,
+                        "data_sufficient": output.data_sufficient,
+                        "must_not_use_for_decision": output.must_not_use_for_decision,
+                        "signal_paused": output.signal_paused,
+                        "blocked_reason": output.blocked_reason,
                         "thresholds": output.thresholds,
                     }
                 )

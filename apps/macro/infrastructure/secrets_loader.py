@@ -4,8 +4,8 @@ Macro Data Source Secrets Loader
 从数据库加载宏观数据源 API 密钥。
 """
 
-
 from apps.data_center.composition import list_active_provider_configs
+from shared.config.tushare import TUSHARE_REQUEST_MODE_SDK_PATH
 from shared.domain.interfaces import DataSourceSecretsDTO
 
 
@@ -21,7 +21,7 @@ def load_secrets_from_database() -> DataSourceSecretsDTO | None:
 
         tushare_token = None
         tushare_http_url = None
-        tushare_request_mode = "sdk_path"
+        tushare_request_mode: str = TUSHARE_REQUEST_MODE_SDK_PATH
         fred_api_key = ""
         juhe_api_key = None
 

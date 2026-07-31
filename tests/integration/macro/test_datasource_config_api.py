@@ -35,6 +35,7 @@ def _assert_provider_config_page_contract(response) -> str:
         "/api/data-center/providers/",
         "/data-center/monitor/",
         "testProvider",
+        "连接方式:",
     )
 
 
@@ -118,6 +119,95 @@ def test_data_center_provider_api_create_and_update_http_url(admin_client):
 
     config = ProviderConfigModel.objects.get(id=provider_id)
     assert config.http_url == "https://proxy-2.example.com"
+
+
+@pytest.mark.django_db
+def test_tushare_transport_mode_is_explicit_safe_and_preserves_provider_config(admin_client):
+    create_response = admin_client.post(
+        "/api/data-center/providers/",
+        data=json.dumps(
+            {
+                "name": "Tushare Relay",
+                "source_type": "tushare",
+                "api_key": "stored-relay-key",
+                "http_url": "https://relay.example.com/tushare/pro",
+                "tushare_request_mode": "unified_relay",
+                "extra_config": {"health_metrics": {"success_count": 12}},
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert create_response.status_code == 201
+    created = create_response.json()
+    assert "api_key" not in created
+    assert created["has_api_key"] is True
+    assert created["tushare_request_mode"] == "unified_relay"
+    assert created["tushare_request_mode_label"] == "统一中继"
+
+    provider_id = created["id"]
+    update_response = admin_client.patch(
+        f"/api/data-center/providers/{provider_id}/",
+        data=json.dumps(
+            {
+                "api_key": "",
+                "tushare_request_mode": "sdk_path",
+                "clear_service_address": True,
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert update_response.status_code == 200
+    updated = update_response.json()
+    assert updated["http_url"] == ""
+    assert updated["tushare_request_mode"] == "sdk_path"
+    assert updated["tushare_request_mode_label"] == "标准 Tushare"
+
+    config = ProviderConfigModel.objects.get(id=provider_id)
+    assert config.api_key == "stored-relay-key"
+    assert config.http_url == ""
+    assert config.extra_config == {
+        "health_metrics": {"success_count": 12},
+        "tushare_request_mode": "sdk_path",
+    }
+
+
+@pytest.mark.django_db
+def test_unified_tushare_transport_requires_a_service_address(admin_client):
+    response = admin_client.post(
+        "/api/data-center/providers/",
+        data=json.dumps(
+            {
+                "name": "Incomplete Relay",
+                "source_type": "tushare",
+                "api_key": "relay-key",
+                "tushare_request_mode": "unified_relay",
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["details"]["http_url"] == "统一中继连接必须填写服务地址。"
+
+
+@pytest.mark.django_db
+def test_tushare_transport_field_is_rejected_for_other_providers(admin_client):
+    response = admin_client.post(
+        "/api/data-center/providers/",
+        data=json.dumps(
+            {
+                "name": "QMT Local",
+                "source_type": "qmt",
+                "tushare_request_mode": "unified_relay",
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["details"]["tushare_request_mode"] == "连接方式仅适用于 Tushare 服务商。"
 
 
 @pytest.mark.django_db

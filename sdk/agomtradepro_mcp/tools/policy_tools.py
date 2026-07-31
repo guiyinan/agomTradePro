@@ -340,6 +340,13 @@ def register_policy_tools(server: FastMCP) -> None:
         client = AgomTradeProClient()
         try:
             state = client.policy.get_sentiment_gate_state(asset_class=asset_class)
+            data_sufficient = bool(
+                getattr(
+                    state,
+                    "data_sufficient",
+                    state.global_heat is not None or state.global_sentiment is not None,
+                )
+            )
             return {
                 "asset_class": asset_class,
                 "gate_level": state.gate_level,
@@ -347,6 +354,11 @@ def register_policy_tools(server: FastMCP) -> None:
                 "global_sentiment": state.global_sentiment,
                 "max_position_cap": state.max_position_cap,
                 "signal_paused": state.signal_paused,
+                "data_sufficient": data_sufficient,
+                "must_not_use_for_decision": bool(
+                    getattr(state, "must_not_use_for_decision", not data_sufficient)
+                ),
+                "blocked_reason": str(getattr(state, "blocked_reason", "") or ""),
             }
         except Exception as e:
             return {

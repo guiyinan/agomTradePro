@@ -49,6 +49,15 @@ from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
+_A_SHARE_BEHAVIOR_CODES = frozenset(
+    {
+        "CN_A_ADVANCE_COUNT",
+        "CN_A_DECLINE_COUNT",
+        "CN_A_LIMIT_UP_COUNT",
+        "CN_A_LIMIT_DOWN_COUNT",
+    }
+)
+
 
 class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     """Standardized AKShare provider wrapper."""
@@ -74,6 +83,8 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 provider_source=self.provider_source(),
                 provider_name=self.provider_name(),
             )
+        if indicator_code in _A_SHARE_BEHAVIOR_CODES:
+            return self._fetch_a_share_behavior(indicator_code, start_date, end_date)
 
         adapter = AKShareAdapter()
         points = _fetch_macro_points(adapter, indicator_code, start_date, end_date)
@@ -101,6 +112,84 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 )
             )
         return results
+
+    def _fetch_a_share_behavior(
+        self,
+        indicator_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroFact]:
+        """Fetch one observed A-share breadth or price-limit count without zero filling."""
+
+        from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+
+        if indicator_code in {"CN_A_ADVANCE_COUNT", "CN_A_DECLINE_COUNT"}:
+            observed_at = date.today()
+            if observed_at < start_date or observed_at > end_date:
+                return []
+            try:
+                frame = get_akshare_module().stock_zh_a_spot_em()
+            except Exception as exc:
+                logger.warning("AKShare A-share breadth fetch failed closed: %s", exc)
+                return []
+            if frame is None or frame.empty:
+                return []
+            changes = [
+                value
+                for row in frame.to_dict("records")
+                if "ST" not in str(_first_present(row, "名称", "name") or "").upper()
+                and (value := safe_float(_first_present(row, "涨跌幅", "change_pct"))) is not None
+            ]
+            if not changes:
+                return []
+            if indicator_code == "CN_A_ADVANCE_COUNT":
+                value = sum(1 for change in changes if change > 0)
+                aggregation = "akshare_a_share_spot_non_st_positive_change_count"
+            else:
+                value = sum(1 for change in changes if change < 0)
+                aggregation = "akshare_a_share_spot_non_st_negative_change_count"
+        else:
+            observed_at = end_date
+            try:
+                ak = get_akshare_module()
+                if indicator_code == "CN_A_LIMIT_UP_COUNT":
+                    frame = ak.stock_zt_pool_em(date=observed_at.strftime("%Y%m%d"))
+                    aggregation = "akshare_limit_up_pool_non_st_row_count"
+                else:
+                    frame = ak.stock_zt_pool_dtgc_em(date=observed_at.strftime("%Y%m%d"))
+                    aggregation = "akshare_limit_down_pool_non_st_row_count"
+            except Exception as exc:
+                logger.warning("AKShare A-share price-limit pool fetch failed closed: %s", exc)
+                return []
+            if frame is None or frame.empty:
+                return []
+            rows = [
+                row
+                for row in frame.to_dict("records")
+                if "ST" not in str(_first_present(row, "名称", "name") or "").upper()
+            ]
+            if not rows:
+                return []
+            value = len(rows)
+
+        return [
+            MacroFact(
+                indicator_code=indicator_code,
+                reporting_period=observed_at,
+                value=float(value),
+                unit="家",
+                source=self.provider_source(),
+                published_at=observed_at,
+                quality=DataQualityStatus.VALID,
+                extra=self._provider_extra(
+                    {
+                        "aggregation": aggregation,
+                        "market_scope": "a_share_non_st",
+                        "original_unit": "家",
+                    }
+                ),
+            )
+        ]
 
     def _fetch_market_turnover(
         self,

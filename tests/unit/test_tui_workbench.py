@@ -2963,11 +2963,15 @@ def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
     assert [panel["action_key"] for panel in panels] == [
         "auto.api.get.api.health",
         "auto.api.get.api.data-center",
+        "auto.api.get.api.data-center.providers",
+        "",
         "task-monitor.readiness",
         "task-monitor.task-list",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
     assert "auto.api.get.api.data-center" in action_keys
+    assert "data-center.tushare-create" in action_keys
+    assert "data-center.provider-update" in action_keys
 
 
 def test_tui_events_screen_returns_overview_panels(client, tui_user):
@@ -7982,6 +7986,7 @@ def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package(
                         "route_endpoint": "https://example.test/api/ai-capability/route/",
                         "capability_catalog_endpoint": "https://example.test/api/ai-capability/capabilities/",
                         "agent_prompt": "请按以下信息接入 AgomTradePro：",
+                        "transport_security": "https",
                         "environment_statement": "当前地址可用于此环境。",
                     },
                 },
@@ -8048,6 +8053,7 @@ def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package(
     assert fields["接入令牌"] == "agtp_live_plaintext_token_value"
     assert fields["智能路由地址"] == "https://example.test/api/ai-capability/route/"
     assert fields["能力目录地址"] == "https://example.test/api/ai-capability/capabilities/"
+    assert fields["连接安全"] == "HTTPS（必须校验证书）"
     assert fields["环境说明"] == "当前地址可用于此环境。"
     assert "agtp_live_plaintext_token_value" in fields["完整接入包"]
     assert "请按以下信息接入 AgomTradePro：" in fields["完整接入包"]
@@ -8056,6 +8062,7 @@ def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package(
         "route_endpoint": "copyable",
         "capability_catalog_endpoint": "copyable",
         "access_package": "multiline",
+        "transport_security": "metadata",
         "environment_statement": "metadata",
         "blocking_reason": "metadata",
     }
@@ -8550,6 +8557,8 @@ def test_tui_sentiment_analysis_publishes_typed_text_and_health_contracts():
     assert set(actions) == {
         "sentiment.dashboard-summary",
         "sentiment.index-trend",
+        "sentiment.awareness-summary",
+        "sentiment.awareness-trend",
         "sentiment.analyze-text",
         "sentiment.health",
     }
@@ -8567,6 +8576,13 @@ def test_tui_sentiment_analysis_publishes_typed_text_and_health_contracts():
     assert fields["text"]["max"] == 5000
     assert fields["use_cache"]["input_type"] == "checkbox"
     assert actions["sentiment.health"]["method"] == "GET"
+    awareness_summary = actions["sentiment.awareness-summary"]
+    awareness_trend = actions["sentiment.awareness-trend"]
+    assert awareness_summary["screen_key"] == "macro-regime.overview"
+    assert awareness_summary["view_model"]["kind"] == "detail"
+    assert awareness_trend["screen_key"] == "macro-regime.overview"
+    assert awareness_trend["view_model"]["kind"] == "chart"
+    assert awareness_trend["view_model"]["rows_path"] == "indices"
     from apps.terminal.infrastructure.tui_metadata_runtime_injection_registry import (
         RUNTIME_METADATA_INJECTIONS,
     )
@@ -8583,6 +8599,9 @@ def test_tui_sentiment_analysis_publishes_typed_text_and_health_contracts():
         {"key": "news", "label": "新闻情绪"},
         {"key": "policy", "label": "政策情绪"},
     ]
+    assert raw_actions["sentiment.awareness-summary"]["endpoint"] == (
+        "/api/sentiment/tui/overview/"
+    )
 
 
 def test_tui_asset_analysis_screen_publishes_only_supported_asset_types():

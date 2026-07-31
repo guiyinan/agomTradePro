@@ -42,6 +42,15 @@ from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
+_A_SHARE_BEHAVIOR_CODES = frozenset(
+    {
+        "CN_A_ADVANCE_COUNT",
+        "CN_A_DECLINE_COUNT",
+        "CN_A_LIMIT_UP_COUNT",
+        "CN_A_LIMIT_DOWN_COUNT",
+    }
+)
+
 
 class _ProviderFrame(Protocol):
     """Minimal pandas-like frame returned by the Tushare SDK."""
@@ -67,6 +76,14 @@ class _TushareProClient(Protocol):
 
     def daily(self, *, trade_date: str) -> _ProviderFrame | None:
         """Return all-stock daily bars for one trade date."""
+
+    def limit_list_d(
+        self,
+        *,
+        trade_date: str,
+        limit_type: str,
+    ) -> _ProviderFrame | None:
+        """Return daily price-limit pool rows."""
 
     def margin(self, *, start_date: str, end_date: str) -> _ProviderFrame | None:
         """Return margin balance rows."""
@@ -136,6 +153,8 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             return []
         if indicator_code == "CN_A_ETF_SIZE_FLOW":
             return self._fetch_etf_size_flow(start_date, end_date)
+        if indicator_code in _A_SHARE_BEHAVIOR_CODES:
+            return self._fetch_a_share_behavior(indicator_code, start_date, end_date)
 
         adapter = TushareAdapter(
             token=self._config.api_key,
@@ -168,6 +187,82 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 )
             )
         return results
+
+    def _fetch_a_share_behavior(
+        self,
+        indicator_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroFact]:
+        """Fetch one daily A-share breadth or price-limit count from Tushare."""
+
+        from shared.infrastructure.tushare_client import create_tushare_pro_client
+
+        observed_at = end_date
+        if observed_at < start_date:
+            return []
+        try:
+            pro = cast(
+                _TushareProClient,
+                create_tushare_pro_client(
+                    token=self._config.api_key,
+                    http_url=self._config.http_url,
+                ),
+            )
+            trade_date = observed_at.strftime("%Y%m%d")
+            if indicator_code in {"CN_A_ADVANCE_COUNT", "CN_A_DECLINE_COUNT"}:
+                frame = pro.daily(trade_date=trade_date)
+                if frame is None or frame.empty:
+                    return []
+                changes = [
+                    change
+                    for row in frame.to_dict("records")
+                    if (change := safe_float(_first_present(row, "pct_chg", "change_pct")))
+                    is not None
+                ]
+                if not changes:
+                    return []
+                if indicator_code == "CN_A_ADVANCE_COUNT":
+                    value = sum(1 for change in changes if change > 0)
+                    aggregation = "tushare_daily_positive_change_count"
+                else:
+                    value = sum(1 for change in changes if change < 0)
+                    aggregation = "tushare_daily_negative_change_count"
+            else:
+                limit_type = "U" if indicator_code == "CN_A_LIMIT_UP_COUNT" else "D"
+                frame = pro.limit_list_d(trade_date=trade_date, limit_type=limit_type)
+                if frame is None or frame.empty:
+                    return []
+                rows = frame.to_dict("records")
+                if not rows:
+                    return []
+                value = len(rows)
+                aggregation = f"tushare_limit_list_d_{limit_type.lower()}_row_count"
+        except Exception as exc:
+            logger.warning(
+                "Tushare A-share behavior fetch failed closed",
+                extra={"exception_type": type(exc).__name__, "indicator_code": indicator_code},
+            )
+            return []
+
+        return [
+            MacroFact(
+                indicator_code=indicator_code,
+                reporting_period=observed_at,
+                value=float(value),
+                unit="家",
+                source=self.provider_source(),
+                published_at=observed_at,
+                quality=DataQualityStatus.VALID,
+                extra=self._provider_extra(
+                    {
+                        "aggregation": aggregation,
+                        "market_scope": "a_share_provider_universe",
+                        "original_unit": "家",
+                    }
+                ),
+            )
+        ]
 
     def _fetch_market_turnover(
         self,

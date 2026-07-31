@@ -36,6 +36,28 @@ MARKET_COMPONENT_SPECS: dict[str, dict[str, Any]] = {
         "frequency": "D",
     },
 }
+MARKET_BEHAVIOR_COLLECTION_SPECS: dict[str, dict[str, Any]] = {
+    "advance_count": {
+        "label": "上涨家数",
+        "indicator_code": "CN_A_ADVANCE_COUNT",
+        "frequency": "D",
+    },
+    "decline_count": {
+        "label": "下跌家数",
+        "indicator_code": "CN_A_DECLINE_COUNT",
+        "frequency": "D",
+    },
+    "limit_up_count": {
+        "label": "涨停家数",
+        "indicator_code": "CN_A_LIMIT_UP_COUNT",
+        "frequency": "D",
+    },
+    "limit_down_count": {
+        "label": "跌停家数",
+        "indicator_code": "CN_A_LIMIT_DOWN_COUNT",
+        "frequency": "D",
+    },
+}
 MARKET_NEWS_POSITIVE_RATIO_CODE = "CN_A_MARKET_NEWS_POSITIVE_RATIO"
 ETF_MAIN_FLOW_CODE = "CN_A_ETF_NET_FLOW_MAIN"
 ETF_SIZE_FLOW_CODE = "CN_A_ETF_SIZE_FLOW"

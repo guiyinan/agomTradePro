@@ -30,6 +30,9 @@ def test_init_all_includes_scheduler_defaults_step():
 
     assert any(step["command"] == "init_scheduler_defaults" for step in command.init_steps)
     assert any(step["command"] == "init_authoritative_rss_sources" for step in command.init_steps)
+    assert any(
+        step["command"] == "init_policy_sentiment_gate_defaults" for step in command.init_steps
+    )
 
 
 def test_init_scheduler_defaults_runs_expected_commands(monkeypatch):
@@ -69,6 +72,7 @@ def test_init_scheduler_defaults_runs_expected_commands(monkeypatch):
         "setup_account_risk_tasks",
         "setup_auto_advisor_weekly_report",
         "setup_personal_readiness_daily",
+        "setup_sentiment_refresh",
     ]
 
 
@@ -130,7 +134,7 @@ def test_setup_personal_readiness_daily_creates_periodic_task():
 
     task = PeriodicTask.objects.get(name="personal-readiness-daily-evidence")
     assert task.task == (
-        "apps.operational_readiness.application.tasks." "run_personal_readiness_daily_task"
+        "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task"
     )
     assert task.enabled is True
     assert task.crontab is not None
@@ -446,6 +450,7 @@ def test_bootstrap_cold_start_detects_scheduler_defaults_ready(monkeypatch):
                 "account-check-stop-loss-take-profit-intraday",
                 "dashboard-auto-advisor-weekly-report",
                 "personal-readiness-daily-evidence",
+                "sentiment-refresh-current-index",
             ]
 
     class _PeriodicTaskModel:

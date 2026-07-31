@@ -11,7 +11,17 @@ from typing import Any, cast
 
 from rest_framework import serializers
 
+from shared.config.tushare import (
+    TUSHARE_REQUEST_MODE_SDK_PATH,
+    TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+    TUSHARE_REQUEST_MODE_VALUES,
+)
+
 _SENSITIVE_PROVIDER_KEYS = frozenset({"api_key", "api_secret", "token", "secret", "password"})
+_TUSHARE_REQUEST_MODE_LABELS: dict[str, str] = {
+    TUSHARE_REQUEST_MODE_SDK_PATH: "标准 Tushare",
+    TUSHARE_REQUEST_MODE_UNIFIED_RELAY: "统一中继",
+}
 
 
 def _sanitize_provider_config_value(value: Any) -> Any:
@@ -59,8 +69,15 @@ class ProviderConfigSerializer(serializers.Serializer[Any]):
         style={"input_type": "password"},
     )
     http_url = serializers.URLField(allow_blank=True, default="")
+    clear_service_address = serializers.BooleanField(required=False, default=False, write_only=True)
     api_endpoint = serializers.URLField(allow_blank=True, default="")
     extra_config = serializers.DictField(child=serializers.JSONField(), default=dict)
+    tushare_request_mode = serializers.ChoiceField(
+        choices=TUSHARE_REQUEST_MODE_VALUES,
+        required=False,
+        allow_blank=True,
+        write_only=True,
+    )
     description = serializers.CharField(allow_blank=True, default="")
 
 
@@ -78,6 +95,8 @@ class ProviderConfigListSerializer(serializers.Serializer[Any]):
     http_url = serializers.CharField()
     api_endpoint = serializers.CharField()
     extra_config = serializers.SerializerMethodField()
+    tushare_request_mode = serializers.SerializerMethodField()
+    tushare_request_mode_label = serializers.SerializerMethodField()
     description = serializers.CharField()
 
     def get_has_api_key(self, obj: dict[str, Any]) -> bool:
@@ -89,6 +108,27 @@ class ProviderConfigListSerializer(serializers.Serializer[Any]):
     def get_extra_config(self, obj: dict[str, Any]) -> dict[str, Any]:
         sanitized = _sanitize_provider_config_value(obj.get("extra_config") or {})
         return cast(dict[str, Any], sanitized)
+
+    def get_tushare_request_mode(self, obj: dict[str, Any]) -> str:
+        """Expose the effective Tushare transport without revealing credentials."""
+
+        if obj.get("source_type") != "tushare":
+            return ""
+        extra_config = obj.get("extra_config")
+        if not isinstance(extra_config, dict):
+            return TUSHARE_REQUEST_MODE_SDK_PATH
+        raw_mode = extra_config.get("tushare_request_mode")
+        if not isinstance(raw_mode, str) or not raw_mode.strip():
+            return TUSHARE_REQUEST_MODE_SDK_PATH
+        return raw_mode.strip()
+
+    def get_tushare_request_mode_label(self, obj: dict[str, Any]) -> str:
+        """Return a user-facing label for the effective Tushare transport."""
+
+        mode = self.get_tushare_request_mode(obj)
+        if not mode:
+            return ""
+        return _TUSHARE_REQUEST_MODE_LABELS.get(mode, "未识别的连接方式")
 
 
 class DataProviderSettingsSerializer(serializers.Serializer[dict[str, Any]]):

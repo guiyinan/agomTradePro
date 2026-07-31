@@ -255,6 +255,7 @@ def test_bootstrap_readiness_helpers_cover_configuration_boundaries(monkeypatch)
         "account-check-stop-loss-take-profit-intraday",
         "dashboard-auto-advisor-weekly-report",
         "personal-readiness-daily-evidence",
+        "sentiment-refresh-current-index",
     ]
     periodic = SimpleNamespace(_default_manager=_Query(values=expected_tasks))
     monkeypatch.setattr(
@@ -322,6 +323,7 @@ def test_cold_start_handle_runs_optional_work_and_is_idempotent(monkeypatch) -> 
     for name in model_names:
         monkeypatch.setattr(f"{module}.{name}", ready_model)
     monkeypatch.setattr(command, "_scheduler_defaults_ready", lambda: True)
+    monkeypatch.setattr(command, "_policy_sentiment_gate_defaults_ready", lambda: True)
     monkeypatch.setattr(command, "_authoritative_rss_sources_ready", lambda: True)
     monkeypatch.setattr(command, "_macro_indicator_governance_ready", lambda: True)
     monkeypatch.setattr(command, "_mcp_cold_start_ready", lambda: True)
@@ -352,7 +354,7 @@ def test_cold_start_handle_runs_optional_work_and_is_idempotent(monkeypatch) -> 
     ]
     assert invoked[-1][1]["asset_codes"] == "000001.SZ,600000.SH"
     assert invoked[-1][1]["strict"] is True
-    assert "applied=3, skipped=18" in command.stdout.getvalue()
+    assert "applied=3, skipped=19" in command.stdout.getvalue()
 
 
 def test_cold_start_handle_applies_missing_steps_and_skips_command_errors(monkeypatch) -> None:
@@ -386,6 +388,7 @@ def test_cold_start_handle_applies_missing_steps_and_skips_command_errors(monkey
     for name in model_names:
         monkeypatch.setattr(f"{module}.{name}", missing_model)
     monkeypatch.setattr(command, "_scheduler_defaults_ready", lambda: False)
+    monkeypatch.setattr(command, "_policy_sentiment_gate_defaults_ready", lambda: False)
     monkeypatch.setattr(command, "_authoritative_rss_sources_ready", lambda: False)
     monkeypatch.setattr(command, "_macro_indicator_governance_ready", lambda: False)
     monkeypatch.setattr(command, "_mcp_cold_start_ready", lambda: False)
@@ -413,7 +416,7 @@ def test_cold_start_handle_applies_missing_steps_and_skips_command_errors(monkey
     )
     assert "init_classification" in called
     assert "init_decision_model_params" in called
-    assert "applied=17, skipped=1" in command.stdout.getvalue()
+    assert "applied=18, skipped=1" in command.stdout.getvalue()
 
     def _required_failure(name: str, **kwargs: object) -> None:
         if name == "init_classification":

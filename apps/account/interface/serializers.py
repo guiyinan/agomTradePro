@@ -803,6 +803,12 @@ class MCPAccessPackageSerializer(serializers.Serializer[dict[str, Any]]):
     agent_prompt = serializers.CharField(read_only=True)
     base_url = serializers.CharField(read_only=True)
     same_machine_only = serializers.BooleanField(read_only=True)
+    transport_security = serializers.ChoiceField(
+        choices=("https", "local_http", "insecure_http"), read_only=True
+    )
+    certificate_validation = serializers.ChoiceField(
+        choices=("required", "not_applicable", "unavailable"), read_only=True
+    )
     environment_statement = serializers.CharField(read_only=True)
 
 
@@ -839,6 +845,7 @@ class MCPSelfServicePayloadSerializer(MCPAgentPromptSerializer):
             "token_plaintext_disabled",
             "token_decryption_failed",
             "token_plaintext_unavailable",
+            "https_required",
         ),
         read_only=True,
     )

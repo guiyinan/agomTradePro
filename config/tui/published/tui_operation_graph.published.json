@@ -1,7 +1,7 @@
 {
   "version": "tui-workbench.v2",
   "registry_key": "default",
-  "status": "generated",
+  "status": "published",
   "default_screen": "command-center.overview",
   "interaction_model": "user-task-workbench-to-approved-tools",
   "principles": [
@@ -992,21 +992,23 @@
       "module_key": "system-governance",
       "group": "system",
       "audience": "admin",
-      "summary": "管理数据中心、任务、运行状态和全局配置。",
+      "summary": "管理数据中心、服务商连接、任务、运行状态和全局配置。",
       "view_type": "status",
+      "dashboard_layout": "task_flow",
       "default_action_key": "auto.api.get.api.health",
       "user_experience": {
         "journey": "admin",
-        "primary_task": "确认系统和数据链路是否满足投研运行条件。",
-        "primary_outcome": "得到系统健康、数据状态和任务阻断。",
-        "empty_state_hint": "无状态时检查 readiness 与任务监控。",
-        "next_step_hint": "处理阻断后回到今日总览。"
+        "primary_task": "确认系统、服务商连接和数据链路是否满足投研运行条件。",
+        "primary_outcome": "得到系统健康、服务商连接方式、数据状态和任务阻断。",
+        "empty_state_hint": "无状态时先检查服务商连接，再检查 readiness 与任务监控。",
+        "next_step_hint": "连接异常时更新或测试服务商；处理其他阻断后回到今日总览。"
       },
       "business_context": {
-        "objective": "维护投研平台运行准备度。",
-        "decision_output": "系统健康与数据治理结论。",
+        "objective": "维护投研平台运行准备度和外部数据连接。",
+        "decision_output": "系统健康、服务商连接与数据治理结论。",
         "checkpoints": [
           "系统健康",
+          "服务商连接",
           "数据中心",
           "任务监控",
           "全局配置"
@@ -1031,6 +1033,51 @@
           "user_priority": "p0",
           "presentation_semantic": "primary_status",
           "empty_message": "暂无数据中心状态。",
+          "row_actions": []
+        },
+        {
+          "key": "data-center-providers",
+          "title": "服务商与连接方式",
+          "kind": "datagrid",
+          "action_key": "auto.api.get.api.data-center.providers",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_list",
+          "empty_message": "当前还没有服务商连接，可使用“新增 Tushare 连接”开始配置。",
+          "columns": [
+            {
+              "key": "id",
+              "label": "编号"
+            },
+            {
+              "key": "name",
+              "label": "名称"
+            },
+            {
+              "key": "source_type",
+              "label": "类型"
+            },
+            {
+              "key": "tushare_request_mode_label",
+              "label": "连接方式"
+            },
+            {
+              "key": "is_active",
+              "label": "启用"
+            },
+            {
+              "key": "http_url",
+              "label": "服务地址"
+            }
+          ],
+          "row_actions": []
+        },
+        {
+          "key": "data-center-provider-receipt",
+          "title": "连接操作回执",
+          "kind": "detail",
+          "user_priority": "p1",
+          "presentation_semantic": "primary_status",
+          "empty_message": "从服务商列表选择更新或测试操作。",
           "row_actions": []
         }
       ],
@@ -2172,7 +2219,7 @@
       "intent": "read_task_monitor_dashboard",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "view_model": {
         "kind": "detail"
@@ -2229,7 +2276,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 初始化",
       "sequence": 300,
@@ -2242,7 +2289,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 健康检查",
       "sequence": 100
@@ -2254,7 +2301,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 健康检查",
       "sequence": 100
@@ -3632,13 +3679,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -3779,13 +3826,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -4453,7 +4500,152 @@
       "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 策略绑定",
-      "sequence": 300
+      "sequence": 300,
+      "fields": [
+        {
+          "key": "id",
+          "label": "ID",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入ID",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "portfolio",
+          "label": "Portfolio",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Portfolio",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "strategy",
+          "label": "Strategy",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Strategy",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "assigned_at",
+          "label": "Assigned At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Assigned At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "assigned_by",
+          "label": "分配人",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入分配人",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "override_max_position_pct",
+          "label": "Override Max Position Pct",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Override Max Position Pct",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "override_stop_loss_pct",
+          "label": "Override Stop Loss Pct",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Override Stop Loss Pct",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "strategy_name",
+          "label": "Strategy Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Strategy Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "strategy_type",
+          "label": "Strategy Type",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Strategy Type",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "portfolio_name",
+          "label": "Portfolio Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Portfolio Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "created_at",
+          "label": "Created At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
+        }
+      ]
     },
     {
       "key": "auto.api.get.api.strategy.execution-logs",
@@ -5743,6 +5935,17 @@
           "value_type": "string",
           "placeholder": "输入Month Cost",
           "presentation_semantic": "identifier"
+        },
+        {
+          "key": "api_key_configured",
+          "label": "Api Key Configured",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Api Key Configured",
+          "presentation_semantic": "api_token"
         }
       ]
     },
@@ -8482,6 +8685,28 @@
           "value_type": "string",
           "placeholder": "输入Created At",
           "presentation_semantic": "identifier"
+        },
+        {
+          "key": "must_not_use_for_decision",
+          "label": "Must Not Use For Decision",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Must Not Use For Decision",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "blocked_reason",
+          "label": "Blocked Reason",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Blocked Reason",
+          "presentation_semantic": "identifier"
         }
       ]
     },
@@ -8682,6 +8907,28 @@
           "binding": "query",
           "value_type": "string",
           "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "must_not_use_for_decision",
+          "label": "Must Not Use For Decision",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Must Not Use For Decision",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "blocked_reason",
+          "label": "Blocked Reason",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Blocked Reason",
           "presentation_semantic": "identifier"
         }
       ]
@@ -10610,7 +10857,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 系统状态",
       "sequence": 200,
@@ -10623,7 +10870,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 系统状态",
       "sequence": 200,
@@ -10636,7 +10883,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 系统状态",
       "sequence": 200
@@ -10714,8 +10961,8 @@
       "intent": "chart_owned_asset_allocation",
       "screen_key": "command-center.overview",
       "view_type": "chart",
-      "description": "以占比饼图查看本人当前资产配置。",
-      "source": "approved:runtime-dashboard-overview",
+      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "source": "approved:smoke-promoted",
       "view_model": {
         "kind": "chart",
         "chart_type": "pie",
@@ -10731,8 +10978,8 @@
           }
         ]
       },
-      "task_group": "01 指挥概览",
-      "sequence": 50,
+      "task_group": "03 今日信号",
+      "sequence": 300,
       "task_tier": "support"
     },
     {
@@ -10742,8 +10989,8 @@
       "intent": "chart_owned_portfolio_performance",
       "screen_key": "command-center.overview",
       "view_type": "chart",
-      "description": "按日期查看本人组合收益率变化。",
-      "source": "approved:runtime-dashboard-overview",
+      "description": "查看今日待办、环境、账户、信号和运行阻断。（查看）",
+      "source": "approved:smoke-promoted",
       "view_model": {
         "kind": "chart",
         "chart_type": "line",
@@ -10759,8 +11006,8 @@
           }
         ]
       },
-      "task_group": "01 指挥概览",
-      "sequence": 60,
+      "task_group": "03 今日信号",
+      "sequence": 300,
       "task_tier": "support"
     },
     {
@@ -11091,7 +11338,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "datagrid",
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100
@@ -11103,7 +11350,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "datagrid",
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 新闻数据",
       "sequence": 300,
@@ -12106,11 +12353,11 @@
       "fields": [
         {
           "key": "pk",
-          "label": "授权 ID",
+          "label": "记录 ID",
           "input_type": "text",
           "required": true,
           "default": "",
-          "placeholder": "输入授权 ID（UUID）",
+          "placeholder": "输入记录 ID（UUID）",
           "binding": "path",
           "value_type": "string",
           "presentation_semantic": "primary_selector"
@@ -12132,11 +12379,11 @@
       "fields": [
         {
           "key": "pk",
-          "label": "授权 ID",
+          "label": "记录 ID",
           "input_type": "text",
           "required": true,
           "default": "",
-          "placeholder": "输入授权 ID（UUID）",
+          "placeholder": "输入记录 ID（UUID）",
           "binding": "path",
           "value_type": "string",
           "presentation_semantic": "primary_selector"
@@ -13353,13 +13600,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -13511,13 +13758,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -13669,13 +13916,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -13827,13 +14074,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -13985,13 +14232,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -14143,13 +14390,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -14875,6 +15122,149 @@
           "binding": "path",
           "value_type": "integer",
           "presentation_semantic": "primary_selector"
+        },
+        {
+          "key": "id",
+          "label": "ID",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入ID",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "portfolio",
+          "label": "Portfolio",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Portfolio",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "strategy",
+          "label": "Strategy",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Strategy",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "assigned_at",
+          "label": "Assigned At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Assigned At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "assigned_by",
+          "label": "分配人",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入分配人",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "override_max_position_pct",
+          "label": "Override Max Position Pct",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Override Max Position Pct",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "override_stop_loss_pct",
+          "label": "Override Stop Loss Pct",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Override Stop Loss Pct",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "strategy_name",
+          "label": "Strategy Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Strategy Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "strategy_type",
+          "label": "Strategy Type",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Strategy Type",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "portfolio_name",
+          "label": "Portfolio Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Portfolio Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "created_at",
+          "label": "Created At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
@@ -14962,828 +15352,9 @@
       "task_tier": "advanced"
     },
     {
-      "key": "param.api.get.api.policy.rss.sources.pk",
-      "label": "政策 / RSS / Source / 详情",
-      "endpoint": "/api/policy/rss/sources/<pk>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "policy.workbench",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "pk",
-          "label": "记录 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入记录 ID",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "name",
-          "label": "Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "url",
-          "label": "Url",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Url",
-          "presentation_semantic": "endpoint_url"
-        },
-        {
-          "key": "category",
-          "label": "Category",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Category",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "category_display",
-          "label": "Category Display",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Category Display",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_active",
-          "label": "Is Active",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Active",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "fetch_interval_hours",
-          "label": "Fetch Interval Hours",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Fetch Interval Hours",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "extract_content",
-          "label": "Extract Content",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Extract Content",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "proxy_enabled",
-          "label": "Proxy Enabled",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Proxy Enabled",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "proxy_host",
-          "label": "Proxy Host",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Proxy Host",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "proxy_port",
-          "label": "Proxy Port",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Proxy Port",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "proxy_username",
-          "label": "Proxy Username",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Proxy Username",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "proxy_password",
-          "label": "Proxy Password",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Proxy Password",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "proxy_type",
-          "label": "Proxy Type",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Proxy Type",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "proxy_type_display",
-          "label": "Proxy Type Display",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Proxy Type Display",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "parser_type",
-          "label": "Parser Type",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Parser Type",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "parser_type_display",
-          "label": "Parser Type Display",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Parser Type Display",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "timeout_seconds",
-          "label": "Timeout Seconds",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Timeout Seconds",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "retry_times",
-          "label": "Retry Times",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Retry Times",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "rsshub_enabled",
-          "label": "Rsshub Enabled",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Rsshub Enabled",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "rsshub_route_path",
-          "label": "Rsshub Route Path",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Rsshub Route Path",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "rsshub_use_global_config",
-          "label": "Rsshub Use Global Config",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Rsshub Use Global Config",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "rsshub_custom_base_url",
-          "label": "Rsshub Custom Base Url",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Rsshub Custom Base Url",
-          "presentation_semantic": "endpoint_url"
-        },
-        {
-          "key": "rsshub_custom_access_key",
-          "label": "Rsshub Custom Access Key",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Rsshub Custom Access Key",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "rsshub_format",
-          "label": "Rsshub Format",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Rsshub Format",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "last_fetch_at",
-          "label": "Last Fetch At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Last Fetch At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "last_fetch_status",
-          "label": "Last Fetch Status",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Last Fetch Status",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "last_error_message",
-          "label": "Last Error Message",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Last Error Message",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "05 条件查询",
-      "sequence": 500,
-      "task_tier": "advanced"
-    },
-    {
-      "key": "param.api.get.api.policy.rss.logs.pk",
-      "label": "政策 / RSS / 日志 / 详情",
-      "endpoint": "/api/policy/rss/logs/<pk>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "policy.workbench",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "pk",
-          "label": "记录 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入记录 ID",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "source",
-          "label": "Source",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Source",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "source_name",
-          "label": "Source Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Source Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "fetched_at",
-          "label": "Fetched At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Fetched At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "status",
-          "label": "Status",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Status",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "status_display",
-          "label": "Status Display",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Status Display",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "items_count",
-          "label": "Items Count",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Items Count",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "new_items_count",
-          "label": "New Items Count",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入New Items Count",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "error_message",
-          "label": "Error Message",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Error Message",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "fetch_duration_seconds",
-          "label": "Fetch Duration Seconds",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Fetch Duration Seconds",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "05 条件查询",
-      "sequence": 500,
-      "task_tier": "advanced"
-    },
-    {
-      "key": "param.api.get.api.policy.rss.keywords.pk",
-      "label": "政策 / RSS / Keyword / 详情",
-      "endpoint": "/api/policy/rss/keywords/<pk>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "policy.workbench",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "pk",
-          "label": "记录 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入记录 ID",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "level",
-          "label": "Level",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Level",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "level_display",
-          "label": "Level Display",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Level Display",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "keywords",
-          "label": "Keywords",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Keywords",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "weight",
-          "label": "Weight",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Weight",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "category",
-          "label": "Category",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Category",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "is_active",
-          "label": "Is Active",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Is Active",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "确认政策档位、待审事件和市场热点。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "05 条件查询",
-      "sequence": 500,
-      "task_tier": "advanced"
-    },
-    {
       "key": "param.api.get.api.signal.pk",
       "label": "信号 / 详情",
       "endpoint": "/api/signal/<pk>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "research.signals",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "pk",
-          "label": "记录 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入记录 ID",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "asset_code",
-          "label": "资产代码",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入资产代码",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "asset_class",
-          "label": "资产类别",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入资产类别",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "direction",
-          "label": "Direction",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Direction",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "status",
-          "label": "Status",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Status",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "logic_desc",
-          "label": "Logic Desc",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Logic Desc",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "invalidation_description",
-          "label": "Invalidation Description",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Invalidation Description",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "invalidation_rule",
-          "label": "Invalidation Rule",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Invalidation Rule",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "human_readable_invalidation",
-          "label": "Human Readable Invalidation",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Human Readable Invalidation",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "target_regime",
-          "label": "Target Regime",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Target Regime",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "rejection_reason",
-          "label": "Rejection Reason",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Rejection Reason",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "updated_at",
-          "label": "Updated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "invalidated_at",
-          "label": "Invalidated At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Invalidated At",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "backtest_performance_score",
-          "label": "Backtest Performance Score",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Backtest Performance Score",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "avg_backtest_return",
-          "label": "Avg Backtest Return",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Avg Backtest Return",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "确认有效信号、Alpha 候选、触发器和情绪过滤。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "05 条件查询",
-      "sequence": 500,
-      "task_tier": "advanced"
-    },
-    {
-      "key": "param.api.get.api.signal.pk.validate",
-      "label": "信号校验详情",
-      "endpoint": "/api/signal/<pk>/validate/",
       "intent": "parameterized_safe_read",
       "screen_key": "research.signals",
       "view_type": "datagrid",
@@ -16587,6 +16158,17 @@
           "value_type": "string",
           "placeholder": "输入Month Cost",
           "presentation_semantic": "identifier"
+        },
+        {
+          "key": "api_key_configured",
+          "label": "Api Key Configured",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Api Key Configured",
+          "presentation_semantic": "api_token"
         }
       ],
       "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
@@ -16905,266 +16487,6 @@
           "binding": "query",
           "value_type": "string",
           "placeholder": "输入Updated At",
-          "presentation_semantic": "identifier"
-        }
-      ],
-      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "06 条件查询",
-      "sequence": 600,
-      "task_tier": "advanced",
-      "result_semantics": [
-        "multiline_prompt"
-      ]
-    },
-    {
-      "key": "param.api.get.api.prompt.logs.pk",
-      "label": "提示词 / 日志 / 详情",
-      "endpoint": "/api/prompt/logs/<pk>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "ai-ops.providers",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "pk",
-          "label": "记录 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入记录 ID",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "id",
-          "label": "ID",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入ID",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "execution_id",
-          "label": "Execution Id",
-          "required": false,
-          "default": "",
-          "input_type": "number",
-          "binding": "query",
-          "value_type": "integer",
-          "placeholder": "输入Execution Id",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "template_id",
-          "label": "Template Id",
-          "required": false,
-          "default": "",
-          "input_type": "number",
-          "binding": "query",
-          "value_type": "integer",
-          "placeholder": "输入Template Id",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "chain_id",
-          "label": "Chain Id",
-          "required": false,
-          "default": "",
-          "input_type": "number",
-          "binding": "query",
-          "value_type": "integer",
-          "placeholder": "输入Chain Id",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "template_name",
-          "label": "Template Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Template Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "chain_name",
-          "label": "Chain Name",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Chain Name",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "step_id",
-          "label": "Step Id",
-          "required": false,
-          "default": "",
-          "input_type": "number",
-          "binding": "query",
-          "value_type": "integer",
-          "placeholder": "输入Step Id",
-          "presentation_semantic": "primary_selector"
-        },
-        {
-          "key": "placeholder_values",
-          "label": "Placeholder Values",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Placeholder Values",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "rendered_prompt",
-          "label": "渲染后提示词",
-          "required": false,
-          "default": "",
-          "input_type": "textarea",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入渲染后提示词",
-          "presentation_semantic": "prompt_text"
-        },
-        {
-          "key": "ai_response",
-          "label": "Ai Response",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Ai Response",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "parsed_output",
-          "label": "Parsed Output",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Parsed Output",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "status",
-          "label": "Status",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Status",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "provider_used",
-          "label": "Provider Used",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Provider Used",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "model_used",
-          "label": "Model Used",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Model Used",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "prompt_tokens",
-          "label": "提示词令牌数",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入提示词令牌数",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "completion_tokens",
-          "label": "补全令牌数",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入补全令牌数",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "total_tokens",
-          "label": "总令牌数",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入总令牌数",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "estimated_cost",
-          "label": "Estimated Cost",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Estimated Cost",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "response_time_ms",
-          "label": "Response Time Ms",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Response Time Ms",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "error_message",
-          "label": "Error Message",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Error Message",
-          "presentation_semantic": "identifier"
-        },
-        {
-          "key": "created_at",
-          "label": "Created At",
-          "required": false,
-          "default": "",
-          "input_type": "text",
-          "binding": "query",
-          "value_type": "string",
-          "placeholder": "输入Created At",
           "presentation_semantic": "identifier"
         }
       ],
@@ -18406,6 +17728,28 @@
           "binding": "query",
           "value_type": "string",
           "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "must_not_use_for_decision",
+          "label": "Must Not Use For Decision",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Must Not Use For Decision",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "blocked_reason",
+          "label": "Blocked Reason",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Blocked Reason",
           "presentation_semantic": "identifier"
         }
       ],
@@ -19730,35 +19074,6 @@
       "task_group": "05 条件查询",
       "sequence": 500,
       "task_tier": "advanced"
-    },
-    {
-      "key": "param.api.get.api.system.status.str.task_id",
-      "label": "系统 / 状态 / 详情",
-      "endpoint": "/api/system/status/<str:task_id>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "api-library.data-center",
-      "view_type": "status",
-      "fields": [
-        {
-          "key": "task_id",
-          "label": "任务 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入任务 ID",
-          "binding": "path",
-          "value_type": "integer",
-          "presentation_semantic": "primary_selector"
-        }
-      ],
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "09 条件查询",
-      "sequence": 900,
-      "task_tier": "advanced",
-      "result_semantics": [
-        "primary_status"
-      ]
     },
     {
       "key": "param.api.get.api.dashboard.position.str.asset_code",
@@ -22660,6 +21975,149 @@
           "default": "",
           "placeholder": "输入组合 ID",
           "presentation_semantic": "primary_selector"
+        },
+        {
+          "key": "id",
+          "label": "ID",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入ID",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "portfolio",
+          "label": "Portfolio",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Portfolio",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "strategy",
+          "label": "Strategy",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Strategy",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "assigned_at",
+          "label": "Assigned At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Assigned At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "assigned_by",
+          "label": "分配人",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入分配人",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "override_max_position_pct",
+          "label": "Override Max Position Pct",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Override Max Position Pct",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "override_stop_loss_pct",
+          "label": "Override Stop Loss Pct",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Override Stop Loss Pct",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "strategy_name",
+          "label": "Strategy Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Strategy Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "strategy_type",
+          "label": "Strategy Type",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Strategy Type",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "portfolio_name",
+          "label": "Portfolio Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Portfolio Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "created_at",
+          "label": "Created At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
@@ -22902,7 +22360,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 系统状态",
       "sequence": 200,
@@ -22928,7 +22386,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -22954,7 +22412,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -22991,7 +22449,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -23039,7 +22497,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -23087,7 +22545,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -23135,7 +22593,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -23172,7 +22630,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -23220,7 +22678,7 @@
           "presentation_semantic": "identifier"
         }
       ],
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 数据中心",
       "sequence": 100,
@@ -23337,7 +22795,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "api-library.data-center",
       "view_type": "status",
-      "description": "管理数据中心、任务、运行状态和全局配置。（查看）",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 健康检查",
       "sequence": 100,
@@ -23777,13 +23235,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -23935,13 +23393,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -24093,13 +23551,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -24251,13 +23709,13 @@
         },
         {
           "key": "created_by",
-          "label": "Created By",
+          "label": "创建人",
           "required": false,
           "default": "",
           "input_type": "text",
           "binding": "query",
           "value_type": "string",
-          "placeholder": "输入Created By",
+          "placeholder": "输入创建人",
           "presentation_semantic": "identifier"
         },
         {
@@ -24534,6 +23992,1424 @@
       "task_group": "01 指挥概览",
       "sequence": 40,
       "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.regime.distribution",
+      "label": "环境 Distribution",
+      "endpoint": "/api/regime/distribution/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "macro-regime.overview",
+      "view_type": "status",
+      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 环境状态",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.regime.history",
+      "label": "环境 History",
+      "endpoint": "/api/regime/history/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "macro-regime.overview",
+      "view_type": "status",
+      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 环境状态",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.regime.action",
+      "label": "环境 Action",
+      "endpoint": "/api/regime/action/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "macro-regime.overview",
+      "view_type": "status",
+      "description": "判断 Regime、脉搏、政策上下文和市场温度。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 环境状态",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.policy.rss.reader",
+      "label": "政策 RSS Reader",
+      "endpoint": "/api/policy/rss/reader/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "policy.workbench",
+      "view_type": "datagrid",
+      "description": "确认政策档位、待审事件和市场热点。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "04 RSS 采集",
+      "sequence": 400,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.audit.forecast-scoreboard",
+      "label": "审计 Forecast Scoreboard",
+      "endpoint": "/api/audit/forecast-scoreboard/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "execution.audit",
+      "view_type": "status",
+      "description": "查看事件、实时提醒、审计、分享和复盘证据。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 审计记录",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.equity.pool",
+      "label": "Equity Pool",
+      "endpoint": "/api/equity/pool/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "research.asset-lab",
+      "view_type": "datagrid",
+      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "02 资产池",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.equity.valuation-repair-list",
+      "label": "Equity Valuation Repair 列表",
+      "endpoint": "/api/equity/valuation-repair-list/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "research.asset-lab",
+      "view_type": "datagrid",
+      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "02 资产池",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.equity.valuation-data.freshness",
+      "label": "Equity Valuation Data Freshne",
+      "endpoint": "/api/equity/valuation-data/freshness/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "research.asset-lab",
+      "view_type": "datagrid",
+      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "02 资产池",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.equity.valuation-data.quality-latest",
+      "label": "Equity Valuation Data Quality Latest",
+      "endpoint": "/api/equity/valuation-data/quality-latest/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "research.asset-lab",
+      "view_type": "datagrid",
+      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "02 资产池",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.sector.rotation",
+      "label": "板块 轮动",
+      "endpoint": "/api/sector/rotation/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "research.asset-lab",
+      "view_type": "datagrid",
+      "description": "研究资产、因子、回测、基金和板块。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "03 基金板块",
+      "sequence": 300,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.ai.me.quota.current",
+      "label": "我的 Quota 当前",
+      "endpoint": "/api/ai/me/quota/current/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.providers",
+      "view_type": "datagrid",
+      "fields": [
+        {
+          "key": "user_id",
+          "label": "User Id",
+          "required": false,
+          "default": "",
+          "input_type": "number",
+          "binding": "query",
+          "value_type": "integer",
+          "placeholder": "输入User Id",
+          "presentation_semantic": "primary_selector"
+        },
+        {
+          "key": "username",
+          "label": "Username",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Username",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "daily_limit",
+          "label": "Daily Limit",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Daily Limit",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "monthly_limit",
+          "label": "Monthly Limit",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Monthly Limit",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "admin_note",
+          "label": "Admin Note",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Admin Note",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "daily_spent",
+          "label": "Daily Spent",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Daily Spent",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "monthly_spent",
+          "label": "Monthly Spent",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Monthly Spent",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "daily_remaining",
+          "label": "Daily Remaining",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Daily Remaining",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "monthly_remaining",
+          "label": "Monthly Remaining",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Monthly Remaining",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 服务商",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.prompts",
+      "label": "提示词s",
+      "endpoint": "/api/prompts/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.providers",
+      "view_type": "datagrid",
+      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "source": "approved:smoke-promoted",
+      "result_semantics": [
+        "multiline_prompt"
+      ],
+      "task_group": "02 模板",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.prompts.templates",
+      "label": "提示词s 模板",
+      "endpoint": "/api/prompts/templates/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.providers",
+      "view_type": "datagrid",
+      "fields": [
+        {
+          "key": "id",
+          "label": "ID",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入ID",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Category",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "version",
+          "label": "Version",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Version",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "template_content",
+          "label": "Template Content",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Template Content",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "system_prompt",
+          "label": "系统提示词",
+          "required": false,
+          "default": "",
+          "input_type": "textarea",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入系统提示词",
+          "presentation_semantic": "prompt_text"
+        },
+        {
+          "key": "placeholders",
+          "label": "Placeholders",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Placeholders",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "temperature",
+          "label": "Temperature",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Temperature",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "max_tokens",
+          "label": "Max Tokens",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Max Tokens",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Description",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "created_at",
+          "label": "Created At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "last_used_at",
+          "label": "Last Used At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Last Used At",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "source": "approved:smoke-promoted",
+      "result_semantics": [
+        "multiline_prompt"
+      ],
+      "task_group": "02 模板",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.prompts.templates.categories",
+      "label": "提示词s 模板 Categorie",
+      "endpoint": "/api/prompts/templates/categories/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.providers",
+      "view_type": "datagrid",
+      "fields": [
+        {
+          "key": "id",
+          "label": "ID",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入ID",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Category",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "version",
+          "label": "Version",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Version",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "template_content",
+          "label": "Template Content",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Template Content",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "system_prompt",
+          "label": "系统提示词",
+          "required": false,
+          "default": "",
+          "input_type": "textarea",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入系统提示词",
+          "presentation_semantic": "prompt_text"
+        },
+        {
+          "key": "placeholders",
+          "label": "Placeholders",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Placeholders",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "temperature",
+          "label": "Temperature",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Temperature",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "max_tokens",
+          "label": "Max Tokens",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Max Tokens",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Description",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "created_at",
+          "label": "Created At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "last_used_at",
+          "label": "Last Used At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Last Used At",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "source": "approved:smoke-promoted",
+      "result_semantics": [
+        "multiline_prompt"
+      ],
+      "task_group": "02 模板",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.prompts.chains",
+      "label": "提示词s Chain",
+      "endpoint": "/api/prompts/chains/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.providers",
+      "view_type": "datagrid",
+      "fields": [
+        {
+          "key": "id",
+          "label": "ID",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入ID",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Category",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Description",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "steps",
+          "label": "Steps",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Steps",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "execution_mode",
+          "label": "Execution Mode",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Execution Mode",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "aggregate_step",
+          "label": "Aggregate Step",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Aggregate Step",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "created_at",
+          "label": "Created At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "source": "approved:smoke-promoted",
+      "result_semantics": [
+        "multiline_prompt"
+      ],
+      "task_group": "02 模板",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.prompts.chains.execution_modes",
+      "label": "提示词s Chain 执行 Mode",
+      "endpoint": "/api/prompts/chains/execution_modes/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.providers",
+      "view_type": "datagrid",
+      "fields": [
+        {
+          "key": "id",
+          "label": "ID",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入ID",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Category",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Description",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "steps",
+          "label": "Steps",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Steps",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "execution_mode",
+          "label": "Execution Mode",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Execution Mode",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "aggregate_step",
+          "label": "Aggregate Step",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Aggregate Step",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "created_at",
+          "label": "Created At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "source": "approved:smoke-promoted",
+      "result_semantics": [
+        "multiline_prompt"
+      ],
+      "task_group": "02 模板",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.prompts.chat.providers",
+      "label": "提示词s Chat 服务商",
+      "endpoint": "/api/prompts/chat/providers",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.providers",
+      "view_type": "datagrid",
+      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "source": "approved:smoke-promoted",
+      "result_semantics": [
+        "multiline_prompt"
+      ],
+      "task_group": "02 模板",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.prompts.chat.models",
+      "label": "提示词s Chat Model",
+      "endpoint": "/api/prompts/chat/models",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.providers",
+      "view_type": "datagrid",
+      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "source": "approved:smoke-promoted",
+      "result_semantics": [
+        "multiline_prompt"
+      ],
+      "task_group": "02 模板",
+      "sequence": 200,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.agent-runtime.operator.tasks",
+      "label": "Agent Runtime Operator Task",
+      "endpoint": "/api/agent-runtime/operator/tasks/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.terminal",
+      "view_type": "detail",
+      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 运行状态",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.agent-runtime.operator.proposals",
+      "label": "Agent Runtime Operator Proposal",
+      "endpoint": "/api/agent-runtime/operator/proposals/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.terminal",
+      "view_type": "detail",
+      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 运行状态",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.agent-runtime.context.decision",
+      "label": "Agent Runtime Context 决策",
+      "endpoint": "/api/agent-runtime/context/decision/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.terminal",
+      "view_type": "detail",
+      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 运行状态",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.agent-runtime.context.execution",
+      "label": "Agent Runtime Context 执行",
+      "endpoint": "/api/agent-runtime/context/execution/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.terminal",
+      "view_type": "detail",
+      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 运行状态",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.agent-runtime.context.monitoring",
+      "label": "Agent Runtime Context Monitoring",
+      "endpoint": "/api/agent-runtime/context/monitoring/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.terminal",
+      "view_type": "detail",
+      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 运行状态",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.agent-runtime.context.ops",
+      "label": "Agent Runtime Context Op",
+      "endpoint": "/api/agent-runtime/context/ops/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.terminal",
+      "view_type": "detail",
+      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 运行状态",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.agent-runtime.context.research",
+      "label": "Agent Runtime Context Research",
+      "endpoint": "/api/agent-runtime/context/research/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "ai-ops.terminal",
+      "view_type": "detail",
+      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 运行状态",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "auto.api.get.api.data-center.pit-manifests",
+      "label": "数据中心 Pit Manifest",
+      "endpoint": "/api/data-center/pit-manifests/",
+      "intent": "auto_safe_read_candidate",
+      "screen_key": "api-library.data-center",
+      "view_type": "status",
+      "description": "管理数据中心、服务商连接、任务、运行状态和全局配置。（查看）",
+      "source": "approved:smoke-promoted",
+      "task_group": "01 数据中心",
+      "sequence": 100,
+      "task_tier": "support"
+    },
+    {
+      "key": "param.api.get.api.decision-rhythm.input-snapshots.str.snapshot_id",
+      "label": "决策节奏 / Input Snapshot / 详情",
+      "endpoint": "/api/decision-rhythm/input-snapshots/<str:snapshot_id>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "macro-regime.strategy",
+      "view_type": "status",
+      "fields": [
+        {
+          "key": "snapshot_id",
+          "label": "快照 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入快照 ID",
+          "binding": "path",
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
+        }
+      ],
+      "description": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。（查看）",
+      "source": "approved:parameterized-promoted",
+      "task_group": "09 条件查询",
+      "sequence": 900,
+      "task_tier": "advanced"
+    },
+    {
+      "key": "param.api.get.api.simulated-trading.accounts.int.account_id.inspection-notification",
+      "label": "模拟交易 / 账户 / Inspection Notification",
+      "endpoint": "/api/simulated-trading/accounts/<int:account_id>/inspection-notification/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "execution.accounts",
+      "view_type": "datagrid",
+      "fields": [
+        {
+          "key": "account_id",
+          "label": "账户 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入账户 ID",
+          "binding": "path",
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
+        }
+      ],
+      "description": "检查账户健康、持仓、组合、流水和绩效。（查看）",
+      "source": "approved:parameterized-promoted",
+      "task_group": "07 条件查询",
+      "sequence": 700,
+      "task_tier": "advanced"
+    },
+    {
+      "key": "param.api.get.api.prompts.templates.pk",
+      "label": "提示词s / 模板 / 详情",
+      "endpoint": "/api/prompts/templates/<pk>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "ai-ops.providers",
+      "view_type": "datagrid",
+      "fields": [
+        {
+          "key": "pk",
+          "label": "记录 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入记录 ID",
+          "binding": "path",
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
+        },
+        {
+          "key": "id",
+          "label": "ID",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入ID",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Category",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "version",
+          "label": "Version",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Version",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "template_content",
+          "label": "Template Content",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Template Content",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "system_prompt",
+          "label": "系统提示词",
+          "required": false,
+          "default": "",
+          "input_type": "textarea",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入系统提示词",
+          "presentation_semantic": "prompt_text"
+        },
+        {
+          "key": "placeholders",
+          "label": "Placeholders",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Placeholders",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "temperature",
+          "label": "Temperature",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Temperature",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "max_tokens",
+          "label": "Max Tokens",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Max Tokens",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Description",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "created_at",
+          "label": "Created At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "last_used_at",
+          "label": "Last Used At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Last Used At",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "source": "approved:parameterized-promoted",
+      "task_group": "06 条件查询",
+      "sequence": 600,
+      "result_semantics": [
+        "multiline_prompt"
+      ],
+      "task_tier": "advanced"
+    },
+    {
+      "key": "param.api.get.api.prompts.chains.pk",
+      "label": "提示词s / 链路 / 详情",
+      "endpoint": "/api/prompts/chains/<pk>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "ai-ops.providers",
+      "view_type": "datagrid",
+      "fields": [
+        {
+          "key": "pk",
+          "label": "记录 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入记录 ID",
+          "binding": "path",
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
+        },
+        {
+          "key": "id",
+          "label": "ID",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入ID",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Name",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Category",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Description",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "steps",
+          "label": "Steps",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Steps",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "execution_mode",
+          "label": "Execution Mode",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Execution Mode",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "aggregate_step",
+          "label": "Aggregate Step",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Aggregate Step",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "is_active",
+          "label": "Is Active",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Is Active",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "created_at",
+          "label": "Created At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Created At",
+          "presentation_semantic": "identifier"
+        },
+        {
+          "key": "updated_at",
+          "label": "Updated At",
+          "required": false,
+          "default": "",
+          "input_type": "text",
+          "binding": "query",
+          "value_type": "string",
+          "placeholder": "输入Updated At",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "管理个人 AI 服务商并查看能力、模型、提示词和日志。（查看）",
+      "source": "approved:parameterized-promoted",
+      "task_group": "06 条件查询",
+      "sequence": 600,
+      "result_semantics": [
+        "multiline_prompt"
+      ],
+      "task_tier": "advanced"
+    },
+    {
+      "key": "param.api.get.api.agent-runtime.operator.proposals.int.proposal_id",
+      "label": "Agent Runtime / Operator / Proposal / 详情",
+      "endpoint": "/api/agent-runtime/operator/proposals/<int:proposal_id>/",
+      "intent": "parameterized_safe_read",
+      "screen_key": "ai-ops.terminal",
+      "view_type": "detail",
+      "fields": [
+        {
+          "key": "proposal_id",
+          "label": "Proposal Id",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入Proposal Id",
+          "binding": "path",
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
+        }
+      ],
+      "description": "与 AI 助手交互并处理智能任务。（查看）",
+      "source": "approved:parameterized-promoted",
+      "task_group": "09 条件查询",
+      "sequence": 900,
+      "task_tier": "advanced"
     }
   ],
   "promotion_review": {
@@ -24554,35 +25430,27 @@
     ]
   },
   "coverage_summary": {
-    "safe_read_evidence": 520,
-    "direct_safe_read_candidates": 259,
-    "parameterized_safe_read_candidates": 150,
-    "added_safe_api_actions": 33,
-    "added_parameterized_api_actions": 150,
-    "published_actions": 422,
+    "safe_read_evidence": 511,
+    "direct_safe_read_candidates": 283,
+    "parameterized_safe_read_candidates": 157,
+    "added_safe_api_actions": 22,
+    "added_parameterized_api_actions": 157,
+    "published_actions": 462,
     "deferred": {
-      "path_parameters": 41,
-      "write_like_or_heavy": 30,
-      "internal_debug_or_docs": 14
+      "path_parameters": 13,
+      "write_like_or_heavy": 11,
+      "internal_debug_or_docs": 27
     },
-    "business_promoted_actions": 407,
+    "business_promoted_actions": 432,
     "approved_operation_actions": 23,
     "operator_first_default_actions": 1,
     "user_facing_design_annotations": 0,
     "pruned_redundant_screen_actions": 8,
-    "pruned_runtime_only_dashboard_panels": 21,
+    "pruned_runtime_only_dashboard_panels": 25,
     "pruned_empty_screens": 0
   },
   "publication_note": "Publish-ready TUI metadata generated from reviewed baseline plus direct safe-read tool candidates.",
   "schema_version": "tui-metadata.v3",
-  "source_evidence_ref": "config/tui/generated/tui_operation_evidence.generated.json",
-  "source_evidence_counts": {
-    "api_safe_read": 520,
-    "sdk_methods": 463,
-    "mcp_tools": 378,
-    "classic_templates": 130
-  },
-  "generation_note": "Candidate metadata generated at compile time. Review graph and separate evidence before publishing.",
   "ia_version": "2026-07-31",
   "legacy_screen_aliases": {
     "command-center.dashboard": "command-center.overview",

@@ -69,7 +69,7 @@ def test_guard_rejects_missing_test_function(tmp_path: Path) -> None:
 
     source = tmp_path / "tasks.py"
     source.write_text(
-        "from celery import shared_task\n" "@shared_task\ndef governed_task():\n    return None\n",
+        "from celery import shared_task\n@shared_task\ndef governed_task():\n    return None\n",
         encoding="utf-8",
     )
     test_file = tmp_path / "test_tasks.py"
@@ -104,13 +104,8 @@ def test_guard_rejects_missing_test_function(tmp_path: Path) -> None:
 def test_shared_task_diff_detects_a_new_task() -> None:
     """The differential guard can distinguish a newly introduced shared task."""
 
-    before = (
-        "from celery import shared_task\n"
-        "@shared_task\n"
-        "def existing_task():\n"
-        "    return None\n"
-    )
-    after = f"{before}" "@shared_task\n" "def newly_added_task():\n" "    return None\n"
+    before = "from celery import shared_task\n@shared_task\ndef existing_task():\n    return None\n"
+    after = f"{before}@shared_task\ndef newly_added_task():\n    return None\n"
 
     previous_tasks = collect_shared_task_functions_from_source(
         before,
@@ -122,6 +117,22 @@ def test_shared_task_diff_detects_a_new_task() -> None:
     )
 
     assert current_tasks - previous_tasks == {"newly_added_task"}
+
+
+def test_typed_shared_task_is_governed_like_celery_shared_task() -> None:
+    """The typed project wrapper must not bypass task contract governance."""
+
+    source = (
+        "from shared.infrastructure.celery_typing import typed_shared_task\n"
+        "@typed_shared_task(name='example.task')\n"
+        "def typed_task():\n"
+        "    return None\n"
+    )
+
+    assert collect_shared_task_functions_from_source(
+        source,
+        filename="typed_tasks.py",
+    ) == {"typed_task"}
 
 
 def test_differential_guard_rejects_new_unregistered_task(
@@ -137,7 +148,7 @@ def test_differential_guard_rejects_new_unregistered_task(
     )
     source_file = "apps/example/application/tasks.py"
     before = "from celery import shared_task\n"
-    after = f"{before}" "@shared_task\n" "def newly_added_task():\n" "    return None\n"
+    after = f"{before}@shared_task\ndef newly_added_task():\n    return None\n"
 
     def fake_run_git(
         repo_root: Path,

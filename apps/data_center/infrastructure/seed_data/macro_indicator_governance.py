@@ -472,3 +472,32 @@ INDICATOR_METADATA_UPDATES: dict[str, dict[str, Any]] = {
         semantics="index_level",
     ),
 }
+
+INDICATOR_METADATA_UPDATES.update(
+    {
+        "CN_A_ADVANCE_COUNT": _row(
+            name_cn="A股上涨家数",
+            description="日度上涨股票家数，用于观察A股市场宽度；缺数时不得补零。",
+            semantics="level",
+            extra={"trading_behavior_component": True},
+        ),
+        "CN_A_DECLINE_COUNT": _row(
+            name_cn="A股下跌家数",
+            description="日度下跌股票家数，用于观察A股市场宽度；缺数时不得补零。",
+            semantics="level",
+            extra={"trading_behavior_component": True},
+        ),
+        "CN_A_LIMIT_UP_COUNT": _row(
+            name_cn="A股涨停家数",
+            description="日度涨停股票家数，用于观察A股交易热度；缺数时不得补零。",
+            semantics="level",
+            extra={"trading_behavior_component": True},
+        ),
+        "CN_A_LIMIT_DOWN_COUNT": _row(
+            name_cn="A股跌停家数",
+            description="日度跌停股票家数，用于观察A股交易压力；缺数时不得补零。",
+            semantics="level",
+            extra={"trading_behavior_component": True},
+        ),
+    }
+)
