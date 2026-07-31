@@ -15,6 +15,7 @@ SCHEDULER_COMMANDS = (
     "setup_account_risk_tasks",
     "setup_auto_advisor_weekly_report",
     "setup_personal_readiness_daily",
+    "setup_sentiment_refresh",
 )
 
 

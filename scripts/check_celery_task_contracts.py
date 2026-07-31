@@ -21,6 +21,7 @@ KNOWN_CASES = {
     "partial_failure",
     "zero_output",
 }
+TASK_DECORATOR_NAMES = {"shared_task", "typed_shared_task"}
 
 
 @dataclass(frozen=True)
@@ -63,7 +64,7 @@ def collect_shared_task_functions_from_source(
         node.name
         for node in tree.body
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
-        and any(_decorator_name(item) == "shared_task" for item in node.decorator_list)
+        and any(_decorator_name(item) in TASK_DECORATOR_NAMES for item in node.decorator_list)
     }
 
 

@@ -446,6 +446,10 @@ class TestSentimentGateStateAPI:
         assert "heat_score" in data
         assert "sentiment_score" in data
         assert "max_position_cap" in data
+        assert "data_sufficient" in data
+        assert "must_not_use_for_decision" in data
+        assert "signal_paused" in data
+        assert "blocked_reason" in data
         assert "thresholds" in data
 
 

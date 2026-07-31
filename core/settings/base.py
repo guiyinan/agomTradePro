@@ -872,6 +872,17 @@ CELERY_BEAT_SCHEDULE = {
             "expires": 180,  # 3 分钟超时
         },
     },
+    "sentiment-refresh-current-index": {
+        "task": "sentiment.refresh_current_sentiment_index",
+        "schedule": crontab(
+            minute=15,
+            hour="9-11,13-15,18,23",
+            day_of_week="mon-fri",
+        ),
+        "options": {
+            "expires": 3300,
+        },
+    },
     # ============================================
     # ========== Pulse 脉搏层 ==========
     "pulse-weekly-calculate": {

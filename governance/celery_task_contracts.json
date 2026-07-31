@@ -1,7 +1,8 @@
 {
   "schema_version": 1,
   "governed_source_files": [
-    "apps/equity/application/tasks_valuation_sync.py"
+    "apps/equity/application/tasks_valuation_sync.py",
+    "apps/sentiment/application/tasks.py"
   ],
   "tasks": [
     {
@@ -73,6 +74,85 @@
         "zero_output": {
           "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
           "test_function": "test_sync_financial_data_task_reports_explicit_noop_for_zero_records"
+        }
+      }
+    },
+    {
+      "task_path": "apps.sentiment.application.tasks.analyze_policy_event_sentiment",
+      "source_file": "apps/sentiment/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "complete_failure": {
+          "test_file": "tests/unit/sentiment/test_t4b_task_contracts.py",
+          "test_function": "test_policy_event_task_handles_missing_success_and_analyzer_failure"
+        }
+      }
+    },
+    {
+      "task_path": "apps.sentiment.application.tasks.batch_analyze_texts",
+      "source_file": "apps/sentiment/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "partial_failure": {
+          "test_file": "tests/unit/sentiment/test_t4b_task_contracts.py",
+          "test_function": "test_batch_task_truncates_text_and_keeps_per_item_errors"
+        }
+      }
+    },
+    {
+      "task_path": "apps.sentiment.application.tasks.calculate_daily_sentiment_index",
+      "source_file": "apps/sentiment/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/sentiment/test_t4b_task_contracts.py",
+          "test_function": "test_daily_task_uses_today_and_reraises_boundary_failure"
+        },
+        "all_success": {
+          "test_file": "tests/unit/sentiment/test_sentiment_operational_readiness.py",
+          "test_function": "test_calculation_task_reports_all_success"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/sentiment/test_t4b_task_contracts.py",
+          "test_function": "test_daily_task_isolates_item_failures_and_persists_combined_index"
+        },
+        "blocked": {
+          "test_file": "tests/unit/sentiment/test_sentiment_operational_readiness.py",
+          "test_function": "test_calculation_task_reports_blocked_zero_input"
+        }
+      }
+    },
+    {
+      "task_path": "apps.sentiment.application.tasks.refresh_current_sentiment_index",
+      "source_file": "apps/sentiment/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/sentiment/test_sentiment_operational_readiness.py",
+          "test_function": "test_refresh_task_rejects_invalid_date_before_external_sync"
+        },
+        "all_success": {
+          "test_file": "tests/unit/sentiment/test_sentiment_operational_readiness.py",
+          "test_function": "test_refresh_task_syncs_market_news_before_calculation"
+        },
+        "blocked": {
+          "test_file": "tests/unit/sentiment/test_sentiment_operational_readiness.py",
+          "test_function": "test_refresh_task_preserves_blocked_zero_output"
+        }
+      }
+    },
+    {
+      "task_path": "apps.sentiment.application.tasks.check_sentiment_data_freshness",
+      "source_file": "apps/sentiment/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "blocked": {
+          "test_file": "tests/unit/sentiment/test_t4b_task_contracts.py",
+          "test_function": "test_freshness_task_distinguishes_missing_current_and_stale"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/sentiment/test_t4b_task_contracts.py",
+          "test_function": "test_freshness_task_reports_repository_error"
         }
       }
     }

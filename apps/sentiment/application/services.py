@@ -10,6 +10,7 @@ import logging
 import math
 import re
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from typing import Any, Protocol
 
 from django.utils import timezone
@@ -435,6 +436,7 @@ class SentimentIndexCalculator:
         policy_scores: list[float],
         news_weight: float | None = None,
         policy_weight: float | None = None,
+        index_date: datetime | None = None,
     ) -> SentimentIndex:
         """
         计算综合情绪指数
@@ -444,6 +446,7 @@ class SentimentIndexCalculator:
             policy_scores: 政策情感评分列表
             news_weight: 新闻权重（None 表示从配置读取）
             policy_weight: 政策权重（None 表示从配置读取）
+            index_date: 指数的源观测时间；省略时使用当前时间
 
         Returns:
             SentimentIndex 情绪指数
@@ -479,7 +482,7 @@ class SentimentIndexCalculator:
         data_sufficient = len(news_scores) > 0 or len(policy_scores) > 0
 
         return SentimentIndex(
-            index_date=timezone.now(),
+            index_date=index_date or timezone.now(),
             news_sentiment=news_sentiment,
             policy_sentiment=policy_sentiment,
             composite_index=composite_index,

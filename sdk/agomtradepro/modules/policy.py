@@ -700,10 +700,22 @@ class PolicyModule(BaseModule):
 
     def _parse_sentiment_gate_state(self, data: dict[str, Any]) -> SentimentGateState:
         """解析热点情绪闸门状态数据"""
+        heat_score = data.get("heat_score", data.get("global_heat"))
+        sentiment_score = data.get("sentiment_score", data.get("global_sentiment"))
+        data_sufficient = bool(
+            data.get(
+                "data_sufficient",
+                heat_score is not None or sentiment_score is not None,
+            )
+        )
+        must_not_use = bool(data.get("must_not_use_for_decision", not data_sufficient))
         return SentimentGateState(
             gate_level=data.get("gate_level", "L0"),
-            global_heat=data.get("global_heat", 0.0),
-            global_sentiment=data.get("global_sentiment", 0.0),
+            global_heat=heat_score,
+            global_sentiment=sentiment_score,
             max_position_cap=data.get("max_position_cap"),
-            signal_paused=data.get("signal_paused", False),
+            signal_paused=bool(data.get("signal_paused", must_not_use)),
+            data_sufficient=data_sufficient,
+            must_not_use_for_decision=must_not_use,
+            blocked_reason=str(data.get("blocked_reason") or ""),
         )

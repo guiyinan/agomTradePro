@@ -426,6 +426,38 @@
       ]
     },
     {
+      "id": "policy.sentiment_gate.current",
+      "surface": "Current policy heat/sentiment gate state",
+      "source_files": [
+        "apps/policy/application/workbench_use_cases.py",
+        "apps/policy/interface/workbench_api_views.py"
+      ],
+      "required_markers": {
+        "apps/policy/application/workbench_use_cases.py": [
+          "data_sufficient = global_heat is not None or global_sentiment is not None",
+          "must_not_use_for_decision=not data_sufficient",
+          "policy_sentiment_gate_observation_missing"
+        ],
+        "apps/policy/interface/workbench_api_views.py": [
+          "\"must_not_use_for_decision\": output.must_not_use_for_decision",
+          "\"signal_paused\": output.signal_paused",
+          "\"blocked_reason\": output.blocked_reason"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "missing_gate_observation_blocks_decision",
+          "test_file": "tests/unit/policy/test_sentiment_gate_decision_contract.py",
+          "test_function": "test_gate_state_fails_closed_when_observations_are_missing"
+        },
+        {
+          "case": "observed_gate_state_is_decision_usable",
+          "test_file": "tests/unit/policy/test_sentiment_gate_decision_contract.py",
+          "test_function": "test_gate_state_publishes_decision_safe_fields_when_observed"
+        }
+      ]
+    },
+    {
       "id": "regime.cached_action_and_decision_context",
       "surface": "Cached action recommendation and core decision steps",
       "source_files": [

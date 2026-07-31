@@ -135,7 +135,7 @@ class PolicyLevelField(serializers.Field[PolicyLevel | str, object, str, Any]):
             return PolicyLevel(data)
         except ValueError:
             raise serializers.ValidationError(
-                f"Invalid policy level. Must be one of: " f"{[lvl.value for lvl in PolicyLevel]}"
+                f"Invalid policy level. Must be one of: {[lvl.value for lvl in PolicyLevel]}"
             ) from None
 
 
@@ -601,6 +601,10 @@ class SentimentGateStateSerializer(serializers.Serializer[dict[str, Any]]):
     heat_score = serializers.FloatField(allow_null=True)
     sentiment_score = serializers.FloatField(allow_null=True)
     max_position_cap = serializers.FloatField(allow_null=True)
+    data_sufficient = serializers.BooleanField()
+    must_not_use_for_decision = serializers.BooleanField()
+    signal_paused = serializers.BooleanField()
+    blocked_reason = serializers.CharField(allow_blank=True)
     thresholds = serializers.DictField(allow_null=True)
     error = serializers.CharField(allow_null=True, required=False)
 
