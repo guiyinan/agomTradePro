@@ -12,6 +12,15 @@ from apps.pulse.application.use_cases import (
 from apps.pulse.domain.entities import PulseIndicatorReading
 
 
+def test_pulse_prefetch_includes_sentiment_macro_inputs():
+    assert {
+        "CN_A_TOTAL_TURNOVER",
+        "CN_A_MARGIN_BALANCE",
+        "CN_A_MARKET_NEWS_SENTIMENT",
+        "CN_A_ETF_NET_FLOW",
+    }.issubset(PULSE_MACRO_SYNC_INDICATORS)
+
+
 @pytest.mark.django_db
 def test_calculate_pulse_refreshes_macro_inputs_before_calculation(monkeypatch):
     captured: dict[str, object] = {}

@@ -48,3 +48,16 @@ def test_dimension_score_excludes_stale_readings():
 
     assert result.score == pytest.approx(0.4, abs=0.01)
     assert result.indicator_count == 1
+
+
+def test_sentiment_dimension_renormalizes_weights_when_inputs_are_missing():
+    result = calculate_dimension_score(
+        [
+            _reading("sentiment", 0.8, weight=2.0),
+            _reading("sentiment", -0.4, weight=1.0),
+        ],
+        "sentiment",
+    )
+
+    assert result.score == pytest.approx(0.4, abs=0.01)
+    assert result.indicator_count == 2

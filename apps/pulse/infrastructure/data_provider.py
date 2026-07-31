@@ -140,6 +140,97 @@ DEFAULT_PULSE_INDICATORS: list[PulseIndicatorDef] = [
         bearish_threshold=-3.0,
         signal_multiplier=0.1,
     ),
+    PulseIndicatorDef(
+        code="CN_A_TOTAL_TURNOVER",
+        name="A股全市场成交额",
+        dimension="sentiment",
+        frequency="daily",
+        signal_type="pct_change",
+        bullish_threshold=20.0,
+        bearish_threshold=-20.0,
+        signal_multiplier=0.025,
+    ),
+    PulseIndicatorDef(
+        code="CN_A_MARGIN_BALANCE",
+        name="A股融资余额",
+        dimension="sentiment",
+        frequency="daily",
+        signal_type="pct_change",
+        bullish_threshold=3.0,
+        bearish_threshold=-3.0,
+        signal_multiplier=0.1,
+    ),
+    PulseIndicatorDef(
+        code="CN_A_MARKET_NEWS_SENTIMENT",
+        name="A股市场新闻情绪均值",
+        dimension="sentiment",
+        frequency="daily",
+        signal_type="level",
+        bullish_threshold=0.2,
+        bearish_threshold=-0.2,
+        signal_multiplier=1.0,
+    ),
+    PulseIndicatorDef(
+        code="CN_A_ETF_NET_FLOW",
+        name="A股ETF资金净流入",
+        dimension="sentiment",
+        frequency="daily",
+        signal_type="zscore",
+        bullish_threshold=1.0,
+        bearish_threshold=-1.0,
+        signal_multiplier=0.4,
+    ),
+    PulseIndicatorDef(
+        code="SENTIMENT_DAILY_INDEX",
+        name="文本情绪指数",
+        dimension="sentiment",
+        frequency="daily",
+        signal_type="level",
+        bullish_threshold=0.3,
+        bearish_threshold=-0.3,
+        neutral_band=0.1,
+        signal_multiplier=1.0,
+    ),
+    PulseIndicatorDef(
+        code="CN_A_ADVANCE_COUNT",
+        name="A股上涨家数",
+        dimension="sentiment",
+        frequency="daily",
+        signal_type="zscore",
+        bullish_threshold=1.0,
+        bearish_threshold=-1.0,
+        signal_multiplier=0.4,
+    ),
+    PulseIndicatorDef(
+        code="CN_A_DECLINE_COUNT",
+        name="A股下跌家数",
+        dimension="sentiment",
+        frequency="daily",
+        signal_type="zscore",
+        bullish_threshold=1.0,
+        bearish_threshold=-1.0,
+        signal_multiplier=-0.4,
+    ),
+    PulseIndicatorDef(
+        code="CN_A_LIMIT_UP_COUNT",
+        name="A股涨停家数",
+        dimension="sentiment",
+        frequency="daily",
+        signal_type="zscore",
+        bullish_threshold=1.0,
+        bearish_threshold=-1.0,
+        signal_multiplier=0.4,
+    ),
+    PulseIndicatorDef(
+        code="CN_A_LIMIT_DOWN_COUNT",
+        name="A股跌停家数",
+        dimension="sentiment",
+        frequency="daily",
+        signal_type="zscore",
+        bullish_threshold=1.0,
+        bearish_threshold=-1.0,
+        signal_multiplier=-0.4,
+    ),
 ]
 
 
@@ -331,6 +422,8 @@ class DjangoPulseDataProvider:
     ) -> list[PulseSeriesPoint]:
         """Read Pulse inputs from Data Center facts before legacy macro tables."""
         lookback = as_of_date - timedelta(days=365)
+        if code == "SENTIMENT_DAILY_INDEX":
+            return self._load_sentiment_module_series(as_of_date)
         if self._is_asset_code(code):
             from apps.data_center.infrastructure.models import (
                 PriceBarModel,
@@ -436,6 +529,33 @@ class DjangoPulseDataProvider:
                 source_kind="macro_fact",
             )
             for fact in selection.facts
+        ]
+
+    @staticmethod
+    def _load_sentiment_module_series(as_of_date: date) -> list[PulseSeriesPoint]:
+        """Load the sentiment module index without laundering blocked observations."""
+
+        from apps.sentiment.application.pulse_facade import get_sentiment_pulse_series
+
+        result = get_sentiment_pulse_series(
+            as_of_date=as_of_date,
+            lookback_days=365,
+        )
+        if result.must_not_use_for_decision:
+            logger.warning(
+                "Blocked Pulse text sentiment input: reason=%s observed_at=%s",
+                result.blocked_reason,
+                result.observed_at,
+            )
+            return []
+        return [
+            PulseSeriesPoint(
+                observed_at=point.observed_at,
+                value=point.value,
+                published_at=point.observed_at,
+                source_kind="sentiment_index",
+            )
+            for point in result.points
         ]
 
     def _get_indicator_extra(self, code: str) -> dict[str, object]:

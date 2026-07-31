@@ -14,6 +14,17 @@ from apps.pulse.infrastructure.data_provider import (
     PulseIndicatorDef,
 )
 from apps.pulse.infrastructure.models import PulseIndicatorConfigModel
+from apps.sentiment.application.pulse_facade import (
+    SentimentPulsePoint,
+    SentimentPulseSeriesResult,
+)
+
+
+@pytest.fixture(autouse=True)
+def _clear_seeded_pulse_indicator_configs(db) -> None:
+    """Keep provider tests isolated from data migrations that seed runtime configs."""
+
+    PulseIndicatorConfigModel.objects.all().delete()
 
 
 @pytest.mark.django_db
@@ -245,6 +256,76 @@ def test_pulse_daily_freshness_tracks_business_day_age_but_blocks_old_market_ses
     assert readings[0].is_stale is True
 
 
+@pytest.mark.django_db
+def test_pulse_data_provider_reads_fresh_module_sentiment_series(monkeypatch):
+    PulseIndicatorConfigModel.objects.create(
+        indicator_code="SENTIMENT_DAILY_INDEX",
+        indicator_name="文本情绪指数",
+        dimension="sentiment",
+        frequency="daily",
+        weight=1.0,
+        signal_type="level",
+        bullish_threshold=0.3,
+        bearish_threshold=-0.3,
+        neutral_band=0.1,
+        signal_multiplier=0.4,
+        is_active=True,
+    )
+    result = SentimentPulseSeriesResult(
+        points=(
+            SentimentPulsePoint(date(2026, 7, 29), -0.2),
+            SentimentPulsePoint(date(2026, 7, 30), 0.5),
+        ),
+        observed_at=date(2026, 7, 30),
+        must_not_use_for_decision=False,
+        blocked_reason="",
+    )
+    monkeypatch.setattr(
+        "apps.sentiment.application.pulse_facade.get_sentiment_pulse_series",
+        lambda **kwargs: result,
+    )
+
+    readings = DjangoPulseDataProvider().get_all_readings(date(2026, 7, 30))
+
+    assert len(readings) == 1
+    assert readings[0].code == "SENTIMENT_DAILY_INDEX"
+    assert readings[0].value == pytest.approx(0.5)
+    assert readings[0].observed_at == date(2026, 7, 30)
+    assert readings[0].source_kind == "sentiment_index"
+    assert readings[0].is_stale is False
+
+
+@pytest.mark.django_db
+def test_pulse_data_provider_excludes_blocked_module_sentiment(monkeypatch):
+    PulseIndicatorConfigModel.objects.create(
+        indicator_code="SENTIMENT_DAILY_INDEX",
+        indicator_name="文本情绪指数",
+        dimension="sentiment",
+        frequency="daily",
+        weight=1.0,
+        signal_type="level",
+        bullish_threshold=0.3,
+        bearish_threshold=-0.3,
+        neutral_band=0.1,
+        signal_multiplier=0.4,
+        is_active=True,
+    )
+    result = SentimentPulseSeriesResult(
+        points=(),
+        observed_at=date(2026, 7, 24),
+        must_not_use_for_decision=True,
+        blocked_reason="sentiment_index_stale",
+    )
+    monkeypatch.setattr(
+        "apps.sentiment.application.pulse_facade.get_sentiment_pulse_series",
+        lambda **kwargs: result,
+    )
+
+    readings = DjangoPulseDataProvider().get_all_readings(date(2026, 7, 30))
+
+    assert readings == []
+
+
 def test_default_pulse_indicators_use_m2_yoy_not_balance_level():
     codes = {indicator.code for indicator in DEFAULT_PULSE_INDICATORS}
 
@@ -263,6 +344,40 @@ def test_default_pulse_indicators_use_m2_yoy_not_balance_level():
     )
     assert new_credit.bullish_threshold == 3.0e12
     assert new_credit.bearish_threshold == 1.0e12
+
+
+def test_default_pulse_sentiment_portfolio_has_governed_signal_config():
+    sentiment_defs = {
+        indicator.code: indicator
+        for indicator in DEFAULT_PULSE_INDICATORS
+        if indicator.dimension == "sentiment"
+    }
+
+    assert set(sentiment_defs) == {
+        "000300.SH",
+        "CN_A_TOTAL_TURNOVER",
+        "CN_A_MARGIN_BALANCE",
+        "CN_A_MARKET_NEWS_SENTIMENT",
+        "CN_A_ETF_NET_FLOW",
+        "SENTIMENT_DAILY_INDEX",
+        "CN_A_ADVANCE_COUNT",
+        "CN_A_DECLINE_COUNT",
+        "CN_A_LIMIT_UP_COUNT",
+        "CN_A_LIMIT_DOWN_COUNT",
+    }
+    assert all(indicator.weight == 1.0 for indicator in sentiment_defs.values())
+    assert sentiment_defs["000300.SH"].signal_type == "pct_change"
+    assert sentiment_defs["CN_A_TOTAL_TURNOVER"].signal_type == "pct_change"
+    assert sentiment_defs["CN_A_MARGIN_BALANCE"].signal_type == "pct_change"
+    assert sentiment_defs["CN_A_MARKET_NEWS_SENTIMENT"].signal_type == "level"
+    assert sentiment_defs["CN_A_ETF_NET_FLOW"].signal_type == "zscore"
+    assert sentiment_defs["SENTIMENT_DAILY_INDEX"].signal_type == "level"
+    assert sentiment_defs["CN_A_ADVANCE_COUNT"].signal_type == "zscore"
+    assert sentiment_defs["CN_A_DECLINE_COUNT"].signal_multiplier < 0
+    assert sentiment_defs["CN_A_LIMIT_UP_COUNT"].signal_multiplier > 0
+    assert sentiment_defs["CN_A_LIMIT_DOWN_COUNT"].signal_multiplier < 0
+    assert sentiment_defs["CN_A_MARKET_NEWS_SENTIMENT"].bullish_threshold == 0.2
+    assert sentiment_defs["CN_A_MARKET_NEWS_SENTIMENT"].bearish_threshold == -0.2
 
 
 def test_level_signal_is_consistent_at_bullish_boundary():

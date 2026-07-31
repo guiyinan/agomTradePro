@@ -344,16 +344,47 @@ def test_sync_market_thermometer_inputs_falls_back_to_next_real_provider():
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
 
-    successes = [
+    behavior_components = {
+        "advance_count",
+        "decline_count",
+        "limit_up_count",
+        "limit_down_count",
+    }
+    provider_successes = [
         item
         for item in payload["results"]
-        if item["status"] == "success" and item["component"] != "etf_net_flow"
+        if item["status"] == "success"
+        and item["component"] not in behavior_components
+        and item["component"] != "etf_net_flow"
     ]
-    assert successes
-    assert all(item["provider"] == "Tushare Pro" for item in successes)
+    assert provider_successes
+    assert all(item["provider"] == "Tushare Pro" for item in provider_successes)
+    behavior_successes = [
+        item
+        for item in payload["results"]
+        if item["status"] == "success" and item["component"] in behavior_components
+    ]
+    assert {item["component"] for item in behavior_successes} == behavior_components
+    assert all(item["provider"] == "data_center_consensus" for item in behavior_successes)
+    assert all(item["verification_status"] == "single_source" for item in behavior_successes)
+    behavior_codes = {
+        "CN_A_ADVANCE_COUNT",
+        "CN_A_DECLINE_COUNT",
+        "CN_A_LIMIT_UP_COUNT",
+        "CN_A_LIMIT_DOWN_COUNT",
+    }
     assert {
-        fact.source for fact in macro_repo.stored if fact.indicator_code != "CN_A_ETF_NET_FLOW"
+        fact.source
+        for fact in macro_repo.stored
+        if fact.indicator_code not in behavior_codes and fact.indicator_code != "CN_A_ETF_NET_FLOW"
     } == {"tushare"}
+    assert {
+        fact.indicator_code for fact in macro_repo.stored if fact.indicator_code.startswith("CN_A_")
+    }.issuperset(behavior_codes)
+    assert {fact.source for fact in macro_repo.stored if fact.indicator_code in behavior_codes} == {
+        "tushare",
+        "data_center_consensus",
+    }
 
 
 def test_sync_market_thermometer_inputs_continues_after_provider_unavailable():

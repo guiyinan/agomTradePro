@@ -33,6 +33,7 @@ from .market_thermometer_specs import (
     DEFAULT_NEWS_SOURCE_TYPES,
     ETF_MAIN_FLOW_CODE,
     ETF_SIZE_FLOW_CODE,
+    MARKET_BEHAVIOR_COLLECTION_SPECS,
     MARKET_COMPONENT_SPECS,
     MARKET_NEWS_POSITIVE_RATIO_CODE,
     MARKET_THERMOMETER_CONSENSUS_SOURCE,
@@ -158,12 +159,27 @@ class SyncMarketThermometerInputsUseCase:
             "turnover",
             "margin_balance",
             "etf_net_flow",
+            *MARKET_BEHAVIOR_COLLECTION_SPECS,
         ):
-            spec = MARKET_COMPONENT_SPECS[component_key]
+            spec = MARKET_COMPONENT_SPECS.get(component_key) or (
+                MARKET_BEHAVIOR_COLLECTION_SPECS[component_key]
+            )
             start_date, end_date = self._component_sync_window(
                 component_key,
                 target_date,
             )
+            if component_key in MARKET_BEHAVIOR_COLLECTION_SPECS:
+                results.extend(
+                    self._sync_verified_component(
+                        component_key=component_key,
+                        spec=spec,
+                        start_date=start_date,
+                        end_date=end_date,
+                        providers=market_providers,
+                        consensus_extra={"trading_behavior_component": True},
+                    )
+                )
+                continue
             if component_key == "etf_net_flow":
                 results.extend(
                     self._sync_etf_net_flow_component(
@@ -590,7 +606,7 @@ class SyncMarketThermometerInputsUseCase:
                     },
                     status="mismatch",
                     row_count=0,
-                    error_message="ETF net flow source deviation exceeded tolerance",
+                    error_message="Market input source deviation exceeded tolerance",
                 )
             )
             results.append(
@@ -690,7 +706,9 @@ class SyncMarketThermometerInputsUseCase:
         component_key: str,
         target_date: date,
     ) -> tuple[date, date]:
-        spec = MARKET_COMPONENT_SPECS[component_key]
+        spec = MARKET_COMPONENT_SPECS.get(component_key) or (
+            MARKET_BEHAVIOR_COLLECTION_SPECS[component_key]
+        )
         if spec.get("frequency") == "M":
             return target_date - timedelta(days=365 * 3), target_date
         if component_key in {"turnover", "margin_balance", "etf_net_flow"}:

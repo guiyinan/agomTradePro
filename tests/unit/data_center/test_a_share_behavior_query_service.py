@@ -1,0 +1,83 @@
+"""Freshness contracts for current A-share trading-behavior reads."""
+
+from __future__ import annotations
+
+from datetime import UTC, date, datetime
+
+from apps.data_center.application.query_services import (
+    A_SHARE_BEHAVIOR_INDICATORS,
+    get_latest_a_share_behavior_payload,
+)
+from apps.data_center.domain.entities import MacroFact
+from apps.data_center.domain.enums import DataQualityStatus
+
+
+class _Repository:
+    def __init__(self, facts: dict[str, MacroFact]) -> None:
+        self._facts = facts
+
+    def get_latest(self, indicator_code: str) -> MacroFact | None:
+        return self._facts.get(indicator_code)
+
+
+def _fact(indicator_code: str, observed_at: date, value: float) -> MacroFact:
+    return MacroFact(
+        indicator_code=indicator_code,
+        reporting_period=observed_at,
+        value=value,
+        unit="家",
+        source="test",
+        published_at=observed_at,
+        quality=DataQualityStatus.VALID,
+    )
+
+
+def test_current_behavior_payload_accepts_latest_completed_session(monkeypatch) -> None:
+    observed_at = date(2026, 7, 30)
+    values = {
+        "up_count": 3100,
+        "down_count": 1800,
+        "limit_up_count": 90,
+        "limit_down_count": 8,
+    }
+    repository = _Repository(
+        {
+            indicator_code: _fact(indicator_code, observed_at, values[field_name])
+            for field_name, indicator_code in A_SHARE_BEHAVIOR_INDICATORS.items()
+        }
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.query_services.get_macro_fact_repository",
+        lambda: repository,
+    )
+
+    payload = get_latest_a_share_behavior_payload(now=datetime(2026, 7, 30, 8, 30, tzinfo=UTC))
+
+    assert payload["stats_available"] is True
+    assert {field: payload[field] for field in values} == values
+    assert payload["contract"]["market_data_as_of"] == "2026-07-30"
+    assert payload["contract"]["must_not_use_for_decision"] is False
+
+
+def test_behavior_payload_blocks_missing_and_stale_values(monkeypatch) -> None:
+    observed_at = date(2026, 7, 29)
+    repository = _Repository(
+        {
+            "CN_A_ADVANCE_COUNT": _fact("CN_A_ADVANCE_COUNT", observed_at, 3000),
+            "CN_A_DECLINE_COUNT": _fact("CN_A_DECLINE_COUNT", observed_at, 1900),
+        }
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.query_services.get_macro_fact_repository",
+        lambda: repository,
+    )
+
+    payload = get_latest_a_share_behavior_payload(now=datetime(2026, 7, 30, 8, 30, tzinfo=UTC))
+
+    assert payload["limit_up_count"] is None
+    assert payload["limit_down_count"] is None
+    assert payload["stats_available"] is False
+    assert payload["contract"]["must_not_use_for_decision"] is True
+    assert payload["contract"]["blocked_reason"] == "market_breadth_incomplete"
+    assert payload["contract"]["missing_fields"] == ["limit_up_count", "limit_down_count"]
+    assert payload["contract"]["stale_fields"] == ["up_count", "down_count"]

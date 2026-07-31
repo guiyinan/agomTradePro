@@ -98,6 +98,11 @@ class SentimentTuiOverviewView(APIView):
                     "latest_level": str(latest.get("level") or ""),
                     "latest_confidence_percent": latest.get("confidence_percent"),
                     "latest_data_sufficient": bool(latest.get("data_sufficient", False)),
+                    "freshness_status": str(health.get("freshness_status") or "unknown"),
+                    "must_not_use_for_decision": bool(
+                        health.get("must_not_use_for_decision", True)
+                    ),
+                    "blocked_reason": str(health.get("blocked_reason") or ""),
                 },
                 "indices": rows,
                 "total": len(rows),

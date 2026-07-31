@@ -8,6 +8,8 @@
         "apps/realtime/domain/entities.py",
         "apps/realtime/application/price_polling_service.py",
         "apps/realtime/infrastructure/repositories.py",
+        "apps/data_center/application/query_services.py",
+        "apps/realtime/application/market_summary_queries.py",
         "apps/realtime/interface/views.py",
         "sdk/agomtradepro_mcp/tools/realtime_tools.py"
       ],
@@ -22,9 +24,17 @@
           "_daily_bar_observed_at(",
           "Ignoring stale realtime price"
         ],
+        "apps/data_center/application/query_services.py": [
+          "expected_session = latest_completed_cn_market_session(current_now)",
+          "\"must_not_use_for_decision\": not is_reliable"
+        ],
+        "apps/realtime/application/market_summary_queries.py": [
+          "def get_market_breadth_payload()"
+        ],
         "apps/realtime/interface/views.py": [
           "\"market_data_as_of\": latest_timestamp",
-          "\"must_not_use_for_decision\": not is_reliable"
+          "\"must_not_use_for_decision\": not is_reliable",
+          "\"breadth_contract\": breadth[\"contract\"]"
         ],
         "sdk/agomtradepro_mcp/tools/realtime_tools.py": [
           "contract.must_not_use_for_decision=true"
@@ -50,6 +60,21 @@
           "case": "incomplete_contract_blocked",
           "test_file": "tests/api/test_realtime_api.py",
           "test_function": "test_market_summary_returns_major_index_snapshot"
+        },
+        {
+          "case": "breadth_observation_preserved",
+          "test_file": "tests/unit/data_center/test_a_share_behavior_query_service.py",
+          "test_function": "test_current_behavior_payload_accepts_latest_completed_session"
+        },
+        {
+          "case": "breadth_missing_stale_blocked",
+          "test_file": "tests/unit/data_center/test_a_share_behavior_query_service.py",
+          "test_function": "test_behavior_payload_blocks_missing_and_stale_values"
+        },
+        {
+          "case": "breadth_api_projection",
+          "test_file": "tests/api/test_realtime_api.py",
+          "test_function": "test_market_summary_reads_governed_market_breadth"
         }
       ]
     },
@@ -384,10 +409,13 @@
     },
     {
       "id": "sentiment.current",
-      "surface": "Latest sentiment -> Fund and Asset Analysis decision consumers",
+      "surface": "Latest sentiment -> Fund, Asset Analysis, Pulse and TUI decision consumers",
       "source_files": [
         "apps/sentiment/application/current_sentiment.py",
         "apps/sentiment/application/interface_services.py",
+        "apps/sentiment/application/pulse_facade.py",
+        "apps/sentiment/interface/tui_views.py",
+        "apps/pulse/infrastructure/data_provider.py",
         "apps/asset_analysis/interface/pool_views.py",
         "apps/fund/application/interface_services.py"
       ],
@@ -399,6 +427,21 @@
         ],
         "apps/sentiment/application/interface_services.py": [
           "\"must_not_use_for_decision\": current.must_not_use_for_decision"
+        ],
+        "apps/sentiment/application/pulse_facade.py": [
+          "def get_sentiment_pulse_series(",
+          "must_not_use_for_decision=True",
+          "blocked_reason=\"sentiment_index_stale\"",
+          "blocked_reason=\"sentiment_data_insufficient\""
+        ],
+        "apps/sentiment/interface/tui_views.py": [
+          "health.get(\"must_not_use_for_decision\", True)",
+          "health.get(\"blocked_reason\")"
+        ],
+        "apps/pulse/infrastructure/data_provider.py": [
+          "code == \"SENTIMENT_DAILY_INDEX\"",
+          "if result.must_not_use_for_decision:",
+          "return []"
         ],
         "apps/asset_analysis/interface/pool_views.py": [
           "context_payload.sentiment_must_not_use_for_decision"
@@ -417,6 +460,16 @@
           "case": "insufficient_sentiment_blocked",
           "test_file": "tests/unit/sentiment/test_current_sentiment_contract.py",
           "test_function": "test_current_sentiment_blocks_insufficient_same_day_data"
+        },
+        {
+          "case": "pulse_stale_sentiment_excluded",
+          "test_file": "tests/unit/sentiment/test_pulse_facade.py",
+          "test_function": "test_sentiment_pulse_series_fails_closed_when_latest_is_stale"
+        },
+        {
+          "case": "pulse_insufficient_sentiment_excluded",
+          "test_file": "tests/unit/sentiment/test_pulse_facade.py",
+          "test_function": "test_sentiment_pulse_series_fails_closed_when_latest_is_insufficient"
         },
         {
           "case": "asset_pool_cannot_neutralize_stale_sentiment",

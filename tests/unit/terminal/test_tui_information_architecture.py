@@ -200,3 +200,16 @@ def test_macro_overview_publishes_portable_pulse_history_chart() -> None:
             {"key": "inflation_score", "label": "通胀"},
         ],
     }
+
+
+def test_macro_overview_publishes_independent_sentiment_panels() -> None:
+    payload = _runtime_payload()
+    screen = next(item for item in payload["screens"] if item["key"] == "macro-regime.overview")
+    panels = {item["key"]: item for item in screen["dashboard_panels"]}
+
+    assert panels["sentiment-status"]["kind"] == "detail"
+    assert panels["sentiment-status"]["action_key"] == "sentiment.awareness-summary"
+    assert panels["sentiment-status"]["user_priority"] == "p1"
+    assert panels["sentiment-trend"]["kind"] == "chart"
+    assert panels["sentiment-trend"]["action_key"] == "sentiment.awareness-trend"
+    assert panels["sentiment-trend"]["empty_message"] == "暂无可用的情绪趋势数据。"

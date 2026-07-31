@@ -35,6 +35,8 @@
       "dashboard_panels": [
         {"key": "regime-quadrant", "title": "当前 Regime", "kind": "regime_quadrant", "action_key": "regime.current", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无 Regime 结果，请检查宏观数据。", "error_message": "Regime 加载失败。", "stale_message": "Regime 结果已过期，请刷新。"},
         {"key": "pulse-turning", "title": "当前脉搏指标", "kind": "datagrid", "action_key": "pulse.current", "max_rows": 7, "columns": [{"key": "name", "label": "指标"}, {"key": "signal", "label": "信号"}, {"key": "direction", "label": "方向"}, {"key": "is_stale", "label": "过期"}], "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "暂无脉搏指标。"},
+        {"key": "sentiment-status", "title": "情绪态势", "kind": "detail", "action_key": "sentiment.awareness-summary", "user_priority": "p1", "presentation_semantic": "supporting_detail", "empty_message": "暂无可用于判断的情绪分量。", "error_message": "情绪态势加载失败，请稍后重试。", "stale_message": "情绪态势已过期，不参与当日判断。"},
+        {"key": "sentiment-trend", "title": "情绪趋势", "kind": "chart", "action_key": "sentiment.awareness-trend", "user_priority": "p1", "presentation_semantic": "supporting_detail", "empty_message": "暂无可用的情绪趋势数据。", "error_message": "情绪趋势加载失败，请稍后重试。", "stale_message": "情绪趋势可能已过期，请刷新。"},
         {"key": "market-temperature", "title": "市场温度", "kind": "detail", "action_key": "data_center.market_thermometer", "user_priority": "p1", "presentation_semantic": "supporting_detail", "empty_message": "暂无市场温度。"},
         {"key": "pulse-trend", "title": "脉搏趋势", "kind": "chart", "action_key": "pulse.history", "user_priority": "p1", "presentation_semantic": "supporting_detail", "empty_message": "暂无脉搏趋势数据。", "error_message": "脉搏趋势加载失败，请稍后重试。", "stale_message": "脉搏趋势可能已过期，请刷新。"}
       ]

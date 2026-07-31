@@ -57,6 +57,60 @@ def test_market_summary_returns_major_index_snapshot(client):
 
 
 @pytest.mark.django_db
+def test_market_summary_reads_governed_market_breadth(client):
+    observed_at = datetime.now(UTC).isoformat()
+    mock_use_case = Mock()
+    mock_use_case.get_latest_prices.return_value = [
+        {
+            "asset_code": code,
+            "price": price,
+            "change": None,
+            "change_pct": None,
+            "volume": 100,
+            "timestamp": observed_at,
+        }
+        for code, price in (
+            ("000001.SH", 3800.0),
+            ("399001.SZ", 13200.0),
+            ("399006.SZ", 3200.0),
+        )
+    ]
+    breadth = {
+        "up_count": 3120,
+        "down_count": 1780,
+        "limit_up_count": 88,
+        "limit_down_count": 7,
+        "stats_available": True,
+        "contract": {
+            "observed_at": "2026-07-30",
+            "market_data_as_of": "2026-07-30",
+            "is_reliable": True,
+            "is_stale": False,
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+        },
+    }
+
+    with (
+        patch("apps.realtime.interface.views.PricePollingUseCase", return_value=mock_use_case),
+        patch(
+            "apps.realtime.interface.views.get_market_breadth_payload",
+            return_value=breadth,
+        ),
+    ):
+        response = client.get("/api/realtime/market-summary/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["stats_available"] is True
+    assert payload["up_count"] == 3120
+    assert payload["down_count"] == 1780
+    assert payload["limit_up_count"] == 88
+    assert payload["limit_down_count"] == 7
+    assert payload["breadth_contract"] == breadth["contract"]
+
+
+@pytest.mark.django_db
 def test_market_summary_returns_503_when_all_indexes_missing(client):
     mock_use_case = Mock()
     mock_use_case.get_latest_prices.return_value = []

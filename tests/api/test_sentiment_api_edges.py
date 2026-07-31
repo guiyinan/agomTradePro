@@ -220,6 +220,9 @@ def test_sentiment_tui_overview_flattens_recent_indices(
         "ai_provider_available": True,
         "cache_count": 12,
         "latest_index_date": "2026-07-10",
+        "freshness_status": "fresh",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
     }
     with (
         patch(
@@ -239,6 +242,9 @@ def test_sentiment_tui_overview_flattens_recent_indices(
     assert payload["success"] is True
     assert payload["summary"]["latest_level"] == "乐观"
     assert payload["summary"]["latest_confidence_percent"] == 84.0
+    assert payload["summary"]["freshness_status"] == "fresh"
+    assert payload["summary"]["must_not_use_for_decision"] is False
+    assert payload["summary"]["blocked_reason"] == ""
     assert payload["indices"] == [
         {
             "date": "2026-07-10",
