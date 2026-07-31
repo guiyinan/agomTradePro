@@ -17,7 +17,6 @@ from apps.data_center.application.dtos import (
     UpdateProviderRequest,
 )
 from apps.data_center.application.interface_services import make_manage_provider_config_use_case
-from apps.data_center.infrastructure.provider_registry import ProviderRegistry
 from apps.data_center.interface.serializers import (
     ProviderConfigListSerializer,
     ProviderConfigSerializer,
@@ -33,7 +32,7 @@ from shared.config.tushare import (
 from shared.numeric import safe_float
 
 
-def get_registry() -> ProviderRegistry:
+def get_registry() -> Any:
     """Expose the runtime registry through the provider view module."""
 
     return _runtime_get_registry()
