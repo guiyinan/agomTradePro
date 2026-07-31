@@ -100,16 +100,12 @@ from apps.data_center.composition import (
     make_query_pit_manifest_use_case,
 )
 from apps.data_center.domain.pit import KnowledgeScope
+from apps.data_center.interface import provider_api_views as _provider_api_views
 from apps.data_center.interface.auth_helpers import _authenticated_user_id
 from apps.data_center.interface.pit_serializers import (
     BuildPITManifestSerializer,
     serialize_pit_manifest,
 )
-from apps.data_center.interface.provider_api_views import (
-    provider_detail,  # noqa: F401
-    provider_list_create,  # noqa: F401
-)
-from apps.data_center.interface.provider_api_views import provider_status as _provider_status
 from apps.data_center.interface.query_params import (
     _parse_bool_param,
     _parse_positive_float_param,
@@ -141,6 +137,9 @@ from apps.data_center.provider_runtime import get_registry
 from shared.request_payload import request_data_mapping
 
 logger = logging.getLogger(__name__)
+provider_detail = _provider_api_views.provider_detail
+provider_list_create = _provider_api_views.provider_list_create
+_provider_status = _provider_api_views.provider_status
 
 
 def provider_status(request: Request) -> Response:
