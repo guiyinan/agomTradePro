@@ -494,7 +494,7 @@ def build_admin_mcp_user_detail_payload(target_user_id: int, *, base_url: str) -
     """Build one admin-facing MCP detail payload for a specific user."""
 
     detail = build_self_mcp_api_payload(target_user_id, base_url=base_url)
-    user = find_user_by_id(target_user_id)
+    user = _interface_repo().find_user_by_id(target_user_id)
     if user is None:
         raise LookupError("用户不存在")
     detail["email"] = str(getattr(user, "email", "") or "")
