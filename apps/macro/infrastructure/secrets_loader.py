@@ -21,6 +21,7 @@ def load_secrets_from_database() -> DataSourceSecretsDTO | None:
 
         tushare_token = None
         tushare_http_url = None
+        tushare_request_mode = "sdk_path"
         fred_api_key = ""
         juhe_api_key = None
 
@@ -28,6 +29,9 @@ def load_secrets_from_database() -> DataSourceSecretsDTO | None:
             if config.source_type == "tushare" and config.api_key:
                 tushare_token = config.api_key
                 tushare_http_url = config.http_url or None
+                raw_request_mode = (config.extra_config or {}).get("tushare_request_mode")
+                if isinstance(raw_request_mode, str) and raw_request_mode.strip():
+                    tushare_request_mode = raw_request_mode.strip()
             elif config.source_type == "fred" and config.api_key:
                 fred_api_key = config.api_key
             elif config.source_type == "juhe" and config.api_key:
@@ -37,6 +41,7 @@ def load_secrets_from_database() -> DataSourceSecretsDTO | None:
             return DataSourceSecretsDTO(
                 tushare_token=tushare_token,
                 tushare_http_url=tushare_http_url,
+                tushare_request_mode=tushare_request_mode,
                 fred_api_key=fred_api_key,
                 juhe_api_key=juhe_api_key,
             )

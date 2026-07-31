@@ -32,6 +32,7 @@ class TestSecretsRegistry:
             return DataSourceSecretsDTO(
                 tushare_token="test_token_from_db",
                 tushare_http_url="https://proxy.example.com",
+                tushare_request_mode="unified_relay",
                 fred_api_key="test_fred_key",
                 juhe_api_key=None,
             )
@@ -44,6 +45,7 @@ class TestSecretsRegistry:
 
         assert secrets.data_sources.tushare_token == "test_token_from_db"
         assert secrets.data_sources.tushare_http_url == "https://proxy.example.com"
+        assert secrets.data_sources.tushare_request_mode == "unified_relay"
         assert secrets.data_sources.fred_api_key == "test_fred_key"
 
         # Clean up
@@ -64,10 +66,11 @@ class TestSecretsRegistry:
         secrets_module._database_secrets_loader = None
 
         # Set environment variable
-        with patch.dict(os.environ, {'TUSHARE_TOKEN': 'env_token', 'TUSHARE_HTTP_URL': 'https://env-proxy.example.com'}):
+        with patch.dict(os.environ, {'TUSHARE_TOKEN': 'env_token', 'TUSHARE_HTTP_URL': 'https://env-proxy.example.com', 'TUSHARE_REQUEST_MODE': 'unified_relay'}):
             secrets = get_secrets()
             assert secrets.data_sources.tushare_token == 'env_token'
             assert secrets.data_sources.tushare_http_url == 'https://env-proxy.example.com'
+            assert secrets.data_sources.tushare_request_mode == 'unified_relay'
 
         # Clean up
         clear_secrets_cache()

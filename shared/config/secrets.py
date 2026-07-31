@@ -25,6 +25,7 @@ class DataSourceSecrets:
     fred_api_key: str
     tushare_http_url: str | None = None
     juhe_api_key: str | None = None
+    tushare_request_mode: str = "sdk_path"
 
 
 @dataclass(frozen=True)
@@ -60,12 +61,14 @@ def _load_from_env() -> AppSecrets:
     """从环境变量加载密钥（降级方案）"""
     tushare_token = os.environ.get("TUSHARE_TOKEN", "")
     tushare_http_url = os.environ.get("TUSHARE_HTTP_URL")
+    tushare_request_mode = os.environ.get("TUSHARE_REQUEST_MODE", "sdk_path")
 
     # 不在启动时强制要求 token，允许从数据库读取
     return AppSecrets(
         data_sources=DataSourceSecrets(
             tushare_token=tushare_token,
             tushare_http_url=tushare_http_url,
+            tushare_request_mode=tushare_request_mode,
             fred_api_key=os.environ.get("FRED_API_KEY", ""),
             juhe_api_key=os.environ.get("JUHE_API_KEY"),
         ),
@@ -95,6 +98,7 @@ def _load_from_database() -> AppSecrets | None:
                 data_sources=DataSourceSecrets(
                     tushare_token=db_secrets.tushare_token,
                     tushare_http_url=db_secrets.tushare_http_url,
+                    tushare_request_mode=db_secrets.tushare_request_mode,
                     fred_api_key=db_secrets.fred_api_key,
                     juhe_api_key=db_secrets.juhe_api_key,
                 ),

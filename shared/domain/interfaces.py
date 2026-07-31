@@ -46,6 +46,7 @@ class DataSourceSecretsDTO:
     fred_api_key: str
     tushare_http_url: str | None = None
     juhe_api_key: str | None = None
+    tushare_request_mode: str = "sdk_path"
 
 
 class DatabaseSecretsLoaderProtocol(Protocol):
@@ -63,7 +64,6 @@ class DatabaseSecretsLoaderProtocol(Protocol):
 # =============================================================================
 # Repository Protocols - Base interfaces for data access abstraction
 # =============================================================================
-
 class RepositoryProtocol(Protocol, Generic[T, T_id]):
     """
     Base Repository Protocol for Domain-Driven Design.

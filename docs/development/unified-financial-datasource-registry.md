@@ -371,8 +371,13 @@ QMT 现在只接入了“行情 provider”这一层，不接交易。
 1. 管理员在数据源中台配置 `tushare`
 2. 填写 `api_key`
 3. 填写 `http_url`
-4. 运行时创建 Tushare client
-5. 系统把 `http_url` 写入 `pro._DataApi__http_url`
+4. 按代理协议选择请求模式：
+   - 默认 `sdk_path`：系统把 `http_url` 写入 `pro._DataApi__http_url`，由 SDK 追加 API 名
+   - 统一中继 `unified_relay`：在 `extra_config` 写入
+     `{"tushare_request_mode": "unified_relay"}`
+5. `unified_relay` 会把所有 API 统一 POST 到配置的 `http_url`，并使用同一凭据发送
+   标准 `token` 与 `X-API-Key`；凭据不得写进 URL、`extra_config`、代码或日志
+6. 未识别的请求模式必须失败关闭，不得自动猜测代理协议
 
 ### 12.2 QMT 行情源
 

@@ -654,7 +654,10 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 ### 数据源中台提示
 
 - Tushare 第三方代理地址统一配置在 `ProviderConfigModel.http_url`
-- 运行时会自动下发到 `pro._DataApi__http_url`
+- 默认 `sdk_path` 模式会自动下发到 `pro._DataApi__http_url`
+- 单 URL 中继使用 `extra_config={"tushare_request_mode":"unified_relay"}`；运行时固定向
+  `http_url` POST，并发送 `X-API-Key`，不会在 URL 后追加 API 名
+- API Key 只放 `ProviderConfigModel.api_key`，不得复制到 `extra_config` 或 URL
 - 不需要在 `equity / backtest / data_center / fund / sector / factor / hedge` 分别配置
 - QMT 行情源统一配置在 `ProviderConfigModel.source_type=qmt`
 - `extra_config` 可承载 `client_path`、`data_dir`、`dividend_type` 等本地 XtQuant 参数
