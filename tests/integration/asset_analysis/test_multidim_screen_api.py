@@ -30,10 +30,7 @@ class TestMultiDimScreenAPI(TestCase):
 
         # 创建或获取测试用户并强制认证
         self.user, _ = User.objects.get_or_create(
-            username='testuser',
-            defaults={
-                'password': 'testpass123'
-            }
+            username="testuser", defaults={"password": "testpass123"}
         )
         self.client.force_authenticate(user=self.user)
 
@@ -48,7 +45,7 @@ class TestMultiDimScreenAPI(TestCase):
                 "signal_weight": 0.15,
                 "is_active": True,
                 "priority": 0,
-            }
+            },
         )
 
         # 创建测试基金数据
@@ -61,7 +58,7 @@ class TestMultiDimScreenAPI(TestCase):
                 "management_company": "易方达基金",
                 "fund_scale": 50_000_000_000,  # 500亿
                 "is_active": True,
-            }
+            },
         )
 
         # 创建测试 Regime 数据
@@ -70,10 +67,15 @@ class TestMultiDimScreenAPI(TestCase):
             defaults={
                 "growth_momentum_z": 1.5,
                 "inflation_momentum_z": 0.5,
-                "distribution": {"Recovery": 0.6, "Overheat": 0.2, "Stagflation": 0.1, "Deflation": 0.1},
+                "distribution": {
+                    "Recovery": 0.6,
+                    "Overheat": 0.2,
+                    "Stagflation": 0.1,
+                    "Deflation": 0.1,
+                },
                 "dominant_regime": "Recovery",
                 "confidence": 0.85,
-            }
+            },
         )
 
     def test_multidim_screen_no_501(self):
@@ -96,6 +98,7 @@ class TestMultiDimScreenAPI(TestCase):
         data = {
             "asset_type": "fund",
             "filters": {"fund_type": "混合型"},
+            "sentiment_index": 0.0,
             "max_count": 10,
         }
 
@@ -195,6 +198,7 @@ class TestMultiDimScreenAPI(TestCase):
         data = {
             "asset_type": "fund",
             "filters": {},
+            "sentiment_index": 0.0,
             "max_count": 10,
         }
 

@@ -107,6 +107,7 @@ def test_provider_detail_and_create_responses_never_echo_credentials(
     assert create_payload["extra_config"] == {
         "client_path": "C:/qmt",
         "nested": {"timeout": 10},
+        "tushare_request_mode": "sdk_path",
     }
     assert "nested-provider-token" not in create_response.content.decode("utf-8")
 

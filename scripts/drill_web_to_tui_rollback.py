@@ -22,7 +22,10 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-BASELINE_REVISION = "7e706d07caacca8b3e56a486d8c0b6b6ed2cdf37"
+# Keep the rollback fixture on a graph that satisfies the current strict
+# panel/action result contracts. Older M4 snapshots predate those contracts
+# and cannot be republished through the guarded runtime registry.
+BASELINE_REVISION = "ed7b41c6"
 WAVE = "M4-simulated-accounts-w51"
 
 # The graph and IA files are monolithic release artifacts, so their delta covers

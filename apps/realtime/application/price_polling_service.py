@@ -133,10 +133,12 @@ class PricePollingService:
         }
 
         # 3. 批量获取价格
-        prices = self._fresh_prices(
-            self.price_provider.get_realtime_prices_batch(asset_codes),
-            reference_time=reference_time,
-        )
+        provider_prices = self.price_provider.get_realtime_prices_batch(asset_codes)
+        # Take the reference clock after the provider returns.  This avoids
+        # rejecting a quote whose observation timestamp is only a few
+        # microseconds newer than a clock read taken immediately beforehand.
+        provider_reference_time = timezone.now()
+        prices = self._fresh_prices(provider_prices, reference_time=provider_reference_time)
 
         # 4. 保存价格到缓存
         if prices:

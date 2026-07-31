@@ -212,13 +212,14 @@ def test_decision_step1_and_step2_partials_show_freshness_metadata(authenticated
     """Step 1 and Step 2 partials should show validity windows for nightly snapshots."""
     with (
         patch(
-            "core.application.decision_context.get_regime_repository",
+            "core.application.decision_context.resolve_current_regime",
             return_value=SimpleNamespace(
-                get_latest_snapshot=lambda before_date=None: SimpleNamespace(
-                    dominant_regime="Recovery",
-                    observed_at=date(2026, 5, 9),
-                    confidence=0.91,
-                )
+                dominant_regime="Recovery",
+                observed_at=date(2026, 5, 9),
+                confidence=0.91,
+                is_stale=False,
+                must_not_use_for_decision=False,
+                blocked_reason="",
             ),
         ),
         patch(
