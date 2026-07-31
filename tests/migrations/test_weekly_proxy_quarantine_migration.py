@@ -16,7 +16,7 @@ INDICATOR_CODES = (
 )
 
 
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+@pytest.mark.django_db(transaction=True)
 def test_migration_disables_and_quarantines_weekly_proxy_facts() -> None:
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()
