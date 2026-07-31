@@ -9,7 +9,10 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 
-from apps.account.application.repository_provider import AccountInterfaceRepository
+from apps.account.application.repository_provider import (
+    AccountInterfaceRepository,
+    AccountRepository,
+)
 
 
 @dataclass(frozen=True)
@@ -21,7 +24,6 @@ class RegisteredUserOutcome:
     display_name: str
 
 
-
 _interface_repo = AccountInterfaceRepository
 
 TOKEN_ACCESS_LEVEL_READ_ONLY = "read_only"
@@ -30,6 +32,7 @@ TOKEN_ACCESS_LEVEL_CHOICES = (
     (TOKEN_ACCESS_LEVEL_READ_ONLY, "只读"),
     (TOKEN_ACCESS_LEVEL_READ_WRITE, "读写"),
 )
+
 
 def resolve_mcp_public_base_url(observed_base_url: str) -> str:
     """Return the canonical public origin used in MCP access artifacts.
@@ -232,6 +235,18 @@ def build_settings_context(user_id: int) -> dict[str, Any]:
     """Build the HTML settings page context."""
 
     return _interface_repo().build_settings_context(user_id)
+
+
+def build_token_management_context(
+    search_query: str,
+    only_without_token: bool,
+) -> dict[str, Any]:
+    """Build the admin token-management context for MCP projections."""
+
+    return _interface_repo().build_token_management_context(
+        search_query=search_query,
+        only_without_token=only_without_token,
+    )
 
 
 def build_mcp_guide_context(user_id: int, *, base_url: str) -> dict[str, Any]:
@@ -551,5 +566,3 @@ def build_mcp_agent_prompt_payload(
         "agent_bootstrap_access_level": access_level,
         "agent_bootstrap_access_level_label": access_level_label,
     }
-
-
