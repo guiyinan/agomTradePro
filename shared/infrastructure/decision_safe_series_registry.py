@@ -6,7 +6,7 @@ importing another business app's implementation directly.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
@@ -22,7 +22,7 @@ class DecisionSafeSeriesPoint(Protocol):
 class DecisionSafeSeriesResult(Protocol):
     """A series together with its explicit decision-safety state."""
 
-    points: tuple[DecisionSafeSeriesPoint, ...]
+    points: Sequence[DecisionSafeSeriesPoint]
     observed_at: date | None
     must_not_use_for_decision: bool
     blocked_reason: str

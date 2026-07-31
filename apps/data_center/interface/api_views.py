@@ -25,7 +25,6 @@ from typing import Any
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -102,19 +101,17 @@ from apps.data_center.composition import (
 )
 from apps.data_center.domain.pit import KnowledgeScope
 from apps.data_center.interface.auth_helpers import _authenticated_user_id
+from apps.data_center.interface.pit_serializers import (
+    BuildPITManifestSerializer,
+    serialize_pit_manifest,
+)
+from apps.data_center.interface.provider_api_views import (
+    provider_status as _provider_status,
+)
 from apps.data_center.interface.query_params import (
     _parse_bool_param,
     _parse_positive_float_param,
     _parse_positive_int_param,
-)
-from apps.data_center.interface.provider_api_views import (
-    provider_detail,
-    provider_list_create,
-    provider_status,
-)
-from apps.data_center.interface.pit_serializers import (
-    BuildPITManifestSerializer,
-    serialize_pit_manifest,
 )
 from apps.data_center.interface.serializers import (
     CapitalFlowQuerySerializer,
@@ -138,10 +135,19 @@ from apps.data_center.interface.serializers import (
     SyncSectorMembershipRequestSerializer,
     SyncValuationRequestSerializer,
 )
-from shared.numeric import safe_float
+from apps.data_center.provider_runtime import get_registry
 from shared.request_payload import request_data_mapping
 
 logger = logging.getLogger(__name__)
+
+
+def provider_status(request: Request) -> Response:
+    """Compatibility entry point retaining the historic patch surface."""
+
+    import apps.data_center.interface.provider_api_views as provider_views
+
+    provider_views.get_registry = get_registry
+    return _provider_status(request)
 
 
 def _make_decision_repair_use_case(
@@ -150,125 +156,6 @@ def _make_decision_repair_use_case(
     return make_decision_repair_use_case(user)
 
 
-
-
-# ---------------------------------------------------------------------------
-# Provider list / create
-# ---------------------------------------------------------------------------
-
-
-@api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
-def provider_list_create(request: Request) -> Response:
-    """
-    GET  — list all provider configs (credentials masked).
-    POST — create a new provider config.
-    """
-    use_case = make_manage_provider_config_use_case()
-
-    if request.method == "GET":
-        providers = use_case.list_all()
-        list_serializer = ProviderConfigListSerializer(
-            [p.to_dict() for p in providers],
-            many=True,
-        )
-        return Response({"results": list_serializer.data})
-
-    # POST — create
-    create_serializer = ProviderConfigSerializer(data=request.data)
-    create_serializer.is_valid(raise_exception=True)
-    d = create_serializer.validated_data
-    extra_config = _provider_extra_config_with_tushare_mode(
-        existing={},
-        submitted=d.get("extra_config"),
-        submitted_mode=d.get("tushare_request_mode"),
-        source_type=d["source_type"],
-        http_url=d.get("http_url", ""),
-    )
-    req = CreateProviderRequest(
-        name=d["name"],
-        source_type=d["source_type"],
-        is_active=d.get("is_active", True),
-        priority=d.get("priority", 100),
-        api_key=d.get("api_key", ""),
-        api_secret=d.get("api_secret", ""),
-        http_url=d.get("http_url", ""),
-        api_endpoint=d.get("api_endpoint", ""),
-        extra_config=extra_config,
-        description=d.get("description", ""),
-    )
-    created = use_case.create(req)
-    refresh_registry()
-    return Response(_safe_provider_payload(created), status=status.HTTP_201_CREATED)
-
-
-# ---------------------------------------------------------------------------
-# Provider detail / update / delete
-# ---------------------------------------------------------------------------
-
-
-@api_view(["GET", "PATCH", "PUT", "DELETE"])
-@permission_classes([IsAdminUser])
-def provider_detail(request: Request, provider_id: int) -> Response:
-    """
-    GET    — retrieve one provider config.
-    PATCH  — partial update.
-    PUT    — full update.
-    DELETE — remove provider config.
-    """
-    use_case = make_manage_provider_config_use_case()
-
-    if request.method == "GET":
-        provider = use_case.get(provider_id)
-        if provider is None:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        return Response(_safe_provider_payload(provider))
-
-    if request.method == "DELETE":
-        deleted = use_case.delete(provider_id)
-        if not deleted:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        refresh_registry()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    # PATCH / PUT
-    partial = request.method == "PATCH"
-    serializer = ProviderConfigSerializer(data=request.data, partial=partial)
-    serializer.is_valid(raise_exception=True)
-    d = serializer.validated_data
-    existing = use_case.get(provider_id)
-    if existing is None:
-        return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-    if d.get("clear_service_address") and d.get("http_url"):
-        raise ValidationError({"http_url": "新服务地址与清除现有服务地址不能同时提交。"})
-    source_type = d.get("source_type", existing.source_type)
-    http_url = "" if d.get("clear_service_address") else d.get("http_url", existing.http_url)
-    submitted_extra_config = d.get("extra_config") if "extra_config" in d else None
-    extra_config = _provider_extra_config_with_tushare_mode(
-        existing=existing.extra_config,
-        submitted=submitted_extra_config,
-        submitted_mode=d.get("tushare_request_mode"),
-        source_type=source_type,
-        http_url=http_url,
-    )
-    req = UpdateProviderRequest(
-        provider_id=provider_id,
-        name=d.get("name"),
-        source_type=d.get("source_type"),
-        is_active=d.get("is_active"),
-        priority=d.get("priority"),
-        api_key=_optional_masked_secret(d.get("api_key")),
-        api_secret=_optional_masked_secret(d.get("api_secret")),
-        http_url=http_url if "http_url" in d or d.get("clear_service_address") else None,
-        api_endpoint=d.get("api_endpoint"),
-        extra_config=extra_config,
-        description=d.get("description"),
-    )
-    updated = use_case.update(req)
-    if updated is None:
-        return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-    refresh_registry()
-    return Response(_safe_provider_payload(updated))
 
 
 # ---------------------------------------------------------------------------

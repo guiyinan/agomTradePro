@@ -10,6 +10,7 @@ from typing import Any
 
 from django.utils import timezone
 
+from apps.account.application import mcp_access_services as _mcp_access_services
 from apps.account.application.rbac import ROLE_CHOICES
 from apps.account.application.repository_provider import (
     AccountClassificationRepository,
@@ -82,35 +83,102 @@ _classification_repo = AccountClassificationRepository
 _macro_sizing_repo = MacroSizingConfigRepository
 
 
-from apps.account.application.mcp_access_services import (
-    RegisteredUserOutcome,
-    TOKEN_ACCESS_LEVEL_CHOICES,
-    TOKEN_ACCESS_LEVEL_READ_ONLY,
-    TOKEN_ACCESS_LEVEL_READ_WRITE,
-    build_admin_mcp_user_detail_payload,
-    build_admin_mcp_users_payload,
-    build_login_context,
-    build_mcp_access_verification_payload,
-    build_mcp_agent_prompt_payload,
-    build_mcp_guide_context,
-    build_profile_context,
-    build_self_mcp_api_payload,
-    build_settings_context,
-    build_token_payload,
-    get_active_access_token,
-    get_existing_system_settings,
-    get_system_settings,
-    get_token_access_level_choices,
-    has_any_administrator,
-    has_system_settings_singleton,
-    list_investment_account_options,
-    normalize_token_access_level,
-    provision_registered_user,
-    register_user,
-    resolve_mcp_public_base_url,
-    touch_access_token,
-    username_exists,
-)
+RegisteredUserOutcome = _mcp_access_services.RegisteredUserOutcome
+TOKEN_ACCESS_LEVEL_CHOICES = _mcp_access_services.TOKEN_ACCESS_LEVEL_CHOICES
+TOKEN_ACCESS_LEVEL_READ_ONLY = _mcp_access_services.TOKEN_ACCESS_LEVEL_READ_ONLY
+TOKEN_ACCESS_LEVEL_READ_WRITE = _mcp_access_services.TOKEN_ACCESS_LEVEL_READ_WRITE
+
+
+def resolve_mcp_public_base_url(observed_base_url: str) -> str:
+    return _mcp_access_services.resolve_mcp_public_base_url(observed_base_url)
+
+
+def get_system_settings() -> Any:
+    return _mcp_access_services.get_system_settings()
+
+
+def has_system_settings_singleton() -> bool:
+    return _mcp_access_services.has_system_settings_singleton()
+
+
+def get_existing_system_settings() -> Any:
+    return _mcp_access_services.get_existing_system_settings()
+
+
+def get_active_access_token(key: str) -> Any:
+    return _mcp_access_services.get_active_access_token(key)
+
+
+def list_investment_account_options(user_id: int) -> list[dict[str, Any]]:
+    return _mcp_access_services.list_investment_account_options(user_id)
+
+
+def touch_access_token(token: Any) -> None:
+    _mcp_access_services.touch_access_token(token)
+
+
+def build_token_payload(*args: Any, **kwargs: Any) -> dict[str, str] | None:
+    return _mcp_access_services.build_token_payload(*args, **kwargs)
+
+
+def normalize_token_access_level(raw_value: str | None) -> str:
+    return _mcp_access_services.normalize_token_access_level(raw_value)
+
+
+def get_token_access_level_choices() -> tuple[tuple[str, str], ...]:
+    return _mcp_access_services.get_token_access_level_choices()
+
+
+def provision_registered_user(*args: Any, **kwargs: Any) -> None:
+    _mcp_access_services.provision_registered_user(*args, **kwargs)
+
+
+def username_exists(username: str) -> bool:
+    return _mcp_access_services.username_exists(username)
+
+
+def has_any_administrator(*args: Any, **kwargs: Any) -> bool:
+    return _mcp_access_services.has_any_administrator(*args, **kwargs)
+
+
+def register_user(*args: Any, **kwargs: Any) -> RegisteredUserOutcome:
+    return _mcp_access_services.register_user(*args, **kwargs)
+
+
+def build_login_context() -> dict[str, Any]:
+    return _mcp_access_services.build_login_context()
+
+
+def build_profile_context(user_id: int) -> dict[str, Any]:
+    return _mcp_access_services.build_profile_context(user_id)
+
+
+def build_settings_context(user_id: int) -> dict[str, Any]:
+    return _mcp_access_services.build_settings_context(user_id)
+
+
+def build_mcp_guide_context(user_id: int, *, base_url: str) -> dict[str, Any]:
+    return _mcp_access_services.build_mcp_guide_context(user_id, base_url=base_url)
+
+
+def build_self_mcp_api_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return _mcp_access_services.build_self_mcp_api_payload(*args, **kwargs)
+
+
+def build_mcp_access_verification_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return _mcp_access_services.build_mcp_access_verification_payload(*args, **kwargs)
+
+
+def build_admin_mcp_users_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return _mcp_access_services.build_admin_mcp_users_payload(*args, **kwargs)
+
+
+def build_admin_mcp_user_detail_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return _mcp_access_services.build_admin_mcp_user_detail_payload(*args, **kwargs)
+
+
+def build_mcp_agent_prompt_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return _mcp_access_services.build_mcp_agent_prompt_payload(*args, **kwargs)
 
 def get_active_portfolio_for_user(user_id: int) -> Any:
     """Return the user's active portfolio when available."""

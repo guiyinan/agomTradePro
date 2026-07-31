@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 import pytest
+from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.recorder import MigrationRecorder
@@ -122,6 +123,13 @@ def test_transition_plan_owner_transfer_preserves_existing_rows() -> None:
             as_of=timezone.now(),
         )
 
+        # MigrationExecutor does not run the post-migrate content-type cleanup
+        # when moving this model between apps. Remove stale rows before the
+        # state-only owner transfer creates the destination model.
+        ContentType.objects.filter(
+            app_label__in={"decision_rhythm", "portfolio"},
+            model="portfoliotransitionplanmodel",
+        ).delete()
         executor = MigrationExecutor(connection)
         executor.migrate(after_targets)
         new_apps = executor.loader.project_state(after_targets).apps
