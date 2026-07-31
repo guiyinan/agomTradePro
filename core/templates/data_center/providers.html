@@ -56,6 +56,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     </div>
                     <div class="provider-card-meta">
                         <span>API Key: ${p.has_api_key ? '✓ 已配置' : '未配置'}</span>
+                        ${p.tushare_request_mode_label ? `<span>连接方式: ${p.tushare_request_mode_label}</span>` : ''}
                         ${p.http_url ? `<span>HTTP URL: ${p.http_url}</span>` : ''}
                     </div>
                     <div class="provider-card-actions">

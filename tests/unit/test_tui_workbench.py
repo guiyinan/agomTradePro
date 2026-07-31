@@ -2963,11 +2963,15 @@ def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
     assert [panel["action_key"] for panel in panels] == [
         "auto.api.get.api.health",
         "auto.api.get.api.data-center",
+        "auto.api.get.api.data-center.providers",
+        "",
         "task-monitor.readiness",
         "task-monitor.task-list",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
     assert "auto.api.get.api.data-center" in action_keys
+    assert "data-center.tushare-create" in action_keys
+    assert "data-center.provider-update" in action_keys
 
 
 def test_tui_events_screen_returns_overview_panels(client, tui_user):

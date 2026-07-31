@@ -27,6 +27,8 @@ def _operator_label(value: str) -> str:
 
 
 FIELD_LABELS = {
+    "assigned_by": "分配人",
+    "created_by": "创建人",
     "account_id": "账户 ID",
     "ai_provider": "AI 服务商",
     "alpha_fixed_provider": "固定服务商",
@@ -869,6 +871,7 @@ PATH_FIELD_RULES: dict[str, dict[str, dict[str, Any]]] = {
 
 AUTO_PROMOTION_EXCLUDED_ENDPOINTS = {
     "/api/agent-runtime/proposals/",
+    "/api/broker-execution/qmt-onboarding/",
     "/api/dashboard/alpha/exit-panel/",
     "/api/dashboard/alpha/factor-panel/",
     "/api/dashboard/alpha/stocks/",
@@ -993,7 +996,7 @@ def _query_fields_from_input_schema(record: dict[str, Any]) -> list[dict[str, An
         field = _query_field_from_spec(
             {
                 "key": key,
-                "label": value.get("title") or FIELD_LABELS.get(key, _humanize(key)),
+                "label": FIELD_LABELS.get(key) or value.get("title") or _humanize(key),
                 "required": key in required_fields,
                 "default": value.get("default", ""),
             }
@@ -1012,6 +1015,26 @@ def _query_fields_from_input_schema(record: dict[str, Any]) -> list[dict[str, An
             field["value_type"] = "list"
         fields.append(field)
     return fields
+
+
+def normalize_known_field_labels(payload: dict[str, Any]) -> None:
+    """Refresh known field labels in both baseline and newly collected actions."""
+
+    for action in payload.get("actions", []):
+        if not isinstance(action, dict):
+            continue
+        for field in action.get("fields", []):
+            if not isinstance(field, dict):
+                continue
+            key = str(field.get("key") or "").strip()
+            localized_label = FIELD_LABELS.get(key)
+            if not localized_label:
+                continue
+            previous_label = str(field.get("label") or "").strip()
+            field["label"] = localized_label
+            placeholder = str(field.get("placeholder") or "")
+            if previous_label and previous_label in placeholder:
+                field["placeholder"] = placeholder.replace(previous_label, localized_label)
 
 
 def _infer_query_fields(record: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1821,6 +1844,7 @@ def main() -> int:
         args.include_parameterized_api_actions,
     )
     merge_inferred_query_fields_into_existing_actions(payload, safe_records)
+    normalize_known_field_labels(payload)
     sdk_evidence = collect_sdk_evidence(root, args.sdk_evidence_limit)
     mcp_evidence = collect_mcp_evidence(root, args.mcp_evidence_limit)
     template_evidence = collect_template_evidence(root, args.template_evidence_limit)

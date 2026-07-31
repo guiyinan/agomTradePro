@@ -59,6 +59,7 @@ def test_blank_masked_credentials_preserve_existing_values():
             "api_key": "",
             "api_secret": "",
             "http_url": "",
+            "tushare_request_mode": "sdk_path",
             "api_endpoint": "",
             "extra_config": "{}",
             "description": "",
@@ -69,6 +70,51 @@ def test_blank_masked_credentials_preserve_existing_values():
     assert form.is_valid(), form.errors
     assert form.cleaned_data["api_key"] == "stored-api-key"
     assert form.cleaned_data["api_secret"] == "stored-api-secret"
+    assert form.cleaned_data["extra_config"]["tushare_request_mode"] == "sdk_path"
+
+
+def test_tushare_transport_mode_is_explicit_in_admin_form():
+    """Admin edits must expose the stored transport as a dedicated choice."""
+
+    provider = ProviderConfigModel(
+        pk=8,
+        name="relay",
+        source_type="tushare",
+        http_url="https://relay.example.com/tushare/pro",
+        extra_config={
+            "tushare_request_mode": "unified_relay",
+            "health_metrics": {"success_count": 5},
+        },
+    )
+
+    form = data_center_admin.ProviderConfigAdminForm(instance=provider)
+
+    assert form.initial["tushare_request_mode"] == "unified_relay"
+    assert "统一中继" in str(form["tushare_request_mode"])
+
+
+@pytest.mark.django_db
+def test_admin_rejects_unified_tushare_transport_without_service_address():
+    """The relay choice must not be saved without its endpoint."""
+
+    form = data_center_admin.ProviderConfigAdminForm(
+        data={
+            "name": "relay",
+            "source_type": "tushare",
+            "is_active": "on",
+            "priority": "1",
+            "api_key": "relay-key",
+            "api_secret": "",
+            "http_url": "",
+            "tushare_request_mode": "unified_relay",
+            "api_endpoint": "",
+            "extra_config": '{"health_metrics":{"success_count":5}}',
+            "description": "",
+        }
+    )
+
+    assert not form.is_valid()
+    assert form.errors["http_url"] == ["统一中继连接必须填写服务地址。"]
 
 
 @pytest.mark.parametrize(

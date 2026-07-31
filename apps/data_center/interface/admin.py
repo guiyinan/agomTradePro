@@ -2,6 +2,8 @@
 Data Center — Django Admin Registration
 """
 
+from typing import Any
+
 from django import forms
 from django.contrib import admin
 from django.http import HttpRequest
@@ -15,7 +17,17 @@ from apps.data_center.models import (
     ProviderConfigModel,
     PublisherCatalogModel,
 )
+from shared.config.tushare import (
+    TUSHARE_REQUEST_MODE_SDK_PATH,
+    TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+    TUSHARE_REQUEST_MODE_VALUES,
+)
 from shared.infrastructure.django_admin import TypedModelAdmin, TypedModelForm
+
+_TUSHARE_REQUEST_MODE_LABELS: dict[str, str] = {
+    TUSHARE_REQUEST_MODE_SDK_PATH: "标准 Tushare",
+    TUSHARE_REQUEST_MODE_UNIFIED_RELAY: "统一中继",
+}
 
 
 class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
@@ -31,10 +43,28 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
         widget=forms.PasswordInput(render_value=False),
         help_text="Leave blank to keep the existing API secret.",
     )
+    tushare_request_mode = forms.ChoiceField(
+        required=False,
+        label="Tushare 连接方式",
+        choices=[
+            (TUSHARE_REQUEST_MODE_SDK_PATH, "标准 Tushare"),
+            (TUSHARE_REQUEST_MODE_UNIFIED_RELAY, "统一中继"),
+        ],
+        help_text="统一中继使用上方服务地址和 API Key；标准方式保持官方 SDK 调用。",
+    )
 
     class Meta:
         model = ProviderConfigModel
         fields = "__all__"
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        extra_config = self.instance.extra_config if self.instance is not None else {}
+        raw_mode = (extra_config or {}).get("tushare_request_mode")
+        initial_mode = (
+            raw_mode if raw_mode in TUSHARE_REQUEST_MODE_VALUES else TUSHARE_REQUEST_MODE_SDK_PATH
+        )
+        self.initial["tushare_request_mode"] = initial_mode
 
     def clean_api_key(self) -> str:
         """Preserve an existing API key when the masked input stays blank."""
@@ -52,11 +82,43 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
             return value
         return self.instance.api_secret if self.instance.pk is not None else ""
 
+    def clean(self) -> dict[str, Any]:
+        """Persist and validate the explicit Tushare transport selection."""
+
+        cleaned_data = super().clean() or {}
+        source_type = cleaned_data.get("source_type")
+        extra_config = dict(cleaned_data.get("extra_config") or {})
+        if source_type != "tushare":
+            extra_config.pop("tushare_request_mode", None)
+            cleaned_data["extra_config"] = extra_config
+            return cleaned_data
+
+        submitted_mode = cleaned_data.get("tushare_request_mode")
+        mode = submitted_mode or self.initial.get(
+            "tushare_request_mode", TUSHARE_REQUEST_MODE_SDK_PATH
+        )
+        if mode not in TUSHARE_REQUEST_MODE_VALUES:
+            self.add_error("tushare_request_mode", "请选择有效的 Tushare 连接方式。")
+            return cleaned_data
+        if mode == TUSHARE_REQUEST_MODE_UNIFIED_RELAY and not cleaned_data.get("http_url"):
+            self.add_error("http_url", "统一中继连接必须填写服务地址。")
+
+        extra_config["tushare_request_mode"] = mode
+        cleaned_data["extra_config"] = extra_config
+        return cleaned_data
+
 
 @admin.register(ProviderConfigModel)
 class ProviderConfigAdmin(TypedModelAdmin[ProviderConfigModel]):
     form = ProviderConfigAdminForm
-    list_display = ("name", "source_type", "is_active", "priority", "updated_at")
+    list_display = (
+        "name",
+        "source_type",
+        "tushare_connection_mode",
+        "is_active",
+        "priority",
+        "updated_at",
+    )
     list_filter = ("source_type", "is_active")
     search_fields = ("name", "description")
     ordering = ("priority", "name")
@@ -67,7 +129,13 @@ class ProviderConfigAdmin(TypedModelAdmin[ProviderConfigModel]):
         (
             "Credentials",
             {
-                "fields": ("api_key", "api_secret", "http_url", "api_endpoint"),
+                "fields": (
+                    "api_key",
+                    "api_secret",
+                    "http_url",
+                    "tushare_request_mode",
+                    "api_endpoint",
+                ),
                 "classes": ("collapse",),
             },
         ),
@@ -80,6 +148,16 @@ class ProviderConfigAdmin(TypedModelAdmin[ProviderConfigModel]):
         ),
         ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
+
+    @admin.display(description="连接方式")
+    def tushare_connection_mode(self, obj: ProviderConfigModel) -> str:
+        """Display the explicit Tushare transport without exposing credentials."""
+
+        if obj.source_type != "tushare":
+            return "—"
+        raw_mode = (obj.extra_config or {}).get("tushare_request_mode")
+        mode = raw_mode if isinstance(raw_mode, str) else TUSHARE_REQUEST_MODE_SDK_PATH
+        return _TUSHARE_REQUEST_MODE_LABELS.get(mode, "未识别")
 
 
 @admin.register(DataProviderSettingsModel)
