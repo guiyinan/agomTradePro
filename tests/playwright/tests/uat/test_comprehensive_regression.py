@@ -5,6 +5,9 @@ This suite replaces the old root-level smoke script with collected pytest tests
 that reuse the shared Playwright fixtures, markers, and failure screenshot flow.
 """
 
+import json
+import os
+import re
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from urllib.parse import urljoin, urlparse
@@ -34,6 +37,39 @@ from tests.playwright.tests.smoke.test_critical_paths import (
     _assert_simulated_trading_contract,
     _wait_for_non_placeholder_text,
 )
+
+REMOTE_UAT_RUN_ID = os.environ.get("AGOM_REMOTE_UAT_RUN_ID", "").strip()
+REMOTE_UAT_ACCOUNT_IDS = os.environ.get("AGOM_REMOTE_UAT_ACCOUNT_IDS", "").strip()
+
+
+def _remote_uat_active() -> bool:
+    """Return whether this run targets explicitly provisioned remote fixtures."""
+
+    hostname = (urlparse(config.base_url).hostname or "").lower()
+    return bool(REMOTE_UAT_RUN_ID) and hostname not in {
+        "127.0.0.1",
+        "localhost",
+        "::1",
+        "testserver",
+    }
+
+
+def _uat_suffix() -> str:
+    """Return a stable per-run suffix remotely and a random suffix locally."""
+
+    if REMOTE_UAT_RUN_ID:
+        return re.sub(r"[^A-Za-z0-9]", "", REMOTE_UAT_RUN_ID)[:8]
+    return uuid4().hex[:8]
+
+
+def _remote_account_ids() -> dict[str, int]:
+    """Return explicit remote account fixtures keyed by their generated names."""
+
+    if not REMOTE_UAT_ACCOUNT_IDS:
+        return {}
+    payload = json.loads(REMOTE_UAT_ACCOUNT_IDS)
+    return {str(key): int(value) for key, value in payload.items()}
+
 
 PUBLIC_SURFACES = [
     pytest.param("/", None, id="home"),
@@ -286,6 +322,9 @@ def _run_db_operation(django_db_blocker, operation):
 def _cleanup_signal(asset_code: str, django_db_blocker) -> None:
     """Delete a created signal by unique asset code."""
 
+    if _remote_uat_active():
+        return
+
     def _delete() -> None:
         from apps.signal.infrastructure.models import InvestmentSignalModel
 
@@ -296,6 +335,9 @@ def _cleanup_signal(asset_code: str, django_db_blocker) -> None:
 
 def _seed_signal(asset_code: str, django_db_blocker, *, status: str = "pending") -> None:
     """Create a deterministic signal owned by the Playwright admin user."""
+
+    if _remote_uat_active():
+        return
 
     def _create() -> None:
         from django.contrib.auth import get_user_model
@@ -326,6 +368,9 @@ def _seed_signal(asset_code: str, django_db_blocker, *, status: str = "pending")
 def _cleanup_account(account_name: str, django_db_blocker) -> None:
     """Delete a created investment account by its unique test name."""
 
+    if _remote_uat_active():
+        return
+
     def _delete() -> None:
         from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
@@ -336,6 +381,12 @@ def _cleanup_account(account_name: str, django_db_blocker) -> None:
 
 def _seed_account(account_name: str, django_db_blocker, *, account_type: str = "simulated") -> int:
     """Create a deterministic investment account for the Playwright admin user."""
+
+    if _remote_uat_active():
+        account_id = _remote_account_ids().get(account_name)
+        if account_id is None:
+            raise AssertionError(f"Remote UAT account fixture is missing: {account_name}")
+        return account_id
 
     def _create() -> int:
         from django.contrib.auth import get_user_model
@@ -626,7 +677,7 @@ class TestComprehensiveInteractiveFlows:
         # ``UATSIG*`` is deliberately hidden from production-facing lists.
         # Use a unique visible code so this round trip exercises the rendered card,
         # then remove it in ``finally`` below.
-        asset_code = f"UATCRT{uuid4().hex[:8].upper()}"
+        asset_code = f"UATCRT{_uat_suffix().upper()}"
 
         try:
             response = _goto(authenticated_page, config.signal_manage_url)
@@ -684,7 +735,7 @@ class TestComprehensiveInteractiveFlows:
         django_db_blocker,
     ) -> None:
         """Creating an investment account from the modal should surface a new account card."""
-        account_name = f"Phase3-UAT-{uuid4().hex[:8]}"
+        account_name = f"Phase3-UAT-{_uat_suffix()}"
 
         try:
             response = _goto(authenticated_page, config.simulated_trading_positions_url)
@@ -760,7 +811,7 @@ class TestComprehensiveActionRegression:
         self, authenticated_page: Page, django_db_blocker
     ) -> None:
         """Approving a seeded pending signal should reload the page and update its status badge."""
-        asset_code = f"UATAPP{uuid4().hex[:8].upper()}"
+        asset_code = f"UATAPP{_uat_suffix().upper()}"
         _seed_signal(asset_code, django_db_blocker, status="pending")
 
         try:
@@ -785,7 +836,7 @@ class TestComprehensiveActionRegression:
         self, authenticated_page: Page, django_db_blocker
     ) -> None:
         """Rejecting a seeded pending signal should prompt for a reason and show rejected state."""
-        asset_code = f"UATREJ{uuid4().hex[:8].upper()}"
+        asset_code = f"UATREJ{_uat_suffix().upper()}"
         _seed_signal(asset_code, django_db_blocker, status="pending")
 
         try:
@@ -814,7 +865,8 @@ class TestComprehensiveActionRegression:
         self, authenticated_page: Page, django_db_blocker
     ) -> None:
         """Selecting two seeded accounts should enable batch delete and remove both cards."""
-        account_names = [f"UAT-Batch-{uuid4().hex[:6]}-A", f"UAT-Batch-{uuid4().hex[:6]}-B"]
+        suffix = _uat_suffix()
+        account_names = [f"UAT-Batch-{suffix}-A", f"UAT-Batch-{suffix}-B"]
         for name in account_names:
             _seed_account(name, django_db_blocker)
 
@@ -870,7 +922,7 @@ class TestComprehensiveActionRegression:
         self, authenticated_page: Page, django_db_blocker
     ) -> None:
         """Switching to a seeded account should refresh account summary and status text."""
-        account_name = f"UAT-Workspace-{uuid4().hex[:8]}"
+        account_name = f"UAT-Workspace-{_uat_suffix()}"
         account_id = _seed_account(account_name, django_db_blocker)
 
         try:

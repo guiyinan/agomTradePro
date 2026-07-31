@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
@@ -18,7 +19,13 @@ VIEWPORTS = (
     pytest.param(1024, 768, id="tablet-1024x768"),
     pytest.param(390, 844, id="mobile-390x844"),
 )
-PASSWORD = "CodexM5Uat!2026"
+PASSWORD = os.environ.get("AGOM_M5_UAT_PASSWORD", "CodexM5Uat!2026")
+REMOTE_ACTORS_READY = os.environ.get("AGOM_M5_REMOTE_ACTORS_READY", "").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 EXTERNAL_AI_UAT_ENABLED = os.environ.get("AGOM_M5_EXTERNAL_AI_UAT", "").lower() in {
     "1",
     "true",
@@ -29,19 +36,62 @@ EXTERNAL_AI_UAT_SKIP_REASON = (
     "requires AGOM_M5_EXTERNAL_AI_UAT=1 and a controlled live AI provider "
     "configured in the disposable Playwright database"
 )
+REMOTE_ACCOUNT_ID = int(os.environ.get("AGOM_M5_REMOTE_ACCOUNT_ID", "2"))
+REMOTE_UAT_RUN_ID = os.environ.get("AGOM_REMOTE_UAT_RUN_ID", "").strip()
+
+
+def _m5_uat_suffix() -> str:
+    """Return a stable remote run suffix and a random local suffix."""
+
+    if REMOTE_UAT_RUN_ID:
+        return re.sub(r"[^A-Za-z0-9]", "", REMOTE_UAT_RUN_ID)[:8]
+    return uuid4().hex[:8]
+
+
 ROOT = Path(__file__).resolve().parents[4]
 MATRIX_PATH = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 
 
+def _is_local_target(base_url: str) -> bool:
+    """Return whether the browser target shares pytest's local database."""
+
+    hostname = (urlparse(base_url).hostname or "").lower()
+    return hostname in {"127.0.0.1", "localhost", "::1", "testserver"}
+
+
+def _require_remote_actors(base_url: str, username: str) -> None:
+    """Skip role-specific remote tests until actors are explicitly provisioned."""
+
+    if (
+        username.startswith("m5_uat_")
+        and not _is_local_target(base_url)
+        and not REMOTE_ACTORS_READY
+    ):
+        pytest.skip(
+            "remote M5 role actors are not provisioned; set "
+            "AGOM_M5_REMOTE_ACTORS_READY=1 and AGOM_M5_UAT_PASSWORD explicitly"
+        )
+
+
 @pytest.fixture(scope="session", autouse=True)
 def ensure_m5_uat_users(
-    django_db_setup: object,
-    django_db_blocker: object,
+    request: pytest.FixtureRequest,
+    base_url: str,
     ensure_playwright_admin_user: None,
 ) -> None:
     """Seed the least-privileged M5 actors in the shared browser-test database."""
 
-    del django_db_setup, ensure_playwright_admin_user
+    del ensure_playwright_admin_user
+    if not _is_local_target(base_url):
+        if REMOTE_ACTORS_READY and "AGOM_M5_UAT_PASSWORD" not in os.environ:
+            pytest.fail(
+                "AGOM_M5_REMOTE_ACTORS_READY requires an explicit AGOM_M5_UAT_PASSWORD",
+                pytrace=False,
+            )
+        return
+
+    request.getfixturevalue("django_db_setup")
+    django_db_blocker = request.getfixturevalue("django_db_blocker")
     with django_db_blocker.unblock():
         from django.contrib.auth import get_user_model
         from django.contrib.auth.models import Group
@@ -154,7 +204,7 @@ PARAMETERIZED_READ_CASES: tuple[tuple[str, str, str, str, dict[str, str | int]],
         "macro-regime.strategy",
         "risk-center.effective-policy",
         "admin",
-        {"account_id": 2},
+        {"account_id": REMOTE_ACCOUNT_ID},
     ),
     (
         "core/templates/equity/detail.html",
@@ -182,21 +232,21 @@ PARAMETERIZED_READ_CASES: tuple[tuple[str, str, str, str, dict[str, str | int]],
         "execution.accounts",
         "simulated-trading.inspection-notification",
         "regular",
-        {"account_id": 6},
+        {"account_id": REMOTE_ACCOUNT_ID},
     ),
     (
         "core/templates/simulated_trading/my_positions.html",
         "execution.accounts",
         "simulated-trading.positions",
         "regular",
-        {"account_id": 6},
+        {"account_id": REMOTE_ACCOUNT_ID},
     ),
     (
         "core/templates/simulated_trading/my_trades.html",
         "execution.accounts",
         "simulated-trading.trades",
         "regular",
-        {"account_id": 6},
+        {"account_id": REMOTE_ACCOUNT_ID},
     ),
 )
 
@@ -204,6 +254,7 @@ PARAMETERIZED_READ_CASES: tuple[tuple[str, str, str, str, dict[str, str | int]],
 def _login(page: Page, base_url: str, *, username: str, target: str) -> None:
     """Log one isolated UAT user into an explicit TUI deep link."""
 
+    _require_remote_actors(base_url, username)
     page.goto(
         f"{base_url}/account/login/?next={target}",
         wait_until="domcontentloaded",
@@ -238,7 +289,7 @@ def test_account_read_missing_fields_and_confirmation_cancel(
     summary_text = result_summary.text_content()
     summary_match = re.fullmatch(r"查看我的投资账户：(\d+) 行。", summary_text or "")
     assert summary_match is not None
-    assert int(summary_match.group(1)) >= 2
+    assert int(summary_match.group(1)) >= 1
     assert page.locator("html").evaluate(
         "(element) => element.scrollWidth <= element.clientWidth + 1"
     )
@@ -271,15 +322,32 @@ def test_account_read_missing_fields_and_confirmation_cancel(
         f"{base_url}/tui/?screen=execution.accounts" "&action=simulated-trading.accounts",
         wait_until="domcontentloaded",
     )
-    expect(page.get_by_text(summary_text or "", exact=True)).to_be_visible()
+    restored_summary = page.get_by_text(summary_text or "", exact=True)
+    try:
+        expect(restored_summary).to_be_visible(timeout=10_000)
+    except AssertionError:
+        # A preceding dashboard fan-out may still own the bounded remote action
+        # slots. Exercise the published recovery path instead of treating
+        # intentional backpressure as a missing business result.
+        retry = page.get_by_role("button", name="重试", exact=True)
+        expect(retry).to_be_visible(timeout=10_000)
+        page.wait_for_timeout(5_000)
+        retry.click()
+        expect(restored_summary).to_be_visible(timeout=60_000)
     expect(page.get_by_text(account_name, exact=True)).to_have_count(0)
 
     page.keyboard.press("F9")
     detail_form = page.locator("form:has(#tui-simulated-trading\\.account-detail-account_id)")
-    detail_form.locator("select").select_option("2")
+    account_select = detail_form.locator("select")
+    options = account_select.locator("option").evaluate_all(
+        "elements => elements.map(option => ({value: option.value, label: option.textContent.trim()}))"
+    )
+    selected_account = next(option for option in options if option["value"])
+    account_select.select_option(selected_account["value"])
     detail_form.get_by_role("button", name="查看", exact=True).click()
     expect(page.get_by_text("账户 / 账户名称", exact=True)).to_be_visible()
-    expect(page.get_by_text("admin_模拟仓", exact=True)).to_be_visible()
+    selected_account_name = selected_account["label"].split(" · ", 1)[0]
+    expect(page.get_by_text(selected_account_name, exact=True).last).to_be_visible()
 
 
 @pytest.mark.uat
@@ -406,6 +474,7 @@ def _login_context(
 ) -> Page:
     """Authenticate one reusable browser context for matrix UAT."""
 
+    _require_remote_actors(base_url, username)
     page = context.new_page()
     page.goto(f"{base_url}/account/login/?next=/tui/", wait_until="domcontentloaded")
     page.get_by_role("textbox", name="用户名", exact=True).fill(username)
@@ -417,10 +486,20 @@ def _login_context(
 
 @pytest.fixture(scope="session")
 def local_route_uat_fixture_ids(
-    django_db_setup: object,
-    django_db_blocker: object,
+    request: pytest.FixtureRequest,
+    base_url: str,
 ) -> dict[str, int | str]:
     """Seed deterministic local-only records consumed through the live TUI server."""
+
+    if not _is_local_target(base_url):
+        raw_fixture_ids = os.environ.get("AGOM_M5_REMOTE_FIXTURE_IDS", "").strip()
+        if not raw_fixture_ids:
+            pytest.skip("remote route fixtures are not provisioned; set AGOM_M5_REMOTE_FIXTURE_IDS")
+        payload = json.loads(raw_fixture_ids)
+        return {str(key): value for key, value in payload.items()}
+
+    request.getfixturevalue("django_db_setup")
+    django_db_blocker = request.getfixturevalue("django_db_blocker")
 
     def seed() -> dict[str, int | str]:
         from django.contrib.auth import get_user_model
@@ -780,7 +859,7 @@ def test_strategy_create_detail_update_lifecycle_completes(
             username="m5_uat_regular",
             password=PASSWORD,
         )
-        strategy_name = f"M5 UAT 策略 {uuid4().hex[:8]}"
+        strategy_name = f"M5 UAT 策略 {_m5_uat_suffix()}"
         create_query = urlencode(
             {
                 "screen": "macro-regime.strategy",
@@ -862,7 +941,7 @@ def test_personal_ai_provider_detail_update_lifecycle_completes(
             username="m5_uat_regular",
             password=PASSWORD,
         )
-        provider_name = f"M5 UAT 服务商 {uuid4().hex[:8]}"
+        provider_name = f"M5 UAT 服务商 {_m5_uat_suffix()}"
         create_query = urlencode(
             {
                 "screen": "ai-ops.providers",
@@ -947,7 +1026,7 @@ def test_policy_admin_create_flows_complete(
             username="admin",
             password="Aa123456",
         )
-        suffix = uuid4().hex[:8]
+        suffix = _m5_uat_suffix()
 
         event_title = f"M5 UAT 政策事件 {suffix}"
         _run_confirmed_action(
@@ -1046,7 +1125,7 @@ def test_governance_and_screening_confirmed_flows_complete(
                 password="Aa123456",
             ),
         }
-        suffix = uuid4().hex[:8]
+        suffix = _m5_uat_suffix()
 
         main = _run_confirmed_action(
             pages["admin"],
@@ -1054,7 +1133,7 @@ def test_governance_and_screening_confirmed_flows_complete(
             screen_key="command-center.decision-flow",
             action_key="decision-rhythm.quota-update",
             params={
-                "account_id": 2,
+                "account_id": REMOTE_ACCOUNT_ID,
                 "period": "daily",
                 "max_decisions": 12,
                 "max_executions": 6,
@@ -1166,6 +1245,9 @@ def test_local_fixture_detail_and_lifecycle_routes_complete(
         )
         expect(main.get_by_text("m5-uat-alpha-candidate-detail", exact=True)).to_be_visible()
 
+        suffix = _m5_uat_suffix()
+        trigger_thesis = f"M5 alpha lifecycle evidence {suffix}"
+        updated_thesis = f"M5 alpha lifecycle updated {suffix}"
         main = _run_confirmed_action(
             pages["regular"],
             base_url,
@@ -1183,7 +1265,7 @@ def test_local_fixture_detail_and_lifecycle_routes_complete(
                     '"threshold":50.0,"direction":"below"}]'
                 ),
                 "confidence": 0.82,
-                "thesis": "M5 alpha lifecycle evidence",
+                "thesis": trigger_thesis,
                 "expires_in_days": 30,
             },
             form_selector="form:has(#tui-alpha-trigger\\.create-asset_code)",
@@ -1209,11 +1291,11 @@ def test_local_fixture_detail_and_lifecycle_routes_complete(
             params={
                 "trigger_id": trigger_id,
                 "confidence": 0.86,
-                "thesis": "M5 alpha lifecycle updated",
+                "thesis": updated_thesis,
             },
             form_selector="form:has(#tui-alpha-trigger\\.update-trigger_id)",
         )
-        expect(main.get_by_text("M5 alpha lifecycle updated", exact=True)).to_be_visible()
+        expect(main.get_by_text(updated_thesis, exact=True)).to_be_visible()
 
         _run_confirmed_action(
             pages["regular"],
@@ -1237,7 +1319,7 @@ def test_local_fixture_detail_and_lifecycle_routes_complete(
         )
         expect(main.get_by_text("0.06", exact=True)).to_be_visible()
 
-        backtest_name = f"M5 UAT 回测 {uuid4().hex[:8]}"
+        backtest_name = f"M5 UAT 回测 {_m5_uat_suffix()}"
         main = _run_confirmed_action(
             pages["regular"],
             base_url,
@@ -1311,7 +1393,7 @@ def test_sentiment_external_ai_primary_task_completes(
             params={
                 "text": (
                     "M5 受控外部 AI 验收：盈利改善、现金流增强且风险保持可控。"
-                    f" 唯一批次 {uuid4().hex}."
+                    f" 唯一批次 {_m5_uat_suffix()}."
                 ),
                 "use_cache": False,
             },

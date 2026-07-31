@@ -6,6 +6,7 @@ import os
 import re
 from collections.abc import Generator
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 import requests
@@ -18,6 +19,28 @@ from tests.playwright.utils.screenshot_utils import ScreenshotUtils
 from tests.playwright.utils.ux_auditor import UXAuditor
 
 ensure_subprocess_event_loop_policy()
+
+
+@pytest.fixture(scope="session")
+def browser_type_launch_args(
+    browser_type_launch_args: dict[str, object],
+) -> dict[str, object]:
+    """Optionally bypass polluted DNS while preserving pytest-playwright options."""
+
+    launch_args = dict(browser_type_launch_args)
+    resolver_rules = os.environ.get("AGOM_PLAYWRIGHT_HOST_RESOLVER_RULES", "").strip()
+    if resolver_rules:
+        chromium_args = list(launch_args.get("args", []))
+        chromium_args.append(f"--host-resolver-rules={resolver_rules}")
+        launch_args["args"] = chromium_args
+    return launch_args
+
+
+def _is_local_playwright_target(base_url: str) -> bool:
+    """Return whether browser and pytest share the same local application data."""
+
+    hostname = (urlparse(base_url).hostname or "").lower()
+    return hostname in {"127.0.0.1", "localhost", "::1", "testserver"}
 
 
 def pytest_addoption(parser):
@@ -49,8 +72,17 @@ def apply_runtime_test_config(base_url: str) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def ensure_playwright_admin_user(django_db_setup, django_db_blocker) -> None:
+def ensure_playwright_admin_user(
+    request: pytest.FixtureRequest,
+    base_url: str,
+) -> None:
     """Ensure Playwright login credentials exist in the app database."""
+
+    if not _is_local_playwright_target(base_url):
+        return
+
+    request.getfixturevalue("django_db_setup")
+    django_db_blocker = request.getfixturevalue("django_db_blocker")
     with django_db_blocker.unblock():
         from django.contrib.auth import get_user_model
         from django.db import IntegrityError, close_old_connections, connections
