@@ -15,6 +15,7 @@ TASK_PATH = "sentiment.refresh_current_sentiment_index"
 DEFAULT_MINUTE = "15"
 DEFAULT_HOURS = "9-11,13-15,18,23"
 DEFAULT_DAY_OF_WEEK = "mon-fri"
+DEFAULT_EXPIRE_SECONDS = 3300
 
 
 class Command(BaseCommand):
@@ -70,6 +71,8 @@ class Command(BaseCommand):
                     "solar": None,
                     "clocked": None,
                     "crontab": crontab,
+                    "expires": None,
+                    "expire_seconds": DEFAULT_EXPIRE_SECONDS,
                 },
             )
             periodic_tasks_model.changed(periodic_task_model)

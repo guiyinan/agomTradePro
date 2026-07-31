@@ -36,6 +36,8 @@ def test_sentiment_refresh_schedule_is_created_and_idempotent() -> None:
     assert task.crontab.minute == "15"
     assert task.crontab.hour == "9-11,13-15,18,23"
     assert task.crontab.day_of_week == "mon-fri"
+    assert task.expires is None
+    assert task.expire_seconds == 3300
     assert PeriodicTask._default_manager.filter(name=task.name).count() == 1
 
 

@@ -501,6 +501,16 @@ systemctl restart agomtradepro-celery
 redis-cli ping
 ```
 
+When production uses `django_celery_beat.schedulers.DatabaseScheduler`, relative
+task expiry must be configured as `options.expire_seconds`. The generic Celery
+`options.expires` key is not persisted by `django-celery-beat`; missed minute-level
+jobs can otherwise survive a worker outage and flood the queue after restart. Task
+arguments belong in `args` or `kwargs`; putting values such as `source`, `use_pit`,
+or retention days in `options` silently drops those arguments as well.
+Before purging any queue, compare `redis-cli LLEN celery` with worker active and
+reserved tasks, and preserve one-off business jobs. The startup scheduler
+reconciliation and component tests enforce this contract for managed schedules.
+
 ---
 
 ## Deployment Checklist
