@@ -89,36 +89,66 @@ TOKEN_ACCESS_LEVEL_READ_ONLY = _mcp_access_services.TOKEN_ACCESS_LEVEL_READ_ONLY
 TOKEN_ACCESS_LEVEL_READ_WRITE = _mcp_access_services.TOKEN_ACCESS_LEVEL_READ_WRITE
 
 
+def _sync_mcp_service_dependencies() -> None:
+    """Keep compatibility wrappers aligned with facade-level test doubles."""
+
+    _mcp_access_services._interface_repo = _interface_repo
+    setattr(_mcp_access_services, "AccountRepository", AccountRepository)
+
+
 def resolve_mcp_public_base_url(observed_base_url: str) -> str:
     return _mcp_access_services.resolve_mcp_public_base_url(observed_base_url)
 
 
 def get_system_settings() -> Any:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.get_system_settings()
 
 
 def has_system_settings_singleton() -> bool:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.has_system_settings_singleton()
 
 
 def get_existing_system_settings() -> Any:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.get_existing_system_settings()
 
 
 def get_active_access_token(key: str) -> Any:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.get_active_access_token(key)
 
 
 def list_investment_account_options(user_id: int) -> list[dict[str, Any]]:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.list_investment_account_options(user_id)
 
 
 def touch_access_token(token: Any) -> None:
+    _sync_mcp_service_dependencies()
     _mcp_access_services.touch_access_token(token)
 
 
 def build_token_payload(*args: Any, **kwargs: Any) -> dict[str, str] | None:
-    return _mcp_access_services.build_token_payload(*args, **kwargs)
+    """Build token display data through the facade's injectable settings seam."""
+
+    username = str(kwargs.get("username", args[0] if args else ""))
+    token_name = str(kwargs.get("token_name", args[1] if len(args) > 1 else ""))
+    token_value = str(kwargs.get("token_value", args[2] if len(args) > 2 else ""))
+    access_level = str(kwargs.get("access_level", args[3] if len(args) > 3 else ""))
+    settings_obj = get_system_settings()
+    if not settings_obj.allow_token_plaintext_view:
+        return None
+    access_level_label = dict(TOKEN_ACCESS_LEVEL_CHOICES).get(access_level, access_level)
+    return {
+        "username": username,
+        "token_name": token_name,
+        "token": token_value,
+        "access_level": access_level,
+        "access_level_label": access_level_label,
+        "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
 
 
 def normalize_token_access_level(raw_value: str | None) -> str:
@@ -130,54 +160,76 @@ def get_token_access_level_choices() -> tuple[tuple[str, str], ...]:
 
 
 def provision_registered_user(*args: Any, **kwargs: Any) -> None:
+    _sync_mcp_service_dependencies()
     _mcp_access_services.provision_registered_user(*args, **kwargs)
 
 
 def username_exists(username: str) -> bool:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.username_exists(username)
 
 
 def has_any_administrator(*args: Any, **kwargs: Any) -> bool:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.has_any_administrator(*args, **kwargs)
 
 
 def register_user(*args: Any, **kwargs: Any) -> RegisteredUserOutcome:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.register_user(*args, **kwargs)
 
 
 def build_login_context() -> dict[str, Any]:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.build_login_context()
 
 
 def build_profile_context(user_id: int) -> dict[str, Any]:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.build_profile_context(user_id)
 
 
 def build_settings_context(user_id: int) -> dict[str, Any]:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.build_settings_context(user_id)
 
 
 def build_mcp_guide_context(user_id: int, *, base_url: str) -> dict[str, Any]:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.build_mcp_guide_context(user_id, base_url=base_url)
 
 
 def build_self_mcp_api_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.build_self_mcp_api_payload(*args, **kwargs)
 
 
 def build_mcp_access_verification_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.build_mcp_access_verification_payload(*args, **kwargs)
 
 
 def build_admin_mcp_users_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.build_admin_mcp_users_payload(*args, **kwargs)
 
 
 def build_admin_mcp_user_detail_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    return _mcp_access_services.build_admin_mcp_user_detail_payload(*args, **kwargs)
+    """Build one admin detail payload through facade-level dependency seams."""
+
+    _sync_mcp_service_dependencies()
+    target_user_id = int(kwargs.get("target_user_id", args[0] if args else 0))
+    base_url = str(kwargs.get("base_url", args[1] if len(args) > 1 else ""))
+    detail = build_self_mcp_api_payload(target_user_id, base_url=base_url)
+    user = find_user_by_id(target_user_id)
+    if user is None:
+        raise LookupError("用户不存在")
+    detail["email"] = str(getattr(user, "email", "") or "")
+    return detail
 
 
 def build_mcp_agent_prompt_payload(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    _sync_mcp_service_dependencies()
     return _mcp_access_services.build_mcp_agent_prompt_payload(*args, **kwargs)
 
 

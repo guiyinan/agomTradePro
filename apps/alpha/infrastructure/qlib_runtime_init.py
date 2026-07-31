@@ -114,8 +114,14 @@ def _install_qlib_pandas_compat() -> None:
             if "DatetimeIndex" not in str(exc):
                 raise
             if isinstance(apply_func, str):
-                return getattr(df.groupby(axis=axis, level=level, group_keys=False), apply_func)()
-            return df.groupby(level=level, group_keys=False).apply(apply_func)
+                if axis == 0:
+                    grouped = df.groupby(level=level, group_keys=False)
+                    return getattr(grouped, apply_func)()
+                grouped = df.T.groupby(level=level, group_keys=False)
+                return getattr(grouped, apply_func)().T
+            if axis == 0:
+                return df.groupby(level=level, group_keys=False).apply(apply_func)
+            return df.T.groupby(level=level, group_keys=False).apply(apply_func).T
 
     def safe_fetch_df_by_index(
         df: Any,

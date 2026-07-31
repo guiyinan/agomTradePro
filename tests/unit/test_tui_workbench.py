@@ -3044,6 +3044,8 @@ def test_tui_pulse_and_hedge_screens_return_overview_panels(client, tui_user):
     assert [panel["action_key"] for panel in pulse_panels] == [
         "regime.current",
         "pulse.current",
+        "sentiment.awareness-summary",
+        "sentiment.awareness-trend",
         "data_center.market_thermometer",
         "pulse.history",
     ]

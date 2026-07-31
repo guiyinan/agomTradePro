@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
-from apps.sentiment.application.repository_provider import get_sentiment_index_repository
+from apps.sentiment.application import repository_provider
 from apps.sentiment.domain.entities import SentimentIndex
 from apps.sentiment.domain.services import sentiment_observation_freshness
 
@@ -21,6 +22,12 @@ class CurrentSentimentResult:
     staleness_days: int | None
     must_not_use_for_decision: bool
     blocked_reason: str
+
+
+def get_sentiment_index_repository() -> Any:
+    """Resolve the repository at call time for injectable test boundaries."""
+
+    return repository_provider.get_sentiment_index_repository()
 
 
 def resolve_current_sentiment(
