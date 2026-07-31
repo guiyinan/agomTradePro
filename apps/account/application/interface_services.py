@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from django.utils import timezone
 
@@ -92,8 +92,9 @@ TOKEN_ACCESS_LEVEL_READ_WRITE = _mcp_access_services.TOKEN_ACCESS_LEVEL_READ_WRI
 def _sync_mcp_service_dependencies() -> None:
     """Keep compatibility wrappers aligned with facade-level test doubles."""
 
-    _mcp_access_services._interface_repo = _interface_repo
-    setattr(_mcp_access_services, "AccountRepository", AccountRepository)
+    mcp_services = cast(Any, _mcp_access_services)
+    mcp_services._interface_repo = _interface_repo
+    mcp_services.AccountRepository = AccountRepository
 
 
 def resolve_mcp_public_base_url(observed_base_url: str) -> str:
