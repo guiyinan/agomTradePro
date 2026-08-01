@@ -957,6 +957,32 @@
       ]
     },
     {
+      "id": "data_center.bse_historical_price_failover",
+      "surface": "Active BSE history failover under EastMoney circuit breaker",
+      "source_files": [
+        "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py"
+      ],
+      "required_markers": {
+        "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py": [
+          "def _fetch_bse_sina_historical_prices(",
+          "Tencent has no BSE coverage",
+          "\"sina\""
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "circuit_open_uses_supported_bse_source",
+          "test_file": "tests/unit/data_center/test_t5_akshare_eastmoney_gateway_contracts.py",
+          "test_function": "test_open_history_circuit_uses_sina_for_bse_without_tencent_fallback"
+        },
+        {
+          "case": "bse_source_and_query_preserved",
+          "test_file": "tests/unit/data_center/test_t5_akshare_eastmoney_gateway_contracts.py",
+          "test_function": "test_bse_direct_history_parser_preserves_source_and_query_contract"
+        }
+      ]
+    },
+    {
       "id": "mcp.equity_research_snapshot",
       "surface": "MCP equity.read.research_snapshot + AI capability route",
       "source_files": [

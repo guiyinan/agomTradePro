@@ -56,6 +56,7 @@ def test_code_and_numeric_helpers_cover_all_fallbacks() -> None:
     assert _to_tushare_code("300001") == "300001.SZ"
     assert _to_tushare_code("830001") == "830001.BJ"
     assert _to_tushare_code("430001") == "430001.BJ"
+    assert _to_tushare_code("920000") == "920000.BJ"
     assert _to_tushare_code("ABC123") == "ABC123.SZ"
     assert _to_tushare_code("000001.SZ") == "000001.SZ"
     assert _to_secid("830001.BJ") == "0.830001"
@@ -429,6 +430,96 @@ def test_open_history_circuit_bypasses_repeated_eastmoney_retries(
         )
         == []
     )
+
+
+def test_open_history_circuit_uses_sina_for_bse_without_tencent_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        gateway_module,
+        "_history_circuit_open_until",
+        gateway_module.time.monotonic() + 60,
+    )
+    provider = SimpleNamespace(
+        stock_zh_a_daily=lambda **_kwargs: pd.DataFrame(
+            {
+                "date": ["2026-07-31"],
+                "open": [14.16],
+                "high": [15.10],
+                "low": [14.10],
+                "close": [14.60],
+                "volume": [4387641],
+                "amount": [64389414.0],
+            }
+        )
+    )
+    monkeypatch.setattr(gateway_module, "get_akshare_module", lambda: provider)
+    monkeypatch.setattr(
+        AKShareEastMoneyGateway,
+        "_fetch_bse_eastmoney_historical_prices",
+        staticmethod(
+            lambda *_args: (_ for _ in ()).throw(
+                AssertionError("Sina BSE history should complete the fallback")
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        AKShareEastMoneyGateway,
+        "_fallback_historical_prices",
+        staticmethod(
+            lambda *_args: (_ for _ in ()).throw(
+                AssertionError("Tencent does not provide BSE history")
+            )
+        ),
+    )
+
+    bars = AKShareEastMoneyGateway(request_interval_sec=0).get_historical_prices(
+        "920000.BJ",
+        "20260701",
+        "20260731",
+    )
+
+    assert len(bars) == 1
+    assert bars[0].asset_code == "920000.BJ"
+    assert bars[0].trade_date == date(2026, 7, 31)
+    assert bars[0].close == 14.60
+    assert bars[0].source == "sina"
+
+
+def test_bse_direct_history_parser_preserves_source_and_query_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.json.return_value = {
+        "data": {
+            "klines": [
+                "2026-07-30,14.00,14.16,14.20,13.90,1200,17000000.50,0,0,0,0",
+                "2026-07-31,14.16,14.60,15.10,14.10,43876,64389413.50,0,0,0,0",
+            ]
+        }
+    }
+    session = MagicMock()
+    session.get.return_value = response
+    monkeypatch.setattr(gateway_module.requests, "Session", MagicMock(return_value=session))
+
+    bars = AKShareEastMoneyGateway._fetch_bse_eastmoney_historical_prices(
+        "920000.BJ",
+        "2024-07-05",
+        "2026-07-31",
+    )
+
+    assert len(bars) == 2
+    assert bars[-1].asset_code == "920000.BJ"
+    assert bars[-1].trade_date == date(2026, 7, 31)
+    assert bars[-1].close == 14.60
+    assert bars[-1].source == "eastmoney"
+    assert session.get.call_count == 1
+    assert session.trust_env is False
+    assert session.proxies == {"http": "", "https": ""}
+    _, kwargs = session.get.call_args
+    assert kwargs["params"]["secid"] == "0.920000"
+    assert kwargs["params"]["beg"] == "20240705"
+    assert kwargs["params"]["end"] == "20260731"
 
 
 def test_bar_parsers_filter_dates_skip_bad_rows_and_require_date_columns() -> None:

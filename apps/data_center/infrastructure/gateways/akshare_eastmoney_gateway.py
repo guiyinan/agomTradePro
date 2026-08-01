@@ -44,6 +44,7 @@ _QUOTE_FIELDS = (
     "f167,f168,f169,f170,f171,f532,f600,f601"
 )
 _EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
+_EASTMONEY_HISTORY_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
 _EASTMONEY_ULIST_QUOTE_URLS = (
     "https://push2.eastmoney.com/api/qt/ulist.np/get",
     "https://82.push2.eastmoney.com/api/qt/ulist.np/get",
@@ -114,7 +115,7 @@ def _to_tushare_code(akshare_code: str, market_hint: str = "") -> str:
     根据代码前缀推断市场：
     - 6 开头 → SH
     - 0/3 开头 → SZ
-    - 8/4 开头 → BJ
+    - 8/4/920 开头 → BJ
     """
     code = akshare_code.strip()
     if "." in code:
@@ -123,7 +124,7 @@ def _to_tushare_code(akshare_code: str, market_hint: str = "") -> str:
         return f"{code}.SH"
     elif code.startswith(("0", "3")):
         return f"{code}.SZ"
-    elif code.startswith(("8", "4")):
+    elif code.startswith(("8", "4", "920")):
         return f"{code}.BJ"
     return f"{code}.SZ"
 
@@ -412,6 +413,21 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
         - 股票: 6xxxxx (SH), 0xxxxx/3xxxxx (SZ)
         """
         if _history_circuit_is_open():
+            if self._is_bse_asset(asset_code):
+                bse_bars = self._fetch_bse_sina_historical_prices(
+                    asset_code,
+                    start_date,
+                    end_date,
+                )
+                if bse_bars:
+                    return bse_bars
+                bse_bars = self._fetch_bse_eastmoney_historical_prices(
+                    asset_code,
+                    start_date,
+                    end_date,
+                )
+                if bse_bars:
+                    return bse_bars
             logger.info("东方财富历史 K 线熔断中，直接降级腾讯: %s", asset_code)
             return self._fallback_historical_prices(asset_code, start_date, end_date)
         self._throttle()
@@ -520,6 +536,141 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
         except Exception:
             logger.exception("东方财富历史 K 线降级腾讯失败: %s", asset_code)
             return []
+
+    @staticmethod
+    def _is_bse_asset(asset_code: str) -> bool:
+        """Return whether the asset belongs to the Beijing Stock Exchange."""
+
+        normalized = str(asset_code or "").strip().upper()
+        base_code = normalized.split(".", 1)[0]
+        return normalized.endswith(".BJ") or base_code.startswith(("4", "8", "920"))
+
+    def _fetch_bse_sina_historical_prices(
+        self,
+        asset_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> list[HistoricalPriceBar]:
+        """Read BSE history from Sina when the EastMoney circuit is open."""
+
+        normalized = str(asset_code or "").strip().upper()
+        if not self._is_bse_asset(normalized):
+            return []
+        code = _to_akshare_code(normalized)
+        try:
+            self._throttle()
+            ak = get_akshare_module()
+            frame = self._fetch_with_retries(
+                lambda: ak.stock_zh_a_daily(
+                    symbol=f"bj{code}",
+                    start_date=start_date.replace("-", ""),
+                    end_date=end_date.replace("-", ""),
+                    adjust="qfq",
+                ),
+                asset_code=normalized,
+                request_kind="stock_zh_a_daily_bse",
+            )
+        except Exception:
+            logger.exception("新浪北交所历史 K 线获取失败: %s", normalized)
+            return []
+        if frame is None or frame.empty:
+            return []
+        bars = self._parse_en_bars(
+            frame,
+            normalized,
+            start_date,
+            end_date,
+            "sina",
+        )
+        if bars:
+            logger.info("新浪北交所历史 K 线获取成功: %s 获取 %d 条", normalized, len(bars))
+        return bars
+
+    @staticmethod
+    def _fetch_bse_eastmoney_historical_prices(
+        asset_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> list[HistoricalPriceBar]:
+        """Read BSE history from EastMoney when Tencent has no BSE coverage.
+
+        The general EastMoney circuit may be open because of transient failures
+        on Shanghai/Shenzhen requests. BSE has no Tencent history fallback, so
+        skipping its only usable source would turn the circuit breaker into a
+        deterministic coverage outage.
+        """
+
+        normalized = str(asset_code or "").strip().upper()
+        if not AKShareEastMoneyGateway._is_bse_asset(normalized):
+            return []
+        params = {
+            "fields1": "f1,f2,f3,f4,f5,f6",
+            "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+            "ut": "fa5fd1943c7b386f172d6893dbfba10b",
+            "klt": "101",
+            "fqt": "1",
+            "secid": _to_secid(normalized),
+            "beg": start_date.replace("-", ""),
+            "end": end_date.replace("-", ""),
+            "lmt": "1000000",
+        }
+        session = requests.Session()
+        session.trust_env = False
+        session.proxies = {"http": "", "https": ""}
+        try:
+            response = session.get(
+                _EASTMONEY_HISTORY_URL,
+                params=params,
+                headers={
+                    "Referer": "https://quote.eastmoney.com/",
+                    "User-Agent": "Mozilla/5.0",
+                },
+                timeout=15,
+            )
+            response.raise_for_status()
+            payload: object = response.json()
+        except (requests.RequestException, ValueError, TypeError):
+            logger.exception("东方财富北交所历史 K 线直连失败: %s", normalized)
+            return []
+        finally:
+            session.close()
+
+        if not isinstance(payload, Mapping):
+            return []
+        raw_data = payload.get("data")
+        if not isinstance(raw_data, Mapping):
+            return []
+        raw_rows = raw_data.get("klines") or []
+        bars: list[HistoricalPriceBar] = []
+        for raw_row in raw_rows:
+            if not isinstance(raw_row, str):
+                continue
+            fields = raw_row.split(",")
+            if len(fields) < 7:
+                continue
+            try:
+                bars.append(
+                    HistoricalPriceBar(
+                        asset_code=normalized,
+                        trade_date=datetime.strptime(fields[0], "%Y-%m-%d").date(),
+                        open=float(fields[1]),
+                        close=float(fields[2]),
+                        high=float(fields[3]),
+                        low=float(fields[4]),
+                        volume=int(float(fields[5])),
+                        amount=float(fields[6]),
+                        source="eastmoney",
+                    )
+                )
+            except (TypeError, ValueError):
+                continue
+        if bars:
+            logger.info(
+                "东方财富北交所历史 K 线直连成功: %s 获取 %d 条",
+                normalized,
+                len(bars),
+            )
+        return bars
 
     @staticmethod
     def _is_index_asset(asset_code: str) -> bool:
