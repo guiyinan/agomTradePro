@@ -118,7 +118,7 @@ def check_celery() -> dict[str, Any]:
     """
     from django.conf import settings
 
-    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+    if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
         return {"status": "skipped", "reason": "Celery in eager mode"}
 
     try:
@@ -150,17 +150,17 @@ def check_critical_data() -> dict[str, Any]:
 
         # Check macro indicators
         try:
-            MacroFact = apps.get_model('data_center', 'MacroFactModel')
-            checks['macro_indicator'] = MacroFact.objects.exists()
+            MacroFact = apps.get_model("data_center", "MacroFactModel")
+            checks["macro_indicator"] = MacroFact.objects.exists()
         except Exception:
-            checks['macro_indicator'] = False
+            checks["macro_indicator"] = False
 
         # Check regime state
         try:
-            RegimeLog = apps.get_model('regime', 'RegimeLog')
-            checks['regime_state'] = RegimeLog.objects.exists()
+            RegimeLog = apps.get_model("regime", "RegimeLog")
+            checks["regime_state"] = RegimeLog.objects.exists()
         except Exception:
-            checks['regime_state'] = False
+            checks["regime_state"] = False
 
         empty_tables = [k for k, v in checks.items() if not v]
         if empty_tables:
@@ -204,9 +204,7 @@ def check_decision_data_readiness() -> dict[str, Any]:
 
         payload = get_decision_data_readiness_payload(
             asset_codes=list(getattr(settings, "DECISION_READINESS_ASSET_CODES", [])),
-            quote_max_age_hours=float(
-                getattr(settings, "DECISION_QUOTE_MAX_AGE_HOURS", 4.0)
-            ),
+            quote_max_age_hours=float(getattr(settings, "DECISION_QUOTE_MAX_AGE_HOURS", 4.0)),
         )
         readiness_status = payload.get("status")
         if payload.get("must_not_use_for_decision"):
@@ -215,6 +213,104 @@ def check_decision_data_readiness() -> dict[str, Any]:
     except Exception as e:
         logger.warning(f"Decision data readiness check failed: {e}")
         return {"status": "error", "error": str(e)}
+
+
+def check_decision_runtime_state() -> dict[str, Any]:
+    """Return the persistent global gate for decision-facing interfaces."""
+
+    try:
+        from apps.config_center.application.use_cases import (
+            GetDecisionRuntimeStateUseCase,
+        )
+
+        state = GetDecisionRuntimeStateUseCase().execute()
+        payload = state.to_dict()
+        return {
+            **payload,
+            "runtime_status": payload["status"],
+            "status": "blocked" if state.must_not_use_for_decision else "ok",
+        }
+    except Exception as exc:
+        logger.warning("Decision runtime state check failed: %s", exc)
+        return {
+            "status": "error",
+            "must_not_use_for_decision": True,
+            "block_reason_code": "decision_runtime_state_unavailable",
+            "error": str(exc),
+        }
+
+
+def check_core_data_coverage() -> dict[str, Any]:
+    """Return strict active-A-share price, valuation, and financial coverage."""
+
+    try:
+        from apps.data_center.application.query_services import (
+            get_active_stock_fact_coverage_payload,
+        )
+
+        payload = get_active_stock_fact_coverage_payload()
+        is_ready = payload.get("status") == "ok"
+        return {
+            **payload,
+            "status": "ok" if is_ready else "incomplete",
+            "must_not_use_for_decision": not is_ready,
+            "block_reason_code": "" if is_ready else "core_data_coverage_incomplete",
+        }
+    except Exception as exc:
+        logger.warning("Core data coverage check failed: %s", exc)
+        return {
+            "status": "error",
+            "must_not_use_for_decision": True,
+            "block_reason_code": "core_data_coverage_unavailable",
+            "error": str(exc),
+        }
+
+
+def check_decision_provider_capabilities() -> dict[str, Any]:
+    """Return strict capability-level provider health for decision data."""
+
+    try:
+        from apps.data_center.application.interface_services import (
+            get_decision_provider_capability_health_payload,
+        )
+
+        return get_decision_provider_capability_health_payload()
+    except Exception as exc:
+        logger.warning("Decision provider capability check failed: %s", exc)
+        return {
+            "status": "error",
+            "must_not_use_for_decision": True,
+            "block_reason_code": "decision_provider_health_unavailable",
+            "error": str(exc),
+        }
+
+
+def run_decision_readiness_checks() -> dict[str, dict[str, Any]]:
+    """Run strict checks required before publishing decision conclusions."""
+
+    return {
+        "runtime_state": check_decision_runtime_state(),
+        "core_coverage": check_core_data_coverage(),
+        "provider_capabilities": check_decision_provider_capabilities(),
+        "decision_data": check_decision_data_readiness(),
+    }
+
+
+def is_decision_ready(checks: dict[str, dict[str, Any]]) -> bool:
+    """Return true only when every strict decision check is explicitly ready."""
+
+    required_checks = {
+        "runtime_state",
+        "core_coverage",
+        "provider_capabilities",
+        "decision_data",
+    }
+    if set(checks) != required_checks:
+        return False
+    return all(
+        result.get("status") == "ok" and result.get("must_not_use_for_decision") is not True
+        for result in checks.values()
+    )
 
 
 def run_readiness_checks() -> dict[str, dict[str, Any]]:
@@ -251,13 +347,12 @@ def is_healthy(checks: dict[str, dict[str, Any]]) -> bool:
     Returns:
         True if all checks are "ok" or "skipped", False otherwise
     """
-    strict_readiness = bool(getattr(settings, "PRODUCTION_STRICT_READINESS", False))
-    strict_warning_checks = {"critical_data", "decision_data"}
-    for check_name, result in checks.items():
+    service_checks = {"database", "redis", "celery"}
+    if not service_checks.issubset(checks):
+        return False
+    for check_name in service_checks:
+        result = checks[check_name]
         status = result.get("status")
-        # "skipped" and "warning" are acceptable (e.g., Redis not configured, empty tables)
-        if strict_readiness and check_name in strict_warning_checks and status == "warning":
-            return False
         if status not in ("ok", "skipped", "warning"):
             return False
     return True

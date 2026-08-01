@@ -63,6 +63,7 @@ from core.views import (
     asset_screen_view,
     chat_example_view,
     database_health_view,
+    decision_readiness_view,
     decision_workspace_view,
     docs_view,
     health_view,
@@ -160,6 +161,7 @@ core_patterns = [
     path("api/health/", health_view, name="health"),
     path("api/health/db/", database_health_view, name="health-db"),
     path("api/ready/", readiness_view, name="readiness"),
+    path("api/decision-ready/", decision_readiness_view, name="decision-readiness"),
     path("api/chat/web/", web_chat, name="api-chat-web"),
     path(
         "api/system/config-center/",

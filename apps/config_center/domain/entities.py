@@ -5,7 +5,100 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from enum import Enum
 from typing import Any
+
+from shared.domain.reliability import ReliabilityContract, ReliabilityStatus
+
+
+class DecisionRuntimeStatus(str, Enum):
+    """Operational states controlling publication of decision conclusions."""
+
+    ACTIVE = "active"
+    MAINTENANCE = "maintenance"
+    VALIDATING = "validating"
+    BLOCKED = "blocked"
+
+
+@dataclass(frozen=True)
+class DecisionRuntimeState:
+    """Persisted global gate for all decision-facing interfaces."""
+
+    status: DecisionRuntimeStatus = DecisionRuntimeStatus.ACTIVE
+    reason: str = ""
+    changed_at: datetime | None = None
+    changed_by: str = ""
+    release_ref: str = ""
+    expected_resume_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if self.status is not DecisionRuntimeStatus.ACTIVE and not self.reason.strip():
+            raise ValueError("Non-active decision runtime state requires a reason")
+        for field_name, value in (
+            ("changed_at", self.changed_at),
+            ("expected_resume_at", self.expected_resume_at),
+        ):
+            if value is not None and value.utcoffset() is None:
+                raise ValueError(f"{field_name} must be timezone-aware")
+
+    @property
+    def must_not_use_for_decision(self) -> bool:
+        """Return whether every decision surface must fail closed."""
+
+        return self.status is not DecisionRuntimeStatus.ACTIVE
+
+    @property
+    def block_reason_code(self) -> str:
+        """Return a stable machine-readable gate reason."""
+
+        if not self.must_not_use_for_decision:
+            return ""
+        return f"decision_runtime_{self.status.value}"
+
+    def to_reliability_contract(self) -> ReliabilityContract:
+        """Convert the runtime gate to the shared reliability contract."""
+
+        if self.status is DecisionRuntimeStatus.ACTIVE:
+            if self.changed_at is None:
+                raise ValueError("Active persisted runtime state requires changed_at")
+            return ReliabilityContract.fresh(
+                observed_at=self.changed_at,
+                fetched_at=self.changed_at,
+                source="config_center",
+            )
+        reliability_status = (
+            ReliabilityStatus.MAINTENANCE
+            if self.status
+            in {
+                DecisionRuntimeStatus.MAINTENANCE,
+                DecisionRuntimeStatus.VALIDATING,
+            }
+            else ReliabilityStatus.FAILED
+        )
+        return ReliabilityContract.blocked(
+            status=reliability_status,
+            source="config_center",
+            reason_code=self.block_reason_code,
+            reason=self.reason,
+            observed_at=self.changed_at,
+            fetched_at=self.changed_at,
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        """Serialize the runtime gate for APIs and readiness probes."""
+
+        return {
+            "status": self.status.value,
+            "reason": self.reason,
+            "changed_at": self.changed_at.isoformat() if self.changed_at else None,
+            "changed_by": self.changed_by,
+            "release_ref": self.release_ref,
+            "expected_resume_at": (
+                self.expected_resume_at.isoformat() if self.expected_resume_at else None
+            ),
+            "must_not_use_for_decision": self.must_not_use_for_decision,
+            "block_reason_code": self.block_reason_code,
+        }
 
 
 @dataclass(frozen=True)

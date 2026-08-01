@@ -113,6 +113,57 @@ class TestHealthCheckEndpoints:
         assert data["database"]["status"] == "ok"
         assert "timestamp" in data
 
+    @patch("core.views.run_decision_readiness_checks")
+    def test_decision_readiness_probe_fails_closed_during_maintenance(
+        self,
+        mock_checks,
+        db,
+    ):
+        mock_checks.return_value = {
+            "runtime_state": {
+                "status": "maintenance",
+                "must_not_use_for_decision": True,
+                "block_reason_code": "decision_runtime_maintenance",
+            },
+            "core_coverage": {"status": "ok"},
+            "provider_capabilities": {"status": "ok"},
+            "decision_data": {"status": "ok"},
+        }
+
+        response = Client().get("/api/decision-ready/")
+
+        assert response.status_code == 503
+        assert response.json()["status"] == "blocked"
+        assert response.json()["must_not_use_for_decision"] is True
+
+    @patch("core.views.run_decision_readiness_checks")
+    def test_decision_readiness_probe_passes_only_when_all_checks_are_ready(
+        self,
+        mock_checks,
+        db,
+    ):
+        mock_checks.return_value = {
+            "runtime_state": {
+                "status": "ok",
+                "must_not_use_for_decision": False,
+            },
+            "core_coverage": {"status": "ok"},
+            "provider_capabilities": {
+                "status": "ok",
+                "must_not_use_for_decision": False,
+            },
+            "decision_data": {
+                "status": "ok",
+                "must_not_use_for_decision": False,
+            },
+        }
+
+        response = Client().get("/api/decision-ready/")
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+        assert response.json()["must_not_use_for_decision"] is False
+
 
 @pytest.mark.unit
 class TestHealthCheckFunctions:
@@ -240,14 +291,22 @@ class TestHealthCheckFunctions:
         """Test is_healthy returns True when all checks are ok"""
         from core.health_checks import is_healthy
 
-        checks = {"database": {"status": "ok"}, "redis": {"status": "ok"}}
+        checks = {
+            "database": {"status": "ok"},
+            "redis": {"status": "ok"},
+            "celery": {"status": "ok"},
+        }
         assert is_healthy(checks) is True
 
     def test_is_healthy_with_skipped(self, db):
         """Test is_healthy returns True when checks include skipped"""
         from core.health_checks import is_healthy
 
-        checks = {"database": {"status": "ok"}, "redis": {"status": "skipped"}}
+        checks = {
+            "database": {"status": "ok"},
+            "redis": {"status": "skipped"},
+            "celery": {"status": "skipped"},
+        }
         assert is_healthy(checks) is True
 
     def test_is_healthy_with_error(self, db):
@@ -257,8 +316,22 @@ class TestHealthCheckFunctions:
         checks = {
             "database": {"status": "ok"},
             "redis": {"status": "error", "error": "Connection failed"},
+            "celery": {"status": "ok"},
         }
         assert is_healthy(checks) is False
+
+    def test_service_readiness_ignores_decision_data_failure(self, db):
+        from core.health_checks import is_healthy
+
+        checks = {
+            "database": {"status": "ok"},
+            "redis": {"status": "skipped"},
+            "celery": {"status": "ok"},
+            "decision_data": {"status": "error"},
+            "critical_data": {"status": "error"},
+        }
+
+        assert is_healthy(checks) is True
 
 
 @pytest.mark.unit

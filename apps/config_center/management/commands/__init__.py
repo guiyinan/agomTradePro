@@ -1,0 +1,1 @@
+"""Config-center management commands."""

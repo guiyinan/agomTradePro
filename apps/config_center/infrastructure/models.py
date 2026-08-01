@@ -71,6 +71,44 @@ class SystemSettingsModel(models.Model):
         help_text="关闭后，生成后不再显示完整 Token，历史 Token 也不可明文查看",
     )
 
+    DECISION_RUNTIME_STATUS_CHOICES = [
+        ("active", "正常"),
+        ("maintenance", "数据维护"),
+        ("validating", "数据验收"),
+        ("blocked", "决策阻断"),
+    ]
+    decision_runtime_status = models.CharField(
+        max_length=16,
+        choices=DECISION_RUNTIME_STATUS_CHOICES,
+        default="active",
+        verbose_name="决策运行状态",
+        help_text="非正常状态下所有决策入口必须阻断结论发布。",
+    )
+    decision_runtime_reason = models.TextField(
+        blank=True,
+        verbose_name="决策阻断原因",
+    )
+    decision_runtime_changed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="决策状态变更时间",
+    )
+    decision_runtime_changed_by = models.CharField(
+        max_length=150,
+        blank=True,
+        verbose_name="决策状态变更人",
+    )
+    decision_runtime_release_ref = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="关联发布版本",
+    )
+    decision_runtime_expected_resume_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="预计恢复时间",
+    )
+
     user_agreement_content = models.TextField(
         blank=True, verbose_name="用户协议内容", help_text="用户注册时需要同意的协议内容，支持HTML"
     )

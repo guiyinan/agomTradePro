@@ -12,7 +12,11 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.config_center.domain.entities import AlphaUniverseConfig
+from apps.config_center.domain.entities import (
+    AlphaUniverseConfig,
+    DecisionRuntimeState,
+    DecisionRuntimeStatus,
+)
 from apps.config_center.infrastructure.models import (
     AlphaUniverseConfigModel,
     QlibTrainingProfileModel,
@@ -98,6 +102,54 @@ class ConfigCenterSettingsRepository:
     def acquire_system_settings_lock(self) -> SystemSettingsModel:
         settings_obj = SystemSettingsModel.get_settings()
         return SystemSettingsModel._default_manager.select_for_update().get(pk=settings_obj.pk)
+
+    def get_decision_runtime_state(self) -> DecisionRuntimeState:
+        """Return the persisted global decision gate without creating a row."""
+
+        settings_obj = self.get_system_settings_for_read()
+        raw_status = str(settings_obj.decision_runtime_status or "active")
+        try:
+            status = DecisionRuntimeStatus(raw_status)
+        except ValueError:
+            status = DecisionRuntimeStatus.BLOCKED
+        reason = str(settings_obj.decision_runtime_reason or "")
+        if status is DecisionRuntimeStatus.BLOCKED and not reason:
+            reason = "配置中心包含未知决策运行状态。"
+        return DecisionRuntimeState(
+            status=status,
+            reason=reason,
+            changed_at=settings_obj.decision_runtime_changed_at,
+            changed_by=str(settings_obj.decision_runtime_changed_by or ""),
+            release_ref=str(settings_obj.decision_runtime_release_ref or ""),
+            expected_resume_at=settings_obj.decision_runtime_expected_resume_at,
+        )
+
+    def set_decision_runtime_state(
+        self,
+        state: DecisionRuntimeState,
+    ) -> DecisionRuntimeState:
+        """Persist the global decision gate under a row lock."""
+
+        with transaction.atomic():
+            settings_obj = self.acquire_system_settings_lock()
+            settings_obj.decision_runtime_status = state.status.value
+            settings_obj.decision_runtime_reason = state.reason
+            settings_obj.decision_runtime_changed_at = state.changed_at
+            settings_obj.decision_runtime_changed_by = state.changed_by
+            settings_obj.decision_runtime_release_ref = state.release_ref
+            settings_obj.decision_runtime_expected_resume_at = state.expected_resume_at
+            settings_obj.save(
+                update_fields=[
+                    "decision_runtime_status",
+                    "decision_runtime_reason",
+                    "decision_runtime_changed_at",
+                    "decision_runtime_changed_by",
+                    "decision_runtime_release_ref",
+                    "decision_runtime_expected_resume_at",
+                    "updated_at",
+                ]
+            )
+        return self.get_decision_runtime_state()
 
     def build_runtime_config_payload(self) -> dict[str, Any]:
         settings_obj = self.get_system_settings_for_read()

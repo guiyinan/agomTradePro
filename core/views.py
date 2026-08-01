@@ -19,7 +19,13 @@ from apps.account.application.documentation_use_cases import (
     get_documentation_service,
 )
 from apps.regime.application.current_regime import resolve_current_regime
-from core.health_checks import check_database, is_healthy, run_readiness_checks
+from core.health_checks import (
+    check_database,
+    is_decision_ready,
+    is_healthy,
+    run_decision_readiness_checks,
+    run_readiness_checks,
+)
 from core.ui_modes import DEFAULT_TUI_PATH, UI_MODE_TUI, set_ui_mode_cookie
 
 
@@ -81,6 +87,20 @@ def readiness_view(request: HttpRequest) -> JsonResponse:
             "checks": checks,
         }
         return JsonResponse(response_data, status=503)
+
+
+def decision_readiness_view(request: HttpRequest) -> JsonResponse:
+    """Strict public probe for decision-data publication safety."""
+
+    checks = run_decision_readiness_checks()
+    ready = is_decision_ready(checks)
+    response_data: dict[str, Any] = {
+        "status": "ok" if ready else "blocked",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "must_not_use_for_decision": not ready,
+        "checks": checks,
+    }
+    return JsonResponse(response_data, status=200 if ready else 503)
 
 
 def database_health_view(request: HttpRequest) -> JsonResponse:

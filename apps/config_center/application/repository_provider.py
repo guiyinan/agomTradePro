@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from apps.config_center.domain.entities import AlphaUniverseConfig
+from apps.config_center.domain.entities import AlphaUniverseConfig, DecisionRuntimeState
 
 
 class ConfigCenterSettingsRepository(Protocol):
@@ -13,6 +13,11 @@ class ConfigCenterSettingsRepository(Protocol):
     def build_system_governance_payload(self) -> dict[str, Any]: ...
     def update_system_governance(self, data: dict[str, Any]) -> dict[str, Any]: ...
     def acquire_system_settings_lock(self) -> Any: ...
+    def get_decision_runtime_state(self) -> DecisionRuntimeState: ...
+    def set_decision_runtime_state(
+        self,
+        state: DecisionRuntimeState,
+    ) -> DecisionRuntimeState: ...
 
 
 class QlibTrainingProfileRepository(Protocol):

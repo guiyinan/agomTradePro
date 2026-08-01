@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 from celery import current_app
+from django.utils import timezone
 
 from apps.config_center.application.access_policies import (
     QlibAccessDeniedError,
@@ -21,7 +22,46 @@ from apps.config_center.application.repository_provider import (
     get_qlib_training_profile_repository,
     get_qlib_training_run_repository,
 )
-from apps.config_center.domain.entities import AlphaUniverseConfig
+from apps.config_center.domain.entities import (
+    AlphaUniverseConfig,
+    DecisionRuntimeState,
+    DecisionRuntimeStatus,
+)
+
+
+class GetDecisionRuntimeStateUseCase:
+    """Read the global fail-closed gate for decision-facing surfaces."""
+
+    def execute(self) -> DecisionRuntimeState:
+        return get_config_center_settings_repository().get_decision_runtime_state()
+
+
+class UpdateDecisionRuntimeStateUseCase:
+    """Validate and persist an audited decision-runtime transition."""
+
+    def execute(
+        self,
+        *,
+        status: str,
+        reason: str,
+        changed_by: str,
+        release_ref: str = "",
+        changed_at: datetime | None = None,
+        expected_resume_at: datetime | None = None,
+    ) -> DecisionRuntimeState:
+        try:
+            normalized_status = DecisionRuntimeStatus(str(status).strip().lower())
+        except ValueError as exc:
+            raise ValueError(f"Unsupported decision runtime status: {status}") from exc
+        state = DecisionRuntimeState(
+            status=normalized_status,
+            reason=str(reason or "").strip(),
+            changed_at=changed_at or timezone.now(),
+            changed_by=str(changed_by or "").strip(),
+            release_ref=str(release_ref or "").strip(),
+            expected_resume_at=expected_resume_at,
+        )
+        return get_config_center_settings_repository().set_decision_runtime_state(state)
 
 
 class ConflictError(RuntimeError):
@@ -291,6 +331,8 @@ class TriggerQlibTrainingUseCase:
 __all__ = [
     "ConflictError",
     "ValidationFailureError",
+    "GetDecisionRuntimeStateUseCase",
+    "UpdateDecisionRuntimeStateUseCase",
     "QlibAccessDeniedError",
     "GetQlibRuntimeConfigUseCase",
     "UpdateQlibRuntimeConfigUseCase",
