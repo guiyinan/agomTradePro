@@ -34,6 +34,9 @@ from apps.data_center.domain.rules import (
     normalize_asset_code,
 )
 
+from .asset_resolution import resolve_unique_exact_asset_name
+from .quote_provenance import normalize_quote_fetch_provenance
+
 if TYPE_CHECKING:
     from apps.data_center.domain.entities import ProviderHealthSnapshot
 
@@ -170,17 +173,9 @@ class ResolveAssetUseCase:
         canonical = normalize_asset_code(request.code, request.source_type)
         asset = self._repo.get_by_code(canonical)
         if asset is None and canonical != request.code:
-            # Try the raw code as fallback
             asset = self._repo.get_by_code(request.code)
         if asset is None:
-            query = str(request.code or "").strip()
-            exact_matches = [
-                candidate
-                for candidate in self._repo.search(query, limit=20)
-                if query in {candidate.name, candidate.short_name}
-            ]
-            if len(exact_matches) == 1:
-                asset = exact_matches[0]
+            asset = resolve_unique_exact_asset_name(self._repo, request.code)
         if asset is None:
             return None
         return AssetResponse(
@@ -620,14 +615,9 @@ class QueryLatestQuoteUseCase:
             quote_is_stale = False
             freshness_status = "latest_completed_session"
 
-        normalized_fetched_at = fetched_at
-        if normalized_fetched_at is not None:
-            if normalized_fetched_at.tzinfo is None:
-                normalized_fetched_at = normalized_fetched_at.replace(tzinfo=UTC)
-            else:
-                normalized_fetched_at = normalized_fetched_at.astimezone(UTC)
-        provenance_invalid = (
-            normalized_fetched_at is None or normalized_fetched_at < normalized_snapshot_at
+        normalized_fetched_at, provenance_invalid = normalize_quote_fetch_provenance(
+            normalized_snapshot_at,
+            fetched_at,
         )
         blocked_reason = ""
         if provenance_invalid:

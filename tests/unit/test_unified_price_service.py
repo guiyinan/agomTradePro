@@ -68,6 +68,7 @@ def test_get_latest_price_prefers_realtime_quote():
         current_price=2.18,
         source="eastmoney",
         snapshot_at=observed_at,
+        fetched_at=observed_at,
         open=None,
         high=None,
         low=None,
@@ -199,6 +200,7 @@ def test_get_latest_price_prefers_data_center_quote():
         prev_close=2.1,
         source="dc_eastmoney",
         snapshot_at=observed_at,
+        fetched_at=observed_at,
     )
 
     result = service.get_price_result("159915")

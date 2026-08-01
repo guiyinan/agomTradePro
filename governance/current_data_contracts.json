@@ -883,6 +883,7 @@
       "source_files": [
         "apps/data_center/application/provider_health.py",
         "apps/data_center/application/sync_use_cases.py",
+        "apps/data_center/application/provider_health_recorder.py",
         "apps/data_center/infrastructure/provider_registry.py",
         "apps/data_center/interface/provider_api_views.py"
       ],
@@ -893,6 +894,10 @@
           "\"must_not_use_for_decision\": bool(block_reason_code)"
         ],
         "apps/data_center/application/sync_use_cases.py": [
+          "persist_provider_health_metric(",
+          "output_count=output_count"
+        ],
+        "apps/data_center/application/provider_health_recorder.py": [
           "effective_success = success and (output_count is None or output_count > 0)",
           "\"last_output_count\": output_count"
         ],

@@ -42,6 +42,7 @@ from apps.data_center.domain.protocols import (
 )
 
 from .macro_fact_governance import MacroFactGovernanceNormalizer
+from .provider_health_recorder import persist_provider_health_metric
 
 FactT = TypeVar("FactT")
 
@@ -141,78 +142,17 @@ class _BaseSyncUseCase:
         recorded_at: datetime | None = None,
         output_count: int | None = None,
     ) -> None:
-        recorded = recorded_at or datetime.now(UTC)
-        effective_success = success and (output_count is None or output_count > 0)
-        effective_error = error or (
-            "provider completed without output" if success and output_count == 0 else ""
+        persist_provider_health_metric(
+            self._provider_repo,
+            self._provider_registry,
+            config,
+            capability=capability,
+            latency_ms=latency_ms,
+            success=success,
+            error=error,
+            recorded_at=recorded_at,
+            output_count=output_count,
         )
-        extra_config = dict(config.extra_config or {})
-        capability_metrics = dict(extra_config.get("health_metrics") or {})
-        metric = dict(capability_metrics.get(capability) or {})
-
-        if effective_success:
-            success_count = int(metric.get("success_count", 0)) + 1
-            previous_avg = metric.get("avg_latency_ms")
-            if previous_avg is None:
-                avg_latency_ms = round(latency_ms, 3)
-            else:
-                avg_latency_ms = round(
-                    ((float(previous_avg) * (success_count - 1)) + latency_ms) / success_count,
-                    3,
-                )
-            metric.update(
-                {
-                    "success_count": success_count,
-                    "avg_latency_ms": avg_latency_ms,
-                    "last_success_at": recorded.isoformat(),
-                    "consecutive_failures": 0,
-                    "last_status": "healthy",
-                    "last_error": "",
-                    "last_output_count": output_count,
-                }
-            )
-            extra_config["provider_last_success_at"] = recorded.isoformat()
-            provider_avg = extra_config.get("provider_avg_latency_ms")
-            provider_success_count = int(extra_config.get("provider_success_count", 0)) + 1
-            if provider_avg is None:
-                extra_config["provider_avg_latency_ms"] = round(latency_ms, 3)
-            else:
-                extra_config["provider_avg_latency_ms"] = round(
-                    ((float(provider_avg) * (provider_success_count - 1)) + latency_ms)
-                    / provider_success_count,
-                    3,
-                )
-            extra_config["provider_success_count"] = provider_success_count
-            extra_config["provider_last_status"] = "healthy"
-            extra_config["provider_last_error"] = ""
-        else:
-            metric.update(
-                {
-                    "consecutive_failures": int(metric.get("consecutive_failures", 0)) + 1,
-                    "last_failure_at": recorded.isoformat(),
-                    "last_status": "degraded",
-                    "last_error": effective_error,
-                    "last_output_count": output_count,
-                }
-            )
-            extra_config["provider_last_status"] = "degraded"
-            extra_config["provider_last_error"] = effective_error
-
-        capability_metrics[capability] = metric
-        extra_config["health_metrics"] = capability_metrics
-        self._provider_repo.save(dataclasses.replace(config, extra_config=extra_config))
-        try:
-            runtime_capability = DataCapability(capability)
-        except ValueError:
-            return
-        if effective_success:
-            self._provider_registry.record_success(
-                config.name,
-                runtime_capability,
-                latency_ms,
-            )
-        else:
-            self._provider_registry.record_failure(config.name, runtime_capability)
 
     def _record_outcome(
         self,
