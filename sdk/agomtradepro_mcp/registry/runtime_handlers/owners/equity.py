@@ -8,6 +8,173 @@ from typing import Any
 from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
 
 
+def _payload_has_evidence(payload: object) -> bool:
+    """Return whether a section contains at least one persisted evidence row."""
+
+    if isinstance(payload, list):
+        return bool(payload)
+    if not isinstance(payload, dict):
+        return False
+    for key in ("results", "data", "bars", "financials", "valuations", "news", "flows"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return bool(value)
+    return any(
+        value not in (None, "", [], {})
+        for key, value in payload.items()
+        if key not in {"status", "success", "detail", "error", "message"}
+    )
+
+
+def _read_research_section(loader: Callable[[], object], *, required: bool) -> dict[str, Any]:
+    """Execute one bounded read and normalize missing/failure semantics."""
+
+    try:
+        payload = loader()
+    except Exception:
+        return {
+            "status": "failed",
+            "required": required,
+            "data": None,
+            "must_not_use_for_decision": required,
+            "block_reason_code": "upstream_read_failed",
+        }
+    has_evidence = _payload_has_evidence(payload)
+    return {
+        "status": "fresh" if has_evidence else "missing",
+        "required": required,
+        "data": payload,
+        "must_not_use_for_decision": required and not has_evidence,
+        "block_reason_code": "" if has_evidence else "section_evidence_missing",
+    }
+
+
+def _fallback_equity_read_research_snapshot(
+    stock_code: str,
+    history_limit: int = 252,
+    financial_limit: int = 20,
+    valuation_limit: int = 252,
+    news_limit: int = 20,
+    capital_flow_limit: int = 60,
+) -> dict[str, Any]:
+    """Compose a fail-closed equity snapshot exclusively from SDK/API evidence."""
+
+    from agomtradepro import AgomTradeProClient
+    from agomtradepro.exceptions import AgomTradeProAPIError
+
+    client = AgomTradeProClient()
+    try:
+        decision_readiness = client.get("/api/decision-ready/")
+    except AgomTradeProAPIError as exc:
+        decision_readiness = exc.response or {
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+        }
+
+    identity_section = _read_research_section(
+        lambda: client.data_center.resolve_asset(stock_code),
+        required=True,
+    )
+    identity = identity_section.get("data")
+    if not isinstance(identity, dict) or not identity.get("code"):
+        return {
+            "status": "missing",
+            "stock_code": None,
+            "identity": identity_section,
+            "sections": {},
+            "decision_readiness": decision_readiness,
+            "reliability": {
+                "status": "missing",
+                "source": "agomtradepro_api",
+                "must_not_use_for_decision": True,
+                "block_reason_code": "equity_identity_unresolved",
+                "block_reason": "无法从证券主数据唯一解析该名称或代码。",
+            },
+            "must_not_use_for_decision": True,
+        }
+
+    canonical_code = str(identity["code"])
+    sections = {
+        "latest_quote": _read_research_section(
+            lambda: client.data_center.get_latest_quotes(
+                canonical_code,
+                strict_freshness=True,
+            ),
+            required=True,
+        ),
+        "price_history": _read_research_section(
+            lambda: client.data_center.get_price_history(
+                canonical_code,
+                limit=history_limit,
+            ),
+            required=True,
+        ),
+        "valuation": _read_research_section(
+            lambda: client.data_center.get_valuations(
+                canonical_code,
+                limit=valuation_limit,
+            ),
+            required=True,
+        ),
+        "financials": _read_research_section(
+            lambda: client.data_center.get_financials(
+                canonical_code,
+                limit=financial_limit,
+            ),
+            required=True,
+        ),
+        "news": _read_research_section(
+            lambda: client.data_center.get_news(canonical_code, limit=news_limit),
+            required=False,
+        ),
+        "capital_flows": _read_research_section(
+            lambda: client.data_center.get_capital_flows(
+                canonical_code,
+                limit=capital_flow_limit,
+            ),
+            required=False,
+        ),
+    }
+    blocked_sections = [
+        name
+        for name, section in sections.items()
+        if section["required"] and section["must_not_use_for_decision"]
+    ]
+    global_blocked = bool(decision_readiness.get("must_not_use_for_decision", True))
+    must_not_use = global_blocked or bool(blocked_sections)
+    optional_missing = [
+        name
+        for name, section in sections.items()
+        if not section["required"] and section["status"] != "fresh"
+    ]
+    status = "blocked" if must_not_use else ("partial" if optional_missing else "fresh")
+    block_reason_code = ""
+    block_reason = ""
+    if global_blocked:
+        block_reason_code = "decision_readiness_blocked"
+        block_reason = "系统严格决策就绪度未通过。"
+    elif blocked_sections:
+        block_reason_code = "equity_core_evidence_incomplete"
+        block_reason = f"缺少核心证据分区: {', '.join(blocked_sections)}"
+
+    return {
+        "status": status,
+        "stock_code": canonical_code,
+        "identity": identity_section,
+        "sections": sections,
+        "decision_readiness": decision_readiness,
+        "missing_optional_sections": optional_missing,
+        "reliability": {
+            "status": status,
+            "source": "agomtradepro_api",
+            "must_not_use_for_decision": must_not_use,
+            "block_reason_code": block_reason_code,
+            "block_reason": block_reason,
+        },
+        "must_not_use_for_decision": must_not_use,
+    }
+
+
 def _fallback_equity_read_pool_catalog(
     sector: str | None = None,
     min_score: float | None = None,
@@ -456,6 +623,7 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "equity_read_valuation_repair_config": _fallback_equity_read_valuation_repair_config,
     "equity_read_valuation_repair_config_catalog": _fallback_equity_read_valuation_repair_config_catalog,
     "equity_read_financial_history": _fallback_equity_read_financial_history,
+    "equity_read_research_snapshot": _fallback_equity_read_research_snapshot,
     "equity_read_score": _fallback_equity_read_score,
     "equity_compute_recommendations": _fallback_equity_compute_recommendations,
     "equity_compute_analysis": _fallback_equity_compute_analysis,

@@ -402,6 +402,69 @@ MANIFESTS = [
 
 MANIFESTS.append(
     CapabilityManifest(
+        capability_key="equity.read.research_snapshot",
+        title="Equity Complete Research Snapshot",
+        summary="Read all available evidence for one equity without free-form fact generation.",
+        description=(
+            "按证券代码或精确中文名称查询一只股票的全部可用信息，包括身份、最新行情、"
+            "历史行情、估值、财务、新闻和资金流；每个分区发布来源、时间、缺失项和"
+            "决策可靠性，证据不足时必须阻断结论。"
+        ),
+        owner_app="equity",
+        risk_level="low",
+        requires_confirmation=False,
+        executor_kind="legacy_tool",
+        executor_ref="equity_read_research_snapshot",
+        tags=(
+            "equity",
+            "stock",
+            "research",
+            "all information",
+            "股票",
+            "个股",
+            "所有信息",
+            "完整研究",
+            "read",
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "stock_code": {"type": "string", "minLength": 1, "maxLength": 32},
+                "history_limit": {"type": "integer", "minimum": 1, "maximum": 1000},
+                "financial_limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                "valuation_limit": {"type": "integer", "minimum": 1, "maximum": 1000},
+                "news_limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                "capital_flow_limit": {"type": "integer", "minimum": 1, "maximum": 1000},
+            },
+            "required": ["stock_code"],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "status": {"type": "string"},
+                "stock_code": {"type": ["string", "null"]},
+                "identity": {"type": "object"},
+                "sections": {"type": "object"},
+                "reliability": {"type": "object"},
+                "must_not_use_for_decision": {"type": "boolean"},
+            },
+            "required": [
+                "status",
+                "stock_code",
+                "identity",
+                "sections",
+                "reliability",
+                "must_not_use_for_decision",
+            ],
+        },
+        audit_tags=("equity:research_snapshot", "mcp:decision_evidence"),
+        legacy_tool_names=("get_stock_all_information",),
+    )
+)
+
+MANIFESTS.append(
+    CapabilityManifest(
         capability_key="equity.read.financial_history",
         title="Equity Financial History",
         summary="Read persisted financial statements for one stock.",
