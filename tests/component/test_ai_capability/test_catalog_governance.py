@@ -186,6 +186,43 @@ def test_capability_governance_approves_reviewed_read_like_mcp_tools():
 
 
 @pytest.mark.django_db
+def test_capability_governance_honors_native_read_manifest_confirmation_contract():
+    _create_capability(
+        capability_key="mcp_tool.equity.read.research_snapshot",
+        source_type="mcp_tool",
+        source_ref="equity.read.research_snapshot",
+        name="equity.read.research_snapshot",
+        summary="Read a persisted equity research snapshot",
+        route_group="tool",
+        category="equity",
+        execution_target={
+            "type": "mcp_capability",
+            "tool_name": "agom_capability_call",
+            "capability_key": "equity.read.research_snapshot",
+            "manifest_requires_confirmation": False,
+        },
+        risk_level="low",
+        requires_mcp=True,
+        requires_confirmation=True,
+    )
+
+    CapabilityCatalogGovernanceService().execute(
+        apply=True,
+        current_keys_by_source={
+            "api": set(),
+            "mcp_tool": {"mcp_tool.equity.read.research_snapshot"},
+        },
+    )
+
+    capability = CapabilityCatalogModel.objects.get(
+        capability_key="mcp_tool.equity.read.research_snapshot"
+    )
+    assert capability.enabled_for_routing is True
+    assert capability.requires_confirmation is False
+    assert capability.review_status == "approved"
+
+
+@pytest.mark.django_db
 def test_capability_sync_preserves_reviewed_governance_fields():
     _create_capability(
         capability_key="mcp_tool.get_asset_info",

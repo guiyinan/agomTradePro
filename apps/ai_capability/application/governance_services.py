@@ -258,6 +258,17 @@ class CapabilityCatalogGovernanceService:
         self,
         capability: CapabilityDefinition,
     ) -> tuple[CapabilityDefinition, str]:
+        if self._is_governed_mcp_read_without_confirmation(capability):
+            return (
+                replace(
+                    capability,
+                    enabled_for_routing=True,
+                    requires_confirmation=False,
+                    review_status=ReviewStatus.APPROVED,
+                ),
+                "mcp_governed_read_without_confirmation_approved",
+            )
+
         if self._is_reviewed_mcp_read_capability(capability):
             reviewed_risk = (
                 RiskLevel.MEDIUM
@@ -314,4 +325,17 @@ class CapabilityCatalogGovernanceService:
         name = capability.name or capability.capability_key.removeprefix("mcp_tool.")
         return name in self.MCP_REVIEWED_READ_NAMES or name.startswith(
             self.MCP_REVIEWED_READ_PREFIXES
+        )
+
+    def _is_governed_mcp_read_without_confirmation(
+        self,
+        capability: CapabilityDefinition,
+    ) -> bool:
+        """Honor the reviewed manifest contract for native low-risk reads."""
+
+        target = capability.execution_target
+        return bool(
+            target.get("type") == "mcp_capability"
+            and target.get("manifest_requires_confirmation") is False
+            and capability.risk_level in self.SAFE_RISKS
         )

@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.ai_capability.application.governance_services import (
     CapabilityCatalogGovernanceService,
@@ -37,6 +37,11 @@ class Command(BaseCommand):
             "--skip-governance",
             action="store_true",
             help="Skip post-sync governance for API/MCP capability routing.",
+        )
+        parser.add_argument(
+            "--fail-on-error",
+            action="store_true",
+            help="Exit non-zero when any source synchronization error is reported.",
         )
 
     def handle(self, *args: str, **options: Any) -> None:
@@ -82,3 +87,5 @@ class Command(BaseCommand):
 
         if result.error_count > 0:
             self.stdout.write(self.style.WARNING(f"\nCompleted with {result.error_count} error(s)"))
+            if options.get("fail_on_error"):
+                raise CommandError("AI capability catalog synchronization reported errors")

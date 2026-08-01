@@ -4,6 +4,7 @@ from io import StringIO
 from types import SimpleNamespace
 
 import pytest
+from django.core.management.base import CommandError
 
 from apps.ai_capability.application.dtos import SyncResultDTO
 from apps.ai_capability.application.governance_services import CapabilityGovernanceResult
@@ -159,6 +160,27 @@ def test_sync_command_applies_governance_only_to_governed_sources(
     assert "Sync complete" in output
     assert ("Post-sync governance:" in output) is governed
     assert "Completed with 1 error(s)" in output
+
+
+def test_sync_command_can_fail_deployment_on_source_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        sync_ai_capability_catalog,
+        "SyncCapabilitiesUseCase",
+        lambda: SimpleNamespace(execute=lambda **_kwargs: _sync_result(errors=1)),
+    )
+    monkeypatch.setattr(
+        sync_ai_capability_catalog,
+        "CapabilityCatalogGovernanceService",
+        lambda: SimpleNamespace(execute=lambda **_kwargs: _governance_result(apply=True)),
+    )
+
+    with pytest.raises(CommandError, match="synchronization reported errors"):
+        sync_ai_capability_catalog.Command(stdout=StringIO()).handle(
+            type="incremental",
+            source="mcp_tool",
+            skip_governance=False,
+            fail_on_error=True,
+        )
 
 
 def test_review_command_json_and_text_warnings(monkeypatch: pytest.MonkeyPatch) -> None:

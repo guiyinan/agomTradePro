@@ -1504,6 +1504,11 @@ if ! compose run --rm --no-deps web python manage.py collectstatic --noinput; th
   exit 1
 fi
 
+if ! compose run --rm --no-deps web python manage.py sync_ai_capability_catalog --type incremental --source mcp_tool --fail-on-error; then
+  echo "[ERROR] MCP capability catalog synchronization failed" >&2
+  exit 1
+fi
+
 if ! compose run --rm --no-deps web sh scripts/publish-tui-release.sh "$RELEASE_TAG"; then
   echo "[ERROR] TUI metadata publish or verification failed" >&2
   exit 1

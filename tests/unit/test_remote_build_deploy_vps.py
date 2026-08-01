@@ -138,6 +138,28 @@ def test_remote_deploy_publishes_and_verifies_tui_release_metadata():
     assert "reviewed TUI metadata is missing" in release_helper
 
 
+def test_remote_deploy_synchronizes_mcp_catalog_before_release_publish():
+    remote_script = (
+        Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
+    ).read_text(encoding="utf-8")
+    legacy_script = (
+        Path(__file__).resolve().parents[2] / "scripts" / "deploy-on-vps.sh"
+    ).read_text(encoding="utf-8")
+    sync_command = (
+        "python manage.py sync_ai_capability_catalog --type incremental "
+        "--source mcp_tool --fail-on-error"
+    )
+
+    assert sync_command in remote_script
+    assert remote_script.index(sync_command) < remote_script.index(
+        'sh scripts/publish-tui-release.sh "$RELEASE_TAG"'
+    )
+    assert sync_command in legacy_script
+    assert legacy_script.index(sync_command) < legacy_script.index(
+        'sh scripts/publish-tui-release.sh "$release_name"'
+    )
+
+
 def test_remote_deploy_installs_idempotent_daily_backup_cron():
     script = (
         Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"

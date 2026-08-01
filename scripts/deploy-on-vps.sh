@@ -428,6 +428,9 @@ if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restor
     sleep 5
   done
 
+  log_info "Synchronizing governed MCP capability catalog"
+  compose_vps exec -T web python manage.py sync_ai_capability_catalog --type incremental --source mcp_tool --fail-on-error
+
   log_info "Publishing and verifying reviewed TUI metadata"
   compose_vps exec -T web sh scripts/publish-tui-release.sh "$release_name"
 

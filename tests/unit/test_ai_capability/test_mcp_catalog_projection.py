@@ -87,6 +87,7 @@ def test_governed_manifest_projection_matrix_preserves_all_metadata(manifest) ->
         "idempotency_argument_name": manifest.idempotency_argument_name,
         "audit_tags": list(manifest.audit_tags),
         "required_roles": list(manifest.required_roles),
+        "manifest_requires_confirmation": manifest.requires_confirmation,
     }
     assert capability.risk_level.value == manifest.risk_level
     assert capability.requires_confirmation is manifest.requires_confirmation

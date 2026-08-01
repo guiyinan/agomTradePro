@@ -68,6 +68,9 @@ def build_governed_mcp_capability(manifest: Any) -> CapabilityDefinition:
             ),
             "audit_tags": audit_tags,
             "required_roles": list(getattr(manifest, "required_roles", ()) or ()),
+            "manifest_requires_confirmation": bool(
+                getattr(manifest, "requires_confirmation", False)
+            ),
         },
         risk_level=RiskLevel(getattr(manifest, "risk_level", RiskLevel.LOW.value)),
         requires_mcp=True,
