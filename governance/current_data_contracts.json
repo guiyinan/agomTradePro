@@ -950,7 +950,7 @@
           "requires_confirmation=False"
         ],
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
-          "def _fallback_equity_read_research_snapshot(",
+          "def _internal_handler_equity_read_research_snapshot(",
           "decision_readiness_blocked"
         ]
       },

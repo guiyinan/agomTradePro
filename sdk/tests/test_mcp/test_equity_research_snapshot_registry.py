@@ -2,7 +2,7 @@
 
 from agomtradepro_mcp.registry import CapabilityRegistryLoader
 from agomtradepro_mcp.registry.runtime_handlers.owners.equity import (
-    _fallback_equity_read_research_snapshot,
+    _internal_handler_equity_read_research_snapshot,
 )
 
 
@@ -69,7 +69,7 @@ class _FakeClient:
 def test_research_snapshot_keeps_optional_gaps_visible_without_fabrication(monkeypatch) -> None:
     monkeypatch.setattr("agomtradepro.AgomTradeProClient", _FakeClient)
 
-    result = _fallback_equity_read_research_snapshot("通富微电")
+    result = _internal_handler_equity_read_research_snapshot("通富微电")
 
     assert result["stock_code"] == "002156.SZ"
     assert result["status"] == "partial"
@@ -84,8 +84,26 @@ def test_research_snapshot_obeys_global_decision_readiness(monkeypatch) -> None:
         lambda: _FakeClient(blocked=True),
     )
 
-    result = _fallback_equity_read_research_snapshot("通富微电")
+    result = _internal_handler_equity_read_research_snapshot("通富微电")
 
     assert result["status"] == "blocked"
     assert result["must_not_use_for_decision"] is True
     assert result["reliability"]["block_reason_code"] == "decision_readiness_blocked"
+
+
+def test_research_snapshot_executes_through_core_native_handler(monkeypatch) -> None:
+    """Prove core-only agom_capability_call wiring via INTERNAL_GOVERNED_HANDLERS."""
+
+    import agomtradepro_mcp.server as server_module
+
+    monkeypatch.setattr("agomtradepro.AgomTradeProClient", _FakeClient)
+    assert "equity_read_research_snapshot" in server_module.INTERNAL_GOVERNED_HANDLERS
+    agom_capability_call = server_module.CORE_DISPATCHER.call
+
+    result = agom_capability_call(
+        capability_key="equity.read.research_snapshot",
+        arguments={"stock_code": "通富微电"},
+    )
+
+    assert result["status"] == "completed"
+    assert result["result"]["stock_code"] == "002156.SZ"

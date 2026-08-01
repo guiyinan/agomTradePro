@@ -413,7 +413,7 @@ MANIFESTS.append(
         owner_app="equity",
         risk_level="low",
         requires_confirmation=False,
-        executor_kind="legacy_tool",
+        executor_kind="internal_handler",
         executor_ref="equity_read_research_snapshot",
         tags=(
             "equity",
@@ -458,8 +458,7 @@ MANIFESTS.append(
                 "must_not_use_for_decision",
             ],
         },
-        audit_tags=("equity:research_snapshot", "mcp:decision_evidence"),
-        legacy_tool_names=("get_stock_all_information",),
+        audit_tags=("equity:research_snapshot", "mcp:decision_evidence", "mcp:native"),
     )
 )
 

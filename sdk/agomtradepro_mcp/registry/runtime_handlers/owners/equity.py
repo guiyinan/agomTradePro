@@ -49,7 +49,7 @@ def _read_research_section(loader: Callable[[], object], *, required: bool) -> d
     }
 
 
-def _fallback_equity_read_research_snapshot(
+def _internal_handler_equity_read_research_snapshot(
     stock_code: str,
     history_limit: int = 252,
     financial_limit: int = 20,
@@ -623,13 +623,13 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "equity_read_valuation_repair_config": _fallback_equity_read_valuation_repair_config,
     "equity_read_valuation_repair_config_catalog": _fallback_equity_read_valuation_repair_config_catalog,
     "equity_read_financial_history": _fallback_equity_read_financial_history,
-    "equity_read_research_snapshot": _fallback_equity_read_research_snapshot,
     "equity_read_score": _fallback_equity_read_score,
     "equity_compute_recommendations": _fallback_equity_compute_recommendations,
     "equity_compute_analysis": _fallback_equity_compute_analysis,
 }
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
+    "equity_read_research_snapshot": _internal_handler_equity_read_research_snapshot,
     "equity_create_valuation_repair_config": _internal_handler_equity_create_valuation_repair_config,
     "equity_activate_valuation_repair_config": _internal_handler_equity_activate_valuation_repair_config,
     "equity_run_valuation_repair_scan": _internal_handler_equity_run_valuation_repair_scan,
