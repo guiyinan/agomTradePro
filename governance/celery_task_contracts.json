@@ -3,9 +3,29 @@
   "governed_source_files": [
     "apps/data_center/application/tasks.py",
     "apps/equity/application/tasks_valuation_sync.py",
+    "apps/config_center/application/decision_readiness_guard_tasks.py",
     "apps/sentiment/application/tasks.py"
   ],
   "tasks": [
+    {
+      "task_path": "apps.config_center.application.decision_readiness_guard_tasks.audit_decision_readiness_task",
+      "source_file": "apps/config_center/application/decision_readiness_guard_tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/operational_readiness/test_decision_data_guard_task.py",
+          "test_function": "test_decision_readiness_guard_keeps_active_when_all_checks_pass"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/operational_readiness/test_decision_data_guard_task.py",
+          "test_function": "test_decision_readiness_guard_fails_closed_when_probe_raises"
+        },
+        "blocked": {
+          "test_file": "tests/unit/operational_readiness/test_decision_data_guard_task.py",
+          "test_function": "test_decision_readiness_guard_blocks_active_runtime_on_unready_check"
+        }
+      }
+    },
     {
       "task_path": "apps.data_center.application.tasks.backfill_active_a_share_core_data_batch_task",
       "source_file": "apps/data_center/application/tasks.py",

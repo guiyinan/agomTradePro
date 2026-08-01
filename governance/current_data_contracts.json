@@ -821,6 +821,8 @@
         "shared/domain/reliability.py",
         "apps/config_center/domain/entities.py",
         "apps/config_center/application/use_cases.py",
+        "apps/config_center/application/decision_readiness_guard.py",
+        "apps/config_center/application/decision_readiness_guard_tasks.py",
         "core/health_checks.py",
         "core/views.py",
         "core/middleware/decision_gate.py"
@@ -836,6 +838,13 @@
         ],
         "apps/config_center/application/use_cases.py": [
           "class UpdateDecisionRuntimeStateUseCase:"
+        ],
+        "apps/config_center/application/decision_readiness_guard.py": [
+          "def run_decision_readiness_guard(",
+          "Automated decision readiness audit blocked:"
+        ],
+        "apps/config_center/application/decision_readiness_guard_tasks.py": [
+          "def audit_decision_readiness_task("
         ],
         "core/health_checks.py": [
           "def run_decision_readiness_checks()",
@@ -874,6 +883,21 @@
           "case": "maintenance_blocks_decision_surface",
           "test_file": "tests/unit/core/test_decision_runtime_gate_middleware.py",
           "test_function": "test_decision_path_is_blocked_during_maintenance"
+        },
+        {
+          "case": "scheduled_audit_blocks_unready_runtime",
+          "test_file": "tests/unit/operational_readiness/test_decision_data_guard_task.py",
+          "test_function": "test_decision_readiness_guard_blocks_active_runtime_on_unready_check"
+        },
+        {
+          "case": "scheduled_audit_probe_failure_fails_closed",
+          "test_file": "tests/unit/operational_readiness/test_decision_data_guard_task.py",
+          "test_function": "test_decision_readiness_guard_fails_closed_when_probe_raises"
+        },
+        {
+          "case": "scheduled_audit_registered_daily",
+          "test_file": "tests/unit/operational_readiness/test_decision_data_guard_task.py",
+          "test_function": "test_decision_readiness_guard_has_daily_fail_closed_schedule"
         }
       ]
     },

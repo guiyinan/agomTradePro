@@ -894,6 +894,16 @@ CELERY_BEAT_SCHEDULE = {
             "expire_seconds": 3300,
         },
     },
+    "decision-readiness-fail-closed-audit": {
+        "task": (
+            "apps.config_center.application.decision_readiness_guard_tasks."
+            "audit_decision_readiness_task"
+        ),
+        "schedule": crontab(hour=18, minute=30),
+        "options": {
+            "expire_seconds": 3600,
+        },
+    },
     # ============================================
     # ========== Pulse 脉搏层 ==========
     "pulse-weekly-calculate": {
