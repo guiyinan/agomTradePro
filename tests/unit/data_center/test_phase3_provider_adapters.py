@@ -563,6 +563,35 @@ def test_akshare_unified_provider_adapter_fetches_valuation_series(monkeypatch):
     assert facts[0].extra["source_type"] == "akshare"
 
 
+def test_akshare_current_valuation_batch_preserves_tencent_provenance(monkeypatch):
+    from apps.data_center.infrastructure.market_gateway_entities import ValuationSnapshot
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_valuation_snapshots",
+        lambda _self, _codes: [
+            ValuationSnapshot(
+                stock_code="000001.SZ",
+                observed_at=datetime(2026, 7, 31, 15, 0, tzinfo=UTC),
+                pe_ttm=5.24,
+                pb=0.49,
+                market_cap=225_691_000_000.0,
+                float_market_cap=225_687_000_000.0,
+                source="tencent",
+            )
+        ],
+    )
+
+    facts = AkshareUnifiedProviderAdapter(
+        _config("akshare", "AKShare Public")
+    ).fetch_current_valuations(["000001.SZ"], date(2026, 7, 31))
+
+    assert len(facts) == 1
+    assert facts[0].source == "tencent"
+    assert facts[0].val_date == date(2026, 7, 31)
+    assert facts[0].extra["actual_source"] == "tencent"
+    assert facts[0].extra["provider_name"] == "AKShare Public"
+
+
 def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):
     class _FakeAkshare:
         def stock_financial_analysis_indicator_em(self, symbol, indicator):

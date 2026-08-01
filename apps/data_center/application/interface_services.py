@@ -63,6 +63,7 @@ from .business_runtime_gateway import (
 from .business_runtime_gateway import (
     run_alpha_score_prediction_now as _run_alpha_score_prediction_now,
 )
+from .current_valuation_sync import SyncCurrentValuationBatchUseCase
 from .market_thermometer import (
     CalculateMarketThermometerUseCase,
     ImportInvestorAccountsUseCase,
@@ -1027,6 +1028,17 @@ def make_sync_valuation_use_case() -> SyncValuationUseCase:
     """Build the valuation sync use case."""
 
     return SyncValuationUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_registry=_get_provider_registry(),
+        fact_repo=ValuationFactRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_sync_current_valuation_batch_use_case() -> SyncCurrentValuationBatchUseCase:
+    """Build the current valuation batch sync use case."""
+
+    return SyncCurrentValuationBatchUseCase(
         provider_repo=_make_provider_repo(),
         provider_registry=_get_provider_registry(),
         fact_repo=ValuationFactRepository(),

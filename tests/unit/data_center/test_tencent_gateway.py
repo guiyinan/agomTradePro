@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -87,6 +87,35 @@ def test_tencent_gateway_parses_realtime_quote_rows():
     assert quotes[1].price == Decimal("5020.10")
     assert quotes[1].pre_close == Decimal("4943.02")
     assert quotes[1].source == "tencent"
+
+
+def test_tencent_gateway_parses_batch_valuation_fields():
+    fields = [""] * 88
+    fields[1] = "平安银行"
+    fields[2] = "000001"
+    fields[30] = "20260731161436"
+    fields[39] = "5.24"
+    fields[44] = "2256.87"
+    fields[45] = "2256.91"
+    fields[46] = "0.49"
+    response = MagicMock()
+    response.text = f'v_sz000001="{"~".join(fields)}";'
+
+    with patch(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.requests.get",
+        return_value=response,
+    ) as mocked_get:
+        snapshots = TencentGateway().get_valuation_snapshots(["000001.SZ"])
+
+    mocked_get.assert_called_once()
+    assert len(snapshots) == 1
+    assert snapshots[0].stock_code == "000001.SZ"
+    assert snapshots[0].observed_at == datetime(2026, 7, 31, 8, 14, 36, tzinfo=UTC)
+    assert snapshots[0].pe_ttm == 5.24
+    assert snapshots[0].pb == 0.49
+    assert snapshots[0].float_market_cap == 2256.87 * 100_000_000
+    assert snapshots[0].market_cap == 2256.91 * 100_000_000
+    assert snapshots[0].source == "tencent"
 
 
 def test_tencent_gateway_skips_follow_up_requests_after_permission_denied():

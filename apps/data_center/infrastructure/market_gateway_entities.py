@@ -243,6 +243,25 @@ class HistoricalPriceBar:
 
 
 @dataclass(frozen=True)
+class ValuationSnapshot:
+    """Current valuation fields observed with a market quote timestamp."""
+
+    stock_code: str
+    observed_at: datetime
+    pe_ttm: float | None = None
+    pb: float | None = None
+    market_cap: float | None = None
+    float_market_cap: float | None = None
+    source: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.stock_code:
+            raise ValueError("stock_code 不能为空")
+        if self.observed_at.utcoffset() is None:
+            raise ValueError("observed_at 必须包含时区")
+
+
+@dataclass(frozen=True)
 class ProviderStatus:
     """Provider 状态快照
 

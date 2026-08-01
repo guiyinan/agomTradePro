@@ -670,6 +670,17 @@ class SyncResult:
         }
 
 
+@dataclass
+class SyncValuationBatchResult:
+    """Result of one current-valuation batch sync."""
+
+    domain: str
+    provider_name: str
+    stored_count: int
+    status: str
+    succeeded_asset_codes: list[str]
+
+
 # ---------------------------------------------------------------------------
 # Decision reliability repair DTOs
 # ---------------------------------------------------------------------------

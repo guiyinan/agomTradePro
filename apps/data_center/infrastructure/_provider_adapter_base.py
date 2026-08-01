@@ -314,6 +314,16 @@ class BaseUnifiedProviderAdapter(UnifiedDataProviderProtocol):
     ) -> list[ValuationFact]:
         return []
 
+    def fetch_current_valuations(
+        self,
+        asset_codes: list[str],
+        as_of_date: date,
+    ) -> list[ValuationFact]:
+        facts: list[ValuationFact] = []
+        for asset_code in asset_codes:
+            facts.extend(self.fetch_valuations(asset_code, as_of_date, as_of_date))
+        return facts
+
     def fetch_sector_memberships(
         self,
         sector_code: str = "",

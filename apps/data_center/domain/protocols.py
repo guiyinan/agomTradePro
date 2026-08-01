@@ -130,6 +130,17 @@ class UnifiedDataProviderProtocol(ProviderProtocol, Protocol):
 
 
 @runtime_checkable
+class CurrentValuationBatchProviderProtocol(Protocol):
+    """Optional provider capability for one-request current valuation batches."""
+
+    def fetch_current_valuations(
+        self,
+        asset_codes: list[str],
+        as_of_date: date,
+    ) -> list[ValuationFact]: ...
+
+
+@runtime_checkable
 class ProviderRegistryProtocol(Protocol):
     """Canonical construction, lookup, routing, and health contract."""
 

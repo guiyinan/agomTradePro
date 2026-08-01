@@ -694,6 +694,36 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             )
         return facts
 
+    def fetch_current_valuations(
+        self,
+        asset_codes: list[str],
+        as_of_date: date,
+    ) -> list[ValuationFact]:
+        """Fetch current valuation coverage through Tencent's batch quote contract."""
+
+        from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
+
+        snapshots = TencentGateway().get_valuation_snapshots(asset_codes)
+        return [
+            ValuationFact(
+                asset_code=snapshot.stock_code,
+                val_date=snapshot.observed_at.date(),
+                pe_ttm=snapshot.pe_ttm,
+                pb=snapshot.pb,
+                market_cap=snapshot.market_cap,
+                float_market_cap=snapshot.float_market_cap,
+                source=snapshot.source,
+                extra=self._provider_extra(
+                    {
+                        "actual_source": snapshot.source,
+                        "observation_contract": "tencent_quote_batch",
+                    }
+                ),
+            )
+            for snapshot in snapshots
+            if snapshot.observed_at.date() <= as_of_date
+        ]
+
     def fetch_sector_memberships(
         self,
         sector_code: str = "",

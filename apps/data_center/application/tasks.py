@@ -18,16 +18,15 @@ from .dtos import (
     SyncPriceRequest,
     SyncQuoteRequest,
     SyncResult,
-    SyncValuationRequest,
 )
 from .interface_services import (
     get_active_provider_id_by_source,
     make_calculate_market_thermometer_use_case,
+    make_sync_current_valuation_batch_use_case,
     make_sync_financial_use_case,
     make_sync_market_thermometer_inputs_use_case,
     make_sync_price_use_case,
     make_sync_quote_use_case,
-    make_sync_valuation_use_case,
     refresh_decision_quote_snapshots,
 )
 from .market_thermometer_dates import resolve_market_thermometer_as_of_date
@@ -267,7 +266,7 @@ def backfill_active_a_share_core_data_batch_task(
     start_date = end_date - timedelta(days=validated_history_days)
     quote_use_case = make_sync_quote_use_case()
     price_use_case = make_sync_price_use_case()
-    valuation_use_case = make_sync_valuation_use_case()
+    valuation_batch_use_case = make_sync_current_valuation_batch_use_case()
     financial_use_case = make_sync_financial_use_case()
 
     domain_counts: dict[str, dict[str, int]] = {
@@ -275,6 +274,7 @@ def backfill_active_a_share_core_data_batch_task(
         for name in ("quote", "price", "valuation", "financial")
     }
     errors: list[dict[str, str]] = []
+    failed_asset_codes: set[str] = set()
     try:
         quote_result = quote_use_case.execute(
             SyncQuoteRequest(provider_id=provider_id, asset_codes=batch_codes)
@@ -287,26 +287,33 @@ def backfill_active_a_share_core_data_batch_task(
         domain_counts["quote"]["failed"] = len(batch_codes)
         errors.append({"domain": "quote", "asset_code": "batch", "error": "sync_failed"})
 
-    succeeded_assets = 0
-    failed_assets = 0
+    try:
+        valuation_result = valuation_batch_use_case.execute(
+            provider_id=provider_id,
+            asset_codes=batch_codes,
+            as_of_date=end_date,
+        )
+        valuation_succeeded = set(valuation_result.succeeded_asset_codes)
+        valuation_missing = set(batch_codes) - valuation_succeeded
+        domain_counts["valuation"]["stored"] = int(valuation_result.stored_count)
+        domain_counts["valuation"]["succeeded"] = len(valuation_succeeded)
+        domain_counts["valuation"]["failed"] = len(valuation_missing)
+        failed_asset_codes.update(valuation_missing)
+        for asset_code in sorted(valuation_missing)[:20]:
+            errors.append({"domain": "valuation", "asset_code": asset_code, "error": "zero_output"})
+    except Exception:
+        domain_counts["valuation"]["failed"] = len(batch_codes)
+        failed_asset_codes.update(batch_codes)
+        errors.append({"domain": "valuation", "asset_code": "batch", "error": "sync_failed"})
+
     for asset_code in batch_codes:
-        asset_failed = False
-        domain_names = ("price", "valuation", "financial")
+        domain_names = ("price", "financial")
         for domain_name in domain_names:
             try:
                 result: SyncResult
                 if domain_name == "price":
                     result = price_use_case.execute(
                         SyncPriceRequest(
-                            provider_id=provider_id,
-                            asset_code=asset_code,
-                            start=start_date,
-                            end=end_date,
-                        )
-                    )
-                elif domain_name == "valuation":
-                    result = valuation_use_case.execute(
-                        SyncValuationRequest(
                             provider_id=provider_id,
                             asset_code=asset_code,
                             start=start_date,
@@ -327,7 +334,7 @@ def backfill_active_a_share_core_data_batch_task(
                     domain_counts[domain_name]["succeeded"] += 1
                 else:
                     domain_counts[domain_name]["failed"] += 1
-                    asset_failed = True
+                    failed_asset_codes.add(asset_code)
                     if len(errors) < 20:
                         errors.append(
                             {
@@ -338,7 +345,7 @@ def backfill_active_a_share_core_data_batch_task(
                         )
             except Exception:
                 domain_counts[domain_name]["failed"] += 1
-                asset_failed = True
+                failed_asset_codes.add(asset_code)
                 if len(errors) < 20:
                     errors.append(
                         {
@@ -347,13 +354,8 @@ def backfill_active_a_share_core_data_batch_task(
                             "error": "sync_failed",
                         }
                     )
-        if asset_failed:
-            failed_assets += 1
-        else:
-            succeeded_assets += 1
-
     quote_missing = domain_counts["quote"]["failed"]
-    failed_total = max(failed_assets, quote_missing)
+    failed_total = max(len(failed_asset_codes), quote_missing)
     succeeded_total = max(len(batch_codes) - failed_total, 0)
     stored_total = sum(item["stored"] for item in domain_counts.values())
     if failed_total == len(batch_codes):

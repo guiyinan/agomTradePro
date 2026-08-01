@@ -33,6 +33,18 @@ def _patch_backfill_dependencies(mocker, *, stored_count=1, failure=None) -> Non
             return SimpleNamespace(stored_count=count)
 
         use_case.execute.side_effect = _execute
+        if domain == "valuation":
+
+            def _execute_current_batch(*, provider_id, asset_codes, as_of_date):
+                del provider_id, as_of_date
+                succeeded = [code for code in asset_codes if failure != ("valuation", code)]
+                count = len(succeeded) if stored_count else 0
+                return SimpleNamespace(
+                    stored_count=count,
+                    succeeded_asset_codes=(succeeded if stored_count else []),
+                )
+
+            use_case.execute.side_effect = _execute_current_batch
         return use_case
 
     mocker.patch(
@@ -44,7 +56,7 @@ def _patch_backfill_dependencies(mocker, *, stored_count=1, failure=None) -> Non
         return_value=_use_case("price"),
     )
     mocker.patch(
-        "apps.data_center.application.tasks.make_sync_valuation_use_case",
+        "apps.data_center.application.tasks.make_sync_current_valuation_batch_use_case",
         return_value=_use_case("valuation"),
     )
     mocker.patch(

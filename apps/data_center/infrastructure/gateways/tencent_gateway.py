@@ -14,6 +14,7 @@ from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
     QuoteSnapshot,
+    ValuationSnapshot,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
@@ -83,6 +84,38 @@ class TencentGateway(MarketGatewayProtocol):
             return []
 
         return self._parse_quote_response(response.text, symbols_by_code)
+
+    def get_valuation_snapshots(self, asset_codes: list[str]) -> list[ValuationSnapshot]:
+        """Fetch current PE/PB and market-cap fields in one Tencent quote request."""
+
+        symbols_by_code = {
+            asset_code: symbol
+            for asset_code in asset_codes
+            if (symbol := self._to_symbol(asset_code))
+        }
+        if not symbols_by_code:
+            return []
+        try:
+            response = requests.get(
+                self._QUOTE_URL.format(symbols=",".join(symbols_by_code.values())),
+                headers={"Referer": "https://gu.qq.com/", "User-Agent": "Mozilla/5.0"},
+                timeout=self._timeout,
+            )
+            response.raise_for_status()
+        except requests.RequestException:
+            logger.exception("Tencent 批量估值获取失败: %s", ",".join(asset_codes))
+            return []
+
+        requested_by_symbol = {symbol: code for code, symbol in symbols_by_code.items()}
+        snapshots: list[ValuationSnapshot] = []
+        for match in re.finditer(r'v_([a-z]{2}\d+)="([^"]*)"', response.text or ""):
+            requested_code = requested_by_symbol.get(match.group(1))
+            if requested_code is None:
+                continue
+            snapshot = self._parse_valuation_fields(requested_code, match.group(2).split("~"))
+            if snapshot is not None:
+                snapshots.append(snapshot)
+        return snapshots
 
     def get_historical_prices(
         self,
@@ -223,6 +256,34 @@ class TencentGateway(MarketGatewayProtocol):
             pre_close=_safe_decimal(fields[4]),
             source="tencent",
             observed_at=_parse_tencent_quote_time(fields[30] if len(fields) > 30 else ""),
+        )
+
+    @staticmethod
+    def _parse_valuation_fields(
+        asset_code: str,
+        fields: list[str],
+    ) -> ValuationSnapshot | None:
+        if len(fields) <= 46:
+            return None
+        observed_at = _parse_tencent_quote_time(fields[30])
+        if observed_at is None:
+            return None
+        pe_ttm = safe_float(fields[39])
+        pb = safe_float(fields[46])
+        float_market_cap = safe_float(fields[44])
+        market_cap = safe_float(fields[45])
+        if all(value is None for value in (pe_ttm, pb, float_market_cap, market_cap)):
+            return None
+        return ValuationSnapshot(
+            stock_code=normalize_asset_code(asset_code, "tencent"),
+            observed_at=observed_at,
+            pe_ttm=pe_ttm,
+            pb=pb,
+            market_cap=market_cap * 100_000_000 if market_cap is not None else None,
+            float_market_cap=(
+                float_market_cap * 100_000_000 if float_market_cap is not None else None
+            ),
+            source="tencent",
         )
 
 
