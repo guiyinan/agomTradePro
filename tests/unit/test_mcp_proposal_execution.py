@@ -280,6 +280,30 @@ def test_executor_rejects_invalid_confirmation_token(mock_call, token):
 
 
 @patch("apps.agent_runtime.infrastructure.mcp_proposal_executor.call_sdk_mcp_tool")
+@pytest.mark.parametrize("token", ["-server-issued", "_server-issued"])
+def test_executor_accepts_urlsafe_server_confirmation_token(mock_call, token):
+    """URL-safe MCP tokens may legally start with ``-`` or ``_``."""
+
+    mock_call.side_effect = [
+        {
+            "ok": False,
+            "status": "confirmation_required",
+            "confirmation_token": token,
+        },
+        {"ok": True, "status": "completed", "result": {"task_id": 1}},
+    ]
+
+    result = ApprovedMcpCapabilityExecutor().execute(
+        proposal=_approved_proposal(),
+        actor={"user_id": 1, "is_staff": True},
+        context={},
+    )
+
+    assert result["ok"] is True
+    assert mock_call.call_count == 2
+
+
+@patch("apps.agent_runtime.infrastructure.mcp_proposal_executor.call_sdk_mcp_tool")
 def test_executor_redacts_mcp_error_message(mock_call):
     """Only a governed error code may escape a failed MCP envelope."""
 

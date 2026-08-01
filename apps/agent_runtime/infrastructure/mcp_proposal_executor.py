@@ -23,7 +23,9 @@ from shared.infrastructure.mcp_runtime import call_sdk_mcp_tool, ensure_sdk_on_p
 _MCP_ROLE_LOCK = RLock()
 _CAPABILITY_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_.:-]{0,127}$")
 _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
-_CONFIRMATION_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,4095}$")
+# ``secrets.token_urlsafe`` may begin with ``-`` or ``_``; both are part of
+# the server-issued URL-safe alphabet and must survive the local validator.
+_CONFIRMATION_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_.:-][A-Za-z0-9_.:-]{0,4095}$")
 _ERROR_CODE_PATTERN = re.compile(r"^[a-z][a-z0-9_.:-]{0,63}$")
 _PROPOSAL_FIELDS = frozenset({"capability_key", "arguments", "session_id"})
 _MAX_ARGUMENT_BYTES = 262_144
