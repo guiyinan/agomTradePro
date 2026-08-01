@@ -9,6 +9,7 @@ import pytest
 
 from shared.infrastructure.tushare_client import (
     TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+    TushareRelayAuthorizationError,
     create_tushare_pro_client,
     resolve_tushare_runtime_settings,
 )
@@ -16,6 +17,8 @@ from shared.infrastructure.tushare_client import (
 
 class _RelayResponse:
     """Minimal successful requests response used by relay tests."""
+
+    status_code = 200
 
     def raise_for_status(self) -> None:
         """Model one successful HTTP status."""
@@ -53,6 +56,33 @@ class _RelaySession:
 
         self.calls.append({"url": url, "json": json, "timeout": timeout})
         return _RelayResponse()
+
+
+class _RejectedRelayResponse(_RelayResponse):
+    """Minimal relay response for an invalid API credential."""
+
+    status_code = 403
+
+
+def test_unified_relay_rejects_invalid_api_key_without_payload_fallback(
+    monkeypatch: Any,
+) -> None:
+    """A relay authorization failure must remain distinguishable from source outage."""
+
+    session = _RelaySession()
+    monkeypatch.setattr(session, "post", lambda *_args, **_kwargs: _RejectedRelayResponse())
+    monkeypatch.setattr(
+        "shared.infrastructure.tushare_client.requests.Session",
+        lambda: session,
+    )
+    client = create_tushare_pro_client(
+        token="rejected-secret",
+        http_url="https://relay.example.test/tushare/pro",
+        request_mode=TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+    )
+
+    with pytest.raises(TushareRelayAuthorizationError, match="HTTP 403"):
+        client.daily(ts_code="000001.SZ")
 
 
 def test_unified_relay_posts_to_exact_url_with_api_key_header(monkeypatch: Any) -> None:

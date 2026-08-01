@@ -493,6 +493,34 @@ def test_akshare_price_history_preserves_requested_index_suffix(monkeypatch):
     assert bars[0].source == "akshare"
 
 
+def test_akshare_price_history_preserves_fallback_source(monkeypatch):
+    class _FallbackGateway:
+        def get_historical_prices(self, asset_code, start_date, end_date):
+            return [
+                SimpleNamespace(
+                    trade_date=date(2026, 4, 21),
+                    open=10.0,
+                    high=11.0,
+                    low=9.0,
+                    close=10.5,
+                    volume=1000,
+                    amount=2000.0,
+                    source="tencent",
+                )
+            ]
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway.AKShareEastMoneyGateway",
+        _FallbackGateway,
+    )
+
+    bars = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public")).fetch_price_history(
+        "000001.SZ", date(2026, 4, 1), date(2026, 4, 21)
+    )
+
+    assert bars[0].source == "tencent"
+
+
 def test_akshare_unified_provider_adapter_fetches_valuation_series(monkeypatch):
     class _FakeAkshare:
         def stock_zh_valuation_baidu(self, symbol, indicator, period):

@@ -481,7 +481,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 close=bar.close,
                 volume=float(bar.volume) if bar.volume is not None else None,
                 amount=bar.amount,
-                source=self.provider_source(),
+                source=str(getattr(bar, "source", "") or self.provider_source()).strip(),
             )
             for bar in bars
         ]

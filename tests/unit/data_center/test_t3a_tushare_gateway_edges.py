@@ -146,6 +146,33 @@ def test_history_empty_and_exception_use_tencent_fallback(
     assert len(fallback) == 2
 
 
+def test_history_authorization_failure_does_not_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from shared.infrastructure.tushare_client import TushareRelayAuthorizationError
+
+    monkeypatch.setattr(
+        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        lambda: (_ for _ in ()).throw(TushareRelayAuthorizationError("HTTP 403")),
+    )
+    monkeypatch.setattr(
+        tushare_gateway.TushareGateway,
+        "_fallback_historical_prices",
+        staticmethod(
+            lambda *_args: (_ for _ in ()).throw(
+                AssertionError("authorization failures must not use fallback data")
+            )
+        ),
+    )
+
+    with pytest.raises(TushareRelayAuthorizationError, match="HTTP 403"):
+        tushare_gateway.TushareGateway().get_historical_prices(
+            "000001.SZ",
+            "20240101",
+            "20240131",
+        )
+
+
 def test_native_fallback_isolates_tencent_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

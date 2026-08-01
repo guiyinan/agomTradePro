@@ -355,11 +355,13 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         started = datetime.now(UTC)
         try:
             bars = provider.fetch_price_history(request.asset_code, request.start, request.end)
-            bars = self._normalize_fact_sources(
-                bars,
-                source_type=config.source_type,
-                provider_name=provider.provider_name(),
-            )
+            bars = [
+                dataclasses.replace(
+                    bar,
+                    source=str(bar.source or config.source_type).strip(),
+                )
+                for bar in bars
+            ]
             stored_count = self._facts.bulk_upsert(bars)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(

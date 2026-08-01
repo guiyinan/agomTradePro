@@ -40,6 +40,10 @@ class _TushareDataApi(Protocol):
     _DataApi__http_url: str
 
 
+class TushareRelayAuthorizationError(RuntimeError):
+    """Raised when the configured relay rejects its API credential."""
+
+
 def resolve_tushare_runtime_settings(
     token: str | None = None,
     http_url: str | None = None,
@@ -153,6 +157,10 @@ class _UnifiedRelayClient:
             },
             timeout=self._timeout_seconds,
         )
+        if response.status_code in {401, 403}:
+            raise TushareRelayAuthorizationError(
+                f"Tushare relay authorization failed with HTTP {response.status_code}"
+            )
         response.raise_for_status()
         payload: object = response.json()
         if not isinstance(payload, dict):

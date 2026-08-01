@@ -21,6 +21,7 @@ from apps.data_center.infrastructure.market_gateway_entities import (
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from core.integration.data_center_business_sources import build_tushare_stock_adapter
+from shared.infrastructure.tushare_client import TushareRelayAuthorizationError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -308,6 +309,9 @@ class TushareGateway(MarketGatewayProtocol):
             logger.info("Tushare 历史 K 线: %s 获取 %d 条", asset_code, len(bars))
             return bars
 
+        except TushareRelayAuthorizationError:
+            logger.error("Tushare relay authorization failed; fallback is forbidden")
+            raise
         except Exception:
             logger.exception("Tushare 历史 K 线获取失败: %s", asset_code)
             return self._fallback_historical_prices(asset_code, start_date, end_date)
