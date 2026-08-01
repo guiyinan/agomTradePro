@@ -932,13 +932,18 @@
       "surface": "MCP equity.read.research_snapshot + AI capability route",
       "source_files": [
         "apps/ai_capability/application/use_cases.py",
+        "apps/ai_capability/application/financial_fact_routing.py",
         "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py",
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
       ],
       "required_markers": {
         "apps/ai_capability/application/use_cases.py": [
-          "financial_evidence_capability_unavailable",
-          "EQUITY_RESEARCH_CAPABILITY_SUFFIX"
+          "match_equity_research_capability(filtered, request.message, context)",
+          "is_financial_fact_query(request.message)"
+        ],
+        "apps/ai_capability/application/financial_fact_routing.py": [
+          "EQUITY_RESEARCH_CAPABILITY_SUFFIX = \"equity.read.research_snapshot\"",
+          "financial_evidence_capability_unavailable"
         ],
         "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py": [
           "capability_key=\"equity.read.research_snapshot\"",

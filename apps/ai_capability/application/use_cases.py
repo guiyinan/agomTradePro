@@ -42,7 +42,6 @@ from ..domain.interfaces import ConfirmationCodecProtocol
 from ..domain.services import (
     CapabilityFilter,
     CapabilityParameterPolicy,
-    RetrievalScore,
 )
 from . import sync_use_cases as _sync_use_cases
 from .catalog_query_use_cases import (
@@ -53,6 +52,11 @@ from .catalog_query_use_cases import (
 from .catalog_routing_services import (
     CapabilityRegistryService,
     CapabilityRetrievalService,
+)
+from .financial_fact_routing import (
+    build_financial_evidence_blocked_decision,
+    is_financial_fact_query,
+    match_equity_research_capability,
 )
 from .mcp_runtime_gateway import McpRuntimeValidationError
 from .mcp_runtime_gateway import call_sdk_mcp_tool as _call_sdk_mcp_tool
@@ -604,16 +608,6 @@ class RouteMessageUseCase:
     TOP_K_CANDIDATES = 5
     APPROVAL_MESSAGES = {"y", "yes", "确认", "同意", "批准", "执行"}
     REJECTION_MESSAGES = {"n", "no", "取消", "拒绝"}
-    EQUITY_RESEARCH_CAPABILITY_SUFFIX = "equity.read.research_snapshot"
-    FINANCIAL_FACT_INTENT_RE = re.compile(
-        r"股票|个股|证券|股价|行情|估值|财务|资金流|全部信息|所有信息|完整信息|全面分析",
-        re.IGNORECASE,
-    )
-    STOCK_CODE_RE = re.compile(r"\b\d{6}(?:\.(?:SH|SZ|BJ))?\b", re.IGNORECASE)
-    ABOUT_EQUITY_RE = re.compile(
-        r"关于\s*([\u4e00-\u9fffA-Za-z0-9]{2,20}?)(?:的)?(?:所有|全部|完整|全面|信息|资料|情况)",
-        re.IGNORECASE,
-    )
 
     def __init__(
         self,
@@ -661,7 +655,7 @@ class RouteMessageUseCase:
             )
 
         filtered = self.registry.get_routable_capabilities(context)
-        scores = self._match_equity_research_capability(filtered, request, context)
+        scores = match_equity_research_capability(filtered, request.message, context)
         if not scores:
             scores = self.retrieval.retrieve(filtered, request.message, k=self.TOP_K_CANDIDATES)
 
@@ -717,57 +711,6 @@ class RouteMessageUseCase:
         )
 
         return self._build_response(decision, session_id, context)
-
-    def _match_equity_research_capability(
-        self,
-        capabilities: list[CapabilityDefinition],
-        request: RouteRequestDTO,
-        context: RoutingContext,
-    ) -> list[RetrievalScore]:
-        """Deterministically match high-risk financial fact questions to evidence reads."""
-
-        entity = self._extract_equity_query_entity(request.message)
-        if entity is None or not self._is_financial_fact_query(request.message):
-            return []
-        capability = next(
-            (
-                item
-                for item in capabilities
-                if item.capability_key.endswith(self.EQUITY_RESEARCH_CAPABILITY_SUFFIX)
-            ),
-            None,
-        )
-        if capability is None:
-            return []
-        supplied_params = dict(context.context.get("params", {}) or {})
-        supplied_params.setdefault("stock_code", entity)
-        context.context["params"] = supplied_params
-        return [
-            RetrievalScore(
-                capability=capability,
-                score=10.0,
-                matched_fields=["financial_fact_intent", "equity_entity"],
-            )
-        ]
-
-    @classmethod
-    def _extract_equity_query_entity(cls, message: str) -> str | None:
-        """Extract a canonical code or an exact-name candidate from a user request."""
-
-        code_match = cls.STOCK_CODE_RE.search(message)
-        if code_match is not None:
-            return code_match.group(0).upper()
-        name_match = cls.ABOUT_EQUITY_RE.search(message)
-        if name_match is None:
-            return None
-        value = name_match.group(1).strip()
-        return value or None
-
-    @classmethod
-    def _is_financial_fact_query(cls, message: str) -> bool:
-        """Return whether free-form generation could fabricate decision facts."""
-
-        return cls.FINANCIAL_FACT_INTENT_RE.search(message) is not None
 
     def _extract_confirmation_request(
         self,
@@ -1027,12 +970,16 @@ class RouteMessageUseCase:
         rejected_candidates: list[str] | None = None,
     ) -> RoutingDecision:
         """Build decision for general chat."""
-        if self._is_financial_fact_query(request.message):
-            return self._build_financial_evidence_blocked_decision(
+        if is_financial_fact_query(request.message):
+            return build_financial_evidence_blocked_decision(
                 candidates=candidates,
                 context=context,
                 reason=reason,
                 rejected_candidates=rejected_candidates or [],
+                answer_chain=self._build_chat_answer_chain(
+                    context,
+                    reason="Financial evidence was unavailable; generation was blocked.",
+                ),
             )
         reply = self._execute_chat(request, context)
 
@@ -1054,44 +1001,6 @@ class RouteMessageUseCase:
                 "model": request.model or "default",
             },
             answer_chain=answer_chain,
-        )
-
-    def _build_financial_evidence_blocked_decision(
-        self,
-        *,
-        candidates: list[dict[str, Any]],
-        context: RoutingContext,
-        reason: str,
-        rejected_candidates: list[str],
-    ) -> RoutingDecision:
-        """Fail closed instead of asking a chat model to invent financial facts."""
-
-        block_reason = "未找到可执行的金融数据能力，无法提供可核验的证券事实。"
-        return RoutingDecision(
-            decision=CapabilityDecision.CHAT,
-            selected_capability_key=None,
-            confidence=0.0,
-            candidate_capabilities=candidates,
-            requires_confirmation=False,
-            reply=block_reason,
-            reason=reason or "Financial evidence capability is unavailable.",
-            rejected_candidates=rejected_candidates,
-            filled_params=context.context.get("params", {}) or {},
-            metadata={
-                "route": "financial_evidence_blocked",
-                "provider": "capability-router",
-                "model": "none",
-            },
-            answer_chain=self._build_chat_answer_chain(
-                context,
-                reason="Financial evidence was unavailable; generation was blocked.",
-            ),
-            result={
-                "status": "missing",
-                "must_not_use_for_decision": True,
-                "block_reason_code": "financial_evidence_capability_unavailable",
-                "block_reason": block_reason,
-            },
         )
 
     def _execute_capability(
