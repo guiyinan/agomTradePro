@@ -111,23 +111,30 @@ class FinancialFactRepository:
         return None
 
     def bulk_upsert(self, facts: list[FinancialFact]) -> int:
-        count = 0
-        for f in facts:
-            FinancialFactModel.objects.update_or_create(
-                asset_code=f.asset_code,
-                period_end=f.period_end,
-                period_type=f.period_type.value,
-                metric_code=f.metric_code,
-                source=f.source,
-                defaults={
-                    "value": f.value,
-                    "unit": f.unit,
-                    "report_date": f.report_date,
-                    "extra": f.extra,
-                },
+        if not facts:
+            return 0
+        models = [
+            FinancialFactModel(
+                asset_code=fact.asset_code,
+                period_end=fact.period_end,
+                period_type=fact.period_type.value,
+                metric_code=fact.metric_code,
+                value=fact.value,
+                unit=fact.unit,
+                source=fact.source,
+                report_date=fact.report_date,
+                extra=fact.extra,
             )
-            count += 1
-        return count
+            for fact in facts
+        ]
+        FinancialFactModel._default_manager.bulk_create(
+            models,
+            batch_size=1_000,
+            update_conflicts=True,
+            update_fields=["value", "unit", "report_date", "extra"],
+            unique_fields=["asset_code", "period_end", "period_type", "metric_code", "source"],
+        )
+        return len(models)
 
 
 class ValuationFactRepository:
@@ -179,22 +186,38 @@ class ValuationFactRepository:
         return None
 
     def bulk_upsert(self, facts: list[ValuationFact]) -> int:
-        count = 0
-        for f in facts:
-            ValuationFactModel.objects.update_or_create(
-                asset_code=f.asset_code,
-                val_date=f.val_date,
-                source=f.source,
-                defaults={
-                    "pe_ttm": f.pe_ttm,
-                    "pe_static": f.pe_static,
-                    "pb": f.pb,
-                    "ps_ttm": f.ps_ttm,
-                    "market_cap": f.market_cap,
-                    "float_market_cap": f.float_market_cap,
-                    "dv_ratio": f.dv_ratio,
-                    "extra": f.extra,
-                },
+        if not facts:
+            return 0
+        models = [
+            ValuationFactModel(
+                asset_code=fact.asset_code,
+                val_date=fact.val_date,
+                pe_ttm=fact.pe_ttm,
+                pe_static=fact.pe_static,
+                pb=fact.pb,
+                ps_ttm=fact.ps_ttm,
+                market_cap=fact.market_cap,
+                float_market_cap=fact.float_market_cap,
+                dv_ratio=fact.dv_ratio,
+                source=fact.source,
+                extra=fact.extra,
             )
-            count += 1
-        return count
+            for fact in facts
+        ]
+        ValuationFactModel._default_manager.bulk_create(
+            models,
+            batch_size=1_000,
+            update_conflicts=True,
+            update_fields=[
+                "pe_ttm",
+                "pe_static",
+                "pb",
+                "ps_ttm",
+                "market_cap",
+                "float_market_cap",
+                "dv_ratio",
+                "extra",
+            ],
+            unique_fields=["asset_code", "val_date", "source"],
+        )
+        return len(models)

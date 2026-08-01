@@ -56,25 +56,32 @@ class PriceBarRepository:
         return None
 
     def bulk_upsert(self, bars: list[PriceBar]) -> int:
-        count = 0
-        for b in bars:
-            PriceBarModel.objects.update_or_create(
-                asset_code=b.asset_code,
-                bar_date=b.bar_date,
-                freq=b.freq,
-                adjustment=b.adjustment.value,
-                source=b.source,
-                defaults={
-                    "open": b.open,
-                    "high": b.high,
-                    "low": b.low,
-                    "close": b.close,
-                    "volume": b.volume,
-                    "amount": b.amount,
-                },
+        if not bars:
+            return 0
+        models = [
+            PriceBarModel(
+                asset_code=bar.asset_code,
+                bar_date=bar.bar_date,
+                freq=bar.freq,
+                adjustment=bar.adjustment.value,
+                open=bar.open,
+                high=bar.high,
+                low=bar.low,
+                close=bar.close,
+                volume=bar.volume,
+                amount=bar.amount,
+                source=bar.source,
             )
-            count += 1
-        return count
+            for bar in bars
+        ]
+        PriceBarModel._default_manager.bulk_create(
+            models,
+            batch_size=1_000,
+            update_conflicts=True,
+            update_fields=["open", "high", "low", "close", "volume", "amount"],
+            unique_fields=["asset_code", "bar_date", "freq", "adjustment", "source"],
+        )
+        return len(models)
 
 
 class QuoteSnapshotRepository:
