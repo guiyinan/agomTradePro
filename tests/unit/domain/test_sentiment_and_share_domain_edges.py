@@ -1,15 +1,20 @@
 """Boundary tests for Sentiment normalization and Share access policy."""
 
 from datetime import UTC, date, datetime
+from typing import cast
 
 import pytest
 
-from apps.sentiment.domain.entities import SentimentCategory, SentimentIndex
+from apps.sentiment.domain.entities import (
+    SentimentAnalysisResult,
+    SentimentCategory,
+    SentimentIndex,
+)
 from apps.sentiment.domain.rules import (
     categorize_sentiment_score,
     clamp_sentiment_score,
 )
-from apps.sentiment.domain.services import build_sentiment_result
+from apps.sentiment.domain.services import build_sentiment_result, sentiment_observation_freshness
 from apps.share.domain.account_gateway import EmptyShareAccountGateway
 from apps.share.domain.entities import (
     AccessResultStatus,
@@ -42,6 +47,13 @@ from apps.share.domain.services import (
 def test_sentiment_category_exact_thresholds(score: float, category: SentimentCategory) -> None:
     """Sentiment classification preserves strict thresholds."""
     assert categorize_sentiment_score(score) == category
+    if score == 0.51:
+        with pytest.raises(ValueError, match="finite"):
+            categorize_sentiment_score(cast(float, True))
+        with pytest.raises(ValueError, match="finite"):
+            categorize_sentiment_score(float("nan"))
+        with pytest.raises(ValueError, match="between"):
+            categorize_sentiment_score(3.1)
 
 
 def test_sentiment_result_clamps_score_confidence_and_uses_aware_time() -> None:
@@ -70,6 +82,20 @@ def test_sentiment_result_clamps_score_confidence_and_uses_aware_time() -> None:
     assert negative.keywords == []
     assert negative.analyzed_at is analyzed_at
     assert negative.error_message == "degraded model"
+    assert sentiment_observation_freshness(
+        date(2026, 7, 23),
+        as_of_date=date(2026, 7, 24),
+    ) == (False, 1)
+    assert sentiment_observation_freshness(
+        date(2026, 7, 25),
+        as_of_date=date(2026, 7, 24),
+    ) == (True, 0)
+    with pytest.raises(ValueError, match="max_business_days"):
+        sentiment_observation_freshness(
+            date(2026, 7, 24),
+            as_of_date=date(2026, 7, 24),
+            max_business_days=-1,
+        )
 
 
 @pytest.mark.parametrize("invalid_value", [float("nan"), float("inf"), float("-inf")])
@@ -103,13 +129,32 @@ def test_sentiment_index_rejects_invalid_confidence_sector_and_counts() -> None:
     index_date = datetime(2026, 7, 24, tzinfo=UTC)
     with pytest.raises(ValueError, match="confidence_level"):
         SentimentIndex(index_date=index_date, confidence_level=float("nan"))
+    with pytest.raises(ValueError, match="confidence_level"):
+        SentimentIndex(index_date=index_date, confidence_level=1.1)
     with pytest.raises(ValueError, match=r"sector_sentiment\[technology\]"):
         SentimentIndex(
             index_date=index_date,
             sector_sentiment={"technology": float("inf")},
         )
+    SentimentIndex(index_date=index_date, sector_sentiment={"technology": 0.5})
     with pytest.raises(ValueError, match="news_count"):
         SentimentIndex(index_date=index_date, news_count=-1)
+    with pytest.raises(ValueError, match="policy_events_count"):
+        SentimentIndex(index_date=index_date, policy_events_count=-1)
+    with pytest.raises(ValueError, match="sentiment_score"):
+        SentimentAnalysisResult(
+            text="invalid",
+            sentiment_score=cast(float, True),
+            confidence=0.5,
+            category=SentimentCategory.NEUTRAL,
+        )
+    with pytest.raises(ValueError, match="confidence"):
+        SentimentAnalysisResult(
+            text="invalid",
+            sentiment_score=0.0,
+            confidence=cast(float, True),
+            category=SentimentCategory.NEUTRAL,
+        )
 
 
 def _link(

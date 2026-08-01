@@ -1,7 +1,8 @@
 """Durable alert and price-update boundaries for Realtime."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from typing import cast
 
 import pytest
 
@@ -21,6 +22,7 @@ from apps.realtime.domain.entities import (
 from apps.realtime.domain.rules import (
     calculate_change_pct,
     classify_price_update,
+    daily_market_observation_status,
     should_trigger_alert,
 )
 from apps.realtime.domain.services import build_price_update
@@ -81,6 +83,16 @@ def test_alert_conditions_have_exact_crossing_semantics(
 ) -> None:
     """Cross alerts require movement from the opposite side of the threshold."""
     assert should_trigger_alert(condition, Decimal("10"), old, new) is expected
+    if condition is AlertCondition.ABOVE:
+        assert (
+            should_trigger_alert(
+                cast(AlertCondition, "unknown"),
+                Decimal("10"),
+                Decimal("9"),
+                Decimal("11"),
+            )
+            is False
+        )
 
 
 @pytest.mark.parametrize(
@@ -202,6 +214,15 @@ def test_realtime_price_freshness_rejects_old_future_and_naive_timestamps() -> N
         reference_time=reference_time,
         max_age=timedelta(minutes=5),
     )
+    assert not _price(observed_at).is_fresh(
+        reference_time=datetime(2026, 7, 30, 10, 5),
+        max_age=timedelta(minutes=5),
+    )
+    with pytest.raises(ValueError, match="max_age"):
+        _price(observed_at).is_fresh(
+            reference_time=reference_time,
+            max_age=timedelta(0),
+        )
 
 
 def test_price_update_service_overrides_status_on_explicit_error() -> None:
@@ -229,6 +250,16 @@ def test_price_update_service_overrides_status_on_explicit_error() -> None:
 def test_polling_and_snapshot_contracts_cover_empty_and_success_cases() -> None:
     """Batch quote summaries expose stable success rates."""
     timestamp = datetime(2026, 7, 24, tzinfo=UTC)
+    with pytest.raises(ValueError, match="max_business_days"):
+        daily_market_observation_status(
+            date(2026, 7, 24),
+            as_of_date=date(2026, 7, 24),
+            max_business_days=-1,
+        )
+    assert daily_market_observation_status(
+        date(2026, 7, 25),
+        as_of_date=date(2026, 7, 24),
+    ) == (True, 0)
     assert PricePollingConfig().to_dict()["batch_size"] == 100
     empty = PriceSnapshot(timestamp, [], 0, 0, 0)
     assert empty.success_rate == 0.0
