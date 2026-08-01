@@ -486,6 +486,59 @@ def test_open_history_circuit_uses_sina_for_bse_without_tencent_fallback(
     assert bars[0].source == "sina"
 
 
+def test_closed_history_circuit_still_uses_bse_specific_failover(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(gateway_module, "_history_circuit_open_until", 0.0)
+    provider = SimpleNamespace(
+        stock_zh_a_daily=lambda **_kwargs: pd.DataFrame(
+            {
+                "date": ["2026-07-31"],
+                "open": [12.70],
+                "high": [12.85],
+                "low": [12.55],
+                "close": [12.81],
+                "volume": [2247949],
+                "amount": [28645504.0],
+            }
+        ),
+        stock_zh_a_hist=lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("BSE must not enter the Shanghai/Shenzhen primary path")
+        ),
+    )
+    monkeypatch.setattr(gateway_module, "get_akshare_module", lambda: provider)
+    monkeypatch.setattr(
+        AKShareEastMoneyGateway,
+        "_fetch_bse_eastmoney_historical_prices",
+        staticmethod(
+            lambda *_args: (_ for _ in ()).throw(
+                AssertionError("Sina BSE history should complete the fallback")
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        AKShareEastMoneyGateway,
+        "_fallback_historical_prices",
+        staticmethod(
+            lambda *_args: (_ for _ in ()).throw(
+                AssertionError("Tencent does not provide BSE history")
+            )
+        ),
+    )
+
+    bars = AKShareEastMoneyGateway(request_interval_sec=0).get_historical_prices(
+        "920124.BJ",
+        "20260701",
+        "20260731",
+    )
+
+    assert len(bars) == 1
+    assert bars[0].asset_code == "920124.BJ"
+    assert bars[0].trade_date == date(2026, 7, 31)
+    assert bars[0].close == 12.81
+    assert bars[0].source == "sina"
+
+
 def test_bse_direct_history_parser_preserves_source_and_query_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

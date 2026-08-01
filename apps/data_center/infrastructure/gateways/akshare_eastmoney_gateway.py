@@ -412,22 +412,25 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
         - 指数: 000xxx, 399xxx
         - 股票: 6xxxxx (SH), 0xxxxx/3xxxxx (SZ)
         """
+        if self._is_bse_asset(asset_code):
+            bse_bars = self._fetch_bse_sina_historical_prices(
+                asset_code,
+                start_date,
+                end_date,
+            )
+            if bse_bars:
+                return bse_bars
+            bse_bars = self._fetch_bse_eastmoney_historical_prices(
+                asset_code,
+                start_date,
+                end_date,
+            )
+            if bse_bars:
+                return bse_bars
+            logger.warning("北交所历史 K 线所有可用来源均无结果: %s", asset_code)
+            return []
+
         if _history_circuit_is_open():
-            if self._is_bse_asset(asset_code):
-                bse_bars = self._fetch_bse_sina_historical_prices(
-                    asset_code,
-                    start_date,
-                    end_date,
-                )
-                if bse_bars:
-                    return bse_bars
-                bse_bars = self._fetch_bse_eastmoney_historical_prices(
-                    asset_code,
-                    start_date,
-                    end_date,
-                )
-                if bse_bars:
-                    return bse_bars
             logger.info("东方财富历史 K 线熔断中，直接降级腾讯: %s", asset_code)
             return self._fallback_historical_prices(asset_code, start_date, end_date)
         self._throttle()
