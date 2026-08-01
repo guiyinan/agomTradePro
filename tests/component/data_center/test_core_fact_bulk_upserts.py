@@ -73,26 +73,32 @@ def test_financial_and_valuation_bulk_upserts_update_natural_keys() -> None:
 
     assert financial_repository.bulk_upsert([financial]) == 1
     assert valuation_repository.bulk_upsert([valuation]) == 1
-    assert financial_repository.bulk_upsert(
-        [
-            FinancialFact(
-                **{
-                    **financial.__dict__,
-                    "value": 120.0,
-                }
-            )
-        ]
-    ) == 1
-    assert valuation_repository.bulk_upsert(
-        [
-            ValuationFact(
-                **{
-                    **valuation.__dict__,
-                    "pe_ttm": 12.0,
-                }
-            )
-        ]
-    ) == 1
+    assert (
+        financial_repository.bulk_upsert(
+            [
+                FinancialFact(
+                    **{
+                        **financial.__dict__,
+                        "value": 120.0,
+                    }
+                )
+            ]
+        )
+        == 1
+    )
+    assert (
+        valuation_repository.bulk_upsert(
+            [
+                ValuationFact(
+                    **{
+                        **valuation.__dict__,
+                        "pe_ttm": 12.0,
+                    }
+                )
+            ]
+        )
+        == 1
+    )
 
     assert FinancialFactModel._default_manager.get().value == 120.0
     assert ValuationFactModel._default_manager.get().pe_ttm == 12.0
