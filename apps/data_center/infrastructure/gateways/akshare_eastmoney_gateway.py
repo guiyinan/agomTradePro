@@ -53,6 +53,8 @@ _EASTMONEY_NO_PROXY_HOSTS = (
     "eastmoney.com",
     ".eastmoney.com",
 )
+_HISTORY_CIRCUIT_OPEN_SECONDS = 300.0
+_history_circuit_open_until = 0.0
 
 # 支持的能力集合
 _SUPPORTED_CAPABILITIES = {
@@ -62,6 +64,19 @@ _SUPPORTED_CAPABILITIES = {
     DataCapability.TECHNICAL_FACTORS,
     DataCapability.HISTORICAL_PRICE,
 }
+
+
+def _history_circuit_is_open() -> bool:
+    """Return whether repeated EastMoney history failures should bypass retries."""
+
+    return time.monotonic() < _history_circuit_open_until
+
+
+def _open_history_circuit() -> None:
+    """Temporarily route history reads directly to the trusted Tencent fallback."""
+
+    global _history_circuit_open_until
+    _history_circuit_open_until = time.monotonic() + _HISTORY_CIRCUIT_OPEN_SECONDS
 
 
 def _request_error_is_permission_denied(exc: Exception) -> bool:
@@ -390,6 +405,9 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
         - 指数: 000xxx, 399xxx
         - 股票: 6xxxxx (SH), 0xxxxx/3xxxxx (SZ)
         """
+        if _history_circuit_is_open():
+            logger.info("东方财富历史 K 线熔断中，直接降级腾讯: %s", asset_code)
+            return self._fallback_historical_prices(asset_code, start_date, end_date)
         self._throttle()
         try:
             ak = get_akshare_module()
@@ -443,6 +461,7 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
             return self._fallback_historical_prices(asset_code, start_date, end_date)
 
         except Exception:
+            _open_history_circuit()
             logger.exception("东方财富历史 K 线获取失败: %s", asset_code)
             return self._fallback_historical_prices(asset_code, start_date, end_date)
 

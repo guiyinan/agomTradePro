@@ -373,10 +373,41 @@ def test_historical_fallback_returns_empty_when_tencent_fails(
     assert AKShareEastMoneyGateway._fallback_historical_prices("X", "1", "2") == []
 
 
+def test_open_history_circuit_bypasses_repeated_eastmoney_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        gateway_module,
+        "_history_circuit_open_until",
+        gateway_module.time.monotonic() + 60,
+    )
+    monkeypatch.setattr(
+        gateway_module,
+        "get_akshare_module",
+        lambda: (_ for _ in ()).throw(AssertionError("primary source must be bypassed")),
+    )
+    monkeypatch.setattr(
+        AKShareEastMoneyGateway,
+        "_fallback_historical_prices",
+        staticmethod(lambda *_args: []),
+    )
+
+    assert (
+        AKShareEastMoneyGateway(request_interval_sec=0).get_historical_prices(
+            "600000.SH",
+            "20260701",
+            "20260731",
+        )
+        == []
+    )
+
+
 def test_bar_parsers_filter_dates_skip_bad_rows_and_require_date_columns() -> None:
     gateway = AKShareEastMoneyGateway(request_interval_sec=0)
     assert gateway._parse_em_cn_bars(pd.DataFrame({"x": [1]}), "A", "test") == []
-    assert gateway._parse_en_bars(pd.DataFrame({"x": [1]}), "A", "20260701", "20260702", "test") == []
+    assert (
+        gateway._parse_en_bars(pd.DataFrame({"x": [1]}), "A", "20260701", "20260702", "test") == []
+    )
 
     cn = pd.DataFrame(
         [
@@ -442,9 +473,7 @@ def test_ulist_helpers_cover_empty_invalid_unmapped_and_tencent_failure(
 ) -> None:
     gateway = AKShareEastMoneyGateway(request_interval_sec=0)
     assert gateway._fetch_quote_snapshots_from_ulist(MagicMock(), []) == []
-    assert (
-        gateway._build_quote_snapshot_from_ulist_row({"f2": "-"}, requested_code=None) is None
-    )
+    assert gateway._build_quote_snapshot_from_ulist_row({"f2": "-"}, requested_code=None) is None
 
     snapshot = gateway._build_quote_snapshot_from_ulist_row(
         {"f2": "8.5", "f12": "600000", "f13": "9"},
