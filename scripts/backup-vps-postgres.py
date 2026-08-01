@@ -175,12 +175,12 @@ def _download_verified(
     sftp = ssh.open_sftp()
     try:
         sftp.get_channel().settimeout(60)
-        sftp.get(
-            remote_path,
-            str(partial),
-            callback=progress,
-            prefetch=False,
-        )
+        transferred = 0
+        with sftp.open(remote_path, "rb") as remote_handle, partial.open("wb") as local_handle:
+            while block := remote_handle.read(1024 * 1024):
+                local_handle.write(block)
+                transferred += len(block)
+                progress(transferred, expected_size)
     finally:
         sftp.close()
 
