@@ -392,10 +392,8 @@ class PricePollingUseCase:
                 for price in self.price_provider.get_realtime_prices_batch(missing_codes)
                 if price.is_fresh(reference_time=timezone.now(), max_age=max_age)
             ]
-            if fetched_prices:
-                self.price_repository.save_prices_batch(fetched_prices)
-                for price in fetched_prices:
-                    prices_by_code[price.asset_code] = price
+            for price in fetched_prices:
+                prices_by_code[price.asset_code] = price
 
         return [
             cast(dict[str, Any], prices_by_code[asset_code].to_dict())

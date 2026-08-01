@@ -405,6 +405,7 @@ def test_indicator_unit_rule_rejects_unknown_indicator(admin_client):
 @pytest.mark.django_db
 def test_data_center_quotes_fall_back_to_realtime_use_case(authenticated_client, mocker):
     fresh_timestamp = (timezone.now() - timedelta(minutes=5)).isoformat()
+    fetched_at = timezone.now().isoformat()
     mocker.patch(
         "apps.realtime.application.price_polling_service.PricePollingUseCase.get_latest_prices",
         return_value=[
@@ -416,6 +417,7 @@ def test_data_center_quotes_fall_back_to_realtime_use_case(authenticated_client,
                 "change_pct": 0.51,
                 "volume": 123456,
                 "timestamp": fresh_timestamp,
+                "fetched_at": fetched_at,
                 "source": "akshare",
             }
         ],
@@ -429,6 +431,7 @@ def test_data_center_quotes_fall_back_to_realtime_use_case(authenticated_client,
     assert payload["current_price"] == 3.91
     assert payload["source"] == "akshare"
     assert payload["freshness_status"] == "fresh"
+    assert datetime.fromisoformat(payload["fetched_at"]) == datetime.fromisoformat(fetched_at)
     assert payload["must_not_use_for_decision"] is False
     assert payload["contract"]["is_stale"] is False
 
@@ -451,6 +454,7 @@ def test_data_center_quotes_resolve_alias_to_canonical_asset(authenticated_clien
     QuoteSnapshotModel.objects.create(
         asset_code="300502.SZ",
         snapshot_at=datetime(2026, 4, 12, 9, 35, tzinfo=UTC),
+        fetched_at=datetime(2026, 4, 12, 9, 36, tzinfo=UTC),
         current_price="92.35",
         prev_close="91.10",
         volume="12345.00",
@@ -472,6 +476,7 @@ def test_data_center_quotes_expose_freshness_metadata(authenticated_client):
     QuoteSnapshotModel.objects.create(
         asset_code="510300.SH",
         snapshot_at=snapshot_at,
+        fetched_at=snapshot_at + timedelta(seconds=1),
         current_price="3.95",
         prev_close="3.90",
         volume="12345.00",
@@ -538,6 +543,7 @@ def test_data_center_quotes_strict_freshness_blocks_stale_snapshot(
     QuoteSnapshotModel.objects.create(
         asset_code="510300.SH",
         snapshot_at=snapshot_at,
+        fetched_at=snapshot_at + timedelta(seconds=1),
         current_price="3.95",
         prev_close="3.90",
         volume="12345.00",
@@ -651,8 +657,11 @@ def test_provider_status_enriches_last_success_from_persisted_telemetry(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["results"][0]["last_success_at"] == "2026-04-21T09:00:00+00:00"
+    assert payload["results"][0]["last_success_at"] == "2026-04-21T09:00:00Z"
     assert payload["results"][0]["avg_latency_ms"] == 88.8
+    assert payload["results"][0]["status"] == "stale"
+    assert payload["results"][0]["must_not_use_for_decision"] is True
+    assert payload["results"][0]["block_reason_code"] == ("provider_capability_success_stale")
 
 
 @pytest.mark.django_db

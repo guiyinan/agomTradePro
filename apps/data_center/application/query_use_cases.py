@@ -173,6 +173,15 @@ class ResolveAssetUseCase:
             # Try the raw code as fallback
             asset = self._repo.get_by_code(request.code)
         if asset is None:
+            query = str(request.code or "").strip()
+            exact_matches = [
+                candidate
+                for candidate in self._repo.search(query, limit=20)
+                if query in {candidate.name, candidate.short_name}
+            ]
+            if len(exact_matches) == 1:
+                asset = exact_matches[0]
+        if asset is None:
             return None
         return AssetResponse(
             code=asset.code,
@@ -562,6 +571,7 @@ class QueryLatestQuoteUseCase:
         *,
         asset_code: str,
         snapshot_at: datetime,
+        fetched_at: datetime | None = None,
         current_price: float,
         open: float | None,
         high: float | None,
@@ -610,8 +620,20 @@ class QueryLatestQuoteUseCase:
             quote_is_stale = False
             freshness_status = "latest_completed_session"
 
+        normalized_fetched_at = fetched_at
+        if normalized_fetched_at is not None:
+            if normalized_fetched_at.tzinfo is None:
+                normalized_fetched_at = normalized_fetched_at.replace(tzinfo=UTC)
+            else:
+                normalized_fetched_at = normalized_fetched_at.astimezone(UTC)
+        provenance_invalid = (
+            normalized_fetched_at is None or normalized_fetched_at < normalized_snapshot_at
+        )
         blocked_reason = ""
-        if quote_is_stale:
+        if provenance_invalid:
+            freshness_status = "unverified_observation"
+            blocked_reason = "行情缺少可验证的源观测与抓取时间，不得用于决策。"
+        elif quote_is_stale:
             blocked_reason = (
                 "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。"
             )
@@ -619,6 +641,7 @@ class QueryLatestQuoteUseCase:
         return QuoteResponse(
             asset_code=asset_code,
             snapshot_at=normalized_snapshot_at,
+            fetched_at=normalized_fetched_at,
             current_price=current_price,
             open=open,
             high=high,
@@ -629,7 +652,7 @@ class QueryLatestQuoteUseCase:
             age_minutes=age_minutes,
             is_stale=quote_is_stale,
             freshness_status=freshness_status,
-            must_not_use_for_decision=quote_is_stale,
+            must_not_use_for_decision=quote_is_stale or provenance_invalid,
             blocked_reason=blocked_reason,
             max_age_hours=effective_max_age_hours,
         )
@@ -641,6 +664,7 @@ class QueryLatestQuoteUseCase:
         return self.build_response(
             asset_code=quote.asset_code,
             snapshot_at=quote.snapshot_at,
+            fetched_at=quote.fetched_at,
             current_price=quote.current_price,
             open=quote.open,
             high=quote.high,

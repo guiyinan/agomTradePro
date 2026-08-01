@@ -496,7 +496,8 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         return [
             QuoteSnapshot(
                 asset_code=normalize_asset_code(quote.stock_code, "akshare"),
-                snapshot_at=_ensure_aware(getattr(quote, "fetched_at", None)),
+                snapshot_at=_ensure_aware(quote.observed_at),
+                fetched_at=_ensure_aware(quote.fetched_at),
                 current_price=float(quote.price),
                 source=self.provider_source(),
                 open=safe_float(quote.open),
@@ -508,6 +509,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 extra=self._provider_extra(),
             )
             for quote in quotes
+            if quote.observed_at is not None
         ]
 
     def fetch_fund_nav(

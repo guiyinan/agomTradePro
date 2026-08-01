@@ -12,6 +12,7 @@ import logging
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol, cast
+from zoneinfo import ZoneInfo
 
 import pandas as pd  # type: ignore[import-untyped]
 
@@ -31,6 +32,37 @@ _SUPPORTED = {
     DataCapability.TECHNICAL_FACTORS,
     DataCapability.HISTORICAL_PRICE,
 }
+
+
+def _parse_qmt_observed_at(value: object) -> datetime | None:
+    """Parse QMT quote observation time without substituting request time."""
+
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        raw = str(value or "").strip()
+        if not raw:
+            return None
+        try:
+            numeric = float(raw)
+        except ValueError:
+            numeric = 0.0
+        if numeric >= 1_000_000_000:
+            seconds = numeric / 1000 if numeric >= 1_000_000_000_000 else numeric
+            try:
+                return datetime.fromtimestamp(seconds, tz=UTC)
+            except (OSError, OverflowError, ValueError):
+                return None
+        try:
+            parsed = datetime.fromisoformat(raw)
+        except ValueError:
+            try:
+                parsed = datetime.strptime(raw, "%Y%m%d%H%M%S")
+            except ValueError:
+                return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Shanghai"))
+    return parsed.astimezone(UTC)
 
 
 class _XtDataProtocol(Protocol):
@@ -147,6 +179,9 @@ class QMTGateway(MarketGatewayProtocol):
                         open=_safe_decimal(_pick_value(raw, "open", "openPrice")),
                         pre_close=pre_close,
                         source="qmt",
+                        observed_at=_parse_qmt_observed_at(
+                            _pick_value(raw, "time", "timestamp", "dataTime", "lastTime")
+                        ),
                     )
                 )
 

@@ -362,6 +362,9 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
             volume=data.get("volume"),
             timestamp=datetime.fromisoformat(data["timestamp"]),
             source=data["source"],
+            fetched_at=(
+                datetime.fromisoformat(data["fetched_at"]) if data.get("fetched_at") else None
+            ),
         )
 
 
@@ -394,6 +397,7 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
                     volume=int(quote.volume) if quote.volume is not None else None,
                     timestamp=quote.snapshot_at,
                     source=quote.source or "data_center",
+                    fetched_at=quote.fetched_at,
                 )
 
             latest_bar = self._price_repo.get_latest(asset_code)
@@ -498,7 +502,8 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         row: Any,
     ) -> RealtimePrice | None:
         latest_price = self._pick_value(row, ["最新价", "最新", "现价"])
-        if latest_price is None:
+        observed_at = self._extract_spot_observed_at(row)
+        if latest_price is None or observed_at is None:
             return None
 
         change = self._pick_value(row, ["涨跌额", "涨跌"])
@@ -512,8 +517,9 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             change=Decimal(str(change)) if change is not None else None,
             change_pct=Decimal(str(change_pct)) if change_pct is not None else None,
             volume=int(float(str(volume))) if volume is not None else None,
-            timestamp=timezone.now(),
+            timestamp=observed_at,
             source="akshare",
+            fetched_at=timezone.now(),
         )
 
     def _build_quote_snapshot_from_spot_row(
@@ -522,15 +528,17 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         row: Any,
     ) -> DataCenterQuoteSnapshot | None:
         latest_price = self._pick_value(row, ["最新价", "最新", "现价"])
-        if latest_price is None:
+        observed_at = self._extract_spot_observed_at(row)
+        if latest_price is None or observed_at is None:
             return None
 
         volume = self._pick_value(row, ["成交量", "总手"])
         amount = self._pick_value(row, ["成交额"])
-        snapshot_at = timezone.now()
+        fetched_at = timezone.now()
         return DataCenterQuoteSnapshot(
             asset_code=asset_code,
-            snapshot_at=snapshot_at,
+            snapshot_at=observed_at,
+            fetched_at=fetched_at,
             current_price=float(str(latest_price)),
             source="akshare",
             open=self._pick_float(row, ["今开", "开盘"]),
@@ -540,6 +548,24 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             volume=float(str(volume)) if volume is not None else None,
             amount=float(str(amount)) if amount is not None else None,
         )
+
+    @staticmethod
+    def _extract_spot_observed_at(row: Any) -> datetime | None:
+        """Read an explicit source observation time from an AKShare row."""
+
+        raw_value = AKSharePriceDataProvider._pick_value(
+            row,
+            ["更新时间", "数据时间", "日期时间", "timestamp"],
+        )
+        if raw_value is None:
+            return None
+        try:
+            observed_at = pd.Timestamp(raw_value).to_pydatetime()
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if observed_at.tzinfo is None:
+            observed_at = observed_at.replace(tzinfo=_CHINA_MARKET_TIMEZONE)
+        return cast(datetime, observed_at.astimezone(UTC))
 
     def _build_price_from_quote_snapshot(
         self,
@@ -551,6 +577,14 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             return None
 
         volume = getattr(snapshot, "volume", None)
+        observed_at = getattr(snapshot, "observed_at", None)
+        if not isinstance(observed_at, datetime) or observed_at.utcoffset() is None:
+            logger.warning(
+                "Dropping quote without source observation time: asset=%s source=%s",
+                asset_code,
+                getattr(snapshot, "source", ""),
+            )
+            return None
         return RealtimePrice(
             asset_code=asset_code,
             asset_type=self._get_asset_type(asset_code),
@@ -566,8 +600,9 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
                 else None
             ),
             volume=int(volume) if volume is not None else None,
-            timestamp=timezone.now(),
+            timestamp=observed_at,
             source=getattr(snapshot, "source", None) or "eastmoney",
+            fetched_at=getattr(snapshot, "fetched_at", None),
         )
 
     @staticmethod
@@ -589,10 +624,16 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         if price is None:
             return None
 
-        snapshot_at = timezone.now()
+        observed_at = getattr(snapshot, "observed_at", None)
+        fetched_at = getattr(snapshot, "fetched_at", None)
+        if not isinstance(observed_at, datetime) or observed_at.utcoffset() is None:
+            return None
+        if not isinstance(fetched_at, datetime) or fetched_at.utcoffset() is None:
+            return None
         return DataCenterQuoteSnapshot(
             asset_code=asset_code,
-            snapshot_at=snapshot_at,
+            snapshot_at=observed_at,
+            fetched_at=fetched_at,
             current_price=float(str(price)),
             source=snapshot.source or "eastmoney",
             open=float(snapshot.open) if snapshot.open is not None else None,
@@ -630,18 +671,13 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             return {}
 
         results: dict[str, RealtimePrice] = {}
-        quotes_to_persist: list[DataCenterQuoteSnapshot] = []
         for snapshot in snapshots:
             stock_code = getattr(snapshot, "stock_code", None)
             if not stock_code:
                 continue
             price = self._build_price_from_quote_snapshot(stock_code, snapshot)
-            quote = self._build_market_quote_snapshot(stock_code, snapshot)
             if price is not None:
                 results[stock_code] = price
-            if quote is not None:
-                quotes_to_persist.append(quote)
-        self._persist_quote_snapshots(quotes_to_persist)
         return results
 
     def _find_spot_row(self, frame: Any, asset_code: str) -> Any | None:
@@ -689,6 +725,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
                 volume=int(quote.volume) if quote.volume is not None else None,
                 timestamp=quote.snapshot_at,
                 source=quote.source or "data_center",
+                fetched_at=quote.fetched_at,
             )
 
         latest_bar = self._price_repo.get_latest(asset_code)
@@ -721,8 +758,6 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
                 asset_code,
             )
             if fund_row is not None:
-                quote = self._build_quote_snapshot_from_spot_row(asset_code, fund_row)
-                self._persist_quote_snapshots([quote] if quote is not None else [])
                 return self._build_price_from_spot_row(asset_code, fund_row)
 
             stock_row = self._find_spot_row(
@@ -730,8 +765,6 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
                 asset_code,
             )
             if stock_row is not None:
-                quote = self._build_quote_snapshot_from_spot_row(asset_code, stock_row)
-                self._persist_quote_snapshots([quote] if quote is not None else [])
                 return self._build_price_from_spot_row(asset_code, stock_row)
 
             direct_price = self._load_direct_quotes([asset_code]).get(asset_code)
@@ -755,29 +788,20 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         direct_quotes: dict[str, RealtimePrice] = {}
         prices: list[RealtimePrice] = []
         missing_codes: list[str] = []
-        quotes_to_persist: list[DataCenterQuoteSnapshot] = []
         for code in asset_codes:
             price = None
             fund_row = self._find_spot_row(fund_frame, code)
             if fund_row is not None:
                 price = self._build_price_from_spot_row(code, fund_row)
-                quote = self._build_quote_snapshot_from_spot_row(code, fund_row)
-                if quote is not None:
-                    quotes_to_persist.append(quote)
             else:
                 stock_row = self._find_spot_row(stock_frame, code)
                 if stock_row is not None:
                     price = self._build_price_from_spot_row(code, stock_row)
-                    quote = self._build_quote_snapshot_from_spot_row(code, stock_row)
-                    if quote is not None:
-                        quotes_to_persist.append(quote)
             if price is None:
                 missing_codes.append(code)
                 continue
             if price is not None:
                 prices.append(price)
-
-        self._persist_quote_snapshots(quotes_to_persist)
 
         if missing_codes:
             direct_quotes = self._load_direct_quotes(missing_codes)
@@ -890,6 +914,7 @@ class DataCenterPriceDataProvider(PriceDataProviderProtocol):
                     volume=int(quote.volume) if quote.volume is not None else None,
                     timestamp=quote.snapshot_at,
                     source=quote.source,
+                    fetched_at=quote.fetched_at,
                 )
 
             bar = self._bar_repo.get_latest(asset_code)

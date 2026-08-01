@@ -222,7 +222,7 @@ class TencentGateway(MarketGatewayProtocol):
             open=_safe_decimal(fields[5]),
             pre_close=_safe_decimal(fields[4]),
             source="tencent",
-            fetched_at=_parse_tencent_quote_time(fields[30] if len(fields) > 30 else ""),
+            observed_at=_parse_tencent_quote_time(fields[30] if len(fields) > 30 else ""),
         )
 
 
@@ -242,7 +242,7 @@ def _safe_int(value: object) -> int | None:
     return int(number)
 
 
-def _parse_tencent_quote_time(raw_value: str) -> datetime:
+def _parse_tencent_quote_time(raw_value: str) -> datetime | None:
     try:
         return (
             datetime.strptime(str(raw_value), "%Y%m%d%H%M%S")
@@ -250,4 +250,4 @@ def _parse_tencent_quote_time(raw_value: str) -> datetime:
             .astimezone(UTC)
         )
     except (ValueError, TypeError):
-        return datetime.now(UTC)
+        return None

@@ -147,6 +147,21 @@ def _safe_int(value: object) -> int | None:
     return int(parsed_value)
 
 
+def _parse_eastmoney_observed_at(value: object) -> datetime | None:
+    """Parse an exchange observation timestamp without substituting request time."""
+
+    parsed = _safe_int(value)
+    if parsed is None or parsed <= 0:
+        return None
+    try:
+        observed_at = datetime.fromtimestamp(parsed, tz=UTC)
+    except (OSError, OverflowError, ValueError):
+        return None
+    if not 2000 <= observed_at.year <= 2100:
+        return None
+    return observed_at
+
+
 class AKShareEastMoneyGateway(MarketGatewayProtocol):
     """通过 AKShare 封装访问东方财富的 Provider
 
@@ -619,6 +634,7 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
             open=_safe_decimal(data.get("f46"), scale=price_scale),
             pre_close=_safe_decimal(data.get("f60"), scale=price_scale),
             source="eastmoney",
+            observed_at=_parse_eastmoney_observed_at(data.get("f86")),
         )
 
     def _fetch_quote_snapshots_from_ulist(
@@ -633,7 +649,7 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
         requested_by_secid = {_to_secid(stock_code): stock_code for stock_code in stock_codes}
         params = {
             "secids": ",".join(requested_by_secid),
-            "fields": ("f2,f3,f4,f5,f6,f8,f10,f12,f13,f14,f15,f16,f17,f18"),
+            "fields": ("f2,f3,f4,f5,f6,f8,f10,f12,f13,f14,f15,f16,f17,f18,f124"),
             "fltt": "2",
             "invt": "2",
         }
@@ -703,6 +719,7 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
             open=_safe_decimal(row.get("f17")),
             pre_close=_safe_decimal(row.get("f18")),
             source="eastmoney",
+            observed_at=_parse_eastmoney_observed_at(row.get("f124")),
         )
 
     @staticmethod

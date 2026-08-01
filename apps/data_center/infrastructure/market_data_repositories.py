@@ -85,6 +85,7 @@ class QuoteSnapshotRepository:
         return QuoteSnapshot(
             asset_code=m.asset_code,
             snapshot_at=m.snapshot_at,
+            fetched_at=m.fetched_at,
             current_price=float(m.current_price),
             open=float(m.open) if m.open is not None else None,
             high=float(m.high) if m.high is not None else None,
@@ -133,6 +134,7 @@ class QuoteSnapshotRepository:
                 source=q.source,
                 defaults={
                     "current_price": q.current_price,
+                    "fetched_at": q.fetched_at,
                     "open": q.open,
                     "high": q.high,
                     "low": q.low,
@@ -146,3 +148,9 @@ class QuoteSnapshotRepository:
             )
             count += 1
         return count
+
+    def delete_all(self) -> int:
+        """Delete all quote snapshots for an explicitly gated production rebuild."""
+
+        deleted_count, _ = QuoteSnapshotModel.objects.all().delete()
+        return int(deleted_count)

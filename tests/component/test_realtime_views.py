@@ -173,7 +173,7 @@ def test_price_polling_use_case_fetches_missing_prices_from_provider():
 
     assert [item["asset_code"] for item in prices] == ["000001.SZ", "600000.SH"]
     use_case.price_provider.get_realtime_prices_batch.assert_called_once_with(["600000.SH"])
-    use_case.price_repository.save_prices_batch.assert_called_once_with([fetched_price])
+    use_case.price_repository.save_prices_batch.assert_not_called()
 
 
 def test_price_polling_use_case_replaces_stale_cached_price_from_provider():
@@ -213,7 +213,7 @@ def test_price_polling_use_case_replaces_stale_cached_price_from_provider():
 
     assert prices == [live_price.to_dict()]
     use_case.price_provider.get_realtime_prices_batch.assert_called_once_with(["000001.SH"])
-    use_case.price_repository.save_prices_batch.assert_called_once_with([live_price])
+    use_case.price_repository.save_prices_batch.assert_not_called()
 
 
 def test_price_polling_service_rejects_stale_provider_prices_before_side_effects():

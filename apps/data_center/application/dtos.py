@@ -512,6 +512,7 @@ class QuoteResponse:
 
     asset_code: str
     snapshot_at: datetime
+    fetched_at: datetime | None
     current_price: float
     open: float | None
     high: float | None
@@ -529,6 +530,8 @@ class QuoteResponse:
     def to_dict(self) -> dict[str, Any]:
         contract = {
             "snapshot_at": self.snapshot_at.isoformat(),
+            "observed_at": self.snapshot_at.isoformat(),
+            "fetched_at": self.fetched_at.isoformat() if self.fetched_at else None,
             "age_minutes": self.age_minutes,
             "is_stale": self.is_stale,
             "freshness_status": self.freshness_status,
@@ -539,6 +542,8 @@ class QuoteResponse:
         return {
             "asset_code": self.asset_code,
             "snapshot_at": self.snapshot_at.isoformat(),
+            "observed_at": self.snapshot_at.isoformat(),
+            "fetched_at": self.fetched_at.isoformat() if self.fetched_at else None,
             "current_price": self.current_price,
             "open": self.open,
             "high": self.high,

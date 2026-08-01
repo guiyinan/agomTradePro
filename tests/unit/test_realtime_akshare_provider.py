@@ -20,6 +20,7 @@ class _StubAK:
                 "涨跌额": [0.02],
                 "涨跌幅": [0.51],
                 "成交量": [123456],
+                "更新时间": [datetime(2026, 7, 31, 7, 0, tzinfo=UTC)],
             }
         )
 
@@ -32,6 +33,7 @@ class _StubAK:
                 "涨跌额": [0.11],
                 "涨跌幅": [0.90],
                 "成交量": [654321],
+                "更新时间": [datetime(2026, 7, 31, 7, 0, tzinfo=UTC)],
             }
         )
 
@@ -52,7 +54,8 @@ def test_akshare_price_provider_reads_live_etf_snapshot(mocker) -> None:
     assert price.asset_type == AssetType.FUND
     assert price.price == Decimal("3.91")
     assert price.source == "akshare"
-    bulk_upsert.assert_called_once()
+    bulk_upsert.assert_not_called()
+    assert price.timestamp == datetime(2026, 7, 31, 7, 0, tzinfo=UTC)
 
 
 def test_akshare_price_provider_batch_reads_stock_and_etf_snapshots(mocker) -> None:
@@ -69,7 +72,7 @@ def test_akshare_price_provider_batch_reads_stock_and_etf_snapshots(mocker) -> N
 
     assert len(prices) == 2
     assert {price.asset_code for price in prices} == {"510300.SH", "000001.SZ"}
-    bulk_upsert.assert_called_once()
+    bulk_upsert.assert_not_called()
 
 
 def test_akshare_price_provider_falls_back_to_direct_quote_for_single_asset(mocker) -> None:
@@ -96,6 +99,8 @@ def test_akshare_price_provider_falls_back_to_direct_quote_for_single_asset(mock
         amount=None,
         bid=None,
         ask=None,
+        observed_at=datetime(2026, 7, 31, 7, 0, tzinfo=UTC),
+        fetched_at=datetime(2026, 7, 31, 7, 0, 2, tzinfo=UTC),
     )
     gateway = mocker.Mock()
     gateway.get_quote_snapshots.return_value = [snapshot]
@@ -107,7 +112,8 @@ def test_akshare_price_provider_falls_back_to_direct_quote_for_single_asset(mock
     assert price.asset_code == "510300.SH"
     assert price.price == Decimal("4.01")
     assert price.source == "eastmoney"
-    bulk_upsert.assert_called_once()
+    bulk_upsert.assert_not_called()
+    assert price.timestamp == datetime(2026, 7, 31, 7, 0, tzinfo=UTC)
 
 
 def test_akshare_price_provider_batch_falls_back_to_direct_quotes(mocker) -> None:
@@ -134,6 +140,8 @@ def test_akshare_price_provider_batch_falls_back_to_direct_quotes(mocker) -> Non
         amount=None,
         bid=None,
         ask=None,
+        observed_at=datetime(2026, 7, 31, 7, 0, tzinfo=UTC),
+        fetched_at=datetime(2026, 7, 31, 7, 0, 2, tzinfo=UTC),
     )
     gateway = mocker.Mock()
     gateway.get_quote_snapshots.return_value = [snapshot]
@@ -144,7 +152,7 @@ def test_akshare_price_provider_batch_falls_back_to_direct_quotes(mocker) -> Non
     assert len(prices) == 1
     assert prices[0].asset_code == "399006.SZ"
     assert prices[0].price == Decimal("2100.10")
-    bulk_upsert.assert_called_once()
+    bulk_upsert.assert_not_called()
 
 
 def test_akshare_batch_avoids_repeating_remote_loads_after_fallback_exhausted(

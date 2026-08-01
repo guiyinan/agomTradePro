@@ -543,12 +543,20 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         results: list[QuoteSnapshot] = []
         for quote in quotes:
             current_price = safe_float(quote.price)
-            if current_price is None or current_price <= 0:
+            observed_at = getattr(quote, "observed_at", None)
+            fetched_at = getattr(quote, "fetched_at", None)
+            if (
+                current_price is None
+                or current_price <= 0
+                or observed_at is None
+                or fetched_at is None
+            ):
                 continue
             results.append(
                 QuoteSnapshot(
                     asset_code=normalize_asset_code(quote.stock_code, "tushare"),
-                    snapshot_at=_ensure_aware(getattr(quote, "fetched_at", None)),
+                    snapshot_at=_ensure_aware(observed_at),
+                    fetched_at=_ensure_aware(fetched_at),
                     current_price=current_price,
                     source=self.provider_source(),
                     open=safe_float(quote.open),

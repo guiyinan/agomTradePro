@@ -432,6 +432,7 @@ class QuoteSnapshot:
     snapshot_at: datetime
     current_price: float
     source: str
+    fetched_at: datetime | None = None
     open: float | None = None
     high: float | None = None
     low: float | None = None
@@ -453,11 +454,19 @@ class QuoteSnapshot:
             raise ValueError(
                 "QuoteSnapshot.current_price must be positive and finite: " f"{self.current_price}"
             )
+        if self.snapshot_at.utcoffset() is None:
+            raise ValueError("QuoteSnapshot.snapshot_at must be timezone-aware")
+        if self.fetched_at is not None:
+            if self.fetched_at.utcoffset() is None:
+                raise ValueError("QuoteSnapshot.fetched_at must be timezone-aware")
+            if self.fetched_at < self.snapshot_at:
+                raise ValueError("QuoteSnapshot.fetched_at cannot precede snapshot_at")
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "asset_code": self.asset_code,
             "snapshot_at": self.snapshot_at.isoformat(),
+            "fetched_at": self.fetched_at.isoformat() if self.fetched_at else None,
             "current_price": self.current_price,
             "open": self.open,
             "high": self.high,

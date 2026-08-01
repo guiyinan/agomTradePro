@@ -8,9 +8,10 @@ Tushare Gateway
 
 import logging
 from collections.abc import Iterable
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Protocol, cast
+from zoneinfo import ZoneInfo
 
 from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
@@ -140,7 +141,19 @@ class TushareGateway(MarketGatewayProtocol):
                     if df is None or df.empty:
                         continue
 
-                    latest = df.iloc[-1]
+                    if "trade_date" not in df.columns:
+                        continue
+                    trade_dates = df["trade_date"].astype(str)
+                    latest = df.loc[trade_dates.idxmax()]
+                    raw_trade_date = str(latest.get("trade_date") or "").strip()
+                    try:
+                        observed_at = datetime.combine(
+                            datetime.strptime(raw_trade_date, "%Y%m%d").date(),
+                            time(hour=15),
+                            tzinfo=ZoneInfo("Asia/Shanghai"),
+                        ).astimezone(UTC)
+                    except ValueError:
+                        continue
                     price = _safe_decimal(latest.get("close"))
                     if price is None or price <= 0:
                         continue
@@ -167,6 +180,7 @@ class TushareGateway(MarketGatewayProtocol):
                             open=_safe_decimal(latest.get("open")),
                             pre_close=pre_close,
                             source="tushare",
+                            observed_at=observed_at,
                         )
                     )
                 except Exception:

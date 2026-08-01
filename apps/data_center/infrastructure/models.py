@@ -729,11 +729,7 @@ class PriceBarModel(models.Model):
         verbose_name_plural = "Price Bars"
         constraints = [
             models.CheckConstraint(
-                condition=(
-                    models.Q(close__gt=0)
-                    & ~models.Q(asset_code="")
-                    & ~models.Q(source="")
-                ),
+                condition=(models.Q(close__gt=0) & ~models.Q(asset_code="") & ~models.Q(source="")),
                 name="dc_price_bar_executable_price",
             ),
         ]
@@ -757,6 +753,7 @@ class QuoteSnapshotModel(models.Model):
 
     asset_code = models.CharField(max_length=20, db_index=True)
     snapshot_at = models.DateTimeField(db_index=True)
+    fetched_at = models.DateTimeField(null=True, blank=True, db_index=True)
     current_price = models.DecimalField(max_digits=18, decimal_places=4)
     open = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
     high = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
@@ -781,9 +778,7 @@ class QuoteSnapshotModel(models.Model):
         constraints = [
             models.CheckConstraint(
                 condition=(
-                    models.Q(current_price__gt=0)
-                    & ~models.Q(asset_code="")
-                    & ~models.Q(source="")
+                    models.Q(current_price__gt=0) & ~models.Q(asset_code="") & ~models.Q(source="")
                 ),
                 name="dc_quote_executable_price",
             ),
@@ -835,11 +830,7 @@ class FundNavFactModel(models.Model):
         verbose_name_plural = "Fund NAV Facts"
         constraints = [
             models.CheckConstraint(
-                condition=(
-                    models.Q(nav__gt=0)
-                    & ~models.Q(fund_code="")
-                    & ~models.Q(source="")
-                ),
+                condition=(models.Q(nav__gt=0) & ~models.Q(fund_code="") & ~models.Q(source="")),
                 name="dc_fund_nav_executable_price",
             ),
         ]
@@ -1243,12 +1234,8 @@ class MarketThermometerSnapshotModel(models.Model):
                         component_key=str(item.get("component_key", "")),
                         label=str(item.get("label", "")),
                         indicator_code=str(item.get("indicator_code", "")),
-                        score=_required_json_float(
-                            item.get("score", 0.0), "component.score"
-                        ),
-                        weight=_required_json_float(
-                            item.get("weight", 0.0), "component.weight"
-                        ),
+                        score=_required_json_float(item.get("score", 0.0), "component.score"),
+                        weight=_required_json_float(item.get("weight", 0.0), "component.weight"),
                         current_value=_optional_json_float(
                             item.get("current_value"), "component.current_value"
                         ),
@@ -1266,9 +1253,7 @@ class MarketThermometerSnapshotModel(models.Model):
                             item.get("positive_ratio_score"),
                             "component.positive_ratio_score",
                         ),
-                        is_stale=_json_bool(
-                            item.get("is_stale", False), "component.is_stale"
-                        ),
+                        is_stale=_json_bool(item.get("is_stale", False), "component.is_stale"),
                         is_missing=_json_bool(
                             item.get("is_missing", False), "component.is_missing"
                         ),

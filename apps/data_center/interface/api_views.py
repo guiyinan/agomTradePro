@@ -675,6 +675,11 @@ def price_latest_quote(request: Request) -> Response:
                 volume=fallback.get("volume"),
                 source=fallback["source"],
                 max_age_hours=max_age_hours,
+                fetched_at=(
+                    datetime.fromisoformat(str(fallback["fetched_at"]))
+                    if fallback.get("fetched_at")
+                    else None
+                ),
             )
 
     if result is None:

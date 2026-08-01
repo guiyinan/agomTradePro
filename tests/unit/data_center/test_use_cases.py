@@ -300,10 +300,12 @@ class _DecisionRepairProvider:
         ]
 
     def fetch_quote_snapshots(self, asset_codes: list[str]):
+        observed_at = datetime.now(UTC)
         return [
             QuoteSnapshot(
                 asset_code=asset_code,
-                snapshot_at=datetime.now(UTC),
+                snapshot_at=observed_at,
+                fetched_at=observed_at + timedelta(seconds=1),
                 current_price=3.95,
                 source="akshare",
             )
@@ -939,6 +941,7 @@ class TestQueryLatestQuoteUseCase:
         fresh_snapshot = QuoteSnapshot(
             asset_code="510300.SH",
             snapshot_at=datetime.now(UTC) - timedelta(minutes=15),
+            fetched_at=datetime.now(UTC) - timedelta(minutes=14),
             current_price=3.91,
             source="test",
             volume=12345.0,
@@ -954,10 +957,31 @@ class TestQueryLatestQuoteUseCase:
         assert result.blocked_reason == ""
         assert result.age_minutes >= 15
 
+    def test_blocks_legacy_quote_without_fetch_provenance(self):
+        snapshot_at = datetime(2026, 7, 31, 7, 0, tzinfo=UTC)
+        result = QueryLatestQuoteUseCase.build_response(
+            asset_code="002156.SZ",
+            snapshot_at=snapshot_at,
+            fetched_at=None,
+            current_price=56.73,
+            open=None,
+            high=None,
+            low=None,
+            prev_close=None,
+            volume=None,
+            source="legacy",
+            now=snapshot_at + timedelta(minutes=1),
+        )
+
+        assert result.freshness_status == "unverified_observation"
+        assert result.must_not_use_for_decision is True
+        assert result.fetched_at is None
+
     def test_marks_stale_quote_as_non_decision_grade(self):
         result = QueryLatestQuoteUseCase.build_response(
             asset_code="510300.SH",
             snapshot_at=datetime(2026, 7, 13, 3, 0, tzinfo=UTC),
+            fetched_at=datetime(2026, 7, 13, 3, 1, tzinfo=UTC),
             current_price=3.88,
             open=None,
             high=None,
@@ -979,6 +1003,7 @@ class TestQueryLatestQuoteUseCase:
         result = QueryLatestQuoteUseCase.build_response(
             asset_code="510300.SH",
             snapshot_at=datetime(2026, 6, 26, 7, 2, tzinfo=UTC),
+            fetched_at=datetime(2026, 6, 26, 7, 3, tzinfo=UTC),
             current_price=3.91,
             open=None,
             high=None,
@@ -999,6 +1024,7 @@ class TestQueryLatestQuoteUseCase:
         result = QueryLatestQuoteUseCase.build_response(
             asset_code="510300.SH",
             snapshot_at=datetime(2026, 6, 21, 7, 2, tzinfo=UTC),
+            fetched_at=datetime(2026, 6, 21, 7, 3, tzinfo=UTC),
             current_price=3.91,
             open=None,
             high=None,
@@ -1018,6 +1044,7 @@ class TestQueryLatestQuoteUseCase:
         result = QueryLatestQuoteUseCase.build_response(
             asset_code="510300.SH",
             snapshot_at=datetime(2026, 6, 26, 7, 2, tzinfo=UTC),
+            fetched_at=datetime(2026, 6, 26, 7, 3, tzinfo=UTC),
             current_price=3.91,
             open=None,
             high=None,

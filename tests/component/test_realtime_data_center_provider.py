@@ -14,6 +14,7 @@ def test_data_center_price_provider_prefers_quote_snapshot():
     QuoteSnapshotModel.objects.create(
         asset_code="000001.SZ",
         snapshot_at=datetime(2026, 4, 5, 9, 31, tzinfo=UTC),
+        fetched_at=datetime(2026, 4, 5, 9, 32, tzinfo=UTC),
         current_price=Decimal("12.34"),
         volume=1000,
         source="eastmoney-main",

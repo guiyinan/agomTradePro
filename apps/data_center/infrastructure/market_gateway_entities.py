@@ -30,6 +30,7 @@ class QuoteSnapshot:
     open: Decimal | None = None
     pre_close: Decimal | None = None
     source: str = ""
+    observed_at: datetime | None = None
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
@@ -37,6 +38,12 @@ class QuoteSnapshot:
             raise ValueError("stock_code 不能为空")
         if self.price < 0:
             raise ValueError(f"price 不能为负数: {self.price}")
+        if self.observed_at is not None and self.observed_at.utcoffset() is None:
+            raise ValueError("observed_at 必须包含时区")
+        if self.fetched_at.utcoffset() is None:
+            raise ValueError("fetched_at 必须包含时区")
+        if self.observed_at is not None and self.fetched_at < self.observed_at:
+            raise ValueError("fetched_at 不能早于 observed_at")
 
     def to_dict(self) -> dict[str, object]:
         """转换为字典"""
@@ -54,6 +61,7 @@ class QuoteSnapshot:
             "open": str(self.open) if self.open is not None else None,
             "pre_close": str(self.pre_close) if self.pre_close is not None else None,
             "source": self.source,
+            "observed_at": self.observed_at.isoformat() if self.observed_at else None,
             "fetched_at": self.fetched_at.isoformat(),
         }
 

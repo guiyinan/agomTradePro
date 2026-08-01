@@ -144,6 +144,7 @@ class RealtimePrice:
     volume: int | None
     timestamp: datetime
     source: str
+    fetched_at: datetime | None = None
 
     def is_fresh(
         self,
@@ -172,6 +173,7 @@ class RealtimePrice:
             "change_pct": float(self.change_pct) if self.change_pct is not None else None,
             "volume": self.volume,
             "timestamp": self.timestamp.isoformat(),
+            "fetched_at": self.fetched_at.isoformat() if self.fetched_at else None,
             "source": self.source,
         }
 
