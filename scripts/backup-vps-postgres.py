@@ -174,7 +174,13 @@ def _download_verified(
 
     sftp = ssh.open_sftp()
     try:
-        sftp.get(remote_path, str(partial), callback=progress)
+        sftp.get_channel().settimeout(60)
+        sftp.get(
+            remote_path,
+            str(partial),
+            callback=progress,
+            prefetch=False,
+        )
     finally:
         sftp.close()
 
@@ -186,14 +192,10 @@ def _download_verified(
             )
         actual_hash = _sha256_file(partial)
         if actual_hash.lower() != expected_hash.lower():
-            raise RuntimeError(
-                f"SHA-256 mismatch: expected {expected_hash}, got {actual_hash}"
-            )
+            raise RuntimeError(f"SHA-256 mismatch: expected {expected_hash}, got {actual_hash}")
         partial.replace(destination)
         checksum_file = destination.with_suffix(destination.suffix + ".sha256")
-        checksum_file.write_text(
-            f"{actual_hash}  {destination.name}\n", encoding="ascii"
-        )
+        checksum_file.write_text(f"{actual_hash}  {destination.name}\n", encoding="ascii")
         return destination
     except Exception:
         partial.unlink(missing_ok=True)
@@ -210,13 +212,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--host", default=os.environ.get("AGOM_VPS_HOST", ""))
     parser.add_argument("--user", default=os.environ.get("AGOM_VPS_USER", "root"))
-    parser.add_argument(
-        "--port", type=int, default=int(os.environ.get("AGOM_VPS_PORT", "22"))
-    )
+    parser.add_argument("--port", type=int, default=int(os.environ.get("AGOM_VPS_PORT", "22")))
     parser.add_argument("--output-dir", default="backups/vps-postgres")
-    parser.add_argument(
-        "--remote-backup-dir", default="/opt/agomtradepro/backups"
-    )
+    parser.add_argument("--remote-backup-dir", default="/opt/agomtradepro/backups")
     parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument("--download-latest", action="store_true")
     parser.add_argument("--prune-remote-older-than-days", type=int, default=0)
