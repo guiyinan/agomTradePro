@@ -79,6 +79,12 @@ def _open_history_circuit() -> None:
     _history_circuit_open_until = time.monotonic() + _HISTORY_CIRCUIT_OPEN_SECONDS
 
 
+def _is_history_transport_failure(exc: Exception) -> bool:
+    """Return whether an error indicates the EastMoney transport is unavailable."""
+
+    return isinstance(exc, (requests.RequestException, ConnectionError, OSError))
+
+
 def _request_error_is_permission_denied(exc: Exception) -> bool:
     """Return whether the local environment blocked outbound socket access."""
 
@@ -460,8 +466,9 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
 
             return self._fallback_historical_prices(asset_code, start_date, end_date)
 
-        except Exception:
-            _open_history_circuit()
+        except Exception as exc:
+            if _is_history_transport_failure(exc):
+                _open_history_circuit()
             logger.exception("东方财富历史 K 线获取失败: %s", asset_code)
             return self._fallback_historical_prices(asset_code, start_date, end_date)
 

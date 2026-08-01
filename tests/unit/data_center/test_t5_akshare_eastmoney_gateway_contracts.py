@@ -359,6 +359,35 @@ def test_retry_contract_retries_transient_error_and_fast_fails_permission(
         )
 
 
+def test_history_circuit_opens_only_for_transport_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(gateway_module, "_history_circuit_open_until", 0.0)
+    fallback = [object()]
+    monkeypatch.setattr(
+        AKShareEastMoneyGateway,
+        "_fallback_historical_prices",
+        staticmethod(lambda *_args: fallback),
+    )
+
+    gateway = AKShareEastMoneyGateway(request_interval_sec=0)
+    monkeypatch.setattr(
+        gateway,
+        "_fetch_with_retries",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("bad row")),
+    )
+    assert gateway.get_historical_prices("600000.SH", "20260701", "20260702") == fallback
+    assert gateway_module._history_circuit_open_until == 0.0
+
+    monkeypatch.setattr(
+        gateway,
+        "_fetch_with_retries",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ConnectionError("offline")),
+    )
+    assert gateway.get_historical_prices("600000.SH", "20260701", "20260702") == fallback
+    assert gateway_module._history_circuit_open_until > gateway_module.time.monotonic()
+
+
 def test_historical_fallback_returns_empty_when_tencent_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -214,7 +214,7 @@ def test_batch_task_truncates_text_and_keeps_per_item_errors(
         (
             SimpleNamespace(
                 index_date=datetime.combine(
-                    date.today() - timedelta(days=3),
+                    date.today() - timedelta(days=7),
                     time.min,
                     tzinfo=UTC,
                 ),
