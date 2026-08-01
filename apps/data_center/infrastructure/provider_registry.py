@@ -248,9 +248,9 @@ class ProviderRegistry:
                 )
                 continue
             if _is_empty_list(result):
-                state.record_success(latency_ms)
+                state.record_failure()
                 logger.info(
-                    "Provider '%s' returned no data for '%s'; trying next",
+                    "Provider '%s' returned no data for '%s'; marking failure and trying next",
                     provider.provider_name(),
                     capability.value,
                 )

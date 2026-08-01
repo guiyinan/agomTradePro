@@ -139,13 +139,18 @@ class _BaseSyncUseCase:
         success: bool,
         error: str = "",
         recorded_at: datetime | None = None,
+        output_count: int | None = None,
     ) -> None:
         recorded = recorded_at or datetime.now(UTC)
+        effective_success = success and (output_count is None or output_count > 0)
+        effective_error = error or (
+            "provider completed without output" if success and output_count == 0 else ""
+        )
         extra_config = dict(config.extra_config or {})
         capability_metrics = dict(extra_config.get("health_metrics") or {})
         metric = dict(capability_metrics.get(capability) or {})
 
-        if success:
+        if effective_success:
             success_count = int(metric.get("success_count", 0)) + 1
             previous_avg = metric.get("avg_latency_ms")
             if previous_avg is None:
@@ -163,6 +168,7 @@ class _BaseSyncUseCase:
                     "consecutive_failures": 0,
                     "last_status": "healthy",
                     "last_error": "",
+                    "last_output_count": output_count,
                 }
             )
             extra_config["provider_last_success_at"] = recorded.isoformat()
@@ -185,11 +191,12 @@ class _BaseSyncUseCase:
                     "consecutive_failures": int(metric.get("consecutive_failures", 0)) + 1,
                     "last_failure_at": recorded.isoformat(),
                     "last_status": "degraded",
-                    "last_error": error,
+                    "last_error": effective_error,
+                    "last_output_count": output_count,
                 }
             )
             extra_config["provider_last_status"] = "degraded"
-            extra_config["provider_last_error"] = error
+            extra_config["provider_last_error"] = effective_error
 
         capability_metrics[capability] = metric
         extra_config["health_metrics"] = capability_metrics
@@ -198,7 +205,7 @@ class _BaseSyncUseCase:
             runtime_capability = DataCapability(capability)
         except ValueError:
             return
-        if success:
+        if effective_success:
             self._provider_registry.record_success(
                 config.name,
                 runtime_capability,
@@ -226,6 +233,7 @@ class _BaseSyncUseCase:
             latency_ms=latency_ms,
             success=status == "ok",
             error=error_message,
+            output_count=row_count,
         )
         self._raw_audit_repo.log(
             _build_sync_audit(
@@ -288,6 +296,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                 capability="macro",
                 latency_ms=latency_ms,
                 success=True,
+                output_count=stored_count,
             )
             self._raw_audit_repo.log(
                 _build_sync_audit(
@@ -418,6 +427,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 capability="historical_price",
                 latency_ms=latency_ms,
                 success=True,
+                output_count=stored_count,
             )
             self._raw_audit_repo.log(
                 _build_sync_audit(
@@ -489,6 +499,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 capability="realtime_quote",
                 latency_ms=latency_ms,
                 success=True,
+                output_count=stored_count,
             )
             self._raw_audit_repo.log(
                 _build_sync_audit(

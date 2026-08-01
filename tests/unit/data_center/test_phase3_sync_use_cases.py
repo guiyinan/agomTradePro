@@ -362,3 +362,27 @@ def test_sync_news_failure_updates_persistent_and_runtime_health():
     assert metric["consecutive_failures"] == 1
     assert provider_factory.failures == [("provider-main", DataCapability.NEWS)]
     assert raw_repo.items[-1].status == "error"
+
+
+def test_sync_news_zero_output_degrades_provider_health():
+    class _EmptyNewsProvider(_Provider):
+        def fetch_news(self, asset_code: str, limit: int = 20):
+            return []
+
+    provider_repo = _ProviderRepo()
+    provider_factory = _ProviderFactory(_EmptyNewsProvider())
+    use_case = SyncNewsUseCase(
+        provider_repo=provider_repo,
+        provider_registry=provider_factory,
+        fact_repo=_NewsRepo(),
+        raw_audit_repo=_RawAuditRepo(),
+    )
+
+    result = use_case.execute(SyncNewsRequest(provider_id=1, asset_code="000001.SZ", limit=10))
+
+    assert result.stored_count == 0
+    metric = provider_repo.saved[-1].extra_config["health_metrics"]["news"]
+    assert metric["last_status"] == "degraded"
+    assert metric["last_output_count"] == 0
+    assert metric["last_error"] == "provider completed without output"
+    assert provider_factory.failures == [("provider-main", DataCapability.NEWS)]

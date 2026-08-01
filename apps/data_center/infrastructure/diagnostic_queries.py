@@ -107,6 +107,18 @@ class DataCenterDiagnosticRepository:
             "domains": domains,
         }
 
+    def list_active_stock_codes(self) -> list[str]:
+        """Return the configured production A-share universe in stable code order."""
+
+        config = ProductionCoverageUniverseConfigRepository().load()
+        queryset = AssetMasterModel.objects.filter(
+            asset_type=config.asset_type,
+            exchange__in=config.exchanges,
+        )
+        if not config.include_inactive:
+            queryset = queryset.filter(Q(is_active=True) | Q(is_active__isnull=True))
+        return [str(code) for code in queryset.order_by("code").values_list("code", flat=True)]
+
     def _active_stock_universe_quality(
         self,
         active_codes: list[str],

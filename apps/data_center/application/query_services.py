@@ -34,6 +34,12 @@ def get_active_stock_fact_coverage_payload() -> dict[str, Any]:
     return get_data_center_diagnostic_repository().get_active_stock_fact_coverage_summary()
 
 
+def list_active_stock_codes_for_backfill() -> list[str]:
+    """Return the governed production stock universe for bounded sync batches."""
+
+    return get_data_center_diagnostic_repository().list_active_stock_codes()
+
+
 def macro_fact_exists_on_or_before(reporting_period: date) -> bool:
     """Return whether macro data exists on or before the reporting period."""
 

@@ -7,6 +7,7 @@ No business logic here — only field-level validation.
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Any, cast
 
 from rest_framework import serializers
@@ -190,8 +191,12 @@ class ProviderHealthSnapshotSerializer(serializers.Serializer[Any]):
     capability = serializers.CharField()
     status = serializers.CharField()
     consecutive_failures = serializers.IntegerField()
-    last_success_at = serializers.DateTimeField(allow_null=True)
+    last_success_at = serializers.DateTimeField(allow_null=True, default_timezone=UTC)
     avg_latency_ms = serializers.FloatField(allow_null=True)
+    max_age_hours = serializers.FloatField(required=False)
+    success_age_hours = serializers.FloatField(required=False, allow_null=True)
+    must_not_use_for_decision = serializers.BooleanField(required=False)
+    block_reason_code = serializers.CharField(required=False, allow_blank=True)
 
 
 class IndicatorCatalogSerializer(serializers.Serializer[Any]):

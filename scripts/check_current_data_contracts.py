@@ -22,6 +22,8 @@ HISTORICAL_NAME_TOKENS = frozenset(
         "recent_close",
         "nav",
         "fact",
+        "quote",
+        "snapshot",
     }
 )
 PROVENANCE_KEYS = frozenset(
@@ -153,6 +155,19 @@ def find_timestamp_laundering(
                     CurrentDataContractViolation(
                         "historical_timestamp_laundering",
                         "RealtimePrice built from historical data cannot use request time",
+                        relative_path,
+                        node.lineno,
+                    )
+                )
+
+        if isinstance(node, ast.Call) and _call_name(node.func).endswith("QuoteSnapshot"):
+            keywords = {item.arg: item.value for item in node.keywords if item.arg}
+            snapshot_at = keywords.get("snapshot_at")
+            if snapshot_at is not None and _is_now_call(snapshot_at):
+                violations.append(
+                    CurrentDataContractViolation(
+                        "quote_snapshot_timestamp_laundering",
+                        "quote snapshot_at must preserve a source observation timestamp",
                         relative_path,
                         node.lineno,
                     )

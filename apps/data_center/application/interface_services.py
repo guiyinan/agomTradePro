@@ -15,6 +15,7 @@ from apps.data_center.application.dtos import (
 )
 from apps.data_center.application.on_demand import OnDemandDataCenterService
 from apps.data_center.application.provider_capabilities import SOURCE_TYPE_CAPABILITIES
+from apps.data_center.application.provider_health import build_capability_health_payload
 from apps.data_center.composition import (
     AssetRepository,
     CapitalFlowRepository,
@@ -338,6 +339,52 @@ def load_provider_settings_payload() -> dict[str, Any]:
         "default_source": settings.default_source,
         "enable_failover": settings.enable_failover,
         "failover_tolerance": settings.failover_tolerance,
+    }
+
+
+def get_decision_provider_capability_health_payload() -> dict[str, Any]:
+    """Return strict persisted health for providers required by core stock facts."""
+
+    required_capabilities = ("historical_price", "valuation", "financial")
+    providers = [provider for provider in _make_provider_repo().list_all() if provider.is_active]
+    capabilities: dict[str, Any] = {}
+    blocked_capabilities: list[str] = []
+    for capability in required_capabilities:
+        candidates: list[dict[str, Any]] = []
+        for provider in providers:
+            supported = SOURCE_TYPE_CAPABILITIES.get(provider.source_type, ())
+            if capability not in set(supported):
+                continue
+            metric = dict((provider.extra_config.get("health_metrics") or {}).get(capability) or {})
+            candidates.append(
+                build_capability_health_payload(
+                    {
+                        "provider_name": provider.name,
+                        "capability": capability,
+                        "status": metric.get("last_status", "unknown"),
+                        "consecutive_failures": metric.get("consecutive_failures", 0),
+                        "last_success_at": metric.get("last_success_at"),
+                        "avg_latency_ms": metric.get("avg_latency_ms"),
+                    },
+                    provider.extra_config,
+                )
+            )
+        healthy = any(not item["must_not_use_for_decision"] for item in candidates)
+        capabilities[capability] = {
+            "status": "ok" if healthy else "blocked",
+            "providers": candidates,
+            "must_not_use_for_decision": not healthy,
+        }
+        if not healthy:
+            blocked_capabilities.append(capability)
+    return {
+        "status": "ok" if not blocked_capabilities else "blocked",
+        "capabilities": capabilities,
+        "blocked_capabilities": blocked_capabilities,
+        "must_not_use_for_decision": bool(blocked_capabilities),
+        "block_reason_code": (
+            "" if not blocked_capabilities else "decision_provider_capabilities_unhealthy"
+        ),
     }
 
 
@@ -925,6 +972,12 @@ def make_sync_quote_use_case() -> SyncQuoteUseCase:
         fact_repo=QuoteSnapshotRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
+
+
+def purge_all_quote_snapshots_for_rebuild() -> int:
+    """Delete all quote snapshots for a separately backed-up rebuild workflow."""
+
+    return QuoteSnapshotRepository().delete_all()
 
 
 def make_sync_fund_nav_use_case() -> SyncFundNavUseCase:

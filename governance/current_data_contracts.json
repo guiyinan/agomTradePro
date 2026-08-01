@@ -83,15 +83,22 @@
       "surface": "GET /api/data-center/prices/quotes/",
       "source_files": [
         "apps/data_center/application/query_use_cases.py",
-        "apps/data_center/interface/api_views.py"
+        "apps/data_center/interface/api_views.py",
+        "apps/realtime/domain/entities.py"
       ],
       "required_markers": {
         "apps/data_center/application/query_use_cases.py": [
           "freshness_status = \"stale\" if quote_is_stale else \"fresh\"",
-          "must_not_use_for_decision=quote_is_stale"
+          "must_not_use_for_decision=quote_is_stale",
+          "freshness_status = \"unverified_observation\""
         ],
         "apps/data_center/interface/api_views.py": [
-          "strict_freshness and result.must_not_use_for_decision"
+          "strict_freshness and result.must_not_use_for_decision",
+          "fallback.get(\"fetched_at\")"
+        ],
+        "apps/realtime/domain/entities.py": [
+          "fetched_at: datetime | None = None",
+          "\"fetched_at\": self.fetched_at.isoformat() if self.fetched_at else None"
         ]
       },
       "required_tests": [
@@ -109,6 +116,11 @@
           "case": "strict_api_blocked",
           "test_file": "tests/api/test_data_center_route_cleanup.py",
           "test_function": "test_data_center_quotes_strict_freshness_blocks_stale_snapshot"
+        },
+        {
+          "case": "realtime_fallback_preserves_fetch_provenance",
+          "test_file": "tests/api/test_data_center_route_cleanup.py",
+          "test_function": "test_data_center_quotes_fall_back_to_realtime_use_case"
         }
       ]
     },
@@ -742,6 +754,221 @@
           "case": "empty_state_safe_fallback",
           "test_file": "tests/component/broker_execution/test_api_and_permissions.py",
           "test_function": "test_qmt_onboarding_falls_back_to_safe_not_bound_state"
+        }
+      ]
+    },
+    {
+      "id": "data_center.quote_observation_provenance",
+      "surface": "Provider quote gateway -> QuoteSnapshot -> Realtime read",
+      "source_files": [
+        "apps/data_center/infrastructure/market_gateway_entities.py",
+        "apps/data_center/infrastructure/gateways/tencent_gateway.py",
+        "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+        "apps/data_center/infrastructure/market_data_repositories.py",
+        "apps/realtime/infrastructure/repositories.py",
+        "apps/realtime/application/price_polling_service.py",
+        "apps/realtime/domain/entities.py"
+      ],
+      "required_markers": {
+        "apps/data_center/infrastructure/market_gateway_entities.py": [
+          "observed_at: datetime | None = None",
+          "fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))"
+        ],
+        "apps/data_center/infrastructure/gateways/tencent_gateway.py": [
+          "observed_at=_parse_tencent_quote_time("
+        ],
+        "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
+          "observed_at=observed_at"
+        ],
+        "apps/data_center/infrastructure/market_data_repositories.py": [
+          "fetched_at=m.fetched_at",
+          "\"fetched_at\": q.fetched_at"
+        ],
+        "apps/realtime/infrastructure/repositories.py": [
+          "timestamp=observed_at",
+          "snapshot_at=observed_at",
+          "Dropping quote without source observation time"
+        ],
+        "apps/realtime/application/price_polling_service.py": [
+          "for price in fetched_prices:"
+        ],
+        "apps/realtime/domain/entities.py": [
+          "fetched_at: datetime | None = None"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "observation_preserved",
+          "test_file": "tests/unit/data_center/test_quote_observation_contract.py",
+          "test_function": "test_gateway_quote_times_are_preserved_in_realtime_and_storage_dtos"
+        },
+        {
+          "case": "missing_observation_blocked",
+          "test_file": "tests/unit/data_center/test_quote_observation_contract.py",
+          "test_function": "test_gateway_quote_without_observation_time_is_not_published_as_realtime"
+        },
+        {
+          "case": "read_path_has_no_snapshot_write",
+          "test_file": "tests/unit/test_realtime_akshare_provider.py",
+          "test_function": "test_akshare_price_provider_falls_back_to_direct_quote_for_single_asset"
+        }
+      ]
+    },
+    {
+      "id": "system.strict_decision_readiness",
+      "surface": "GET /api/decision-ready/ + persistent decision runtime gate",
+      "source_files": [
+        "shared/domain/reliability.py",
+        "apps/config_center/domain/entities.py",
+        "apps/config_center/application/use_cases.py",
+        "core/health_checks.py",
+        "core/views.py",
+        "core/middleware/decision_gate.py"
+      ],
+      "required_markers": {
+        "shared/domain/reliability.py": [
+          "class ReliabilityContract:",
+          "non-fresh reliability must fail closed"
+        ],
+        "apps/config_center/domain/entities.py": [
+          "class DecisionRuntimeState:",
+          "def must_not_use_for_decision(self) -> bool:"
+        ],
+        "apps/config_center/application/use_cases.py": [
+          "class UpdateDecisionRuntimeStateUseCase:"
+        ],
+        "core/health_checks.py": [
+          "def run_decision_readiness_checks()",
+          "def is_decision_ready("
+        ],
+        "core/views.py": [
+          "def decision_readiness_view("
+        ],
+        "core/middleware/decision_gate.py": [
+          "class DecisionRuntimeGateMiddleware:",
+          "decision_runtime_state_unavailable"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "non_fresh_fails_closed",
+          "test_file": "tests/unit/shared/test_reliability_contract.py",
+          "test_function": "test_non_fresh_contracts_fail_closed"
+        },
+        {
+          "case": "maintenance_persists",
+          "test_file": "tests/component/config_center/test_decision_runtime_state.py",
+          "test_function": "test_decision_runtime_maintenance_persists_across_reads"
+        },
+        {
+          "case": "maintenance_probe_blocked",
+          "test_file": "tests/component/test_health_checks.py",
+          "test_function": "test_decision_readiness_probe_fails_closed_during_maintenance"
+        },
+        {
+          "case": "strict_probe_ready",
+          "test_file": "tests/component/test_health_checks.py",
+          "test_function": "test_decision_readiness_probe_passes_only_when_all_checks_are_ready"
+        },
+        {
+          "case": "maintenance_blocks_decision_surface",
+          "test_file": "tests/unit/core/test_decision_runtime_gate_middleware.py",
+          "test_function": "test_decision_path_is_blocked_during_maintenance"
+        }
+      ]
+    },
+    {
+      "id": "data_center.provider_capability_health",
+      "surface": "Provider health API + failover + strict decision readiness",
+      "source_files": [
+        "apps/data_center/application/provider_health.py",
+        "apps/data_center/application/sync_use_cases.py",
+        "apps/data_center/infrastructure/provider_registry.py",
+        "apps/data_center/interface/provider_api_views.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/provider_health.py": [
+          "provider_capability_never_succeeded",
+          "provider_capability_success_stale",
+          "\"must_not_use_for_decision\": bool(block_reason_code)"
+        ],
+        "apps/data_center/application/sync_use_cases.py": [
+          "effective_success = success and (output_count is None or output_count > 0)",
+          "\"last_output_count\": output_count"
+        ],
+        "apps/data_center/infrastructure/provider_registry.py": [
+          "returned no data for",
+          "marking failure and trying next"
+        ],
+        "apps/data_center/interface/provider_api_views.py": [
+          "build_capability_health_payload(snapshot, extra_config)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "never_succeeded_blocked",
+          "test_file": "tests/unit/data_center/test_provider_capability_health.py",
+          "test_function": "test_provider_capability_without_success_is_unhealthy"
+        },
+        {
+          "case": "old_success_blocked",
+          "test_file": "tests/unit/data_center/test_provider_capability_health.py",
+          "test_function": "test_provider_capability_old_success_cannot_remain_healthy"
+        },
+        {
+          "case": "zero_output_degrades_health",
+          "test_file": "tests/unit/data_center/test_phase3_sync_use_cases.py",
+          "test_function": "test_sync_news_zero_output_degrades_provider_health"
+        },
+        {
+          "case": "empty_result_continues_failover",
+          "test_file": "tests/unit/data_center/test_source_registry.py",
+          "test_function": "test_empty_list_result_treated_as_failure"
+        }
+      ]
+    },
+    {
+      "id": "mcp.equity_research_snapshot",
+      "surface": "MCP equity.read.research_snapshot + AI capability route",
+      "source_files": [
+        "apps/ai_capability/application/use_cases.py",
+        "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py",
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
+      ],
+      "required_markers": {
+        "apps/ai_capability/application/use_cases.py": [
+          "financial_evidence_capability_unavailable",
+          "EQUITY_RESEARCH_CAPABILITY_SUFFIX"
+        ],
+        "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py": [
+          "capability_key=\"equity.read.research_snapshot\"",
+          "requires_confirmation=False"
+        ],
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
+          "def _fallback_equity_read_research_snapshot(",
+          "decision_readiness_blocked"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "chinese_research_route",
+          "test_file": "tests/unit/test_ai_capability/test_equity_research_routing.py",
+          "test_function": "test_chinese_all_information_query_routes_directly_to_research_snapshot"
+        },
+        {
+          "case": "no_evidence_no_chat",
+          "test_file": "tests/unit/test_ai_capability/test_equity_research_routing.py",
+          "test_function": "test_financial_fact_query_without_evidence_capability_never_calls_chat_model"
+        },
+        {
+          "case": "mcp_optional_gap_visible",
+          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
+          "test_function": "test_research_snapshot_keeps_optional_gaps_visible_without_fabrication"
+        },
+        {
+          "case": "mcp_global_readiness_blocked",
+          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
+          "test_function": "test_research_snapshot_obeys_global_decision_readiness"
         }
       ]
     }

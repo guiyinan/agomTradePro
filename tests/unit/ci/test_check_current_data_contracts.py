@@ -107,6 +107,27 @@ def build(latest_price):
     )
 
 
+def test_ast_guard_detects_quote_snapshot_request_time_laundering() -> None:
+    source = """
+def build(snapshot):
+    return DataCenterQuoteSnapshot(
+        asset_code=snapshot.stock_code,
+        current_price=snapshot.price,
+        snapshot_at=timezone.now(),
+        source=snapshot.source,
+    )
+"""
+
+    violations = find_timestamp_laundering(
+        ast.parse(source),
+        relative_path="apps/realtime/infrastructure/repositories.py",
+    )
+
+    assert [(item.code, item.line) for item in violations] == [
+        ("quote_snapshot_timestamp_laundering", 3),
+    ]
+
+
 def test_ast_guard_rejects_filling_missing_source_observation_with_today() -> None:
     """SDK and API parsers cannot turn missing provenance into today's date."""
 

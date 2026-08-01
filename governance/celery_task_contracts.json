@@ -1,10 +1,68 @@
 {
   "schema_version": 1,
   "governed_source_files": [
+    "apps/data_center/application/tasks.py",
     "apps/equity/application/tasks_valuation_sync.py",
     "apps/sentiment/application/tasks.py"
   ],
   "tasks": [
+    {
+      "task_path": "apps.data_center.application.tasks.backfill_active_a_share_core_data_batch_task",
+      "source_file": "apps/data_center/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_rejects_invalid_input_before_repository_access"
+        },
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_reports_all_success_with_checkpoint"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_reports_partial_failure"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_reports_missing_provider_as_failure"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_reports_zero_output_as_complete_failure"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
+          "test_function": "test_backfill_batch_blocks_when_market_session_is_unavailable"
+        }
+      }
+    },
+    {
+      "task_path": "apps.data_center.application.tasks.refresh_market_thermometer_task",
+      "source_file": "apps/data_center/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_market_thermometer_tasks.py",
+          "test_function": "test_refresh_market_thermometer_task_runs_sync_then_calculate"
+        }
+      }
+    },
+    {
+      "task_path": "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task",
+      "source_file": "apps/data_center/application/tasks.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "partial_failure": {
+          "test_file": "tests/unit/data_center/test_market_thermometer_tasks.py",
+          "test_function": "test_decision_quote_degraded_alerts_once_on_third_consecutive_run"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_market_thermometer_tasks.py",
+          "test_function": "test_decision_quote_blocked_alerts_immediately"
+        }
+      }
+    },
     {
       "task_path": "apps.equity.application.tasks_valuation_sync.sync_equity_valuation_task",
       "source_file": "apps/equity/application/tasks_valuation_sync.py",

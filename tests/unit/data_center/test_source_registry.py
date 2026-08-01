@@ -140,8 +140,8 @@ class TestProviderRegistryFailover:
         )
         assert result == ["row"]
 
-    def test_empty_list_does_not_open_provider_circuit(self):
-        """A valid no-data response triggers fallback without degrading health."""
+    def test_empty_list_opens_provider_circuit_after_repeated_zero_output(self):
+        """Repeated zero-output responses are capability-health failures."""
 
         reg = ProviderRegistry()
         provider = _StubProvider("empty", [DataCapability.MACRO])
@@ -150,10 +150,10 @@ class TestProviderRegistryFailover:
         for _ in range(_CIRCUIT_OPEN_THRESHOLD):
             assert reg.call_with_failover(DataCapability.MACRO, lambda _: []) is None
 
-        assert reg.get_provider(DataCapability.MACRO) is provider
+        assert reg.get_provider(DataCapability.MACRO) is None
         snapshot = reg.get_all_statuses()[0]
-        assert snapshot.status is ProviderHealthStatus.HEALTHY
-        assert snapshot.consecutive_failures == 0
+        assert snapshot.status is ProviderHealthStatus.CIRCUIT_OPEN
+        assert snapshot.consecutive_failures == _CIRCUIT_OPEN_THRESHOLD
 
     def test_none_result_opens_provider_circuit(self):
         """A None result violates the provider contract and remains a health failure."""

@@ -17,6 +17,7 @@ from apps.data_center.application.dtos import (
     UpdateProviderRequest,
 )
 from apps.data_center.application.interface_services import make_manage_provider_config_use_case
+from apps.data_center.application.provider_health import build_capability_health_payload
 from apps.data_center.interface.serializers import (
     ProviderConfigListSerializer,
     ProviderConfigSerializer,
@@ -51,7 +52,7 @@ def _enrich_provider_status_snapshot(
     snapshot: dict[str, Any], extra_config: dict[str, Any]
 ) -> dict[str, Any]:
     metric = _get_provider_health_metric(extra_config, str(snapshot.get("capability") or ""))
-    enriched = dict(snapshot)
+    enriched = build_capability_health_payload(snapshot, extra_config)
     if enriched.get("last_success_at") in (None, ""):
         enriched["last_success_at"] = metric.get("last_success_at") or extra_config.get(
             "provider_last_success_at"
