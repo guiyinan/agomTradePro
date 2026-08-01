@@ -113,6 +113,7 @@ def test_price_quote_and_stock_news_gateway_rows_are_converted(
             return [
                 SimpleNamespace(
                     stock_code="000001.SZ",
+                    observed_at=datetime(2024, 1, 2, tzinfo=UTC),
                     fetched_at=datetime(2024, 1, 2, tzinfo=UTC),
                     price=Decimal("10.5"),
                     open=10,

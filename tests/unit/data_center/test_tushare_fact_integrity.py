@@ -124,6 +124,7 @@ def test_quote_adapter_isolates_bad_prices_and_optional_amounts(monkeypatch) -> 
             return [
                 SimpleNamespace(
                     stock_code="000001.SZ",
+                    observed_at=datetime(2026, 7, 28, tzinfo=UTC),
                     fetched_at=datetime(2026, 7, 28, tzinfo=UTC),
                     price=float("nan"),
                     open=None,
@@ -135,6 +136,7 @@ def test_quote_adapter_isolates_bad_prices_and_optional_amounts(monkeypatch) -> 
                 ),
                 SimpleNamespace(
                     stock_code="000002.SZ",
+                    observed_at=datetime(2026, 7, 28, tzinfo=UTC),
                     fetched_at=datetime(2026, 7, 28, tzinfo=UTC),
                     price="10.5",
                     open="10",

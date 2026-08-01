@@ -40,6 +40,7 @@ def test_quote_path_skips_empty_invalid_and_isolates_per_code_failures(
             return pd.DataFrame(
                 [
                     {
+                        "trade_date": "20240102",
                         "close": 12,
                         "pre_close": 10,
                         "vol": "100",
