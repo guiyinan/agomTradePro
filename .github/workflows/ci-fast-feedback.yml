@@ -226,6 +226,9 @@ jobs:
             --base "${{ needs.detect-tests.outputs.base-ref }}" \
             --head "${{ needs.detect-tests.outputs.head-ref }}"
 
+      - name: Enforce Data Center legacy fact access guard
+        run: python scripts/check_data_center_legacy_fact_access.py
+
       - name: Run ruff on changed Python files
         if: steps.targets.outputs.lint-count != '0'
         run: |

@@ -11,12 +11,9 @@ from typing import Any, Protocol, cast
 
 import numpy as np
 
+from apps.data_center.application.public import get_sector_membership_repository_port
 from apps.data_center.composition import get_akshare_module
-from apps.sector.infrastructure.models import (
-    SectorConstituentModel,
-    SectorIndexModel,
-    SectorInfoModel,
-)
+from apps.sector.infrastructure.models import SectorIndexModel, SectorInfoModel
 
 logger = logging.getLogger(__name__)
 
@@ -318,24 +315,12 @@ class AKShareSectorAdapter:
 
     def fetch_sector_constituents(self, sector_name: str) -> DataFramePayload:
         normalized_name = _validate_sector_name(sector_name)
-        sector = (
-            SectorInfoModel._default_manager.filter(
-                sector_name=normalized_name,
-                is_active=True,
-            )
-            .values("sector_code")
-            .first()
-        )
-        if sector is None:
-            return pd.DataFrame()
-        rows = list(
-            SectorConstituentModel._default_manager.filter(
-                sector_code=sector["sector_code"],
-                is_current=True,
-            )
-            .values("stock_code")
-            .order_by("stock_code")
-        )
+        facts = [
+            fact
+            for fact in get_sector_membership_repository_port().list_current(as_of=date.today())
+            if fact.sector_name.strip() == normalized_name
+        ]
+        rows = [{"stock_code": fact.asset_code} for fact in facts]
         if not rows:
             return pd.DataFrame()
         frame = pd.DataFrame(rows)

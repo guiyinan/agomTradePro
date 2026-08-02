@@ -193,6 +193,18 @@ class ValuationFactRepository:
                 return self._from_model(m)
         return None
 
+    def get_latest_date(self) -> date | None:
+        """Return the newest canonical valuation date across all assets."""
+
+        value = ValuationFactModel._default_manager.aggregate(latest=Max("val_date"))["latest"]
+        return value if isinstance(value, date) else None
+
+    def list_by_date(self, as_of_date: date) -> list[ValuationFact]:
+        """Return canonical valuation facts for one date in deterministic order."""
+
+        rows = ValuationFactModel._default_manager.filter(val_date=as_of_date).order_by("asset_code")
+        return [self._from_model(row) for row in rows]
+
     def list_asset_codes(self, as_of: date | None = None) -> list[str]:
         """Return assets with canonical valuation facts through ``as_of``."""
 

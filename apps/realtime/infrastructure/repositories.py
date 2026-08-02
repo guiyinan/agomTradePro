@@ -12,7 +12,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from importlib import import_module
 from types import ModuleType
-from typing import Any, cast
+from typing import Any, Protocol, cast
 from zoneinfo import ZoneInfo
 
 from django.core.cache import cache
@@ -23,19 +23,12 @@ from apps.asset_analysis.application.query_services import (
     list_active_watchlist_asset_codes,
 )
 from apps.data_center.application.public import (
+    get_akshare_eastmoney_gateway_port,
+    get_akshare_module_port,
     get_price_bar_repository_port,
     get_quote_snapshot_repository_port,
 )
 from apps.data_center.domain.entities import QuoteSnapshot as DataCenterQuoteSnapshot
-from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
-    AKShareEastMoneyGateway,
-)
-from apps.data_center.infrastructure.legacy_sdk_bridge import (
-    get_akshare_module as _load_akshare_module,
-)
-from apps.data_center.infrastructure.market_gateway_entities import (
-    QuoteSnapshot as MarketQuoteSnapshot,
-)
 from apps.realtime.application.simulated_trading_gateway import (
     list_held_asset_codes as _list_held_asset_codes,
 )
@@ -60,6 +53,12 @@ logger = logging.getLogger(__name__)
 _CHINA_MARKET_TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 
+class _EastMoneyQuoteGateway(Protocol):
+    """Minimal quote gateway contract consumed by the realtime adapter."""
+
+    def get_quote_snapshots(self, asset_codes: list[str]) -> list[Any]: ...
+
+
 def _daily_bar_observed_at(bar_date: date) -> datetime:
     """Return the actual China-market close time represented by a daily bar."""
 
@@ -73,7 +72,7 @@ def _daily_bar_observed_at(bar_date: date) -> datetime:
 def get_akshare_module() -> ModuleType:
     """Load AkShare through a typed, patchable infrastructure boundary."""
 
-    module = _load_akshare_module()
+    module = get_akshare_module_port()
     if not isinstance(module, ModuleType):
         raise TypeError("AkShare loader must return a module")
     return module
@@ -482,16 +481,19 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         self._price_repo = get_price_bar_repository_port()
         self._is_available = True
         self._ak: ModuleType | None = None
-        self._eastmoney_gateway: AKShareEastMoneyGateway | None = None
+        self._eastmoney_gateway: _EastMoneyQuoteGateway | None = None
 
     def _get_ak(self) -> ModuleType:
         if self._ak is None:
             self._ak = get_akshare_module()
         return self._ak
 
-    def _get_eastmoney_gateway(self) -> AKShareEastMoneyGateway:
+    def _get_eastmoney_gateway(self) -> _EastMoneyQuoteGateway:
         if self._eastmoney_gateway is None:
-            self._eastmoney_gateway = AKShareEastMoneyGateway()
+            self._eastmoney_gateway = cast(
+                _EastMoneyQuoteGateway,
+                get_akshare_eastmoney_gateway_port(),
+            )
         return self._eastmoney_gateway
 
     @staticmethod
@@ -575,7 +577,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
     def _build_price_from_quote_snapshot(
         self,
         asset_code: str,
-        snapshot: MarketQuoteSnapshot,
+        snapshot: Any,
     ) -> RealtimePrice | None:
         price = getattr(snapshot, "price", None)
         if price is None:
@@ -623,7 +625,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
     def _build_market_quote_snapshot(
         self,
         asset_code: str,
-        snapshot: MarketQuoteSnapshot,
+        snapshot: Any,
     ) -> DataCenterQuoteSnapshot | None:
         price = getattr(snapshot, "price", None)
         if price is None:

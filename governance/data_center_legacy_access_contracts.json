@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "owner": "data-center",
+  "legacy_modules": {
+    "apps.equity.infrastructure.models": [
+      "StockInfoModel",
+      "FinancialDataModel",
+      "ValuationModel",
+      "StockDailyModel"
+    ],
+    "apps.fund.infrastructure.models": [
+      "FundNetValueModel"
+    ],
+    "apps.sector.infrastructure.models": [
+      "SectorConstituentModel"
+    ]
+  },
+  "allowed_path_patterns": [
+    "^apps/equity/(?:models\\.py|interface/admin\\.py)$",
+    "^apps/equity/migrations/",
+    "^apps/equity/tests/",
+    "^apps/sector/(?:models\\.py|interface/admin\\.py)$",
+    "^apps/sector/migrations/",
+    "^apps/sector/tests/",
+    "^apps/fund/(?:models\\.py|interface/admin\\.py)$",
+    "^apps/fund/migrations/",
+    "^apps/fund/tests/",
+    "^apps/.+/tests/"
+  ],
+  "policy": {
+    "new_business_reads": "blocked",
+    "new_business_writes": "blocked",
+    "legacy_admin_mutation": "blocked",
+    "delete_after": "M9 observation window and verified backup"
+  }
+}

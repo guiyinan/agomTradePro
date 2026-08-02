@@ -9,6 +9,8 @@ from collections.abc import Mapping, Sequence
 from datetime import date
 from typing import Any
 
+from apps.data_center.application.public import get_asset_repository_port
+from apps.data_center.domain.enums import AssetType
 from apps.factor.domain.entities import (
     FactorPortfolioHolding,
 )
@@ -45,6 +47,7 @@ class FactorIntegrationService:
         self.factor_repo = FactorDefinitionRepository()
         self.config_repo = FactorPortfolioConfigRepository()
         self.holding_repo = FactorPortfolioHoldingRepository()
+        self.asset_repo = get_asset_repository_port()
 
     def calculate_factor_scores(
         self,
@@ -75,16 +78,11 @@ class FactorIntegrationService:
             return self.factor_adapter.get_factor_value(stock_code, factor_code, calc_date)
 
         def get_stock_info(stock_code: str) -> dict[str, Any] | None:
-            from apps.equity.infrastructure.models import StockInfoModel
-
-            stock = StockInfoModel._default_manager.filter(
-                stock_code=stock_code,
-                is_active=True,
-            ).first()
-            if stock is not None:
+            asset = self.asset_repo.get_by_code(stock_code)
+            if asset is not None and asset.is_active and asset.asset_type is AssetType.STOCK:
                 return {
-                    "name": stock.name,
-                    "sector": stock.sector,
+                    "name": asset.short_name or asset.name,
+                    "sector": asset.sector or asset.industry,
                     "market_cap": None,
                 }
 
@@ -244,17 +242,12 @@ class FactorIntegrationService:
             return self.factor_adapter.get_factor_value(stock_code, factor_code, calc_date)
 
         def get_stock_info(stock_code: str) -> dict[str, Any] | None:
-            from apps.equity.infrastructure.models import StockInfoModel
-
-            stock = StockInfoModel._default_manager.filter(
-                stock_code=stock_code,
-                is_active=True,
-            ).first()
-            if stock is None:
+            asset = self.asset_repo.get_by_code(stock_code)
+            if asset is None or not asset.is_active or asset.asset_type is not AssetType.STOCK:
                 return None
             return {
-                "name": stock.name,
-                "sector": stock.sector,
+                "name": asset.short_name or asset.name,
+                "sector": asset.sector or asset.industry,
                 "market_cap": None,
             }
 
@@ -273,12 +266,12 @@ class FactorIntegrationService:
 
     def resolve_universe_stocks(self, universe: str) -> list[str]:
         """Get stock list for a universe"""
-        # Map universe codes to actual stock lists.
-        from apps.equity.infrastructure.models import StockInfoModel
-
-        all_stocks = list(
-            StockInfoModel._default_manager.all().values_list("stock_code", flat=True)
-        )
+        # AssetMaster is the governed source for the stock universe.
+        all_stocks = [
+            asset.code
+            for asset in self.asset_repo.list_active()
+            if asset.asset_type is AssetType.STOCK
+        ]
 
         if universe == "hs300":
             return all_stocks[:300] or all_stocks

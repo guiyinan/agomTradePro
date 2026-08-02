@@ -12,10 +12,9 @@ from apps.data_center.infrastructure.models import (
     PriceBarModel,
     ValuationFactModel,
 )
-from apps.equity.domain.entities import EquityAssetScore
+from apps.equity.domain.entities import EquityAssetScore, StockInfo
 from apps.equity.infrastructure.models import (
     FinancialDataModel,
-    StockDailyModel,
     StockInfoModel,
     ValuationModel,
 )
@@ -43,25 +42,60 @@ def test_stock_info_preserves_missing_listing_date_from_data_center() -> None:
 
 
 @pytest.mark.django_db
-def test_get_stock_context_rows_reads_financial_and_valuation_from_data_center() -> None:
+def test_stock_info_does_not_read_retired_equity_master_projection() -> None:
     StockInfoModel.objects.create(
         stock_code="000001.SZ",
-        name="平安银行",
+        name="旧平安银行",
         sector="银行",
         market="SZ",
         list_date=date(1991, 4, 3),
+    )
+
+    assert DjangoStockRepository().get_stock_info("000001.SZ") is None
+
+
+@pytest.mark.django_db
+def test_save_stock_info_writes_canonical_asset_master_only() -> None:
+    DjangoStockRepository().save_stock_info(
+        StockInfo(
+            stock_code="000001.SZ",
+            name="平安银行",
+            sector="银行",
+            market="SZ",
+            list_date=date(1991, 4, 3),
+        )
+    )
+
+    asset = AssetMasterModel.objects.get(code="000001.SZ")
+    assert asset.name == "平安银行"
+    assert asset.exchange == "SZSE"
+    assert not StockInfoModel.objects.filter(stock_code="000001.SZ").exists()
+
+
+@pytest.mark.django_db
+def test_get_stock_context_rows_reads_financial_and_valuation_from_data_center() -> None:
+    AssetMasterModel.objects.create(
+        code="000001.SZ",
+        name="平安银行",
+        short_name="平安银行",
+        asset_type="stock",
+        exchange="SZSE",
+        sector="银行",
+        list_date=date(1991, 4, 3),
         is_active=True,
     )
-    StockDailyModel.objects.create(
-        stock_code="000001.SZ",
-        trade_date=date(2026, 5, 2),
+    PriceBarModel.objects.create(
+        asset_code="000001.SZ",
+        bar_date=date(2026, 5, 2),
+        freq="1d",
+        adjustment="none",
         open=Decimal("12.10"),
         high=Decimal("12.50"),
         low=Decimal("12.00"),
         close=Decimal("12.34"),
         volume=123456,
         amount=Decimal("1234567.89"),
-        adj_factor=1.0,
+        source="dc-test",
     )
     FinancialFactModel.objects.bulk_create(
         [
@@ -184,24 +218,28 @@ def test_get_stock_context_rows_reads_financial_and_valuation_from_data_center()
 
 @pytest.mark.django_db
 def test_get_stock_context_rows_does_not_fallback_to_legacy_equity_fundamentals() -> None:
-    StockInfoModel.objects.create(
-        stock_code="000001.SZ",
+    AssetMasterModel.objects.create(
+        code="000001.SZ",
         name="平安银行",
+        short_name="平安银行",
+        asset_type="stock",
+        exchange="SZSE",
         sector="银行",
-        market="SZ",
         list_date=date(1991, 4, 3),
         is_active=True,
     )
-    StockDailyModel.objects.create(
-        stock_code="000001.SZ",
-        trade_date=date(2026, 5, 2),
+    PriceBarModel.objects.create(
+        asset_code="000001.SZ",
+        bar_date=date(2026, 5, 2),
+        freq="1d",
+        adjustment="none",
         open=Decimal("12.10"),
         high=Decimal("12.50"),
         low=Decimal("12.00"),
         close=Decimal("12.34"),
         volume=123456,
         amount=Decimal("1234567.89"),
-        adj_factor=1.0,
+        source="dc-test",
     )
     FinancialDataModel.objects.create(
         stock_code="000001.SZ",
@@ -359,14 +397,6 @@ def test_list_active_stock_codes_includes_price_covered_canonical_assets() -> No
 
 @pytest.mark.django_db
 def test_list_active_stock_codes_merges_local_and_price_covered_codes_without_duplicates() -> None:
-    StockInfoModel.objects.create(
-        stock_code="000001.SZ",
-        name="平安银行",
-        sector="银行",
-        market="SZ",
-        list_date=date(1991, 4, 3),
-        is_active=True,
-    )
     AssetMasterModel.objects.create(
         code="000001.SZ",
         name="平安银行",

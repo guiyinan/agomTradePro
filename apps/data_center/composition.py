@@ -100,9 +100,11 @@ __all__ = [
     "ValuationFactRepository",
     "build_provider_registry_for_repo",
     "build_tushare_client",
+    "backfill_asset_master_codes",
     "fetch_akshare_eastmoney_historical_prices",
     "fetch_tushare_historical_prices",
     "get_akshare_module",
+    "get_akshare_eastmoney_gateway",
     "get_asset_repository",
     "get_archive_manifest_repository",
     "get_canonical_publication_repository",
@@ -323,6 +325,31 @@ def get_akshare_module() -> Any:
     )
 
     return _get_akshare_module()
+
+
+def get_akshare_eastmoney_gateway() -> object:
+    """Return the Data Center-owned EastMoney gateway for migration adapters."""
+
+    from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+        AKShareEastMoneyGateway,
+    )
+
+    return AKShareEastMoneyGateway()
+
+
+def backfill_asset_master_codes(
+    asset_codes: list[str],
+    *,
+    include_remote: bool = True,
+) -> object:
+    """Backfill canonical asset identities behind the Data Center composition root."""
+
+    from apps.data_center.infrastructure.asset_master_backfill import AssetMasterBackfillService
+
+    return AssetMasterBackfillService().backfill_codes(
+        asset_codes,
+        include_remote=include_remote,
+    )
 
 
 def fetch_tushare_historical_prices(

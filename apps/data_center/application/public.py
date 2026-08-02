@@ -32,31 +32,43 @@ from apps.data_center.application.query_services import (
     query_valuation_facts,
 )
 from apps.data_center.composition import (
+    backfill_asset_master_codes,
     build_provider_registry_for_repo,
     build_tushare_client,
+    get_akshare_eastmoney_gateway,
     get_asset_repository,
     get_canonical_publication_repository,
+    get_capital_flow_repository,
     get_fund_nav_repository,
     get_macro_fact_repository,
     get_macro_projection_repository,
+    get_news_repository,
     get_price_bar_repository,
     get_provider_config_repository,
     get_provider_registry,
     get_quote_snapshot_repository,
     get_raw_audit_repository,
+    get_sector_membership_repository,
     get_valuation_fact_repository,
+)
+from apps.data_center.composition import (
+    get_akshare_module as _get_akshare_module,
 )
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.macro_semantics import (
     is_direct_consumer_input_allowed as _is_direct_consumer_input_allowed,
 )
 from apps.data_center.domain.protocols import (
+    AssetRepositoryProtocol,
+    CapitalFlowRepositoryProtocol,
     FundNavRepositoryProtocol,
+    NewsRepositoryProtocol,
     PriceBarRepositoryProtocol,
     ProviderConfigRepositoryProtocol,
     ProviderRegistryProtocol,
     QuoteSnapshotRepositoryProtocol,
     RawAuditRepositoryProtocol,
+    SectorMembershipRepositoryProtocol,
     ValuationFactRepositoryProtocol,
 )
 
@@ -69,6 +81,34 @@ def get_macro_projection_repository_port() -> object:
     """
 
     return get_macro_projection_repository()
+
+
+def get_asset_repository_port() -> AssetRepositoryProtocol:
+    """Return the canonical asset-master/alias query port."""
+
+    return get_asset_repository()
+
+
+def get_akshare_module_port() -> Any:
+    """Return the configured AKShare module behind the public transport port."""
+
+    return _get_akshare_module()
+
+
+def get_akshare_eastmoney_gateway_port() -> object:
+    """Return the Data Center-owned EastMoney market gateway."""
+
+    return get_akshare_eastmoney_gateway()
+
+
+def backfill_asset_master_codes_port(
+    asset_codes: list[str],
+    *,
+    include_remote: bool = True,
+) -> object:
+    """Backfill canonical asset identities through the Application boundary."""
+
+    return backfill_asset_master_codes(asset_codes, include_remote=include_remote)
 
 
 def is_direct_macro_input_allowed(
@@ -129,6 +169,24 @@ def get_valuation_fact_repository_port() -> ValuationFactRepositoryProtocol:
     """Return the typed canonical valuation-fact port."""
 
     return get_valuation_fact_repository()
+
+
+def get_sector_membership_repository_port() -> SectorMembershipRepositoryProtocol:
+    """Return the canonical sector-membership query port."""
+
+    return get_sector_membership_repository()
+
+
+def get_news_repository_port() -> NewsRepositoryProtocol:
+    """Return the canonical news-fact query port."""
+
+    return get_news_repository()
+
+
+def get_capital_flow_repository_port() -> CapitalFlowRepositoryProtocol:
+    """Return the canonical capital-flow query port."""
+
+    return get_capital_flow_repository()
 
 
 def get_tushare_client(*, token: str | None = None, http_url: str | None = None) -> object:
@@ -428,7 +486,11 @@ def get_publication_as_of(
 
 
 __all__ = [
+    "backfill_asset_master_codes_port",
+    "get_asset_repository_port",
     "get_financial_facts",
+    "get_akshare_eastmoney_gateway_port",
+    "get_akshare_module_port",
     "get_current_publication",
     "get_fund_nav_repository_port",
     "get_macro_fact_series",
@@ -443,6 +505,9 @@ __all__ = [
     "get_price_bar_series",
     "get_price_bar_repository_port",
     "get_quote_snapshot_repository_port",
+    "get_sector_membership_repository_port",
+    "get_news_repository_port",
+    "get_capital_flow_repository_port",
     "get_provider_config_repository_port",
     "get_provider_registry_port",
     "build_provider_registry_port",

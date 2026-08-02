@@ -11,6 +11,12 @@ from decimal import Decimal
 import pytest
 
 from apps.asset_analysis.domain.value_objects import ScoreContext
+from apps.data_center.infrastructure.models import (
+    AssetMasterModel,
+    FinancialFactModel,
+    PriceBarModel,
+    ValuationFactModel,
+)
 from apps.equity.application.services import EquityMultiDimScorer
 from apps.equity.domain.entities import (
     EquityAssetScore,
@@ -18,12 +24,7 @@ from apps.equity.domain.entities import (
     StockInfo,
     ValuationMetrics,
 )
-from apps.equity.infrastructure.models import (
-    FinancialDataModel,
-    StockDailyModel,
-    StockInfoModel,
-    ValuationModel,
-)
+from apps.equity.infrastructure.models import StockInfoModel
 from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
 
 
@@ -38,53 +39,80 @@ def sample_stock_data(db):
         list_date=date(1991, 4, 3),
         is_active=True,
     )
-
-    # 创建估值数据
-    ValuationModel.objects.create(
-        stock_code="000001",
-        trade_date=date.today(),
+    _seed_canonical_stock(
+        code="000001.SZ",
+        name="平安银行",
+        exchange="SZSE",
         pe=8.5,
-        pb=0.8,
-        ps=1.5,
-        total_mv=Decimal("200000000000"),
-        circ_mv=Decimal("150000000000"),
-        dividend_yield=5.5,
     )
+    return stock
 
-    # 创建财务数据
-    FinancialDataModel.objects.create(
-        stock_code="000001",
-        report_date=date.today() - timedelta(days=30),
-        report_type="4Q",
-        revenue=Decimal("100000000000"),
-        net_profit=Decimal("50000000000"),
-        revenue_growth=8.0,
-        net_profit_growth=10.0,
-        total_assets=Decimal("1000000000000"),
-        total_liabilities=Decimal("900000000000"),
-        equity=Decimal("100000000000"),
-        roe=18.0,
-        roa=1.5,
-        debt_ratio=90.0,
+
+def _seed_canonical_stock(
+    *,
+    code: str,
+    name: str,
+    exchange: str,
+    pe: float,
+) -> None:
+    """Create one canonical asset and its D4/D5/D1 facts for integration tests."""
+
+    period_end = date.today() - timedelta(days=30)
+    AssetMasterModel.objects.create(
+        code=code,
+        name=name,
+        short_name=name,
+        asset_type="stock",
+        exchange=exchange,
+        is_active=True,
+        sector="银行",
     )
-
-    # 创建日线数据
-    StockDailyModel.objects.create(
-        stock_code="000001",
-        trade_date=date.today(),
+    ValuationFactModel.objects.create(
+        asset_code=code,
+        val_date=date.today(),
+        pe_ttm=pe,
+        pb=Decimal("0.8"),
+        ps_ttm=Decimal("1.5"),
+        market_cap=Decimal("200000000000"),
+        float_market_cap=Decimal("150000000000"),
+        dv_ratio=Decimal("5.5"),
+        source="dc-test",
+    )
+    for metric_code, value, unit in (
+        ("revenue", Decimal("100000000000"), "元"),
+        ("net_profit", Decimal("50000000000"), "元"),
+        ("revenue_growth", Decimal("8.0"), "%"),
+        ("net_profit_growth", Decimal("10.0"), "%"),
+        ("total_assets", Decimal("1000000000000"), "元"),
+        ("total_liabilities", Decimal("900000000000"), "元"),
+        ("equity", Decimal("100000000000"), "元"),
+        ("roe", Decimal("18.0"), "%"),
+        ("roa", Decimal("1.5"), "%"),
+        ("debt_ratio", Decimal("90.0"), "%"),
+    ):
+        FinancialFactModel.objects.create(
+            asset_code=code,
+            period_end=period_end,
+            period_type="annual",
+            metric_code=metric_code,
+            value=value,
+            unit=unit,
+            source="dc-test",
+            report_date=period_end,
+        )
+    PriceBarModel.objects.create(
+        asset_code=code,
+        bar_date=date.today(),
+        freq="1d",
+        adjustment="none",
         open=Decimal("12.0"),
         high=Decimal("12.5"),
         low=Decimal("11.8"),
         close=Decimal("12.3"),
         volume=1000000,
         amount=Decimal("12300000"),
-        ma5=Decimal("12.1"),
-        ma20=Decimal("11.9"),
-        ma60=Decimal("11.5"),
-        rsi=55.0,
+        source="dc-test",
     )
-
-    return stock
 
 
 @pytest.fixture
@@ -108,34 +136,8 @@ def sample_stocks_data(db):
         is_active=True,
     )
 
-    # 为每个股票创建估值和财务数据
-    for stock in [stock1, stock2]:
-        ValuationModel.objects.create(
-            stock_code=stock.stock_code,
-            trade_date=date.today(),
-            pe=8.5 if stock.stock_code == "000001" else 9.0,
-            pb=0.8,
-            ps=1.5,
-            total_mv=Decimal("200000000000"),
-            circ_mv=Decimal("150000000000"),
-            dividend_yield=5.5,
-        )
-
-        FinancialDataModel.objects.create(
-            stock_code=stock.stock_code,
-            report_date=date.today() - timedelta(days=30),
-            report_type="4Q",
-            revenue=Decimal("100000000000"),
-            net_profit=Decimal("50000000000"),
-            revenue_growth=8.0,
-            net_profit_growth=10.0,
-            total_assets=Decimal("1000000000000"),
-            total_liabilities=Decimal("900000000000"),
-            equity=Decimal("100000000000"),
-            roe=18.0,
-            roa=1.5,
-            debt_ratio=90.0,
-        )
+    _seed_canonical_stock(code="000001.SZ", name="平安银行", exchange="SZSE", pe=8.5)
+    _seed_canonical_stock(code="600000.SH", name="浦发银行", exchange="SSE", pe=9.0)
 
     return [stock1, stock2]
 
@@ -311,7 +313,7 @@ class TestDjangoEquityAssetRepository:
         stock = repo.get_asset_by_code("equity", "000001")
 
         assert stock is not None
-        assert stock.stock_code == "000001"
+        assert stock.stock_code == "000001.SZ"
         assert stock.stock_name == "平安银行"
         assert stock.pe_ratio == 8.5
         assert stock.roe == 18.0

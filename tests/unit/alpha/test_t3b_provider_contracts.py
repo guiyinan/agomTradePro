@@ -78,16 +78,10 @@ def test_simple_universe_selection_uses_config_latest_data_and_safe_failures(
     settings,
 ) -> None:
     """Simple provider selects only configured/available stocks and fails closed."""
-    from apps.equity.infrastructure import models as equity_models
-
-    rows = [
-        SimpleNamespace(stock_code="000001.SZ"),
-        SimpleNamespace(stock_code="600000.SH"),
-    ]
+    available_codes = ["000001.SZ", "600000.SH"]
     monkeypatch.setattr(
-        equity_models,
-        "ValuationModel",
-        SimpleNamespace(_default_manager=_ValuationManager(rows)),
+        "apps.alpha.infrastructure.adapters.simple_adapter.list_valuation_covered_codes",
+        lambda as_of=None: list(available_codes),
     )
     settings.ALPHA_SIMPLE_UNIVERSE_MAP = {
         "configured": ["000001.SZ", "missing.SZ"],
@@ -99,21 +93,12 @@ def test_simple_universe_selection_uses_config_latest_data_and_safe_failures(
         "600000.SH",
     ]
 
-    monkeypatch.setattr(
-        equity_models,
-        "ValuationModel",
-        SimpleNamespace(_default_manager=_ValuationManager([], latest_date=None)),
-    )
+    available_codes.clear()
     assert provider._get_universe_stocks("all", TARGET_DATE) == []
 
     monkeypatch.setattr(
-        equity_models,
-        "ValuationModel",
-        SimpleNamespace(
-            _default_manager=SimpleNamespace(
-                aggregate=lambda **kwargs: (_ for _ in ()).throw(RuntimeError("DB offline"))
-            )
-        ),
+        "apps.alpha.infrastructure.adapters.simple_adapter.list_valuation_covered_codes",
+        lambda as_of=None: (_ for _ in ()).throw(RuntimeError("DB offline")),
     )
     assert provider._get_universe_stocks("all", TARGET_DATE) == []
 
@@ -122,40 +107,19 @@ def test_simple_fundamentals_classify_complete_partial_missing_and_repository_fa
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Fundamental reads distinguish usable partial data from missing data."""
-    from apps.equity.infrastructure import models as equity_models
-
     valuations = [
-        SimpleNamespace(
-            stock_code="000001.SZ",
-            pe=10.0,
-            pb=1.0,
-            dividend_yield=0.03,
-        ),
-        SimpleNamespace(
-            stock_code="000002.SZ",
-            pe=None,
-            pb=2.0,
-            dividend_yield=None,
-        ),
-        SimpleNamespace(
-            stock_code="000003.SZ",
-            pe=None,
-            pb=None,
-            dividend_yield=0.01,
-        ),
+        {"asset_code": "000001.SZ", "pe_ttm": 10.0, "pb": 1.0, "dv_ratio": 0.03},
+        {"asset_code": "000002.SZ", "pe_ttm": None, "pb": 2.0, "dv_ratio": None},
+        {"asset_code": "000003.SZ", "pe_ttm": None, "pb": None, "dv_ratio": 0.01},
     ]
-    financials = {
-        "000001.SZ": SimpleNamespace(roe=0.2),
-    }
+    financials = {"000001.SZ": [{"period_end": "2026-07-01", "metric_code": "roe", "value": 0.2}]}
     monkeypatch.setattr(
-        equity_models,
-        "ValuationModel",
-        SimpleNamespace(_default_manager=_ValuationManager(valuations)),
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_valuation_facts",
+        lambda stock_code, **kwargs: [row for row in valuations if row["asset_code"] == stock_code],
     )
     monkeypatch.setattr(
-        equity_models,
-        "FinancialDataModel",
-        SimpleNamespace(_default_manager=_FinancialManager(financials)),
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_financial_facts",
+        lambda stock_code, **kwargs: financials.get(stock_code, []),
     )
     provider = SimpleAlphaProvider()
     data, quality = provider._get_fundamental_data(
@@ -163,31 +127,15 @@ def test_simple_fundamentals_classify_complete_partial_missing_and_repository_fa
         TARGET_DATE,
     )
     assert data["000001.SZ"]["pe"] == 10.0
-    assert data["000002.SZ"] == {
-        "pe": 50.0,
-        "pb": 2.0,
-        "roe": 0.08,
-        "dividend_yield": 0.02,
-        "_data_quality": {
-            "has_pe": False,
-            "has_pb": True,
-            "has_roe": False,
-            "has_dividend": False,
-        },
-    }
+    assert "000002.SZ" not in data
     assert "000003.SZ" not in data
     assert quality["complete_count"] == 1
-    assert quality["partial_count"] == 1
-    assert quality["missing_count"] == 1
+    assert quality["partial_count"] == 0
+    assert quality["missing_count"] == 2
 
     monkeypatch.setattr(
-        equity_models,
-        "ValuationModel",
-        SimpleNamespace(
-            _default_manager=SimpleNamespace(
-                aggregate=lambda **kwargs: (_ for _ in ()).throw(RuntimeError("valuation locked"))
-            )
-        ),
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_valuation_facts",
+        lambda stock_code, **kwargs: (_ for _ in ()).throw(RuntimeError("valuation locked")),
     )
     data, quality = provider._get_fundamental_data(["000001.SZ"], TARGET_DATE)
     assert data == {}
@@ -198,31 +146,20 @@ def test_simple_quote_fallback_rejects_missing_and_nonpositive_prices(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Fresh quote fallback does not score absent or nonpositive market data."""
-    from apps.data_center.infrastructure import models as data_center_models
-
-    snapshots = [
-        SimpleNamespace(
-            asset_code="000002.SZ",
-            snapshot_at=datetime(2026, 7, 24, 6, tzinfo=UTC),
-            current_price=0,
-            prev_close=10,
-            open=10,
-            high=11,
-            low=9,
-            volume=100,
-        )
-    ]
-
-    class _QuoteQuery(list[SimpleNamespace]):
-        def order_by(self, *args: str) -> _QuoteQuery:
-            return self
-
     monkeypatch.setattr(
-        data_center_models,
-        "QuoteSnapshotModel",
-        SimpleNamespace(
-            _default_manager=SimpleNamespace(filter=lambda **kwargs: _QuoteQuery(snapshots))
-        ),
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_latest_quote_payloads",
+        lambda *args, **kwargs: [
+            {
+                "asset_code": "000002.SZ",
+                "snapshot_at": datetime(2026, 7, 24, 6, tzinfo=UTC),
+                "current_price": 0,
+                "prev_close": 10,
+                "open": 10,
+                "high": 11,
+                "low": 9,
+                "volume": 100,
+            }
+        ],
     )
     scores, metadata, staleness = SimpleAlphaProvider()._compute_quote_momentum_scores(
         stock_list=["000001.SZ", "000002.SZ"],

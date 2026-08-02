@@ -95,6 +95,23 @@
       ],
       "forbid_cross_app_infrastructure_imports": true,
       "rationale": "Cross-app concrete dependencies create hidden coupling; expose application-level facades/providers from the owning app."
+    },
+    {
+      "id": "apps_infrastructure_no_data_center_infrastructure_imports",
+      "description": "Business infrastructure must consume Data Center Application Ports instead of concrete Data Center adapters, gateways, or models.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "infrastructure"
+      ],
+      "path_patterns": [
+        "^apps/(?!data_center/)"
+      ],
+      "forbidden_import_prefixes": [
+        "apps.data_center.infrastructure"
+      ],
+      "rationale": "Keep Data Center infrastructure behind a stable Application boundary and prevent new cross-app provider coupling."
     }
   ],
   "audit_rules": [

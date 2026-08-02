@@ -99,6 +99,14 @@ class AssetRepository:
             for m in AssetMasterModel.objects.filter(exchange=exchange, is_active=True)
         ]
 
+    def list_active(self) -> list[AssetMaster]:
+        """Return active canonical asset-master records in code order."""
+
+        return [
+            self._from_model(model)
+            for model in AssetMasterModel.objects.filter(is_active=True).order_by("code")
+        ]
+
     def list_active_codes(
         self,
         *,

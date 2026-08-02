@@ -892,6 +892,16 @@ def sector_constituents(request: Request) -> Response:
     if not sector_code:
         return Response({"detail": "Query parameter 'sector_code' is required."}, status=400)
 
+    publication, blocked = _published_gate(
+        request,
+        dataset_key="sector.membership",
+        default_publication_key=sector_code,
+        identity_field="sector_code",
+        identity_value=sector_code,
+    )
+    if blocked is not None:
+        return blocked
+
     as_of_raw = request.query_params.get("as_of", "").strip()
     as_of = None
     if as_of_raw:
@@ -904,7 +914,15 @@ def sector_constituents(request: Request) -> Response:
         sector_code=sector_code,
         as_of=as_of,
     )
-    return Response({"sector_code": sector_code, "total": len(data), "data": data})
+    payload: dict[str, object] = {
+        "sector_code": sector_code,
+        "total": len(data),
+        "data": data,
+    }
+    if publication is not None:
+        payload["publication_id"] = publication["publication_id"]
+        payload["publication"] = publication
+    return Response(payload)
 
 
 @api_view(["GET"])

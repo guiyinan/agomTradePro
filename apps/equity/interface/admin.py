@@ -46,6 +46,21 @@ class StockInfoAdmin(TypedModelAdmin[StockInfoModel]):
         ("时间戳", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
 
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Freeze the legacy stock-master projection against new writes."""
+
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: StockInfoModel | None = None) -> bool:
+        """Freeze the legacy stock-master projection against edits."""
+
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: StockInfoModel | None = None) -> bool:
+        """Freeze the legacy stock-master projection against deletes."""
+
+        return False
+
 
 @admin.register(StockDailyModel)
 class StockDailyAdmin(TypedModelAdmin[StockDailyModel]):
@@ -77,6 +92,21 @@ class StockDailyAdmin(TypedModelAdmin[StockDailyModel]):
         ),
         ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Prevent writes to the retired daily-price projection."""
+
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: StockDailyModel | None = None) -> bool:
+        """Prevent edits to the retired daily-price projection."""
+
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: StockDailyModel | None = None) -> bool:
+        """Prevent deletes from the retired daily-price projection."""
+
+        return False
 
     @admin.display(description="涨跌幅(%)")
     def change_pct_calculated(self, obj: StockDailyModel) -> Decimal | str:
@@ -117,6 +147,29 @@ class FinancialDataAdmin(TypedModelAdmin[FinancialDataModel]):
         ),
     )
 
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Prevent writes to the retired financial projection."""
+
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialDataModel | None = None,
+    ) -> bool:
+        """Prevent edits to the retired financial projection."""
+
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialDataModel | None = None,
+    ) -> bool:
+        """Prevent deletes from the retired financial projection."""
+
+        return False
+
 
 @admin.register(ValuationModel)
 class ValuationAdmin(TypedModelAdmin[ValuationModel]):
@@ -141,6 +194,21 @@ class ValuationAdmin(TypedModelAdmin[ValuationModel]):
         ("市值", {"fields": ("total_mv", "circ_mv")}),
         ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Prevent writes to the retired valuation projection."""
+
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: ValuationModel | None = None) -> bool:
+        """Prevent edits to the retired valuation projection."""
+
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: ValuationModel | None = None) -> bool:
+        """Prevent deletes from the retired valuation projection."""
+
+        return False
 
     @admin.display(description="总市值")
     def total_mv_display(self, obj: ValuationModel) -> str:

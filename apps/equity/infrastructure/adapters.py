@@ -8,23 +8,36 @@ data_center 或本地持久化事实表，避免模块继续直连外部 SDK。
 import logging
 from collections.abc import Callable
 from datetime import date, datetime
+from typing import Any
 
 import pandas as pd  # type: ignore[import-untyped]
 
 from apps.account.application.config_summary_service import (
     get_account_config_summary_service,
 )
-from apps.data_center.composition import (
-    get_akshare_module,
-    get_price_bar_repository,
+from apps.data_center.application.public import (
+    get_akshare_module_port,
+    get_asset_repository_port,
+    get_price_bar_repository_port,
 )
 from apps.data_center.domain.entities import PriceBar as DataCenterPriceBar
 from apps.data_center.domain.enums import PriceAdjustment
+from apps.data_center.domain.protocols import AssetRepositoryProtocol, PriceBarRepositoryProtocol
 from apps.regime.domain.entities import RegimeSnapshot
 
-from .models import StockDailyModel, StockInfoModel
-
 logger = logging.getLogger(__name__)
+
+
+def get_akshare_module() -> Any:
+    """Compatibility seam for remote index loaders; transport stays in Data Center."""
+
+    return get_akshare_module_port()
+
+
+def get_price_bar_repository() -> PriceBarRepositoryProtocol:
+    """Compatibility seam for tests and legacy constructors."""
+
+    return get_price_bar_repository_port()
 
 
 def get_runtime_benchmark_code(key: str, default: str = "") -> str:
@@ -37,16 +50,31 @@ def get_runtime_benchmark_code(key: str, default: str = "") -> str:
 class TushareStockAdapter:
     """兼容旧调用方的股票日线适配器。"""
 
+    _asset_repo: AssetRepositoryProtocol
+
     def __init__(self) -> None:
         self._dc_price_repo = get_price_bar_repository()
+        self._asset_repo = get_asset_repository_port()
 
     def fetch_stock_list(self) -> pd.DataFrame:
         """获取 A 股基础信息。"""
-        rows = list(
-            StockInfoModel._default_manager.filter(is_active=True).values(
-                "stock_code", "name", "sector", "market", "list_date"
-            )
-        )
+        asset_repo = getattr(self, "_asset_repo", None)
+        if asset_repo is None:
+            asset_repo = get_asset_repository_port()
+        rows = [
+            {
+                "stock_code": asset.code,
+                "name": asset.short_name or asset.name,
+                "sector": asset.sector,
+                "market": {"SSE": "SH", "SZSE": "SZ", "BSE": "BJ"}.get(
+                    asset.exchange.value,
+                    asset.exchange.value,
+                ),
+                "list_date": asset.list_date,
+            }
+            for asset in asset_repo.list_active()
+            if asset.asset_type.value == "stock"
+        ]
         if not rows:
             return pd.DataFrame()
         df = pd.DataFrame(rows)
@@ -92,30 +120,7 @@ class TushareStockAdapter:
                 ]
             )
         else:
-            models = list(
-                StockDailyModel._default_manager.filter(
-                    stock_code=normalized_code,
-                    trade_date__gte=start_dt,
-                    trade_date__lte=end_dt,
-                ).order_by("trade_date")
-            )
-            if not models:
-                return pd.DataFrame()
-            df = pd.DataFrame(
-                [
-                    {
-                        "ts_code": model.stock_code,
-                        "trade_date": pd.Timestamp(model.trade_date),
-                        "open": model.open,
-                        "high": model.high,
-                        "low": model.low,
-                        "close": model.close,
-                        "vol": model.volume,
-                        "amount": model.amount,
-                    }
-                    for model in models
-                ]
-            )
+            return pd.DataFrame()
 
         df["pre_close"] = df["close"].shift(1)
         df["change"] = df["close"] - df["pre_close"]
@@ -126,27 +131,23 @@ class TushareStockAdapter:
         """获取单只股票基础信息。"""
         normalized_code = self._normalize_stock_code(stock_code)
         symbol = normalized_code.split(".")[0]
-        row = (
-            StockInfoModel._default_manager.filter(stock_code=normalized_code)
-            .values("stock_code", "name", "sector", "market", "list_date")
-            .first()
-        )
-        if row is None and symbol != normalized_code:
-            row = (
-                StockInfoModel._default_manager.filter(stock_code__startswith=symbol)
-                .values("stock_code", "name", "sector", "market", "list_date")
-                .first()
-            )
-        if row is None:
+        asset_repo = getattr(self, "_asset_repo", None)
+        if asset_repo is None:
+            asset_repo = get_asset_repository_port()
+        asset = asset_repo.get_by_code(normalized_code)
+        if asset is None or asset.asset_type.value != "stock":
             return {}
         return {
-            "ts_code": row["stock_code"],
+            "ts_code": asset.code,
             "symbol": symbol,
-            "name": row["name"],
+            "name": asset.short_name or asset.name,
             "area": "",
-            "industry": row.get("sector", ""),
-            "market": row.get("market", ""),
-            "list_date": pd.to_datetime(row.get("list_date"), errors="coerce"),
+            "industry": asset.sector,
+            "market": {"SSE": "SH", "SZSE": "SZ", "BSE": "BJ"}.get(
+                asset.exchange.value,
+                asset.exchange.value,
+            ),
+            "list_date": pd.to_datetime(asset.list_date, errors="coerce"),
         }
 
     def _normalize_stock_code(self, stock_code: str) -> str:

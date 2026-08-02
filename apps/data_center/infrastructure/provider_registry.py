@@ -102,6 +102,7 @@ class _ProviderState:
             provider_name=self.provider.provider_name(),
             capability=self.capability,
             status=self.health,
+            dataset_key=self.capability.dataset_key,
             consecutive_failures=self.consecutive_failures,
             last_success_at=self.last_success_at,
             avg_latency_ms=average_latency,

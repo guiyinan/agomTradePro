@@ -9,12 +9,15 @@ from django.apps import apps as django_apps
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.data_center.application.public import get_macro_fact_series, save_macro_facts
-from apps.data_center.domain.entities import MacroFact
-from apps.data_center.domain.enums import DataQualityStatus
+from apps.data_center.application.public import (
+    get_asset_repository_port,
+    get_macro_fact_series,
+    save_macro_facts,
+)
+from apps.data_center.domain.entities import AssetMaster, MacroFact
+from apps.data_center.domain.enums import AssetType, DataQualityStatus, MarketExchange
 from apps.rotation.infrastructure.models import RotationConfigModel
 
-StockInfoModel = django_apps.get_model("equity", "StockInfoModel")
 FactorPortfolioConfigModel = django_apps.get_model("factor", "FactorPortfolioConfigModel")
 
 
@@ -93,18 +96,26 @@ class Command(BaseCommand):
 
     def _ensure_stock_universe(self) -> int:
         created = 0
+        asset_repository = get_asset_repository_port()
+        exchange_map = {
+            "SH": MarketExchange.SSE,
+            "SZ": MarketExchange.SZSE,
+            "BJ": MarketExchange.BSE,
+        }
         for stock_code, name, sector, market in self.STOCK_SEEDS:
-            _, was_created = StockInfoModel._default_manager.get_or_create(
-                stock_code=stock_code,
-                defaults={
-                    "name": name,
-                    "sector": sector,
-                    "market": market,
-                    "list_date": date(2010, 1, 1),
-                    "is_active": True,
-                },
-            )
-            if was_created:
+            if asset_repository.get_by_code(stock_code) is None:
+                asset_repository.upsert(
+                    AssetMaster(
+                        code=stock_code,
+                        name=name,
+                        short_name=name,
+                        asset_type=AssetType.STOCK,
+                        exchange=exchange_map.get(market, MarketExchange.OTHER),
+                        list_date=date(2010, 1, 1),
+                        sector=sector,
+                        industry=sector,
+                    )
+                )
                 created += 1
 
         if created:

@@ -8,11 +8,11 @@ and the valuation quality-flag/snapshot builders. The compatibility facade in
 from collections.abc import Sequence
 from datetime import date
 
+from apps.equity.domain.entities import ValuationMetrics
 from apps.equity.domain.entities_valuation_repair import ValuationRepairStatus
 
 from .models import (
     ValuationDataQualitySnapshotModel,
-    ValuationModel,
     ValuationRepairTrackingModel,
 )
 
@@ -208,7 +208,7 @@ def compute_valuation_quality_flag(
 def build_quality_snapshot(
     as_of_date: date,
     expected_stock_count: int,
-    valuations: Sequence[ValuationModel],
+    valuations: Sequence[ValuationMetrics],
     primary_source: str = "akshare",
 ) -> dict[str, object]:
     """根据指定日期估值记录构建质量快照。"""

@@ -15,7 +15,6 @@ from apps.data_center.application.public import get_fund_nav_repository_port
 from apps.fund.infrastructure.models import (
     FundHoldingModel,
     FundInfoModel,
-    FundNetValueModel,
     FundSectorAllocationModel,
 )
 
@@ -86,8 +85,8 @@ class AkShareFundAdapter:
 
     def fetch_fund_nav_em(self, fund_code: str) -> Any:
         facts = self._dc_nav_repo.get_series(fund_code)
-        if facts:
-            return pd.DataFrame(
+        return (
+            pd.DataFrame(
                 [
                     {
                         "nav_date": fact.nav_date,
@@ -99,17 +98,9 @@ class AkShareFundAdapter:
                     for fact in reversed(facts)
                 ]
             )
-
-        # Migration-era compatibility fallback. Canonical facts are preferred;
-        # the legacy table remains read-only here until D6 reconciliation closes.
-        rows = list(
-            FundNetValueModel._default_manager.filter(fund_code=fund_code)
-            .values("nav_date", "unit_nav", "accum_nav", "daily_return")
-            .order_by("nav_date")
+            if facts
+            else pd.DataFrame()
         )
-        if rows:
-            return pd.DataFrame(rows)
-        return pd.DataFrame()
 
     def fetch_fund_portfolio_em(self, fund_code: str, year: int, quarter: int) -> Any:
         month = quarter * 3

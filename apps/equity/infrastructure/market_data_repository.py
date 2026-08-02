@@ -12,7 +12,7 @@ import logging
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 from apps.data_center.composition import (
     fetch_akshare_eastmoney_historical_prices,
@@ -22,14 +22,26 @@ from apps.data_center.composition import (
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.protocols import PriceBarRepositoryProtocol
-from apps.data_center.infrastructure.market_gateway_entities import HistoricalPriceBar
 from apps.equity.domain.entities import TechnicalBar
 from core.exceptions import DataFetchError
 
 from .adapters import TushareStockAdapter
-from .models import StockDailyModel
 
 logger = logging.getLogger(__name__)
+
+
+class _HistoricalPriceBar(Protocol):
+    """Stable shape returned by the Data Center historical-bar port."""
+
+    asset_code: str
+    trade_date: date
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int | None
+    amount: float | None
+    source: str
 
 if TYPE_CHECKING:
     from apps.data_center.application.on_demand import OnDemandDataCenterService
@@ -66,19 +78,6 @@ class StockMarketDataRepositoryMixin:
         Returns:
             [(日期, 收盘价), ...]，按日期升序排列
         """
-        if not hydrate:
-            # Read-only migration compatibility: legacy rows may still be
-            # displayed, but all new writes go to Data Center PriceBar.
-            local_models = StockDailyModel._default_manager.filter(
-                stock_code=stock_code,
-                trade_date__gte=start_date,
-                trade_date__lte=end_date,
-            ).order_by("trade_date")
-            local_prices = [(m.trade_date, m.close) for m in local_models]
-            if local_prices and self._has_sufficient_price_coverage(
-                local_prices, start_date=start_date, end_date=end_date
-            ):
-                return local_prices
         dc_bars = (
             self._dc_on_demand.ensure_price_bars(stock_code, start_date, end_date).records
             if hydrate
@@ -127,38 +126,6 @@ class StockMarketDataRepositoryMixin:
                 best_available_bars, start_date=start_date, end_date=end_date
             ):
                 return best_available_bars
-
-        local_models = StockDailyModel._default_manager.filter(
-            stock_code=stock_code,
-            trade_date__gte=start_date,
-            trade_date__lte=end_date,
-        ).order_by("trade_date")
-        local_bars = [
-            TechnicalBar(
-                stock_code=model.stock_code,
-                trade_date=model.trade_date,
-                open=model.open,
-                high=model.high,
-                low=model.low,
-                close=model.close,
-                volume=model.volume,
-                amount=model.amount,
-                ma5=model.ma5,
-                ma20=model.ma20,
-                ma60=model.ma60,
-                macd=model.macd,
-                macd_signal=model.macd_signal,
-                macd_hist=model.macd_hist,
-                rsi=model.rsi,
-            )
-            for model in local_models
-        ]
-        if local_bars:
-            best_available_bars = local_bars
-            if self._has_sufficient_bar_coverage(
-                local_bars, start_date=start_date, end_date=end_date
-            ):
-                return local_bars
 
         try:
             remote_bars = self._get_remote_historical_bars(stock_code, start_date, end_date)
@@ -283,7 +250,7 @@ class StockMarketDataRepositoryMixin:
         stock_code: str,
         start_date: date,
         end_date: date,
-    ) -> list[HistoricalPriceBar]:
+    ) -> list[_HistoricalPriceBar]:
         """在数据中台价格事实缺失时，通过数据中台 Gateway 拉取历史 K 线。"""
         tushare_bars = self._get_tushare_gateway_historical_bars(
             stock_code,
@@ -296,7 +263,7 @@ class StockMarketDataRepositoryMixin:
         return self._get_akshare_gateway_historical_bars(stock_code, start_date, end_date)
 
     def _bars_to_daily_prices(
-        self, bars: list[HistoricalPriceBar]
+        self, bars: list[_HistoricalPriceBar]
     ) -> list[tuple[date, Decimal]]:
         prices: list[tuple[date, Decimal]] = []
         for bar in bars:
@@ -405,11 +372,11 @@ class StockMarketDataRepositoryMixin:
         stock_code: str,
         start_date: date,
         end_date: date,
-    ) -> list[HistoricalPriceBar]:
+    ) -> list[_HistoricalPriceBar]:
         """通过 Data Center 的 Tushare Gateway 获取历史 K 线。"""
         try:
             return cast(
-                list[HistoricalPriceBar],
+                list[_HistoricalPriceBar],
                 fetch_tushare_historical_prices(
                     asset_code=stock_code,
                     start_date=start_date.strftime("%Y%m%d"),
@@ -427,7 +394,7 @@ class StockMarketDataRepositoryMixin:
     def _cache_remote_historical_bars(
         self,
         stock_code: str,
-        bars: list[HistoricalPriceBar],
+        bars: list[_HistoricalPriceBar],
     ) -> None:
         """将远端历史 K 线幂等写入 Data Center canonical price bars。"""
         if not bars:
@@ -485,11 +452,11 @@ class StockMarketDataRepositoryMixin:
         stock_code: str,
         start_date: date,
         end_date: date,
-    ) -> list[HistoricalPriceBar]:
+    ) -> list[_HistoricalPriceBar]:
         """通过 AKShare EastMoney Gateway 获取历史 K 线。"""
         try:
             return cast(
-                list[HistoricalPriceBar],
+                list[_HistoricalPriceBar],
                 fetch_akshare_eastmoney_historical_prices(
                     asset_code=stock_code,
                     start_date=start_date.strftime("%Y%m%d"),

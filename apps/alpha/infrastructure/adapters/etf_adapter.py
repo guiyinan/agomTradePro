@@ -21,7 +21,7 @@ from typing import Any, TypedDict
 from django.conf import settings
 from django.utils import timezone
 
-from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+from apps.data_center.application.public import get_akshare_module_port
 from shared.numeric import safe_float
 
 from ...domain.entities import AlphaPoolScope, AlphaResult
@@ -32,6 +32,12 @@ logger = logging.getLogger(__name__)
 
 ETFConstituent = tuple[str, float]
 ETFConstituentsPayload = tuple[list[ETFConstituent], str | None, dict[str, str]]
+
+
+def get_akshare_module() -> Any:
+    """Compatibility seam for tests; transport resolution stays in Data Center."""
+
+    return get_akshare_module_port()
 
 
 class _ETFInfo(TypedDict):

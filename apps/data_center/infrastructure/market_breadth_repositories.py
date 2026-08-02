@@ -60,6 +60,16 @@ class SectorMembershipRepository:
             )
         return [self._from_model(m) for m in qs]
 
+    def list_current(self, as_of: date | None = None) -> list[SectorMembershipFact]:
+        """Return all canonical membership facts active at an optional date."""
+
+        qs = SectorMembershipFactModel.objects.all()
+        if as_of is not None:
+            qs = qs.filter(effective_date__lte=as_of).filter(
+                Q(expiry_date__isnull=True) | Q(expiry_date__gte=as_of)
+            )
+        return [self._from_model(model) for model in qs]
+
     def bulk_upsert(self, facts: list[SectorMembershipFact]) -> int:
         count = 0
         for f in facts:

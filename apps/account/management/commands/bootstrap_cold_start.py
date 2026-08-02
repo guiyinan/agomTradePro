@@ -18,7 +18,8 @@ from apps.account.infrastructure.models import (
     DocumentationModel,
     InvestmentRuleModel,
 )
-from apps.data_center.application.public import get_macro_fact_series
+from apps.data_center.application.public import get_asset_repository_port, get_macro_fact_series
+from apps.data_center.domain.enums import AssetType
 from apps.fund.infrastructure.models import FundTypePreferenceConfigModel
 from apps.hedge.infrastructure.models import HedgePairModel
 from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
@@ -34,7 +35,6 @@ from apps.strategy.infrastructure.models import PositionManagementRuleModel, Str
 ConfidenceConfigModel = django_apps.get_model("audit", "ConfidenceConfigModel")
 IndicatorThresholdConfigModel = django_apps.get_model("audit", "IndicatorThresholdConfigModel")
 ScoringWeightConfigModel = django_apps.get_model("equity", "ScoringWeightConfigModel")
-StockInfoModel = django_apps.get_model("equity", "StockInfoModel")
 StockScreeningRuleConfigModel = django_apps.get_model("equity", "StockScreeningRuleConfigModel")
 FactorDefinitionModel = django_apps.get_model("factor", "FactorDefinitionModel")
 FactorPortfolioConfigModel = django_apps.get_model("factor", "FactorPortfolioConfigModel")
@@ -420,7 +420,10 @@ class Command(BaseCommand):
         macro_ready = (
             bool(get_macro_fact_series("MCP_TEST_IND", limit=1))
         )
-        stock_ready = StockInfoModel._default_manager.exists()
+        stock_ready = any(
+            asset.asset_type is AssetType.STOCK
+            for asset in get_asset_repository_port().list_active()
+        )
         factor_seed_ready = FactorPortfolioConfigModel._default_manager.filter(
             name="MCP冷启动动量组合"
         ).exists()

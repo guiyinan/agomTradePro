@@ -5,21 +5,23 @@ from types import SimpleNamespace
 import pytest
 
 from apps.data_center.infrastructure.models import PriceBarModel
-from apps.equity.infrastructure.models import StockDailyModel
 from apps.equity.infrastructure.repositories import DjangoStockRepository
 
 
 @pytest.mark.django_db
-def test_get_daily_prices_prefers_local_cache():
-    StockDailyModel.objects.create(
-        stock_code="000001.SZ",
-        trade_date=date(2026, 3, 20),
+def test_get_daily_prices_reads_canonical_cache():
+    PriceBarModel.objects.create(
+        asset_code="000001.SZ",
+        bar_date=date(2026, 3, 20),
+        freq="1d",
+        adjustment="none",
         open=Decimal("10.00"),
         high=Decimal("10.50"),
         low=Decimal("9.80"),
         close=Decimal("10.20"),
         volume=1000,
         amount=Decimal("10000"),
+        source="test",
     )
 
     repository = DjangoStockRepository()

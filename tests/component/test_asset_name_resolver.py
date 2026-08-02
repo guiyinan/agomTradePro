@@ -29,7 +29,6 @@ class AssetNameResolverTest(TestCase):
     def setUp(self):
         """准备测试数据"""
         from apps.data_center.infrastructure.models import AssetMasterModel
-        from apps.equity.infrastructure.models import StockInfoModel
         from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
         from apps.rotation.infrastructure.models import AssetClassModel
 
@@ -42,30 +41,35 @@ class AssetNameResolverTest(TestCase):
         self.remote_name_patcher.start()
         self.addCleanup(self.remote_name_patcher.stop)
         AssetMasterModel.objects.all().delete()
-        StockInfoModel.objects.all().delete()
         FundHoldingModel.objects.all().delete()
         FundInfoModel.objects.all().delete()
         AssetClassModel.objects.all().delete()
 
-        StockInfoModel.objects.create(
-            stock_code="000001.SZ",
+        AssetMasterModel.objects.create(
+            code="000001.SZ",
             name="平安银行",
+            short_name="平安银行",
+            asset_type="stock",
+            exchange="SZSE",
             sector="银行",
-            market="SZ",
             list_date="1991-04-03",
         )
-        StockInfoModel.objects.create(
-            stock_code="000333.SZ",
+        AssetMasterModel.objects.create(
+            code="000333.SZ",
             name="美的集团",
+            short_name="美的集团",
+            asset_type="stock",
+            exchange="SZSE",
             sector="家电",
-            market="SZ",
             list_date="2013-09-18",
         )
-        StockInfoModel.objects.create(
-            stock_code="000651.SZ",
+        AssetMasterModel.objects.create(
+            code="000651.SZ",
             name="格力电器",
+            short_name="格力电器",
+            asset_type="stock",
+            exchange="SZSE",
             sector="家电",
-            market="SZ",
             list_date="1991-06-25",
         )
 
@@ -107,13 +111,11 @@ class AssetNameResolverTest(TestCase):
     def tearDown(self):
         """清理测试数据"""
         from apps.data_center.infrastructure.models import AssetMasterModel
-        from apps.equity.infrastructure.models import StockInfoModel
         from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
         from apps.rotation.infrastructure.models import AssetClassModel
 
         cache.clear()
         AssetMasterModel.objects.all().delete()
-        StockInfoModel.objects.all().delete()
         FundHoldingModel.objects.all().delete()
         FundInfoModel.objects.all().delete()
         AssetClassModel.objects.all().delete()
@@ -160,9 +162,6 @@ class AssetNameResolverTest(TestCase):
 
     def test_resolve_stock_names_from_fund_holdings_when_stock_info_missing(self):
         """测试 StockInfo 缺失时仍可从基金持仓表回填成分股名称。"""
-        from apps.equity.infrastructure.models import StockInfoModel
-
-        StockInfoModel.objects.filter(stock_code="300308.SZ").delete()
         cache.clear()
 
         resolver = AssetNameResolver()
@@ -173,9 +172,6 @@ class AssetNameResolverTest(TestCase):
     def test_resolve_stock_names_from_data_center_when_stock_info_missing(self):
         """测试 StockInfo 缺失时从 data_center 资产主数据回填股票名称。"""
         from apps.data_center.infrastructure.models import AssetMasterModel
-        from apps.equity.infrastructure.models import StockInfoModel
-
-        StockInfoModel.objects.filter(stock_code="600025.SH").delete()
         AssetMasterModel.objects.create(
             code="600025.SH",
             name="华能水电",

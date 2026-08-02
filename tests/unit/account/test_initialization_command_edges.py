@@ -11,6 +11,7 @@ from django.core.management import CommandError
 from apps.account.management.commands import init_all
 from apps.account.management.commands.bootstrap_cold_start import Command as BootstrapCommand
 from apps.account.management.commands.bootstrap_mcp_cold_start import Command as McpBootstrapCommand
+from apps.data_center.domain.enums import AssetType
 
 
 def test_init_all_executes_required_steps_and_tolerates_optional_failure(monkeypatch) -> None:
@@ -273,16 +274,17 @@ def test_mcp_readiness_detects_invalid_factor_weights(monkeypatch) -> None:
     invalid_rows = [SimpleNamespace(factor_weights={"momentum": -0.5, "value": 0.5})]
     manager = _Query(exists=True, rows=valid_rows)
     monkeypatch.setattr(f"{module}.RotationConfigModel", SimpleNamespace(_default_manager=manager))
-    monkeypatch.setattr(f"{module}.StockInfoModel", SimpleNamespace(_default_manager=manager))
+    monkeypatch.setattr(
+        f"{module}.get_asset_repository_port",
+        lambda: SimpleNamespace(
+            list_active=lambda: [SimpleNamespace(asset_type=AssetType.STOCK)]
+        ),
+    )
     monkeypatch.setattr(
         f"{module}.FactorPortfolioConfigModel",
         SimpleNamespace(_default_manager=manager),
     )
-    monkeypatch.setattr(
-        command,
-        "_macro_indicator_model",
-        lambda: SimpleNamespace(_default_manager=manager),
-    )
+    monkeypatch.setattr(f"{module}.get_macro_fact_series", lambda *args, **kwargs: [{}])
     assert command._mcp_cold_start_ready() is True
 
     monkeypatch.setattr(
@@ -538,20 +540,26 @@ def test_mcp_seed_helpers_normalize_create_and_missing_source_paths(monkeypatch)
     assert saved[0][0] == ["factor_weights", "is_active", "updated_at"]
     assert command._ensure_factor_cold_start_config() == 1
 
-    class _Stocks:
+    class _Assets:
         def __init__(self) -> None:
             self.calls = 0
+            self.upserts = 0
 
-        def get_or_create(self, **kwargs: object) -> tuple[object, bool]:
+        def get_by_code(self, code: str) -> object | None:
             self.calls += 1
-            return object(), self.calls % 2 == 1
+            return None if self.calls % 2 else object()
 
-    stocks = _Stocks()
+        def upsert(self, asset: object) -> object:
+            self.upserts += 1
+            return asset
+
+    stocks = _Assets()
     monkeypatch.setattr(
-        f"{module}.StockInfoModel",
-        SimpleNamespace(_default_manager=stocks),
+        f"{module}.get_asset_repository_port",
+        lambda: stocks,
     )
     assert command._ensure_stock_universe() == 5
+    assert stocks.upserts == 5
 
     class _RotationQuery:
         def __init__(self, exists: bool = False, first: object | None = None) -> None:
@@ -603,53 +611,31 @@ def test_mcp_macro_seed_handles_absent_and_present_source(monkeypatch) -> None:
     command = McpBootstrapCommand(stdout=StringIO())
     module = "apps.account.management.commands.bootstrap_mcp_cold_start"
 
-    class _QuerySet:
-        def __init__(self, rows: list[object]) -> None:
-            self.rows = rows
-
-        def exists(self) -> bool:
-            return False
-
-        def order_by(self, *args: object) -> _QuerySet:
-            return self
-
-        def __getitem__(self, key: slice) -> list[object]:
-            return self.rows[key]
-
-    class _MacroManager:
-        def __init__(self, rows: list[object]) -> None:
-            self.rows = rows
-            self.created = 0
-
-        def filter(self, **kwargs: object) -> _QuerySet:
-            if kwargs["indicator_code"] == "CN_PMI":
-                return _QuerySet(self.rows)
-            return _QuerySet([])
-
-        def get_or_create(self, **kwargs: object) -> tuple[object, bool]:
-            self.created += 1
-            return object(), True
-
-    empty = _MacroManager([])
-    monkeypatch.setattr(
-        f"{module}.MacroFactModel",
-        SimpleNamespace(_default_manager=empty),
-    )
+    monkeypatch.setattr(f"{module}.get_macro_fact_series", lambda *args, **kwargs: [])
+    saved: list[list[object]] = []
+    monkeypatch.setattr(f"{module}.save_macro_facts", lambda facts: saved.append(facts) or len(facts))
     assert command._ensure_macro_smoke_indicator() == 0
 
-    row = SimpleNamespace(
-        reporting_period=__import__("datetime").date(2026, 6, 30),
-        revision_number=0,
-        value=50.2,
-        unit="index",
-        published_at=None,
-        quality="verified",
-        extra={"original_unit": "index"},
+    responses = iter(
+        [
+            [],
+            [
+                {
+                    "reporting_period": "2026-06-30",
+                    "revision_number": 0,
+                    "value": 50.2,
+                    "unit": "index",
+                    "published_at": None,
+                    "quality": "valid",
+                    "extra": {"original_unit": "index"},
+                }
+            ],
+        ]
     )
-    populated = _MacroManager([row])
     monkeypatch.setattr(
-        f"{module}.MacroFactModel",
-        SimpleNamespace(_default_manager=populated),
+        f"{module}.get_macro_fact_series",
+        lambda *args, **kwargs: next(responses),
     )
     assert command._ensure_macro_smoke_indicator() == 1
-    assert populated.created == 1
+    assert len(saved) == 1
+    assert len(saved[0]) == 1

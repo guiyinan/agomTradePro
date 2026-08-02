@@ -9,7 +9,7 @@ import pytest
 
 from apps.fund.domain.entities import FundNetValue
 from apps.fund.domain.services import FundPerformanceCalculator
-from apps.fund.infrastructure.models import FundInfoModel, FundNetValueModel, FundPerformanceModel
+from apps.fund.infrastructure.models import FundInfoModel, FundPerformanceModel
 from apps.fund.infrastructure.repositories import DjangoFundRepository
 
 
@@ -45,7 +45,7 @@ def test_get_latest_nav_prefers_data_center_fact():
 
 
 @pytest.mark.django_db
-def test_save_fund_nav_mirrors_to_data_center():
+def test_save_fund_nav_writes_only_to_data_center():
     repo = _make_repo()
     nav = FundNetValue(
         fund_code="110011",
@@ -57,7 +57,6 @@ def test_save_fund_nav_mirrors_to_data_center():
 
     repo.save_fund_nav(nav)
 
-    assert FundNetValueModel.objects.filter(fund_code="110011").count() == 1
     repo._dc_fund_nav_repo.bulk_upsert.assert_called_once()
 
 
@@ -66,20 +65,22 @@ def test_get_or_build_fund_performance_builds_from_local_nav_and_persists():
     repo = _make_repo()
     repo.sync_fund_nav_from_tushare = Mock(return_value=0)
 
-    FundNetValueModel.objects.create(
-        fund_code="110011",
-        nav_date=date(2026, 3, 19),
-        unit_nav=Decimal("1.0000"),
-        accum_nav=Decimal("1.0000"),
-        daily_return=None,
-    )
-    FundNetValueModel.objects.create(
-        fund_code="110011",
-        nav_date=date(2026, 3, 20),
-        unit_nav=Decimal("1.1000"),
-        accum_nav=Decimal("1.1000"),
-        daily_return=None,
-    )
+    repo._dc_fund_nav_repo.get_series.return_value = [
+        SimpleNamespace(
+            fund_code="110011",
+            nav_date=date(2026, 3, 20),
+            nav=1.1,
+            acc_nav=1.1,
+            daily_return=None,
+        ),
+        SimpleNamespace(
+            fund_code="110011",
+            nav_date=date(2026, 3, 19),
+            nav=1.0,
+            acc_nav=1.0,
+            daily_return=None,
+        ),
+    ]
 
     performance = repo.get_or_build_fund_performance(
         "110011",

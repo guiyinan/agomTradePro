@@ -1,6 +1,6 @@
 # 数据中台唯一真源与数据可靠性架构重构计划（2026-08-02）
 
-> 状态：实施中（M0-M4 本地控制面基础已落地；全入口 Publication 强制切读、M4-D9、M9-M10 尚未完成）
+> 状态：实施中（M0-M4 控制面与 D0/D1/D4-D7 本地关键消费者收口已落地；全入口 Publication 强制切读、D2/D3/D8-D9、M9-M10 尚未完成）
 > 级别：架构级 / 数据级 / 生产级重构  
 > 适用版本：0.8.0 之后的下一条独立主线  
 > 目标：所有外部事实数据及所有业务计算输入统一经过 Data Center；系统只有一个可发布的数据真源、一套可靠性语义和一条可审计的数据链路，并能在生产默认 90 GiB、运行时可调整的容量策略下持续运行  
@@ -98,6 +98,58 @@
 - Retention 目前是有界 raw payload 任务，事实表分区/rollup、Raw/Quarantine 全量归档、真实 beat schedule 和恢复演练尚未完成。
 - 完整 `pytest tests/unit/test_tui_workbench.py -q` 在 SQLite 测试库 migration/setup 阶段超时；配置中心相关定向用例已通过，需在 CI/干净测试库中完成全量 nodeid 证据。
 - PostgreSQL 真实 migration/P95/锁预算、生产数据画像、shadow reconciliation、非默认容量 profile 故障注入、VPS/备份/恢复、CI nodeid 真实执行、旧表删除均未完成；不触发部署。
+
+## 实施记录（2026-08-02，第四批）
+
+本批次继续只做本地消费者收口和阻断性护栏，不部署、不 push、不删除旧表。
+
+已落地：
+
+- 业务 App 不再直接 import `apps.data_center.infrastructure`；Alpha ETF、Realtime、Equity market/stock-info、Fund 入口统一经 Data Center Application Public Port，新增 architecture rule 防止回归。
+- D4/D5 Equity 读取改为只走 canonical FinancialFact/ValuationFact/PriceBar；旧 `FinancialDataModel`、`ValuationModel`、`StockDailyModel` 仅保留模型、历史迁移、冻结 Admin 和迁移期测试用途，新增 legacy-fact access guard 阻断业务新增读写。
+- D6 Fund NAV 读取和写入移除旧 `FundNetValueModel` fallback/shadow mirror；旧 NAV Admin 设为只读，净值性能测试改用 canonical facts。
+- Provider health snapshot 补齐 `dataset_key`，Capability 与 Dataset Contract 有稳定映射；Retention 增加每日 dry-run preview beat schedule，仍需 active policy/archive/hold/StoragePressure gate 才可执行删除。
+- Sector membership 增加 canonical `list_current` port，Sector repository 优先使用 Data Center membership；Sentiment news repository provider 改走 Public Port。
+- `governance/data_center_legacy_access_contracts.json`、`scripts/check_data_center_legacy_fact_access.py` 和 CI guard 已接入，防止 D1/D4/D5/D6 旧事实路径重新增长。
+
+第四批机器证据：
+
+- `python scripts/check_data_center_legacy_fact_access.py`：通过；`python scripts/verify_architecture.py --include-audit --format text`：7 条 boundary、20 条 audit 均 0 violation。
+- `pytest tests/component/test_equity_repository_daily.py -q --no-migrations --timeout=30`：4 passed；`pytest apps/equity/tests/test_stock_context_repository.py -q --no-migrations --timeout=30`：9 passed。
+- `pytest tests/integration/test_equity_asset_analysis.py -q --no-migrations --timeout=30`：22 passed；`pytest tests/integration/test_equity_integration.py -q --no-migrations --timeout=30`：7 passed。
+- `pytest tests/component/test_fund_repository_data_center.py tests/unit/fund/test_fund_adapter_contracts.py tests/unit/fund/test_t4b_use_case_and_adapter_contracts.py -q --no-migrations --timeout=30`：28 passed；`pytest tests/integration/test_fund_integration.py -q --no-migrations --timeout=30`：10 passed。
+- `pytest tests/unit/equity/test_t5_infrastructure_adapter_contracts.py -q --no-migrations --timeout=30`：15 passed；provider health/domain：13 passed；legacy guard：1 passed。
+- 变更生产文件 ruff/mypy regression 通过；Django check 通过。
+
+仍未完成：
+
+- D7/D8/D9 的所有业务聚合尚未达到旧模型零读写；Sector 仍保留维护投影 fallback，News/CapitalFlow 全入口 Publication-only 仍需继续收口。
+- 完整 D0-D9 shadow reconciliation、覆盖/查询 P95、PostgreSQL migration/锁预算、非默认容量故障注入、CI nodeid 全量执行、VPS/备份/恢复和 M9 旧表删除仍未完成。
+
+## 实施记录（2026-08-02，第五批）
+
+本批次继续只做本地 canonical cutover、业务消费者收口和 fail-closed 护栏；不部署、不 push、不删除旧表。
+
+已落地：
+
+- D0 AssetMaster 成为 Equity/Factor/Account 冷启动、股票名称解析、股票 universe 的唯一生产读写入口；旧 `StockInfoModel` 仅保留模型、历史迁移、冻结 Admin 和迁移期测试用途。Asset-master backfill 不再从业务旧表读取，而是通过 Data Center Public Port 刷新 canonical 记录。
+- Factor integration/repository 的股票名称、行业和 universe 查询改走 `get_asset_repository_port()`；`bootstrap_cold_start` 与 `bootstrap_mcp_cold_start` 的 readiness/seed 改为 canonical AssetMaster upsert/list。
+- D7 Sector Membership 的 repository、Tushare/AKShare constituents adapter 改为只读写 Data Center `SectorMembershipFact`；旧 `SectorConstituentModel` 仅保留只读 Admin、模型/迁移和测试，旧 fallback 已删除。
+- Data Center Sector Constituents API 增加 `mode=published` gate；缺少当前 Publication 时返回空数据、`must_not_use_for_decision=true` 与稳定阻断原因。D8/D9 API 已保留同一显式 gate 语义。
+- legacy-access guard 扩大至 `StockInfoModel`、`SectorConstituentModel`，并接入 CI，禁止新增业务读写绕回旧投影。
+
+第五批机器证据：
+
+- `python scripts/data_center_architecture_inventory.py --write`：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=56`、`legacy_fact_references=148`、`current_surface_references=2824`、`data_write_task_decorators=51`、`runtime_parameter_references=49`。
+- `python scripts/check_data_center_legacy_fact_access.py`：通过；`python scripts/verify_architecture.py --include-audit --format text`：7 条 boundary、20 条 audit 均 0 violation。
+- `pytest apps/equity/tests/test_stock_context_repository.py -q --no-migrations --timeout=30`：11 passed；`pytest tests/component/test_asset_name_resolver.py -q --no-migrations --timeout=30`：11 passed；Factor infrastructure/application：16 passed；Account initialization：13 passed。
+- `pytest tests/unit/sector -q --no-migrations --timeout=30`：32 passed；`pytest tests/api/test_data_center_route_cleanup.py -q --no-migrations --timeout=30`：31 passed；Data Center backfill/source registry：28 passed。
+- `pytest tests/unit/alpha -q --no-migrations --timeout=30`：119 passed；其中 Simple Alpha 的 canonical-fact/quote fallback contract 已改为 Public Port mock，覆盖 missing fail-closed 语义。
+
+仍未完成及风险：
+
+- D2/D3/D8/D9 的所有内部业务聚合尚未证明均为 Publication-only；历史/维护 Query Port 仍保留，Publication 观察窗口和生产 publication 记录未在本地 SQLite 以外验证。
+- 完整 D0-D9 shadow reconciliation、覆盖与查询 P95、PostgreSQL migration/锁预算、非默认容量 profile 故障注入、CI nodeid 全量执行、VPS/备份/恢复和 M9 旧表删除仍未完成；本批不触发部署。
 
 ## 1. 结论先行
 

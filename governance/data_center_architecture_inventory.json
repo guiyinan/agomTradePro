@@ -1,10 +1,10 @@
 {
   "counts": {
-    "cross_app_orm_imports": 60,
+    "cross_app_orm_imports": 56,
     "current_surface_references": 2824,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
-    "legacy_fact_references": 171,
+    "legacy_fact_references": 148,
     "provider_imports_outside_data_center": 0,
     "runtime_parameter_references": 49
   },
@@ -26,42 +26,42 @@
     },
     {
       "import": "apps.fund.infrastructure.models",
-      "line": 22,
-      "path": "apps/account/management/commands/bootstrap_cold_start.py"
-    },
-    {
-      "import": "apps.hedge.infrastructure.models",
       "line": 23,
       "path": "apps/account/management/commands/bootstrap_cold_start.py"
     },
     {
-      "import": "apps.prompt.infrastructure.models",
+      "import": "apps.hedge.infrastructure.models",
       "line": 24,
       "path": "apps/account/management/commands/bootstrap_cold_start.py"
     },
     {
-      "import": "apps.regime.infrastructure.models",
+      "import": "apps.prompt.infrastructure.models",
       "line": 25,
       "path": "apps/account/management/commands/bootstrap_cold_start.py"
     },
     {
-      "import": "apps.rotation.infrastructure.models",
+      "import": "apps.regime.infrastructure.models",
       "line": 26,
       "path": "apps/account/management/commands/bootstrap_cold_start.py"
     },
     {
-      "import": "apps.sector.infrastructure.models",
-      "line": 31,
+      "import": "apps.rotation.infrastructure.models",
+      "line": 27,
       "path": "apps/account/management/commands/bootstrap_cold_start.py"
     },
     {
-      "import": "apps.strategy.infrastructure.models",
+      "import": "apps.sector.infrastructure.models",
       "line": 32,
       "path": "apps/account/management/commands/bootstrap_cold_start.py"
     },
     {
+      "import": "apps.strategy.infrastructure.models",
+      "line": 33,
+      "path": "apps/account/management/commands/bootstrap_cold_start.py"
+    },
+    {
       "import": "apps.rotation.infrastructure.models",
-      "line": 15,
+      "line": 19,
       "path": "apps/account/management/commands/bootstrap_mcp_cold_start.py"
     },
     {
@@ -151,27 +151,27 @@
     },
     {
       "import": "apps.fund.infrastructure.models",
-      "line": 113,
+      "line": 119,
       "path": "apps/alpha/infrastructure/adapters/etf_adapter.py"
     },
     {
       "import": "apps.fund.infrastructure.models",
-      "line": 287,
+      "line": 293,
       "path": "apps/alpha/infrastructure/adapters/etf_adapter.py"
     },
     {
       "import": "apps.fund.infrastructure.models",
-      "line": 446,
+      "line": 452,
       "path": "apps/alpha/infrastructure/adapters/etf_adapter.py"
     },
     {
       "import": "apps.fund.infrastructure.models",
-      "line": 578,
+      "line": 584,
       "path": "apps/alpha/infrastructure/adapters/etf_adapter.py"
     },
     {
       "import": "apps.fund.infrastructure.models",
-      "line": 604,
+      "line": 610,
       "path": "apps/alpha/infrastructure/adapters/etf_adapter.py"
     },
     {
@@ -233,26 +233,6 @@
       "import": "apps.data_center.infrastructure.models",
       "line": 9,
       "path": "apps/equity/tests/test_stock_context_repository.py"
-    },
-    {
-      "import": "apps.equity.infrastructure.models",
-      "line": 422,
-      "path": "apps/factor/infrastructure/repositories.py"
-    },
-    {
-      "import": "apps.equity.infrastructure.models",
-      "line": 78,
-      "path": "apps/factor/infrastructure/services.py"
-    },
-    {
-      "import": "apps.equity.infrastructure.models",
-      "line": 247,
-      "path": "apps/factor/infrastructure/services.py"
-    },
-    {
-      "import": "apps.equity.infrastructure.models",
-      "line": 277,
-      "path": "apps/factor/infrastructure/services.py"
     },
     {
       "import": "apps.pulse.infrastructure.models",
@@ -2452,7 +2432,7 @@
       "text": "\"\"\"Refresh default workspace recommendations after the current Alpha cache updates.\"\"\""
     },
     {
-      "line": 235,
+      "line": 241,
       "path": "apps/alpha/infrastructure/adapters/etf_adapter.py",
       "text": "\"\"\"Accept legacy 2-tuple mocks and normalize to the current 3-tuple contract.\"\"\""
     },
@@ -4857,62 +4837,62 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 147,
+      "line": 205,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 195,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 197,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
-    },
-    {
-      "line": 205,
-      "path": "apps/data_center/application/public.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 210,
-      "path": "apps/data_center/application/public.py",
-      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
-    },
-    {
-      "line": 246,
-      "path": "apps/data_center/application/public.py",
-      "text": "current = existing[0] if existing else None"
-    },
-    {
-      "line": 249,
-      "path": "apps/data_center/application/public.py",
-      "text": "id=current.id if current is not None else None,"
-    },
-    {
       "line": 253,
       "path": "apps/data_center/application/public.py",
-      "text": "priority=current.priority if current is not None else 100,"
+      "text": "publication_key: str = \"current\","
     },
     {
       "line": 255,
       "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
+    },
+    {
+      "line": 263,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 268,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
+    },
+    {
+      "line": 304,
+      "path": "apps/data_center/application/public.py",
+      "text": "current = existing[0] if existing else None"
+    },
+    {
+      "line": 307,
+      "path": "apps/data_center/application/public.py",
+      "text": "id=current.id if current is not None else None,"
+    },
+    {
+      "line": 311,
+      "path": "apps/data_center/application/public.py",
+      "text": "priority=current.priority if current is not None else 100,"
+    },
+    {
+      "line": 313,
+      "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 258,
+      "line": 316,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 259,
+      "line": 317,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 346,
+      "line": 404,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -5042,22 +5022,22 @@
       "text": "raise ValueError(\"current DataEnvelope requires publication_id\")"
     },
     {
-      "line": 164,
+      "line": 166,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str"
     },
     {
-      "line": 172,
+      "line": 174,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
     {
-      "line": 665,
+      "line": 667,
       "path": "apps/data_center/domain/entities.py",
       "text": "summary: str = \"\""
     },
     {
-      "line": 680,
+      "line": 682,
       "path": "apps/data_center/domain/entities.py",
       "text": "\"summary\": self.summary,"
     },
@@ -5270,6 +5250,11 @@
       "line": 55,
       "path": "apps/data_center/infrastructure/fundamental_fact_repositories.py",
       "text": "value = FundNavFactModel._default_manager.aggregate(latest=Max(\"nav_date\"))[\"latest\"]"
+    },
+    {
+      "line": 199,
+      "path": "apps/data_center/infrastructure/fundamental_fact_repositories.py",
+      "text": "value = ValuationFactModel._default_manager.aggregate(latest=Max(\"val_date\"))[\"latest\"]"
     },
     {
       "line": 93,
@@ -5547,17 +5532,17 @@
       "text": "\"\"\"Resolve the SHIBOR 1-week tenor column from current or legacy casing.\"\"\""
     },
     {
-      "line": 89,
+      "line": 99,
       "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
       "text": "summary=m.summary,"
     },
     {
-      "line": 139,
+      "line": 149,
       "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
       "text": "summary=a.summary,"
     },
     {
-      "line": 155,
+      "line": 165,
       "path": "apps/data_center/infrastructure/market_breadth_repositories.py",
       "text": "\"summary\": a.summary,"
     },
@@ -5732,22 +5717,22 @@
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 916,
+      "line": 934,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 937,
+      "line": 955,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 971,
+      "line": 989,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return the latest market-thermometer payload.\"\"\""
     },
     {
-      "line": 1023,
+      "line": 1041,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return or update current user's threshold override.\"\"\""
     },
@@ -6557,134 +6542,124 @@
       "text": "composite_method=latest.composite_method,"
     },
     {
-      "line": 440,
+      "line": 441,
       "path": "apps/equity/infrastructure/adapters.py",
       "text": "pool_key = f\"{self._cache_key_prefix}:current\""
     },
     {
-      "line": 464,
+      "line": 465,
       "path": "apps/equity/infrastructure/adapters.py",
       "text": "pool_key = f\"{self._cache_key_prefix}:current\""
     },
     {
-      "line": 506,
+      "line": 507,
       "path": "apps/equity/infrastructure/adapters.py",
       "text": "latest = ("
-    },
-    {
-      "line": 510,
-      "path": "apps/equity/infrastructure/adapters.py",
-      "text": "if latest:"
     },
     {
       "line": 511,
       "path": "apps/equity/infrastructure/adapters.py",
+      "text": "if latest:"
+    },
+    {
+      "line": 512,
+      "path": "apps/equity/infrastructure/adapters.py",
       "text": "return self._normalize_stock_codes(latest.stock_codes)"
     },
     {
-      "line": 540,
+      "line": 541,
       "path": "apps/equity/infrastructure/adapters.py",
       "text": "latest = ("
     },
     {
-      "line": 544,
+      "line": 545,
       "path": "apps/equity/infrastructure/adapters.py",
       "text": "if latest:"
     },
     {
-      "line": 546,
+      "line": 547,
       "path": "apps/equity/infrastructure/adapters.py",
       "text": "\"regime\": latest.regime,"
     },
     {
-      "line": 547,
+      "line": 548,
       "path": "apps/equity/infrastructure/adapters.py",
       "text": "\"as_of_date\": latest.as_of_date.isoformat(),"
     },
     {
-      "line": 548,
+      "line": 549,
       "path": "apps/equity/infrastructure/adapters.py",
       "text": "\"count\": len(latest.stock_codes),"
     },
     {
-      "line": 549,
+      "line": 550,
       "path": "apps/equity/infrastructure/adapters.py",
       "text": "\"updated_at\": latest.created_at.date().isoformat(),"
     },
     {
-      "line": 104,
+      "line": 101,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"\"\"Return stock info plus latest market and canonical fundamental context.\"\"\""
     },
     {
-      "line": 183,
+      "line": 182,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "latest = latest_financials[0]"
     },
     {
-      "line": 185,
+      "line": 184,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"report_date\": latest.report_date,"
     },
     {
-      "line": 186,
+      "line": 185,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"roe\": latest.roe,"
     },
     {
-      "line": 187,
+      "line": 186,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"debt_ratio\": latest.debt_ratio,"
     },
     {
-      "line": 188,
+      "line": 187,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"revenue_growth\": latest.revenue_growth,"
     },
     {
-      "line": 189,
+      "line": 188,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"net_profit_growth\": latest.net_profit_growth,"
     },
     {
-      "line": 197,
+      "line": 196,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "latest = self._dc_fact_to_valuation(latest_fact)"
     },
     {
-      "line": 199,
+      "line": 198,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"trade_date\": latest.trade_date,"
     },
     {
-      "line": 200,
+      "line": 199,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"pe\": latest.pe,"
     },
     {
-      "line": 201,
+      "line": 200,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"pb\": latest.pb,"
     },
     {
-      "line": 202,
+      "line": 201,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"ps\": latest.ps,"
     },
     {
-      "line": 203,
+      "line": 202,
       "path": "apps/equity/infrastructure/fundamentals_repository.py",
       "text": "\"dividend_yield\": latest.dividend_yield,"
-    },
-    {
-      "line": 667,
-      "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "latest: date | None = ("
-    },
-    {
-      "line": 672,
-      "path": "apps/equity/infrastructure/fundamentals_repository.py",
-      "text": "return latest"
     },
     {
       "line": 24,
@@ -6862,12 +6837,12 @@
       "text": "return (current - past) / past if past > 0 else 0.0"
     },
     {
-      "line": 188,
+      "line": 189,
       "path": "apps/factor/infrastructure/repositories.py",
       "text": "\"\"\"Get latest exposure for stock-factor pair\"\"\""
     },
     {
-      "line": 372,
+      "line": 373,
       "path": "apps/factor/infrastructure/repositories.py",
       "text": "\"\"\"Return selected config and latest holdings payload for calculation view.\"\"\""
     },
@@ -6877,17 +6852,17 @@
       "text": "\"\"\"Get latest holdings for a configuration\"\"\""
     },
     {
-      "line": 142,
+      "line": 140,
       "path": "apps/factor/infrastructure/services.py",
       "text": "Portfolio summary"
     },
     {
-      "line": 193,
+      "line": 191,
       "path": "apps/factor/infrastructure/services.py",
       "text": "Get latest factor portfolio for a configuration."
     },
     {
-      "line": 199,
+      "line": 197,
       "path": "apps/factor/infrastructure/services.py",
       "text": "Portfolio summary"
     },
@@ -6902,27 +6877,27 @@
       "text": "\"Current Regime is not decision-safe; provide regime explicitly.\""
     },
     {
-      "line": 604,
+      "line": 571,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "\"\"\"Anchor research windows to the latest locally available fund dataset.\"\"\""
     },
     {
-      "line": 607,
+      "line": 574,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "latest=Max(\"end_date\")"
     },
     {
-      "line": 608,
+      "line": 575,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": ")[\"latest\"]"
     },
     {
-      "line": 981,
+      "line": 913,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "for previous, current in zip(nav_series, nav_series[1:], strict=False):"
     },
     {
-      "line": 983,
+      "line": 915,
       "path": "apps/fund/infrastructure/repositories.py",
       "text": "curr_nav = float(current.unit_nav)"
     },
@@ -9422,117 +9397,122 @@
       "text": "Realtime Module - Infrastructure Layer Repositories"
     },
     {
-      "line": 39,
+      "line": 32,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.application.simulated_trading_gateway import ("
     },
     {
-      "line": 42,
+      "line": 35,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.domain.entities import ("
     },
     {
-      "line": 51,
+      "line": 44,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.domain.protocols import ("
     },
     {
-      "line": 122,
+      "line": 57,
+      "path": "apps/realtime/infrastructure/repositories.py",
+      "text": "\"\"\"Minimal quote gateway contract consumed by the realtime adapter.\"\"\""
+    },
+    {
+      "line": 121,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 131,
+      "line": 130,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 139,
+      "line": 138,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 156,
+      "line": 155,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 179,
+      "line": 178,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 190,
+      "line": 189,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 209,
+      "line": 208,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceAlertModel"
     },
     {
-      "line": 234,
+      "line": 233,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "\"\"\"Django ORM repository for durable realtime subscriptions.\"\"\""
     },
     {
-      "line": 239,
+      "line": 238,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceSubscriptionModel"
     },
     {
-      "line": 252,
+      "line": 251,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceSubscriptionModel"
     },
     {
-      "line": 264,
+      "line": 263,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceSubscriptionModel"
     },
     {
-      "line": 276,
+      "line": 275,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceSubscriptionModel"
     },
     {
-      "line": 286,
+      "line": 285,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "from apps.realtime.infrastructure.models import PriceSubscriptionModel"
     },
     {
-      "line": 306,
+      "line": 305,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "缓存键格式: realtime:price:{asset_code}"
     },
     {
-      "line": 310,
+      "line": 309,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "CACHE_KEY_PREFIX = \"realtime:price\""
     },
     {
-      "line": 425,
+      "line": 424,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "logger.error(f\"Failed to get realtime price for {asset_code}: {e}\")"
     },
     {
-      "line": 783,
+      "line": 785,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "logger.error(f\"Failed to get realtime price for {asset_code} from AKShare: {e}\")"
     },
     {
-      "line": 935,
+      "line": 937,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "\"Failed to read realtime price from data_center: %s\","
     },
     {
-      "line": 1000,
+      "line": 1002,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "\"Ignoring stale realtime price from %s for %s observed_at=%s\","
     },
     {
-      "line": 1034,
+      "line": 1036,
       "path": "apps/realtime/infrastructure/repositories.py",
       "text": "\"Ignoring stale realtime price from %s for %s observed_at=%s\","
     },
@@ -10672,7 +10652,7 @@
       "text": "raise ValidationError({\"is_current\": \"current membership must not have an exit date\"})"
     },
     {
-      "line": 134,
+      "line": 139,
       "path": "apps/sector/infrastructure/repositories.py",
       "text": "\"\"\"Return current stock-to-sector-name mapping for policy influence checks.\"\"\""
     },
@@ -14237,7 +14217,7 @@
       "text": "\"realtime-update-prices-after-close\": {"
     },
     {
-      "line": 886,
+      "line": 899,
       "path": "core/settings/base.py",
       "text": "\"sentiment-refresh-current-index\": {"
     },
@@ -14926,31 +14906,6 @@
     ],
     "FinancialDataModel": [
       {
-        "line": 23,
-        "path": "apps/equity/infrastructure/asset_repository.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 145,
-        "path": "apps/equity/infrastructure/asset_repository.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 33,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 230,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
-        "line": 417,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "FinancialDataModel"
-      },
-      {
         "line": 108,
         "path": "apps/equity/infrastructure/models.py",
         "symbol": "FinancialDataModel"
@@ -14961,12 +14916,22 @@
         "symbol": "FinancialDataModel"
       },
       {
-        "line": 90,
+        "line": 120,
         "path": "apps/equity/interface/admin.py",
         "symbol": "FinancialDataModel"
       },
       {
-        "line": 91,
+        "line": 121,
+        "path": "apps/equity/interface/admin.py",
+        "symbol": "FinancialDataModel"
+      },
+      {
+        "line": 158,
+        "path": "apps/equity/interface/admin.py",
+        "symbol": "FinancialDataModel"
+      },
+      {
+        "line": 167,
         "path": "apps/equity/interface/admin.py",
         "symbol": "FinancialDataModel"
       },
@@ -14976,7 +14941,7 @@
         "symbol": "FinancialDataModel"
       },
       {
-        "line": 206,
+        "line": 244,
         "path": "apps/equity/tests/test_stock_context_repository.py",
         "symbol": "FinancialDataModel"
       }
@@ -14993,7 +14958,7 @@
         "symbol": "MacroIndicator"
       },
       {
-        "line": 385,
+        "line": 386,
         "path": "apps/equity/infrastructure/adapters.py",
         "symbol": "MacroIndicator"
       },
@@ -15405,56 +15370,6 @@
     ],
     "StockDailyModel": [
       {
-        "line": 25,
-        "path": "apps/equity/infrastructure/adapters.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 96,
-        "path": "apps/equity/infrastructure/adapters.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 24,
-        "path": "apps/equity/infrastructure/asset_repository.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 152,
-        "path": "apps/equity/infrastructure/asset_repository.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 302,
-        "path": "apps/equity/infrastructure/asset_repository.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 34,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 127,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 30,
-        "path": "apps/equity/infrastructure/market_data_repository.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 72,
-        "path": "apps/equity/infrastructure/market_data_repository.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 131,
-        "path": "apps/equity/infrastructure/market_data_repository.py",
-        "symbol": "StockDailyModel"
-      },
-      {
         "line": 52,
         "path": "apps/equity/infrastructure/models.py",
         "symbol": "StockDailyModel"
@@ -15465,95 +15380,35 @@
         "symbol": "StockDailyModel"
       },
       {
-        "line": 50,
+        "line": 65,
         "path": "apps/equity/interface/admin.py",
         "symbol": "StockDailyModel"
       },
       {
-        "line": 51,
+        "line": 66,
         "path": "apps/equity/interface/admin.py",
         "symbol": "StockDailyModel"
       },
       {
-        "line": 82,
+        "line": 101,
         "path": "apps/equity/interface/admin.py",
         "symbol": "StockDailyModel"
       },
       {
-        "line": 18,
-        "path": "apps/equity/tests/test_stock_context_repository.py",
+        "line": 106,
+        "path": "apps/equity/interface/admin.py",
         "symbol": "StockDailyModel"
       },
       {
-        "line": 55,
-        "path": "apps/equity/tests/test_stock_context_repository.py",
-        "symbol": "StockDailyModel"
-      },
-      {
-        "line": 195,
-        "path": "apps/equity/tests/test_stock_context_repository.py",
+        "line": 112,
+        "path": "apps/equity/interface/admin.py",
         "symbol": "StockDailyModel"
       }
     ],
     "ValuationModel": [
       {
-        "line": 26,
-        "path": "apps/equity/infrastructure/asset_repository.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 100,
-        "path": "apps/equity/infrastructure/asset_repository.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 118,
-        "path": "apps/equity/infrastructure/asset_repository.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 36,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 280,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 446,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 668,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 674,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 677,
-        "path": "apps/equity/infrastructure/fundamentals_repository.py",
-        "symbol": "ValuationModel"
-      },
-      {
         "line": 157,
         "path": "apps/equity/infrastructure/models.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 15,
-        "path": "apps/equity/infrastructure/valuation_repair_repositories.py",
-        "symbol": "ValuationModel"
-      },
-      {
-        "line": 211,
-        "path": "apps/equity/infrastructure/valuation_repair_repositories.py",
         "symbol": "ValuationModel"
       },
       {
@@ -15562,32 +15417,42 @@
         "symbol": "ValuationModel"
       },
       {
-        "line": 121,
+        "line": 174,
         "path": "apps/equity/interface/admin.py",
         "symbol": "ValuationModel"
       },
       {
-        "line": 122,
+        "line": 175,
         "path": "apps/equity/interface/admin.py",
         "symbol": "ValuationModel"
       },
       {
-        "line": 146,
+        "line": 203,
         "path": "apps/equity/interface/admin.py",
         "symbol": "ValuationModel"
       },
       {
-        "line": 152,
+        "line": 208,
         "path": "apps/equity/interface/admin.py",
         "symbol": "ValuationModel"
       },
       {
-        "line": 20,
+        "line": 214,
+        "path": "apps/equity/interface/admin.py",
+        "symbol": "ValuationModel"
+      },
+      {
+        "line": 220,
+        "path": "apps/equity/interface/admin.py",
+        "symbol": "ValuationModel"
+      },
+      {
+        "line": 19,
         "path": "apps/equity/tests/test_stock_context_repository.py",
         "symbol": "ValuationModel"
       },
       {
-        "line": 221,
+        "line": 259,
         "path": "apps/equity/tests/test_stock_context_repository.py",
         "symbol": "ValuationModel"
       }

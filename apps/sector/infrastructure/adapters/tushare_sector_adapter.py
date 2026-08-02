@@ -7,6 +7,10 @@ implementation now delegates to the unified internal store.
 
 from __future__ import annotations
 
+from datetime import date
+
+from apps.data_center.application.public import get_sector_membership_repository_port
+
 from .akshare_sector_adapter import (
     AKShareSectorAdapter,
     DataFramePayload,
@@ -42,26 +46,22 @@ class TushareSectorAdapter:
         return df.rename(columns={"open": "open_price"})
 
     def fetch_sector_constituents(self, sector_code: str) -> DataFramePayload:
-        from apps.sector.infrastructure.models import SectorConstituentModel, SectorInfoModel
-
         normalized_code = _normalize_sector_code(sector_code)
-        sector = (
-            SectorInfoModel._default_manager.filter(sector_code=normalized_code)
-            .values("sector_code")
-            .first()
+        facts = get_sector_membership_repository_port().get_members(
+            normalized_code,
+            as_of=date.today(),
         )
-        if sector is None:
-            return pd.DataFrame()
-        rows = list(
-            SectorConstituentModel._default_manager.filter(
-                sector_code=sector["sector_code"],
-            )
-            .values("stock_code", "enter_date", "exit_date")
-            .order_by("stock_code", "-enter_date")
-        )
+        rows = [
+            {
+                "stock_code": fact.asset_code,
+                "enter_date": fact.effective_date,
+                "exit_date": fact.expiry_date,
+            }
+            for fact in facts
+        ]
         if not rows:
             return pd.DataFrame()
-        return pd.DataFrame(rows).rename(
+        return pd.DataFrame(rows).sort_values(["stock_code", "enter_date"]).rename(
             columns={
                 "stock_code": "con_code",
                 "enter_date": "in_date",

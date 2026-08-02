@@ -24,6 +24,9 @@ from apps.equity.infrastructure.adapters import (
 def _tushare_adapter(repository: object | None = None) -> TushareStockAdapter:
     adapter = TushareStockAdapter.__new__(TushareStockAdapter)
     adapter._dc_price_repo = repository or MagicMock()
+    adapter._asset_repo = MagicMock()
+    adapter._asset_repo.list_active.return_value = []
+    adapter._asset_repo.get_by_code.return_value = None
     return adapter
 
 
@@ -78,24 +81,20 @@ def test_runtime_benchmark_and_adapter_initializers_use_composition_services(
     assert RegimeRepositoryAdapter()._regime_repo is regime_repo
 
 
-def test_stock_list_handles_empty_and_normalizes_rows(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    manager = MagicMock()
-    manager.filter.return_value.values.return_value = []
-    fake_model = SimpleNamespace(_default_manager=manager)
-    monkeypatch.setattr(adapter_module, "StockInfoModel", fake_model)
+def test_stock_list_handles_empty_and_normalizes_rows() -> None:
     adapter = _tushare_adapter()
     assert adapter.fetch_stock_list().empty
 
-    manager.filter.return_value.values.return_value = [
-        {
-            "stock_code": "600000.SH",
-            "name": "浦发银行",
-            "sector": None,
-            "market": "SH",
-            "list_date": "1999-11-10",
-        }
+    adapter._asset_repo.list_active.return_value = [
+        SimpleNamespace(
+            code="600000.SH",
+            name="浦发银行",
+            short_name="浦发银行",
+            sector="",
+            exchange=SimpleNamespace(value="SSE"),
+            asset_type=SimpleNamespace(value="stock"),
+            list_date=date(1999, 11, 10),
+        )
     ]
     frame = adapter.fetch_stock_list()
 
@@ -135,73 +134,29 @@ def test_daily_data_prefers_data_center_and_calculates_returns() -> None:
     )
 
 
-def test_daily_data_falls_back_to_equity_models_and_handles_empty(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_daily_data_does_not_fallback_to_legacy_equity_models() -> None:
     repository = MagicMock()
     repository.get_bars.return_value = []
-    query = MagicMock()
-    manager = MagicMock()
-    manager.filter.return_value.order_by.return_value = query
-    monkeypatch.setattr(
-        adapter_module,
-        "StockDailyModel",
-        SimpleNamespace(_default_manager=manager),
-    )
     adapter = _tushare_adapter(repository)
 
-    query.__iter__.return_value = iter([])
     assert adapter.fetch_daily_data("000001", "2026-07-01", "2026-07-02").empty
 
-    query.__iter__.return_value = iter(
-        [
-            SimpleNamespace(
-                stock_code="000001.SZ",
-                trade_date=date(2026, 7, 1),
-                open=10,
-                high=11,
-                low=9,
-                close=10,
-                volume=100,
-                amount=1000,
-            ),
-            SimpleNamespace(
-                stock_code="000001.SZ",
-                trade_date=date(2026, 7, 2),
-                open=10,
-                high=12,
-                low=10,
-                close=11,
-                volume=200,
-                amount=2000,
-            ),
-        ]
-    )
-    frame = adapter.fetch_daily_data("000001", "2026-07-01", "2026-07-02")
-    assert frame["change"].iloc[1] == 1
 
-
-def test_stock_info_uses_exact_then_symbol_fallback_and_empty(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    exact_query = MagicMock()
-    fallback_query = MagicMock()
-    manager = MagicMock()
-    manager.filter.side_effect = [exact_query, fallback_query, exact_query]
-    exact_query.values.return_value.first.side_effect = [None, None]
-    fallback_query.values.return_value.first.return_value = {
-        "stock_code": "600000.SH",
-        "name": "浦发银行",
-        "sector": "银行",
-        "market": "SH",
-        "list_date": "1999-11-10",
-    }
-    monkeypatch.setattr(
-        adapter_module,
-        "StockInfoModel",
-        SimpleNamespace(_default_manager=manager),
-    )
+def test_stock_info_uses_canonical_asset_master_and_empty() -> None:
     adapter = _tushare_adapter()
+    adapter._asset_repo.get_by_code.side_effect = lambda code: (
+        SimpleNamespace(
+            code="600000.SH",
+            name="浦发银行",
+            short_name="浦发银行",
+            sector="银行",
+            exchange=SimpleNamespace(value="SSE"),
+            asset_type=SimpleNamespace(value="stock"),
+            list_date=date(1999, 11, 10),
+        )
+        if code == "600000.SH"
+        else None
+    )
 
     info = adapter.fetch_stock_info("600000")
     assert info["ts_code"] == "600000.SH"

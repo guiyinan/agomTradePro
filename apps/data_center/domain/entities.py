@@ -73,11 +73,13 @@ class ProviderHealthSnapshot:
     consecutive_failures: int = 0
     last_success_at: datetime | None = None
     avg_latency_ms: float | None = None
+    dataset_key: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "provider_name": self.provider_name,
             "capability": self.capability.value,
+            "dataset_key": self.dataset_key or self.capability.dataset_key,
             "status": self.status.value,
             "is_healthy": self.status == ProviderHealthStatus.HEALTHY,
             "consecutive_failures": self.consecutive_failures,

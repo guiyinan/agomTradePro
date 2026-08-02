@@ -36,7 +36,6 @@ from ..domain.services import FundPerformanceCalculator
 from .models import (
     FundHoldingModel,
     FundInfoModel,
-    FundNetValueModel,
     FundPerformanceModel,
     FundSectorAllocationModel,
     FundTypePreferenceConfigModel,
@@ -319,19 +318,7 @@ class DjangoFundRepository:
             start=start_date,
             end=end_date,
         )
-        if dc_facts:
-            return [self._dc_fact_to_entity_nav(fact) for fact in reversed(dc_facts)]
-
-        # Migration-era read fallback: the Data Center fact table is authoritative,
-        # while the legacy table remains available until D6 shadow reconciliation
-        # proves that it can be retired safely.
-        queryset = FundNetValueModel._default_manager.filter(fund_code=fund_code)
-        if start_date is not None:
-            queryset = queryset.filter(nav_date__gte=start_date)
-        if end_date is not None:
-            queryset = queryset.filter(nav_date__lte=end_date)
-        models = queryset.order_by("-nav_date")
-        return [self._model_to_entity_nav(model) for model in reversed(models)]
+        return [self._dc_fact_to_entity_nav(fact) for fact in reversed(dc_facts)]
 
     def get_latest_nav(self, fund_code: str) -> FundNetValue | None:
         """获取最新净值
@@ -343,15 +330,7 @@ class DjangoFundRepository:
             最新净值或 None
         """
         latest_fact = self._dc_fund_nav_repo.get_latest(fund_code)
-        if latest_fact is not None:
-            return self._dc_fact_to_entity_nav(latest_fact)
-
-        legacy_model = (
-            FundNetValueModel._default_manager.filter(fund_code=fund_code)
-            .order_by("-nav_date")
-            .first()
-        )
-        return self._model_to_entity_nav(legacy_model) if legacy_model is not None else None
+        return self._dc_fact_to_entity_nav(latest_fact) if latest_fact is not None else None
 
     def save_fund_nav(self, nav: FundNetValue) -> None:
         """保存或更新基金净值
@@ -359,18 +338,6 @@ class DjangoFundRepository:
         Args:
             nav: 净值实体
         """
-        # Keep a migration-era shadow mirror for existing local consumers. New
-        # reads prefer the canonical Data Center fact; the mirror is removed only
-        # after the D6 reconciliation/retirement gate is satisfied.
-        FundNetValueModel._default_manager.update_or_create(
-            fund_code=nav.fund_code,
-            nav_date=nav.nav_date,
-            defaults={
-                "unit_nav": nav.unit_nav,
-                "accum_nav": nav.accum_nav,
-                "daily_return": nav.daily_return,
-            },
-        )
         self._dc_fund_nav_repo.bulk_upsert([self._entity_nav_to_dc_fact(nav)])
 
     def save_fund_nav_batch(self, nav_list: list[FundNetValue]) -> None:
@@ -607,13 +574,6 @@ class DjangoFundRepository:
             latest=Max("end_date")
         )["latest"]
         latest_nav_date = self._dc_fund_nav_repo.get_latest_date()
-        if latest_nav_date is None:
-            latest_nav_date = (
-                FundNetValueModel._default_manager.filter(fund_code__isnull=False)
-                .order_by("-nav_date")
-                .values_list("nav_date", flat=True)
-                .first()
-            )
         latest_available = latest_performance_end or latest_nav_date or requested_end_date
         resolved_end_date = min(requested_end_date, latest_available)
         resolved_start_date = resolved_end_date - timedelta(days=lookback_days)
@@ -847,9 +807,6 @@ class DjangoFundRepository:
                     )
                 )
                 if result.stored_count > 0:
-                    facts = self._dc_fund_nav_repo.get_series(fund_code, start=start, end=end)
-                    for fact in facts:
-                        self._mirror_dc_nav_fact(fact)
                     return result.stored_count
             except Exception:
                 pass
@@ -888,20 +845,6 @@ class DjangoFundRepository:
             source="fund_legacy_repo",
         )
 
-    def _mirror_dc_nav_fact(self, fact: FundNavFact) -> None:
-        """Mirror a canonical NAV into the legacy table during D6 migration."""
-
-        nav = self._dc_fact_to_entity_nav(fact)
-        FundNetValueModel._default_manager.update_or_create(
-            fund_code=nav.fund_code,
-            nav_date=nav.nav_date,
-            defaults={
-                "unit_nav": nav.unit_nav,
-                "accum_nav": nav.accum_nav,
-                "daily_return": nav.daily_return,
-            },
-        )
-
     def _dc_fact_to_entity_nav(self, fact: FundNavFact) -> FundNetValue:
         accum_nav = fact.acc_nav if fact.acc_nav is not None else fact.nav
         return FundNetValue(
@@ -910,17 +853,6 @@ class DjangoFundRepository:
             unit_nav=Decimal(str(fact.nav)),
             accum_nav=Decimal(str(accum_nav)),
             daily_return=fact.daily_return,
-        )
-
-    def _model_to_entity_nav(self, model: FundNetValueModel) -> FundNetValue:
-        """Convert the migration-era legacy NAV row to the domain entity."""
-
-        return FundNetValue(
-            fund_code=model.fund_code,
-            nav_date=model.nav_date,
-            unit_nav=model.unit_nav,
-            accum_nav=model.accum_nav,
-            daily_return=model.daily_return,
         )
 
     def _model_to_entity_info(self, model: FundInfoModel) -> FundInfo:

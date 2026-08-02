@@ -342,6 +342,9 @@ class TestProviderRegistryHealthSnapshots:
         capabilities = {s.capability for s in statuses}
         assert DataCapability.MACRO in capabilities
         assert DataCapability.NEWS in capabilities
+        dataset_keys = {s.dataset_key for s in statuses}
+        assert "macro.fact" in dataset_keys
+        assert "market.news" in dataset_keys
 
     def test_snapshot_healthy_by_default(self):
         reg = ProviderRegistry()

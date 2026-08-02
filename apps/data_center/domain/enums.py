@@ -42,6 +42,22 @@ class DataCapability(Enum):
     # Capital-flow data (main-force / retail net inflows)
     CAPITAL_FLOW = "capital_flow"
 
+    @property
+    def dataset_key(self) -> str:
+        """Return the canonical Dataset Contract key represented by this capability."""
+
+        return {
+            DataCapability.MACRO: "macro.fact",
+            DataCapability.HISTORICAL_PRICE: "equity.price.bar",
+            DataCapability.REALTIME_QUOTE: "equity.quote.snapshot",
+            DataCapability.FUND_NAV: "fund.nav",
+            DataCapability.FINANCIAL: "equity.financial.fact",
+            DataCapability.VALUATION: "equity.valuation.fact",
+            DataCapability.SECTOR_MEMBERSHIP: "sector.membership",
+            DataCapability.NEWS: "market.news",
+            DataCapability.CAPITAL_FLOW: "market.capital_flow",
+        }[self]
+
 
 class ProviderHealthStatus(Enum):
     """Runtime health state of a registered provider."""

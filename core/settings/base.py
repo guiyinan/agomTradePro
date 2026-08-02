@@ -840,6 +840,19 @@ CELERY_BEAT_SCHEDULE = {
             "expire_seconds": 3600,  # 1 小时超时
         },
     },
+    # ========== Data Center retention preview ==========
+    "data-center-retention-preview-price-bars": {
+        "task": "apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
+        "schedule": crontab(hour=4, minute=20),
+        "kwargs": {
+            "dataset_key": "equity.price.bar",
+            "limit": 500,
+            "dry_run": True,
+        },
+        "options": {
+            "expire_seconds": 900,
+        },
+    },
     # ============================================
     # ========== P1-2: 数据库备份 ==========
     "database-daily-backup": {

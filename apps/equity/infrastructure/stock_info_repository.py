@@ -13,7 +13,10 @@ from typing import TYPE_CHECKING
 import requests
 from django.utils import timezone
 
-from apps.data_center.application.public import list_price_covered_codes
+from apps.data_center.application.public import (
+    backfill_asset_master_codes_port,
+    list_price_covered_codes,
+)
 from apps.data_center.domain.protocols import (
     AssetRepositoryProtocol,
     FinancialFactRepositoryProtocol,
@@ -22,8 +25,6 @@ from apps.data_center.domain.protocols import (
     ValuationFactRepositoryProtocol,
 )
 from apps.equity.domain.entities import StockInfo
-
-from .models import StockInfoModel
 
 logger = logging.getLogger(__name__)
 
@@ -64,21 +65,7 @@ class StockInfoRepositoryMixin:
         dc_info = self._get_stock_info_from_data_center(stock_code)
         if dc_info is not None:
             return dc_info
-
-        for candidate in self._build_stock_code_candidates(stock_code):
-            model = StockInfoModel._default_manager.filter(stock_code=candidate).first()
-            if model is not None:
-                return StockInfo(
-                    stock_code=model.stock_code,
-                    name=model.name,
-                    sector=model.sector,
-                    market=model.market,
-                    list_date=model.list_date,
-                )
-        fallback_info = self._get_minimal_stock_info_from_data_center(stock_code)
-        if fallback_info is not None:
-            return fallback_info
-        return None
+        return self._get_minimal_stock_info_from_data_center(stock_code)
 
     def get_listing_exchange(self, stock_code: str) -> str:
         """Resolve the primary listing exchange for the given stock code."""
@@ -100,21 +87,15 @@ class StockInfoRepositoryMixin:
             return {}
 
         requested_codes = list(dict.fromkeys(normalized_codes))
-        candidate_codes = {
-            candidate
-            for code in requested_codes
-            for candidate in self._build_stock_code_candidates(code)
-        }
-        models = StockInfoModel._default_manager.filter(stock_code__in=list(candidate_codes))
-        model_map = {model.stock_code.upper(): model for model in models}
-
         resolved: dict[str, str] = {}
         for requested_code in requested_codes:
             for candidate in self._build_stock_code_candidates(requested_code):
-                model = model_map.get(candidate.upper())
-                if model is not None and model.name:
-                    resolved[requested_code] = model.name
-                    break
+                asset = self._dc_asset_repo.get_by_code(candidate)
+                if asset is not None and asset.is_active:
+                    name = str(asset.short_name or asset.name or "").strip()
+                    if name:
+                        resolved[requested_code] = name
+                        break
             if requested_code not in resolved:
                 data_center_name = self._resolve_stock_name_from_data_center(requested_code)
                 if data_center_name:
@@ -129,11 +110,7 @@ class StockInfoRepositoryMixin:
             return name
 
         try:
-            from apps.data_center.infrastructure.asset_master_backfill import (
-                AssetMasterBackfillService,
-            )
-
-            AssetMasterBackfillService().backfill_codes(
+            backfill_asset_master_codes_port(
                 self._build_stock_code_candidates(stock_code),
                 include_remote=True,
             )
@@ -164,7 +141,13 @@ class StockInfoRepositoryMixin:
         Returns:
             股票数量
         """
-        return StockInfoModel._default_manager.filter(sector=sector, is_active=True).count()
+        normalized_sector = str(sector or "").strip()
+        return sum(
+            1
+            for asset in self._dc_asset_repo.list_active()
+            if asset.asset_type.value == "stock"
+            and normalized_sector in {asset.sector.strip(), asset.industry.strip()}
+        )
 
     def get_all_sectors(self) -> list[str]:
         """
@@ -173,13 +156,14 @@ class StockInfoRepositoryMixin:
         Returns:
             行业名称列表
         """
-        sectors = (
-            StockInfoModel._default_manager.filter(is_active=True)
-            .values_list("sector", flat=True)
-            .distinct()
-        )
-
-        return list(sectors)
+        sectors = {
+            value.strip()
+            for asset in self._dc_asset_repo.list_active()
+            if asset.asset_type.value == "stock"
+            for value in (asset.sector, asset.industry)
+            if value and value.strip()
+        }
+        return sorted(sectors)
 
     def list_active_stock_codes(
         self,
@@ -202,38 +186,35 @@ class StockInfoRepositoryMixin:
         codes: list[str] = []
         seen_codes: set[str] = set()
 
-        # Keep legacy active-stock semantics for existing local equity flows.
-        queryset = StockInfoModel._default_manager.filter(is_active=True)
-
-        if stock_codes:
-            normalized_codes = [str(code).strip().upper() for code in stock_codes if code]
-            queryset = queryset.filter(stock_code__in=normalized_codes)
-        else:
-            normalized_codes = []
-
-        local_codes = queryset.values_list("stock_code", flat=True).order_by("stock_code")
-        for raw_code in local_codes:
-            normalized = str(raw_code or "").strip().upper()
+        requested_codes = [str(code).strip().upper() for code in (stock_codes or []) if code]
+        normalized_codes = {
+            candidate
+            for code in requested_codes
+            for candidate in self._build_stock_code_candidates(code)
+        }
+        canonical_assets = [
+            asset
+            for asset in self._dc_asset_repo.list_active()
+            if asset.asset_type.value == "stock"
+            and (
+                not normalized_codes
+                or asset.code.upper() in normalized_codes
+            )
+        ]
+        canonical_assets.sort(key=lambda asset: asset.code)
+        for asset in canonical_assets:
+            normalized = asset.code.strip().upper()
             if normalized and normalized not in seen_codes:
                 codes.append(normalized)
                 seen_codes.add(normalized)
 
-        # Expand the default sync / quality universe to the canonical stocks that
-        # currently have price coverage in Data Center, matching Alpha's visible pool.
-        canonical_codes: list[str] = []
-        for exchange in ("SSE", "SZSE", "BSE"):
-            for asset in self._dc_asset_repo.list_by_exchange(exchange):
-                if not asset.is_active or asset.asset_type.value != "stock":
-                    continue
-                if normalized_codes and asset.code.upper() not in normalized_codes:
-                    continue
-                canonical_codes.append(asset.code)
-        if canonical_codes:
-            covered_codes = list_price_covered_codes(target_date)
-            canonical_code_set = {code.upper() for code in canonical_codes}
-            for raw_code in covered_codes:
-                normalized = str(raw_code or "").strip().upper()
-                if normalized in canonical_code_set and normalized not in seen_codes:
+        # Include canonical stocks with current price coverage even when the
+        # asset-master list is populated by an upstream provider asynchronously.
+        covered_codes = list_price_covered_codes(target_date)
+        for raw_code in covered_codes:
+            normalized = str(raw_code or "").strip().upper()
+            if not normalized_codes or normalized in normalized_codes:
+                if normalized not in seen_codes:
                     codes.append(normalized)
                     seen_codes.add(normalized)
 
@@ -244,7 +225,7 @@ class StockInfoRepositoryMixin:
 
     def _get_stock_info_from_data_center(self, stock_code: str) -> StockInfo | None:
         asset = self._dc_asset_repo.get_by_code(stock_code)
-        if asset is None:
+        if asset is None or not asset.is_active or asset.asset_type.value != "stock":
             return None
 
         market_map = {

@@ -3,6 +3,7 @@ Django Admin configuration for Fund Module.
 """
 
 from django.contrib import admin
+from django.http import HttpRequest
 
 from apps.fund.models import (
     FundHoldingModel,
@@ -94,6 +95,29 @@ class FundNetValueAdmin(TypedModelAdmin[FundNetValueModel]):
         ("净值数据", {"fields": ("unit_nav", "accum_nav", "daily_return")}),
         ("时间戳", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Freeze the legacy NAV projection after D6 canonical cutover."""
+
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: FundNetValueModel | None = None,
+    ) -> bool:
+        """Prevent edits to the legacy NAV projection."""
+
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: FundNetValueModel | None = None,
+    ) -> bool:
+        """Prevent deletes from the legacy NAV projection."""
+
+        return False
 
 
 @admin.register(FundHoldingModel)

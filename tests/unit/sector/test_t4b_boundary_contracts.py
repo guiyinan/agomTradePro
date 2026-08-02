@@ -202,104 +202,59 @@ def test_tushare_adapter_constructor_builds_internal_delegate() -> None:
 def test_tushare_constituents_handle_unknown_empty_and_normalized_sector() -> None:
     adapter = TushareSectorAdapter.__new__(TushareSectorAdapter)
     adapter._delegate = Mock()
-    sector_query = _query([])
-    constituent_query = _query([])
-    sector_model = SimpleNamespace(
-        _default_manager=SimpleNamespace(filter=Mock(return_value=sector_query))
-    )
-    constituent_model = SimpleNamespace(
-        _default_manager=SimpleNamespace(filter=Mock(return_value=constituent_query))
-    )
+    membership_repo = SimpleNamespace(get_members=Mock(return_value=[]))
 
-    with (
-        patch(
-            "apps.sector.infrastructure.models.SectorInfoModel",
-            sector_model,
-        ),
-        patch(
-            "apps.sector.infrastructure.models.SectorConstituentModel",
-            constituent_model,
-        ),
+    with patch(
+        "apps.sector.infrastructure.adapters.tushare_sector_adapter.get_sector_membership_repository_port",
+        return_value=membership_repo,
     ):
         with pytest.raises(ValueError, match="sector_code_invalid"):
             adapter.fetch_sector_constituents("missing.SI")
-
-    sector_query.first.return_value = {"sector_code": "801010"}
-    with (
-        patch(
-            "apps.sector.infrastructure.models.SectorInfoModel",
-            sector_model,
-        ),
-        patch(
-            "apps.sector.infrastructure.models.SectorConstituentModel",
-            constituent_model,
-        ),
-    ):
         assert adapter.fetch_sector_constituents("801010.SI").empty
-
-    constituent_query.__iter__ = Mock(
-        return_value=iter(
-            [
-                {
-                    "stock_code": "000001.SZ",
-                    "enter_date": date(2020, 1, 1),
-                    "exit_date": None,
-                }
-            ]
-        )
-    )
-    with (
-        patch(
-            "apps.sector.infrastructure.models.SectorInfoModel",
-            sector_model,
-        ),
-        patch(
-            "apps.sector.infrastructure.models.SectorConstituentModel",
-            constituent_model,
-        ),
-    ):
+        membership_repo.get_members.return_value = [
+            SimpleNamespace(
+                asset_code="000001.SZ",
+                effective_date=date(2020, 1, 1),
+                expiry_date=None,
+            )
+        ]
         result = adapter.fetch_sector_constituents("801010.SI")
 
     assert result.iloc[0]["con_code"] == "000001.SZ"
-    sector_model._default_manager.filter.assert_called_with(sector_code="801010")
+    membership_repo.get_members.assert_called_with("801010", as_of=date.today())
 
 
 def test_repository_builds_deduplicated_stock_sector_map_and_handles_saves() -> None:
-    constituent_rows = [
-        {"stock_code": "000001.SZ", "sector_code": "801010"},
-        {"stock_code": "000001.SZ", "sector_code": "801010"},
-        {"stock_code": "", "sector_code": "801020"},
-        {"stock_code": "000002.SZ", "sector_code": None},
-    ]
-    constituent_query = _query(constituent_rows)
-    sector_query = _query(
-        [
-            {"sector_code": "801010", "sector_name": "Agriculture"},
-        ]
+    membership_repo = SimpleNamespace(
+        list_current=Mock(
+            return_value=[
+                SimpleNamespace(
+                    asset_code="000001.SZ",
+                    sector_code="801010",
+                    sector_name="Agriculture",
+                ),
+                SimpleNamespace(
+                    asset_code="000001.SZ",
+                    sector_code="801010",
+                    sector_name="Agriculture",
+                ),
+                SimpleNamespace(asset_code="", sector_code="801020", sector_name=""),
+            ]
+        )
     )
 
-    with (
-        patch(
-            "apps.sector.infrastructure.repositories.SectorConstituentModel",
-            SimpleNamespace(
-                _default_manager=SimpleNamespace(filter=Mock(return_value=constituent_query))
-            ),
-        ),
-        patch(
-            "apps.sector.infrastructure.repositories.SectorInfoModel",
-            SimpleNamespace(
-                _default_manager=SimpleNamespace(filter=Mock(return_value=sector_query))
-            ),
-        ),
+    with patch(
+        "apps.sector.infrastructure.repositories.get_sector_membership_repository_port",
+        return_value=membership_repo,
     ):
         assert DjangoSectorRepository().get_stock_sector_name_map() == {
             "000001.SZ": ["Agriculture"]
         }
 
-    empty_query = _query([])
+    membership_repo.list_current.return_value = []
     with patch(
-        "apps.sector.infrastructure.repositories.SectorConstituentModel",
-        SimpleNamespace(_default_manager=SimpleNamespace(filter=Mock(return_value=empty_query))),
+        "apps.sector.infrastructure.repositories.get_sector_membership_repository_port",
+        return_value=membership_repo,
     ):
         assert DjangoSectorRepository().get_stock_sector_name_map() == {}
 

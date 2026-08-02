@@ -12,11 +12,11 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from apps.data_center.application.public import get_sector_membership_repository_port
 from shared.numeric import safe_float
 
 from ..domain.entities import SectorIndex, SectorInfo, SectorRelativeStrength
 from .models import (
-    SectorConstituentModel,
     SectorIndexModel,
     SectorInfoModel,
     SectorPreferenceConfigModel,
@@ -35,6 +35,11 @@ class DjangoSectorRepository:
     3. 板块成分股关系 CRUD
     4. 相对强弱指标 CRUD
     """
+
+    def __init__(self) -> None:
+        """Wire canonical sector-membership reads through Data Center."""
+
+        self._dc_membership_repo = get_sector_membership_repository_port()
 
     # ===== 板块基本信息 =====
 
@@ -133,36 +138,15 @@ class DjangoSectorRepository:
     def get_stock_sector_name_map(self) -> dict[str, list[str]]:
         """Return current stock-to-sector-name mapping for policy influence checks."""
 
-        constituent_rows = list(
-            SectorConstituentModel._default_manager.filter(is_current=True).values(
-                "stock_code",
-                "sector_code",
-            )
-        )
-        if not constituent_rows:
-            return {}
-
-        sector_codes = {row["sector_code"] for row in constituent_rows if row.get("sector_code")}
-        sector_name_map = {
-            row["sector_code"]: row["sector_name"]
-            for row in SectorInfoModel._default_manager.filter(
-                sector_code__in=list(sector_codes),
-                is_active=True,
-            ).values("sector_code", "sector_name")
-        }
-
-        mapping: dict[str, list[str]] = {}
-        for row in constituent_rows:
-            stock_code = row.get("stock_code")
-            sector_code = row.get("sector_code")
-            sector_name = sector_name_map.get(sector_code) if sector_code else None
-            if not stock_code or not sector_name:
+        canonical_rows = self._dc_membership_repo.list_current(as_of=date.today())
+        canonical_mapping: dict[str, list[str]] = {}
+        for canonical_row in canonical_rows:
+            if not canonical_row.asset_code or not canonical_row.sector_name:
                 continue
-            mapping.setdefault(stock_code, [])
-            if sector_name not in mapping[stock_code]:
-                mapping[stock_code].append(sector_name)
-
-        return mapping
+            canonical_mapping.setdefault(canonical_row.asset_code, [])
+            if canonical_row.sector_name not in canonical_mapping[canonical_row.asset_code]:
+                canonical_mapping[canonical_row.asset_code].append(canonical_row.sector_name)
+        return canonical_mapping
 
     # ===== 板块指数数据 =====
 

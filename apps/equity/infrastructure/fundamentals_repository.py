@@ -16,10 +16,12 @@ from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
 
-from apps.data_center.domain.entities import FinancialFact, ValuationFact
-from apps.data_center.domain.enums import FinancialPeriodType
+from apps.data_center.domain.entities import AssetMaster, FinancialFact, ValuationFact
+from apps.data_center.domain.enums import AssetType, FinancialPeriodType, MarketExchange
 from apps.data_center.domain.protocols import (
+    AssetRepositoryProtocol,
     FinancialFactRepositoryProtocol,
+    PriceBarRepositoryProtocol,
     ValuationFactRepositoryProtocol,
 )
 from apps.equity.domain.entities import (
@@ -28,13 +30,6 @@ from apps.equity.domain.entities import (
     ValuationMetrics,
 )
 from shared.numeric import safe_float
-
-from .models import (
-    FinancialDataModel,
-    StockDailyModel,
-    StockInfoModel,
-    ValuationModel,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +40,19 @@ if TYPE_CHECKING:
 class StockFundamentalsRepositoryMixin:
     """Financial, valuation, and aggregated fundamental context persistence."""
 
+    _dc_asset_repo: AssetRepositoryProtocol
     _dc_financial_repo: FinancialFactRepositoryProtocol
+    _dc_price_bar_repo: PriceBarRepositoryProtocol
     _dc_valuation_repo: ValuationFactRepositoryProtocol
     _dc_on_demand: OnDemandDataCenterService
 
     if TYPE_CHECKING:
 
         def _build_stock_code_candidates(self, stock_code: str) -> list[str]: ...
+
+        def _infer_exchange_from_market(self, market: str) -> str: ...
+
+        def _infer_market_from_stock_code(self, stock_code: str) -> str: ...
 
         def _resolve_stock_name_from_data_center(self, stock_code: str) -> str: ...
 
@@ -69,20 +70,16 @@ class StockFundamentalsRepositoryMixin:
         """
         result = []
 
-        # 获取所有活跃股票的基本信息
-        stock_infos = StockInfoModel._default_manager.filter(is_active=True)
+        # AssetMaster is the sole source of security identity and metadata.
+        stock_assets = [
+            asset
+            for asset in self._dc_asset_repo.list_active()
+            if asset.asset_type is AssetType.STOCK
+        ]
 
-        for stock_info_model in stock_infos:
-            stock_code = stock_info_model.stock_code
-
-            # 转换为 Domain 层实体
-            stock_info = StockInfo(
-                stock_code=stock_info_model.stock_code,
-                name=stock_info_model.name,
-                sector=stock_info_model.sector,
-                market=stock_info_model.market,
-                list_date=stock_info_model.list_date,
-            )
+        for asset in stock_assets:
+            stock_code = asset.code
+            stock_info = self._stock_info_from_asset(asset)
 
             # 获取最新财务数据
             financial = self._get_latest_financial(stock_code)
@@ -113,26 +110,28 @@ class StockFundamentalsRepositoryMixin:
             for code in requested_codes
             for candidate in self._build_stock_code_candidates(code)
         }
-        info_rows = StockInfoModel._default_manager.filter(
-            stock_code__in=list(candidate_codes)
-        ).values(
-            "stock_code",
-            "name",
-            "sector",
-            "market",
-        )
-        info_map = {str(row["stock_code"]).upper(): row for row in info_rows}
+        info_map: dict[str, dict[str, str]] = {}
+        for candidate in sorted(candidate_codes):
+            asset = self._dc_asset_repo.get_by_code(candidate)
+            if asset is None or not asset.is_active or asset.asset_type is not AssetType.STOCK:
+                continue
+            market_map = {"SSE": "SH", "SZSE": "SZ", "BSE": "BJ"}
+            info_map[asset.code.upper()] = {
+                "name": str(asset.short_name or asset.name or ""),
+                "sector": str(asset.sector or asset.industry or ""),
+                "market": market_map.get(asset.exchange.value, ""),
+            }
 
-        daily_rows = (
-            StockDailyModel._default_manager.filter(stock_code__in=list(candidate_codes))
-            .order_by("stock_code", "-trade_date")
-            .values("stock_code", "trade_date", "close", "volume")
-        )
         daily_map: dict[str, Mapping[str, object]] = {}
-        for daily_row in daily_rows:
-            code = str(daily_row["stock_code"]).upper()
-            if code not in daily_map:
-                daily_map[code] = daily_row
+        for candidate in sorted(candidate_codes):
+            latest_bar = self._dc_price_bar_repo.get_latest(candidate)
+            if latest_bar is None:
+                continue
+            daily_map[candidate.upper()] = {
+                "trade_date": latest_bar.bar_date,
+                "close": latest_bar.close,
+                "volume": latest_bar.volume,
+            }
 
         context: dict[str, dict[str, Any]] = {}
         for requested_code in requested_codes:
@@ -223,33 +222,7 @@ class StockFundamentalsRepositoryMixin:
         if hydrate:
             self._dc_on_demand.ensure_financials(stock_code, periods=max(limit, 1))
         dc_financials = self._get_financials_from_data_center(stock_code, limit=limit)
-        if dc_financials:
-            return dc_financials
-
-        for candidate in self._build_stock_code_candidates(stock_code):
-            models = FinancialDataModel._default_manager.filter(stock_code=candidate).order_by(
-                "-report_date"
-            )[:limit]
-            if not models:
-                continue
-            return [
-                FinancialData(
-                    stock_code=m.stock_code,
-                    report_date=m.report_date,
-                    revenue=m.revenue,
-                    net_profit=m.net_profit,
-                    revenue_growth=m.revenue_growth,
-                    net_profit_growth=m.net_profit_growth,
-                    total_assets=m.total_assets,
-                    total_liabilities=m.total_liabilities,
-                    equity=m.equity,
-                    roe=m.roe,
-                    roa=m.roa,
-                    debt_ratio=m.debt_ratio,
-                )
-                for m in models
-            ]
-        return []
+        return dc_financials
 
     def get_valuation_history(
         self,
@@ -273,39 +246,7 @@ class StockFundamentalsRepositoryMixin:
         if hydrate:
             self._dc_on_demand.ensure_valuations(stock_code, start_date, end_date)
         dc_valuations = self._get_valuations_from_data_center(stock_code, start_date, end_date)
-        if dc_valuations:
-            return dc_valuations
-
-        for candidate in self._build_stock_code_candidates(stock_code):
-            models = ValuationModel._default_manager.filter(
-                stock_code=candidate,
-                trade_date__gte=start_date,
-                trade_date__lte=end_date,
-            ).order_by("trade_date")
-            if not models:
-                continue
-            return [
-                ValuationMetrics(
-                    stock_code=m.stock_code,
-                    trade_date=m.trade_date,
-                    pe=m.pe,
-                    pb=m.pb,
-                    ps=m.ps,
-                    total_mv=m.total_mv,
-                    circ_mv=m.circ_mv,
-                    dividend_yield=m.dividend_yield,
-                    source_provider=m.source_provider,
-                    source_updated_at=m.source_updated_at,
-                    fetched_at=m.fetched_at,
-                    pe_type=m.pe_type,
-                    is_valid=m.is_valid,
-                    quality_flag=m.quality_flag,
-                    quality_notes=m.quality_notes,
-                    raw_payload_hash=m.raw_payload_hash,
-                )
-                for m in models
-            ]
-        return []
+        return dc_valuations
 
     def save_stock_info(self, stock_info: StockInfo) -> None:
         """
@@ -314,22 +255,44 @@ class StockFundamentalsRepositoryMixin:
         Args:
             stock_info: StockInfo 实体
         """
-        # Remote fallback metadata can be partial; skip caching if required fields are missing.
-        if stock_info.list_date is None:
-            logger.info(
-                "Skip caching stock info for %s because list_date is unavailable",
-                stock_info.stock_code,
+        market = str(stock_info.market or "").strip().upper()
+        if market not in {"SH", "SZ", "BJ"}:
+            market = self._infer_market_from_stock_code(stock_info.stock_code)
+        exchange = self._infer_exchange_from_market(market)
+        base_code = str(stock_info.stock_code or "").strip().upper().split(".", 1)[0]
+        if base_code[:2] in {"SH", "SZ", "BJ"} and len(base_code) > 2:
+            base_code = base_code[2:]
+        canonical_code = (
+            f"{base_code}.{market}"
+            if market in {"SH", "SZ", "BJ"} and base_code
+            else str(stock_info.stock_code).strip().upper()
+        )
+        exchange_enum = MarketExchange(exchange)
+        self._dc_asset_repo.upsert(
+            AssetMaster(
+                code=canonical_code,
+                name=str(stock_info.name or canonical_code),
+                short_name=str(stock_info.name or canonical_code),
+                asset_type=AssetType.STOCK,
+                exchange=exchange_enum,
+                is_active=True,
+                list_date=stock_info.list_date,
+                sector=str(stock_info.sector or ""),
+                industry=str(stock_info.sector or ""),
             )
-            return
+        )
 
-        StockInfoModel._default_manager.update_or_create(
-            stock_code=stock_info.stock_code,
-            defaults={
-                "name": stock_info.name,
-                "sector": stock_info.sector,
-                "market": stock_info.market,
-                "list_date": stock_info.list_date,
-            },
+    @staticmethod
+    def _stock_info_from_asset(asset: AssetMaster) -> StockInfo:
+        """Convert a canonical AssetMaster record to the equity value object."""
+
+        market_map = {"SSE": "SH", "SZSE": "SZ", "BSE": "BJ"}
+        return StockInfo(
+            stock_code=asset.code,
+            name=asset.short_name or asset.name,
+            sector=asset.sector or asset.industry or "",
+            market=market_map.get(asset.exchange.value, ""),
+            list_date=asset.list_date,
         )
 
     def save_financial_data(self, financial: FinancialData) -> None:
@@ -409,65 +372,11 @@ class StockFundamentalsRepositoryMixin:
 
     def _get_latest_financial(self, stock_code: str) -> FinancialData | None:
         dc_items = self._get_financials_from_data_center(stock_code, limit=1)
-        if dc_items:
-            return dc_items[0]
-
-        for candidate in self._build_stock_code_candidates(stock_code):
-            financial_model = (
-                FinancialDataModel._default_manager.filter(stock_code=candidate)
-                .order_by("-report_date")
-                .first()
-            )
-            if financial_model is None:
-                continue
-            return FinancialData(
-                stock_code=financial_model.stock_code,
-                report_date=financial_model.report_date,
-                revenue=financial_model.revenue,
-                net_profit=financial_model.net_profit,
-                revenue_growth=financial_model.revenue_growth,
-                net_profit_growth=financial_model.net_profit_growth,
-                total_assets=financial_model.total_assets,
-                total_liabilities=financial_model.total_liabilities,
-                equity=financial_model.equity,
-                roe=financial_model.roe,
-                roa=financial_model.roa,
-                debt_ratio=financial_model.debt_ratio,
-            )
-        return None
+        return dc_items[0] if dc_items else None
 
     def _get_latest_valuation(self, stock_code: str) -> ValuationMetrics | None:
         dc_item = self._dc_valuation_repo.get_latest(stock_code)
-        if dc_item is not None:
-            return self._dc_fact_to_valuation(dc_item)
-
-        for candidate in self._build_stock_code_candidates(stock_code):
-            valuation_model = (
-                ValuationModel._default_manager.filter(stock_code=candidate)
-                .order_by("-trade_date")
-                .first()
-            )
-            if valuation_model is None:
-                continue
-            return ValuationMetrics(
-                stock_code=valuation_model.stock_code,
-                trade_date=valuation_model.trade_date,
-                pe=valuation_model.pe,
-                pb=valuation_model.pb,
-                ps=valuation_model.ps,
-                total_mv=valuation_model.total_mv,
-                circ_mv=valuation_model.circ_mv,
-                dividend_yield=valuation_model.dividend_yield,
-                source_provider=valuation_model.source_provider,
-                source_updated_at=valuation_model.source_updated_at,
-                fetched_at=valuation_model.fetched_at,
-                pe_type=valuation_model.pe_type,
-                is_valid=valuation_model.is_valid,
-                quality_flag=valuation_model.quality_flag,
-                quality_notes=valuation_model.quality_notes,
-                raw_payload_hash=valuation_model.raw_payload_hash,
-            )
-        return None
+        return self._dc_fact_to_valuation(dc_item) if dc_item is not None else None
 
     def _get_financials_from_data_center(
         self,
@@ -664,18 +573,16 @@ class StockFundamentalsRepositoryMixin:
 
     def get_latest_valuation_date(self) -> date | None:
         """获取最新估值日期。"""
-        latest: date | None = (
-            ValuationModel._default_manager.order_by("-trade_date")
-            .values_list("trade_date", flat=True)
-            .first()
-        )
-        return latest
+        return self._dc_valuation_repo.get_latest_date()
 
-    def get_valuation_models_by_date(self, as_of_date: date) -> list[ValuationModel]:
-        """获取指定日期的原始估值模型记录。"""
-        return list(
-            ValuationModel._default_manager.filter(trade_date=as_of_date).order_by("stock_code")
-        )
+    def get_valuation_models_by_date(self, as_of_date: date) -> list[ValuationMetrics]:
+        """Return canonical valuation facts for quality validation on one date."""
+
+        return [
+            valuation
+            for fact in self._dc_valuation_repo.list_by_date(as_of_date)
+            for valuation in [self._dc_fact_to_valuation(fact)]
+        ]
 
 
 __all__ = ["StockFundamentalsRepositoryMixin"]

@@ -10,6 +10,7 @@ from typing import Any, Protocol, cast
 
 from django.db.models import Q
 
+from apps.data_center.application.public import get_asset_repository_port
 from apps.factor.domain.entities import (
     FactorDefinition,
     FactorExposure,
@@ -419,11 +420,10 @@ class FactorPortfolioConfigRepository:
             return
 
         try:
-            from apps.equity.infrastructure.models import StockInfoModel
-
+            asset_repository = get_asset_repository_port()
             stock_info_by_code = {
-                stock.stock_code: stock
-                for stock in StockInfoModel._default_manager.filter(stock_code__in=lookup_codes)
+                code: asset_repository.get_by_code(code)
+                for code in lookup_codes
             }
         except Exception:
             stock_info_by_code = {}
@@ -431,11 +431,11 @@ class FactorPortfolioConfigRepository:
         for holding in holdings:
             stock_info = stock_info_by_code.get(holding.stock_code)
             if (not holding.stock_name or holding.stock_name == holding.stock_code) and stock_info:
-                holding.stock_name = stock_info.name
+                holding.stock_name = stock_info.short_name or stock_info.name
             if not holding.stock_name:
                 holding.stock_name = holding.stock_code
             if not holding.sector and stock_info:
-                holding.sector = stock_info.sector
+                holding.sector = stock_info.sector or stock_info.industry
 
 
 class FactorPortfolioHoldingRepository:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from apps.data_center.application.public import get_news_repository_port
 from apps.data_center.domain.entities import NewsFact
 from apps.sentiment.infrastructure.providers import (
     SentimentAlertRepository,
@@ -20,9 +21,7 @@ def get_market_news_for_sentiment(
 ) -> list[NewsFact]:
     """Return market-wide news for sentiment calculation via data_center."""
 
-    from apps.data_center.composition import get_news_repository
-
-    return get_news_repository().list_market_news_for_date(target_date, limit=limit)
+    return get_news_repository_port().list_market_news_for_date(target_date, limit=limit)
 
 
 def get_sentiment_index_repository() -> SentimentIndexRepository:

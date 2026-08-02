@@ -287,30 +287,7 @@ def test_persisted_akshare_adapter_prefers_facts_and_falls_back_to_models() -> N
     assert list(facts["nav_date"]) == [date(2026, 7, 24), date(2026, 7, 25)]
 
     adapter._dc_nav_repo.get_series.return_value = []
-    nav_manager = Mock()
-    nav_manager.filter.return_value = _query(
-        [
-            {
-                "nav_date": date(2026, 7, 25),
-                "unit_nav": Decimal("1.2"),
-                "accum_nav": Decimal("1.3"),
-                "daily_return": 0.01,
-            }
-        ]
-    )
-    with patch(
-        "apps.fund.infrastructure.adapters.akshare_fund_adapter.FundNetValueModel",
-        SimpleNamespace(_default_manager=nav_manager),
-    ):
-        fallback = adapter.fetch_fund_nav_em("F1")
-    assert fallback.iloc[0]["unit_nav"] == Decimal("1.2")
-
-    nav_manager.filter.return_value = _query([])
-    with patch(
-        "apps.fund.infrastructure.adapters.akshare_fund_adapter.FundNetValueModel",
-        SimpleNamespace(_default_manager=nav_manager),
-    ):
-        assert adapter.fetch_fund_nav_em("missing").empty
+    assert adapter.fetch_fund_nav_em("missing").empty
 
 
 def test_persisted_akshare_portfolio_sector_and_rank_boundaries() -> None:
