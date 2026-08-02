@@ -3,14 +3,45 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping
+from datetime import UTC, datetime
+from uuid import uuid4
 
+from apps.data_center.domain.protocols import ReconciliationEvidenceRepositoryProtocol
 from apps.data_center.domain.reconciliation import (
     QueryBudget,
     QueryBudgetResult,
+    ReconciliationEvidence,
     ReconciliationReport,
     evaluate_query_budget,
     reconcile_records,
 )
+
+
+class RecordReconciliationEvidenceUseCase:
+    """Turn an injected shadow report into durable Data Center evidence."""
+
+    def __init__(self, repository: ReconciliationEvidenceRepositoryProtocol) -> None:
+        self._repository = repository
+
+    def execute(
+        self,
+        report: ReconciliationReport,
+        *,
+        legacy_snapshot_hash: str,
+        canonical_snapshot_hash: str,
+        evidence_id: str | None = None,
+        observed_at: datetime | None = None,
+    ) -> ReconciliationEvidence:
+        """Persist one report with immutable source hashes and observation time."""
+
+        evidence = ReconciliationEvidence(
+            evidence_id=evidence_id or str(uuid4()),
+            report=report,
+            legacy_snapshot_hash=legacy_snapshot_hash,
+            canonical_snapshot_hash=canonical_snapshot_hash,
+            observed_at=observed_at or datetime.now(UTC),
+        )
+        return self._repository.save(evidence)
 
 
 def build_reconciliation_report(
@@ -45,4 +76,8 @@ def check_query_budget(
     return evaluate_query_budget(budget, query_count=query_count, p95_ms=p95_ms)
 
 
-__all__ = ["build_reconciliation_report", "check_query_budget"]
+__all__ = [
+    "RecordReconciliationEvidenceUseCase",
+    "build_reconciliation_report",
+    "check_query_budget",
+]

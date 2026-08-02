@@ -34,6 +34,7 @@ from apps.data_center.application.query_services import (
     query_published_sector_memberships,
     query_valuation_facts,
 )
+from apps.data_center.application.reconciliation import RecordReconciliationEvidenceUseCase
 from apps.data_center.composition import (
     backfill_asset_master_codes,
     build_provider_registry_for_repo,
@@ -56,6 +57,7 @@ from apps.data_center.composition import (
     get_publication_policy_repository,
     get_quote_snapshot_repository,
     get_raw_audit_repository,
+    get_reconciliation_evidence_repository,
     get_sector_membership_repository,
     get_valuation_fact_repository,
 )
@@ -82,6 +84,7 @@ from apps.data_center.domain.protocols import (
     SectorMembershipRepositoryProtocol,
     ValuationFactRepositoryProtocol,
 )
+from apps.data_center.domain.reconciliation import ReconciliationEvidence, ReconciliationReport
 
 
 def get_macro_projection_repository_port() -> object:
@@ -92,6 +95,31 @@ def get_macro_projection_repository_port() -> object:
     """
 
     return get_macro_projection_repository()
+
+
+def record_reconciliation_evidence(
+    report: ReconciliationReport,
+    *,
+    legacy_snapshot_hash: str,
+    canonical_snapshot_hash: str,
+    evidence_id: str | None = None,
+    observed_at: datetime | None = None,
+) -> ReconciliationEvidence:
+    """Persist maintenance-only shadow evidence behind an Application Port."""
+
+    return RecordReconciliationEvidenceUseCase(get_reconciliation_evidence_repository()).execute(
+        report,
+        legacy_snapshot_hash=legacy_snapshot_hash,
+        canonical_snapshot_hash=canonical_snapshot_hash,
+        evidence_id=evidence_id,
+        observed_at=observed_at,
+    )
+
+
+def get_latest_reconciliation_evidence(dataset_key: str) -> ReconciliationEvidence | None:
+    """Return the newest shadow evidence for operational readiness checks."""
+
+    return get_reconciliation_evidence_repository().get_latest(dataset_key)
 
 
 def list_active_dataset_contracts() -> list[DatasetContract]:
@@ -616,6 +644,7 @@ __all__ = [
     "get_macro_indicator_value",
     "get_market_breadth_snapshot",
     "get_latest_quote_payloads",
+    "get_latest_reconciliation_evidence",
     "query_published_a_share_behavior_payload",
     "get_price_bar_series",
     "get_price_bar_repository_port",
@@ -633,6 +662,7 @@ __all__ = [
     "get_published_price_bar_series",
     "get_published_quote_payloads",
     "get_published_sector_memberships",
+    "record_reconciliation_evidence",
     "get_valuation_facts",
     "get_valuation_fact_repository_port",
     "get_raw_audit_repository_port",

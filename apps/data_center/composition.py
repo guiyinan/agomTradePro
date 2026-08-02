@@ -38,7 +38,6 @@ from apps.data_center.infrastructure.raw_landing_repositories import (
     RawLandingRepository,
     SchemaFingerprintRepository,
 )
-from apps.data_center.infrastructure.repositories import MacroGovernanceRepository  # noqa: F401
 from apps.data_center.infrastructure.repositories import (
     AssetRepository,
     CapitalFlowRepository,
@@ -48,6 +47,7 @@ from apps.data_center.infrastructure.repositories import (
     IndicatorCatalogRepository,
     IndicatorUnitRuleRepository,
     MacroFactRepository,
+    MacroGovernanceRepository,
     MarketThermometerConfigRepository,
     MarketThermometerSnapshotRepository,
     MarketThermometerUserOverrideRepository,
@@ -58,6 +58,7 @@ from apps.data_center.infrastructure.repositories import (
     PublisherCatalogRepository,
     QuoteSnapshotRepository,
     RawAuditRepository,
+    ReconciliationEvidenceRepository,
     SectorMembershipRepository,
     ValuationFactRepository,
 )
@@ -99,6 +100,7 @@ __all__ = [
     "QuoteSnapshotRepository",
     "QuarantineRepository",
     "RawAuditRepository",
+    "ReconciliationEvidenceRepository",
     "RawLandingRepository",
     "RetentionPolicyRepository",
     "SectorMembershipRepository",
@@ -144,6 +146,7 @@ __all__ = [
     "get_quote_snapshot_repository",
     "get_quarantine_repository",
     "get_raw_audit_repository",
+    "get_reconciliation_evidence_repository",
     "get_raw_landing_repository",
     "get_retention_policy_repository",
     "get_sector_membership_repository",
@@ -315,6 +318,12 @@ def get_archive_manifest_repository() -> ArchiveManifestRepository:
     """Return archive manifest repository."""
 
     return ArchiveManifestRepository()
+
+
+def get_reconciliation_evidence_repository() -> ReconciliationEvidenceRepository:
+    """Return the shadow-reconciliation evidence repository."""
+
+    return ReconciliationEvidenceRepository()
 
 
 def get_sector_membership_repository() -> SectorMembershipRepository:

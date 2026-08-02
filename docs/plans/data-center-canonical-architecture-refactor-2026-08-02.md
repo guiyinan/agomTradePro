@@ -226,6 +226,25 @@
 - Provider Health 仍保留旧 `health_metrics` 兼容投影，待所有生产配置迁移并完成观察窗口后才能删除；其他 current 查询仍有维护/历史兼容端口，尚未证明 D0-D9 全部只依赖 Publication。
 - 生产 shadow reconciliation、verified backup/restore、M9 旧表清理与 M10 生产切读继续保持未完成；遵守用户“先不部署”约束。
 
+## 实施记录（2026-08-03，第九批）
+
+本批次把 shadow reconciliation 从纯内存分类推进为可追溯的 Data Center 证据链；仍不部署、不 push、不连接 VPS。
+
+已落地：
+
+- 新增 `ReconciliationEvidence` Domain 契约、`ReconciliationEvidenceModel`（迁移 `0055_reconciliationevidencemodel.py`）、Repository、Application UseCase 和 Public Port，持久化 dataset、legacy/canonical snapshot hash、观察时间、分类计数及逐自然键差异。
+- 新增只读 Admin 展示和 `record_data_center_reconciliation` maintenance command：读取两个 JSON 快照、计算稳定 SHA-256、执行 same/expected/missing/conflict/code-defect 分类并写入证据；正常业务 current 查询仍只读 Publication，不会触发旧表 shadow 读取。
+
+第九批机器证据：
+
+- `pytest tests/unit/data_center/test_reconciliation_evidence.py -q --no-migrations --reuse-db --timeout=180`：4 passed，覆盖时区阻断、数据库 round-trip、同 evidence_id 幂等和 JSON command hash。
+- `python manage.py migrate --noinput` 已在本地 SQLite 应用 `0055`；`python manage.py check`、迁移 dry-run、ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- 当前 command 只消费维护导出的 JSON 快照；生产 D0-D9 导出、至少 2/3 个调度观察窗口、差异 owner/期限登记和自动告警尚未接入，不能把本地 evidence 当作生产 shadow 通过。
+- PostgreSQL relation/P95/锁预算、容量画像、备份恢复、M9/M10 和全入口 Publication-only 仍未完成；按约束不触发部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
@@ -1382,7 +1401,7 @@ Data Center Public Port → 业务 Application 聚合 → REST DTO → SDK/MCP/T
 - Publication、SyncRun 和关键查询响应记录 runtime config snapshot_id/hash。
 - [x] 小型 Public Query Ports 和版本化 DTO。
 - [x] as_of / publication_id / current 三种明确查询模式（published gate 已提供；全入口强制切换未完成）。
-- shadow read 记录 legacy 与 canonical 差异，不影响用户响应。
+- [x] shadow read 通过 `ReconciliationEvidence` 记录 legacy 与 canonical 差异，不影响用户响应（生产导出/观察窗口仍待完成）。
 - 查询预算、索引和批量接口。
 
 测试：

@@ -51,6 +51,9 @@ from apps.data_center.infrastructure.provider_state_repositories import (
     ProviderConfigRepository,
     RawAuditRepository,
 )
+from apps.data_center.infrastructure.reconciliation_evidence_repositories import (
+    ReconciliationEvidenceRepository,
+)
 
 __all__ = [
     "AssetRepository",
@@ -76,6 +79,7 @@ __all__ = [
     "PublicationPolicyRepository",
     "QuoteSnapshotRepository",
     "RawAuditRepository",
+    "ReconciliationEvidenceRepository",
     "SectorMembershipRepository",
     "ValuationFactRepository",
     "_build_asset_code_candidates",

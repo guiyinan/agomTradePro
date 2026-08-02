@@ -42,6 +42,7 @@ from apps.data_center.domain.entities import (
     ValuationFact,
 )
 from apps.data_center.domain.enums import DataCapability, FinancialPeriodType
+from apps.data_center.domain.reconciliation import ReconciliationEvidence
 
 
 @runtime_checkable
@@ -254,6 +255,15 @@ class DataOwnerRegistryRepositoryProtocol(Protocol):
     def list_active(self) -> list[DataOwnerRegistration]: ...
     def save(self, registration: DataOwnerRegistration) -> DataOwnerRegistration: ...
     def synchronize(self, registrations: Iterable[DataOwnerRegistration]) -> int: ...
+
+
+@runtime_checkable
+class ReconciliationEvidenceRepositoryProtocol(Protocol):
+    """Persistence contract for legacy/canonical shadow evidence."""
+
+    def save(self, evidence: ReconciliationEvidence) -> ReconciliationEvidence: ...
+    def get_latest(self, dataset_key: str) -> ReconciliationEvidence | None: ...
+    def list_recent(self, dataset_key: str, *, limit: int = 20) -> list[ReconciliationEvidence]: ...
 
 
 @runtime_checkable

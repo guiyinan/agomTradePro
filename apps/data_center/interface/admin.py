@@ -20,6 +20,7 @@ from apps.data_center.models import (
     ProductionCoverageUniverseConfigModel,
     ProviderConfigModel,
     PublisherCatalogModel,
+    ReconciliationEvidenceModel,
 )
 from shared.config.tushare import (
     TUSHARE_REQUEST_MODE_SDK_PATH,
@@ -385,5 +386,39 @@ class DataOwnerRegistrationAdmin(TypedModelAdmin[DataOwnerRegistrationModel]):
         obj: DataOwnerRegistrationModel | None = None,
     ) -> bool:
         """Prevent destructive edits from the admin surface."""
+
+        return False
+
+
+@admin.register(ReconciliationEvidenceModel)
+class ReconciliationEvidenceAdmin(TypedModelAdmin[ReconciliationEvidenceModel]):
+    """Expose shadow comparison evidence without permitting mutation."""
+
+    list_display = (
+        "dataset_key",
+        "is_clean",
+        "observed_at",
+        "legacy_snapshot_hash",
+        "canonical_snapshot_hash",
+    )
+    list_filter = ("dataset_key", "is_clean")
+    search_fields = (
+        "dataset_key",
+        "legacy_snapshot_hash",
+        "canonical_snapshot_hash",
+    )
+    readonly_fields = tuple(field.name for field in ReconciliationEvidenceModel._meta.fields)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Require the reconciliation Application Port for new evidence."""
+
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: ReconciliationEvidenceModel | None = None,
+    ) -> bool:
+        """Prevent destructive removal of shadow evidence."""
 
         return False

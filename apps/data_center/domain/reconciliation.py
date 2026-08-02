@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from math import isfinite
 
@@ -56,6 +57,29 @@ class ReconciliationReport:
             }
             for row in self.rows
         )
+
+
+@dataclass(frozen=True)
+class ReconciliationEvidence:
+    """Persistable evidence for one legacy/canonical shadow comparison."""
+
+    evidence_id: str
+    report: ReconciliationReport
+    legacy_snapshot_hash: str
+    canonical_snapshot_hash: str
+    observed_at: datetime
+
+    def __post_init__(self) -> None:
+        if not self.evidence_id.strip():
+            raise ValueError("ReconciliationEvidence.evidence_id cannot be empty")
+        if not self.legacy_snapshot_hash.strip():
+            raise ValueError("ReconciliationEvidence.legacy_snapshot_hash cannot be empty")
+        if not self.canonical_snapshot_hash.strip():
+            raise ValueError("ReconciliationEvidence.canonical_snapshot_hash cannot be empty")
+        if self.report.dataset_key.strip() == "":
+            raise ValueError("ReconciliationEvidence.report dataset_key cannot be empty")
+        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+            raise ValueError("ReconciliationEvidence.observed_at must be timezone-aware")
 
 
 def reconcile_records(
@@ -165,6 +189,7 @@ __all__ = [
     "QueryBudgetResult",
     "ReconciliationClassification",
     "ReconciliationDifference",
+    "ReconciliationEvidence",
     "ReconciliationReport",
     "evaluate_query_budget",
     "reconcile_records",
