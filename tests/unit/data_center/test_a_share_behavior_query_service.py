@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 
 from apps.data_center.application.query_services import (
     A_SHARE_BEHAVIOR_INDICATORS,
@@ -24,6 +25,10 @@ class _Repository:
 class _Publication:
     def __init__(self, publication_id: str) -> None:
         self.publication_id = publication_id
+        self.published_at = datetime(2026, 7, 30, 8, 0, tzinfo=UTC)
+        self.as_of = self.published_at
+        self.must_not_use_for_decision = False
+        self.blocked_reason = ""
 
 
 class _PublicationRepository:
@@ -35,6 +40,11 @@ class _PublicationRepository:
         if publication_key in self.missing:
             return None
         return _Publication(f"publication-{publication_key}")
+
+
+class _StalePublicationRepository(_PublicationRepository):
+    def get_oldest_member_observed_at(self, _publication_id: str) -> datetime:
+        return datetime(2025, 7, 1, tzinfo=UTC)
 
 
 def _fact(indicator_code: str, observed_at: date, value: float) -> MacroFact:
@@ -144,3 +154,30 @@ def test_published_behavior_carries_each_component_publication_id(monkeypatch) -
     assert payload["stats_available"] is True
     assert set(payload["publication_ids"]) == set(A_SHARE_BEHAVIOR_INDICATORS.values())
     assert payload["contract"]["must_not_use_for_decision"] is False
+
+
+def test_published_behavior_blocks_stale_component_publications(monkeypatch) -> None:
+    """A composite behavior read blocks before facts when any component is stale."""
+
+    monkeypatch.setattr(
+        "apps.data_center.application.query_services.get_canonical_publication_repository",
+        lambda: _StalePublicationRepository(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.query_services.get_dataset_contract_repository",
+        lambda: SimpleNamespace(
+            get_active=lambda _dataset_key: SimpleNamespace(freshness_seconds=86_400)
+        ),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.query_services.get_macro_fact_repository",
+        lambda: (_ for _ in ()).throw(AssertionError("stale breadth facts must not be read")),
+    )
+
+    payload = query_published_a_share_behavior_payload(now=datetime(2026, 7, 30, 8, 30, tzinfo=UTC))
+
+    assert payload["stats_available"] is False
+    assert payload["contract"]["blocked_reason"] == "canonical_publication_stale"
+    assert payload["contract"]["is_stale"] is True
+    assert payload["contract"]["stale_fields"] == list(A_SHARE_BEHAVIOR_INDICATORS.keys())
+    assert payload["contract"]["blocked_fields"] == list(A_SHARE_BEHAVIOR_INDICATORS.keys())

@@ -415,6 +415,26 @@
 - PostgreSQL 证据仍是空库/受控样本；尚未覆盖生产规模 relation/index/WAL/P95、custom-format backup/restore、真实 Provider 回填和调度观察窗口。
 - Retention 分区/rollup、外部 archive restore、全 D0-D9 业务切读、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第十九批）
+
+本批次补齐宏观与 A 股综合行为 Publication-only 入口的 freshness gate；不部署、不 push。
+
+已落地：
+
+- `query_published_macro_fact_series` 从“只要有 publication 就放行”改为复用统一成员观测 freshness gate；缺失、过期、naive 或无契约时均返回空 rows 和阻断证据，不读取事实仓储。
+- A 股上涨/下跌/涨停/跌停综合行为逐组件执行 `macro.fact` freshness gate，响应保留 `publication_gates`、`stale_fields`、`blocked_fields` 和稳定阻断原因，避免单一 publication 或旧事实掩盖组件过期。
+- `governance/current_data_contracts.json` 增加宏观 freshness marker 及宏观/A 股 stale 回归 nodeid。
+
+第十九批机器证据：
+
+- `pytest tests/unit/data_center/test_published_query_ports.py tests/unit/data_center/test_a_share_behavior_query_service.py -q --no-migrations --reuse-db --timeout=180`：15 passed。
+- `pytest tests/unit/pulse/test_data_provider_guardrails.py tests/unit/regime -q --no-migrations --reuse-db --timeout=180`：60 passed。
+- `python scripts/check_current_data_contracts.py`：29 surfaces；变更文件 ruff/black/isort 与 `check_mypy_regression.py` 通过。
+
+仍未完成及风险：
+
+- 该批只收口本地 Application/业务适配器 freshness 语义；生产 publication/member 观测、D0-D9 全入口快照、备份恢复、P95/WAL、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

@@ -167,22 +167,17 @@ def query_published_macro_fact_series(
     end: date | None = None,
     limit: int = 500,
 ) -> dict[str, object]:
-    """Read macro facts only when a current publication exists.
+    """Read macro facts only after the publication freshness gate passes.
 
-    This explicit current-data port prevents a non-empty but unpublished fact
-    from being mistaken for a decision-ready value.  The legacy series port
-    remains available for historical/maintenance views.
+    This explicit current-data port prevents a non-empty, unpublished, or
+    stale fact from being mistaken for a decision-ready value.  The legacy
+    series port remains available for historical/maintenance views.
     """
 
     key = publication_key or indicator_code
-    publication = get_canonical_publication_repository().get_current("macro.fact", key)
-    if publication is None:
-        return {
-            "rows": [],
-            "publication_id": None,
-            "must_not_use_for_decision": True,
-            "blocked_reason": "canonical_publication_missing",
-        }
+    gate = _publication_gate("macro.fact", key)
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
     return {
         "rows": query_macro_fact_series(
             indicator_code,
@@ -190,10 +185,7 @@ def query_published_macro_fact_series(
             end=end,
             limit=limit,
         ),
-        "publication_id": publication.publication_id,
-        "published_at": publication.published_at.isoformat() if publication.published_at else None,
-        "must_not_use_for_decision": publication.must_not_use_for_decision,
-        "blocked_reason": publication.blocked_reason,
+        **gate,
     }
 
 
@@ -550,44 +542,86 @@ def query_published_a_share_behavior_payload(
     non-empty legacy row, so each component has its own publication scope.
     """
 
-    publication_repository = get_canonical_publication_repository()
+    current_now = now or datetime.now(UTC)
+    if current_now.tzinfo is None or current_now.utcoffset() is None:
+        current_now = current_now.replace(tzinfo=UTC)
     publication_ids: dict[str, str] = {}
+    publication_gates: dict[str, dict[str, object]] = {}
     missing_publications: list[str] = []
+    blocked_publications: list[str] = []
     for indicator_code in A_SHARE_BEHAVIOR_INDICATORS.values():
-        publication = publication_repository.get_current("macro.fact", indicator_code)
-        if publication is None:
+        gate = _publication_gate("macro.fact", indicator_code, now=current_now)
+        if gate is None:
             missing_publications.append(indicator_code)
-        else:
-            publication_ids[indicator_code] = publication.publication_id
-    if missing_publications:
+            continue
+        publication_gates[indicator_code] = gate
+        publication_id = gate.get("publication_id")
+        if isinstance(publication_id, str) and publication_id:
+            publication_ids[indicator_code] = publication_id
+        if bool(gate.get("must_not_use_for_decision")):
+            blocked_publications.append(indicator_code)
+    if missing_publications or blocked_publications:
         missing_fields = [
             field_name
             for field_name, indicator_code in A_SHARE_BEHAVIOR_INDICATORS.items()
             if indicator_code in missing_publications
         ]
+        blocked_fields = [
+            field_name
+            for field_name, indicator_code in A_SHARE_BEHAVIOR_INDICATORS.items()
+            if indicator_code in blocked_publications
+        ]
+        stale_fields = [
+            field_name
+            for field_name, indicator_code in A_SHARE_BEHAVIOR_INDICATORS.items()
+            if indicator_code in blocked_publications
+            and publication_gates[indicator_code].get("freshness_status") in {"stale", "invalid"}
+        ]
+        blocked_reasons = [
+            str(publication_gates[indicator_code].get("blocked_reason") or "")
+            for indicator_code in blocked_publications
+        ]
+        blocked_reason = next(
+            (reason for reason in blocked_reasons if reason),
+            (
+                "canonical_publication_missing"
+                if missing_publications
+                else "canonical_publication_blocked"
+            ),
+        )
         return {
             **dict.fromkeys(A_SHARE_BEHAVIOR_INDICATORS, None),
             "stats_available": False,
             "publication_ids": publication_ids,
+            "publication_gates": publication_gates,
             "contract": {
                 "observed_at": None,
                 "market_data_as_of": None,
                 "expected_market_session": None,
                 "observed_by_field": {},
                 "is_reliable": False,
-                "is_stale": False,
+                "is_stale": bool(stale_fields),
                 "must_not_use_for_decision": True,
-                "blocked_reason": "canonical_publication_missing",
+                "blocked_reason": blocked_reason,
                 "missing_fields": missing_fields,
-                "stale_fields": [],
+                "stale_fields": stale_fields,
+                "blocked_fields": blocked_fields,
                 "missing_publications": missing_publications,
+                "blocked_publications": blocked_publications,
                 "publication_ids": publication_ids,
+                "publication_gates": publication_gates,
             },
         }
-    payload = get_latest_a_share_behavior_payload(now=now)
+    payload = get_latest_a_share_behavior_payload(now=current_now)
     contract = dict(payload.get("contract") or {})
     contract["publication_ids"] = publication_ids
-    return {**payload, "publication_ids": publication_ids, "contract": contract}
+    contract["publication_gates"] = publication_gates
+    return {
+        **payload,
+        "publication_ids": publication_ids,
+        "publication_gates": publication_gates,
+        "contract": contract,
+    }
 
 
 def list_latest_macro_indicator_payloads(limit: int = 50) -> list[dict[str, Any]]:

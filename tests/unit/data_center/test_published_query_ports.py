@@ -143,6 +143,39 @@ def test_published_financial_and_valuation_facts_preserve_gate_evidence(monkeypa
     assert valuation_result["must_not_use_for_decision"] is False
 
 
+def test_published_macro_facts_block_old_member_observation(monkeypatch) -> None:
+    """Macro publication metadata cannot wash an old source observation into current reads."""
+
+    publication_repo = SimpleNamespace(
+        get_current=lambda *_args: _publication(),
+        get_oldest_member_observed_at=lambda *_args: datetime(2025, 7, 1, tzinfo=UTC),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: publication_repo,
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: SimpleNamespace(
+            get_active=lambda *_args: SimpleNamespace(freshness_seconds=86_400)
+        ),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_macro_fact_repository",
+        lambda: (_ for _ in ()).throw(AssertionError("stale macro facts must not be read")),
+    )
+
+    result = query_services.query_published_macro_fact_series("CN_PMI")
+
+    assert result["rows"] == []
+    assert result["publication_id"] == "pub-2026-08-02"
+    assert result["freshness_status"] == "stale"
+    assert result["blocked_reason"] == "canonical_publication_stale"
+
+
 def test_published_financial_facts_fail_closed_before_repository_query(monkeypatch) -> None:
     """Missing D4 publication blocks before a financial repository call."""
 

@@ -1043,6 +1043,7 @@
       "surface": "Current quote and macro consumers use Data Center publication-only ports",
       "source_files": [
         "apps/data_center/application/public.py",
+        "apps/data_center/application/query_services.py",
         "apps/alpha/infrastructure/adapters/simple_adapter.py",
         "apps/pulse/infrastructure/data_provider.py",
         "apps/regime/infrastructure/macro_data_provider.py"
@@ -1052,6 +1053,11 @@
           "def get_published_quote_payloads(",
           "def get_published_price_bar_series(",
           "def get_published_macro_fact_series("
+        ],
+        "apps/data_center/application/query_services.py": [
+          "def query_published_macro_fact_series(",
+          "_publication_gate(\"macro.fact\"",
+          "canonical_publication_stale"
         ],
         "apps/alpha/infrastructure/adapters/simple_adapter.py": [
           "get_published_quote_payloads(active_codes)",
@@ -1082,6 +1088,16 @@
           "case": "published_fact_query_contract",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
           "test_function": "test_published_sector_memberships_fail_closed_without_publication"
+        },
+        {
+          "case": "macro_stale_publication_blocks",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_macro_facts_block_old_member_observation"
+        },
+        {
+          "case": "breadth_stale_publication_blocks",
+          "test_file": "tests/unit/data_center/test_a_share_behavior_query_service.py",
+          "test_function": "test_published_behavior_blocks_stale_component_publications"
         }
       ]
     },
