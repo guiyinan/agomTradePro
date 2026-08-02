@@ -27,10 +27,28 @@ _ALLOWED_ENV_KEYS = {"NO_PROXY", "no_proxy"}
 _SDK_MCP_CALL_LOCK = RLock()
 _INTERNAL_IDENTITY_ENV_KEYS = (
     "AGOMTRADEPRO_API_TOKEN",
+    "AGOMTRADEPRO_INTERNAL_AUTH_SECRET",
     "AGOMTRADEPRO_INTERNAL_USER_ID",
     "AGOMTRADEPRO_INTERNAL_USERNAME",
     "AGOMTRADEPRO_INTERNAL_SOURCE",
 )
+
+
+def _resolve_internal_auth_secret() -> str:
+    """Read the same internal-auth secret used by Django request authentication."""
+
+    environment_secret = str(os.getenv("AGOMTRADEPRO_INTERNAL_AUTH_SECRET") or "").strip()
+    if environment_secret:
+        return environment_secret
+    try:
+        from django.conf import settings
+        from django.core.exceptions import ImproperlyConfigured
+    except ImportError:
+        return ""
+    try:
+        return str(getattr(settings, "AGOMTRADEPRO_INTERNAL_AUTH_SECRET", "") or "").strip()
+    except ImproperlyConfigured:
+        return ""
 
 
 def ensure_sdk_on_path() -> None:
@@ -97,11 +115,13 @@ def _sdk_internal_identity(*, user_id: int, username: str) -> Iterator[None]:
     normalized_username = str(username or "").strip()
     if len(normalized_username) > 150 or any(ord(char) < 32 for char in normalized_username):
         raise ValueError("MCP internal username is invalid")
-    if not str(os.getenv("AGOMTRADEPRO_INTERNAL_AUTH_SECRET") or "").strip():
+    internal_auth_secret = _resolve_internal_auth_secret()
+    if not internal_auth_secret:
         raise RuntimeError("MCP internal authentication is not configured")
 
     previous = {key: os.environ.get(key) for key in _INTERNAL_IDENTITY_ENV_KEYS}
     os.environ.pop("AGOMTRADEPRO_API_TOKEN", None)
+    os.environ["AGOMTRADEPRO_INTERNAL_AUTH_SECRET"] = internal_auth_secret
     os.environ["AGOMTRADEPRO_INTERNAL_USER_ID"] = str(user_id)
     os.environ["AGOMTRADEPRO_INTERNAL_USERNAME"] = normalized_username
     os.environ["AGOMTRADEPRO_INTERNAL_SOURCE"] = "ai_capability_route"

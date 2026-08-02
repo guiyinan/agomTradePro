@@ -137,5 +137,40 @@ def test_in_process_mcp_call_binds_and_restores_originating_user(monkeypatch):
         "source": "ai_capability_route",
     }
     assert os.environ["AGOMTRADEPRO_API_TOKEN"] == "global-token"
+    assert os.environ["AGOMTRADEPRO_INTERNAL_AUTH_SECRET"] == "internal-secret"
     assert os.environ["AGOMTRADEPRO_INTERNAL_USER_ID"] == "99"
     assert os.environ["AGOMTRADEPRO_INTERNAL_USERNAME"] == "previous"
+
+
+def test_in_process_mcp_call_uses_django_internal_auth_truth(monkeypatch):
+    observed: dict[str, str | None] = {}
+
+    class FakeServer:
+        async def call_tool(self, _tool_name, _params):
+            observed["secret"] = os.environ.get("AGOMTRADEPRO_INTERNAL_AUTH_SECRET")
+            return ([], {"ok": True})
+
+    monkeypatch.delenv("AGOMTRADEPRO_INTERNAL_AUTH_SECRET", raising=False)
+    monkeypatch.setattr(
+        mcp_runtime,
+        "_resolve_internal_auth_secret",
+        lambda: "django-settings-secret",
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "agomtradepro_mcp.server",
+        SimpleNamespace(server=FakeServer()),
+    )
+    monkeypatch.setattr(mcp_runtime, "ensure_sdk_on_path", lambda: None)
+    monkeypatch.setattr(mcp_runtime, "load_mcp_env_from_repo_config", lambda: None)
+
+    result = mcp_runtime.call_sdk_mcp_tool(
+        "agom_capability_call",
+        {"capability_key": "equity.read.research_snapshot", "arguments": {}},
+        user_id=7,
+        username="researcher",
+    )
+
+    assert result == {"ok": True}
+    assert observed["secret"] == "django-settings-secret"
+    assert "AGOMTRADEPRO_INTERNAL_AUTH_SECRET" not in os.environ
