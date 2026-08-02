@@ -15,15 +15,9 @@ from apps.audit.domain.interfaces import (
     IndicatorThresholdRecord,
     RegimeLogRecord,
 )
-from apps.data_center.infrastructure.macro_fact_selection import (
-    configured_macro_source,
-    select_macro_fact_series,
-)
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
+from apps.data_center.application.public import get_macro_fact_series
 
-from .indicator_repository_values import MacroFactCandidate as _MacroFactCandidate
 from .indicator_repository_values import json_float_mapping as _json_float_mapping
-from .indicator_repository_values import json_mapping as _json_mapping
 from .indicator_repository_values import json_object_list as _json_object_list
 from .indicator_repository_values import nonnegative_int as _nonnegative_int
 from .indicator_repository_values import optional_finite_float as _optional_finite_float
@@ -430,31 +424,19 @@ class IndicatorRepositoryMixin:
         Returns:
             List[tuple]: (reporting_period, value) 元组列表
         """
-        queryset = MacroFactModel._default_manager.filter(
-            indicator_code=indicator_code,
-            reporting_period__gte=start_date,
-            reporting_period__lte=end_date,
-        ).order_by("reporting_period", "id")
-        catalog = IndicatorCatalogModel._default_manager.filter(code=indicator_code).first()
-        candidates = [
-            _MacroFactCandidate(
-                indicator_code=fact.indicator_code,
-                reporting_period=fact.reporting_period,
-                value=float(fact.value),
-                source=fact.source,
-                revision_number=fact.revision_number,
-                published_at=fact.published_at,
-                fetched_at=fact.fetched_at,
-                extra=_json_mapping(fact.extra),
+        return [
+            (
+                date.fromisoformat(str(fact["reporting_period"])),
+                float(fact["value"]),
             )
-            for fact in queryset
+            for fact in get_macro_fact_series(
+                indicator_code,
+                start=start_date,
+                end=end_date,
+                limit=500,
+                use_pit=True,
+            )
         ]
-        selection = select_macro_fact_series(
-            candidates,
-            preferred_source=configured_macro_source(catalog.extra if catalog else {}),
-        )
-
-        return [(fact.reporting_period, fact.value) for fact in selection.facts]
 
     def get_regime_log_values(
         self,

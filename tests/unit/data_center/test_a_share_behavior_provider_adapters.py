@@ -93,7 +93,7 @@ def test_tushare_collects_breadth_and_limit_counts(monkeypatch) -> None:
             return pd.DataFrame([{"ts_code": "600001.SH"}] * (2 if limit_type == "U" else 1))
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
         lambda **kwargs: _Client(),
     )
     adapter = TushareUnifiedProviderAdapter(_config("tushare"))
@@ -114,7 +114,7 @@ def test_tushare_empty_limit_response_does_not_publish_zero(monkeypatch) -> None
             return pd.DataFrame()
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
         lambda **kwargs: _Client(),
     )
 

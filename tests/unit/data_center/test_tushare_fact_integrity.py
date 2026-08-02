@@ -259,7 +259,7 @@ def test_financial_and_valuation_adapters_drop_nonfinite_fields(monkeypatch) -> 
 
 def test_turnover_failure_log_does_not_expose_provider_exception(monkeypatch, caplog) -> None:
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
         lambda **_kwargs: (_ for _ in ()).throw(
             RuntimeError("https://token:secret-password@provider.example")
         ),

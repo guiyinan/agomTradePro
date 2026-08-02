@@ -271,37 +271,31 @@ class DataSourceRepository:
         Args:
             config: 数据源配置
         """
-        from apps.data_center.infrastructure.models import ProviderConfigModel
+        from apps.data_center.application.public import save_data_source_configuration
 
         if config.tushare_token:
             tushare_token = _validated_secret(config.tushare_token, field_name="Tushare token")
             tushare_url = _validated_http_url(config.tushare_http_url)
-            ProviderConfigModel.objects.update_or_create(
+            save_data_source_configuration(
                 source_type="tushare",
-                defaults={
-                    "name": "Tushare Pro",
-                    "api_key": tushare_token,
-                    "http_url": tushare_url,
-                    "is_active": True,
-                },
+                name="Tushare Pro",
+                api_key=tushare_token,
+                http_url=tushare_url,
             )
 
         if config.fred_api_key:
             fred_api_key = _validated_secret(config.fred_api_key, field_name="FRED API key")
-            ProviderConfigModel.objects.update_or_create(
+            save_data_source_configuration(
                 source_type="fred",
-                defaults={
-                    "name": "FRED",
-                    "api_key": fred_api_key,
-                    "is_active": True,
-                },
+                name="FRED",
+                api_key=fred_api_key,
             )
 
     def has_active_config(self) -> bool:
         """检查是否存在活跃的数据源配置"""
-        from apps.data_center.infrastructure.models import ProviderConfigModel
+        from apps.data_center.application.public import list_active_data_sources
 
-        return ProviderConfigModel.objects.filter(is_active=True).exists()
+        return bool(list_active_data_sources())
 
 
 def _normalized_step_values(raw_steps: object) -> list[str]:

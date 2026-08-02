@@ -15,7 +15,7 @@ import numpy as np
 from apps.alpha.infrastructure.scientific_runtime import get_pandas
 from apps.config_center.application import interface_services as config_center_services
 from apps.config_center.domain.entities import AlphaUniverseConfig
-from shared.infrastructure.tushare_client import create_tushare_pro_client
+from apps.data_center.infrastructure.tushare_client import create_tushare_pro_client
 
 logger = logging.getLogger(__name__)
 pd = get_pandas()

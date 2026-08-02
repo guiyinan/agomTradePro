@@ -81,11 +81,11 @@ class StockScreener:
 
         for _stock_info, financial, valuation in all_stocks:
             # 收集营收增长率（过滤负值和无效值）
-            if financial.revenue_growth >= 0:
+            if financial.revenue_growth is not None and financial.revenue_growth >= 0:
                 revenue_growth.append(financial.revenue_growth)
 
             # 收集净利润增长率（过滤负值和无效值）
-            if financial.net_profit_growth >= 0:
+            if financial.net_profit_growth is not None and financial.net_profit_growth >= 0:
                 profit_growth.append(financial.net_profit_growth)
 
             # 收集ROE（过滤负值和无效值）
@@ -93,7 +93,7 @@ class StockScreener:
                 roe_list.append(financial.roe)
 
             # 收集PE（过滤负值、零值和无效值）
-            if valuation.pe > 0:
+            if valuation.pe is not None and valuation.pe > 0:
                 pe_list.append(valuation.pe)
 
         return {
@@ -113,6 +113,16 @@ class StockScreener:
         """判断是否符合规则"""
         # 1. 行业偏好
         if rule.sector_preference and stock_info.sector not in rule.sector_preference:
+            return False
+
+        # A screening decision must not invent a value for an unavailable fact.
+        if (
+            financial.revenue_growth is None
+            or financial.net_profit_growth is None
+            or valuation.pe is None
+            or valuation.pb is None
+            or valuation.total_mv is None
+        ):
             return False
 
         # 2. 财务指标
@@ -167,6 +177,13 @@ class StockScreener:
         Returns:
             综合评分（0-1 之间）
         """
+        if (
+            financial.revenue_growth is None
+            or financial.net_profit_growth is None
+            or valuation.pe is None
+        ):
+            raise ValueError("cannot score a stock with missing screening metrics")
+
         # 1. 成长性分位数（营收和净利润增长率的分位数）
         revenue_growth_percentile = self._percentile(
             financial.revenue_growth, market_metrics["revenue_growth"]

@@ -12,7 +12,7 @@ import logging
 from datetime import date
 from types import ModuleType
 
-from shared.infrastructure.sdk_bridge import get_akshare_module
+from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 
 from .base import (
     DataSourceUnavailableError,

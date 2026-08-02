@@ -39,12 +39,9 @@ from apps.data_center.infrastructure._provider_adapter_base import (
     _score_market_news_sentiment,
     _valuation_period,
 )
+from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.macro_sources import AKShareAdapter
 from apps.data_center.infrastructure.sse_investor_accounts import fetch_investor_account_facts
-from core.integration.data_center_business_sources import (
-    build_akshare_fund_adapter,
-    build_akshare_sector_adapter,
-)
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -518,14 +515,20 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[FundNavFact]:
-        adapter = build_akshare_fund_adapter()
-        df = adapter.fetch_fund_nav_em(fund_code.split(".")[0])
+        ak = get_akshare_module()
+        normalized_code = fund_code.split(".")[0]
+        fetcher = getattr(ak, "fund_open_fund_info_em", None)
+        df = (
+            fetcher(fund=normalized_code, indicator="单位净值走势")
+            if fetcher is not None
+            else None
+        )
         if df is None or df.empty:
             return []
 
         facts: list[FundNavFact] = []
         for row in df.to_dict("records"):
-            nav_date = row.get("nav_date")
+            nav_date = _first_present(row, "nav_date", "净值日期", "日期")
             if nav_date is None:
                 continue
             nav_date = nav_date.date() if hasattr(nav_date, "date") else nav_date
@@ -535,8 +538,8 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 FundNavFact(
                     fund_code=fund_code,
                     nav_date=nav_date,
-                    nav=float(row.get("unit_nav")),
-                    acc_nav=safe_float(row.get("累计净值")),
+                    nav=float(_first_present(row, "unit_nav", "单位净值", "净值")),
+                    acc_nav=safe_float(_first_present(row, "accum_nav", "累计净值")),
                     source=self.provider_source(),
                     extra=self._provider_extra(),
                 )
@@ -730,32 +733,11 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         sector_name: str = "",
         effective_date: date | None = None,
     ) -> list[SectorMembershipFact]:
-        adapter = build_akshare_sector_adapter()
-        resolved_name = sector_name
-        resolved_code = sector_code
-        if not resolved_name and resolved_code:
-            sector_list = adapter.fetch_sector_list()
-            matched = sector_list[sector_list["sector_code"] == resolved_code]
-            if not matched.empty:
-                resolved_name = str(matched.iloc[0]["sector_name"])
-        if not resolved_name:
-            return []
-
-        as_of = effective_date or date.today()
-        df = adapter.fetch_sector_constituents(resolved_name)
-        if df is None or df.empty:
-            return []
-        return [
-            SectorMembershipFact(
-                asset_code=normalize_asset_code(str(row["stock_code"]), "akshare"),
-                sector_code=resolved_code or resolved_name,
-                sector_name=resolved_name,
-                effective_date=as_of,
-                source=self.provider_source(),
-            )
-            for row in df.to_dict("records")
-            if row.get("stock_code")
-        ]
+        # AKShare does not expose a stable historical constituent contract for
+        # this capability.  Returning an empty result keeps the provider
+        # fail-closed instead of importing the sector app's local ORM adapter.
+        del sector_code, sector_name, effective_date
+        return []
 
     def fetch_news(self, asset_code: str, limit: int = 20) -> list[NewsFact]:
         from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (

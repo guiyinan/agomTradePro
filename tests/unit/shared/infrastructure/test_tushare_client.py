@@ -7,12 +7,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from shared.infrastructure.tushare_client import (
-    TUSHARE_REQUEST_MODE_UNIFIED_RELAY,
+from apps.data_center.infrastructure.tushare_client import (
     TushareRelayAuthorizationError,
     create_tushare_pro_client,
     resolve_tushare_runtime_settings,
 )
+from shared.config.tushare import TUSHARE_REQUEST_MODE_UNIFIED_RELAY
 
 
 class _RelayResponse:
@@ -72,7 +72,7 @@ def test_unified_relay_rejects_invalid_api_key_without_payload_fallback(
     session = _RelaySession()
     monkeypatch.setattr(session, "post", lambda *_args, **_kwargs: _RejectedRelayResponse())
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.requests.Session",
+        "apps.data_center.infrastructure.tushare_client.requests.Session",
         lambda: session,
     )
     client = create_tushare_pro_client(
@@ -90,7 +90,7 @@ def test_unified_relay_posts_to_exact_url_with_api_key_header(monkeypatch: Any) 
 
     session = _RelaySession()
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.requests.Session",
+        "apps.data_center.infrastructure.tushare_client.requests.Session",
         lambda: session,
     )
 

@@ -30,7 +30,7 @@ def test_tushare_gateway_treats_000001_sz_as_stock_not_index():
     fake_client.fund_daily.return_value = MagicMock(empty=True)
 
     with patch(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
         return_value=fake_client,
     ):
         gateway = TushareGateway()

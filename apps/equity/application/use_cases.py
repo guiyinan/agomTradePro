@@ -610,9 +610,9 @@ class AnalyzeValuationResponse:
     market: str
     list_date: str | None
     # 估值数据
-    current_pe: float
+    current_pe: float | None
     pe_percentile: float
-    current_pb: float
+    current_pb: float | None
     pb_percentile: float
     is_undervalued: bool
     # 最新估值详情
@@ -694,33 +694,50 @@ class AnalyzeValuationUseCase:
 
                 # 3. 计算百分位
                 analyzer = ValuationAnalyzer()
-                pe_history = [v.pe for v in valuation_history if v.pe > 0]
-                pb_history = [v.pb for v in valuation_history if v.pb > 0]
+                pe_history = [v.pe for v in valuation_history if v.pe is not None and v.pe > 0]
+                pb_history = [v.pb for v in valuation_history if v.pb is not None and v.pb > 0]
 
-                pe_percentile = analyzer.calculate_pe_percentile(latest.pe, pe_history)
-                pb_percentile = analyzer.calculate_pb_percentile(latest.pb, pb_history)
+                if latest.pe is None or latest.pb is None:
+                    response_error = f"股票 {request.stock_code} 的 PE/PB 数据不完整"
+                    latest_valuation = {
+                        "pe": latest.pe,
+                        "pb": latest.pb,
+                        "ps": latest.ps,
+                        "pe_percentile": 0.0,
+                        "pb_percentile": 0.0,
+                        "total_mv": float(latest.total_mv) if latest.total_mv is not None else None,
+                        "circ_mv": float(latest.circ_mv) if latest.circ_mv is not None else None,
+                        "dividend_yield": latest.dividend_yield,
+                        "price": float(latest_daily[1]) if latest_daily else None,
+                        "trade_date": latest.trade_date.isoformat(),
+                        "updated_at": latest.fetched_at.isoformat() if latest.fetched_at else None,
+                    }
+                    latest = None
+                else:
+                    pe_percentile = analyzer.calculate_pe_percentile(latest.pe, pe_history)
+                    pb_percentile = analyzer.calculate_pb_percentile(latest.pb, pb_history)
 
-                # 4. 判断是否低估
-                is_undervalued = analyzer.is_undervalued(pe_percentile, pb_percentile)
+                    # 4. 判断是否低估
+                    is_undervalued = analyzer.is_undervalued(pe_percentile, pb_percentile)
 
-                # 7. 构建最新估值详情字典
-                latest_valuation = {
-                    "pe": latest.pe if latest.pe > 0 else None,
-                    "pb": latest.pb if latest.pb > 0 else None,
-                    "ps": latest.ps if latest.ps > 0 else None,
-                    "pe_percentile": pe_percentile,
-                    "pb_percentile": pb_percentile,
-                    "total_mv": float(latest.total_mv) if latest.total_mv else None,
-                    "circ_mv": float(latest.circ_mv) if latest.circ_mv else None,
-                    "dividend_yield": latest.dividend_yield if latest.dividend_yield > 0 else None,
-                    "price": float(latest_daily[1]) if latest_daily else None,
-                    "trade_date": latest.trade_date.isoformat() if latest.trade_date else None,
-                    "updated_at": (
-                        latest.fetched_at.isoformat()
-                        if hasattr(latest, "fetched_at") and latest.fetched_at
-                        else None
-                    ),
-                }
+                    # 7. 构建最新估值详情字典
+                    latest_valuation = {
+                        "pe": latest.pe if latest.pe > 0 else None,
+                        "pb": latest.pb if latest.pb > 0 else None,
+                        "ps": latest.ps if latest.ps is not None and latest.ps > 0 else None,
+                        "pe_percentile": pe_percentile,
+                        "pb_percentile": pb_percentile,
+                        "total_mv": float(latest.total_mv) if latest.total_mv is not None else None,
+                        "circ_mv": float(latest.circ_mv) if latest.circ_mv is not None else None,
+                        "dividend_yield": (
+                            latest.dividend_yield
+                            if latest.dividend_yield is not None and latest.dividend_yield > 0
+                            else None
+                        ),
+                        "price": float(latest_daily[1]) if latest_daily else None,
+                        "trade_date": latest.trade_date.isoformat(),
+                        "updated_at": latest.fetched_at.isoformat() if latest.fetched_at else None,
+                    }
             else:
                 response_error = f"未找到股票 {request.stock_code} 的估值数据"
                 latest_valuation = {
@@ -770,9 +787,9 @@ class AnalyzeValuationUseCase:
                 sector=stock_info.sector or "",
                 market=stock_info.market or "",
                 list_date=stock_info.list_date.isoformat() if stock_info.list_date else None,
-                current_pe=latest.pe if latest is not None else 0.0,
+                current_pe=latest.pe if latest is not None else None,
                 pe_percentile=pe_percentile,
-                current_pb=latest.pb if latest is not None else 0.0,
+                current_pb=latest.pb if latest is not None else None,
                 pb_percentile=pb_percentile,
                 is_undervalued=is_undervalued,
                 latest_valuation=latest_valuation,
@@ -789,9 +806,9 @@ class AnalyzeValuationUseCase:
                 sector="",
                 market="",
                 list_date=None,
-                current_pe=0.0,
+                current_pe=None,
                 pe_percentile=0.0,
-                current_pb=0.0,
+                current_pb=None,
                 pb_percentile=0.0,
                 is_undervalued=False,
                 latest_valuation=None,
@@ -896,7 +913,7 @@ class CalculateDCFUseCase:
             if not valuation:
                 raise ValueError(f"未找到股票 {request.stock_code} 的估值数据")
             current_mv = valuation[-1].total_mv
-            if not current_mv.is_finite() or current_mv <= 0:
+            if current_mv is None or not current_mv.is_finite() or current_mv <= 0:
                 raise ValueError("总市值必须为有限正数，无法推导总股本")
 
             daily_prices = self.stock_repo.get_daily_prices(
@@ -1301,8 +1318,8 @@ class ComprehensiveValuationUseCase:
             latest_valuation = valuation_history[-1]
 
             # 4. 提取历史 PE/PB 数据
-            historical_pe = [v.pe for v in valuation_history if v.pe > 0]
-            historical_pb = [v.pb for v in valuation_history if v.pb > 0]
+            historical_pe = [v.pe for v in valuation_history if v.pe is not None and v.pe > 0]
+            historical_pb = [v.pb for v in valuation_history if v.pb is not None and v.pb > 0]
 
             # 5. 调用综合估值分析器
             analyzer = ComprehensiveValuationAnalyzer()

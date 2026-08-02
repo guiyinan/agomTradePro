@@ -12,6 +12,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TypeVar, cast
 
+from apps.data_center.domain.contracts import FetchResult
 from apps.data_center.domain.entities import ProviderConfig, ProviderHealthSnapshot
 from apps.data_center.domain.enums import DataCapability, ProviderHealthStatus
 from apps.data_center.domain.protocols import (
@@ -220,8 +221,17 @@ class ProviderRegistry:
         self,
         capability: DataCapability,
         fn: Callable[[ProviderProtocol], T],
+        *,
+        validator: Callable[[T], bool] | None = None,
     ) -> T | None:
-        """Call available providers in priority order until one succeeds."""
+        """Call providers until a non-empty, quality-accepted result succeeds.
+
+        ``validator`` lets a dataset-specific caller reject stale, incomplete,
+        semantically invalid, or conflicting values and continue failover.  A
+        canonical :class:`FetchResult` is accepted only when its own evidence
+        and reliability contract are publishable; legacy list results remain
+        supported during migration.
+        """
         for state in self._registry.get(capability, []):
             if not state.is_available:
                 continue
@@ -247,7 +257,17 @@ class ProviderRegistry:
                     capability.value,
                 )
                 continue
-            if _is_empty_list(result):
+            if isinstance(result, FetchResult):
+                if not result.acceptable:
+                    state.record_failure()
+                    logger.info(
+                        "Provider '%s' returned an unpublishable FetchResult for '%s'; "
+                        "trying next",
+                        provider.provider_name(),
+                        capability.value,
+                    )
+                    continue
+            elif _is_empty_list(result):
                 state.record_failure()
                 logger.info(
                     "Provider '%s' returned no data for '%s'; marking failure and trying next",
@@ -255,6 +275,25 @@ class ProviderRegistry:
                     capability.value,
                 )
                 continue
+            if validator is not None:
+                try:
+                    accepted = validator(result)
+                except Exception as exc:
+                    accepted = False
+                    logger.warning(
+                        "Provider result validator raised %s for '%s'; trying next",
+                        type(exc).__name__,
+                        capability.value,
+                    )
+                if not accepted:
+                    state.record_failure()
+                    logger.info(
+                        "Provider '%s' result failed the '%s' acceptance validator; "
+                        "trying next",
+                        provider.provider_name(),
+                        capability.value,
+                    )
+                    continue
             state.record_success(latency_ms)
             return result
         logger.error("All providers failed for capability '%s'", capability.value)

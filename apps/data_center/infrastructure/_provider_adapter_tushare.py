@@ -33,11 +33,7 @@ from apps.data_center.infrastructure._provider_adapter_base import (
     _to_period_type,
 )
 from apps.data_center.infrastructure.macro_sources import TushareAdapter
-from core.integration.data_center_business_sources import (
-    build_tushare_financial_gateway,
-    build_tushare_fund_adapter,
-    build_tushare_valuation_gateway,
-)
+from apps.data_center.infrastructure.tushare_client import create_tushare_pro_client
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -50,6 +46,33 @@ _A_SHARE_BEHAVIOR_CODES = frozenset(
         "CN_A_LIMIT_DOWN_COUNT",
     }
 )
+
+
+# Test and migration seams.  Production uses the native Data Center gateways
+# below; callers may inject a legacy-shaped fake while transitioning fixtures.
+def build_tushare_fund_adapter(*, token: str, http_url: str | None = None) -> Any | None:
+    """Return no compatibility adapter by default; retained as an injection seam."""
+
+    del token, http_url
+    return None
+
+
+def build_tushare_financial_gateway(
+    *, token: str, http_url: str | None = None
+) -> Any | None:
+    """Return no compatibility gateway by default; retained for migration fakes."""
+
+    del token, http_url
+    return None
+
+
+def build_tushare_valuation_gateway(
+    *, token: str, http_url: str | None = None
+) -> Any | None:
+    """Return no compatibility gateway by default; retained for migration fakes."""
+
+    del token, http_url
+    return None
 
 
 class _ProviderFrame(Protocol):
@@ -97,6 +120,32 @@ class _TushareProClient(Protocol):
     ) -> _ProviderFrame | None:
         """Return ETF share-size rows."""
 
+    def fund_nav(
+        self,
+        *,
+        ts_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> _ProviderFrame | None:
+        """Return fund NAV rows."""
+
+    def fina_indicator(
+        self,
+        *,
+        ts_code: str,
+        limit: int,
+    ) -> _ProviderFrame | None:
+        """Return financial indicator rows."""
+
+    def daily_basic(
+        self,
+        *,
+        ts_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> _ProviderFrame | None:
+        """Return daily valuation rows."""
+
 
 def _optional_nonnegative_float(value: object) -> float | None:
     """Return one finite nonnegative provider value when valid."""
@@ -111,6 +160,7 @@ def _financial_fact_builder(
     *,
     asset_code: str,
     period_end: date,
+    report_date: date | None = None,
     report_type: str,
     source: str,
     extra: dict[str, Any],
@@ -128,6 +178,7 @@ def _financial_fact_builder(
             value=value,
             unit=unit,
             source=source,
+            report_date=report_date,
             extra=extra,
         )
 
@@ -195,8 +246,6 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         end_date: date,
     ) -> list[MacroFact]:
         """Fetch one daily A-share breadth or price-limit count from Tushare."""
-
-        from shared.infrastructure.tushare_client import create_tushare_pro_client
 
         observed_at = end_date
         if observed_at < start_date:
@@ -271,8 +320,6 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     ) -> list[MacroFact]:
         """Fetch full-market A-share turnover by summing stock daily amounts."""
 
-        from shared.infrastructure.tushare_client import create_tushare_pro_client
-
         rows_by_date: dict[date, float] = {}
         try:
             pro = cast(
@@ -344,8 +391,6 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     ) -> list[MacroFact]:
         """Fetch A-share financing balance from Tushare margin rows."""
 
-        from shared.infrastructure.tushare_client import create_tushare_pro_client
-
         pro = cast(
             _TushareProClient,
             create_tushare_pro_client(
@@ -395,8 +440,6 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         end_date: date,
     ) -> list[MacroFact]:
         """Fetch ETF net flow proxy from Tushare ETF daily size deltas."""
-
-        from shared.infrastructure.tushare_client import create_tushare_pro_client
 
         pro = cast(
             _TushareProClient,
@@ -576,28 +619,62 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[FundNavFact]:
-        adapter = build_tushare_fund_adapter(
+        compatibility_adapter = build_tushare_fund_adapter(
             token=self._config.api_key,
             http_url=self._config.http_url,
         )
-        df = adapter.fetch_fund_daily(
-            fund_code=fund_code,
+        if compatibility_adapter is not None:
+            df = compatibility_adapter.fetch_fund_daily(
+                fund_code=fund_code,
+                start_date=start_date.strftime("%Y%m%d"),
+                end_date=end_date.strftime("%Y%m%d"),
+            )
+            if df is None or df.empty:
+                return []
+            facts: list[FundNavFact] = []
+            for row in df.to_dict("records"):
+                nav_date = _safe_date(_first_present(row, "trade_date", "nav_date"))
+                nav = safe_float(_first_present(row, "unit_nav", "nav"))
+                if nav_date is None or nav is None or nav <= 0:
+                    continue
+                facts.append(
+                    FundNavFact(
+                        fund_code=fund_code,
+                        nav_date=nav_date,
+                        nav=nav,
+                        acc_nav=safe_float(_first_present(row, "accum_nav", "acc_nav")),
+                        source=self.provider_source(),
+                        extra=self._provider_extra(),
+                    )
+                )
+            return facts
+        pro = cast(
+            _TushareProClient,
+            create_tushare_pro_client(
+                token=self._config.api_key,
+                http_url=self._config.http_url,
+            ),
+        )
+        df = pro.fund_nav(
+            ts_code=fund_code,
             start_date=start_date.strftime("%Y%m%d"),
             end_date=end_date.strftime("%Y%m%d"),
         )
         if df is None or df.empty:
             return []
 
-        facts: list[FundNavFact] = []
-        for row in df.itertuples(index=False):
-            nav_date = row.trade_date.date()
-            nav = safe_float(row.unit_nav)
-            acc_nav = safe_float(getattr(row, "accum_nav", None))
+        native_facts: list[FundNavFact] = []
+        for row in df.to_dict("records"):
+            nav_date = _safe_date(_first_present(row, "nav_date", "end_date", "trade_date"))
+            nav = safe_float(_first_present(row, "unit_nav", "nav"))
+            acc_nav = safe_float(_first_present(row, "accum_nav", "acc_nav"))
+            if nav_date is None:
+                continue
             if nav is None or nav <= 0:
                 continue
             if acc_nav is not None and acc_nav <= 0:
                 acc_nav = None
-            facts.append(
+            native_facts.append(
                 FundNavFact(
                     fund_code=fund_code,
                     nav_date=nav_date,
@@ -607,40 +684,89 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     extra=self._provider_extra(),
                 )
             )
-        return facts
+        return native_facts
 
     def fetch_financials(self, asset_code: str, periods: int = 8) -> list[FinancialFact]:
-        gateway = build_tushare_financial_gateway(
+        compatibility_gateway = build_tushare_financial_gateway(
             token=self._config.api_key,
             http_url=self._config.http_url,
         )
-        batch = gateway.fetch(asset_code, periods=periods)
-        facts: list[FinancialFact] = []
-        for record in batch.records:
+        if compatibility_gateway is not None:
+            batch = compatibility_gateway.fetch(asset_code, periods=periods)
+            compatibility_facts: list[FinancialFact] = []
+            for record in batch.records:
+                build_fact = _financial_fact_builder(
+                    asset_code=record.stock_code,
+                    period_end=record.report_date,
+                    report_type=record.report_type,
+                    source=self.provider_source(),
+                    extra=self._provider_extra(),
+                )
+                for metric_code, raw_value, unit in (
+                    ("revenue", record.revenue, "元"),
+                    ("net_profit", record.net_profit, "元"),
+                    ("total_assets", record.total_assets, "元"),
+                    ("total_liabilities", record.total_liabilities, "元"),
+                    ("equity", record.equity, "元"),
+                    ("roe", record.roe, "%"),
+                    ("debt_ratio", record.debt_ratio, "%"),
+                    ("roa", record.roa, "%"),
+                    ("revenue_growth", record.revenue_growth, "%"),
+                    ("net_profit_growth", record.net_profit_growth, "%"),
+                ):
+                    value = safe_float(raw_value)
+                    if value is not None:
+                        compatibility_facts.append(build_fact(metric_code, value, unit))
+            return compatibility_facts
+        pro = cast(
+            _TushareProClient,
+            create_tushare_pro_client(
+                token=self._config.api_key,
+                http_url=self._config.http_url,
+            ),
+        )
+        frame = pro.fina_indicator(
+            ts_code=normalize_asset_code(asset_code, "tushare"),
+            limit=max(periods, 1),
+        )
+        if frame is None or frame.empty:
+            return []
+        native_facts: list[FinancialFact] = []
+        for row in frame.to_dict("records"):
+            period_end = _safe_date(_first_present(row, "period_end", "end_date"))
+            if period_end is None:
+                continue
+            report_date = _safe_date(_first_present(row, "ann_date", "announced_date"))
+            report_type = (
+                "1Q" if period_end.month == 3 else
+                "2Q" if period_end.month == 6 else
+                "3Q" if period_end.month == 9 else "4Q"
+            )
             build_fact = _financial_fact_builder(
-                asset_code=record.stock_code,
-                period_end=record.report_date,
-                report_type=record.report_type,
+                asset_code=normalize_asset_code(asset_code, "tushare"),
+                period_end=period_end,
+                report_date=report_date,
+                report_type=report_type,
                 source=self.provider_source(),
                 extra=self._provider_extra(),
             )
 
             for metric_code, raw_value, unit in (
-                ("revenue", record.revenue, "元"),
-                ("net_profit", record.net_profit, "元"),
-                ("total_assets", record.total_assets, "元"),
-                ("total_liabilities", record.total_liabilities, "元"),
-                ("equity", record.equity, "元"),
-                ("roe", record.roe, "%"),
-                ("debt_ratio", record.debt_ratio, "%"),
-                ("roa", record.roa, "%"),
-                ("revenue_growth", record.revenue_growth, "%"),
-                ("net_profit_growth", record.net_profit_growth, "%"),
+                ("revenue", _first_present(row, "revenue", "oper_cost"), "元"),
+                ("net_profit", _first_present(row, "n_income", "net_profit"), "元"),
+                ("total_assets", _first_present(row, "total_assets"), "元"),
+                ("total_liabilities", _first_present(row, "total_liab"), "元"),
+                ("equity", _first_present(row, "total_hldr_eqy_exc_min_int"), "元"),
+                ("roe", _first_present(row, "roe", "roe_dt"), "%"),
+                ("debt_ratio", _first_present(row, "debt_to_assets"), "%"),
+                ("roa", _first_present(row, "roa"), "%"),
+                ("revenue_growth", _first_present(row, "tr_yoy"), "%"),
+                ("net_profit_growth", _first_present(row, "netprofit_yoy"), "%"),
             ):
                 value = safe_float(raw_value)
                 if value is not None:
-                    facts.append(build_fact(metric_code, value, unit))
-        return facts
+                    native_facts.append(build_fact(metric_code, value, unit))
+        return native_facts
 
     def fetch_valuations(
         self,
@@ -648,23 +774,58 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[ValuationFact]:
-        gateway = build_tushare_valuation_gateway(
+        compatibility_gateway = build_tushare_valuation_gateway(
             token=self._config.api_key,
             http_url=self._config.http_url,
         )
-        batch = gateway.fetch(asset_code, start_date=start_date, end_date=end_date)
-        return [
-            ValuationFact(
-                asset_code=record.stock_code,
-                val_date=record.trade_date,
-                pe_ttm=safe_float(record.pe),
-                pb=safe_float(record.pb),
-                ps_ttm=safe_float(record.ps),
-                market_cap=_optional_nonnegative_float(record.total_mv),
-                float_market_cap=_optional_nonnegative_float(record.circ_mv),
-                dv_ratio=safe_float(record.dividend_yield),
-                source=self.provider_source(),
-                extra=self._provider_extra(),
+        if compatibility_gateway is not None:
+            batch = compatibility_gateway.fetch(asset_code, start_date, end_date)
+            return [
+                ValuationFact(
+                    asset_code=record.stock_code,
+                    val_date=record.trade_date,
+                    pe_ttm=safe_float(record.pe),
+                    pb=safe_float(record.pb),
+                    ps_ttm=safe_float(record.ps),
+                    market_cap=_optional_nonnegative_float(record.total_mv),
+                    float_market_cap=_optional_nonnegative_float(record.circ_mv),
+                    dv_ratio=safe_float(record.dividend_yield),
+                    source=self.provider_source(),
+                    extra=self._provider_extra(),
+                )
+                for record in batch.records
+            ]
+        pro = cast(
+            _TushareProClient,
+            create_tushare_pro_client(
+                token=self._config.api_key,
+                http_url=self._config.http_url,
+            ),
+        )
+        frame = pro.daily_basic(
+            ts_code=normalize_asset_code(asset_code, "tushare"),
+            start_date=start_date.strftime("%Y%m%d"),
+            end_date=end_date.strftime("%Y%m%d"),
+        )
+        if frame is None or frame.empty:
+            return []
+        facts: list[ValuationFact] = []
+        for row in frame.to_dict("records"):
+            val_date = _safe_date(_first_present(row, "trade_date", "val_date"))
+            if val_date is None:
+                continue
+            facts.append(
+                ValuationFact(
+                    asset_code=normalize_asset_code(asset_code, "tushare"),
+                    val_date=val_date,
+                    pe_ttm=safe_float(_first_present(row, "pe_ttm", "pe")),
+                    pb=safe_float(_first_present(row, "pb")),
+                    ps_ttm=safe_float(_first_present(row, "ps_ttm", "ps")),
+                    market_cap=_optional_nonnegative_float(_first_present(row, "total_mv")),
+                    float_market_cap=_optional_nonnegative_float(_first_present(row, "circ_mv")),
+                    dv_ratio=safe_float(_first_present(row, "dv_ttm", "dv_ratio")),
+                    source=self.provider_source(),
+                    extra=self._provider_extra(),
+                )
             )
-            for record in batch.records
-        ]
+        return facts

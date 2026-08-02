@@ -7,12 +7,20 @@ from typing import Any
 
 from apps.data_center.application.query_use_cases import latest_completed_cn_market_session
 from apps.data_center.composition import (
+    get_asset_repository,
     get_data_center_diagnostic_repository,
+    get_financial_fact_repository,
+    get_indicator_catalog_repository,
+    get_indicator_unit_rule_repository,
     get_macro_fact_cache_warmup_repository,
     get_macro_fact_repository,
     get_market_thermometer_snapshot_repository,
     get_price_bar_repository,
+    get_provider_config_repository,
+    get_quote_snapshot_repository,
+    get_valuation_fact_repository,
 )
+from apps.data_center.domain.enums import AssetType, MarketExchange
 
 A_SHARE_BEHAVIOR_INDICATORS: dict[str, str] = {
     "up_count": "CN_A_ADVANCE_COUNT",
@@ -40,6 +48,72 @@ def list_active_stock_codes_for_backfill() -> list[str]:
     return get_data_center_diagnostic_repository().list_active_stock_codes()
 
 
+def list_active_asset_codes() -> list[str]:
+    """Return canonical active A-share stock codes for consumers."""
+
+    return get_asset_repository().list_active_codes(
+        asset_type=AssetType.STOCK,
+        exchanges=(MarketExchange.SSE, MarketExchange.SZSE, MarketExchange.BSE),
+    )
+
+
+def list_price_covered_asset_codes(as_of: date | None = None) -> list[str]:
+    """Return canonical assets with price facts through an optional date."""
+
+    return get_price_bar_repository().list_asset_codes(as_of)
+
+
+def list_valuation_covered_asset_codes(as_of: date | None = None) -> list[str]:
+    """Return canonical assets with valuation facts through an optional date."""
+
+    return get_valuation_fact_repository().list_asset_codes(as_of)
+
+
+def query_financial_facts(
+    asset_code: str,
+    *,
+    limit: int = 20,
+) -> list[dict[str, object]]:
+    """Return canonical financial facts through the application query port."""
+
+    return [
+        fact.to_dict()
+        for fact in get_financial_fact_repository().get_facts(asset_code, limit=limit)
+    ]
+
+
+def query_valuation_facts(
+    asset_code: str,
+    *,
+    as_of: date | None = None,
+    limit: int | None = None,
+) -> list[dict[str, object]]:
+    """Return canonical valuation facts through the application query port."""
+
+    facts = get_valuation_fact_repository().get_series(asset_code, end=as_of)
+    selected = facts[:limit] if limit is not None else facts
+    return [fact.to_dict() for fact in selected]
+
+
+def query_latest_quote_payloads(
+    asset_codes: list[str],
+    *,
+    observed_after: datetime | None = None,
+) -> list[dict[str, object]]:
+    """Return latest canonical quote payloads, preserving source observation time."""
+
+    rows: list[dict[str, object]] = []
+    repository = get_quote_snapshot_repository()
+    for asset_code in asset_codes:
+        quote = repository.get_latest(asset_code)
+        if quote is None:
+            continue
+        if observed_after is not None and quote.snapshot_at < observed_after:
+            continue
+        rows.append(quote.to_dict())
+    return rows
+
+
 def macro_fact_exists_on_or_before(reporting_period: date) -> bool:
     """Return whether macro data exists on or before the reporting period."""
 
@@ -51,6 +125,88 @@ def get_latest_macro_indicator_value(indicator_code: str) -> float | None:
 
     latest = get_macro_fact_repository().get_latest(indicator_code)
     return float(latest.value) if latest is not None else None
+
+
+def query_macro_fact_series(
+    indicator_code: str,
+    *,
+    start: date | None = None,
+    end: date | None = None,
+    limit: int = 500,
+    use_pit: bool = False,
+    source: str | None = None,
+) -> list[dict[str, Any]]:
+    """Return canonical macro facts for cross-app consumers.
+
+    ``use_pit`` applies the publication-time boundary in the Data Center
+    repository; consumers never need to import ``MacroFactModel``.
+    """
+
+    facts = get_macro_fact_repository().get_series(
+        indicator_code,
+        start=start,
+        end=end,
+        limit=limit,
+        use_pit=use_pit,
+    )
+    if source:
+        facts = [fact for fact in facts if fact.source == source]
+    return [fact.to_dict() for fact in facts]
+
+
+def get_macro_indicator_metadata(indicator_code: str) -> dict[str, Any]:
+    """Return catalog metadata for one indicator through the public port."""
+
+    catalog = get_indicator_catalog_repository().get_by_code(indicator_code)
+    if catalog is None:
+        return {}
+    return {
+        "code": catalog.code,
+        "default_period_type": catalog.default_period_type,
+        "default_unit": catalog.default_unit,
+        "extra": dict(catalog.extra),
+    }
+
+
+def list_active_provider_summaries() -> list[dict[str, str]]:
+    """Return active provider names without exposing provider ORM models."""
+
+    return [
+        {"name": config.name, "source_type": config.source_type}
+        for config in get_provider_config_repository().list_active()
+    ]
+
+
+def get_runtime_macro_metadata_map() -> dict[str, dict[str, Any]]:
+    """Build macro runtime metadata from canonical catalog and unit rules."""
+
+    catalog_repo = get_indicator_catalog_repository()
+    unit_repo = get_indicator_unit_rule_repository()
+    metadata: dict[str, dict[str, Any]] = {}
+    for catalog in catalog_repo.list_active():
+        rules = [
+            rule
+            for rule in unit_repo.list_by_indicator(catalog.code)
+            if rule.is_active and not rule.source_type
+        ]
+        selected_rule = sorted(rules, key=lambda rule: (-rule.priority, rule.id or 0))[0] if rules else None
+        unit = ""
+        if selected_rule is not None:
+            unit = selected_rule.display_unit or selected_rule.original_unit or selected_rule.storage_unit
+        extra = dict(catalog.extra)
+        metadata[catalog.code] = {
+            "name": catalog.name_cn,
+            "name_en": catalog.name_en or catalog.code,
+            "category": catalog.category or "其他",
+            "unit": unit,
+            "description": catalog.description or "",
+            "default_unit": catalog.default_unit or "",
+            "default_period_type": catalog.default_period_type or "",
+            **extra,
+            "publication_lag_days": int(extra.get("publication_lag_days", 0) or 0),
+            "publication_lag_description": extra.get("publication_lag_description", "实时"),
+        }
+    return metadata
 
 
 def get_latest_a_share_behavior_payload(

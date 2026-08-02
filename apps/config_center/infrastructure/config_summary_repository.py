@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from apps.config_center.infrastructure.models import SystemSettingsModel
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, IndicatorUnitRuleModel
+from apps.data_center.application.public import get_macro_runtime_metadata
 
 
 class DjangoConfigCenterSummaryRepository:
@@ -13,37 +13,7 @@ class DjangoConfigCenterSummaryRepository:
 
     @staticmethod
     def _build_runtime_macro_metadata_map() -> dict[str, dict[str, Any]]:
-        metadata: dict[str, dict[str, Any]] = {}
-        catalogs = IndicatorCatalogModel.objects.filter(is_active=True).order_by("code")
-        rules: dict[str, IndicatorUnitRuleModel] = {}
-        for rule in IndicatorUnitRuleModel.objects.filter(is_active=True, source_type="").order_by(
-            "indicator_code", "-priority", "id"
-        ):
-            rules.setdefault(rule.indicator_code, rule)
-
-        for catalog in catalogs:
-            selected_rule = rules.get(catalog.code)
-            unit = ""
-            if selected_rule is not None:
-                unit = (
-                    selected_rule.display_unit
-                    or selected_rule.original_unit
-                    or selected_rule.storage_unit
-                )
-            extra = catalog.extra or {}
-            metadata[catalog.code] = {
-                "name": catalog.name_cn,
-                "name_en": catalog.name_en or catalog.code,
-                "category": catalog.category or "其他",
-                "unit": unit,
-                "description": catalog.description or "",
-                "default_unit": catalog.default_unit or "",
-                "default_period_type": catalog.default_period_type or "",
-                **extra,
-                "publication_lag_days": int(extra.get("publication_lag_days", 0) or 0),
-                "publication_lag_description": extra.get("publication_lag_description", "实时"),
-            }
-        return metadata
+        return get_macro_runtime_metadata()
 
     def get_system_settings_summary(self) -> dict[str, Any]:
         settings_obj = SystemSettingsModel.get_settings_for_read()

@@ -21,16 +21,16 @@ class FinancialRecord:
     stock_code: str
     report_date: date
     report_type: str
-    revenue: Decimal
-    net_profit: Decimal
+    revenue: Decimal | None
+    net_profit: Decimal | None
     revenue_growth: float | None
     net_profit_growth: float | None
-    total_assets: Decimal
-    total_liabilities: Decimal
-    equity: Decimal
-    roe: float
+    total_assets: Decimal | None
+    total_liabilities: Decimal | None
+    equity: Decimal | None
+    roe: float | None
     roa: float | None
-    debt_ratio: float
+    debt_ratio: float | None
 
 
 @dataclass
@@ -80,11 +80,9 @@ class _BaseFinancialGateway:
                     stock_code=stock_code,
                     report_date=anchor.report_date or period_end,
                     report_type=_to_report_type(period_end),
-                    revenue=self._safe_decimal(
-                        self._metric_value(metric_map, "revenue", 0.0)
-                    ),
+                    revenue=self._safe_decimal(self._metric_value(metric_map, "revenue", None)),
                     net_profit=self._safe_decimal(
-                        self._metric_value(metric_map, "net_profit", 0.0)
+                        self._metric_value(metric_map, "net_profit", None)
                     ),
                     revenue_growth=safe_float(
                         self._metric_value(metric_map, "revenue_growth", None)
@@ -93,20 +91,15 @@ class _BaseFinancialGateway:
                         self._metric_value(metric_map, "net_profit_growth", None)
                     ),
                     total_assets=self._safe_decimal(
-                        self._metric_value(metric_map, "total_assets", 0.0)
+                        self._metric_value(metric_map, "total_assets", None)
                     ),
                     total_liabilities=self._safe_decimal(
-                        self._metric_value(metric_map, "total_liabilities", 0.0)
+                        self._metric_value(metric_map, "total_liabilities", None)
                     ),
-                    equity=self._safe_decimal(
-                        self._metric_value(metric_map, "equity", 0.0)
-                    ),
-                    roe=safe_float(self._metric_value(metric_map, "roe", 0.0)) or 0.0,
+                    equity=self._safe_decimal(self._metric_value(metric_map, "equity", None)),
+                    roe=safe_float(self._metric_value(metric_map, "roe", None)),
                     roa=safe_float(self._metric_value(metric_map, "roa", None)),
-                    debt_ratio=safe_float(
-                        self._metric_value(metric_map, "debt_ratio", 0.0)
-                    )
-                    or 0.0,
+                    debt_ratio=safe_float(self._metric_value(metric_map, "debt_ratio", None)),
                 )
             )
             if len(records) >= periods:
@@ -130,16 +123,16 @@ class _BaseFinancialGateway:
         return fact.value if fact is not None else default
 
     @staticmethod
-    def _safe_decimal(value: object) -> Decimal:
-        """Normalize a numeric fact into a finite Decimal-compatible value."""
+    def _safe_decimal(value: object) -> Decimal | None:
+        """Normalize a numeric fact without converting missing data to zero."""
 
         try:
             if value in (None, ""):
-                return Decimal("0")
+                return None
             parsed = Decimal(str(value))
-            return parsed if parsed.is_finite() else Decimal("0")
+            return parsed if parsed.is_finite() else None
         except (InvalidOperation, ValueError):
-            return Decimal("0")
+            return None
 
 
 class TushareFinancialGateway(_BaseFinancialGateway):

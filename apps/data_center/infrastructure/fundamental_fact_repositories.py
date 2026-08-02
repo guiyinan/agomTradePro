@@ -185,6 +185,16 @@ class ValuationFactRepository:
                 return self._from_model(m)
         return None
 
+    def list_asset_codes(self, as_of: date | None = None) -> list[str]:
+        """Return assets with canonical valuation facts through ``as_of``."""
+
+        queryset = ValuationFactModel.objects.all()
+        if as_of is not None:
+            queryset = queryset.filter(val_date__lte=as_of)
+        return list(
+            queryset.order_by("asset_code").values_list("asset_code", flat=True).distinct()
+        )
+
     def bulk_upsert(self, facts: list[ValuationFact]) -> int:
         if not facts:
             return 0

@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0",
+  "owner": "data-platform",
+  "canonical_owner": "apps.data_center",
+  "datasets": [
+    {
+      "dataset_key": "asset.master",
+      "domain": "D0",
+      "canonical_store": "data_center_asset_master",
+      "owner": "data-platform",
+      "business_owner": "equity",
+      "consumers": ["equity", "fund", "alpha", "account", "portfolio", "agent_runtime"],
+      "migration_status": "canonical_read_with_legacy_audit",
+      "decision_critical": true,
+      "contract_version": "1.0"
+    },
+    {
+      "dataset_key": "equity.price.bar",
+      "domain": "D1",
+      "canonical_store": "data_center_price_bar",
+      "owner": "data-platform",
+      "business_owner": "equity",
+      "consumers": ["equity", "realtime", "account", "portfolio", "simulated_trading", "backtest", "alpha"],
+      "migration_status": "canonical_read_with_legacy_audit",
+      "decision_critical": true,
+      "contract_version": "1.0"
+    },
+    {
+      "dataset_key": "equity.quote.snapshot",
+      "domain": "D1",
+      "canonical_store": "data_center_quote_snapshot",
+      "owner": "data-platform",
+      "business_owner": "realtime",
+      "consumers": ["equity", "realtime", "account", "portfolio", "broker_execution", "terminal", "mcp"],
+      "migration_status": "canonical_read_with_reliability_guard",
+      "decision_critical": true,
+      "contract_version": "1.0"
+    },
+    {
+      "dataset_key": "fund.nav",
+      "domain": "D2",
+      "canonical_store": "data_center_fund_nav_fact",
+      "owner": "data-platform",
+      "business_owner": "fund",
+      "consumers": ["fund", "asset_analysis", "backtest"],
+      "migration_status": "canonical_query_port_available",
+      "decision_critical": true,
+      "contract_version": "1.0"
+    },
+    {
+      "dataset_key": "macro.fact",
+      "domain": "D3",
+      "canonical_store": "data_center_macro_fact",
+      "owner": "data-platform",
+      "business_owner": "macro",
+      "consumers": ["macro", "regime", "pulse", "policy", "agent_runtime", "market_thermometer"],
+      "migration_status": "canonical_query_port_available",
+      "decision_critical": true,
+      "contract_version": "1.0"
+    },
+    {
+      "dataset_key": "equity.financial.fact",
+      "domain": "D4",
+      "canonical_store": "data_center_financial_fact",
+      "owner": "data-platform",
+      "business_owner": "equity",
+      "consumers": ["equity", "alpha", "factor", "valuation", "terminal", "mcp"],
+      "migration_status": "dual_read_legacy_pending_cutover",
+      "decision_critical": true,
+      "contract_version": "1.0"
+    },
+    {
+      "dataset_key": "equity.valuation.fact",
+      "domain": "D5",
+      "canonical_store": "data_center_valuation_fact",
+      "owner": "data-platform",
+      "business_owner": "valuation",
+      "consumers": ["equity", "alpha", "factor", "valuation", "terminal", "mcp"],
+      "migration_status": "dual_read_legacy_pending_cutover",
+      "decision_critical": true,
+      "contract_version": "1.0"
+    },
+    {
+      "dataset_key": "sector.membership",
+      "domain": "D6",
+      "canonical_store": "data_center_sector_membership_fact",
+      "owner": "data-platform",
+      "business_owner": "sector",
+      "consumers": ["sector", "rotation", "hedge", "alpha"],
+      "migration_status": "canonical_query_port_available",
+      "decision_critical": false,
+      "contract_version": "1.0"
+    },
+    {
+      "dataset_key": "market.news",
+      "domain": "D7",
+      "canonical_store": "data_center_news_fact",
+      "owner": "data-platform",
+      "business_owner": "sentiment",
+      "consumers": ["sentiment", "events", "equity", "terminal", "mcp"],
+      "migration_status": "canonical_query_port_available",
+      "decision_critical": false,
+      "contract_version": "1.0"
+    },
+    {
+      "dataset_key": "market.capital_flow",
+      "domain": "D8",
+      "canonical_store": "data_center_capital_flow_fact",
+      "owner": "data-platform",
+      "business_owner": "realtime",
+      "consumers": ["realtime", "rotation", "hedge", "equity", "terminal", "mcp"],
+      "migration_status": "canonical_query_port_available",
+      "decision_critical": false,
+      "contract_version": "1.0"
+    },
+    {
+      "dataset_key": "reference.publisher",
+      "domain": "D9",
+      "canonical_store": "data_center_publisher_catalog",
+      "owner": "data-platform",
+      "business_owner": "macro",
+      "consumers": ["macro", "data_center", "audit"],
+      "migration_status": "canonical_only",
+      "decision_critical": false,
+      "contract_version": "1.0"
+    }
+  ]
+}

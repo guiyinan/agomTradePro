@@ -64,8 +64,8 @@ class FinancialData:
     net_profit: Decimal
 
     # 增长率（%）
-    revenue_growth: float
-    net_profit_growth: float
+    revenue_growth: float | None
+    net_profit_growth: float | None
 
     # 资产负债表（单位：元）
     total_assets: Decimal
@@ -74,7 +74,7 @@ class FinancialData:
 
     # 财务指标（%）
     roe: float
-    roa: float
+    roa: float | None
     debt_ratio: float
     period_end: date | None = None
     period_type: str = ""
@@ -115,12 +115,12 @@ class ValuationMetrics:
     stock_code: str
     trade_date: date
 
-    pe: float
-    pb: float
-    ps: float
-    total_mv: Decimal
-    circ_mv: Decimal
-    dividend_yield: float
+    pe: float | None
+    pb: float | None
+    ps: float | None
+    total_mv: Decimal | None
+    circ_mv: Decimal | None
+    dividend_yield: float | None
     source_provider: str = "unknown"
     source_updated_at: datetime | None = None
     fetched_at: datetime | None = None

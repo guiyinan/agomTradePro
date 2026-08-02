@@ -8,8 +8,11 @@ from datetime import date, datetime, timedelta
 from typing import Any, cast
 
 from apps.alpha.domain.entities import normalize_stock_code
-from apps.data_center.infrastructure.models import AssetMasterModel, PriceBarModel
-from apps.equity.infrastructure.models import StockInfoModel, ValuationModel
+from apps.data_center.application.public import (
+    list_active_stock_codes,
+    list_price_covered_codes,
+    list_valuation_covered_codes,
+)
 from core.integration.account_ledger import (
     get_account_portfolio_model,
     get_account_position_model,
@@ -91,58 +94,30 @@ class AlphaPoolDataRepository:
         return sorted(base_codes & valuation_codes)
 
     def _resolve_market_codes(self, *, market: str) -> set[str]:
-        asset_rows = AssetMasterModel._default_manager.filter(
-            is_active=True,
-            asset_type="stock",
-        )
-        if market == "CN":
-            asset_rows = asset_rows.filter(exchange__in=["SSE", "SZSE", "BSE"])
-
-        asset_codes = {
-            normalize_stock_code(code) for code in asset_rows.values_list("code", flat=True)
+        canonical_codes = {
+            normalize_stock_code(code) for code in list_active_stock_codes()
         }
-        if asset_codes:
-            return {code for code in asset_codes if code}
-
-        info_rows = StockInfoModel._default_manager.filter(is_active=True).only(
-            "stock_code", "market"
-        )
-        if market == "CN":
-            info_rows = info_rows.filter(market__in=["SH", "SZ", "BJ"])
+        if market != "CN":
+            return canonical_codes
         return {
-            normalized
-            for normalized in (
-                normalize_stock_code(stock.stock_code) for stock in info_rows.iterator()
-            )
-            if normalized
+            code
+            for code in canonical_codes
+            if code and code.endswith((".SH", ".SZ", ".BJ"))
         }
 
     def _resolve_latest_valuation_codes(self, *, trade_date: date) -> set[str]:
-        latest_valuation_date = (
-            ValuationModel._default_manager.filter(trade_date__lte=trade_date, is_valid=True)
-            .order_by("-trade_date")
-            .values_list("trade_date", flat=True)
-            .first()
-        )
-        if latest_valuation_date is None:
-            logger.warning("AlphaPoolDataRepository: no valuation data found before %s", trade_date)
-            return set()
-
-        return {
+        covered = {
             normalize_stock_code(code)
-            for code in ValuationModel._default_manager.filter(
-                trade_date=latest_valuation_date,
-                is_valid=True,
-            ).values_list("stock_code", flat=True)
-            if normalize_stock_code(code)
+            for code in list_valuation_covered_codes(as_of=trade_date)
         }
+        if not covered:
+            logger.warning("AlphaPoolDataRepository: no canonical valuation data found before %s", trade_date)
+        return {code for code in covered if code}
 
     def _resolve_price_covered_codes(self, *, trade_date: date) -> set[str]:
         return {
             normalize_stock_code(code)
-            for code in PriceBarModel._default_manager.filter(
-                bar_date__lte=trade_date,
-            ).values_list("asset_code", flat=True)
+            for code in list_price_covered_codes(as_of=trade_date)
             if normalize_stock_code(code)
         }
 

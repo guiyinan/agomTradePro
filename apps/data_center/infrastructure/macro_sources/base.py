@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
 
-from core.integration.runtime_settings import get_runtime_macro_publication_lags
+from apps.data_center.application.runtime_settings import get_runtime_macro_publication_lags
 
 
 class DataSourceUnavailableError(ConnectionError):

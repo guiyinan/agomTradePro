@@ -123,6 +123,11 @@ class DjangoEquityAssetRepository:
             if not valuation:
                 continue
 
+            if valuation.total_mv is None:
+                # A missing market-cap fact cannot satisfy a market-cap filter
+                # or be presented as a zero-valued asset.
+                continue
+
             # 市值过滤
             if min_market_cap is not None and valuation.total_mv < min_market_cap:
                 continue
@@ -130,9 +135,9 @@ class DjangoEquityAssetRepository:
                 continue
 
             # PE 过滤
-            if min_pe is not None and (not valuation.pe or valuation.pe < min_pe):
+            if min_pe is not None and (valuation.pe is None or valuation.pe < min_pe):
                 continue
-            if max_pe is not None and (not valuation.pe or valuation.pe > max_pe):
+            if max_pe is not None and (valuation.pe is None or valuation.pe > max_pe):
                 continue
 
             # 获取最新财务数据
@@ -162,12 +167,12 @@ class DjangoEquityAssetRepository:
                 ValuationMetrics(
                     stock_code=valuation.stock_code,
                     trade_date=valuation.trade_date,
-                    pe=valuation.pe or 0.0,
-                    pb=valuation.pb or 0.0,
-                    ps=valuation.ps or 0.0,
+                    pe=valuation.pe,
+                    pb=valuation.pb,
+                    ps=valuation.ps,
                     total_mv=valuation.total_mv,
                     circ_mv=valuation.circ_mv,
-                    dividend_yield=valuation.dividend_yield or 0.0,
+                    dividend_yield=valuation.dividend_yield,
                     source_provider=valuation.source_provider,
                     source_updated_at=valuation.source_updated_at,
                     fetched_at=valuation.fetched_at,
@@ -187,13 +192,13 @@ class DjangoEquityAssetRepository:
                     report_date=financial.report_date,
                     revenue=financial.revenue,
                     net_profit=financial.net_profit,
-                    revenue_growth=financial.revenue_growth or 0.0,
-                    net_profit_growth=financial.net_profit_growth or 0.0,
+                    revenue_growth=financial.revenue_growth,
+                    net_profit_growth=financial.net_profit_growth,
                     total_assets=financial.total_assets,
                     total_liabilities=financial.total_liabilities,
                     equity=financial.equity,
                     roe=financial.roe,
-                    roa=financial.roa or 0.0,
+                    roa=financial.roa,
                     debt_ratio=financial.debt_ratio,
                 )
                 if financial

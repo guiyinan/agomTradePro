@@ -16,10 +16,50 @@ from apps.data_center.domain.entities import AssetAlias, AssetMaster
 from apps.data_center.domain.enums import AssetType, MarketExchange
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure.repositories import AssetRepository
-from core.integration.data_center_business_sources import (
-    collect_asset_master_candidate_codes,
-    load_asset_master_local_rows,
-)
+
+
+def collect_asset_master_candidate_codes() -> list[str]:
+    """Collect migration candidates through business Application query ports."""
+
+    from apps.asset_analysis.application.query_services import (
+        list_asset_master_pool_candidate_codes,
+    )
+    from apps.equity.application.query_services import list_asset_master_stock_candidate_codes
+    from apps.fund.application.query_services import list_asset_master_fund_candidate_codes
+    from apps.rotation.application.query_services import (
+        list_asset_master_rotation_candidate_codes,
+    )
+
+    codes: list[str] = []
+    codes.extend(list_asset_master_stock_candidate_codes())
+    codes.extend(list_asset_master_fund_candidate_codes())
+    codes.extend(list_asset_master_rotation_candidate_codes())
+    codes.extend(list_asset_master_pool_candidate_codes())
+    return list(codes)
+
+
+def load_asset_master_local_rows(
+    *,
+    lookup_codes: list[str],
+    base_codes: list[str],
+) -> dict[str, list[dict[str, object]]]:
+    """Load migration rows through Application query ports, not ORM bridges."""
+
+    from apps.asset_analysis.application.query_services import list_asset_master_pool_rows
+    from apps.equity.application.query_services import list_asset_master_stock_rows
+    from apps.fund.application.query_services import (
+        list_asset_master_fund_rows,
+        list_asset_master_holding_rows,
+    )
+    from apps.rotation.application.query_services import list_asset_master_rotation_rows
+
+    return {
+        "stock_rows": list_asset_master_stock_rows(lookup_codes),
+        "fund_rows": list_asset_master_fund_rows(base_codes),
+        "holding_rows": list_asset_master_holding_rows(lookup_codes),
+        "rotation_rows": list_asset_master_rotation_rows(base_codes),
+        "pool_rows": list_asset_master_pool_rows(lookup_codes),
+    }
 
 
 @dataclass(frozen=True)

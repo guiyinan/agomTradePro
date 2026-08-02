@@ -9,12 +9,14 @@ import logging
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from apps.data_center.infrastructure.macro_fact_selection import (
-    configured_macro_source,
-    select_macro_fact_series,
+from apps.data_center.application.public import (
+    get_latest_quote_payloads,
+    get_macro_fact_series,
+    get_macro_indicator_catalog,
+    get_price_bar_series,
 )
 from apps.data_center.infrastructure.seed_data.macro_indicator_governance import (
     is_direct_consumer_input_allowed,
@@ -426,23 +428,11 @@ class DjangoPulseDataProvider:
         if code == "SENTIMENT_DAILY_INDEX":
             return self._load_sentiment_module_series(as_of_date)
         if self._is_asset_code(code):
-            from apps.data_center.infrastructure.models import (
-                PriceBarModel,
-                QuoteSnapshotModel,
-            )
-
-            rows = (
-                PriceBarModel.objects.filter(
-                    asset_code=code,
-                    bar_date__gte=lookback,
-                    bar_date__lte=as_of_date,
-                )
-                .order_by("bar_date")
-                .values_list("bar_date", "close")
-            )
             series: list[PulseSeriesPoint] = []
-            for bar_date, close in rows:
-                numeric_close = safe_float(close)
+            rows = get_price_bar_series(code, start=lookback, end=as_of_date, limit=500)
+            for row in rows:
+                bar_date = date.fromisoformat(str(row["timestamp"]))
+                numeric_close = safe_float(row.get("close"))
                 if numeric_close is None:
                     continue
                 series.append(
@@ -453,24 +443,21 @@ class DjangoPulseDataProvider:
                         source_kind="price_bar_close",
                     )
                 )
-            quote_cutoff = datetime.combine(
-                as_of_date + timedelta(days=1),
-                time.min,
-                tzinfo=CN_MARKET_TIMEZONE,
-            ).astimezone(UTC)
-            latest_quote = (
-                QuoteSnapshotModel.objects.filter(
-                    asset_code=code,
-                    snapshot_at__lt=quote_cutoff,
+            latest_quotes = get_latest_quote_payloads([code])
+            if latest_quotes:
+                latest_quote = latest_quotes[0]
+                snapshot_value = latest_quote.get("snapshot_at")
+                quote_datetime = datetime.fromisoformat(str(snapshot_value)) if snapshot_value else None
+                quote_date = (
+                    quote_datetime.astimezone(CN_MARKET_TIMEZONE).date()
+                    if quote_datetime is not None and quote_datetime.tzinfo is not None
+                    else None
                 )
-                .order_by("-snapshot_at")
-                .first()
-            )
-            if latest_quote is not None:
-                quote_date = latest_quote.snapshot_at.astimezone(CN_MARKET_TIMEZONE).date()
                 latest_bar_date = series[-1].observed_at if series else None
-                if latest_bar_date is None or quote_date > latest_bar_date:
-                    quote_value = safe_float(latest_quote.current_price)
+                if quote_date is not None and quote_date <= as_of_date and (
+                    latest_bar_date is None or quote_date > latest_bar_date
+                ):
+                    quote_value = safe_float(latest_quote.get("current_price"))
                     if quote_value is not None:
                         series.append(
                             PulseSeriesPoint(
@@ -489,48 +476,30 @@ class DjangoPulseDataProvider:
             )
             return []
 
-        from apps.data_center.infrastructure.models import MacroFactModel
-
-        fact_models = list(
-            MacroFactModel.objects.filter(
-                indicator_code=code,
-                reporting_period__gte=lookback,
-                reporting_period__lte=as_of_date,
-            ).order_by("reporting_period", "id")
+        facts = get_macro_fact_series(
+            code,
+            start=lookback,
+            end=as_of_date,
+            limit=500,
+            use_pit=True,
         )
-        facts: list[PulseMacroFactCandidate] = []
-        for fact in fact_models:
-            numeric_value = safe_float(fact.value)
+        macro_series: list[PulseSeriesPoint] = []
+        for fact in facts:
+            numeric_value = safe_float(fact.get("value"))
             if numeric_value is None:
                 continue
-            facts.append(
-                PulseMacroFactCandidate(
-                    indicator_code=fact.indicator_code,
-                    reporting_period=fact.reporting_period,
+            observed_at = date.fromisoformat(str(fact["reporting_period"]))
+            published_value = fact.get("published_at")
+            published_at = date.fromisoformat(str(published_value)) if published_value else None
+            macro_series.append(
+                PulseSeriesPoint(
+                    observed_at=observed_at,
                     value=numeric_value,
-                    source=fact.source,
-                    revision_number=fact.revision_number,
-                    published_at=fact.published_at,
-                    fetched_at=fact.fetched_at,
-                    extra=dict(fact.extra or {}),
+                    published_at=published_at,
+                    source_kind="macro_fact",
                 )
             )
-        selection = select_macro_fact_series(
-            facts,
-            preferred_source=configured_macro_source(self._get_indicator_extra(code)),
-        )
-        if not selection.is_consistent:
-            logger.error("Blocked Pulse macro input %s: %s", code, selection.blocked_reason)
-            return []
-        return [
-            PulseSeriesPoint(
-                observed_at=fact.reporting_period,
-                value=fact.value,
-                published_at=fact.published_at,
-                source_kind="macro_fact",
-            )
-            for fact in selection.facts
-        ]
+        return macro_series
 
     @staticmethod
     def _load_sentiment_module_series(as_of_date: date) -> list[PulseSeriesPoint]:
@@ -563,10 +532,8 @@ class DjangoPulseDataProvider:
 
     def _get_indicator_extra(self, code: str) -> dict[str, object]:
         if code not in self._indicator_extra_cache:
-            from apps.data_center.infrastructure.models import IndicatorCatalogModel
-
-            catalog = IndicatorCatalogModel.objects.filter(code=code).first()
-            self._indicator_extra_cache[code] = dict(catalog.extra or {}) if catalog else {}
+            catalog = get_macro_indicator_catalog(code)
+            self._indicator_extra_cache[code] = dict(catalog.get("extra") or {})
         return self._indicator_extra_cache[code]
 
     def _is_pulse_direct_input_allowed(self, code: str) -> bool:

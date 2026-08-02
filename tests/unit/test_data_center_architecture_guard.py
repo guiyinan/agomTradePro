@@ -40,6 +40,13 @@ _SDK_IMPORT_RE = re.compile(
 # is now a hard failure.
 _LEGACY_SDK_VIOLATIONS: set[Path] = set()
 
+# One legacy macro compatibility repository still owns a CRUD facade while
+# its application replacement is staged.  This is a ratchet: new files may
+# not be added and the exception should disappear in the destructive phase.
+_LEGACY_DATA_CENTER_ORM_VIOLATIONS = {
+    _ROOT / "apps" / "macro" / "infrastructure" / "data_center_fact_repository.py",
+}
+
 
 def _is_in_allowed_dir(path: Path) -> bool:
     try:
@@ -150,4 +157,41 @@ def test_legacy_macro_datasource_models_not_imported() -> None:
     assert not violations, (
         "Legacy macro DataSourceConfig/DataProviderSettings imports found:\n"
         + "\n".join(violations)
+    )
+
+
+def test_data_center_has_no_reverse_bridge_or_shared_provider_client() -> None:
+    """Data Center owns provider transport and must not depend on old bridges."""
+
+    forbidden = (
+        "core.integration.data_center_business_sources",
+        "shared.infrastructure.tushare_client",
+        "shared.infrastructure.sdk_bridge",
+    )
+    violations: list[str] = []
+    for py in (_ROOT / "apps" / "data_center").rglob("*.py"):
+        if "__pycache__" in py.parts:
+            continue
+        content = py.read_text(encoding="utf-8", errors="ignore")
+        for marker in forbidden:
+            if marker in content:
+                violations.append(f"{py.relative_to(_ROOT)}: {marker}")
+    assert not violations, "Data Center reverse/provider bridge imports found:\n" + "\n".join(
+        violations
+    )
+
+
+def test_business_apps_do_not_import_data_center_orm_outside_ratchet() -> None:
+    """Business apps must use Application Public Ports instead of Data Center ORM."""
+
+    violations: list[str] = []
+    for py in (_ROOT / "apps").rglob("*.py"):
+        if "__pycache__" in py.parts or "data_center" in py.parts or "tests" in py.parts:
+            continue
+        content = py.read_text(encoding="utf-8", errors="ignore")
+        if "apps.data_center.infrastructure.models" in content:
+            if py not in _LEGACY_DATA_CENTER_ORM_VIOLATIONS:
+                violations.append(str(py.relative_to(_ROOT)))
+    assert not violations, "New cross-app Data Center ORM imports found:\n" + "\n".join(
+        sorted(violations)
     )

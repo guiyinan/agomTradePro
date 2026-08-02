@@ -8,17 +8,23 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.audit.infrastructure.models import ValidationSummaryModel
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
+from apps.data_center.application.public import get_macro_fact_series, get_macro_runtime_metadata
 from apps.regime.infrastructure.models import RegimeLog
 
 ValidationResult = dict[str, object]
 ValidationResults = dict[str, ValidationResult]
 ValidationReport = dict[str, object]
+
+# Fixture-only compatibility seams.  Production reads go through the Data
+# Center public port; tests and downstream dry-run harnesses may inject a
+# model-shaped manager without importing the Data Center ORM here.
+MacroFactModel: object | None = None
+IndicatorCatalogModel: object | None = None
 
 
 class _PearsonResultProtocol(Protocol):
@@ -90,6 +96,36 @@ def _report_integer(report: ValidationReport, key: str) -> int:
     return value
 
 
+def _load_macro_rows(
+    indicator_code: str,
+    start_date: date,
+    end_date: date,
+) -> list[dict[str, object]]:
+    """Load canonical macro rows, preserving a model-shaped test seam."""
+
+    if MacroFactModel is not None:
+        manager = cast(Any, MacroFactModel)._default_manager
+        raw_rows = manager.filter(
+            indicator_code=indicator_code,
+            reporting_period__gte=start_date,
+            reporting_period__lte=end_date,
+        ).order_by("reporting_period")
+        return [
+            {
+                "reporting_period": row.reporting_period,
+                "value": row.value,
+            }
+            for row in raw_rows
+        ]
+    return get_macro_fact_series(
+        indicator_code,
+        start=start_date,
+        end=end_date,
+        limit=2000,
+        use_pit=True,
+    )
+
+
 class IndicatorValidator:
     """Validate governed indicator availability and contemporaneous association."""
 
@@ -125,13 +161,7 @@ class IndicatorValidator:
         requested_days = max((self.end_date - self.start_date).days, 1)
         for indicator_code in self.indicator_codes:
             try:
-                rows = list(
-                    MacroFactModel._default_manager.filter(
-                        indicator_code=indicator_code,
-                        reporting_period__gte=self.start_date,
-                        reporting_period__lte=self.end_date,
-                    ).order_by("reporting_period")
-                )
+                rows = _load_macro_rows(indicator_code, self.start_date, self.end_date)
             except Exception as exc:
                 self.validation_results[indicator_code] = {
                     "status": "ERROR",
@@ -147,8 +177,8 @@ class IndicatorValidator:
                 }
                 continue
 
-            first_date = rows[0].reporting_period
-            last_date = rows[-1].reporting_period
+            first_date = date.fromisoformat(str(rows[0]["reporting_period"]))
+            last_date = date.fromisoformat(str(rows[-1]["reporting_period"]))
             observed_days = max((last_date - first_date).days, 0)
             observed_years = observed_days / 365.2425
             count = len(rows)
@@ -195,15 +225,15 @@ class IndicatorValidator:
             if result.get("status") != "OK":
                 continue
             try:
-                indicator_rows = MacroFactModel._default_manager.filter(
-                    indicator_code=indicator_code,
-                    reporting_period__gte=self.start_date,
-                    reporting_period__lte=self.end_date,
-                ).order_by("reporting_period")
+                indicator_rows = _load_macro_rows(indicator_code, self.start_date, self.end_date)
                 pairs = [
-                    (regime_by_date[row.reporting_period], float(row.value))
+                    (
+                        regime_by_date[date.fromisoformat(str(row["reporting_period"]))],
+                        float(cast(float, row["value"])),
+                    )
                     for row in indicator_rows
-                    if row.reporting_period in regime_by_date and math.isfinite(float(row.value))
+                    if date.fromisoformat(str(row["reporting_period"])) in regime_by_date
+                    and math.isfinite(float(cast(float, row["value"])))
                 ]
                 if len(pairs) < 10:
                     result["correlation_status"] = "INSUFFICIENT_OVERLAP"
@@ -243,20 +273,14 @@ class IndicatorValidator:
         if self.validation_results.get(indicator_code, {}).get("status") != "OK":
             return {"status": "INSUFFICIENT_DATA"}
         try:
-            rows = list(
-                MacroFactModel._default_manager.filter(
-                    indicator_code=indicator_code,
-                    reporting_period__gte=self.start_date,
-                    reporting_period__lte=self.end_date,
-                ).order_by("reporting_period")
-            )
+            rows = _load_macro_rows(indicator_code, self.start_date, self.end_date)
             if len(rows) < self.thresholds.min_data_points:
                 return {"status": "INSUFFICIENT_DATA"}
 
             inversion_events: list[ValidationResult] = []
-            current_rows: list[MacroFactModel] = []
+            current_rows: list[dict[str, object]] = []
             for row in rows:
-                if float(row.value) < 0:
+                if float(cast(float, row["value"])) < 0:
                     current_rows.append(row)
                 elif current_rows:
                     inversion_events.append(self._build_inversion_event(current_rows))
@@ -301,16 +325,17 @@ class IndicatorValidator:
             return {"status": "ERROR", "message": f"event study failed: {type(exc).__name__}"}
 
     @staticmethod
-    def _build_inversion_event(rows: list[MacroFactModel]) -> ValidationResult:
+    def _build_inversion_event(rows: list[dict[str, object]]) -> ValidationResult:
         """Build one inversion event from consecutive inverted observations."""
 
-        start_date = min(row.reporting_period for row in rows)
-        end_date = max(row.reporting_period for row in rows)
+        dates = [date.fromisoformat(str(row["reporting_period"])) for row in rows]
+        start_date = min(dates)
+        end_date = max(dates)
         return {
             "start_date": start_date,
             "end_date": end_date,
             "duration_days": (end_date - start_date).days,
-            "min_spread": min(float(row.value) for row in rows),
+            "min_spread": min(float(cast(float, row["value"])) for row in rows),
         }
 
     def generate_validation_report(self) -> ValidationReport:
@@ -466,15 +491,24 @@ class Command(BaseCommand):
                 raise ValueError("indicators must contain at least one code")
             return codes
 
-        rows = IndicatorCatalogModel._default_manager.filter(
-            is_active=True,
-            default_period_type__in=("D", "W"),
-        ).values_list("code", "extra")
-        codes = tuple(
-            str(code)
-            for code, extra in rows
-            if not (isinstance(extra, dict) and extra.get("governance_sync_supported") is False)
-        )
+        if IndicatorCatalogModel is not None:
+            rows = cast(Any, IndicatorCatalogModel)._default_manager.filter(
+                is_active=True,
+                default_period_type__in=("D", "W"),
+            ).values_list("code", "extra")
+            codes = tuple(
+                str(code)
+                for code, extra in rows
+                if not (isinstance(extra, dict) and extra.get("governance_sync_supported") is False)
+            )
+        else:
+            metadata = get_macro_runtime_metadata()
+            codes = tuple(
+                str(code)
+                for code, item in metadata.items()
+                if item.get("default_period_type") in {"D", "W"}
+                and item.get("governance_sync_supported") is not False
+            )
         if not codes:
             raise ValueError("no active governed daily/weekly indicators are configured")
         return codes

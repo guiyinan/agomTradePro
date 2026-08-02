@@ -99,6 +99,21 @@ class AssetRepository:
             for m in AssetMasterModel.objects.filter(exchange=exchange, is_active=True)
         ]
 
+    def list_active_codes(
+        self,
+        *,
+        asset_type: AssetType | None = None,
+        exchanges: tuple[MarketExchange, ...] = (),
+    ) -> list[str]:
+        """Return canonical active codes without exposing the ORM to consumers."""
+
+        queryset = AssetMasterModel.objects.filter(is_active=True)
+        if asset_type is not None:
+            queryset = queryset.filter(asset_type=asset_type.value)
+        if exchanges:
+            queryset = queryset.filter(exchange__in=[item.value for item in exchanges])
+        return list(queryset.order_by("code").values_list("code", flat=True))
+
 
 class PublisherCatalogRepository:
     """ORM-backed repository for provenance publisher definitions."""

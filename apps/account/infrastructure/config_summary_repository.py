@@ -6,7 +6,7 @@ from typing import Any
 
 from django.contrib.auth.models import User
 
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, IndicatorUnitRuleModel
+from apps.data_center.application.public import get_macro_runtime_metadata
 
 from .models import (
     AccountProfileModel,
@@ -22,38 +22,7 @@ class DjangoAccountConfigSummaryRepository:
 
     @staticmethod
     def _build_runtime_macro_metadata_map() -> dict[str, dict[str, Any]]:
-        metadata: dict[str, dict[str, Any]] = {}
-        catalogs = IndicatorCatalogModel.objects.filter(is_active=True).order_by("code")
-        rules: dict[str, IndicatorUnitRuleModel] = {}
-        for unit_rule in IndicatorUnitRuleModel.objects.filter(
-            is_active=True,
-            source_type="",
-        ).order_by("indicator_code", "-priority", "id"):
-            rules.setdefault(unit_rule.indicator_code, unit_rule)
-
-        for catalog in catalogs:
-            selected_rule = rules.get(catalog.code)
-            unit = ""
-            if selected_rule is not None:
-                unit = (
-                    selected_rule.display_unit
-                    or selected_rule.original_unit
-                    or selected_rule.storage_unit
-                )
-            extra = catalog.extra or {}
-            metadata[catalog.code] = {
-                "name": catalog.name_cn,
-                "name_en": catalog.name_en or catalog.code,
-                "category": catalog.category or "其他",
-                "unit": unit,
-                "description": catalog.description or "",
-                "default_unit": catalog.default_unit or "",
-                "default_period_type": catalog.default_period_type or "",
-                **extra,
-                "publication_lag_days": int(extra.get("publication_lag_days", 0) or 0),
-                "publication_lag_description": extra.get("publication_lag_description", "实时"),
-            }
-        return metadata
+        return get_macro_runtime_metadata()
 
     def get_account_settings_summary(self, user: Any) -> dict[str, Any]:
         """Return account profile and access-token summary for one user."""
@@ -94,9 +63,9 @@ class DjangoAccountConfigSummaryRepository:
                 "market_color_convention": settings_obj.market_color_convention,
                 "market_color_label": settings_obj.get_market_visual_tokens()["label"],
                 "benchmark_map_size": len(settings_obj.benchmark_code_map or {}),
-                "data_center_indicator_catalog_size": IndicatorCatalogModel.objects.filter(
-                    is_active=True
-                ).count(),
+                "data_center_indicator_catalog_size": len(
+                    self._build_runtime_macro_metadata_map()
+                ),
                 "updated_at": (
                     settings_obj.updated_at.isoformat()
                     if getattr(settings_obj, "updated_at", None)

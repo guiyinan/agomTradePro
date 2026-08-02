@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "owner": "config-center",
+  "source_of_truth": "config_center_runtime",
+  "freeze_policy": {
+    "system_settings_new_fields": "blocked_without_contract",
+    "module_defaults": "must_be_registered",
+    "celery_kwargs": "must_be_registered"
+  },
+  "profiles": [
+    {
+      "profile_key": "development",
+      "capacity_policy": "local-development",
+      "active_source": "settings",
+      "status": "supported"
+    },
+    {
+      "profile_key": "production-90g",
+      "capacity_policy": "production-90g",
+      "active_source": "config_center",
+      "status": "required-for-production"
+    }
+  ],
+  "definitions": [
+    {
+      "config_key": "data_center.provider.failover_tolerance",
+      "namespace": "data_center",
+      "owner": "data-platform",
+      "type": "decimal",
+      "current_source": "data_center_provider_settings",
+      "fallback": "none",
+      "migration_status": "registered"
+    },
+    {
+      "config_key": "data_center.storage.active_policy",
+      "namespace": "storage",
+      "owner": "operations",
+      "type": "string",
+      "current_source": "config_center",
+      "fallback": "blocked",
+      "migration_status": "registered"
+    },
+    {
+      "config_key": "data_center.sync.batch_size",
+      "namespace": "data_center",
+      "owner": "data-platform",
+      "type": "integer",
+      "current_source": "config_center",
+      "fallback": "none",
+      "migration_status": "registered"
+    },
+    {
+      "config_key": "data_center.sync.max_concurrency",
+      "namespace": "data_center",
+      "owner": "data-platform",
+      "type": "integer",
+      "current_source": "config_center",
+      "fallback": "none",
+      "migration_status": "registered"
+    },
+    {
+      "config_key": "task_monitor.retention_days",
+      "namespace": "task_monitor",
+      "owner": "operations",
+      "type": "integer",
+      "current_source": "config_center",
+      "fallback": "blocked",
+      "migration_status": "registered"
+    },
+    {
+      "config_key": "readiness.decision_maintenance",
+      "namespace": "readiness",
+      "owner": "reliability",
+      "type": "boolean",
+      "current_source": "config_center",
+      "fallback": "false",
+      "migration_status": "registered"
+    }
+  ]
+}

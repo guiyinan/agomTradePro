@@ -15,8 +15,16 @@ from datetime import date, datetime, timedelta
 from typing import Any, TypedDict
 
 from django.conf import settings
-from django.db.models import Max
 from django.utils import timezone
+
+from apps.data_center.application.public import (
+    get_financial_facts,
+    get_latest_quote_payloads,
+    get_valuation_facts,
+    list_active_stock_codes,
+    list_valuation_covered_codes,
+)
+from shared.numeric import safe_float
 
 from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
@@ -72,8 +80,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
     - 综合得分 = 归一化后的因子加权平均
 
     数据来源：
-    - PE、PB、股息率：equity.ValuationModel（估值数据表）
-    - ROE：equity.FinancialDataModel（财务数据表）
+    - PE、PB、股息率、ROE：Data Center canonical facts
 
     Attributes:
         priority: 100
@@ -131,18 +138,13 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             Provider 状态
         """
         try:
-            from apps.data_center.infrastructure.models import QuoteSnapshotModel
-            from apps.equity.infrastructure.models import ValuationModel
-
             # 检查是否有最近 7 天内的估值数据
-            cutoff_date = date.today() - timedelta(days=7)
-            has_data = ValuationModel._default_manager.filter(
-                trade_date__gte=cutoff_date
-            ).exists()
+            has_data = bool(list_valuation_covered_codes(as_of=date.today()))
             quote_cutoff = timezone.now() - timedelta(hours=4)
-            has_fresh_quotes = QuoteSnapshotModel._default_manager.filter(
-                snapshot_at__gte=quote_cutoff
-            ).exists()
+            active_codes = list_active_stock_codes()[:100]
+            has_fresh_quotes = bool(
+                get_latest_quote_payloads(active_codes, observed_after=quote_cutoff)
+            )
 
             if has_data or has_fresh_quotes:
                 return AlphaProviderStatus.AVAILABLE
@@ -292,8 +294,6 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             股票代码列表
         """
         try:
-            from apps.equity.infrastructure.models import ValuationModel
-
             if pool_scope is not None and pool_scope.instrument_codes:
                 return list(pool_scope.instrument_codes)
 
@@ -302,38 +302,17 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             if universe_id in configured and configured[universe_id]:
                 # 过滤出有估值数据的股票
                 configured_stocks = list(configured[universe_id])
-                available_stocks = list(
-                    ValuationModel._default_manager.filter(
-                        stock_code__in=configured_stocks,
-                        trade_date__lte=trade_date
-                    )
-                    .values_list('stock_code', flat=True)
-                    .distinct()
-                )
-                return available_stocks
+                available_stocks = set(list_valuation_covered_codes(as_of=trade_date))
+                return [code for code in configured_stocks if code in available_stocks]
 
-            # 从数据库获取有估值数据的所有股票
-            # 查找最近的估值数据日期
-            latest_date = ValuationModel._default_manager.aggregate(
-                max_date=Max('trade_date')
-            ).get('max_date')
-
-            if not latest_date:
+            stocks = list_valuation_covered_codes(as_of=trade_date)
+            if not stocks:
                 logger.warning("数据库中没有估值数据")
                 return []
 
-            # 获取该日期有估值数据的所有股票
-            stocks = list(
-                ValuationModel._default_manager.filter(
-                    trade_date=latest_date
-                )
-                .values_list('stock_code', flat=True)
-                .order_by('stock_code')
-            )
-
             logger.info(
                 f"SimpleAlphaProvider 从数据库获取股票池: "
-                f"universe={universe_id}, date={latest_date}, count={len(stocks)}"
+                f"universe={universe_id}, date<={trade_date}, count={len(stocks)}"
             )
             return stocks
 
@@ -349,9 +328,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         """
         从数据库获取真实的基本面数据。
 
-        数据来源：
-        - PE、PB、股息率：ValuationModel
-        - ROE：FinancialDataModel
+        数据来源：Data Center canonical valuation/financial facts。
 
         Args:
             stock_list: 股票列表
@@ -371,74 +348,55 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         }
 
         try:
-            from apps.equity.infrastructure.models import (
-                FinancialDataModel,
-                ValuationModel,
-            )
-
-            # 1. 获取最近的估值数据
-            latest_valuation_date = ValuationModel._default_manager.aggregate(
-                max_date=Max('trade_date')
-            ).get('max_date')
-
-            if not latest_valuation_date:
-                data_quality["error"] = "估值数据表中没有任何数据"
-                return {}, data_quality
-
-            # 获取估值数据
-            valuations = {
-                v.stock_code: v
-                for v in ValuationModel._default_manager.filter(
-                    stock_code__in=stock_list,
-                    trade_date=latest_valuation_date
+            for stock_code in stock_list:
+                valuation_rows = get_valuation_facts(stock_code, as_of=trade_date, limit=1)
+                valuation = valuation_rows[0] if valuation_rows else None
+                financial_rows = get_financial_facts(stock_code, limit=100)
+                latest_period = max(
+                    (str(row.get("period_end")) for row in financial_rows if row.get("period_end")),
+                    default="",
                 )
-            }
-            data_quality["valuation_count"] = len(valuations)
+                metrics = {
+                    str(row.get("metric_code")): row.get("value")
+                    for row in financial_rows
+                    if str(row.get("period_end")) == latest_period
+                }
 
-            # 2. 获取最新的财务数据（ROE）
-            # 使用子查询获取每只股票的最新财务数据
-            financials = {}
-            for stock_code in stock_list:
-                latest_financial = FinancialDataModel._default_manager.filter(
-                    stock_code=stock_code
-                ).order_by('-report_date').first()
+                if valuation is not None:
+                    data_quality["valuation_count"] += 1
+                if metrics:
+                    data_quality["financial_count"] += 1
 
-                if latest_financial:
-                    financials[stock_code] = latest_financial
-
-            data_quality["financial_count"] = len(financials)
-
-            # 3. 合并数据
-            for stock_code in stock_list:
-                valuation = valuations.get(stock_code)
-                financial = financials.get(stock_code)
-
-                pe_value = valuation.pe if valuation is not None else None
-                pb_value = valuation.pb if valuation is not None else None
-                dividend_value = valuation.dividend_yield if valuation is not None else None
-                roe_value = financial.roe if financial is not None else None
-                has_pe = pe_value is not None and pe_value > 0
-                has_pb = pb_value is not None and pb_value > 0
+                pe_value = (
+                    valuation.get("pe_ttm")
+                    if valuation is not None and valuation.get("pe_ttm") is not None
+                    else (valuation.get("pe_static") if valuation is not None else None)
+                )
+                pb_value = valuation.get("pb") if valuation is not None else None
+                dividend_value = valuation.get("dv_ratio") if valuation is not None else None
+                roe_value = metrics.get("roe")
+                pe = safe_float(pe_value)
+                pb = safe_float(pb_value)
+                dividend_yield = safe_float(dividend_value)
+                roe = safe_float(roe_value)
+                has_pe = pe is not None and pe > 0
+                has_pb = pb is not None and pb > 0
                 has_dividend = dividend_value is not None
-                has_roe = roe_value is not None
+                has_roe = roe is not None
 
-                # 至少需要 PE 或 PB 才能计算评分
-                if not has_pe and not has_pb:
+                # Missing data must remain missing; never substitute guessed values.
+                if not has_pe or not has_pb or not has_roe or not has_dividend:
                     data_quality["missing_count"] += 1
                     continue
 
-                # 提取数据
-                pe = float(pe_value) if pe_value is not None and pe_value > 0 else 50.0
-                pb = float(pb_value) if pb_value is not None and pb_value > 0 else 3.0
-                dividend_yield = float(dividend_value) if dividend_value is not None else 0.0
-                roe = float(roe_value) if roe_value is not None else 0.08
+                if pe is None or pb is None or dividend_yield is None or roe is None:
+                    continue
 
-                # 使用默认值填充缺失的数据
                 fundamentals[stock_code] = {
-                    "pe": pe,  # 默认中等 PE
-                    "pb": pb,   # 默认中等 PB
-                    "roe": roe,  # 默认 8% ROE
-                    "dividend_yield": dividend_yield if dividend_yield > 0 else 0.02,  # 默认 2% 股息率
+                    "pe": pe,
+                    "pb": pb,
+                    "roe": roe,
+                    "dividend_yield": dividend_yield,
                     "_data_quality": {
                         "has_pe": has_pe,
                         "has_pb": has_pb,
@@ -455,7 +413,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             if not fundamentals:
                 data_quality["error"] = (
                     f"没有找到有效的基本面数据。"
-                    f"估值数据日期: {latest_valuation_date}, "
+                    f"估值数据日期上限: {trade_date}, "
                     f"请求股票数: {len(stock_list)}"
                 )
 
@@ -497,10 +455,10 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
         for stock in stock_list:
             data = fundamental_data[stock]
-            pe = data.get("pe", 50)
-            pb = data.get("pb", 5)
-            roe = data.get("roe", 0.1)
-            dividend = data.get("dividend_yield", 0.02)
+            pe = data["pe"]
+            pb = data["pb"]
+            roe = data["roe"]
+            dividend = data["dividend_yield"]
 
             # 计算复合因子
             factor_values["pe_inv"].append(1 / max(pe, 1) if pe > 0 else 0)
@@ -567,24 +525,15 @@ class SimpleAlphaProvider(BaseAlphaProvider):
     ) -> tuple[list[StockScore], dict[str, object], int | None]:
         """Build a data-driven intraday Alpha fallback from fresh quote snapshots."""
 
-        try:
-            from apps.data_center.infrastructure.models import QuoteSnapshotModel
-        except ImportError as exc:
-            return [], {"quote_error": f"无法导入实时行情模型: {exc}"}, None
-
         quote_cutoff = timezone.now() - timedelta(hours=4)
         normalized_codes = [str(code or "").strip().upper() for code in stock_list if code]
-        snapshots = (
-            QuoteSnapshotModel._default_manager.filter(
-                asset_code__in=normalized_codes,
-                snapshot_at__gte=quote_cutoff,
+        latest_by_code = {
+            str(snapshot.get("asset_code") or "").upper(): snapshot
+            for snapshot in get_latest_quote_payloads(
+                normalized_codes,
+                observed_after=quote_cutoff,
             )
-            .order_by("asset_code", "-snapshot_at")
-        )
-        latest_by_code: dict[str, Any] = {}
-        for snapshot in snapshots:
-            code = str(snapshot.asset_code or "").upper()
-            latest_by_code.setdefault(code, snapshot)
+        }
 
         raw_rows: list[_QuoteMomentumRow] = []
         latest_snapshot_at: datetime | None = None
@@ -592,32 +541,47 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             quote = latest_by_code.get(code)
             if quote is None:
                 continue
-            current_price = float(quote.current_price or 0.0)
-            prev_close = float(quote.prev_close or 0.0)
-            open_price = float(quote.open or 0.0)
-            high = float(quote.high or 0.0)
-            low = float(quote.low or 0.0)
-            volume = float(quote.volume or 0.0)
+            current_price_raw = quote.get("current_price")
+            prev_close_raw = quote.get("prev_close")
+            if current_price_raw is None or prev_close_raw is None:
+                continue
+            current_price = safe_float(current_price_raw)
+            prev_close = safe_float(prev_close_raw)
+            if current_price is None or prev_close is None:
+                continue
+            open_price_raw = quote.get("open")
+            high_raw = quote.get("high")
+            low_raw = quote.get("low")
+            volume_raw = quote.get("volume")
+            open_price = safe_float(open_price_raw)
+            high = safe_float(high_raw)
+            low = safe_float(low_raw)
+            volume = safe_float(volume_raw)
             if current_price <= 0 or prev_close <= 0:
                 continue
 
             intraday_return = (current_price - prev_close) / prev_close
-            open_gap = (current_price - open_price) / open_price if open_price > 0 else 0.0
+            open_gap = (
+                (current_price - open_price) / open_price
+                if open_price is not None and open_price > 0
+                else 0.0
+            )
             range_position = 0.5
-            if high > low:
+            if high is not None and low is not None and high > low:
                 range_position = min(max((current_price - low) / (high - low), 0.0), 1.0)
             raw_rows.append(
                 {
                     "code": code,
-                    "snapshot_at": quote.snapshot_at,
+                    "snapshot_at": datetime.fromisoformat(str(quote["snapshot_at"])),
                     "intraday_return": intraday_return,
                     "range_position": range_position,
-                    "liquidity": math.log1p(max(volume, 0.0)),
+                    "liquidity": math.log1p(max(volume, 0.0)) if volume is not None else 0.0,
                     "open_gap": open_gap,
                 }
             )
-            if latest_snapshot_at is None or quote.snapshot_at > latest_snapshot_at:
-                latest_snapshot_at = quote.snapshot_at
+            snapshot_at = datetime.fromisoformat(str(quote["snapshot_at"]))
+            if latest_snapshot_at is None or snapshot_at > latest_snapshot_at:
+                latest_snapshot_at = snapshot_at
 
         if not raw_rows:
             return [], {
@@ -728,8 +692,8 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
         data = fundamental_data[stock_code]
         return {
-            "pe_inv": 1 / max(data.get("pe", 50), 1),
-            "pb_inv": 1 / max(data.get("pb", 5), 0.5),
-            "roe": max(data.get("roe", 0.1), 0),
-            "dividend_yield": max(data.get("dividend_yield", 0.02), 0),
+            "pe_inv": 1 / max(data["pe"], 1),
+            "pb_inv": 1 / max(data["pb"], 0.5),
+            "roe": max(data["roe"], 0),
+            "dividend_yield": max(data["dividend_yield"], 0),
         }

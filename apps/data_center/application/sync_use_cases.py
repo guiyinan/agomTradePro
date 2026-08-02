@@ -58,6 +58,14 @@ RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
 )
 
 
+def _sync_status(stored_count: int) -> tuple[str, str]:
+    """Return audit and DTO status without treating zero writes as success."""
+
+    if stored_count > 0:
+        return "ok", "success"
+    return "noop", "noop"
+
+
 def _build_sync_audit(
     provider_name: str,
     capability: str,
@@ -167,6 +175,8 @@ class _BaseSyncUseCase:
         error_message: str = "",
     ) -> None:
         """Persist one consistent health and raw-audit outcome."""
+        if status == "noop" and not error_message:
+            error_message = "provider completed without output"
         self._persist_provider_health_metric(
             config,
             capability=capability,
@@ -230,12 +240,13 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                 facts=facts,
             )
             stored_count = self._facts.bulk_upsert(normalized)
+            audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
                 capability="macro",
                 latency_ms=latency_ms,
-                success=True,
+                success=stored_count > 0,
                 output_count=stored_count,
             )
             self._raw_audit_repo.log(
@@ -247,12 +258,12 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                         "start": request.start.isoformat(),
                         "end": request.end.isoformat(),
                     },
-                    "ok",
+                    audit_status,
                     stored_count,
                     latency_ms,
                 )
             )
-            return SyncResult("macro", provider.provider_name(), stored_count, "success")
+            return SyncResult("macro", provider.provider_name(), stored_count, result_status)
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
@@ -363,12 +374,13 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 for bar in bars
             ]
             stored_count = self._facts.bulk_upsert(bars)
+            audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
                 capability="historical_price",
                 latency_ms=latency_ms,
-                success=True,
+                success=stored_count > 0,
                 output_count=stored_count,
             )
             self._raw_audit_repo.log(
@@ -380,12 +392,14 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                         "start": request.start.isoformat(),
                         "end": request.end.isoformat(),
                     },
-                    "ok",
+                    audit_status,
                     stored_count,
                     latency_ms,
                 )
             )
-            return SyncResult("historical_price", provider.provider_name(), stored_count, "success")
+            return SyncResult(
+                "historical_price", provider.provider_name(), stored_count, result_status
+            )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
@@ -435,12 +449,13 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(quotes)
+            audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
                 capability="realtime_quote",
                 latency_ms=latency_ms,
-                success=True,
+                success=stored_count > 0,
                 output_count=stored_count,
             )
             self._raw_audit_repo.log(
@@ -448,12 +463,12 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                     provider.provider_name(),
                     "realtime_quote",
                     {"asset_codes": request.asset_codes},
-                    "ok",
+                    audit_status,
                     stored_count,
                     latency_ms,
                 )
             )
-            return SyncResult("realtime_quote", provider.provider_name(), stored_count, "success")
+            return SyncResult("realtime_quote", provider.provider_name(), stored_count, result_status)
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
@@ -504,17 +519,18 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
+            audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(
                 config,
                 provider_name=provider.provider_name(),
                 capability="fund_nav",
                 request_params=params,
-                status="ok",
+                status=audit_status,
                 row_count=stored_count,
                 latency_ms=latency_ms,
             )
-            return SyncResult("fund_nav", provider.provider_name(), stored_count, "success")
+            return SyncResult("fund_nav", provider.provider_name(), stored_count, result_status)
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(
@@ -553,17 +569,18 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
+            audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(
                 config,
                 provider_name=provider.provider_name(),
                 capability="financial",
                 request_params=params,
-                status="ok",
+                status=audit_status,
                 row_count=stored_count,
                 latency_ms=latency_ms,
             )
-            return SyncResult("financial", provider.provider_name(), stored_count, "success")
+            return SyncResult("financial", provider.provider_name(), stored_count, result_status)
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(
@@ -606,17 +623,18 @@ class SyncValuationUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
+            audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(
                 config,
                 provider_name=provider.provider_name(),
                 capability="valuation",
                 request_params=params,
-                status="ok",
+                status=audit_status,
                 row_count=stored_count,
                 latency_ms=latency_ms,
             )
-            return SyncResult("valuation", provider.provider_name(), stored_count, "success")
+            return SyncResult("valuation", provider.provider_name(), stored_count, result_status)
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(
@@ -665,18 +683,19 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
+            audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(
                 config,
                 provider_name=provider.provider_name(),
                 capability="sector_membership",
                 request_params=params,
-                status="ok",
+                status=audit_status,
                 row_count=stored_count,
                 latency_ms=latency_ms,
             )
             return SyncResult(
-                "sector_membership", provider.provider_name(), stored_count, "success"
+                "sector_membership", provider.provider_name(), stored_count, result_status
             )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
@@ -716,17 +735,18 @@ class SyncNewsUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_insert(facts)
+            audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(
                 config,
                 provider_name=provider.provider_name(),
                 capability="news",
                 request_params=params,
-                status="ok",
+                status=audit_status,
                 row_count=stored_count,
                 latency_ms=latency_ms,
             )
-            return SyncResult("news", provider.provider_name(), stored_count, "success")
+            return SyncResult("news", provider.provider_name(), stored_count, result_status)
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(
@@ -765,17 +785,18 @@ class SyncCapitalFlowUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
+            audit_status, result_status = _sync_status(stored_count)
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(
                 config,
                 provider_name=provider.provider_name(),
                 capability="capital_flow",
                 request_params=params,
-                status="ok",
+                status=audit_status,
                 row_count=stored_count,
                 latency_ms=latency_ms,
             )
-            return SyncResult("capital_flow", provider.provider_name(), stored_count, "success")
+            return SyncResult("capital_flow", provider.provider_name(), stored_count, result_status)
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._record_outcome(

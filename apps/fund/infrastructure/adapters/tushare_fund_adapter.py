@@ -11,8 +11,8 @@ from typing import Protocol, cast
 
 import pandas as pd  # type: ignore[import-untyped]
 
+from apps.data_center.infrastructure.tushare_client import create_tushare_pro_client
 from shared.config.secrets import get_secrets
-from shared.infrastructure.tushare_client import create_tushare_pro_client
 
 
 class TushareFundClient(Protocol):

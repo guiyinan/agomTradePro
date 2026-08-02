@@ -10,7 +10,7 @@ import logging
 from collections.abc import Iterable
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 from zoneinfo import ZoneInfo
 
 from apps.data_center.infrastructure.market_gateway_entities import (
@@ -20,8 +20,10 @@ from apps.data_center.infrastructure.market_gateway_entities import (
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
-from core.integration.data_center_business_sources import build_tushare_stock_adapter
-from shared.infrastructure.tushare_client import TushareRelayAuthorizationError
+from apps.data_center.infrastructure.tushare_client import (
+    TushareRelayAuthorizationError,
+    create_tushare_pro_client,
+)
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,12 @@ _SUPPORTED = {
     DataCapability.TECHNICAL_FACTORS,
     DataCapability.HISTORICAL_PRICE,
 }
+
+
+def build_tushare_stock_adapter() -> object | None:
+    """Return no legacy adapter by default; retained for fixture injection."""
+
+    return None
 
 
 class _RowLike(Protocol):
@@ -47,12 +55,17 @@ class _DataFrameLike(Protocol):
     """Minimal DataFrame contract returned by the Tushare SDK."""
 
     empty: bool
+    columns: Any
+    loc: Any
 
     def sort_values(self, by: str) -> "_DataFrameLike":
         """Return rows sorted by one field."""
 
     def iterrows(self) -> Iterable[tuple[object, _RowLike]]:
         """Iterate provider rows."""
+
+    def __getitem__(self, key: str) -> Any:
+        """Return one provider column."""
 
 
 class _TushareProClientProtocol(Protocol):
@@ -66,6 +79,19 @@ class _TushareProClientProtocol(Protocol):
 
     def daily(self, *, ts_code: str, start_date: str, end_date: str) -> _DataFrameLike:
         """Return stock daily bars."""
+
+
+class _CompatibilityAdapterProtocol(Protocol):
+    """Minimal fixture-only adapter contract retained during migration."""
+
+    def fetch_daily_data(
+        self,
+        *,
+        stock_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> Any:
+        """Return a pandas-like daily data frame."""
 
 
 def _safe_decimal(value: object) -> Decimal | None:
@@ -124,7 +150,13 @@ class TushareGateway(MarketGatewayProtocol):
     def get_quote_snapshots(self, stock_codes: list[str]) -> list[QuoteSnapshot]:
         """从 Tushare 获取最新日线数据作为"准实时"行情"""
         try:
-            adapter = build_tushare_stock_adapter()
+            compatibility_adapter = build_tushare_stock_adapter()
+            if compatibility_adapter is not None:
+                return self._get_quote_snapshots_from_compatibility_adapter(
+                    cast(_CompatibilityAdapterProtocol, compatibility_adapter),
+                    stock_codes,
+                )
+            pro = cast(_TushareProClientProtocol, create_tushare_pro_client())
             results: list[QuoteSnapshot] = []
 
             from django.utils import timezone
@@ -134,8 +166,11 @@ class TushareGateway(MarketGatewayProtocol):
 
             for code in stock_codes:
                 try:
-                    df = adapter.fetch_daily_data(
-                        stock_code=code,
+                    normalized_code = _normalize_asset_code(code)
+                    if normalized_code is None:
+                        continue
+                    df = pro.daily(
+                        ts_code=self._to_tushare_code(normalized_code),
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -195,6 +230,67 @@ class TushareGateway(MarketGatewayProtocol):
             logger.exception("Tushare gateway 批量行情失败")
             return []
 
+    def _get_quote_snapshots_from_compatibility_adapter(
+        self,
+        adapter: _CompatibilityAdapterProtocol,
+        stock_codes: list[str],
+    ) -> list[QuoteSnapshot]:
+        """Adapt an injected legacy fixture without making it a runtime dependency."""
+
+        results: list[QuoteSnapshot] = []
+        from django.utils import timezone
+
+        end_date = timezone.now().strftime("%Y%m%d")
+        start_date = (timezone.now() - timedelta(days=5)).strftime("%Y%m%d")
+        for code in stock_codes:
+            try:
+                df = adapter.fetch_daily_data(
+                    stock_code=code,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                if df is None or df.empty:
+                    continue
+                if "trade_date" not in df.columns:
+                    continue
+                latest = df.loc[df["trade_date"].astype(str).idxmax()]
+                raw_trade_date = str(latest.get("trade_date") or "").strip()
+                observed_at = datetime.combine(
+                    datetime.strptime(raw_trade_date, "%Y%m%d").date(),
+                    time(hour=15),
+                    tzinfo=ZoneInfo("Asia/Shanghai"),
+                ).astimezone(UTC)
+                price = _safe_decimal(latest.get("close"))
+                if price is None or price <= 0:
+                    continue
+                pre_close = _safe_decimal(latest.get("pre_close"))
+                change = price - pre_close if pre_close and pre_close > 0 else None
+                change_pct = (
+                    float(change / pre_close * 100)
+                    if change is not None and pre_close is not None and pre_close > 0
+                    else None
+                )
+                results.append(
+                    QuoteSnapshot(
+                        stock_code=code,
+                        price=price,
+                        change=change,
+                        change_pct=change_pct,
+                        volume=_safe_int(latest.get("vol")),
+                        amount=_safe_decimal(latest.get("amount")),
+                        turnover_rate=safe_float(latest.get("turnover_rate")),
+                        high=_safe_decimal(latest.get("high")),
+                        low=_safe_decimal(latest.get("low")),
+                        open=_safe_decimal(latest.get("open")),
+                        pre_close=pre_close,
+                        source="tushare",
+                        observed_at=observed_at,
+                    )
+                )
+            except (RuntimeError, TypeError, ValueError, KeyError):
+                logger.warning("Tushare compatibility quote failed: %s", code)
+        return results
+
     def get_technical_snapshot(self, stock_code: str) -> TechnicalSnapshot | None:
         """从 Tushare 获取技术指标"""
         snapshots = self.get_quote_snapshots([stock_code])
@@ -228,8 +324,6 @@ class TushareGateway(MarketGatewayProtocol):
             logger.warning("Tushare historical price request rejected: invalid scope")
             return []
         try:
-            from shared.infrastructure.tushare_client import create_tushare_pro_client
-
             pro = cast(_TushareProClientProtocol, create_tushare_pro_client())
 
             code = normalized_asset_code.split(".", 1)[0]

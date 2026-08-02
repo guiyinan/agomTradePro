@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import os
 from copy import deepcopy
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from django.apps import apps as django_apps
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.data_center.infrastructure.models import MacroFactModel
+from apps.data_center.application.public import get_macro_fact_series, save_macro_facts
+from apps.data_center.domain.entities import MacroFact
+from apps.data_center.domain.enums import DataQualityStatus
 from apps.rotation.infrastructure.models import RotationConfigModel
 
 StockInfoModel = django_apps.get_model("equity", "StockInfoModel")
@@ -165,37 +167,42 @@ class Command(BaseCommand):
         return created
 
     def _ensure_macro_smoke_indicator(self) -> int:
-        if MacroFactModel._default_manager.filter(indicator_code="MCP_TEST_IND").exists():
+        if get_macro_fact_series("MCP_TEST_IND", limit=1):
             return 0
 
-        source_rows = list(
-            MacroFactModel._default_manager.filter(indicator_code="CN_PMI").order_by(
-                "-reporting_period"
-            )[:24]
-        )
+        source_rows = get_macro_fact_series("CN_PMI", limit=24)
         if not source_rows:
             self.stdout.write(self.style.WARNING("[macro] source missing: CN_PMI"))
             return 0
 
-        created = 0
-        for row in source_rows:
-            MacroFactModel._default_manager.get_or_create(
+        facts = [
+            MacroFact(
                 indicator_code="MCP_TEST_IND",
-                reporting_period=row.reporting_period,
-                source="bootstrap_mcp_cold_start",
-                revision_number=row.revision_number,
-                defaults={
-                    "value": row.value,
-                    "unit": row.unit,
-                    "published_at": row.published_at or (row.reporting_period + timedelta(days=1)),
-                    "quality": row.quality,
-                    "extra": {
-                        **(row.extra or {}),
-                        "source_type": "manual",
-                    },
+                reporting_period=date.fromisoformat(str(row["reporting_period"])),
+                value=float(row["value"]),
+                unit=str(row.get("unit") or "指数"),
+                source="manual",
+                revision_number=int(row.get("revision_number") or 0),
+                published_at=(
+                    date.fromisoformat(str(row["published_at"]))
+                    if row.get("published_at")
+                    else date.fromisoformat(str(row["reporting_period"])) + timedelta(days=1)
+                ),
+                quality=DataQualityStatus(str(row.get("quality") or "valid")),
+                fetched_at=(
+                    datetime.fromisoformat(str(row["fetched_at"]))
+                    if row.get("fetched_at")
+                    else datetime.now(UTC)
+                ),
+                extra={
+                    **dict(row.get("extra") or {}),
+                    "source_type": "manual",
+                    "publication_lag_days": 1,
                 },
             )
-            created += 1
+            for row in source_rows
+        ]
+        created = save_macro_facts(facts)
 
         self.stdout.write(f"[macro] created MCP_TEST_IND from CN_PMI, rows={created}")
         return created

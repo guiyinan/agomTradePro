@@ -1,0 +1,2157 @@
+# 数据中台唯一真源与数据可靠性架构重构计划（2026-08-02）
+
+> 状态：实施中（M0-M2 基础收口已落地；M3-D9、M9-M10 尚未完成）  
+> 级别：架构级 / 数据级 / 生产级重构  
+> 适用版本：0.8.0 之后的下一条独立主线  
+> 目标：所有外部事实数据及所有业务计算输入统一经过 Data Center；系统只有一个可发布的数据真源、一套可靠性语义和一条可审计的数据链路，并能在生产默认 90 GiB、运行时可调整的容量策略下持续运行  
+> 执行原则：先阻断错误数据，再建立契约；先扩展后切换；先影子对账再退役旧链；禁止长期双写  
+
+## 实施记录（2026-08-02，第一批）
+
+本批次只处理“契约、边界和高风险语义”，不进行 VPS 部署、生产切读、旧表删除或破坏性迁移。
+
+已落地：
+
+- `apps/data_center/domain/contracts.py` 增加 `DataEnvelope`、`SourceEvidence`、`QualityAssessment`、`FetchResult`、`SyncOutcome`、`PublicationDecision`、`DatasetContract`、`ProviderBinding` 和 `PublicationPolicy`，并对缺失值、零产出、时间顺序、证据和冲突执行 fail-closed 校验。
+- `governance/dataset_contracts.json`、`governance/provider_bindings.json`、`governance/publication_policies.json` 覆盖 D0-D9；`scripts/check_data_center_catalog_contracts.py` 在缺任何一项时失败。
+- `apps/data_center/application/public.py` 建立宏观、资产、行情、报价、财务、估值、Provider 配置和显示名的 Application Public Port；Regime、Pulse、Filter、Factor、Setup Wizard、Audit、Dashboard 等生产读取已切到该端口。
+- Provider SDK transport 收口至 `apps/data_center/infrastructure`；shared Tushare/AKShare bridge 变为迁移 tombstone，Data Center 外部 SDK 越界清单为 0。
+- Provider Registry 接受 `FetchResult` 和 dataset-specific validator；stale、blocked、空结果会继续 failover。
+- Alpha、equity 基本面/估值、财务/估值 gateway 不再把缺失事实补成 `0.0`；筛选和估值分析对关键缺失数据阻断或跳过。
+- Data Center 同步用例在 `stored=0` 时发布 `noop`，并修正健康状态/审计结果；补充 deterministic architecture inventory 和 ratchet guard。
+- Agent Runtime 宏观快照、Regime/Pulse 等 current-data 入口保留源观测时间，未用请求时间包装历史事实。
+
+本批机器证据：
+
+- `python scripts/data_center_architecture_inventory.py`：`provider_imports_outside_data_center=0`、`external_http_imports_for_review=7`、`cross_app_orm_imports=61`、`legacy_fact_references=178`、`current_surface_references=2795`、`data_write_task_decorators=50`、`runtime_parameter_references=49`。
+- `python scripts/check_data_center_catalog_contracts.py`：`validated=10 datasets`。
+- `python scripts/verify_architecture.py --include-audit --format text`：修复 naive datetime 后应保持 boundary/audit 0 violation；`check_current_data_contracts.py` 通过 25 个 surface，`check_celery_task_contracts.py` 通过 13 个 task。
+
+已验证的最小回归包：
+
+- Data Center contracts/registry/architecture/inventory/catalog guard：通过。
+- Provider adapter/gateway：76 passed；Alpha + equity context/provider：47 passed；Pulse + Regime：79 + 59 passed；Filter：22 passed；Factor：83 passed；equity screener/analyzer/edge：35 passed；Audit high-frequency validator edge：4 passed；Setup Wizard boundary：2 passed。
+
+未完成及明确风险：
+
+- `apps/macro/infrastructure/data_center_fact_repository.py` 仍是一个遗留 CRUD facade，尚未迁移到 Data Center Application；这是当前唯一生产侧 Data Center ORM 例外（测试 fixture 不计入）。
+- `apps/data_center/apps.py` 仍注册 `core.integration.research_integrity_registry` 的 PIT 回调；它不是 Provider bridge，但 M2 的“完全无 core integration”退出条件尚未满足。
+- Raw Landing/Schema Fingerprint/Quarantine、SyncRun/Batch/Checkpoint、CanonicalPublication 持久化、Config Center Definition/Profile/Revision/Snapshot 模型、StorageBudget/Retention/Archive/容量故障注入尚未实施。
+- D0-D9 的生产数据画像、legacy/canonical shadow reconciliation、PostgreSQL 全链路、VPS/备份/恢复、M9 旧表清理和 M10 生产证据均未验证；因此本计划不能标记为完成，也不触发部署。
+
+## 1. 结论先行
+
+当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
+
+现有 Data Center 已经具备 Provider 配置、主数据、事实表、同步、查询、健康度、Raw Audit 等骨架，但系统仍允许以下情况同时存在：
+
+1. Data Center 事实表与 macro、equity 等旧事实表并行，业务代码可以任选一套读取。
+2. Data Center 的 Provider Adapter 仍通过 core/integration/data_center_business_sources.py 反向调用业务模块能力，数据所有权名义上在中台，实际仍散落在业务 App。
+3. shared/domain/reliability.py 已定义 ReliabilityContract，但多数数据实体和查询响应没有把它作为不可分割的类型契约，可靠性仍常以松散 dict 字段追加。
+4. 缺失值在若干财务、估值和行情适配链路中被转换为 0.0，导致“未知”被伪造成“真实零值”。
+5. Provider Registry 当前主要以“未抛异常、非 None、非空列表”判断成功，尚未把 freshness、字段语义、单位、覆盖率和跨源冲突作为统一的接受条件。
+6. 同步任务可以在 stored_count=0 时返回 status=success，而健康度记录器又把零产出记为 degraded；任务结果和健康状态存在双重语义。
+7. REST、SDK、MCP、Terminal、Agent Runtime 和业务聚合层仍可能分别拼装 current/latest 语义，导致同一事实在不同入口得到不同可靠性结论。
+8. 现有 CI 治理已经登记 25 个 current-data contract 和 13 个关键 Celery task，但登记与标记扫描不能替代自动发现、真实 nodeid 执行和 PostgreSQL 全链路验证。
+
+因此，本计划不再把问题定义为“补几个数据源或修几个 stale 判断”，而是执行一次数据架构再收口：
+
+- Data Center 是外部事实数据生命周期的唯一 owner。
+- 业务 App 不再持久化或直接抓取同一类外部事实。
+- 所有可用于决策的数据必须先经过版本化 Dataset Contract、标准化、质量门、跨源仲裁和发布。
+- 业务 App 只通过 Data Center Application 层的类型化查询端口获取输入。
+- 账户、订单、持仓、策略配置、领域决策结果仍归原业务 App，不迁入 Data Center。
+
+## 2. “所有数据走数据中台”的精确定义
+
+“所有数据”不能被误解为“把系统全部 Django Model 都搬到一个 App”。本计划采用以下所有权边界。
+
+| 数据类别 | 所有权 | 是否必须经过 Data Center | 说明 |
+| --- | --- | --- | --- |
+| 外部 Provider 原始响应 | Data Center | 是 | 统一抓取、脱敏、哈希、审计和保留策略 |
+| 证券、基金、指数、指标、发布方等主数据 | Data Center | 是 | 唯一代码、别名、单位、日历和语义目录 |
+| 宏观、行情、净值、财务、估值、板块、新闻、资金流事实 | Data Center | 是 | 唯一标准事实存储和发布入口 |
+| 跨 App 复用的外部衍生事实 | Data Center | 是 | 必须登记 dataset_key、来源输入、算法版本和 lineage |
+| Regime、Pulse、Alpha、估值结论、策略信号 | 对应业务 App | 输入必须经过 | 领域算法和结果仍由业务 owner 管理；输入证据必须来自中台 |
+| 账户、组合、持仓、订单、成交、审计流水 | account / portfolio / broker_execution / audit | 否 | 属于用户与交易领域，不是市场数据中台事实 |
+| 运行时配置、权限、Prompt、Agent 会话 | 对应 owner App | 否 | 不纳入数据事实中台 |
+| 面向 SDK/MCP/TUI 的事实响应 | Data Center 或业务聚合 App | 底层事实必须经过 | 不允许入口自行查旧表、直连 Provider 或重算 freshness |
+
+硬规则：
+
+- 任何业务计算只要依赖宏观、市场、证券、财务、估值、新闻或资金流输入，就必须通过 Data Center Application Query Port。
+- 任何跨 App 复用的派生数据集必须登记 Data Product Contract；不得靠另一个 App 直接 import 其 ORM Model。
+- Data Center 不接管领域决策逻辑，也不得 import 业务 App 的 infrastructure。
+- shared 只保留无业务语义的技术组件；不得继续作为外部数据 SDK 的隐形入口。
+
+## 3. 与现有计划的关系
+
+本计划不是重复造中台，而是对“中台已完成”的第二阶段纠偏和最终验收。
+
+| 文档 | 本计划与其关系 |
+| --- | --- |
+| [data-mid-plat-260405.md](data-mid-plat-260405.md) | 保留为第一阶段建设历史；其中“Phase 1-6 已完成”只代表骨架和主要入口曾完成迁移，不再作为唯一真源验收证据 |
+| [production-data-reliability-full-remediation-2026-08-01.md](production-data-reliability-full-remediation-2026-08-01.md) | 继续承担生产事故 P0/P1/P2 整改；其维护阻断、时间保真、全市场回填和无证据阻断是本计划的前置安全底座 |
+| [provider-abstraction-convergence-2026-07-18.md](provider-abstraction-convergence-2026-07-18.md) | Provider 抽象治理并入本计划 M2，不再只以文件拆分或协议存在作为完成标准 |
+| [critical-reliability-test-closure-2026-07-22.md](critical-reliability-test-closure-2026-07-22.md) | 测试分层与 PostgreSQL 验收并入 M0、M9、M10 |
+| [data-freshness-contract-guard.md](../development/data-freshness-contract-guard.md) | 作为 current/latest/realtime 语义的最低要求，本计划会把它扩展到所有 Dataset Contract |
+| [celery-task-contract-guard.md](../development/celery-task-contract-guard.md) | 作为批量写入任务的最低要求，本计划会增加同步运行、批次、断点和发布状态 |
+
+若本计划与早期“已完成”描述冲突，以本计划的机器清单、退出条件和生产证据为准；不回写历史文档来掩盖曾经的架构状态。
+
+## 4. 当前基线与根因
+
+### 4.1 已确认的结构性问题
+
+| 编号 | 当前证据 | 根因 | 风险 |
+| --- | --- | --- | --- |
+| B1 | apps/agent_runtime/infrastructure/context_snapshot_repository.py 仍读取 apps/macro/infrastructure/models.py 的 MacroIndicator | 宏观事实存在双真源 | Agent Runtime 与 Data Center 可看到不同“最新宏观数据” |
+| B2 | apps/alpha/infrastructure/adapters/simple_adapter.py 和 apps/alpha/infrastructure/repositories.py 仍读取 equity.ValuationModel / FinancialDataModel | Alpha 直接依赖旧事实表 | 估值、财务的日期、单位和 freshness 无法统一 |
+| B3 | apps/equity/infrastructure/fundamentals_repository.py 同时支持 Data Center 与旧 equity 模型，并把多项缺失值写成 0.0 | 兼容层长期化，数据类型没有表达 missing | 缺失值进入排序、筛选和估值后被当作真实低值 |
+| B4 | core/integration/data_center_business_sources.py 被 Data Center Application/Infrastructure 调用 | 依赖倒置失败 | Data Center 名义拥有 Provider，实际反向依赖业务实现 |
+| B5 | shared/infrastructure/tushare_client.py 仍直接 import tushare | 外部 SDK 入口没有完全归一 | 静态约束存在例外，未来可再次绕过中台 |
+| B6 | ProviderRegistry.call_with_failover 只校验 None/空列表 | Fetch Result 没有标准证据与接受策略 | 旧值、错单位、错字段但非空时会截断 failover |
+| B7 | sync_use_cases.py 多个域在 stored_count=0 时返回 success | Outcome 不是一等类型 | Task Monitor、告警与运维判断可能互相矛盾 |
+| B8 | FinancialFact、ValuationFact、PriceBar 等表的证据字段不统一 | 事实表在不同阶段独立演化 | 无法做统一 lineage、质量门和跨域 readiness |
+| B9 | ReliabilityContract 主要只在 config_center 被显式采用 | 可靠性是外围元数据，不是数据载体的一部分 | 序列化、缓存或聚合时容易丢失和洗白 |
+| B10 | current-data 与 Celery guard 主要验证登记、源码标记和函数存在 | 静态治理与真实执行脱节 | 清单可以绿，但声明的行为不一定在 CI 中被执行 |
+
+### 4.2 语义事故说明了什么
+
+Data Center 近期迁移 0041、0044、0045、0047 曾修正以下类别的问题：
+
+- 家庭储蓄子集被错误标记为人民币存款。
+- 商品、外汇代理指标语义不匹配。
+- 解析失败被制造为 0% 失业率。
+- 发电量、用电量、钢铁开工率和航运指数代理关系混淆。
+
+这些不是单纯 Parser Bug，而是上游 endpoint、字段、单位、频率、经济含义和替代关系没有被版本化契约约束。修完某个字段但不建立 Dataset Contract，同类问题还会换一个 Provider 或指标再次出现。
+
+### 4.3 执行前必须重采的机器基线
+
+以下数字只作为 2026-08-02 的初始观察，M0 必须用脚本重新生成并入库为证据：
+
+- governance/current_data_contracts.json 当前登记 25 个 current-data surface。
+- governance/celery_task_contracts.json 当前登记 13 个关键任务，覆盖 4 个 source file。
+- 文本扫描至少发现 1 个 Data Center 之外的外部数据 SDK 入口：shared/infrastructure/tushare_client.py。
+- 已确认 Macro、Financial、Valuation、StockDaily 存在仍被业务代码使用的遗留表。
+- 2026-08-01 生产整改计划记录的核心覆盖率约 5.7% 只是事故时点基线，不能直接作为本计划开工时的现状。
+
+M0 生成的基线至少包括：
+
+1. 外部 SDK import 清单。
+2. 业务 App 对 Data Center Application 的依赖清单。
+3. 所有跨 App ORM 读取清单。
+4. 所有 legacy fact table 的读写调用点。
+5. 所有 current/latest/realtime/summary surface。
+6. 所有数据写入型 Celery task、命令、beat schedule 和启动脚本。
+7. 每个 canonical dataset 的行数、自然键重复数、覆盖率、最新观测时间、最早观测时间、source 分布和质量分布。
+
+## 5. 目标架构
+
+### 5.1 总体数据流
+
+~~~mermaid
+flowchart LR
+    subgraph P["外部 Provider"]
+        P1["Tushare"]
+        P2["AKShare"]
+        P3["EastMoney"]
+        P4["QMT"]
+        P5["其他受管来源"]
+    end
+
+    subgraph DC["Data Center 数据面"]
+        A["Provider Adapter"]
+        R["Raw Landing 与请求审计"]
+        C["Dataset Contract 校验"]
+        Q["Quarantine 与质量问题"]
+        N["标准化与单位转换"]
+        X["跨源对账与仲裁"]
+        F["类型化事实表"]
+        U["Canonical Publication"]
+        V["版本化 Read Model"]
+        G["Application Query Ports"]
+    end
+
+    subgraph CP["Data Center 控制面"]
+        D["Dataset Catalog"]
+        B["Provider Binding"]
+        S["Sync Run / Batch / Checkpoint"]
+        H["能力级健康与 SLO"]
+        E["Schedule / Catalog Reconciler"]
+        DR["Decision Readiness"]
+    end
+
+    subgraph CON["消费者"]
+        BA["业务 Application"]
+        API["REST"]
+        SDK["SDK / MCP"]
+        TUI["Terminal / TUI / Agent"]
+    end
+
+    P1 --> A
+    P2 --> A
+    P3 --> A
+    P4 --> A
+    P5 --> A
+    A --> R --> C
+    C -->|通过| N --> X --> F --> U --> V --> G
+    C -->|失败| Q
+    X -->|冲突| Q
+    D --> C
+    B --> A
+    S --> A
+    H --> X
+    E --> S
+    U --> DR
+    H --> DR
+    G --> BA
+    G --> API
+    BA --> SDK
+    BA --> TUI
+~~~
+
+关键点：
+
+- Raw Landing 不是业务查询源。
+- 类型化事实表可以保留多个 Provider 的标准化事实，但 current/latest 查询只能读取经过 Canonical Publication 选定的版本。
+- 选源是一次可审计的发布行为，不是在每个消费者里临时 order_by("-date").first()。
+- Data Center 控制面定义契约、调度、健康和 readiness，不反向 import 业务 App。
+- 业务聚合由业务 Application 完成，但每个事实分区必须保留 Data Center 的 evidence 和 reliability。
+
+### 5.2 目标四层边界
+
+#### Domain
+
+只使用标准库，新增或收敛以下不可变值对象：
+
+- DatasetKey
+- DatasetContractVersion
+- NaturalKey
+- SourceEvidence
+- ObservationTime
+- QualityAssessment
+- ReliabilityContract
+- DataEnvelope[T]
+- FetchOutcome
+- SyncOutcome
+- PublicationDecision
+- ConflictEvidence
+
+所有值对象使用 frozen dataclass；Domain 不知道 Django、Pandas、Provider SDK 或 HTTP 存在。
+
+#### Application
+
+只负责用例编排和端口定义：
+
+- IngestDatasetUseCase
+- ValidateAndNormalizeBatchUseCase
+- ReconcileSourcesUseCase
+- PublishCanonicalDatasetUseCase
+- QueryAssetMasterUseCase
+- QueryMarketDataUseCase
+- QueryMacroDataUseCase
+- QueryFundamentalDataUseCase
+- QueryReferenceDataUseCase
+- QueryNewsAndFlowUseCase
+- AuditCoverageUseCase
+- ReconcileRuntimeCatalogUseCase
+- ResumeSyncRunUseCase
+
+Application 不 import ORM Model、Repository 实现、core/integration 或业务 App infrastructure。
+
+#### Infrastructure
+
+只在本层实现：
+
+- Provider SDK / HTTP Gateway。
+- Schema 解析和 Provider Binding。
+- Django ORM Model 与 Repository。
+- PostgreSQL 批量写入、索引、锁、分区和查询优化。
+- Raw Payload 脱敏、压缩、哈希和保留。
+- Celery、Redis 和外部网络 I/O 的具体适配。
+
+#### Interface
+
+只做参数校验和输出格式化：
+
+- REST / TUI 管理接口。
+- 显式同步操作只允许 POST 或任务命令。
+- GET 只读，不隐式抓取、不写数据库、不创建 schedule。
+- API 输出直接序列化 Application DTO，不自行重算 freshness。
+
+### 5.3 目标目录
+
+目标不是一次性移动全部文件，而是在迁移阶段逐步收敛到以下结构：
+
+~~~text
+apps/data_center/
+├── domain/
+│   ├── evidence.py
+│   ├── dataset_contracts.py
+│   ├── facts.py
+│   ├── reliability.py
+│   ├── sync.py
+│   ├── rules.py
+│   └── protocols.py
+├── application/
+│   ├── ingestion/
+│   ├── publication/
+│   ├── query/
+│   ├── operations/
+│   ├── dtos.py
+│   └── public.py
+├── infrastructure/
+│   ├── providers/
+│   ├── parsers/
+│   ├── repositories/
+│   ├── models/
+│   ├── raw_landing/
+│   └── runtime/
+├── interface/
+└── composition.py
+~~~
+
+约束：
+
+- public.py 是业务 App 唯一允许依赖的稳定 Application Facade；不得成为巨型实现文件。
+- composition.py 只组装 Data Center 内部具体实现。
+- 业务 App 在自己的 composition root 注入 Data Center Public Port。
+- providers 按 provider / dataset binding 拆分，不再通过 core/integration 调回业务模块。
+- 当前大文件只在对应迁移阶段拆分，不允许为了目录整洁先做无行为收益的大搬家。
+
+## 6. 统一数据证据契约
+
+### 6.1 DataEnvelope
+
+每一条对业务可见的数据必须由 DataEnvelope[T] 承载，至少包含：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| dataset_key | 是 | 稳定数据集标识，如 equity.quote.snapshot |
+| contract_version | 是 | Dataset Contract 版本 |
+| schema_version | 是 | Payload / canonical schema 版本 |
+| value | 否 | 真实值；missing 时允许为空 |
+| natural_key | 是 | 数据集自然键 |
+| observed_at | 视数据集 | 源观测时间或事实日期 |
+| published_at | 视数据集 | 上游发布或公告时间 |
+| available_at | 视数据集 | Point-in-Time 可用时间 |
+| fetched_at | 是 | 系统抓取时间 |
+| source | 是 | 实际 Provider |
+| source_capability | 是 | 精确能力，不只使用宽泛域名 |
+| unit | 视字段 | Canonical 单位 |
+| original_unit | 视字段 | 上游原始单位 |
+| raw_audit_id / payload_hash | 是 | 可回溯原始响应 |
+| quality | 是 | 结构、范围、完整性和一致性判定 |
+| reliability | 是 | fresh/stale/missing/partial/conflict/maintenance/failed |
+| publication_id | 当前数据必填 | 当前发布版本 |
+| must_not_use_for_decision | 是 | 决策阻断 |
+| block_reason_code | 阻断时必填 | 稳定机器码 |
+| block_reason | 阻断时必填 | 用户可读原因 |
+
+### 6.2 时间语义
+
+| 数据集 | 事实时间 | 发布/可用时间 | 抓取时间 | 禁止行为 |
+| --- | --- | --- | --- | --- |
+| 日线 | bar_date | 通常为已完成交易日 | fetched_at | 用请求时间包装成实时 |
+| 实时行情 | observed_at / snapshot_at | 可选 | fetched_at | 用 fetched_at 替代观测时间 |
+| 宏观 | reporting_period | published_at / available_at | fetched_at | 只按 reporting_period 推断当时已知 |
+| 财务 | period_end | announced_at / available_at | fetched_at | 用报告期代替披露期 |
+| 估值 | val_date / observed_at | 可选 | fetched_at | 无日期值参与 current 排序 |
+| 基金净值 | nav_date | published_at | fetched_at | 把最近一条等同今日净值 |
+| 新闻 | published_at | published_at | fetched_at | 以抓取时间替代发布时间 |
+| 板块成员 | effective_date | announced_at 可选 | fetched_at | 忽略 expiry_date |
+
+通用约束：
+
+- 所有 datetime 必须 timezone-aware。
+- fetched_at 不得早于 observed_at；能在数据库约束的字段必须增加 CheckConstraint。
+- date 与 datetime 不混用；交易日事实使用 date，盘中观测使用 datetime。
+- latest 只表示排序最新，fresh 由 Dataset Freshness Policy 计算。
+- 历史回测只可读取 available_at 不晚于回测时点的数据版本。
+
+### 6.3 缺失值与零值
+
+这是本次重构的 P0 语义规则：
+
+1. None、空字段、NaN、解析失败、Provider 未返回必须保持 missing，不得使用 or 0.0。
+2. 0 只有在 Dataset Field Contract 明确允许且上游确实返回 0 时才是合法事实。
+3. 估值倍数、价格、净值等不可执行零值直接进入 quarantine。
+4. 财务指标缺失时，筛选、排序、打分必须显式选择“排除、降权或阻断”，不能把它当成最低值。
+5. estimated 必须附带估算方法、输入 lineage、算法版本和置信说明。
+6. 任一关键分区 missing 时，聚合响应最多为 partial，不能被顶层 reliable=true 洗白。
+
+第一批必须修复的调用点：
+
+- apps/equity/infrastructure/fundamentals_repository.py
+- apps/equity/infrastructure/financial_source_gateway.py
+- apps/equity/infrastructure/valuation_source_gateways.py
+- apps/alpha/infrastructure/adapters/simple_adapter.py
+- apps/data_center/infrastructure/_provider_adapter_akshare.py
+
+### 6.4 质量与可靠性分离
+
+不得只保留一个模糊的 reliability 分数：
+
+- Quality：值本身是否满足 schema、类型、单位、范围、自然键、完整性和跨字段规则。
+- Freshness：相对业务时点是否新鲜。
+- Source Health：Provider + dataset 能力近期是否稳定。
+- Coverage：目标 universe / 时间范围覆盖度。
+- Conflict：多个可比来源是否超出容差。
+- Decision Usability：以上维度汇总后的 fail-closed 结论。
+
+存储时记录静态质量和来源证据；查询时结合交易日历、当前时间、覆盖要求和运行状态计算动态可靠性。
+
+## 7. Dataset Contract 与 Provider Binding
+
+### 7.1 Runtime 唯一真源
+
+新增版本化 Dataset Contract Runtime 模型，建议拆为：
+
+- DatasetContractModel：数据集身份、owner、频率、关键级别、当前版本。
+- DatasetFieldContractModel：字段语义、类型、单位、可空性、范围、零值策略。
+- ProviderDatasetBindingModel：Provider endpoint、参数、字段映射、原始单位、优先级和可比组。
+- FreshnessPolicyModel：交易日历、最大延迟、发布时间 lag、周末/节假日规则。
+- ReconciliationPolicyModel：跨源容差、仲裁规则、冲突动作。
+- PublicationPolicyModel：发布门槛、覆盖下限、关键字段和例外策略。
+
+这些运行时规则存数据库，并通过 Data Center Admin / API 管理；业务代码不得新增单位、字段映射或阈值硬编码。
+
+仓库中的 migration / seed 只负责可重复初始化。governance 文件是 CI 和范围证据投影，不代替运行时数据库真源。
+
+### 7.2 Dataset Contract 必备字段
+
+| 维度 | 字段 |
+| --- | --- |
+| 身份 | dataset_key、display_name、owner、domain_family |
+| 版本 | contract_version、schema_version、effective_from、supersedes |
+| 上游 | provider、endpoint / method、capability_key、license_scope |
+| 语义 | business_meaning、frequency、calendar、dimensions |
+| 字段 | source_field、canonical_field、type、nullable、unit、original_unit |
+| 时间 | observed_field、published_field、available_field、timezone |
+| 质量 | range、cross_field_rules、required_fields、zero_policy |
+| 新鲜度 | expected_lag、max_age、latest_completed_session_rule |
+| 对账 | comparable_provider_group、tolerance、conflict_action |
+| 发布 | criticality、coverage_threshold、publication_policy |
+| 运维 | rate_limit、batch_size、timeout、retry_policy、retention |
+
+### 7.3 能力粒度
+
+现有 DataCapability 的宏观、历史价格、实时行情、财务等大类可以保留为 family，但 Provider 健康和路由必须使用精确 capability_key，例如：
+
+- equity.identity
+- equity.daily
+- equity.quote
+- equity.daily_basic
+- equity.income
+- equity.balance_sheet
+- equity.cash_flow
+- equity.fina_indicator
+- fund.nav
+- macro.china.pmi
+- macro.china.cpi
+- sector.membership
+- news.equity
+- capital_flow.equity
+
+“Provider 支持 FINANCIAL”不再自动推导它支持所有财务报表、所有市场和所有报告期。
+
+### 7.4 当前配置中心现状判断
+
+系统已经有 apps/config_center，但它目前是“部分配置 owner + 配置发现页”，还不是全系统统一的运行时配置真源。
+
+已存在：
+
+| 能力 | 当前实现 | 判断 |
+| --- | --- | --- |
+| 全局单例设置 | config_center.SystemSettingsModel，物理表 system_settings | 已可持久化，但字段持续膨胀，混合审批、协议、备份、Decision State、Qlib、Alpha 和代码映射 |
+| Qlib Runtime | SystemSettingsModel 中的显式字段 | 有 Application UseCase/API，但仍有 getter 内代码 fallback |
+| Qlib 训练模板 | QlibTrainingProfileModel | 适合继续作为复杂类型化配置 |
+| Alpha Universe | AlphaUniverseConfigModel | 适合继续作为领域配置 |
+| 配置摘要 | ConfigCenterSummaryService | 主要负责发现/摘要；不是统一解析器 |
+| Data Center 配置 | ProviderConfig、DataProviderSettings、ProductionCoverageUniverse、IndicatorCatalog 等 | 由 Data Center 自己持久化 |
+| Risk、估值、策略、筛选、交易成本等 | 分布在各业务 App | 领域 owner 正确，但缺少统一登记、版本和入口 |
+| Repository JSON | config/tui 与 governance 下的 JSON | 属于 UI/CI 投影，不是生产运行时配置真源 |
+| 环境变量与 settings 默认值 | core/settings 中存在大量 env default 和模块常量 | 部分是启动配置，部分其实是应迁移的运行参数 |
+
+已确认的缺口：
+
+1. config_center 中不存在 RuntimeConfigDefinition / Value / Profile / Revision / Snapshot 这一类统一注册表。
+2. SystemSettingsModel 是 pk=1 的大单例，不适合继续无限增加容量、保留、日志、任务、Provider、策略等字段。
+3. SystemSettingsModel.get_settings_for_read、Qlib getter、DataProviderSettings.load_for_read 等位置允许在没有持久化配置时返回代码默认值；关键配置可能“看似有值，实际没配置”。
+4. DjangoConfigCenterSummaryRepository 直接 import Data Center infrastructure models；统一入口依赖了其他 App 的 ORM，而不是对方 Application Facade。
+5. 配置中心能力矩阵明确写着“配置中心负责发现、摘要、跳转，权限、审计、版本由原模块负责”，说明当前尚未形成统一控制面。
+6. 初步扫描 core/settings 发现数十处带 default 的 env 参数；并非全部应迁移，但必须逐项分类。
+
+结论：
+
+- 现在有统一配置中心的雏形和数据库表。
+- 现在没有一个可以承接 Storage、Retention、Backup、Log、Readiness 等全局参数的版本化通用配置模型。
+- 现在没有可作为运行时真源的统一 JSON；也不建议新建一个巨型 runtime.json。
+
+### 7.5 统一配置中心的目标形态
+
+采用“中央控制面 + 领域类型化 owner”的联邦式配置架构：
+
+~~~mermaid
+flowchart LR
+    subgraph CC["Config Center 控制面"]
+        CAT["配置目录与 Schema"]
+        PROF["环境/Profile"]
+        VAL["全局运行参数"]
+        REV["版本、审计与回滚"]
+        SNAP["Resolved Snapshot"]
+        API["统一 Application API / TUI"]
+    end
+
+    subgraph OWN["领域配置 Owner"]
+        DC["Data Center Dataset / Provider / Retention"]
+        RC["Risk Center Policy"]
+        ST["Strategy / Filter / Valuation"]
+        AC["Account / Trading Cost"]
+    end
+
+    subgraph CON["运行消费者"]
+        TASK["Celery / Scheduler"]
+        READY["Readiness / Task Monitor"]
+        WEB["REST / SDK / MCP / TUI"]
+    end
+
+    CAT --> PROF --> VAL --> SNAP
+    VAL --> REV
+    DC --> API
+    RC --> API
+    ST --> API
+    AC --> API
+    CAT --> API
+    SNAP --> TASK
+    SNAP --> READY
+    API --> WEB
+~~~
+
+统一含义：
+
+- 一个配置目录。
+- 一个面向管理员的 TUI 主入口和一组稳定 Application API。
+- 一套类型、单位、范围、敏感性、owner、版本、审计和激活规则。
+- 一个 resolved snapshot/hash，任务和决策证据可记录所用配置版本。
+- 所有参数都能查到“谁拥有、存在哪里、谁消费、如何生效、能否回滚”。
+
+不统一的内容：
+
+- 不把所有配置强行搬到一个物理表。
+- 不让 config_center 直接 import 其他 App ORM。
+- 不把运行状态、监控指标、任务结果伪装成配置。
+- 不把密钥明文放进通用 JSON。
+
+### 7.6 Config Center 自有模型
+
+新增以下类型化模型；具体命名可在实现阶段调整，但职责不得合并成一个无约束 JSON：
+
+#### RuntimeConfigDefinitionModel
+
+配置定义目录：
+
+- key：全局唯一稳定键，例如 storage.capacity.configured_gib。
+- namespace：storage、backup、logging、readiness、runtime 等。
+- owner_app：物理和业务 owner。
+- value_type：bool、int、decimal、string、duration、bytes、percentage、enum、typed_json。
+- unit：GiB、seconds、days、ratio 等。
+- constraints：最小值、最大值、枚举、JSON Schema。
+- criticality：bootstrap、critical、normal、experimental。
+- secret：是否只能保存 secret_ref。
+- reload_mode：immediate、next_task、restart_required。
+- description / user_impact。
+- is_deprecated / replacement_key。
+
+#### RuntimeConfigProfileModel
+
+一组可发布配置：
+
+- profile_key：production-default、development、production-90g 等。
+- environment。
+- version。
+- status：draft、validating、active、superseded、rejected。
+- based_on_profile。
+- content_hash。
+- created_by / activated_by。
+- created_at / activated_at。
+- change_reason / release_ref。
+
+#### RuntimeConfigValueModel
+
+- profile + definition 唯一约束。
+- value_json 作为物理通用载体，但必须先由 value_type 和 constraints 校验。
+- secret_ref，敏感值只保存引用。
+- source：setup、admin、import、migration、environment_projection。
+- validation_status / validation_error。
+
+Application / Domain 消费端不得接收裸 value_json；必须转换成类型化 DTO 或值对象。
+
+#### RuntimeConfigRevisionModel
+
+不可变审计：
+
+- profile/version。
+- before_hash / after_hash。
+- 变更键清单。
+- before / after 的脱敏投影。
+- actor、reason、changed_at、release_ref。
+- validation evidence。
+
+#### RuntimeConfigSnapshotModel
+
+激活后生成不可变 resolved snapshot：
+
+- profile/version/hash。
+- resolved_values 的脱敏投影。
+- generated_at。
+- effective_from。
+- validation report。
+- consumer acknowledgement。
+
+任务启动时记录 snapshot_id/hash；长任务中途不切换配置。
+
+### 7.7 配置所有权矩阵
+
+统一入口不改变正确的领域归属：
+
+| 参数类别 | Runtime 物理 owner | Config Center 职责 |
+| --- | --- | --- |
+| 全局容量、磁盘水位、备份暂存、日志总额、任务明细保留 | config_center | 定义、存储、版本、激活、审计、统一查询 |
+| Decision maintenance / blocked 状态 | 独立运行状态模型，建议仍在 config_center | 状态切换和审计；不得混入 Config Value |
+| Dataset Contract、字段语义、单位、Provider Binding | data_center | 注册目录、统一展示和跳转；修改调用 Data Center Application |
+| Dataset Retention / Archive Policy | data_center | 统一入口、版本摘要和 impact preview；物理规则由 Data Center 执行 |
+| Provider 凭据、endpoint、优先级 | data_center / secret store | 统一入口；密钥只显示掩码和 secret_ref |
+| Risk Floor、账户风险策略 | risk_center | 统一目录；读写调用 Risk Center Application |
+| 估值修复、Beta Gate、筛选、策略、因子权重 | 对应业务 App | 统一发现、版本摘要和跳转；不搬 ORM |
+| 账户偏好、交易成本、个人覆盖范围 | account / portfolio 等 | 统一发现；保持账户权限边界 |
+| Qlib Runtime / Profile | config_center | 继续由 Config Center 自有 |
+| SECRET_KEY、DATABASE_URL、加密主密钥、启动端口 | 部署环境 / secret store | 只登记存在性和来源；不写数据库值 |
+| TUI schema、治理清单、CI baseline | Git JSON | 只登记版本/hash；不是 runtime value |
+| Provider Health、磁盘使用量、任务运行结果 | Data Center / Task Monitor / Operational Readiness | 作为 observed state 展示，不作为 desired config 存储 |
+
+硬约束：
+
+- “统一配置”首先是统一控制面和契约，不是统一物理表。
+- 复杂领域配置必须保留类型化 Model、约束和 Repository。
+- Config Center 调用 owner Application Facade；禁止直接 import owner infrastructure Model。
+- owner App 不得反向依赖 Config Center Infrastructure，只依赖 Application Query Port。
+
+### 7.8 配置解析与生效
+
+配置来源优先级固定为：
+
+1. 启动必需且数据库尚不可用的 bootstrap / secret 配置。
+2. Config Center 当前 active profile 中的全局运行参数。
+3. owner App 当前 active 的类型化领域配置。
+4. 请求级、账户级合法覆盖；仅适用于 Definition 明确允许的 key。
+
+禁止使用顺序：
+
+- DB 缺配置后回退 Python 字面量。
+- DB 缺配置后回退 settings 默认值。
+- 不同消费者各自解释同一个 key。
+- 环境变量长期覆盖 DB 而界面不显示。
+
+关键配置不存在、类型错误或 owner 不可用时：
+
+- critical 配置 fail closed。
+- normal 配置返回 config_missing 并由 readiness 决定是否阻断。
+- experimental 配置可以禁用功能，但必须披露来源。
+
+配置生命周期：
+
+1. 创建 draft profile。
+2. 按 Definition 做类型和范围校验。
+3. 调用 owner Application 执行跨字段/业务校验。
+4. 生成 impact preview：受影响任务、数据集、入口和是否需要重启。
+5. 原子激活并生成 snapshot/hash。
+6. 发布 ConfigChanged Domain Event。
+7. 消费者按 reload_mode 生效并回报 acknowledgement。
+8. 异常时回滚上一 active profile，不手工改表。
+
+### 7.9 配置 JSON 的边界
+
+JSON 只允许三种用途：
+
+1. governance/runtime_config_contracts.json：机器登记 key、owner、消费者、测试和代码位置，供 CI 防遗漏。
+2. config export/import：从数据库生成的脱敏、带 schema_version/hash 的 profile 快照，用于环境迁移和审计。
+3. 复杂 typed_json 值：必须绑定 Definition、JSON Schema 和 Domain DTO。
+
+JSON 禁止作为：
+
+- 生产唯一真源。
+- 密钥载体。
+- 无版本、无 owner、无校验的自由 dict。
+- 启动时覆盖数据库但不留下审计的旁路。
+
+Repository 内的 TUI/governance JSON 继续由 Git 管理；运行参数默认由 PostgreSQL 管理。
+
+### 7.10 第一批统一收口参数
+
+第一批先处理容易散落、跨多个模块消费、且影响生产安全的运维参数：
+
+| Namespace | 参数组 |
+| --- | --- |
+| storage.capacity | configured_capacity、effective capacity 策略、子预算比例 |
+| storage.watermark | green/yellow/orange/red/critical/emergency 比例与最小空闲 |
+| storage.retention | Raw、Quarantine、Task、Health、Log 的默认窗口 |
+| storage.backup | max_inflight_count、max_age_hours、staging_budget、外部保留策略 |
+| storage.maintenance | partition threshold、batch size、WAL budget、维护水位 |
+| logging | 应用文件日志总额、单文件大小、数量和保留天数 |
+| task_monitor | success/failed 明细保留、rollup 窗口和 cleanup batch |
+| readiness | storage blocked 条件、严格模式与告警提前量 |
+
+第二批：
+
+- Provider 全局 failover、timeout、retry、rate limit。
+- Dataset freshness / coverage / reconciliation / retention。
+- Qlib、Alpha 和统一 universe 选择。
+- Decision readiness 的受管资产与 freshness。
+
+第三批只做“目录统一”，不强行搬表：
+
+- Risk Center。
+- Beta Gate。
+- 估值修复。
+- Filter / Strategy / Factor。
+- Account / Portfolio / Trading Cost。
+
+### 7.11 SystemSettingsModel 收敛
+
+立即冻结 SystemSettingsModel 新增无关字段。
+
+拆分顺序：
+
+1. 容量、日志、备份保留等新参数直接进入 Runtime Config 模型，不进入 SystemSettingsModel。
+2. 将现有 Qlib Runtime 字段迁到 qlib runtime profile；训练模板仍保留类型化表。
+3. benchmark_code_map、asset_proxy_code_map 迁到 Data Center 主数据/Reference Policy，Config Center 提供统一入口。
+4. decision_runtime_* 迁到独立 DecisionRuntimeStateModel，因为它是 observed/controlled state，不是普通配置。
+5. backup SMTP/password 使用 secret_ref；邮件策略进入 backup namespace。
+6. 用户协议、风险提示等系统内容迁到明确的 system_content namespace 或独立内容表。
+7. 所有消费者切换后，SystemSettingsModel 进入只读兼容，再在后续 release 删除过期字段。
+
+不得新建另一个更大的 singleton 代替它。
+
+### 7.12 配置迁移门禁
+
+M0 新增机器清单，至少登记：
+
+- config_key / namespace。
+- current_source：DB field、domain model、env、settings、constant、JSON、Celery kwargs。
+- owner_app。
+- consumers。
+- value_type / unit / constraint。
+- criticality。
+- fallback 行为。
+- target_source。
+- migration_state。
+- tests。
+
+CI 规则：
+
+- 新增运行参数必须登记 runtime_config_contracts。
+- 新增 env default、Model default、模块常量和 Celery schedule kwargs 时，必须声明 bootstrap / runtime / domain / static 分类。
+- critical runtime 配置不得在消费者中存在字面量 fallback。
+- Config Center 不得直接 import 其他 App infrastructure。
+- 同一个 config_key 不得存在两个 active owner。
+- profile export/import 必须验证 schema、hash、secret redaction 和版本。
+- 至少使用两个非默认 profile 运行契约测试，证明配置驱动而非硬编码。
+
+配置中心完成标准：
+
+- 管理员能在一个 TUI 主任务中搜索全部配置并看到 owner、来源、生效版本、消费者和风险。
+- 全局运行参数可在统一入口 draft、校验、预览、激活、审计和回滚。
+- 领域参数通过 owner Application 在统一入口操作，权限和业务校验不丢失。
+- 任一关键任务和决策结果能记录 config_snapshot_id/hash。
+- 删除 Config Center 数据库或取消 active critical profile 时，系统 fail closed，不使用隐形默认值。
+
+## 8. 存储架构
+
+### 8.1 不采用一个巨型通用事实表
+
+保留按数据域类型化的事实表，避免 EAV 带来的类型弱化、索引困难和查询不可控。通过抽象基础模型或 Repository 约定统一证据列，而不是把所有值塞进一个 JSON value。
+
+目标表分为四层：
+
+1. Raw：RawRequestAudit、RawPayload、SchemaFingerprint。
+2. Standard Fact：AssetMaster、MacroFact、PriceBar、QuoteSnapshot、FundNav、FinancialFact、ValuationFact、SectorMembership、News、CapitalFlow。
+3. Quality：DataQualityIssue、QuarantineRecord、ConflictSet。
+4. Publication：CanonicalPublication、PublicationMember、CoverageSnapshot。
+
+### 8.2 所有事实表的公共证据列
+
+- dataset_key
+- contract_version
+- schema_version
+- source
+- source_record_id
+- observed_at 或对应事实日期
+- published_at / available_at，适用时
+- fetched_at
+- raw_payload_hash
+- quality_status
+- revision_number
+- ingested_run_id
+
+不得把关键语义长期塞入 extra JSON；extra 只保存 Provider 特有、非决策关键且已脱敏的信息。
+
+### 8.3 重点模型整改
+
+| 现有模型 | 目标整改 |
+| --- | --- |
+| MacroFactModel | 保留 reporting_period / published_at / revision；补 contract、available_at、publication 与统一 lineage |
+| PriceBarModel | 补 schema、quality、run、publication；自然键和可执行价格约束继续保留 |
+| QuoteSnapshotModel | fetched_at 改为强语义字段；增加 fetched_at ≥ snapshot_at 数据库约束和来源观测校验 |
+| FinancialFactModel | 增加 announced_at / available_at、报表口径、修订、质量、contract 和 lineage |
+| ValuationFactModel | 增加 quality、contract、run、publication；可空指标保持 None，不补 0 |
+| FundNavFactModel | 增加 published_at、quality、contract、publication |
+| SectorMembershipFactModel | 增加 source 到自然键或明确 canonical 发布选择，补 contract 和 lineage |
+| NewsFactModel | 空 external_id 不得造成错误去重；增加内容哈希、发布证据和来源许可标记 |
+| CapitalFlowFactModel | 明确金额单位、流量口径、字段可比组、quality 和 contract |
+| RawAuditModel | 拆出请求参数哈希、响应哈希、schema fingerprint、脱敏状态、保留期和解析版本 |
+
+### 8.4 Canonical Publication
+
+标准事实表允许保留多个 Provider 的合格事实。消费者不得自行选最新来源，而由发布层记录：
+
+- dataset_key 与自然键范围。
+- 被选中的 source fact / revision。
+- 选源策略版本。
+- 质量、新鲜度、覆盖和冲突结论。
+- 发布者或自动任务。
+- published_at、superseded_at。
+- must_not_use_for_decision 和阻断原因。
+
+current/latest 查询只读当前有效 Publication；历史研究可按 publication_id 或 as_of 查询，保证可复现。
+
+## 9. 采集、同步与发布状态机
+
+### 9.1 状态机
+
+~~~mermaid
+stateDiagram-v2
+    [*] --> Requested
+    Requested --> Fetching
+    Fetching --> Received
+    Fetching --> Failed
+    Received --> Validating
+    Validating --> Quarantined
+    Validating --> Normalized
+    Normalized --> Reconciling
+    Reconciling --> Conflict
+    Reconciling --> Stored
+    Stored --> Publishing
+    Publishing --> Published
+    Publishing --> Blocked
+    Failed --> Retrying
+    Retrying --> Fetching
+    Quarantined --> [*]
+    Conflict --> [*]
+    Published --> [*]
+    Blocked --> [*]
+~~~
+
+### 9.2 运行模型
+
+新增或收敛：
+
+- SyncRun：一次用户、beat、CLI 或系统触发。
+- SyncBatch：一个 Provider / dataset / universe slice。
+- SyncCheckpoint：可恢复游标。
+- SyncItemFailure：失败自然键、错误码、是否可重试。
+- PublicationRun：从合格事实到 canonical publication 的独立过程。
+
+统一计数：
+
+- requested
+- fetched
+- validated
+- quarantined
+- succeeded
+- failed
+- stored
+- published
+- unchanged
+
+统一 outcome：
+
+| Outcome | 条件 |
+| --- | --- |
+| success | 所有请求项成功，且满足预期存储/发布规则 |
+| partial | 部分项成功，部分项失败或隔离 |
+| noop | 合法执行但无变更；必须有稳定原因 |
+| blocked | 维护、依赖能力、配额、契约或 readiness 主动阻断 |
+| failed | 全部失败、契约失败或关键写入失败 |
+
+stored=0 不得默认 success；若上游无新版本且已证明数据未变化，可返回 noop/unchanged。
+
+### 9.3 幂等、事务与性能
+
+- 幂等键至少包含 dataset_key、contract_version、provider、自然键范围、请求窗口。
+- 重试不得生成重复事实或重复 Publication。
+- 单批事务，不使用覆盖 5,000+ 证券的超长事务。
+- 使用 bulk_create / bulk_update / PostgreSQL upsert；禁止逐证券 N+1 查询。
+- 大 QuerySet 使用 iterator 和固定 chunk。
+- 每一批记录 checkpoint、写入数、失败样本和耗时。
+- 并发使用租约或数据库锁，避免同一 dataset/window 重复跑。
+- 写事实与发布分开：事实写成功不等于可用于决策。
+
+### 9.4 读写分离
+
+- GET 永远只读已发布数据。
+- 缺失或 stale 时返回可靠性阻断，不在请求线程抓取和持久化。
+- 用户显式请求刷新使用 POST，返回 run_id 和 202/任务状态。
+- 后台缓存不能改变 observed_at、publication_id 或 reliability。
+- Redis 丢失只影响性能，不得改变事实选择和决策结论。
+
+### 9.5 Runtime Desired State
+
+Provider Catalog、Celery Beat Schedule、MCP Capability Catalog 和 TUI metadata 均属于派生运行态，必须具备：
+
+- 版本化 desired-state 真源。
+- 幂等 reconcile 命令。
+- 启动/部署时确定性同步。
+- 漂移检测和告警。
+- 发布前后数量、哈希和 owner 对账。
+
+不得依靠某次手工 management command 的历史执行结果维持生产正确性。
+
+## 10. Provider、Failover 与健康度
+
+### 10.1 标准 FetchResult
+
+Provider 不再直接返回 list 或 None，而返回类型化 FetchResult[T]：
+
+- provider_name
+- dataset_key / capability_key
+- request_window
+- rows
+- source_observed_range
+- fetched_at
+- schema_fingerprint
+- raw_audit_id
+- outcome
+- warnings
+- retryable_error
+
+Registry 只有在 Dataset Acceptance Policy 通过后才能 record_success。
+
+### 10.2 Failover 规则
+
+按以下顺序执行：
+
+1. Provider 是否声明并通过 runtime 验证支持该精确能力。
+2. 请求是否成功。
+3. Schema fingerprint 是否可识别。
+4. 必填字段、类型、单位和自然键是否通过。
+5. 时间范围和 freshness 是否满足请求。
+6. 覆盖是否满足阈值。
+7. 与可比来源偏差是否在 Dataset Contract 容差内。
+8. 满足后才可返回；否则继续后续 Provider。
+
+结果处理：
+
+- 非空但 stale：继续 failover。
+- 非空但错单位/错语义：quarantine，继续 failover。
+- 多源差异超阈值：标记 conflict，不静默选择。
+- 所有源失败：返回 failed 或 missing，并 fail closed。
+- 次级来源成功：明确发布 fallback_source 和主源失败证据。
+
+### 10.3 健康度维度
+
+Provider Health 按 provider + dataset_key 记录：
+
+- last_attempt_at
+- last_usable_success_at
+- last_failure_at
+- last_observed_at
+- last_output_count
+- last_published_count
+- coverage_ratio
+- schema_failure_count
+- stale_result_count
+- conflict_count
+- consecutive_failures
+- latency P50/P95
+- rate-limit state
+- circuit state
+
+“连接测试通过”只能表示 reachable，不能表示 healthy。表为空、长期未发布、零产出或持续 stale 时不得显示健康。
+
+## 11. 对外查询与消费者契约
+
+### 11.1 稳定 Public Ports
+
+不建立一个无限膨胀的 UnifiedDataService；按数据职责提供小型端口：
+
+- AssetMasterQueryPort
+- MarketDataQueryPort
+- MacroDataQueryPort
+- FundamentalDataQueryPort
+- FundDataQueryPort
+- ReferenceDataQueryPort
+- NewsFlowQueryPort
+- CoverageAndReliabilityQueryPort
+
+每个端口返回 DataEnvelope 或包含多个 DataEnvelope 的类型化响应。消费者不能拿裸 ORM、Pandas DataFrame 或 Provider 原始 dict。
+
+### 11.2 入口一致性
+
+同一个用户问题的数据链路必须是：
+
+Data Center Public Port → 业务 Application 聚合 → REST DTO → SDK/MCP/Terminal/TUI。
+
+禁止：
+
+- MCP Handler 自己查 ORM。
+- SDK 与 REST 使用不同 freshness 规则。
+- Terminal 在无结构化证据时补造价格、日期、来源或估值。
+- Dashboard 为了展示自行 fallback 到旧表。
+- Agent Runtime 单独查询 MacroIndicator、ValuationModel 等 legacy 表。
+
+复合查询例如 equity.read.research_snapshot 由 equity/ai_capability Application 编排，但行情、历史、估值、财务、新闻和资金流分区必须来自 Data Center Public Port，并原样保留每个分区的 evidence。
+
+### 11.3 缓存
+
+- Cache key 包含 dataset_key、contract_version、publication_id、查询参数和权限范围。
+- TTL 只是缓存寿命，不等于 freshness。
+- 缓存值必须包含完整 reliability 和 source time。
+- 新 Publication 产生时按 publication_id 自然失效，不使用“更新时间改成 now”刷新语义。
+
+## 12. 数据域迁移矩阵
+
+| 顺序 | 数据域 | 当前主要债务 | 目标真源 | 主要消费者 | 硬退出条件 |
+| --- | --- | --- | --- | --- | --- |
+| D0 | Asset Master / Alias | 多处代码归一和业务模型身份并存 | Data Center AssetMaster / Alias Publication | 全系统 | 所有外部事实都能解析到唯一资产；无孤儿代码 |
+| D1 | Price Bar | Data Center 与 equity.StockDailyModel 并存 | Data Center PriceBar Publication | realtime、backtest、alpha、factor、account、portfolio | 旧表零读写；OHLC/日期/复权/覆盖对账通过 |
+| D2 | Quote Snapshot | 观测时间与抓取时间曾混淆 | Data Center Quote Publication | realtime、account、simulated_trading、valuation | GET 只读；时间保真；交易日 freshness 通过 |
+| D3 | Macro | Data Center MacroFact 与 macro.MacroIndicator 并存 | Data Center Macro Publication | regime、pulse、policy、agent_runtime | canonical/legacy 全量对账；旧表零读写 |
+| D4 | Financial | equity.FinancialDataModel 与 Data Center 并存 | Data Center Financial Publication | equity、alpha、factor、valuation、research | 缺失不再补 0；PIT 时间完整；批量查询无 N+1 |
+| D5 | Valuation | equity.ValuationModel 与 Data Center 并存 | Data Center Valuation Publication | equity、alpha、valuation、research | source/date/unit 一致；旧任务迁移；旧表零读写 |
+| D6 | Fund NAV | 多入口 fallback 语义需统一 | Data Center FundNav Publication | fund、account、asset_analysis、backtest | 最新净值不冒充实时；覆盖和发布日可解释 |
+| D7 | Sector Membership | 成分与行业归属来源可能散落 | Data Center Sector Publication | sector、rotation、hedge、factor | effective/expiry 时点正确；无静默代理 |
+| D8 | News | external_id、覆盖和许可口径不一 | Data Center News Publication | sentiment、events、equity、agent | 去重、时区、来源和缺失能力明确 |
+| D9 | Capital Flow | 字段口径和覆盖能力不稳定 | Data Center CapitalFlow Publication | equity、pulse、rotation、sentiment | 单位、口径、日期和 capability 可审计 |
+
+## 13. 消费者迁移矩阵
+
+| App / 入口 | 迁移动作 | 不允许保留的行为 |
+| --- | --- | --- |
+| macro | 停止作为外部宏观事实 owner；仅保留宏观业务规则或兼容 facade | 写 MacroIndicator、直连 Provider |
+| regime / pulse / policy | 注入 MacroDataQueryPort；保留 observed/published/available time | 用计算时间替代源时间 |
+| equity | 财务、估值、日线 Repository 改为 Data Center Port；领域实体字段支持 None + Reliability | 双写旧模型、缺失补 0 |
+| alpha / factor | 批量读取 Data Center read model；一次查询取齐 universe 数据 | per-stock ORM N+1、读 equity 旧模型 |
+| valuation | 市价和基本面统一走 Data Center；估值算法仍归 valuation | 自建行情 fallback |
+| realtime | 只读 Quote/Price Publication；轮询写入调用 Data Center ingest | 自存另一份事实真源、GET 写入 |
+| account / portfolio / simulated_trading / broker_execution | 通过 MarketDataQueryPort 获取可执行价格并检查决策可用性 | 用 stale/missing 价格成交 |
+| fund / asset_analysis | NAV、价格、主数据统一走中台 | 业务 Adapter 直连外部源 |
+| sector / rotation / hedge | 成分、行情、资金流统一走中台 | 静默使用不等价代理数据 |
+| sentiment / events | 新闻事实走中台，情感分析结果仍归 sentiment | 把抓取时间当新闻发布时间 |
+| backtest / audit / research | 使用 publication_id / as_of 重放 | 查询当前最新版重写历史 |
+| dashboard | 只消费业务 Application DTO | 为展示绕过可靠性门 |
+| agent_runtime / terminal | 删除 legacy snapshot 查询，统一使用业务 Application / Data Center evidence | 无证据自由生成金融事实 |
+| ai_capability / SDK / MCP | 同一能力只映射到一个 Application handler | 独立 ORM、独立 freshness、目录漂移 |
+
+每迁移一个 App，必须同时删除旧读路径、旧写路径和对应测试 fixture。只新增 Data Center 路径但保留旧 fallback 不算完成。
+
+## 14. 遗留链路退役清单
+
+以下为首批明确退役对象；M0 自动盘点后只允许增加，不允许无证据移除。
+
+| 对象 | 处置 | 删除前置 |
+| --- | --- | --- |
+| apps/macro/infrastructure/models.py::MacroIndicator | 迁移、只读、最终删表 | Macro Publication 对账、所有消费者切换 |
+| equity.FinancialDataModel | 迁移、停止写入、最终删表 | 财务 PIT/单位/覆盖对账 |
+| equity.ValuationModel | 迁移、停止写入、最终删表 | 估值日期/指标/覆盖对账 |
+| equity.StockDailyModel | 迁移、停止写入、最终删表 | PriceBar 复权与交易日对账 |
+| apps/equity/management/commands/sync_equity_financial.py | 替换为 Data Center 显式同步入口 | 新任务具备完整 outcome/checkpoint |
+| apps/equity/application/tasks_valuation_sync.py 中外部事实同步 | 迁到 Data Center ingestion；保留业务校验编排时重命名 | Celery 契约与消费者切换 |
+| apps/alpha/infrastructure/adapters/simple_adapter.py 的旧表访问 | 改为批量 Data Center Port | 性能、结果影子对账 |
+| apps/alpha/infrastructure/repositories.py 的 ValuationModel 访问 | 删除 | 新 read model 和查询预算通过 |
+| apps/agent_runtime/infrastructure/context_snapshot_repository.py 的 MacroIndicator 读取 | 删除 | Agent 上下文统一 facade |
+| core/integration/data_center_business_sources.py | 删除 | Provider 实现全部原生归 data_center infrastructure |
+| shared/infrastructure/tushare_client.py | 移入 Data Center Provider 私有实现或删除 | 所有调用点收口、静态 guard 生效 |
+| apps/data_center/infrastructure/legacy_sdk_bridge.py | 逐调用点退役 | SDK/MCP 改走稳定 Application API |
+| apps/data_center/models.py 兼容 re-export | 最终删除 | 全仓 import 使用正确层路径 |
+
+退役采用 expand/contract：
+
+1. 新增 canonical 结构和写入。
+2. 历史数据回填。
+3. 影子双读对账；不允许业务自行二选一。
+4. 按 dataset feature flag 切读。
+5. 停止旧写。
+6. 旧表只读冻结并持续监测零访问。
+7. 至少跨一个独立发布阶段后再删代码和表。
+
+长期双写不允许超过对应数据域的迁移阶段；延期必须登记 owner、原因、到期条件和阻断级别。
+
+## 15. 分阶段执行计划
+
+### M0：冻结边界与机器清单
+
+目标：先让架构债不能继续增长。
+
+交付：
+
+- [x] 新增 governance/data_ownership_contracts.json，登记 dataset_key、owner、canonical store、消费者和迁移状态。
+- [x] 新增 governance/runtime_config_contracts.json，登记 config_key、namespace、current source、owner、消费者、类型、fallback 和迁移状态。
+- [x] 新增数据接入静态扫描：Data Center Infrastructure 之外禁止外部 Provider SDK/HTTP 数据适配器。
+- [x] 新增 legacy model 访问清单和差异门禁。
+- [x] 自动发现 current/latest/realtime/summary surface 与数据写入任务，未登记即失败（当前先生成 deterministic inventory，未登记即失败的全量 CI 阶段仍待补）。
+- 生成 PostgreSQL 数据画像和 legacy/canonical 对账基线。
+- [x] 为每个数据域指定 Data Platform owner、Business owner 和验收 owner。
+- 冻结新的业务侧 Provider Adapter、事实表和直连 ORM。
+- 冻结 SystemSettingsModel 无边界增列；新增 env default、模块级运行参数和 Celery 配置常量必须先分类登记。
+
+测试与证据：
+
+- 清单脚本在 clean repository 可重复生成相同结果。
+- 已知 B1-B10 全部能被清单或 guard 捕获。
+- 当前生产 P0 fail-closed 和 decision maintenance 可用。
+
+退出条件：
+
+- 数据集、消费者、读写点、任务、schedule、路由和运行参数机器清单覆盖率 100%。
+- 新增绕过路径在 CI 中失败。
+- 未开始任何 destructive migration。
+
+回滚：只删除新增清单/guard；不改变运行行为。
+
+### M1：统一 Domain 契约与 Dataset Catalog
+
+目标：让数据、证据和可靠性成为一个不可拆分的类型。
+
+交付：
+
+- [x] 建立 DataEnvelope、SourceEvidence、QualityAssessment、SyncOutcome、PublicationDecision。
+- 将 shared/domain/reliability.py 收敛为 Data Center 可复用的纯 Domain 契约，或明确 shared 只保存技术中立基础类型；全仓只保留一个 ReliabilityStatus 定义。
+- [x] 建立 Dataset Contract / Field Contract / Provider Binding / Freshness / Reconciliation / Publication Policy 模型（Domain 类型 + 版本化清单；持久化 Catalog 尚未完成）。
+- 在 Config Center 建立 RuntimeConfigDefinition / Profile / Value / Revision / Snapshot，以及 owner Application registration。
+- 以 storage / backup / logging / task_monitor / readiness 作为首批 active runtime profile。
+- 通过 migration 和幂等初始化命令导入现有 IndicatorCatalog、IndicatorUnitRule 和 Provider 配置。
+- 定义稳定 block_reason_code 字典。
+- [x] 为旧 DTO 提供短期只读适配器；新 Public Port 的 reliability 由 Data Center 契约承载（旧入口仍有裸 dict 兼容面）。
+
+测试：
+
+- 值对象不变量、时区、时间顺序、缺失/零值、状态机。
+- Dataset Contract 版本升级和回滚。
+- Config profile 类型/范围/跨字段校验、原子激活、版本回滚和 snapshot hash。
+- 使用至少两个非默认 capacity profile 证明消费者不依赖代码 fallback。
+- SQLite 开发兼容 + PostgreSQL 约束测试。
+- mypy 保证 DataEnvelope 泛型在 Application 边界不退化为 Any。
+
+退出条件：
+
+- D0-D9 每个数据域均有 active Dataset Contract。
+- 生产有 active global runtime profile；critical key 缺失时 fail closed。
+- 每个 current-data DTO 都能生成统一 ReliabilityContract。
+- 旧字段兼容有明确删除里程碑。
+
+回滚：保留旧查询；回滚新 Catalog active version，不删除表。
+
+### M2：原生 Provider 与受控采集面
+
+目标：切断 Data Center 对业务实现和 shared Provider Client 的反向依赖。
+
+交付：
+
+- 在 apps/data_center/infrastructure/providers 下建立原生 Provider Gateway。
+- [x] 将 core/integration/data_center_business_sources.py 的首批 Tushare/AKShare/资产回填能力迁入或替换；完整桥退役仍未完成。
+- [x] 移除 Data Center Application 对 `core.integration.data_center_business_sources` 的 import；AppConfig 的 PIT registry import 仍保留。
+- [x] 将 shared/infrastructure/tushare_client.py 私有化到 Data Center。
+- [x] Provider Registry 已能接受 `FetchResult`；既有 adapter 的裸 list 兼容面仍需按 D0-D9 收口。
+- 建立 Raw Landing、Schema Fingerprint、Quarantine、SyncRun/Batch/Checkpoint。
+- Provider Health 升级为 provider + dataset_key。
+- Beat、Provider Catalog、MCP Catalog 使用 desired-state reconcile。
+
+测试：
+
+- 冻结的真实响应 fixture 覆盖字段增删、列名变化、空表、错单位、错类型。
+- 超时、限流、401/403、空集、部分批次、重复投递和 checkpoint 恢复。
+- stale 主源继续 failover；冲突不发布。
+- Raw Payload 脱敏和保留策略。
+
+退出条件：
+
+- Data Center 不再 import 任何业务 App infrastructure 或 core/integration 数据桥。
+- Data Center 之外无外部 Provider SDK 运行入口。
+- 所有采集任务发布完整 outcome 和计数。
+
+回滚：按 Provider Binding 切回旧 Adapter，但 decision gate 保持阻断；不得回退到静默不可靠数据。
+
+### M3：Canonical Publication 与统一查询面
+
+目标：从“表里最新一条”升级为“被质量门正式发布的一条”。
+
+交付：
+
+- CanonicalPublication、PublicationMember、CoverageSnapshot。
+- D0-D9 的 Publication Policy。
+- Publication、SyncRun 和关键查询响应记录 runtime config snapshot_id/hash。
+- 小型 Public Query Ports 和版本化 DTO。
+- as_of / publication_id / current 三种明确查询模式。
+- shadow read 记录 legacy 与 canonical 差异，不影响用户响应。
+- 查询预算、索引和批量接口。
+
+测试：
+
+- 同自然键多来源、多修订和冲突仲裁。
+- 未发布事实不可出现在 current。
+- as_of 不读取未来 available_at。
+- Cache 不改变 source time 或 reliability。
+- QuerySet N+1 和 P95 基线。
+
+退出条件：
+
+- 所有 current 查询均可只依赖 Publication。
+- 所有差异都有稳定分类：相同、预期差异、数据缺失、语义冲突、代码缺陷。
+- 未切业务消费者，不删除旧表。
+
+回滚：feature flag 将查询恢复旧路径；保留影子记录。
+
+### M4：资产、行情与净值迁移
+
+范围：D0、D1、D2、D6。
+
+交付：
+
+- Asset Master/Alias 全量对齐。
+- PriceBar、QuoteSnapshot、FundNav 补齐统一证据列和约束。
+- realtime、account、portfolio、simulated_trading、broker_execution、backtest、fund、asset_analysis 切换。
+- StockDailyModel 进入只读冻结。
+- GET 行情路径彻底无写副作用。
+
+测试：
+
+- A 股、ETF、指数、基金、BSE、停牌、新股、退市边界。
+- OHLC、复权、volume/amount 单位和交易日历。
+- 周末、节假日、盘前、盘中、盘后 freshness。
+- 可执行价格强约束；missing/stale 不得成交。
+- 全市场批量性能和连接占用。
+
+退出条件：
+
+- 目标 universe 的价格/净值覆盖达到各 Dataset Contract 阈值。
+- 所有消费者零 legacy read。
+- 连续至少 3 个交易日及 1 个周末/节假日边界影子对账通过。
+
+回滚：按 dataset flag 恢复读路径；旧表保持只读，维护阻断按质量结果决定。
+
+### M5：宏观数据迁移
+
+范围：D3。
+
+交付：
+
+- MacroFact、IndicatorCatalog、IndicatorUnitRule、PublisherCatalog 成为唯一 runtime 真源。
+- MacroIndicator 历史数据按指标、周期、来源、修订映射。
+- regime、pulse、policy、agent_runtime 全部改走 MacroDataQueryPort。
+- 对 canonical/legacy 冲突生成可解释报告，不靠覆盖写消失。
+- 发布期、可用期和修订用于 Point-in-Time 查询。
+
+测试：
+
+- 单位归一、月份/季度/年度 period、发布时间 lag、修订。
+- 0041/0044/0045/0047 同类语义回归样例。
+- HP/Kalman 业务算法输入只取 as_of 可用数据。
+- 至少覆盖两个实际调度周期的影子对账。
+
+退出条件：
+
+- MacroIndicator 零读写。
+- 所有受管指标有契约、Provider Binding 和发布证据。
+- Regime/Pulse/Agent 对同一 as_of 得到同一事实版本。
+
+回滚：恢复旧读 flag；不回写旧表；继续 fail closed。
+
+### M6：财务、估值与个股研究迁移
+
+范围：D4、D5。
+
+交付：
+
+- equity FinancialDataModel / ValuationModel 历史回填。
+- FinancialFact 增加 announced_at / available_at；ValuationFact 增加质量和 publication。
+- equity Domain 实体将真正可缺失指标改为 T | None，并携带 reliability。
+- 删除所有 missing → 0.0 转换。
+- alpha/factor 使用批量 FundamentalDataQueryPort，消除 per-stock N+1。
+- 财务/估值外部同步任务迁入 Data Center；equity 只保留领域分析任务。
+- equity.read.research_snapshot 使用同一 publication 证据。
+
+测试：
+
+- 报告期、公告期、TTM、修订、合并/母公司口径。
+- PE/PB/PS/股息率空值、负值、零值和异常范围。
+- 5,000+ 证券批量查询与打分。
+- REST/SDK/MCP/Terminal 同一证券事实一致。
+- 通富微电固定业务样例按上游证据动态验收，不写死价格。
+
+退出条件：
+
+- FinancialDataModel / ValuationModel 零读写。
+- 缺失指标不再参与数值排名。
+- 核心 A 股 universe 覆盖达到契约门槛；例外逐证券登记。
+- 四入口 reliability 完全一致。
+
+回滚：按 financial/valuation dataset flag 恢复旧读；decision readiness 根据缺失保持阻断。
+
+### M7：板块、新闻与资金流迁移
+
+范围：D7、D8、D9。
+
+交付：
+
+- sector/rotation/hedge 使用 ReferenceDataQueryPort。
+- sentiment/events/equity 使用 NewsFlowQueryPort。
+- 建立新闻内容哈希、来源许可、发布时间和去重规则。
+- 建立资金流字段口径、单位和可比 Provider 组。
+- 不支持的 Provider 能力返回 unsupported/missing，不伪造成全覆盖。
+
+测试：
+
+- 成分生效/失效日期和历史回放。
+- 新闻重复、空 external_id、时区和抓取延迟。
+- 资金流字段映射、单位、空值、负值和跨源偏差。
+- 部分覆盖的聚合可靠性。
+
+退出条件：
+
+- 业务 App 无外部 Adapter。
+- 不完整数据不会使顶层响应变 fresh。
+- 能力与许可限制在用户响应中可见。
+
+回滚：按 dataset flag 切回已验证旧路径；若旧路径不可靠则维持 blocked。
+
+### M8：跨入口收口与派生数据产品
+
+目标：同一事实只解释一次。
+
+交付：
+
+- REST 是外部稳定契约；SDK/MCP 调用同一 API/Application handler。
+- Terminal/TUI 只消费发布 DTO。
+- Config Center TUI 成为配置搜索、diff、impact preview、激活和回滚的唯一管理员主入口。
+- Data Center、Risk Center、估值、策略等配置通过各自 Application Facade 注册，不由 Config Center 直接读取其 ORM。
+- Agent Runtime 删除旧事实快照 Repository。
+- 跨 App 复用的派生数据登记 Data Product Descriptor：owner、输入 publication_id、算法版本、as_of、可靠性。
+- Capability Catalog 与运行 handler 做确定性对账。
+
+测试：
+
+- 契约快照和 schema compatibility。
+- 中文证券名称、代码、别名和复合查询。
+- 无工具、超时、权限失败、关键证据缺失时无金融事实生成。
+- 每个入口的 publication_id、observed_at、source 和阻断原因一致。
+
+退出条件：
+
+- SDK/MCP/Terminal/TUI 无独立事实查询实现。
+- 所有跨入口差异测试为零。
+
+回滚：回退入口版本，不回退数据事实与质量门。
+
+### M9：遗留停止与破坏性清理
+
+目标：消灭双真源，而不是隐藏它。
+
+交付：
+
+- 旧事实表写入 feature flag 永久关闭。
+- PostgreSQL 访问日志/埋点证明一个完整观察窗口内零读写。
+- 删除旧 Adapter、Repository、command、task、bridge、兼容 import。
+- 删除已迁移的 SystemSettingsModel 过期字段、关键配置代码 fallback 和 Config Center 对其他 App infrastructure 的直接 import。
+- 删除过期测试 fixture 和文档。
+- 在独立 release 中执行删表 migration；不与切读同一发布。
+- 收紧 architecture_rules、mypy debt 和 dependency baseline。
+
+测试：
+
+- 从空 PostgreSQL 建库到最新 migration。
+- 从生产前一版本升级到最新 migration。
+- migration rollback rehearsal。
+- 全仓 import、URL、Celery task name、beat schedule 和 capability catalog 扫描。
+
+退出条件：
+
+- 无 legacy table、bridge 或 Provider bypass。
+- 生产至少一个完整观察窗口零旧访问。
+- 破坏性 migration 有已验证备份与恢复时长证据。
+
+回滚：删表前使用 verified PostgreSQL backup；代码保留前一镜像。删表后若回滚，先恢复数据库再回滚代码。
+
+### M10：生产重建、验收与持续治理
+
+目标：以生产事实证明架构完成。
+
+步骤：
+
+1. 启用 decision maintenance，保持基础站点可用。
+2. 创建 PostgreSQL custom-format 备份，下载并核对 SHA-256。
+3. 记录 Git SHA、镜像、migration、表行数、contract/catalog hash。
+4. 部署 schema expand 与新代码。
+5. 激活并校验目标 Runtime Config Profile，记录 snapshot hash；reconcile Provider、Schedule、MCP Capability、TUI metadata。
+6. 按 D0-D9 顺序执行幂等 backfill。
+7. 执行 canonical/legacy shadow reconciliation。
+8. 逐 dataset 切换 read flag；任务与发布证据绑定同一 config snapshot。
+9. 运行全市场质量、入口一致性、性能和故障注入验收。
+10. strict decision readiness 全绿后解除维护。
+11. 观察窗口结束后进入 M9 破坏性清理。
+
+退出条件见第 22 节 Definition of Done。任一 P0 数据集失败时保持维护或 blocked，不允许用降低阈值换取上线。
+
+## 16. CI 与架构护栏
+
+### 16.1 新增静态门禁
+
+1. apps/data_center/infrastructure/providers 之外禁止 import tushare、akshare、xtquant、efinance、baostock 及等价外部数据 SDK。
+2. Data Center 禁止 import apps/*/infrastructure 和 core/integration/data_center_business_sources。
+3. 业务 App 禁止 import apps/data_center/infrastructure。
+4. 业务 App 对市场/宏观/财务事实的跨 App 调用只能指向 apps/data_center/application/public.py 或明确的 Application Port。
+5. 禁止新增 MacroIndicator、FinancialDataModel、ValuationModel、StockDailyModel 读写。
+6. 禁止数值字段使用 value or 0、value or 0.0 处理 missing；允许点必须有显式零值契约和局部豁免说明。
+7. 禁止 GET handler 调用 sync、fetch、bulk_upsert、save 或 create。
+8. Data Center 新增 shared_task 未登记 celery_task_contracts 直接失败。
+9. current/latest/realtime/summary surface 自动发现后未登记 current_data_contracts 直接失败。
+10. Storage Guard、Retention、Backup、Readiness 和 Task Monitor 禁止自行定义 90/58/68/74 等容量常量；除部署初始化投影和文档外，所有容量值必须来自 StorageBudgetQueryPort。
+11. 新增 env default、Model default、模块常量或 Celery kwargs 形式的运行参数，未登记 runtime_config_contracts 或未声明 bootstrap/static 分类时失败。
+12. Config Center 禁止 import 其他 App infrastructure；领域配置统一入口必须调用 owner Application Facade。
+
+### 16.2 强化动态门禁
+
+- current-data manifest 必须登记可执行 pytest nodeid，CI 直接运行，不只检查函数名存在。
+- celery manifest 的非法输入、全成功、部分失败、全部失败、零产出、阻断用例按适用矩阵真实执行。
+- 关键数据链路必须在 PostgreSQL job 运行，不以 SQLite 通过代替。
+- Provider fixture 保存 schema fingerprint；未知变化使契约测试失败。
+- 每个迁移阶段运行 migration drift、reverse migration 和空库安装。
+- 自动比较 REST/SDK/MCP/Terminal 的 schema 与 reliability。
+- 使用 60/90/120 GiB fake policy 运行同一组容量测试，证明预算、水位和阻断行为由配置驱动。
+- 无 active StorageBudgetPolicy、策略非法或实际磁盘小于 configured capacity 时，验证 fail-closed 和 effective capacity 下调。
+- 每日 canary 只验证证据一致性，不把外网暂时失败误判为代码回归；外网失败必须转为受控 blocked。
+
+### 16.3 现有治理文件
+
+每个阶段同步更新：
+
+- governance/current_data_contracts.json
+- governance/celery_task_contracts.json
+- governance/architecture_rules.json
+- governance/governance_baseline.json
+- 新增 governance/data_ownership_contracts.json
+- 新增 governance/data_provider_contracts.json 或同等机器投影
+- 新增 governance/runtime_config_contracts.json
+
+机器动态数字只写 governance 真源；计划文档不复制会频繁变化的最终数量。
+
+## 17. 测试与验收矩阵
+
+| 层级 | 必测内容 | 环境 |
+| --- | --- | --- |
+| Domain Unit | 时间、单位、missing/zero、质量、可靠性、仲裁、状态机 | 无 Django |
+| Adapter Contract | 真实响应 fixture、schema drift、空值、列变体、错误码 | 离线 fixture |
+| Repository | 自然键、约束、批量 upsert、as_of、索引、事务 | PostgreSQL 为主 |
+| Migration | 空库、旧版本升级、回滚、数据迁移计数 | PostgreSQL |
+| Application | success/partial/noop/blocked/failed、checkpoint、幂等 | Django + fake Provider |
+| Integration | Provider → Raw → Standard → Publication → Query | PostgreSQL + fake/受控 Provider |
+| Differential | legacy 与 canonical 按自然键/时间/单位对账 | 影子环境 |
+| Contract | REST/SDK/MCP/Terminal schema 与 evidence 一致 | 本地服务 |
+| E2E | 证券研究、Regime、Pulse、交易价格、回测 as_of | staging / 生产维护态 |
+| Fault Injection | 超时、限流、空集、stale、错 schema、冲突、Redis/Celery/DB 故障 | staging |
+| Performance | 全市场 backfill、批量查询、readiness、P95、锁和内存 | PostgreSQL 生产规模 |
+| Live Canary | 小样本上游对账、观测时间、coverage、catalog drift | 生产只读 |
+
+属性测试建议覆盖：
+
+- 任意合法单位转换可重复执行且不二次放大。
+- 任意 missing 输入不会变成数值零。
+- 任意非 fresh 状态必然 must_not_use_for_decision=true。
+- 任意 fetched_at 早于 observed_at 的事实无法进入 canonical。
+- 任意 as_of 查询不会看到 available_at 晚于 as_of 的版本。
+- 任意重试不会增加相同自然键、source、revision 的重复行。
+
+每阶段最低验证命令：
+
+~~~text
+python scripts/check_current_data_contracts.py
+python scripts/check_celery_task_contracts.py
+python scripts/check_mypy_regression.py <changed-production-python-files>
+python scripts/check_mypy_debt_ceiling.py
+python manage.py makemigrations --check --dry-run
+python manage.py check
+python manage.py check --deploy
+pytest <本阶段精确 nodeids> -q
+~~~
+
+涉及 terminal / TUI / MCP / SDK / deploy 时，还必须运行项目规定的固定最小回归包。
+
+## 18. 数据 SLO、监控与 Readiness
+
+每个 Dataset Contract 独立定义 SLO，不使用一个全局 freshness 阈值。
+
+### 18.1 SLO 维度
+
+- Freshness：距最近应完成观测/发布的延迟。
+- Coverage：目标 universe / 时间区间覆盖率。
+- Completeness：关键字段完整率。
+- Validity：通过 schema 和范围校验的比例。
+- Consistency：可比来源差异率。
+- Lineage：可回溯 raw payload / publication 的比例。
+- Availability：Query Port 成功率与延迟。
+- Recoverability：失败任务可从 checkpoint 恢复的比例。
+
+### 18.2 告警分级
+
+| 级别 | 条件 | 动作 |
+| --- | --- | --- |
+| P0 | 当前可执行价格错误、时间戳洗白、证据缺失仍发布、跨源严重冲突 | 自动 decision blocked，立即告警 |
+| P1 | 核心覆盖跌破门槛、关键 Provider 全部失败、publication 长期不推进 | 对受影响数据域阻断，启动恢复 |
+| P2 | 单 Provider degraded、非核心数据 partial、schema 预警 | 告警和计划修复，不洗白 |
+| P3 | 性能趋势、配额接近、Raw 保留容量 | 运维排期 |
+
+/api/ready/ 继续只表示基础服务可用；/api/decision-ready/ 汇总 Publication、SLO、Provider、维护态和业务关键分区。一个关键分区失败时不得被平均分数抵消。
+
+## 19. 生产默认 90 GiB 的可配置容量与可持续运行计划
+
+### 19.1 容量约束与设计结论
+
+正式 PostgreSQL 上线时默认创建 production-90g 容量策略档，初始 configured_capacity 为 90 GiB。90 GiB 是部署/初始化配置默认值，不是写死在 Python、Django Model、Celery Task、Docker Compose 或监控规则中的常量。
+
+所有运行组件必须通过同一个 StorageBudgetQueryPort 读取 active StorageBudgetPolicy；禁止各模块自行使用 90、58、68、74 等字面量计算水位。
+
+初始化与修改规则：
+
+1. 首次生产初始化由 Setup/部署配置向初始化用例显式传入容量；生产部署模板默认建议 90 GiB，但可在执行前覆盖。
+2. StorageBudgetPolicyModel 不设置不可修改的 default=90；初始化完成后数据库记录是 runtime 唯一真源。
+3. 后续通过 Config Center TUI / Application API 修改，并记录旧值、新值、操作者、原因、版本和生效时间。
+4. 修改总容量时，所有子预算、水位、预测和任务阻断阈值由策略比例重新计算，无需改代码或重新构建镜像。
+5. 文件系统探针每次计算 effective_capacity_bytes；有效上限取 configured_capacity_bytes 与实际可支配容量中的较小值。
+
+production-90g 默认策略需要同时容纳：
+
+- PostgreSQL 表、索引、TOAST、系统目录。
+- PostgreSQL WAL、排序临时文件、迁移和索引维护的瞬时空间。
+- Raw Payload、Quarantine 和导出中间文件。
+- Redis AOF/RDB、Celery 结果、应用证据和日志。
+- 当前及上一个 Docker 镜像、容器可写层、构建残留。
+- 一份正在生成或等待下载的 PostgreSQL 备份。
+- 操作系统和紧急恢复所需的安全余量。
+
+如果 90 GiB 实际只是当前剩余空间而不是挂载点总容量，M0 仍以 active policy 的 90 GiB 作为初始配置；若文件系统实测可支配空间更小，effective capacity 自动下调。文中 GiB 用于展示 production-90g 默认策略的投影；若服务商标称 90 GB 但系统实测不足 90 GiB，所有子预算和水位按实际字节同比缩小。
+
+架构结论：
+
+1. 90 GiB 足以长期承载个人投研平台的主数据、日线、宏观、财务、估值和有限历史，但不可能无限保留全市场 Tick、全市场高频快照、全部新闻正文、所有 Provider 原始响应和多份同机全量备份。
+2. VPS 只保存当前决策需要的热数据、有限历史窗口和紧凑的永久审计元数据。
+3. 高体量原始数据采用有限保留；需要长期历史时输出到 VPS 之外的冷存储。
+4. current 查询、决策证据和业务交易记录优先于广覆盖新闻、原始响应、高频历史和大规模回填。
+5. 系统必须在磁盘真正耗尽前自动降级和阻断，不能依靠人工看到 df 已满后再抢救。
+
+### 19.2 当前已确认的容量缺口
+
+| 当前实现 | 状态 | 风险 | 规划动作 |
+| --- | --- | --- | --- |
+| docker/docker-compose.vps.yml 已为主要容器配置 json-file max-size / max-file | 已有基础保护 | 只能限制 Docker stdout/stderr，不能覆盖应用文件日志和数据卷 | 纳入统一 Storage Usage Snapshot，保留现有上限 |
+| Redis 已配置 256 MB maxmemory 和 allkeys-lru | 已有内存保护 | AOF/RDB 大小和重写峰值仍需计入磁盘 | 监测 redis_data 与 AOF rewrite 临时空间 |
+| core/settings/production.py 默认 LOG_TO_FILE=false | 默认风险较低 | 开启后两个 100 MB × 10 文件 handler 以及 Celery 文件日志可能叠加 | 统一日志总预算，不只限制单文件 |
+| core/settings/base.py 的 database-daily-backup 默认 keep_days=14 | 不适合 90 GiB | 14 份同机全量备份可比生产库本身更大 | 改为 VPS 最多 1 份 in-flight，校验下载后删除 |
+| backup_database_task 在 VPS 本地生成 PostgreSQL gzip SQL | 可用但不受总量控制 | 备份生成失败、半成品或清理延迟会吃完磁盘 | 写前检查空间、原子临时文件、单份上限、外部确认后清理 |
+| scripts/backup-vps-postgres.py 支持 custom format、校验、下载和远端清理 | 可复用 | prune 默认关闭，仍可能累计 | 生产 runbook 强制远端最多 1 份且不超过 24 小时 |
+| DjangoMaintenanceStatusReader 只对数据库 NAME 是本地文件时统计大小 | PostgreSQL 盲区 | Task Monitor 在正式生产库下看不到数据库真实大小 | 改用 pg_database_size、pg_total_relation_size 和文件系统 probe |
+| RawAudit、QuoteSnapshot、News 等缺少统一保留策略 | 未闭环 | 高增长表会无限膨胀 | Dataset Retention Policy + 分区 + 自动回收 |
+
+### 19.3 production-90g 默认预算投影
+
+以下数字是 active policy 为 90 GiB 时的默认投影，不是散落在代码中的固定常量。Runtime 保存总容量、子预算比例、最小空闲比例和水位比例；M0 根据真实每行字节、索引比例和备份压缩率调整策略记录，但各子项之和不得超过 effective capacity。
+
+| 类别 | 上限 | 说明 |
+| --- | ---: | --- |
+| 操作系统、Caddy、当前/上一 Docker 镜像与容器层 | 10 GiB | 只保留当前和可回滚上一版本；禁止 VPS 保留构建缓存 |
+| PostgreSQL 持久热集群 | 36 GiB | 包含全系统表、索引、TOAST、catalog 和可复用 bloat 余量 |
+| PostgreSQL WAL、临时文件、迁移/索引维护峰值 | 10 GiB | 不作为可长期占用空间 |
+| Raw、Quarantine、导出暂存 | 4 GiB | 达配额立即按策略回收或阻断低优先级采集 |
+| 单份 PostgreSQL 备份 in-flight | 10 GiB | 下载并校验后删除；超过此值必须采用流式或外部备份 |
+| Redis、Celery、应用日志、readiness evidence | 3 GiB | 统一总量，不允许多个轮转器各自无限增长 |
+| static、media、配置与小型运行资产 | 2 GiB | 用户上传另行按 owner 配额 |
+| 永久紧急空闲空间 | 15 GiB | 不分配给任何常态数据，用于故障恢复和维护峰值 |
+| **合计** | **90 GiB** | 任一子项超支必须从同类别回收，不能借用紧急余量常态运行 |
+
+PostgreSQL 36 GiB 的初始内部预算：
+
+| PostgreSQL 数据类别 | 上限 | 说明 |
+| --- | ---: | --- |
+| Data Center catalog、publication、sync、quality、lineage | 3.5 GiB | 元数据长期保留，明细运行记录分级清理 |
+| 日线 PriceBar | 8 GiB | 全核心 universe 的有限热历史 |
+| Latest Quote 与短期 QuoteSnapshot | 1.5 GiB | 全市场只保留最新值和收盘事实；盘中历史限范围、限时 |
+| Macro 与 Sector | 1.5 GiB | 体量小，保留全部 canonical 修订和成员历史 |
+| Financial Fact | 5 GiB | canonical 财务事实和修订优先永久保留 |
+| Valuation Fact | 6 GiB | 日频窗口有限，旧数据归档或降采样 |
+| Fund NAV | 2.5 GiB | 研究 universe 长窗口，非核心 universe 短窗口 |
+| News 与 Capital Flow | 3 GiB | 正文、原始响应短保留；聚合和紧凑元数据长保留 |
+| 非 Data Center 业务表 | 3 GiB | account、portfolio、audit、auth、配置和其他业务状态 |
+| PostgreSQL 内部可复用 bloat 余量 | 2 GiB | 用于 vacuum 复用；不是新增业务配额 |
+| **合计** | **36 GiB** | 子预算通过运行时配置管理 |
+
+预算规则：
+
+- 子预算是硬 ceiling，不代表预留；未使用空间仍属于全局紧急余量。
+- 任何新 Dataset 上线前必须给出预计 rows/day、bytes/row、index ratio、hot days 和最大 GiB。
+- 如果一个数据集达到自身配额，优先归档、降采样或暂停该数据集，不能自动挤占其他核心数据。
+- 交易、持仓和审计数据不因 Data Center 超额而自动删除。
+
+### 19.4 文件系统水位与自动动作
+
+水位读取底层挂载点实际 used/available，不能只看 PostgreSQL database_size 或 Docker volume 声称的逻辑大小。任务使用 active policy 中的比例和最小空闲值；下表绝对值只是 production-90g 默认策略的显示投影。
+
+| 状态 | 策略触发条件 | 90 GiB 默认投影 | 自动动作 |
+| --- | --- | ---: | --- |
+| green | used_ratio 小于 65% | 小于约 58 GiB | 正常同步；每天执行到期清理；更新增长预测 |
+| yellow | used_ratio 65%-75% | 约 58-68 GiB | 告警；立即清理已过期 Raw、日志、旧备份和成功任务明细；禁止启动非必要全量导出 |
+| orange | used_ratio 75%-82% | 约 68-74 GiB | 暂停 P3 采集和历史大回填；强制转移/删除 in-flight 备份；执行可安全 drop 的到期分区 |
+| red | used_ratio 82%-83.33% | 约 74-75 GiB | 暂停 P2/P3；只允许 P0 业务写入和最小 P1 增量；禁止镜像构建、REINDEX、VACUUM FULL 和大 migration |
+| critical | used_ratio 大于等于 83.33%，或 available 低于 emergency_reserve | 大于等于约 75 GiB，或 available 小于 15 GiB | 紧急余量已被侵占；停止所有 Data Center 批量写入；进入 storage blocked；decision readiness 失败；只允许查询、外部备份、清理和受控恢复 |
+| filesystem emergency | used_ratio 大于等于 90%，或 available 低于 emergency_floor | 大于等于约 81 GiB，或 available 小于 9 GiB | 全局 decision maintenance；停止 Celery ingest；禁止在 VPS 创建新备份；必须人工处置 |
+
+优先级：
+
+- P0：账户、订单、成交、持仓和不可丢审计写入。
+- P1：维持当前决策所需的资产身份、最新行情、核心宏观和最小财务增量。
+- P2：估值/财务全市场补历史、长期日线、基金广覆盖。
+- P3：全市场盘中快照、广覆盖新闻、Raw 成功响应、非关键报表和实验数据。
+
+磁盘压力下按 P3 → P2 → P1 顺序停止。若 P1 被迫停止，对应 current 数据会变 stale，decision readiness 必须自动阻断，不能继续发布旧值。
+
+### 19.5 数据保留矩阵
+
+保留规则同时受“时间窗口”和“字节配额”限制；先触发者生效。达到配额时必须先尝试压缩、归档或降采样，不能静默删除仍声明受支持的历史。
+
+| 数据集 | VPS 热保留默认 | 长期保留内容 | 超限动作 |
+| --- | --- | --- | --- |
+| Asset Master / Alias / Dataset Contract / Provider Binding | 永久 | 全部有效版本与必要审计 | supersede 旧运行版本；不删被 Publication 引用版本 |
+| Canonical Publication | 元数据永久 | publication_id、选择策略、自然键范围、source、hash、可靠性 | 大 payload 不复制，只保留引用 |
+| Macro Fact | canonical 全历史与修订永久 | reporting/published/available time、单位、来源 | 原始响应按 Raw 策略清理 |
+| PriceBar 日线 | 核心 universe 10 年或 8 GiB | 日线 canonical、复权语义、publication | 更旧年度分区先冷归档；无冷存储时缩短产品承诺并显式披露 |
+| 全市场 Latest Quote | 每资产/来源只保留当前一行 | 当前观测时间、抓取时间、source | 采用 upsert current 表，不做无限 append |
+| QuoteSnapshot 盘中 | 仅持仓、自选、基准；原始 7 个交易日 | 5 分钟 rollup 最多 20 个交易日；决策引用保存紧凑 evidence | 全市场盘中 append 默认关闭；到期 partition drop |
+| 全市场收盘快照 | 每交易日 1 条并归入日线事实 | PriceBar | QuoteSnapshot 不重复长期保存 |
+| Financial Fact | canonical 事实与修订永久，目标 5 GiB | period_end、announced/available、口径、revision | 先删重复 source 非发布版本的 Raw；canonical 不自动删 |
+| Valuation Fact | 日频 5 年或 6 GiB | 更旧数据保留月末/季末 rollup 或外部归档 | 年度 partition 归档后 drop |
+| Fund NAV | 持仓/自选/研究 universe 10 年；其他 active fund 3 年或 latest | canonical NAV 与发布日期 | 先收缩非核心 universe 历史 |
+| Sector Membership | 全历史永久 | effective/expiry/source | 只清理重复或无效 Raw |
+| News Raw / 正文 | 成功响应 7 天；失败/隔离 30 天；正文最长 14 天 | URL、标题、发布时间、内容 hash、来源许可 | 正文先删；不影响紧凑新闻事实 |
+| News 规范化元数据 | 180 天明细 | 日级情绪/事件聚合长期保留；关键事件引用保留 | 归档或删除非引用明细 |
+| Capital Flow | 全市场日频 2 年；持仓/自选可 5 年 | 更旧月度 rollup 最多 5 年 | 日频旧分区归档或 drop |
+| Raw 成功响应 | 7 天或 Raw 总额 4 GiB | hash、schema fingerprint、行数、时间范围永久 | 按最旧、非引用、P3 顺序清理 |
+| Raw 失败 / Quarantine | 30 天 | 错误码、schema fingerprint、修复结论长期聚合 | 明细到期清理 |
+| 决策关联 Raw | 最长 90 天 | 永久保存紧凑 Decision Evidence 与 raw hash，不永久复制大响应 | 超期删除 payload，保留过期标记 |
+| SyncRun / Task Monitor 成功明细 | 14 天 | 日级成功率、计数、耗时聚合 2 年 | 明细批量/分区清理 |
+| partial / failed / blocked 任务明细 | 90 天 | 失败类别和恢复证据聚合 | 关闭事件后按策略清理 |
+| Provider Health 原始采样 | 90 天 | 日级 P50/P95、成功率、coverage 2 年 | rollup 验证后删原始 |
+| 应用与 Celery 文件日志 | 14 天且总额不超过 1 GiB | 事故日志按 evidence 显式保留 | 轮转并按总额二次清理 |
+| Docker 容器日志 | 保持 compose max-size/max-file | 不长期保留 | 由 Docker 自动轮转 |
+| PostgreSQL 备份 | VPS 最多 1 份且不超过 24 小时 | 外部位置执行 7 日 / 4 周 / 12 月保留策略 | 本地 SHA-256 验证后删除 VPS 备份 |
+
+说明：
+
+- “永久”只适用于紧凑 canonical 事实、配置和审计元数据，不代表永久保留完整 Provider 响应。
+- 研究/交易引用不通过保留整批 Raw 实现，而保存紧凑 Decision Evidence：publication_id、输入事实自然键、值、时间、source、contract_version 和 hash。
+- 如果未配置 VPS 外冷存储，系统仍可持续运行，但高体量数据只承诺上述热窗口，不承诺无限历史。
+
+### 19.6 热、温、冷三层
+
+#### 热层：VPS PostgreSQL
+
+只包含当前业务和常用查询需要的数据：
+
+- 当前与有限历史 canonical fact。
+- 活跃 Publication。
+- 热窗口内的质量、运行和 Provider 证据。
+- 业务交易与审计记录。
+
+查询 API 不跨越 VPS 到冷存储，避免 current 请求因本地电脑或外部对象存储离线而失败。
+
+#### 温层：VPS 压缩短期文件
+
+只允许：
+
+- 单份 in-flight 数据库备份。
+- 待上传归档分区。
+- 短期 Raw 压缩文件。
+- 失败恢复 checkpoint。
+
+每个温层对象必须有 created_at、expires_at、size_bytes、owner 和 cleanup state；无 owner 文件视为泄漏。
+
+#### 冷层：VPS 之外
+
+可以是用户本地电脑、NAS 或受控对象存储。冷归档至少包含：
+
+- dataset_key 与 contract_version。
+- partition key / 日期范围。
+- row_count。
+- source 和 publication 范围。
+- 原始与压缩字节数。
+- SHA-256。
+- schema fingerprint。
+- created_at、加密和保存位置。
+- restore 验证结果。
+
+冷归档推荐使用压缩、列式、可校验格式保存事实分区；数据库完整恢复仍使用 PostgreSQL custom-format backup。两者不能互相替代。
+
+只有在外部对象上传完成、SHA-256 一致、行数和日期范围验证、抽样读取成功后，才允许删除 VPS 热分区。
+
+### 19.7 PostgreSQL 表设计、索引与分区
+
+#### 分区候选
+
+满足以下任一条件才进入分区评估：
+
+- 单表预计超过 500 万行。
+- 单表总大小超过 2 GiB。
+- 存在稳定时间列且需要周期性删除。
+- 单次历史清理会触发大规模 DELETE 和 bloat。
+
+优先候选：
+
+- QuoteSnapshot：按日或月。
+- RawAudit / RawPayload：按日或月。
+- NewsFact：按月。
+- CapitalFlowFact：按年或月。
+- PriceBar / ValuationFact：达到阈值后按年。
+- Sync/Provider 原始明细：按月。
+
+不对 AssetMaster、Catalog、Macro 等小表盲目分区。
+
+实现约束：
+
+- 使用新的可回滚 Django migration 或明确的 PostgreSQL migration 方案，不编辑已应用 migration。
+- 先建新分区表、双写仅限 ingestion 边界、回填与影子对账，再切换。
+- 到期数据优先 DROP PARTITION，避免数百万行 DELETE。
+- 无法分区的表使用固定批次按主键/日期删除，每批提交并记录 checkpoint。
+
+#### 索引预算
+
+- 每个索引必须对应真实 filter/order/join 查询。
+- 定期读取 pg_stat_user_indexes，候选未使用索引需经完整观察窗口确认后删除。
+- 避免 unique constraint 与手工相同前缀索引重复。
+- 超大追加时间表优先评估 BRIN 时间索引，核心 point lookup 保留 B-tree 复合索引。
+- PostgreSQL cluster 的索引总大小目标不超过表数据大小的 40%；超过时必须逐表解释。
+
+#### Vacuum 与维护空间
+
+- 普通 VACUUM 回收空间供 PostgreSQL 重用，但通常不会把文件还给操作系统；容量面板必须区分 reusable bloat 与 filesystem free。
+- VACUUM FULL 需要额外磁盘并产生长锁，yellow 以上禁止执行。
+- REINDEX CONCURRENTLY 会临时持有新旧两份索引，yellow 以上禁止执行。
+- 大 backfill 监控 WAL 增长，按批次提交；超过 WAL 预算自动暂停。
+- 删除分区后验证 relation size、WAL 和查询计划，不用“DELETE 成功条数”冒充实际腾出磁盘。
+
+### 19.8 容量测量与预测
+
+新增 Storage Usage Snapshot，至少每小时记录：
+
+- 文件系统 total / used / available。
+- PostgreSQL database、schema、table、index、TOAST 大小。
+- dead tuple、live tuple、relation bloat 估计。
+- pg_wal 实际大小。
+- Redis volume、AOF/RDB 大小。
+- Docker images、containers、volumes、build cache 大小。
+- backup、Raw、logs、media、var/evidence 目录大小。
+- 每个 Dataset 当日 row count、bytes 和增长量。
+
+每个高增长 Dataset 计算：
+
+~~~text
+平均每行总字节 = pg_total_relation_size / 估算有效行数
+日增长字节 = 日新增行数 × 平均每行总字节
+30 日增长斜率 = 当前大小 - 30 日前大小
+到达水位天数 = 水位剩余字节 / max(日增长斜率, 最小正值)
+建议热窗口 = Dataset 字节配额 / P90 日增长字节
+~~~
+
+告警：
+
+- 预计 30 天内到 orange：P2。
+- 预计 14 天内到 red：P1。
+- 预计 7 天内到 critical：P0。
+- 任一 Dataset 7 天增长超过自身配额 10%：P1。
+- 备份压缩后大小超过 10 GiB 或增长率连续三次异常：P1，改用流式/外部备份并重新评估热库上限。
+
+容量预测必须基于实测 relation size，不能使用 Python 对象大小或简单行数猜测。
+
+### 19.9 自动保留与清理控制面
+
+新增或收敛以下运行时对象，并保持 desired config 与 observed state 分离：
+
+- config_center.StorageBudgetPolicyModel：configured_capacity_bytes、策略版本、各子预算比例、水位比例、emergency_reserve_ratio、emergency_floor_ratio 和是否 active。
+- data_center.DatasetRetentionPolicyModel：dataset_key、priority、hot_days、max_bytes、rollup、archive_required、delete_order。
+- task_monitor / operational_readiness 的 StorageUsageSnapshotModel：容量 observed state 时间序列，不作为配置。
+- data_center.RetentionHoldModel：因交易、研究、事故或合规原因禁止清理的数据范围。
+- data_center.ArchiveManifestModel：外部归档、hash、行数、范围和 restore 结果。
+- data_center.RetentionRunModel：计划、dry-run、实际删除/归档、字节和 outcome。
+
+全局容量规则以 Config Center active profile 为唯一真源；Dataset 生命周期规则由 Data Center 类型化表拥有，并注册到 Config Center 统一入口。Task Monitor / Operational Readiness 通过 Config Center StorageBudgetQueryPort 读取 desired policy，通过自己的只读端口读取 observed usage，不复制阈值。Model、settings、task 和 compose 中均不得设置独立的 90 GiB fallback。
+
+容量策略切换必须原子化：新策略校验通过后再激活，旧策略保留审计版本；无 active policy 时生产 storage readiness 必须 blocked，不能在代码里悄悄回退到 90。
+
+建议任务：
+
+| 任务 | 周期 | 行为 |
+| --- | --- | --- |
+| collect_storage_usage_task | 每小时 | 只读采集整盘、PostgreSQL、Docker、Redis 和目录大小 |
+| forecast_storage_capacity_task | 每日 | 计算 7/30/90 日趋势和到水位天数 |
+| plan_retention_task | 每日 | 生成 dry-run 候选、预计回收字节和 hold 冲突 |
+| enforce_retention_task | 每日低峰 | 只执行已到期、无 hold 的策略；分区优先 |
+| rollup_operational_metrics_task | 每日 | 先聚合再清理原始健康/任务明细 |
+| verify_storage_budget_task | 每次 backfill/backup/deploy 前后 | 超水位则阻断下一批 |
+| audit_archive_restore_task | 每月 | 抽样恢复冷归档和数据库备份 |
+
+这些任务都必须登记 governance/celery_task_contracts.json，并覆盖 success、partial、noop、blocked、failed、零产出和非法策略。
+
+### 19.10 安全清理流程
+
+任何自动删除必须经过：
+
+1. 读取 active Retention Policy 和当前水位。
+2. 生成候选自然键/分区、行数、逻辑字节和预计实际回收字节。
+3. 排除 active Publication、Retention Hold、未完成审计和未过最小窗口的数据。
+4. 若 archive_required，先生成外部归档并校验 manifest。
+5. dry-run 证据持久化。
+6. 使用 partition drop 或固定批次删除。
+7. 验证行数、时间范围、Publication 引用完整性和查询可用性。
+8. 记录实际回收字节；区分“可供 PostgreSQL 重用”和“已归还文件系统”。
+9. 发布标准 outcome。
+
+禁止：
+
+- 使用无日期/无自然键条件的全表 delete。
+- 清理任务跟随 CASCADE 删除业务决策、订单或审计记录。
+- 未验证外部归档就删除 archive_required 数据。
+- 因磁盘告警直接删除最新 canonical 数据。
+- 在 red/critical 水位运行 VACUUM FULL、REINDEX 或生成第二份备份。
+
+### 19.11 备份策略
+
+VPS 本地备份不是持久备份，只是传输暂存。
+
+目标流程：
+
+1. 备份前 verify_storage_budget，预计生成文件后仍必须低于 red。
+2. 使用 PostgreSQL custom format 和压缩。
+3. VPS 同时只允许一个 .partial 或一个完整 dump。
+4. 在 VPS 执行 pg_restore --list 和 SHA-256。
+5. 下载到 VPS 之外。
+6. 本地再次校验 size 和 SHA-256。
+7. 至少定期执行隔离恢复，而不是只验证文件头。
+8. 本地确认成功后立即删除 VPS dump；最长不超过 24 小时。
+
+外部保留默认：
+
+- 最近 7 个日备份。
+- 最近 4 个周备份。
+- 最近 12 个月备份。
+
+该保留发生在 VPS 之外，不计入 90 GiB。现有 database-daily-backup 的 keep_days=14 必须在容量治理阶段调整；在调整前不得同时启用另一套每日全量备份，避免重复。
+
+若一次 compressed dump 超过 10 GiB：
+
+- 禁止继续在 VPS 累积。
+- 优先采用流式传输或直接写外部目标。
+- 重新评估 PostgreSQL 36 GiB 热库预算和可压缩率。
+- 不以删除唯一已验证外部备份换取空间。
+
+### 19.12 Docker、Redis 与日志
+
+- VPS 只保留当前和上一个可回滚 Web 镜像；部署成功并通过观察后清理更旧镜像和 build cache。
+- 禁止 docker system prune --volumes 作为常规容量动作；volume 删除必须逐个验证 owner，PostgreSQL/Redis volume 永不由通用 prune 删除。
+- 保留现有 json-file max-size/max-file，并将所有容器日志总量纳入 3 GiB 预算。
+- LOG_TO_FILE=true 时应用文件日志总额不得超过 1 GiB；避免 console + 两份文件 handler 重复保存相同高频日志。
+- Redis maxmemory 继续限制为 256 MB 级别；监控 AOF rewrite 临时文件，定期验证持久化文件体积。
+- Celery Result Backend 设置有限 TTL；Task Monitor 业务证据按第 19.5 节在 PostgreSQL 聚合后清理。
+- readiness evidence、导出文件和失败诊断包必须具备过期时间和 owner。
+
+### 19.13 与 M0-M10 的集成
+
+| 阶段 | 容量治理交付 |
+| --- | --- |
+| M0 | 采集整盘、PostgreSQL relation、WAL、Docker、Redis、backup、logs 的真实基线；生成 12 个月预测 |
+| M1 | 建立可版本化 Storage Budget / Dataset Retention / Hold / Archive Contract，并由部署配置初始化 production-90g profile |
+| M2 | StoragePressureGuard 接入所有 ingest、backfill、backup；新增 usage/forecast/retention 任务 |
+| M3 | Publication 引用和 Retention Hold 防止被误删 |
+| M4 | Quote/Price/Nav 的 upsert、短保留、rollup 和首批分区 |
+| M5 | Macro 永久 canonical + Raw 短保留 |
+| M6 | Financial 永久 canonical、Valuation 有限日频窗口 |
+| M7 | News 正文短保留、Capital Flow rollup |
+| M8 | Decision Evidence 替代长期保存大 Raw Payload |
+| M9 | 旧表和旧备份清理，释放双真源占用 |
+| M10 | production-90g 默认策略及可变容量策略的峰值演练、外部恢复和 critical 水位故障注入 |
+
+### 19.14 容量验收标准
+
+- [ ] M0 能解释文件系统至少 95% 已用空间的 owner。
+- [ ] production-90g 默认策略下，常态清理后整盘使用量小于约 58 GiB；其他容量策略按 green ratio 计算。
+- [ ] production-90g 默认策略下，一次正常增量同步 + 一份 in-flight 备份的峰值小于约 68 GiB；其他策略不得越过 yellow 上界。
+- [ ] production-90g 默认策略下，一次受控全市场 backfill 的 WAL/临时峰值小于约 74 GiB；其他策略不得越过 orange 上界。
+- [ ] 紧急可用空间满足 active policy 的 emergency_reserve；低于 emergency_floor 时绝不显示 ready。
+- [ ] PostgreSQL 持久热集群不超过 active policy 的 PostgreSQL 子预算；production-90g 默认投影为 36 GiB。
+- [ ] Raw/Quarantine 不超过 active policy 子预算；VPS 备份最多 1 份。
+- [ ] 所有预计超过 2 GiB 或 500 万行的时间表有分区/批量清理决策。
+- [ ] 每个 Dataset 有 max_bytes 和 hot window，且达到配额时有确定动作。
+- [ ] 30 天稳态观察后，到 orange 的预测天数大于 365 天，或增长被稳定 retention 截平。
+- [ ] yellow/orange/red/critical 故障注入能按优先级停止任务。
+- [ ] critical 状态下 current 查询仍可只读返回，但 decision readiness 明确 storage blocked。
+- [ ] 冷归档抽样恢复、数据库备份隔离恢复和 hash 验证通过。
+- [ ] 删除任务不会破坏 Publication、Decision Evidence、交易和审计引用。
+- [ ] Task Monitor 能显示 PostgreSQL、索引、WAL、Docker volume、备份和日志，不再只显示 SQLite 文件大小。
+- [ ] 将 active capacity 从 90 GiB 改为 60 GiB 和 120 GiB 时，水位、子预算、预测和任务阻断无需改代码即可同步变化。
+- [ ] 无 active StorageBudgetPolicy 时，生产 readiness 为 blocked；不存在代码级 90 GiB fallback。
+
+达到以上标准，才能认为系统在 production-90g 默认策略以及其他受管容量策略下具备可持续运行能力。仅配置 cron 删除文件或偶尔执行 Docker prune 不算容量治理完成。
+
+## 20. 生产切换与回滚设计
+
+### 20.1 硬门禁
+
+- 未验证 PostgreSQL backup 与 SHA-256：禁止 destructive migration。
+- 未启用 decision maintenance：禁止清理或重建 current 数据。
+- 未完成 shadow reconciliation：禁止切读。
+- 未完成一个观察窗口的零旧访问证明：禁止删旧表。
+- 未运行 PostgreSQL migration / integration：禁止宣称生产就绪。
+- 任一 P0 数据集 status 非 fresh：禁止解除对应决策入口阻断。
+- 生产切换、回填和备份的预测峰值将使整盘进入 red：禁止开始。
+
+### 20.2 回滚层级
+
+| 层级 | 场景 | 回滚动作 |
+| --- | --- | --- |
+| R1 查询 | 新 read model 结果异常 | dataset read flag 切回旧路径，保留 blocked 规则 |
+| R2 Provider | 新 Adapter 失败 | Provider Binding 切回上一个受验证版本 |
+| R3 发布 | 错误 canonical selection | supersede Publication，恢复前一 publication_id |
+| R4 代码 | 应用回归 | 部署上一镜像/Git SHA |
+| R5 数据库 | 迁移或回填破坏数据 | 进入维护，恢复 verified PostgreSQL backup |
+
+回滚不等于恢复对不可靠旧数据的放行。若旧路径同样无法证明可靠，系统必须继续 blocked。
+
+## 21. 组织方式、提交切分与建议工期
+
+### 21.1 Owner
+
+| 角色 | 责任 |
+| --- | --- |
+| Data Platform Owner | Dataset Contract、Provider、事实表、Publication、同步和 SLO |
+| Business App Owner | 消费端口、领域语义、派生结果和业务回归 |
+| Reliability Owner | freshness、conflict、readiness、故障注入和事故复盘 |
+| Operations Owner | PostgreSQL backup、容量预算、保留/归档、部署、调度、告警、回滚 |
+| Test Owner | nodeid 清单、PostgreSQL 集成、E2E 和证据包 |
+
+同一人可以兼任，但每个阶段必须显式写 owner，不能以“团队”代替。
+
+### 21.2 分支与提交
+
+遵守“一条大主线 + 一个小收口”：
+
+1. dev/docs-data-center-canonical-plan：计划、清单 schema、ADR。
+2. dev/refactor-data-contract-foundation：Domain 契约与 Catalog。
+3. dev/refactor-data-ingestion-control-plane：Provider、Raw、SyncRun。
+4. dev/refactor-data-publication-query：Publication 与 Query Ports。
+5. 每个 D0-D9 数据域使用独立 dev/refactor-* 分支或独立 commit 组。
+6. dev/test-data-platform-guardrails：CI、PostgreSQL、故障注入。
+7. dev/ops-data-center-cutover：部署脚本、runbook、证据，不与业务实现混成一个 commit。
+
+任何一个批次跨 Python、模板/JS、配置、文档中的 3 类以上时继续拆分。
+
+### 21.3 粗略工程量
+
+以下只用于排资源，不是验收承诺；假设 1 名主开发 + 1 名兼职复核、Provider 无重大许可变化：
+
+| 阶段 | 估算 |
+| --- | --- |
+| M0-M1 | 2-3 工程周 |
+| M2-M3 | 3-4 工程周 |
+| M4-M6 | 4-6 工程周 |
+| M7-M8 | 2-3 工程周 |
+| M9-M10 | 2-3 工程周 |
+
+单人串行预计 12-16 个日历周；两人按数据域并行但保持一个架构 owner 时预计 8-12 周。若生产回填、Provider 配额或历史语义冲突扩大，工期以退出条件为准，不以日期强行切换。
+
+## 22. Definition of Done
+
+### 22.1 架构
+
+- [ ] Data Center Infrastructure 是唯一外部数据接入位置。
+- [ ] Data Center 不反向 import 业务 infrastructure 或 core/integration 数据桥。
+- [ ] 业务 App 不直接读 Data Center ORM，只使用 Application Public Port。
+- [ ] 全仓无同类外部事实双真源。
+- [ ] shared 无外部金融数据 Provider Client。
+- [ ] Config Center 拥有全局运行参数的 Definition/Profile/Value/Revision/Snapshot，并提供统一 TUI/Application 入口。
+- [ ] 领域配置均登记 owner，并通过 owner Application Facade 接入；Config Center 无跨 App ORM。
+- [ ] SystemSettingsModel 不再继续膨胀，过期字段和关键代码 fallback 已完成迁移/退役。
+
+### 22.2 数据
+
+- [ ] D0-D9 全部有版本化 Dataset Contract、Provider Binding、质量和发布策略。
+- [ ] 每条决策事实可回溯到 raw hash、Provider、contract_version 和 publication_id。
+- [ ] missing 不再被转换为 0。
+- [ ] current/latest 只返回有效 Publication。
+- [ ] as_of 查询不产生后视偏差。
+- [ ] legacy/canonical 差异全部关闭或登记为有 owner、有期限的例外。
+
+### 22.3 可靠性
+
+- [ ] fresh/stale/missing/partial/conflict/maintenance/failed 语义跨入口一致。
+- [ ] observed/published/available/fetched 时间沿链路保真。
+- [ ] stale 主源继续 failover。
+- [ ] 跨源冲突不静默发布。
+- [ ] 关键证据缺失时所有决策入口 fail closed。
+
+### 22.4 任务与运维
+
+- [ ] 所有数据写入任务具备边界校验、幂等、checkpoint 和标准 outcome。
+- [ ] stored=0 不再无条件 success。
+- [ ] Provider、Schedule、MCP Catalog 可确定性 reconcile。
+- [ ] 覆盖、新鲜度、健康、冲突和发布进度可监控。
+- [ ] PostgreSQL 备份、恢复和 rollback drill 有真实证据。
+- [ ] 整盘、PostgreSQL、WAL、Docker、Redis、Raw、备份和日志纳入同一 active StorageBudgetPolicy 水位控制。
+- [ ] Retention、Rollup、Archive、Hold 与 StoragePressureGuard 实际运行并通过故障注入。
+- [ ] VPS 不保留超过 1 份或 24 小时的完整数据库备份。
+
+### 22.5 消费者
+
+- [ ] macro、regime、pulse、equity、alpha、factor、valuation、realtime、fund、sector、rotation、hedge、sentiment、backtest、account、portfolio、agent_runtime 等均完成迁移。
+- [ ] REST、SDK、MCP、Terminal、TUI 同一事实的 publication_id 和 reliability 一致。
+- [ ] 旧表、旧 Adapter、旧 Bridge、旧 task 和旧 fixture 已删除。
+
+### 22.6 测试与治理
+
+- [ ] current-data 与 Celery manifest 中的 pytest nodeid 在 CI 实际执行。
+- [ ] 核心链路在 PostgreSQL 通过。
+- [ ] Provider schema drift、故障注入、性能和全市场回填通过。
+- [ ] runtime_config_contracts 覆盖所有受管运行参数，非默认 profile 和无 active profile 测试通过。
+- [ ] 新增绕过路径被 CI 拒绝。
+- [ ] governance baseline、文档、runbook 和数据字典同步更新。
+
+只有上述全部完成，才可以写“所有数据已走数据中台”。“已有 Data Center App”“接口能返回数据”或“单元测试通过”均不等于完成。
+
+## 23. 风险登记
+
+| 风险 | 预警信号 | 缓解 | 回滚触发 |
+| --- | --- | --- | --- |
+| Data Center 变成上帝模块 | public.py、models.py、tasks.py 再次急剧膨胀 | 按数据职责拆 Port/Repository；业务算法留原 App | 出现跨业务决策逻辑 |
+| Config Center 变成无类型上帝表 | 所有领域参数塞入一个 JSON、owner 校验消失 | 中央目录 + 联邦 owner；复杂配置保留类型化表 | 出现跨领域 ORM 或裸 value_json 消费 |
+| 配置双真源 | DB、env、settings 和模块常量对同一 key 给出不同值 | runtime_config_contracts、resolved snapshot、禁止隐形 fallback | 同一任务节点解析出不同 snapshot hash |
+| 循环依赖回流 | Data Center import core/integration 或业务 infrastructure | CI import graph + composition root | 新增 app 级 cycle |
+| 双写长期化 | 同一数据域两个任务持续写 | 每域到期门、访问遥测 | 差异无法解释 |
+| 语义映射错误 | Provider 非空但跨源差异大 | Dataset Contract + fixture + quarantine | conflict 超阈值 |
+| 回填压垮 PostgreSQL | 锁等待、连接耗尽、长事务 | chunk、bulk、checkpoint、限速 | P95/锁超过预算 |
+| Provider 配额不足 | 429、覆盖停滞 | 能力级调度、退避、备用源 | 核心覆盖无法达标 |
+| Cache 洗白时间 | observed_at 随读取变化 | 缓存完整 Envelope；publication key | 入口时间不一致 |
+| SQLite 假绿 | 本地过、PostgreSQL 失败 | 关键测试强制 PostgreSQL | migration/integration 失败 |
+| Raw Payload 泄密或膨胀 | Token 入库、容量异常 | 脱敏、压缩、分级保留、权限 | 检测到敏感字段 |
+| 破坏性迁移不可逆 | 删表与切读同发布 | 分发布、backup、恢复演练 | 无恢复证据 |
+| active 容量策略被数据/备份/WAL 吃满 | 可用空间下降、到水位天数缩短、备份异常增长 | 运行时预算、水位阻断、分区清理、VPS 外备份 | 进入 red 或预计峰值越线 |
+
+## 24. 默认决策与待 ADR 项
+
+为避免执行时反复摇摆，先采用以下默认值；如需修改，必须新增 ADR：
+
+1. 类型化事实表 + Canonical Publication，不采用巨型 EAV。
+2. Raw 成功响应默认保留 7 天，失败/隔离 30 天，决策关联 payload 最长 90 天；长期只保留 hash、schema fingerprint、行数、范围和关键审计元数据。
+3. 旧表切读后至少跨一个独立发布阶段再删除。
+4. 行情影子观察至少覆盖 3 个连续交易日和 1 个周末/节假日边界。
+5. 宏观影子观察至少覆盖 2 个实际调度周期。
+6. 财务/估值至少完成一次全 universe 回填、一次增量更新和一轮随机/边界样本上游对账。
+7. 生产数据库唯一正式口径为 PostgreSQL；SQLite 只保证本地开发可启动，不作为可靠性验收环境。
+8. 无法证明正确的数据默认 blocked，不使用估算或聊天模型补齐。
+9. 正式上线默认初始化 production-90g 容量策略；90 GiB 只存在于部署/初始化配置和数据库策略记录，不在生产逻辑中硬编码。常态、紧急余量和水位均由 active policy 计算。
+10. VPS 最多保留一个 in-flight 数据库备份且不超过 24 小时；长期备份必须位于 VPS 之外。
+11. 生产运行参数默认以 PostgreSQL Config Center 为真源；JSON 只用于治理投影、脱敏导入导出和 typed_json，不作为旁路。
+12. 全局运行参数由 Config Center 物理持有；领域语义配置保持 owner 类型化表，但必须注册并通过统一入口操作。
+
+待 ADR：
+
+- Canonical Publication 的 source-selection 算法版本策略。
+- VPS 外冷归档介质、加密方式和离线时的恢复责任。
+- PostgreSQL 分区的具体实现方式与首次切换步骤。
+- Provider 许可对新闻/原始响应保留的限制。
+- 跨 App 派生数据产品是由 Data Center 存快照，还是只登记 owner facade；默认按业务 owner 存储、Data Product Contract 统一发布证据。
+
+## 25. 第一批可执行 Backlog
+
+按以下顺序开工，未完成上一门禁不进入破坏性阶段：
+
+### Batch A：只读盘点与冻结
+
+- [x] 生成 data ownership / consumer / legacy / task / surface inventory（静态清单；生产数据画像仍未完成）。
+- [x] 生成 runtime config inventory，逐项分类 DB、env、settings、constant、JSON 和 Celery kwargs（首批受管参数；覆盖率仍需继续扩展）。
+- [ ] 冻结 SystemSettingsModel 无边界增列和未登记的运行参数默认值。
+- [x] 新增 Provider SDK 和 legacy model 差异扫描。
+- [ ] 重采生产数据画像与核心覆盖。
+- [ ] 采集 PostgreSQL relation/index/TOAST/WAL、Docker、Redis、backup、Raw、logs 的容量基线。
+- [ ] 计算各 Dataset bytes/row、日增长和 12 个月容量预测。
+- [x] 建立本计划的阶段证据目录和 owner 表（`governance/data_ownership_contracts.json`）。
+
+### Batch B：立即修正危险语义
+
+- [x] 移除关键财务/估值/Alpha/筛选链路的 missing → 0.0。
+- [x] stored=0 使用 noop/failed，而非无条件 success。
+- [x] generic failover 接受标准 FetchResult 和 freshness validator。
+- [x] ReliabilityContract 接入核心 Data Center DTO。
+
+### Batch C：建立可迁移基础
+
+- [x] Dataset Contract / Binding / Policy schema。
+- [ ] SyncRun / Batch / Checkpoint / Quarantine。
+- [ ] Canonical Publication。
+- [x] Public Query Ports。
+- [ ] Storage Budget / Retention / Hold / Archive Manifest。
+- [ ] RuntimeConfigDefinition / Profile / Value / Revision / Snapshot 与领域 owner registry。
+- [ ] Config Center 统一 TUI/Application 入口、impact preview、原子激活和回滚。
+- [ ] production-90g 初始化配置、StorageBudgetQueryPort、策略变更审计和无 active policy 阻断。
+- [ ] StoragePressureGuard 和容量采集/预测/清理任务。
+
+### Batch D：按 D0-D9 迁移消费者
+
+- [ ] 资产和行情。
+- [ ] 宏观。
+- [ ] 财务和估值。
+- [ ] 基金净值。
+- [ ] 板块、新闻和资金流。
+- [ ] SDK/MCP/Terminal/TUI。
+
+### Batch E：生产与清理
+
+- [ ] 维护阻断、备份、回填、影子对账。
+- [ ] 将 VPS 同机 14 日备份改为单份 in-flight + 外部校验后清理。
+- [ ] 完成 production-90g 与至少一个非 90 GiB 策略的水位、分区清理和恢复故障注入。
+- [ ] 切读、观察、停止旧写。
+- [ ] 删除 SystemSettingsModel 已迁移字段、Config Center 跨 App ORM 和关键配置隐形 fallback。
+- [ ] 删除旧链与旧表。
+- [ ] 完整 CI、PostgreSQL、E2E、性能和 rollback evidence。
+
+## 26. 阶段记录模板
+
+每个 M 阶段必须在本计划下追加或新建 evidence 文档，至少记录：
+
+~~~text
+阶段：
+Owner：
+目标：
+本批明确不做：
+变更文件：
+数据迁移：
+旧链状态：
+治理清单变化：
+已运行测试及 nodeid：
+PostgreSQL 证据：
+数据画像与差异：
+性能结果：
+容量基线、峰值与到水位天数：
+Retention / Archive / Hold 证据：
+未验证风险：
+回滚点：
+退出条件逐项结论：
+Git SHA / 镜像 / migration：
+~~~
+
+禁止只写“测试通过”或“已完成”。完成结论必须能够回溯到机器清单、测试报告、数据画像、生产任务 run_id 和发布版本。

@@ -5,6 +5,7 @@ Macro Source Config Gateway for Regime Module.
 """
 
 
+from apps.data_center.application.public import list_active_data_sources
 from apps.regime.domain.protocols import (
     MacroSourceConfigGatewayProtocol,
     MacroSourceSummary,
@@ -16,16 +17,12 @@ class DjangoMacroSourceConfigGateway(MacroSourceConfigGatewayProtocol):
 
     def list_active_sources(self) -> list[MacroSourceSummary]:
         try:
-            from apps.data_center.infrastructure.models import ProviderConfigModel
-
-            sources = list(
-                ProviderConfigModel._default_manager.filter(is_active=True).order_by("priority")
-            )
+            sources = list_active_data_sources()
             if sources:
                 return [
                     MacroSourceSummary(
-                        source_type=source.source_type,
-                        name=source.name,
+                        source_type=source["source_type"],
+                        name=source["name"],
                     )
                     for source in sources
                 ]

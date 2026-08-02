@@ -7,10 +7,10 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
+from apps.alpha.application.query_services import get_alpha_cache_earliest_trade_date
 from apps.data_center.infrastructure.alpha_price_coverage_sync import (
     AlphaPriceCoverageSyncService,
 )
-from core.integration.alpha_cache import get_alpha_cache_earliest_trade_date
 
 
 class Command(BaseCommand):

@@ -160,8 +160,8 @@ class StockFundamentalsRepositoryMixin:
             context[requested_code] = {
                 **context_row,
                 "trade_date": latest_daily.get("trade_date"),
-                "close": safe_float(latest_daily.get("close"), default=0.0),
-                "volume": safe_float(latest_daily.get("volume"), default=0.0),
+                "close": safe_float(latest_daily.get("close"), default=None),
+                "volume": safe_float(latest_daily.get("volume"), default=None),
                 "report_date": latest_financial.get("report_date"),
                 "roe": latest_financial.get("roe"),
                 "debt_ratio": latest_financial.get("debt_ratio"),
@@ -238,13 +238,13 @@ class StockFundamentalsRepositoryMixin:
                     report_date=m.report_date,
                     revenue=m.revenue,
                     net_profit=m.net_profit,
-                    revenue_growth=m.revenue_growth or 0.0,
-                    net_profit_growth=m.net_profit_growth or 0.0,
+                    revenue_growth=m.revenue_growth,
+                    net_profit_growth=m.net_profit_growth,
                     total_assets=m.total_assets,
                     total_liabilities=m.total_liabilities,
                     equity=m.equity,
                     roe=m.roe,
-                    roa=m.roa or 0.0,
+                    roa=m.roa,
                     debt_ratio=m.debt_ratio,
                 )
                 for m in models
@@ -288,12 +288,12 @@ class StockFundamentalsRepositoryMixin:
                 ValuationMetrics(
                     stock_code=m.stock_code,
                     trade_date=m.trade_date,
-                    pe=m.pe or 0.0,
-                    pb=m.pb or 0.0,
-                    ps=m.ps or 0.0,
+                    pe=m.pe,
+                    pb=m.pb,
+                    ps=m.ps,
                     total_mv=m.total_mv,
                     circ_mv=m.circ_mv,
-                    dividend_yield=m.dividend_yield or 0.0,
+                    dividend_yield=m.dividend_yield,
                     source_provider=m.source_provider,
                     source_updated_at=m.source_updated_at,
                     fetched_at=m.fetched_at,
@@ -339,6 +339,23 @@ class StockFundamentalsRepositoryMixin:
         Args:
             financial: FinancialData 实体
         """
+        required_values = (
+            financial.revenue,
+            financial.net_profit,
+            financial.total_assets,
+            financial.total_liabilities,
+            financial.equity,
+            financial.roe,
+            financial.debt_ratio,
+        )
+        if any(value is None for value in required_values):
+            logger.warning(
+                "Skip persisting incomplete financial fact for %s/%s",
+                financial.stock_code,
+                financial.report_date,
+            )
+            return
+
         # 确定报告类型
         month = financial.report_date.month
         if month == 3:
@@ -378,16 +395,39 @@ class StockFundamentalsRepositoryMixin:
         Args:
             valuation: ValuationMetrics 实体
         """
+        pe = valuation.pe
+        pb = valuation.pb
+        ps = valuation.ps
+        total_mv = valuation.total_mv
+        circ_mv = valuation.circ_mv
+        dividend_yield = valuation.dividend_yield
+        if not valuation.is_valid or any(
+            value is None for value in (pe, pb, ps, total_mv, circ_mv, dividend_yield)
+        ):
+            logger.warning(
+                "Skip persisting incomplete valuation fact for %s/%s",
+                valuation.stock_code,
+                valuation.trade_date,
+            )
+            return
+
+        assert pe is not None
+        assert pb is not None
+        assert ps is not None
+        assert total_mv is not None
+        assert circ_mv is not None
+        assert dividend_yield is not None
+
         ValuationModel._default_manager.update_or_create(
             stock_code=valuation.stock_code,
             trade_date=valuation.trade_date,
             defaults={
-                "pe": valuation.pe,
-                "pb": valuation.pb,
-                "ps": valuation.ps,
-                "total_mv": valuation.total_mv,
-                "circ_mv": valuation.circ_mv,
-                "dividend_yield": valuation.dividend_yield,
+                "pe": pe,
+                "pb": pb,
+                "ps": ps,
+                "total_mv": total_mv,
+                "circ_mv": circ_mv,
+                "dividend_yield": dividend_yield,
                 "source_provider": valuation.source_provider,
                 "source_updated_at": valuation.source_updated_at,
                 "fetched_at": valuation.fetched_at or timezone.now(),
@@ -418,13 +458,13 @@ class StockFundamentalsRepositoryMixin:
                 report_date=financial_model.report_date,
                 revenue=financial_model.revenue,
                 net_profit=financial_model.net_profit,
-                revenue_growth=financial_model.revenue_growth or 0.0,
-                net_profit_growth=financial_model.net_profit_growth or 0.0,
+                revenue_growth=financial_model.revenue_growth,
+                net_profit_growth=financial_model.net_profit_growth,
                 total_assets=financial_model.total_assets,
                 total_liabilities=financial_model.total_liabilities,
                 equity=financial_model.equity,
                 roe=financial_model.roe,
-                roa=financial_model.roa or 0.0,
+                roa=financial_model.roa,
                 debt_ratio=financial_model.debt_ratio,
             )
         return None
@@ -445,12 +485,12 @@ class StockFundamentalsRepositoryMixin:
             return ValuationMetrics(
                 stock_code=valuation_model.stock_code,
                 trade_date=valuation_model.trade_date,
-                pe=valuation_model.pe or 0.0,
-                pb=valuation_model.pb or 0.0,
-                ps=valuation_model.ps or 0.0,
+                pe=valuation_model.pe,
+                pb=valuation_model.pb,
+                ps=valuation_model.ps,
                 total_mv=valuation_model.total_mv,
                 circ_mv=valuation_model.circ_mv,
-                dividend_yield=valuation_model.dividend_yield or 0.0,
+                dividend_yield=valuation_model.dividend_yield,
                 source_provider=valuation_model.source_provider,
                 source_updated_at=valuation_model.source_updated_at,
                 fetched_at=valuation_model.fetched_at,
@@ -508,16 +548,16 @@ class StockFundamentalsRepositoryMixin:
                     revenue=Decimal(str(metric_map["revenue"].value)),
                     net_profit=Decimal(str(metric_map["net_profit"].value)),
                     revenue_growth=(
-                        float(revenue_growth_fact.value) if revenue_growth_fact else 0.0
+                        float(revenue_growth_fact.value) if revenue_growth_fact else None
                     ),
                     net_profit_growth=(
-                        float(net_profit_growth_fact.value) if net_profit_growth_fact else 0.0
+                        float(net_profit_growth_fact.value) if net_profit_growth_fact else None
                     ),
                     total_assets=Decimal(str(metric_map["total_assets"].value)),
                     total_liabilities=Decimal(str(metric_map["total_liabilities"].value)),
                     equity=Decimal(str(metric_map["equity"].value)),
                     roe=float(metric_map["roe"].value),
-                    roa=float(roa_fact.value) if roa_fact else 0.0,
+                    roa=float(roa_fact.value) if roa_fact else None,
                     debt_ratio=float(metric_map["debt_ratio"].value),
                     period_end=period_end,
                     period_type=period_types.get(period_end, ""),
@@ -538,24 +578,46 @@ class StockFundamentalsRepositoryMixin:
         facts = self._dc_valuation_repo.get_series(stock_code, start=start_date, end=end_date)
         if not facts:
             return []
-        return [self._dc_fact_to_valuation(fact) for fact in reversed(facts)]
+        return [
+            valuation
+            for fact in reversed(facts)
+            for valuation in [self._dc_fact_to_valuation(fact)]
+            if valuation.is_valid
+        ]
 
     def _dc_fact_to_valuation(self, fact: ValuationFact) -> ValuationMetrics:
-        total_mv = fact.market_cap if fact.market_cap is not None else 0.0
-        circ_mv = fact.float_market_cap if fact.float_market_cap is not None else total_mv
+        total_mv = (
+            Decimal(str(fact.market_cap)) if fact.market_cap is not None else None
+        )
+        circ_mv = (
+            Decimal(str(fact.float_market_cap))
+            if fact.float_market_cap is not None
+            else total_mv
+        )
+        quality_is_complete = all(
+            value is not None
+            for value in (
+                fact.pe_ttm if fact.pe_ttm is not None else fact.pe_static,
+                fact.pb,
+                fact.market_cap,
+            )
+        )
         return ValuationMetrics(
             stock_code=fact.asset_code,
             trade_date=fact.val_date,
-            pe=fact.pe_ttm or fact.pe_static or 0.0,
-            pb=fact.pb or 0.0,
-            ps=fact.ps_ttm or 0.0,
-            total_mv=Decimal(str(total_mv)),
-            circ_mv=Decimal(str(circ_mv)),
-            dividend_yield=fact.dv_ratio or 0.0,
+            pe=fact.pe_ttm if fact.pe_ttm is not None else fact.pe_static,
+            pb=fact.pb,
+            ps=fact.ps_ttm,
+            total_mv=total_mv,
+            circ_mv=circ_mv,
+            dividend_yield=fact.dv_ratio,
             source_provider=fact.source,
             source_updated_at=fact.fetched_at,
             fetched_at=fact.fetched_at,
             pe_type="ttm" if fact.pe_ttm is not None else "static",
+            is_valid=quality_is_complete,
+            quality_flag="ok" if quality_is_complete else "missing_required_metric",
+            quality_notes=("" if quality_is_complete else "missing PE, PB, or market cap"),
         )
 
     def _financial_entity_to_dc_facts(
@@ -571,7 +633,9 @@ class StockFundamentalsRepositoryMixin:
         }
         period_type = period_type_map[report_type]
 
-        def build_fact(metric_code: str, value: float, unit: str) -> FinancialFact:
+        def build_fact(metric_code: str, value: float | None, unit: str) -> FinancialFact | None:
+            if value is None:
+                return None
             return FinancialFact(
                 asset_code=financial.stock_code,
                 period_end=financial.report_date,
@@ -583,18 +647,19 @@ class StockFundamentalsRepositoryMixin:
                 report_date=financial.report_date,
             )
 
-        return [
-            build_fact("revenue", float(financial.revenue), "元"),
-            build_fact("net_profit", float(financial.net_profit), "元"),
-            build_fact("revenue_growth", float(financial.revenue_growth), "%"),
-            build_fact("net_profit_growth", float(financial.net_profit_growth), "%"),
-            build_fact("total_assets", float(financial.total_assets), "元"),
-            build_fact("total_liabilities", float(financial.total_liabilities), "元"),
-            build_fact("equity", float(financial.equity), "元"),
-            build_fact("roe", float(financial.roe), "%"),
-            build_fact("roa", float(financial.roa), "%"),
-            build_fact("debt_ratio", float(financial.debt_ratio), "%"),
+        raw_facts = [
+            build_fact("revenue", float(financial.revenue) if financial.revenue is not None else None, "元"),
+            build_fact("net_profit", float(financial.net_profit) if financial.net_profit is not None else None, "元"),
+            build_fact("revenue_growth", financial.revenue_growth, "%"),
+            build_fact("net_profit_growth", financial.net_profit_growth, "%"),
+            build_fact("total_assets", float(financial.total_assets) if financial.total_assets is not None else None, "元"),
+            build_fact("total_liabilities", float(financial.total_liabilities) if financial.total_liabilities is not None else None, "元"),
+            build_fact("equity", float(financial.equity) if financial.equity is not None else None, "元"),
+            build_fact("roe", financial.roe, "%"),
+            build_fact("roa", financial.roa, "%"),
+            build_fact("debt_ratio", financial.debt_ratio, "%"),
         ]
+        return [fact for fact in raw_facts if fact is not None]
 
     def _valuation_entity_to_dc_fact(self, valuation: ValuationMetrics) -> ValuationFact:
         return ValuationFact(
@@ -603,8 +668,8 @@ class StockFundamentalsRepositoryMixin:
             pe_ttm=valuation.pe,
             pb=valuation.pb,
             ps_ttm=valuation.ps,
-            market_cap=float(valuation.total_mv),
-            float_market_cap=float(valuation.circ_mv),
+            market_cap=(float(valuation.total_mv) if valuation.total_mv is not None else None),
+            float_market_cap=(float(valuation.circ_mv) if valuation.circ_mv is not None else None),
             dv_ratio=valuation.dividend_yield,
             source=valuation.source_provider or "equity_legacy_repo",
             fetched_at=valuation.fetched_at or timezone.now(),

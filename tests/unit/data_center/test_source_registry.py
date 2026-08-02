@@ -7,12 +7,20 @@ import logging
 import pytest
 
 from apps.data_center import provider_runtime
+from apps.data_center.domain.contracts import (
+    DatasetKey,
+    FetchOutcome,
+    FetchResult,
+    QualityAssessment,
+    SourceEvidence,
+)
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.domain.enums import DataCapability, ProviderHealthStatus
 from apps.data_center.infrastructure.provider_registry import (
     _CIRCUIT_OPEN_THRESHOLD,
     ProviderRegistry,
 )
+from shared.domain.reliability import ReliabilityContract, ReliabilityStatus
 
 # ---------------------------------------------------------------------------
 # Stub provider for testing
@@ -139,6 +147,48 @@ class TestProviderRegistryFailover:
             lambda prov: [] if prov.provider_name() == "empty" else ["row"],
         )
         assert result == ["row"]
+
+    def test_validator_rejects_stale_result_and_tries_next_provider(self):
+        reg = ProviderRegistry()
+        stale = _StubProvider("stale", [DataCapability.MACRO])
+        fresh = _StubProvider("fresh", [DataCapability.MACRO])
+        reg.register(stale, priority=10)
+        reg.register(fresh, priority=20)
+
+        result = reg.call_with_failover(
+            DataCapability.MACRO,
+            lambda provider: {"provider": provider.provider_name()},
+            validator=lambda payload: payload["provider"] == "fresh",
+        )
+
+        assert result == {"provider": "fresh"}
+
+    def test_unpublishable_fetch_result_is_rejected_before_validator(self):
+        reg = ProviderRegistry()
+        blocked = _StubProvider("blocked", [DataCapability.MACRO])
+        reg.register(blocked, priority=10)
+        dataset = DatasetKey("macro.fact", "1", "1")
+        evidence = SourceEvidence.from_payload(
+            source="blocked", source_capability="macro", payload={"value": 1}
+        )
+        blocked_result = FetchResult(
+            outcome=FetchOutcome.BLOCKED,
+            values=(),
+            provider="blocked",
+            dataset=dataset,
+            evidence=evidence,
+            reliability=ReliabilityContract.blocked(
+                status=ReliabilityStatus.FAILED,
+                source="blocked",
+                reason_code="provider_blocked",
+                reason="provider returned no publishable result",
+            ),
+            quality=QualityAssessment(True, 0.0, True, True),
+            error_code="provider_blocked",
+            error_message="provider returned no publishable result",
+        )
+
+        assert reg.call_with_failover(DataCapability.MACRO, lambda _: blocked_result) is None
 
     def test_empty_list_opens_provider_circuit_after_repeated_zero_output(self):
         """Repeated zero-output responses are capability-health failures."""

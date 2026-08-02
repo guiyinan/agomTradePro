@@ -20,7 +20,7 @@ from apps.dashboard.domain.entities import (
     CardType,
     DashboardPreferences,
 )
-from apps.data_center.infrastructure.models import AssetMasterModel
+from apps.data_center.application.public import update_asset_display_name
 from apps.fund.infrastructure.models import FundHoldingModel
 
 from .models import (
@@ -343,10 +343,7 @@ class DashboardAlphaContextRepository:
 
                 context[normalized_code] = {"name": stock_name}
                 if persist_asset_names:
-                    AssetMasterModel._default_manager.update_or_create(
-                        code=normalized_code,
-                        defaults={"name": stock_name},
-                    )
+                    update_asset_display_name(normalized_code, stock_name)
                 break
         return context
 
@@ -366,8 +363,10 @@ class DashboardAlphaContextRepository:
                     continue
                 snapshot_at = quote.snapshot_at
                 context[code] = {
-                    "current_price": float(quote.current_price or 0.0),
-                    "volume": float(quote.volume or 0.0),
+                    "current_price": (
+                        float(quote.current_price) if quote.current_price is not None else None
+                    ),
+                    "volume": float(quote.volume) if quote.volume is not None else None,
                     "snapshot_at": snapshot_at.isoformat() if snapshot_at else None,
                     "source": quote.source or "",
                 }

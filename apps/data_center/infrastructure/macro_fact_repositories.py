@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import Any
 
 from django.db import transaction
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Q
 
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.enums import DataQualityStatus
@@ -94,6 +94,8 @@ class MacroFactRepository:
         start: date | None = None,
         end: date | None = None,
         limit: int = 500,
+        *,
+        use_pit: bool = False,
     ) -> list[MacroFact]:
         if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
             raise ValueError("limit must be a positive integer")
@@ -102,6 +104,11 @@ class MacroFactRepository:
             qs = qs.filter(reporting_period__gte=start)
         if end:
             qs = qs.filter(reporting_period__lte=end)
+            if use_pit:
+                qs = qs.filter(
+                    Q(published_at__lte=end)
+                    | Q(published_at__isnull=True, reporting_period__lte=end)
+                )
         models = list(qs.order_by("-reporting_period", "-id")[: max(limit * 4, limit)])
         catalog = IndicatorCatalogModel.objects.filter(code=indicator_code).only("extra").first()
         selection = select_macro_fact_series(

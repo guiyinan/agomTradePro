@@ -1,7 +1,14 @@
-"""Compatibility wrapper around the shared SDK bridge."""
+"""Data Center-owned optional provider SDK imports."""
 
 from __future__ import annotations
 
-from shared.infrastructure.sdk_bridge import get_akshare_module as get_akshare_module
+from importlib import import_module
+from types import ModuleType
+
+
+def get_akshare_module() -> ModuleType:
+    """Import AKShare lazily at the Data Center infrastructure boundary."""
+
+    return import_module("akshare")
 
 __all__ = ["get_akshare_module"]

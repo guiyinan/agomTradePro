@@ -26,6 +26,9 @@ from apps.data_center.domain.entities import QuoteSnapshot as DataCenterQuoteSna
 from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
     AKShareEastMoneyGateway,
 )
+from apps.data_center.infrastructure.legacy_sdk_bridge import (
+    get_akshare_module as _load_akshare_module,
+)
 from apps.data_center.infrastructure.market_gateway_entities import (
     QuoteSnapshot as MarketQuoteSnapshot,
 )
@@ -49,7 +52,6 @@ from apps.realtime.domain.protocols import (
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
 )
-from shared.infrastructure.sdk_bridge import get_akshare_module as _load_akshare_module
 
 logger = logging.getLogger(__name__)
 _CHINA_MARKET_TIMEZONE = ZoneInfo("Asia/Shanghai")

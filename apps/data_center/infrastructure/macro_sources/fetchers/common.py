@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import pandas as pd  # type: ignore[import-untyped]
 
-from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
+from apps.data_center.application.runtime_settings import get_runtime_macro_index_metadata_map
 from shared.numeric import safe_float
 
 

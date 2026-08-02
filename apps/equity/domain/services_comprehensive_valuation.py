@@ -83,6 +83,10 @@ class ComprehensiveValuationAnalyzer:
             industry_avg_pb=industry_avg_pb,
             risk_free_rate=risk_free_rate,
         )
+        assert valuation.pe is not None
+        assert valuation.pb is not None
+        assert financial.revenue_growth is not None
+        assert financial.net_profit_growth is not None
         valid_historical_pe = [value for value in historical_pe if isfinite(value) and value > 0]
         valid_historical_pb = [value for value in historical_pb if isfinite(value) and value > 0]
 
@@ -158,6 +162,19 @@ class ComprehensiveValuationAnalyzer:
         if financial.stock_code != normalized_code or valuation.stock_code != normalized_code:
             raise ValueError("financial and valuation facts must match stock_code")
 
+        missing_fields = [
+            name
+            for name, value in {
+                "valuation.pe": valuation.pe,
+                "valuation.pb": valuation.pb,
+                "financial.revenue_growth": financial.revenue_growth,
+                "financial.net_profit_growth": financial.net_profit_growth,
+            }.items()
+            if value is None
+        ]
+        if missing_fields:
+            raise ValueError("valuation inputs are missing: " + ", ".join(missing_fields))
+
         finite_values = {
             "valuation.pe": valuation.pe,
             "valuation.pb": valuation.pb,
@@ -169,7 +186,9 @@ class ComprehensiveValuationAnalyzer:
             "financial.roe": financial.roe,
             "financial.debt_ratio": financial.debt_ratio,
         }
-        invalid_fields = [name for name, value in finite_values.items() if not isfinite(value)]
+        invalid_fields = [
+            name for name, value in finite_values.items() if value is not None and not isfinite(value)
+        ]
         if invalid_fields:
             raise ValueError("valuation inputs must be finite: " + ", ".join(invalid_fields))
 
@@ -179,6 +198,8 @@ class ComprehensiveValuationAnalyzer:
         """PE/PB 百分位分析"""
         from apps.equity.domain.services import ValuationAnalyzer
 
+        assert valuation.pe is not None
+        assert valuation.pb is not None
         analyzer = ValuationAnalyzer()
 
         pe_percentile = analyzer.calculate_pe_percentile(valuation.pe, historical_pe)
@@ -214,6 +235,8 @@ class ComprehensiveValuationAnalyzer:
         self, valuation: ValuationMetrics, industry_avg_pe: float, industry_avg_pb: float
     ) -> ValuationScore:
         """相对行业估值分析"""
+        assert valuation.pe is not None
+        assert valuation.pb is not None
         # 计算相对比率
         pe_ratio = (
             valuation.pe / industry_avg_pe if valuation.pe > 0 and industry_avg_pe > 0 else 1.0
@@ -255,6 +278,9 @@ class ComprehensiveValuationAnalyzer:
 
     def _analyze_peg(self, financial: FinancialData, valuation: ValuationMetrics) -> ValuationScore:
         """PEG 估值分析（PE/增长率）"""
+        assert financial.revenue_growth is not None
+        assert financial.net_profit_growth is not None
+        assert valuation.pe is not None
         # 计算增长率（取营收增长率和净利润增长率的平均）
         growth_rate = (financial.revenue_growth + financial.net_profit_growth) / 2
 
@@ -300,6 +326,8 @@ class ComprehensiveValuationAnalyzer:
 
     def _analyze_quality(self, financial: FinancialData) -> ValuationScore:
         """质量分析（基于财务指标）"""
+        assert financial.revenue_growth is not None
+        assert financial.net_profit_growth is not None
         score = 50  # 基础分
 
         # ROE 评分（30 分）

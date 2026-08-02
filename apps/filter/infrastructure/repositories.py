@@ -12,12 +12,10 @@ from typing import Any, Protocol, TypedDict, cast
 
 from django.db import transaction
 
-from apps.data_center.domain.rules import MacroFactPreferenceCandidate
-from apps.data_center.infrastructure.macro_fact_selection import (
-    configured_macro_source,
-    select_macro_fact_series,
+from apps.data_center.application.public import (
+    get_macro_fact_series,
+    get_macro_runtime_metadata,
 )
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.filter.domain.entities import (
     FilterResult,
     FilterSeries,
@@ -261,36 +259,20 @@ class DjangoFilterRepository:
         if start_date is not None and end_date is not None and start_date > end_date:
             raise ValueError("start_date cannot be after end_date")
 
-        queryset = MacroFactModel._default_manager.filter(indicator_code=normalized_code)
-
-        if start_date:
-            queryset = queryset.filter(reporting_period__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(reporting_period__lte=end_date)
-
-        facts = list(queryset.order_by("-reporting_period", "-id")[: max(limit * 4, limit)])
-        catalog = (
-            IndicatorCatalogModel._default_manager.filter(code=normalized_code)
-            .only("extra")
-            .first()
-        )
-        fact_candidates = [cast(MacroFactPreferenceCandidate, fact) for fact in facts]
-        selection = select_macro_fact_series(
-            fact_candidates,
-            preferred_source=configured_macro_source(catalog.extra if catalog else {}),
-        )
-        if not selection.is_consistent:
-            return []
-        selected = selection.facts[-limit:]
-
         result: list[MacroIndicatorPoint] = []
-        for item in selected:
-            value = float(item.value)
+        for item in get_macro_fact_series(
+            normalized_code,
+            start=start_date,
+            end=end_date,
+            limit=limit,
+            use_pit=end_date is not None,
+        ):
+            value = float(item["value"])
             if not math.isfinite(value):
                 continue
             result.append(
                 {
-                    "date": item.reporting_period,
+                    "date": date.fromisoformat(str(item["reporting_period"])),
                     "value": value,
                 }
             )
@@ -298,21 +280,11 @@ class DjangoFilterRepository:
 
     def get_available_indicators(self) -> list[dict[str, str]]:
         """获取可用的指标列表（包含代码和名称）"""
-        codes = (
-            MacroFactModel._default_manager.values_list("indicator_code", flat=True)
-            .distinct()
-            .order_by("indicator_code")
-        )
-        code_list = [str(code).strip() for code in codes if str(code).strip()]
-        catalog_map = {
-            item.code: item.name_cn
-            for item in IndicatorCatalogModel._default_manager.filter(code__in=code_list)
-        }
-
-        indicators: list[dict[str, str]] = []
-        for code in code_list:
-            indicators.append({"code": code, "name": catalog_map.get(code, code)})
-        return indicators
+        metadata = get_macro_runtime_metadata()
+        return [
+            {"code": code, "name": str(item.get("name") or code)}
+            for code, item in sorted(metadata.items())
+        ]
 
 
 class HPFilterAdapter:

@@ -93,6 +93,16 @@ class OptimizedStockScreener(StockScreener):
             if preferred_sectors and stock_info.sector not in preferred_sectors:
                 continue
 
+            # Keep missing facts blocked; never turn them into a numeric default.
+            if (
+                financial.revenue_growth is None
+                or financial.net_profit_growth is None
+                or valuation.pe is None
+                or valuation.pb is None
+                or valuation.total_mv is None
+            ):
+                continue
+
             # 快速过滤 2: PE（数值比较）
             if rule.max_pe > 0 and (valuation.pe > rule.max_pe or valuation.pe < 0):
                 continue

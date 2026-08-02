@@ -18,6 +18,7 @@ from apps.account.infrastructure.models import (
     DocumentationModel,
     InvestmentRuleModel,
 )
+from apps.data_center.application.public import get_macro_fact_series
 from apps.fund.infrastructure.models import FundTypePreferenceConfigModel
 from apps.hedge.infrastructure.models import HedgePairModel
 from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
@@ -417,9 +418,7 @@ class Command(BaseCommand):
     def _mcp_cold_start_ready(self) -> bool:
         rotation_ready = RotationConfigModel._default_manager.filter(name="动量轮动配置").exists()
         macro_ready = (
-            self._macro_indicator_model()
-            ._default_manager.filter(indicator_code="MCP_TEST_IND")
-            .exists()
+            bool(get_macro_fact_series("MCP_TEST_IND", limit=1))
         )
         stock_ready = StockInfoModel._default_manager.exists()
         factor_seed_ready = FactorPortfolioConfigModel._default_manager.filter(
@@ -435,9 +434,3 @@ class Command(BaseCommand):
                 factor_ready = False
                 break
         return rotation_ready and macro_ready and stock_ready and factor_seed_ready and factor_ready
-
-    @staticmethod
-    def _macro_indicator_model() -> Any:
-        from apps.data_center.infrastructure.models import MacroFactModel
-
-        return MacroFactModel

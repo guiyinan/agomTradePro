@@ -93,7 +93,7 @@ class TestTushareGateway:
     @patch(
         "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_historical_prices"
     )
-    @patch("shared.infrastructure.tushare_client.create_tushare_pro_client")
+    @patch("apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client")
     def test_history_falls_back_to_tencent_when_tushare_errors(
         self, mock_client_factory, mock_tencent_history
     ):
@@ -121,7 +121,7 @@ class TestTushareGateway:
         assert bars[0].source == "tencent"
         mock_tencent_history.assert_called_once_with("000001.SZ", "20260401", "20260419")
 
-    @patch("shared.infrastructure.tushare_client.create_tushare_pro_client")
+    @patch("apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client")
     def test_history_rejects_invalid_rows_and_preserves_canonical_code(self, mock_client_factory):
         from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
 
@@ -169,7 +169,7 @@ class TestTushareGateway:
     @patch(
         "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_historical_prices"
     )
-    @patch("shared.infrastructure.tushare_client.create_tushare_pro_client")
+    @patch("apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client")
     def test_invalid_history_scope_does_not_call_any_provider(
         self, mock_client_factory, mock_tencent_history
     ):

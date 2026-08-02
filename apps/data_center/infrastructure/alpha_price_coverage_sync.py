@@ -10,6 +10,10 @@ from datetime import date
 
 from django.db import transaction
 
+from apps.alpha.application.query_services import (
+    collect_alpha_cache_codes,
+    normalize_alpha_cached_code,
+)
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.rules import normalize_asset_code
@@ -22,10 +26,6 @@ from apps.data_center.infrastructure.market_gateway_entities import HistoricalPr
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from apps.data_center.infrastructure.models import PriceBarModel
 from apps.data_center.infrastructure.repositories import PriceBarRepository
-from core.integration.alpha_cache import (
-    collect_alpha_cache_codes,
-    normalize_alpha_cached_code,
-)
 
 logger = logging.getLogger(__name__)
 

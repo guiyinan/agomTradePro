@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "bindings": [
+    {"dataset_key": "asset.master", "provider": "asset-master-registry", "capability": "asset_master", "priority": 10, "freshness_seconds": null, "validator_key": "asset.master.reference", "enabled": true},
+    {"dataset_key": "equity.price.bar", "provider": "tushare", "capability": "historical_price", "priority": 10, "freshness_seconds": 172800, "validator_key": "equity.price.bar.ohlcv", "enabled": true},
+    {"dataset_key": "equity.quote.snapshot", "provider": "tushare", "capability": "realtime_quote", "priority": 20, "freshness_seconds": 14400, "validator_key": "equity.quote.snapshot.observation", "enabled": true},
+    {"dataset_key": "equity.quote.snapshot", "provider": "akshare", "capability": "realtime_quote", "priority": 30, "freshness_seconds": 14400, "validator_key": "equity.quote.snapshot.observation", "enabled": true},
+    {"dataset_key": "fund.nav", "provider": "akshare", "capability": "fund_nav", "priority": 20, "freshness_seconds": 604800, "validator_key": "fund.nav.published", "enabled": true},
+    {"dataset_key": "macro.fact", "provider": "akshare", "capability": "macro", "priority": 20, "freshness_seconds": 2678400, "validator_key": "macro.fact.catalog", "enabled": true},
+    {"dataset_key": "macro.fact", "provider": "tushare", "capability": "macro", "priority": 30, "freshness_seconds": 2678400, "validator_key": "macro.fact.catalog", "enabled": true},
+    {"dataset_key": "equity.financial.fact", "provider": "tushare", "capability": "financials", "priority": 20, "freshness_seconds": 7776000, "validator_key": "equity.financial.fact.pit", "enabled": true},
+    {"dataset_key": "equity.valuation.fact", "provider": "tushare", "capability": "valuation", "priority": 20, "freshness_seconds": 172800, "validator_key": "equity.valuation.fact.required", "enabled": true},
+    {"dataset_key": "sector.membership", "provider": "akshare", "capability": "sector_membership", "priority": 30, "freshness_seconds": 604800, "validator_key": "sector.membership.effective_date", "enabled": true},
+    {"dataset_key": "market.news", "provider": "akshare", "capability": "news", "priority": 30, "freshness_seconds": 172800, "validator_key": "market.news.external_id", "enabled": true},
+    {"dataset_key": "market.capital_flow", "provider": "akshare", "capability": "capital_flow", "priority": 30, "freshness_seconds": 172800, "validator_key": "market.capital_flow.unit", "enabled": true}
+  ]
+}

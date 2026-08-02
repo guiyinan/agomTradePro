@@ -28,7 +28,6 @@ from apps.data_center.domain.protocols import (
     QuoteSnapshotRepositoryProtocol,
 )
 from core.exceptions import DataFetchError
-from core.integration.data_center_business_sources import build_hybrid_fund_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -98,9 +97,9 @@ class UnifiedPriceService:
         self._dc_fund_nav_repo: FundNavRepositoryProtocol = get_fund_nav_repository()
 
     @property
-    def fund_adapter(self) -> Any:
-        if self._fund_adapter is None:
-            self._fund_adapter = build_hybrid_fund_adapter()
+    def fund_adapter(self) -> Any | None:
+        """Return an explicitly injected migration adapter, never build one implicitly."""
+
         return self._fund_adapter
 
     def normalize_asset_code(
@@ -441,8 +440,15 @@ class UnifiedPriceService:
         except Exception as exc:
             logger.debug("Fund NAV repository lookup failed for %s: %s", bare_code, exc)
 
+        adapter = self.fund_adapter
+        if adapter is None:
+            logger.info(
+                "Fund NAV is unavailable outside canonical Data Center facts: %s",
+                bare_code,
+            )
+            return None
         try:
-            df = self.fund_adapter.fetch_fund_nav_em(bare_code)
+            df = adapter.fetch_fund_nav_em(bare_code)
         except Exception as exc:
             logger.debug("Fund adapter lookup failed for %s: %s", bare_code, exc)
             return None

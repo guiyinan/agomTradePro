@@ -12,7 +12,8 @@ from typing import Protocol
 from apps.account.application.config_summary_service import (
     get_account_config_summary_service,
 )
-from apps.data_center.infrastructure.models import FinancialFactModel, ValuationFactModel
+from apps.data_center.application.public import get_financial_facts, get_valuation_facts
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -86,28 +87,37 @@ def _get_factor_from_data_center(
     }
 
     if factor_code in valuation_field_map:
-        valuation_qs = ValuationFactModel.objects.filter(
-            asset_code=stock_code,
-            val_date__lte=trade_date,
-        )
+        valuations = get_valuation_facts(stock_code, as_of=trade_date)
         if source_hint:
-            valuation_qs = valuation_qs.filter(source__icontains=source_hint)
-        valuation_row = valuation_qs.order_by("-val_date").first()
-        if valuation_row is None:
+            valuations = [
+                row
+                for row in valuations
+                if source_hint.lower() in str(row.get("source") or "").lower()
+            ]
+        if not valuations:
             return None
-        value = getattr(valuation_row, valuation_field_map[factor_code], None)
-        return float(value) if value is not None else None
+        valuation_row = max(valuations, key=lambda row: str(row.get("val_date") or ""))
+        value = valuation_row.get(valuation_field_map[factor_code])
+        return safe_float(value)
 
     if factor_code in financial_metric_map:
-        financial_qs = FinancialFactModel.objects.filter(
-            asset_code=stock_code,
-            metric_code=financial_metric_map[factor_code],
-            period_end__lte=trade_date,
-        )
+        financial_facts = [
+            row
+            for row in get_financial_facts(stock_code, limit=200)
+            if row.get("metric_code") == financial_metric_map[factor_code]
+            and str(row.get("period_end") or "") <= trade_date.isoformat()
+        ]
         if source_hint:
-            financial_qs = financial_qs.filter(source__icontains=source_hint)
-        financial_row = financial_qs.order_by("-period_end").first()
-        return float(financial_row.value) if financial_row is not None else None
+            financial_facts = [
+                row
+                for row in financial_facts
+                if source_hint.lower() in str(row.get("source") or "").lower()
+            ]
+        if not financial_facts:
+            return None
+        financial_row = max(financial_facts, key=lambda row: str(row.get("period_end") or ""))
+        value = financial_row.get("value")
+        return safe_float(value)
 
     return None
 

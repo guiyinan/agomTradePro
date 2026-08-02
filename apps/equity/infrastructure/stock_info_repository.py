@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import requests
 from django.utils import timezone
 
+from apps.data_center.application.public import list_price_covered_codes
 from apps.data_center.domain.protocols import (
     AssetRepositoryProtocol,
     FinancialFactRepositoryProtocol,
@@ -20,7 +21,6 @@ from apps.data_center.domain.protocols import (
     QuoteSnapshotRepositoryProtocol,
     ValuationFactRepositoryProtocol,
 )
-from apps.data_center.infrastructure.models import AssetMasterModel, PriceBarModel
 from apps.equity.domain.entities import StockInfo
 
 from .models import StockInfoModel
@@ -220,27 +220,20 @@ class StockInfoRepositoryMixin:
 
         # Expand the default sync / quality universe to the canonical stocks that
         # currently have price coverage in Data Center, matching Alpha's visible pool.
-        asset_queryset = AssetMasterModel._default_manager.filter(
-            is_active=True,
-            asset_type="stock",
-            exchange__in=["SSE", "SZSE", "BSE"],
-        )
-        if normalized_codes:
-            asset_queryset = asset_queryset.filter(code__in=normalized_codes)
-        canonical_codes = list(asset_queryset.values_list("code", flat=True))
+        canonical_codes: list[str] = []
+        for exchange in ("SSE", "SZSE", "BSE"):
+            for asset in self._dc_asset_repo.list_by_exchange(exchange):
+                if not asset.is_active or asset.asset_type.value != "stock":
+                    continue
+                if normalized_codes and asset.code.upper() not in normalized_codes:
+                    continue
+                canonical_codes.append(asset.code)
         if canonical_codes:
-            price_covered_codes = (
-                PriceBarModel._default_manager.filter(
-                    bar_date__lte=target_date,
-                    asset_code__in=canonical_codes,
-                )
-                .values_list("asset_code", flat=True)
-                .distinct()
-                .order_by("asset_code")
-            )
-            for raw_code in price_covered_codes:
+            covered_codes = list_price_covered_codes(target_date)
+            canonical_code_set = {code.upper() for code in canonical_codes}
+            for raw_code in covered_codes:
                 normalized = str(raw_code or "").strip().upper()
-                if normalized and normalized not in seen_codes:
+                if normalized in canonical_code_set and normalized not in seen_codes:
                     codes.append(normalized)
                     seen_codes.add(normalized)
 

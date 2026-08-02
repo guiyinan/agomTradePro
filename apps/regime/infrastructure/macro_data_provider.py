@@ -17,9 +17,10 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, cast
 
-from apps.data_center.infrastructure.macro_fact_selection import (
-    configured_macro_source,
-    select_macro_fact_series,
+from apps.data_center.application.public import (
+    get_macro_fact_series,
+    get_macro_indicator_catalog,
+    list_macro_indicator_codes,
 )
 from apps.data_center.infrastructure.seed_data.macro_indicator_governance import (
     is_direct_consumer_input_allowed,
@@ -99,27 +100,17 @@ class DataCenterMacroRepositoryAdapter:
             return float(value) - 100.0
         return float(value)
 
-    def _get_models(self) -> tuple[type[Any], type[Any]]:
-        from apps.data_center.infrastructure.models import (
-            IndicatorCatalogModel,
-            MacroFactModel,
-        )
-
-        return IndicatorCatalogModel, MacroFactModel
-
     def _get_default_period_type(self, indicator_code: str) -> str:
         """Read the current catalog period type without retaining stale governance state."""
 
-        IndicatorCatalogModel, _ = self._get_models()
-        catalog = IndicatorCatalogModel._default_manager.filter(code=indicator_code).first()
-        return str(catalog.default_period_type) if catalog else "D"
+        catalog = get_macro_indicator_catalog(indicator_code)
+        return str(catalog.get("default_period_type") or "D")
 
     def _get_catalog_extra(self, indicator_code: str) -> dict[str, Any]:
         """Read live catalog governance metadata for the requested indicator."""
 
-        IndicatorCatalogModel, _ = self._get_models()
-        catalog = IndicatorCatalogModel._default_manager.filter(code=indicator_code).first()
-        return dict(catalog.extra or {}) if catalog else {}
+        catalog = get_macro_indicator_catalog(indicator_code)
+        return dict(catalog.get("extra") or {})
 
     def _is_regime_direct_input_allowed(self, indicator_code: str) -> bool:
         return bool(
@@ -129,10 +120,14 @@ class DataCenterMacroRepositoryAdapter:
             )
         )
 
-    def _to_macro_indicator(self, fact: Any) -> MacroIndicator:
-        extra: dict[str, Any] = dict(fact.extra or {})
+    def _to_macro_indicator(self, fact: dict[str, Any]) -> MacroIndicator:
+        extra: dict[str, Any] = dict(fact.get("extra") or {})
+        indicator_code = str(fact["indicator_code"])
+        reporting_period = date.fromisoformat(str(fact["reporting_period"]))
+        published_value = fact.get("published_at")
+        published_at = date.fromisoformat(str(published_value)) if published_value else None
         period_type_value = extra.get("period_type") or self._get_default_period_type(
-            fact.indicator_code
+            indicator_code
         )
         try:
             period_type = PeriodType(period_type_value)
@@ -140,70 +135,15 @@ class DataCenterMacroRepositoryAdapter:
             period_type = PeriodType.DAY
 
         return MacroIndicator(
-            code=fact.indicator_code,
-            value=float(fact.value),
-            reporting_period=fact.reporting_period,
+            code=indicator_code,
+            value=float(fact["value"]),
+            reporting_period=reporting_period,
             period_type=period_type,
-            unit=fact.unit,
-            original_unit=extra.get("original_unit", fact.unit),
-            published_at=fact.published_at,
-            source=fact.source,
+            unit=str(fact.get("unit") or ""),
+            original_unit=str(extra.get("original_unit") or fact.get("unit") or ""),
+            published_at=published_at,
+            source=str(fact.get("source") or "unknown"),
         )
-
-    def _build_queryset(
-        self,
-        code: str | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        source: str | None = None,
-        use_pit: bool = False,
-    ) -> Any:
-        from django.db.models import Q
-
-        _, MacroFactModel = self._get_models()
-
-        queryset = MacroFactModel._default_manager.all()
-        if code:
-            queryset = queryset.filter(indicator_code=code)
-        if start_date:
-            queryset = queryset.filter(reporting_period__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(reporting_period__lte=end_date)
-        if source:
-            queryset = queryset.filter(source=source)
-        if use_pit and end_date:
-            queryset = queryset.filter(
-                Q(published_at__lte=end_date)
-                | Q(published_at__isnull=True, reporting_period__lte=end_date)
-            )
-        return queryset
-
-    def _dedupe_latest_by_period(
-        self,
-        queryset: Any,
-        descending: bool = False,
-        preferred_source: str | None = None,
-    ) -> list[MacroIndicator]:
-        rows = list(queryset.order_by("reporting_period", "id"))
-        if not rows:
-            return []
-        governed_source = preferred_source or configured_macro_source(
-            self._get_catalog_extra(rows[0].indicator_code)
-        )
-        selection = select_macro_fact_series(rows, preferred_source=governed_source)
-        if not selection.is_consistent:
-            logger.error(
-                "Blocked Regime macro input %s: %s",
-                rows[0].indicator_code,
-                selection.blocked_reason,
-            )
-            return []
-        selected = sorted(
-            selection.facts,
-            key=lambda fact: fact.reporting_period,
-            reverse=descending,
-        )
-        return [self._to_macro_indicator(fact) for fact in selected]
 
     def get_series(
         self,
@@ -213,19 +153,15 @@ class DataCenterMacroRepositoryAdapter:
         use_pit: bool = False,
         source: str | None = None,
     ) -> list[MacroIndicator]:
-        queryset = self._build_queryset(
-            code=code,
-            start_date=start_date,
-            end_date=end_date,
-            source=source,
+        rows = get_macro_fact_series(
+            code,
+            start=start_date,
+            end=end_date,
+            limit=500,
             use_pit=use_pit,
+            source=source,
         )
-        observations = self._dedupe_latest_by_period(
-            queryset,
-            descending=False,
-            preferred_source=source,
-        )
-        return observations
+        return [self._to_macro_indicator(row) for row in rows]
 
     def get_observations_for_period(
         self,
@@ -244,40 +180,33 @@ class DataCenterMacroRepositoryAdapter:
         indicator_code: str,
         limit: int = 24,
     ) -> list[MacroIndicator]:
-        queryset = self._build_queryset(code=indicator_code)
-        observations = self._dedupe_latest_by_period(queryset, descending=True)[:limit]
-        return observations
+        rows = get_macro_fact_series(indicator_code, limit=max(limit, 1))
+        return [self._to_macro_indicator(row) for row in reversed(rows[-limit:])]
 
     def get_latest_observation_date(
         self,
         code: str,
         as_of_date: date | None = None,
     ) -> date | None:
-        queryset = self._build_queryset(code=code)
-        if as_of_date:
-            queryset = queryset.filter(reporting_period__lte=as_of_date)
-        observations = self._dedupe_latest_by_period(queryset, descending=True)
-        return observations[0].reporting_period if observations else None
+        observations = self.get_series(
+            code=code,
+            end_date=as_of_date,
+            use_pit=as_of_date is not None,
+        )
+        return observations[-1].reporting_period if observations else None
 
     def get_latest_observation(
         self,
         code: str,
         before_date: date | None = None,
     ) -> MacroIndicator | None:
-        queryset = self._build_queryset(code=code)
-        if before_date:
-            queryset = queryset.filter(reporting_period__lt=before_date)
-        observations = self._dedupe_latest_by_period(queryset, descending=True)
-        return observations[0] if observations else None
+        end_date = before_date - date.resolution if before_date else None
+        observations = self.get_series(code=code, end_date=end_date, use_pit=end_date is not None)
+        return observations[-1] if observations else None
 
     def get_by_code_and_date(self, code: str, observed_at: date) -> MacroIndicator | None:
-        queryset = self._build_queryset(
-            code=code,
-            start_date=observed_at,
-            end_date=observed_at,
-        )
-        observations = self._dedupe_latest_by_period(queryset, descending=True)
-        return observations[0] if observations else None
+        observations = self.get_series(code=code, start_date=observed_at, end_date=observed_at)
+        return observations[-1] if observations else None
 
     def get_growth_series(
         self,
@@ -398,21 +327,38 @@ class DataCenterMacroRepositoryAdapter:
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[date]:
-        _, MacroFactModel = self._get_models()
-
-        queryset = MacroFactModel._default_manager.all()
+        rows: list[dict[str, Any]] = []
         if codes:
-            queryset = queryset.filter(indicator_code__in=codes)
-        if start_date:
-            queryset = queryset.filter(reporting_period__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(reporting_period__lte=end_date)
-        raw_dates = list(
-            queryset.values_list("reporting_period", flat=True)
-            .distinct()
-            .order_by("reporting_period")
+            for code in codes:
+                rows.extend(
+                    get_macro_fact_series(
+                        code,
+                        start=start_date,
+                        end=end_date,
+                        limit=2000,
+                        use_pit=end_date is not None,
+                    )
+                )
+        else:
+            # The legacy protocol asks for all dates; use the active catalog as
+            # the bounded source list rather than querying the ORM here.
+            for code in list_macro_indicator_codes():
+                rows.extend(
+                    get_macro_fact_series(
+                        code,
+                        start=start_date,
+                        end=end_date,
+                        limit=2000,
+                        use_pit=end_date is not None,
+                    )
+                )
+        return sorted(
+            {
+                date.fromisoformat(str(row["reporting_period"]))
+                for row in rows
+            }
         )
-        return [value for value in raw_dates if isinstance(value, date)]
+
 
 
 class DjangoMacroDataProvider:

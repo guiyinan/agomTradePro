@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "policies": [
+    {"dataset_key": "asset.master", "minimum_coverage_ratio": 1.0, "allow_partial": false, "conflict_action": "block", "required_evidence": ["source", "payload_hash"], "retention_days": 3650},
+    {"dataset_key": "equity.price.bar", "minimum_coverage_ratio": 0.99, "allow_partial": true, "conflict_action": "quarantine", "required_evidence": ["source", "observed_at", "payload_hash"], "retention_days": 3650},
+    {"dataset_key": "equity.quote.snapshot", "minimum_coverage_ratio": 1.0, "allow_partial": false, "conflict_action": "block", "required_evidence": ["source", "observed_at", "fetched_at", "payload_hash"], "retention_days": 90},
+    {"dataset_key": "fund.nav", "minimum_coverage_ratio": 0.99, "allow_partial": true, "conflict_action": "block", "required_evidence": ["source", "observed_at", "payload_hash"], "retention_days": 1825},
+    {"dataset_key": "macro.fact", "minimum_coverage_ratio": 1.0, "allow_partial": false, "conflict_action": "block", "required_evidence": ["source", "observed_at", "published_at", "payload_hash"], "retention_days": 3650},
+    {"dataset_key": "equity.financial.fact", "minimum_coverage_ratio": 1.0, "allow_partial": true, "conflict_action": "quarantine", "required_evidence": ["source", "observed_at", "available_at", "payload_hash"], "retention_days": 3650},
+    {"dataset_key": "equity.valuation.fact", "minimum_coverage_ratio": 0.99, "allow_partial": true, "conflict_action": "quarantine", "required_evidence": ["source", "observed_at", "payload_hash"], "retention_days": 3650},
+    {"dataset_key": "sector.membership", "minimum_coverage_ratio": 0.99, "allow_partial": true, "conflict_action": "block", "required_evidence": ["source", "observed_at", "payload_hash"], "retention_days": 1825},
+    {"dataset_key": "market.news", "minimum_coverage_ratio": 0.95, "allow_partial": true, "conflict_action": "quarantine", "required_evidence": ["source", "observed_at", "payload_hash"], "retention_days": 730},
+    {"dataset_key": "market.capital_flow", "minimum_coverage_ratio": 0.99, "allow_partial": true, "conflict_action": "block", "required_evidence": ["source", "observed_at", "payload_hash"], "retention_days": 730}
+  ]
+}

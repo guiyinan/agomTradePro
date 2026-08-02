@@ -221,11 +221,19 @@ class DjangoContextSnapshotRepository:
             failed_sources.append("regime")
 
         try:
-            from apps.macro.infrastructure.models import MacroIndicator
+            from apps.data_center.application.public import list_latest_macro_values
 
-            latest_macro = MacroIndicator._default_manager.order_by("-published_at").first()
-            if latest_macro and latest_macro.published_at is not None:
-                sources["macro"] = latest_macro.published_at.isoformat()
+            macro_values = list_latest_macro_values(limit=500)
+            observed_periods = [
+                str(row.get("reporting_period"))
+                for row in macro_values
+                if row.get("reporting_period")
+            ]
+            if observed_periods:
+                sources["macro"] = max(observed_periods)
+            else:
+                sources["macro"] = "unavailable"
+                failed_sources.append("macro")
         except Exception as exc:
             _log_source_failure("Failed to fetch macro freshness", exc)
             sources["macro"] = "unavailable"

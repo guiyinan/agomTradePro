@@ -1,12 +1,18 @@
-"""Shared bridges for optional third-party SDK imports."""
+"""Retired compatibility tombstone for the former shared SDK bridge.
+
+Provider SDK ownership now lives in ``apps.data_center.infrastructure``.  The
+shared layer deliberately keeps no third-party provider import so that business
+apps cannot accidentally recreate a second provider boundary.
+"""
 
 from __future__ import annotations
 
-from importlib import import_module
 from types import ModuleType
 
 
 def get_akshare_module() -> ModuleType:
-    """Import and return the AKShare module lazily."""
+    """Fail closed for callers that have not migrated to Data Center yet."""
 
-    return import_module("akshare")
+    raise RuntimeError(
+        "AKShare transport moved to apps.data_center.infrastructure.legacy_sdk_bridge"
+    )

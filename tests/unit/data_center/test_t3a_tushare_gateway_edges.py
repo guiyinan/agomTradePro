@@ -107,7 +107,7 @@ def test_history_routes_etf_index_and_stock_and_skips_invalid_rows(
             return valid.copy()
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
         lambda: _Pro(),
     )
     gateway = tushare_gateway.TushareGateway()
@@ -132,14 +132,14 @@ def test_history_empty_and_exception_use_tencent_fallback(
         daily=lambda **_kwargs: pd.DataFrame(),
     )
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
         lambda: empty_pro,
     )
     gateway = tushare_gateway.TushareGateway()
     assert gateway.get_historical_prices("510300.SH", "20240101", "20240131") == []
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
         lambda: (_ for _ in ()).throw(RuntimeError("offline")),
     )
     assert gateway.get_historical_prices("000001.SZ", "20240101", "20240131") == []
@@ -149,10 +149,10 @@ def test_history_empty_and_exception_use_tencent_fallback(
 def test_history_authorization_failure_does_not_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from shared.infrastructure.tushare_client import TushareRelayAuthorizationError
+    from apps.data_center.infrastructure.tushare_client import TushareRelayAuthorizationError
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
         lambda: (_ for _ in ()).throw(TushareRelayAuthorizationError("HTTP 403")),
     )
     monkeypatch.setattr(

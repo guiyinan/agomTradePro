@@ -66,8 +66,8 @@ class _BaseValuationGateway:
             pb = float(row.pb) if row.pb is not None else None
             pe_static = float(row.pe_static) if row.pe_static is not None else None
             pe_ttm = float(row.pe_ttm) if row.pe_ttm is not None else None
-            ps_ttm = float(row.ps_ttm) if row.ps_ttm is not None else 0.0
-            dv_ratio = float(row.dv_ratio) if row.dv_ratio is not None else 0.0
+            ps_ttm = float(row.ps_ttm) if row.ps_ttm is not None else None
+            dv_ratio = float(row.dv_ratio) if row.dv_ratio is not None else None
             is_valid, quality_flag, quality_notes = compute_valuation_quality_flag(
                 pb=pb,
                 pe=pe_static or pe_ttm,
@@ -94,11 +94,19 @@ class _BaseValuationGateway:
                 ValuationMetrics(
                     stock_code=stock_code,
                     trade_date=row.val_date,
-                    pe=pe_ttm or pe_static or 0.0,
-                    pb=pb or 0.0,
+                    pe=pe_ttm if pe_ttm is not None else pe_static,
+                    pb=pb,
                     ps=ps_ttm,
-                    total_mv=Decimal(str(row.market_cap or 0)),
-                    circ_mv=Decimal(str(row.float_market_cap or row.market_cap or 0)),
+                    total_mv=(
+                        Decimal(str(row.market_cap)) if row.market_cap is not None else None
+                    ),
+                    circ_mv=(
+                        Decimal(str(row.float_market_cap))
+                        if row.float_market_cap is not None
+                        else (
+                            Decimal(str(row.market_cap)) if row.market_cap is not None else None
+                        )
+                    ),
                     dividend_yield=dv_ratio,
                     source_provider=provider_name,
                     source_updated_at=row.fetched_at,

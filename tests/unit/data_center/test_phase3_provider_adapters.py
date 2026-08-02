@@ -145,8 +145,8 @@ def test_tushare_unified_provider_adapter_maps_fund_nav(monkeypatch):
             )
 
     monkeypatch.setattr(
-        "apps.fund.infrastructure.adapters.tushare_fund_adapter.TushareFundAdapter",
-        _FakeAdapter,
+        "apps.data_center.infrastructure._provider_adapter_tushare.build_tushare_fund_adapter",
+        lambda **kwargs: _FakeAdapter(**kwargs),
     )
 
     adapter = TushareUnifiedProviderAdapter(_config("tushare", "tushare-main"))
@@ -229,7 +229,7 @@ def test_tushare_unified_provider_adapter_fetches_etf_net_flow_from_size_delta(m
             return pd.DataFrame(values.get(exchange, []))
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
         lambda token=None, http_url=None: _FakePro(),
     )
 
@@ -273,7 +273,7 @@ def test_tushare_etf_size_flow_fails_closed_when_one_exchange_is_missing(monkeyp
             )
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
         lambda token=None, http_url=None: _FakePro(),
     )
 
@@ -1020,7 +1020,7 @@ def test_tushare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
             )
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
         lambda token=None, http_url=None: _FakePro(),
     )
 
@@ -1059,7 +1059,7 @@ def test_tushare_unified_provider_adapter_rejects_tencent_index_proxy_for_turnov
             ]
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
         lambda token=None, http_url=None: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
     )
     monkeypatch.setattr(
@@ -1115,7 +1115,7 @@ def test_tushare_unified_provider_adapter_rejects_eastmoney_index_proxy_for_turn
             return False
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
         lambda token=None, http_url=None: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
     )
     monkeypatch.setattr(
@@ -1158,7 +1158,7 @@ def test_tushare_unified_provider_adapter_fast_fails_turnover_when_quotes_blocke
             return False
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
         lambda token=None, http_url=None: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
     )
     monkeypatch.setattr(
@@ -1193,7 +1193,7 @@ def test_tushare_unified_provider_adapter_fetches_margin_balance(monkeypatch):
             )
 
     monkeypatch.setattr(
-        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        "apps.data_center.infrastructure._provider_adapter_tushare.create_tushare_pro_client",
         lambda token=None, http_url=None: _FakePro(),
     )
 

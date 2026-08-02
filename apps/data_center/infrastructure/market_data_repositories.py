@@ -55,6 +55,16 @@ class PriceBarRepository:
                 return self._from_model(m)
         return None
 
+    def list_asset_codes(self, as_of: date | None = None) -> list[str]:
+        """Return assets with canonical price facts through ``as_of``."""
+
+        queryset = PriceBarModel.objects.all()
+        if as_of is not None:
+            queryset = queryset.filter(bar_date__lte=as_of)
+        return list(
+            queryset.order_by("asset_code").values_list("asset_code", flat=True).distinct()
+        )
+
     def bulk_upsert(self, bars: list[PriceBar]) -> int:
         if not bars:
             return 0

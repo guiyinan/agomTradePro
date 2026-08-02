@@ -259,9 +259,9 @@ class AnalyzeValuationResponseSerializer(serializers.Serializer[AnalyzeValuation
     market = serializers.CharField()
     list_date = serializers.CharField(allow_null=True)
     # 估值数据
-    current_pe = serializers.FloatField()
+    current_pe = serializers.FloatField(allow_null=True)
     pe_percentile = serializers.FloatField()
-    current_pb = serializers.FloatField()
+    current_pb = serializers.FloatField(allow_null=True)
     pb_percentile = serializers.FloatField()
     is_undervalued = serializers.BooleanField()
     # 最新估值详情
