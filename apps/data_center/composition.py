@@ -65,6 +65,7 @@ from apps.data_center.infrastructure.repositories import (
 from apps.data_center.infrastructure.retention_repositories import (
     ArchiveManifestRepository,
     RetentionPolicyRepository,
+    RetentionRunRepository,
     StorageHoldRepository,
 )
 
@@ -103,6 +104,7 @@ __all__ = [
     "ReconciliationEvidenceRepository",
     "RawLandingRepository",
     "RetentionPolicyRepository",
+    "RetentionRunRepository",
     "SectorMembershipRepository",
     "SchemaFingerprintRepository",
     "SyncBatchRepository",
@@ -149,6 +151,7 @@ __all__ = [
     "get_reconciliation_evidence_repository",
     "get_raw_landing_repository",
     "get_retention_policy_repository",
+    "get_retention_run_repository",
     "get_sector_membership_repository",
     "get_schema_fingerprint_repository",
     "get_sync_batch_repository",
@@ -312,6 +315,12 @@ def get_storage_hold_repository() -> StorageHoldRepository:
     """Return storage hold repository."""
 
     return StorageHoldRepository()
+
+
+def get_retention_run_repository() -> RetentionRunRepository:
+    """Return append-only retention run evidence repository."""
+
+    return RetentionRunRepository()
 
 
 def get_archive_manifest_repository() -> ArchiveManifestRepository:

@@ -17,6 +17,7 @@ from apps.data_center.composition import (
     get_archive_manifest_repository,
     get_raw_landing_repository,
     get_retention_policy_repository,
+    get_retention_run_repository,
     get_storage_hold_repository,
 )
 from shared.domain.task_outcomes import TaskBusinessOutcome
@@ -459,6 +460,7 @@ def cleanup_expired_raw_payloads_task(
         get_storage_hold_repository(),
         get_archive_manifest_repository(),
         get_raw_landing_repository(),
+        get_retention_run_repository(),
     ).execute(dataset_key=dataset_key.strip(), limit=limit, dry_run=dry_run)
     payload = result.to_dict()
     payload["storage"] = pressure

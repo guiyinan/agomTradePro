@@ -5,9 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
+from uuid import uuid4
 
 from apps.data_center.domain.raw_landing import RawPayload
-from apps.data_center.domain.retention import ArchiveManifest, RetentionPolicy, StorageHold
+from apps.data_center.domain.retention import (
+    ArchiveManifest,
+    RetentionPolicy,
+    RetentionRun,
+    StorageHold,
+)
 
 
 class RetentionPolicyRepositoryPort(Protocol):
@@ -25,7 +31,9 @@ class StorageHoldRepositoryPort(Protocol):
 
     def save(self, hold: StorageHold) -> StorageHold: ...
 
-    def has_active_hold(self, resource_type: str, resource_key: str, *, now: datetime | None = None) -> bool: ...
+    def has_active_hold(
+        self, resource_type: str, resource_key: str, *, now: datetime | None = None
+    ) -> bool: ...
 
 
 class ArchiveManifestRepositoryPort(Protocol):
@@ -33,9 +41,13 @@ class ArchiveManifestRepositoryPort(Protocol):
 
     def save(self, manifest: ArchiveManifest) -> ArchiveManifest: ...
 
-    def mark_verified(self, archive_id: str, *, verified_at: datetime | None = None) -> ArchiveManifest: ...
+    def mark_verified(
+        self, archive_id: str, *, verified_at: datetime | None = None
+    ) -> ArchiveManifest: ...
 
-    def has_verified_for_dataset(self, dataset_key: str, *, now: datetime | None = None) -> bool: ...
+    def has_verified_for_dataset(
+        self, dataset_key: str, *, now: datetime | None = None
+    ) -> bool: ...
 
 
 class RetentionCandidateRepositoryPort(Protocol):
@@ -52,6 +64,12 @@ class RetentionCandidateRepositoryPort(Protocol):
     def delete(self, payload_id: str) -> int: ...
 
 
+class RetentionRunRepositoryPort(Protocol):
+    """Persistence port for append-only retention run evidence."""
+
+    def save(self, run: RetentionRun) -> RetentionRun: ...
+
+
 @dataclass(frozen=True)
 class RetentionCleanupResult:
     """Auditable outcome of one bounded retention pass."""
@@ -66,6 +84,9 @@ class RetentionCleanupResult:
     blocked: int
     cutoff: datetime | None
     reason: str = ""
+    policy_version: int | None = None
+    bytes_planned: int = 0
+    bytes_deleted: int = 0
 
     def to_dict(self) -> dict[str, object]:
         """Return a stable task payload."""
@@ -82,6 +103,9 @@ class RetentionCleanupResult:
             "blocked": self.blocked,
             "cutoff": self.cutoff.isoformat() if self.cutoff is not None else None,
             "reason": self.reason,
+            "policy_version": self.policy_version,
+            "bytes_planned": self.bytes_planned,
+            "bytes_deleted": self.bytes_deleted,
         }
 
 
@@ -91,7 +115,9 @@ class RetentionGuard:
     def __init__(self, holds: StorageHoldRepositoryPort) -> None:
         self._holds = holds
 
-    def can_delete(self, resource_type: str, resource_key: str, *, now: datetime | None = None) -> bool:
+    def can_delete(
+        self, resource_type: str, resource_key: str, *, now: datetime | None = None
+    ) -> bool:
         """Return false whenever an unexpired hold exists."""
 
         return not self._holds.has_active_hold(resource_type, resource_key, now=now)
@@ -106,11 +132,47 @@ class RetentionCleanupUseCase:
         holds: StorageHoldRepositoryPort,
         archives: ArchiveManifestRepositoryPort,
         candidates: RetentionCandidateRepositoryPort,
+        runs: RetentionRunRepositoryPort | None = None,
     ) -> None:
         self._policies = policies
         self._guard = RetentionGuard(holds)
         self._archives = archives
         self._candidates = candidates
+        self._runs = runs
+
+    def _record_run(
+        self,
+        result: RetentionCleanupResult,
+        *,
+        dry_run: bool,
+        started_at: datetime,
+        finished_at: datetime,
+    ) -> None:
+        """Persist one immutable run evidence row when a run repository is configured."""
+
+        if self._runs is None:
+            return
+        self._runs.save(
+            RetentionRun(
+                run_id=str(uuid4()),
+                dataset_key=result.dataset_key,
+                policy_version=result.policy_version,
+                dry_run=dry_run,
+                outcome=result.outcome,
+                requested=result.requested,
+                candidates=result.candidates,
+                planned=result.planned,
+                deleted=result.deleted,
+                held=result.held,
+                blocked=result.blocked,
+                bytes_planned=result.bytes_planned,
+                bytes_deleted=result.bytes_deleted,
+                cutoff=result.cutoff,
+                started_at=started_at,
+                finished_at=finished_at,
+                reason=result.reason,
+            )
+        )
 
     def execute(
         self,
@@ -131,7 +193,7 @@ class RetentionCleanupUseCase:
             raise ValueError("now must be timezone-aware")
         policy = self._policies.get_active(dataset_key)
         if policy is None:
-            return RetentionCleanupResult(
+            result = RetentionCleanupResult(
                 outcome="blocked",
                 dataset_key=dataset_key,
                 requested=limit,
@@ -143,10 +205,12 @@ class RetentionCleanupUseCase:
                 cutoff=None,
                 reason="retention_policy_missing_or_inactive",
             )
+            self._record_run(result, dry_run=dry_run, started_at=moment, finished_at=moment)
+            return result
         cutoff = moment - timedelta(days=policy.retention_days)
         rows = self._candidates.list_expired(dataset_key, before=cutoff, limit=limit)
         if not rows:
-            return RetentionCleanupResult(
+            result = RetentionCleanupResult(
                 outcome="noop",
                 dataset_key=dataset_key,
                 requested=limit,
@@ -157,13 +221,19 @@ class RetentionCleanupUseCase:
                 blocked=0,
                 cutoff=cutoff,
                 reason="no_expired_raw_payloads",
+                policy_version=policy.version,
             )
+            self._record_run(result, dry_run=dry_run, started_at=moment, finished_at=moment)
+            return result
         archive_ready = self._archives.has_verified_for_dataset(dataset_key, now=moment)
         planned = 0
         deleted = 0
         held = 0
         blocked = 0
+        bytes_planned = 0
+        bytes_deleted = 0
         for row in rows:
+            payload_size = int(row.payload_size_bytes)
             if not self._guard.can_delete("raw_payload", row.payload_id, now=moment):
                 held += 1
                 continue
@@ -172,8 +242,12 @@ class RetentionCleanupUseCase:
                 continue
             if dry_run:
                 planned += 1
+                bytes_planned += payload_size
             else:
-                deleted += self._candidates.delete(row.payload_id)
+                deleted_count = self._candidates.delete(row.payload_id)
+                deleted += deleted_count
+                if deleted_count > 0:
+                    bytes_deleted += payload_size
         if blocked and deleted == 0 and planned == 0:
             outcome = "blocked"
             reason = "verified_archive_missing"
@@ -186,7 +260,7 @@ class RetentionCleanupUseCase:
         else:
             outcome = "success"
             reason = "expired_payloads_deleted"
-        return RetentionCleanupResult(
+        result = RetentionCleanupResult(
             outcome=outcome,
             dataset_key=dataset_key,
             requested=limit,
@@ -197,7 +271,12 @@ class RetentionCleanupUseCase:
             blocked=blocked,
             cutoff=cutoff,
             reason=reason,
+            policy_version=policy.version,
+            bytes_planned=bytes_planned,
+            bytes_deleted=bytes_deleted,
         )
+        self._record_run(result, dry_run=dry_run, started_at=moment, finished_at=moment)
+        return result
 
 
 __all__ = [
@@ -207,5 +286,6 @@ __all__ = [
     "RetentionCleanupUseCase",
     "RetentionGuard",
     "RetentionPolicyRepositoryPort",
+    "RetentionRunRepositoryPort",
     "StorageHoldRepositoryPort",
 ]

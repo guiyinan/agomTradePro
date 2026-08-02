@@ -1,7 +1,7 @@
 {
   "counts": {
     "cross_app_orm_imports": 56,
-    "current_surface_references": 2838,
+    "current_surface_references": 2844,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
     "legacy_fact_references": 141,
@@ -4547,7 +4547,7 @@
       "text": "raise RuntimeError(\"Data-center config summary repository is not configured\")"
     },
     {
-      "line": 110,
+      "line": 114,
       "path": "apps/data_center/application/control_plane.py",
       "text": "\"\"\"Apply a publication policy before exposing selected facts as current.\"\"\""
     },
@@ -4852,144 +4852,134 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 280,
+      "line": 283,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 328,
+      "line": 332,
+      "path": "apps/data_center/application/public.py",
+      "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
+    },
+    {
+      "line": 340,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 330,
+      "line": 342,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 338,
+      "line": 350,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 343,
+      "line": 355,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 358,
+      "line": 370,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 374,
+      "line": 386,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 392,
+      "line": 404,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 430,
+      "line": 421,
       "path": "apps/data_center/application/public.py",
-      "text": "current = existing[0] if existing else None"
-    },
-    {
-      "line": 433,
-      "path": "apps/data_center/application/public.py",
-      "text": "id=current.id if current is not None else None,"
+      "text": "publication_key: str = \"current\","
     },
     {
       "line": 437,
       "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 474,
+      "path": "apps/data_center/application/public.py",
+      "text": "current = existing[0] if existing else None"
+    },
+    {
+      "line": 477,
+      "path": "apps/data_center/application/public.py",
+      "text": "id=current.id if current is not None else None,"
+    },
+    {
+      "line": 481,
+      "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 439,
+      "line": 483,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 442,
+      "line": 486,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 443,
+      "line": 487,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 540,
+      "line": 584,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
     {
-      "line": 38,
+      "line": 39,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 107,
+      "line": 108,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 128,
+      "line": 129,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest canonical macro indicator value for one code.\"\"\""
     },
     {
-      "line": 130,
+      "line": 131,
       "path": "apps/data_center/application/query_services.py",
       "text": "latest = get_macro_fact_repository().get_latest(indicator_code)"
     },
     {
-      "line": 131,
+      "line": 132,
       "path": "apps/data_center/application/query_services.py",
       "text": "return float(latest.value) if latest is not None else None"
     },
     {
-      "line": 169,
+      "line": 170,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read macro facts only when a current publication exists."
     },
     {
-      "line": 171,
+      "line": 172,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty but unpublished fact"
     },
     {
-      "line": 200,
+      "line": 277,
       "path": "apps/data_center/application/query_services.py",
-      "text": "\"\"\"Return publication metadata or ``None`` for a blocked current read.\"\"\""
-    },
-    {
-      "line": 214,
-      "path": "apps/data_center/application/query_services.py",
-      "text": "\"\"\"Return the stable fail-closed shape for an unpublished current read.\"\"\""
-    },
-    {
-      "line": 228,
-      "path": "apps/data_center/application/query_services.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 241,
-      "path": "apps/data_center/application/query_services.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 266,
-      "path": "apps/data_center/application/query_services.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 282,
-      "path": "apps/data_center/application/query_services.py",
-      "text": "publication_key: str = \"current\","
+      "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
       "line": 304,
@@ -4997,22 +4987,62 @@
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 380,
+      "line": 317,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 342,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 344,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
+    },
+    {
+      "line": 357,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 359,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
+    },
+    {
+      "line": 374,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 390,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 412,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 488,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 438,
+      "line": 546,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 486,
+      "line": 594,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 499,
+      "line": 607,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
@@ -5067,7 +5097,7 @@
       "text": "\"\"\"Observation and fetch provenance helpers for current quote reads.\"\"\""
     },
     {
-      "line": 269,
+      "line": 270,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"error\": \"latest completed China market session is unavailable\","
     },
@@ -5292,7 +5322,7 @@
       "text": "summary=f\"Connection test failed ({error_type})\","
     },
     {
-      "line": 288,
+      "line": 290,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "\"\"\"Return the latest publication visible at an historical boundary.\"\"\""
     },
@@ -5672,127 +5702,127 @@
       "text": "name=\"dc-market-thermometer-current\","
     },
     {
-      "line": 151,
+      "line": 154,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Apply an explicit current-publication gate to decision-facing reads.\"\"\""
     },
     {
-      "line": 489,
+      "line": 531,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current = load_provider_settings_payload()"
     },
     {
-      "line": 492,
+      "line": 534,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_source=d.get(\"default_source\", current[\"default_source\"]),"
     },
     {
-      "line": 493,
+      "line": 535,
       "path": "apps/data_center/interface/api_views.py",
       "text": "enable_failover=d.get(\"enable_failover\", current[\"enable_failover\"]),"
     },
     {
-      "line": 496,
+      "line": 538,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current[\"failover_tolerance\"],"
     },
     {
-      "line": 516,
+      "line": 558,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current = load_production_coverage_universe_config_payload()"
     },
     {
-      "line": 519,
+      "line": 561,
       "path": "apps/data_center/interface/api_views.py",
       "text": "universe_id=data.get(\"universe_id\", current[\"universe_id\"]),"
     },
     {
-      "line": 520,
+      "line": 562,
       "path": "apps/data_center/interface/api_views.py",
       "text": "asset_type=data.get(\"asset_type\", current[\"asset_type\"]),"
     },
     {
-      "line": 521,
+      "line": 563,
       "path": "apps/data_center/interface/api_views.py",
       "text": "exchanges=data.get(\"exchanges\", current[\"exchanges\"]),"
     },
     {
-      "line": 522,
+      "line": 564,
       "path": "apps/data_center/interface/api_views.py",
       "text": "include_inactive=data.get(\"include_inactive\", current[\"include_inactive\"]),"
     },
     {
-      "line": 525,
+      "line": 567,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current[\"min_active_asset_count\"],"
     },
     {
-      "line": 529,
+      "line": 571,
       "path": "apps/data_center/interface/api_views.py",
       "text": "current[\"min_star_market_count\"],"
     },
     {
-      "line": 531,
+      "line": 573,
       "path": "apps/data_center/interface/api_views.py",
       "text": "min_chinext_count=data.get(\"min_chinext_count\", current[\"min_chinext_count\"]),"
     },
     {
-      "line": 532,
+      "line": 574,
       "path": "apps/data_center/interface/api_views.py",
       "text": "min_bse_count=data.get(\"min_bse_count\", current[\"min_bse_count\"]),"
     },
     {
-      "line": 533,
+      "line": 575,
       "path": "apps/data_center/interface/api_views.py",
       "text": "description=data.get(\"description\", current[\"description\"]),"
     },
     {
-      "line": 541,
+      "line": 583,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return current production coverage diagnostics summary.\"\"\""
     },
     {
-      "line": 662,
+      "line": 704,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 717,
+      "line": 759,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 795,
+      "line": 837,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 830,
+      "line": 872,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 862,
+      "line": 904,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 934,
+      "line": 976,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 955,
+      "line": 997,
       "path": "apps/data_center/interface/api_views.py",
       "text": "default_publication_key=\"current\","
     },
     {
-      "line": 989,
+      "line": 1031,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return the latest market-thermometer payload.\"\"\""
     },
     {
-      "line": 1041,
+      "line": 1083,
       "path": "apps/data_center/interface/api_views.py",
       "text": "\"\"\"Return or update current user's threshold override.\"\"\""
     },
@@ -14514,22 +14544,22 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 57,
+      "line": 58,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 89,
+      "line": 90,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 171,
+      "line": 172,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 398,
+      "line": 399,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

@@ -362,6 +362,59 @@
 - 真实运行时还需要在 MCP 接入页地址上用生产数据验证 `publication_id`、成员观测、source 和 reliability 一致；本地 monkeypatch 只验证阻断顺序和响应契约。
 - PostgreSQL 最新 migration timeout、生产数据画像、备份恢复、观察窗口、全 D0-D9 切读、M9/M10 仍未完成；按用户要求不部署。
 
+## 实施记录（2026-08-03，第十六批）
+
+本批次补齐最新迁移链路的本地 PostgreSQL 证据；使用一次性 `agomtradepro-canonical-pg-v2` 临时容器（55434 端口、tmpfs），不触碰现有 home-lab 容器、不部署、不 push，完成后已删除容器。
+
+第十六批机器证据：
+
+- 空 PostgreSQL 16 从 356 个未应用 migration 完整迁移到当前代码最新 leaf；`python scripts/check_migration_graph.py` 返回 `unapplied=0`。
+- PostgreSQL 上执行 `initialize_data_center_catalog` 与 `check_data_center_runtime_catalog.py`：`contracts=10, bindings=12, owners=10`，运行时 Catalog 校验通过。
+- 显式激活 `nightly-ci` 90 GiB StorageBudgetPolicy 并执行 `collect_storage_capacity_profile`，成功持久化 observation；实际临时文件系统小于配置容量，状态为 `emergency`，证明 effective capacity/阻断语义没有伪造 healthy。
+- PostgreSQL 定向回归：Data Center/Config Center `27 passed`；控制面、Catalog、Reconciliation、A-share/API `50 passed`；SDK/MCP `35 passed`。
+- 执行 `data_center.0055` reverse 到 `0054`（预期 `unapplied=1`）再 forward 回 `0055`，最终 migration graph 再次 `unapplied=0`，完成本地 rollback/reapply rehearsal。
+
+仍未完成及风险：
+
+- 这是空库/受控数据的 PostgreSQL 证据，不是生产行数、索引/P95/WAL、备份恢复或外部 Provider 全链路证据；临时容器已清理，不能替代生产验收。
+- 生产数据画像、D0-D9 真实 shadow reconciliation、至少 2/3 个调度观察窗口、verified backup/restore、M9/M10 和 VPS 部署仍未执行。
+
+## 实施记录（2026-08-03，第十七批）
+
+本批次把 retention 的运行结果从“仅 Celery 返回值”升级为 Data Center 持久化审计证据；不部署、不 push。
+
+已落地：
+
+- 新增纯 Domain `RetentionRun`，记录 policy version、dry-run/执行模式、outcome、候选/计划/删除/hold/block 计数、字节数、cutoff、时间和原因。
+- 新增独立 `RetentionRunModel`（迁移 `0056_retentionrunmodel.py`）与 Repository；模型放在独立 `retention_models.py`，避免继续增大既有超大 `infrastructure/models.py`。
+- `RetentionCleanupUseCase` 和 `cleanup_expired_raw_payloads_task` 在 policy 缺失、noop、blocked、partial、success 等路径均保存 run evidence；RawPayload size 纳入 planned/deleted bytes。
+- 追加 retention task fake/SQLite 回归和数据库 round-trip，Celery contract、architecture、mypy、legacy guard、governance 均通过。
+
+第十七批机器证据：
+
+- `pytest tests/unit/data_center/test_retention_tasks.py tests/unit/data_center/test_retention_control_plane.py -q --reuse-db --no-migrations --timeout=180`：7 passed。
+- `python manage.py makemigrations --check --dry-run`：No changes detected；`python manage.py check`：0 issues；`python scripts/check_celery_task_contracts.py`：14 tasks；治理 baseline 0 violation。
+
+仍未完成及风险：
+
+- `RetentionRun` 只记录本地有界 Raw cleanup；分区/rollup、外部归档上传与抽样恢复、真实 beat 观察窗口、全库 usage forecast 仍未实现。
+- 最新 `0056` 的 PostgreSQL 空库和 reverse/reapply 证据在下一批补齐；生产 PostgreSQL、备份恢复、D0-D9 真实 shadow、M9/M10 和 VPS 仍未执行。
+
+## 实施记录（2026-08-03，第十八批）
+
+本批次完成 `0056 RetentionRun` 的隔离 PostgreSQL 安装与回滚演练；临时容器已清理，不部署、不 push。
+
+第十八批机器证据：
+
+- PostgreSQL 16 空库从 356 个未应用 migration 完整迁移到 `data_center.0056_retentionrunmodel`，`python scripts/check_migration_graph.py` 返回 `unapplied=0`。
+- PostgreSQL Catalog/runtime catalog 校验通过：`contracts=10, bindings=12, owners=10`；`nightly-ci` 90 GiB policy 与容量 observation 成功写入，实际 tmpfs 容量不足时正确报告 `emergency`。
+- PostgreSQL retention/config 回归：9 passed；完成 `0056` reverse 到 `0055`（预期 `unapplied=1`）再 forward，最终 `unapplied=0`。
+
+仍未完成及风险：
+
+- PostgreSQL 证据仍是空库/受控样本；尚未覆盖生产规模 relation/index/WAL/P95、custom-format backup/restore、真实 Provider 回填和调度观察窗口。
+- Retention 分区/rollup、外部 archive restore、全 D0-D9 业务切读、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

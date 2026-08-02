@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from apps.data_center.application.tasks import cleanup_expired_raw_payloads_task
 from apps.data_center.domain.raw_landing import RawPayload
-from apps.data_center.domain.retention import RetentionPolicy
+from apps.data_center.domain.retention import RetentionPolicy, RetentionRun
 
 NOW = datetime(2026, 8, 2, 5, 0, tzinfo=UTC)
 
@@ -24,7 +24,9 @@ class _Holds:
     def __init__(self, held: set[str] | None = None) -> None:
         self.held = held or set()
 
-    def has_active_hold(self, resource_type: str, resource_key: str, *, now: datetime | None = None) -> bool:
+    def has_active_hold(
+        self, resource_type: str, resource_key: str, *, now: datetime | None = None
+    ) -> bool:
         return resource_key in self.held
 
 
@@ -42,11 +44,22 @@ class _Candidates:
         self.deleted: list[str] = []
 
     def list_expired(self, dataset_key: str, *, before: datetime, limit: int) -> list[RawPayload]:
-        return [row for row in self.rows if row.dataset_key == dataset_key and row.fetched_at < before][:limit]
+        return [
+            row for row in self.rows if row.dataset_key == dataset_key and row.fetched_at < before
+        ][:limit]
 
     def delete(self, payload_id: str) -> int:
         self.deleted.append(payload_id)
         return 1
+
+
+class _Runs:
+    def __init__(self) -> None:
+        self.saved: list[RetentionRun] = []
+
+    def save(self, run: RetentionRun) -> RetentionRun:
+        self.saved.append(run)
+        return run
 
 
 def _policy() -> RetentionPolicy:
@@ -68,18 +81,37 @@ def _payload() -> RawPayload:
         schema_fingerprint="sha256:schema",
         payload={"value": 1},
         fetched_at=NOW - timedelta(days=31),
+        payload_size_bytes=128,
     )
 
 
-def _patch_task_dependencies(monkeypatch, policies, holds, archives, candidates) -> None:  # type: ignore[no-untyped-def]
+def _patch_task_dependencies(
+    monkeypatch,
+    policies,
+    holds,
+    archives,
+    candidates,
+    runs,
+) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(
         "apps.data_center.application.tasks.evaluate_storage_pressure",
         lambda **_kwargs: {"state": "healthy"},
     )
-    monkeypatch.setattr("apps.data_center.application.tasks.get_retention_policy_repository", lambda: policies)
-    monkeypatch.setattr("apps.data_center.application.tasks.get_storage_hold_repository", lambda: holds)
-    monkeypatch.setattr("apps.data_center.application.tasks.get_archive_manifest_repository", lambda: archives)
-    monkeypatch.setattr("apps.data_center.application.tasks.get_raw_landing_repository", lambda: candidates)
+    monkeypatch.setattr(
+        "apps.data_center.application.tasks.get_retention_policy_repository", lambda: policies
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.tasks.get_storage_hold_repository", lambda: holds
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.tasks.get_archive_manifest_repository", lambda: archives
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.tasks.get_raw_landing_repository", lambda: candidates
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.tasks.get_retention_run_repository", lambda: runs
+    )
 
 
 def test_retention_task_rejects_invalid_input_before_repositories() -> None:
@@ -90,23 +122,32 @@ def test_retention_task_rejects_invalid_input_before_repositories() -> None:
 
 def test_retention_task_blocks_without_active_policy(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     candidates = _Candidates([])
-    _patch_task_dependencies(monkeypatch, _Policies(None), _Holds(), _Archives(True), candidates)
+    runs = _Runs()
+    _patch_task_dependencies(
+        monkeypatch, _Policies(None), _Holds(), _Archives(True), candidates, runs
+    )
 
     result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10)
 
     assert result["outcome"] == "blocked"
     assert result["reason"] == "retention_policy_missing_or_inactive"
+    assert runs.saved[0].outcome == "blocked"
 
 
 def test_retention_task_reports_all_success_after_verified_archive(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     candidates = _Candidates([_payload()])
-    _patch_task_dependencies(monkeypatch, _Policies(_policy()), _Holds(), _Archives(True), candidates)
+    runs = _Runs()
+    _patch_task_dependencies(
+        monkeypatch, _Policies(_policy()), _Holds(), _Archives(True), candidates, runs
+    )
 
     result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10, dry_run=False)
 
     assert result["outcome"] == "success"
     assert result["deleted"] == 1
     assert len(candidates.deleted) == 1
+    assert runs.saved[0].bytes_deleted == 128
+    assert runs.saved[0].dry_run is False
 
 
 def test_retention_task_reports_partial_for_active_hold(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -118,6 +159,7 @@ def test_retention_task_reports_partial_for_active_hold(monkeypatch) -> None:  #
         _Holds({payload.payload_id}),
         _Archives(True),
         candidates,
+        _Runs(),
     )
 
     result = cleanup_expired_raw_payloads_task(dataset_key="market.raw", limit=10, dry_run=False)

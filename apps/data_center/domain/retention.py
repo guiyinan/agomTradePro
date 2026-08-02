@@ -57,7 +57,16 @@ class StorageHold:
     released_at: datetime | None = None
 
     def __post_init__(self) -> None:
-        if not all(value.strip() for value in (self.hold_id, self.resource_type, self.resource_key, self.reason, self.created_by)):
+        if not all(
+            value.strip()
+            for value in (
+                self.hold_id,
+                self.resource_type,
+                self.resource_key,
+                self.reason,
+                self.created_by,
+            )
+        ):
             raise ValueError("StorageHold identifiers and reason are required")
         _aware(self.created_at, "StorageHold.created_at")
         for name, value in (("expires_at", self.expires_at), ("released_at", self.released_at)):
@@ -83,7 +92,12 @@ class ArchiveManifest:
     retention_until: datetime | None = None
 
     def __post_init__(self) -> None:
-        if not self.archive_id.strip() or not self.dataset_key.strip() or not self.location.strip() or not self.checksum.strip():
+        if (
+            not self.archive_id.strip()
+            or not self.dataset_key.strip()
+            or not self.location.strip()
+            or not self.checksum.strip()
+        ):
             raise ValueError("ArchiveManifest identifiers/location/checksum are required")
         if self.object_count < 0 or self.size_bytes < 0:
             raise ValueError("ArchiveManifest counts cannot be negative")
@@ -96,4 +110,59 @@ class ArchiveManifest:
             raise ValueError("Verified archive requires verified_at")
 
 
-__all__ = ["ArchiveManifest", "ArchiveState", "RetentionPolicy", "StorageHold"]
+@dataclass(frozen=True)
+class RetentionRun:
+    """Auditable result of one bounded retention planning or deletion pass."""
+
+    run_id: str
+    dataset_key: str
+    policy_version: int | None
+    dry_run: bool
+    outcome: str
+    requested: int
+    candidates: int
+    planned: int
+    deleted: int
+    held: int
+    blocked: int
+    bytes_planned: int = 0
+    bytes_deleted: int = 0
+    cutoff: datetime | None = None
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    finished_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    reason: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.run_id.strip() or not self.dataset_key.strip():
+            raise ValueError("RetentionRun identifiers are required")
+        if self.policy_version is not None and self.policy_version < 1:
+            raise ValueError("RetentionRun.policy_version must be positive")
+        if self.outcome not in {"success", "partial", "noop", "blocked", "failed"}:
+            raise ValueError("RetentionRun.outcome is invalid")
+        for name in (
+            "requested",
+            "candidates",
+            "planned",
+            "deleted",
+            "held",
+            "blocked",
+            "bytes_planned",
+            "bytes_deleted",
+        ):
+            if getattr(self, name) < 0:
+                raise ValueError(f"RetentionRun.{name} cannot be negative")
+        _aware(self.started_at, "RetentionRun.started_at")
+        _aware(self.finished_at, "RetentionRun.finished_at")
+        if self.finished_at < self.started_at:
+            raise ValueError("RetentionRun.finished_at cannot precede started_at")
+        if self.cutoff is not None:
+            _aware(self.cutoff, "RetentionRun.cutoff")
+
+
+__all__ = [
+    "ArchiveManifest",
+    "ArchiveState",
+    "RetentionPolicy",
+    "RetentionRun",
+    "StorageHold",
+]
