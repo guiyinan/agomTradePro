@@ -941,6 +941,14 @@ class RawAudit:
     error_message: str = ""
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
+    request_params_hash: str = ""
+    response_payload_hash: str = ""
+    schema_fingerprint: str = ""
+    redacted: bool = True
+    parser_version: str = ""
+    payload_size_bytes: int = 0
+    retention_until: datetime | None = None
+    ingested_run_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -953,4 +961,12 @@ class RawAudit:
             "error_message": self.error_message,
             "fetched_at": self.fetched_at.isoformat(),
             "extra": self.extra,
+            "request_params_hash": self.request_params_hash,
+            "response_payload_hash": self.response_payload_hash,
+            "schema_fingerprint": self.schema_fingerprint,
+            "redacted": self.redacted,
+            "parser_version": self.parser_version,
+            "payload_size_bytes": self.payload_size_bytes,
+            "retention_until": self.retention_until.isoformat() if self.retention_until else None,
+            "ingested_run_id": self.ingested_run_id,
         }

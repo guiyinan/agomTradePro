@@ -22,6 +22,10 @@ from django.utils import timezone
 from apps.asset_analysis.application.query_services import (
     list_active_watchlist_asset_codes,
 )
+from apps.data_center.application.public import (
+    get_price_bar_repository_port,
+    get_quote_snapshot_repository_port,
+)
 from apps.data_center.domain.entities import QuoteSnapshot as DataCenterQuoteSnapshot
 from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
     AKShareEastMoneyGateway,
@@ -32,7 +36,6 @@ from apps.data_center.infrastructure.legacy_sdk_bridge import (
 from apps.data_center.infrastructure.market_gateway_entities import (
     QuoteSnapshot as MarketQuoteSnapshot,
 )
-from apps.data_center.infrastructure.repositories import PriceBarRepository, QuoteSnapshotRepository
 from apps.realtime.application.simulated_trading_gateway import (
     list_held_asset_codes as _list_held_asset_codes,
 )
@@ -378,8 +381,8 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
     """
 
     def __init__(self) -> None:
-        self._quote_repo = QuoteSnapshotRepository()
-        self._price_repo = PriceBarRepository()
+        self._quote_repo = get_quote_snapshot_repository_port()
+        self._price_repo = get_price_bar_repository_port()
         self._is_available = True
 
     def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
@@ -475,8 +478,8 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
     """
 
     def __init__(self) -> None:
-        self._quote_repo = QuoteSnapshotRepository()
-        self._price_repo = PriceBarRepository()
+        self._quote_repo = get_quote_snapshot_repository_port()
+        self._price_repo = get_price_bar_repository_port()
         self._is_available = True
         self._ak: ModuleType | None = None
         self._eastmoney_gateway: AKShareEastMoneyGateway | None = None
@@ -895,13 +898,8 @@ class DataCenterPriceDataProvider(PriceDataProviderProtocol):
     """Price provider backed by data_center quote/price facts."""
 
     def __init__(self) -> None:
-        from apps.data_center.infrastructure.repositories import (
-            PriceBarRepository,
-            QuoteSnapshotRepository,
-        )
-
-        self._quote_repo = QuoteSnapshotRepository()
-        self._bar_repo = PriceBarRepository()
+        self._quote_repo = get_quote_snapshot_repository_port()
+        self._bar_repo = get_price_bar_repository_port()
 
     def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         try:

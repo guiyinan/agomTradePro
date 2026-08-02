@@ -11,6 +11,7 @@ from typing import cast
 
 from django.db import transaction
 
+from apps.data_center.application.pit_provider import get_pit_manifest_evidence
 from apps.research.domain.contracts import (
     ExperimentTrialView,
     PromotionDecisionView,
@@ -24,10 +25,7 @@ from apps.research.domain.statistics import (
     benjamini_hochberg_q_values,
     deflated_sharpe_ratio,
 )
-from core.integration.research_integrity_registry import (
-    get_backtest_evidence,
-    get_pit_manifest_evidence,
-)
+from core.integration.research_integrity_registry import get_backtest_evidence
 
 from .models import (
     DatasetSplitSpec,

@@ -1,426 +1,145 @@
-"""Macro-domain projections backed by canonical Data Center fact models."""
+"""Macro-domain compatibility facade over Data Center Application ports.
+
+The macro app owns the ``MacroIndicator`` projection and analytical aliases,
+but it no longer imports Data Center ORM models.  Persistence, unit-rule
+resolution and administrative projections are owned by Data Center and are
+reached through the stable public port.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass
-from datetime import date, datetime
-from typing import Any
+from datetime import date
+from typing import Any, Protocol, cast
 
-from django.db import transaction
-from django.db.models import Avg, Count, Max, Min
-from django.utils import timezone
-
-from apps.data_center.domain.rules import convert_currency_value
-from apps.data_center.infrastructure.macro_fact_selection import (
-    configured_macro_source,
-    select_macro_fact_series,
-)
-from apps.data_center.infrastructure.models import (
-    IndicatorCatalogModel,
-    IndicatorUnitRuleModel,
-    MacroFactModel,
-    RawAuditModel,
-)
+from apps.data_center.application.public import get_macro_projection_repository_port
+from apps.data_center.domain.entities import MacroFact as CanonicalMacroFact
 from apps.macro.domain.entities import MacroIndicator, PeriodType
-from shared.numeric import safe_float
 
 
-@dataclass
-class _MacroFactSelectionCandidate:
-    """Typed selection projection retaining its originating ORM model."""
+class _MacroProjectionPort(Protocol):
+    """Typed application port consumed by the legacy macro facade."""
 
-    model: MacroFactModel
-    indicator_code: str
-    reporting_period: date
-    value: float
-    source: str
-    revision_number: int
-    published_at: date | None
-    fetched_at: datetime
-    extra: Mapping[str, object]
-
-    @classmethod
-    def from_model(cls, model: MacroFactModel) -> _MacroFactSelectionCandidate:
-        """Project ORM field values into the canonical selection protocol."""
-
-        return cls(
-            model=model,
-            indicator_code=model.indicator_code,
-            reporting_period=model.reporting_period,
-            value=float(model.value),
-            source=model.source,
-            revision_number=model.revision_number,
-            published_at=model.published_at,
-            fetched_at=model.fetched_at,
-            extra=dict(model.extra or {}),
-        )
-
-
-def _get_period_type_display(period_type: str) -> str:
-    period_labels = {
-        "D": "日",
-        "W": "周",
-        "M": "月",
-        "Q": "季",
-        "H": "半",
-        "Y": "年",
-        "2W": "双周",
-        "2M": "双月",
-        "10D": "旬",
-        "3M": "3月期",
-        "6M": "6月期",
-        "1Y": "1年期",
-        "5Y": "5年期",
-        "10Y": "10年期",
-        "20Y": "20年期",
-        "30Y": "30年期",
-    }
-    return period_labels.get(period_type, period_type)
+    def save_indicator(self, fact: CanonicalMacroFact) -> CanonicalMacroFact: ...
+    def get_series(self, code: str, **kwargs: Any) -> list[CanonicalMacroFact]: ...
+    def get_latest_observation_date(self, code: str, as_of_date: date | None = None) -> date | None: ...
+    def get_latest_observation(self, code: str, before_date: date | None = None) -> CanonicalMacroFact | None: ...
+    def get_available_dates(self, codes: list[str] | None = None, start_date: date | None = None, end_date: date | None = None) -> list[date]: ...
+    def delete_indicator(self, code: str, observed_at: date, revision_number: int | None = None) -> bool: ...
+    def get_indicator_count(self, code: str | None = None) -> int: ...
+    def delete_by_conditions(self, indicator_code: str | None = None, source: str | None = None, start_date: date | None = None, end_date: date | None = None) -> int: ...
+    def get_record_by_id(self, record_id: int) -> dict[str, Any] | None: ...
+    def create_record(self, **kwargs: Any) -> dict[str, Any]: ...
+    def update_record(self, record_id: int, **updates: Any) -> dict[str, Any] | None: ...
+    def delete_record_by_id(self, record_id: int) -> bool: ...
+    def delete_records_by_ids(self, record_ids: list[int]) -> int: ...
+    def count_records_before_date(self, cutoff_date: date) -> int: ...
+    def get_statistics(self) -> dict[str, Any]: ...
+    def get_recent_syncs(self, limit: int = 10) -> list[dict[str, Any]]: ...
+    def get_indicator_unit_config(self, indicator_code: str, source: str | None = None) -> dict[str, Any] | None: ...
+    def list_distinct_codes(self) -> list[str]: ...
+    def get_storage_summary(self) -> dict[str, Any]: ...
+    def list_indicator_rollups(self) -> list[dict[str, Any]]: ...
+    def list_source_rollups(self) -> list[dict[str, Any]]: ...
+    def get_indicator_rows(self, **kwargs: Any) -> list[dict[str, Any]]: ...
+    def count_table_rows(self, **kwargs: Any) -> int: ...
+    def get_table_rows(self, **kwargs: Any) -> list[dict[str, Any]]: ...
+    def get_latest_indicator(self, code: str) -> dict[str, Any] | None: ...
+    def get_indicator_stats(self, code: str, start_date: date) -> dict[str, float | None]: ...
+    def get_indicator_history(self, code: str, **kwargs: Any) -> list[dict[str, Any]]: ...
+    def get_latest_values_by_codes(self, codes: list[str]) -> list[dict[str, Any]]: ...
 
 
-def _get_indicator_catalog(code: str) -> IndicatorCatalogModel | None:
-    return IndicatorCatalogModel.objects.filter(code=code).first()
+def _repository() -> _MacroProjectionPort:
+    """Return the application-bound macro projection port at runtime."""
+
+    return cast(_MacroProjectionPort, get_macro_projection_repository_port())
 
 
-def _select_governed_facts(
-    code: str,
-    facts: list[MacroFactModel],
-    *,
-    preferred_source: str = "",
-) -> list[MacroFactModel]:
-    """Select one canonical, internally consistent fact series for consumers."""
+def _to_indicator(fact: CanonicalMacroFact) -> MacroIndicator:
+    """Convert a canonical macro fact to the macro-domain projection."""
 
-    catalog = _get_indicator_catalog(code)
-    selection = select_macro_fact_series(
-        [_MacroFactSelectionCandidate.from_model(fact) for fact in facts],
-        preferred_source=(
-            preferred_source or configured_macro_source(catalog.extra if catalog else {})
-        ),
-    )
-    return [candidate.model for candidate in selection.facts] if selection.is_consistent else []
-
-
-def _get_indicator_unit_rule(
-    indicator_code: str,
-    source_type: str | None = None,
-    original_unit: str | None = None,
-) -> dict[str, Any] | None:
-    queryset = IndicatorUnitRuleModel._default_manager.filter(
-        indicator_code=indicator_code,
-        is_active=True,
-    )
-    if original_unit is not None:
-        queryset = queryset.filter(original_unit=original_unit)
-
-    if source_type:
-        config = (
-            queryset.filter(source_type=source_type)
-            .values(
-                "id",
-                "indicator_code",
-                "source_type",
-                "dimension_key",
-                "original_unit",
-                "storage_unit",
-                "display_unit",
-                "multiplier_to_storage",
-                "priority",
-                "description",
-            )
-            .first()
-        )
-        if config:
-            return dict(config)
-
-    config = (
-        queryset.filter(source_type="")
-        .values(
-            "id",
-            "indicator_code",
-            "source_type",
-            "dimension_key",
-            "original_unit",
-            "storage_unit",
-            "display_unit",
-            "multiplier_to_storage",
-            "priority",
-            "description",
-        )
-        .first()
-    )
-    return dict(config) if config is not None else None
-
-
-def _resolve_indicator_unit_rule(
-    indicator_code: str,
-    *,
-    source_type: str | None = None,
-    original_unit: str | None = None,
-) -> dict[str, Any]:
-    rule = _get_indicator_unit_rule(
-        indicator_code,
-        source_type=source_type,
-        original_unit=original_unit,
-    )
-    if rule:
-        return rule
-    raise ValueError(
-        f"Indicator unit rule missing for {indicator_code}@{source_type or 'default'}"
-        f" unit={original_unit!r}"
-    )
-
-
-def _resolve_period_type(
-    fact: MacroFactModel,
-    catalog: IndicatorCatalogModel | None = None,
-) -> PeriodType:
-    extra = fact.extra or {}
-    period_type = extra.get("period_type")
-    if isinstance(period_type, str):
-        try:
-            return PeriodType(period_type)
-        except ValueError:
-            pass
-    if catalog and catalog.default_period_type:
-        try:
-            return PeriodType(str(catalog.default_period_type))
-        except ValueError:
-            pass
-    return PeriodType.MONTH
-
-
-def _resolve_original_unit_from_fact(
-    fact: MacroFactModel,
-    catalog: IndicatorCatalogModel | None = None,
-) -> str:
-    extra = fact.extra or {}
-    original_unit = extra.get("original_unit")
-    if isinstance(original_unit, str) and original_unit:
-        return original_unit
-    matched_rule = _get_indicator_unit_rule(
-        fact.indicator_code,
-        source_type=str(extra.get("source_type") or ""),
-    )
-    if matched_rule and matched_rule.get("original_unit"):
-        return str(matched_rule["original_unit"])
-    if catalog and catalog.default_unit:
-        return str(catalog.default_unit)
-    return fact.unit or ""
-
-
-def _resolve_publication_lag_days(
-    fact: MacroFactModel,
-    extra: dict[str, Any] | None = None,
-) -> int:
-    payload = extra if extra is not None else (fact.extra or {})
-    lag_value = payload.get("publication_lag_days")
-    if lag_value is not None:
-        try:
-            return int(lag_value)
-        except (TypeError, ValueError):
-            pass
-    if fact.published_at is None:
-        return 0
-    return max((fact.published_at - fact.reporting_period).days, 0)
-
-
-def _resolve_display_fields(
-    fact: MacroFactModel,
-    catalog: IndicatorCatalogModel | None = None,
-) -> tuple[float, str, str, float]:
-    extra = fact.extra or {}
-    original_unit = _resolve_original_unit_from_fact(fact, catalog)
-    display_unit = str(extra.get("display_unit") or original_unit or fact.unit or "")
+    period_value = str((fact.extra or {}).get("period_type") or "D")
     try:
-        multiplier_to_storage = float(extra.get("multiplier_to_storage") or 1.0)
-    except (TypeError, ValueError):
-        multiplier_to_storage = 1.0
-
-    if (not display_unit or not original_unit) and fact.indicator_code:
-        matched_rule = _get_indicator_unit_rule(
-            fact.indicator_code,
-            source_type=str(extra.get("source_type") or ""),
-            original_unit=original_unit or None,
-        )
-        if matched_rule:
-            original_unit = original_unit or str(matched_rule.get("original_unit") or "")
-            display_unit = display_unit or str(matched_rule.get("display_unit") or original_unit)
-            try:
-                multiplier_to_storage = float(matched_rule.get("multiplier_to_storage") or 1.0)
-            except (TypeError, ValueError):
-                multiplier_to_storage = 1.0
-
-    display_value = safe_float(fact.value, default=0.0)
-    converted_value, converted_unit = convert_currency_value(
-        display_value,
-        fact.unit or "",
-        display_unit or "",
-    )
-    if converted_unit == display_unit:
-        display_value = converted_value
-    elif multiplier_to_storage:
-        display_value = display_value / multiplier_to_storage
-    return display_value, display_unit or fact.unit or "", original_unit, multiplier_to_storage
-
-
-def _serialize_fact_row(
-    fact: MacroFactModel,
-    catalog: IndicatorCatalogModel | None = None,
-) -> dict[str, Any]:
-    resolved_catalog = catalog or _get_indicator_catalog(fact.indicator_code)
-    period_type = _resolve_period_type(fact, resolved_catalog)
-    period_type_value = period_type.value
-    display_value, display_unit, original_unit, multiplier_to_storage = _resolve_display_fields(
-        fact,
-        resolved_catalog,
-    )
-    extra = fact.extra or {}
-    return {
-        "id": fact.id,
-        "code": fact.indicator_code,
-        "value": safe_float(fact.value, default=0.0),
-        "unit": fact.unit or (resolved_catalog.default_unit if resolved_catalog else ""),
-        "display_value": display_value,
-        "display_unit": display_unit,
-        "original_unit": original_unit,
-        "dimension_key": extra.get("dimension_key", ""),
-        "multiplier_to_storage": multiplier_to_storage,
-        "reporting_period": fact.reporting_period,
-        "period_type": period_type_value,
-        "period_type_display": _get_period_type_display(period_type_value),
-        "observed_at": fact.reporting_period,
-        "published_at": fact.published_at,
-        "source": fact.source,
-        "revision_number": fact.revision_number,
-        "publication_lag_days": _resolve_publication_lag_days(fact, extra),
-    }
-
-
-def _fact_to_entity(fact: MacroFactModel) -> MacroIndicator:
-    catalog = _get_indicator_catalog(fact.indicator_code)
-    original_unit = _resolve_original_unit_from_fact(fact, catalog)
+        period_type = PeriodType(period_value)
+    except ValueError:
+        period_type = PeriodType.DAY
+    original_unit = str((fact.extra or {}).get("original_unit") or fact.unit or "")
     return MacroIndicator(
         code=fact.indicator_code,
-        value=safe_float(fact.value, default=0.0),
+        value=float(fact.value),
         reporting_period=fact.reporting_period,
-        period_type=_resolve_period_type(fact, catalog),
-        unit=fact.unit or "",
+        period_type=period_type,
+        unit=fact.unit,
         original_unit=original_unit,
         published_at=fact.published_at,
         source=fact.source,
     )
 
 
-def _apply_period_type_filter(
-    rows: list[dict[str, Any]],
-    period_type_filter: str,
-) -> list[dict[str, Any]]:
-    if not period_type_filter:
-        return rows
-    return [row for row in rows if row["period_type"] == period_type_filter]
-
-
-def _sort_rows(rows: list[dict[str, Any]], sort_field: str) -> list[dict[str, Any]]:
-    reverse = sort_field.startswith("-")
-    field_name = sort_field[1:] if reverse else sort_field
-    field_map = {
-        "code": "code",
-        "value": "value",
-        "source": "source",
-        "period_type": "period_type",
-        "reporting_period": "reporting_period",
-        "revision_number": "revision_number",
-        "published_at": "published_at",
-    }
-    resolved_field = field_map.get(field_name, "reporting_period")
-    return sorted(
-        rows,
-        key=lambda row: (
-            row.get(resolved_field) is None,
-            row.get(resolved_field),
-            row.get("revision_number", 0),
-        ),
-        reverse=reverse,
-    )
-
-
 class DataCenterMacroRepository:
-    """Macro write repository backed by canonical Data Center macro facts."""
+    """Backward-compatible macro repository backed exclusively by Data Center."""
 
     GROWTH_INDICATORS = {
         "PMI": "CN_PMI",
         "工业增加值": "CN_VALUE_ADDED",
         "社会消费品零售": "CN_RETAIL_SALES",
     }
-
     INFLATION_INDICATORS = {
         "CPI": "CN_CPI_NATIONAL_YOY",
         "PPI": "CN_PPI",
         "GDP平减指数": "CN_GDP_DEFLATOR",
     }
 
-    @transaction.atomic
     def save_indicator(
         self,
         indicator: MacroIndicator,
         revision_number: int = 1,
         period_type_override: str | None = None,
     ) -> MacroIndicator:
-        period_type = period_type_override or (
-            indicator.period_type.value
-            if isinstance(indicator.period_type, PeriodType)
-            else str(indicator.period_type)
-        )
+        """Normalize and save one macro indicator through the canonical port."""
+
+        rule = _repository().get_indicator_unit_config(indicator.code, indicator.source)
+        if rule is None:
+            raise ValueError(f"Indicator unit rule missing for {indicator.code}@{indicator.source}")
+        period_type = period_type_override or indicator.period_type.value
+        multiplier = float(rule.get("multiplier_to_storage") or 1.0)
         original_unit = indicator.original_unit or indicator.unit
-        rule = _resolve_indicator_unit_rule(
-            indicator.code,
-            source_type=indicator.source,
-            original_unit=original_unit,
-        )
-        storage_value = float(indicator.value) * float(rule["multiplier_to_storage"])
-        storage_unit = str(rule["storage_unit"] or indicator.unit)
-        lag_days = (
-            max((indicator.published_at - indicator.reporting_period).days, 0)
-            if indicator.published_at
-            else 0
-        )
-        defaults = {
-            "value": storage_value,
-            "unit": storage_unit or indicator.unit,
-            "published_at": indicator.published_at,
-            "fetched_at": timezone.now(),
-            "quality": "valid",
-            "extra": {
-                "original_unit": original_unit,
-                "display_unit": rule["display_unit"],
-                "dimension_key": rule["dimension_key"],
-                "multiplier_to_storage": float(rule["multiplier_to_storage"]),
-                "matched_rule_id": rule.get("id"),
-                "source_type": indicator.source,
-                "period_type": period_type,
-                "publication_lag_days": lag_days,
-            },
+        published_at = indicator.published_at
+        extra = {
+            "original_unit": original_unit,
+            "display_unit": str(rule.get("display_unit") or indicator.unit),
+            "dimension_key": str(rule.get("dimension_key") or ""),
+            "multiplier_to_storage": multiplier,
+            "matched_rule_id": rule.get("id"),
+            "source_type": indicator.source,
+            "period_type": period_type,
+            "publication_lag_days": (
+                max((published_at - indicator.reporting_period).days, 0) if published_at else 0
+            ),
         }
-        fact, _ = MacroFactModel.objects.update_or_create(
+        fact = CanonicalMacroFact(
             indicator_code=indicator.code,
             reporting_period=indicator.reporting_period,
+            value=float(indicator.value) * multiplier,
+            unit=str(rule.get("storage_unit") or indicator.unit),
             source=indicator.source,
             revision_number=revision_number,
-            defaults=defaults,
+            published_at=published_at,
+            extra=extra,
         )
-        return _fact_to_entity(fact)
+        return _to_indicator(_repository().save_indicator(fact))
 
     def save_indicators_batch(
         self,
         indicators: list[MacroIndicator],
         revision_number: int = 1,
     ) -> list[MacroIndicator]:
-        with transaction.atomic():
-            return [
-                self.save_indicator(indicator, revision_number=revision_number)
-                for indicator in indicators
-            ]
+        """Save a batch while retaining the historical return shape."""
+
+        return [
+            self.save_indicator(indicator, revision_number=revision_number)
+            for indicator in indicators
+        ]
 
     def get_by_code_and_date(
         self,
@@ -428,17 +147,13 @@ class DataCenterMacroRepository:
         observed_at: date,
         revision_number: int | None = None,
     ) -> MacroIndicator | None:
-        queryset = MacroFactModel.objects.filter(
-            indicator_code=code,
-            reporting_period=observed_at,
-        )
+        """Read one canonical observation by natural key."""
+
+        facts = _repository().get_series(code, end_date=observed_at)
+        candidates = [fact for fact in facts if fact.reporting_period == observed_at]
         if revision_number is not None:
-            queryset = queryset.filter(revision_number=revision_number)
-            fact = queryset.order_by("-id").first()
-            return _fact_to_entity(fact) if fact else None
-        facts = _select_governed_facts(code, list(queryset.order_by("id")))
-        fact = facts[-1] if facts else None
-        return _fact_to_entity(fact) if fact else None
+            candidates = [fact for fact in candidates if fact.revision_number == revision_number]
+        return _to_indicator(candidates[-1]) if candidates else None
 
     def get_series(
         self,
@@ -448,41 +163,24 @@ class DataCenterMacroRepository:
         use_pit: bool = False,
         source: str | None = None,
     ) -> list[MacroIndicator]:
-        if not isinstance(use_pit, bool):
-            raise ValueError("use_pit must be a boolean")
-        if use_pit and end_date is None:
-            raise ValueError("end_date is required when use_pit is enabled")
+        """Read a governed canonical series."""
 
-        queryset = MacroFactModel.objects.filter(indicator_code=code)
-        if start_date:
-            queryset = queryset.filter(reporting_period__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(reporting_period__lte=end_date)
-        if use_pit:
-            queryset = queryset.filter(
-                published_at__isnull=False,
-                published_at__lte=end_date,
+        return [
+            _to_indicator(fact)
+            for fact in _repository().get_series(
+                code,
+                start_date=start_date,
+                end_date=end_date,
+                use_pit=use_pit,
+                source=source,
             )
-        if source:
-            queryset = queryset.filter(source=source)
-        facts = _select_governed_facts(
-            code,
-            list(queryset.order_by("reporting_period", "id")),
-            preferred_source=source or "",
-        )
-        return [_fact_to_entity(fact) for fact in facts]
+        ]
 
     @staticmethod
     def _normalize_cpi_value(code: str, value: float) -> float:
-        """Return CPI as percentage points for the regime calculation chain.
+        """Normalize the legacy CPI index representation."""
 
-        ``CN_CPI_NATIONAL_YOY`` is canonicalized on ingestion and already stores
-        percentage points. Only the legacy ``CN_CPI`` index uses a base of 100
-        and therefore needs conversion.
-        """
-        if code == "CN_CPI":
-            return float(value) - 100.0
-        return float(value)
+        return float(value) - 100.0 if code == "CN_CPI" else float(value)
 
     def get_growth_series(
         self,
@@ -492,14 +190,12 @@ class DataCenterMacroRepository:
         use_pit: bool = False,
         source: str | None = None,
     ) -> list[float]:
+        """Return values for a growth indicator alias."""
+
         return [
             indicator.value
             for indicator in self.get_growth_series_full(
-                indicator_code=indicator_code,
-                start_date=start_date,
-                end_date=end_date,
-                use_pit=use_pit,
-                source=source,
+                indicator_code, start_date, end_date, use_pit, source
             )
         ]
 
@@ -511,13 +207,14 @@ class DataCenterMacroRepository:
         use_pit: bool = False,
         source: str | None = None,
     ) -> list[MacroIndicator]:
-        code = self.GROWTH_INDICATORS.get(indicator_code, indicator_code)
+        """Return the full canonical growth series."""
+
         return self.get_series(
-            code=code,
-            start_date=start_date,
-            end_date=end_date,
-            use_pit=use_pit,
-            source=source,
+            self.GROWTH_INDICATORS.get(indicator_code, indicator_code),
+            start_date,
+            end_date,
+            use_pit,
+            source,
         )
 
     def get_inflation_series(
@@ -528,14 +225,12 @@ class DataCenterMacroRepository:
         use_pit: bool = False,
         source: str | None = None,
     ) -> list[float]:
+        """Return inflation values for an alias."""
+
         return [
-            indicator.value
+            self._normalize_cpi_value(indicator.code, indicator.value)
             for indicator in self.get_inflation_series_full(
-                indicator_code=indicator_code,
-                start_date=start_date,
-                end_date=end_date,
-                use_pit=use_pit,
-                source=source,
+                indicator_code, start_date, end_date, use_pit, source
             )
         ]
 
@@ -547,64 +242,24 @@ class DataCenterMacroRepository:
         use_pit: bool = False,
         source: str | None = None,
     ) -> list[MacroIndicator]:
+        """Return the full canonical inflation series with legacy CPI fallback."""
+
         code = self.INFLATION_INDICATORS.get(indicator_code, indicator_code)
-        indicators = self.get_series(
-            code=code,
-            start_date=start_date,
-            end_date=end_date,
-            use_pit=use_pit,
-            source=source,
-        )
+        indicators = self.get_series(code, start_date, end_date, use_pit, source)
         if indicator_code == "CPI" and not indicators and code == "CN_CPI_NATIONAL_YOY":
-            code = "CN_CPI"
-            indicators = self.get_series(
-                code=code,
-                start_date=start_date,
-                end_date=end_date,
-                use_pit=use_pit,
-                source=source,
-            )
+            indicators = self.get_series("CN_CPI", start_date, end_date, use_pit, source)
+        return indicators
 
-        if indicator_code != "CPI":
-            return indicators
+    def get_latest_observation_date(self, code: str, as_of_date: date | None = None) -> date | None:
+        """Return the newest observed date."""
 
-        normalized: list[MacroIndicator] = []
-        for indicator in indicators:
-            normalized.append(
-                MacroIndicator(
-                    code=indicator.code,
-                    value=self._normalize_cpi_value(code, indicator.value),
-                    reporting_period=indicator.reporting_period,
-                    period_type=indicator.period_type,
-                    unit="%",
-                    original_unit=indicator.original_unit,
-                    published_at=indicator.published_at,
-                    source=indicator.source,
-                )
-            )
-        return normalized
+        return _repository().get_latest_observation_date(code, as_of_date)
 
-    def get_latest_observation_date(
-        self,
-        code: str,
-        as_of_date: date | None = None,
-    ) -> date | None:
-        queryset = MacroFactModel.objects.filter(indicator_code=code)
-        if as_of_date:
-            queryset = queryset.filter(published_at__lte=as_of_date)
-        facts = _select_governed_facts(code, list(queryset.order_by("reporting_period", "id")))
-        return facts[-1].reporting_period if facts else None
+    def get_latest_observation(self, code: str, before_date: date | None = None) -> MacroIndicator | None:
+        """Return the newest observation before an optional boundary."""
 
-    def get_latest_observation(
-        self,
-        code: str,
-        before_date: date | None = None,
-    ) -> MacroIndicator | None:
-        queryset = MacroFactModel.objects.filter(indicator_code=code)
-        if before_date:
-            queryset = queryset.filter(reporting_period__lt=before_date)
-        facts = _select_governed_facts(code, list(queryset.order_by("reporting_period", "id")))
-        return _fact_to_entity(facts[-1]) if facts else None
+        fact = _repository().get_latest_observation(code, before_date)
+        return _to_indicator(fact) if fact is not None else None
 
     def get_available_dates(
         self,
@@ -612,39 +267,19 @@ class DataCenterMacroRepository:
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[date]:
-        queryset = MacroFactModel.objects.all()
-        if codes:
-            queryset = queryset.filter(indicator_code__in=codes)
-        if start_date:
-            queryset = queryset.filter(reporting_period__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(reporting_period__lte=end_date)
-        return list(
-            queryset.values_list("reporting_period", flat=True)
-            .distinct()
-            .order_by("reporting_period")
-        )
+        """Return distinct available reporting periods."""
 
-    def delete_indicator(
-        self,
-        code: str,
-        observed_at: date,
-        revision_number: int | None = None,
-    ) -> bool:
-        queryset = MacroFactModel.objects.filter(
-            indicator_code=code,
-            reporting_period=observed_at,
-        )
-        if revision_number is not None:
-            queryset = queryset.filter(revision_number=revision_number)
-        deleted_count, _ = queryset.delete()
-        return deleted_count > 0
+        return _repository().get_available_dates(codes, start_date, end_date)
+
+    def delete_indicator(self, code: str, observed_at: date, revision_number: int | None = None) -> bool:
+        """Delete one natural-key scope through the canonical owner."""
+
+        return _repository().delete_indicator(code, observed_at, revision_number)
 
     def get_indicator_count(self, code: str | None = None) -> int:
-        queryset = MacroFactModel.objects.all()
-        if code:
-            queryset = queryset.filter(indicator_code=code)
-        return queryset.count()
+        """Return canonical row count."""
+
+        return _repository().get_indicator_count(code)
 
     def delete_by_conditions(
         self,
@@ -653,411 +288,113 @@ class DataCenterMacroRepository:
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> int:
-        queryset = MacroFactModel.objects.all()
-        if indicator_code:
-            queryset = queryset.filter(indicator_code=indicator_code)
-        if source:
-            queryset = queryset.filter(source=source)
-        if start_date:
-            queryset = queryset.filter(reporting_period__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(reporting_period__lte=end_date)
-        deleted_count, _ = queryset.delete()
-        return deleted_count
+        """Delete an explicitly bounded administrative scope."""
+
+        return _repository().delete_by_conditions(indicator_code, source, start_date, end_date)
 
     def get_record_by_id(self, record_id: int) -> dict[str, Any] | None:
-        fact = MacroFactModel.objects.filter(id=record_id).first()
-        if fact is None:
-            return None
-        return _serialize_fact_row(fact)
+        """Return one serialized canonical row."""
 
-    def create_record(
-        self,
-        *,
-        code: str,
-        value: float,
-        reporting_period: date,
-        period_type: str = "D",
-        published_at: date | None = None,
-        source: str = "manual",
-        revision_number: int = 1,
-    ) -> dict[str, Any]:
-        rule = _resolve_indicator_unit_rule(code, source_type=source)
-        original_unit = str(rule["original_unit"] or "")
-        storage_value = float(value) * float(rule["multiplier_to_storage"])
-        storage_unit = str(rule["storage_unit"] or "")
-        lag_days = max((published_at - reporting_period).days, 0) if published_at else 0
-        fact = MacroFactModel.objects.create(
-            indicator_code=code,
-            value=storage_value,
-            unit=storage_unit,
-            source=source,
-            reporting_period=reporting_period,
-            revision_number=revision_number,
-            published_at=published_at,
-            quality="valid",
-            extra={
-                "original_unit": original_unit,
-                "display_unit": rule["display_unit"],
-                "dimension_key": rule["dimension_key"],
-                "multiplier_to_storage": float(rule["multiplier_to_storage"]),
-                "matched_rule_id": rule.get("id"),
-                "source_type": source,
-                "period_type": period_type,
-                "publication_lag_days": lag_days,
-            },
-        )
-        return _serialize_fact_row(fact)
+        return _repository().get_record_by_id(record_id)
+
+    def create_record(self, **kwargs: Any) -> dict[str, Any]:
+        """Create one administrative canonical row."""
+
+        return _repository().create_record(**kwargs)
 
     def update_record(self, record_id: int, **updates: Any) -> dict[str, Any] | None:
-        fact = MacroFactModel.objects.filter(id=record_id).first()
-        if fact is None:
-            return None
+        """Update one administrative canonical row."""
 
-        next_code = str(updates.get("code", fact.indicator_code))
-        next_source = str(updates.get("source", fact.source))
-        next_period_type = str(
-            updates.get("period_type")
-            or (fact.extra or {}).get("period_type")
-            or _resolve_period_type(fact)
-        )
-        next_published_at = updates.get("published_at", fact.published_at)
-
-        if any(field in updates for field in ("value", "code", "source")):
-            current_extra = dict(fact.extra or {})
-            next_original_unit = str(current_extra.get("original_unit") or "")
-            if "original_unit" in updates and updates["original_unit"] is not None:
-                next_original_unit = str(updates["original_unit"])
-            rule = _resolve_indicator_unit_rule(
-                next_code,
-                source_type=next_source,
-                original_unit=next_original_unit or None,
-            )
-            next_original_unit = str(rule["original_unit"] or next_original_unit)
-            next_value = float(updates.get("value", safe_float(fact.value, default=0.0)))
-            fact.value = next_value * float(rule["multiplier_to_storage"])
-            fact.unit = str(rule["storage_unit"] or "")
-            extra = dict(fact.extra or {})
-            extra["original_unit"] = next_original_unit
-            extra["display_unit"] = rule["display_unit"]
-            extra["dimension_key"] = rule["dimension_key"]
-            extra["multiplier_to_storage"] = float(rule["multiplier_to_storage"])
-            extra["matched_rule_id"] = rule.get("id")
-            extra["source_type"] = next_source
-            extra["period_type"] = next_period_type
-            extra["publication_lag_days"] = (
-                max(
-                    (
-                        next_published_at - updates.get("reporting_period", fact.reporting_period)
-                    ).days,
-                    0,
-                )
-                if next_published_at
-                else 0
-            )
-            fact.extra = extra
-
-        if "code" in updates:
-            fact.indicator_code = next_code
-        if "reporting_period" in updates:
-            fact.reporting_period = updates["reporting_period"]
-        if "source" in updates:
-            fact.source = next_source
-        if "revision_number" in updates and updates["revision_number"] is not None:
-            fact.revision_number = int(updates["revision_number"])
-        if "published_at" in updates:
-            fact.published_at = next_published_at
-        if "period_type" in updates:
-            extra = dict(fact.extra or {})
-            extra["period_type"] = next_period_type
-            extra["publication_lag_days"] = (
-                max((fact.published_at - fact.reporting_period).days, 0) if fact.published_at else 0
-            )
-            fact.extra = extra
-
-        fact.save()
-        fact.refresh_from_db()
-        return _serialize_fact_row(fact)
+        return _repository().update_record(record_id, **updates)
 
     def delete_record_by_id(self, record_id: int) -> bool:
-        deleted_count, _ = MacroFactModel.objects.filter(id=record_id).delete()
-        return deleted_count > 0
+        """Delete one row by primary key."""
+
+        return _repository().delete_record_by_id(record_id)
 
     def delete_records_by_ids(self, record_ids: list[int]) -> int:
-        deleted_count, _ = MacroFactModel.objects.filter(id__in=record_ids).delete()
-        return deleted_count
+        """Delete a bounded set of rows."""
+
+        return _repository().delete_records_by_ids(record_ids)
 
     def count_records_before_date(self, cutoff_date: date) -> int:
-        return MacroFactModel.objects.filter(reporting_period__lt=cutoff_date).count()
+        """Count rows before a retention boundary."""
+
+        return _repository().count_records_before_date(cutoff_date)
 
     def get_statistics(self) -> dict[str, Any]:
-        aggregates = MacroFactModel.objects.aggregate(
-            latest=Max("reporting_period"),
-            total_records=Count("id"),
-        )
-        source_stats = []
-        for row in (
-            MacroFactModel.objects.values("source")
-            .annotate(record_count=Count("id"), last_sync=Max("reporting_period"))
-            .order_by("-record_count", "source")
-        ):
-            source_stats.append(
-                {
-                    "name": row["source"],
-                    "type": row["source"],
-                    "priority": 0,
-                    "is_active": True,
-                    "last_sync": row["last_sync"],
-                    "record_count": row["record_count"],
-                }
-            )
-        return {
-            "total_indicators": MacroFactModel.objects.values("indicator_code").distinct().count(),
-            "total_records": aggregates["total_records"] or 0,
-            "latest_date": aggregates["latest"],
-            "sources": source_stats,
-        }
+        """Return canonical macro statistics."""
+
+        return _repository().get_statistics()
 
     def get_recent_syncs(self, limit: int = 10) -> list[dict[str, Any]]:
-        audits = list(
-            RawAuditModel.objects.filter(capability="macro")
-            .order_by("-fetched_at")[:limit]
-            .values("request_params", "provider_name", "fetched_at", "status")
-        )
-        if audits:
-            return [
-                {
-                    "indicator": (row["request_params"] or {}).get("indicator_code", ""),
-                    "source": row["provider_name"],
-                    "sync_time": row["fetched_at"],
-                    "status": row["status"],
-                }
-                for row in audits
-            ]
+        """Return recent canonical sync evidence."""
 
-        recent_facts = MacroFactModel.objects.order_by("-fetched_at")[:limit]
-        return [
-            {
-                "indicator": fact.indicator_code,
-                "source": fact.source,
-                "sync_time": fact.published_at or fact.reporting_period,
-                "status": "success",
-            }
-            for fact in recent_facts
-        ]
+        return _repository().get_recent_syncs(limit)
 
+    def get_indicator_unit_config(self, indicator_code: str, source: str | None = None) -> dict[str, Any] | None:
+        """Return the active unit rule for a code/source pair."""
 
-class DataCenterMacroReadRepository:
-    """Compatibility read repository backed by data_center macro facts."""
-
-    def get_indicator_unit_config(
-        self,
-        indicator_code: str,
-        source: str | None = None,
-    ) -> dict[str, Any] | None:
-        return _get_indicator_unit_rule(indicator_code, source_type=source)
+        return _repository().get_indicator_unit_config(indicator_code, source)
 
     def list_distinct_codes(self) -> list[str]:
-        return list(
-            MacroFactModel._default_manager.values_list("indicator_code", flat=True)
-            .distinct()
-            .order_by("indicator_code")
-        )
+        """Return all canonical indicator codes."""
+
+        return _repository().list_distinct_codes()
 
     def get_storage_summary(self) -> dict[str, Any]:
-        queryset = MacroFactModel._default_manager.all()
-        aggregates = queryset.aggregate(
-            latest_date=Max("reporting_period"),
-            min_date=Min("reporting_period"),
-            max_date=Max("reporting_period"),
-        )
-        return {
-            "total_indicators": queryset.values("indicator_code").distinct().count(),
-            "total_records": queryset.count(),
-            "latest_date": aggregates["latest_date"],
-            "min_date": aggregates["min_date"],
-            "max_date": aggregates["max_date"],
-        }
+        """Return canonical macro storage summary."""
+
+        return _repository().get_storage_summary()
 
     def list_indicator_rollups(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "code": row["indicator_code"],
-                "count": row["count"],
-                "latest": row["latest"],
-            }
-            for row in (
-                MacroFactModel._default_manager.values("indicator_code")
-                .annotate(count=Count("id"), latest=Max("reporting_period"))
-                .order_by("indicator_code")
-            )
-        ]
+        """Return per-indicator rollups."""
+
+        return _repository().list_indicator_rollups()
 
     def list_source_rollups(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "source": row["source"],
-                "count": row["count"],
-            }
-            for row in (
-                MacroFactModel._default_manager.values("source")
-                .annotate(count=Count("id"))
-                .order_by("-count", "source")
-            )
-        ]
+        """Return per-source rollups."""
 
-    def _build_serialized_rows(
-        self,
-        *,
-        code: str | None = None,
-        code_filter: str = "",
-        source_filter: str = "",
-        start_date: date | None = None,
-        end_date: date | None = None,
-    ) -> list[dict[str, Any]]:
-        queryset = MacroFactModel._default_manager.all()
-        if code:
-            queryset = queryset.filter(indicator_code=code)
-        if code_filter:
-            queryset = queryset.filter(indicator_code__icontains=code_filter)
-        if source_filter:
-            queryset = queryset.filter(source=source_filter)
-        if start_date:
-            queryset = queryset.filter(reporting_period__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(reporting_period__lte=end_date)
+        return _repository().list_source_rollups()
 
-        code_set = list(queryset.values_list("indicator_code", flat=True).distinct())
-        catalogs = {
-            item.code: item for item in IndicatorCatalogModel.objects.filter(code__in=code_set)
-        }
-        return [_serialize_fact_row(fact, catalogs.get(fact.indicator_code)) for fact in queryset]
+    def get_indicator_rows(self, **kwargs: Any) -> list[dict[str, Any]]:
+        """Return serialized rows for an indicator."""
 
-    def get_indicator_rows(
-        self,
-        *,
-        code: str,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        limit: int | None = None,
-        ascending: bool = True,
-    ) -> list[dict[str, Any]]:
-        rows = self._build_serialized_rows(
-            code=code,
-            start_date=start_date,
-            end_date=end_date,
-        )
-        rows = _sort_rows(rows, "reporting_period" if ascending else "-reporting_period")
-        if ascending:
-            rows = sorted(rows, key=lambda row: (row["reporting_period"], row["revision_number"]))
-        else:
-            rows = sorted(
-                rows,
-                key=lambda row: (row["reporting_period"], row["revision_number"]),
-                reverse=True,
-            )
-        if limit is not None:
-            rows = rows[:limit]
-        return rows
+        return _repository().get_indicator_rows(**kwargs)
 
-    def count_table_rows(
-        self,
-        *,
-        code_filter: str = "",
-        source_filter: str = "",
-        period_type_filter: str = "",
-        start_date: date | None = None,
-        end_date: date | None = None,
-    ) -> int:
-        rows = self._build_serialized_rows(
-            code_filter=code_filter,
-            source_filter=source_filter,
-            start_date=start_date,
-            end_date=end_date,
-        )
-        return len(_apply_period_type_filter(rows, period_type_filter))
+    def count_table_rows(self, **kwargs: Any) -> int:
+        """Count rows matching table filters."""
 
-    def get_table_rows(
-        self,
-        *,
-        code_filter: str = "",
-        source_filter: str = "",
-        period_type_filter: str = "",
-        start_date: date | None = None,
-        end_date: date | None = None,
-        sort_field: str = "-reporting_period",
-        offset: int = 0,
-        limit: int = 50,
-    ) -> list[dict[str, Any]]:
-        rows = self._build_serialized_rows(
-            code_filter=code_filter,
-            source_filter=source_filter,
-            start_date=start_date,
-            end_date=end_date,
-        )
-        rows = _apply_period_type_filter(rows, period_type_filter)
-        rows = _sort_rows(rows, sort_field)
-        return rows[offset : offset + limit]
+        return _repository().count_table_rows(**kwargs)
+
+    def get_table_rows(self, **kwargs: Any) -> list[dict[str, Any]]:
+        """Return table rows matching filters."""
+
+        return _repository().get_table_rows(**kwargs)
 
     def get_latest_indicator(self, code: str) -> dict[str, Any] | None:
-        facts = _select_governed_facts(
-            code,
-            list(
-                MacroFactModel._default_manager.filter(indicator_code=code).order_by(
-                    "reporting_period", "id"
-                )
-            ),
-        )
-        if not facts:
-            return None
-        return _serialize_fact_row(facts[-1])
+        """Return latest serialized indicator row."""
+
+        return _repository().get_latest_indicator(code)
 
     def get_indicator_stats(self, code: str, start_date: date) -> dict[str, float | None]:
-        stats = MacroFactModel._default_manager.filter(
-            indicator_code=code,
-            reporting_period__gte=start_date,
-        ).aggregate(
-            avg_value=Avg("value"),
-            max_value=Max("value"),
-            min_value=Min("value"),
-        )
-        return {
-            "avg_value": float(stats["avg_value"]) if stats["avg_value"] is not None else None,
-            "max_value": float(stats["max_value"]) if stats["max_value"] is not None else None,
-            "min_value": float(stats["min_value"]) if stats["min_value"] is not None else None,
-        }
+        """Return aggregate indicator statistics."""
 
-    def get_indicator_history(
-        self,
-        code: str,
-        *,
-        start_date: date,
-        end_date: date,
-        limit: int,
-    ) -> list[dict[str, Any]]:
-        rows = self.get_indicator_rows(
-            code=code,
-            start_date=start_date,
-            end_date=end_date,
-            limit=limit,
-            ascending=False,
-        )
-        return [
-            {
-                "value": row["value"],
-                "unit": row["unit"],
-                "original_unit": row["original_unit"],
-                "reporting_period": row["reporting_period"],
-                "period_type": row["period_type"],
-            }
-            for row in rows
-        ]
+        return _repository().get_indicator_stats(code, start_date)
+
+    def get_indicator_history(self, code: str, **kwargs: Any) -> list[dict[str, Any]]:
+        """Return compact indicator history."""
+
+        return _repository().get_indicator_history(code, **kwargs)
 
     def get_latest_values_by_codes(self, codes: list[str]) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
-        for code in codes:
-            latest = self.get_latest_indicator(code)
-            if latest is None:
-                continue
-            rows.append({"code": code, "value": latest["value"]})
-        return rows
+        """Return latest values for a bounded code list."""
+
+        return _repository().get_latest_values_by_codes(codes)
+
+
+class DataCenterMacroReadRepository(DataCenterMacroRepository):
+    """Compatibility name for read-only callers during migration."""
+
+
+__all__ = ["DataCenterMacroReadRepository", "DataCenterMacroRepository"]

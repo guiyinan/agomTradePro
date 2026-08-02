@@ -14,6 +14,9 @@ class ConfigCenterConfig(AppConfig):
         from apps.config_center.application.repository_provider import (
             configure_config_center_repositories,
         )
+        from apps.config_center.application.runtime_repository_provider import (
+            configure_runtime_config_services,
+        )
         from apps.config_center.infrastructure.config_summary_repository import (
             DjangoConfigCenterSummaryRepository,
         )
@@ -22,6 +25,14 @@ class ConfigCenterConfig(AppConfig):
             ConfigCenterSettingsRepository,
             QlibTrainingProfileRepository,
             QlibTrainingRunRepository,
+        )
+        from apps.config_center.infrastructure.runtime_config_repositories import (
+            RuntimeConfigDefinitionRepository,
+            RuntimeConfigProfileRepository,
+            RuntimeConfigRevisionRepository,
+            RuntimeConfigSnapshotRepository,
+            RuntimeConfigValueRepository,
+            StorageBudgetPolicyRepository,
         )
         from core.integration.runtime_settings import configure_runtime_settings_provider
 
@@ -33,3 +44,11 @@ class ConfigCenterConfig(AppConfig):
         )
         configure_config_center_summary_repository(DjangoConfigCenterSummaryRepository())
         configure_runtime_settings_provider(get_config_center_summary_service())
+        configure_runtime_config_services(
+            definitions=RuntimeConfigDefinitionRepository(),
+            profiles=RuntimeConfigProfileRepository(),
+            values=RuntimeConfigValueRepository(),
+            revisions=RuntimeConfigRevisionRepository(),
+            snapshots=RuntimeConfigSnapshotRepository(),
+            storage_budget=StorageBudgetPolicyRepository(),
+        )

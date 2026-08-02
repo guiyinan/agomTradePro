@@ -45,9 +45,9 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
         # Compatibility arguments are deliberately not retained: this adapter no
         # longer performs outbound requests and must not keep credentials alive.
         del token, http_url
-        from apps.data_center.infrastructure.repositories import PriceBarRepository
+        from apps.data_center.application.public import get_price_bar_repository_port
 
-        self._bars = PriceBarRepository()
+        self._bars = get_price_bar_repository_port()
 
     def supports(self, asset_class: str) -> bool:
         if asset_class == "cash":

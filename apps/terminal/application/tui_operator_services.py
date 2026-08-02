@@ -25,6 +25,10 @@ from apps.alpha.application.repository_provider import (
 )
 from apps.audit.domain.entities import mask_sensitive_text
 from apps.config_center.application.query_services import has_qlib_training_runs
+from apps.config_center.application.runtime_public import (
+    get_active_runtime_profile,
+    get_active_storage_budget,
+)
 from apps.data_center.application.interface_services import (
     get_decision_data_readiness_payload,
     load_market_thermometer_payload,
@@ -727,6 +731,32 @@ def _account_settings_governance_rows() -> list[dict[str, Any]]:
 def _config_center_governance_rows(*, user: Any) -> list[dict[str, Any]]:
     if not _is_admin_user(user):
         return []
+    try:
+        profile = get_active_runtime_profile("production") or get_active_runtime_profile(
+            "development"
+        )
+        storage_policy = get_active_storage_budget()
+    except Exception:
+        profile = None
+        storage_policy = None
+    runtime_control_blocked = profile is None or storage_policy is None
+    rows = [
+        _governance_row(
+            severity="blocked" if runtime_control_blocked else "ok",
+            domain="config-center",
+            title="Runtime Profile 与容量策略",
+            status="blocked" if runtime_control_blocked else "active",
+            blocking_reason=(
+                "必须显式激活 typed runtime profile 和 StorageBudgetPolicy。"
+                if runtime_control_blocked
+                else ""
+            ),
+            next_action="打开配置中心治理摘要",
+            target_screen="api-library.config-center",
+            target_action_key="operator.governance.config_center_summary",
+            observed_at=timezone.now(),
+        )
+    ]
     runtime = dict(get_runtime_qlib_config() or {})
     active_model = get_qlib_model_registry_repository().get_active_model()
     lag_days = None
@@ -741,8 +771,9 @@ def _config_center_governance_rows(*, user: Any) -> list[dict[str, Any]]:
     lag_warning = isinstance(lag_days, int) and lag_days > 3
     has_training_runs = has_qlib_training_runs()
     enabled = bool(runtime.get("enabled"))
-    rows = [
-        _governance_row(
+    rows.extend(
+        [
+            _governance_row(
             severity=(
                 "blocked"
                 if enabled and active_model is None
@@ -760,8 +791,8 @@ def _config_center_governance_rows(*, user: Any) -> list[dict[str, Any]]:
             target_screen="api-library.config-center",
             target_action_key="config_center.qlib_runtime",
             observed_at=timezone.now(),
-        ),
-        _governance_row(
+            ),
+            _governance_row(
             severity="warning" if lag_warning else ("notice" if not has_training_runs else "ok"),
             domain="config-center",
             title="训练记录与本地数据滞后",
@@ -775,8 +806,9 @@ def _config_center_governance_rows(*, user: Any) -> list[dict[str, Any]]:
             target_screen="api-library.config-center",
             target_action_key="config_center.training_runs",
             observed_at=timezone.now(),
-        ),
-    ]
+            ),
+        ]
+    )
     return rows
 
 

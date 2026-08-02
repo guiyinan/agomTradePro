@@ -311,9 +311,9 @@ class DataCenterAssetPriceAdapter:
 
     def __init__(self) -> None:
         from apps.data_center.application.price_service import UnifiedPriceService
-        from apps.data_center.infrastructure.repositories import PriceBarRepository
+        from apps.data_center.application.public import get_price_bar_repository_port
 
-        self._bars = PriceBarRepository()
+        self._bars = get_price_bar_repository_port()
         self._price_service = UnifiedPriceService()
 
     def supports(self, asset_class: str) -> bool:

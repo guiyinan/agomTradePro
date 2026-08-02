@@ -299,3 +299,24 @@ def test_data_center_module_endpoints(
         result = callable_factory(client)
     assert result == result_payload
     mocked.assert_called_once_with(endpoint, **expected)
+
+
+def test_data_center_module_can_request_publication_gated_reads(client):
+    with patch.object(client, "get", return_value={"status": "blocked"}) as mocked:
+        result = client.data_center.get_price_history(
+            "002156.SZ",
+            limit=10,
+            mode="published",
+            publication_key="current",
+        )
+
+    assert result == {"status": "blocked"}
+    mocked.assert_called_once_with(
+        "/api/data-center/prices/history/",
+        params={
+            "asset_code": "002156.SZ",
+            "limit": 10,
+            "mode": "published",
+            "publication_key": "current",
+        },
+    )

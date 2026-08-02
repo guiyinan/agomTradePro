@@ -136,6 +136,8 @@ class DataCenterModule(BaseModule):
         end: str | None = None,
         limit: int | None = None,
         source: str | None = None,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"indicator_code": indicator_code}
         if start:
@@ -146,6 +148,10 @@ class DataCenterModule(BaseModule):
             params["limit"] = limit
         if source:
             params["source"] = source
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
         return self._get("macro/series/", params=params)
 
     def sync_macro(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -159,6 +165,8 @@ class DataCenterModule(BaseModule):
         freq: str | None = None,
         adjustment: str | None = None,
         limit: int | None = None,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if start:
@@ -171,6 +179,10 @@ class DataCenterModule(BaseModule):
             params["adjustment"] = adjustment
         if limit is not None:
             params["limit"] = limit
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
         return self._get("prices/history/", params=params)
 
     def sync_prices(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -182,12 +194,18 @@ class DataCenterModule(BaseModule):
         *,
         strict_freshness: bool | None = None,
         max_age_hours: float | None = None,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if strict_freshness is not None:
             params["strict_freshness"] = str(strict_freshness).lower()
         if max_age_hours is not None:
             params["max_age_hours"] = max_age_hours
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
         return self._get("prices/quotes/", params=params)
 
     def sync_quotes(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -222,6 +240,8 @@ class DataCenterModule(BaseModule):
         start: str | None = None,
         end: str | None = None,
         limit: int | None = None,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"fund_code": fund_code}
         if start:
@@ -230,15 +250,30 @@ class DataCenterModule(BaseModule):
             params["end"] = end
         if limit is not None:
             params["limit"] = limit
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
         return self._get("funds/nav/", params=params)
 
     def sync_fund_nav(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("sync/funds/nav/", json=payload)
 
-    def get_financials(self, asset_code: str, limit: int | None = None) -> dict[str, Any]:
+    def get_financials(
+        self,
+        asset_code: str,
+        limit: int | None = None,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
+    ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if limit is not None:
             params["limit"] = limit
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
         return self._get("financials/", params=params)
 
     def sync_financials(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -250,6 +285,8 @@ class DataCenterModule(BaseModule):
         start: str | None = None,
         end: str | None = None,
         limit: int | None = None,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if start:
@@ -258,6 +295,10 @@ class DataCenterModule(BaseModule):
             params["end"] = end
         if limit is not None:
             params["limit"] = limit
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
         return self._get("valuations/", params=params)
 
     def sync_valuations(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -276,7 +317,14 @@ class DataCenterModule(BaseModule):
     def sync_sector_constituents(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("sync/sectors/constituents/", json=payload)
 
-    def get_news(self, asset_code: str, limit: int | None = None) -> dict[str, Any]:
+    def get_news(
+        self,
+        asset_code: str,
+        limit: int | None = None,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
+    ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if limit is not None:
             params["limit"] = limit
@@ -291,6 +339,8 @@ class DataCenterModule(BaseModule):
         start: str | None = None,
         end: str | None = None,
         limit: int | None = None,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if start:
@@ -299,6 +349,14 @@ class DataCenterModule(BaseModule):
             params["end"] = end
         if limit is not None:
             params["limit"] = limit
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
         return self._get("capital-flows/", params=params)
 
     def sync_capital_flows(self, payload: dict[str, Any]) -> dict[str, Any]:

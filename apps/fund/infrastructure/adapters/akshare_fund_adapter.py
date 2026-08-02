@@ -11,9 +11,7 @@ from datetime import date
 from importlib import import_module
 from typing import Any
 
-from apps.data_center.infrastructure.repositories import (
-    FundNavRepository as DataCenterFundNavRepository,
-)
+from apps.data_center.application.public import get_fund_nav_repository_port
 from apps.fund.infrastructure.models import (
     FundHoldingModel,
     FundInfoModel,
@@ -28,7 +26,7 @@ class AkShareFundAdapter:
     """Compatibility adapter for fund reads after data-center cutover."""
 
     def __init__(self) -> None:
-        self._dc_nav_repo = DataCenterFundNavRepository()
+        self._dc_nav_repo = get_fund_nav_repository_port()
 
     def fetch_fund_list_em(self) -> Any:
         rows = list(
@@ -102,12 +100,16 @@ class AkShareFundAdapter:
                 ]
             )
 
+        # Migration-era compatibility fallback. Canonical facts are preferred;
+        # the legacy table remains read-only here until D6 reconciliation closes.
         rows = list(
             FundNetValueModel._default_manager.filter(fund_code=fund_code)
             .values("nav_date", "unit_nav", "accum_nav", "daily_return")
             .order_by("nav_date")
         )
-        return pd.DataFrame(rows) if rows else pd.DataFrame()
+        if rows:
+            return pd.DataFrame(rows)
+        return pd.DataFrame()
 
     def fetch_fund_portfolio_em(self, fund_code: str, year: int, quarter: int) -> Any:
         month = quarter * 3

@@ -340,9 +340,9 @@ class DjangoMarketDataRepository:
         self, index_code: str, start_date: date, end_date: date
     ) -> list[PriceBar]:
         """优先通过 data_center 拉取指数历史价格柱（按日期升序）。"""
-        from apps.data_center.infrastructure.repositories import PriceBarRepository
+        from apps.data_center.application.public import get_price_bar_repository_port
 
-        repo = PriceBarRepository()
+        repo = get_price_bar_repository_port()
         bars = repo.get_bars(index_code, start=start_date, end=end_date, limit=5000)
         return sorted(bars, key=lambda bar: bar.bar_date)
 

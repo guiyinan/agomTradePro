@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "owner": "data-platform",
+  "source_of_truth": "git_governance_manifests",
+  "families": [
+    {"key": "data_center.provider_catalog", "owner": "data_center", "reconcile": "idempotent"},
+    {"key": "celery.beat_schedule", "owner": "task_monitor", "reconcile": "idempotent"},
+    {"key": "mcp.capability_catalog", "owner": "agent_runtime", "reconcile": "idempotent"},
+    {"key": "tui.metadata", "owner": "terminal", "reconcile": "idempotent"}
+  ],
+  "drift_policy": {
+    "missing": "block_decision_readiness",
+    "hash_mismatch": "alert_and_reconcile",
+    "unexpected_extra": "alert_for_review"
+  }
+}

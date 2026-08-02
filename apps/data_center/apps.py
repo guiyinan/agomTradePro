@@ -18,7 +18,7 @@ class DataCenterConfig(AppConfig):
         )
 
         configure_data_center_config_summary_repository(DjangoDataCenterConfigSummaryRepository())
-        from core.integration.research_integrity_registry import configure_pit_providers
+        from apps.data_center.application.pit_provider import configure_pit_providers
 
         from .infrastructure.pit_repository import (
             ManifestBoundPITDataView,

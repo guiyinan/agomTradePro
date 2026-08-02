@@ -20,6 +20,7 @@ from apps.data_center.composition import (
     get_akshare_module,
 )
 from apps.data_center.domain.entities import PriceBar
+from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.protocols import PriceBarRepositoryProtocol
 from apps.data_center.infrastructure.market_gateway_entities import HistoricalPriceBar
 from apps.equity.domain.entities import TechnicalBar
@@ -66,6 +67,8 @@ class StockMarketDataRepositoryMixin:
             [(日期, 收盘价), ...]，按日期升序排列
         """
         if not hydrate:
+            # Read-only migration compatibility: legacy rows may still be
+            # displayed, but all new writes go to Data Center PriceBar.
             local_models = StockDailyModel._default_manager.filter(
                 stock_code=stock_code,
                 trade_date__gte=start_date,
@@ -76,7 +79,6 @@ class StockMarketDataRepositoryMixin:
                 local_prices, start_date=start_date, end_date=end_date
             ):
                 return local_prices
-
         dc_bars = (
             self._dc_on_demand.ensure_price_bars(stock_code, start_date, end_date).records
             if hydrate
@@ -96,17 +98,6 @@ class StockMarketDataRepositoryMixin:
                 dc_prices, start_date=start_date, end_date=end_date
             ):
                 return dc_prices
-
-        models = StockDailyModel._default_manager.filter(
-            stock_code=stock_code,
-            trade_date__gte=start_date,
-            trade_date__lte=end_date,
-        ).order_by("trade_date")
-        local_prices = [(m.trade_date, m.close) for m in models]
-        if local_prices and self._has_sufficient_price_coverage(
-            local_prices, start_date=start_date, end_date=end_date
-        ):
-            return local_prices
 
         return self._get_remote_daily_prices(stock_code, start_date, end_date)
 
@@ -137,12 +128,11 @@ class StockMarketDataRepositoryMixin:
             ):
                 return best_available_bars
 
-        models = StockDailyModel._default_manager.filter(
+        local_models = StockDailyModel._default_manager.filter(
             stock_code=stock_code,
             trade_date__gte=start_date,
             trade_date__lte=end_date,
         ).order_by("trade_date")
-
         local_bars = [
             TechnicalBar(
                 stock_code=model.stock_code,
@@ -161,7 +151,7 @@ class StockMarketDataRepositoryMixin:
                 macd_hist=model.macd_hist,
                 rsi=model.rsi,
             )
-            for model in models
+            for model in local_models
         ]
         if local_bars:
             best_available_bars = local_bars
@@ -439,18 +429,19 @@ class StockMarketDataRepositoryMixin:
         stock_code: str,
         bars: list[HistoricalPriceBar],
     ) -> None:
-        """将远端历史 K 线幂等写入本地日线表，作为 read-through cache。"""
+        """将远端历史 K 线幂等写入 Data Center canonical price bars。"""
         if not bars:
             return
 
         try:
+            canonical_bars: list[PriceBar] = []
             for bar in bars:
                 trade_date = getattr(bar, "trade_date", None)
                 open_price = self._safe_decimal(getattr(bar, "open", None))
                 high_price = self._safe_decimal(getattr(bar, "high", None))
                 low_price = self._safe_decimal(getattr(bar, "low", None))
                 close_price = self._safe_decimal(getattr(bar, "close", None))
-                amount = self._safe_decimal(getattr(bar, "amount", None)) or Decimal("0")
+                amount = self._safe_decimal(getattr(bar, "amount", None))
 
                 if (
                     not isinstance(trade_date, date)
@@ -465,20 +456,23 @@ class StockMarketDataRepositoryMixin:
                 ):
                     continue
 
-                StockDailyModel._default_manager.update_or_create(
-                    stock_code=stock_code,
-                    trade_date=trade_date,
-                    defaults={
-                        "open": open_price,
-                        "high": high_price,
-                        "low": low_price,
-                        "close": close_price,
-                        "volume": getattr(bar, "volume", None) or 0,
-                        "amount": amount,
-                        "turnover_rate": getattr(bar, "turnover_rate", None),
-                        "adj_factor": getattr(bar, "adj_factor", 1.0) or 1.0,
-                    },
+                canonical_bars.append(
+                    PriceBar(
+                        asset_code=stock_code,
+                        bar_date=trade_date,
+                        open=float(open_price),
+                        high=float(high_price),
+                        low=float(low_price),
+                        close=float(close_price),
+                        freq="1d",
+                        adjustment=PriceAdjustment.NONE,
+                        volume=float(getattr(bar, "volume", 0) or 0),
+                        amount=float(amount) if amount is not None else None,
+                        source=str(getattr(bar, "source", "") or "remote"),
+                    )
                 )
+            if canonical_bars:
+                self._dc_price_bar_repo.bulk_upsert(canonical_bars)
         except Exception as exc:
             logger.warning(
                 "Failed to cache remote historical bars for %s: %s",

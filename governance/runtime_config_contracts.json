@@ -75,6 +75,42 @@
       "current_source": "config_center",
       "fallback": "false",
       "migration_status": "registered"
+    },
+    {
+      "config_key": "storage.capacity.configured_bytes",
+      "namespace": "storage",
+      "owner": "config_center",
+      "type": "bytes",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "model-backed"
+    },
+    {
+      "config_key": "storage.warning_ratio",
+      "namespace": "storage",
+      "owner": "config_center",
+      "type": "percentage",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "model-backed"
+    },
+    {
+      "config_key": "storage.critical_ratio",
+      "namespace": "storage",
+      "owner": "config_center",
+      "type": "percentage",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "model-backed"
+    },
+    {
+      "config_key": "storage.emergency_reserve_ratio",
+      "namespace": "storage",
+      "owner": "config_center",
+      "type": "percentage",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "model-backed"
     }
   ]
 }

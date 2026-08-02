@@ -26,14 +26,115 @@ from apps.data_center.application.query_services import (
     query_financial_facts,
     query_latest_quote_payloads,
     query_macro_fact_series,
+    query_published_macro_fact_series,
+    query_published_price_bar_series,
+    query_published_quote_payloads,
     query_valuation_facts,
 )
 from apps.data_center.composition import (
+    build_provider_registry_for_repo,
+    build_tushare_client,
     get_asset_repository,
+    get_canonical_publication_repository,
+    get_fund_nav_repository,
     get_macro_fact_repository,
+    get_macro_projection_repository,
+    get_price_bar_repository,
     get_provider_config_repository,
+    get_provider_registry,
+    get_quote_snapshot_repository,
+    get_raw_audit_repository,
+    get_valuation_fact_repository,
 )
 from apps.data_center.domain.entities import MacroFact
+from apps.data_center.domain.macro_semantics import (
+    is_direct_consumer_input_allowed as _is_direct_consumer_input_allowed,
+)
+from apps.data_center.domain.protocols import (
+    FundNavRepositoryProtocol,
+    PriceBarRepositoryProtocol,
+    ProviderConfigRepositoryProtocol,
+    ProviderRegistryProtocol,
+    QuoteSnapshotRepositoryProtocol,
+    RawAuditRepositoryProtocol,
+    ValuationFactRepositoryProtocol,
+)
+
+
+def get_macro_projection_repository_port() -> object:
+    """Return the Data Center-owned macro administrative projection port.
+
+    The concrete repository remains behind the application public boundary;
+    this compatibility seam is temporary until the macro UI is fully typed.
+    """
+
+    return get_macro_projection_repository()
+
+
+def is_direct_macro_input_allowed(
+    extra: dict[str, Any] | None,
+    *,
+    consumer: str,
+) -> bool:
+    """Read the canonical macro semantic policy through the public port."""
+
+    return _is_direct_consumer_input_allowed(extra, consumer=consumer)
+
+
+def get_fund_nav_repository_port() -> FundNavRepositoryProtocol:
+    """Return the typed canonical fund-NAV port for other applications."""
+
+    return get_fund_nav_repository()
+
+
+def get_price_bar_repository_port() -> PriceBarRepositoryProtocol:
+    """Return the typed canonical OHLCV port for other applications."""
+
+    return get_price_bar_repository()
+
+
+def get_quote_snapshot_repository_port() -> QuoteSnapshotRepositoryProtocol:
+    """Return the typed canonical quote-snapshot port."""
+
+    return get_quote_snapshot_repository()
+
+
+def get_provider_config_repository_port() -> ProviderConfigRepositoryProtocol:
+    """Return the typed provider configuration port."""
+
+    return get_provider_config_repository()
+
+
+def get_provider_registry_port() -> ProviderRegistryProtocol:
+    """Return the canonical provider registry port."""
+
+    return get_provider_registry()
+
+
+def build_provider_registry_port(
+    repository: ProviderConfigRepositoryProtocol,
+) -> ProviderRegistryProtocol:
+    """Build an isolated provider registry from an injected config port."""
+
+    return build_provider_registry_for_repo(repository)
+
+
+def get_raw_audit_repository_port() -> RawAuditRepositoryProtocol:
+    """Return the raw-fetch audit port."""
+
+    return get_raw_audit_repository()
+
+
+def get_valuation_fact_repository_port() -> ValuationFactRepositoryProtocol:
+    """Return the typed canonical valuation-fact port."""
+
+    return get_valuation_fact_repository()
+
+
+def get_tushare_client(*, token: str | None = None, http_url: str | None = None) -> object:
+    """Return the Data Center-owned Tushare transport for migration adapters."""
+
+    return build_tushare_client(token=token, http_url=http_url)
 
 
 def get_macro_indicator_value(indicator_code: str) -> float | None:
@@ -66,6 +167,54 @@ def get_macro_fact_series(
         limit=limit,
         use_pit=use_pit,
         source=source,
+    )
+
+
+def get_published_macro_fact_series(
+    indicator_code: str,
+    *,
+    publication_key: str | None = None,
+    start: date | None = None,
+    end: date | None = None,
+    limit: int = 500,
+) -> dict[str, object]:
+    """Read a decision-facing macro series behind a publication gate."""
+
+    return query_published_macro_fact_series(
+        indicator_code,
+        publication_key=publication_key,
+        start=start,
+        end=end,
+        limit=limit,
+    )
+
+
+def get_published_quote_payloads(
+    asset_codes: list[str],
+    *,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read decision-facing quotes only when publication is current."""
+
+    return query_published_quote_payloads(asset_codes, publication_key=publication_key)
+
+
+def get_published_price_bar_series(
+    asset_code: str,
+    *,
+    publication_key: str = "current",
+    start: date | None = None,
+    end: date | None = None,
+    limit: int = 500,
+) -> dict[str, object]:
+    """Read decision-facing price bars only when publication is current."""
+
+    return query_published_price_bar_series(
+        asset_code,
+        publication_key=publication_key,
+        start=start,
+        end=end,
+        limit=limit,
     )
 
 
@@ -216,17 +365,95 @@ def get_price_bar_series(
     )
 
 
+def get_current_publication(
+    dataset_key: str,
+    publication_key: str,
+) -> dict[str, object] | None:
+    """Return the active published selection for a canonical dataset scope."""
+
+    publication = get_canonical_publication_repository().get_current(dataset_key, publication_key)
+    if publication is None:
+        return None
+    return {
+        "publication_id": publication.publication_id,
+        "dataset_key": publication.dataset_key,
+        "publication_key": publication.publication_key,
+        "policy_version": publication.policy_version,
+        "state": publication.state.value,
+        "selected_source": publication.selected_source,
+        "publication_hash": publication.publication_hash,
+        "coverage_ratio": publication.coverage.coverage_ratio,
+        "coverage": {
+            "requested_count": publication.coverage.requested_count,
+            "eligible_count": publication.coverage.eligible_count,
+            "selected_count": publication.coverage.selected_count,
+            "missing_count": publication.coverage.missing_count,
+            "conflict_count": publication.coverage.conflict_count,
+        },
+        "published_at": publication.published_at.isoformat() if publication.published_at else None,
+        "as_of": publication.as_of.isoformat() if publication.as_of else None,
+        "must_not_use_for_decision": publication.must_not_use_for_decision,
+        "blocked_reason": publication.blocked_reason,
+    }
+
+
+def get_publication_as_of(
+    dataset_key: str,
+    publication_key: str,
+    as_of: datetime,
+) -> dict[str, object] | None:
+    """Return the publication visible at an explicit historical boundary."""
+
+    publication = get_canonical_publication_repository().get_as_of(
+        dataset_key,
+        publication_key,
+        as_of,
+    )
+    if publication is None:
+        return None
+    return {
+        "publication_id": publication.publication_id,
+        "dataset_key": publication.dataset_key,
+        "publication_key": publication.publication_key,
+        "policy_version": publication.policy_version,
+        "state": publication.state.value,
+        "selected_source": publication.selected_source,
+        "publication_hash": publication.publication_hash,
+        "coverage_ratio": publication.coverage.coverage_ratio,
+        "published_at": publication.published_at.isoformat() if publication.published_at else None,
+        "as_of": publication.as_of.isoformat() if publication.as_of else None,
+        "must_not_use_for_decision": publication.must_not_use_for_decision,
+        "blocked_reason": publication.blocked_reason,
+    }
+
+
 __all__ = [
     "get_financial_facts",
+    "get_current_publication",
+    "get_fund_nav_repository_port",
     "get_macro_fact_series",
+    "is_direct_macro_input_allowed",
     "get_macro_indicator_catalog",
     "get_macro_runtime_metadata",
+    "get_macro_projection_repository_port",
     "list_macro_indicator_codes",
     "get_macro_indicator_value",
     "get_market_breadth_snapshot",
     "get_latest_quote_payloads",
     "get_price_bar_series",
+    "get_price_bar_repository_port",
+    "get_quote_snapshot_repository_port",
+    "get_provider_config_repository_port",
+    "get_provider_registry_port",
+    "build_provider_registry_port",
+    "get_publication_as_of",
+    "get_published_macro_fact_series",
+    "get_published_price_bar_series",
+    "get_published_quote_payloads",
     "get_valuation_facts",
+    "get_valuation_fact_repository_port",
+    "get_raw_audit_repository_port",
+    "get_tushare_client",
     "list_active_stock_codes",
     "list_active_data_sources",
     "list_latest_macro_values",

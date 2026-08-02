@@ -11,6 +11,7 @@ from datetime import date, timedelta
 from django.db import DatabaseError
 from django.utils import timezone
 
+from apps.data_center.application.pit_provider import make_manifest_bound_pit_view
 from core.exceptions import BusinessLogicError, InvalidInputError, ResourceNotFoundError
 from shared.infrastructure.celery_typing import BoundTask, typed_shared_task
 from shared.numeric import safe_float
@@ -172,10 +173,6 @@ def run_backtest_task(
         pit_view = None
         resolved_config: dict[str, object] = dict(config_dict)
         if _optional_text(config_dict, "trust_status", default="exploratory") == "pit_verified":
-            from core.integration.research_integrity_registry import (
-                make_manifest_bound_pit_view,
-            )
-
             pit_view = make_manifest_bound_pit_view(
                 _optional_text(config_dict, "data_manifest_id") or ""
             )

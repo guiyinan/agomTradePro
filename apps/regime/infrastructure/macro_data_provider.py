@@ -20,10 +20,8 @@ from typing import Any, cast
 from apps.data_center.application.public import (
     get_macro_fact_series,
     get_macro_indicator_catalog,
+    is_direct_macro_input_allowed,
     list_macro_indicator_codes,
-)
-from apps.data_center.infrastructure.seed_data.macro_indicator_governance import (
-    is_direct_consumer_input_allowed,
 )
 
 from ..domain.protocols import (
@@ -114,7 +112,7 @@ class DataCenterMacroRepositoryAdapter:
 
     def _is_regime_direct_input_allowed(self, indicator_code: str) -> bool:
         return bool(
-            is_direct_consumer_input_allowed(
+            is_direct_macro_input_allowed(
                 self._get_catalog_extra(indicator_code),
                 consumer="regime",
             )

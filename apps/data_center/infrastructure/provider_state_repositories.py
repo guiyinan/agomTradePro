@@ -132,6 +132,14 @@ class RawAuditRepository:
             error_message=m.error_message,
             fetched_at=m.fetched_at,
             extra=m.extra or {},
+            request_params_hash=m.request_params_hash,
+            response_payload_hash=m.response_payload_hash,
+            schema_fingerprint=m.schema_fingerprint,
+            redacted=m.redacted,
+            parser_version=m.parser_version,
+            payload_size_bytes=int(m.payload_size_bytes),
+            retention_until=m.retention_until,
+            ingested_run_id=str(m.ingested_run_id) if m.ingested_run_id else "",
         )
 
     def log(self, audit: RawAudit) -> RawAudit:
@@ -145,6 +153,14 @@ class RawAuditRepository:
             error_message=audit.error_message,
             fetched_at=audit.fetched_at,
             extra=audit.extra,
+            request_params_hash=audit.request_params_hash,
+            response_payload_hash=audit.response_payload_hash,
+            schema_fingerprint=audit.schema_fingerprint,
+            redacted=audit.redacted,
+            parser_version=audit.parser_version,
+            payload_size_bytes=audit.payload_size_bytes,
+            retention_until=audit.retention_until,
+            ingested_run_id=audit.ingested_run_id or None,
         )
         return self._from_model(m)
 

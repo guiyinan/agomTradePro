@@ -90,6 +90,7 @@ from apps.data_center.application.interface_services import (
     save_provider_settings_payload,
 )
 from apps.data_center.application.pit_use_cases import BuildPITManifestRequest
+from apps.data_center.application.public import get_current_publication
 from apps.data_center.application.query_services import get_active_stock_fact_coverage_payload
 from apps.data_center.application.use_cases import (
     QueryLatestQuoteUseCase,
@@ -137,6 +138,51 @@ from apps.data_center.provider_runtime import get_registry
 from shared.request_payload import request_data_mapping
 
 logger = logging.getLogger(__name__)
+
+
+def _published_gate(
+    request: Request,
+    *,
+    dataset_key: str,
+    default_publication_key: str,
+    identity_field: str,
+    identity_value: str,
+) -> tuple[dict[str, object] | None, Response | None]:
+    """Apply an explicit current-publication gate to decision-facing reads."""
+
+    mode = str(request.query_params.get("mode", "historical") or "historical").strip().lower()
+    if mode not in {"historical", "published"}:
+        return None, Response(
+            {"detail": "mode must be historical or published"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if mode != "published":
+        return None, None
+    publication_key = (
+        str(request.query_params.get("publication_key", "") or "").strip()
+        or default_publication_key
+    )
+    publication = get_current_publication(dataset_key, publication_key)
+    if publication is not None:
+        return publication, None
+    return None, Response(
+        {
+            identity_field: identity_value,
+            "total": 0,
+            "data": [],
+            "status": "blocked",
+            "publication_id": None,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing",
+            "contract": {
+                "mode": "published",
+                "publication_key": publication_key,
+                "must_not_use_for_decision": True,
+                "blocked_reason": "canonical_publication_missing",
+            },
+        },
+        status=status.HTTP_200_OK,
+    )
 provider_detail = _provider_api_views.provider_detail
 provider_list_create = _provider_api_views.provider_list_create
 _provider_status = _provider_api_views.provider_status
@@ -552,6 +598,15 @@ def macro_series(request: Request) -> Response:
             {"detail": "Query parameter 'indicator_code' is required."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    publication, blocked = _published_gate(
+        request,
+        dataset_key="macro.fact",
+        default_publication_key=indicator_code,
+        identity_field="indicator_code",
+        identity_value=indicator_code,
+    )
+    if blocked is not None:
+        return blocked
 
     def _parse_date(s: str) -> date_cls | None:
         try:
@@ -572,7 +627,11 @@ def macro_series(request: Request) -> Response:
 
     uc = make_query_macro_series_use_case()
     result = uc.execute(req)
-    return Response(result.to_dict())
+    payload = result.to_dict()
+    if publication is not None:
+        payload["publication_id"] = publication["publication_id"]
+        payload["publication"] = publication
+    return Response(payload)
 
 
 @api_view(["GET"])
@@ -597,6 +656,15 @@ def price_history(request: Request) -> Response:
             {"detail": "Query parameter 'asset_code' is required."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    publication, blocked = _published_gate(
+        request,
+        dataset_key="equity.price.bar",
+        default_publication_key="current",
+        identity_field="asset_code",
+        identity_value=asset_code,
+    )
+    if blocked is not None:
+        return blocked
 
     def _parse_date(s: str) -> date_cls | None:
         try:
@@ -615,9 +683,15 @@ def price_history(request: Request) -> Response:
 
     uc = make_query_price_history_use_case()
     bars = uc.execute(req)
-    return Response(
-        {"asset_code": asset_code, "total": len(bars), "data": [b.to_dict() for b in bars]}
-    )
+    payload: dict[str, object] = {
+        "asset_code": asset_code,
+        "total": len(bars),
+        "data": [b.to_dict() for b in bars],
+    }
+    if publication is not None:
+        payload["publication_id"] = publication["publication_id"]
+        payload["publication"] = publication
+    return Response(payload)
 
 
 @api_view(["GET"])
@@ -637,6 +711,15 @@ def price_latest_quote(request: Request) -> Response:
             {"detail": "Query parameter 'asset_code' is required."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    publication, blocked = _published_gate(
+        request,
+        dataset_key="equity.quote.snapshot",
+        default_publication_key="current",
+        identity_field="asset_code",
+        identity_value=asset_code,
+    )
+    if blocked is not None:
+        return blocked
 
     try:
         strict_freshness = _parse_bool_param(
@@ -692,7 +775,11 @@ def price_latest_quote(request: Request) -> Response:
         )
         return Response(payload, status=status.HTTP_409_CONFLICT)
 
-    return Response(result.to_dict())
+    payload = result.to_dict()
+    if publication is not None:
+        payload["publication_id"] = publication["publication_id"]
+        payload["publication"] = publication
+    return Response(payload)
 
 
 @api_view(["GET"])
@@ -702,6 +789,15 @@ def fund_nav_series(request: Request) -> Response:
     fund_code = request.query_params.get("fund_code", "").strip()
     if not fund_code:
         return Response({"detail": "Query parameter 'fund_code' is required."}, status=400)
+    publication, blocked = _published_gate(
+        request,
+        dataset_key="fund.nav",
+        default_publication_key="current",
+        identity_field="fund_code",
+        identity_value=fund_code,
+    )
+    if blocked is not None:
+        return blocked
 
     def _parse_date(s: str) -> date_cls | None:
         try:
@@ -714,7 +810,11 @@ def fund_nav_series(request: Request) -> Response:
         start=_parse_date(request.query_params.get("start", "")),
         end=_parse_date(request.query_params.get("end", "")),
     )
-    return Response({"fund_code": fund_code, "total": len(data), "data": data})
+    payload: dict[str, object] = {"fund_code": fund_code, "total": len(data), "data": data}
+    if publication is not None:
+        payload["publication_id"] = publication["publication_id"]
+        payload["publication"] = publication
+    return Response(payload)
 
 
 @api_view(["GET"])
@@ -724,6 +824,15 @@ def financials(request: Request) -> Response:
     asset_code = request.query_params.get("asset_code", "").strip()
     if not asset_code:
         return Response({"detail": "Query parameter 'asset_code' is required."}, status=400)
+    publication, blocked = _published_gate(
+        request,
+        dataset_key="equity.financial.fact",
+        default_publication_key="current",
+        identity_field="asset_code",
+        identity_value=asset_code,
+    )
+    if blocked is not None:
+        return blocked
 
     period_type_raw = request.query_params.get("period_type", "").strip()
     period_type = FinancialPeriodType(period_type_raw) if period_type_raw else None
@@ -733,7 +842,11 @@ def financials(request: Request) -> Response:
         period_type=period_type,
         limit=limit,
     )
-    return Response({"asset_code": asset_code, "total": len(data), "data": data})
+    payload = {"asset_code": asset_code, "total": len(data), "data": data}
+    if publication is not None:
+        payload["publication_id"] = publication["publication_id"]
+        payload["publication"] = publication
+    return Response(payload)
 
 
 @api_view(["GET"])
@@ -743,6 +856,15 @@ def valuations(request: Request) -> Response:
     asset_code = request.query_params.get("asset_code", "").strip()
     if not asset_code:
         return Response({"detail": "Query parameter 'asset_code' is required."}, status=400)
+    publication, blocked = _published_gate(
+        request,
+        dataset_key="equity.valuation.fact",
+        default_publication_key="current",
+        identity_field="asset_code",
+        identity_value=asset_code,
+    )
+    if blocked is not None:
+        return blocked
 
     def _parse_date(s: str) -> date_cls | None:
         try:
@@ -755,7 +877,11 @@ def valuations(request: Request) -> Response:
         start=_parse_date(request.query_params.get("start", "")),
         end=_parse_date(request.query_params.get("end", "")),
     )
-    return Response({"asset_code": asset_code, "total": len(data), "data": data})
+    payload = {"asset_code": asset_code, "total": len(data), "data": data}
+    if publication is not None:
+        payload["publication_id"] = publication["publication_id"]
+        payload["publication"] = publication
+    return Response(payload)
 
 
 @api_view(["GET"])
@@ -784,14 +910,36 @@ def sector_constituents(request: Request) -> Response:
 @api_view(["GET"])
 def news(request: Request) -> Response:
     asset_code = request.query_params.get("asset_code", "").strip() or None
+    publication, blocked = _published_gate(
+        request,
+        dataset_key="market.news",
+        default_publication_key="current",
+        identity_field="asset_code",
+        identity_value=asset_code or "",
+    )
+    if blocked is not None:
+        return blocked
     limit = int(request.query_params.get("limit", 50))
     data = make_query_news_use_case().execute(asset_code=asset_code, limit=limit)
-    return Response({"asset_code": asset_code, "total": len(data), "data": data})
+    payload: dict[str, object] = {"asset_code": asset_code, "total": len(data), "data": data}
+    if publication is not None:
+        payload["publication_id"] = publication["publication_id"]
+        payload["publication"] = publication
+    return Response(payload)
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def capital_flows(request: Request) -> Response:
+    publication, blocked = _published_gate(
+        request,
+        dataset_key="market.capital_flow",
+        default_publication_key="current",
+        identity_field="asset_code",
+        identity_value=request.query_params.get("asset_code", "").strip(),
+    )
+    if blocked is not None:
+        return blocked
     serializer = CapitalFlowQuerySerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
     query = serializer.validated_data
@@ -801,8 +949,7 @@ def capital_flows(request: Request) -> Response:
         end=query.get("end"),
         limit=query["limit"],
     )
-    return Response(
-        {
+    payload: dict[str, object] = {
             "asset_code": query["asset_code"],
             "query": {
                 "start": query["start"].isoformat() if query.get("start") else None,
@@ -812,7 +959,10 @@ def capital_flows(request: Request) -> Response:
             "total": len(data),
             "data": data,
         }
-    )
+    if publication is not None:
+        payload["publication_id"] = publication["publication_id"]
+        payload["publication"] = publication
+    return Response(payload)
 
 
 @api_view(["GET"])

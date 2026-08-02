@@ -8,11 +8,27 @@ Phase 2: Master data (AssetMasterModel, IndicatorCatalogModel) and eight fact ta
           NewsFactModel, CapitalFlowFactModel) plus RawAuditModel.
 """
 
+import uuid
 from typing import Any
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
+from apps.data_center.domain.control_plane import (
+    CanonicalPublication,
+    CoverageSnapshot,
+    PublicationMember,
+    PublicationState,
+    QuarantineRecord,
+    QuarantineResolution,
+    SyncBatch,
+    SyncCheckpoint,
+    SyncItemState,
+    SyncRun,
+    SyncRunStatus,
+)
 from apps.data_center.domain.entities import (
     DataProviderSettings,
     MarketThermometerComponentScore,
@@ -23,6 +39,13 @@ from apps.data_center.domain.entities import (
     ProductionCoverageUniverseConfig,
     ProviderConfig,
     PublisherCatalog,
+)
+from apps.data_center.domain.raw_landing import RawPayload, SchemaFingerprint
+from apps.data_center.domain.retention import (
+    ArchiveManifest,
+    ArchiveState,
+    RetentionPolicy,
+    StorageHold,
 )
 from shared.numeric import safe_float
 
@@ -649,6 +672,13 @@ class MacroFactModel(models.Model):
         default="valid",
     )
     fetched_at = models.DateTimeField(auto_now_add=True)
+    contract_version = models.CharField(max_length=40, default="1.0")
+    schema_version = models.CharField(max_length=40, default="1.0")
+    source_record_id = models.CharField(max_length=200, blank=True)
+    raw_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    quality_status = models.CharField(max_length=40, default="accepted", db_index=True)
+    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
+    available_at = models.DateTimeField(null=True, blank=True, db_index=True)
     extra = models.JSONField(default=dict, blank=True)
 
     class Meta:
@@ -717,6 +747,13 @@ class PriceBarModel(models.Model):
     )
     source = models.CharField(max_length=50)
     fetched_at = models.DateTimeField(auto_now_add=True)
+    contract_version = models.CharField(max_length=40, default="1.0")
+    schema_version = models.CharField(max_length=40, default="1.0")
+    source_record_id = models.CharField(max_length=200, blank=True)
+    raw_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    quality_status = models.CharField(max_length=40, default="accepted", db_index=True)
+    revision_number = models.PositiveSmallIntegerField(default=1)
+    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "data_center_price_bar"
@@ -765,6 +802,13 @@ class QuoteSnapshotModel(models.Model):
     ask = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
     source = models.CharField(max_length=50)
     extra = models.JSONField(default=dict, blank=True)
+    contract_version = models.CharField(max_length=40, default="1.0")
+    schema_version = models.CharField(max_length=40, default="1.0")
+    source_record_id = models.CharField(max_length=200, blank=True)
+    raw_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    quality_status = models.CharField(max_length=40, default="accepted", db_index=True)
+    revision_number = models.PositiveSmallIntegerField(default=1)
+    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "data_center_quote_snapshot"
@@ -820,6 +864,14 @@ class FundNavFactModel(models.Model):
     source = models.CharField(max_length=50)
     fetched_at = models.DateTimeField(auto_now_add=True)
     extra = models.JSONField(default=dict, blank=True)
+    contract_version = models.CharField(max_length=40, default="1.0")
+    schema_version = models.CharField(max_length=40, default="1.0")
+    source_record_id = models.CharField(max_length=200, blank=True)
+    raw_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    quality_status = models.CharField(max_length=40, default="accepted", db_index=True)
+    revision_number = models.PositiveSmallIntegerField(default=1)
+    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
+    available_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "data_center_fund_nav_fact"
@@ -872,6 +924,15 @@ class FinancialFactModel(models.Model):
     report_date = models.DateField(null=True, blank=True, help_text="Date report was published")
     fetched_at = models.DateTimeField(auto_now_add=True)
     extra = models.JSONField(default=dict, blank=True)
+    contract_version = models.CharField(max_length=40, default="1.0")
+    schema_version = models.CharField(max_length=40, default="1.0")
+    source_record_id = models.CharField(max_length=200, blank=True)
+    raw_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    quality_status = models.CharField(max_length=40, default="accepted", db_index=True)
+    revision_number = models.PositiveSmallIntegerField(default=1)
+    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
+    announced_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    available_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "data_center_financial_fact"
@@ -923,6 +984,14 @@ class ValuationFactModel(models.Model):
     source = models.CharField(max_length=50)
     fetched_at = models.DateTimeField(auto_now_add=True)
     extra = models.JSONField(default=dict, blank=True)
+    contract_version = models.CharField(max_length=40, default="1.0")
+    schema_version = models.CharField(max_length=40, default="1.0")
+    source_record_id = models.CharField(max_length=200, blank=True)
+    raw_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    quality_status = models.CharField(max_length=40, default="accepted", db_index=True)
+    revision_number = models.PositiveSmallIntegerField(default=1)
+    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
+    available_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "data_center_valuation_fact"
@@ -961,6 +1030,13 @@ class SectorMembershipFactModel(models.Model):
     )
     source = models.CharField(max_length=50)
     fetched_at = models.DateTimeField(auto_now_add=True)
+    contract_version = models.CharField(max_length=40, default="1.0")
+    schema_version = models.CharField(max_length=40, default="1.0")
+    source_record_id = models.CharField(max_length=200, blank=True)
+    raw_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    quality_status = models.CharField(max_length=40, default="accepted", db_index=True)
+    revision_number = models.PositiveSmallIntegerField(default=1)
+    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "data_center_sector_membership"
@@ -1003,6 +1079,14 @@ class NewsFactModel(models.Model):
     )
     extra = models.JSONField(default=dict, blank=True)
     fetched_at = models.DateTimeField(auto_now_add=True)
+    contract_version = models.CharField(max_length=40, default="1.0")
+    schema_version = models.CharField(max_length=40, default="1.0")
+    source_record_id = models.CharField(max_length=200, blank=True)
+    raw_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    quality_status = models.CharField(max_length=40, default="accepted", db_index=True)
+    revision_number = models.PositiveSmallIntegerField(default=1)
+    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
+    available_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "data_center_news_fact"
@@ -1068,6 +1152,13 @@ class CapitalFlowFactModel(models.Model):
     source = models.CharField(max_length=50)
     fetched_at = models.DateTimeField(auto_now_add=True)
     extra = models.JSONField(default=dict, blank=True)
+    contract_version = models.CharField(max_length=40, default="1.0")
+    schema_version = models.CharField(max_length=40, default="1.0")
+    source_record_id = models.CharField(max_length=200, blank=True)
+    raw_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    quality_status = models.CharField(max_length=40, default="accepted", db_index=True)
+    revision_number = models.PositiveSmallIntegerField(default=1)
+    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "data_center_capital_flow_fact"
@@ -1307,6 +1398,14 @@ class RawAuditModel(models.Model):
         help_text="DataCapability value (e.g. 'macro', 'historical_price')",
     )
     request_params = models.JSONField(default=dict, blank=True)
+    request_params_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    response_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    schema_fingerprint = models.CharField(max_length=128, blank=True, db_index=True)
+    redacted = models.BooleanField(default=True)
+    parser_version = models.CharField(max_length=40, blank=True)
+    payload_size_bytes = models.PositiveBigIntegerField(default=0)
+    retention_until = models.DateTimeField(null=True, blank=True, db_index=True)
+    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES)
     row_count = models.IntegerField(default=0, help_text="Number of rows fetched")
     latency_ms = models.FloatField(null=True, blank=True)
@@ -1326,3 +1425,605 @@ class RawAuditModel(models.Model):
 
     def __str__(self) -> str:
         return f"{self.provider_name}/{self.capability} {self.fetched_at} [{self.status}]"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Reject audit rows that claim to retain unredacted provider data."""
+
+        if not self.redacted:
+            raise ValidationError("Raw audit must be marked redacted before persistence")
+        super().save(*args, **kwargs)
+
+
+class RawPayloadModel(models.Model):
+    """Hash-addressed, redacted raw provider payload."""
+
+    payload_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    dataset_key = models.CharField(max_length=160, db_index=True)
+    provider_name = models.CharField(max_length=100, db_index=True)
+    payload_hash = models.CharField(max_length=128, unique=True, db_index=True)
+    schema_fingerprint = models.CharField(max_length=128, db_index=True)
+    payload = models.JSONField(default=dict)
+    request_params = models.JSONField(default=dict, blank=True)
+    run_id = models.UUIDField(null=True, blank=True, db_index=True)
+    batch_id = models.UUIDField(null=True, blank=True, db_index=True)
+    content_type = models.CharField(max_length=80, default="application/json")
+    parser_version = models.CharField(max_length=40, blank=True)
+    redacted = models.BooleanField(default=True)
+    payload_size_bytes = models.PositiveBigIntegerField(default=0)
+    fetched_at = models.DateTimeField(db_index=True)
+    retention_until = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        db_table = "data_center_raw_payload"
+        ordering = ["-fetched_at"]
+        indexes = [
+            models.Index(fields=["dataset_key", "fetched_at"]),
+            models.Index(fields=["provider_name", "schema_fingerprint"]),
+        ]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Reject raw payloads that were not marked redacted."""
+
+        if not self.redacted:
+            raise ValidationError("Raw payload must be redacted before persistence")
+        super().save(*args, **kwargs)
+
+    def to_domain(self) -> RawPayload:
+        """Convert the persisted raw payload to a domain object."""
+
+        return RawPayload(
+            payload_id=str(self.payload_id),
+            dataset_key=self.dataset_key,
+            provider_name=self.provider_name,
+            payload_hash=self.payload_hash,
+            schema_fingerprint=self.schema_fingerprint,
+            payload=self.payload or {},
+            fetched_at=self.fetched_at,
+            request_params=self.request_params or {},
+            run_id=str(self.run_id) if self.run_id else "",
+            batch_id=str(self.batch_id) if self.batch_id else "",
+            content_type=self.content_type,
+            parser_version=self.parser_version,
+            redacted=self.redacted,
+            payload_size_bytes=int(self.payload_size_bytes),
+            retention_until=self.retention_until,
+        )
+
+
+class SchemaFingerprintModel(models.Model):
+    """Observed provider schema signature and evolution evidence."""
+
+    fingerprint = models.CharField(max_length=128, primary_key=True)
+    dataset_key = models.CharField(max_length=160, db_index=True)
+    provider_name = models.CharField(max_length=100, db_index=True)
+    fields = models.JSONField(default=list)
+    parser_version = models.CharField(max_length=40, blank=True)
+    first_seen_at = models.DateTimeField(db_index=True)
+    last_seen_at = models.DateTimeField(db_index=True)
+    sample_count = models.PositiveBigIntegerField(default=1)
+
+    class Meta:
+        db_table = "data_center_schema_fingerprint"
+        ordering = ["-last_seen_at"]
+        indexes = [models.Index(fields=["dataset_key", "provider_name", "last_seen_at"])]
+
+    def to_domain(self) -> SchemaFingerprint:
+        """Convert the persisted schema signature to a domain object."""
+
+        return SchemaFingerprint(
+            fingerprint=self.fingerprint,
+            dataset_key=self.dataset_key,
+            provider_name=self.provider_name,
+            fields=tuple(str(item) for item in (self.fields or [])),
+            parser_version=self.parser_version,
+            first_seen_at=self.first_seen_at,
+            last_seen_at=self.last_seen_at,
+            sample_count=int(self.sample_count),
+        )
+
+
+class RetentionPolicyModel(models.Model):
+    """Versioned Data Center dataset retention rule."""
+
+    policy_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    dataset_key = models.CharField(max_length=160, db_index=True)
+    version = models.PositiveIntegerField()
+    retention_days = models.PositiveIntegerField()
+    archive_after_days = models.PositiveIntegerField(null=True, blank=True)
+    priority = models.CharField(max_length=20, default="normal")
+    active = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "data_center_retention_policy"
+        constraints = [
+            models.UniqueConstraint(fields=["dataset_key", "version"], name="dc_retention_dataset_version_unique"),
+        ]
+        indexes = [models.Index(fields=["dataset_key", "active"])]
+
+    def to_domain(self) -> RetentionPolicy:
+        """Convert the retention row to a domain policy."""
+
+        return RetentionPolicy(
+            policy_id=str(self.policy_id),
+            dataset_key=self.dataset_key,
+            version=self.version,
+            retention_days=self.retention_days,
+            archive_after_days=self.archive_after_days,
+            priority=self.priority,
+            active=self.active,
+        )
+
+
+class StorageHoldModel(models.Model):
+    """Non-destructive deletion hold for a dataset, run or archive."""
+
+    hold_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    resource_type = models.CharField(max_length=60, db_index=True)
+    resource_key = models.CharField(max_length=240, db_index=True)
+    reason = models.TextField()
+    created_by = models.CharField(max_length=150)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "data_center_storage_hold"
+        indexes = [models.Index(fields=["resource_type", "resource_key", "released_at"])]
+
+    def to_domain(self) -> StorageHold:
+        """Convert the hold row to a domain hold."""
+
+        return StorageHold(
+            hold_id=str(self.hold_id),
+            resource_type=self.resource_type,
+            resource_key=self.resource_key,
+            reason=self.reason,
+            created_by=self.created_by,
+            created_at=self.created_at,
+            expires_at=self.expires_at,
+            released_at=self.released_at,
+        )
+
+
+class ArchiveManifestModel(models.Model):
+    """Checksum-verified archive evidence."""
+
+    ARCHIVE_STATE_CHOICES = [(item.value, item.value) for item in ArchiveState]
+
+    archive_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    dataset_key = models.CharField(max_length=160, db_index=True)
+    object_count = models.PositiveBigIntegerField(default=0)
+    size_bytes = models.PositiveBigIntegerField(default=0)
+    location = models.CharField(max_length=500)
+    checksum = models.CharField(max_length=128, db_index=True)
+    state = models.CharField(max_length=20, choices=ARCHIVE_STATE_CHOICES, default=ArchiveState.PLANNED.value, db_index=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    retention_until = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        db_table = "data_center_archive_manifest"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["dataset_key", "state", "created_at"])]
+
+    def to_domain(self) -> ArchiveManifest:
+        """Convert the archive evidence row to a domain manifest."""
+
+        return ArchiveManifest(
+            archive_id=str(self.archive_id),
+            dataset_key=self.dataset_key,
+            object_count=int(self.object_count),
+            size_bytes=int(self.size_bytes),
+            location=self.location,
+            checksum=self.checksum,
+            state=ArchiveState(self.state),
+            created_at=self.created_at,
+            verified_at=self.verified_at,
+            retention_until=self.retention_until,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Ingestion control plane and canonical publication
+# ---------------------------------------------------------------------------
+
+
+class SyncRunModel(models.Model):
+    """One resumable dataset ingestion run.
+
+    The run is deliberately independent from Celery's task result.  A task may
+    be retried while this record preserves business outcome and item counts.
+    """
+
+    STATUS_CHOICES = [(item.value, item.value) for item in SyncRunStatus]
+    OUTCOME_CHOICES = [(item, item) for item in ("success", "partial", "noop", "blocked", "failed")]
+
+    run_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    dataset_key = models.CharField(max_length=160, db_index=True)
+    trigger = models.CharField(max_length=40)
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=SyncRunStatus.REQUESTED.value)
+    outcome = models.CharField(max_length=16, choices=OUTCOME_CHOICES, default="blocked")
+    provider_name = models.CharField(max_length=100, blank=True, db_index=True)
+    contract_version = models.CharField(max_length=40, blank=True)
+    config_snapshot_hash = models.CharField(max_length=128, blank=True)
+    requested = models.PositiveIntegerField(default=0)
+    fetched = models.PositiveIntegerField(default=0)
+    validated = models.PositiveIntegerField(default=0)
+    quarantined = models.PositiveIntegerField(default=0)
+    succeeded = models.PositiveIntegerField(default=0)
+    failed = models.PositiveIntegerField(default=0)
+    stored = models.PositiveIntegerField(default=0)
+    published = models.PositiveIntegerField(default=0)
+    unchanged = models.PositiveIntegerField(default=0)
+    started_at = models.DateTimeField(db_index=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    error_code = models.CharField(max_length=80, blank=True)
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "data_center_sync_run"
+        ordering = ["-started_at"]
+        indexes = [
+            models.Index(fields=["dataset_key", "started_at"]),
+            models.Index(fields=["status", "outcome"]),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(stored__gte=0), name="dc_sync_run_stored_nonnegative"),
+            models.CheckConstraint(condition=models.Q(published__gte=0), name="dc_sync_run_published_nonnegative"),
+        ]
+
+    def to_domain(self) -> SyncRun:
+        """Convert the persisted record to its immutable domain value object."""
+
+        return SyncRun(
+            run_id=str(self.run_id),
+            dataset_key=self.dataset_key,
+            trigger=self.trigger,
+            status=SyncRunStatus(self.status),
+            outcome=self.outcome,
+            requested=self.requested,
+            fetched=self.fetched,
+            validated=self.validated,
+            quarantined=self.quarantined,
+            succeeded=self.succeeded,
+            failed=self.failed,
+            stored=self.stored,
+            published=self.published,
+            unchanged=self.unchanged,
+            provider_name=self.provider_name,
+            contract_version=self.contract_version,
+            config_snapshot_hash=self.config_snapshot_hash,
+            started_at=self.started_at,
+            finished_at=self.finished_at,
+            error_code=self.error_code,
+            error_message=self.error_message,
+        )
+
+
+class SyncBatchModel(models.Model):
+    """Bounded provider/dataset slice in a :class:`SyncRunModel`."""
+
+    STATE_CHOICES = [(item.value, item.value) for item in SyncItemState]
+
+    batch_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run_id = models.UUIDField(db_index=True)
+    dataset_key = models.CharField(max_length=160, db_index=True)
+    provider_name = models.CharField(max_length=100, db_index=True)
+    idempotency_key = models.CharField(max_length=240, unique=True)
+    state = models.CharField(max_length=20, choices=STATE_CHOICES, default=SyncItemState.PENDING.value)
+    requested = models.PositiveIntegerField(default=0)
+    fetched = models.PositiveIntegerField(default=0)
+    validated = models.PositiveIntegerField(default=0)
+    quarantined = models.PositiveIntegerField(default=0)
+    succeeded = models.PositiveIntegerField(default=0)
+    failed = models.PositiveIntegerField(default=0)
+    stored = models.PositiveIntegerField(default=0)
+    published = models.PositiveIntegerField(default=0)
+    window_start = models.DateField(null=True, blank=True)
+    window_end = models.DateField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    error_code = models.CharField(max_length=80, blank=True)
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "data_center_sync_batch"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["run_id", "dataset_key"]),
+            models.Index(fields=["provider_name", "state"]),
+        ]
+
+    def to_domain(self) -> SyncBatch:
+        """Convert the persisted record to a domain batch."""
+
+        return SyncBatch(
+            batch_id=str(self.batch_id),
+            run_id=str(self.run_id),
+            dataset_key=self.dataset_key,
+            provider_name=self.provider_name,
+            idempotency_key=self.idempotency_key,
+            state=SyncItemState(self.state),
+            requested=self.requested,
+            fetched=self.fetched,
+            validated=self.validated,
+            quarantined=self.quarantined,
+            succeeded=self.succeeded,
+            failed=self.failed,
+            stored=self.stored,
+            published=self.published,
+            window_start=self.window_start,
+            window_end=self.window_end,
+            started_at=self.started_at,
+            finished_at=self.finished_at,
+            error_code=self.error_code,
+            error_message=self.error_message,
+        )
+
+
+class SyncCheckpointModel(models.Model):
+    """Durable cursor for resuming a failed or interrupted batch."""
+
+    STATE_CHOICES = [(item.value, item.value) for item in SyncItemState]
+
+    checkpoint_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run_id = models.UUIDField(db_index=True)
+    batch_id = models.UUIDField(db_index=True)
+    cursor_name = models.CharField(max_length=100)
+    cursor_value = models.CharField(max_length=500)
+    state = models.CharField(max_length=20, choices=STATE_CHOICES, default=SyncItemState.SUCCEEDED.value)
+    processed = models.PositiveIntegerField(default=0)
+    failed = models.PositiveIntegerField(default=0)
+    recorded_at = models.DateTimeField(db_index=True)
+    error_code = models.CharField(max_length=80, blank=True)
+
+    class Meta:
+        db_table = "data_center_sync_checkpoint"
+        ordering = ["-recorded_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["batch_id", "cursor_name", "cursor_value"],
+                name="dc_checkpoint_batch_cursor_unique",
+            ),
+        ]
+        indexes = [models.Index(fields=["run_id", "batch_id", "recorded_at"])]
+
+    def to_domain(self) -> SyncCheckpoint:
+        """Convert the persisted cursor to a domain checkpoint."""
+
+        return SyncCheckpoint(
+            checkpoint_id=str(self.checkpoint_id),
+            run_id=str(self.run_id),
+            batch_id=str(self.batch_id),
+            cursor_name=self.cursor_name,
+            cursor_value=self.cursor_value,
+            state=SyncItemState(self.state),
+            processed=self.processed,
+            failed=self.failed,
+            recorded_at=self.recorded_at,
+            error_code=self.error_code,
+        )
+
+
+class QuarantineRecordModel(models.Model):
+    """Payload rejected by a Dataset Contract or reconciliation policy."""
+
+    RESOLUTION_CHOICES = [(item.value, item.value) for item in QuarantineResolution]
+
+    quarantine_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    dataset_key = models.CharField(max_length=160, db_index=True)
+    provider_name = models.CharField(max_length=100, db_index=True)
+    natural_key = models.CharField(max_length=300, db_index=True)
+    reason_code = models.CharField(max_length=100, db_index=True)
+    reason = models.TextField()
+    payload_hash = models.CharField(max_length=128, db_index=True)
+    schema_fingerprint = models.CharField(max_length=128, db_index=True)
+    payload = models.JSONField(default=dict)
+    observed_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    run_id = models.UUIDField(null=True, blank=True, db_index=True)
+    batch_id = models.UUIDField(null=True, blank=True, db_index=True)
+    resolution = models.CharField(max_length=20, choices=RESOLUTION_CHOICES, default=QuarantineResolution.OPEN.value)
+    quarantined_at = models.DateTimeField(db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.CharField(max_length=150, blank=True)
+
+    class Meta:
+        db_table = "data_center_quarantine_record"
+        ordering = ["-quarantined_at"]
+        indexes = [
+            models.Index(fields=["dataset_key", "resolution"]),
+            models.Index(fields=["provider_name", "reason_code"]),
+        ]
+
+    def to_domain(self) -> QuarantineRecord:
+        """Convert the persisted rejected payload to a domain record."""
+
+        return QuarantineRecord(
+            quarantine_id=str(self.quarantine_id),
+            dataset_key=self.dataset_key,
+            provider_name=self.provider_name,
+            natural_key=self.natural_key,
+            reason_code=self.reason_code,
+            reason=self.reason,
+            payload_hash=self.payload_hash,
+            schema_fingerprint=self.schema_fingerprint,
+            payload=self.payload or {},
+            observed_at=self.observed_at,
+            run_id=str(self.run_id) if self.run_id else "",
+            batch_id=str(self.batch_id) if self.batch_id else "",
+            resolution=QuarantineResolution(self.resolution),
+            quarantined_at=self.quarantined_at,
+            resolved_at=self.resolved_at,
+            resolved_by=self.resolved_by,
+        )
+
+
+class CanonicalPublicationModel(models.Model):
+    """Versioned selection of canonical facts for a dataset scope."""
+
+    STATE_CHOICES = [(item.value, item.value) for item in PublicationState]
+
+    publication_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    dataset_key = models.CharField(max_length=160, db_index=True)
+    publication_key = models.CharField(max_length=300)
+    policy_version = models.CharField(max_length=80)
+    state = models.CharField(max_length=20, choices=STATE_CHOICES, default=PublicationState.CANDIDATE.value)
+    selected_source = models.CharField(max_length=100, blank=True, db_index=True)
+    publication_hash = models.CharField(max_length=128, db_index=True)
+    member_count = models.PositiveIntegerField(default=0)
+    conflict_count = models.PositiveIntegerField(default=0)
+    coverage_requested_count = models.PositiveIntegerField(default=0)
+    coverage_eligible_count = models.PositiveIntegerField(default=0)
+    coverage_selected_count = models.PositiveIntegerField(default=0)
+    coverage_missing_count = models.PositiveIntegerField(default=0)
+    coverage_conflict_count = models.PositiveIntegerField(default=0)
+    as_of = models.DateTimeField(null=True, blank=True, db_index=True)
+    published_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    superseded_at = models.DateTimeField(null=True, blank=True)
+    must_not_use_for_decision = models.BooleanField(default=False)
+    blocked_reason = models.TextField(blank=True)
+    created_by = models.CharField(max_length=150, default="system")
+    run_id = models.UUIDField(null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "data_center_canonical_publication"
+        ordering = ["-published_at", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dataset_key", "publication_key", "publication_hash"],
+                name="dc_publication_scope_hash_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(coverage_selected_count__lte=models.F("coverage_eligible_count")),
+                name="dc_publication_coverage_selected_lte_eligible",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(coverage_eligible_count__lte=models.F("coverage_requested_count")),
+                name="dc_publication_coverage_eligible_lte_requested",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["dataset_key", "publication_key", "state"]),
+            models.Index(fields=["dataset_key", "as_of", "state"]),
+        ]
+
+    def to_domain(self) -> CanonicalPublication:
+        """Convert the persisted publication and embedded coverage snapshot."""
+
+        return CanonicalPublication(
+            publication_id=str(self.publication_id),
+            dataset_key=self.dataset_key,
+            publication_key=self.publication_key,
+            policy_version=self.policy_version,
+            state=PublicationState(self.state),
+            selected_source=self.selected_source,
+            publication_hash=self.publication_hash,
+            coverage=CoverageSnapshot(
+                # Use a UUID-safe deterministic fallback for legacy rows; the
+                # dedicated CoverageSnapshotModel stores the authoritative ID.
+                coverage_id=str(self.publication_id),
+                publication_id=str(self.publication_id),
+                requested_count=self.coverage_requested_count,
+                eligible_count=self.coverage_eligible_count,
+                selected_count=self.coverage_selected_count,
+                missing_count=self.coverage_missing_count,
+                conflict_count=self.coverage_conflict_count,
+                generated_at=self.published_at or self.created_at,
+            ),
+            member_count=self.member_count,
+            conflict_count=self.conflict_count,
+            as_of=self.as_of,
+            published_at=self.published_at,
+            superseded_at=self.superseded_at,
+            must_not_use_for_decision=self.must_not_use_for_decision,
+            blocked_reason=self.blocked_reason,
+            created_by=self.created_by,
+            run_id=str(self.run_id) if self.run_id else "",
+        )
+
+
+class PublicationMemberModel(models.Model):
+    """Selected fact reference belonging to a canonical publication."""
+
+    member_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    publication_id = models.UUIDField(db_index=True)
+    dataset_key = models.CharField(max_length=160, db_index=True)
+    natural_key = models.CharField(max_length=300)
+    source = models.CharField(max_length=100, db_index=True)
+    source_record_id = models.CharField(max_length=300)
+    fact_table = models.CharField(max_length=160)
+    fact_pk = models.CharField(max_length=160)
+    observed_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    raw_payload_hash = models.CharField(max_length=128, blank=True)
+    quality_status = models.CharField(max_length=40, default="accepted")
+    revision_number = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        db_table = "data_center_publication_member"
+        ordering = ["natural_key", "source"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["publication_id", "natural_key"],
+                name="dc_publication_member_natural_key_unique",
+            ),
+        ]
+        indexes = [models.Index(fields=["dataset_key", "natural_key", "observed_at"])]
+
+    def to_domain(self) -> PublicationMember:
+        """Convert the persisted member reference to a domain value object."""
+
+        return PublicationMember(
+            member_id=str(self.member_id),
+            publication_id=str(self.publication_id),
+            dataset_key=self.dataset_key,
+            natural_key=self.natural_key,
+            source=self.source,
+            source_record_id=self.source_record_id,
+            fact_table=self.fact_table,
+            fact_pk=self.fact_pk,
+            observed_at=self.observed_at,
+            raw_payload_hash=self.raw_payload_hash,
+            quality_status=self.quality_status,
+            revision_number=self.revision_number,
+        )
+
+
+class CoverageSnapshotModel(models.Model):
+    """Immutable coverage evidence for a publication."""
+
+    coverage_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    publication_id = models.UUIDField(unique=True, db_index=True)
+    requested_count = models.PositiveIntegerField(default=0)
+    eligible_count = models.PositiveIntegerField(default=0)
+    selected_count = models.PositiveIntegerField(default=0)
+    missing_count = models.PositiveIntegerField(default=0)
+    conflict_count = models.PositiveIntegerField(default=0)
+    generated_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table = "data_center_coverage_snapshot"
+        constraints = [
+            models.CheckConstraint(condition=models.Q(selected_count__lte=models.F("eligible_count")), name="dc_coverage_selected_lte_eligible"),
+            models.CheckConstraint(condition=models.Q(eligible_count__lte=models.F("requested_count")), name="dc_coverage_eligible_lte_requested"),
+        ]
+
+    def to_domain(self) -> CoverageSnapshot:
+        """Convert the persisted coverage evidence to a domain value object."""
+
+        return CoverageSnapshot(
+            coverage_id=str(self.coverage_id),
+            publication_id=str(self.publication_id),
+            requested_count=self.requested_count,
+            eligible_count=self.eligible_count,
+            selected_count=self.selected_count,
+            missing_count=self.missing_count,
+            conflict_count=self.conflict_count,
+            generated_at=self.generated_at,
+        )

@@ -828,6 +828,24 @@ def test_data_center_price_history_prefers_exact_code_over_alias_candidate(
 
 
 @pytest.mark.django_db
+def test_data_center_published_price_history_blocks_without_publication(
+    authenticated_client,
+    monkeypatch,
+):
+    monkeypatch.setattr("apps.data_center.interface.api_views.get_current_publication", lambda *_args: None)
+
+    response = authenticated_client.get(
+        "/api/data-center/prices/history/?asset_code=002156.SZ&mode=published"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["data"] == []
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["blocked_reason"] == "canonical_publication_missing"
+
+
+@pytest.mark.django_db
 def test_decision_reliability_repair_api_returns_report(
     authenticated_client,
     auth_user,

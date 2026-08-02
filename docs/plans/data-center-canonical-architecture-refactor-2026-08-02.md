@@ -1,6 +1,6 @@
 # 数据中台唯一真源与数据可靠性架构重构计划（2026-08-02）
 
-> 状态：实施中（M0-M2 基础收口已落地；M3-D9、M9-M10 尚未完成）  
+> 状态：实施中（M0-M4 本地控制面基础已落地；全入口 Publication 强制切读、M4-D9、M9-M10 尚未完成）
 > 级别：架构级 / 数据级 / 生产级重构  
 > 适用版本：0.8.0 之后的下一条独立主线  
 > 目标：所有外部事实数据及所有业务计算输入统一经过 Data Center；系统只有一个可发布的数据真源、一套可靠性语义和一条可审计的数据链路，并能在生产默认 90 GiB、运行时可调整的容量策略下持续运行  
@@ -35,9 +35,69 @@
 未完成及明确风险：
 
 - `apps/macro/infrastructure/data_center_fact_repository.py` 仍是一个遗留 CRUD facade，尚未迁移到 Data Center Application；这是当前唯一生产侧 Data Center ORM 例外（测试 fixture 不计入）。
-- `apps/data_center/apps.py` 仍注册 `core.integration.research_integrity_registry` 的 PIT 回调；它不是 Provider bridge，但 M2 的“完全无 core integration”退出条件尚未满足。
+- `apps/data_center/apps.py` 的 PIT 回调已迁入 `apps.data_center.application.pit_provider`；其他非 PIT 的跨领域 registry 仍按 owner 保留在 `core.integration`，不属于 Data Center Provider 入口。
 - Raw Landing/Schema Fingerprint/Quarantine、SyncRun/Batch/Checkpoint、CanonicalPublication 持久化、Config Center Definition/Profile/Revision/Snapshot 模型、StorageBudget/Retention/Archive/容量故障注入尚未实施。
 - D0-D9 的生产数据画像、legacy/canonical shadow reconciliation、PostgreSQL 全链路、VPS/备份/恢复、M9 旧表清理和 M10 生产证据均未验证；因此本计划不能标记为完成，也不触发部署。
+
+## 实施记录（2026-08-02，第二批）
+
+本批次继续只做本地架构与可验证代码，不部署 VPS、不切生产读、不删除旧表。
+
+已落地：
+
+- Data Center 新增 `SyncRunModel`、`SyncBatchModel`、`SyncCheckpointModel`、`QuarantineRecordModel`、`CanonicalPublicationModel`、`PublicationMemberModel`、`CoverageSnapshotModel`，并提供 Domain 不变量、幂等仓储、发布 supersede 和 current/as_of 查询端口；迁移为 `0050_canonicalpublicationmodel_coveragesnapshotmodel_and_more.py`。
+- 新增 Raw Landing/Schema Fingerprint：红脱敏校验、payload/schema hash、保留期、解析版本、运行关联；Raw Audit 增加请求参数 hash、响应 hash、schema fingerprint、脱敏和保留字段；迁移为 `0051_rawauditmodel_ingested_run_id_and_more.py`。
+- D0-D9 类型化事实表补充 `contract_version`、`schema_version`、`source_record_id`、`raw_payload_hash`、`quality_status`、`revision_number`、`ingested_run_id` 等统一证据列；迁移为 `0052_capitalflowfactmodel_contract_version_and_more.py`。
+- `apps/macro/infrastructure/data_center_fact_repository.py` 已改为只依赖 `apps.data_center.application.public` 的兼容 facade；ORM 读写投影下沉到 Data Center infrastructure，宏观新增写入不再经过 macro 旧表。
+- PIT provider registry 从 `core.integration` 收回 `apps.data_center.application.pit_provider`，backtest/research/decision-rhythm 只依赖 Data Center PIT Application Port；架构扫描保持 boundary/audit 0 violation。
+- Config Center 新增 RuntimeConfigDefinition/Profile/Value/Revision/Snapshot、StorageBudgetPolicy、StorageBudgetQueryPort、StoragePressureGuard、初始化命令和 runtime desired-state reconcile；无 active policy 时 readiness/写入侧 fail closed，容量使用实际磁盘与配置容量的较小值。
+- Data Center 新增 RetentionPolicy、StorageHold、ArchiveManifest 的 Domain/Model/Repository；归档必须有 checksum/verified_at，保留清理遇到 active hold 时阻断。
+- `sync_equity_financial` 和 equity fundamentals 写入入口改为 Data Center FinancialFact/ValuationFact canonical repository；旧 equity 事实表仅保留迁移期只读兼容。
+- 新增 `governance/storage_budget_contracts.json`、`governance/runtime_desired_state.json` 及对应 deterministic guards；`production-90g` 只作为显式初始化 profile，不作为运行逻辑 fallback。
+
+第二批机器证据：
+
+- `pytest tests/component/infrastructure/test_repositories.py -q`：47 passed；`pytest tests/component/macro/test_data_center_fact_crud_contracts.py -q`：2 passed。
+- `pytest tests/unit/data_center/test_control_plane.py -q`：5 passed；控制面迁移在 SQLite 测试库创建并通过幂等/current 阻断断言。
+- `pytest tests/unit/data_center/test_runtime_reconcile.py tests/unit/data_center/test_raw_landing.py tests/unit/config_center/test_runtime_config_control_plane.py -q`：8 passed；随后完整 `test_runtime_config_control_plane.py`：6 passed，含 Config Center/StorageBudget 数据库 round-trip。
+- TUI Config Center 运行配置治理 P0 panel 已接入；`pytest tests/unit/test_tui_workbench.py -q -k 'config_center_screen or config_center_exposes_alpha_universe_actions or config_center_admin'`：4 passed。
+- `pytest tests/unit/data_center/test_retention_control_plane.py -q`：2 passed，覆盖 archive verified 与 active hold 阻断。
+- `python manage.py check`、`python manage.py makemigrations --check --dry-run`、`python scripts/check_storage_budget_contract.py`、`python scripts/check_runtime_desired_state.py` 均通过。
+- `python scripts/check_mypy_regression.py ...`：新增/修改生产文件无 mypy regression；`python scripts/verify_architecture.py --include-audit --format text`：boundary/audit 0 violation。
+- 第二批复采 inventory：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=60`、`legacy_fact_references=173`、`current_surface_references=2815`、`data_write_task_decorators=50`、`runtime_parameter_references=49`；`check_current_data_contracts.py` 25 surfaces、`check_celery_task_contracts.py` 13 tasks 均通过。
+
+仍未完成：
+
+- 全部 current/latest 入口尚未强制只读 Publication；目前已提供明确的 `get_published_*` gate，但既有历史/维护端口仍保持兼容。
+- D0-D9 生产数据画像、shadow reconciliation、PostgreSQL 约束/P95、Retention/Hold/Archive 实际任务、非默认容量 profile 故障注入、CI nodeid 真执行、VPS/备份/恢复和旧表删除均未完成；不触发部署。
+
+## 实施记录（2026-08-02，第三批）
+
+本批次仍只做本地代码、SDK/MCP 入口和可回归的控制面，不部署 VPS、不 push、不切生产读、不删除旧表。
+
+已落地：
+
+- Runtime Config Application 增加 side-effect-free impact preview、同环境 active profile 自动 supersede、版本递增 rollback 端口，并把 critical/bootstrap 缺失、profile_id 错配和重复 definition key 统一 fail closed。
+- Retention 新增有界 `cleanup_expired_raw_payloads_task`：默认 dry-run，只有 active RetentionPolicy、StoragePressureGuard 非 blocked、verified archive 和无 active hold 才允许执行删除；任务已登记 Celery contract 并覆盖 invalid/blocked/partial/success。
+- RawAudit 与 RawPayload 均拒绝未脱敏写入；Raw Landing 提供 oldest-first bounded retention candidate/delete port；基金 NAV 保留明确标注的 D6 迁移期 shadow mirror，canonical Data Center 读取优先，旧表只作兼容回退。
+- Data Center API 增加显式 `mode=published` Publication gate（macro、price、quote、fund NAV、financial、valuation）；SDK 转发 `mode/publication_key`，MCP equity research snapshot 对核心分区默认请求 published，缺少 publication 时返回空证据并 `must_not_use_for_decision=true`，不再展示非空旧值。
+- TUI operator config-center governance summary 增加 typed Runtime Profile/StorageBudgetPolicy P0 阻断提示；治理摘要不读取或展示 secret value。
+- `governance/current_data_contracts.json` 新增 publication-gated API/SDK/MCP contract，防止入口回退到未发布事实。
+
+第三批机器证据：
+
+- `pytest tests/unit/config_center/test_runtime_config_control_plane.py tests/unit/data_center/test_retention_control_plane.py tests/unit/data_center/test_retention_tasks.py tests/unit/fund/test_t4b_use_case_and_adapter_contracts.py -q`：24 passed。
+- `pytest sdk/tests/test_sdk/test_data_center_module.py sdk/tests/test_mcp/test_equity_research_snapshot_registry.py -q`：33 passed；`pytest tests/api/test_data_center_route_cleanup.py -q -k 'published_price_history_blocks_without_publication'`：1 passed。
+- `pytest tests/unit/data_center/test_raw_landing.py tests/component/infrastructure/test_repositories.py -q`：49 passed；TUI Config Center targeted：4 passed；Alpha Qlib boundary/edge：42 passed；Terminal agent：13 passed；SDK client：22 passed；internal SSL：6 passed。
+- `python scripts/check_celery_task_contracts.py`：14 tasks；`python scripts/check_current_data_contracts.py`：26 surfaces；`python scripts/data_center_architecture_inventory.py --write`：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=60`、`legacy_fact_references=171`、`current_surface_references=2824`、`data_write_task_decorators=51`、`runtime_parameter_references=49`；storage/desired-state guards 均通过。
+- `python scripts/verify_architecture.py --include-audit --format text`：boundary/audit 0 violation；目标生产文件 ruff 与 mypy regression 0。
+
+仍未完成：
+
+- D0-D9 全部消费者还没有强制切换到 Publication-only 读；目前已把决策型 API/SDK/MCP 研究入口设为显式 published 模式，历史/维护端口和部分业务聚合仍保留迁移兼容面。
+- Retention 目前是有界 raw payload 任务，事实表分区/rollup、Raw/Quarantine 全量归档、真实 beat schedule 和恢复演练尚未完成。
+- 完整 `pytest tests/unit/test_tui_workbench.py -q` 在 SQLite 测试库 migration/setup 阶段超时；配置中心相关定向用例已通过，需在 CI/干净测试库中完成全量 nodeid 证据。
+- PostgreSQL 真实 migration/P95/锁预算、生产数据画像、shadow reconciliation、非默认容量 profile 故障注入、VPS/备份/恢复、CI nodeid 真实执行、旧表删除均未完成；不触发部署。
 
 ## 1. 结论先行
 
@@ -1130,7 +1190,7 @@ Data Center Public Port → 业务 Application 聚合 → REST DTO → SDK/MCP/T
 - [x] 建立 DataEnvelope、SourceEvidence、QualityAssessment、SyncOutcome、PublicationDecision。
 - 将 shared/domain/reliability.py 收敛为 Data Center 可复用的纯 Domain 契约，或明确 shared 只保存技术中立基础类型；全仓只保留一个 ReliabilityStatus 定义。
 - [x] 建立 Dataset Contract / Field Contract / Provider Binding / Freshness / Reconciliation / Publication Policy 模型（Domain 类型 + 版本化清单；持久化 Catalog 尚未完成）。
-- 在 Config Center 建立 RuntimeConfigDefinition / Profile / Value / Revision / Snapshot，以及 owner Application registration。
+- [x] 在 Config Center 建立 RuntimeConfigDefinition / Profile / Value / Revision / Snapshot，以及 owner Application registration（首批 data-center/storage owner；全域 owner registry 仍需扩展）。
 - 以 storage / backup / logging / task_monitor / readiness 作为首批 active runtime profile。
 - 通过 migration 和幂等初始化命令导入现有 IndicatorCatalog、IndicatorUnitRule 和 Provider 配置。
 - 定义稳定 block_reason_code 字典。
@@ -1162,12 +1222,12 @@ Data Center Public Port → 业务 Application 聚合 → REST DTO → SDK/MCP/T
 
 - 在 apps/data_center/infrastructure/providers 下建立原生 Provider Gateway。
 - [x] 将 core/integration/data_center_business_sources.py 的首批 Tushare/AKShare/资产回填能力迁入或替换；完整桥退役仍未完成。
-- [x] 移除 Data Center Application 对 `core.integration.data_center_business_sources` 的 import；AppConfig 的 PIT registry import 仍保留。
+- [x] 移除 Data Center Application 对 `core.integration.data_center_business_sources` 和 `core.integration` PIT registry 的 import。
 - [x] 将 shared/infrastructure/tushare_client.py 私有化到 Data Center。
 - [x] Provider Registry 已能接受 `FetchResult`；既有 adapter 的裸 list 兼容面仍需按 D0-D9 收口。
-- 建立 Raw Landing、Schema Fingerprint、Quarantine、SyncRun/Batch/Checkpoint。
-- Provider Health 升级为 provider + dataset_key。
-- Beat、Provider Catalog、MCP Catalog 使用 desired-state reconcile。
+- [x] 建立 Raw Landing、Schema Fingerprint、Quarantine、SyncRun/Batch/Checkpoint。
+- [ ] Provider Health 升级为 provider + dataset_key。
+- [x] Beat、Provider Catalog、MCP Catalog 使用 deterministic desired-state reconcile contract（实际部署 reconcile 尚未接入）。
 
 测试：
 
@@ -1190,11 +1250,11 @@ Data Center Public Port → 业务 Application 聚合 → REST DTO → SDK/MCP/T
 
 交付：
 
-- CanonicalPublication、PublicationMember、CoverageSnapshot。
+- [x] CanonicalPublication、PublicationMember、CoverageSnapshot。
 - D0-D9 的 Publication Policy。
 - Publication、SyncRun 和关键查询响应记录 runtime config snapshot_id/hash。
-- 小型 Public Query Ports 和版本化 DTO。
-- as_of / publication_id / current 三种明确查询模式。
+- [x] 小型 Public Query Ports 和版本化 DTO。
+- [x] as_of / publication_id / current 三种明确查询模式（published gate 已提供；全入口强制切换未完成）。
 - shadow read 记录 legacy 与 canonical 差异，不影响用户响应。
 - 查询预算、索引和批量接口。
 
@@ -1979,11 +2039,11 @@ VPS 本地备份不是持久备份，只是传输暂存。
 
 ### 22.1 架构
 
-- [ ] Data Center Infrastructure 是唯一外部数据接入位置。
-- [ ] Data Center 不反向 import 业务 infrastructure 或 core/integration 数据桥。
-- [ ] 业务 App 不直接读 Data Center ORM，只使用 Application Public Port。
+- [x] Data Center Infrastructure 是唯一外部数据接入位置（静态 provider import 清单为 0；运行生产画像未完成）。
+- [x] Data Center 不反向 import 业务 infrastructure 或 core/integration 数据桥。
+- [x] 业务 App 不直接读 Data Center ORM，只使用 Application Public Port（生产代码已清除，测试 fixture 例外保留）。
 - [ ] 全仓无同类外部事实双真源。
-- [ ] shared 无外部金融数据 Provider Client。
+- [x] shared 无外部金融数据 Provider Client。
 - [ ] Config Center 拥有全局运行参数的 Definition/Profile/Value/Revision/Snapshot，并提供统一 TUI/Application 入口。
 - [ ] 领域配置均登记 owner，并通过 owner Application Facade 接入；Config Center 无跨 App ORM。
 - [ ] SystemSettingsModel 不再继续膨胀，过期字段和关键代码 fallback 已完成迁移/退役。
@@ -1992,7 +2052,7 @@ VPS 本地备份不是持久备份，只是传输暂存。
 
 - [ ] D0-D9 全部有版本化 Dataset Contract、Provider Binding、质量和发布策略。
 - [ ] 每条决策事实可回溯到 raw hash、Provider、contract_version 和 publication_id。
-- [ ] missing 不再被转换为 0。
+- [x] missing 不再被转换为 0（本批涉及的财务/估值/宏观路径；全仓审计仍需继续）。
 - [ ] current/latest 只返回有效 Publication。
 - [ ] as_of 查询不产生后视偏差。
 - [ ] legacy/canonical 差异全部关闭或登记为有 owner、有期限的例外。
@@ -2001,15 +2061,15 @@ VPS 本地备份不是持久备份，只是传输暂存。
 
 - [ ] fresh/stale/missing/partial/conflict/maintenance/failed 语义跨入口一致。
 - [ ] observed/published/available/fetched 时间沿链路保真。
-- [ ] stale 主源继续 failover。
-- [ ] 跨源冲突不静默发布。
+- [x] stale 主源继续 failover。
+- [x] 跨源冲突不静默发布（Publication UseCase/Provider Registry；全 D0-D9 生产切读未完成）。
 - [ ] 关键证据缺失时所有决策入口 fail closed。
 
 ### 22.4 任务与运维
 
 - [ ] 所有数据写入任务具备边界校验、幂等、checkpoint 和标准 outcome。
-- [ ] stored=0 不再无条件 success。
-- [ ] Provider、Schedule、MCP Catalog 可确定性 reconcile。
+- [x] stored=0 不再无条件 success。
+- [x] Provider、Schedule、MCP Catalog 可确定性 reconcile contract（实际生产 reconcile 尚未接入）。
 - [ ] 覆盖、新鲜度、健康、冲突和发布进度可监控。
 - [ ] PostgreSQL 备份、恢复和 rollback drill 有真实证据。
 - [ ] 整盘、PostgreSQL、WAL、Docker、Redis、Raw、备份和日志纳入同一 active StorageBudgetPolicy 水位控制。
@@ -2028,7 +2088,7 @@ VPS 本地备份不是持久备份，只是传输暂存。
 - [ ] 核心链路在 PostgreSQL 通过。
 - [ ] Provider schema drift、故障注入、性能和全市场回填通过。
 - [ ] runtime_config_contracts 覆盖所有受管运行参数，非默认 profile 和无 active profile 测试通过。
-- [ ] 新增绕过路径被 CI 拒绝。
+- [x] 新增绕过路径被 CI 拒绝（architecture/current-data/celery/catalog guards）。
 - [ ] governance baseline、文档、runbook 和数据字典同步更新。
 
 只有上述全部完成，才可以写“所有数据已走数据中台”。“已有 Data Center App”“接口能返回数据”或“单元测试通过”均不等于完成。
@@ -2101,14 +2161,14 @@ VPS 本地备份不是持久备份，只是传输暂存。
 ### Batch C：建立可迁移基础
 
 - [x] Dataset Contract / Binding / Policy schema。
-- [ ] SyncRun / Batch / Checkpoint / Quarantine。
-- [ ] Canonical Publication。
+- [x] SyncRun / Batch / Checkpoint / Quarantine。
+- [x] Canonical Publication。
 - [x] Public Query Ports。
-- [ ] Storage Budget / Retention / Hold / Archive Manifest。
-- [ ] RuntimeConfigDefinition / Profile / Value / Revision / Snapshot 与领域 owner registry。
-- [ ] Config Center 统一 TUI/Application 入口、impact preview、原子激活和回滚。
-- [ ] production-90g 初始化配置、StorageBudgetQueryPort、策略变更审计和无 active policy 阻断。
-- [ ] StoragePressureGuard 和容量采集/预测/清理任务。
+- [x] Storage Budget / Retention / Hold / Archive Manifest（模型、Domain、仓储和 guard 已落地；实际定时清理/归档任务仍待接入）。
+- [x] RuntimeConfigDefinition / Profile / Value / Revision / Snapshot 与首批领域 owner registry。
+- [x] Config Center 统一 TUI/Application 入口、impact preview、原子激活和回滚（TUI P0 阻断提示、preview/rollback API 已接入；真实生产观察窗口仍待补）。
+- [x] production-90g 显式初始化命令、StorageBudgetQueryPort、策略变更审计和无 active policy 阻断。
+- [x] StoragePressureGuard（已接入有界 raw cleanup task；真实 beat schedule、归档和恢复演练仍待补）。
 
 ### Batch D：按 D0-D9 迁移消费者
 

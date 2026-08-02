@@ -15,7 +15,7 @@ import numpy as np
 from apps.alpha.infrastructure.scientific_runtime import get_pandas
 from apps.config_center.application import interface_services as config_center_services
 from apps.config_center.domain.entities import AlphaUniverseConfig
-from apps.data_center.infrastructure.tushare_client import create_tushare_pro_client
+from apps.data_center.application.public import get_tushare_client
 
 logger = logging.getLogger(__name__)
 pd = get_pandas()
@@ -150,7 +150,7 @@ class TushareQlibBuilder:
         self._provider_uri = Path(provider_uri).expanduser()
         self._pro = cast(
             _TushareProClient,
-            pro_client if pro_client is not None else create_tushare_pro_client(),
+            pro_client if pro_client is not None else get_tushare_client(),
         )
         self._calendar_path = _calendar_path(self._provider_uri)
         self._instrument_dir = self._provider_uri / "instruments"

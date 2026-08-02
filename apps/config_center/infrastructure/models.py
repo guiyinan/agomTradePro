@@ -20,6 +20,19 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
+from apps.config_center.domain.runtime_config import (
+    RuntimeConfigCriticality,
+    RuntimeConfigDefinition,
+    RuntimeConfigProfile,
+    RuntimeConfigReloadMode,
+    RuntimeConfigRevision,
+    RuntimeConfigSnapshot,
+    RuntimeConfigValue,
+    RuntimeProfileStatus,
+    RuntimeValueType,
+    StorageBudgetPolicy,
+)
+
 if TYPE_CHECKING:
     from apps.config_center.domain.entities import AlphaUniverseConfig
 
@@ -822,3 +835,290 @@ class QlibTrainingRunModel(models.Model):
 
     def __str__(self) -> str:
         return f"{self.model_name} [{self.status}]"
+
+
+# ---------------------------------------------------------------------------
+# Versioned runtime configuration and storage budget control plane
+# ---------------------------------------------------------------------------
+
+
+class RuntimeConfigDefinitionModel(models.Model):
+    """Registry definition for one typed runtime configuration key."""
+
+    key = models.CharField(max_length=180, unique=True, db_index=True)
+    namespace = models.CharField(max_length=80, db_index=True)
+    owner_app = models.CharField(max_length=100, db_index=True)
+    value_type = models.CharField(max_length=24, choices=[(item.value, item.value) for item in RuntimeValueType])
+    unit = models.CharField(max_length=40, blank=True)
+    constraints = models.JSONField(default=dict, blank=True)
+    criticality = models.CharField(
+        max_length=20,
+        choices=[(item.value, item.value) for item in RuntimeConfigCriticality],
+        default=RuntimeConfigCriticality.NORMAL.value,
+        db_index=True,
+    )
+    secret = models.BooleanField(default=False)
+    reload_mode = models.CharField(
+        max_length=24,
+        choices=[(item.value, item.value) for item in RuntimeConfigReloadMode],
+        default=RuntimeConfigReloadMode.NEXT_TASK.value,
+    )
+    description = models.TextField(blank=True)
+    user_impact = models.TextField(blank=True)
+    is_deprecated = models.BooleanField(default=False)
+    replacement_key = models.CharField(max_length=180, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "config_center_runtime_config_definition"
+        ordering = ["namespace", "key"]
+        indexes = [models.Index(fields=["owner_app", "criticality"])]
+
+    def to_domain(self) -> RuntimeConfigDefinition:
+        """Convert this registry row to its domain definition."""
+
+        return RuntimeConfigDefinition(
+            key=self.key,
+            namespace=self.namespace,
+            owner_app=self.owner_app,
+            value_type=RuntimeValueType(self.value_type),
+            unit=self.unit,
+            constraints=self.constraints or {},
+            criticality=RuntimeConfigCriticality(self.criticality),
+            secret=self.secret,
+            reload_mode=RuntimeConfigReloadMode(self.reload_mode),
+            description=self.description,
+            user_impact=self.user_impact,
+            is_deprecated=self.is_deprecated,
+            replacement_key=self.replacement_key,
+        )
+
+
+class RuntimeConfigProfileModel(models.Model):
+    """Versioned desired-state profile."""
+
+    profile_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    profile_key = models.CharField(max_length=120, db_index=True)
+    environment = models.CharField(max_length=40, db_index=True)
+    version = models.PositiveIntegerField()
+    status = models.CharField(
+        max_length=20,
+        choices=[(item.value, item.value) for item in RuntimeProfileStatus],
+        default=RuntimeProfileStatus.DRAFT.value,
+        db_index=True,
+    )
+    based_on_profile = models.CharField(max_length=120, blank=True)
+    content_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    created_by = models.CharField(max_length=150, default="system")
+    activated_by = models.CharField(max_length=150, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    activated_at = models.DateTimeField(null=True, blank=True)
+    change_reason = models.TextField(blank=True)
+    release_ref = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        db_table = "config_center_runtime_config_profile"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["profile_key", "version"],
+                name="config_center_runtime_profile_version_unique",
+            ),
+        ]
+        indexes = [models.Index(fields=["environment", "status"])]
+
+    def to_domain(self) -> RuntimeConfigProfile:
+        """Convert this profile row to its domain value object."""
+
+        return RuntimeConfigProfile(
+            profile_id=str(self.profile_id),
+            profile_key=self.profile_key,
+            environment=self.environment,
+            version=self.version,
+            status=RuntimeProfileStatus(self.status),
+            based_on_profile=self.based_on_profile,
+            content_hash=self.content_hash,
+            created_by=self.created_by,
+            activated_by=self.activated_by,
+            created_at=self.created_at,
+            activated_at=self.activated_at,
+            change_reason=self.change_reason,
+            release_ref=self.release_ref,
+        )
+
+
+class RuntimeConfigValueModel(models.Model):
+    """Typed value belonging to one runtime configuration profile."""
+
+    value_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    profile_id = models.UUIDField(db_index=True)
+    definition_key = models.CharField(max_length=180, db_index=True)
+    value_json = models.JSONField(null=True, blank=True)
+    secret_ref = models.CharField(max_length=300, blank=True)
+    source = models.CharField(max_length=40, default="admin")
+    validation_status = models.CharField(max_length=20, default="valid", db_index=True)
+    validation_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "config_center_runtime_config_value"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["profile_id", "definition_key"],
+                name="config_center_runtime_value_profile_key_unique",
+            ),
+        ]
+        indexes = [models.Index(fields=["profile_id", "validation_status"])]
+
+    def to_domain(self) -> RuntimeConfigValue:
+        """Convert the persisted value to a domain value object."""
+
+        return RuntimeConfigValue(
+            profile_id=str(self.profile_id),
+            definition_key=self.definition_key,
+            value_json=self.value_json,
+            secret_ref=self.secret_ref,
+            source=self.source,
+            validation_status=self.validation_status,
+            validation_error=self.validation_error,
+        )
+
+
+class RuntimeConfigRevisionModel(models.Model):
+    """Immutable profile-change audit entry."""
+
+    revision_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    profile_id = models.UUIDField(db_index=True)
+    before_hash = models.CharField(max_length=128, blank=True)
+    after_hash = models.CharField(max_length=128)
+    changed_keys = models.JSONField(default=list)
+    before_projection = models.JSONField(default=dict)
+    after_projection = models.JSONField(default=dict)
+    actor = models.CharField(max_length=150)
+    reason = models.TextField()
+    changed_at = models.DateTimeField(default=timezone.now, db_index=True)
+    release_ref = models.CharField(max_length=100, blank=True)
+    validation_evidence = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "config_center_runtime_config_revision"
+        ordering = ["-changed_at"]
+        indexes = [models.Index(fields=["profile_id", "changed_at"])]
+
+    def to_domain(self) -> RuntimeConfigRevision:
+        """Convert the audit row to a domain revision."""
+
+        return RuntimeConfigRevision(
+            revision_id=str(self.revision_id),
+            profile_id=str(self.profile_id),
+            before_hash=self.before_hash,
+            after_hash=self.after_hash,
+            changed_keys=tuple(str(item) for item in (self.changed_keys or [])),
+            before_projection=self.before_projection or {},
+            after_projection=self.after_projection or {},
+            actor=self.actor,
+            reason=self.reason,
+            changed_at=self.changed_at,
+            release_ref=self.release_ref,
+            validation_evidence=self.validation_evidence or {},
+        )
+
+
+class RuntimeConfigSnapshotModel(models.Model):
+    """Resolved, immutable snapshot referenced by long-running work."""
+
+    snapshot_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    profile_id = models.UUIDField(db_index=True)
+    profile_key = models.CharField(max_length=120, db_index=True)
+    profile_version = models.PositiveIntegerField()
+    snapshot_hash = models.CharField(max_length=128, db_index=True)
+    resolved_values = models.JSONField(default=dict)
+    generated_at = models.DateTimeField(default=timezone.now, db_index=True)
+    effective_from = models.DateTimeField(null=True, blank=True)
+    validation_report = models.JSONField(default=dict, blank=True)
+    consumer_acknowledgement = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "config_center_runtime_config_snapshot"
+        ordering = ["-generated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["profile_id", "snapshot_hash"],
+                name="config_center_runtime_snapshot_hash_unique",
+            ),
+        ]
+        indexes = [models.Index(fields=["profile_key", "profile_version", "generated_at"])]
+
+    def to_domain(self) -> RuntimeConfigSnapshot:
+        """Convert the snapshot row to a domain value object."""
+
+        return RuntimeConfigSnapshot(
+            snapshot_id=str(self.snapshot_id),
+            profile_id=str(self.profile_id),
+            profile_key=self.profile_key,
+            profile_version=self.profile_version,
+            snapshot_hash=self.snapshot_hash,
+            resolved_values=self.resolved_values or {},
+            generated_at=self.generated_at,
+            effective_from=self.effective_from,
+            validation_report=self.validation_report or {},
+            consumer_acknowledgement=self.consumer_acknowledgement or {},
+        )
+
+
+class StorageBudgetPolicyModel(models.Model):
+    """Runtime storage policy; no code-level capacity fallback is implied."""
+
+    policy_key = models.CharField(max_length=100, unique=True, db_index=True)
+    version = models.PositiveIntegerField()
+    configured_capacity_bytes = models.PositiveBigIntegerField()
+    raw_budget_ratio = models.FloatField()
+    quarantine_budget_ratio = models.FloatField()
+    database_budget_ratio = models.FloatField()
+    logs_budget_ratio = models.FloatField()
+    emergency_reserve_ratio = models.FloatField()
+    warning_ratio = models.FloatField()
+    critical_ratio = models.FloatField()
+    active = models.BooleanField(default=False, db_index=True)
+    created_by = models.CharField(max_length=150, default="system")
+    activated_at = models.DateTimeField(null=True, blank=True)
+    change_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "config_center_storage_budget_policy"
+        ordering = ["-active", "-version"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["policy_key", "version"],
+                name="config_center_storage_policy_version_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(configured_capacity_bytes__gt=0),
+                name="config_center_storage_capacity_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(warning_ratio__lt=models.F("critical_ratio")),
+                name="config_center_storage_warning_lt_critical",
+            ),
+        ]
+
+    def to_domain(self) -> StorageBudgetPolicy:
+        """Convert this policy row to a domain budget value object."""
+
+        return StorageBudgetPolicy(
+            policy_key=self.policy_key,
+            version=self.version,
+            configured_capacity_bytes=int(self.configured_capacity_bytes),
+            raw_budget_ratio=self.raw_budget_ratio,
+            quarantine_budget_ratio=self.quarantine_budget_ratio,
+            database_budget_ratio=self.database_budget_ratio,
+            logs_budget_ratio=self.logs_budget_ratio,
+            emergency_reserve_ratio=self.emergency_reserve_ratio,
+            warning_ratio=self.warning_ratio,
+            critical_ratio=self.critical_ratio,
+            active=self.active,
+        )

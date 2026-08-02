@@ -1,7 +1,7 @@
 """Repository for immutable decision input snapshots."""
 
+from apps.data_center.application.pit_provider import get_pit_manifest_evidence
 from apps.decision_rhythm.domain.input_snapshot import DecisionInputSnapshot
-from core.integration.research_integrity_registry import get_pit_manifest_evidence
 
 from .input_snapshot_models import DecisionInputSnapshotModel
 

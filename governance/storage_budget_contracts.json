@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "owner": "config-center",
+  "source_of_truth": "config_center_storage_budget_policy",
+  "fail_closed_when_missing": true,
+  "initialization_profiles": [
+    {
+      "profile_key": "production-90g",
+      "environment": "production",
+      "configured_capacity_gib": 90,
+      "source": "database_initialization_projection",
+      "must_be_explicitly_activated": true
+    },
+    {
+      "profile_key": "development",
+      "environment": "development",
+      "configured_capacity_gib": null,
+      "source": "database_initialization_projection",
+      "must_be_explicitly_activated": true
+    }
+  ],
+  "required_fields": [
+    "configured_capacity_bytes",
+    "raw_budget_ratio",
+    "quarantine_budget_ratio",
+    "database_budget_ratio",
+    "logs_budget_ratio",
+    "emergency_reserve_ratio",
+    "warning_ratio",
+    "critical_ratio",
+    "active"
+  ],
+  "consumers": [
+    "operational_readiness",
+    "task_monitor",
+    "data_center",
+    "backup",
+    "retention",
+    "archive",
+    "storage_hold"
+  ]
+}

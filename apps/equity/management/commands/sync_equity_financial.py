@@ -6,12 +6,15 @@ from typing import Any, Protocol
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
+from apps.data_center.application.public import list_active_stock_codes
+from apps.data_center.composition import get_financial_fact_repository
+from apps.data_center.domain.entities import FinancialFact
+from apps.data_center.domain.enums import FinancialPeriodType
 from apps.equity.infrastructure.financial_source_gateway import (
     AKShareFinancialGateway,
     FinancialSyncBatch,
     TushareFinancialGateway,
 )
-from apps.equity.infrastructure.models import FinancialDataModel, StockInfoModel
 from shared.config.secrets import get_secrets
 
 
@@ -57,13 +60,16 @@ class Command(BaseCommand):
         if source not in {"tushare", "akshare"}:
             raise CommandError("source must be tushare or akshare")
 
-        # 获取要同步的股票列表
+        # The governed stock universe is owned by Data Center; the command is
+        # only a compatibility entry point for reading/summarizing canonical
+        # facts, never a writer to the legacy equity table.
+        active_codes = list_active_stock_codes()
         if stock_codes:
-            stocks = StockInfoModel.objects.filter(stock_code__in=stock_codes, is_active=True)
+            selected_codes = [code for code in stock_codes if code in active_codes]
         else:
-            stocks = StockInfoModel.objects.filter(is_active=True).order_by("stock_code")
+            selected_codes = active_codes
 
-        if not stocks.exists():
+        if not selected_codes:
             raise CommandError("没有找到活跃股票")
 
         # 初始化网关
@@ -84,32 +90,52 @@ class Command(BaseCommand):
         synced_count = 0
         error_count = 0
 
-        for stock in stocks:
+        financial_repository = get_financial_fact_repository()
+        for stock_code in selected_codes:
             try:
-                batch = gateway.fetch(stock.stock_code, periods=periods)
+                batch = gateway.fetch(stock_code, periods=periods)
+                facts: list[FinancialFact] = []
                 for record in batch.records:
-                    FinancialDataModel.objects.update_or_create(
-                        stock_code=record.stock_code,
-                        report_date=record.report_date,
-                        report_type=record.report_type,
-                        defaults={
-                            "revenue": record.revenue,
-                            "net_profit": record.net_profit,
-                            "revenue_growth": record.revenue_growth,
-                            "net_profit_growth": record.net_profit_growth,
-                            "total_assets": record.total_assets,
-                            "total_liabilities": record.total_liabilities,
-                            "equity": record.equity,
-                            "roe": record.roe,
-                            "roa": record.roa,
-                            "debt_ratio": record.debt_ratio,
-                        },
-                    )
-                synced_count += len(batch.records)
-                self.stdout.write(f"{stock.stock_code}: {len(batch.records)} records")
+                    period_type = {
+                        "1Q": FinancialPeriodType.QUARTERLY,
+                        "2Q": FinancialPeriodType.QUARTERLY,
+                        "3Q": FinancialPeriodType.QUARTERLY,
+                        "4Q": FinancialPeriodType.ANNUAL,
+                    }.get(record.report_type, FinancialPeriodType.QUARTERLY)
+                    metrics = {
+                        "revenue": record.revenue,
+                        "net_profit": record.net_profit,
+                        "revenue_growth": record.revenue_growth,
+                        "net_profit_growth": record.net_profit_growth,
+                        "total_assets": record.total_assets,
+                        "total_liabilities": record.total_liabilities,
+                        "equity": record.equity,
+                        "roe": record.roe,
+                        "roa": record.roa,
+                        "debt_ratio": record.debt_ratio,
+                    }
+                    for metric_code, value in metrics.items():
+                        if value is None:
+                            continue
+                        facts.append(
+                            FinancialFact(
+                                asset_code=record.stock_code,
+                                period_end=record.report_date,
+                                period_type=period_type,
+                                metric_code=metric_code,
+                                value=float(value),
+                                unit="%" if metric_code.endswith(("_growth", "roe", "roa", "debt_ratio")) else "",
+                                source=batch.source_provider or source,
+                                report_date=record.report_date,
+                                extra={"legacy_report_type": record.report_type},
+                            )
+                        )
+                stored = financial_repository.bulk_upsert(facts)
+                synced_count += stored
+                self.stdout.write(f"{stock_code}: {stored} canonical records")
             except Exception as exc:
                 error_count += 1
-                self.stderr.write(f"{stock.stock_code}: ERROR ({type(exc).__name__})")
+                self.stderr.write(f"{stock_code}: ERROR ({type(exc).__name__})")
 
         self.stdout.write(
             self.style.SUCCESS(

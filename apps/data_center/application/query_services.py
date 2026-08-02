@@ -8,6 +8,7 @@ from typing import Any
 from apps.data_center.application.query_use_cases import latest_completed_cn_market_session
 from apps.data_center.composition import (
     get_asset_repository,
+    get_canonical_publication_repository,
     get_data_center_diagnostic_repository,
     get_financial_fact_repository,
     get_indicator_catalog_repository,
@@ -152,6 +153,105 @@ def query_macro_fact_series(
     if source:
         facts = [fact for fact in facts if fact.source == source]
     return [fact.to_dict() for fact in facts]
+
+
+def query_published_macro_fact_series(
+    indicator_code: str,
+    *,
+    publication_key: str | None = None,
+    start: date | None = None,
+    end: date | None = None,
+    limit: int = 500,
+) -> dict[str, object]:
+    """Read macro facts only when a current publication exists.
+
+    This explicit current-data port prevents a non-empty but unpublished fact
+    from being mistaken for a decision-ready value.  The legacy series port
+    remains available for historical/maintenance views.
+    """
+
+    key = publication_key or indicator_code
+    publication = get_canonical_publication_repository().get_current("macro.fact", key)
+    if publication is None:
+        return {
+            "rows": [],
+            "publication_id": None,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing",
+        }
+    return {
+        "rows": query_macro_fact_series(
+            indicator_code,
+            start=start,
+            end=end,
+            limit=limit,
+        ),
+        "publication_id": publication.publication_id,
+        "published_at": publication.published_at.isoformat() if publication.published_at else None,
+        "must_not_use_for_decision": publication.must_not_use_for_decision,
+        "blocked_reason": publication.blocked_reason,
+    }
+
+
+def _publication_gate(dataset_key: str, publication_key: str) -> dict[str, object] | None:
+    """Return publication metadata or ``None`` for a blocked current read."""
+
+    publication = get_canonical_publication_repository().get_current(dataset_key, publication_key)
+    if publication is None:
+        return None
+    return {
+        "publication_id": publication.publication_id,
+        "published_at": publication.published_at.isoformat() if publication.published_at else None,
+        "must_not_use_for_decision": publication.must_not_use_for_decision,
+        "blocked_reason": publication.blocked_reason,
+    }
+
+
+def query_published_quote_payloads(
+    asset_codes: list[str],
+    *,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read quote snapshots only behind an active publication."""
+
+    gate = _publication_gate("equity.quote.snapshot", publication_key)
+    if gate is None:
+        return {
+            "rows": [],
+            "publication_id": None,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing",
+        }
+    return {"rows": query_latest_quote_payloads(asset_codes), **gate}
+
+
+def query_published_price_bar_series(
+    asset_code: str,
+    *,
+    publication_key: str = "current",
+    start: date | None = None,
+    end: date | None = None,
+    limit: int = 500,
+) -> dict[str, object]:
+    """Read price bars only behind an active publication."""
+
+    gate = _publication_gate("equity.price.bar", publication_key)
+    if gate is None:
+        return {
+            "rows": [],
+            "publication_id": None,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "canonical_publication_missing",
+        }
+    return {
+        "rows": fetch_price_bar_payloads(
+            asset_code=asset_code,
+            start_date=start,
+            end_date=end,
+            limit=limit,
+        ),
+        **gate,
+    }
 
 
 def get_macro_indicator_metadata(indicator_code: str) -> dict[str, Any]:

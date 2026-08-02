@@ -58,6 +58,29 @@
       }
     },
     {
+      "task_path": "apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
+      "source_file": "apps/data_center/application/tasks.py",
+      "criticality": "data_mutation_critical",
+      "required_cases": {
+        "invalid_input": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_retention_task_rejects_invalid_input_before_repositories"
+        },
+        "all_success": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_retention_task_reports_all_success_after_verified_archive"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_retention_task_reports_partial_for_active_hold"
+        },
+        "blocked": {
+          "test_file": "tests/unit/data_center/test_retention_tasks.py",
+          "test_function": "test_retention_task_blocks_without_active_policy"
+        }
+      }
+    },
+    {
       "task_path": "apps.data_center.application.tasks.refresh_market_thermometer_task",
       "source_file": "apps/data_center/application/tasks.py",
       "criticality": "freshness_critical",

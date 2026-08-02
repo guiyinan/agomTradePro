@@ -11,7 +11,7 @@ from typing import Protocol, cast
 
 import pandas as pd  # type: ignore[import-untyped]
 
-from apps.data_center.infrastructure.tushare_client import create_tushare_pro_client
+from apps.data_center.application.public import get_tushare_client
 from shared.config.secrets import get_secrets
 
 
@@ -46,7 +46,7 @@ class TushareFundAdapter:
                 raise ValueError("Tushare token 未配置")
             self.pro = cast(
                 TushareFundClient,
-                create_tushare_pro_client(
+                get_tushare_client(
                     token=token,
                     http_url=self._http_url,
                 ),

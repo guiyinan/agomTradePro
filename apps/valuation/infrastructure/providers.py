@@ -12,6 +12,7 @@ from apps.data_center.application.price_service import (
     PriceLookupResult,
     UnifiedPriceService,
 )
+from apps.data_center.application.public import get_valuation_fact_repository_port
 from core.exceptions import DataFetchError
 
 from ..domain.rules import ValuationPayloadPolicy
@@ -107,9 +108,7 @@ class DataCenterValuationFactSource:
     ) -> list[dict[str, Any]]:
         """Return normalized recent facts, newest first when supported."""
         try:
-            from apps.data_center.infrastructure.repositories import ValuationFactRepository
-
-            repository = ValuationFactRepository()
+            repository = get_valuation_fact_repository_port()
             get_series = getattr(repository, "get_series", None)
             facts = (
                 get_series(security_code, start=start, end=end) if callable(get_series) else None

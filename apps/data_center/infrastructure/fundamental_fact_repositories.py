@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
+from django.db.models import Max
+
 from apps.data_center.domain.entities import FinancialFact, FundNavFact, ValuationFact
 from apps.data_center.domain.enums import FinancialPeriodType
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
@@ -46,6 +48,12 @@ class FundNavRepository:
     def get_latest(self, fund_code: str) -> FundNavFact | None:
         m = FundNavFactModel.objects.filter(fund_code=fund_code).order_by("-nav_date").first()
         return self._from_model(m) if m else None
+
+    def get_latest_date(self) -> date | None:
+        """Return the newest canonical NAV date across the fund universe."""
+
+        value = FundNavFactModel._default_manager.aggregate(latest=Max("nav_date"))["latest"]
+        return value if isinstance(value, date) else None
 
     def bulk_upsert(self, facts: list[FundNavFact]) -> int:
         count = 0

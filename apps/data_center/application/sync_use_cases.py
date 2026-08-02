@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import json
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any, TypeVar, cast
@@ -75,6 +77,11 @@ def _build_sync_audit(
     latency_ms: float,
     error_message: str = "",
 ) -> RawAudit:
+    params_hash = hashlib.sha256(
+        json.dumps(dict(request_params), ensure_ascii=False, sort_keys=True, default=str).encode(
+            "utf-8"
+        )
+    ).hexdigest()
     return RawAudit(
         provider_name=provider_name,
         capability=capability,
@@ -84,6 +91,9 @@ def _build_sync_audit(
         latency_ms=latency_ms,
         error_message=error_message,
         fetched_at=datetime.now(UTC),
+        request_params_hash=params_hash,
+        redacted=True,
+        payload_size_bytes=0,
     )
 
 

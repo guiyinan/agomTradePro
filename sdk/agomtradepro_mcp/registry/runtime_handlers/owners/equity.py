@@ -49,6 +49,17 @@ def _read_research_section(loader: Callable[[], object], *, required: bool) -> d
     }
 
 
+def _published_read(method: Callable[..., object], *args: object, **kwargs: object) -> object:
+    """Request a publication-gated read while keeping older test doubles compatible."""
+
+    try:
+        return method(*args, mode="published", **kwargs)
+    except TypeError as exc:
+        if "mode" not in str(exc):
+            raise
+        return method(*args, **kwargs)
+
+
 def _internal_handler_equity_read_research_snapshot(
     stock_code: str,
     history_limit: int = 252,
@@ -96,39 +107,48 @@ def _internal_handler_equity_read_research_snapshot(
     canonical_code = str(identity["code"])
     sections = {
         "latest_quote": _read_research_section(
-            lambda: client.data_center.get_latest_quotes(
+            lambda: _published_read(
+                client.data_center.get_latest_quotes,
                 canonical_code,
                 strict_freshness=True,
             ),
             required=True,
         ),
         "price_history": _read_research_section(
-            lambda: client.data_center.get_price_history(
+            lambda: _published_read(
+                client.data_center.get_price_history,
                 canonical_code,
                 limit=history_limit,
             ),
             required=True,
         ),
         "valuation": _read_research_section(
-            lambda: client.data_center.get_valuations(
+            lambda: _published_read(
+                client.data_center.get_valuations,
                 canonical_code,
                 limit=valuation_limit,
             ),
             required=True,
         ),
         "financials": _read_research_section(
-            lambda: client.data_center.get_financials(
+            lambda: _published_read(
+                client.data_center.get_financials,
                 canonical_code,
                 limit=financial_limit,
             ),
             required=True,
         ),
         "news": _read_research_section(
-            lambda: client.data_center.get_news(canonical_code, limit=news_limit),
+            lambda: _published_read(
+                client.data_center.get_news,
+                canonical_code,
+                limit=news_limit,
+            ),
             required=False,
         ),
         "capital_flows": _read_research_section(
-            lambda: client.data_center.get_capital_flows(
+            lambda: _published_read(
+                client.data_center.get_capital_flows,
                 canonical_code,
                 limit=capital_flow_limit,
             ),

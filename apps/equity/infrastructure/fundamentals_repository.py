@@ -367,23 +367,8 @@ class StockFundamentalsRepositoryMixin:
         else:
             report_type = "4Q"
 
-        FinancialDataModel._default_manager.update_or_create(
-            stock_code=financial.stock_code,
-            report_date=financial.report_date,
-            report_type=report_type,
-            defaults={
-                "revenue": financial.revenue,
-                "net_profit": financial.net_profit,
-                "revenue_growth": financial.revenue_growth,
-                "net_profit_growth": financial.net_profit_growth,
-                "total_assets": financial.total_assets,
-                "total_liabilities": financial.total_liabilities,
-                "equity": financial.equity,
-                "roe": financial.roe,
-                "roa": financial.roa,
-                "debt_ratio": financial.debt_ratio,
-            },
-        )
+        # Legacy equity rows are read-only migration fixtures.  New writes go
+        # exclusively through the canonical Data Center repository below.
         self._dc_financial_repo.bulk_upsert(
             self._financial_entity_to_dc_facts(financial, report_type)
         )
@@ -418,26 +403,8 @@ class StockFundamentalsRepositoryMixin:
         assert circ_mv is not None
         assert dividend_yield is not None
 
-        ValuationModel._default_manager.update_or_create(
-            stock_code=valuation.stock_code,
-            trade_date=valuation.trade_date,
-            defaults={
-                "pe": pe,
-                "pb": pb,
-                "ps": ps,
-                "total_mv": total_mv,
-                "circ_mv": circ_mv,
-                "dividend_yield": dividend_yield,
-                "source_provider": valuation.source_provider,
-                "source_updated_at": valuation.source_updated_at,
-                "fetched_at": valuation.fetched_at or timezone.now(),
-                "pe_type": valuation.pe_type,
-                "is_valid": valuation.is_valid,
-                "quality_flag": valuation.quality_flag,
-                "quality_notes": valuation.quality_notes,
-                "raw_payload_hash": valuation.raw_payload_hash,
-            },
-        )
+        # Legacy valuation rows are read-only migration fixtures.  New writes
+        # go exclusively through the canonical Data Center repository below.
         self._dc_valuation_repo.bulk_upsert([self._valuation_entity_to_dc_fact(valuation)])
 
     def _get_latest_financial(self, stock_code: str) -> FinancialData | None:

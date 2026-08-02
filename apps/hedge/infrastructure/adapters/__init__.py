@@ -10,8 +10,8 @@ from typing import Protocol, TypedDict
 
 from django.core.cache import cache
 
+from apps.data_center.application.public import get_price_bar_repository_port
 from apps.data_center.domain.protocols import PriceBarRepositoryProtocol
-from apps.data_center.infrastructure.repositories import PriceBarRepository
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +165,7 @@ class _PersistedPriceAdapter:
     """Base adapter for governed Data Center price bars."""
 
     def __init__(self, repository: PriceBarRepositoryProtocol | None = None) -> None:
-        self._repo = repository if repository is not None else PriceBarRepository()
+        self._repo = repository if repository is not None else get_price_bar_repository_port()
 
     def _load_prices(self, asset_code: str, end_date: date, days: int) -> list[float] | None:
         normalized_code, normalized_date, normalized_days = _validate_request(

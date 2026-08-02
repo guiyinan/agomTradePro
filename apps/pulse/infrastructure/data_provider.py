@@ -17,9 +17,7 @@ from apps.data_center.application.public import (
     get_macro_fact_series,
     get_macro_indicator_catalog,
     get_price_bar_series,
-)
-from apps.data_center.infrastructure.seed_data.macro_indicator_governance import (
-    is_direct_consumer_input_allowed,
+    is_direct_macro_input_allowed,
 )
 from apps.pulse.domain.entities import PulseConfig, PulseIndicatorReading
 from shared.date_utils import business_day_age
@@ -499,6 +497,7 @@ class DjangoPulseDataProvider:
                     source_kind="macro_fact",
                 )
             )
+        macro_series.sort(key=lambda point: point.observed_at)
         return macro_series
 
     @staticmethod
@@ -537,7 +536,7 @@ class DjangoPulseDataProvider:
         return self._indicator_extra_cache[code]
 
     def _is_pulse_direct_input_allowed(self, code: str) -> bool:
-        return is_direct_consumer_input_allowed(
+        return is_direct_macro_input_allowed(
             self._get_indicator_extra(code),
             consumer="pulse",
         )

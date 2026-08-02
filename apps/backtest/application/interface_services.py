@@ -6,11 +6,11 @@ from collections.abc import Callable
 from datetime import date
 from typing import Any
 
-from apps.regime.application.repository_provider import get_regime_repository
-from core.integration.research_integrity_registry import (
-    get_decision_snapshot,
+from apps.data_center.application.pit_provider import (
     make_manifest_bound_pit_view,
 )
+from apps.regime.application.repository_provider import get_regime_repository
+from core.integration.research_integrity_registry import get_decision_snapshot
 
 from .repository_provider import (
     build_default_price_reader,

@@ -1031,6 +1031,46 @@
           "test_function": "test_research_snapshot_obeys_global_decision_readiness"
         }
       ]
+    },
+    {
+      "id": "data_center.publication_gated_reads",
+      "surface": "Data Center API/SDK/MCP publication-gated decision reads",
+      "source_files": [
+        "apps/data_center/interface/api_views.py",
+        "sdk/agomtradepro/modules/data_center.py",
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
+      ],
+      "required_markers": {
+        "apps/data_center/interface/api_views.py": [
+          "canonical_publication_missing",
+          "def _published_gate("
+        ],
+        "sdk/agomtradepro/modules/data_center.py": [
+          "publication_key",
+          "params[\"mode\"] = mode"
+        ],
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
+          "def _published_read(",
+          "mode=\"published\""
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "missing_publication_blocks",
+          "test_file": "tests/api/test_data_center_route_cleanup.py",
+          "test_function": "test_data_center_published_price_history_blocks_without_publication"
+        },
+        {
+          "case": "sdk_mode_is_forwarded",
+          "test_file": "sdk/tests/test_sdk/test_data_center_module.py",
+          "test_function": "test_data_center_module_can_request_publication_gated_reads"
+        },
+        {
+          "case": "mcp_research_uses_gate",
+          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
+          "test_function": "test_research_snapshot_keeps_optional_gaps_visible_without_fabrication"
+        }
+      ]
     }
   ]
 }

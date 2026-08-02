@@ -13,12 +13,25 @@ from apps.data_center.domain.entities import (
     DataProviderSettings,
     ProviderConfig,
 )
+from apps.data_center.domain.protocols import ProviderConfigRepositoryProtocol
 from apps.data_center.infrastructure.cache_warmup_queries import (
     MacroFactCacheWarmupRepository,
 )
+from apps.data_center.infrastructure.control_plane_repositories import (
+    CanonicalPublicationRepository,
+    QuarantineRepository,
+    SyncBatchRepository,
+    SyncCheckpointRepository,
+    SyncRunRepository,
+)
 from apps.data_center.infrastructure.diagnostic_queries import DataCenterDiagnosticRepository
+from apps.data_center.infrastructure.macro_projection_repository import MacroProjectionRepository
 from apps.data_center.infrastructure.pit_repository import PITManifestRepository
 from apps.data_center.infrastructure.provider_registry import ProviderRegistry
+from apps.data_center.infrastructure.raw_landing_repositories import (
+    RawLandingRepository,
+    SchemaFingerprintRepository,
+)
 from apps.data_center.infrastructure.repositories import (
     AssetRepository,
     CapitalFlowRepository,
@@ -42,10 +55,17 @@ from apps.data_center.infrastructure.repositories import (
     SectorMembershipRepository,
     ValuationFactRepository,
 )
+from apps.data_center.infrastructure.retention_repositories import (
+    ArchiveManifestRepository,
+    RetentionPolicyRepository,
+    StorageHoldRepository,
+)
 
 __all__ = [
     "AssetRepository",
+    "ArchiveManifestRepository",
     "CapitalFlowRepository",
+    "CanonicalPublicationRepository",
     "DataCenterDiagnosticRepository",
     "DataProviderSettingsRepository",
     "FinancialFactRepository",
@@ -54,6 +74,7 @@ __all__ = [
     "IndicatorUnitRuleRepository",
     "MacroFactCacheWarmupRepository",
     "MacroFactRepository",
+    "MacroProjectionRepository",
     "MacroGovernanceRepository",
     "MarketThermometerConfigRepository",
     "MarketThermometerSnapshotRepository",
@@ -66,14 +87,25 @@ __all__ = [
     "ProviderRegistry",
     "PublisherCatalogRepository",
     "QuoteSnapshotRepository",
+    "QuarantineRepository",
     "RawAuditRepository",
+    "RawLandingRepository",
+    "RetentionPolicyRepository",
     "SectorMembershipRepository",
+    "SchemaFingerprintRepository",
+    "SyncBatchRepository",
+    "SyncCheckpointRepository",
+    "SyncRunRepository",
+    "StorageHoldRepository",
     "ValuationFactRepository",
     "build_provider_registry_for_repo",
+    "build_tushare_client",
     "fetch_akshare_eastmoney_historical_prices",
     "fetch_tushare_historical_prices",
     "get_akshare_module",
     "get_asset_repository",
+    "get_archive_manifest_repository",
+    "get_canonical_publication_repository",
     "get_capital_flow_repository",
     "get_data_center_diagnostic_repository",
     "get_data_provider_settings_repository",
@@ -83,6 +115,7 @@ __all__ = [
     "get_indicator_unit_rule_repository",
     "get_macro_fact_cache_warmup_repository",
     "get_macro_fact_repository",
+    "get_macro_projection_repository",
     "get_market_thermometer_config_repository",
     "get_market_thermometer_snapshot_repository",
     "get_market_thermometer_user_override_repository",
@@ -93,8 +126,16 @@ __all__ = [
     "get_provider_registry",
     "get_publisher_catalog_repository",
     "get_quote_snapshot_repository",
+    "get_quarantine_repository",
     "get_raw_audit_repository",
+    "get_raw_landing_repository",
+    "get_retention_policy_repository",
     "get_sector_membership_repository",
+    "get_schema_fingerprint_repository",
+    "get_sync_batch_repository",
+    "get_sync_checkpoint_repository",
+    "get_sync_run_repository",
+    "get_storage_hold_repository",
     "get_valuation_fact_repository",
     "list_active_provider_configs",
     "load_data_provider_settings",
@@ -110,6 +151,12 @@ def get_macro_fact_repository() -> MacroFactRepository:
     """Return the default macro fact repository."""
 
     return MacroFactRepository()
+
+
+def get_macro_projection_repository() -> MacroProjectionRepository:
+    """Return the Data Center-owned legacy macro projection repository."""
+
+    return MacroProjectionRepository()
 
 
 def get_macro_fact_cache_warmup_repository() -> MacroFactCacheWarmupRepository:
@@ -200,12 +247,72 @@ def get_raw_audit_repository() -> RawAuditRepository:
     return RawAuditRepository()
 
 
+def get_raw_landing_repository() -> RawLandingRepository:
+    """Return the redacted raw payload repository."""
+
+    return RawLandingRepository()
+
+
+def get_schema_fingerprint_repository() -> SchemaFingerprintRepository:
+    """Return the provider schema evidence repository."""
+
+    return SchemaFingerprintRepository()
+
+
+def get_retention_policy_repository() -> RetentionPolicyRepository:
+    """Return dataset retention policy repository."""
+
+    return RetentionPolicyRepository()
+
+
+def get_storage_hold_repository() -> StorageHoldRepository:
+    """Return storage hold repository."""
+
+    return StorageHoldRepository()
+
+
+def get_archive_manifest_repository() -> ArchiveManifestRepository:
+    """Return archive manifest repository."""
+
+    return ArchiveManifestRepository()
+
+
 def get_sector_membership_repository() -> SectorMembershipRepository:
     return SectorMembershipRepository()
 
 
 def get_valuation_fact_repository() -> ValuationFactRepository:
     return ValuationFactRepository()
+
+
+def get_sync_run_repository() -> SyncRunRepository:
+    """Return the ingestion run repository."""
+
+    return SyncRunRepository()
+
+
+def get_sync_batch_repository() -> SyncBatchRepository:
+    """Return the ingestion batch repository."""
+
+    return SyncBatchRepository()
+
+
+def get_sync_checkpoint_repository() -> SyncCheckpointRepository:
+    """Return the resumable checkpoint repository."""
+
+    return SyncCheckpointRepository()
+
+
+def get_quarantine_repository() -> QuarantineRepository:
+    """Return the rejected-payload repository."""
+
+    return QuarantineRepository()
+
+
+def get_canonical_publication_repository() -> CanonicalPublicationRepository:
+    """Return the canonical publication repository."""
+
+    return CanonicalPublicationRepository()
 
 
 def get_akshare_module() -> Any:
@@ -263,11 +370,19 @@ def get_provider_registry() -> ProviderRegistry:
 
 
 def build_provider_registry_for_repo(
-    provider_repo: ProviderConfigRepository,
+    provider_repo: ProviderConfigRepositoryProtocol,
 ) -> ProviderRegistry:
     """Build an isolated provider registry for an explicit repository."""
 
     return ProviderRegistry.from_repository(provider_repo)
+
+
+def build_tushare_client(*, token: str | None = None, http_url: str | None = None) -> object:
+    """Build the Data Center-owned Tushare transport behind the composition root."""
+
+    from apps.data_center.infrastructure.tushare_client import create_tushare_pro_client
+
+    return create_tushare_pro_client(token=token, http_url=http_url)
 
 
 def refresh_provider_registry() -> ProviderRegistry:

@@ -3,13 +3,22 @@
 from __future__ import annotations
 
 import logging
+import shutil
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
 from celery import shared_task
 from django.core.cache import cache
 from django.utils import timezone
 
+from apps.config_center.application.runtime_public import evaluate_storage_pressure
+from apps.data_center.composition import (
+    get_archive_manifest_repository,
+    get_raw_landing_repository,
+    get_retention_policy_repository,
+    get_storage_hold_repository,
+)
 from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 
@@ -32,6 +41,7 @@ from .interface_services import (
 from .market_thermometer_dates import resolve_market_thermometer_as_of_date
 from .query_services import list_active_stock_codes_for_backfill
 from .query_use_cases import latest_completed_cn_market_session
+from .retention import RetentionCleanupUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -383,3 +393,73 @@ def backfill_active_a_share_core_data_batch_task(
         "errors": errors,
         "checkpoint": checkpoint,
     }
+
+
+@shared_task(  # type: ignore[misc]
+    name="apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
+    time_limit=900,
+    soft_time_limit=840,
+)
+def cleanup_expired_raw_payloads_task(
+    *,
+    dataset_key: str,
+    limit: int = 100,
+    dry_run: bool = True,
+) -> dict[str, object]:
+    """Run a policy/hold/archive-gated bounded raw retention pass.
+
+    ``dry_run`` defaults to true so scheduling the task cannot accidentally
+    delete data before an operator has verified the archive and rollback path.
+    """
+
+    if not isinstance(dataset_key, str) or not dataset_key.strip():
+        return {
+            "success": False,
+            "outcome": TaskBusinessOutcome.FAILED.value,
+            "requested": 0,
+            "candidates": 0,
+            "deleted": 0,
+            "error": "dataset_key is required",
+        }
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10_000:
+        return {
+            "success": False,
+            "outcome": TaskBusinessOutcome.FAILED.value,
+            "requested": 0,
+            "candidates": 0,
+            "deleted": 0,
+            "error": "limit must be between 1 and 10000",
+        }
+    if not isinstance(dry_run, bool):
+        return {
+            "success": False,
+            "outcome": TaskBusinessOutcome.FAILED.value,
+            "requested": limit,
+            "candidates": 0,
+            "deleted": 0,
+            "error": "dry_run must be a boolean",
+        }
+    disk = shutil.disk_usage(Path.cwd())
+    pressure = evaluate_storage_pressure(
+        used_bytes=int(disk.used),
+        actual_capacity_bytes=int(disk.total),
+    )
+    if pressure.get("state") == "blocked":
+        return {
+            "success": False,
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "requested": limit,
+            "candidates": 0,
+            "deleted": 0,
+            "storage": pressure,
+            "error": "storage_budget_policy_missing_or_inactive",
+        }
+    result = RetentionCleanupUseCase(
+        get_retention_policy_repository(),
+        get_storage_hold_repository(),
+        get_archive_manifest_repository(),
+        get_raw_landing_repository(),
+    ).execute(dataset_key=dataset_key.strip(), limit=limit, dry_run=dry_run)
+    payload = result.to_dict()
+    payload["storage"] = pressure
+    return payload
