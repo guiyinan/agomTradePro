@@ -320,3 +320,41 @@ def test_data_center_module_can_request_publication_gated_reads(client):
             "publication_key": "current",
         },
     )
+
+
+def test_data_center_module_propagates_publication_gate_for_news_and_sectors(client):
+    """D7 SDK reads must not silently drop mode/publication parameters."""
+
+    with patch.object(client, "get", return_value={"status": "blocked"}) as mocked:
+        news_result = client.data_center.get_news(
+            "002156.SZ",
+            limit=10,
+            mode="published",
+            publication_key="current",
+        )
+    assert news_result == {"status": "blocked"}
+    mocked.assert_called_once_with(
+        "/api/data-center/news/",
+        params={
+            "asset_code": "002156.SZ",
+            "limit": 10,
+            "mode": "published",
+            "publication_key": "current",
+        },
+    )
+
+    with patch.object(client, "get", return_value={"status": "blocked"}) as mocked:
+        sector_result = client.data_center.get_sector_constituents(
+            "801010",
+            mode="published",
+            publication_key="current",
+        )
+    assert sector_result == {"status": "blocked"}
+    mocked.assert_called_once_with(
+        "/api/data-center/sectors/constituents/",
+        params={
+            "sector_code": "801010",
+            "mode": "published",
+            "publication_key": "current",
+        },
+    )

@@ -1124,7 +1124,8 @@
         "apps/data_center/application/query_services.py",
         "apps/data_center/application/public.py",
         "apps/sector/infrastructure/repositories.py",
-        "apps/sentiment/application/repository_provider.py"
+        "apps/sentiment/application/repository_provider.py",
+        "sdk/agomtradepro/modules/data_center.py"
       ],
       "required_markers": {
         "apps/data_center/application/query_services.py": [
@@ -1143,6 +1144,11 @@
         ],
         "apps/sentiment/application/repository_provider.py": [
           "get_current_publication(\"market.news\", \"current\")"
+        ],
+        "sdk/agomtradepro/modules/data_center.py": [
+          "def get_sector_constituents(",
+          "def get_news(",
+          "params[\"publication_key\"] = publication_key"
         ]
       },
       "required_tests": [
@@ -1160,6 +1166,11 @@
           "case": "capital_flow_query_not_executed_when_blocked",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
           "test_function": "test_published_capital_flow_blocks_before_querying_repository"
+        },
+        {
+          "case": "sdk_publication_parameters_propagated",
+          "test_file": "sdk/tests/test_sdk/test_data_center_module.py",
+          "test_function": "test_data_center_module_propagates_publication_gate_for_news_and_sectors"
         }
       ]
     },

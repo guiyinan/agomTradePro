@@ -308,10 +308,17 @@ class DataCenterModule(BaseModule):
         self,
         sector_code: str,
         as_of: str | None = None,
+        *,
+        mode: str | None = None,
+        publication_key: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"sector_code": sector_code}
         if as_of:
             params["as_of"] = as_of
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
         return self._get("sectors/constituents/", params=params)
 
     def sync_sector_constituents(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -328,6 +335,10 @@ class DataCenterModule(BaseModule):
         params: dict[str, Any] = {"asset_code": asset_code}
         if limit is not None:
             params["limit"] = limit
+        if mode:
+            params["mode"] = mode
+        if publication_key:
+            params["publication_key"] = publication_key
         return self._get("news/", params=params)
 
     def sync_news(self, payload: dict[str, Any]) -> dict[str, Any]:

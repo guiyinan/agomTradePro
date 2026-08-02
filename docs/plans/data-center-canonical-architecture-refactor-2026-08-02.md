@@ -284,6 +284,23 @@
 - D4/D5 内部 Alpha/Factor 历史/批量端口仍保留兼容语义，尚未完成全消费者切读和生产 publication 观察；不能以新增 Public Port 代替全域退出条件。
 - nightly PostgreSQL capacity step 尚未在 GitHub Actions 实际运行；本机最新全量迁移 timeout 仍是未验证项。
 
+## 实施记录（2026-08-03，第十二批）
+
+本批次修正 SDK Publication-only 参数传播缺口，避免 SDK 表面支持 `mode/publication_key`、实际请求却丢失 gate 参数；不部署、不 push。
+
+已落地：
+
+- `sdk/agomtradepro/modules/data_center.py` 的 News 和 Sector Constituents 查询现在显式转发 `mode` 与 `publication_key`；此前 News 参数被忽略、Sector 方法没有参数入口。
+- SDK contract test 增加 D7 gate 传播断言，防止 REST 已阻断而 SDK 静默降级到未发布读取。
+
+第十二批机器证据：
+
+- `pytest sdk/tests/test_sdk/test_data_center_module.py -q --timeout=180`：30 passed；SDK 模块 ruff/black 通过。
+
+仍未完成及风险：
+
+- MCP/Terminal/TUI 与 REST 的全数据域 publication_id/reliability 一致性仍需跨入口快照测试；生产 publication 数据和观察窗口尚未具备。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
