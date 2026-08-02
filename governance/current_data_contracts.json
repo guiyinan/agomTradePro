@@ -1044,6 +1044,7 @@
       "source_files": [
         "apps/data_center/application/public.py",
         "apps/data_center/application/query_services.py",
+        "apps/dashboard/application/integration_gateways.py",
         "apps/alpha/infrastructure/adapters/simple_adapter.py",
         "apps/pulse/infrastructure/data_provider.py",
         "apps/regime/infrastructure/macro_data_provider.py"
@@ -1058,6 +1059,10 @@
           "def query_published_macro_fact_series(",
           "_publication_gate(\"macro.fact\"",
           "canonical_publication_stale"
+        ],
+        "apps/dashboard/application/integration_gateways.py": [
+          "get_published_macro_fact_series(indicator_code, limit=1)",
+          "must_not_use_for_decision"
         ],
         "apps/alpha/infrastructure/adapters/simple_adapter.py": [
           "get_published_quote_payloads(active_codes)",
@@ -1098,6 +1103,11 @@
           "case": "breadth_stale_publication_blocks",
           "test_file": "tests/unit/data_center/test_a_share_behavior_query_service.py",
           "test_function": "test_published_behavior_blocks_stale_component_publications"
+        },
+        {
+          "case": "dashboard_stale_publication_blocks",
+          "test_file": "tests/unit/dashboard/test_data_center_publication_gate.py",
+          "test_function": "test_dashboard_macro_value_blocks_stale_publication"
         }
       ]
     },

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from datetime import date, timedelta
 from typing import Any
@@ -304,10 +305,25 @@ class DashboardApplicationGateway:
         return _json_rows(get_alpha_ic_trends(days))
 
     def get_latest_macro_indicator_value(self, indicator_code: str) -> float | None:
-        from apps.data_center.application.query_services import get_latest_macro_indicator_value
+        from apps.data_center.application.public import get_published_macro_fact_series
 
-        value = get_latest_macro_indicator_value(indicator_code)
-        return float(value) if value is not None else None
+        payload = get_published_macro_fact_series(indicator_code, limit=1)
+        if not isinstance(payload, Mapping) or bool(payload.get("must_not_use_for_decision")):
+            return None
+        rows = payload.get("rows")
+        if not isinstance(rows, (list, tuple)) or not rows:
+            return None
+        row = rows[-1]
+        if not isinstance(row, Mapping):
+            return None
+        raw_value = row.get("value")
+        if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float, str)):
+            return None
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError):
+            return None
+        return value if math.isfinite(value) else None
 
     def get_position_detail_payload(self, user_id: int, asset_code: str) -> dict[str, Any] | None:
         from apps.account.application.query_services import get_position_detail_payload

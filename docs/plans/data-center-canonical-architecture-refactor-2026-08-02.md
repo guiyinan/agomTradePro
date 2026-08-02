@@ -435,6 +435,25 @@
 
 - 该批只收口本地 Application/业务适配器 freshness 语义；生产 publication/member 观测、D0-D9 全入口快照、备份恢复、P95/WAL、M9/M10 和 VPS 仍未执行。
 
+## 实施记录（2026-08-03，第二十批）
+
+本批次把 Dashboard 的 `latest` 宏观值切到 Data Center Publication-only port，防止网页/仪表盘绕过 MCP/REST 已有的 freshness gate；不部署、不 push。
+
+已落地：
+
+- `DashboardApplicationGateway.get_latest_macro_indicator_value` 改为调用 `get_published_macro_fact_series(..., limit=1)`，对阻断、空 rows、非数值和非有限值统一返回 `None`，不再直接读取裸 latest fact。
+- current-data manifest 登记 Dashboard source marker 和 stale publication 回归，形成跨入口防回归护栏。
+
+第二十批机器证据：
+
+- `pytest tests/unit/dashboard/test_data_center_publication_gate.py tests/unit/dashboard/test_t5_query_edge_contracts.py -q --no-migrations --reuse-db --timeout=180`：18 passed。
+- `pytest apps/dashboard/tests/test_alpha_context_repository.py tests/component/test_dashboard_regression_guardrails.py tests/unit/dashboard/test_t5_dashboard_use_case_edge_contracts.py -q --no-migrations --reuse-db --timeout=180`：31 passed。
+- `python scripts/check_current_data_contracts.py`：29 surfaces；变更文件 ruff/black/isort 通过。
+
+仍未完成及风险：
+
+- Dashboard 只收口当前宏观摘要入口；生产 publication/member 观测、全 D0-D9 入口快照、备份恢复、P95/WAL、M9/M10 和 VPS 仍未执行。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。
