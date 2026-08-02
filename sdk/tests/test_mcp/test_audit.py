@@ -13,6 +13,34 @@ def test_default_backend_url_follows_remote_api_base(monkeypatch) -> None:
     assert logger.backend_url == "https://demo.example.com/api/audit/internal/operation-logs/"
 
 
+def test_audit_secret_falls_back_to_django_settings(monkeypatch) -> None:
+    """Embedded MCP calls must use the backend's configured audit HMAC truth."""
+
+    from types import SimpleNamespace
+
+    import django.conf
+
+    monkeypatch.delenv("AGOMTRADEPRO_AUDIT_SECRET_KEY", raising=False)
+    monkeypatch.delenv("AUDIT_INTERNAL_SECRET_KEY", raising=False)
+    monkeypatch.setattr(
+        django.conf,
+        "settings",
+        SimpleNamespace(AUDIT_INTERNAL_SECRET_KEY="settings-audit-secret"),
+    )
+
+    logger = AuditLogger()
+
+    assert logger.secret_key == "settings-audit-secret"
+
+
+def test_explicit_audit_secret_precedes_environment_and_settings(monkeypatch) -> None:
+    monkeypatch.setenv("AGOMTRADEPRO_AUDIT_SECRET_KEY", "environment-audit-secret")
+
+    logger = AuditLogger(secret_key="explicit-audit-secret")
+
+    assert logger.secret_key == "explicit-audit-secret"
+
+
 def test_send_audit_log_forwards_user_access_token(monkeypatch) -> None:
     monkeypatch.setenv("AGOMTRADEPRO_API_TOKEN", "user-access-token")
     logger = AuditLogger(

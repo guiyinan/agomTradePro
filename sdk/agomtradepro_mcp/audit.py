@@ -62,6 +62,27 @@ def _default_audit_backend_url() -> str:
     return f"{base_url.rstrip('/')}/api/audit/internal/operation-logs/"
 
 
+def _resolve_audit_secret_key(explicit_secret: str | None = None) -> str:
+    """Resolve the audit HMAC secret from explicit, environment, or Django config."""
+
+    if explicit_secret:
+        return explicit_secret
+    environment_secret = (
+        os.getenv("AGOMTRADEPRO_AUDIT_SECRET_KEY") or os.getenv("AUDIT_INTERNAL_SECRET_KEY") or ""
+    ).strip()
+    if environment_secret:
+        return environment_secret
+    try:
+        from django.conf import settings
+        from django.core.exceptions import ImproperlyConfigured
+    except ImportError:
+        return ""
+    try:
+        return str(getattr(settings, "AUDIT_INTERNAL_SECRET_KEY", "") or "").strip()
+    except ImproperlyConfigured:
+        return ""
+
+
 @dataclass
 class AuditContext:
     """审计上下文，用于收集审计信息"""
@@ -121,9 +142,7 @@ class AuditLogger:
             secret_key: 签名密钥，默认从环境变量读取
         """
         self.backend_url = backend_url or _default_audit_backend_url()
-        self.secret_key = secret_key or os.getenv(
-            "AGOMTRADEPRO_AUDIT_SECRET_KEY", os.getenv("AUDIT_INTERNAL_SECRET_KEY", "")
-        )
+        self.secret_key = _resolve_audit_secret_key(secret_key)
         self.enabled = os.getenv("AGOMTRADEPRO_AUDIT_ENABLED", "true").lower() in (
             "true",
             "1",
