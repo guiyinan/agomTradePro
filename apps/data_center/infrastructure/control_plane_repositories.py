@@ -190,7 +190,9 @@ class QuarantineRepository:
         )
         return model.to_domain()
 
-    def list_open(self, *, dataset_key: str | None = None, limit: int = 100) -> list[QuarantineRecord]:
+    def list_open(
+        self, *, dataset_key: str | None = None, limit: int = 100
+    ) -> list[QuarantineRecord]:
         """Return open quarantine records for operator remediation."""
 
         queryset = QuarantineRecordModel._default_manager.filter(resolution="open")
@@ -346,6 +348,20 @@ class CanonicalPublicationRepository:
                 publication_id=_uuid(publication_id)
             ).order_by("natural_key")
         ]
+
+    def get_oldest_member_observed_at(self, publication_id: str) -> datetime | None:
+        """Return the oldest source observation represented by a publication."""
+
+        value = (
+            PublicationMemberModel._default_manager.filter(
+                publication_id=_uuid(publication_id),
+                observed_at__isnull=False,
+            )
+            .order_by("observed_at")
+            .values_list("observed_at", flat=True)
+            .first()
+        )
+        return value
 
 
 __all__ = [

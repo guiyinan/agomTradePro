@@ -14,6 +14,7 @@ from typing import Any
 
 from apps.data_center.application.query_services import (
     fetch_price_bar_payloads,
+    get_current_publication_gate,
     get_latest_macro_indicator_value,
     get_macro_indicator_metadata,
     get_runtime_macro_metadata_map,
@@ -322,6 +323,15 @@ def get_published_macro_fact_series(
         end=end,
         limit=limit,
     )
+
+
+def get_current_publication_freshness_gate(
+    dataset_key: str,
+    publication_key: str,
+) -> dict[str, object] | None:
+    """Return the freshness-validated gate for a current publication."""
+
+    return get_current_publication_gate(dataset_key, publication_key)
 
 
 def get_published_quote_payloads(
@@ -664,6 +674,7 @@ __all__ = [
     "get_akshare_eastmoney_gateway_port",
     "get_akshare_module_port",
     "get_current_publication",
+    "get_current_publication_freshness_gate",
     "list_active_data_owner_registrations",
     "list_active_dataset_contracts",
     "list_active_provider_bindings",

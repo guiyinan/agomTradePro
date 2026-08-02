@@ -22,9 +22,10 @@ class _FakeDataCenter:
         assert value == "通富微电"
         return {"code": "002156.SZ", "name": "通富微电", "is_active": True}
 
-    def get_latest_quotes(self, code, strict_freshness=True):
+    def get_latest_quotes(self, code, strict_freshness=True, *, mode=None):
         assert code == "002156.SZ"
         assert strict_freshness is True
+        assert mode == "published"
         return {
             "results": [
                 {
@@ -37,19 +38,24 @@ class _FakeDataCenter:
             "must_not_use_for_decision": False,
         }
 
-    def get_price_history(self, code, limit):
+    def get_price_history(self, code, limit, *, mode=None):
+        assert mode == "published"
         return {"results": [{"asset_code": code, "bar_date": "2026-07-31"}], "limit": limit}
 
-    def get_valuations(self, code, limit):
+    def get_valuations(self, code, limit, *, mode=None):
+        assert mode == "published"
         return {"results": [{"asset_code": code, "trade_date": "2026-07-31"}], "limit": limit}
 
-    def get_financials(self, code, limit):
+    def get_financials(self, code, limit, *, mode=None):
+        assert mode == "published"
         return {"results": [{"asset_code": code, "period_end": "2026-03-31"}], "limit": limit}
 
-    def get_news(self, code, limit):
+    def get_news(self, code, limit, *, mode=None):
+        assert mode == "published"
         return {"results": [], "asset_code": code, "limit": limit}
 
-    def get_capital_flows(self, code, limit):
+    def get_capital_flows(self, code, limit, *, mode=None):
+        assert mode == "published"
         return {"results": [], "asset_code": code, "limit": limit}
 
 
@@ -89,6 +95,36 @@ def test_research_snapshot_obeys_global_decision_readiness(monkeypatch) -> None:
     assert result["status"] == "blocked"
     assert result["must_not_use_for_decision"] is True
     assert result["reliability"]["block_reason_code"] == "decision_readiness_blocked"
+
+
+def test_research_snapshot_does_not_treat_blocked_publication_metadata_as_evidence(
+    monkeypatch,
+) -> None:
+    """Gate metadata must not make an empty/stale required section look complete."""
+
+    class BlockedFinancialDataCenter(_FakeDataCenter):
+        def get_financials(self, code, limit, *, mode=None):
+            assert mode == "published"
+            return {
+                "rows": [],
+                "publication_id": "pub-stale",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "canonical_publication_stale",
+            }
+
+    class BlockedFinancialClient(_FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.data_center = BlockedFinancialDataCenter()
+
+    monkeypatch.setattr("agomtradepro.AgomTradeProClient", BlockedFinancialClient)
+
+    result = _internal_handler_equity_read_research_snapshot("通富微电")
+
+    assert result["status"] == "blocked"
+    assert result["must_not_use_for_decision"] is True
+    assert result["sections"]["financials"]["status"] == "blocked"
+    assert result["sections"]["financials"]["block_reason_code"] == ("canonical_publication_stale")
 
 
 def test_research_snapshot_executes_through_core_native_handler(monkeypatch) -> None:

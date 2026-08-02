@@ -90,7 +90,10 @@ from apps.data_center.application.interface_services import (
     save_provider_settings_payload,
 )
 from apps.data_center.application.pit_use_cases import BuildPITManifestRequest
-from apps.data_center.application.public import get_current_publication
+from apps.data_center.application.public import (
+    get_current_publication,
+    get_current_publication_freshness_gate,
+)
 from apps.data_center.application.query_services import get_active_stock_fact_coverage_payload
 from apps.data_center.application.use_cases import (
     QueryLatestQuoteUseCase,
@@ -164,7 +167,44 @@ def _published_gate(
     )
     publication = get_current_publication(dataset_key, publication_key)
     if publication is not None:
-        return publication, None
+        freshness_gate = get_current_publication_freshness_gate(dataset_key, publication_key)
+        if freshness_gate is not None:
+            publication.update(freshness_gate)
+        else:
+            publication.update(
+                {
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "publication_freshness_unverified",
+                    "freshness_status": "unverified",
+                }
+            )
+        if not bool(publication.get("must_not_use_for_decision")):
+            return publication, None
+        blocked_reason = str(publication.get("blocked_reason") or "canonical_publication_stale")
+        return None, Response(
+            {
+                identity_field: identity_value,
+                "total": 0,
+                "data": [],
+                "status": "blocked",
+                "publication_id": publication.get("publication_id"),
+                "publication": publication,
+                "must_not_use_for_decision": True,
+                "blocked_reason": blocked_reason,
+                "freshness_status": publication.get("freshness_status", "unverified"),
+                "observed_at": publication.get("observed_at"),
+                "age_seconds": publication.get("age_seconds"),
+                "max_age_seconds": publication.get("max_age_seconds"),
+                "contract": {
+                    "mode": "published",
+                    "publication_key": publication_key,
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": blocked_reason,
+                    "freshness_status": publication.get("freshness_status", "unverified"),
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
     return None, Response(
         {
             identity_field: identity_value,
@@ -183,6 +223,8 @@ def _published_gate(
         },
         status=status.HTTP_200_OK,
     )
+
+
 provider_detail = _provider_api_views.provider_detail
 provider_list_create = _provider_api_views.provider_list_create
 _provider_status = _provider_api_views.provider_status
@@ -968,15 +1010,15 @@ def capital_flows(request: Request) -> Response:
         limit=query["limit"],
     )
     payload: dict[str, object] = {
-            "asset_code": query["asset_code"],
-            "query": {
-                "start": query["start"].isoformat() if query.get("start") else None,
-                "end": query["end"].isoformat() if query.get("end") else None,
-                "limit": query["limit"],
-            },
-            "total": len(data),
-            "data": data,
-        }
+        "asset_code": query["asset_code"],
+        "query": {
+            "start": query["start"].isoformat() if query.get("start") else None,
+            "end": query["end"].isoformat() if query.get("end") else None,
+            "limit": query["limit"],
+        },
+        "total": len(data),
+        "data": data,
+    }
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
         payload["publication"] = publication

@@ -1097,7 +1097,8 @@
           "def query_published_financial_facts(",
           "def query_published_valuation_facts(",
           "equity.financial.fact",
-          "equity.valuation.fact"
+          "equity.valuation.fact",
+          "canonical_publication_stale"
         ],
         "apps/data_center/application/public.py": [
           "def get_published_financial_facts(",
@@ -1114,6 +1115,11 @@
           "case": "financial_missing_publication_blocks",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
           "test_function": "test_published_financial_facts_fail_closed_before_repository_query"
+        },
+        {
+          "case": "old_member_observation_blocks_new_publication",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_gate_blocks_old_member_observation_even_when_publication_is_new"
         }
       ]
     },
@@ -1185,6 +1191,7 @@
       "required_markers": {
         "apps/data_center/interface/api_views.py": [
           "canonical_publication_missing",
+          "canonical_publication_stale",
           "def _published_gate("
         ],
         "sdk/agomtradepro/modules/data_center.py": [
@@ -1203,6 +1210,11 @@
           "test_function": "test_data_center_published_price_history_blocks_without_publication"
         },
         {
+          "case": "stale_publication_blocks_before_rest_query",
+          "test_file": "tests/api/test_data_center_route_cleanup.py",
+          "test_function": "test_data_center_published_financials_blocks_stale_publication_before_query"
+        },
+        {
           "case": "sdk_mode_is_forwarded",
           "test_file": "sdk/tests/test_sdk/test_data_center_module.py",
           "test_function": "test_data_center_module_can_request_publication_gated_reads"
@@ -1211,6 +1223,11 @@
           "case": "mcp_research_uses_gate",
           "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
           "test_function": "test_research_snapshot_keeps_optional_gaps_visible_without_fabrication"
+        },
+        {
+          "case": "mcp_blocked_gate_metadata_is_not_evidence",
+          "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
+          "test_function": "test_research_snapshot_does_not_treat_blocked_publication_metadata_as_evidence"
         }
       ]
     }

@@ -301,6 +301,67 @@
 
 - MCP/Terminal/TUI 与 REST 的全数据域 publication_id/reliability 一致性仍需跨入口快照测试；生产 publication 数据和观察窗口尚未具备。
 
+## 实施记录（2026-08-03，第十三批）
+
+本批次修正“新建 Publication 洗白旧观测”的可靠性缺口；仍只做本地代码与契约测试，不部署、不 push、不连接 VPS。
+
+已落地：
+
+- `CanonicalPublicationRepository` 增加按 publication 读取最早成员 `observed_at` 的端口；Publication gate 对真实仓储按 Dataset Contract 的 `freshness_seconds` 校验成员观测时间，而不是把 `published_at` 或请求时间当作数据新鲜度。
+- Publication 缺少成员观测、成员时间为 naive 或超过 freshness budget 时，所有 published query ports 统一返回空 rows、`must_not_use_for_decision=true`、`freshness_status` 和稳定阻断原因；不会继续查询事实仓储。
+- `governance/dataset_contracts.json` 为 D0-D9 的 current/publication 数据集补齐显式 freshness budget，Catalog 初始化后以持久化 Dataset Contract 为运行时阈值；缺少 active contract 或阈值时 fail closed。
+- D4/D5 current-data contract 登记 `canonical_publication_stale` 与精确回归 nodeid，防止后续修改删除旧观测阻断测试。
+
+第十三批机器证据：
+
+- `pytest tests/unit/data_center/test_published_query_ports.py tests/unit/data_center/test_a_share_behavior_query_service.py -q --no-migrations --reuse-db --timeout=180`：13 passed，覆盖新 Publication + 旧成员观测、freshness policy 缺失、观测缺失/naive、缺失 Publication、各类 published port fail-closed。
+- 本批 freshness gate 已通过 ruff/black/isort、5 个生产文件 mypy regression、architecture/current-data/governance 全量门禁。
+
+仍未完成及风险：
+
+- 本地 fake/SQLite 的 freshness 证据不能替代生产成员观测完整性、真实 Dataset Contract 阈值、全 D0-D9 入口快照一致性和至少 2/3 个调度观察窗口。
+- 最新 `0055`/`0007` 在临时 PostgreSQL 全量迁移的 15 分钟预算内未完成，不能据此宣称最新迁移链路通过；生产 PostgreSQL 画像、备份恢复、M9/M10 和 VPS 部署仍保持未执行。
+
+## 实施记录（2026-08-03，第十四批）
+
+本批次消除 MCP 研究快照的两个旁路：Publication gate 不再因 SDK/测试 double 不支持 `mode` 而降级，且 gate 阻断元数据不再被误判为“有证据”；不部署、不 push。
+
+已落地：
+
+- MCP `_published_read` 强制传递 `mode="published"`，移除捕获 `TypeError` 后重试未 gated 读取的兼容旁路。
+- 研究分区先识别 `must_not_use_for_decision`，再计算 rows/evidence；空 rows + `publication_id`/freshness 元数据不会被包装成 fresh，required 分区会阻断整个快照并保留稳定 `blocked_reason_code`。
+- current-data contract 新增精确测试，锁定“门禁元数据不是事实证据”和所有研究读取必须带 published mode。
+
+第十四批机器证据：
+
+- `pytest sdk/tests/test_mcp/test_equity_research_snapshot_registry.py -q --timeout=180`：5 passed，覆盖 mode 传播、全局 readiness、旧观测 Publication 阻断元数据和可选分区缺失。
+- 本批 SDK/MCP 文件已通过 ruff/black/isort、current-data 和 SDK/MCP 定向回归；MCP 运行时真实生产数据仍未验证。
+
+仍未完成及风险：
+
+- 真实 MCP 接入页、远端 API 的生产 publication/member 观测和 2026-07 当前数据尚未在本批验证；本地 fake 不能替代 VPS/生产验收。
+- 全 D0-D9 跨入口 publication_id/reliability 快照、PostgreSQL 最新迁移、备份恢复、生产观察窗口、M9/M10 仍未完成，按用户要求不部署。
+
+## 实施记录（2026-08-03，第十五批）
+
+本批次把成员观测 freshness gate 接到 REST 层，覆盖 SDK/MCP 实际调用的 API 地址；不部署、不 push。
+
+已落地：
+
+- REST `_published_gate` 复用 Application freshness gate；Publication 存在但成员观测 stale、缺失、naive 或 freshness policy 未验证时，接口在进入 financial/valuation/price/quote/news/flow use case 前统一返回空数据和阻断证据。
+- REST blocked payload 保留 `publication_id`、`observed_at`、`age_seconds`、`max_age_seconds`、`freshness_status` 和 `blocked_reason`，SDK/MCP 不会因“有 publication_id”而误判为可用事实。
+- API current-data contract 登记 `canonical_publication_stale` 及“查询前阻断”精确测试，锁定 MCP 接入页使用的真实 REST 链路。
+
+第十五批机器证据：
+
+- `pytest tests/api/test_data_center_route_cleanup.py -q -k 'published' --no-migrations --reuse-db --timeout=180`：3 passed；新增 stale financial REST test 已证明在进入 financial use case 前阻断。
+- freshness gate、MCP 防旁路和 REST 入口已完成完整定向回归：Data Center/API `45 passed`，SDK/MCP `35 passed`；变更文件的 architecture、mypy、current-data、catalog 和 governance guards 通过。
+
+仍未完成及风险：
+
+- 真实运行时还需要在 MCP 接入页地址上用生产数据验证 `publication_id`、成员观测、source 和 reliability 一致；本地 monkeypatch 只验证阻断顺序和响应契约。
+- PostgreSQL 最新 migration timeout、生产数据画像、备份恢复、观察窗口、全 D0-D9 切读、M9/M10 仍未完成；按用户要求不部署。
+
 ## 1. 结论先行
 
 当前系统的四层架构方向没有错，真正需要从根上重构的是“数据所有权、可靠性契约和发布链路”。

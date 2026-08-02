@@ -11,6 +11,7 @@ from apps.data_center.composition import (
     get_canonical_publication_repository,
     get_capital_flow_repository,
     get_data_center_diagnostic_repository,
+    get_dataset_contract_repository,
     get_financial_fact_repository,
     get_indicator_catalog_repository,
     get_indicator_unit_rule_repository,
@@ -196,30 +197,105 @@ def query_published_macro_fact_series(
     }
 
 
-def _publication_gate(dataset_key: str, publication_key: str) -> dict[str, object] | None:
-    """Return publication metadata or ``None`` for a blocked current read."""
+def _publication_gate(
+    dataset_key: str,
+    publication_key: str,
+    *,
+    now: datetime | None = None,
+) -> dict[str, object] | None:
+    """Return publication metadata after validating source observation freshness."""
 
-    publication = get_canonical_publication_repository().get_current(dataset_key, publication_key)
+    repository = get_canonical_publication_repository()
+    publication = repository.get_current(dataset_key, publication_key)
     if publication is None:
         return None
-    return {
+    gate: dict[str, object] = {
         "publication_id": publication.publication_id,
         "published_at": publication.published_at.isoformat() if publication.published_at else None,
         "must_not_use_for_decision": publication.must_not_use_for_decision,
         "blocked_reason": publication.blocked_reason,
     }
+    member_observation_reader = getattr(repository, "get_oldest_member_observed_at", None)
+    if callable(member_observation_reader):
+        contract = get_dataset_contract_repository().get_active(dataset_key)
+        max_age_seconds = getattr(contract, "freshness_seconds", None)
+        if contract is None or max_age_seconds is None:
+            gate.update(
+                must_not_use_for_decision=True,
+                blocked_reason="publication_freshness_policy_missing",
+                freshness_status="unverified",
+            )
+            return gate
+        oldest_observed_at = member_observation_reader(publication.publication_id)
+        if oldest_observed_at is None:
+            gate.update(
+                must_not_use_for_decision=True,
+                blocked_reason="publication_observation_missing",
+                freshness_status="missing",
+            )
+            return gate
+    else:
+        max_age_seconds = None
+        oldest_observed_at = getattr(publication, "as_of", None) or publication.published_at
+    if oldest_observed_at is None:
+        gate.update(
+            must_not_use_for_decision=True,
+            blocked_reason="publication_observation_missing",
+            freshness_status="missing",
+        )
+        return gate
+    if oldest_observed_at.tzinfo is None or oldest_observed_at.utcoffset() is None:
+        gate.update(
+            must_not_use_for_decision=True,
+            blocked_reason="publication_observation_naive",
+            freshness_status="invalid",
+        )
+        return gate
+    observed_at_utc = oldest_observed_at.astimezone(UTC)
+    reference = now or datetime.now(UTC)
+    if reference.tzinfo is None or reference.utcoffset() is None:
+        reference = reference.replace(tzinfo=UTC)
+    age_seconds = max((reference.astimezone(UTC) - observed_at_utc).total_seconds(), 0.0)
+    gate["observed_at"] = observed_at_utc.isoformat()
+    gate["age_seconds"] = age_seconds
+    gate["max_age_seconds"] = max_age_seconds
+    if max_age_seconds is not None and age_seconds > max_age_seconds:
+        gate.update(
+            must_not_use_for_decision=True,
+            blocked_reason="canonical_publication_stale",
+            freshness_status="stale",
+        )
+    else:
+        gate["freshness_status"] = "fresh"
+    return gate
 
 
-def _blocked_publication_result() -> dict[str, object]:
-    """Return the stable fail-closed shape for an unpublished current read."""
+def get_current_publication_gate(
+    dataset_key: str,
+    publication_key: str,
+) -> dict[str, object] | None:
+    """Return a freshness-validated gate for one current publication."""
 
-    return {
+    return _publication_gate(dataset_key, publication_key)
+
+
+def _blocked_publication_result(
+    gate: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Return the stable fail-closed shape for an absent or stale publication."""
+
+    result: dict[str, object] = {
         "rows": [],
         "publication_id": None,
         "published_at": None,
         "must_not_use_for_decision": True,
         "blocked_reason": "canonical_publication_missing",
     }
+    if gate is not None:
+        result.update(gate)
+    result["rows"] = []
+    result["must_not_use_for_decision"] = True
+    return result
 
 
 def query_published_quote_payloads(
@@ -230,8 +306,8 @@ def query_published_quote_payloads(
     """Read quote snapshots only behind an active publication."""
 
     gate = _publication_gate("equity.quote.snapshot", publication_key)
-    if gate is None:
-        return _blocked_publication_result()
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
     return {"rows": query_latest_quote_payloads(asset_codes), **gate}
 
 
@@ -246,8 +322,8 @@ def query_published_price_bar_series(
     """Read price bars only behind an active publication."""
 
     gate = _publication_gate("equity.price.bar", publication_key)
-    if gate is None:
-        return _blocked_publication_result()
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
     return {
         "rows": fetch_price_bar_payloads(
             asset_code=asset_code,
@@ -268,8 +344,8 @@ def query_published_financial_facts(
     """Read financial facts only after the current financial publication gate."""
 
     gate = _publication_gate("equity.financial.fact", publication_key)
-    if gate is None:
-        return _blocked_publication_result()
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
     return {"rows": query_financial_facts(asset_code, limit=limit), **gate}
 
 
@@ -283,8 +359,8 @@ def query_published_valuation_facts(
     """Read valuation facts only after the current valuation publication gate."""
 
     gate = _publication_gate("equity.valuation.fact", publication_key)
-    if gate is None:
-        return _blocked_publication_result()
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
     return {
         "rows": query_valuation_facts(asset_code, as_of=as_of, limit=limit),
         **gate,
@@ -300,8 +376,8 @@ def query_published_sector_memberships(
     """Read sector membership facts only from an active publication."""
 
     gate = _publication_gate("sector.membership", publication_key)
-    if gate is None:
-        return _blocked_publication_result()
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
     rows = get_sector_membership_repository().get_members(sector_code, as_of)
     return {"rows": [row.to_dict() for row in rows], **gate}
 
@@ -316,8 +392,8 @@ def query_published_market_news(
     """Read market news only from an active publication."""
 
     gate = _publication_gate("market.news", publication_key)
-    if gate is None:
-        return _blocked_publication_result()
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
     repository = get_news_repository()
     rows = (
         repository.list_market_news_for_date(target_date, limit=limit)
@@ -338,8 +414,8 @@ def query_published_capital_flow_series(
     """Read capital-flow facts only from an active publication."""
 
     gate = _publication_gate("market.capital_flow", publication_key)
-    if gate is None:
-        return _blocked_publication_result()
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
     rows = get_capital_flow_repository().get_series(asset_code, start, end, limit)
     return {"rows": [row.to_dict() for row in rows], **gate}
 

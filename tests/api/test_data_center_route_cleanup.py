@@ -832,7 +832,9 @@ def test_data_center_published_price_history_blocks_without_publication(
     authenticated_client,
     monkeypatch,
 ):
-    monkeypatch.setattr("apps.data_center.interface.api_views.get_current_publication", lambda *_args: None)
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_current_publication", lambda *_args: None
+    )
 
     response = authenticated_client.get(
         "/api/data-center/prices/history/?asset_code=002156.SZ&mode=published"
@@ -846,11 +848,62 @@ def test_data_center_published_price_history_blocks_without_publication(
 
 
 @pytest.mark.django_db
+def test_data_center_published_financials_blocks_stale_publication_before_query(
+    authenticated_client,
+    monkeypatch,
+):
+    """A stale source member must block the REST path used by SDK and MCP."""
+
+    publication = {
+        "publication_id": "pub-stale",
+        "dataset_key": "equity.financial.fact",
+        "publication_key": "current",
+        "must_not_use_for_decision": False,
+        "blocked_reason": "",
+    }
+    freshness_gate = {
+        "publication_id": "pub-stale",
+        "must_not_use_for_decision": True,
+        "blocked_reason": "canonical_publication_stale",
+        "freshness_status": "stale",
+        "observed_at": "2025-07-01T00:00:00+00:00",
+        "age_seconds": 34_000_000.0,
+        "max_age_seconds": 7_776_000,
+    }
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_current_publication",
+        lambda *_args: dict(publication),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_current_publication_freshness_gate",
+        lambda *_args: dict(freshness_gate),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.make_query_financials_use_case",
+        lambda: (_ for _ in ()).throw(AssertionError("stale publication must block before query")),
+    )
+
+    response = authenticated_client.get(
+        "/api/data-center/financials/?asset_code=002156.SZ&mode=published"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["data"] == []
+    assert payload["publication_id"] == "pub-stale"
+    assert payload["freshness_status"] == "stale"
+    assert payload["blocked_reason"] == "canonical_publication_stale"
+    assert payload["must_not_use_for_decision"] is True
+
+
+@pytest.mark.django_db
 def test_data_center_published_sector_constituents_blocks_without_publication(
     authenticated_client,
     monkeypatch,
 ):
-    monkeypatch.setattr("apps.data_center.interface.api_views.get_current_publication", lambda *_args: None)
+    monkeypatch.setattr(
+        "apps.data_center.interface.api_views.get_current_publication", lambda *_args: None
+    )
 
     response = authenticated_client.get(
         "/api/data-center/sectors/constituents/?sector_code=801010&mode=published"

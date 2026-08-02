@@ -162,3 +162,116 @@ def test_published_financial_facts_fail_closed_before_repository_query(monkeypat
     assert result["rows"] == []
     assert result["must_not_use_for_decision"] is True
     assert result["blocked_reason"] == "canonical_publication_missing"
+
+
+def test_published_gate_blocks_old_member_observation_even_when_publication_is_new(
+    monkeypatch,
+) -> None:
+    """A newly-created publication cannot wash an old source observation into current data."""
+
+    publication_repo = SimpleNamespace(
+        get_current=lambda *_args: SimpleNamespace(
+            publication_id="pub-new",
+            published_at=datetime(2026, 8, 2, tzinfo=UTC),
+            as_of=datetime(2026, 8, 2, tzinfo=UTC),
+            must_not_use_for_decision=False,
+            blocked_reason="",
+        ),
+        get_oldest_member_observed_at=lambda *_args: datetime(2025, 7, 1, tzinfo=UTC),
+    )
+    contract_repo = SimpleNamespace(
+        get_active=lambda *_args: SimpleNamespace(freshness_seconds=86_400),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: publication_repo,
+    )
+    monkeypatch.setattr(query_services, "get_dataset_contract_repository", lambda: contract_repo)
+    monkeypatch.setattr(
+        query_services,
+        "get_financial_fact_repository",
+        lambda: (_ for _ in ()).throw(AssertionError("stale facts must not be read")),
+    )
+
+    result = query_services.query_published_financial_facts("600000.SH")
+
+    assert result["rows"] == []
+    assert result["publication_id"] == "pub-new"
+    assert result["freshness_status"] == "stale"
+    assert result["blocked_reason"] == "canonical_publication_stale"
+
+
+def test_published_gate_blocks_when_member_freshness_policy_is_missing(monkeypatch) -> None:
+    """A real publication repository must not bypass an absent freshness contract."""
+
+    publication_repo = SimpleNamespace(
+        get_current=lambda *_args: _publication(),
+        get_oldest_member_observed_at=lambda *_args: (_ for _ in ()).throw(
+            AssertionError("missing policy must block before member lookup")
+        ),
+    )
+    monkeypatch.setattr(
+        query_services, "get_canonical_publication_repository", lambda: publication_repo
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: SimpleNamespace(get_active=lambda *_args: None),
+    )
+
+    result = query_services.query_published_financial_facts("600000.SH")
+
+    assert result["rows"] == []
+    assert result["freshness_status"] == "unverified"
+    assert result["blocked_reason"] == "publication_freshness_policy_missing"
+
+
+def test_published_gate_blocks_missing_member_observation(monkeypatch) -> None:
+    """A publication with no source observation cannot be treated as current."""
+
+    publication_repo = SimpleNamespace(
+        get_current=lambda *_args: _publication(),
+        get_oldest_member_observed_at=lambda *_args: None,
+    )
+    monkeypatch.setattr(
+        query_services, "get_canonical_publication_repository", lambda: publication_repo
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: SimpleNamespace(
+            get_active=lambda *_args: SimpleNamespace(freshness_seconds=86_400)
+        ),
+    )
+
+    result = query_services.query_published_financial_facts("600000.SH")
+
+    assert result["rows"] == []
+    assert result["freshness_status"] == "missing"
+    assert result["blocked_reason"] == "publication_observation_missing"
+
+
+def test_published_gate_blocks_naive_member_observation(monkeypatch) -> None:
+    """A naive source timestamp must not enter a timezone-aware decision read."""
+
+    publication_repo = SimpleNamespace(
+        get_current=lambda *_args: _publication(),
+        get_oldest_member_observed_at=lambda *_args: datetime(2025, 7, 1),
+    )
+    monkeypatch.setattr(
+        query_services, "get_canonical_publication_repository", lambda: publication_repo
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: SimpleNamespace(
+            get_active=lambda *_args: SimpleNamespace(freshness_seconds=86_400)
+        ),
+    )
+
+    result = query_services.query_published_financial_facts("600000.SH")
+
+    assert result["rows"] == []
+    assert result["freshness_status"] == "invalid"
+    assert result["blocked_reason"] == "publication_observation_naive"

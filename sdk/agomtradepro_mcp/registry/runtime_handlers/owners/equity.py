@@ -39,25 +39,26 @@ def _read_research_section(loader: Callable[[], object], *, required: bool) -> d
             "must_not_use_for_decision": required,
             "block_reason_code": "upstream_read_failed",
         }
-    has_evidence = _payload_has_evidence(payload)
+    gate_blocked = isinstance(payload, dict) and bool(payload.get("must_not_use_for_decision"))
+    has_evidence = not gate_blocked and _payload_has_evidence(payload)
+    blocked_reason = payload.get("blocked_reason") if isinstance(payload, dict) else None
     return {
-        "status": "fresh" if has_evidence else "missing",
+        "status": "blocked" if gate_blocked else ("fresh" if has_evidence else "missing"),
         "required": required,
         "data": payload,
-        "must_not_use_for_decision": required and not has_evidence,
-        "block_reason_code": "" if has_evidence else "section_evidence_missing",
+        "must_not_use_for_decision": gate_blocked or (required and not has_evidence),
+        "block_reason_code": (
+            str(blocked_reason)
+            if blocked_reason
+            else ("" if has_evidence else "section_evidence_missing")
+        ),
     }
 
 
 def _published_read(method: Callable[..., object], *args: object, **kwargs: object) -> object:
-    """Request a publication-gated read while keeping older test doubles compatible."""
+    """Request a publication-gated read without a compatibility bypass."""
 
-    try:
-        return method(*args, mode="published", **kwargs)
-    except TypeError as exc:
-        if "mode" not in str(exc):
-            raise
-        return method(*args, **kwargs)
+    return method(*args, mode="published", **kwargs)
 
 
 def _internal_handler_equity_read_research_snapshot(

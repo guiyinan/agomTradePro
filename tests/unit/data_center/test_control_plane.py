@@ -162,6 +162,7 @@ def test_control_plane_repositories_are_idempotent_and_current_is_published_only
     current = repository.get_current("equity.daily", "20260802")
     assert current is not None
     assert current.publication_id == publication_id
+    assert repository.get_oldest_member_observed_at(publication_id) == NOW
 
     blocked = CanonicalPublication(
         publication_id=str(uuid4()),
