@@ -155,6 +155,7 @@ class CapabilityRoutingFacade:
         entrypoint: str = "terminal",
         session_id: str | None = None,
         user_id: int | None = None,
+        username: str = "",
         user_is_admin: bool = False,
         mcp_enabled: bool = True,
         provider_name: str | None = None,
@@ -175,6 +176,7 @@ class CapabilityRoutingFacade:
             context={
                 **(context or {}),
                 "user_id": user_id,
+                "username": username,
                 "user_is_admin": user_is_admin,
                 "mcp_enabled": mcp_enabled,
                 "answer_chain_enabled": answer_chain_enabled,
@@ -189,6 +191,7 @@ class CapabilityRoutingFacade:
         entrypoint: str = "web",
         session_id: str | None = None,
         user_id: int | None = None,
+        username: str = "",
         user_is_admin: bool = False,
         mcp_enabled: bool = True,
         provider_name: str | None = None,
@@ -204,6 +207,7 @@ class CapabilityRoutingFacade:
         request_context = {
             **(context or {}),
             "user_id": user_id,
+            "username": username,
             "user_is_admin": user_is_admin,
             "mcp_enabled": mcp_enabled,
             "answer_chain_enabled": answer_chain_enabled,

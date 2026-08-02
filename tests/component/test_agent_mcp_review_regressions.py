@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import sys
 from contextvars import ContextVar
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -92,3 +95,47 @@ def test_malformed_mcp_config_degrades_without_raising(tmp_path, monkeypatch):
     monkeypatch.setattr(mcp_runtime, "MCP_CONFIG_PATH", config_path)
 
     mcp_runtime.load_mcp_env_from_repo_config()
+
+
+def test_in_process_mcp_call_binds_and_restores_originating_user(monkeypatch):
+    observed: dict[str, str | None] = {}
+
+    class FakeServer:
+        async def call_tool(self, _tool_name, _params):
+            observed.update(
+                token=os.environ.get("AGOMTRADEPRO_API_TOKEN"),
+                user_id=os.environ.get("AGOMTRADEPRO_INTERNAL_USER_ID"),
+                username=os.environ.get("AGOMTRADEPRO_INTERNAL_USERNAME"),
+                source=os.environ.get("AGOMTRADEPRO_INTERNAL_SOURCE"),
+            )
+            return ([], {"ok": True})
+
+    monkeypatch.setenv("AGOMTRADEPRO_INTERNAL_AUTH_SECRET", "internal-secret")
+    monkeypatch.setenv("AGOMTRADEPRO_API_TOKEN", "global-token")
+    monkeypatch.setenv("AGOMTRADEPRO_INTERNAL_USER_ID", "99")
+    monkeypatch.setenv("AGOMTRADEPRO_INTERNAL_USERNAME", "previous")
+    monkeypatch.setitem(
+        sys.modules,
+        "agomtradepro_mcp.server",
+        SimpleNamespace(server=FakeServer()),
+    )
+    monkeypatch.setattr(mcp_runtime, "ensure_sdk_on_path", lambda: None)
+    monkeypatch.setattr(mcp_runtime, "load_mcp_env_from_repo_config", lambda: None)
+
+    result = mcp_runtime.call_sdk_mcp_tool(
+        "agom_capability_call",
+        {"capability_key": "equity.read.research_snapshot", "arguments": {}},
+        user_id=7,
+        username="researcher",
+    )
+
+    assert result == {"ok": True}
+    assert observed == {
+        "token": None,
+        "user_id": "7",
+        "username": "researcher",
+        "source": "ai_capability_route",
+    }
+    assert os.environ["AGOMTRADEPRO_API_TOKEN"] == "global-token"
+    assert os.environ["AGOMTRADEPRO_INTERNAL_USER_ID"] == "99"
+    assert os.environ["AGOMTRADEPRO_INTERNAL_USERNAME"] == "previous"

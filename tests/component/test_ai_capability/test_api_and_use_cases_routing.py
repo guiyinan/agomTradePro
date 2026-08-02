@@ -122,6 +122,8 @@ def test_confirmation_resumes_locked_mcp_capability_across_route_and_web(api_cli
             "capability_key": "fund.read.ranking",
             "arguments": {"regime": "Recovery"},
         },
+        user_id=staff_user.id,
+        username=staff_user.username,
     )
 
 

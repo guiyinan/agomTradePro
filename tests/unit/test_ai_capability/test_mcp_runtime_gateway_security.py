@@ -187,6 +187,53 @@ def test_mcp_call_returns_detached_finite_json(
 
     assert result == raw_result
     assert result is not raw_result
+    sdk_call.assert_called_once_with(
+        "agom_capability_call",
+        {"capability_key": "system.read.regime.current", "arguments": {}},
+        user_id=None,
+        username="",
+    )
+
+
+def test_capability_dispatch_propagates_originating_user_to_mcp_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    capability = CapabilityDefinition(
+        capability_key="mcp_tool.equity.read.research_snapshot",
+        source_type=SourceType.MCP_TOOL,
+        source_ref="equity.read.research_snapshot",
+        name="equity.read.research_snapshot",
+        summary="Read persisted equity evidence",
+        execution_target={
+            "type": "mcp_capability",
+            "tool_name": "agom_capability_call",
+            "capability_key": "equity.read.research_snapshot",
+        },
+    )
+    context = RoutingContext(
+        entrypoint="agent",
+        user_id=7,
+        session_id="session-1",
+        context={"params": {"stock_code": "通富微电"}, "username": "researcher"},
+    )
+    sdk_call = Mock(return_value={"status": "completed", "result": {"stock_code": "002156.SZ"}})
+    monkeypatch.setattr(
+        "apps.ai_capability.application.use_cases._call_sdk_mcp_tool",
+        sdk_call,
+    )
+
+    result = CapabilityExecutionDispatcher()._execute_mcp_tool(capability, context)
+
+    assert result["result"]["result"]["stock_code"] == "002156.SZ"
+    sdk_call.assert_called_once_with(
+        "agom_capability_call",
+        {
+            "capability_key": "equity.read.research_snapshot",
+            "arguments": {"stock_code": "通富微电"},
+        },
+        user_id=7,
+        username="researcher",
+    )
 
 
 def test_validation_failure_does_not_fall_back_to_builtin_tool(

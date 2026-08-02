@@ -113,6 +113,7 @@ def route_message(request: Request) -> Response:
 
     context = data.get("context", {})
     context["user_id"] = request.user.id if request.user.is_authenticated else None
+    context["username"] = request.user.username if request.user.is_authenticated else ""
     context["user_is_admin"] = request.user.is_staff if request.user.is_authenticated else False
     context["mcp_enabled"] = _get_mcp_enabled(request.user)
     context["answer_chain_enabled"] = context.get("answer_chain_enabled", False)
@@ -224,6 +225,7 @@ def web_chat(request: Request) -> Response:
                 entrypoint="web",
                 session_id=data.get("session_id"),
                 user_id=request.user.id if request.user.is_authenticated else None,
+                username=request.user.username if request.user.is_authenticated else "",
                 user_is_admin=user_is_admin,
                 mcp_enabled=mcp_enabled,
                 provider_name=data.get("provider_name"),
@@ -237,6 +239,7 @@ def web_chat(request: Request) -> Response:
                 entrypoint="web",
                 session_id=data.get("session_id"),
                 user_id=request.user.id if request.user.is_authenticated else None,
+                username=request.user.username if request.user.is_authenticated else "",
                 user_is_admin=user_is_admin,
                 mcp_enabled=mcp_enabled,
                 provider_name=data.get("provider_name"),

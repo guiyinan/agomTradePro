@@ -7,8 +7,11 @@ import logging
 import os
 import re
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager, nullcontext
 from math import isfinite
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from shared.infrastructure.async_runtime import run_awaitable_sync
@@ -21,6 +24,13 @@ MCP_CONFIG_PATH = REPO_ROOT / ".mcp.json"
 _ENV_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
 _TOOL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
 _ALLOWED_ENV_KEYS = {"NO_PROXY", "no_proxy"}
+_SDK_MCP_CALL_LOCK = RLock()
+_INTERNAL_IDENTITY_ENV_KEYS = (
+    "AGOMTRADEPRO_API_TOKEN",
+    "AGOMTRADEPRO_INTERNAL_USER_ID",
+    "AGOMTRADEPRO_INTERNAL_USERNAME",
+    "AGOMTRADEPRO_INTERNAL_SOURCE",
+)
 
 
 def ensure_sdk_on_path() -> None:
@@ -78,7 +88,40 @@ def load_mcp_env_from_repo_config() -> None:
         os.environ.setdefault(raw_key, normalized_value)
 
 
-def call_sdk_mcp_tool(tool_name: str, params: dict[str, Any]) -> Any:
+@contextmanager
+def _sdk_internal_identity(*, user_id: int, username: str) -> Iterator[None]:
+    """Bind one originating user to an in-process SDK call without exposing its token."""
+
+    if user_id <= 0:
+        raise ValueError("MCP internal user id must be positive")
+    normalized_username = str(username or "").strip()
+    if len(normalized_username) > 150 or any(ord(char) < 32 for char in normalized_username):
+        raise ValueError("MCP internal username is invalid")
+    if not str(os.getenv("AGOMTRADEPRO_INTERNAL_AUTH_SECRET") or "").strip():
+        raise RuntimeError("MCP internal authentication is not configured")
+
+    previous = {key: os.environ.get(key) for key in _INTERNAL_IDENTITY_ENV_KEYS}
+    os.environ.pop("AGOMTRADEPRO_API_TOKEN", None)
+    os.environ["AGOMTRADEPRO_INTERNAL_USER_ID"] = str(user_id)
+    os.environ["AGOMTRADEPRO_INTERNAL_USERNAME"] = normalized_username
+    os.environ["AGOMTRADEPRO_INTERNAL_SOURCE"] = "ai_capability_route"
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+def call_sdk_mcp_tool(
+    tool_name: str,
+    params: dict[str, Any],
+    *,
+    user_id: int | None = None,
+    username: str = "",
+) -> Any:
     """Execute one MCP tool through the repository SDK server contract."""
 
     normalized_tool_name = tool_name.strip()
@@ -90,11 +133,18 @@ def call_sdk_mcp_tool(tool_name: str, params: dict[str, Any]) -> Any:
         raise ValueError("MCP tool parameters must be finite JSON") from exc
     if len(encoded_params.encode("utf-8")) > 1_048_576:
         raise ValueError("MCP tool parameters exceed the 1 MiB limit")
-    ensure_sdk_on_path()
-    load_mcp_env_from_repo_config()
-    from agomtradepro_mcp.server import server  # type: ignore[import-untyped]
+    with _SDK_MCP_CALL_LOCK:
+        identity = (
+            _sdk_internal_identity(user_id=user_id, username=username)
+            if user_id is not None
+            else nullcontext()
+        )
+        with identity:
+            ensure_sdk_on_path()
+            load_mcp_env_from_repo_config()
+            from agomtradepro_mcp.server import server  # type: ignore[import-untyped]
 
-    result = run_awaitable_sync(lambda: server.call_tool(normalized_tool_name, params))
+            result = run_awaitable_sync(lambda: server.call_tool(normalized_tool_name, params))
     if isinstance(result, tuple) and len(result) == 2:
         return result[1]
     return result

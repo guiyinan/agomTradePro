@@ -216,7 +216,13 @@ def get_sdk_mcp_legacy_disposition(
     return validated
 
 
-def call_sdk_mcp_tool(tool_name: str, params: dict[str, Any]) -> object:
+def call_sdk_mcp_tool(
+    tool_name: str,
+    params: dict[str, Any],
+    *,
+    user_id: int | None = None,
+    username: str = "",
+) -> object:
     """Execute one bounded MCP tool call through the SDK server contract."""
 
     normalized_name = _tool_name(tool_name)
@@ -225,7 +231,12 @@ def call_sdk_mcp_tool(tool_name: str, params: dict[str, Any]) -> object:
         label="mcp_call_params_invalid",
         maximum=_MAX_CALL_PARAMS_BYTES,
     )
-    result = _call_sdk_mcp_tool(normalized_name, normalized_params)
+    result = _call_sdk_mcp_tool(
+        normalized_name,
+        normalized_params,
+        user_id=user_id,
+        username=username,
+    )
     return _bounded_json_value(
         result,
         label="mcp_call_result_invalid",

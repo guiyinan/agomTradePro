@@ -480,7 +480,12 @@ class CapabilityExecutionDispatcher:
             }
 
         try:
-            result = _call_sdk_mcp_tool(tool_name, call_params)
+            result = _call_sdk_mcp_tool(
+                tool_name,
+                call_params,
+                user_id=context.user_id,
+                username=str(context.context.get("username") or ""),
+            )
         except McpRuntimeValidationError:
             logger.warning("SDK MCP tool request rejected for %s", tool_name)
             return {
