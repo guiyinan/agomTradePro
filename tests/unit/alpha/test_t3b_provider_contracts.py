@@ -147,19 +147,21 @@ def test_simple_quote_fallback_rejects_missing_and_nonpositive_prices(
 ) -> None:
     """Fresh quote fallback does not score absent or nonpositive market data."""
     monkeypatch.setattr(
-        "apps.alpha.infrastructure.adapters.simple_adapter.get_latest_quote_payloads",
-        lambda *args, **kwargs: [
-            {
-                "asset_code": "000002.SZ",
-                "snapshot_at": datetime(2026, 7, 24, 6, tzinfo=UTC),
-                "current_price": 0,
-                "prev_close": 10,
-                "open": 10,
-                "high": 11,
-                "low": 9,
-                "volume": 100,
-            }
-        ],
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_published_quote_payloads",
+        lambda *args, **kwargs: {
+            "rows": [
+                {
+                    "asset_code": "000002.SZ",
+                    "snapshot_at": datetime.now(UTC),
+                    "current_price": 0,
+                    "prev_close": 10,
+                    "open": 10,
+                    "high": 11,
+                    "low": 9,
+                    "volume": 100,
+                }
+            ]
+        },
     )
     scores, metadata, staleness = SimpleAlphaProvider()._compute_quote_momentum_scores(
         stock_list=["000001.SZ", "000002.SZ"],

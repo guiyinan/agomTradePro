@@ -169,8 +169,10 @@ def test_fund_nav_filters_missing_and_out_of_range_rows(
     )
     monkeypatch.setattr(
         _provider_adapter_akshare,
-        "build_akshare_fund_adapter",
-        lambda: SimpleNamespace(fetch_fund_nav_em=lambda _code: frame),
+        "get_akshare_module",
+        lambda: SimpleNamespace(
+            fund_open_fund_info_em=lambda **_kwargs: frame,
+        ),
     )
 
     result = _adapter().fetch_fund_nav("510300.SH", START, END)
@@ -179,24 +181,11 @@ def test_fund_nav_filters_missing_and_out_of_range_rows(
     assert result[0].nav == 3
 
 
-def test_sector_membership_resolves_code_and_converts_constituents(
+def test_sector_membership_fails_closed_without_stable_akshare_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    sector_adapter = SimpleNamespace(
-        fetch_sector_list=lambda: pd.DataFrame([{"sector_code": "BK001", "sector_name": "Banks"}]),
-        fetch_sector_constituents=lambda _name: pd.DataFrame(
-            [{"stock_code": "000001", "stock_name": "Bank"}]
-        ),
-    )
-    monkeypatch.setattr(
-        _provider_adapter_akshare,
-        "build_akshare_sector_adapter",
-        lambda: sector_adapter,
-    )
-
     result = _adapter().fetch_sector_memberships(sector_code="BK001", effective_date=START)
     missing = _adapter().fetch_sector_memberships(sector_code="UNKNOWN")
 
-    assert result[0].asset_code == "000001.SZ"
-    assert result[0].sector_name == "Banks"
+    assert result == []
     assert missing == []

@@ -20,6 +20,7 @@ from typing import Any, cast
 from apps.data_center.application.public import (
     get_macro_fact_series,
     get_macro_indicator_catalog,
+    get_published_macro_fact_series,
     is_direct_macro_input_allowed,
     list_macro_indicator_codes,
 )
@@ -178,7 +179,8 @@ class DataCenterMacroRepositoryAdapter:
         indicator_code: str,
         limit: int = 24,
     ) -> list[MacroIndicator]:
-        rows = get_macro_fact_series(indicator_code, limit=max(limit, 1))
+        published = get_published_macro_fact_series(indicator_code, limit=max(limit, 1))
+        rows = cast(list[dict[str, Any]], published.get("rows", []))
         return [self._to_macro_indicator(row) for row in reversed(rows[-limit:])]
 
     def get_latest_observation_date(
@@ -186,11 +188,14 @@ class DataCenterMacroRepositoryAdapter:
         code: str,
         as_of_date: date | None = None,
     ) -> date | None:
-        observations = self.get_series(
-            code=code,
-            end_date=as_of_date,
-            use_pit=as_of_date is not None,
-        )
+        if as_of_date is None:
+            published = get_published_macro_fact_series(code, limit=1)
+            observations = [
+                self._to_macro_indicator(row)
+                for row in cast(list[dict[str, Any]], published.get("rows", []))
+            ]
+        else:
+            observations = self.get_series(code=code, end_date=as_of_date, use_pit=True)
         return observations[-1].reporting_period if observations else None
 
     def get_latest_observation(
@@ -198,8 +203,15 @@ class DataCenterMacroRepositoryAdapter:
         code: str,
         before_date: date | None = None,
     ) -> MacroIndicator | None:
-        end_date = before_date - date.resolution if before_date else None
-        observations = self.get_series(code=code, end_date=end_date, use_pit=end_date is not None)
+        if before_date is None:
+            published = get_published_macro_fact_series(code, limit=1)
+            observations = [
+                self._to_macro_indicator(row)
+                for row in cast(list[dict[str, Any]], published.get("rows", []))
+            ]
+        else:
+            end_date = before_date - date.resolution
+            observations = self.get_series(code=code, end_date=end_date, use_pit=True)
         return observations[-1] if observations else None
 
     def get_by_code_and_date(self, code: str, observed_at: date) -> MacroIndicator | None:
@@ -350,13 +362,7 @@ class DataCenterMacroRepositoryAdapter:
                         use_pit=end_date is not None,
                     )
                 )
-        return sorted(
-            {
-                date.fromisoformat(str(row["reporting_period"]))
-                for row in rows
-            }
-        )
-
+        return sorted({date.fromisoformat(str(row["reporting_period"])) for row in rows})
 
 
 class DjangoMacroDataProvider:

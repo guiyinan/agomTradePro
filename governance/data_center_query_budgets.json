@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "owner": "data-platform",
+  "source_of_truth": "data_center_application_query_ports",
+  "budgets": [
+    {
+      "budget_key": "data_center.sector.membership.current",
+      "port": "apps.data_center.application.public.get_published_sector_memberships",
+      "max_queries": 2,
+      "max_p95_ms": 250.0,
+      "evidence_test": "tests/unit/data_center/test_reconciliation_and_query_budget.py::test_query_budget_has_strict_count_and_latency_boundaries"
+    },
+    {
+      "budget_key": "data_center.market.news.current",
+      "port": "apps.data_center.application.public.get_published_market_news",
+      "max_queries": 2,
+      "max_p95_ms": 250.0,
+      "evidence_test": "tests/unit/data_center/test_published_query_ports.py::test_published_news_and_capital_flow_preserve_publication_evidence"
+    },
+    {
+      "budget_key": "data_center.market.capital_flow.current",
+      "port": "apps.data_center.application.public.get_published_capital_flow_series",
+      "max_queries": 2,
+      "max_p95_ms": 250.0,
+      "evidence_test": "tests/unit/data_center/test_published_query_ports.py::test_published_capital_flow_blocks_before_querying_repository"
+    }
+  ]
+}

@@ -26,9 +26,12 @@ from apps.data_center.application.query_services import (
     query_financial_facts,
     query_latest_quote_payloads,
     query_macro_fact_series,
+    query_published_capital_flow_series,
     query_published_macro_fact_series,
+    query_published_market_news,
     query_published_price_bar_series,
     query_published_quote_payloads,
+    query_published_sector_memberships,
     query_valuation_facts,
 )
 from apps.data_center.composition import (
@@ -36,6 +39,7 @@ from apps.data_center.composition import (
     build_provider_registry_for_repo,
     build_tushare_client,
     get_akshare_eastmoney_gateway,
+    get_akshare_module,
     get_asset_repository,
     get_canonical_publication_repository,
     get_capital_flow_repository,
@@ -50,9 +54,6 @@ from apps.data_center.composition import (
     get_raw_audit_repository,
     get_sector_membership_repository,
     get_valuation_fact_repository,
-)
-from apps.data_center.composition import (
-    get_akshare_module as _get_akshare_module,
 )
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.macro_semantics import (
@@ -92,7 +93,7 @@ def get_asset_repository_port() -> AssetRepositoryProtocol:
 def get_akshare_module_port() -> Any:
     """Return the configured AKShare module behind the public transport port."""
 
-    return _get_akshare_module()
+    return get_akshare_module()
 
 
 def get_akshare_eastmoney_gateway_port() -> object:
@@ -276,6 +277,57 @@ def get_published_price_bar_series(
     )
 
 
+def get_published_sector_memberships(
+    sector_code: str,
+    *,
+    as_of: date | None = None,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read decision-facing sector membership facts behind publication."""
+
+    return query_published_sector_memberships(
+        sector_code,
+        as_of=as_of,
+        publication_key=publication_key,
+    )
+
+
+def get_published_market_news(
+    *,
+    asset_code: str | None = None,
+    target_date: date | None = None,
+    limit: int = 50,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read decision-facing news facts behind publication."""
+
+    return query_published_market_news(
+        asset_code=asset_code,
+        target_date=target_date,
+        limit=limit,
+        publication_key=publication_key,
+    )
+
+
+def get_published_capital_flow_series(
+    asset_code: str,
+    *,
+    start: date | None = None,
+    end: date | None = None,
+    limit: int | None = None,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read decision-facing capital-flow facts behind publication."""
+
+    return query_published_capital_flow_series(
+        asset_code,
+        start=start,
+        end=end,
+        limit=limit,
+        publication_key=publication_key,
+    )
+
+
 def get_macro_indicator_catalog(indicator_code: str) -> dict[str, Any]:
     """Read one indicator catalog entry through the application port."""
 
@@ -341,6 +393,16 @@ def save_macro_facts(facts: list[MacroFact]) -> int:
     """Persist validated canonical macro facts through the application port."""
 
     return get_macro_fact_repository().bulk_upsert(facts)
+
+
+def list_macro_facts_by_original_unit(
+    original_unit: str,
+    *,
+    limit: int = 100_000,
+) -> list[MacroFact]:
+    """List canonical macro facts for a bounded unit-normalization repair."""
+
+    return get_macro_fact_repository().list_by_original_unit(original_unit, limit=limit)
 
 
 def get_macro_runtime_metadata() -> dict[str, dict[str, Any]]:
@@ -513,8 +575,11 @@ __all__ = [
     "build_provider_registry_port",
     "get_publication_as_of",
     "get_published_macro_fact_series",
+    "get_published_market_news",
+    "get_published_capital_flow_series",
     "get_published_price_bar_series",
     "get_published_quote_payloads",
+    "get_published_sector_memberships",
     "get_valuation_facts",
     "get_valuation_fact_repository_port",
     "get_raw_audit_repository_port",
@@ -522,6 +587,7 @@ __all__ = [
     "list_active_stock_codes",
     "list_active_data_sources",
     "list_latest_macro_values",
+    "list_macro_facts_by_original_unit",
     "list_price_covered_codes",
     "list_valuation_covered_codes",
     "update_asset_display_name",

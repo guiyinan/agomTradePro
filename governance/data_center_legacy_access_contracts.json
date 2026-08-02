@@ -13,6 +13,9 @@
     ],
     "apps.sector.infrastructure.models": [
       "SectorConstituentModel"
+    ],
+    "apps.macro.infrastructure.models": [
+      "MacroIndicator"
     ]
   },
   "allowed_path_patterns": [
@@ -24,6 +27,8 @@
     "^apps/sector/tests/",
     "^apps/fund/(?:models\\.py|interface/admin\\.py)$",
     "^apps/fund/migrations/",
+    "^apps/macro/(?:models\\.py|infrastructure/models\\.py)$",
+    "^apps/macro/migrations/",
     "^apps/fund/tests/",
     "^apps/.+/tests/"
   ],

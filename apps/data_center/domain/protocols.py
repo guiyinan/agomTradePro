@@ -263,6 +263,14 @@ class MacroGovernanceRepositoryProtocol(Protocol):
 class MacroFactRepositoryProtocol(Protocol):
     """Persistence contract for MacroFact time-series."""
 
+    def list_by_original_unit(
+        self,
+        original_unit: str,
+        *,
+        limit: int = 100_000,
+    ) -> list[MacroFact]:
+        """Return a bounded set of canonical facts carrying an original unit."""
+
     def get_series(
         self,
         indicator_code: str,

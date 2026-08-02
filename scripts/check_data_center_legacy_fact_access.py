@@ -65,12 +65,14 @@ def _scan_file(path: Path, contract: Contract) -> list[Violation]:
     symbols_by_module = {
         module: set(symbols) for module, symbols in contract["legacy_modules"].items()
     }
+    imported_legacy_names: set[str] = set()
     violations: list[Violation] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module in symbols_by_module:
             symbols = symbols_by_module[node.module]
             for alias in node.names:
                 if alias.name == "*" or alias.name in symbols:
+                    imported_legacy_names.add(alias.asname or alias.name)
                     violations.append(
                         {
                             "path": relative,
@@ -79,7 +81,8 @@ def _scan_file(path: Path, contract: Contract) -> list[Violation]:
                             "kind": "legacy_model_import",
                         }
                     )
-        elif isinstance(node, ast.Name) and any(node.id in symbols for symbols in symbols_by_module.values()):
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id in imported_legacy_names:
             violations.append(
                 {
                     "path": relative,
@@ -93,11 +96,7 @@ def _scan_file(path: Path, contract: Contract) -> list[Violation]:
 
 def main() -> int:
     contract = _load_contract()
-    violations = [
-        violation
-        for path in _python_files()
-        for violation in _scan_file(path, contract)
-    ]
+    violations = [violation for path in _python_files() for violation in _scan_file(path, contract)]
     if violations:
         print(json.dumps(violations, ensure_ascii=False, indent=2))
         return 1

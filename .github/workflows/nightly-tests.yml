@@ -378,3 +378,11 @@ jobs:
             --timeout=180 \
             --timeout-method=thread \
             --durations=20
+
+      - name: Run canonical publication and runtime-profile evidence on PostgreSQL
+        run: |
+          python -m pytest \
+            tests/unit/data_center/test_published_query_ports.py \
+            tests/unit/data_center/test_reconciliation_and_query_budget.py \
+            tests/unit/config_center/test_runtime_config_control_plane.py \
+            -q --timeout=180

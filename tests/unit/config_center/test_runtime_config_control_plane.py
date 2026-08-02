@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from math import ceil
 from uuid import uuid4
 
 import pytest
@@ -48,7 +49,14 @@ class _Profiles:
         return next((item for item in self.saved if item.profile_id == profile_id), None)
 
     def get_active(self, environment: str) -> RuntimeConfigProfile | None:
-        return next((item for item in self.saved if item.environment == environment and item.status is RuntimeProfileStatus.ACTIVE), None)
+        return next(
+            (
+                item
+                for item in self.saved
+                if item.environment == environment and item.status is RuntimeProfileStatus.ACTIVE
+            ),
+            None,
+        )
 
 
 class _Values:
@@ -272,6 +280,34 @@ def test_storage_pressure_guard_uses_effective_capacity_and_blocks_without_polic
     assert report.state is StoragePressureState.CRITICAL
     blocked = StoragePressureGuard(_Budget(None)).evaluate(used_bytes=1)
     assert blocked.state is StoragePressureState.BLOCKED
+
+
+@pytest.mark.parametrize("capacity_gib", [60, 90, 120])
+def test_storage_pressure_fault_injection_covers_non_default_capacity_profiles(
+    capacity_gib: int,
+) -> None:
+    """Warning, critical, and emergency watermarks scale with active capacity."""
+
+    capacity = capacity_gib * 1024**3
+    policy = StorageBudgetPolicy(
+        policy_key=f"fault-{capacity_gib}g",
+        version=1,
+        configured_capacity_bytes=capacity,
+        raw_budget_ratio=0.1,
+        quarantine_budget_ratio=0.1,
+        database_budget_ratio=0.4,
+        logs_budget_ratio=0.1,
+        emergency_reserve_ratio=0.05,
+        warning_ratio=0.7,
+        critical_ratio=0.85,
+        active=True,
+    )
+    guard = StoragePressureGuard(_Budget(policy))
+
+    assert guard.evaluate(used_bytes=int(capacity * 0.69)).state is StoragePressureState.HEALTHY
+    assert guard.evaluate(used_bytes=ceil(capacity * 0.70)).state is StoragePressureState.WARNING
+    assert guard.evaluate(used_bytes=ceil(capacity * 0.85)).state is StoragePressureState.CRITICAL
+    assert guard.evaluate(used_bytes=ceil(capacity * 0.95)).state is StoragePressureState.EMERGENCY
 
 
 @pytest.mark.django_db

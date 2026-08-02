@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from datetime import date
 
-from apps.data_center.application.public import get_news_repository_port
+from apps.data_center.application.public import (
+    get_current_publication,
+    get_news_repository_port,
+)
 from apps.data_center.domain.entities import NewsFact
 from apps.sentiment.infrastructure.providers import (
     SentimentAlertRepository,
@@ -21,6 +24,11 @@ def get_market_news_for_sentiment(
 ) -> list[NewsFact]:
     """Return market-wide news for sentiment calculation via data_center."""
 
+    # Sentiment is a decision-facing aggregation.  A non-empty canonical fact
+    # is not sufficient without an active market.news Publication; fail closed
+    # rather than silently scoring an unpublished/stale snapshot.
+    if get_current_publication("market.news", "current") is None:
+        return []
     return get_news_repository_port().list_market_news_for_date(target_date, limit=limit)
 
 

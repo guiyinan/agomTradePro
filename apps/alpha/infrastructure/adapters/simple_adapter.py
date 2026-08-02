@@ -12,14 +12,14 @@ Simple Alpha Provider
 import logging
 import math
 from datetime import date, datetime, timedelta
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 from django.conf import settings
 from django.utils import timezone
 
 from apps.data_center.application.public import (
     get_financial_facts,
-    get_latest_quote_payloads,
+    get_published_quote_payloads,
     get_valuation_facts,
     list_active_stock_codes,
     list_valuation_covered_codes,
@@ -96,9 +96,9 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
     # 因子权重配置
     DEFAULT_FACTOR_WEIGHTS = {
-        "pe_inv": 0.25,      # PE 倒数（越小越好，所以用倒数）
-        "pb_inv": 0.25,      # PB 倒数
-        "roe": 0.30,         # ROE（越大越好）
+        "pe_inv": 0.25,  # PE 倒数（越小越好，所以用倒数）
+        "pb_inv": 0.25,  # PB 倒数
+        "roe": 0.30,  # ROE（越大越好）
         "dividend_yield": 0.20,  # 股息率（越大越好）
     }
 
@@ -142,8 +142,15 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             has_data = bool(list_valuation_covered_codes(as_of=date.today()))
             quote_cutoff = timezone.now() - timedelta(hours=4)
             active_codes = list_active_stock_codes()[:100]
+            quote_payload = get_published_quote_payloads(active_codes)
+            quote_rows = cast(list[dict[str, object]], quote_payload.get("rows", []))
             has_fresh_quotes = bool(
-                get_latest_quote_payloads(active_codes, observed_after=quote_cutoff)
+                [
+                    row
+                    for row in quote_rows
+                    if str(row.get("snapshot_at") or "")
+                    and datetime.fromisoformat(str(row["snapshot_at"])) >= quote_cutoff
+                ]
             )
 
             if has_data or has_fresh_quotes:
@@ -192,10 +199,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         score_universe_id = pool_scope.universe_id if pool_scope is not None else universe_id
 
         # 2. 获取基本面数据
-        fundamental_data, data_quality = self._get_fundamental_data(
-            stock_list,
-            intended_trade_date
-        )
+        fundamental_data, data_quality = self._get_fundamental_data(stock_list, intended_trade_date)
 
         min_usable_fundamental_count = min(top_n, max(3, int(len(stock_list) * 0.3)))
         if not fundamental_data or len(fundamental_data) < min_usable_fundamental_count:
@@ -240,9 +244,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         scores = self._compute_scores(fundamental_data, score_universe_id, intended_trade_date)
 
         if not scores:
-            return self._create_error_result(
-                "计算评分失败：所有股票的基本面数据不完整"
-            )
+            return self._create_error_result("计算评分失败：所有股票的基本面数据不完整")
 
         # 4. 排序并取前 N
         scores.sort(key=lambda s: s.score, reverse=True)
@@ -274,7 +276,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 "scope_hash": pool_scope.scope_hash if pool_scope else None,
                 "scope_label": pool_scope.display_label if pool_scope else None,
                 "scope_metadata": pool_scope.to_dict() if pool_scope else {},
-            }
+            },
         )
 
     def _get_universe_stocks(
@@ -321,9 +323,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             return []
 
     def _get_fundamental_data(
-        self,
-        stock_list: list[str],
-        trade_date: date
+        self, stock_list: list[str], trade_date: date
     ) -> tuple[dict[str, _FundamentalRecord], _FundamentalDataQuality]:
         """
         从数据库获取真实的基本面数据。
@@ -402,7 +402,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                         "has_pb": has_pb,
                         "has_roe": has_roe,
                         "has_dividend": has_dividend,
-                    }
+                    },
                 }
 
                 if has_pe and has_pb and has_roe and has_dividend:
@@ -429,10 +429,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             return {}, data_quality
 
     def _compute_scores(
-        self,
-        fundamental_data: dict[str, _FundamentalRecord],
-        universe_id: str,
-        trade_date: date
+        self, fundamental_data: dict[str, _FundamentalRecord], universe_id: str, trade_date: date
     ) -> list[StockScore]:
         """
         计算综合评分
@@ -448,9 +445,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         scores: list[StockScore] = []
 
         # 1. 提取因子值
-        factor_values: dict[str, list[float]] = {
-            name: [] for name in self._factor_weights
-        }
+        factor_values: dict[str, list[float]] = {name: [] for name in self._factor_weights}
         stock_list = list(fundamental_data.keys())
 
         for stock in stock_list:
@@ -475,9 +470,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 range_val = max_val - min_val
 
                 if range_val > 0:
-                    normalized_factors[factor_name] = [
-                        (v - min_val) / range_val for v in values
-                    ]
+                    normalized_factors[factor_name] = [(v - min_val) / range_val for v in values]
                 else:
                     normalized_factors[factor_name] = [0.5] * len(values)
 
@@ -495,24 +488,28 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 total_score += norm_value * weight
 
             # 根据数据完整性调整置信度
-            complete_fields = sum([
-                data_quality.get("has_pe", False),
-                data_quality.get("has_pb", False),
-                data_quality.get("has_roe", False),
-                data_quality.get("has_dividend", False),
-            ])
+            complete_fields = sum(
+                [
+                    data_quality.get("has_pe", False),
+                    data_quality.get("has_pb", False),
+                    data_quality.get("has_roe", False),
+                    data_quality.get("has_dividend", False),
+                ]
+            )
             confidence = 0.4 + (complete_fields / 4) * 0.4  # 0.4 - 0.8
 
-            scores.append(StockScore(
-                code=stock,
-                score=total_score,
-                rank=0,  # 稍后设置
-                factors=factor_scores,
-                source="simple",
-                confidence=confidence,
-                asof_date=trade_date,
-                universe_id=universe_id,
-            ))
+            scores.append(
+                StockScore(
+                    code=stock,
+                    score=total_score,
+                    rank=0,  # 稍后设置
+                    factors=factor_scores,
+                    source="simple",
+                    confidence=confidence,
+                    asof_date=trade_date,
+                    universe_id=universe_id,
+                )
+            )
 
         return scores
 
@@ -527,12 +524,13 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
         quote_cutoff = timezone.now() - timedelta(hours=4)
         normalized_codes = [str(code or "").strip().upper() for code in stock_list if code]
+        quote_payload = get_published_quote_payloads(normalized_codes)
+        quote_rows = cast(list[dict[str, object]], quote_payload.get("rows", []))
         latest_by_code = {
             str(snapshot.get("asset_code") or "").upper(): snapshot
-            for snapshot in get_latest_quote_payloads(
-                normalized_codes,
-                observed_after=quote_cutoff,
-            )
+            for snapshot in quote_rows
+            if str(snapshot.get("snapshot_at") or "")
+            and datetime.fromisoformat(str(snapshot["snapshot_at"])) >= quote_cutoff
         }
 
         raw_rows: list[_QuoteMomentumRow] = []
@@ -584,11 +582,15 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 latest_snapshot_at = snapshot_at
 
         if not raw_rows:
-            return [], {
-                "quote_count": len(latest_by_code),
-                "price_momentum_count": 0,
-                "quote_error": "账户池内没有 freshness 阈值内的可评分实时行情。",
-            }, None
+            return (
+                [],
+                {
+                    "quote_count": len(latest_by_code),
+                    "price_momentum_count": 0,
+                    "quote_error": "账户池内没有 freshness 阈值内的可评分实时行情。",
+                },
+                None,
+            )
 
         normalized_factors = {
             "intraday_return": self._normalize_factor_values(
@@ -597,9 +599,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             "range_position": self._normalize_factor_values(
                 [row["range_position"] for row in raw_rows]
             ),
-            "liquidity": self._normalize_factor_values(
-                [row["liquidity"] for row in raw_rows]
-            ),
+            "liquidity": self._normalize_factor_values([row["liquidity"] for row in raw_rows]),
             "open_gap": self._normalize_factor_values([row["open_gap"] for row in raw_rows]),
         }
         weights = {
@@ -610,13 +610,14 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         }
 
         scores: list[StockScore] = []
-        asof_date = timezone.localtime(latest_snapshot_at).date() if latest_snapshot_at else intended_trade_date
+        asof_date = (
+            timezone.localtime(latest_snapshot_at).date()
+            if latest_snapshot_at
+            else intended_trade_date
+        )
         staleness_days = max((intended_trade_date - asof_date).days, 0)
         for index, row in enumerate(raw_rows):
-            factors = {
-                factor: normalized_factors[factor][index]
-                for factor in weights
-            }
+            factors = {factor: normalized_factors[factor][index] for factor in weights}
             total_score = sum(factors[factor] * weight for factor, weight in weights.items())
             confidence = 0.65
             if float(row["liquidity"]) > 0:
@@ -652,12 +653,18 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             )
             for index, score in enumerate(scores, start=1)
         ]
-        return ranked_scores, {
-            "quote_count": len(latest_by_code),
-            "price_momentum_count": len(ranked_scores),
-            "latest_snapshot_at": latest_snapshot_at.isoformat() if latest_snapshot_at else None,
-            "quote_cutoff": quote_cutoff.isoformat(),
-        }, staleness_days
+        return (
+            ranked_scores,
+            {
+                "quote_count": len(latest_by_code),
+                "price_momentum_count": len(ranked_scores),
+                "latest_snapshot_at": (
+                    latest_snapshot_at.isoformat() if latest_snapshot_at else None
+                ),
+                "quote_cutoff": quote_cutoff.isoformat(),
+            },
+            staleness_days,
+        )
 
     @staticmethod
     def _normalize_factor_values(values: list[float]) -> list[float]:
@@ -670,11 +677,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             return [0.5] * len(values)
         return [(value - min_value) / range_value for value in values]
 
-    def get_factor_exposure(
-        self,
-        stock_code: str,
-        trade_date: date
-    ) -> dict[str, float]:
+    def get_factor_exposure(self, stock_code: str, trade_date: date) -> dict[str, float]:
         """
         获取因子暴露
 

@@ -1,6 +1,6 @@
 # 数据中台唯一真源与数据可靠性架构重构计划（2026-08-02）
 
-> 状态：实施中（M0-M4 控制面与 D0/D1/D4-D7 本地关键消费者收口已落地；全入口 Publication 强制切读、D2/D3/D8-D9、M9-M10 尚未完成）
+> 状态：实施中（M0-M4 控制面、D0/D1/D4-D7 本地关键消费者和 D2/D3/D8-D9 的本地 Publication-only 端口已收口；生产观察窗口、PostgreSQL/M9-M10 尚未完成）
 > 级别：架构级 / 数据级 / 生产级重构  
 > 适用版本：0.8.0 之后的下一条独立主线  
 > 目标：所有外部事实数据及所有业务计算输入统一经过 Data Center；系统只有一个可发布的数据真源、一套可靠性语义和一条可审计的数据链路，并能在生产默认 90 GiB、运行时可调整的容量策略下持续运行  
@@ -150,6 +150,34 @@
 
 - D2/D3/D8/D9 的所有内部业务聚合尚未证明均为 Publication-only；历史/维护 Query Port 仍保留，Publication 观察窗口和生产 publication 记录未在本地 SQLite 以外验证。
 - 完整 D0-D9 shadow reconciliation、覆盖与查询 P95、PostgreSQL migration/锁预算、非默认容量 profile 故障注入、CI nodeid 全量执行、VPS/备份/恢复和 M9 旧表删除仍未完成；本批不触发部署。
+
+## 实施记录（2026-08-02，第六批）
+
+本批次继续只做本地可验证的消费者切读、旧宏观链路清理和治理护栏；不部署 VPS、不 push、不切生产、不删除旧表。
+
+已落地：
+
+- D3 旧 `MacroIndicator` ORM 不再被生产命令或接口 serializer 读取；`migrate_usd_data` 改为通过 Data Center Public Port 读取/批量写回 canonical `MacroFact`，保留备份确认、dry-run、手动汇率和全批次 fail-closed 语义。legacy-access guard 改为只追踪真实 legacy-model import，避免把同名 Domain 实体误报为 ORM 访问。
+- D2/D3 当前业务消费者收口：Alpha quote momentum/health、Pulse price/quote/macro 输入、Regime latest/current macro 读取统一使用 `get_published_*` 端口；显式日期/as_of 的历史查询继续使用历史端口，避免把回放语义改成 current。
+- D7/D8/D9 新增 sector membership、market news、capital-flow 的 Publication-only Query Port；缺少 active Publication 时先返回空 rows、`must_not_use_for_decision=true` 和 `canonical_publication_missing`，不会先查询事实表。Sector 当前映射和 Sentiment 新闻聚合均 fail closed。
+- M3 增加纯 Domain shadow reconciliation 分类（same、expected_difference、data_missing、semantic_conflict、code_defect）及 Query Budget（查询数/P95）契约；新增 `data_center_query_budgets` deterministic guard 和 3 个 D7-D9 预算登记。
+- runtime config inventory 的 49 条环境参数引用增加显式 `environment_bootstrap` 分类；未分类引用由 guard 阻断，避免将 env/settings 隐形 fallback 冒充 Config Center 真源。
+- CI fast feedback 增加 legacy/query-budget/runtime-config guards；nightly PostgreSQL job 增加 publication/query-budget/runtime-profile nodeid 执行步骤。仅提交 CI 规则，不代表本地已拥有 PostgreSQL 或生产数据证据。
+
+第六批机器证据：
+
+- `python scripts/data_center_architecture_inventory.py --write`：`provider_imports_outside_data_center=0`、`cross_app_orm_imports=56`、`legacy_fact_references=144`、`current_surface_references=2834`、`data_write_task_decorators=51`、`runtime_parameter_references=49`。
+- `python scripts/check_data_center_legacy_fact_access.py`、`python scripts/check_data_center_query_budgets.py`、`python scripts/check_runtime_config_coverage.py`、`python scripts/check_current_data_contracts.py`：全部通过；current-data surface 为 28，query budgets 为 3，runtime refs 为 49 条且全部有分类。
+- `python manage.py check`、`python manage.py makemigrations --check --dry-run`、`python scripts/verify_architecture.py --include-audit --format text`：分别为 Django 0 issues、No changes detected、boundary 0/audit 0。
+- `python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json`：0 violation；同时把 `apps/data_center/infrastructure/models.py` 的既有 1,746 行体量登记为 P1 split-model-registry remediation（仅锁定继续增长，不视为已拆分）。
+- 受影响本地定向回归：Publication/reconciliation/config/macro command/Alpha/Pulse 共 33 passed；Regime 60 passed；Sector/Sentiment 77 passed；Data Center API 31 passed；SDK/MCP 33 passed；Alpha 全量 119 passed；新增/修改生产文件 ruff、black、isort 和 mypy regression 全部通过。
+- PostgreSQL CI evidence 的 nodeid 已登记但尚未在本地执行；完整 TUI workbench 全量 migration/setup 超时仍保留为未验证风险，配置中心定向用例已通过。
+
+本批明确未完成：
+
+- 生产 PostgreSQL migration/索引锁预算、D0-D9 真实行数/覆盖率/最新观测时间画像、legacy/canonical shadow export 和至少 2/3 个调度观察窗口；本地 SQLite 只能证明代码契约，不能替代生产验收。
+- M9 旧表、旧 admin、历史迁移和 maintenance Query Port 仍保留，等待生产零访问窗口、verified backup/restore 和独立 release；不以静态 guard 通过冒充删表完成。
+- VPS/备份/恢复、真实容量水位与 WAL/Redis/Raw 预算、M10 生产切读均未执行；遵守用户“先不部署”的约束。
 
 ## 1. 结论先行
 

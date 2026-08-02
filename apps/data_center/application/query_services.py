@@ -9,6 +9,7 @@ from apps.data_center.application.query_use_cases import latest_completed_cn_mar
 from apps.data_center.composition import (
     get_asset_repository,
     get_canonical_publication_repository,
+    get_capital_flow_repository,
     get_data_center_diagnostic_repository,
     get_financial_fact_repository,
     get_indicator_catalog_repository,
@@ -16,9 +17,11 @@ from apps.data_center.composition import (
     get_macro_fact_cache_warmup_repository,
     get_macro_fact_repository,
     get_market_thermometer_snapshot_repository,
+    get_news_repository,
     get_price_bar_repository,
     get_provider_config_repository,
     get_quote_snapshot_repository,
+    get_sector_membership_repository,
     get_valuation_fact_repository,
 )
 from apps.data_center.domain.enums import AssetType, MarketExchange
@@ -207,6 +210,18 @@ def _publication_gate(dataset_key: str, publication_key: str) -> dict[str, objec
     }
 
 
+def _blocked_publication_result() -> dict[str, object]:
+    """Return the stable fail-closed shape for an unpublished current read."""
+
+    return {
+        "rows": [],
+        "publication_id": None,
+        "published_at": None,
+        "must_not_use_for_decision": True,
+        "blocked_reason": "canonical_publication_missing",
+    }
+
+
 def query_published_quote_payloads(
     asset_codes: list[str],
     *,
@@ -216,12 +231,7 @@ def query_published_quote_payloads(
 
     gate = _publication_gate("equity.quote.snapshot", publication_key)
     if gate is None:
-        return {
-            "rows": [],
-            "publication_id": None,
-            "must_not_use_for_decision": True,
-            "blocked_reason": "canonical_publication_missing",
-        }
+        return _blocked_publication_result()
     return {"rows": query_latest_quote_payloads(asset_codes), **gate}
 
 
@@ -237,12 +247,7 @@ def query_published_price_bar_series(
 
     gate = _publication_gate("equity.price.bar", publication_key)
     if gate is None:
-        return {
-            "rows": [],
-            "publication_id": None,
-            "must_not_use_for_decision": True,
-            "blocked_reason": "canonical_publication_missing",
-        }
+        return _blocked_publication_result()
     return {
         "rows": fetch_price_bar_payloads(
             asset_code=asset_code,
@@ -252,6 +257,59 @@ def query_published_price_bar_series(
         ),
         **gate,
     }
+
+
+def query_published_sector_memberships(
+    sector_code: str,
+    *,
+    as_of: date | None = None,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read sector membership facts only from an active publication."""
+
+    gate = _publication_gate("sector.membership", publication_key)
+    if gate is None:
+        return _blocked_publication_result()
+    rows = get_sector_membership_repository().get_members(sector_code, as_of)
+    return {"rows": [row.to_dict() for row in rows], **gate}
+
+
+def query_published_market_news(
+    *,
+    asset_code: str | None = None,
+    target_date: date | None = None,
+    limit: int = 50,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read market news only from an active publication."""
+
+    gate = _publication_gate("market.news", publication_key)
+    if gate is None:
+        return _blocked_publication_result()
+    repository = get_news_repository()
+    rows = (
+        repository.list_market_news_for_date(target_date, limit=limit)
+        if target_date is not None and not asset_code
+        else repository.get_recent(asset_code, limit=limit)
+    )
+    return {"rows": [row.to_dict() for row in rows], **gate}
+
+
+def query_published_capital_flow_series(
+    asset_code: str,
+    *,
+    start: date | None = None,
+    end: date | None = None,
+    limit: int | None = None,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read capital-flow facts only from an active publication."""
+
+    gate = _publication_gate("market.capital_flow", publication_key)
+    if gate is None:
+        return _blocked_publication_result()
+    rows = get_capital_flow_repository().get_series(asset_code, start, end, limit)
+    return {"rows": [row.to_dict() for row in rows], **gate}
 
 
 def get_macro_indicator_metadata(indicator_code: str) -> dict[str, Any]:
@@ -289,10 +347,16 @@ def get_runtime_macro_metadata_map() -> dict[str, dict[str, Any]]:
             for rule in unit_repo.list_by_indicator(catalog.code)
             if rule.is_active and not rule.source_type
         ]
-        selected_rule = sorted(rules, key=lambda rule: (-rule.priority, rule.id or 0))[0] if rules else None
+        selected_rule = (
+            sorted(rules, key=lambda rule: (-rule.priority, rule.id or 0))[0] if rules else None
+        )
         unit = ""
         if selected_rule is not None:
-            unit = selected_rule.display_unit or selected_rule.original_unit or selected_rule.storage_unit
+            unit = (
+                selected_rule.display_unit
+                or selected_rule.original_unit
+                or selected_rule.storage_unit
+            )
         extra = dict(catalog.extra)
         metadata[catalog.code] = {
             "name": catalog.name_cn,

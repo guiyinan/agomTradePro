@@ -1,10 +1,10 @@
 {
   "counts": {
     "cross_app_orm_imports": 56,
-    "current_surface_references": 2824,
+    "current_surface_references": 2834,
     "data_write_task_decorators": 51,
     "external_http_imports_for_review": 7,
-    "legacy_fact_references": 148,
+    "legacy_fact_references": 144,
     "provider_imports_outside_data_center": 0,
     "runtime_parameter_references": 49
   },
@@ -4837,127 +4837,162 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 205,
+      "line": 206,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical macro values for a bounded consumer snapshot.\"\"\""
     },
     {
-      "line": 253,
+      "line": 254,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 255,
+      "line": 256,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 263,
+      "line": 264,
       "path": "apps/data_center/application/public.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 268,
+      "line": 269,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 304,
+      "line": 284,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 300,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 318,
+      "path": "apps/data_center/application/public.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 356,
       "path": "apps/data_center/application/public.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 307,
+      "line": 359,
       "path": "apps/data_center/application/public.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 311,
+      "line": 363,
       "path": "apps/data_center/application/public.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 313,
+      "line": 365,
       "path": "apps/data_center/application/public.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 316,
+      "line": 368,
       "path": "apps/data_center/application/public.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 317,
+      "line": 369,
       "path": "apps/data_center/application/public.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 404,
+      "line": 466,
       "path": "apps/data_center/application/public.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
     {
-      "line": 35,
+      "line": 38,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 104,
+      "line": 107,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 125,
+      "line": 128,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest canonical macro indicator value for one code.\"\"\""
     },
     {
-      "line": 127,
+      "line": 130,
       "path": "apps/data_center/application/query_services.py",
       "text": "latest = get_macro_fact_repository().get_latest(indicator_code)"
     },
     {
-      "line": 128,
+      "line": 131,
       "path": "apps/data_center/application/query_services.py",
       "text": "return float(latest.value) if latest is not None else None"
     },
     {
-      "line": 166,
+      "line": 169,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read macro facts only when a current publication exists."
     },
     {
-      "line": 168,
+      "line": 171,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty but unpublished fact"
     },
     {
-      "line": 197,
+      "line": 200,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return publication metadata or ``None`` for a blocked current read.\"\"\""
     },
     {
-      "line": 213,
+      "line": 214,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "\"\"\"Return the stable fail-closed shape for an unpublished current read.\"\"\""
+    },
+    {
+      "line": 228,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 231,
+      "line": 241,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 316,
+      "line": 266,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 282,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 304,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 380,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 371,
+      "line": 435,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 384,
+      "line": 448,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return the latest market thermometer snapshot as a JSON-safe payload.\"\"\""
     },
@@ -5045,6 +5080,11 @@
       "line": 134,
       "path": "apps/data_center/domain/protocols.py",
       "text": "\"\"\"Optional provider capability for one-request current valuation batches.\"\"\""
+    },
+    {
+      "line": 33,
+      "path": "apps/data_center/domain/reconciliation.py",
+      "text": "\"\"\"Immutable summary suitable for audit logs and CI evidence.\"\"\""
     },
     {
       "line": 83,
@@ -5442,7 +5482,7 @@
       "text": "open=_safe_decimal(latest.get(\"open\")),"
     },
     {
-      "line": 385,
+      "line": 409,
       "path": "apps/data_center/infrastructure/macro_fact_repositories.py",
       "text": "\"summary\": {"
     },
@@ -10282,12 +10322,12 @@
       "text": "return latest.observed_at if latest is not None else None"
     },
     {
-      "line": 102,
+      "line": 103,
       "path": "apps/regime/infrastructure/macro_data_provider.py",
       "text": "\"\"\"Read the current catalog period type without retaining stale governance state.\"\"\""
     },
     {
-      "line": 536,
+      "line": 542,
       "path": "apps/regime/infrastructure/macro_data_provider.py",
       "text": "logger.error(f\"Error getting latest observation date for {indicator_code}: {e}\")"
     },
@@ -10652,9 +10692,14 @@
       "text": "raise ValidationError({\"is_current\": \"current membership must not have an exit date\"})"
     },
     {
-      "line": 139,
+      "line": 142,
       "path": "apps/sector/infrastructure/repositories.py",
       "text": "\"\"\"Return current stock-to-sector-name mapping for policy influence checks.\"\"\""
+    },
+    {
+      "line": 144,
+      "path": "apps/sector/infrastructure/repositories.py",
+      "text": "if get_current_publication(\"sector.membership\", \"current\") is None:"
     },
     {
       "line": 184,
@@ -10845,6 +10890,11 @@
       "line": 72,
       "path": "apps/sentiment/application/pulse_facade.py",
       "text": "if not latest.data_sufficient:"
+    },
+    {
+      "line": 30,
+      "path": "apps/sentiment/application/repository_provider.py",
+      "text": "if get_current_publication(\"market.news\", \"current\") is None:"
     },
     {
       "line": 37,
@@ -14958,6 +15008,11 @@
         "symbol": "MacroIndicator"
       },
       {
+        "line": 134,
+        "path": "apps/data_center/infrastructure/macro_fact_repositories.py",
+        "symbol": "MacroIndicator"
+      },
+      {
         "line": 386,
         "path": "apps/equity/infrastructure/adapters.py",
         "symbol": "MacroIndicator"
@@ -15148,31 +15203,6 @@
         "symbol": "MacroIndicator"
       },
       {
-        "line": 15,
-        "path": "apps/macro/interface/serializers.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 19,
-        "path": "apps/macro/interface/serializers.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 17,
-        "path": "apps/macro/management/commands/migrate_usd_data.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 47,
-        "path": "apps/macro/management/commands/migrate_usd_data.py",
-        "symbol": "MacroIndicator"
-      },
-      {
-        "line": 79,
-        "path": "apps/macro/management/commands/migrate_usd_data.py",
-        "symbol": "MacroIndicator"
-      },
-      {
         "line": 10,
         "path": "apps/regime/application/repository_provider.py",
         "symbol": "MacroIndicator"
@@ -15223,42 +15253,37 @@
         "symbol": "MacroIndicator"
       },
       {
-        "line": 31,
-        "path": "apps/regime/infrastructure/macro_data_provider.py",
-        "symbol": "MacroIndicator"
-      },
-      {
         "line": 32,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 121,
+        "line": 33,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 135,
+        "line": 122,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 153,
+        "line": 136,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 169,
+        "line": 154,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 180,
+        "line": 170,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 200,
+        "line": 181,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
@@ -15268,72 +15293,77 @@
         "symbol": "MacroIndicator"
       },
       {
-        "line": 235,
+        "line": 217,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 277,
+        "line": 247,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 306,
+        "line": 289,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 309,
+        "line": 318,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 397,
+        "line": 321,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 406,
+        "line": 403,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 418,
+        "line": 412,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 429,
+        "line": 424,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 625,
+        "line": 435,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 647,
+        "line": 631,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 654,
+        "line": 653,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 691,
+        "line": 660,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 717,
+        "line": 697,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },
       {
-        "line": 745,
+        "line": 723,
+        "path": "apps/regime/infrastructure/macro_data_provider.py",
+        "symbol": "MacroIndicator"
+      },
+      {
+        "line": 751,
         "path": "apps/regime/infrastructure/macro_data_provider.py",
         "symbol": "MacroIndicator"
       },

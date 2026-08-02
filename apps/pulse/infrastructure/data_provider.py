@@ -10,13 +10,14 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
+from typing import cast
 from zoneinfo import ZoneInfo
 
 from apps.data_center.application.public import (
-    get_latest_quote_payloads,
-    get_macro_fact_series,
     get_macro_indicator_catalog,
-    get_price_bar_series,
+    get_published_macro_fact_series,
+    get_published_price_bar_series,
+    get_published_quote_payloads,
     is_direct_macro_input_allowed,
 )
 from apps.pulse.domain.entities import PulseConfig, PulseIndicatorReading
@@ -427,7 +428,13 @@ class DjangoPulseDataProvider:
             return self._load_sentiment_module_series(as_of_date)
         if self._is_asset_code(code):
             series: list[PulseSeriesPoint] = []
-            rows = get_price_bar_series(code, start=lookback, end=as_of_date, limit=500)
+            published_prices = get_published_price_bar_series(
+                code,
+                start=lookback,
+                end=as_of_date,
+                limit=500,
+            )
+            rows = cast(list[dict[str, object]], published_prices.get("rows", []))
             for row in rows:
                 bar_date = date.fromisoformat(str(row["timestamp"]))
                 numeric_close = safe_float(row.get("close"))
@@ -441,19 +448,24 @@ class DjangoPulseDataProvider:
                         source_kind="price_bar_close",
                     )
                 )
-            latest_quotes = get_latest_quote_payloads([code])
+            published_quotes = get_published_quote_payloads([code])
+            latest_quotes = cast(list[dict[str, object]], published_quotes.get("rows", []))
             if latest_quotes:
                 latest_quote = latest_quotes[0]
                 snapshot_value = latest_quote.get("snapshot_at")
-                quote_datetime = datetime.fromisoformat(str(snapshot_value)) if snapshot_value else None
+                quote_datetime = (
+                    datetime.fromisoformat(str(snapshot_value)) if snapshot_value else None
+                )
                 quote_date = (
                     quote_datetime.astimezone(CN_MARKET_TIMEZONE).date()
                     if quote_datetime is not None and quote_datetime.tzinfo is not None
                     else None
                 )
                 latest_bar_date = series[-1].observed_at if series else None
-                if quote_date is not None and quote_date <= as_of_date and (
-                    latest_bar_date is None or quote_date > latest_bar_date
+                if (
+                    quote_date is not None
+                    and quote_date <= as_of_date
+                    and (latest_bar_date is None or quote_date > latest_bar_date)
                 ):
                     quote_value = safe_float(latest_quote.get("current_price"))
                     if quote_value is not None:
@@ -474,13 +486,13 @@ class DjangoPulseDataProvider:
             )
             return []
 
-        facts = get_macro_fact_series(
+        published_macro = get_published_macro_fact_series(
             code,
             start=lookback,
             end=as_of_date,
             limit=500,
-            use_pit=True,
         )
+        facts = cast(list[dict[str, object]], published_macro.get("rows", []))
         macro_series: list[PulseSeriesPoint] = []
         for fact in facts:
             numeric_value = safe_float(fact.get("value"))

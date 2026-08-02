@@ -1033,6 +1033,99 @@
       ]
     },
     {
+      "id": "data_center.publication_only_d2_d3",
+      "surface": "Current quote and macro consumers use Data Center publication-only ports",
+      "source_files": [
+        "apps/data_center/application/public.py",
+        "apps/alpha/infrastructure/adapters/simple_adapter.py",
+        "apps/pulse/infrastructure/data_provider.py",
+        "apps/regime/infrastructure/macro_data_provider.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/public.py": [
+          "def get_published_quote_payloads(",
+          "def get_published_price_bar_series(",
+          "def get_published_macro_fact_series("
+        ],
+        "apps/alpha/infrastructure/adapters/simple_adapter.py": [
+          "get_published_quote_payloads(active_codes)",
+          "get_published_quote_payloads(normalized_codes)"
+        ],
+        "apps/pulse/infrastructure/data_provider.py": [
+          "get_published_price_bar_series(",
+          "get_published_quote_payloads([code])",
+          "get_published_macro_fact_series("
+        ],
+        "apps/regime/infrastructure/macro_data_provider.py": [
+          "get_published_macro_fact_series(code, limit=1)",
+          "get_published_macro_fact_series(indicator_code, limit=max(limit, 1))"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "alpha_quote_gate",
+          "test_file": "tests/unit/alpha/test_t3b_provider_contracts.py",
+          "test_function": "test_simple_quote_fallback_rejects_missing_and_nonpositive_prices"
+        },
+        {
+          "case": "pulse_direct_input_blocked",
+          "test_file": "tests/unit/pulse/test_data_provider_guardrails.py",
+          "test_function": "test_pulse_data_provider_blocks_cumulative_level_direct_inputs"
+        },
+        {
+          "case": "published_fact_query_contract",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_sector_memberships_fail_closed_without_publication"
+        }
+      ]
+    },
+    {
+      "id": "data_center.publication_only_d7_d9",
+      "surface": "Data Center Public Ports for sector membership, market news, and capital flow",
+      "source_files": [
+        "apps/data_center/application/query_services.py",
+        "apps/data_center/application/public.py",
+        "apps/sector/infrastructure/repositories.py",
+        "apps/sentiment/application/repository_provider.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/query_services.py": [
+          "def query_published_sector_memberships(",
+          "def query_published_market_news(",
+          "def query_published_capital_flow_series(",
+          "canonical_publication_missing"
+        ],
+        "apps/data_center/application/public.py": [
+          "def get_published_sector_memberships(",
+          "def get_published_market_news(",
+          "def get_published_capital_flow_series("
+        ],
+        "apps/sector/infrastructure/repositories.py": [
+          "get_current_publication(\"sector.membership\", \"current\")"
+        ],
+        "apps/sentiment/application/repository_provider.py": [
+          "get_current_publication(\"market.news\", \"current\")"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "sector_missing_publication_blocks",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_sector_memberships_fail_closed_without_publication"
+        },
+        {
+          "case": "news_flow_publication_evidence",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_news_and_capital_flow_preserve_publication_evidence"
+        },
+        {
+          "case": "capital_flow_query_not_executed_when_blocked",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_capital_flow_blocks_before_querying_repository"
+        }
+      ]
+    },
+    {
       "id": "data_center.publication_gated_reads",
       "surface": "Data Center API/SDK/MCP publication-gated decision reads",
       "source_files": [

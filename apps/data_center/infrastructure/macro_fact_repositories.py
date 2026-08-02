@@ -121,6 +121,30 @@ class MacroFactRepository:
             self._from_model(candidate.model) for candidate in reversed(selection.facts[-limit:])
         ]
 
+    def list_by_original_unit(
+        self,
+        original_unit: str,
+        *,
+        limit: int = 100_000,
+    ) -> list[MacroFact]:
+        """List canonical facts whose governance evidence preserves a source unit.
+
+        This bounded maintenance port is deliberately scoped to the canonical
+        ``data_center_macro_fact`` table.  It exists for one-time repairs such
+        as USD/CNY normalization and never exposes the legacy ``MacroIndicator``
+        projection to callers.
+        """
+
+        normalized_unit = str(original_unit or "").strip()
+        if not normalized_unit:
+            raise ValueError("original_unit must be non-empty")
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100_000:
+            raise ValueError("limit must be an integer between 1 and 100000")
+        rows = MacroFactModel.objects.filter(
+            extra__original_unit__icontains=normalized_unit
+        ).order_by("indicator_code", "reporting_period", "source", "revision_number", "id")[:limit]
+        return [self._from_model(model) for model in rows]
+
     def get_latest(self, indicator_code: str) -> MacroFact | None:
         latest_period = (
             MacroFactModel.objects.filter(indicator_code=indicator_code)

@@ -21,6 +21,15 @@
       "status": "required-for-production"
     }
   ],
+  "runtime_reference_classification": [
+    {
+      "pattern": "^.*(?:env\\(|os\\.getenv|os\\.environ|getenv\\().*$",
+      "classification": "environment_bootstrap",
+      "owner": "platform",
+      "fallback": "explicit_env_or_settings",
+      "description": "Environment reads are startup/bootstrap inputs; they are not silently promoted to Config Center values."
+    }
+  ],
   "definitions": [
     {
       "config_key": "data_center.provider.failover_tolerance",

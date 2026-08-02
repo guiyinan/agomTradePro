@@ -12,7 +12,10 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from apps.data_center.application.public import get_sector_membership_repository_port
+from apps.data_center.application.public import (
+    get_current_publication,
+    get_sector_membership_repository_port,
+)
 from shared.numeric import safe_float
 
 from ..domain.entities import SectorIndex, SectorInfo, SectorRelativeStrength
@@ -138,6 +141,8 @@ class DjangoSectorRepository:
     def get_stock_sector_name_map(self) -> dict[str, list[str]]:
         """Return current stock-to-sector-name mapping for policy influence checks."""
 
+        if get_current_publication("sector.membership", "current") is None:
+            return {}
         canonical_rows = self._dc_membership_repo.list_current(as_of=date.today())
         canonical_mapping: dict[str, list[str]] = {}
         for canonical_row in canonical_rows:

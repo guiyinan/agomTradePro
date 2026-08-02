@@ -7,14 +7,19 @@
 """
 
 import math
+from dataclasses import replace
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
+from apps.data_center.application.public import (
+    list_macro_facts_by_original_unit,
+    save_macro_facts,
+)
+from apps.data_center.domain.entities import MacroFact
 from apps.macro.domain.entities import normalize_currency_unit
 from apps.macro.infrastructure.exchange_rate_config import ExchangeRateService
-from apps.macro.infrastructure.models import MacroIndicator
 
 
 class Command(BaseCommand):
@@ -44,7 +49,7 @@ class Command(BaseCommand):
         self.stdout.write("请按以下步骤操作：")
         self.stdout.write("1. 备份数据：")
         self.stdout.write(
-            "   python manage.py dumpdata macro.MacroIndicatorModel > backup_before_usd_fix.json"
+            "   python manage.py dumpdata data_center.MacroFactModel > backup_before_usd_fix.json"
         )
         self.stdout.write("")
         self.stdout.write("2. 确认备份完成后，运行模拟迁移：")
@@ -75,10 +80,13 @@ class Command(BaseCommand):
                 raise CommandError(str(exc)) from None
             self.stdout.write(f"使用服务获取汇率: {exchange_rate}")
 
-        # 查找所有美元单位的数据
-        usd_indicators = MacroIndicator._default_manager.filter(original_unit__icontains="美元")
+        # 查找 canonical Data Center 中保留原始美元单位证据的数据
+        try:
+            usd_indicators = list_macro_facts_by_original_unit("美元")
+        except (RuntimeError, ValueError) as exc:
+            raise CommandError(str(exc)) from None
 
-        total_count = usd_indicators.count()
+        total_count = len(usd_indicators)
         self.stdout.write(f"找到 {total_count} 条美元口径数据")
 
         if total_count == 0:
@@ -87,14 +95,16 @@ class Command(BaseCommand):
 
         # 统计信息
         migrated_count = 0
+        planned_facts: list[MacroFact] = []
         with transaction.atomic():
             for indicator in usd_indicators:
                 try:
                     # 计算转换后的值
                     old_value = float(indicator.value)
+                    original_unit = str(indicator.extra.get("original_unit") or indicator.unit)
                     new_value, new_unit = normalize_currency_unit(
                         old_value,
-                        indicator.original_unit,
+                        original_unit,
                         exchange_rate=exchange_rate,
                     )
 
@@ -103,18 +113,24 @@ class Command(BaseCommand):
 
                     if dry_run:
                         self.stdout.write(
-                            f"[DRY RUN] {indicator.code} | {indicator.reporting_period}: "
+                            f"[DRY RUN] {indicator.indicator_code} | {indicator.reporting_period}: "
                             f"{old_value:,.0f} → {new_value:,.0f} ({change_pct:+.1f}%)"
                         )
                     else:
-                        # 更新数据
-                        indicator.value = float(new_value)
-                        indicator.unit = new_unit
-                        indicator.save()
-
-                        migrated_count += 1
-                        if migrated_count % 100 == 0:
-                            self.stdout.write(f"已迁移 {migrated_count}/{total_count}...")
+                        # 只更新 canonical facts；旧 MacroIndicator 投影不再写入
+                        planned_facts.append(
+                            replace(
+                                indicator,
+                                value=float(new_value),
+                                unit=new_unit,
+                                extra={
+                                    **indicator.extra,
+                                    "original_unit": original_unit,
+                                    "storage_unit": new_unit,
+                                    "exchange_rate": exchange_rate,
+                                },
+                            )
+                        )
 
                 except Exception as exc:
                     self.stderr.write(
@@ -123,6 +139,11 @@ class Command(BaseCommand):
                         )
                     )
                     raise CommandError("macro_usd_data_migration_failed") from None
+
+            if planned_facts:
+                migrated_count = save_macro_facts(planned_facts)
+                if migrated_count != total_count:
+                    raise CommandError("macro_usd_data_migration_incomplete")
 
         # 输出总结
         self.stdout.write("=" * 60)
